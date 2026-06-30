@@ -20,7 +20,6 @@ import { useInspectorAppointment } from '@/features/schedule/hooks/useInspectorA
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { canTransition } from '../lib/execution-state-machine';
 import type { CapturedLocation, ChecklistResponse } from '../types';
-import { getTimeWindowParts } from '@/features/schedule/lib/time-slot';
 
 export function ExecutionPage() {
   const { appointmentId: appointmentIdParam } = useParams<{ appointmentId: string }>();
@@ -74,7 +73,7 @@ export function ExecutionPage() {
     );
   }
   const topBarSubtitle = appointment
-    ? [appointment.appointmentCode, appointment.propertyAddress, appointment.timeSlot ? getTimeWindowParts(appointment.timeSlot).startTime : null].filter(Boolean).join(' · ')
+    ? [appointment.appointmentCode, appointment.propertyAddress, appointment.timeSlotStart].filter(Boolean).join(' · ')
     : undefined;
 
   const handleStart = async (location: CapturedLocation) => {

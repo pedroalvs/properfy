@@ -22,7 +22,7 @@ function makeAppointment(overrides: Partial<ConstructorParameters<typeof Appoint
     inspectorId: null,
     status: 'SCHEDULED',
     scheduledDate: new Date('2026-04-30T23:00:00.000Z'), // 2026-05-01 09:00 Sydney time
-    timeSlot: '09:00-12:00',
+    timeSlotStart: '09:00', timeSlotEnd: '12:00',
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,

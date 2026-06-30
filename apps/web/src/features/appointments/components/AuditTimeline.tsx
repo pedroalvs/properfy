@@ -57,7 +57,8 @@ const FIELD_LABELS: Record<string, string> = {
   inspector: 'Inspector',
   reviewedBy: 'Reviewed by',
   scheduledDate: 'Scheduled date',
-  timeSlot: 'Time slot',
+  timeSlotStart: 'Start time',
+  timeSlotEnd: 'End time',
   tenantConfirmationStatus: 'Tenant confirmation',
 };
 

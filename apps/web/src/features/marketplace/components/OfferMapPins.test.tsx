@@ -4,8 +4,8 @@ import { OfferMapPins } from './OfferMapPins';
 import type { MarketplaceAppointment } from '../types';
 
 const MOCK_APPOINTMENTS: MarketplaceAppointment[] = [
-  { id: 'apt-01', code: 'APT-001', address: '123 George St', scheduledDate: '2026-03-20', timeSlot: '09:00-12:00', latitude: -33.8688, longitude: 151.2093 },
-  { id: 'apt-02', code: 'APT-002', address: '456 Pitt St', scheduledDate: '2026-03-21', timeSlot: '13:00-16:00', latitude: -33.8700, longitude: 151.2080 },
+  { id: 'apt-01', code: 'APT-001', address: '123 George St', scheduledDate: '2026-03-20', timeSlotStart: '09:00', timeSlotEnd: '12:00', latitude: -33.8688, longitude: 151.2093 },
+  { id: 'apt-02', code: 'APT-002', address: '456 Pitt St', scheduledDate: '2026-03-21', timeSlotStart: '13:00', timeSlotEnd: '16:00', latitude: -33.8700, longitude: 151.2080 },
 ];
 
 describe('OfferMapPins', () => {

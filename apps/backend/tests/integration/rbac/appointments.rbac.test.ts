@@ -61,7 +61,7 @@ const createPayload = {
   propertyId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22',
   serviceTypeId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12',
   scheduledDate: futureDate,
-  timeSlot: '09:00-10:00',
+  timeSlotStart: '09:00', timeSlotEnd: '10:00',
   contact: {
     tenantName: 'John Smith',
     primaryPhone: '+61400000000',
@@ -126,7 +126,7 @@ describe('POST /v1/appointments — RBAC', () => {
     inspectorId: null,
     status: 'DRAFT',
     scheduledDate: futureDate,
-    timeSlot: '09:00-10:00',
+    timeSlotStart: '09:00', timeSlotEnd: '10:00',
     tenantConfirmationStatus: 'PENDING',
     priceAmount: 0,
     payoutAmount: 0,

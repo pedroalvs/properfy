@@ -17,7 +17,7 @@ function makeAppointmentListItem(overrides: Partial<ConstructorParameters<typeof
       inspectorId: null,
       status: 'DRAFT',
       scheduledDate: new Date('2026-04-01'),
-      timeSlot: '09:00-10:00',
+      timeSlotStart: '09:00', timeSlotEnd: '10:00',
       keyRequired: false,
       meetingLocation: null,
       keyLocation: null,
@@ -388,19 +388,19 @@ describe('ListAppointmentsUseCase', () => {
     });
   });
 
-  describe('timeSlot filter', () => {
-    it('passes timeSlot filter to repository', async () => {
+  describe('time range filter', () => {
+    it('passes timeFrom/timeTo filter to repository', async () => {
       vi.mocked(appointmentRepo.findAll).mockResolvedValue([]);
       vi.mocked(appointmentRepo.count).mockResolvedValue(0);
 
       await useCase.execute({
-        filters: { timeSlot: '09:00-10:00' },
+        filters: { timeFrom: '09:00', timeTo: '10:00' },
         pagination: defaultPagination,
         actor: makeActor({ role: 'AM' }),
       });
 
       expect(appointmentRepo.findAll).toHaveBeenCalledWith(
-        expect.objectContaining({ timeSlot: '09:00-10:00' }),
+        expect.objectContaining({ timeFrom: '09:00', timeTo: '10:00' }),
         defaultPagination,
       );
     });

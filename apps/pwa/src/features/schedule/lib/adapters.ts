@@ -30,7 +30,6 @@ export function mapInspectorAppointmentDetail(
     propertyAddress: detail.propertyAddress,
     suburb: detail.suburb,
     scheduledDate: detail.scheduledDate,
-    timeSlot: detail.timeSlot,
     timeSlotStart: detail.timeSlotStart,
     timeSlotEnd: detail.timeSlotEnd,
     status: detail.status as AppointmentStatus,

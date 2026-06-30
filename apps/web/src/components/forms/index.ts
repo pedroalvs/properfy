@@ -4,6 +4,8 @@ export { Textarea } from './Textarea';
 export { SelectInput } from './SelectInput';
 export type { SelectOption } from './SelectInput';
 export { DateInput } from './DateInput';
+export { TimeInput } from './TimeInput';
+export { TimeRangeInput } from './TimeRangeInput';
 export { NumberInput } from './NumberInput';
 export { Checkbox } from './Checkbox';
 export { FormSection } from './FormSection';

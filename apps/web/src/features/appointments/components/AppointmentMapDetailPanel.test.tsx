@@ -44,7 +44,7 @@ const sampleAppointment: AppointmentMapItem = {
   latitude: -33.8,
   longitude: 151.2,
   scheduledDate: '2026-06-01',
-  timeSlot: '09:00-10:00',
+  timeSlotStart: '09:00', timeSlotEnd: '10:00',
   inspectorName: 'Alice Smith',
   branchName: 'Sydney',
   clientName: 'Acme Realty',

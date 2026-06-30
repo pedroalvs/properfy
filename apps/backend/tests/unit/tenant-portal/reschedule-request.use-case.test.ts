@@ -32,7 +32,7 @@ function makeAppointment(overrides: Partial<ConstructorParameters<typeof Appoint
     inspectorId: 'inspector-1',
     status: 'SCHEDULED',
     scheduledDate: SCHEDULED_DATE,
-    timeSlot: 'MORNING',
+    timeSlotStart: '09:00', timeSlotEnd: '12:00',
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
@@ -118,7 +118,7 @@ function makeInput(overrides: Partial<RescheduleRequestInput> = {}): RescheduleR
     isReadOnly: false,
     isUsed: false,
     newDate: FUTURE_DATE,
-    newTimeSlot: 'AFTERNOON',
+    newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',
     ipAddress: '127.0.0.1',
     userAgent: 'TestAgent/1.0',
     ...overrides,
@@ -226,14 +226,16 @@ describe('RescheduleRequestUseCase', () => {
     // Echo the input date back so window-boundary tests that pass a custom
     // `newDate` don't have to maintain a parallel fixture.
     reopenForRescheduleUseCase = {
-      execute: vi.fn().mockImplementation(async (input: { newScheduledDate: string; newTimeSlot: string }) => ({
+      execute: vi.fn().mockImplementation(async (input: { newScheduledDate: string; newTimeSlotStart: string; newTimeSlotEnd: string }) => ({
         id: 'appt-1',
         previousStatus: 'SCHEDULED',
         status: 'DRAFT',
         previousScheduledDate: '2026-04-15',
         scheduledDate: input.newScheduledDate,
-        previousTimeSlot: 'MORNING',
-        timeSlot: input.newTimeSlot,
+        previousTimeSlotStart: '09:00',
+        previousTimeSlotEnd: '12:00',
+        timeSlotStart: input.newTimeSlotStart,
+        timeSlotEnd: input.newTimeSlotEnd,
         previousInspectorId: 'inspector-1',
         inspectorId: null,
         tenantConfirmationStatus: 'PENDING',
@@ -257,7 +259,7 @@ describe('RescheduleRequestUseCase', () => {
 
     expect(result).toEqual({
       scheduledDate: FUTURE_DATE,
-      timeSlot: 'AFTERNOON',
+      timeSlotStart: '14:00', timeSlotEnd: '17:00',
       tenantConfirmationStatus: 'PENDING',
     });
 
@@ -265,7 +267,7 @@ describe('RescheduleRequestUseCase', () => {
     expect(reopenForRescheduleUseCase.execute).toHaveBeenCalledWith({
       appointmentId: 'appt-1',
       newScheduledDate: FUTURE_DATE,
-      newTimeSlot: 'AFTERNOON',
+      newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',
       reason: 'Tenant portal reschedule request',
       actor: {
         userId: 'SYSTEM',
@@ -345,12 +347,12 @@ describe('RescheduleRequestUseCase', () => {
     expect(savedActivity.action).toBe('RESCHEDULE');
     expect(savedActivity.previousValuesJson).toEqual({
       scheduledDate: expect.any(String),
-      timeSlot: 'MORNING',
+      timeSlot: '09:00-12:00',
       tenantConfirmationStatus: 'PENDING',
     });
     expect(savedActivity.newValuesJson).toEqual({
       scheduledDate: FUTURE_DATE,
-      timeSlot: 'AFTERNOON',
+      timeSlot: '14:00-17:00',
       tenantConfirmationStatus: 'PENDING',
     });
     expect(savedActivity.ipAddress).toBe('127.0.0.1');
@@ -567,7 +569,7 @@ describe('RescheduleRequestUseCase – onNotificationHandler', () => {
         previousScheduledDate: '2026-04-15',
         scheduledDate: '2026-04-20',
         previousTimeSlot: 'MORNING',
-        timeSlot: 'AFTERNOON',
+        timeSlotStart: '14:00', timeSlotEnd: '17:00',
         previousInspectorId: 'inspector-1',
         inspectorId: null,
         tenantConfirmationStatus: 'PENDING',

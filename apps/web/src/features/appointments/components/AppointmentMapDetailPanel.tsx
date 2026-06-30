@@ -150,7 +150,7 @@ export function AppointmentMapDetailPanel({
             </h2>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-text-secondary">
               {statusMeta && <StatusChip label={statusMeta.label} bg={statusMeta.bg} />}
-              <span>{formatDate(appointment.scheduledDate)} {appointment.timeSlot}</span>
+              <span>{formatDate(appointment.scheduledDate)} {appointment.timeSlotStart} - {appointment.timeSlotEnd}</span>
               <AppointmentCodePill code={appointment.code} />
             </div>
           </div>

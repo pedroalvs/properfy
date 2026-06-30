@@ -2,6 +2,7 @@ import { FilterSelect } from '@/components/filters/FilterSelect';
 import { FilterSegmented } from '@/components/filters/FilterSegmented';
 import { FilterInput } from '@/components/filters/FilterInput';
 import { FilterDateRange } from '@/components/filters/FilterDateRange';
+import { FilterTimeRange } from '@/components/filters/FilterTimeRange';
 import { FilterBoolean } from '@/components/filters/FilterBoolean';
 import { APPOINTMENT_STATUS_MAP, SERVICE_GROUP_STATUS_MAP } from '@/lib/status-colors';
 
@@ -17,7 +18,8 @@ export interface AppointmentModeFilters {
   branchId: string;
   dateFrom: string;
   dateTo: string;
-  timeSlot: string;
+  timeFrom: string;
+  timeTo: string;
   confirmationStatus: string;
   showGrouped: boolean;
 }
@@ -40,7 +42,8 @@ export const DEFAULT_APPOINTMENT_FILTERS: AppointmentModeFilters = {
   branchId: '',
   dateFrom: '',
   dateTo: '',
-  timeSlot: '',
+  timeFrom: '',
+  timeTo: '',
   confirmationStatus: '',
   showGrouped: false,
 };
@@ -82,7 +85,6 @@ interface AppointmentMapFilterPanelProps {
   onGroupFiltersChange: (filters: GroupModeFilters) => void;
   serviceTypeOptions?: Array<{ label: string; value: string }>;
   branchOptions?: Array<{ label: string; value: string }>;
-  timeSlotOptions?: Array<{ label: string; value: string }>;
   /** AM-only: list of tenants for the Customers filter. */
   tenantOptions?: Array<{ label: string; value: string }>;
   /** Actor role — gates the Customers filter to AM only. */
@@ -98,7 +100,6 @@ export function AppointmentMapFilterPanel({
   onGroupFiltersChange,
   serviceTypeOptions = [],
   branchOptions = [],
-  timeSlotOptions = [],
   tenantOptions = [],
   actorRole,
 }: AppointmentMapFilterPanelProps) {
@@ -138,7 +139,6 @@ export function AppointmentMapFilterPanel({
               toggleStatus={toggleStatus}
               serviceTypeOptions={serviceTypeOptions}
               branchOptions={branchOptions}
-              timeSlotOptions={timeSlotOptions}
               tenantOptions={tenantOptions}
               actorRole={actorRole}
             />
@@ -199,7 +199,6 @@ function AppointmentModeFields({
   toggleStatus,
   serviceTypeOptions,
   branchOptions,
-  timeSlotOptions,
   tenantOptions,
   actorRole,
 }: {
@@ -208,7 +207,6 @@ function AppointmentModeFields({
   toggleStatus: (current: string[], value: string) => string[];
   serviceTypeOptions: Array<{ label: string; value: string }>;
   branchOptions: Array<{ label: string; value: string }>;
-  timeSlotOptions: Array<{ label: string; value: string }>;
   tenantOptions: Array<{ label: string; value: string }>;
   actorRole?: string;
 }) {
@@ -264,14 +262,13 @@ function AppointmentModeFields({
         onEndChange={(v) => onChange({ ...filters, dateTo: v })}
       />
 
-      {timeSlotOptions.length > 0 && (
-        <FilterSelect
-          label="Time"
-          value={filters.timeSlot}
-          options={[{ label: 'All', value: '' }, ...timeSlotOptions]}
-          onChange={(v) => onChange({ ...filters, timeSlot: v })}
-        />
-      )}
+      <FilterTimeRange
+        label="Time"
+        startTime={filters.timeFrom}
+        endTime={filters.timeTo}
+        onStartChange={(v) => onChange({ ...filters, timeFrom: v })}
+        onEndChange={(v) => onChange({ ...filters, timeTo: v })}
+      />
 
       <FilterSelect
         label="Confirmation Email"

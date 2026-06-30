@@ -18,7 +18,19 @@ const inlinePropertySchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
-const timeSlotRegex = /^\d{2}:\d{2}-\d{2}:\d{2}$/;
+/** Strict 24h HH:mm — rejects impossible clock values like 24:00 or 12:60. */
+export const HHMM_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
+const timeRegex = HHMM_REGEX;
+const TIME_FORMAT_MESSAGE = 'Must be HH:mm format';
+const TIME_RANGE_MESSAGE = 'End time must be after start time';
+
+/**
+ * Appointment scheduling time is stored as two independent `HH:mm` fields
+ * (`timeSlotStart` / `timeSlotEnd`). Because the values are zero-padded,
+ * lexicographic comparison equals chronological comparison.
+ */
+const isTimeRangeOrdered = (start?: string, end?: string): boolean =>
+  start === undefined || end === undefined || start < end;
 
 /**
  * Operational free-text observation set on direct create/edit (distinct from
@@ -49,7 +61,8 @@ export const createAppointmentSchema = z.object({
   serviceTypeId: z.string().uuid(),
   // Temporal validation (past-date / past-time) is TZ-aware and performed in the use case.
   scheduledDate: z.string().date(),
-  timeSlot: z.string().regex(timeSlotRegex, 'Must be HH:mm-HH:mm format'),
+  timeSlotStart: z.string().regex(timeRegex, TIME_FORMAT_MESSAGE),
+  timeSlotEnd: z.string().regex(timeRegex, TIME_FORMAT_MESSAGE),
   /** @deprecated Use `contacts` array instead. Kept for backward compat during transition. */
   contact: contactSchema.optional(),
   /** New contacts array (feature 021). Each entry is { contactId } or { inline } with role + isPrimary. */
@@ -74,13 +87,17 @@ export const createAppointmentSchema = z.object({
     return (hasLegacy || hasNew) && !(hasLegacy && hasNew);
   },
   { message: 'Must provide either contact (legacy) or contacts (array), but not both and not neither', path: ['contacts'] },
+).refine(
+  (data) => isTimeRangeOrdered(data.timeSlotStart, data.timeSlotEnd),
+  { message: TIME_RANGE_MESSAGE, path: ['timeSlotEnd'] },
 );
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>;
 
 export const updateAppointmentSchema = z.object({
   // Temporal validation (past-date / past-time) is TZ-aware and performed in the use case.
   scheduledDate: z.string().date().optional(),
-  timeSlot: z.string().regex(timeSlotRegex, 'Must be HH:mm-HH:mm format').optional(),
+  timeSlotStart: z.string().regex(timeRegex, TIME_FORMAT_MESSAGE).optional(),
+  timeSlotEnd: z.string().regex(timeRegex, TIME_FORMAT_MESSAGE).optional(),
   keyRequired: z.boolean().optional(),
   meetingLocation: z.string().max(500).nullable().optional(),
   keyLocation: z.string().max(500).nullable().optional(),
@@ -103,6 +120,13 @@ export const updateAppointmentSchema = z.object({
     return !(hasLegacy && hasNew);
   },
   { message: 'Cannot provide both contact and contacts in the same update', path: ['contacts'] },
+).refine(
+  // The time window is a pair — reject a partial update of only one side.
+  (data) => (data.timeSlotStart === undefined) === (data.timeSlotEnd === undefined),
+  { message: 'Both timeSlotStart and timeSlotEnd are required together', path: ['timeSlotEnd'] },
+).refine(
+  (data) => isTimeRangeOrdered(data.timeSlotStart, data.timeSlotEnd),
+  { message: TIME_RANGE_MESSAGE, path: ['timeSlotEnd'] },
 );
 export type UpdateAppointmentInput = z.infer<typeof updateAppointmentSchema>;
 
@@ -145,7 +169,10 @@ export const listAppointmentsQuerySchema = paginationSchema.extend({
   ungroupedOnly: z
     .preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean())
     .optional(),
-  timeSlot: z.string().regex(timeSlotRegex, 'Must be HH:mm-HH:mm format').optional(),
+  // Free time-range filter (replaces the former exact-match time-slot filter):
+  // match appointments whose start time falls within [timeFrom, timeTo].
+  timeFrom: z.string().regex(timeRegex, TIME_FORMAT_MESSAGE).optional(),
+  timeTo: z.string().regex(timeRegex, TIME_FORMAT_MESSAGE).optional(),
   contactSearch: z.string().max(200).optional(),
   hasTenantNote: z
     .preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean())
@@ -156,6 +183,14 @@ export const listAppointmentsQuerySchema = paginationSchema.extend({
   // (service_group_id IS NULL), this is a positive match on a specific group.
   serviceGroupId: z.string().uuid().optional(),
 }).superRefine((val, ctx) => {
+  // Reject inverted time ranges (timeFrom must not be after timeTo).
+  if (val.timeFrom && val.timeTo && val.timeFrom > val.timeTo) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['timeTo'],
+      message: 'timeTo must be after or equal to timeFrom',
+    });
+  }
   // `serviceGroupId` (positive membership) and `ungroupedOnly`
   // (service_group_id IS NULL) are mutually exclusive — fail fast rather than
   // silently dropping `serviceGroupId` downstream in the repository.
@@ -174,11 +209,21 @@ export type ListAppointmentsQueryInput = z.infer<typeof listAppointmentsQuerySch
 const bulkEditChangesSchema = z.object({
   assignedInspectorId: z.string().uuid().optional(),
   scheduledDate: z.string().date().optional(),
-  timeSlot: z.string().regex(timeSlotRegex, 'Must be HH:mm-HH:mm format').optional(),
+  // The "Time Slot" bulk change emits both ends together (or neither).
+  timeSlotStart: z.string().regex(timeRegex, TIME_FORMAT_MESSAGE).optional(),
+  timeSlotEnd: z.string().regex(timeRegex, TIME_FORMAT_MESSAGE).optional(),
   branchId: z.string().uuid().optional(),
   serviceTypeId: z.string().uuid().optional(),
   propertyManagerContactId: z.string().uuid().optional(),
-}).strict(); // .strict() rejects unknown keys → APPOINTMENT_BULK_FIELD_NOT_ALLOWED
+}).strict() // .strict() rejects unknown keys → APPOINTMENT_BULK_FIELD_NOT_ALLOWED
+  .refine(
+    (data) => (data.timeSlotStart === undefined) === (data.timeSlotEnd === undefined),
+    { message: 'Both timeSlotStart and timeSlotEnd are required together', path: ['timeSlotEnd'] },
+  )
+  .refine(
+    (data) => isTimeRangeOrdered(data.timeSlotStart, data.timeSlotEnd),
+    { message: TIME_RANGE_MESSAGE, path: ['timeSlotEnd'] },
+  );
 
 /** Per-field policies the use case applies. Currently only governs the
  *  Property-Manager contact change: `replace` (default — overwrite the existing
@@ -291,15 +336,22 @@ export type BulkCancelRequest = z.infer<typeof bulkCancelRequestSchema>;
 
 /**
  * 025 §FR-421 — Bulk reschedule. `newDate` accepts ISO datetime or date-only
- * (kept consistent with `createAppointmentSchema.scheduledDate`). `newTimeSlot`
- * is optional — when omitted each appointment keeps its existing slot.
+ * (kept consistent with `createAppointmentSchema.scheduledDate`). The new time
+ * window is optional — when omitted each appointment keeps its existing times.
  */
 export const bulkRescheduleRequestSchema = z.object({
   appointmentIds: z.array(z.string().uuid()).min(1).max(100),
   newDate: z.union([z.string().datetime(), z.string().date()]),
-  newTimeSlot: z.string().regex(timeSlotRegex, 'Must be HH:mm-HH:mm format').optional(),
+  newTimeSlotStart: z.string().regex(timeRegex, TIME_FORMAT_MESSAGE).optional(),
+  newTimeSlotEnd: z.string().regex(timeRegex, TIME_FORMAT_MESSAGE).optional(),
   actorTimezone: z.string().optional(),
-});
+}).refine(
+  (data) => (data.newTimeSlotStart === undefined) === (data.newTimeSlotEnd === undefined),
+  { message: 'Both newTimeSlotStart and newTimeSlotEnd are required together', path: ['newTimeSlotEnd'] },
+).refine(
+  (data) => isTimeRangeOrdered(data.newTimeSlotStart, data.newTimeSlotEnd),
+  { message: TIME_RANGE_MESSAGE, path: ['newTimeSlotEnd'] },
+);
 export type BulkRescheduleRequest = z.infer<typeof bulkRescheduleRequestSchema>;
 
 /**
@@ -334,10 +386,9 @@ export type BulkAssignInspectorRequest = z.infer<typeof bulkAssignInspectorReque
  * `appointment.rescheduled` audit. 026 extends that use case additively to
  * revoke active portal tokens after the reschedule.
  *
- * `newTimeSlot` is REQUIRED here (unlike `bulkRescheduleRequestSchema` from
- * 025) because the reschedule form uses an explicit dropdown sourced from
- * the effective slots catalog — the operator picks one of the canonical
- * `HH:mm-HH:mm` values per Regras matrix.
+ * The new time window is REQUIRED here (unlike `bulkRescheduleRequestSchema`
+ * from 025) because the reschedule form forces the operator to pick an explicit
+ * start/end time per Regras matrix.
  *
  * `appointmentIds.max(30)` mirrors the group-capacity cap because bulk
  * reschedule is intentionally same-group-only in this cycle (cross-group
@@ -346,9 +397,13 @@ export type BulkAssignInspectorRequest = z.infer<typeof bulkAssignInspectorReque
 export const bulkReopenForRescheduleRequestSchema = z.object({
   appointmentIds: z.array(z.string().uuid()).min(1).max(30),
   newDate: z.union([z.string().datetime(), z.string().date()]),
-  newTimeSlot: z.string().min(1),
+  newTimeSlotStart: z.string().regex(timeRegex, TIME_FORMAT_MESSAGE),
+  newTimeSlotEnd: z.string().regex(timeRegex, TIME_FORMAT_MESSAGE),
   reason: z.string().min(3).max(500).optional(),
   actorTimezone: z.string().optional(),
-});
+}).refine(
+  (data) => data.newTimeSlotStart < data.newTimeSlotEnd,
+  { message: TIME_RANGE_MESSAGE, path: ['newTimeSlotEnd'] },
+);
 export type BulkReopenForRescheduleRequest = z.infer<typeof bulkReopenForRescheduleRequestSchema>;
 

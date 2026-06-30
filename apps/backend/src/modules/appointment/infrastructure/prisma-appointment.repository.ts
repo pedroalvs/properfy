@@ -50,7 +50,8 @@ function mapToEntity(row: any): AppointmentEntity {
     inspectorId: row.inspector_id,
     status: row.status as AppointmentStatus,
     scheduledDate: row.scheduled_date,
-    timeSlot: row.time_slot,
+    timeSlotStart: row.time_slot_start,
+    timeSlotEnd: row.time_slot_end,
     keyRequired: row.key_required,
     meetingLocation: row.meeting_location,
     keyLocation: row.key_location,
@@ -244,7 +245,8 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         inspector_id: appointment.inspectorId,
         status: appointment.status as PrismaAppointmentStatus,
         scheduled_date: appointment.scheduledDate,
-        time_slot: appointment.timeSlot,
+        time_slot_start: appointment.timeSlotStart,
+        time_slot_end: appointment.timeSlotEnd,
         key_required: appointment.keyRequired,
         meeting_location: appointment.meetingLocation,
         key_location: appointment.keyLocation,
@@ -272,7 +274,8 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       status: string;
       inspectorId: string | null;
       scheduledDate: Date;
-      timeSlot: string;
+      timeSlotStart: string;
+      timeSlotEnd: string;
       keyRequired: boolean;
       meetingLocation: string | null;
       keyLocation: string | null;
@@ -301,7 +304,8 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     if (data.status !== undefined) updateData['status'] = data.status;
     if (data.inspectorId !== undefined) updateData['inspector_id'] = data.inspectorId;
     if (data.scheduledDate !== undefined) updateData['scheduled_date'] = data.scheduledDate;
-    if (data.timeSlot !== undefined) updateData['time_slot'] = data.timeSlot;
+    if (data.timeSlotStart !== undefined) updateData['time_slot_start'] = data.timeSlotStart;
+    if (data.timeSlotEnd !== undefined) updateData['time_slot_end'] = data.timeSlotEnd;
     if (data.keyRequired !== undefined) updateData['key_required'] = data.keyRequired;
     if (data.meetingLocation !== undefined) updateData['meeting_location'] = data.meetingLocation;
     if (data.keyLocation !== undefined) updateData['key_location'] = data.keyLocation;
@@ -514,8 +518,13 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     if (filters.serviceGroupId && !filters.ungroupedOnly) {
       where['service_group_id'] = filters.serviceGroupId;
     }
-    if (filters.timeSlot) {
-      where['time_slot'] = filters.timeSlot;
+    // Free time-range filter: match appointments whose start time falls within
+    // [timeFrom, timeTo]. HH:mm strings sort lexicographically == chronologically.
+    if (filters.timeFrom || filters.timeTo) {
+      const range: Record<string, string> = {};
+      if (filters.timeFrom) range['gte'] = filters.timeFrom;
+      if (filters.timeTo) range['lte'] = filters.timeTo;
+      where['time_slot_start'] = range;
     }
     if (filters.contactSearch) {
       const contactOrConditions: Record<string, unknown>[] = [
@@ -579,7 +588,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
 
     const items = await this.findAll(
       { inspectorId, status: ['SCHEDULED'], fromDate, toDate },
-      { page: 1, pageSize: 1000, sortBy: 'time_slot', sortOrder: 'asc' },
+      { page: 1, pageSize: 1000, sortBy: 'time_slot_start', sortOrder: 'asc' },
     );
 
     if (items.length === 0) return [];

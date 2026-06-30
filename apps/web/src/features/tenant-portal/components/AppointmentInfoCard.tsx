@@ -42,7 +42,7 @@ export function AppointmentInfoCard({ appointment, deadline, onDeadlineExpire }:
           {formatDate(appointment.scheduledDate)}
         </InfoRow>
 
-        <InfoRow label="Time Slot">{appointment.timeSlot}</InfoRow>
+        <InfoRow label="Time Slot">{`${appointment.timeSlotStart} - ${appointment.timeSlotEnd}`}</InfoRow>
 
         <InfoRow label="Confirmation">
           <span

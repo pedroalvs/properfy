@@ -19,8 +19,9 @@ export interface AppointmentFilters {
   showCancelled?: boolean;
   overdueOnly?: boolean;
   ungroupedOnly?: boolean;
-  /** Exact match on the appointment's time_slot field (e.g. "09:00-10:00"). */
-  timeSlot?: string;
+  /** Free time-range filter: match appointments whose start time falls within [timeFrom, timeTo] (HH:mm). */
+  timeFrom?: string;
+  timeTo?: string;
   /** Search in appointment_contacts snapshot fields (name, email, phone). */
   contactSearch?: string;
   /** When true, only appointments with non-empty tenant_note; when false, only those without. */
@@ -124,7 +125,8 @@ export interface IAppointmentRepository {
       status: string;
       inspectorId: string | null;
       scheduledDate: Date;
-      timeSlot: string;
+      timeSlotStart: string;
+      timeSlotEnd: string;
       keyRequired: boolean;
       meetingLocation: string | null;
       keyLocation: string | null;

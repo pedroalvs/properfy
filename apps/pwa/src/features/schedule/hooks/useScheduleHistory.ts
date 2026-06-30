@@ -7,7 +7,8 @@ interface HistoryItem {
   appointmentCode: string;
   status: string;
   scheduledDate: string;
-  timeSlot: string;
+  timeSlotStart: string;
+  timeSlotEnd: string;
   serviceTypeId: string;
   propertyId: string;
   tenantConfirmationStatus: string;

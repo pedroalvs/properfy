@@ -48,7 +48,7 @@ const basePayload = {
   propertyId: PROPERTY_ID,
   serviceTypeId: SERVICE_TYPE_ID,
   scheduledDate: '2027-06-01',
-  timeSlot: '09:00-10:00',
+  timeSlotStart: '09:00', timeSlotEnd: '10:00',
   keyRequired: false,
 };
 
@@ -63,7 +63,7 @@ function makeAppointmentResult(contactOverrides: Record<string, unknown>[] = [])
     serviceGroupId: null,
     status: 'DRAFT',
     scheduledDate: '2027-06-01',
-    timeSlot: '09:00-10:00',
+    timeSlotStart: '09:00', timeSlotEnd: '10:00',
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,

@@ -5,16 +5,27 @@ import type { IReportStorageService } from '../../../report/domain/report-storag
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IPropertyRepository } from '../../../property/domain/property.repository';
 import type { IServiceTypeRepository } from '../../../service-type/domain/service-type.repository';
-import type { IAppointmentTimeSlotRepository } from '../../../appointment-time-slot/domain/appointment-time-slot.repository';
 import { AppointmentEntity } from '../../domain/appointment.entity';
 import { AppointmentContactEntity } from '../../domain/appointment-contact.entity';
 import type { Logger } from '../../../../shared/infrastructure/logger';
+
+/** Time window "HH:mm-HH:mm" with strict 24h clock values (rejects 24:00, 12:60). */
+const TIME_RANGE_RE = /^([01]\d|2[0-3]):([0-5]\d)-([01]\d|2[0-3]):([0-5]\d)$/;
+
+/** Parse + validate a "HH:mm-HH:mm" window; null when malformed or start >= end. */
+function parseTimeRange(value: string): { start: string; end: string } | null {
+  const match = TIME_RANGE_RE.exec(value);
+  if (!match) return null;
+  const start = `${match[1]}:${match[2]}`;
+  const end = `${match[3]}:${match[4]}`;
+  return start < end ? { start, end } : null;
+}
 
 interface ImportRow {
   propertyCode?: string;
   serviceTypeCode?: string;
   scheduledDate?: string;
-  timeSlotLabel?: string;
+  timeSlot?: string;
   primaryContactName?: string;
   primaryContactEmail?: string;
   primaryContactPhone?: string;
@@ -35,7 +46,6 @@ export class AppointmentImportWorker {
     private readonly propertyRepo: IPropertyRepository,
     private readonly serviceTypeRepo: IServiceTypeRepository,
     private readonly logger: Logger,
-    private readonly timeSlotRepo?: IAppointmentTimeSlotRepository,
   ) {}
 
   async execute(data: { importId: string }): Promise<void> {
@@ -162,8 +172,12 @@ export class AppointmentImportWorker {
       errors.push({ row: rowNum, field: 'scheduledDate', message: 'Scheduled date is required' });
       return false;
     }
-    if (!row.timeSlotLabel) {
-      errors.push({ row: rowNum, field: 'timeSlotLabel', message: 'Time slot is required' });
+    if (!row.timeSlot) {
+      errors.push({ row: rowNum, field: 'timeSlot', message: 'Time slot is required' });
+      return false;
+    }
+    if (!parseTimeRange(row.timeSlot)) {
+      errors.push({ row: rowNum, field: 'timeSlot', message: `Time slot must be HH:mm-HH:mm with start before end (got "${row.timeSlot}")` });
       return false;
     }
     if (!row.primaryContactName) {
@@ -176,24 +190,6 @@ export class AppointmentImportWorker {
     if (!property) {
       errors.push({ row: rowNum, field: 'propertyCode', message: `Property not found: ${row.propertyCode}` });
       return false;
-    }
-
-    // Validate timeSlotLabel against the effective catalog for the property's scope.
-    if (this.timeSlotRepo) {
-      const scopedSlots = property.branchId
-        ? await this.timeSlotRepo.findEffective(tenantId, property.branchId)
-        : await this.timeSlotRepo.findAll({ tenantId, branchId: null });
-      const slotValid = scopedSlots.some((s) => s.compositeValue === row.timeSlotLabel);
-      if (!slotValid) {
-        errors.push({
-          row: rowNum,
-          field: 'timeSlotLabel',
-          message: property.branchId
-            ? `Time slot "${row.timeSlotLabel}" is not in the configured catalog for this branch`
-            : `Time slot "${row.timeSlotLabel}" is not in the tenant default catalog`,
-        });
-        return false;
-      }
     }
 
     // Resolve service type (optional — use first active if not specified)
@@ -227,6 +223,8 @@ export class AppointmentImportWorker {
     // Create appointment in DRAFT status
     const now = new Date();
     const appointmentId = crypto.randomUUID();
+    // Safe: rows reaching this point already passed parseTimeRange in validateRow.
+    const timeRange = parseTimeRange(row.timeSlot!)!;
 
     const appointment = new AppointmentEntity({
       id: appointmentId,
@@ -237,7 +235,8 @@ export class AppointmentImportWorker {
       inspectorId: null,
       status: 'DRAFT',
       scheduledDate: new Date(row.scheduledDate),
-      timeSlot: row.timeSlotLabel,
+      timeSlotStart: timeRange.start,
+      timeSlotEnd: timeRange.end,
       keyRequired: false,
       meetingLocation: null,
       keyLocation: null,

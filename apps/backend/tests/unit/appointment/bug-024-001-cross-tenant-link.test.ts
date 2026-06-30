@@ -160,7 +160,7 @@ const baseInputForCreate = {
   propertyId: PROPERTY_B,
   serviceTypeId: 'svc-type-1',
   scheduledDate: futureDateStr(60),
-  timeSlot: '09:00-10:00',
+  timeSlotStart: '09:00', timeSlotEnd: '10:00',
   keyRequired: false,
 };
 
@@ -185,7 +185,6 @@ describe('BUG-024-001 — CreateAppointmentUseCase cross-tenant contact link', (
       repos.auditService,
       new AuthorizationService(repos.auditService),
       undefined, // tenantRepo
-      undefined, // timeSlotRepo
       repos.contactRepo,
     );
   });
@@ -301,7 +300,7 @@ describe('BUG-024-001 — UpdateAppointmentUseCase cross-tenant contact link (pa
       inspectorId: null,
       status: 'DRAFT',
       scheduledDate: new Date(futureDateStr(60)),
-      timeSlot: '09:00-10:00',
+      timeSlotStart: '09:00', timeSlotEnd: '10:00',
       keyRequired: false,
       meetingLocation: null,
       keyLocation: null,
@@ -339,7 +338,6 @@ describe('BUG-024-001 — UpdateAppointmentUseCase cross-tenant contact link (pa
       repos.auditService,
       new AuthorizationService(repos.auditService),
       undefined, // tenantRepo
-      undefined, // timeSlotRepo
       repos.contactRepo,
     );
   });

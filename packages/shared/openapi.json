@@ -10626,9 +10626,13 @@
                     "type": "string",
                     "format": "date"
                   },
-                  "timeSlot": {
+                  "timeSlotStart": {
                     "type": "string",
-                    "pattern": "^\\d{2}:\\d{2}-\\d{2}:\\d{2}$"
+                    "pattern": "^\\d{2}:\\d{2}$"
+                  },
+                  "timeSlotEnd": {
+                    "type": "string",
+                    "pattern": "^\\d{2}:\\d{2}$"
                   },
                   "contact": {
                     "type": "object",
@@ -10887,7 +10891,8 @@
                   "branchId",
                   "serviceTypeId",
                   "scheduledDate",
-                  "timeSlot"
+                  "timeSlotStart",
+                  "timeSlotEnd"
                 ],
                 "additionalProperties": false
               }
@@ -10954,7 +10959,10 @@
                             }
                           ]
                         },
-                        "timeSlot": {
+                        "timeSlotStart": {
+                          "type": "string"
+                        },
+                        "timeSlotEnd": {
                           "type": "string"
                         },
                         "keyRequired": {
@@ -11157,7 +11165,8 @@
                         "inspectorId",
                         "status",
                         "scheduledDate",
-                        "timeSlot",
+                        "timeSlotStart",
+                        "timeSlotEnd",
                         "tenantConfirmationStatus",
                         "priceAmount",
                         "payoutAmount",
@@ -11356,10 +11365,19 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^\\d{2}:\\d{2}-\\d{2}:\\d{2}$"
+              "pattern": "^\\d{2}:\\d{2}$"
             },
             "in": "query",
-            "name": "timeSlot",
+            "name": "timeFrom",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{2}:\\d{2}$"
+            },
+            "in": "query",
+            "name": "timeTo",
             "required": false
           },
           {
@@ -11462,7 +11480,10 @@
                               }
                             ]
                           },
-                          "timeSlot": {
+                          "timeSlotStart": {
+                            "type": "string"
+                          },
+                          "timeSlotEnd": {
                             "type": "string"
                           },
                           "keyRequired": {
@@ -11665,7 +11686,8 @@
                           "inspectorId",
                           "status",
                           "scheduledDate",
-                          "timeSlot",
+                          "timeSlotStart",
+                          "timeSlotEnd",
                           "tenantConfirmationStatus",
                           "priceAmount",
                           "payoutAmount",
@@ -11786,7 +11808,10 @@
                             }
                           ]
                         },
-                        "timeSlot": {
+                        "timeSlotStart": {
+                          "type": "string"
+                        },
+                        "timeSlotEnd": {
                           "type": "string"
                         },
                         "keyRequired": {
@@ -11989,7 +12014,8 @@
                         "inspectorId",
                         "status",
                         "scheduledDate",
-                        "timeSlot",
+                        "timeSlotStart",
+                        "timeSlotEnd",
                         "tenantConfirmationStatus",
                         "priceAmount",
                         "payoutAmount",
@@ -12022,9 +12048,13 @@
                     "type": "string",
                     "format": "date"
                   },
-                  "timeSlot": {
+                  "timeSlotStart": {
                     "type": "string",
-                    "pattern": "^\\d{2}:\\d{2}-\\d{2}:\\d{2}$"
+                    "pattern": "^\\d{2}:\\d{2}$"
+                  },
+                  "timeSlotEnd": {
+                    "type": "string",
+                    "pattern": "^\\d{2}:\\d{2}$"
                   },
                   "keyRequired": {
                     "type": "boolean"
@@ -12358,7 +12388,10 @@
                             }
                           ]
                         },
-                        "timeSlot": {
+                        "timeSlotStart": {
+                          "type": "string"
+                        },
+                        "timeSlotEnd": {
                           "type": "string"
                         },
                         "keyRequired": {
@@ -12561,7 +12594,8 @@
                         "inspectorId",
                         "status",
                         "scheduledDate",
-                        "timeSlot",
+                        "timeSlotStart",
+                        "timeSlotEnd",
                         "tenantConfirmationStatus",
                         "priceAmount",
                         "payoutAmount",
@@ -13204,9 +13238,13 @@
                       }
                     ]
                   },
-                  "newTimeSlot": {
+                  "newTimeSlotStart": {
                     "type": "string",
-                    "pattern": "^\\d{2}:\\d{2}-\\d{2}:\\d{2}$"
+                    "pattern": "^\\d{2}:\\d{2}$"
+                  },
+                  "newTimeSlotEnd": {
+                    "type": "string",
+                    "pattern": "^\\d{2}:\\d{2}$"
                   },
                   "actorTimezone": {
                     "type": "string"
@@ -13552,9 +13590,13 @@
                       }
                     ]
                   },
-                  "newTimeSlot": {
+                  "newTimeSlotStart": {
                     "type": "string",
-                    "minLength": 1
+                    "pattern": "^\\d{2}:\\d{2}$"
+                  },
+                  "newTimeSlotEnd": {
+                    "type": "string",
+                    "pattern": "^\\d{2}:\\d{2}$"
                   },
                   "reason": {
                     "type": "string",
@@ -13568,7 +13610,8 @@
                 "required": [
                   "appointmentIds",
                   "newDate",
-                  "newTimeSlot"
+                  "newTimeSlotStart",
+                  "newTimeSlotEnd"
                 ],
                 "additionalProperties": false
               }
@@ -17245,10 +17288,13 @@
                     "type": "string",
                     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                   },
-                  "newTimeSlot": {
+                  "newTimeSlotStart": {
                     "type": "string",
-                    "minLength": 1,
-                    "maxLength": 50
+                    "pattern": "^\\d{2}:\\d{2}$"
+                  },
+                  "newTimeSlotEnd": {
+                    "type": "string",
+                    "pattern": "^\\d{2}:\\d{2}$"
                   },
                   "restrictions": {
                     "type": "object",
@@ -17334,7 +17380,8 @@
                 },
                 "required": [
                   "newDate",
-                  "newTimeSlot"
+                  "newTimeSlotStart",
+                  "newTimeSlotEnd"
                 ],
                 "additionalProperties": false
               }
@@ -17364,10 +17411,13 @@
                       "type": "string",
                       "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                     },
-                    "timeSlot": {
+                    "timeSlotStart": {
                       "type": "string",
-                      "minLength": 1,
-                      "maxLength": 50
+                      "pattern": "^\\d{2}:\\d{2}$"
+                    },
+                    "timeSlotEnd": {
+                      "type": "string",
+                      "pattern": "^\\d{2}:\\d{2}$"
                     },
                     "tenantConfirmationStatus": {
                       "type": "string",
@@ -17378,7 +17428,8 @@
                   },
                   "required": [
                     "scheduledDate",
-                    "timeSlot",
+                    "timeSlotStart",
+                    "timeSlotEnd",
                     "tenantConfirmationStatus"
                   ],
                   "additionalProperties": false
@@ -18084,8 +18135,13 @@
                                       }
                                     ]
                                   },
-                                  "timeSlot": {
-                                    "type": "string"
+                                  "timeSlotStart": {
+                                    "type": "string",
+                                    "pattern": "^\\d{2}:\\d{2}$"
+                                  },
+                                  "timeSlotEnd": {
+                                    "type": "string",
+                                    "pattern": "^\\d{2}:\\d{2}$"
                                   },
                                   "serviceTypeId": {
                                     "type": "string",
@@ -18122,7 +18178,8 @@
                                   "id",
                                   "status",
                                   "scheduledDate",
-                                  "timeSlot",
+                                  "timeSlotStart",
+                                  "timeSlotEnd",
                                   "serviceTypeId",
                                   "propertyId",
                                   "tenantConfirmationStatus",
@@ -18174,8 +18231,13 @@
                                   }
                                 ]
                               },
-                              "timeSlot": {
-                                "type": "string"
+                              "timeSlotStart": {
+                                "type": "string",
+                                "pattern": "^\\d{2}:\\d{2}$"
+                              },
+                              "timeSlotEnd": {
+                                "type": "string",
+                                "pattern": "^\\d{2}:\\d{2}$"
                               },
                               "serviceTypeId": {
                                 "type": "string",
@@ -18212,7 +18274,8 @@
                               "id",
                               "status",
                               "scheduledDate",
-                              "timeSlot",
+                              "timeSlotStart",
+                              "timeSlotEnd",
                               "serviceTypeId",
                               "propertyId",
                               "tenantConfirmationStatus",
@@ -18296,14 +18359,13 @@
                         "scheduledDate": {
                           "type": "string"
                         },
-                        "timeSlot": {
-                          "type": "string"
-                        },
                         "timeSlotStart": {
-                          "type": "string"
+                          "type": "string",
+                          "pattern": "^\\d{2}:\\d{2}$"
                         },
                         "timeSlotEnd": {
-                          "type": "string"
+                          "type": "string",
+                          "pattern": "^\\d{2}:\\d{2}$"
                         },
                         "serviceTypeId": {
                           "type": "string",
@@ -18720,7 +18782,6 @@
                         "id",
                         "status",
                         "scheduledDate",
-                        "timeSlot",
                         "timeSlotStart",
                         "timeSlotEnd",
                         "serviceTypeId",
@@ -26485,436 +26546,6 @@
                     "data"
                   ],
                   "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/time-slots": {
-      "get": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "query",
-            "name": "tenantId",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "query",
-            "name": "branchId",
-            "required": false
-          },
-          {
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "in": "query",
-            "name": "includeInactive",
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "tenantId": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "branchId": {
-                            "type": "string",
-                            "format": "uuid",
-                            "nullable": true
-                          },
-                          "label": {
-                            "type": "string"
-                          },
-                          "startTime": {
-                            "type": "string"
-                          },
-                          "endTime": {
-                            "type": "string"
-                          },
-                          "sortOrder": {
-                            "type": "number"
-                          },
-                          "isActive": {
-                            "type": "boolean"
-                          },
-                          "createdAt": {},
-                          "updatedAt": {}
-                        },
-                        "required": [
-                          "id",
-                          "tenantId",
-                          "branchId",
-                          "label",
-                          "startTime",
-                          "endTime",
-                          "sortOrder",
-                          "isActive"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "tenantId": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
-                  "branchId": {
-                    "type": "string",
-                    "format": "uuid",
-                    "nullable": true
-                  },
-                  "label": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 100
-                  },
-                  "startTime": {
-                    "type": "string",
-                    "pattern": "^\\d{2}:\\d{2}$"
-                  },
-                  "endTime": {
-                    "type": "string",
-                    "pattern": "^\\d{2}:\\d{2}$"
-                  },
-                  "sortOrder": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "default": 0
-                  }
-                },
-                "required": [
-                  "label",
-                  "startTime",
-                  "endTime"
-                ],
-                "additionalProperties": false
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "tenantId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "branchId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "label": {
-                          "type": "string"
-                        },
-                        "startTime": {
-                          "type": "string"
-                        },
-                        "endTime": {
-                          "type": "string"
-                        },
-                        "sortOrder": {
-                          "type": "number"
-                        },
-                        "isActive": {
-                          "type": "boolean"
-                        },
-                        "createdAt": {},
-                        "updatedAt": {}
-                      },
-                      "required": [
-                        "id",
-                        "tenantId",
-                        "branchId",
-                        "label",
-                        "startTime",
-                        "endTime",
-                        "sortOrder",
-                        "isActive"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/time-slots/effective": {
-      "get": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "query",
-            "name": "branchId",
-            "required": true
-          },
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "query",
-            "name": "tenantId",
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "label": {
-                            "type": "string"
-                          },
-                          "startTime": {
-                            "type": "string"
-                          },
-                          "endTime": {
-                            "type": "string"
-                          },
-                          "value": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "label",
-                          "startTime",
-                          "endTime",
-                          "value"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/time-slots/{id}": {
-      "patch": {
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "label": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 100
-                  },
-                  "startTime": {
-                    "type": "string",
-                    "pattern": "^\\d{2}:\\d{2}$"
-                  },
-                  "endTime": {
-                    "type": "string",
-                    "pattern": "^\\d{2}:\\d{2}$"
-                  },
-                  "sortOrder": {
-                    "type": "integer",
-                    "minimum": 0
-                  },
-                  "isActive": {
-                    "type": "boolean"
-                  }
-                },
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "tenantId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "branchId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "label": {
-                          "type": "string"
-                        },
-                        "startTime": {
-                          "type": "string"
-                        },
-                        "endTime": {
-                          "type": "string"
-                        },
-                        "sortOrder": {
-                          "type": "number"
-                        },
-                        "isActive": {
-                          "type": "boolean"
-                        },
-                        "createdAt": {},
-                        "updatedAt": {}
-                      },
-                      "required": [
-                        "id",
-                        "tenantId",
-                        "branchId",
-                        "label",
-                        "startTime",
-                        "endTime",
-                        "sortOrder",
-                        "isActive"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "enum": [
-                    "null"
-                  ],
-                  "nullable": true
                 }
               }
             }

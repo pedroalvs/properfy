@@ -100,7 +100,7 @@ async function seedAppointment(
       service_group_id: serviceGroupId,
       status: status as never,
       scheduled_date: new Date('2026-07-15'),
-      time_slot: '09:00-10:00',
+      time_slot_start: '09:00', time_slot_end: '10:00',
       price_amount: '100.00',
       payout_amount: '80.00',
       pricing_rule_snapshot_json: {},

@@ -14,6 +14,8 @@ vi.mock('@properfy/shared', () => ({
   ContactType: { TENANT: 'TENANT', PROPERTY_MANAGER: 'PROPERTY_MANAGER', HOUSEKEEPER: 'HOUSEKEEPER', BROKER: 'BROKER', OTHER: 'OTHER' },
   ContactChannelType: { EMAIL: 'EMAIL', PHONE: 'PHONE' },
   todayLocalDateString: () => '2026-03-29',
+  isTimeStartInPastForDate: () => false,
+  validateEditedSchedule: () => ({ ok: true }),
 }));
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } }));
 vi.mock('@/services/api', () => ({
@@ -84,19 +86,10 @@ vi.mock('../hooks/useAppointmentSave', () => ({
   }),
 }));
 
-vi.mock('../hooks/useTimeSlotOptions', () => ({
-  useTimeSlotOptions: () => ({
-    options: [{ label: 'Morning (09:00 - 12:00)', value: '09:00-12:00' }],
-    isError: false,
-    error: null,
-    refetch: vi.fn(),
-  }),
-}));
-
 // Stable reference to prevent infinite re-render in useEffect
 const MOCK_APPOINTMENT = {
   id: 'apt-01', branchId: 'branch-1', propertyId: 'prop-1', serviceTypeId: 'st-1',
-  scheduledDate: '2026-04-01', timeSlot: '09:00-12:00', contactName: 'John Doe',
+  scheduledDate: '2026-04-01', timeSlotStart: '09:00', timeSlotEnd: '12:00', contactName: 'John Doe',
   contactPhone: '11999999999', contactEmail: 'john@test.com', keyRequired: true,
   meetingLocation: 'Lobby', keyLocation: 'Portaria', notes: 'Test notes',
   status: 'AWAITING_INSPECTOR',
@@ -207,9 +200,15 @@ describe('AppointmentFormDrawer', () => {
     expect((latestPropertyCall as unknown[] | undefined)?.[3]).toEqual({ branchId: 'branch-1' });
   });
 
-  it('allows editing the time slot in edit mode', () => {
+  it('allows editing the time slot (free start/end range) in edit mode', () => {
     renderDrawer({ appointmentId: 'apt-01' });
-    expect(screen.getByLabelText('Time Slot')).not.toBeDisabled();
+    const start = screen.getByLabelText('Start time') as HTMLInputElement;
+    const end = screen.getByLabelText('End time') as HTMLInputElement;
+    expect(start).not.toBeDisabled();
+    expect(end).not.toBeDisabled();
+    // Pre-populated from the loaded appointment's start/end.
+    expect(start.value).toBe('09:00');
+    expect(end.value).toBe('12:00');
   });
 
   it('shows inspector assignment section for awaiting inspector appointments', () => {

@@ -224,7 +224,7 @@ class InMemoryAppointmentRepo implements IAppointmentRepository {
         if (filters.toDate && scheduledDate > filters.toDate) return false;
         return true;
       })
-      .sort((a, b) => a.timeSlot.localeCompare(b.timeSlot))
+      .sort((a, b) => a.timeSlotStart.localeCompare(b.timeSlotStart))
       .slice(0, pagination.pageSize);
 
     return rows.map((appointment) => {
@@ -715,7 +715,8 @@ describe('FASE 1 integrated proof', () => {
         propertyId: propertyIds[index]!,
         serviceTypeId: SERVICE_TYPE_ID,
         scheduledDate: today,
-        timeSlot: `0${8 + index}:00-0${9 + index}:00`,
+        timeSlotStart: `0${8 + index}:00`,
+        timeSlotEnd: `0${9 + index}:00`,
         contact: {
           tenantName: `Tenant ${index + 1}`,
           primaryEmail: `tenant${index + 1}@example.com`,

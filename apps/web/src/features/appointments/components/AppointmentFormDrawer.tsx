@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AppointmentStatus, AppointmentContactRole, ContactType, ContactChannelType, todayLocalDateString, isTimeStartInPastForDate } from '@properfy/shared';
+import { AppointmentStatus, AppointmentContactRole, ContactType, ContactChannelType, todayLocalDateString, isTimeStartInPastForDate, validateEditedSchedule } from '@properfy/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
@@ -14,6 +14,7 @@ import { EmailInput } from '@/components/forms/EmailInput';
 import { PhoneInput } from '@/components/forms/PhoneInput';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { DateInput } from '@/components/forms/DateInput';
+import { TimeRangeInput } from '@/components/forms/TimeRangeInput';
 import { Textarea } from '@/components/forms/Textarea';
 import { Checkbox } from '@/components/forms/Checkbox';
 import { useSnackbar } from '@/hooks/useSnackbar';
@@ -25,7 +26,6 @@ import { useAppointmentSave } from '../hooks/useAppointmentSave';
 import { AppointmentRestrictionFields } from './AppointmentRestrictionFields';
 import { ContactAutocomplete } from './ContactAutocomplete';
 import { AppCredentialMultiSelect } from './AppCredentialMultiSelect';
-import { useTimeSlotOptions } from '../hooks/useTimeSlotOptions';
 import type { AppointmentFormData, AppointmentFormErrors, ContactFormEntry } from '../types';
 import { EMPTY_FORM_DATA, createEmptyContact } from '../types';
 import type { ContactSearchResult } from '../hooks/useContactSearch';
@@ -131,10 +131,6 @@ export function AppointmentFormDrawer({
     // so a property created in the new property tab appears when the user returns here.
     { enabled: (!isGlobalRole || !!effectiveTenantId) && !!form.branchId, staleTime: 0 },
   );
-  const { options: timeSlotOptions, isError: timeSlotError, error: timeSlotErrorMsg, refetch: refetchTimeSlots } = useTimeSlotOptions(
-    form.branchId || undefined,
-    effectiveTenantId,
-  );
 
   const { save, isSaving, validate } = useAppointmentSave();
   const { showSuccess, showError } = useSnackbar();
@@ -170,7 +166,8 @@ export function AppointmentFormDrawer({
         propertyId: appointment.propertyId,
         serviceTypeId: appointment.serviceTypeId,
         scheduledDate: (appointment.scheduledDate ?? '').split('T')[0] ?? '',
-        timeSlot: appointment.timeSlot,
+        timeSlotStart: appointment.timeSlotStart,
+        timeSlotEnd: appointment.timeSlotEnd,
         contactName: appointment.contactName,
         contactPhone: appointment.contactPhone ?? '',
         contactEmail: appointment.contactEmail ?? '',
@@ -206,7 +203,7 @@ export function AppointmentFormDrawer({
 
   const handleTenantChange = useCallback((tenantId: string) => {
     setSelectedTenantId(tenantId);
-    setForm((prev) => ({ ...prev, branchId: '', propertyId: '', timeSlot: '' }));
+    setForm((prev) => ({ ...prev, branchId: '', propertyId: '' }));
   }, []);
 
   const handleBranchChange = useCallback((branchId: string) => {
@@ -371,6 +368,33 @@ export function AppointmentFormDrawer({
   const handleSubmit = useCallback(async () => {
     const mode = isEditMode ? 'edit' : 'create';
     const validationErrors = validate(form, mode);
+
+    // Past-time guard (applies to ALL roles, incl. AM/OP — native input `min`
+    // is only a hint and does not block the button-submit path). On edit we use
+    // `validateEditedSchedule` so an untouched legacy past appointment is NOT
+    // blocked; only a changed date/time is re-validated.
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (isEditMode && appointment) {
+      const result = validateEditedSchedule({
+        existingDate: (appointment.scheduledDate ?? '').split('T')[0] ?? '',
+        existingTimeSlot: appointment.timeSlotStart,
+        newDate: form.scheduledDate,
+        newTimeSlot: form.timeSlotStart,
+        tz,
+      });
+      if (!result.ok && result.code === 'TIME_IN_PAST') {
+        validationErrors.timeSlotStart = validationErrors.timeSlotStart ?? 'Start time is in the past';
+      } else if (!result.ok && result.code === 'DATE_IN_PAST') {
+        validationErrors.scheduledDate = validationErrors.scheduledDate ?? 'Date is in the past';
+      }
+    } else if (
+      form.timeSlotStart &&
+      form.scheduledDate === todayLocalDateString() &&
+      isTimeStartInPastForDate(form.timeSlotStart, form.scheduledDate, tz)
+    ) {
+      validationErrors.timeSlotStart = validationErrors.timeSlotStart ?? 'Start time is in the past';
+    }
+
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
@@ -432,6 +456,7 @@ export function AppointmentFormDrawer({
     onSaved();
   }, [
     isEditMode,
+    appointment,
     form,
     validate,
     save,
@@ -554,28 +579,20 @@ export function AppointmentFormDrawer({
                         aria-label="Scheduled Date"
                       />
                     </FormField>
-                    <FormField label="Time Slot" required error={errors.timeSlot ?? (timeSlotError ? (timeSlotErrorMsg ?? undefined) : undefined)}>
-                      {timeSlotError ? (
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-error">Failed to load time slots</span>
-                          <button type="button" className="text-sm font-semibold text-primary" onClick={() => refetchTimeSlots()}>Retry</button>
-                        </div>
-                      ) : (
-                        <SelectInput
-                          value={form.timeSlot}
-                          onChange={(v) => updateField('timeSlot', v)}
-                          options={(() => {
-                            const today = todayLocalDateString();
-                            if (form.scheduledDate !== today) return timeSlotOptions;
-                            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-                            return timeSlotOptions.filter((opt) => !isTimeStartInPastForDate(opt.value, form.scheduledDate, tz));
-                          })()}
-                          placeholder={!form.branchId ? 'Select a branch first' : 'Select time slot'}
-                          disabled={!form.branchId || timeSlotOptions.length === 0}
-                          error={!!errors.timeSlot}
-                          aria-label="Time Slot"
-                        />
-                      )}
+                    <FormField label="Time Slot" required error={[errors.timeSlotStart, errors.timeSlotEnd].filter(Boolean).join(' ') || undefined}>
+                      <TimeRangeInput
+                        startTime={form.timeSlotStart}
+                        endTime={form.timeSlotEnd}
+                        onStartChange={(v) => updateField('timeSlotStart', v)}
+                        onEndChange={(v) => updateField('timeSlotEnd', v)}
+                        minStartTime={
+                          form.scheduledDate === todayLocalDateString()
+                            ? Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date())
+                            : undefined
+                        }
+                        error={!!errors.timeSlotStart || !!errors.timeSlotEnd}
+                        idPrefix="appointment-time"
+                      />
                     </FormField>
                   </FormSection>
 

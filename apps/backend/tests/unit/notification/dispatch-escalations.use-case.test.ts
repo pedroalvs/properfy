@@ -24,7 +24,7 @@ function makeAppointment(
     inspectorId: 'insp-1',
     status: 'SCHEDULED',
     scheduledDate: new Date('2026-03-19'),
-    timeSlot: '09:00-12:00',
+    timeSlotStart: '09:00', timeSlotEnd: '12:00',
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
@@ -320,7 +320,7 @@ describe('DispatchEscalationsUseCase', () => {
     const scheduledDate = new Date('2026-03-19T00:00:00.000Z');
     mockAppointmentRepo.findScheduledOnDate.mockResolvedValueOnce([
       makeRelation(
-        { id: 'appt-x', tenantId: 'tenant-x', branchId: 'branch-1', scheduledDate, timeSlot: '14:00-17:00' },
+        { id: 'appt-x', tenantId: 'tenant-x', branchId: 'branch-1', scheduledDate, timeSlotStart: '14:00', timeSlotEnd: '17:00' },
         { tenantName: 'Jane Smith', primaryPhone: '+61400111222' },
       ),
     ]);
@@ -348,7 +348,7 @@ describe('DispatchEscalationsUseCase', () => {
     const scheduledDate = new Date('2026-03-19T00:00:00.000Z');
     mockAppointmentRepo.findScheduledOnDate.mockResolvedValueOnce([
       makeRelation(
-        { id: 'appt-x', tenantId: 'tenant-x', scheduledDate, timeSlot: '14:00-17:00' },
+        { id: 'appt-x', tenantId: 'tenant-x', scheduledDate, timeSlotStart: '14:00', timeSlotEnd: '17:00' },
         { tenantName: 'Jane Smith', primaryPhone: '+61400111222' },
       ),
     ]);

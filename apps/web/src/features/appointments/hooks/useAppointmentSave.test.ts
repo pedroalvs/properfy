@@ -47,7 +47,8 @@ const VALID_CREATE_DATA: AppointmentFormData = {
   propertyId: 'f47ac10b-58cc-4372-a567-0e02b2c3d480',
   serviceTypeId: 'f47ac10b-58cc-4372-a567-0e02b2c3d481',
   scheduledDate: FUTURE_SCHEDULED_DATE,
-  timeSlot: '09:00-12:00',
+  timeSlotStart: '09:00',
+  timeSlotEnd: '12:00',
   contactName: 'João Silva',
   contactPhone: '11999999999',
   contactEmail: 'joao@email.com',
@@ -80,7 +81,7 @@ describe('useAppointmentSave', () => {
     expect(errors.propertyId).toBeDefined();
     expect(errors.serviceTypeId).toBeDefined();
     expect(errors.scheduledDate).toBeDefined();
-    expect(errors.timeSlot).toBeDefined();
+    expect(errors.timeSlotStart).toBeDefined();
   });
 
   it('validate returns no errors for valid create form data', () => {
@@ -104,7 +105,7 @@ describe('useAppointmentSave', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useAppointmentSave(), { wrapper });
     const errors = result.current.validate(
-      { ...EMPTY_FORM_DATA, contactName: 'Maria', scheduledDate: FUTURE_SCHEDULED_DATE, timeSlot: '09:00-12:00' },
+      { ...EMPTY_FORM_DATA, contactName: 'Maria', scheduledDate: FUTURE_SCHEDULED_DATE, timeSlotStart: '09:00', timeSlotEnd: '12:00' },
       'edit',
     );
     expect(Object.keys(errors)).toHaveLength(0);
@@ -131,7 +132,8 @@ describe('useAppointmentSave', () => {
         propertyId: VALID_CREATE_DATA.propertyId,
         serviceTypeId: VALID_CREATE_DATA.serviceTypeId,
         scheduledDate: VALID_CREATE_DATA.scheduledDate,
-        timeSlot: VALID_CREATE_DATA.timeSlot,
+        timeSlotStart: VALID_CREATE_DATA.timeSlotStart,
+        timeSlotEnd: VALID_CREATE_DATA.timeSlotEnd,
         keyRequired: VALID_CREATE_DATA.keyRequired,
         contact: {
           tenantName: VALID_CREATE_DATA.contactName,
@@ -156,7 +158,8 @@ describe('useAppointmentSave', () => {
     expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/apt-01', {
       body: {
         scheduledDate: VALID_CREATE_DATA.scheduledDate,
-        timeSlot: VALID_CREATE_DATA.timeSlot,
+        timeSlotStart: VALID_CREATE_DATA.timeSlotStart,
+        timeSlotEnd: VALID_CREATE_DATA.timeSlotEnd,
         keyRequired: VALID_CREATE_DATA.keyRequired,
         meetingLocation: null,
         keyLocation: null,

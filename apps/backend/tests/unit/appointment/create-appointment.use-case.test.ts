@@ -117,7 +117,7 @@ const baseInput = {
   propertyId: 'property-1',
   serviceTypeId: 'svc-type-1',
   scheduledDate: futureDateStr(60),
-  timeSlot: '09:00-10:00',
+  timeSlotStart: '09:00', timeSlotEnd: '10:00',
   contact: {
     tenantName: 'John Smith',
     primaryEmail: 'john@example.com',
@@ -309,7 +309,7 @@ describe('CreateAppointmentUseCase', () => {
       },
       serviceTypeId: 'svc-type-1',
       scheduledDate: futureDateStr(60),
-      timeSlot: '09:00-10:00',
+      timeSlotStart: '09:00', timeSlotEnd: '10:00',
       contact: { tenantName: 'Jane Doe' },
       keyRequired: false,
       actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),

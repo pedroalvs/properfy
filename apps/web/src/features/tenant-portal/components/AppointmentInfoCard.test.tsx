@@ -20,7 +20,7 @@ const MOCK_APPOINTMENT: PortalAppointment = {
   id: 'apt-1',
   status: AppointmentStatus.SCHEDULED,
   scheduledDate: '2026-04-15',
-  timeSlot: '09:00-11:00',
+  timeSlotStart: '09:00', timeSlotEnd: '11:00',
   serviceTypeId: 'svc-1',
   tenantConfirmationStatus: TenantConfirmationStatus.PENDING,
   keyRequired: false,
@@ -56,7 +56,7 @@ describe('AppointmentInfoCard', () => {
   it('renders time slot', () => {
     render(<AppointmentInfoCard appointment={MOCK_APPOINTMENT} />);
 
-    expect(screen.getByText('09:00-11:00')).toBeInTheDocument();
+    expect(screen.getByText('09:00 - 11:00')).toBeInTheDocument();
   });
 
   it('renders confirmation status label', () => {

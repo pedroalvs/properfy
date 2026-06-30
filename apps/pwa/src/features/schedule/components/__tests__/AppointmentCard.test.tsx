@@ -17,9 +17,8 @@ const baseAppointment: InspectorAppointment = {
   propertyAddress: '123 Collins St',
   suburb: 'Melbourne',
   scheduledDate: '2026-03-18',
-  timeSlot: '09:00-11:00',
-  timeSlotStart: '2026-03-18T09:00:00.000Z',
-  timeSlotEnd: '2026-03-18T11:00:00.000Z',
+  timeSlotStart: '09:00',
+  timeSlotEnd: '11:00',
   status: AppointmentStatus.SCHEDULED,
   tenantConfirmation: TenantConfirmationStatus.CONFIRMED,
   serviceTypeName: 'Routine Inspection',
@@ -68,7 +67,7 @@ describe('AppointmentCard', () => {
     const apt: InspectorAppointment = {
       ...baseAppointment,
       scheduledDate: todayDate,
-      timeSlotStart: `${todayDate}T09:00:00.000Z`,
+      timeSlotStart: '09:00',
       tenantConfirmation: TenantConfirmationStatus.PENDING,
       flowType: ServiceTypeFlowType.ROUTINE,
     };
@@ -82,7 +81,7 @@ describe('AppointmentCard', () => {
     const apt: InspectorAppointment = {
       ...baseAppointment,
       scheduledDate: todayDate,
-      timeSlotStart: `${todayDate}T09:00:00.000Z`,
+      timeSlotStart: '09:00',
       tenantConfirmation: TenantConfirmationStatus.CONFIRMED,
     };
     renderWithProviders(<AppointmentCard appointment={apt} />);
@@ -95,7 +94,7 @@ describe('AppointmentCard', () => {
     const apt: InspectorAppointment = {
       ...baseAppointment,
       scheduledDate: todayDate,
-      timeSlotStart: `${todayDate}T09:00:00.000Z`,
+      timeSlotStart: '09:00',
       tenantConfirmation: TenantConfirmationStatus.PENDING,
       flowType: ServiceTypeFlowType.INGOING,
     };

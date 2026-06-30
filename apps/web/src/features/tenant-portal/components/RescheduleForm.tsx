@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/forms/FormField';
-import { TextInput } from '@/components/forms/TextInput';
 import { DateInput } from '@/components/forms/DateInput';
+import { TimeRangeInput } from '@/components/forms/TimeRangeInput';
 import { Textarea } from '@/components/forms/Textarea';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useRescheduleRequest } from '../hooks/usePortalData';
@@ -23,7 +23,8 @@ export function RescheduleForm({
   const rescheduleMutation = useRescheduleRequest(token);
 
   const [newDate, setNewDate] = useState('');
-  const [newTimeSlot, setNewTimeSlot] = useState('');
+  const [newTimeSlotStart, setNewTimeSlotStart] = useState('');
+  const [newTimeSlotEnd, setNewTimeSlotEnd] = useState('');
   const [tenantNote, setTenantNote] = useState('');
   const [errors, setErrors] = useState<{ date?: string; timeSlot?: string }>({});
   const [submitted, setSubmitted] = useState(false);
@@ -64,8 +65,10 @@ export function RescheduleForm({
       }
     }
 
-    if (!newTimeSlot.trim()) {
-      newErrors.timeSlot = 'Please enter a time slot.';
+    if (!newTimeSlotStart || !newTimeSlotEnd) {
+      newErrors.timeSlot = 'Please enter a start and end time.';
+    } else if (newTimeSlotStart >= newTimeSlotEnd) {
+      newErrors.timeSlot = 'End time must be after start time.';
     }
 
     setErrors(newErrors);
@@ -79,7 +82,8 @@ export function RescheduleForm({
     try {
       await rescheduleMutation.mutateAsync({
         newDate,
-        newTimeSlot: newTimeSlot.trim(),
+        newTimeSlotStart,
+        newTimeSlotEnd,
         ...(tenantNote.trim() ? { tenantNote: tenantNote.trim() } : {}),
       });
       setSubmitted(true);
@@ -110,11 +114,14 @@ export function RescheduleForm({
         </FormField>
 
         <FormField label="Preferred Time Slot" required error={errors.timeSlot}>
-          <TextInput
-            value={newTimeSlot}
-            onChange={setNewTimeSlot}
-            placeholder="e.g. 09:00-11:00"
+          <TimeRangeInput
+            startTime={newTimeSlotStart}
+            endTime={newTimeSlotEnd}
+            onStartChange={setNewTimeSlotStart}
+            onEndChange={setNewTimeSlotEnd}
+            error={!!errors.timeSlot}
             disabled={isReadOnly}
+            idPrefix="reschedule-time"
           />
         </FormField>
 

@@ -40,7 +40,7 @@ const MOCK_PORTAL_DATA = {
     id: 'apt-1',
     status: 'SCHEDULED',
     scheduledDate: '2026-04-15',
-    timeSlot: '09:00-11:00',
+    timeSlotStart: '09:00', timeSlotEnd: '11:00',
     serviceTypeId: 'svc-1',
     tenantConfirmationStatus: 'PENDING',
     keyRequired: false,
@@ -107,7 +107,7 @@ describe('PortalPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Appointment Details')).toBeInTheDocument();
     });
-    expect(screen.getByText('09:00-11:00')).toBeInTheDocument();
+    expect(screen.getByText('09:00 - 11:00')).toBeInTheDocument();
   });
 
   it('shows confirm section when status is PENDING', async () => {

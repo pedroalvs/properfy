@@ -23,7 +23,7 @@ const MOCK_APPOINTMENT: AppointmentDetail = {
   inspectorId: null,
   inspectorName: null,
   scheduledDate: '2026-04-01',
-  timeSlot: '09:00-12:00',
+  timeSlotStart: '09:00', timeSlotEnd: '12:00',
   keyRequired: true,
   notes: null,
   isOverdue: false,

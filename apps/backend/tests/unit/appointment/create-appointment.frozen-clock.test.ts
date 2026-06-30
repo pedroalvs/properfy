@@ -127,7 +127,7 @@ describe('CreateAppointmentUseCase — frozen clock boundary (CL_ADMIN)', () => 
     branchId: 'branch-1',
     propertyId: 'property-1',
     serviceTypeId: 'svc-type-1',
-    timeSlot: '09:00-10:00',
+    timeSlotStart: '09:00', timeSlotEnd: '10:00',
     contact: { tenantName: 'Test', primaryEmail: 't@example.com' },
     keyRequired: false,
   };

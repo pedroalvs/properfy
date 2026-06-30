@@ -69,8 +69,12 @@ describe('Sidebar role-based visibility — Service Types', () => {
     renderSidebar('OP');
     expect(screen.getByText('Service Regions')).toBeInTheDocument();
     expect(screen.getByText('Pricing Rules')).toBeInTheDocument();
-    expect(screen.getByText('Time Slots')).toBeInTheDocument();
     expect(screen.getByText('Notification Templates')).toBeInTheDocument();
+  });
+
+  it('does NOT render the retired "Time Slots" nav entry', () => {
+    renderSidebar('OP');
+    expect(screen.queryByText('Time Slots')).not.toBeInTheDocument();
   });
 });
 

@@ -16,7 +16,7 @@ function makeAppointment() {
     inspectorId: null,
     status: 'SCHEDULED',
     scheduledDate: new Date('2026-05-30'),
-    timeSlot: 'MORNING',
+    timeSlotStart: '09:00', timeSlotEnd: '12:00',
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,

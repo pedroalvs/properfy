@@ -429,7 +429,9 @@ export async function registerAppointmentRoutes(
       const result = await container.bulkRescheduleAppointmentsUseCase.execute({
         appointmentIds: parsed.data.appointmentIds,
         newDate: parsed.data.newDate,
-        newTimeSlot: parsed.data.newTimeSlot,
+        ...(parsed.data.newTimeSlotStart && parsed.data.newTimeSlotEnd
+          ? { newTimeSlotStart: parsed.data.newTimeSlotStart, newTimeSlotEnd: parsed.data.newTimeSlotEnd }
+          : {}),
         actor: auth,
         actorTimezone: parsed.data.actorTimezone,
       });
@@ -526,7 +528,8 @@ export async function registerAppointmentRoutes(
       const result = await container.bulkReopenForRescheduleUseCase.execute({
         appointmentIds: parsed.data.appointmentIds,
         newDate: parsed.data.newDate,
-        newTimeSlot: parsed.data.newTimeSlot,
+        newTimeSlotStart: parsed.data.newTimeSlotStart,
+        newTimeSlotEnd: parsed.data.newTimeSlotEnd,
         ...(parsed.data.reason ? { reason: parsed.data.reason } : {}),
         actor: auth,
         ...(parsed.data.actorTimezone ? { actorTimezone: parsed.data.actorTimezone } : {}),

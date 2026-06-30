@@ -82,7 +82,14 @@ export function useTenantAdminSave(): UseTenantAdminSaveReturn {
             body: { ...rest, settings, ...(trimmedPrefix ? { appointmentCodePrefix: trimmedPrefix } : {}) },
           })
         : await api.POST('/v1/tenants', {
-            body: { ...rest, settings, ...(trimmedPrefix ? { appointmentCodePrefix: trimmedPrefix } : {}) },
+            // Known openapi drift (PR #800): the regenerated POST contract marks
+            // `appointmentCodePrefix` required, but the form intentionally omits it
+            // when blank (legacy parity — see the omit-when-blank test). Type-only
+            // accommodation; runtime behaviour is unchanged.
+            body: { ...rest, settings, ...(trimmedPrefix ? { appointmentCodePrefix: trimmedPrefix } : {}) } as typeof rest & {
+              settings: typeof settings;
+              appointmentCodePrefix: string;
+            },
           });
 
       type ApiErrorEnvelope = { error?: { code?: string; message?: string } };

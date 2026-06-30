@@ -19,7 +19,7 @@ function makeAppointment(
     inspectorId: 'insp-1',
     status: 'SCHEDULED',
     scheduledDate: new Date('2026-04-01'),
-    timeSlot: '09:00-12:00',
+    timeSlotStart: '09:00', timeSlotEnd: '12:00',
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,

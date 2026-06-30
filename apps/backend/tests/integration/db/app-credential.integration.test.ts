@@ -63,7 +63,7 @@ beforeAll(async () => {
   const appt = await harness.prisma.appointment.create({
     data: {
       tenant_id: tenantA.id, branch_id: branchA.id, property_id: propertyA.id, service_type_id: serviceType.id,
-      status: 'SCHEDULED', scheduled_date: new Date('2027-04-15'), time_slot: '09:00-10:00',
+      status: 'SCHEDULED', scheduled_date: new Date('2027-04-15'), time_slot_start: '09:00', time_slot_end: '10:00',
       price_amount: '100.00', payout_amount: '80.00', pricing_rule_snapshot_json: {},
       tenant_confirmation_status: 'CONFIRMED', created_by_user_id: userA.id,
     },

@@ -158,7 +158,8 @@ export async function registerTenantPortalRoutes(
         isReadOnly: ctx.isReadOnly,
         isUsed: ctx.isUsed,
         newDate: parsed.data.newDate,
-        newTimeSlot: parsed.data.newTimeSlot,
+        newTimeSlotStart: parsed.data.newTimeSlotStart,
+        newTimeSlotEnd: parsed.data.newTimeSlotEnd,
         restrictions: parsed.data.restrictions
           ? {
               isHome: parsed.data.restrictions.isHome ?? false,

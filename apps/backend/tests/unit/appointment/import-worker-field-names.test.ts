@@ -1,14 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { AppointmentImportWorker } from '../../../src/modules/appointment/infrastructure/workers/import.worker';
 import { AppointmentImportEntity } from '../../../src/modules/appointment/domain/appointment-import.entity';
 import { PropertyEntity } from '../../../src/modules/property/domain/property.entity';
-import { AppointmentTimeSlotEntity } from '../../../src/modules/appointment-time-slot/domain/appointment-time-slot.entity';
 import type { IAppointmentImportRepository } from '../../../src/modules/appointment/domain/appointment-import.repository';
 import type { IReportStorageService } from '../../../src/modules/report/domain/report-storage.service';
 import type { IAppointmentRepository } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { IPropertyRepository } from '../../../src/modules/property/domain/property.repository';
 import type { IServiceTypeRepository } from '../../../src/modules/service-type/domain/service-type.repository';
-import type { IAppointmentTimeSlotRepository } from '../../../src/modules/appointment-time-slot/domain/appointment-time-slot.repository';
 import type { Logger } from '../../../src/shared/infrastructure/logger';
 
 function makeImportRecord(): AppointmentImportEntity {
@@ -52,32 +50,12 @@ function makeProperty(): PropertyEntity {
   });
 }
 
-function makeSlot(startTime = '09:00', endTime = '12:00'): AppointmentTimeSlotEntity {
-  return new AppointmentTimeSlotEntity({
-    id: 'slot-1',
-    tenantId: 'tenant-1',
-    branchId: null,
-    label: 'Morning',
-    startTime,
-    endTime,
-    sortOrder: 1,
-    isActive: true,
-    createdAt: new Date('2026-03-26T10:00:00Z'),
-    updatedAt: new Date('2026-03-26T10:00:00Z'),
-    deletedAt: null,
-  });
-}
-
-function makeWorker(
-  csvContent: string,
-  opts: { includeTimeSlotRepo?: boolean } = { includeTimeSlotRepo: false },
-): {
+function makeWorker(csvContent: string): {
   worker: AppointmentImportWorker;
   importRepo: IAppointmentImportRepository;
   appointmentRepo: IAppointmentRepository;
   propertyRepo: IPropertyRepository;
   storageService: IReportStorageService;
-  timeSlotRepo: IAppointmentTimeSlotRepository;
 } {
   const importRepo: IAppointmentImportRepository = {
     findById: vi.fn().mockResolvedValue(makeImportRecord()),
@@ -129,15 +107,6 @@ function makeWorker(
     update: vi.fn(),
   };
 
-  const timeSlotRepo: IAppointmentTimeSlotRepository = {
-    create: vi.fn(),
-    update: vi.fn(),
-    findById: vi.fn(),
-    findAll: vi.fn().mockResolvedValue([makeSlot('09:00', '12:00')]),
-    findEffective: vi.fn(),
-    softDelete: vi.fn(),
-  };
-
   const logger: Logger = {
     info: vi.fn(),
     warn: vi.fn(),
@@ -152,28 +121,26 @@ function makeWorker(
     propertyRepo,
     serviceTypeRepo,
     logger,
-    opts.includeTimeSlotRepo ? timeSlotRepo : undefined,
   );
 
-  return { worker, importRepo, appointmentRepo, propertyRepo, storageService, timeSlotRepo };
+  return { worker, importRepo, appointmentRepo, propertyRepo, storageService };
 }
 
 describe('AppointmentImportWorker — field name alignment with template headers', () => {
-  describe('timeSlotLabel (new column name)', () => {
-    it('accepts a row with timeSlotLabel present and matching a slot — no timeSlotLabel validation error', async () => {
-      // The slot compositeValue is "09:00-12:00" (startTime-endTime)
-      const csv = 'propertyCode,scheduledDate,timeSlotLabel,primaryContactName\nPROP-001,2026-04-02,09:00-12:00,John Tenant\n';
-      const { worker, importRepo } = makeWorker(csv, { includeTimeSlotRepo: true });
+  describe('timeSlot (composite column)', () => {
+    it('accepts a row with a valid timeSlot present — no timeSlot validation error', async () => {
+      const csv = 'propertyCode,scheduledDate,timeSlot,primaryContactName\nPROP-001,2026-04-02,09:00-12:00,John Tenant\n';
+      const { worker, importRepo } = makeWorker(csv);
 
       await worker.execute({ importId: 'import-1' });
 
       const lastCall = (importRepo.update as ReturnType<typeof vi.fn>).mock.calls.at(-1)![1];
       const errors: { field: string }[] = lastCall.errorsJson ?? [];
-      const timeSlotErrors = errors.filter((e) => e.field === 'timeSlotLabel');
+      const timeSlotErrors = errors.filter((e) => e.field === 'timeSlot');
       expect(timeSlotErrors).toHaveLength(0);
     });
 
-    it('rejects a row missing timeSlotLabel with error field = "timeSlotLabel" (not "timeSlot")', async () => {
+    it('rejects a row missing timeSlot with error field = "timeSlot" (not "timeSlotLabel")', async () => {
       const csv = 'propertyCode,scheduledDate,primaryContactName\nPROP-001,2026-04-02,John Tenant\n';
       const { worker, importRepo } = makeWorker(csv);
 
@@ -182,17 +149,17 @@ describe('AppointmentImportWorker — field name alignment with template headers
       const lastCall = (importRepo.update as ReturnType<typeof vi.fn>).mock.calls.at(-1)![1];
       const errors: { field: string; message: string }[] = lastCall.errorsJson ?? [];
       expect(errors).toContainEqual(
-        expect.objectContaining({ field: 'timeSlotLabel' }),
+        expect.objectContaining({ field: 'timeSlot' }),
       );
-      // Must NOT produce old field name
-      expect(errors.map((e) => e.field)).not.toContain('timeSlot');
+      // Must NOT produce the old catalog field name
+      expect(errors.map((e) => e.field)).not.toContain('timeSlotLabel');
     });
   });
 
   describe('primaryContactName (new column name)', () => {
     it('accepts a row with primaryContactName present — no primaryContactName validation error', async () => {
-      const csv = 'propertyCode,scheduledDate,timeSlotLabel,primaryContactName\nPROP-001,2026-04-02,09:00-12:00,John Tenant\n';
-      const { worker, importRepo } = makeWorker(csv, { includeTimeSlotRepo: true });
+      const csv = 'propertyCode,scheduledDate,timeSlot,primaryContactName\nPROP-001,2026-04-02,09:00-12:00,John Tenant\n';
+      const { worker, importRepo } = makeWorker(csv);
 
       await worker.execute({ importId: 'import-1' });
 
@@ -203,9 +170,9 @@ describe('AppointmentImportWorker — field name alignment with template headers
     });
 
     it('rejects a row missing primaryContactName with error field = "primaryContactName" (not "tenantName")', async () => {
-      // timeSlotLabel present and valid so we isolate the primaryContactName check
-      const csv = 'propertyCode,scheduledDate,timeSlotLabel\nPROP-001,2026-04-02,09:00-12:00\n';
-      const { worker, importRepo } = makeWorker(csv, { includeTimeSlotRepo: true });
+      // timeSlot present and valid so we isolate the primaryContactName check
+      const csv = 'propertyCode,scheduledDate,timeSlot\nPROP-001,2026-04-02,09:00-12:00\n';
+      const { worker, importRepo } = makeWorker(csv);
 
       await worker.execute({ importId: 'import-1' });
 
@@ -222,9 +189,9 @@ describe('AppointmentImportWorker — field name alignment with template headers
   describe('primaryContactEmail (new column name)', () => {
     it('reads primaryContactEmail from row and passes it to the contact entity — not tenantEmail', async () => {
       const csv =
-        'propertyCode,scheduledDate,timeSlotLabel,primaryContactName,primaryContactEmail\n' +
+        'propertyCode,scheduledDate,timeSlot,primaryContactName,primaryContactEmail\n' +
         'PROP-001,2026-04-02,09:00-12:00,John Tenant,john@example.com\n';
-      const { worker, appointmentRepo } = makeWorker(csv, { includeTimeSlotRepo: true });
+      const { worker, appointmentRepo } = makeWorker(csv);
 
       await worker.execute({ importId: 'import-1' });
 
@@ -238,9 +205,9 @@ describe('AppointmentImportWorker — field name alignment with template headers
 
     it('saves a row with no primaryContactEmail without error — the field is optional', async () => {
       const csv =
-        'propertyCode,scheduledDate,timeSlotLabel,primaryContactName\n' +
+        'propertyCode,scheduledDate,timeSlot,primaryContactName\n' +
         'PROP-001,2026-04-02,09:00-12:00,John Tenant\n';
-      const { worker, importRepo, appointmentRepo } = makeWorker(csv, { includeTimeSlotRepo: true });
+      const { worker, importRepo, appointmentRepo } = makeWorker(csv);
 
       await worker.execute({ importId: 'import-1' });
 
@@ -257,9 +224,9 @@ describe('AppointmentImportWorker — field name alignment with template headers
   describe('primaryContactPhone (new column name)', () => {
     it('reads primaryContactPhone from row and passes it to the contact entity — not tenantPhone', async () => {
       const csv =
-        'propertyCode,scheduledDate,timeSlotLabel,primaryContactName,primaryContactPhone\n' +
+        'propertyCode,scheduledDate,timeSlot,primaryContactName,primaryContactPhone\n' +
         'PROP-001,2026-04-02,09:00-12:00,John Tenant,+61400000001\n';
-      const { worker, appointmentRepo } = makeWorker(csv, { includeTimeSlotRepo: true });
+      const { worker, appointmentRepo } = makeWorker(csv);
 
       await worker.execute({ importId: 'import-1' });
 
@@ -273,9 +240,9 @@ describe('AppointmentImportWorker — field name alignment with template headers
 
     it('saves a row with no primaryContactPhone without error — the field is optional', async () => {
       const csv =
-        'propertyCode,scheduledDate,timeSlotLabel,primaryContactName\n' +
+        'propertyCode,scheduledDate,timeSlot,primaryContactName\n' +
         'PROP-001,2026-04-02,09:00-12:00,John Tenant\n';
-      const { worker, importRepo, appointmentRepo } = makeWorker(csv, { includeTimeSlotRepo: true });
+      const { worker, importRepo, appointmentRepo } = makeWorker(csv);
 
       await worker.execute({ importId: 'import-1' });
 

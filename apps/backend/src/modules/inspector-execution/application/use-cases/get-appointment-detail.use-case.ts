@@ -74,7 +74,7 @@ export interface AppointmentDetailOutput {
   appointmentCode: string;
   status: string;
   scheduledDate: string;
-  timeSlot: string;
+  /** Bare HH:mm (PWA reconstructs the gating Date from scheduledDate + start). */
   timeSlotStart: string;
   timeSlotEnd: string;
   serviceTypeId: string;
@@ -201,9 +201,6 @@ export class GetAppointmentDetailUseCase {
       appointment.scheduledDate instanceof Date
         ? appointment.scheduledDate.toISOString().split('T')[0]!
         : String(appointment.scheduledDate);
-    const [startTime = '00:00', endTime = '00:00'] = appointment.timeSlot.split('-');
-    const timeSlotStart = `${scheduledDate}T${startTime}:00`;
-    const timeSlotEnd = `${scheduledDate}T${endTime}:00`;
     const serviceType = await this.serviceTypeReader.findById(appointment.serviceTypeId);
     const restrictionsSummary = restrictions
       .map((restriction) => restriction.notes?.trim())
@@ -232,9 +229,8 @@ export class GetAppointmentDetailUseCase {
       appointmentCode,
       status: appointment.status,
       scheduledDate,
-      timeSlot: appointment.timeSlot,
-      timeSlotStart,
-      timeSlotEnd,
+      timeSlotStart: appointment.timeSlotStart,
+      timeSlotEnd: appointment.timeSlotEnd,
       serviceTypeId: appointment.serviceTypeId,
       serviceTypeName: result.serviceTypeName ?? serviceType?.name ?? null,
       flowType: serviceType?.flowType ?? 'ROUTINE',

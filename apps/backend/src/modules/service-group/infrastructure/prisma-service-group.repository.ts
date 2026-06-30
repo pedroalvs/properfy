@@ -264,7 +264,8 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         tenant_id: true,
         status: true,
         scheduled_date: true,
-        time_slot: true,
+        time_slot_start: true,
+        time_slot_end: true,
         tenant_confirmation_status: true,
         active_confirmation_cycle: {
           select: { scheduled_date: true, time_slot: true, status: true },
@@ -280,7 +281,8 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       tenantId: a.tenant_id,
       status: a.status,
       scheduledDate: a.scheduled_date,
-      timeSlot: a.time_slot,
+      // Appointment-side composite (compared against the group's own `timeWindow`).
+      timeSlot: `${a.time_slot_start}-${a.time_slot_end}`,
       tenantConfirmationStatus: a.tenant_confirmation_status,
       activeCycle: a.active_confirmation_cycle
         ? {

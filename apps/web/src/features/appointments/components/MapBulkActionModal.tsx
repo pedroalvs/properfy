@@ -257,7 +257,7 @@ export function MapBulkActionModal({
       width: '160px',
       render: (row) => (
         <span className="text-sm text-text-secondary">
-          {formatDate(row.scheduledDate)} {row.timeSlot}
+          {formatDate(row.scheduledDate)} {row.timeSlotStart} - {row.timeSlotEnd}
         </span>
       ),
     },
@@ -762,10 +762,9 @@ function CancelForm({ loading, onCancel: _onCancel, onSubmit }: CancelFormProps)
 }
 
 // 026 §FR-540 — RescheduleForm extracted to its own file as
-// `MapBulkRescheduleForm`. The new form uses a dropdown slot picker
-// (NOT the previous free-text input) sourced from `useTimeSlotOptions`
-// per Regras matrix, and the same-group precheck disables submit when
-// the selection spans groups.
+// `MapBulkRescheduleForm`. The form uses a free start/end time range
+// (`newTimeSlotStart` / `newTimeSlotEnd`), and the same-group precheck
+// disables submit when the selection spans groups.
 
 interface ChangeStatusFormProps {
   checkedAppointments: AppointmentMapItem[];

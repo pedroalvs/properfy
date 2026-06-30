@@ -1,0 +1,51 @@
+import { filterContainer, filterLabel, filterIcon } from './filter-styles';
+
+interface FilterTimeRangeProps {
+  label: string;
+  startTime: string;
+  endTime: string;
+  onStartChange: (value: string) => void;
+  onEndChange: (value: string) => void;
+}
+
+export function FilterTimeRange({
+  label,
+  startTime,
+  endTime,
+  onStartChange,
+  onEndChange,
+}: FilterTimeRangeProps) {
+  const hasValue = startTime !== '' || endTime !== '';
+
+  return (
+    <div className={filterContainer}>
+      {hasValue && <span className={filterLabel}>{label}</span>}
+      <div className="px-3 py-[7px]">
+        <div className="mb-2 flex items-center gap-2 sm:mb-0 sm:hidden">
+          <i className={`mdi mdi-clock-outline ${filterIcon}`} />
+          <span className="text-sm text-text-muted">{label}</span>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="hidden items-center gap-2 sm:flex">
+            <i className={`mdi mdi-clock-outline ${filterIcon}`} />
+          </div>
+          <input
+            type="time"
+            className="min-w-0 flex-1 bg-transparent text-sm text-text-primary outline-none"
+            value={startTime}
+            onChange={(e) => onStartChange(e.target.value)}
+            aria-label={`${label} - start`}
+          />
+          <span className="px-1 text-xs text-text-muted sm:px-0">to</span>
+          <input
+            type="time"
+            className="min-w-0 flex-1 bg-transparent text-sm text-text-primary outline-none"
+            value={endTime}
+            onChange={(e) => onEndChange(e.target.value)}
+            aria-label={`${label} - end`}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}

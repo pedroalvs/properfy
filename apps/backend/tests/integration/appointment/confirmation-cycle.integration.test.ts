@@ -82,7 +82,7 @@ async function seedAppointmentWithActiveCycle(prisma: PrismaClient) {
     data: {
       tenant_id: tenant.id, branch_id: branch.id, property_id: property.id,
       service_type_id: serviceType.id, status: 'SCHEDULED',
-      scheduled_date: new Date('2026-07-01'), time_slot: 'MORNING',
+      scheduled_date: new Date('2026-07-01'), time_slot_start: '09:00', time_slot_end: '12:00',
       price_amount: '100.00', payout_amount: '80.00',
       pricing_rule_snapshot_json: {}, tenant_confirmation_status: 'PENDING',
       created_by_user_id: user.id,
@@ -104,7 +104,7 @@ async function seedAppointmentWithActiveCycle(prisma: PrismaClient) {
   const cycle = await prisma.appointmentConfirmationCycle.create({
     data: {
       appointment_id: appointment.id, cycle_number: 1,
-      scheduled_date: new Date('2026-07-01'), time_slot: 'MORNING',
+      scheduled_date: new Date('2026-07-01'), time_slot: '09:00-12:00',
       status: 'PENDING', portal_token_id: token.id,
     },
   });
@@ -177,7 +177,7 @@ describe('C1 — confirmation-cycle atomicity (real DB)', () => {
       data: {
         tenant_id: tenant.id, branch_id: branch.id, property_id: property.id,
         service_type_id: serviceType.id, status: 'SCHEDULED',
-        scheduled_date: new Date('2026-07-01'), time_slot: 'MORNING',
+        scheduled_date: new Date('2026-07-01'), time_slot_start: '09:00', time_slot_end: '12:00',
         price_amount: '100.00', payout_amount: '80.00',
         pricing_rule_snapshot_json: {}, tenant_confirmation_status: 'PENDING',
         created_by_user_id: user.id,

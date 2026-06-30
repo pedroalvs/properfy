@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { HHMM_REGEX } from './appointment';
 import { propertyRulesSchema } from './property';
 import { bonusRuleSchema } from './pricing-rule';
 import { appointmentAppSchema } from './app-credential';
@@ -228,7 +229,8 @@ export const appointmentResponseSchema = z.object({
   serviceGroupCode: z.string().nullable().optional(),
   status: z.string(),
   scheduledDate: dateStr(),
-  timeSlot: z.string(),
+  timeSlotStart: z.string(),
+  timeSlotEnd: z.string(),
   keyRequired: z.boolean().optional(),
   meetingLocation: z.string().nullable().optional(),
   keyLocation: z.string().nullable().optional(),
@@ -286,9 +288,9 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
   id: z.string().uuid(),
   status: z.string(),
   scheduledDate: z.string(),
-  timeSlot: z.string(),
-  timeSlotStart: z.string(),
-  timeSlotEnd: z.string(),
+  // Bare HH:mm (the PWA reconstructs gating Date locally from scheduledDate + start).
+  timeSlotStart: z.string().regex(HHMM_REGEX),
+  timeSlotEnd: z.string().regex(HHMM_REGEX),
   serviceTypeId: z.string().uuid(),
   serviceTypeName: z.string().nullable(),
   flowType: z.string(),
@@ -574,7 +576,8 @@ export const inspectorScheduleItemSchema = z.object({
   appointmentCode: z.string().optional(),
   status: z.string(),
   scheduledDate: dateStr(),
-  timeSlot: z.string(),
+  timeSlotStart: z.string().regex(HHMM_REGEX),
+  timeSlotEnd: z.string().regex(HHMM_REGEX),
   serviceTypeId: z.string().uuid(),
   propertyId: z.string().uuid(),
   tenantConfirmationStatus: z.string(),

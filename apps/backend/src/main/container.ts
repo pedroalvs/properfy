@@ -402,13 +402,6 @@ import { AesTokenEncrypterAdapter } from '../modules/tenant-portal/infrastructur
 import type { AppointmentRouteContainer } from '../modules/appointment/interfaces/appointment.routes';
 
 // Appointment time slot module
-import { PrismaAppointmentTimeSlotRepository } from '../modules/appointment-time-slot/infrastructure/prisma-appointment-time-slot.repository';
-import { CreateAppointmentTimeSlotUseCase } from '../modules/appointment-time-slot/application/use-cases/create-appointment-time-slot.use-case';
-import { UpdateAppointmentTimeSlotUseCase } from '../modules/appointment-time-slot/application/use-cases/update-appointment-time-slot.use-case';
-import { ListAppointmentTimeSlotsUseCase } from '../modules/appointment-time-slot/application/use-cases/list-appointment-time-slots.use-case';
-import { ListEffectiveTimeSlotsUseCase } from '../modules/appointment-time-slot/application/use-cases/list-effective-time-slots.use-case';
-import { DeleteAppointmentTimeSlotUseCase } from '../modules/appointment-time-slot/application/use-cases/delete-appointment-time-slot.use-case';
-import type { AppointmentTimeSlotRouteContainer } from '../modules/appointment-time-slot/interfaces/appointment-time-slot.routes';
 
 export interface AppContainer {
   prisma: typeof prisma;
@@ -422,7 +415,6 @@ export interface AppContainer {
   pricingRule: PricingRuleRouteContainer;
   inspector: InspectorRouteContainer;
   appointment: AppointmentRouteContainer;
-  appointmentTimeSlot: AppointmentTimeSlotRouteContainer;
   audit: AuditRouteContainer;
   auditErasure: AuditErasureRouteContainer;
   auditRetention: AuditRetentionRouteContainer;
@@ -674,17 +666,7 @@ export function createContainer(logger: Logger): AppContainer {
   const tenantInvoiceRepo = new PrismaTenantInvoiceRepository(prisma);
 
   // Appointment time slot
-  const appointmentTimeSlotRepo = new PrismaAppointmentTimeSlotRepository(prisma);
-  const createAppointmentTimeSlotUseCase = new CreateAppointmentTimeSlotUseCase(appointmentTimeSlotRepo, branchRepo, auditService, authorizationService);
-  const updateAppointmentTimeSlotUseCase = new UpdateAppointmentTimeSlotUseCase(appointmentTimeSlotRepo, auditService, authorizationService);
-  const listAppointmentTimeSlotsUseCase = new ListAppointmentTimeSlotsUseCase(appointmentTimeSlotRepo, authorizationService);
-  const listEffectiveTimeSlotsUseCase = new ListEffectiveTimeSlotsUseCase(
-    appointmentTimeSlotRepo,
-    branchRepo,
-    authorizationService,
-  );
-  const deleteAppointmentTimeSlotUseCase = new DeleteAppointmentTimeSlotUseCase(appointmentTimeSlotRepo, auditService, authorizationService);
-  const createTenantUseCase = new CreateTenantUseCase(tenantRepo, auditService, appointmentTimeSlotRepo, authorizationService, domainEventBus);
+  const createTenantUseCase = new CreateTenantUseCase(tenantRepo, auditService, authorizationService, domainEventBus);
 
   // Appointment repositories and use cases
   const appointmentRepo = new PrismaAppointmentRepository(prisma);
@@ -693,16 +675,16 @@ export function createContainer(logger: Logger): AppContainer {
   );
   const createAppointmentUseCase = new CreateAppointmentUseCase(
     appointmentRepo, branchRepo, propertyRepo, serviceTypeRepo, pricingRuleRepo,
-    createPropertyUseCase, auditService, authorizationService, tenantRepo, appointmentTimeSlotRepo, contactRepo,
+    createPropertyUseCase, auditService, authorizationService, tenantRepo, contactRepo,
     undefined, idempotencyService, appCredentialRepo,
   );
   const getAppointmentUseCase = new GetAppointmentUseCase(appointmentRepo, authorizationService, appCredentialRepo);
   const listAppointmentsUseCase = new ListAppointmentsUseCase(appointmentRepo, authorizationService);
-  const updateAppointmentUseCase = new UpdateAppointmentUseCase(appointmentRepo, auditService, authorizationService, tenantRepo, appointmentTimeSlotRepo, contactRepo, undefined, appCredentialRepo);
+  const updateAppointmentUseCase = new UpdateAppointmentUseCase(appointmentRepo, auditService, authorizationService, tenantRepo, contactRepo, undefined, appCredentialRepo);
   const deleteAppointmentUseCase = new DeleteAppointmentUseCase(appointmentRepo, auditService, authorizationService);
   const bulkEditAppointmentsUseCase = new BulkEditAppointmentsUseCase(
     appointmentRepo, contactRepo, inspectorRepo, pricingRuleRepo,
-    appointmentTimeSlotRepo, auditService, authorizationService,
+    auditService, authorizationService,
   );
   // Tenant portal repositories — created BEFORE reopenForRescheduleUseCase
   // so 026 §FR-543 can inject the token repo (revoke active portal tokens
@@ -1300,7 +1282,7 @@ export function createContainer(logger: Logger): AppContainer {
   const listRetentionRunsUseCase = new ListRetentionRunsUseCase(auditLogRepo);
 
   const appointmentImportWorker = new AppointmentImportWorker(
-    appointmentImportRepo, reportStorageService, appointmentRepo, propertyRepo, serviceTypeRepo, logger, appointmentTimeSlotRepo,
+    appointmentImportRepo, reportStorageService, appointmentRepo, propertyRepo, serviceTypeRepo, logger,
   );
 
   // Property import (depends on reportStorageService and job queue)
@@ -1444,15 +1426,6 @@ export function createContainer(logger: Logger): AppContainer {
       tenantRepo,
       idempotencyService,
       getPortalLinkUseCase,
-    },
-    appointmentTimeSlot: {
-      createAppointmentTimeSlotUseCase,
-      updateAppointmentTimeSlotUseCase,
-      listAppointmentTimeSlotsUseCase,
-      listEffectiveTimeSlotsUseCase,
-      deleteAppointmentTimeSlotUseCase,
-      jwtService,
-      tenantRepo,
     },
     audit: {
       listAuditLogsUseCase,

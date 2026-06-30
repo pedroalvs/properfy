@@ -12,7 +12,8 @@ export interface PortalAppointment {
   id: string;
   status: AppointmentStatus;
   scheduledDate: string;
-  timeSlot: string;
+  timeSlotStart: string;
+  timeSlotEnd: string;
   serviceTypeId?: string;
   serviceType?: {
     id: string;
@@ -89,7 +90,8 @@ export interface ConfirmInput {
 
 export interface RescheduleInput {
   newDate: string;
-  newTimeSlot: string;
+  newTimeSlotStart: string;
+  newTimeSlotEnd: string;
   restrictions?: ConfirmInput['restrictions'];
   tenantNote?: string;
 }

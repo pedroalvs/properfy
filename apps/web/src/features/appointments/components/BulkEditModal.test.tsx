@@ -42,18 +42,6 @@ vi.mock('@/hooks/useFormOptions', () => ({
   useFormOptions: (...args: unknown[]) => mockUseFormOptions(...args),
 }));
 
-type TimeSlotOptionsResult = {
-  options: Array<{ value: string; label: string }>;
-  isError: boolean;
-  error: unknown;
-  refetch: () => void;
-};
-const emptyTimeSlotOptions: TimeSlotOptionsResult = { options: [], isError: false, error: null, refetch: vi.fn() };
-const mockUseTimeSlotOptions = vi.fn(((..._args: unknown[]) => emptyTimeSlotOptions) as (...args: unknown[]) => TimeSlotOptionsResult);
-vi.mock('../hooks/useTimeSlotOptions', () => ({
-  useTimeSlotOptions: (...args: unknown[]) => mockUseTimeSlotOptions(...args),
-}));
-
 vi.mock('../hooks/useContactSearch', () => ({
   useContactSearch: () => ({
     search: '',
@@ -88,7 +76,8 @@ function makeAppointment(overrides: Partial<Appointment> = {}): Appointment {
     inspectorId: null,
     inspectorName: null,
     scheduledDate: '2026-05-01',
-    timeSlot: '09:00-12:00',
+    timeSlotStart: '09:00',
+    timeSlotEnd: '12:00',
     keyRequired: false,
     notes: null,
     isOverdue: false,
@@ -132,7 +121,6 @@ describe('BulkEditModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseFormOptions.mockImplementation(() => emptyFormOptions);
-    mockUseTimeSlotOptions.mockImplementation(() => ({ options: [], isError: false, error: null, refetch: vi.fn() }));
     mockPost.mockResolvedValue({ data: { data: { updated: 1, failed: [] } }, error: null });
   });
 
@@ -180,33 +168,48 @@ describe('BulkEditModal', () => {
     expect(serviceTypeCall).toBeDefined();
   });
 
-  it('Time Slot dropdown is disabled with helper when selection spans multiple branches', () => {
+  it('Time Slot toggle reveals a free start/end time range (no branch dependency)', () => {
     renderModal([
       makeAppointment({ id: 'a', branchId: 'b1' }),
       makeAppointment({ id: 'b', branchId: 'b2' }),
     ]);
     fireEvent.click(screen.getByLabelText('Time Slot'));
-    expect(
-      screen.getByText('All selected appointments must share a branch to set a time slot.'),
-    ).toBeInTheDocument();
+    // Free start/end inputs from the shared TimeRangeInput — available even when
+    // the selection spans branches (the catalog dependency is gone).
+    expect(screen.getByLabelText('Start time')).toBeInTheDocument();
+    expect(screen.getByLabelText('End time')).toBeInTheDocument();
   });
 
-  it('Time Slot dropdown is enabled when all selections share branch + tenant', () => {
-    mockUseTimeSlotOptions.mockImplementation(() => ({
-      options: [{ value: '09:00-12:00', label: 'Morning' }],
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
-    }));
-    renderModal([
-      makeAppointment({ id: 'a', branchId: 'b1', tenantId: 't1' }),
-      makeAppointment({ id: 'b', branchId: 'b1', tenantId: 't1' }),
-    ]);
+  it('emits BOTH timeSlotStart and timeSlotEnd in the bulk-edit changes payload', async () => {
+    renderModal([makeAppointment()]);
     fireEvent.click(screen.getByLabelText('Time Slot'));
-    expect(
-      screen.queryByText(/All selected appointments must share/),
-    ).not.toBeInTheDocument();
-    expect(mockUseTimeSlotOptions).toHaveBeenCalledWith('b1', 't1');
+    fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '13:00' } });
+    fireEvent.change(screen.getByLabelText('End time'), { target: { value: '16:00' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith(
+        '/v1/appointments/bulk-edit',
+        expect.objectContaining({
+          body: expect.objectContaining({
+            changes: { timeSlotStart: '13:00', timeSlotEnd: '16:00' },
+          }),
+        }),
+      );
+    });
+  });
+
+  it('blocks submit and shows an error when end is not after start', async () => {
+    renderModal([makeAppointment()]);
+    fireEvent.click(screen.getByLabelText('Time Slot'));
+    fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '16:00' } });
+    fireEvent.change(screen.getByLabelText('End time'), { target: { value: '13:00' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
+
+    expect(await screen.findByText('Start time must be before end time.')).toBeInTheDocument();
+    expect(mockPost).not.toHaveBeenCalled();
   });
 
   it('submits propertyManagerContactPolicy=addIfMissing when PM contact field is enabled', async () => {

@@ -214,8 +214,8 @@ describe('ExecutionPage', () => {
         data: {
           id: 'apt-1',
           propertyAddress: '123 Main St',
-          timeSlot: '09:00-11:00',
-          timeSlotStart: '2026-03-24T09:00:00.000Z',
+          timeSlotStart: '09:00',
+          timeSlotEnd: '11:00',
         },
       },
       isLoading: false,
@@ -266,7 +266,8 @@ describe('ExecutionPage', () => {
         data: {
           id: 'apt-1',
           propertyAddress: '123 Main St',
-          timeSlot: '09:00-11:00',
+          timeSlotStart: '09:00',
+          timeSlotEnd: '11:00',
         },
       },
       isLoading: false,

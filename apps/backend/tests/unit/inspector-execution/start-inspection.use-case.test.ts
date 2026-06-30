@@ -53,7 +53,7 @@ function makeAppointmentWithRelations(overrides: Record<string, unknown> = {}, r
     inspectorId: 'insp-1',
     status: 'SCHEDULED',
     scheduledDate: new Date('2026-03-21'),
-    timeSlot: '09:00-11:00',
+    timeSlotStart: '09:00', timeSlotEnd: '11:00',
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,

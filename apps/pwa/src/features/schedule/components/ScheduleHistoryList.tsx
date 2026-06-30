@@ -1,12 +1,14 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { formatTimeWindow } from '../lib/time-slot';
 
 interface HistoryItem {
   id: string;
   appointmentCode: string;
   status: string;
   scheduledDate: string;
-  timeSlot: string;
+  timeSlotStart: string;
+  timeSlotEnd: string;
   serviceTypeId: string;
   propertyId: string;
   tenantConfirmationStatus: string;
@@ -80,7 +82,7 @@ export function ScheduleHistoryList({ items }: ScheduleHistoryListProps) {
                   {item.agencyName && (
                     <p className="mt-0.5 truncate text-xs text-text-muted">{item.agencyName}</p>
                   )}
-                  <p className="mt-0.5 text-xs text-text-secondary">{item.timeSlot}</p>
+                  <p className="mt-0.5 text-xs text-text-secondary">{formatTimeWindow(item.timeSlotStart, item.timeSlotEnd)}</p>
                 </div>
               </li>
             ))}

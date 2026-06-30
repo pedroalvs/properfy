@@ -13,7 +13,8 @@ export interface AppointmentProps {
   inspectorId: string | null;
   status: AppointmentStatus;
   scheduledDate: Date;
-  timeSlot: string;
+  timeSlotStart: string;
+  timeSlotEnd: string;
   keyRequired: boolean;
   meetingLocation: string | null;
   keyLocation: string | null;
@@ -49,7 +50,8 @@ export class AppointmentEntity extends BaseEntity {
   inspectorId: string | null;
   status: AppointmentStatus;
   readonly scheduledDate: Date;
-  readonly timeSlot: string;
+  readonly timeSlotStart: string;
+  readonly timeSlotEnd: string;
   readonly keyRequired: boolean;
   readonly meetingLocation: string | null;
   readonly keyLocation: string | null;
@@ -82,7 +84,8 @@ export class AppointmentEntity extends BaseEntity {
     this.inspectorId = props.inspectorId;
     this.status = props.status;
     this.scheduledDate = props.scheduledDate;
-    this.timeSlot = props.timeSlot;
+    this.timeSlotStart = props.timeSlotStart;
+    this.timeSlotEnd = props.timeSlotEnd;
     this.keyRequired = props.keyRequired;
     this.meetingLocation = props.meetingLocation;
     this.keyLocation = props.keyLocation;

@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
@@ -23,56 +23,28 @@ vi.mock('@/hooks/useSnackbar', async () => {
   };
 });
 
+const mockSave = vi.fn();
+// `validate` returns no errors so the test isolates the form's own past-time
+// guard (which lives in handleSubmit, NOT in the shared Zod schema).
 vi.mock('../hooks/useAppointmentSave', () => ({
   useAppointmentSave: () => ({
-    save: vi.fn(),
+    save: mockSave,
     isSaving: false,
     validate: () => ({}),
   }),
 }));
 
-vi.mock('../hooks/useTimeSlotOptions', () => ({
-  useTimeSlotOptions: (branchId?: string) => ({
-    options: branchId ? [{ label: 'Morning (09:00 - 12:00)', value: '09:00-12:00' }] : [],
-    isError: false,
-    error: null,
-    refetch: vi.fn(),
-  }),
-}));
-
 vi.mock('@/hooks/useFormOptions', () => ({
   useFormOptions: (queryKey: unknown[]) => {
-    const [resource, scope, tenantId, marker] = queryKey;
+    const [resource] = queryKey;
     if (resource === 'tenants') {
-      return {
-        options: [
-          { value: 'tenant-1', label: 'Agency One' },
-          { value: 'tenant-2', label: 'Agency Two' },
-        ],
-        isLoading: false,
-      };
+      return { options: [{ value: 'tenant-1', label: 'Agency One' }], isLoading: false };
     }
-    if (resource === 'branches' && scope === 'appointment-create') {
-      return {
-        options: tenantId === 'tenant-1'
-          ? [{ value: 'branch-1', label: 'Branch One' }]
-          : [{ value: 'branch-2', label: 'Branch Two' }],
-        isLoading: false,
-      };
-    }
-    if (resource === 'properties' && marker === 'branch') {
-      return {
-        options: tenantId === 'tenant-1'
-          ? [{ value: 'property-1', label: 'P1 - 12 Harbour St' }]
-          : [{ value: 'property-2', label: 'P2 - 99 George St' }],
-        isLoading: false,
-      };
+    if (resource === 'branches') {
+      return { options: [{ value: 'branch-1', label: 'Branch One' }], isLoading: false };
     }
     if (resource === 'service-types') {
-      return {
-        options: [{ value: 'service-1', label: 'Routine Inspection' }],
-        isLoading: false,
-      };
+      return { options: [{ value: 'service-1', label: 'Routine Inspection' }], isLoading: false };
     }
     return { options: [], isLoading: false };
   },
@@ -104,8 +76,20 @@ function selectOption(label: string, optionText: string) {
   fireEvent.click(screen.getByText(optionText));
 }
 
-describe('AppointmentCreatePage time slot dependencies', () => {
-  it('clears the selected time slot when the agency changes', async () => {
+describe('AppointmentCreatePage past-time guard', () => {
+  beforeEach(() => {
+    mockSave.mockReset();
+    // Pin the clock at midday so "today" and "now" are deterministic and a
+    // 09:00 start is unambiguously in the past for today's date.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2030-06-15T12:00:00'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('rejects a past start time on today with an inline error on timeSlotStart (no save)', () => {
     const Wrapper = createWrapper();
     render(
       <Wrapper>
@@ -114,15 +98,36 @@ describe('AppointmentCreatePage time slot dependencies', () => {
     );
 
     selectOption('Agency', 'Agency One');
-    selectOption('Branch', 'Branch One');
-    selectOption('Time Slot', 'Morning (09:00 - 12:00)');
 
-    expect(screen.getByLabelText('Time Slot')).toHaveTextContent('Morning (09:00 - 12:00)');
+    // Today's date with a start time that has already passed (09:00 < 12:00).
+    fireEvent.change(screen.getByLabelText('Scheduled Date'), { target: { value: '2030-06-15' } });
+    fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '09:00' } });
+    fireEvent.change(screen.getByLabelText('End time'), { target: { value: '11:00' } });
 
-    selectOption('Agency', 'Agency Two');
+    fireEvent.click(screen.getByRole('button', { name: 'Create Appointment' }));
 
-    await waitFor(() => {
-      expect(screen.getByLabelText('Time Slot')).toHaveTextContent('Select a branch first');
-    });
+    expect(screen.getByText('Start time is in the past')).toBeInTheDocument();
+    expect(mockSave).not.toHaveBeenCalled();
+  });
+
+  it('allows a future start time on today (no inline error, save proceeds)', () => {
+    mockSave.mockResolvedValue({ success: true, id: 'apt-new' });
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <AppointmentCreatePage />
+      </Wrapper>,
+    );
+
+    selectOption('Agency', 'Agency One');
+
+    fireEvent.change(screen.getByLabelText('Scheduled Date'), { target: { value: '2030-06-15' } });
+    fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '15:00' } });
+    fireEvent.change(screen.getByLabelText('End time'), { target: { value: '17:00' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create Appointment' }));
+
+    expect(screen.queryByText('Start time is in the past')).not.toBeInTheDocument();
+    expect(mockSave).toHaveBeenCalled();
   });
 });

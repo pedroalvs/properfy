@@ -47,7 +47,7 @@ function makeAppointmentResult(overrides: Record<string, unknown> = {}) {
     serviceGroupId: null,
     status: 'DRAFT',
     scheduledDate: '2027-09-01',
-    timeSlot: '09:00-10:00',
+    timeSlotStart: '09:00', timeSlotEnd: '10:00',
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,

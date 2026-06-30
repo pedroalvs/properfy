@@ -50,7 +50,8 @@ describe('createAppointmentSchema', () => {
       propertyId: validPropertyId,
       serviceTypeId: validServiceTypeId,
       scheduledDate: '2027-04-01',
-      timeSlot: '09:00-10:00',
+      timeSlotStart: '09:00',
+      timeSlotEnd: '10:00',
       contact: validContact,
     });
     expect(result.success).toBe(true);
@@ -62,7 +63,8 @@ describe('createAppointmentSchema', () => {
       property: validInlineProperty,
       serviceTypeId: validServiceTypeId,
       scheduledDate: '2027-04-01',
-      timeSlot: '09:00-10:00',
+      timeSlotStart: '09:00',
+      timeSlotEnd: '10:00',
       contact: validContact,
     });
     expect(result.success).toBe(true);
@@ -75,7 +77,8 @@ describe('createAppointmentSchema', () => {
       property: validInlineProperty,
       serviceTypeId: validServiceTypeId,
       scheduledDate: '2027-04-01',
-      timeSlot: '09:00-10:00',
+      timeSlotStart: '09:00',
+      timeSlotEnd: '10:00',
       contact: validContact,
     });
     expect(result.success).toBe(false);
@@ -86,23 +89,54 @@ describe('createAppointmentSchema', () => {
       branchId: validBranchId,
       serviceTypeId: validServiceTypeId,
       scheduledDate: '2027-04-01',
-      timeSlot: '09:00-10:00',
+      timeSlotStart: '09:00',
+      timeSlotEnd: '10:00',
       contact: validContact,
     });
     expect(result.success).toBe(false);
   });
 
-  it('should be invalid with wrong timeSlot format', () => {
+  it('should be invalid with wrong time format', () => {
     const result = createAppointmentSchema.safeParse({
       branchId: validBranchId,
       propertyId: validPropertyId,
       serviceTypeId: validServiceTypeId,
       scheduledDate: '2027-04-01',
-      timeSlot: '9am-10am',
+      timeSlotStart: '9am',
+      timeSlotEnd: '10am',
       contact: validContact,
     });
     expect(result.success).toBe(false);
   });
+
+  it('should be invalid when end time is not after start time', () => {
+    const result = createAppointmentSchema.safeParse({
+      branchId: validBranchId,
+      propertyId: validPropertyId,
+      serviceTypeId: validServiceTypeId,
+      scheduledDate: '2027-04-01',
+      timeSlotStart: '10:00',
+      timeSlotEnd: '09:00',
+      contact: validContact,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it.each(['24:00', '12:60', '99:99', '9:00'])(
+    'should reject an impossible clock value %s',
+    (badTime) => {
+      const result = createAppointmentSchema.safeParse({
+        branchId: validBranchId,
+        propertyId: validPropertyId,
+        serviceTypeId: validServiceTypeId,
+        scheduledDate: '2027-04-01',
+        timeSlotStart: badTime,
+        timeSlotEnd: '23:00',
+        contact: validContact,
+      });
+      expect(result.success).toBe(false);
+    },
+  );
 
   it('should be valid with all optional fields', () => {
     const result = createAppointmentSchema.safeParse({
@@ -110,7 +144,8 @@ describe('createAppointmentSchema', () => {
       propertyId: validPropertyId,
       serviceTypeId: validServiceTypeId,
       scheduledDate: '2027-04-01',
-      timeSlot: '09:00-10:00',
+      timeSlotStart: '09:00',
+      timeSlotEnd: '10:00',
       contact: validContact,
       restriction: validRestriction,
       keyRequired: true,
@@ -129,7 +164,8 @@ describe('createAppointmentSchema', () => {
       propertyId: validPropertyId,
       serviceTypeId: validServiceTypeId,
       scheduledDate: '2020-01-01',
-      timeSlot: '09:00-10:00',
+      timeSlotStart: '09:00',
+      timeSlotEnd: '10:00',
       contact: validContact,
     });
     expect(result.success).toBe(true);
@@ -142,7 +178,8 @@ describe('createAppointmentSchema', () => {
       propertyId: validPropertyId,
       serviceTypeId: validServiceTypeId,
       scheduledDate: today,
-      timeSlot: '09:00-10:00',
+      timeSlotStart: '09:00',
+      timeSlotEnd: '10:00',
       contact: validContact,
     });
     expect(result.success).toBe(true);
@@ -155,7 +192,8 @@ describe('createAppointmentSchema', () => {
       propertyId: validPropertyId,
       serviceTypeId: validServiceTypeId,
       scheduledDate: tomorrow,
-      timeSlot: '09:00-10:00',
+      timeSlotStart: '09:00',
+      timeSlotEnd: '10:00',
       contact: validContact,
     });
     expect(result.success).toBe(true);
@@ -167,7 +205,8 @@ describe('createAppointmentSchema', () => {
       propertyId: validPropertyId,
       serviceTypeId: validServiceTypeId,
       scheduledDate: '2027-04-01',
-      timeSlot: '09:00-10:00',
+      timeSlotStart: '09:00',
+      timeSlotEnd: '10:00',
       contact: validContact,
     });
     expect(result.success).toBe(true);
@@ -182,7 +221,8 @@ describe('createAppointmentSchema', () => {
       propertyId: validPropertyId,
       serviceTypeId: validServiceTypeId,
       scheduledDate: '2027-04-01',
-      timeSlot: '09:00-10:00',
+      timeSlotStart: '09:00',
+      timeSlotEnd: '10:00',
       contact: validContact,
       observation: 'Gate code 4321',
     });
@@ -198,7 +238,8 @@ describe('createAppointmentSchema', () => {
       propertyId: validPropertyId,
       serviceTypeId: validServiceTypeId,
       scheduledDate: '2027-04-01',
-      timeSlot: '09:00-10:00',
+      timeSlotStart: '09:00',
+      timeSlotEnd: '10:00',
       contact: validContact,
       observation: '   ',
     });
@@ -216,7 +257,8 @@ describe('updateAppointmentSchema', () => {
     const future = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
     const result = updateAppointmentSchema.safeParse({
       scheduledDate: future,
-      timeSlot: '10:00-11:00',
+      timeSlotStart: '10:00',
+      timeSlotEnd: '11:00',
     });
     expect(result.success).toBe(true);
   });
@@ -226,9 +268,17 @@ describe('updateAppointmentSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should be invalid with wrong timeSlot format', () => {
+  it('should be invalid with wrong time format', () => {
     const result = updateAppointmentSchema.safeParse({
-      timeSlot: 'invalid',
+      timeSlotStart: 'invalid',
+      timeSlotEnd: 'invalid',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should be invalid when only one side of the time window is provided', () => {
+    const result = updateAppointmentSchema.safeParse({
+      timeSlotStart: '09:00',
     });
     expect(result.success).toBe(false);
   });
@@ -426,6 +476,21 @@ describe('listAppointmentsQuerySchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('should accept a valid timeFrom/timeTo range', () => {
+    const result = listAppointmentsQuerySchema.safeParse({ timeFrom: '09:00', timeTo: '17:00' });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject an inverted timeFrom/timeTo range', () => {
+    const result = listAppointmentsQuerySchema.safeParse({ timeFrom: '17:00', timeTo: '09:00' });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject a malformed time in the range filter', () => {
+    const result = listAppointmentsQuerySchema.safeParse({ timeFrom: '24:00' });
+    expect(result.success).toBe(false);
+  });
+
   it('should be valid with all filters', () => {
     const result = listAppointmentsQuerySchema.safeParse({
       page: '1',
@@ -595,20 +660,31 @@ describe('bulkRescheduleRequestSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('accepts newTimeSlot when in HH:mm-HH:mm format', () => {
+  it('accepts a new time window in HH:mm format', () => {
     const result = bulkRescheduleRequestSchema.safeParse({
       appointmentIds: [apptIdA],
       newDate: '2027-06-01',
-      newTimeSlot: '09:00-10:00',
+      newTimeSlotStart: '09:00',
+      newTimeSlotEnd: '10:00',
     });
     expect(result.success).toBe(true);
   });
 
-  it('rejects malformed newTimeSlot', () => {
+  it('rejects a malformed new time window', () => {
     const result = bulkRescheduleRequestSchema.safeParse({
       appointmentIds: [apptIdA],
       newDate: '2027-06-01',
-      newTimeSlot: '9-10',
+      newTimeSlotStart: '9',
+      newTimeSlotEnd: '10',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects only one side of the new time window', () => {
+    const result = bulkRescheduleRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      newDate: '2027-06-01',
+      newTimeSlotStart: '09:00',
     });
     expect(result.success).toBe(false);
   });
@@ -720,7 +796,8 @@ describe('bulkReopenForRescheduleRequestSchema (026 §FR-540)', () => {
     expect(bulkReopenForRescheduleRequestSchema.safeParse({
       appointmentIds: [apptIdA, apptIdB],
       newDate: '2027-06-01',
-      newTimeSlot: '09:00-10:00',
+      newTimeSlotStart: '09:00',
+      newTimeSlotEnd: '10:00',
     }).success).toBe(true);
   });
 
@@ -728,7 +805,8 @@ describe('bulkReopenForRescheduleRequestSchema (026 §FR-540)', () => {
     expect(bulkReopenForRescheduleRequestSchema.safeParse({
       appointmentIds: [apptIdA],
       newDate: '2027-06-01T09:00:00.000Z',
-      newTimeSlot: '09:00-10:00',
+      newTimeSlotStart: '09:00',
+      newTimeSlotEnd: '10:00',
     }).success).toBe(true);
   });
 
@@ -736,24 +814,26 @@ describe('bulkReopenForRescheduleRequestSchema (026 §FR-540)', () => {
     expect(bulkReopenForRescheduleRequestSchema.safeParse({
       appointmentIds: [apptIdA],
       newDate: '2027-06-01',
-      newTimeSlot: '09:00-10:00',
+      newTimeSlotStart: '09:00',
+      newTimeSlotEnd: '10:00',
       reason: 'Tenant requested change',
       actorTimezone: 'Australia/Sydney',
     }).success).toBe(true);
   });
 
-  it('rejects when newTimeSlot is missing (dropdown is mandatory, NOT numeric input)', () => {
+  it('rejects when the new time window is missing (start/end are mandatory)', () => {
     expect(bulkReopenForRescheduleRequestSchema.safeParse({
       appointmentIds: [apptIdA],
       newDate: '2027-06-01',
     }).success).toBe(false);
   });
 
-  it('rejects empty newTimeSlot', () => {
+  it('rejects an empty new time window', () => {
     expect(bulkReopenForRescheduleRequestSchema.safeParse({
       appointmentIds: [apptIdA],
       newDate: '2027-06-01',
-      newTimeSlot: '',
+      newTimeSlotStart: '',
+      newTimeSlotEnd: '',
     }).success).toBe(false);
   });
 
@@ -764,7 +844,8 @@ describe('bulkReopenForRescheduleRequestSchema (026 §FR-540)', () => {
     expect(bulkReopenForRescheduleRequestSchema.safeParse({
       appointmentIds: ids,
       newDate: '2027-06-01',
-      newTimeSlot: '09:00-10:00',
+      newTimeSlotStart: '09:00',
+      newTimeSlotEnd: '10:00',
     }).success).toBe(false);
   });
 
@@ -772,7 +853,8 @@ describe('bulkReopenForRescheduleRequestSchema (026 §FR-540)', () => {
     expect(bulkReopenForRescheduleRequestSchema.safeParse({
       appointmentIds: [apptIdA],
       newDate: '2027-06-01',
-      newTimeSlot: '09:00-10:00',
+      newTimeSlotStart: '09:00',
+      newTimeSlotEnd: '10:00',
       reason: 'no',
     }).success).toBe(false);
   });
