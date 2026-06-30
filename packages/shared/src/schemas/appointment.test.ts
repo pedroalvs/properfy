@@ -451,6 +451,33 @@ describe('listAppointmentsQuerySchema', () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it('should accept a valid serviceGroupId (group-membership filter)', () => {
+    const result = listAppointmentsQuerySchema.safeParse({
+      serviceGroupId: validServiceTypeId,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject a non-uuid serviceGroupId', () => {
+    const result = listAppointmentsQuerySchema.safeParse({
+      serviceGroupId: 'not-a-uuid',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject serviceGroupId combined with ungroupedOnly (mutually exclusive)', () => {
+    const result = listAppointmentsQuerySchema.safeParse({
+      serviceGroupId: validServiceTypeId,
+      ungroupedOnly: 'true',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should accept ungroupedOnly alone', () => {
+    const result = listAppointmentsQuerySchema.safeParse({ ungroupedOnly: 'true' });
+    expect(result.success).toBe(true);
+  });
 });
 
 describe('forceManualConfirmationSchema', () => {

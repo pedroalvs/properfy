@@ -463,7 +463,11 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     } else {
       if (filters.status && filters.status.length > 0) {
         where['status'] = { in: filters.status };
-      } else if (!filters.showCancelled) {
+      } else if (!filters.showCancelled && !filters.serviceGroupId) {
+        // A group-membership query (serviceGroupId set) returns the group's
+        // FULL membership, so the default active-status exclusion must not
+        // apply — otherwise CANCELLED/REJECTED members would silently vanish
+        // and the modal count would disagree with the group pin.
         where['status'] = { notIn: ['CANCELLED', 'REJECTED'] };
       }
       if (filters.fromDate || filters.toDate) {
@@ -502,6 +506,11 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       if (!filters.status) {
         where['status'] = { in: ['DRAFT', 'AWAITING_INSPECTOR'] };
       }
+    }
+    // Positive membership filter. Guarded against `ungroupedOnly` (mutually
+    // exclusive — that sets service_group_id = null) so they can't collide.
+    if (filters.serviceGroupId && !filters.ungroupedOnly) {
+      where['service_group_id'] = filters.serviceGroupId;
     }
     if (filters.timeSlot) {
       where['time_slot'] = filters.timeSlot;

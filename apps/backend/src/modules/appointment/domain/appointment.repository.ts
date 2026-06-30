@@ -27,6 +27,12 @@ export interface AppointmentFilters {
   hasTenantNote?: boolean;
   /** Filter by tenant_confirmation_status enum value. */
   confirmationStatus?: string;
+  /**
+   * Positive membership filter: only appointments belonging to this service
+   * group. When set, the default active-status exclusion is bypassed so the
+   * group's full membership (incl. CANCELLED/REJECTED) is returned.
+   */
+  serviceGroupId?: string;
 }
 
 export interface PaginationParams {

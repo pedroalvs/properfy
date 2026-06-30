@@ -27,6 +27,7 @@ export interface ListAppointmentsInput {
     contactSearch?: string;
     hasTenantNote?: boolean;
     confirmationStatus?: string;
+    serviceGroupId?: string;
   };
   pagination: PaginationParams;
   actor: AuthContext;
@@ -73,6 +74,7 @@ export interface ListAppointmentsOutput {
     tenantNote: string | null;
     latitude: number | null;
     longitude: number | null;
+    serviceGroupId: string | null;
   }>;
   total: number;
   page: number;
@@ -132,6 +134,7 @@ export class ListAppointmentsUseCase {
       contactSearch: filters.contactSearch,
       hasTenantNote: filters.hasTenantNote,
       confirmationStatus: filters.confirmationStatus,
+      serviceGroupId: filters.serviceGroupId,
     };
 
     const [data, total] = await Promise.all([
@@ -182,6 +185,7 @@ export class ListAppointmentsUseCase {
         tenantNote: item.appointment.tenantNote ?? null,
         latitude: item.propertyLatitude,
         longitude: item.propertyLongitude,
+        serviceGroupId: item.appointment.serviceGroupId,
       };
       }),
       total,
