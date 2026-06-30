@@ -30,8 +30,8 @@ describe('UserFilters', () => {
     expect(listbox).toHaveTextContent('All');
     expect(screen.getByText('Admin Master')).toBeInTheDocument();
     expect(screen.getByText('Operator')).toBeInTheDocument();
-    expect(screen.getByText('Client Admin')).toBeInTheDocument();
-    expect(screen.getByText('Client User')).toBeInTheDocument();
+    expect(screen.getByText('Real Estate')).toBeInTheDocument();
+    expect(screen.getByText('Real Estate Operator')).toBeInTheDocument();
     expect(screen.getByText('Inspector')).toBeInTheDocument();
     expect(screen.getByText('Tenant')).toBeInTheDocument();
   });

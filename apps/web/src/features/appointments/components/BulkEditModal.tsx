@@ -196,11 +196,11 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
   const timeSlotHelper = multiBranch
     ? 'All selected appointments must share a branch to set a time slot.'
     : multiTenant
-      ? 'All selected appointments must share a tenant to set a time slot.'
+      ? 'All selected appointments must share an agency to set a time slot.'
       : null;
   const inspectorDisabled = !activeTenantId;
   const inspectorHelper = multiTenant
-    ? 'All selected appointments must share a tenant to assign an inspector.'
+    ? 'All selected appointments must share an agency to assign an inspector.'
     : null;
 
   return (

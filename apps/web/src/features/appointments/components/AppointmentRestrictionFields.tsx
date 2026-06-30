@@ -30,7 +30,7 @@ export function AppointmentRestrictionFields({
         {form.hasRestriction && (
           <>
             <Checkbox
-              label="Occupant will be home"
+              label="Tenant will be home"
               checked={form.restrictionIsHome}
               onChange={onToggleIsHome}
             />

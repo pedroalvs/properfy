@@ -12,7 +12,7 @@ describe('AuditLogTable', () => {
     render(<AuditLogTable data={[]} />);
     expect(screen.getByText('Timestamp')).toBeInTheDocument();
     expect(screen.getByText('Actor')).toBeInTheDocument();
-    expect(screen.getByText('Tenant')).toBeInTheDocument();
+    expect(screen.getByText('Agency')).toBeInTheDocument();
     expect(screen.getByText('Entity Type')).toBeInTheDocument();
     expect(screen.getByText('Action')).toBeInTheDocument();
     expect(screen.getByText('Changed Fields')).toBeInTheDocument();

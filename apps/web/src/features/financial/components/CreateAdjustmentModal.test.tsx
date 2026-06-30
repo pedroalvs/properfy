@@ -79,7 +79,7 @@ describe('CreateAdjustmentModal', () => {
       </Wrapper>,
     );
     expect(screen.getByText('Create Adjustment')).toBeInTheDocument();
-    expect(screen.getByLabelText('Tenant ID')).toBeInTheDocument();
+    expect(screen.getByLabelText('Agency ID')).toBeInTheDocument();
     expect(screen.getByLabelText('Amount')).toBeInTheDocument();
     expect(screen.getByLabelText('Description')).toBeInTheDocument();
     expect(screen.getByLabelText('Reason')).toBeInTheDocument();

@@ -78,7 +78,7 @@ export function AppointmentContactTab({ appointment }: AppointmentContactTabProp
           value={<BooleanIcon value={appointment.keyRequired} />}
         />
         <DetailRow
-          label="Occupant Home"
+          label="Tenant Home"
           value={<BooleanIcon value={appointment.restrictions?.[0]?.isHome ?? false} />}
         />
         <DetailRow label="Meeting Location" value={appointment.meetingLocation} />

@@ -61,7 +61,7 @@ export function AuditLogTable({
     },
     {
       key: 'tenantId',
-      label: 'Tenant',
+      label: 'Agency',
       width: '180px',
       render: (row) => <>{formatAuditTenant(row.tenantId, row.tenantName)}</>,
     },

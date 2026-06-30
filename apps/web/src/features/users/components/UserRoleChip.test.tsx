@@ -6,8 +6,8 @@ import { UserRoleChip } from './UserRoleChip';
 const ROLE_LABELS: Record<UserRole, string> = {
   AM: 'Admin Master',
   OP: 'Operator',
-  CL_ADMIN: 'Client Admin',
-  CL_USER: 'Client User',
+  CL_ADMIN: 'Real Estate',
+  CL_USER: 'Real Estate Operator',
   INSP: 'Inspector',
   TNT: 'Tenant',
   SYS: 'System',

@@ -41,7 +41,7 @@ export function AuditLogDetailDrawer({ log, open, onClose }: AuditLogDetailDrawe
                   <p className="text-sm font-medium">{formatAuditActor(log.actorType, log.actorId)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-text-muted">Tenant</p>
+                  <p className="text-xs text-text-muted">Agency</p>
                   <p className="text-sm font-medium">{formatAuditTenant(log.tenantId)}</p>
                 </div>
                 <div>

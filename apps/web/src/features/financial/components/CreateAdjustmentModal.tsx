@@ -137,16 +137,16 @@ export function CreateAdjustmentModal({ open, onClose, onCreated }: CreateAdjust
     >
       <div className="flex flex-col gap-4">
         <FormField
-          label="Tenant ID"
+          label="Agency ID"
           required
           error={errors.tenantId}
-          hint={user?.tenantId ? 'Using the tenant from your current session.' : 'Required for cross-tenant manual adjustments.'}
+          hint={user?.tenantId ? 'Using the agency from your current session.' : 'Required for cross-agency manual adjustments.'}
         >
           <TextInput
             value={resolvedTenantId}
             onChange={(v) => updateField('tenantId', v)}
             disabled={Boolean(user?.tenantId)}
-            aria-label="Tenant ID"
+            aria-label="Agency ID"
           />
         </FormField>
         <FormField label="Amount" required error={errors.amount}>

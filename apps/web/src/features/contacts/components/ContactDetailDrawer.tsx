@@ -74,8 +74,8 @@ export function ContactDetailDrawer({
                     // can tell apart cross-tenant contacts at a glance.
                     <span
                       className="inline-flex items-center rounded-full border border-border bg-surface-muted px-2 py-0.5 text-xs text-text-secondary"
-                      title="Contact has no tenant linkage; visibility derives from operational appointments."
-                      aria-label="Standalone contact (no tenant)"
+                      title="Contact has no agency linkage; visibility derives from operational appointments."
+                      aria-label="Standalone contact (no agency)"
                     >
                       Standalone
                     </span>

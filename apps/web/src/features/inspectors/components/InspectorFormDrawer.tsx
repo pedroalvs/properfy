@@ -357,8 +357,8 @@ export function InspectorFormDrawer({
                   </FormSection>
 
                   {isAmOp && (
-                    <FormSection title="Blocked Tenants">
-                      <FormField label="Blocked Tenants" error={errors.blockedClients}>
+                    <FormSection title="Blocked Agencies">
+                      <FormField label="Blocked Agencies" error={errors.blockedClients}>
                         <div className="flex flex-col gap-3 rounded border border-black/10 px-3 py-3">
                           {tenantOptions.length > 0 ? (
                             <div className="grid gap-2">
@@ -373,7 +373,7 @@ export function InspectorFormDrawer({
                             </div>
                           ) : (
                             <p className="text-sm text-text-muted">
-                              {isLoadingTenants ? 'Loading tenants...' : 'No active tenants available.'}
+                              {isLoadingTenants ? 'Loading agencies...' : 'No active agencies available.'}
                             </p>
                           )}
                           <p className="text-xs text-text-muted">

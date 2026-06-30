@@ -69,4 +69,14 @@ describe('ProfileCard', () => {
     );
     expect(screen.queryByRole('button', { name: 'Upload' })).not.toBeInTheDocument();
   });
+
+  it('renders "Real Estate" label for CL_ADMIN role', () => {
+    renderWithProviders(<ProfileCard name="Jane" email="j@test.com" role="CL_ADMIN" />);
+    expect(screen.getByText('Real Estate')).toBeInTheDocument();
+  });
+
+  it('renders "Real Estate Operator" label for CL_USER role', () => {
+    renderWithProviders(<ProfileCard name="Jane" email="j@test.com" role="CL_USER" />);
+    expect(screen.getByText('Real Estate Operator')).toBeInTheDocument();
+  });
 });

@@ -52,7 +52,7 @@ export function useUserResetPassword(
     userId: string,
     data: UserResetPasswordFormData,
   ): Promise<ResetPasswordResult> => {
-    if (scope === 'tenant' && !tenantId) return { success: false, error: 'No tenant context' };
+    if (scope === 'tenant' && !tenantId) return { success: false, error: 'No agency context' };
 
     setIsResetting(true);
     try {
