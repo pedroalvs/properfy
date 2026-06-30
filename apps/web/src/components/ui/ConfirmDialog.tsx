@@ -12,6 +12,8 @@ interface ConfirmDialogProps {
   cancelLabel?: string;
   variant?: 'danger' | 'warning';
   loading?: boolean;
+  /** Disable the confirm button (e.g. when there is nothing to act on). */
+  confirmDisabled?: boolean;
 }
 
 const variantButtonClass: Record<'danger' | 'warning', string> = {
@@ -29,6 +31,7 @@ export function ConfirmDialog({
   cancelLabel = 'Cancel',
   variant = 'danger',
   loading,
+  confirmDisabled,
 }: ConfirmDialogProps) {
   return (
     <Dialog
@@ -44,6 +47,7 @@ export function ConfirmDialog({
             className={variantButtonClass[variant]}
             onClick={onConfirm}
             loading={loading}
+            disabled={confirmDisabled}
           >
             {confirmLabel}
           </Button>

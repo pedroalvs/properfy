@@ -154,3 +154,85 @@ export const findAddableGroupsResponseSchema = z.object({
   reason: z.enum(['MIXED_APPOINTMENT_PROPERTIES', 'INVALID_APPOINTMENT_STATUS']).optional(),
 });
 export type FindAddableGroupsResponse = z.infer<typeof findAddableGroupsResponseSchema>;
+
+// ─── Group "Send portal link" (preview + execute) ───────────────────────────
+//
+// The operator sends the tenant confirmation portal link to every appointment
+// in a group at once. The planned action per appointment is computed by the
+// shared `classifyPortalLinkAction` resolver and is the single source of truth
+// behind both the preview (GET …/portal-link-plan) and the send
+// (POST …/portal-links). The preview returns the plannedAction + summary so the
+// confirm dialog can show what will happen; the send returns the richer
+// dispatch-time outcome.
+
+export const groupPortalLinkPlannedActionSchema = z.enum([
+  'SEND', // sendable, not yet confirmed for the current date/time
+  'SEND_AFTER_RESET', // confirmed but stale (date/time changed) → reset then resend
+  'SKIP_ALREADY_CONFIRMED', // confirmed for the current date/time → skip
+  'SKIP_NOT_SENDABLE', // status not in AWAITING_INSPECTOR/SCHEDULED → skip
+]);
+export type GroupPortalLinkPlannedAction = z.infer<typeof groupPortalLinkPlannedActionSchema>;
+
+export const groupPortalLinkPlanItemSchema = z.object({
+  appointmentId: z.string().uuid(),
+  appointmentNumber: z.number().int(),
+  propertyCode: z.string().nullable(),
+  plannedAction: groupPortalLinkPlannedActionSchema,
+});
+export type GroupPortalLinkPlanItem = z.infer<typeof groupPortalLinkPlanItemSchema>;
+
+export const getGroupPortalLinkPlanResponseSchema = z.object({
+  items: z.array(groupPortalLinkPlanItemSchema),
+  summary: z.object({
+    total: z.number().int(),
+    willSend: z.number().int(), // SEND
+    willResendDateChanged: z.number().int(), // SEND_AFTER_RESET
+    alreadyConfirmed: z.number().int(), // SKIP_ALREADY_CONFIRMED
+    notSendable: z.number().int(), // SKIP_NOT_SENDABLE
+  }),
+});
+export type GetGroupPortalLinkPlanResponse = z.infer<typeof getGroupPortalLinkPlanResponseSchema>;
+
+export const sendGroupPortalLinksRequestSchema = z.object({
+  /**
+   * IANA timezone of the operator's browser, used to compute the per-day
+   * idempotency bucket — same contract as bulkResendReminderRequestSchema.
+   * Frontend sends `Intl.DateTimeFormat().resolvedOptions().timeZone`.
+   */
+  actorTimezone: z.string().optional(),
+});
+export type SendGroupPortalLinksRequest = z.infer<typeof sendGroupPortalLinksRequestSchema>;
+
+/**
+ * Per-item outcome of the send. Mirrors bulkResendReminderResultStatusSchema
+ * and adds the skip outcomes plus the date-changed-resend outcome unique to
+ * this flow:
+ * - SENT / DATE_CHANGED_RESENT: link dispatched (the latter after resetting a
+ *   stale confirmation for the new date).
+ * - ALREADY_CONFIRMED / NOT_SENDABLE: skipped by the eligibility rule.
+ * - NO_PRIMARY_CONTACT: token minted but no primary contact to dispatch to.
+ * - IDEMPOTENT_REPLAY: already sent today (per-day bucket), no re-dispatch.
+ * - ERROR: per-item failure surfaced without aborting the batch.
+ */
+export const sendGroupPortalLinksResultStatusSchema = z.enum([
+  'SENT',
+  'DATE_CHANGED_RESENT',
+  'ALREADY_CONFIRMED',
+  'NOT_SENDABLE',
+  'NO_PRIMARY_CONTACT',
+  'IDEMPOTENT_REPLAY',
+  'ERROR',
+]);
+export type SendGroupPortalLinksResultStatus = z.infer<typeof sendGroupPortalLinksResultStatusSchema>;
+
+export const sendGroupPortalLinksResultItemSchema = z.object({
+  appointmentId: z.string().uuid(),
+  status: sendGroupPortalLinksResultStatusSchema,
+  error: z.object({ code: z.string(), message: z.string() }).optional(),
+});
+export type SendGroupPortalLinksResultItem = z.infer<typeof sendGroupPortalLinksResultItemSchema>;
+
+export const sendGroupPortalLinksResponseSchema = z.object({
+  results: z.array(sendGroupPortalLinksResultItemSchema),
+});
+export type SendGroupPortalLinksResponse = z.infer<typeof sendGroupPortalLinksResponseSchema>;

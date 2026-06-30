@@ -183,6 +183,25 @@ vi.mock('../hooks/useCancelServiceGroup', () => ({
   }),
 }));
 
+const mockSendPortalLinks = vi.fn();
+vi.mock('../hooks/useSendGroupPortalLinks', () => ({
+  useSendGroupPortalLinks: () => ({
+    send: mockSendPortalLinks,
+    isSending: false,
+  }),
+}));
+
+vi.mock('../hooks/useGroupPortalLinkPlan', () => ({
+  useGroupPortalLinkPlan: () => ({
+    plan: {
+      items: [],
+      summary: { total: 2, willSend: 2, willResendDateChanged: 0, alreadyConfirmed: 0, notSendable: 0 },
+    },
+    isLoading: false,
+    isError: false,
+  }),
+}));
+
 import { ServiceGroupDetailPage } from './ServiceGroupDetailPage';
 
 function createWrapper(initialEntry: string = '/service-groups/sg-01') {
@@ -274,6 +293,24 @@ describe('ServiceGroupDetailPage', () => {
     expect(screen.queryByRole('button', { name: /Cancel Group/ })).not.toBeInTheDocument();
     // canAssign is DRAFT/PUBLISHED only — no Manual Assign for CANCELLED.
     expect(screen.queryByRole('button', { name: /Manual Assign/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Send portal link/ })).not.toBeInTheDocument();
+  });
+
+  it('shows Send portal link button for DRAFT status', () => {
+    renderPage();
+    expect(screen.getByRole('button', { name: /Send portal link/ })).toBeInTheDocument();
+  });
+
+  it('shows Send portal link button for ACCEPTED status', () => {
+    renderPage('/service-groups/accepted');
+    expect(screen.getByRole('button', { name: /Send portal link/ })).toBeInTheDocument();
+  });
+
+  it('opens the Send portal link dialog on click', () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /Send portal link/ }));
+    // The dialog body shows the preview summary.
+    expect(screen.getByText(/will be sent/)).toBeInTheDocument();
   });
 
   it('shows loading state', () => {

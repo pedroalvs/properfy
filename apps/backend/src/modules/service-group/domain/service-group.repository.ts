@@ -123,6 +123,27 @@ export interface PortalEligibleGroup {
   capacityMax: 10;
 }
 
+/**
+ * Per-appointment row used by the group "Send portal link" preview + send.
+ * Carries the appointment's current schedule and its denormalized tenant
+ * confirmation status alongside the active confirmation cycle's date/time, so
+ * `classifyPortalLinkAction` can detect a stale (date/time-changed) confirmation.
+ * Cross-tenant by design (groups are tenant-agnostic); the per-row `tenantId`
+ * lets the use cases scope an OP actor to their own tenant.
+ */
+export interface GroupAppointmentConfirmationRow {
+  id: string;
+  appointmentNumber: number;
+  tenantId: string;
+  status: string;
+  scheduledDate: Date;
+  timeSlot: string;
+  tenantConfirmationStatus: string;
+  activeCycle: { scheduledDate: Date; timeSlot: string | null; status: string } | null;
+  propertyCode: string | null;
+  propertyAddress: string | null;
+}
+
 export interface IServiceGroupRepository {
   findById(id: string, tenantId: string | null): Promise<ServiceGroupWithAppointments | null>;
   findAll(
@@ -137,6 +158,14 @@ export interface IServiceGroupRepository {
   findAppointmentsForMapByGroupIds(
     groupIds: string[],
   ): Promise<ServiceGroupMapAppointment[]>;
+  /**
+   * Load the group's appointments with their confirmation state for the
+   * "Send portal link" preview + send. Returns all tenants' appointments
+   * (cross-tenant group); callers scope by `tenantId` for OP actors.
+   */
+  findGroupAppointmentsWithConfirmation(
+    groupId: string,
+  ): Promise<GroupAppointmentConfirmationRow[]>;
   count(filters: ServiceGroupFilters): Promise<number>;
   save(group: ServiceGroupEntity): Promise<void>;
   update(
