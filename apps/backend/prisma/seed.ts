@@ -1393,7 +1393,7 @@ async function main() {
     create: {
       id: IDS.pa1,
       appointment_id: IDS.apptScheduled,
-      tenant_portal_token_id: IDS.pt1,
+      rental_tenant_portal_token_id: IDS.pt1,
       action: 'VIEW',
       ip_address: '203.25.41.100',
       user_agent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
@@ -1406,7 +1406,7 @@ async function main() {
     create: {
       id: IDS.pa2,
       appointment_id: IDS.apptScheduled,
-      tenant_portal_token_id: IDS.pt1,
+      rental_tenant_portal_token_id: IDS.pt1,
       action: 'CONFIRM',
       previous_values_json: { rental_tenant_confirmation_status: 'PENDING' },
       new_values_json: { rental_tenant_confirmation_status: 'CONFIRMED' },
@@ -1421,7 +1421,7 @@ async function main() {
     create: {
       id: IDS.pa3,
       appointment_id: IDS.apptCancelled2,
-      tenant_portal_token_id: IDS.pt2,
+      rental_tenant_portal_token_id: IDS.pt2,
       action: 'RESCHEDULE',
       previous_values_json: { scheduled_date: pastDate(2).toISOString(), time_slot: '10:00-13:00' },
       new_values_json: { preferred_date: futureDate(5).toISOString(), notes: 'Please reschedule to next week' },

@@ -8,7 +8,7 @@ function mapToEntity(row: any): RentalTenantPortalActivityEntity {
   return new RentalTenantPortalActivityEntity({
     id: row.id,
     appointmentId: row.appointment_id,
-    rentalTenantPortalTokenId: row.tenant_portal_token_id,
+    rentalTenantPortalTokenId: row.rental_tenant_portal_token_id,
     action: row.action as RentalTenantPortalAction,
     previousValuesJson: row.previous_values_json as Record<string, unknown> | null,
     newValuesJson: row.new_values_json as Record<string, unknown> | null,
@@ -26,7 +26,7 @@ export class PrismaRentalTenantPortalActivityRepository implements IRentalTenant
       data: {
         id: activity.id,
         appointment_id: activity.appointmentId,
-        tenant_portal_token_id: activity.rentalTenantPortalTokenId,
+        rental_tenant_portal_token_id: activity.rentalTenantPortalTokenId,
         action: activity.action as PrismaRentalTenantPortalAction,
         previous_values_json: (activity.previousValuesJson as Prisma.InputJsonValue) ?? undefined,
         new_values_json: (activity.newValuesJson as Prisma.InputJsonValue) ?? undefined,
@@ -38,7 +38,7 @@ export class PrismaRentalTenantPortalActivityRepository implements IRentalTenant
 
   async findLatestByTokenAndAction(tokenId: string, action: string): Promise<RentalTenantPortalActivityEntity | null> {
     const row = await this.prisma.rentalTenantPortalActivity.findFirst({
-      where: { tenant_portal_token_id: tokenId, action: action as any },
+      where: { rental_tenant_portal_token_id: tokenId, action: action as any },
       orderBy: { created_at: 'desc' },
     });
     return row ? mapToEntity(row) : null;

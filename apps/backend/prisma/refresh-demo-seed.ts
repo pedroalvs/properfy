@@ -125,7 +125,7 @@ async function countPlannedDeletes(scope: RefreshScope) {
       where: {
         OR: [
           { appointment_id: { in: appointmentIds } },
-          { tenant_portal_token_id: { in: portalTokenIds } },
+          { rental_tenant_portal_token_id: { in: portalTokenIds } },
         ],
       },
     }),
@@ -196,7 +196,7 @@ async function executeRefresh(scope: RefreshScope) {
     where: {
       OR: [
         { appointment_id: { in: appointmentIds } },
-        { tenant_portal_token_id: { in: portalTokenIds } },
+        { rental_tenant_portal_token_id: { in: portalTokenIds } },
       ],
     },
   });

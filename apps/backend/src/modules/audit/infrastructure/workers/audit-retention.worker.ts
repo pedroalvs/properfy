@@ -302,10 +302,10 @@ export class AuditRetentionWorker {
 
       await tx.$executeRawUnsafe(
         `INSERT INTO "rental_tenant_portal_activities_archive"
-           (id, appointment_id, tenant_portal_token_id, action, previous_values_json,
+           (id, appointment_id, rental_tenant_portal_token_id, action, previous_values_json,
             new_values_json, ip_address, user_agent, created_at,
             retention_category, redaction_status, cold_storage)
-         SELECT id, appointment_id, tenant_portal_token_id, action, previous_values_json,
+         SELECT id, appointment_id, rental_tenant_portal_token_id, action, previous_values_json,
                 new_values_json, ip_address, user_agent, created_at,
                 retention_category, redaction_status, true
          FROM "rental_tenant_portal_activities"
