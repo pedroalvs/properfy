@@ -191,8 +191,8 @@ export class ExecuteStatusTransitionUseCase {
     // 6b. Service type confirmation rules for AWAITING_INSPECTOR → SCHEDULED
     if (appointment.status === 'AWAITING_INSPECTOR' && targetStatus === 'SCHEDULED' && this.serviceTypeRepo) {
       const serviceType = await this.serviceTypeRepo.findById(appointment.serviceTypeId);
-      if (serviceType && serviceType.flowType === 'ROUTINE' && serviceType.requiresTenantConfirmation) {
-        if (appointment.tenantConfirmationStatus !== 'CONFIRMED') {
+      if (serviceType && serviceType.flowType === 'ROUTINE' && serviceType.requiresRentalTenantConfirmation) {
+        if (appointment.rentalTenantConfirmationStatus !== 'CONFIRMED') {
           throw new AppointmentTenantConfirmationRequiredError();
         }
       }

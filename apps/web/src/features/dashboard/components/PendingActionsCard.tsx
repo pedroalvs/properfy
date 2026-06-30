@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
 interface PendingActionsCardProps {
-  noResponseTenants: number;
+  noResponseRentalTenants: number;
   pendingOperatorCrossChecks: number;
   pendingFinancialEntries: number;
   processingReports: number;
@@ -12,8 +12,8 @@ const ACTIONS = [
   {
     icon: 'mdi-account-question-outline',
     label: 'No-response tenants',
-    key: 'noResponseTenants',
-    href: '/appointments?tenantConfirmationStatus=NO_RESPONSE',
+    key: 'noResponseRentalTenants',
+    href: '/appointments?rentalTenantConfirmationStatus=NO_RESPONSE',
   },
   {
     icon: 'mdi-clipboard-alert-outline',
@@ -38,7 +38,7 @@ const ACTIONS = [
 const FINANCIAL_ROLES = new Set(['AM', 'OP']);
 
 export function PendingActionsCard({
-  noResponseTenants,
+  noResponseRentalTenants,
   pendingOperatorCrossChecks,
   pendingFinancialEntries,
   processingReports,
@@ -48,7 +48,7 @@ export function PendingActionsCard({
     (a) => a.key !== 'pendingFinancialEntries' || FINANCIAL_ROLES.has(user?.role ?? ''),
   );
   const counts: Record<string, number> = {
-    noResponseTenants,
+    noResponseRentalTenants,
     pendingOperatorCrossChecks,
     pendingFinancialEntries,
     processingReports,

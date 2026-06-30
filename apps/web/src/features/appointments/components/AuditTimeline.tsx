@@ -58,7 +58,7 @@ const FIELD_LABELS: Record<string, string> = {
   reviewedBy: 'Reviewed by',
   scheduledDate: 'Scheduled date',
   timeSlot: 'Time slot',
-  tenantConfirmationStatus: 'Tenant confirmation',
+  rentalTenantConfirmationStatus: 'Tenant confirmation',
 };
 
 function summarizeChanges(beforeJson: unknown, afterJson: unknown): string | null {

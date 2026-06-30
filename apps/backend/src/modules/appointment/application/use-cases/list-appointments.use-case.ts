@@ -19,13 +19,13 @@ export interface ListAppointmentsInput {
     search?: string;
     fromDate?: string;
     toDate?: string;
-    tenantConfirmationStatus?: string;
+    rentalTenantConfirmationStatus?: string;
     showCancelled?: boolean;
     overdueOnly?: boolean;
     ungroupedOnly?: boolean;
     timeSlot?: string;
     contactSearch?: string;
-    hasTenantNote?: boolean;
+    hasRentalTenantNote?: boolean;
     confirmationStatus?: string;
     serviceGroupId?: string;
   };
@@ -48,7 +48,7 @@ export interface ListAppointmentsOutput {
     keyRequired: boolean;
     meetingLocation: string | null;
     keyLocation: string | null;
-    tenantConfirmationStatus: string;
+    rentalTenantConfirmationStatus: string;
     priceAmount: number;
     payoutAmount: number;
     notes: string | null;
@@ -58,6 +58,10 @@ export interface ListAppointmentsOutput {
     createdAt: Date;
     updatedAt: Date;
     // Enriched fields
+    /** Service group this appointment belongs to (null when ungrouped). */
+    serviceGroupId: string | null;
+    /** Human-friendly service group code (String(group_number); null when ungrouped). */
+    serviceGroupCode: string | null;
     /** Formatted appointment code (e.g. "INS-0042"). */
     appointmentCode: string;
     code: string;
@@ -70,11 +74,10 @@ export interface ListAppointmentsOutput {
     branchName: string;
     serviceTypeName: string;
     isOverdue: boolean;
-    hasTenantNote: boolean;
-    tenantNote: string | null;
+    hasRentalTenantNote: boolean;
+    rentalTenantNote: string | null;
     latitude: number | null;
     longitude: number | null;
-    serviceGroupId: string | null;
   }>;
   total: number;
   page: number;
@@ -126,13 +129,13 @@ export class ListAppointmentsUseCase {
       searchAppointmentNumber,
       fromDate: filters.fromDate,
       toDate: filters.toDate,
-      tenantConfirmationStatus: filters.tenantConfirmationStatus,
+      rentalTenantConfirmationStatus: filters.rentalTenantConfirmationStatus,
       showCancelled: filters.showCancelled,
       overdueOnly: filters.overdueOnly,
       ungroupedOnly: filters.ungroupedOnly,
       timeSlot: filters.timeSlot,
       contactSearch: filters.contactSearch,
-      hasTenantNote: filters.hasTenantNote,
+      hasRentalTenantNote: filters.hasRentalTenantNote,
       confirmationStatus: filters.confirmationStatus,
       serviceGroupId: filters.serviceGroupId,
     };
@@ -161,7 +164,7 @@ export class ListAppointmentsUseCase {
         keyRequired: item.appointment.keyRequired,
         meetingLocation: item.appointment.meetingLocation,
         keyLocation: item.appointment.keyLocation,
-        tenantConfirmationStatus: item.appointment.tenantConfirmationStatus,
+        rentalTenantConfirmationStatus: item.appointment.rentalTenantConfirmationStatus,
         priceAmount: item.appointment.priceAmount,
         payoutAmount: item.appointment.payoutAmount,
         notes: item.appointment.notes,
@@ -170,10 +173,12 @@ export class ListAppointmentsUseCase {
         doneCheckedAt: item.appointment.doneCheckedAt,
         createdAt: item.appointment.createdAt,
         updatedAt: item.appointment.updatedAt,
+        serviceGroupId: item.appointment.serviceGroupId,
+        serviceGroupCode: item.serviceGroupNumber != null ? String(item.serviceGroupNumber) : null,
         appointmentCode,
         code: appointmentCode,
         propertyAddress: item.propertyAddress,
-        contactName: item.contact?.tenantName ?? '',
+        contactName: item.contact?.rentalTenantName ?? '',
         contactPhone: item.contact?.primaryPhone ?? null,
         contactEmail: item.contact?.primaryEmail ?? null,
         inspectorName: item.inspectorName,
@@ -181,11 +186,10 @@ export class ListAppointmentsUseCase {
         branchName: item.branchName,
         serviceTypeName: item.serviceTypeName,
         isOverdue: isAppointmentOverdue(item.appointment.status, item.appointment.scheduledDate),
-        hasTenantNote: !!item.appointment.tenantNote,
-        tenantNote: item.appointment.tenantNote ?? null,
+        hasRentalTenantNote: !!item.appointment.rentalTenantNote,
+        rentalTenantNote: item.appointment.rentalTenantNote ?? null,
         latitude: item.propertyLatitude,
         longitude: item.propertyLongitude,
-        serviceGroupId: item.appointment.serviceGroupId,
       };
       }),
       total,

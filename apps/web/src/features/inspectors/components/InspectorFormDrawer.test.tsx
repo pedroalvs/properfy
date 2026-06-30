@@ -170,7 +170,7 @@ describe('InspectorFormDrawer', () => {
 
   it('renders blocked tenants section with tenant checkboxes for AM role', async () => {
     renderDrawer();
-    const blockedTenantElements = await screen.findAllByText('Blocked Tenants');
+    const blockedTenantElements = await screen.findAllByText('Blocked Agencies');
     expect(blockedTenantElements.length).toBeGreaterThanOrEqual(1);
     expect(await screen.findByLabelText('Imobiliaria Alpha')).toBeInTheDocument();
     expect(screen.getByLabelText('Imobiliaria Beta')).toBeInTheDocument();

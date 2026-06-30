@@ -28,7 +28,7 @@ const makeBaseStats = (inspectorBreakdowns: ReturnType<typeof makeBreakdowns> | 
   },
   recentAppointments: [],
   pendingActions: {
-    noResponseTenants: 1,
+    noResponseRentalTenants: 1,
     pendingOperatorCrossChecks: 2,
     pendingFinancialEntries: 3,
     processingReports: 0,

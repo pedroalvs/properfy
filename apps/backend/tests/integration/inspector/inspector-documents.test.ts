@@ -31,7 +31,7 @@ vi.mock('../../../src/main/container', () => ({
     audit: { jwtService: { verify: mockJwtVerify } },
     serviceGroup: { jwtService: { verify: mockJwtVerify } },
     marketplace: { jwtService: { verify: mockJwtVerify } },
-    tenantPortal: { jwtService: { verify: mockJwtVerify } },
+    rentalTenantPortal: { jwtService: { verify: mockJwtVerify } },
     inspectorExecution: { jwtService: { verify: mockJwtVerify } },
     billing: { jwtService: { verify: mockJwtVerify } },
     report: { jwtService: { verify: mockJwtVerify } },

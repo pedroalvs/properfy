@@ -130,7 +130,7 @@ describe('PrismaDashboardRepository', () => {
 
       const groupByCalls = (prisma.appointment.groupBy as ReturnType<typeof vi.fn>).mock.calls;
       const tomorrowCall = groupByCalls.find(
-        (c: unknown[]) => (c[0] as { where: { tenant_confirmation_status?: string } }).where.tenant_confirmation_status === 'CONFIRMED' &&
+        (c: unknown[]) => (c[0] as { where: { rental_tenant_confirmation_status?: string } }).where.rental_tenant_confirmation_status === 'CONFIRMED' &&
           (c[0] as { where: { scheduled_date?: unknown } }).where.scheduled_date,
       );
 

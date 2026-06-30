@@ -42,10 +42,10 @@ describe('ImagePlaceholderResolver', () => {
   it('should not disturb Handlebars {{variable}} syntax', async () => {
     const resolver = await loadImpl();
     const result = resolver.resolve(
-      'Dear {{tenantName}}, see {{image:logo}}',
+      'Dear {{rentalTenantName}}, see {{image:logo}}',
       [{ placeholderKey: 'logo', src: 'https://cdn.example.com/logo.png', alt: '' }],
     );
-    expect(result).toContain('{{tenantName}}');
+    expect(result).toContain('{{rentalTenantName}}');
     expect(result).not.toContain('{{image:logo}}');
   });
 

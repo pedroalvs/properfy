@@ -103,7 +103,7 @@ describe('POST /v1/contacts', () => {
       .set('Authorization', 'Bearer test-token')
       .send({
         tenantId: TENANT_ID,
-        type: 'TENANT',
+        type: 'RENTAL_TENANT',
         displayName: 'Jane Doe',
         primaryPhone: '+61400000000',
       });
@@ -121,7 +121,7 @@ describe('POST /v1/contacts', () => {
       .post('/v1/contacts')
       .set('Authorization', 'Bearer test-token')
       .send({
-        type: 'TENANT',
+        type: 'RENTAL_TENANT',
         displayName: 'Jane',
         primaryEmail: 'jane@test.com',
       });
@@ -137,7 +137,7 @@ describe('POST /v1/contacts', () => {
       .post('/v1/contacts')
       .set('Authorization', 'Bearer test-token')
       .send({
-        type: 'TENANT',
+        type: 'RENTAL_TENANT',
         displayName: 'Jane',
         primaryEmail: 'jane@test.com',
       });
@@ -152,7 +152,7 @@ describe('POST /v1/contacts', () => {
       .post('/v1/contacts')
       .set('Authorization', 'Bearer test-token')
       .send({
-        type: 'TENANT',
+        type: 'RENTAL_TENANT',
         displayName: 'No Channels',
       });
 

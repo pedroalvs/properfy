@@ -189,7 +189,7 @@ export function AppointmentMapDetailPanel({
       {/* Always-expanded summary: CLIENT + PROPERTIES */}
       <div className="space-y-2 border-b border-border-subtle px-4 py-3">
         <div>
-          <p className="text-[10px] uppercase tracking-wide text-text-muted">Client</p>
+          <p className="text-[10px] uppercase tracking-wide text-text-muted">Agency</p>
           <p className="text-sm text-text-primary" data-testid="map-detail-client">{clientName}</p>
         </div>
         <div>
@@ -263,11 +263,11 @@ function renderSectionContent(key: SectionKey, ctx: SectionCtx): ReactNode {
       return (
         <div className="flex items-center gap-3">
           <ConfirmationChannelIcons
-            tenantConfirmationStatus={detail?.tenantConfirmationStatus ?? marker.tenantConfirmationStatus}
+            rentalTenantConfirmationStatus={detail?.rentalTenantConfirmationStatus ?? marker.rentalTenantConfirmationStatus}
             hasEmail={!!(detail?.contactEmail ?? marker.contactEmail)}
             hasSms={!!(detail?.contactPhone ?? marker.contactPhone)}
           />
-          <span>{detail?.tenantConfirmationStatus ?? marker.tenantConfirmationStatus ?? 'PENDING'}</span>
+          <span>{detail?.rentalTenantConfirmationStatus ?? marker.rentalTenantConfirmationStatus ?? 'PENDING'}</span>
         </div>
       );
     case 'meeting':

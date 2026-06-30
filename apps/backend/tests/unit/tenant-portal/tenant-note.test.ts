@@ -1,15 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ConfirmAppointmentUseCase } from '../../../src/modules/tenant-portal/application/use-cases/confirm-appointment.use-case';
+import { ConfirmAppointmentUseCase } from '../../../src/modules/rental-tenant-portal/application/use-cases/confirm-appointment.use-case';
 import {
   ReportUnavailabilityUseCase,
   type ReportUnavailabilityInput,
-} from '../../../src/modules/tenant-portal/application/use-cases/report-unavailability.use-case';
+} from '../../../src/modules/rental-tenant-portal/application/use-cases/report-unavailability.use-case';
 import {
   RescheduleRequestUseCase,
   type RescheduleRequestInput,
-} from '../../../src/modules/tenant-portal/application/use-cases/reschedule-request.use-case';
-import type { ITenantPortalActivityRepository } from '../../../src/modules/tenant-portal/domain/tenant-portal-activity.repository';
-import type { ITenantPortalTokenRepository } from '../../../src/modules/tenant-portal/domain/tenant-portal-token.repository';
+} from '../../../src/modules/rental-tenant-portal/application/use-cases/reschedule-request.use-case';
+import type { IRentalTenantPortalActivityRepository } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-activity.repository';
+import type { IRentalTenantPortalTokenRepository } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-token.repository';
 import type { IAppointmentRepository } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { IServiceTypeRepository } from '../../../src/modules/service-type/domain/service-type.repository';
 import type { IInspectionExecutionRepository } from '../../../src/modules/inspector-execution/domain/inspection-execution.repository';
@@ -39,12 +39,12 @@ function makeAppointmentEntity(
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 150,
     payoutAmount: 80,
     pricingRuleSnapshotJson: {},
     notes: null,
-    tenantNote: null,
+    rentalTenantNote: null,
     customFieldsJson: null,
     reason: null,
     cancellationReasonCode: null,
@@ -65,7 +65,7 @@ function makeContact(): AppointmentContactEntity {
   return new AppointmentContactEntity({
     id: 'contact-1',
     appointmentId: 'appt-1',
-    tenantName: 'John Smith',
+    rentalTenantName: 'John Smith',
     primaryEmail: 'john@example.com',
     secondaryEmail: null,
     primaryPhone: '+61400000000',
@@ -92,7 +92,7 @@ function makeServiceType(overrides: Partial<ConstructorParameters<typeof Service
     code: 'ROUTINE',
     name: 'Routine Inspection',
     flowType: 'ROUTINE',
-    requiresTenantConfirmation: true,
+    requiresRentalTenantConfirmation: true,
     status: 'ACTIVE',
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),
@@ -126,8 +126,8 @@ const FUTURE_DATE = new Date(Date.now() + 14 * 24 * 3600 * 1000)
 
 // --- Confirm tests ---
 
-describe('ConfirmAppointmentUseCase – tenantNote', () => {
-  let activityRepo: ITenantPortalActivityRepository;
+describe('ConfirmAppointmentUseCase – rentalTenantNote', () => {
+  let activityRepo: IRentalTenantPortalActivityRepository;
   let appointmentRepo: IAppointmentRepository;
   let auditService: PersistentAuditService;
   let useCase: ConfirmAppointmentUseCase;
@@ -152,25 +152,25 @@ describe('ConfirmAppointmentUseCase – tenantNote', () => {
     useCase = new ConfirmAppointmentUseCase(activityRepo, appointmentRepo, auditService);
   });
 
-  it('should persist tenantNote when provided on confirm', async () => {
+  it('should persist rentalTenantNote when provided on confirm', async () => {
     const result = await useCase.execute({
       tokenId: 'token-1',
       appointmentId: 'appt-1',
       isReadOnly: false,
       isUsed: false,
-      tenantNote: 'Please ring doorbell twice',
+      rentalTenantNote: 'Please ring doorbell twice',
       ipAddress: '192.168.1.1',
       userAgent: 'Mozilla/5.0',
     });
 
-    expect(result.tenantConfirmationStatus).toBe('CONFIRMED');
+    expect(result.rentalTenantConfirmationStatus).toBe('CONFIRMED');
     expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
-      tenantConfirmationStatus: 'CONFIRMED',
-      tenantNote: 'Please ring doorbell twice',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
+      rentalTenantNote: 'Please ring doorbell twice',
     });
   });
 
-  it('should not include tenantNote in update when not provided on confirm', async () => {
+  it('should not include rentalTenantNote in update when not provided on confirm', async () => {
     const result = await useCase.execute({
       tokenId: 'token-1',
       appointmentId: 'appt-1',
@@ -180,16 +180,16 @@ describe('ConfirmAppointmentUseCase – tenantNote', () => {
       userAgent: 'Mozilla/5.0',
     });
 
-    expect(result.tenantConfirmationStatus).toBe('CONFIRMED');
+    expect(result.rentalTenantConfirmationStatus).toBe('CONFIRMED');
     expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
-      tenantConfirmationStatus: 'CONFIRMED',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
     });
   });
 });
 
 // --- Report Unavailability tests ---
 
-describe('ReportUnavailabilityUseCase – tenantNote', () => {
+describe('ReportUnavailabilityUseCase – rentalTenantNote', () => {
   let activityRepo: {
     save: ReturnType<typeof vi.fn>;
     findLatestByTokenAndAction: ReturnType<typeof vi.fn>;
@@ -231,7 +231,7 @@ describe('ReportUnavailabilityUseCase – tenantNote', () => {
     executionRepo = { findByAppointmentId: vi.fn().mockResolvedValue(null) };
 
     useCase = new ReportUnavailabilityUseCase(
-      activityRepo as unknown as ITenantPortalActivityRepository,
+      activityRepo as unknown as IRentalTenantPortalActivityRepository,
       appointmentRepo as unknown as IAppointmentRepository,
       auditService as unknown as PersistentAuditService,
       notificationHandler,
@@ -239,25 +239,25 @@ describe('ReportUnavailabilityUseCase – tenantNote', () => {
     );
   });
 
-  it('should persist tenantNote when provided on report unavailability', async () => {
+  it('should persist rentalTenantNote when provided on report unavailability', async () => {
     const result = await useCase.execute({
       tokenId: 'token-1',
       appointmentId: 'appt-1',
       isReadOnly: false,
       isUsed: false,
-      tenantNote: 'I will be on holiday until next month',
+      rentalTenantNote: 'I will be on holiday until next month',
       ipAddress: '127.0.0.1',
       userAgent: 'TestAgent/1.0',
     });
 
-    expect(result.tenantConfirmationStatus).toBe('UNAVAILABLE');
+    expect(result.rentalTenantConfirmationStatus).toBe('UNAVAILABLE');
     expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
-      tenantConfirmationStatus: 'UNAVAILABLE',
-      tenantNote: 'I will be on holiday until next month',
+      rentalTenantConfirmationStatus: 'UNAVAILABLE',
+      rentalTenantNote: 'I will be on holiday until next month',
     });
   });
 
-  it('should not include tenantNote in update when not provided on report unavailability', async () => {
+  it('should not include rentalTenantNote in update when not provided on report unavailability', async () => {
     const result = await useCase.execute({
       tokenId: 'token-1',
       appointmentId: 'appt-1',
@@ -267,16 +267,16 @@ describe('ReportUnavailabilityUseCase – tenantNote', () => {
       userAgent: 'TestAgent/1.0',
     });
 
-    expect(result.tenantConfirmationStatus).toBe('UNAVAILABLE');
+    expect(result.rentalTenantConfirmationStatus).toBe('UNAVAILABLE');
     expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
-      tenantConfirmationStatus: 'UNAVAILABLE',
+      rentalTenantConfirmationStatus: 'UNAVAILABLE',
     });
   });
 });
 
 // --- Reschedule tests ---
 
-describe('RescheduleRequestUseCase – tenantNote', () => {
+describe('RescheduleRequestUseCase – rentalTenantNote', () => {
   let activityRepo: {
     save: ReturnType<typeof vi.fn>;
     findLatestByTokenAndAction: ReturnType<typeof vi.fn>;
@@ -380,8 +380,8 @@ describe('RescheduleRequestUseCase – tenantNote', () => {
     };
 
     useCase = new RescheduleRequestUseCase(
-      activityRepo as unknown as ITenantPortalActivityRepository,
-      tokenRepo as unknown as ITenantPortalTokenRepository,
+      activityRepo as unknown as IRentalTenantPortalActivityRepository,
+      tokenRepo as unknown as IRentalTenantPortalTokenRepository,
       appointmentRepo as unknown as IAppointmentRepository,
       serviceTypeRepo as unknown as IServiceTypeRepository,
       executionRepo as unknown as IInspectionExecutionRepository,
@@ -391,7 +391,7 @@ describe('RescheduleRequestUseCase – tenantNote', () => {
     );
   });
 
-  it('should persist tenantNote when provided on reschedule', async () => {
+  it('should persist rentalTenantNote when provided on reschedule', async () => {
     const result = await useCase.execute({
       tokenId: 'token-1',
       appointmentId: 'appt-1',
@@ -399,18 +399,18 @@ describe('RescheduleRequestUseCase – tenantNote', () => {
       isUsed: false,
       newDate: FUTURE_DATE,
       newTimeSlot: 'AFTERNOON',
-      tenantNote: 'New date works better for me',
+      rentalTenantNote: 'New date works better for me',
       ipAddress: '127.0.0.1',
       userAgent: 'TestAgent/1.0',
     });
 
-    expect(result.tenantConfirmationStatus).toBe('PENDING');
+    expect(result.rentalTenantConfirmationStatus).toBe('PENDING');
     expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
-      tenantNote: 'New date works better for me',
+      rentalTenantNote: 'New date works better for me',
     });
   });
 
-  it('should not call appointmentRepo.update for tenantNote when not provided on reschedule', async () => {
+  it('should not call appointmentRepo.update for rentalTenantNote when not provided on reschedule', async () => {
     await useCase.execute({
       tokenId: 'token-1',
       appointmentId: 'appt-1',
@@ -429,13 +429,13 @@ describe('RescheduleRequestUseCase – tenantNote', () => {
 
 // --- Entity tests ---
 
-describe('AppointmentEntity – tenantNote', () => {
-  it('should set tenantNote from props', () => {
-    const entity = makeAppointmentEntity({ tenantNote: 'Some tenant note' });
-    expect(entity.tenantNote).toBe('Some tenant note');
+describe('AppointmentEntity – rentalTenantNote', () => {
+  it('should set rentalTenantNote from props', () => {
+    const entity = makeAppointmentEntity({ rentalTenantNote: 'Some tenant note' });
+    expect(entity.rentalTenantNote).toBe('Some tenant note');
   });
 
-  it('should default tenantNote to null when not provided', () => {
+  it('should default rentalTenantNote to null when not provided', () => {
     const entity = new AppointmentEntity({
       id: 'appt-2',
       tenantId: 'tenant-1',
@@ -449,7 +449,7 @@ describe('AppointmentEntity – tenantNote', () => {
       keyRequired: false,
       meetingLocation: null,
       keyLocation: null,
-      tenantConfirmationStatus: 'PENDING',
+      rentalTenantConfirmationStatus: 'PENDING',
       priceAmount: 100,
       payoutAmount: 50,
       pricingRuleSnapshotJson: {},
@@ -467,11 +467,11 @@ describe('AppointmentEntity – tenantNote', () => {
       updatedAt: new Date(),
       deletedAt: null,
     });
-    expect(entity.tenantNote).toBeNull();
+    expect(entity.rentalTenantNote).toBeNull();
   });
 
-  it('should set tenantNote to null when explicitly passed null', () => {
-    const entity = makeAppointmentEntity({ tenantNote: null });
-    expect(entity.tenantNote).toBeNull();
+  it('should set rentalTenantNote to null when explicitly passed null', () => {
+    const entity = makeAppointmentEntity({ rentalTenantNote: null });
+    expect(entity.rentalTenantNote).toBeNull();
   });
 });

@@ -6,7 +6,7 @@ describe('restrictionSchema', () => {
   it('should be valid with isHome and source only', () => {
     const result = restrictionSchema.safeParse({
       isHome: true,
-      source: RestrictionSource.TENANT_PORTAL,
+      source: RestrictionSource.RENTAL_TENANT_PORTAL,
     });
     expect(result.success).toBe(true);
   });
@@ -33,7 +33,7 @@ describe('restrictionSchema', () => {
   it('should be invalid with wrong time format in unavailableHours', () => {
     const result = restrictionSchema.safeParse({
       isHome: true,
-      source: RestrictionSource.TENANT_PORTAL,
+      source: RestrictionSource.RENTAL_TENANT_PORTAL,
       unavailableHours: ['9am-10am'],
     });
     expect(result.success).toBe(false);

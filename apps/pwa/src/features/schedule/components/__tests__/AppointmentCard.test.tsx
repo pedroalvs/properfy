@@ -2,7 +2,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AppointmentCard } from '../AppointmentCard';
 import { renderWithProviders } from '@/test-utils';
-import { AppointmentStatus, TenantConfirmationStatus, ServiceTypeFlowType } from '@properfy/shared';
+import { AppointmentStatus, RentalTenantConfirmationStatus, ServiceTypeFlowType } from '@properfy/shared';
 import type { InspectorAppointment } from '../../types';
 
 const mockNavigate = vi.fn();
@@ -21,12 +21,12 @@ const baseAppointment: InspectorAppointment = {
   timeSlotStart: '2026-03-18T09:00:00.000Z',
   timeSlotEnd: '2026-03-18T11:00:00.000Z',
   status: AppointmentStatus.SCHEDULED,
-  tenantConfirmation: TenantConfirmationStatus.CONFIRMED,
+  rentalTenantConfirmation: RentalTenantConfirmationStatus.CONFIRMED,
   serviceTypeName: 'Routine Inspection',
   flowType: ServiceTypeFlowType.ROUTINE,
-  tenantName: 'John Doe',
-  tenantPhone: '+61400000000',
-  tenantEmail: 'john@test.com',
+  rentalTenantName: 'John Doe',
+  rentalTenantPhone: '+61400000000',
+  rentalTenantEmail: 'john@test.com',
   keyRequired: false,
   meetingLocation: null,
   restrictions: null,
@@ -69,7 +69,7 @@ describe('AppointmentCard', () => {
       ...baseAppointment,
       scheduledDate: todayDate,
       timeSlotStart: `${todayDate}T09:00:00.000Z`,
-      tenantConfirmation: TenantConfirmationStatus.PENDING,
+      rentalTenantConfirmation: RentalTenantConfirmationStatus.PENDING,
       flowType: ServiceTypeFlowType.ROUTINE,
     };
     renderWithProviders(<AppointmentCard appointment={apt} />);
@@ -83,7 +83,7 @@ describe('AppointmentCard', () => {
       ...baseAppointment,
       scheduledDate: todayDate,
       timeSlotStart: `${todayDate}T09:00:00.000Z`,
-      tenantConfirmation: TenantConfirmationStatus.CONFIRMED,
+      rentalTenantConfirmation: RentalTenantConfirmationStatus.CONFIRMED,
     };
     renderWithProviders(<AppointmentCard appointment={apt} />);
     expect(screen.queryByTestId('t1-warning')).not.toBeInTheDocument();
@@ -96,7 +96,7 @@ describe('AppointmentCard', () => {
       ...baseAppointment,
       scheduledDate: todayDate,
       timeSlotStart: `${todayDate}T09:00:00.000Z`,
-      tenantConfirmation: TenantConfirmationStatus.PENDING,
+      rentalTenantConfirmation: RentalTenantConfirmationStatus.PENDING,
       flowType: ServiceTypeFlowType.INGOING,
     };
     renderWithProviders(<AppointmentCard appointment={apt} />);

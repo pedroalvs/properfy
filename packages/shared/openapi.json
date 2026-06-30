@@ -5830,7 +5830,7 @@
                       "OUTGOING"
                     ]
                   },
-                  "requiresTenantConfirmation": {
+                  "requiresRentalTenantConfirmation": {
                     "type": "boolean"
                   }
                 },
@@ -5838,7 +5838,7 @@
                   "code",
                   "name",
                   "flowType",
-                  "requiresTenantConfirmation"
+                  "requiresRentalTenantConfirmation"
                 ],
                 "additionalProperties": false
               }
@@ -5870,7 +5870,7 @@
                         "flowType": {
                           "type": "string"
                         },
-                        "requiresTenantConfirmation": {
+                        "requiresRentalTenantConfirmation": {
                           "type": "boolean"
                         },
                         "status": {
@@ -5904,7 +5904,7 @@
                         "code",
                         "name",
                         "flowType",
-                        "requiresTenantConfirmation",
+                        "requiresRentalTenantConfirmation",
                         "status",
                         "createdAt",
                         "updatedAt"
@@ -6014,7 +6014,7 @@
                           "flowType": {
                             "type": "string"
                           },
-                          "requiresTenantConfirmation": {
+                          "requiresRentalTenantConfirmation": {
                             "type": "boolean"
                           },
                           "status": {
@@ -6048,7 +6048,7 @@
                           "code",
                           "name",
                           "flowType",
-                          "requiresTenantConfirmation",
+                          "requiresRentalTenantConfirmation",
                           "status",
                           "createdAt",
                           "updatedAt"
@@ -6130,7 +6130,7 @@
                         "flowType": {
                           "type": "string"
                         },
-                        "requiresTenantConfirmation": {
+                        "requiresRentalTenantConfirmation": {
                           "type": "boolean"
                         },
                         "status": {
@@ -6164,7 +6164,7 @@
                         "code",
                         "name",
                         "flowType",
-                        "requiresTenantConfirmation",
+                        "requiresRentalTenantConfirmation",
                         "status",
                         "createdAt",
                         "updatedAt"
@@ -6202,7 +6202,7 @@
                       "OUTGOING"
                     ]
                   },
-                  "requiresTenantConfirmation": {
+                  "requiresRentalTenantConfirmation": {
                     "type": "boolean"
                   },
                   "status": {
@@ -6253,7 +6253,7 @@
                         "flowType": {
                           "type": "string"
                         },
-                        "requiresTenantConfirmation": {
+                        "requiresRentalTenantConfirmation": {
                           "type": "boolean"
                         },
                         "status": {
@@ -6287,7 +6287,7 @@
                         "code",
                         "name",
                         "flowType",
-                        "requiresTenantConfirmation",
+                        "requiresRentalTenantConfirmation",
                         "status",
                         "createdAt",
                         "updatedAt"
@@ -10633,7 +10633,7 @@
                   "contact": {
                     "type": "object",
                     "properties": {
-                      "tenantName": {
+                      "rentalTenantName": {
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 200
@@ -10658,7 +10658,7 @@
                       }
                     },
                     "required": [
-                      "tenantName"
+                      "rentalTenantName"
                     ],
                     "additionalProperties": false
                   },
@@ -10679,8 +10679,8 @@
                             "role": {
                               "type": "string",
                               "enum": [
-                                "TENANT",
-                                "TENANT_REPRESENTATIVE",
+                                "RENTAL_TENANT",
+                                "RENTAL_TENANT_REPRESENTATIVE",
                                 "HOUSEKEEPER",
                                 "PROPERTY_MANAGER",
                                 "BROKER",
@@ -10710,7 +10710,7 @@
                                 "type": {
                                   "type": "string",
                                   "enum": [
-                                    "TENANT",
+                                    "RENTAL_TENANT",
                                     "PROPERTY_MANAGER",
                                     "HOUSEKEEPER",
                                     "BROKER",
@@ -10785,8 +10785,8 @@
                             "role": {
                               "type": "string",
                               "enum": [
-                                "TENANT",
-                                "TENANT_REPRESENTATIVE",
+                                "RENTAL_TENANT",
+                                "RENTAL_TENANT_REPRESENTATIVE",
                                 "HOUSEKEEPER",
                                 "PROPERTY_MANAGER",
                                 "BROKER",
@@ -10843,7 +10843,7 @@
                       "source": {
                         "type": "string",
                         "enum": [
-                          "TENANT_PORTAL",
+                          "RENTAL_TENANT_PORTAL",
                           "OPERATOR",
                           "IMPORT"
                         ]
@@ -10936,6 +10936,10 @@
                           "format": "uuid",
                           "nullable": true
                         },
+                        "serviceGroupCode": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "status": {
                           "type": "string"
                         },
@@ -10964,7 +10968,7 @@
                           "type": "string",
                           "nullable": true
                         },
-                        "tenantConfirmationStatus": {
+                        "rentalTenantConfirmationStatus": {
                           "type": "string"
                         },
                         "priceAmount": {
@@ -10978,7 +10982,7 @@
                           "type": "string",
                           "nullable": true
                         },
-                        "tenantNote": {
+                        "rentalTenantNote": {
                           "type": "string",
                           "nullable": true
                         },
@@ -10986,7 +10990,7 @@
                           "type": "string",
                           "nullable": true
                         },
-                        "hasTenantNote": {
+                        "hasRentalTenantNote": {
                           "type": "boolean"
                         },
                         "hasActivePortalToken": {
@@ -11154,7 +11158,7 @@
                         "status",
                         "scheduledDate",
                         "timeSlot",
-                        "tenantConfirmationStatus",
+                        "rentalTenantConfirmationStatus",
                         "priceAmount",
                         "payoutAmount",
                         "notes",
@@ -11322,7 +11326,7 @@
               ]
             },
             "in": "query",
-            "name": "tenantConfirmationStatus",
+            "name": "rentalTenantConfirmationStatus",
             "required": false
           },
           {
@@ -11372,7 +11376,7 @@
               "type": "boolean"
             },
             "in": "query",
-            "name": "hasTenantNote",
+            "name": "hasRentalTenantNote",
             "required": false
           },
           {
@@ -11385,6 +11389,15 @@
             },
             "in": "query",
             "name": "confirmationStatus",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "serviceGroupId",
             "required": false
           }
         ],
@@ -11431,6 +11444,10 @@
                             "format": "uuid",
                             "nullable": true
                           },
+                          "serviceGroupCode": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "status": {
                             "type": "string"
                           },
@@ -11459,7 +11476,7 @@
                             "type": "string",
                             "nullable": true
                           },
-                          "tenantConfirmationStatus": {
+                          "rentalTenantConfirmationStatus": {
                             "type": "string"
                           },
                           "priceAmount": {
@@ -11473,7 +11490,7 @@
                             "type": "string",
                             "nullable": true
                           },
-                          "tenantNote": {
+                          "rentalTenantNote": {
                             "type": "string",
                             "nullable": true
                           },
@@ -11481,7 +11498,7 @@
                             "type": "string",
                             "nullable": true
                           },
-                          "hasTenantNote": {
+                          "hasRentalTenantNote": {
                             "type": "boolean"
                           },
                           "hasActivePortalToken": {
@@ -11649,7 +11666,7 @@
                           "status",
                           "scheduledDate",
                           "timeSlot",
-                          "tenantConfirmationStatus",
+                          "rentalTenantConfirmationStatus",
                           "priceAmount",
                           "payoutAmount",
                           "notes",
@@ -11751,6 +11768,10 @@
                           "format": "uuid",
                           "nullable": true
                         },
+                        "serviceGroupCode": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "status": {
                           "type": "string"
                         },
@@ -11779,7 +11800,7 @@
                           "type": "string",
                           "nullable": true
                         },
-                        "tenantConfirmationStatus": {
+                        "rentalTenantConfirmationStatus": {
                           "type": "string"
                         },
                         "priceAmount": {
@@ -11793,7 +11814,7 @@
                           "type": "string",
                           "nullable": true
                         },
-                        "tenantNote": {
+                        "rentalTenantNote": {
                           "type": "string",
                           "nullable": true
                         },
@@ -11801,7 +11822,7 @@
                           "type": "string",
                           "nullable": true
                         },
-                        "hasTenantNote": {
+                        "hasRentalTenantNote": {
                           "type": "boolean"
                         },
                         "hasActivePortalToken": {
@@ -11969,7 +11990,7 @@
                         "status",
                         "scheduledDate",
                         "timeSlot",
-                        "tenantConfirmationStatus",
+                        "rentalTenantConfirmationStatus",
                         "priceAmount",
                         "payoutAmount",
                         "notes",
@@ -12031,7 +12052,7 @@
                   "contact": {
                     "type": "object",
                     "properties": {
-                      "tenantName": {
+                      "rentalTenantName": {
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 200
@@ -12056,7 +12077,7 @@
                       }
                     },
                     "required": [
-                      "tenantName"
+                      "rentalTenantName"
                     ],
                     "additionalProperties": false
                   },
@@ -12077,8 +12098,8 @@
                             "role": {
                               "type": "string",
                               "enum": [
-                                "TENANT",
-                                "TENANT_REPRESENTATIVE",
+                                "RENTAL_TENANT",
+                                "RENTAL_TENANT_REPRESENTATIVE",
                                 "HOUSEKEEPER",
                                 "PROPERTY_MANAGER",
                                 "BROKER",
@@ -12108,7 +12129,7 @@
                                 "type": {
                                   "type": "string",
                                   "enum": [
-                                    "TENANT",
+                                    "RENTAL_TENANT",
                                     "PROPERTY_MANAGER",
                                     "HOUSEKEEPER",
                                     "BROKER",
@@ -12183,8 +12204,8 @@
                             "role": {
                               "type": "string",
                               "enum": [
-                                "TENANT",
-                                "TENANT_REPRESENTATIVE",
+                                "RENTAL_TENANT",
+                                "RENTAL_TENANT_REPRESENTATIVE",
                                 "HOUSEKEEPER",
                                 "PROPERTY_MANAGER",
                                 "BROKER",
@@ -12241,7 +12262,7 @@
                       "source": {
                         "type": "string",
                         "enum": [
-                          "TENANT_PORTAL",
+                          "RENTAL_TENANT_PORTAL",
                           "OPERATOR",
                           "IMPORT"
                         ]
@@ -12319,6 +12340,10 @@
                           "format": "uuid",
                           "nullable": true
                         },
+                        "serviceGroupCode": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "status": {
                           "type": "string"
                         },
@@ -12347,7 +12372,7 @@
                           "type": "string",
                           "nullable": true
                         },
-                        "tenantConfirmationStatus": {
+                        "rentalTenantConfirmationStatus": {
                           "type": "string"
                         },
                         "priceAmount": {
@@ -12361,7 +12386,7 @@
                           "type": "string",
                           "nullable": true
                         },
-                        "tenantNote": {
+                        "rentalTenantNote": {
                           "type": "string",
                           "nullable": true
                         },
@@ -12369,7 +12394,7 @@
                           "type": "string",
                           "nullable": true
                         },
-                        "hasTenantNote": {
+                        "hasRentalTenantNote": {
                           "type": "boolean"
                         },
                         "hasActivePortalToken": {
@@ -12537,7 +12562,7 @@
                         "status",
                         "scheduledDate",
                         "timeSlot",
-                        "tenantConfirmationStatus",
+                        "rentalTenantConfirmationStatus",
                         "priceAmount",
                         "payoutAmount",
                         "notes",
@@ -12870,7 +12895,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "tenantConfirmationStatus": {
+                  "rentalTenantConfirmationStatus": {
                     "type": "string",
                     "enum": [
                       "CONFIRMED"
@@ -12883,7 +12908,7 @@
                   }
                 },
                 "required": [
-                  "tenantConfirmationStatus",
+                  "rentalTenantConfirmationStatus",
                   "reason"
                 ],
                 "additionalProperties": false
@@ -12918,13 +12943,13 @@
                           "type": "string",
                           "format": "uuid"
                         },
-                        "tenantConfirmationStatus": {
+                        "rentalTenantConfirmationStatus": {
                           "type": "string"
                         }
                       },
                       "required": [
                         "id",
-                        "tenantConfirmationStatus"
+                        "rentalTenantConfirmationStatus"
                       ],
                       "additionalProperties": false
                     }
@@ -16936,7 +16961,7 @@
         }
       }
     },
-    "/v1/tenant-portal/{token}": {
+    "/v1/rental-tenant-portal/{token}": {
       "get": {
         "parameters": [
           {
@@ -17072,7 +17097,7 @@
         }
       }
     },
-    "/v1/tenant-portal/{token}/confirm": {
+    "/v1/rental-tenant-portal/{token}/confirm": {
       "post": {
         "requestBody": {
           "content": {
@@ -17157,7 +17182,7 @@
                     },
                     "additionalProperties": false
                   },
-                  "tenantNote": {
+                  "rentalTenantNote": {
                     "type": "string",
                     "maxLength": 2000
                   }
@@ -17185,7 +17210,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "tenantConfirmationStatus": {
+                    "rentalTenantConfirmationStatus": {
                       "type": "string",
                       "enum": [
                         "CONFIRMED"
@@ -17197,7 +17222,7 @@
                     }
                   },
                   "required": [
-                    "tenantConfirmationStatus",
+                    "rentalTenantConfirmationStatus",
                     "confirmedAt"
                   ],
                   "additionalProperties": false
@@ -17208,7 +17233,7 @@
         }
       }
     },
-    "/v1/tenant-portal/{token}/reschedule": {
+    "/v1/rental-tenant-portal/{token}/reschedule": {
       "post": {
         "requestBody": {
           "content": {
@@ -17302,7 +17327,7 @@
                     },
                     "additionalProperties": false
                   },
-                  "tenantNote": {
+                  "rentalTenantNote": {
                     "type": "string",
                     "maxLength": 2000
                   }
@@ -17344,7 +17369,7 @@
                       "minLength": 1,
                       "maxLength": 50
                     },
-                    "tenantConfirmationStatus": {
+                    "rentalTenantConfirmationStatus": {
                       "type": "string",
                       "enum": [
                         "PENDING"
@@ -17354,7 +17379,7 @@
                   "required": [
                     "scheduledDate",
                     "timeSlot",
-                    "tenantConfirmationStatus"
+                    "rentalTenantConfirmationStatus"
                   ],
                   "additionalProperties": false
                 }
@@ -17364,7 +17389,7 @@
         }
       }
     },
-    "/v1/tenant-portal/{token}/contact": {
+    "/v1/rental-tenant-portal/{token}/contact": {
       "patch": {
         "requestBody": {
           "content": {
@@ -17426,7 +17451,7 @@
         }
       }
     },
-    "/v1/tenant-portal/{token}/unavailable": {
+    "/v1/rental-tenant-portal/{token}/unavailable": {
       "post": {
         "requestBody": {
           "content": {
@@ -17511,7 +17536,7 @@
                     },
                     "additionalProperties": false
                   },
-                  "tenantNote": {
+                  "rentalTenantNote": {
                     "type": "string",
                     "maxLength": 2000
                   }
@@ -17539,7 +17564,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "tenantConfirmationStatus": {
+                    "rentalTenantConfirmationStatus": {
                       "type": "string",
                       "enum": [
                         "UNAVAILABLE"
@@ -17550,7 +17575,7 @@
                     }
                   },
                   "required": [
-                    "tenantConfirmationStatus",
+                    "rentalTenantConfirmationStatus",
                     "urgentMode"
                   ],
                   "additionalProperties": false
@@ -17561,7 +17586,7 @@
         }
       }
     },
-    "/v1/tenant-portal/{token}/available-groups": {
+    "/v1/rental-tenant-portal/{token}/available-groups": {
       "get": {
         "parameters": [
           {
@@ -17638,7 +17663,7 @@
         }
       }
     },
-    "/v1/tenant-portal/{token}/join-group": {
+    "/v1/rental-tenant-portal/{token}/join-group": {
       "post": {
         "requestBody": {
           "content": {
@@ -17650,7 +17675,7 @@
                     "type": "string",
                     "format": "uuid"
                   },
-                  "tenantNote": {
+                  "rentalTenantNote": {
                     "type": "string",
                     "maxLength": 2000
                   }
@@ -17690,7 +17715,7 @@
                       "type": "string",
                       "minLength": 1
                     },
-                    "tenantConfirmationStatus": {
+                    "rentalTenantConfirmationStatus": {
                       "type": "string",
                       "enum": [
                         "CONFIRMED"
@@ -17723,7 +17748,7 @@
                   "required": [
                     "scheduledDate",
                     "timeWindow",
-                    "tenantConfirmationStatus",
+                    "rentalTenantConfirmationStatus",
                     "appointmentStatus",
                     "inspector"
                   ],
@@ -18070,7 +18095,7 @@
                                     "type": "string",
                                     "format": "uuid"
                                   },
-                                  "tenantConfirmationStatus": {
+                                  "rentalTenantConfirmationStatus": {
                                     "type": "string"
                                   },
                                   "keyRequired": {
@@ -18100,7 +18125,7 @@
                                   "timeSlot",
                                   "serviceTypeId",
                                   "propertyId",
-                                  "tenantConfirmationStatus",
+                                  "rentalTenantConfirmationStatus",
                                   "keyRequired",
                                   "meetingLocation",
                                   "executionStatus"
@@ -18160,7 +18185,7 @@
                                 "type": "string",
                                 "format": "uuid"
                               },
-                              "tenantConfirmationStatus": {
+                              "rentalTenantConfirmationStatus": {
                                 "type": "string"
                               },
                               "keyRequired": {
@@ -18190,7 +18215,7 @@
                               "timeSlot",
                               "serviceTypeId",
                               "propertyId",
-                              "tenantConfirmationStatus",
+                              "rentalTenantConfirmationStatus",
                               "keyRequired",
                               "meetingLocation",
                               "executionStatus"
@@ -18309,10 +18334,10 @@
                           "type": "number",
                           "nullable": true
                         },
-                        "tenantConfirmationStatus": {
+                        "rentalTenantConfirmationStatus": {
                           "type": "string"
                         },
-                        "tenantConfirmation": {
+                        "rentalTenantConfirmation": {
                           "type": "string"
                         },
                         "keyRequired": {
@@ -18326,14 +18351,14 @@
                           "type": "string",
                           "nullable": true
                         },
-                        "tenantName": {
+                        "rentalTenantName": {
                           "type": "string"
                         },
-                        "tenantPhone": {
+                        "rentalTenantPhone": {
                           "type": "string",
                           "nullable": true
                         },
-                        "tenantEmail": {
+                        "rentalTenantEmail": {
                           "type": "string",
                           "nullable": true
                         },
@@ -18352,7 +18377,7 @@
                         "contact": {
                           "type": "object",
                           "properties": {
-                            "tenantName": {
+                            "rentalTenantName": {
                               "type": "string"
                             },
                             "primaryEmail": {
@@ -18369,7 +18394,7 @@
                             }
                           },
                           "required": [
-                            "tenantName",
+                            "rentalTenantName",
                             "primaryEmail",
                             "primaryPhone",
                             "secondaryPhone"
@@ -18706,14 +18731,14 @@
                         "suburb",
                         "propertyLatitude",
                         "propertyLongitude",
-                        "tenantConfirmationStatus",
-                        "tenantConfirmation",
+                        "rentalTenantConfirmationStatus",
+                        "rentalTenantConfirmation",
                         "keyRequired",
                         "meetingLocation",
                         "keyLocation",
-                        "tenantName",
-                        "tenantPhone",
-                        "tenantEmail",
+                        "rentalTenantName",
+                        "rentalTenantPhone",
+                        "rentalTenantEmail",
                         "notes",
                         "observation",
                         "restrictionsSummary",
@@ -23558,7 +23583,7 @@
                       "status": {
                         "type": "string"
                       },
-                      "tenantConfirmationStatus": {
+                      "rentalTenantConfirmationStatus": {
                         "type": "string"
                       },
                       "search": {
@@ -26290,7 +26315,7 @@
                         "pendingActions": {
                           "type": "object",
                           "properties": {
-                            "noResponseTenants": {
+                            "noResponseRentalTenants": {
                               "type": "number"
                             },
                             "pendingOperatorCrossChecks": {
@@ -26304,7 +26329,7 @@
                             }
                           },
                           "required": [
-                            "noResponseTenants",
+                            "noResponseRentalTenants",
                             "pendingOperatorCrossChecks",
                             "pendingFinancialEntries",
                             "processingReports"
@@ -27010,7 +27035,7 @@
                   "type": {
                     "type": "string",
                     "enum": [
-                      "TENANT",
+                      "RENTAL_TENANT",
                       "PROPERTY_MANAGER",
                       "HOUSEKEEPER",
                       "BROKER",
@@ -27109,7 +27134,7 @@
                         "type": {
                           "type": "string",
                           "enum": [
-                            "TENANT",
+                            "RENTAL_TENANT",
                             "PROPERTY_MANAGER",
                             "HOUSEKEEPER",
                             "BROKER",
@@ -27219,7 +27244,7 @@
                 {
                   "type": "string",
                   "enum": [
-                    "TENANT",
+                    "RENTAL_TENANT",
                     "PROPERTY_MANAGER",
                     "HOUSEKEEPER",
                     "BROKER",
@@ -27231,7 +27256,7 @@
                   "items": {
                     "type": "string",
                     "enum": [
-                      "TENANT",
+                      "RENTAL_TENANT",
                       "PROPERTY_MANAGER",
                       "HOUSEKEEPER",
                       "BROKER",
@@ -27364,7 +27389,7 @@
                           "type": {
                             "type": "string",
                             "enum": [
-                              "TENANT",
+                              "RENTAL_TENANT",
                               "PROPERTY_MANAGER",
                               "HOUSEKEEPER",
                               "BROKER",
@@ -27471,7 +27496,7 @@
                   "type": {
                     "type": "string",
                     "enum": [
-                      "TENANT",
+                      "RENTAL_TENANT",
                       "PROPERTY_MANAGER",
                       "HOUSEKEEPER",
                       "BROKER",
@@ -27578,7 +27603,7 @@
                         "type": {
                           "type": "string",
                           "enum": [
-                            "TENANT",
+                            "RENTAL_TENANT",
                             "PROPERTY_MANAGER",
                             "HOUSEKEEPER",
                             "BROKER",
@@ -27769,7 +27794,7 @@
                         "type": {
                           "type": "string",
                           "enum": [
-                            "TENANT",
+                            "RENTAL_TENANT",
                             "PROPERTY_MANAGER",
                             "HOUSEKEEPER",
                             "BROKER",
@@ -27860,8 +27885,8 @@
                                   "role": {
                                     "type": "string",
                                     "enum": [
-                                      "TENANT",
-                                      "TENANT_REPRESENTATIVE",
+                                      "RENTAL_TENANT",
+                                      "RENTAL_TENANT_REPRESENTATIVE",
                                       "HOUSEKEEPER",
                                       "PROPERTY_MANAGER",
                                       "BROKER",
@@ -28066,7 +28091,7 @@
                         "type": {
                           "type": "string",
                           "enum": [
-                            "TENANT",
+                            "RENTAL_TENANT",
                             "PROPERTY_MANAGER",
                             "HOUSEKEEPER",
                             "BROKER",

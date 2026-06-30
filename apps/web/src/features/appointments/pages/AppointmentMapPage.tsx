@@ -49,7 +49,7 @@ const STATUS_ICONS: Record<string, string> = {
 // whose status is encoded by the icon inside it (not by color). Icons mirror
 // the analogous appointment status glyph so the two modes read as one language.
 export const GROUP_STATUS_ICONS: Record<ServiceGroupStatus, string> = {
-  DRAFT: 'mdi-pencil',            // Awaiting Host      (≈ appt DRAFT)
+  DRAFT: 'mdi-pencil',            // Draft              (≈ appt DRAFT)
   PUBLISHED: 'mdi-account-clock', // Awaiting Inspector (≈ appt AWAITING_INSPECTOR)
   ACCEPTED: 'mdi-calendar-check', // Accepted           (≈ appt SCHEDULED)
   CANCELLED: 'mdi-cancel',        // Canceled           (≈ appt CANCELLED)

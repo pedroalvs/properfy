@@ -4,8 +4,8 @@ import { BooleanIcon } from '@/components/ui/BooleanIcon';
 import type { AppointmentDetail, AppointmentContactEntry } from '../types';
 
 const ROLE_LABELS: Record<string, string> = {
-  TENANT: 'Tenant',
-  TENANT_REPRESENTATIVE: 'Tenant Representative',
+  RENTAL_TENANT: 'Tenant',
+  RENTAL_TENANT_REPRESENTATIVE: 'Tenant Representative',
   HOUSEKEEPER: 'Housekeeper',
   PROPERTY_MANAGER: 'Property Manager',
   BROKER: 'Broker',
@@ -54,7 +54,7 @@ export function AppointmentContactTab({ appointment }: AppointmentContactTabProp
       : [
           {
             contactId: null,
-            role: 'TENANT' as AppointmentContactEntry['role'],
+            role: 'RENTAL_TENANT' as AppointmentContactEntry['role'],
             isPrimary: true,
             snapshotName: appointment.contactName,
             snapshotEmail: appointment.contactEmail,
@@ -78,7 +78,7 @@ export function AppointmentContactTab({ appointment }: AppointmentContactTabProp
           value={<BooleanIcon value={appointment.keyRequired} />}
         />
         <DetailRow
-          label="Occupant Home"
+          label="Tenant Home"
           value={<BooleanIcon value={appointment.restrictions?.[0]?.isHome ?? false} />}
         />
         <DetailRow label="Meeting Location" value={appointment.meetingLocation} />

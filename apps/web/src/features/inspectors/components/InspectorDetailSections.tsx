@@ -137,8 +137,8 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
       <FormSection title="Coverage">
         <DetailRow label="Regions" value={formatList(regionLabels)} />
         <DetailRow label="Service Types" value={formatList(serviceTypeLabels)} />
-        <DetailRow label="Client Eligibility" value={formatList(clientEligibilityLabels)} />
-        <DetailRow label="Blocked Tenants" value={formatList(blockedClientLabels)} />
+        <DetailRow label="Agency Eligibility" value={formatList(clientEligibilityLabels)} />
+        <DetailRow label="Blocked Agencies" value={formatList(blockedClientLabels)} />
       </FormSection>
 
       <FormSection title="Workload">

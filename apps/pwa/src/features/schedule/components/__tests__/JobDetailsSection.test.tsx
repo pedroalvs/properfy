@@ -5,7 +5,7 @@ import type { JobDetails } from '../../types';
 const baseJobDetails: JobDetails = {
   agency: { id: 'tenant-1', name: 'Alpha Realty' },
   tenantContacts: [
-    { name: 'John Smith', email: 'john@example.com', phone: '+61400000000', role: 'TENANT', isPrimary: true },
+    { name: 'John Smith', email: 'john@example.com', phone: '+61400000000', role: 'RENTAL_TENANT', isPrimary: true },
   ],
   keys: { keyRequired: false, keyLocation: null },
   keyLocation: undefined,

@@ -70,7 +70,7 @@ describe('redactPii', () => {
       const snapshot = {
         id: 'apt-1',
         contact: {
-          tenantName: 'John Doe',
+          rentalTenantName: 'John Doe',
           primaryEmail: 'john@example.com',
           primaryPhone: '+61400000000',
         },
@@ -80,7 +80,7 @@ describe('redactPii', () => {
       const result = redactPii('appointment.updated', snapshot) as Record<string, unknown>;
 
       const contact = result.contact as Record<string, unknown>;
-      expect(contact.tenantName).toBe('[REDACTED]');
+      expect(contact.rentalTenantName).toBe('[REDACTED]');
       expect(contact.primaryEmail).toBe('[REDACTED]');
       expect(contact.primaryPhone).toBe('[REDACTED]');
       expect(result.status).toBe('DRAFT');
@@ -88,17 +88,17 @@ describe('redactPii', () => {
 
     it('redacts flat tenant fields in appointment actions', () => {
       const snapshot = {
-        tenantName: 'Doe Tenant',
-        tenantEmail: 'doe@example.com',
-        tenantPhone: '+61400000000',
+        rentalTenantName: 'Doe Tenant',
+        rentalTenantEmail: 'doe@example.com',
+        rentalTenantPhone: '+61400000000',
         appointmentId: 'apt-1',
       };
 
       const result = redactPii('appointment.created', snapshot) as Record<string, unknown>;
 
-      expect(result.tenantName).toBe('[REDACTED]');
-      expect(result.tenantEmail).toBe('[REDACTED]');
-      expect(result.tenantPhone).toBe('[REDACTED]');
+      expect(result.rentalTenantName).toBe('[REDACTED]');
+      expect(result.rentalTenantEmail).toBe('[REDACTED]');
+      expect(result.rentalTenantPhone).toBe('[REDACTED]');
       expect(result.appointmentId).toBe('apt-1');
     });
   });

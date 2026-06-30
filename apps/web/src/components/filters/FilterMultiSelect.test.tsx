@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { FilterMultiSelect } from './FilterMultiSelect';
 
 const options = [
-  { label: 'Tenant', value: 'TENANT' },
+  { label: 'Tenant', value: 'RENTAL_TENANT' },
   { label: 'Owner', value: 'OWNER' },
   { label: 'Property Manager', value: 'PROPERTY_MANAGER' },
 ];
@@ -35,7 +35,7 @@ describe('FilterMultiSelect', () => {
     await user.click(screen.getByLabelText('Type'));
     await user.click(screen.getByRole('option', { name: /Tenant/ }));
 
-    expect(onChange).toHaveBeenCalledWith(['TENANT']);
+    expect(onChange).toHaveBeenCalledWith(['RENTAL_TENANT']);
     // Dropdown stays open so the user can pick another option without re-clicking the trigger.
     expect(screen.getByRole('listbox', { name: 'Type' })).toBeInTheDocument();
   });
@@ -44,7 +44,7 @@ describe('FilterMultiSelect', () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(
-      <FilterMultiSelect label="Type" value={['TENANT', 'OWNER']} onChange={onChange} options={options} />,
+      <FilterMultiSelect label="Type" value={['RENTAL_TENANT', 'OWNER']} onChange={onChange} options={options} />,
     );
 
     await user.click(screen.getByLabelText('Type'));
@@ -66,7 +66,7 @@ describe('FilterMultiSelect', () => {
     render(
       <FilterMultiSelect
         label="Type"
-        value={['TENANT', 'OWNER', 'PROPERTY_MANAGER']}
+        value={['RENTAL_TENANT', 'OWNER', 'PROPERTY_MANAGER']}
         onChange={() => {}}
         options={options}
       />,
@@ -79,7 +79,7 @@ describe('FilterMultiSelect', () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(
-      <FilterMultiSelect label="Type" value={['TENANT']} onChange={onChange} options={options} />,
+      <FilterMultiSelect label="Type" value={['RENTAL_TENANT']} onChange={onChange} options={options} />,
     );
 
     const clear = screen.getByLabelText('Clear Type');

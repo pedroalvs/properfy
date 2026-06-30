@@ -75,7 +75,7 @@ function makeServiceType(overrides: Partial<ConstructorParameters<typeof Service
     code: 'ROUTINE',
     name: 'Routine Inspection',
     flowType: 'STANDARD',
-    requiresTenantConfirmation: true,
+    requiresRentalTenantConfirmation: true,
     status: 'ACTIVE',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -119,7 +119,7 @@ const baseInput = {
   scheduledDate: futureDateStr(60),
   timeSlot: '09:00-10:00',
   contact: {
-    tenantName: 'John Smith',
+    rentalTenantName: 'John Smith',
     primaryEmail: 'john@example.com',
     primaryPhone: '+61400000000',
   },
@@ -211,7 +211,7 @@ describe('CreateAppointmentUseCase', () => {
     expect(result.id).toBeDefined();
     expect(result.status).toBe('DRAFT');
     expect(result.tenantId).toBe('tenant-1');
-    expect(result.tenantConfirmationStatus).toBe('PENDING');
+    expect(result.rentalTenantConfirmationStatus).toBe('PENDING');
     expect(result.priceAmount).toBe(150);
     expect(result.payoutAmount).toBe(80);
     expect(appointmentRepo.save).toHaveBeenCalled();
@@ -310,7 +310,7 @@ describe('CreateAppointmentUseCase', () => {
       serviceTypeId: 'svc-type-1',
       scheduledDate: futureDateStr(60),
       timeSlot: '09:00-10:00',
-      contact: { tenantName: 'Jane Doe' },
+      contact: { rentalTenantName: 'Jane Doe' },
       keyRequired: false,
       actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
     });
@@ -431,7 +431,7 @@ describe('CreateAppointmentUseCase', () => {
       actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
     });
 
-    expect(result.contact.tenantName).toBe('John Smith');
+    expect(result.contact.rentalTenantName).toBe('John Smith');
     expect(result.contact.primaryEmail).toBe('john@example.com');
     expect(appointmentRepo.saveContact).toHaveBeenCalledOnce();
   });

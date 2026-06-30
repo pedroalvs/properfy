@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type {
   AppointmentStatus as PrismaAppointmentStatus,
-  TenantConfirmationStatus as PrismaTenantConfirmationStatus,
+  RentalTenantConfirmationStatus as PrismaTenantConfirmationStatus,
   RestrictionSource as PrismaRestrictionSource,
   Prisma,
 } from '@prisma/client';
@@ -20,7 +20,7 @@ import { T1VisibilityService } from '../../inspector-execution/domain/t1-visibil
 import type {
   AppointmentStatus,
   AvailableSlot,
-  TenantConfirmationStatus,
+  RentalTenantConfirmationStatus,
   RestrictionSource,
   CancellationReasonCode,
   RejectionReasonCode,
@@ -54,13 +54,13 @@ function mapToEntity(row: any): AppointmentEntity {
     keyRequired: row.key_required,
     meetingLocation: row.meeting_location,
     keyLocation: row.key_location,
-    tenantConfirmationStatus: row.tenant_confirmation_status as TenantConfirmationStatus,
+    rentalTenantConfirmationStatus: row.rental_tenant_confirmation_status as RentalTenantConfirmationStatus,
     activeConfirmationCycleId: row.active_confirmation_cycle_id ?? null,
     priceAmount: Number(row.price_amount),
     payoutAmount: Number(row.payout_amount),
     pricingRuleSnapshotJson: (row.pricing_rule_snapshot_json as Record<string, unknown>) ?? {},
     notes: row.notes,
-    tenantNote: row.tenant_note ?? null,
+    rentalTenantNote: row.rental_tenant_note ?? null,
     observation: row.observation ?? null,
     customFieldsJson: row.custom_fields_json as Record<string, unknown> | null,
     reason: row.reason,
@@ -82,12 +82,12 @@ function mapContactToEntity(row: any): AppointmentContactEntity {
     id: row.id,
     appointmentId: row.appointment_id,
     contactId: row.contact_id ?? null,
-    role: row.role ?? 'TENANT',
+    role: row.role ?? 'RENTAL_TENANT',
     isPrimary: row.is_primary ?? true,
     snapshotName: row.snapshot_name ?? null,
     snapshotEmail: row.snapshot_email ?? null,
     snapshotPhone: row.snapshot_phone ?? null,
-    tenantName: row.tenant_name,
+    rentalTenantName: row.rental_tenant_name,
     primaryEmail: row.primary_email,
     secondaryEmail: row.secondary_email,
     primaryPhone: row.primary_phone,
@@ -134,7 +134,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         inspector: { select: { name: true } },
         // AC-2.1: filtered include — only returns a row when status='ACTIVE' AND expires_at > now().
         // Node clock is the authority per AC-2.5 (matches expire-tokens worker convention).
-        // Relation field name is `portal_tokens` (Prisma model field); DB table is `tenant_portal_tokens` via @@map.
+        // Relation field name is `portal_tokens` (Prisma model field); DB table is `rental_tenant_portal_tokens` via @@map.
         portal_tokens: {
           where: { status: 'ACTIVE', expires_at: { gt: new Date() } },
           select: { id: true },
@@ -195,12 +195,13 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         [toSnakeCase(pagination.sortBy ?? 'created_at')]: pagination.sortOrder,
       },
       include: {
-        contacts: { select: { id: true, appointment_id: true, contact_id: true, role: true, is_primary: true, snapshot_name: true, snapshot_email: true, snapshot_phone: true, tenant_name: true, primary_email: true, secondary_email: true, primary_phone: true, secondary_phone: true, created_at: true, updated_at: true } },
+        contacts: { select: { id: true, appointment_id: true, contact_id: true, role: true, is_primary: true, snapshot_name: true, snapshot_email: true, snapshot_phone: true, rental_tenant_name: true, primary_email: true, secondary_email: true, primary_phone: true, secondary_phone: true, created_at: true, updated_at: true } },
         property: { select: { property_code: true, street: true, suburb: true, state: true, postcode: true, lat: true, lng: true } },
         tenant: { select: { name: true, appointment_code_prefix: true } },
         branch: { select: { name: true } },
         service_type: { select: { name: true } },
         inspector: { select: { name: true } },
+        service_group: { select: { group_number: true } },
       },
     });
     return rows.map((row) => {
@@ -222,6 +223,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         branchName: row.branch?.name ?? '',
         serviceTypeName: row.service_type?.name ?? '',
         inspectorName: row.inspector?.name ?? null,
+        serviceGroupNumber: row.service_group?.group_number ?? null,
       };
     });
   }
@@ -246,12 +248,12 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         key_required: appointment.keyRequired,
         meeting_location: appointment.meetingLocation,
         key_location: appointment.keyLocation,
-        tenant_confirmation_status: appointment.tenantConfirmationStatus as PrismaTenantConfirmationStatus,
+        rental_tenant_confirmation_status: appointment.rentalTenantConfirmationStatus as PrismaTenantConfirmationStatus,
         price_amount: appointment.priceAmount,
         payout_amount: appointment.payoutAmount,
         pricing_rule_snapshot_json: appointment.pricingRuleSnapshotJson as Prisma.InputJsonValue,
         notes: appointment.notes,
-        tenant_note: appointment.tenantNote,
+        rental_tenant_note: appointment.rentalTenantNote,
         observation: appointment.observation,
         custom_fields_json: (appointment.customFieldsJson as Prisma.InputJsonValue) ?? undefined,
         reason: appointment.reason,
@@ -274,10 +276,10 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       keyRequired: boolean;
       meetingLocation: string | null;
       keyLocation: string | null;
-      tenantConfirmationStatus: string;
+      rentalTenantConfirmationStatus: string;
       activeConfirmationCycleId: string | null;
       notes: string | null;
-      tenantNote: string | null;
+      rentalTenantNote: string | null;
       observation: string | null;
       customFieldsJson: Record<string, unknown> | null;
       reason: string | null;
@@ -303,14 +305,14 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     if (data.keyRequired !== undefined) updateData['key_required'] = data.keyRequired;
     if (data.meetingLocation !== undefined) updateData['meeting_location'] = data.meetingLocation;
     if (data.keyLocation !== undefined) updateData['key_location'] = data.keyLocation;
-    if (data.tenantConfirmationStatus !== undefined) {
-      updateData['tenant_confirmation_status'] = data.tenantConfirmationStatus;
+    if (data.rentalTenantConfirmationStatus !== undefined) {
+      updateData['rental_tenant_confirmation_status'] = data.rentalTenantConfirmationStatus;
     }
     if (data.activeConfirmationCycleId !== undefined) {
       updateData['active_confirmation_cycle_id'] = data.activeConfirmationCycleId;
     }
     if (data.notes !== undefined) updateData['notes'] = data.notes;
-    if (data.tenantNote !== undefined) updateData['tenant_note'] = data.tenantNote;
+    if (data.rentalTenantNote !== undefined) updateData['rental_tenant_note'] = data.rentalTenantNote;
     if (data.observation !== undefined) updateData['observation'] = data.observation;
     if (data.customFieldsJson !== undefined) updateData['custom_fields_json'] = data.customFieldsJson;
     if (data.reason !== undefined) updateData['reason'] = data.reason;
@@ -348,7 +350,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         snapshot_name: contact.snapshotName,
         snapshot_email: contact.snapshotEmail,
         snapshot_phone: contact.snapshotPhone,
-        tenant_name: contact.tenantName,
+        rental_tenant_name: contact.rentalTenantName,
         primary_email: contact.primaryEmail,
         secondary_email: contact.secondaryEmail,
         primary_phone: contact.primaryPhone,
@@ -360,7 +362,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
   async updateContact(
     appointmentId: string,
     data: Partial<{
-      tenantName: string;
+      rentalTenantName: string;
       primaryEmail: string | null;
       secondaryEmail: string | null;
       primaryPhone: string | null;
@@ -368,7 +370,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     }>,
   ): Promise<void> {
     const updateData: Record<string, unknown> = {};
-    if (data.tenantName !== undefined) updateData['tenant_name'] = data.tenantName;
+    if (data.rentalTenantName !== undefined) updateData['rental_tenant_name'] = data.rentalTenantName;
     if (data.primaryEmail !== undefined) updateData['primary_email'] = data.primaryEmail;
     if (data.secondaryEmail !== undefined) updateData['secondary_email'] = data.secondaryEmail;
     if (data.primaryPhone !== undefined) updateData['primary_phone'] = data.primaryPhone;
@@ -481,15 +483,15 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     if (filters.branchId) where['branch_id'] = filters.branchId;
     if (filters.inspectorId) where['inspector_id'] = filters.inspectorId;
     if (filters.propertyId) where['property_id'] = filters.propertyId;
-    if (filters.tenantConfirmationStatus) {
-      where['tenant_confirmation_status'] = filters.tenantConfirmationStatus;
+    if (filters.rentalTenantConfirmationStatus) {
+      where['rental_tenant_confirmation_status'] = filters.rentalTenantConfirmationStatus;
     }
     if (filters.search) {
       const orConditions: Record<string, unknown>[] = [
         { notes: { contains: filters.search, mode: 'insensitive' } },
         { property: { property_code: { contains: filters.search, mode: 'insensitive' } } },
         { property: { street: { contains: filters.search, mode: 'insensitive' } } },
-        { contacts: { some: { tenant_name: { contains: filters.search, mode: 'insensitive' } } } },
+        { contacts: { some: { rental_tenant_name: { contains: filters.search, mode: 'insensitive' } } } },
         { contacts: { some: { primary_phone: { contains: filters.search, mode: 'insensitive' } } } },
         { contacts: { some: { primary_email: { contains: filters.search, mode: 'insensitive' } } } },
         { contacts: { some: { snapshot_name: { contains: filters.search, mode: 'insensitive' } } } },
@@ -520,28 +522,28 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         { snapshot_name: { contains: filters.contactSearch, mode: 'insensitive' } },
         { snapshot_email: { contains: filters.contactSearch, mode: 'insensitive' } },
         { snapshot_phone: { contains: filters.contactSearch } },
-        { tenant_name: { contains: filters.contactSearch, mode: 'insensitive' } },
+        { rental_tenant_name: { contains: filters.contactSearch, mode: 'insensitive' } },
         { primary_email: { contains: filters.contactSearch, mode: 'insensitive' } },
         { primary_phone: { contains: filters.contactSearch } },
       ];
       where['contacts'] = { some: { OR: contactOrConditions } };
     }
-    if (filters.hasTenantNote === true) {
-      // tenant_note IS NOT NULL AND tenant_note != ''
+    if (filters.hasRentalTenantNote === true) {
+      // rental_tenant_note IS NOT NULL AND rental_tenant_note != ''
       // Use AND array to combine both conditions without overwriting existing keys
       const existingAnd = Array.isArray(where['AND']) ? (where['AND'] as Record<string, unknown>[]) : [];
       where['AND'] = [
         ...existingAnd,
-        { tenant_note: { not: null } },
-        { NOT: { tenant_note: '' } },
+        { rental_tenant_note: { not: null } },
+        { NOT: { rental_tenant_note: '' } },
       ];
-    } else if (filters.hasTenantNote === false) {
-      // tenant_note IS NULL OR tenant_note = ''
+    } else if (filters.hasRentalTenantNote === false) {
+      // rental_tenant_note IS NULL OR rental_tenant_note = ''
       // Wrap in AND to avoid conflicting with existing OR (from search)
       const existingAnd = Array.isArray(where['AND']) ? (where['AND'] as Record<string, unknown>[]) : [];
       where['AND'] = [
         ...existingAnd,
-        { OR: [{ tenant_note: null }, { tenant_note: '' }] },
+        { OR: [{ rental_tenant_note: null }, { rental_tenant_note: '' }] },
       ];
     }
     if (filters.confirmationStatus === 'sent') {
@@ -595,7 +597,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       const flowType = flowTypeMap.get(item.appointment.serviceTypeId) ?? 'ROUTINE';
       return t1Service.isVisibleForInspector(
         flowType,
-        item.appointment.tenantConfirmationStatus,
+        item.appointment.rentalTenantConfirmationStatus,
         item.appointment.keyRequired,
         item.appointment.scheduledDate,
         today,
@@ -618,7 +620,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     const t1Service = new T1VisibilityService();
     return t1Service.isVisibleForInspector(
       flowType,
-      entity.tenantConfirmationStatus,
+      entity.rentalTenantConfirmationStatus,
       entity.keyRequired,
       entity.scheduledDate,
       today,
@@ -652,7 +654,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     const rows = await this.prisma.appointment.findMany({
       where: {
         scheduled_date: { gte: startOfDay, lt: endOfDay },
-        tenant_confirmation_status: { not: 'CONFIRMED' },
+        rental_tenant_confirmation_status: { not: 'CONFIRMED' },
         status: { notIn: ['DONE', 'CANCELLED', 'REJECTED'] },
         deleted_at: null,
       },

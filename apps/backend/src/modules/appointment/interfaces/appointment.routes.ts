@@ -41,7 +41,7 @@ import type { BulkStatusTransitionUseCase } from '../application/use-cases/bulk-
 import type { BulkAssignInspectorUseCase } from '../application/use-cases/bulk-assign-inspector.use-case';
 import type { BulkReopenForRescheduleUseCase } from '../application/use-cases/bulk-reopen-for-reschedule.use-case';
 import type { ReopenForRescheduleUseCase } from '../application/use-cases/reopen-for-reschedule.use-case';
-import type { GetPortalLinkUseCase } from '../../tenant-portal/application/use-cases/get-portal-link.use-case';
+import type { GetPortalLinkUseCase } from '../../rental-tenant-portal/application/use-cases/get-portal-link.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 import type { IIdempotencyService } from '../../../shared/domain/idempotency.service';
 import { GetPortalLinkResponse } from '@properfy/shared';

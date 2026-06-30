@@ -23,7 +23,7 @@ function makeNotification(overrides: Partial<NotificationProps> = {}): Notificat
     deliveredAt: new Date('2026-03-16T10:06:00.000Z'),
     failedAt: null,
     failureReason: null,
-    payloadJson: { tenantName: 'John', propertyAddress: '123 Main St' },
+    payloadJson: { rentalTenantName: 'John', propertyAddress: '123 Main St' },
     retryCount: 0,
     nextRetryAt: null,
     createdAt: now,
@@ -143,7 +143,7 @@ describe('GetNotificationUseCase', () => {
   });
 
   it('should include payloadJson in output', async () => {
-    const payloadJson = { tenantName: 'John', propertyAddress: '123 Main St' };
+    const payloadJson = { rentalTenantName: 'John', propertyAddress: '123 Main St' };
     vi.mocked(notificationRepo.findById).mockResolvedValue(
       makeNotification({ payloadJson }),
     );
@@ -153,7 +153,7 @@ describe('GetNotificationUseCase', () => {
       actor: makeActor({ role: 'AM' }),
     });
 
-    expect(result.payloadJson).toEqual({ tenantName: 'John', propertyAddress: '123 Main St' });
+    expect(result.payloadJson).toEqual({ rentalTenantName: 'John', propertyAddress: '123 Main St' });
   });
 
   it('should include providerMessageId in output', async () => {

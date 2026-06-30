@@ -21,7 +21,7 @@ vi.mock('../../../src/main/container', () => ({
     audit: { jwtService: { verify: mockJwtVerify } },
     serviceGroup: { jwtService: { verify: mockJwtVerify } },
     marketplace: { jwtService: { verify: mockJwtVerify } },
-    tenantPortal: { jwtService: { verify: mockJwtVerify } },
+    rentalTenantPortal: { jwtService: { verify: mockJwtVerify } },
     inspectorExecution: { jwtService: { verify: mockJwtVerify } },
     billing: { jwtService: { verify: mockJwtVerify } },
     report: { jwtService: { verify: mockJwtVerify } },
@@ -63,7 +63,7 @@ const baseStats = {
     },
   ],
   pendingActions: {
-    noResponseTenants: 3,
+    noResponseRentalTenants: 3,
     pendingOperatorCrossChecks: 6,
     pendingFinancialEntries: 7,
     processingReports: 1,
@@ -121,7 +121,7 @@ describe('GET /v1/dashboard/stats', () => {
     expect(res.body.data).toEqual(mockStats);
     expect(res.body.data.appointmentsByStatus.draft).toBe(5);
     expect(res.body.data.recentAppointments).toHaveLength(1);
-    expect(res.body.data.pendingActions.noResponseTenants).toBe(3);
+    expect(res.body.data.pendingActions.noResponseRentalTenants).toBe(3);
     expect(res.body.data.quickStats.totalProperties).toBe(142);
   });
 

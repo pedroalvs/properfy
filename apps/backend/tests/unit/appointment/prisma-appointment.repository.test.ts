@@ -72,7 +72,7 @@ describe('PrismaAppointmentRepository date filters', () => {
                 { snapshot_name: { contains: 'john', mode: 'insensitive' } },
                 { snapshot_email: { contains: 'john', mode: 'insensitive' } },
                 { snapshot_phone: { contains: 'john' } },
-                { tenant_name: { contains: 'john', mode: 'insensitive' } },
+                { rental_tenant_name: { contains: 'john', mode: 'insensitive' } },
                 { primary_email: { contains: 'john', mode: 'insensitive' } },
                 { primary_phone: { contains: 'john' } },
               ],
@@ -83,35 +83,35 @@ describe('PrismaAppointmentRepository date filters', () => {
     );
   });
 
-  it('filters by hasTenantNote=true (non-null and non-empty)', async () => {
+  it('filters by hasRentalTenantNote=true (non-null and non-empty)', async () => {
     const repo = new PrismaAppointmentRepository(prisma);
 
     await repo.findAll(
-      { hasTenantNote: true },
+      { hasRentalTenantNote: true },
       { page: 1, pageSize: 10, sortOrder: 'asc' },
     );
 
     const call = findMany.mock.calls[0][0];
     expect(call.where.AND).toEqual(
       expect.arrayContaining([
-        { tenant_note: { not: null } },
-        { NOT: { tenant_note: '' } },
+        { rental_tenant_note: { not: null } },
+        { NOT: { rental_tenant_note: '' } },
       ]),
     );
   });
 
-  it('filters by hasTenantNote=false (null or empty)', async () => {
+  it('filters by hasRentalTenantNote=false (null or empty)', async () => {
     const repo = new PrismaAppointmentRepository(prisma);
 
     await repo.findAll(
-      { hasTenantNote: false },
+      { hasRentalTenantNote: false },
       { page: 1, pageSize: 10, sortOrder: 'asc' },
     );
 
     const call = findMany.mock.calls[0][0];
     expect(call.where.AND).toEqual(
       expect.arrayContaining([
-        { OR: [{ tenant_note: null }, { tenant_note: '' }] },
+        { OR: [{ rental_tenant_note: null }, { rental_tenant_note: '' }] },
       ]),
     );
   });

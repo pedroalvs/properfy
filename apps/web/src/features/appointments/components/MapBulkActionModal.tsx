@@ -233,8 +233,17 @@ export function MapBulkActionModal({
       ),
     },
     {
+      key: 'group',
+      label: 'Group',
+      width: '72px',
+      render: (row) =>
+        row.serviceGroupCode
+          ? <span className="font-mono text-sm text-text-secondary">{row.serviceGroupCode}</span>
+          : <span className="text-sm text-text-secondary">—</span>,
+    },
+    {
       key: 'client',
-      label: 'Client',
+      label: 'Agency',
       render: (row) => <span className="text-sm text-text-primary">{row.clientName ?? '—'}</span>,
     },
     {
@@ -275,14 +284,14 @@ export function MapBulkActionModal({
       render: (row) => (
         <div className="flex items-center justify-center gap-1">
           <ConfirmationChannelIcons
-            tenantConfirmationStatus={row.tenantConfirmationStatus}
+            rentalTenantConfirmationStatus={row.rentalTenantConfirmationStatus}
             hasEmail={!!row.contactEmail}
             hasSms={!!row.contactPhone}
           />
-          {row.hasTenantNote && (
+          {row.hasRentalTenantNote && (
             <IconWithTooltip
               icon="mdi-note-text-outline"
-              label={row.tenantNote ? `Note: ${row.tenantNote}` : 'Tenant left a note via portal'}
+              label={row.rentalTenantNote ? `Note: ${row.rentalTenantNote}` : 'Tenant left a note via portal'}
               colour="text-text-secondary"
               testId="bulk-modal-tenant-note-icon"
             />

@@ -183,7 +183,7 @@ describe('ContactListPage — Standalone sentinel option (024 §FR-308)', () => 
     fireEvent.click(trigger);
   }
 
-  it('AM Agency dropdown exposes the "Standalone — no tenant" option', async () => {
+  it('AM Agency dropdown exposes the "Standalone — no agency" option', async () => {
     setUser('AM', null);
     mockTenantsResponse([{ id: TENANT_A, name: 'Acme Realty' }]);
 
@@ -192,7 +192,7 @@ describe('ContactListPage — Standalone sentinel option (024 §FR-308)', () => 
 
     await waitFor(() => {
       expect(
-        screen.getByRole('option', { name: /Standalone — no tenant/i }),
+        screen.getByRole('option', { name: /Standalone — no agency/i }),
       ).toBeInTheDocument();
     });
   });
@@ -206,7 +206,7 @@ describe('ContactListPage — Standalone sentinel option (024 §FR-308)', () => 
 
     await waitFor(() => {
       expect(
-        screen.getByRole('option', { name: /Standalone — no tenant/i }),
+        screen.getByRole('option', { name: /Standalone — no agency/i }),
       ).toBeInTheDocument();
     });
   });

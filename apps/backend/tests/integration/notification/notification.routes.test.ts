@@ -29,7 +29,7 @@ vi.mock('../../../src/main/container', () => ({
     audit: { jwtService: { verify: mockJwtVerify } },
     serviceGroup: { jwtService: { verify: mockJwtVerify } },
     marketplace: { jwtService: { verify: mockJwtVerify } },
-    tenantPortal: { jwtService: { verify: mockJwtVerify } },
+    rentalTenantPortal: { jwtService: { verify: mockJwtVerify } },
     inspectorExecution: { jwtService: { verify: mockJwtVerify } },
     billing: { jwtService: { verify: mockJwtVerify } },
     report: { jwtService: { verify: mockJwtVerify } },
@@ -93,9 +93,9 @@ const fullTemplate = {
   templateCode: 'INSPECTION_NOTICE',
   channel: 'EMAIL',
   subject: 'Inspection Notice',
-  bodyHtml: '<p>Hello {{tenantName}}</p>',
-  bodyText: 'Hello tenantName',
-  variablesJson: ['tenantName'],
+  bodyHtml: '<p>Hello {{rentalTenantName}}</p>',
+  bodyText: 'Hello rentalTenantName',
+  variablesJson: ['rentalTenantName'],
   imageBindings: [],
   isActive: true,
   createdAt: '2026-03-16T00:00:00.000Z',
@@ -240,7 +240,7 @@ describe('PUT /v1/notification-templates/:templateCode/:channel', () => {
   it('should return 401 without auth', async () => {
     const res = await supertest(app.server)
       .put('/v1/notification-templates/INSPECTION_NOTICE/EMAIL')
-      .send({ bodyHtml: '<p>Hello {{tenantName}}</p>', isActive: true });
+      .send({ bodyHtml: '<p>Hello {{rentalTenantName}}</p>', isActive: true });
     expect(res.status).toBe(401);
   });
 
@@ -251,7 +251,7 @@ describe('PUT /v1/notification-templates/:templateCode/:channel', () => {
     const res = await supertest(app.server)
       .put('/v1/notification-templates/INSPECTION_NOTICE/EMAIL')
       .set('Authorization', 'Bearer valid-token')
-      .send({ bodyHtml: '<p>Hello {{tenantName}}</p>', isActive: true });
+      .send({ bodyHtml: '<p>Hello {{rentalTenantName}}</p>', isActive: true });
 
     expect(res.status).toBe(200);
     expect(res.body.data.templateCode).toBe('INSPECTION_NOTICE');

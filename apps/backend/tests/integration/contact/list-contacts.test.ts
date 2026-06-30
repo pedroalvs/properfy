@@ -37,7 +37,7 @@ function uuid(): string {
   return `cccccccc-0000-4000-8000-00000000${hex}`;
 }
 
-function makeContact(label: string, type = 'TENANT', isActive = true) {
+function makeContact(label: string, type = 'RENTAL_TENANT', isActive = true) {
   return {
     id: uuid(),
     tenantId: TENANT_A,
@@ -56,7 +56,7 @@ function makeContact(label: string, type = 'TENANT', isActive = true) {
 
 function makeListItem(
   label: string,
-  type = 'TENANT',
+  type = 'RENTAL_TENANT',
   isActive = true,
   propertyCount = 0,
   primaryInPropertyCount = 0,
@@ -84,7 +84,7 @@ describe('GET /v1/contacts — list-contacts (T031)', () => {
   it('returns paginated list with correct metadata + propertyCount', async () => {
     mockJwtVerify.mockResolvedValue(clAdminContext);
     mockListContactsExecute.mockResolvedValue({
-      data: [makeListItem('c1', 'TENANT', true, 2), makeListItem('c2', 'TENANT', true, 0)],
+      data: [makeListItem('c1', 'RENTAL_TENANT', true, 2), makeListItem('c2', 'RENTAL_TENANT', true, 0)],
       total: 2,
       page: 1,
       pageSize: 20,
@@ -123,7 +123,7 @@ describe('GET /v1/contacts — list-contacts (T031)', () => {
   it('filters by isActive=false to show deactivated contacts', async () => {
     mockJwtVerify.mockResolvedValue(clAdminContext);
     mockListContactsExecute.mockResolvedValue({
-      data: [makeListItem('c-inactive', 'TENANT', false, 0)],
+      data: [makeListItem('c-inactive', 'RENTAL_TENANT', false, 0)],
       total: 1,
       page: 1,
       pageSize: 20,

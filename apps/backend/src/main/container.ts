@@ -174,20 +174,20 @@ import type { ServiceGroupRouteContainer } from '../modules/service-group/interf
 import type { MarketplaceRouteContainer } from '../modules/service-group/interfaces/marketplace.routes';
 
 // Tenant portal module
-import { PrismaTenantPortalTokenRepository } from '../modules/tenant-portal/infrastructure/prisma-tenant-portal-token.repository';
-import { PrismaTenantPortalActivityRepository } from '../modules/tenant-portal/infrastructure/prisma-tenant-portal-activity.repository';
-import { TokenService } from '../modules/tenant-portal/domain/token.service';
-import { MintPortalTokenService } from '../modules/tenant-portal/domain/mint-portal-token.service';
-import { GetPortalDataUseCase } from '../modules/tenant-portal/application/use-cases/get-portal-data.use-case';
-import { ConfirmAppointmentUseCase } from '../modules/tenant-portal/application/use-cases/confirm-appointment.use-case';
-import { RescheduleRequestUseCase } from '../modules/tenant-portal/application/use-cases/reschedule-request.use-case';
-import { UpdateContactUseCase } from '../modules/tenant-portal/application/use-cases/update-contact.use-case';
-import { ReportUnavailabilityUseCase } from '../modules/tenant-portal/application/use-cases/report-unavailability.use-case';
-import { GeneratePortalTokenUseCase } from '../modules/tenant-portal/application/use-cases/generate-portal-token.use-case';
-import { ListPortalActivitiesUseCase } from '../modules/tenant-portal/application/use-cases/list-portal-activities.use-case';
-import { GetAvailableGroupsUseCase } from '../modules/tenant-portal/application/use-cases/get-available-groups.use-case';
-import { JoinGroupUseCase } from '../modules/tenant-portal/application/use-cases/join-group.use-case';
-import type { TenantPortalRouteContainer } from '../modules/tenant-portal/interfaces/tenant-portal.routes';
+import { PrismaRentalTenantPortalTokenRepository } from '../modules/rental-tenant-portal/infrastructure/prisma-rental-tenant-portal-token.repository';
+import { PrismaRentalTenantPortalActivityRepository } from '../modules/rental-tenant-portal/infrastructure/prisma-rental-tenant-portal-activity.repository';
+import { TokenService } from '../modules/rental-tenant-portal/domain/token.service';
+import { MintPortalTokenService } from '../modules/rental-tenant-portal/domain/mint-portal-token.service';
+import { GetPortalDataUseCase } from '../modules/rental-tenant-portal/application/use-cases/get-portal-data.use-case';
+import { ConfirmAppointmentUseCase } from '../modules/rental-tenant-portal/application/use-cases/confirm-appointment.use-case';
+import { RescheduleRequestUseCase } from '../modules/rental-tenant-portal/application/use-cases/reschedule-request.use-case';
+import { UpdateContactUseCase } from '../modules/rental-tenant-portal/application/use-cases/update-contact.use-case';
+import { ReportUnavailabilityUseCase } from '../modules/rental-tenant-portal/application/use-cases/report-unavailability.use-case';
+import { GeneratePortalTokenUseCase } from '../modules/rental-tenant-portal/application/use-cases/generate-portal-token.use-case';
+import { ListPortalActivitiesUseCase } from '../modules/rental-tenant-portal/application/use-cases/list-portal-activities.use-case';
+import { GetAvailableGroupsUseCase } from '../modules/rental-tenant-portal/application/use-cases/get-available-groups.use-case';
+import { JoinGroupUseCase } from '../modules/rental-tenant-portal/application/use-cases/join-group.use-case';
+import type { RentalTenantPortalRouteContainer } from '../modules/rental-tenant-portal/interfaces/rental-tenant-portal.routes';
 
 // Inspector execution module
 import { PrismaInspectionExecutionRepository } from '../modules/inspector-execution/infrastructure/prisma-inspection-execution.repository';
@@ -315,14 +315,14 @@ import { ImagePlaceholderResolver } from '../modules/notification/domain/image-p
 
 // Notification handlers
 import { NotifyOnStatusTransitionHandler } from '../modules/notification/application/handlers/notify-on-status-transition.handler';
-import { NotifyOnTenantPortalActionHandler } from '../modules/notification/application/handlers/notify-on-tenant-portal-action.handler';
+import { NotifyOnRentalTenantPortalActionHandler } from '../modules/notification/application/handlers/notify-on-rental-tenant-portal-action.handler';
 
 // Workers
 import { CleanupSessionsWorker } from '../modules/auth/infrastructure/workers/cleanup-sessions.worker';
 import { KeyExpiryCheckWorker } from '../modules/auth/infrastructure/workers/key-expiry-check.worker';
 import { ExpireFilesWorker } from '../modules/report/infrastructure/workers/expire-files.worker';
 import { GenerateInvoiceFileWorker } from '../modules/billing/infrastructure/workers/generate-invoice-file.worker';
-import { ExpireTokensWorker } from '../modules/tenant-portal/infrastructure/workers/expire-tokens.worker';
+import { ExpireTokensWorker } from '../modules/rental-tenant-portal/infrastructure/workers/expire-tokens.worker';
 import { ExpireAssetsWorker } from '../modules/inspector-execution/infrastructure/workers/expire-assets.worker';
 import { NotifyStuckInspectionsWorker } from '../modules/inspector-execution/infrastructure/workers/notify-stuck.worker';
 import { ExpirePriorityWorker } from '../modules/service-group/infrastructure/workers/expire-priority.worker';
@@ -394,11 +394,11 @@ import { PrismaAppointmentImportRepository } from '../modules/appointment/infras
 import { AppointmentImportWorker } from '../modules/appointment/infrastructure/workers/import.worker';
 import { RejectUnconfirmedAppointmentsUseCase } from '../modules/appointment/application/use-cases/reject-unconfirmed-appointments.use-case';
 import { RejectUnconfirmedWorker } from '../modules/appointment/infrastructure/workers/reject-unconfirmed.worker';
-import { GetPortalLinkUseCase } from '../modules/tenant-portal/application/use-cases/get-portal-link.use-case';
+import { GetPortalLinkUseCase } from '../modules/rental-tenant-portal/application/use-cases/get-portal-link.use-case';
 import { PrismaConfirmationCycleRepository } from '../modules/appointment/infrastructure/prisma-confirmation-cycle.repository';
 import { ConfirmationCycleService } from '../modules/appointment/application/services/confirmation-cycle.service';
 import { Aes256GcmService } from '../shared/infrastructure/crypto/aes-256-gcm.service';
-import { AesTokenEncrypterAdapter } from '../modules/tenant-portal/infrastructure/aes-token-encrypter.adapter';
+import { AesTokenEncrypterAdapter } from '../modules/rental-tenant-portal/infrastructure/aes-token-encrypter.adapter';
 import type { AppointmentRouteContainer } from '../modules/appointment/interfaces/appointment.routes';
 
 // Appointment time slot module
@@ -428,7 +428,7 @@ export interface AppContainer {
   auditRetention: AuditRetentionRouteContainer;
   serviceGroup: ServiceGroupRouteContainer;
   marketplace: MarketplaceRouteContainer;
-  tenantPortal: TenantPortalRouteContainer;
+  rentalTenantPortal: RentalTenantPortalRouteContainer;
   inspectorExecution: InspectorExecutionRouteContainer;
   billing: BillingRouteContainer;
   report: ReportRouteContainer;
@@ -707,8 +707,8 @@ export function createContainer(logger: Logger): AppContainer {
   // Tenant portal repositories — created BEFORE reopenForRescheduleUseCase
   // so 026 §FR-543 can inject the token repo (revoke active portal tokens
   // when the appointment is rescheduled).
-  const tenantPortalTokenRepo = new PrismaTenantPortalTokenRepository(prisma);
-  const tenantPortalActivityRepo = new PrismaTenantPortalActivityRepository(prisma);
+  const rentalTenantPortalTokenRepo = new PrismaRentalTenantPortalTokenRepository(prisma);
+  const rentalTenantPortalActivityRepo = new PrismaRentalTenantPortalActivityRepository(prisma);
   const tokenService = new TokenService();
 
   // 028 — confirmation cycle repository + service
@@ -720,7 +720,7 @@ export function createContainer(logger: Logger): AppContainer {
     ? new AesTokenEncrypterAdapter(new Aes256GcmService(env.PORTAL_TOKEN_ENC_KEY))
     : undefined;
 
-  const mintPortalTokenService = new MintPortalTokenService(tenantPortalTokenRepo, tokenService, portalTokenEncrypter);
+  const mintPortalTokenService = new MintPortalTokenService(rentalTenantPortalTokenRepo, tokenService, portalTokenEncrypter);
 
   const forceManualConfirmationUseCase = new ForceManualTenantConfirmationUseCase(appointmentRepo, auditService, authorizationService, confirmationCycleService);
 
@@ -728,7 +728,7 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentRepo,
     auditService,
     authorizationService,
-    tenantPortalTokenRepo,
+    rentalTenantPortalTokenRepo,
     confirmationCycleService,
     prisma,
   );
@@ -743,7 +743,7 @@ export function createContainer(logger: Logger): AppContainer {
     mintPortalTokenService, buildNotificationPayload, appointmentCodeFormatter,
     createNotificationUseCase, env.TENANT_PORTAL_BASE_URL, logger, metrics,
   );
-  const notifyOnTenantPortalActionHandler = new NotifyOnTenantPortalActionHandler(
+  const notifyOnRentalTenantPortalActionHandler = new NotifyOnRentalTenantPortalActionHandler(
     appointmentRepo, propertyRepo, tenantRepo, notificationRepo,
     buildNotificationPayload, appointmentCodeFormatter,
     createNotificationUseCase, env.TENANT_PORTAL_BASE_URL, logger, metrics,
@@ -760,14 +760,14 @@ export function createContainer(logger: Logger): AppContainer {
     prisma,
   );
 
-  const getPortalDataUseCase = new GetPortalDataUseCase(tenantPortalTokenRepo, tenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo, tenantRepo);
-  const confirmAppointmentUseCase = new ConfirmAppointmentUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, notifyOnTenantPortalActionHandler, domainEventBus, tenantPortalTokenRepo, confirmationCycleService);
-  const updateContactUseCase = new UpdateContactUseCase(tenantPortalActivityRepo, appointmentRepo, auditService, domainEventBus, contactRepo);
-  const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(tenantPortalTokenRepo, appointmentRepo, tenantRepo, mintPortalTokenService, auditService, env.TENANT_PORTAL_BASE_URL, createNotificationUseCase, confirmationCycleService, prisma, logger);
+  const getPortalDataUseCase = new GetPortalDataUseCase(rentalTenantPortalTokenRepo, rentalTenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo, tenantRepo);
+  const confirmAppointmentUseCase = new ConfirmAppointmentUseCase(rentalTenantPortalActivityRepo, appointmentRepo, auditService, notifyOnRentalTenantPortalActionHandler, domainEventBus, rentalTenantPortalTokenRepo, confirmationCycleService);
+  const updateContactUseCase = new UpdateContactUseCase(rentalTenantPortalActivityRepo, appointmentRepo, auditService, domainEventBus, contactRepo);
+  const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(rentalTenantPortalTokenRepo, appointmentRepo, tenantRepo, mintPortalTokenService, auditService, env.TENANT_PORTAL_BASE_URL, createNotificationUseCase, confirmationCycleService, prisma, logger);
   const getPortalLinkUseCase = portalTokenEncrypter
-    ? new GetPortalLinkUseCase(appointmentRepo, tenantPortalTokenRepo, portalTokenEncrypter, env.TENANT_PORTAL_BASE_URL, authorizationService, auditService)
+    ? new GetPortalLinkUseCase(appointmentRepo, rentalTenantPortalTokenRepo, portalTokenEncrypter, env.TENANT_PORTAL_BASE_URL, authorizationService, auditService)
     : undefined;
-  const listPortalActivitiesUseCase = new ListPortalActivitiesUseCase(tenantPortalActivityRepo, appointmentRepo);
+  const listPortalActivitiesUseCase = new ListPortalActivitiesUseCase(rentalTenantPortalActivityRepo, appointmentRepo);
   const bulkResendReminderUseCase = new BulkResendReminderUseCase(generatePortalTokenUseCase, idempotencyService);
 
   // 025 — bulk map-flow actions (cancel / reschedule / status-transition / assign-inspector).
@@ -803,17 +803,17 @@ export function createContainer(logger: Logger): AppContainer {
     createFinancialEntriesOnDoneUseCase,
   );
   const reportUnavailabilityUseCase = new ReportUnavailabilityUseCase(
-    tenantPortalActivityRepo,
+    rentalTenantPortalActivityRepo,
     appointmentRepo,
     auditService,
-    notifyOnTenantPortalActionHandler,
+    notifyOnRentalTenantPortalActionHandler,
     inspectionExecutionRepo,
     domainEventBus,
-    tenantPortalTokenRepo,
+    rentalTenantPortalTokenRepo,
     confirmationCycleService,
   );
 
-  const rescheduleRequestUseCase = new RescheduleRequestUseCase(tenantPortalActivityRepo, tenantPortalTokenRepo, appointmentRepo, serviceTypeRepo, inspectionExecutionRepo, tenantRepo, auditService, reopenForRescheduleUseCase, notifyOnTenantPortalActionHandler, domainEventBus, generatePortalTokenUseCase);
+  const rescheduleRequestUseCase = new RescheduleRequestUseCase(rentalTenantPortalActivityRepo, rentalTenantPortalTokenRepo, appointmentRepo, serviceTypeRepo, inspectionExecutionRepo, tenantRepo, auditService, reopenForRescheduleUseCase, notifyOnRentalTenantPortalActionHandler, domainEventBus, generatePortalTokenUseCase);
 
   // Inspector execution use cases
   const getInspectorScheduleUseCase = new GetInspectorScheduleUseCase(
@@ -901,11 +901,11 @@ export function createContainer(logger: Logger): AppContainer {
   const joinGroupUseCase = new JoinGroupUseCase(
     appointmentRepo,
     serviceGroupRepo,
-    tenantPortalActivityRepo,
-    tenantPortalTokenRepo,
+    rentalTenantPortalActivityRepo,
+    rentalTenantPortalTokenRepo,
     auditService,
     executeStatusTransitionUseCase,
-    notifyOnTenantPortalActionHandler,
+    notifyOnRentalTenantPortalActionHandler,
   );
 
   // 026 — Add appointments to existing group + read-only eligibility preview.
@@ -1255,7 +1255,7 @@ export function createContainer(logger: Logger): AppContainer {
   const generateInvoiceFileWorker = new GenerateInvoiceFileWorker(
     inspectorInvoiceRepo, financialEntryRepo, xlsxGenerator, reportStorageService, logger,
   );
-  const expireTokensWorker = new ExpireTokensWorker(tenantPortalTokenRepo, logger);
+  const expireTokensWorker = new ExpireTokensWorker(rentalTenantPortalTokenRepo, logger);
   const expireAssetsWorker = new ExpireAssetsWorker(inspectionAssetRepo, storageService, logger);
   const notifyStuckInspectionsWorker = new NotifyStuckInspectionsWorker(
     inspectionExecutionRepo, appointmentRepo, notificationRepo, createNotificationUseCase, logger,
@@ -1507,7 +1507,7 @@ export function createContainer(logger: Logger): AppContainer {
       jwtService,
       tenantRepo,
     },
-    tenantPortal: {
+    rentalTenantPortal: {
       getPortalDataUseCase,
       confirmAppointmentUseCase,
       rescheduleRequestUseCase,
@@ -1517,7 +1517,7 @@ export function createContainer(logger: Logger): AppContainer {
       listPortalActivitiesUseCase,
       getAvailableGroupsUseCase,
       joinGroupUseCase,
-      tokenRepo: tenantPortalTokenRepo,
+      tokenRepo: rentalTenantPortalTokenRepo,
       tokenService,
       jwtService,
       tenantRepo,

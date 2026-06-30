@@ -28,7 +28,7 @@ function makeAppointment(
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'CONFIRMED',
+    rentalTenantConfirmationStatus: 'CONFIRMED',
     priceAmount: 200,
     payoutAmount: 140,
     pricingRuleSnapshotJson: {},
@@ -124,7 +124,7 @@ describe('ReopenForRescheduleUseCase', () => {
     expect(result.timeSlot).toBe('13:00-16:00');
     expect(result.previousInspectorId).toBe('insp-1');
     expect(result.inspectorId).toBeNull();
-    expect(result.tenantConfirmationStatus).toBe('PENDING');
+    expect(result.rentalTenantConfirmationStatus).toBe('PENDING');
 
     // Verify repository update call
     expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
@@ -132,7 +132,7 @@ describe('ReopenForRescheduleUseCase', () => {
       scheduledDate: new Date('2027-06-15'),
       timeSlot: '13:00-16:00',
       inspectorId: null,
-      tenantConfirmationStatus: 'PENDING',
+      rentalTenantConfirmationStatus: 'PENDING',
       reason: null,
     });
   });
@@ -190,14 +190,14 @@ describe('ReopenForRescheduleUseCase', () => {
         scheduledDate: '2026-04-10',
         timeSlot: '09:00-12:00',
         inspectorId: 'insp-1',
-        tenantConfirmationStatus: 'CONFIRMED',
+        rentalTenantConfirmationStatus: 'CONFIRMED',
       },
       after: {
         status: 'DRAFT',
         scheduledDate: '2027-06-15',
         timeSlot: '13:00-16:00',
         inspectorId: null,
-        tenantConfirmationStatus: 'PENDING',
+        rentalTenantConfirmationStatus: 'PENDING',
       },
       reason: 'Tenant requested new date',
       metadata: {
@@ -447,7 +447,7 @@ describe('ReopenForRescheduleUseCase', () => {
 // backward compatibility (no `tokenRepo` injected → no revoke path).
 // This suite pins the new path: when the repo IS injected, the use case
 // revokes active portal tokens AFTER the reschedule and emits a
-// `tenant_portal.tokens_revoked` audit event.
+// `rental_tenant_portal.tokens_revoked` audit event.
 describe('ReopenForRescheduleUseCase — token revoke (026 §FR-543)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -480,7 +480,7 @@ describe('ReopenForRescheduleUseCase — token revoke (026 §FR-543)', () => {
     // Plus the audit event for the revoke step (separate from the reopen audit).
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
-        action: 'tenant_portal.tokens_revoked',
+        action: 'rental_tenant_portal.tokens_revoked',
         entityId: 'appt-1',
         metadata: expect.objectContaining({ reason: 'operator_reschedule' }),
       }),
@@ -505,9 +505,9 @@ describe('ReopenForRescheduleUseCase — token revoke (026 §FR-543)', () => {
       actor: makeActor('OP'),
     });
 
-    // No `tenant_portal.tokens_revoked` audit emitted.
+    // No `rental_tenant_portal.tokens_revoked` audit emitted.
     const revokeCalls = (auditService.log as ReturnType<typeof vi.fn>).mock.calls.filter(
-      ([entry]) => (entry as { action: string }).action === 'tenant_portal.tokens_revoked',
+      ([entry]) => (entry as { action: string }).action === 'rental_tenant_portal.tokens_revoked',
     );
     expect(revokeCalls).toHaveLength(0);
   });

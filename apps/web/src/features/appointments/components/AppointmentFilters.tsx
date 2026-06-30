@@ -3,7 +3,7 @@ import { FilterInput } from '@/components/filters/FilterInput';
 import { FilterSelect, type FilterSelectOption } from '@/components/filters/FilterSelect';
 import { FilterDateRange } from '@/components/filters/FilterDateRange';
 import { FilterBoolean } from '@/components/filters/FilterBoolean';
-import { APPOINTMENT_STATUS_MAP, TENANT_CONFIRMATION_STATUS_MAP } from '@/lib/status-colors';
+import { APPOINTMENT_STATUS_MAP, RENTAL_TENANT_CONFIRMATION_STATUS_MAP } from '@/lib/status-colors';
 import type { AppointmentFiltersState } from '../types';
 
 const STATUS_OPTIONS: FilterSelectOption[] = [
@@ -14,9 +14,9 @@ const STATUS_OPTIONS: FilterSelectOption[] = [
   })),
 ];
 
-const TENANT_CONFIRMATION_OPTIONS: FilterSelectOption[] = [
+const RENTAL_TENANT_CONFIRMATION_OPTIONS: FilterSelectOption[] = [
   { label: 'All', value: '' },
-  ...Object.entries(TENANT_CONFIRMATION_STATUS_MAP).map(([value, config]) => ({
+  ...Object.entries(RENTAL_TENANT_CONFIRMATION_STATUS_MAP).map(([value, config]) => ({
     label: config.label,
     value,
   })),
@@ -63,9 +63,9 @@ export function AppointmentFilters({
       />
       <FilterSelect
         label="Confirmation"
-        value={filters.tenantConfirmationStatus}
-        onChange={(tenantConfirmationStatus) => onFiltersChange({ ...filters, tenantConfirmationStatus })}
-        options={TENANT_CONFIRMATION_OPTIONS}
+        value={filters.rentalTenantConfirmationStatus}
+        onChange={(rentalTenantConfirmationStatus) => onFiltersChange({ ...filters, rentalTenantConfirmationStatus })}
+        options={RENTAL_TENANT_CONFIRMATION_OPTIONS}
       />
       <FilterDateRange
         label="Period"

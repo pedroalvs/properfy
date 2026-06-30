@@ -1,7 +1,7 @@
 interface ConfirmationChannelIconsProps {
   /** Tenant portal confirmation status — drives both icons until per-channel
    *  statuses are exposed by the list endpoint (see plan §step 5 GAP-405). */
-  tenantConfirmationStatus?: string;
+  rentalTenantConfirmationStatus?: string;
   hasEmail?: boolean;
   hasSms?: boolean;
 }
@@ -69,23 +69,23 @@ export function IconWithTooltip({ icon, label, colour, testId }: { icon: string;
  * rest of the app visually without introducing a new icon library.
  */
 export function ConfirmationChannelIcons({
-  tenantConfirmationStatus,
+  rentalTenantConfirmationStatus,
   hasEmail = true,
   hasSms = true,
 }: ConfirmationChannelIconsProps) {
-  const smsState = deriveState(tenantConfirmationStatus, hasSms);
-  const emailState = deriveState(tenantConfirmationStatus, hasEmail);
+  const smsState = deriveState(rentalTenantConfirmationStatus, hasSms);
+  const emailState = deriveState(rentalTenantConfirmationStatus, hasEmail);
   return (
     <span className="inline-flex items-center gap-1" data-testid="confirmation-channel-icons">
       <IconWithTooltip
         icon="mdi-cellphone-message"
-        label={labelFor(tenantConfirmationStatus, 'SMS', hasSms)}
+        label={labelFor(rentalTenantConfirmationStatus, 'SMS', hasSms)}
         colour={colourFor(smsState)}
         testId="confirmation-sms-icon"
       />
       <IconWithTooltip
         icon="mdi-email-outline"
-        label={labelFor(tenantConfirmationStatus, 'Email', hasEmail)}
+        label={labelFor(rentalTenantConfirmationStatus, 'Email', hasEmail)}
         colour={colourFor(emailState)}
         testId="confirmation-email-icon"
       />

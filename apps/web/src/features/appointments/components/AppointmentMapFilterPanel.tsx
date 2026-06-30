@@ -240,7 +240,7 @@ function AppointmentModeFields({
       {/* Customers filter — AM only (cross-tenant role, needs per-tenant narrowing). */}
       {actorRole === 'AM' && tenantOptions.length > 0 && (
         <FilterSelect
-          label="Customers"
+          label="Agencies"
           value={filters.tenantId}
           options={[{ label: 'All', value: '' }, ...tenantOptions]}
           onChange={(v) => onChange({ ...filters, tenantId: v })}

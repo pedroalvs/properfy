@@ -23,7 +23,7 @@ describe('web post-login redirect helpers', () => {
     savePostLoginRedirect('/login');
     expect(readPostLoginRedirect()).toBeNull();
 
-    savePostLoginRedirect('/tenant-portal/abc');
+    savePostLoginRedirect('/rental-tenant-portal/abc');
     expect(readPostLoginRedirect()).toBeNull();
   });
 

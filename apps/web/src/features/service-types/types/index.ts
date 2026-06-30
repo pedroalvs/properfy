@@ -3,7 +3,7 @@ export interface ServiceType {
   code: string;
   name: string;
   flowType: 'ROUTINE' | 'INGOING' | 'OUTGOING';
-  requiresTenantConfirmation: boolean;
+  requiresRentalTenantConfirmation: boolean;
   status: 'ACTIVE' | 'INACTIVE';
   createdAt: string;
   updatedAt: string;
@@ -13,7 +13,7 @@ export interface ServiceTypeFormData {
   code: string;
   name: string;
   flowType: string;
-  requiresTenantConfirmation: boolean;
+  requiresRentalTenantConfirmation: boolean;
 }
 
 export type ServiceTypeFormErrors = Partial<Record<keyof ServiceTypeFormData, string>>;
@@ -32,5 +32,5 @@ export const EMPTY_SERVICE_TYPE_FORM: ServiceTypeFormData = {
   code: '',
   name: '',
   flowType: '',
-  requiresTenantConfirmation: true,
+  requiresRentalTenantConfirmation: true,
 };

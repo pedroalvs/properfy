@@ -1,4 +1,4 @@
-import { ServiceTypeFlowType, TenantConfirmationStatus } from '@properfy/shared';
+import { ServiceTypeFlowType, RentalTenantConfirmationStatus } from '@properfy/shared';
 import type { InspectorAppointment } from '../types';
 
 function pad(value: number): string {
@@ -42,9 +42,9 @@ export function getScheduleStartDateTime(scheduledDate: string, timeSlot: string
 
 export function isScheduleRisk(appointment: Pick<
   InspectorAppointment,
-  'flowType' | 'keyRequired' | 'tenantConfirmation'
+  'flowType' | 'keyRequired' | 'rentalTenantConfirmation'
 >): boolean {
   if (appointment.flowType !== ServiceTypeFlowType.ROUTINE) return false;
   if (appointment.keyRequired) return false;
-  return appointment.tenantConfirmation !== TenantConfirmationStatus.CONFIRMED;
+  return appointment.rentalTenantConfirmation !== RentalTenantConfirmationStatus.CONFIRMED;
 }

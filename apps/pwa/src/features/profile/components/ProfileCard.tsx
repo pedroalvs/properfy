@@ -15,8 +15,8 @@ const roleLabelMap: Record<string, string> = {
   INSP: 'Inspector',
   AM: 'Admin Master',
   OP: 'Operator',
-  CL_ADMIN: 'Client Admin',
-  CL_USER: 'Client User',
+  CL_ADMIN: 'Real Estate',
+  CL_USER: 'Real Estate Operator',
 };
 
 function formatLastLogin(value: string | null | undefined): string {

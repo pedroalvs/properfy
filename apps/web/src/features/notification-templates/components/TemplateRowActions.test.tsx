@@ -27,7 +27,7 @@ function makeTemplate(overrides: Partial<NotificationTemplate> = {}): Notificati
   return {
     id: 'tpl-1',
     tenantId: 'agency-1',
-    tenantName: 'Acme Realty',
+    rentalTenantName: 'Acme Realty',
     code: 'INSPECTION_NOTICE',
     channel: 'EMAIL',
     subject: 'S',

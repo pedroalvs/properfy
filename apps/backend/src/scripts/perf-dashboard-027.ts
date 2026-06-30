@@ -81,7 +81,7 @@ async function main() {
     EXPLAIN (ANALYZE, FORMAT TEXT, TIMING TRUE)
     SELECT inspector_id, COUNT(*) FROM appointments
     WHERE deleted_at IS NULL AND status = 'SCHEDULED'
-      AND tenant_confirmation_status = 'CONFIRMED'
+      AND rental_tenant_confirmation_status = 'CONFIRMED'
       AND inspector_id IS NOT NULL
       AND scheduled_date >= ${tomorrowFrom} AND scheduled_date <= ${tomorrowTo}
     GROUP BY inspector_id
@@ -104,7 +104,7 @@ async function main() {
     EXPLAIN (ANALYZE, FORMAT TEXT, TIMING TRUE)
     SELECT inspector_id, COUNT(*) FROM appointments
     WHERE deleted_at IS NULL AND status = 'SCHEDULED'
-      AND tenant_confirmation_status = 'CONFIRMED'
+      AND rental_tenant_confirmation_status = 'CONFIRMED'
       AND inspector_id IS NOT NULL
       AND scheduled_date >= ${weekFrom} AND scheduled_date <= ${weekTo}
     GROUP BY inspector_id

@@ -2,7 +2,7 @@ import type { IAppointmentRepository } from '../../../appointment/domain/appoint
 import type { IPropertyRepository } from '../../../property/domain/property.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { INotificationRepository } from '../../domain/notification.repository';
-import type { MintPortalTokenService } from '../../../tenant-portal/domain/mint-portal-token.service';
+import type { MintPortalTokenService } from '../../../rental-tenant-portal/domain/mint-portal-token.service';
 import type { BuildNotificationPayloadService } from '../../domain/build-notification-payload.service';
 import type { AppointmentCodeFormatter } from '../../../appointment/domain/appointment-code.formatter';
 import type { CreateNotificationUseCase } from '../use-cases/create-notification.use-case';
@@ -20,7 +20,7 @@ export class NotifyOnStatusTransitionHandler {
     private readonly buildNotificationPayload: BuildNotificationPayloadService,
     private readonly appointmentCodeFormatter: AppointmentCodeFormatter,
     private readonly createNotification: CreateNotificationUseCase,
-    private readonly tenantPortalBaseUrl: string,
+    private readonly rentalTenantPortalBaseUrl: string,
     private readonly logger?: Logger,
     private readonly metrics?: MetricsCollector,
   ) {}
@@ -109,7 +109,7 @@ export class NotifyOnStatusTransitionHandler {
       propertyAddress: property?.fullAddress ?? '',
       inspectorName: result.inspectorName ?? null,
       rawPortalToken,
-      portalBaseUrl: this.tenantPortalBaseUrl,
+      portalBaseUrl: this.rentalTenantPortalBaseUrl,
       appointmentCodeFormatter: this.appointmentCodeFormatter,
     };
 

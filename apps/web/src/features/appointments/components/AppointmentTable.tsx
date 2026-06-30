@@ -3,7 +3,7 @@ import { RowActions } from '@/components/data/RowActions';
 import { BooleanIcon } from '@/components/ui/BooleanIcon';
 import { formatDate } from '@/lib/format-date';
 import { AppointmentStatusChip } from './AppointmentStatusChip';
-import { TenantConfirmationChip } from './TenantConfirmationChip';
+import { RentalTenantConfirmationChip } from './RentalTenantConfirmationChip';
 import type { Appointment } from '../types';
 interface AppointmentTableProps {
   data: Appointment[];
@@ -120,7 +120,7 @@ export function AppointmentTable({
       render: (row) => (
         <div className="flex items-center gap-1.5">
           <AppointmentStatusChip status={row.status} doneCheckedByUserId={row.doneCheckedByUserId} isOverdue={row.isOverdue} />
-          {row.hasTenantNote && (
+          {row.hasRentalTenantNote && (
             <span title="Tenant left a note">
               <i
                 className="mdi mdi-note-text-outline text-base text-text-secondary"
@@ -132,11 +132,11 @@ export function AppointmentTable({
       ),
     },
     {
-      key: 'tenantConfirmationStatus',
+      key: 'rentalTenantConfirmationStatus',
       label: 'Confirmation',
       width: '140px',
       sortable: true,
-      render: (row) => <TenantConfirmationChip status={row.tenantConfirmationStatus} />,
+      render: (row) => <RentalTenantConfirmationChip status={row.rentalTenantConfirmationStatus} />,
     },
     {
       key: 'inspectorName',

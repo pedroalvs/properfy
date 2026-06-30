@@ -42,12 +42,12 @@ function makePrisma(_txFn?: (tx: Prisma.TransactionClient) => Promise<unknown>):
   const tokenUpdate = vi.fn();
   const tx = {
     appointment: { updateMany: appointmentUpdate },
-    tenantPortalToken: { update: tokenUpdate },
+    rentalTenantPortalToken: { update: tokenUpdate },
   } as unknown as Prisma.TransactionClient;
   return {
     $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
     appointment: { updateMany: appointmentUpdate },
-    tenantPortalToken: { update: tokenUpdate },
+    rentalTenantPortalToken: { update: tokenUpdate },
   } as unknown as PrismaClient;
 }
 
@@ -95,7 +95,7 @@ describe('ConfirmationCycleService', () => {
       vi.mocked(repo.findActiveByAppointmentId).mockResolvedValue(cycle);
       const svc = new ConfirmationCycleService(repo, makeAudit(), makePrisma());
 
-      const result = await svc.confirm('appt-1', 'tenant-1', 'TENANT_PORTAL', 'token-1');
+      const result = await svc.confirm('appt-1', 'tenant-1', 'RENTAL_TENANT_PORTAL', 'token-1');
 
       expect(result.status).toBe('CONFIRMED');
       expect(repo.update).toHaveBeenCalledOnce();
@@ -107,7 +107,7 @@ describe('ConfirmationCycleService', () => {
       vi.mocked(repo.findActiveByAppointmentId).mockResolvedValue(cycle);
       const svc = new ConfirmationCycleService(repo, makeAudit(), makePrisma());
 
-      const result = await svc.confirm('appt-1', 'tenant-1', 'TENANT_PORTAL', null);
+      const result = await svc.confirm('appt-1', 'tenant-1', 'RENTAL_TENANT_PORTAL', null);
 
       expect(result.status).toBe('CONFIRMED');
       expect(repo.update).not.toHaveBeenCalled();
@@ -118,7 +118,7 @@ describe('ConfirmationCycleService', () => {
       vi.mocked(repo.findActiveByAppointmentId).mockResolvedValue(null);
       const svc = new ConfirmationCycleService(repo, makeAudit(), makePrisma());
 
-      await expect(svc.confirm('appt-1', 'tenant-1', 'TENANT_PORTAL', null)).rejects.toThrow();
+      await expect(svc.confirm('appt-1', 'tenant-1', 'RENTAL_TENANT_PORTAL', null)).rejects.toThrow();
     });
   });
 
@@ -150,7 +150,7 @@ describe('ConfirmationCycleService', () => {
       const updatedCycle = vi.mocked(repo.update).mock.calls[0]![0];
       expect(updatedCycle.status).toBe('SUPERSEDED');
       expect(updatedCycle.invalidatedReason).toBe('APPOINTMENT_REOPENED');
-      expect(vi.mocked(prisma.tenantPortalToken.update)).toHaveBeenCalledWith({
+      expect(vi.mocked(prisma.rentalTenantPortalToken.update)).toHaveBeenCalledWith({
         where: { id: 'token-old' },
         data: { status: 'SUPERSEDED' },
       });
@@ -179,7 +179,7 @@ describe('ConfirmationCycleService', () => {
       expect(repo.update).toHaveBeenCalledOnce();
       const updatedCycle = vi.mocked(repo.update).mock.calls[0]![0];
       expect(updatedCycle.status).toBe('SUPERSEDED');
-      expect(vi.mocked(prisma.tenantPortalToken.update)).toHaveBeenCalledWith({
+      expect(vi.mocked(prisma.rentalTenantPortalToken.update)).toHaveBeenCalledWith({
         where: { id: 'token-old' },
         data: { status: 'SUPERSEDED' },
       });

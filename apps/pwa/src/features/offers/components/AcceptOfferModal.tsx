@@ -34,7 +34,7 @@ export function AcceptOfferModal({ offer, state, onConfirm, onCancel }: AcceptOf
           {/* Summary details */}
           <div className="mt-4 space-y-2.5 text-sm">
             <Row label="Service" value={offer.serviceTypeName} />
-            <Row label="Client" value={offer.tenantName} />
+            <Row label="Agency" value={offer.tenantName} />
             <Row label="Date" value={formatDate(offer.scheduledDate)} />
             <Row label="Time window" value={formatTimeWindow(offer.timeWindow)} />
             <Row

@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { MapBulkActionModal } from './MapBulkActionModal';
@@ -43,13 +43,13 @@ const sampleAppointments: AppointmentMapItem[] = [
     id: UUID_A, code: 'INS-0001', status: 'DRAFT', propertyAddress: '123 Pitt St', latitude: -33.8, longitude: 151.2,
     scheduledDate: '2026-06-01', timeSlot: '09:00-10:00', inspectorName: 'Alice Smith', branchName: 'Sydney',
     clientName: 'Acme Realty', contactName: 'Bob', contactPhone: '+61400000000', contactEmail: 'b@example.com',
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
   },
   {
     id: UUID_B, code: 'INS-0002', status: 'AWAITING_INSPECTOR', propertyAddress: '456 George St', latitude: -33.9, longitude: 151.3,
     scheduledDate: '2026-06-02', timeSlot: '10:00-11:00', inspectorName: null, branchName: 'Sydney',
     clientName: 'Acme Realty', contactName: 'Carol', contactPhone: null, contactEmail: 'c@example.com',
-    tenantConfirmationStatus: 'CONFIRMED',
+    rentalTenantConfirmationStatus: 'CONFIRMED',
   },
 ];
 
@@ -145,11 +145,11 @@ describe('MapBulkActionModal', () => {
   });
 
   // T-C7 — tenant note icon in Confirm column
-  it('shows note icon with tooltip when hasTenantNote=true', () => {
+  it('shows note icon with tooltip when hasRentalTenantNote=true', () => {
     const withNote: AppointmentMapItem = {
       ...sampleAppointments[0]!,
-      hasTenantNote: true,
-      tenantNote: 'Will be home after 3pm',
+      hasRentalTenantNote: true,
+      rentalTenantNote: 'Will be home after 3pm',
     };
     renderModal({ appointments: [withNote] });
     const icon = screen.getByTestId('bulk-modal-tenant-note-icon');
@@ -157,11 +157,11 @@ describe('MapBulkActionModal', () => {
     expect(icon).toHaveAttribute('aria-label', 'Note: Will be home after 3pm');
   });
 
-  it('shows fallback tooltip text when hasTenantNote=true but tenantNote is null', () => {
+  it('shows fallback tooltip text when hasRentalTenantNote=true but rentalTenantNote is null', () => {
     const withNoteNoText: AppointmentMapItem = {
       ...sampleAppointments[0]!,
-      hasTenantNote: true,
-      tenantNote: null,
+      hasRentalTenantNote: true,
+      rentalTenantNote: null,
     };
     renderModal({ appointments: [withNoteNoText] });
     const icon = screen.getByTestId('bulk-modal-tenant-note-icon');
@@ -196,9 +196,34 @@ describe('MapBulkActionModal', () => {
     expect(screen.getByTestId('group-button-reason').textContent).toContain('already belong to a group');
   });
 
-  it('does not show note icon when hasTenantNote is false or absent', () => {
-    renderModal(); // sampleAppointments have no hasTenantNote
+  it('does not show note icon when hasRentalTenantNote is false or absent', () => {
+    renderModal(); // sampleAppointments have no hasRentalTenantNote
     expect(screen.queryByTestId('bulk-modal-tenant-note-icon')).toBeNull();
+  });
+
+  // Group column — surfaces the service group code so operators can see which
+  // group each lassoed appointment belongs to.
+  describe('Group column', () => {
+    it('renders a "Group" column header', () => {
+      renderModal();
+      expect(screen.getByRole('columnheader', { name: 'Group' })).toBeInTheDocument();
+    });
+
+    it('shows the service group code for a grouped appointment', () => {
+      const grouped: AppointmentMapItem = { ...sampleAppointments[0]!, serviceGroupCode: '42' };
+      renderModal({ appointments: [grouped] });
+      expect(screen.getByText('42')).toBeInTheDocument();
+    });
+
+    it('shows an em-dash in the Group cell for an ungrouped appointment', () => {
+      const ungrouped: AppointmentMapItem = { ...sampleAppointments[0]! }; // no serviceGroupCode
+      renderModal({ appointments: [ungrouped] });
+      const row = screen.getByTestId(`bulk-modal-row-${ungrouped.code}`).closest('tr')!;
+      // Group is the 3rd column (checkbox, Code, Group). Assert the dash is in
+      // that cell specifically, not just somewhere in the row.
+      const groupCell = within(row).getAllByRole('cell')[2]!;
+      expect(groupCell).toHaveTextContent('—');
+    });
   });
 
   // ── Group drill-down generalization (title / emptyText / showGroupCreationActions / isLoading) ──

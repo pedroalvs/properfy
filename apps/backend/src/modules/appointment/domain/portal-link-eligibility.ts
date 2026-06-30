@@ -13,7 +13,7 @@
  *      `SKIP_NOT_SENDABLE`.
  *   2. A CONFIRMED appointment is skipped ONLY when it is confirmed for the
  *      CURRENT date + time slot (its active cycle matches). The denormalized
- *      `tenant_confirmation_status` can be stale: an operator can edit an
+ *      `rental_tenant_confirmation_status` can be stale: an operator can edit an
  *      AWAITING_INSPECTOR appointment's date without resetting confirmation, so
  *      a CONFIRMED appointment whose active cycle no longer matches the current
  *      date/time is treated as `SEND_AFTER_RESET` (reset the cycle, then resend).
@@ -31,7 +31,7 @@ export interface PortalLinkEligibilityInput {
   status: string;
   scheduledDate: Date;
   timeSlot: string | null;
-  tenantConfirmationStatus: string;
+  rentalTenantConfirmationStatus: string;
   activeCycle: { scheduledDate: Date; timeSlot: string | null; status: string } | null;
 }
 
@@ -50,7 +50,7 @@ export function classifyPortalLinkAction(input: PortalLinkEligibilityInput): Por
     return 'SKIP_NOT_SENDABLE';
   }
 
-  if (input.tenantConfirmationStatus === 'CONFIRMED') {
+  if (input.rentalTenantConfirmationStatus === 'CONFIRMED') {
     const cycle = input.activeCycle;
     const confirmedForCurrent =
       cycle !== null &&

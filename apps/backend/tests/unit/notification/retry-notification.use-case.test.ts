@@ -31,7 +31,7 @@ function makeNotification(overrides: Partial<NotificationProps> = {}): Notificat
     deliveredAt: null,
     failedAt: now,
     failureReason: 'Connection refused',
-    payloadJson: { tenantName: 'John' },
+    payloadJson: { rentalTenantName: 'John' },
     retryCount: 6,
     nextRetryAt: null,
     createdAt: now,

@@ -5,7 +5,7 @@ function isSafeRedirect(path: string | null | undefined): path is string {
   if (!path.startsWith('/')) return false;
   if (path.startsWith('//')) return false;
   if (path === '/login' || path.startsWith('/login?') || path.startsWith('/login#')) return false;
-  if (path === '/tenant-portal' || path.startsWith('/tenant-portal/') || path.startsWith('/portal/')) return false;
+  if (path === '/rental-tenant-portal' || path.startsWith('/rental-tenant-portal/') || path === '/tenant-portal' || path.startsWith('/tenant-portal/') || path.startsWith('/portal/')) return false;
   return true;
 }
 

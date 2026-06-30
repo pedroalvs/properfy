@@ -27,7 +27,7 @@ describe('FinancialFilters', () => {
     await user.click(screen.getByLabelText('Type'));
     const listbox = screen.getByRole('listbox', { name: 'Type' });
     expect(listbox).toHaveTextContent('All');
-    expect(screen.getByText('Tenant Debit')).toBeInTheDocument();
+    expect(screen.getByText('Agency Debit')).toBeInTheDocument();
     expect(screen.getByText('Inspector Payout')).toBeInTheDocument();
     expect(screen.getByText('Refund')).toBeInTheDocument();
     expect(screen.getByText('Manual Adjustment')).toBeInTheDocument();

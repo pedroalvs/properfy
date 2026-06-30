@@ -42,8 +42,8 @@ import { ServiceTypeListPage } from './ServiceTypeListPage';
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_SERVICE_TYPES = [
-  { id: 'st-01', code: 'ROUTINE_IN', name: 'Routine Ingoing', flowType: 'INGOING', requiresTenantConfirmation: true, status: 'ACTIVE', createdAt: '2026-03-01T10:00:00Z', updatedAt: '2026-03-01T10:00:00Z' },
-  { id: 'st-02', code: 'OUTGOING', name: 'Outgoing Inspection', flowType: 'OUTGOING', requiresTenantConfirmation: false, status: 'ACTIVE', createdAt: '2026-03-02T10:00:00Z', updatedAt: '2026-03-02T10:00:00Z' },
+  { id: 'st-01', code: 'ROUTINE_IN', name: 'Routine Ingoing', flowType: 'INGOING', requiresRentalTenantConfirmation: true, status: 'ACTIVE', createdAt: '2026-03-01T10:00:00Z', updatedAt: '2026-03-01T10:00:00Z' },
+  { id: 'st-02', code: 'OUTGOING', name: 'Outgoing Inspection', flowType: 'OUTGOING', requiresRentalTenantConfirmation: false, status: 'ACTIVE', createdAt: '2026-03-02T10:00:00Z', updatedAt: '2026-03-02T10:00:00Z' },
 ];
 
 function createWrapper() {

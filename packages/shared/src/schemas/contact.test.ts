@@ -13,7 +13,7 @@ import {
 describe('contactRegistrySchema', () => {
   it('should be valid with email only', () => {
     const result = contactRegistrySchema.safeParse({
-      type: 'TENANT',
+      type: 'RENTAL_TENANT',
       displayName: 'Jane Doe',
       primaryEmail: 'jane@example.com',
     });
@@ -47,7 +47,7 @@ describe('contactRegistrySchema', () => {
 
   it('should fail when both email and phone are missing', () => {
     const result = contactRegistrySchema.safeParse({
-      type: 'TENANT',
+      type: 'RENTAL_TENANT',
       displayName: 'Jane Doe',
     });
     expect(result.success).toBe(false);
@@ -55,7 +55,7 @@ describe('contactRegistrySchema', () => {
 
   it('should fail when both email and phone are null', () => {
     const result = contactRegistrySchema.safeParse({
-      type: 'TENANT',
+      type: 'RENTAL_TENANT',
       displayName: 'Jane Doe',
       primaryEmail: null,
       primaryPhone: null,
@@ -65,7 +65,7 @@ describe('contactRegistrySchema', () => {
 
   it('should fail with invalid email', () => {
     const result = contactRegistrySchema.safeParse({
-      type: 'TENANT',
+      type: 'RENTAL_TENANT',
       displayName: 'Jane Doe',
       primaryEmail: 'not-an-email',
     });
@@ -74,7 +74,7 @@ describe('contactRegistrySchema', () => {
 
   it('should fail when additionalChannels duplicates primaryEmail', () => {
     const result = contactRegistrySchema.safeParse({
-      type: 'TENANT',
+      type: 'RENTAL_TENANT',
       displayName: 'Jane Doe',
       primaryEmail: 'jane@example.com',
       additionalChannels: [
@@ -86,7 +86,7 @@ describe('contactRegistrySchema', () => {
 
   it('should fail when additionalChannels duplicates primaryPhone', () => {
     const result = contactRegistrySchema.safeParse({
-      type: 'TENANT',
+      type: 'RENTAL_TENANT',
       displayName: 'Jane Doe',
       primaryPhone: '+61400000000',
       additionalChannels: [
@@ -98,7 +98,7 @@ describe('contactRegistrySchema', () => {
 
   it('should fail when additionalChannels has intra-array duplicates', () => {
     const result = contactRegistrySchema.safeParse({
-      type: 'TENANT',
+      type: 'RENTAL_TENANT',
       displayName: 'Jane Doe',
       primaryEmail: 'jane@example.com',
       additionalChannels: [
@@ -115,7 +115,7 @@ describe('contactRegistrySchema', () => {
       value: `email${i}@example.com`,
     }));
     const result = contactRegistrySchema.safeParse({
-      type: 'TENANT',
+      type: 'RENTAL_TENANT',
       displayName: 'Jane Doe',
       primaryEmail: 'jane@example.com',
       additionalChannels: channels,
@@ -134,7 +134,7 @@ describe('contactRegistrySchema', () => {
 
   it('should fail with empty displayName', () => {
     const result = contactRegistrySchema.safeParse({
-      type: 'TENANT',
+      type: 'RENTAL_TENANT',
       displayName: '',
       primaryEmail: 'jane@example.com',
     });
@@ -169,7 +169,7 @@ describe('contactRegistryUpdateSchema', () => {
 describe('appointmentContactsArraySchema', () => {
   it('should be valid with single primary contact by contactId', () => {
     const result = appointmentContactsArraySchema.safeParse([
-      { contactId: '550e8400-e29b-41d4-a716-446655440000', role: 'TENANT', isPrimary: true },
+      { contactId: '550e8400-e29b-41d4-a716-446655440000', role: 'RENTAL_TENANT', isPrimary: true },
     ]);
     expect(result.success).toBe(true);
   });
@@ -191,7 +191,7 @@ describe('appointmentContactsArraySchema', () => {
 
   it('should be valid with mixed contactId and inline', () => {
     const result = appointmentContactsArraySchema.safeParse([
-      { contactId: '550e8400-e29b-41d4-a716-446655440000', role: 'TENANT', isPrimary: true },
+      { contactId: '550e8400-e29b-41d4-a716-446655440000', role: 'RENTAL_TENANT', isPrimary: true },
       {
         inline: {
           type: 'HOUSEKEEPER',
@@ -212,14 +212,14 @@ describe('appointmentContactsArraySchema', () => {
 
   it('should fail with zero primaries', () => {
     const result = appointmentContactsArraySchema.safeParse([
-      { contactId: '550e8400-e29b-41d4-a716-446655440000', role: 'TENANT', isPrimary: false },
+      { contactId: '550e8400-e29b-41d4-a716-446655440000', role: 'RENTAL_TENANT', isPrimary: false },
     ]);
     expect(result.success).toBe(false);
   });
 
   it('should fail with two primaries', () => {
     const result = appointmentContactsArraySchema.safeParse([
-      { contactId: '550e8400-e29b-41d4-a716-446655440000', role: 'TENANT', isPrimary: true },
+      { contactId: '550e8400-e29b-41d4-a716-446655440000', role: 'RENTAL_TENANT', isPrimary: true },
       { contactId: '550e8400-e29b-41d4-a716-446655440001', role: 'PROPERTY_MANAGER', isPrimary: true },
     ]);
     expect(result.success).toBe(false);
@@ -230,7 +230,7 @@ describe('contactResponseSchema', () => {
   const validResponse = {
     id: '550e8400-e29b-41d4-a716-446655440000',
     tenantId: '550e8400-e29b-41d4-a716-446655440001',
-    type: 'TENANT' as const,
+    type: 'RENTAL_TENANT' as const,
     displayName: 'Jane Doe',
     company: 'Smith Realty',
     primaryEmail: 'jane@example.com',
@@ -340,7 +340,7 @@ describe('contactAppointmentItemSchema', () => {
     appointmentNumber: 1042,
     status: 'SCHEDULED',
     scheduledDate: '2026-05-09T10:00:00.000Z',
-    role: 'TENANT' as const,
+    role: 'RENTAL_TENANT' as const,
     isPrimary: true,
     propertyId: '550e8400-e29b-41d4-a716-446655440001',
     propertyCode: 'P-001',
@@ -385,11 +385,11 @@ describe('contactPropertyAggregateSchema', () => {
 
 describe('contactSchema (legacy)', () => {
   it('should still work for backward compat', () => {
-    const result = contactSchema.safeParse({ tenantName: 'Jane Doe' });
+    const result = contactSchema.safeParse({ rentalTenantName: 'Jane Doe' });
     expect(result.success).toBe(true);
   });
 
-  it('should be invalid when tenantName is missing', () => {
+  it('should be invalid when rentalTenantName is missing', () => {
     const result = contactSchema.safeParse({
       primaryEmail: 'jane@example.com',
     });

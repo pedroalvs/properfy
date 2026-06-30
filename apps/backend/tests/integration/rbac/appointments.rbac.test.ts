@@ -31,7 +31,7 @@ vi.mock('../../../src/main/container', () => ({
     audit: { jwtService: { verify: mockJwtVerify } },
     serviceGroup: { jwtService: { verify: mockJwtVerify } },
     marketplace: { jwtService: { verify: mockJwtVerify } },
-    tenantPortal: { jwtService: { verify: mockJwtVerify } },
+    rentalTenantPortal: { jwtService: { verify: mockJwtVerify } },
     inspectorExecution: { jwtService: { verify: mockJwtVerify } },
     billing: { jwtService: { verify: mockJwtVerify } },
     report: { jwtService: { verify: mockJwtVerify } },
@@ -63,7 +63,7 @@ const createPayload = {
   scheduledDate: futureDate,
   timeSlot: '09:00-10:00',
   contact: {
-    tenantName: 'John Smith',
+    rentalTenantName: 'John Smith',
     primaryPhone: '+61400000000',
   },
 };
@@ -127,7 +127,7 @@ describe('POST /v1/appointments — RBAC', () => {
     status: 'DRAFT',
     scheduledDate: futureDate,
     timeSlot: '09:00-10:00',
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 0,
     payoutAmount: 0,
     notes: null,

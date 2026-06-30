@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppointmentStatus } from '@properfy/shared';
-import { TenantConfirmationBadge } from './TenantConfirmationBadge';
+import { RentalTenantConfirmationBadge } from './RentalTenantConfirmationBadge';
 import { FLOW_TYPE_MAP } from '@/lib/status-colors';
 import type { InspectorAppointment } from '../types';
 import { formatTimeWindow, getTodayLocalISODate, isScheduleRisk } from '../lib/time-slot';
@@ -74,7 +74,7 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment }: Ap
             </span>
           )}
         </div>
-        <TenantConfirmationBadge status={appointment.tenantConfirmation} />
+        <RentalTenantConfirmationBadge status={appointment.rentalTenantConfirmation} />
       </div>
 
       <div className="px-4 py-3">

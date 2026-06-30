@@ -11,6 +11,6 @@ export { AppointmentDetailSections } from './AppointmentDetailSections';
 export { AppointmentTransitionActions } from './AppointmentTransitionActions';
 export { StatusTransitionDialog } from './StatusTransitionDialog';
 export { AppointmentDetailDrawer } from './AppointmentDetailDrawer';
-export { TenantConfirmationChip } from './TenantConfirmationChip';
+export { RentalTenantConfirmationChip } from './RentalTenantConfirmationChip';
 export { PropertySearch } from './PropertySearch';
 export { PricingPreview } from './PricingPreview';

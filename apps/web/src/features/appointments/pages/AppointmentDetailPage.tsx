@@ -106,7 +106,7 @@ export function AppointmentDetailPage() {
   const canDelete = !!appointment && user?.role === 'AM' && appointment.status === 'DRAFT';
   const canForceConfirm = !!appointment &&
     isPrivileged &&
-    appointment.tenantConfirmationStatus !== 'CONFIRMED' &&
+    appointment.rentalTenantConfirmationStatus !== 'CONFIRMED' &&
     appointment.status !== 'DONE' &&
     appointment.status !== 'CANCELLED' &&
     appointment.status !== 'REJECTED';

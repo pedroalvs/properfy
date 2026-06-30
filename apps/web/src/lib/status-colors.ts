@@ -1,4 +1,4 @@
-import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, PriorityMode, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, TenantConfirmationStatus, ReportType, ReportStatus, GeocodingStatus, ServiceTypeFlowType, ServiceTypeStatus, AvailabilitySlotStatus, ContactType, type InspectorInvoiceStatus } from '@properfy/shared';
+import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, PriorityMode, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, RentalTenantConfirmationStatus, ReportType, ReportStatus, GeocodingStatus, ServiceTypeFlowType, ServiceTypeStatus, AvailabilitySlotStatus, ContactType, type InspectorInvoiceStatus } from '@properfy/shared';
 
 export interface StatusStyle {
   bg: string;
@@ -44,7 +44,7 @@ export function getStatusStyle(status: AppointmentStatus): StatusStyle {
 }
 
 export const CONTACT_TYPE_MAP: Record<ContactType, StatusStyle> = {
-  [ContactType.TENANT]:           { bg: 'var(--color-type-residential)', text: 'var(--color-text-primary)', label: 'Tenant' },
+  [ContactType.RENTAL_TENANT]:           { bg: 'var(--color-type-residential)', text: 'var(--color-text-primary)', label: 'Tenant' },
   [ContactType.PROPERTY_MANAGER]: { bg: 'var(--color-type-commercial)',  text: 'var(--color-text-primary)', label: 'Property Manager' },
   [ContactType.HOUSEKEEPER]:      { bg: 'var(--color-type-rural)',       text: 'var(--color-text-primary)', label: 'Housekeeper' },
   [ContactType.BROKER]:           { bg: 'var(--color-type-industrial)',  text: 'var(--color-text-primary)', label: 'Broker' },
@@ -64,7 +64,7 @@ export const INSPECTOR_STATUS_MAP: Record<InspectorStatus, StatusStyle> = {
 };
 
 export const SERVICE_GROUP_STATUS_MAP: Record<ServiceGroupStatus, StatusStyle> = {
-  [ServiceGroupStatus.DRAFT]:     { bg: 'var(--color-sg-draft)',     text: 'var(--color-text-primary)', label: 'Awaiting Host' },
+  [ServiceGroupStatus.DRAFT]:     { bg: 'var(--color-sg-draft)',     text: 'var(--color-text-primary)', label: 'Draft' },
   [ServiceGroupStatus.PUBLISHED]: { bg: 'var(--color-sg-published)', text: 'var(--color-text-primary)', label: 'Awaiting Inspector' },
   [ServiceGroupStatus.ACCEPTED]:  { bg: 'var(--color-sg-accepted)',  text: 'var(--color-text-primary)', label: 'Accepted' },
   [ServiceGroupStatus.CANCELLED]: { bg: 'var(--color-sg-cancelled)', text: 'var(--color-text-primary)', label: 'Canceled' },
@@ -79,8 +79,8 @@ export const PRIORITY_MODE_MAP: Record<PriorityMode, StatusStyle> = {
 export const USER_ROLE_MAP: Record<UserRole, StatusStyle> = {
   [UserRole.AM]:       { bg: 'var(--color-role-am)',       text: 'var(--color-text-primary)', label: 'Admin Master' },
   [UserRole.OP]:       { bg: 'var(--color-role-op)',       text: 'var(--color-text-primary)', label: 'Operator' },
-  [UserRole.CL_ADMIN]: { bg: 'var(--color-role-cl-admin)', text: 'var(--color-text-primary)', label: 'Client Admin' },
-  [UserRole.CL_USER]:  { bg: 'var(--color-role-cl-user)',  text: 'var(--color-text-primary)', label: 'Client User' },
+  [UserRole.CL_ADMIN]: { bg: 'var(--color-role-cl-admin)', text: 'var(--color-text-primary)', label: 'Real Estate' },
+  [UserRole.CL_USER]:  { bg: 'var(--color-role-cl-user)',  text: 'var(--color-text-primary)', label: 'Real Estate Operator' },
   [UserRole.INSP]:     { bg: 'var(--color-role-insp)',     text: 'var(--color-text-primary)', label: 'Inspector' },
   [UserRole.TNT]:      { bg: 'var(--color-role-tnt)',      text: 'var(--color-text-primary)', label: 'Tenant' },
   [UserRole.SYS]:      { bg: 'var(--color-role-sys)',      text: 'var(--color-text-primary)', label: 'System' },
@@ -94,7 +94,7 @@ export const USER_STATUS_MAP: Record<UserStatus, StatusStyle> = {
 };
 
 export const FINANCIAL_ENTRY_TYPE_MAP: Record<FinancialEntryType, StatusStyle> = {
-  [FinancialEntryType.TENANT_DEBIT]:      { bg: 'var(--color-fin-type-debit)',      text: 'var(--color-text-primary)', label: 'Tenant Debit' },
+  [FinancialEntryType.TENANT_DEBIT]:      { bg: 'var(--color-fin-type-debit)',      text: 'var(--color-text-primary)', label: 'Agency Debit' },
   [FinancialEntryType.INSPECTOR_PAYOUT]:  { bg: 'var(--color-fin-type-payout)',     text: 'var(--color-text-primary)', label: 'Inspector Payout' },
   [FinancialEntryType.REFUND]:            { bg: 'var(--color-fin-type-refund)',     text: 'var(--color-text-primary)', label: 'Refund' },
   [FinancialEntryType.MANUAL_ADJUSTMENT]: { bg: 'var(--color-fin-type-adjustment)', text: 'var(--color-text-primary)', label: 'Manual Adjustment' },
@@ -107,11 +107,11 @@ export const FINANCIAL_ENTRY_STATUS_MAP: Record<FinancialEntryStatus, StatusStyl
   [FinancialEntryStatus.VOIDED]:    { bg: 'var(--color-status-rejected)',      text: 'var(--color-text-primary)', label: 'Voided' },
 };
 
-export const TENANT_CONFIRMATION_STATUS_MAP: Record<TenantConfirmationStatus, StatusStyle> = {
-  [TenantConfirmationStatus.PENDING]:     { bg: 'var(--color-confirmation-pending)',     text: 'var(--color-text-primary)', label: 'Pending' },
-  [TenantConfirmationStatus.CONFIRMED]:   { bg: 'var(--color-confirmation-confirmed)',   text: 'var(--color-text-primary)', label: 'Confirmed' },
-  [TenantConfirmationStatus.UNAVAILABLE]: { bg: 'var(--color-confirmation-unavailable)', text: 'var(--color-text-primary)', label: 'Unavailable' },
-  [TenantConfirmationStatus.NO_RESPONSE]: { bg: 'var(--color-confirmation-no-response)', text: 'var(--color-text-primary)', label: 'No Response' },
+export const RENTAL_TENANT_CONFIRMATION_STATUS_MAP: Record<RentalTenantConfirmationStatus, StatusStyle> = {
+  [RentalTenantConfirmationStatus.PENDING]:     { bg: 'var(--color-confirmation-pending)',     text: 'var(--color-text-primary)', label: 'Pending' },
+  [RentalTenantConfirmationStatus.CONFIRMED]:   { bg: 'var(--color-confirmation-confirmed)',   text: 'var(--color-text-primary)', label: 'Confirmed' },
+  [RentalTenantConfirmationStatus.UNAVAILABLE]: { bg: 'var(--color-confirmation-unavailable)', text: 'var(--color-text-primary)', label: 'Unavailable' },
+  [RentalTenantConfirmationStatus.NO_RESPONSE]: { bg: 'var(--color-confirmation-no-response)', text: 'var(--color-text-primary)', label: 'No Response' },
 };
 
 export const GEOCODING_STATUS_MAP: Record<GeocodingStatus, StatusStyle> = {

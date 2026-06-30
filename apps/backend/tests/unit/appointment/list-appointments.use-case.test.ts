@@ -21,7 +21,7 @@ function makeAppointmentListItem(overrides: Partial<ConstructorParameters<typeof
       keyRequired: false,
       meetingLocation: null,
       keyLocation: null,
-      tenantConfirmationStatus: 'PENDING',
+      rentalTenantConfirmationStatus: 'PENDING',
       priceAmount: 150,
       payoutAmount: 80,
       pricingRuleSnapshotJson: {},
@@ -48,6 +48,7 @@ function makeAppointmentListItem(overrides: Partial<ConstructorParameters<typeof
     branchName: 'Main Branch',
     serviceTypeName: 'Routine Inspection',
     inspectorName: null,
+    serviceGroupNumber: null,
   };
 }
 
@@ -423,37 +424,70 @@ describe('ListAppointmentsUseCase', () => {
     });
   });
 
-  describe('hasTenantNote filter', () => {
-    it('passes hasTenantNote=true filter to repository', async () => {
+  describe('hasRentalTenantNote filter', () => {
+    it('passes hasRentalTenantNote=true filter to repository', async () => {
       vi.mocked(appointmentRepo.findAll).mockResolvedValue([]);
       vi.mocked(appointmentRepo.count).mockResolvedValue(0);
 
       await useCase.execute({
-        filters: { hasTenantNote: true },
+        filters: { hasRentalTenantNote: true },
         pagination: defaultPagination,
         actor: makeActor({ role: 'AM' }),
       });
 
       expect(appointmentRepo.findAll).toHaveBeenCalledWith(
-        expect.objectContaining({ hasTenantNote: true }),
+        expect.objectContaining({ hasRentalTenantNote: true }),
         defaultPagination,
       );
     });
 
-    it('passes hasTenantNote=false filter to repository', async () => {
+    it('passes hasRentalTenantNote=false filter to repository', async () => {
       vi.mocked(appointmentRepo.findAll).mockResolvedValue([]);
       vi.mocked(appointmentRepo.count).mockResolvedValue(0);
 
       await useCase.execute({
-        filters: { hasTenantNote: false },
+        filters: { hasRentalTenantNote: false },
         pagination: defaultPagination,
         actor: makeActor({ role: 'AM' }),
       });
 
       expect(appointmentRepo.findAll).toHaveBeenCalledWith(
-        expect.objectContaining({ hasTenantNote: false }),
+        expect.objectContaining({ hasRentalTenantNote: false }),
         defaultPagination,
       );
+    });
+  });
+
+  describe('service group reference in list output', () => {
+    it('exposes serviceGroupId and serviceGroupCode for a grouped appointment', async () => {
+      const item = makeAppointmentListItem({ serviceGroupId: 'group-uuid-1' });
+      item.serviceGroupNumber = 42;
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([item]);
+      vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+
+      const result = await useCase.execute({
+        filters: {},
+        pagination: defaultPagination,
+        actor: makeActor({ role: 'AM' }),
+      });
+
+      expect(result.data[0]!.serviceGroupId).toBe('group-uuid-1');
+      expect(result.data[0]!.serviceGroupCode).toBe('42');
+    });
+
+    it('returns null serviceGroupId and serviceGroupCode for an ungrouped appointment', async () => {
+      // factory defaults: entity serviceGroupId = null, serviceGroupNumber = null
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([makeAppointmentListItem()]);
+      vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+
+      const result = await useCase.execute({
+        filters: {},
+        pagination: defaultPagination,
+        actor: makeActor({ role: 'AM' }),
+      });
+
+      expect(result.data[0]!.serviceGroupId).toBeNull();
+      expect(result.data[0]!.serviceGroupCode).toBeNull();
     });
   });
 

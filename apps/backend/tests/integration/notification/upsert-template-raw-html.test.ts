@@ -34,7 +34,7 @@ vi.mock('../../../src/main/container', () => ({
       audit: { jwtService: { verify: mockJwtVerify } },
       serviceGroup: { jwtService: { verify: mockJwtVerify } },
       marketplace: { jwtService: { verify: mockJwtVerify } },
-      tenantPortal: { jwtService: { verify: mockJwtVerify } },
+      rentalTenantPortal: { jwtService: { verify: mockJwtVerify } },
       inspectorExecution: { jwtService: { verify: mockJwtVerify } },
       billing: { jwtService: { verify: mockJwtVerify } },
       report: { jwtService: { verify: mockJwtVerify } },
@@ -56,17 +56,17 @@ vi.mock('../../../src/main/container', () => ({
 const AM_TOKEN = 'Bearer am-token';
 const amContext = { userId: 'am-1', tenantId: null, role: 'AM', branchId: null, inspectorId: null };
 
-const RAW_HTML = '<table><tr><td><strong>Hello {{tenantName}}</strong></td></tr></table>';
+const RAW_HTML = '<table><tr><td><strong>Hello {{rentalTenantName}}</strong></td></tr></table>';
 
 const mockTemplateResponse = {
   id: 'a1b2c3d4-0000-4000-8000-000000000001',
   tenantId: null,
   templateCode: 'INSPECTION_NOTICE',
   channel: 'EMAIL',
-  subject: 'Notice for {{tenantName}}',
+  subject: 'Notice for {{rentalTenantName}}',
   bodyHtml: RAW_HTML,
   bodyText: 'Hello John',
-  variablesJson: ['tenantName'],
+  variablesJson: ['rentalTenantName'],
   isActive: true,
   notificationClass: 'OPERATIONAL',
   imageBindings: [],

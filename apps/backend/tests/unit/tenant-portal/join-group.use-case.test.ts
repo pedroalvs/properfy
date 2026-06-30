@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   JoinGroupUseCase,
   type JoinGroupInput,
-} from '../../../src/modules/tenant-portal/application/use-cases/join-group.use-case';
+} from '../../../src/modules/rental-tenant-portal/application/use-cases/join-group.use-case';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
 import {
@@ -11,7 +11,7 @@ import {
   PortalGroupNotFoundError,
   PortalGroupFullError,
   PortalGroupUnavailableError,
-} from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
+} from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
 
 function makeAppointment(overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {}) {
   return new AppointmentEntity({
@@ -27,7 +27,7 @@ function makeAppointment(overrides: Partial<ConstructorParameters<typeof Appoint
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 100,
     payoutAmount: 70,
     pricingRuleSnapshotJson: {},
@@ -218,7 +218,7 @@ describe('JoinGroupUseCase', () => {
     expect(result).toMatchObject({
       scheduledDate: '2026-05-31',
       timeWindow: '09:00-12:00',
-      tenantConfirmationStatus: 'CONFIRMED',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
       appointmentStatus: 'SCHEDULED',
       inspector: { id: 'insp-1', name: 'John Smith' },
     });
@@ -230,7 +230,7 @@ describe('JoinGroupUseCase', () => {
       scheduledDate: new Date('2026-05-31'),
       timeSlot: '09:00-12:00',
       inspectorId: 'insp-1',
-      tenantConfirmationStatus: 'CONFIRMED',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
       serviceGroupId: 'sg-new',
     }));
   });
@@ -271,7 +271,7 @@ describe('JoinGroupUseCase', () => {
   it('should call audit service with ANONYMOUS actor', async () => {
     await useCase.execute(makeInput());
     expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({
-      action: 'tenant_portal.group_joined',
+      action: 'rental_tenant_portal.group_joined',
       actorType: 'ANONYMOUS',
       entityType: 'Appointment',
       entityId: 'appt-1',
@@ -306,10 +306,10 @@ describe('JoinGroupUseCase', () => {
     await expect(useCase.execute(makeInput())).resolves.toBeDefined();
   });
 
-  it('should store tenantNote when provided', async () => {
-    await useCase.execute(makeInput({ tenantNote: 'Please ring bell' }));
+  it('should store rentalTenantNote when provided', async () => {
+    await useCase.execute(makeInput({ rentalTenantNote: 'Please ring bell' }));
     expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', expect.objectContaining({
-      tenantNote: 'Please ring bell',
+      rentalTenantNote: 'Please ring bell',
     }));
   });
 });

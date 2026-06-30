@@ -690,7 +690,7 @@ export interface paths {
                         timezone?: string;
                         /** @default AUD */
                         currency?: string;
-                        appointmentCodePrefix?: string;
+                        appointmentCodePrefix: string;
                         settings?: {
                             /**
                              * @default MONTHLY
@@ -2809,7 +2809,7 @@ export interface paths {
                                 code: string;
                                 name: string;
                                 flowType: string;
-                                requiresTenantConfirmation: boolean;
+                                requiresRentalTenantConfirmation: boolean;
                                 status: string;
                                 createdAt: string;
                                 updatedAt: string;
@@ -2840,7 +2840,7 @@ export interface paths {
                         name: string;
                         /** @enum {string} */
                         flowType: "ROUTINE" | "INGOING" | "OUTGOING";
-                        requiresTenantConfirmation: boolean;
+                        requiresRentalTenantConfirmation: boolean;
                     };
                 };
             };
@@ -2858,7 +2858,7 @@ export interface paths {
                                 code: string;
                                 name: string;
                                 flowType: string;
-                                requiresTenantConfirmation: boolean;
+                                requiresRentalTenantConfirmation: boolean;
                                 status: string;
                                 createdAt: string;
                                 updatedAt: string;
@@ -2905,7 +2905,7 @@ export interface paths {
                                 code: string;
                                 name: string;
                                 flowType: string;
-                                requiresTenantConfirmation: boolean;
+                                requiresRentalTenantConfirmation: boolean;
                                 status: string;
                                 createdAt: string;
                                 updatedAt: string;
@@ -2935,7 +2935,7 @@ export interface paths {
                         name?: string;
                         /** @enum {string} */
                         flowType?: "ROUTINE" | "INGOING" | "OUTGOING";
-                        requiresTenantConfirmation?: boolean;
+                        requiresRentalTenantConfirmation?: boolean;
                         /** @enum {string} */
                         status?: "ACTIVE" | "INACTIVE";
                     };
@@ -2955,7 +2955,7 @@ export interface paths {
                                 code: string;
                                 name: string;
                                 flowType: string;
-                                requiresTenantConfirmation: boolean;
+                                requiresRentalTenantConfirmation: boolean;
                                 status: string;
                                 createdAt: string;
                                 updatedAt: string;
@@ -4646,14 +4646,15 @@ export interface paths {
                     search?: string;
                     fromDate?: string;
                     toDate?: string;
-                    tenantConfirmationStatus?: "PENDING" | "CONFIRMED" | "UNAVAILABLE" | "NO_RESPONSE";
+                    rentalTenantConfirmationStatus?: "PENDING" | "CONFIRMED" | "UNAVAILABLE" | "NO_RESPONSE";
                     showCancelled?: boolean;
                     overdueOnly?: boolean;
                     ungroupedOnly?: boolean;
                     timeSlot?: string;
                     contactSearch?: string;
-                    hasTenantNote?: boolean;
+                    hasRentalTenantNote?: boolean;
                     confirmationStatus?: "sent" | "not_sent";
+                    serviceGroupId?: string;
                 };
                 header?: never;
                 path?: never;
@@ -4683,20 +4684,21 @@ export interface paths {
                                 inspectorId: string | null;
                                 /** Format: uuid */
                                 serviceGroupId?: string | null;
+                                serviceGroupCode?: string | null;
                                 status: string;
                                 scheduledDate: string;
                                 timeSlot: string;
                                 keyRequired?: boolean;
                                 meetingLocation?: string | null;
                                 keyLocation?: string | null;
-                                tenantConfirmationStatus: string;
+                                rentalTenantConfirmationStatus: string;
                                 priceAmount: number;
                                 payoutAmount: number;
                                 pricingRuleSnapshotJson?: unknown;
                                 notes: string | null;
-                                tenantNote?: string | null;
+                                rentalTenantNote?: string | null;
                                 observation?: string | null;
-                                hasTenantNote?: boolean;
+                                hasRentalTenantNote?: boolean;
                                 /** @default false */
                                 hasActivePortalToken: boolean;
                                 customFieldsJson?: unknown;
@@ -4783,7 +4785,7 @@ export interface paths {
                         scheduledDate: string;
                         timeSlot: string;
                         contact?: {
-                            tenantName: string;
+                            rentalTenantName: string;
                             /** Format: email */
                             primaryEmail?: string;
                             /** Format: email */
@@ -4796,13 +4798,13 @@ export interface paths {
                             contactId: string;
                             inline?: unknown;
                             /** @enum {string} */
-                            role: "TENANT" | "TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
+                            role: "RENTAL_TENANT" | "RENTAL_TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
                             isPrimary: boolean;
                         } | {
                             contactId?: unknown;
                             inline: {
                                 /** @enum {string} */
-                                type: "TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
+                                type: "RENTAL_TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
                                 displayName: string;
                                 company?: string | null;
                                 /** Format: email */
@@ -4818,7 +4820,7 @@ export interface paths {
                                 notes?: string | null;
                             };
                             /** @enum {string} */
-                            role: "TENANT" | "TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
+                            role: "RENTAL_TENANT" | "RENTAL_TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
                             isPrimary: boolean;
                         })[];
                         appCredentialIds?: string[];
@@ -4828,7 +4830,7 @@ export interface paths {
                             unavailableHours?: string[];
                             notes?: string;
                             /** @enum {string} */
-                            source: "TENANT_PORTAL" | "OPERATOR" | "IMPORT";
+                            source: "RENTAL_TENANT_PORTAL" | "OPERATOR" | "IMPORT";
                         };
                         /** @default false */
                         keyRequired?: boolean;
@@ -4866,20 +4868,21 @@ export interface paths {
                                 inspectorId: string | null;
                                 /** Format: uuid */
                                 serviceGroupId?: string | null;
+                                serviceGroupCode?: string | null;
                                 status: string;
                                 scheduledDate: string;
                                 timeSlot: string;
                                 keyRequired?: boolean;
                                 meetingLocation?: string | null;
                                 keyLocation?: string | null;
-                                tenantConfirmationStatus: string;
+                                rentalTenantConfirmationStatus: string;
                                 priceAmount: number;
                                 payoutAmount: number;
                                 pricingRuleSnapshotJson?: unknown;
                                 notes: string | null;
-                                tenantNote?: string | null;
+                                rentalTenantNote?: string | null;
                                 observation?: string | null;
-                                hasTenantNote?: boolean;
+                                hasRentalTenantNote?: boolean;
                                 /** @default false */
                                 hasActivePortalToken: boolean;
                                 customFieldsJson?: unknown;
@@ -4972,20 +4975,21 @@ export interface paths {
                                 inspectorId: string | null;
                                 /** Format: uuid */
                                 serviceGroupId?: string | null;
+                                serviceGroupCode?: string | null;
                                 status: string;
                                 scheduledDate: string;
                                 timeSlot: string;
                                 keyRequired?: boolean;
                                 meetingLocation?: string | null;
                                 keyLocation?: string | null;
-                                tenantConfirmationStatus: string;
+                                rentalTenantConfirmationStatus: string;
                                 priceAmount: number;
                                 payoutAmount: number;
                                 pricingRuleSnapshotJson?: unknown;
                                 notes: string | null;
-                                tenantNote?: string | null;
+                                rentalTenantNote?: string | null;
                                 observation?: string | null;
-                                hasTenantNote?: boolean;
+                                hasRentalTenantNote?: boolean;
                                 /** @default false */
                                 hasActivePortalToken: boolean;
                                 customFieldsJson?: unknown;
@@ -5077,7 +5081,7 @@ export interface paths {
                         notes?: string | null;
                         observation?: string | null;
                         contact?: {
-                            tenantName: string;
+                            rentalTenantName: string;
                             /** Format: email */
                             primaryEmail?: string;
                             /** Format: email */
@@ -5090,13 +5094,13 @@ export interface paths {
                             contactId: string;
                             inline?: unknown;
                             /** @enum {string} */
-                            role: "TENANT" | "TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
+                            role: "RENTAL_TENANT" | "RENTAL_TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
                             isPrimary: boolean;
                         } | {
                             contactId?: unknown;
                             inline: {
                                 /** @enum {string} */
-                                type: "TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
+                                type: "RENTAL_TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
                                 displayName: string;
                                 company?: string | null;
                                 /** Format: email */
@@ -5112,7 +5116,7 @@ export interface paths {
                                 notes?: string | null;
                             };
                             /** @enum {string} */
-                            role: "TENANT" | "TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
+                            role: "RENTAL_TENANT" | "RENTAL_TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
                             isPrimary: boolean;
                         })[];
                         appCredentialIds?: string[];
@@ -5122,7 +5126,7 @@ export interface paths {
                             unavailableHours?: string[];
                             notes?: string;
                             /** @enum {string} */
-                            source: "TENANT_PORTAL" | "OPERATOR" | "IMPORT";
+                            source: "RENTAL_TENANT_PORTAL" | "OPERATOR" | "IMPORT";
                         };
                         customFields?: {
                             [key: string]: unknown;
@@ -5154,20 +5158,21 @@ export interface paths {
                                 inspectorId: string | null;
                                 /** Format: uuid */
                                 serviceGroupId?: string | null;
+                                serviceGroupCode?: string | null;
                                 status: string;
                                 scheduledDate: string;
                                 timeSlot: string;
                                 keyRequired?: boolean;
                                 meetingLocation?: string | null;
                                 keyLocation?: string | null;
-                                tenantConfirmationStatus: string;
+                                rentalTenantConfirmationStatus: string;
                                 priceAmount: number;
                                 payoutAmount: number;
                                 pricingRuleSnapshotJson?: unknown;
                                 notes: string | null;
-                                tenantNote?: string | null;
+                                rentalTenantNote?: string | null;
                                 observation?: string | null;
-                                hasTenantNote?: boolean;
+                                hasRentalTenantNote?: boolean;
                                 /** @default false */
                                 hasActivePortalToken: boolean;
                                 customFieldsJson?: unknown;
@@ -5406,7 +5411,7 @@ export interface paths {
                 content: {
                     "application/json": {
                         /** @enum {string} */
-                        tenantConfirmationStatus: "CONFIRMED";
+                        rentalTenantConfirmationStatus: "CONFIRMED";
                         reason: string;
                     };
                 };
@@ -5422,7 +5427,7 @@ export interface paths {
                             data: {
                                 /** Format: uuid */
                                 id: string;
-                                tenantConfirmationStatus: string;
+                                rentalTenantConfirmationStatus: string;
                             };
                         };
                     };
@@ -7533,7 +7538,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/tenant-portal/{token}": {
+    "/v1/rental-tenant-portal/{token}": {
         parameters: {
             query?: never;
             header?: never;
@@ -7593,7 +7598,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/tenant-portal/{token}/confirm": {
+    "/v1/rental-tenant-portal/{token}/confirm": {
         parameters: {
             query?: never;
             header?: never;
@@ -7629,7 +7634,7 @@ export interface paths {
                                 end: string;
                             }[] | null;
                         };
-                        tenantNote?: string;
+                        rentalTenantNote?: string;
                     };
                 };
             };
@@ -7642,7 +7647,7 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @enum {string} */
-                            tenantConfirmationStatus: "CONFIRMED";
+                            rentalTenantConfirmationStatus: "CONFIRMED";
                             /** Format: date-time */
                             confirmedAt: string;
                         };
@@ -7656,7 +7661,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/tenant-portal/{token}/reschedule": {
+    "/v1/rental-tenant-portal/{token}/reschedule": {
         parameters: {
             query?: never;
             header?: never;
@@ -7694,7 +7699,7 @@ export interface paths {
                                 end: string;
                             }[] | null;
                         };
-                        tenantNote?: string;
+                        rentalTenantNote?: string;
                     };
                 };
             };
@@ -7709,7 +7714,7 @@ export interface paths {
                             scheduledDate: string;
                             timeSlot: string;
                             /** @enum {string} */
-                            tenantConfirmationStatus: "PENDING";
+                            rentalTenantConfirmationStatus: "PENDING";
                         };
                     };
                 };
@@ -7721,7 +7726,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/tenant-portal/{token}/contact": {
+    "/v1/rental-tenant-portal/{token}/contact": {
         parameters: {
             query?: never;
             header?: never;
@@ -7771,7 +7776,7 @@ export interface paths {
         };
         trace?: never;
     };
-    "/v1/tenant-portal/{token}/unavailable": {
+    "/v1/rental-tenant-portal/{token}/unavailable": {
         parameters: {
             query?: never;
             header?: never;
@@ -7807,7 +7812,7 @@ export interface paths {
                                 end: string;
                             }[] | null;
                         };
-                        tenantNote?: string;
+                        rentalTenantNote?: string;
                     };
                 };
             };
@@ -7820,7 +7825,7 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @enum {string} */
-                            tenantConfirmationStatus: "UNAVAILABLE";
+                            rentalTenantConfirmationStatus: "UNAVAILABLE";
                             urgentMode: boolean;
                         };
                     };
@@ -7833,7 +7838,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/tenant-portal/{token}/available-groups": {
+    "/v1/rental-tenant-portal/{token}/available-groups": {
         parameters: {
             query?: never;
             header?: never;
@@ -7881,7 +7886,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/tenant-portal/{token}/join-group": {
+    "/v1/rental-tenant-portal/{token}/join-group": {
         parameters: {
             query?: never;
             header?: never;
@@ -7904,7 +7909,7 @@ export interface paths {
                     "application/json": {
                         /** Format: uuid */
                         groupId: string;
-                        tenantNote?: string;
+                        rentalTenantNote?: string;
                     };
                 };
             };
@@ -7919,7 +7924,7 @@ export interface paths {
                             scheduledDate: string;
                             timeWindow: string;
                             /** @enum {string} */
-                            tenantConfirmationStatus: "CONFIRMED";
+                            rentalTenantConfirmationStatus: "CONFIRMED";
                             /** @enum {string} */
                             appointmentStatus: "SCHEDULED";
                             inspector: {
@@ -8085,7 +8090,7 @@ export interface paths {
                                     serviceTypeId: string;
                                     /** Format: uuid */
                                     propertyId: string;
-                                    tenantConfirmationStatus: string;
+                                    rentalTenantConfirmationStatus: string;
                                     keyRequired: boolean;
                                     meetingLocation: string | null;
                                     /** @enum {string} */
@@ -8104,7 +8109,7 @@ export interface paths {
                                 serviceTypeId: string;
                                 /** Format: uuid */
                                 propertyId: string;
-                                tenantConfirmationStatus: string;
+                                rentalTenantConfirmationStatus: string;
                                 keyRequired: boolean;
                                 meetingLocation: string | null;
                                 /** @enum {string} */
@@ -8173,19 +8178,19 @@ export interface paths {
                                 suburb: string;
                                 propertyLatitude: number | null;
                                 propertyLongitude: number | null;
-                                tenantConfirmationStatus: string;
-                                tenantConfirmation: string;
+                                rentalTenantConfirmationStatus: string;
+                                rentalTenantConfirmation: string;
                                 keyRequired: boolean;
                                 meetingLocation: string | null;
                                 keyLocation: string | null;
-                                tenantName: string;
-                                tenantPhone: string | null;
-                                tenantEmail: string | null;
+                                rentalTenantName: string;
+                                rentalTenantPhone: string | null;
+                                rentalTenantEmail: string | null;
                                 notes: string | null;
                                 observation: string | null;
                                 restrictionsSummary: string | null;
                                 contact: {
-                                    tenantName: string;
+                                    rentalTenantName: string;
                                     primaryEmail: string | null;
                                     primaryPhone: string | null;
                                     secondaryPhone: string | null;
@@ -10547,7 +10552,7 @@ export interface paths {
                             /** Format: uuid */
                             inspectorId?: string;
                             status?: string;
-                            tenantConfirmationStatus?: string;
+                            rentalTenantConfirmationStatus?: string;
                             search?: string;
                             emailNotificationStatus?: string;
                         };
@@ -11934,7 +11939,7 @@ export interface paths {
                                     scheduledDate: string;
                                 }[];
                                 pendingActions: {
-                                    noResponseTenants: number;
+                                    noResponseRentalTenants: number;
                                     pendingOperatorCrossChecks: number;
                                     pendingFinancialEntries: number;
                                     processingReports: number;
@@ -12421,7 +12426,7 @@ export interface paths {
             parameters: {
                 query?: {
                     search?: string;
-                    type?: ("TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER") | ("TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER")[];
+                    type?: ("RENTAL_TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER") | ("RENTAL_TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER")[];
                     branchIds?: string[];
                     primary?: "true" | "false";
                     isActive?: "true" | "false";
@@ -12450,7 +12455,7 @@ export interface paths {
                                 /** Format: uuid */
                                 tenantId: string | null;
                                 /** @enum {string} */
-                                type: "TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
+                                type: "RENTAL_TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
                                 displayName: string;
                                 company: string | null;
                                 primaryEmail: string | null;
@@ -12488,7 +12493,7 @@ export interface paths {
                         /** Format: uuid */
                         tenantId?: string | null;
                         /** @enum {string} */
-                        type: "TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
+                        type: "RENTAL_TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
                         displayName: string;
                         company?: string | null;
                         /** Format: email */
@@ -12519,7 +12524,7 @@ export interface paths {
                                 /** Format: uuid */
                                 tenantId: string | null;
                                 /** @enum {string} */
-                                type: "TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
+                                type: "RENTAL_TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
                                 displayName: string;
                                 company: string | null;
                                 primaryEmail: string | null;
@@ -12586,7 +12591,7 @@ export interface paths {
                                 /** Format: uuid */
                                 tenantId: string | null;
                                 /** @enum {string} */
-                                type: "TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
+                                type: "RENTAL_TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
                                 displayName: string;
                                 company: string | null;
                                 primaryEmail: string | null;
@@ -12612,7 +12617,7 @@ export interface paths {
                                         /** Format: date-time */
                                         scheduledDate: string;
                                         /** @enum {string} */
-                                        role: "TENANT" | "TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
+                                        role: "RENTAL_TENANT" | "RENTAL_TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
                                         isPrimary: boolean;
                                         /** Format: uuid */
                                         propertyId: string;
@@ -12668,7 +12673,7 @@ export interface paths {
                 content: {
                     "application/json": {
                         /** @enum {string} */
-                        type?: "TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
+                        type?: "RENTAL_TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
                         displayName?: string;
                         company?: string | null;
                         /** Format: email */
@@ -12699,7 +12704,7 @@ export interface paths {
                                 /** Format: uuid */
                                 tenantId: string | null;
                                 /** @enum {string} */
-                                type: "TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
+                                type: "RENTAL_TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
                                 displayName: string;
                                 company: string | null;
                                 primaryEmail: string | null;
@@ -12757,7 +12762,7 @@ export interface paths {
                                 /** Format: uuid */
                                 tenantId: string | null;
                                 /** @enum {string} */
-                                type: "TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
+                                type: "RENTAL_TENANT" | "PROPERTY_MANAGER" | "HOUSEKEEPER" | "BROKER" | "OTHER";
                                 displayName: string;
                                 company: string | null;
                                 primaryEmail: string | null;

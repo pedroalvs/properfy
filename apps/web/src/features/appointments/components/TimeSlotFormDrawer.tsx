@@ -110,7 +110,7 @@ export function TimeSlotFormDrawer({
   );
 
   const branchOptionsWithDefault = [
-    { value: '', label: 'Tenant Default' },
+    { value: '', label: 'Agency Default' },
     ...branchOptions,
   ];
 
@@ -219,7 +219,7 @@ export function TimeSlotFormDrawer({
               {!isEditMode && (
                 <FormSection title="Scope" columns={2}>
                   {isAdminUser && (
-                    <FormField label="Tenant" required error={errors.tenantId}>
+                    <FormField label="Agency" required error={errors.tenantId}>
                       <SelectInput
                         value={form.tenantId}
                         onChange={(v) => {
@@ -227,8 +227,8 @@ export function TimeSlotFormDrawer({
                           updateField('branchId', '');
                         }}
                         options={tenantOptions}
-                        placeholder={isLoadingTenants ? 'Loading...' : 'Select tenant'}
-                        aria-label="Tenant"
+                        placeholder={isLoadingTenants ? 'Loading...' : 'Select agency'}
+                        aria-label="Agency"
                       />
                     </FormField>
                   )}

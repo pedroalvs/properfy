@@ -5,7 +5,7 @@ import type {
 } from '@properfy/shared';
 
 /**
- * 023 §FR-241..245 — bulk re-send tenant-portal reminders.
+ * 023 §FR-241..245 — bulk re-send rental-tenant-portal reminders.
  *
  * The mutation invalidates the appointment list so any updated metadata
  * (e.g. last-reminder timestamp, if the listing surfaces it) refreshes.

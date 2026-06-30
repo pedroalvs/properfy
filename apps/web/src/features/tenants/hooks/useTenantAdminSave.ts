@@ -82,7 +82,7 @@ export function useTenantAdminSave(): UseTenantAdminSaveReturn {
             body: { ...rest, settings, ...(trimmedPrefix ? { appointmentCodePrefix: trimmedPrefix } : {}) },
           })
         : await api.POST('/v1/tenants', {
-            body: { ...rest, settings, ...(trimmedPrefix ? { appointmentCodePrefix: trimmedPrefix } : {}) },
+            body: { ...rest, settings, appointmentCodePrefix: trimmedPrefix },
           });
 
       type ApiErrorEnvelope = { error?: { code?: string; message?: string } };
