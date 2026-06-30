@@ -1034,7 +1034,7 @@ model RentalTenantPortalToken {
 model RentalTenantPortalActivity {
   id                     String                  @id @default(uuid())
   appointment_id         String
-  tenant_portal_token_id String
+  rental_tenant_portal_token_id String
   action                 RentalTenantPortalAction
   previous_values_json   Json?
   new_values_json        Json?
@@ -1047,10 +1047,10 @@ model RentalTenantPortalActivity {
   cold_storage           Boolean                 @default(false)
 
   appointment Appointment       @relation(fields: [appointment_id], references: [id])
-  token       RentalTenantPortalToken @relation(fields: [tenant_portal_token_id], references: [id])
+  token       RentalTenantPortalToken @relation(fields: [rental_tenant_portal_token_id], references: [id])
 
   @@index([appointment_id])
-  @@index([tenant_portal_token_id])
+  @@index([rental_tenant_portal_token_id])
   @@index([action])
   @@index([created_at])
   @@index([redaction_status])
@@ -1061,7 +1061,7 @@ model RentalTenantPortalActivity {
 model RentalTenantPortalActivityArchive {
   id                     String                  @id
   appointment_id         String
-  tenant_portal_token_id String
+  rental_tenant_portal_token_id String
   action                 RentalTenantPortalAction
   previous_values_json   Json?
   new_values_json        Json?
@@ -1074,7 +1074,7 @@ model RentalTenantPortalActivityArchive {
   archived_at            DateTime                @default(now())
 
   @@index([appointment_id])
-  @@index([tenant_portal_token_id])
+  @@index([rental_tenant_portal_token_id])
   @@index([action])
   @@index([created_at])
   @@index([archived_at])
