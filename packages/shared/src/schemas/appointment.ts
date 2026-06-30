@@ -151,6 +151,21 @@ export const listAppointmentsQuerySchema = paginationSchema.extend({
     .preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean())
     .optional(),
   confirmationStatus: z.enum(['sent', 'not_sent']).optional(),
+  // Membership filter: return the appointments belonging to a single service
+  // group (drives the map "Groups" drill-down modal). Unlike `ungroupedOnly`
+  // (service_group_id IS NULL), this is a positive match on a specific group.
+  serviceGroupId: z.string().uuid().optional(),
+}).superRefine((val, ctx) => {
+  // `serviceGroupId` (positive membership) and `ungroupedOnly`
+  // (service_group_id IS NULL) are mutually exclusive — fail fast rather than
+  // silently dropping `serviceGroupId` downstream in the repository.
+  if (val.serviceGroupId && val.ungroupedOnly) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['serviceGroupId'],
+      message: 'serviceGroupId cannot be combined with ungroupedOnly',
+    });
+  }
 });
 export type ListAppointmentsQueryInput = z.infer<typeof listAppointmentsQuerySchema>;
 

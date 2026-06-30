@@ -16,6 +16,9 @@ import {
   eligibilityCheckResponseSchema,
   findAddableGroupsRequestSchema,
   findAddableGroupsResponseSchema,
+  getGroupPortalLinkPlanResponseSchema,
+  sendGroupPortalLinksRequestSchema,
+  sendGroupPortalLinksResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
@@ -32,6 +35,8 @@ import type { RepublishServiceGroupUseCase } from '../application/use-cases/repu
 import type { AddAppointmentsToGroupUseCase } from '../application/use-cases/add-appointments-to-group.use-case';
 import type { CheckAppointmentsEligibilityForGroupUseCase } from '../application/use-cases/check-appointments-eligibility-for-group.use-case';
 import type { FindAddableGroupsForAppointmentsUseCase } from '../application/use-cases/find-addable-groups-for-appointments.use-case';
+import type { GetGroupPortalLinkPlanUseCase } from '../application/use-cases/get-group-portal-link-plan.use-case';
+import type { SendGroupPortalLinksUseCase } from '../application/use-cases/send-group-portal-links.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface ServiceGroupRouteContainer {
@@ -47,6 +52,8 @@ export interface ServiceGroupRouteContainer {
   addAppointmentsToGroupUseCase: AddAppointmentsToGroupUseCase;
   checkAppointmentsEligibilityForGroupUseCase: CheckAppointmentsEligibilityForGroupUseCase;
   findAddableGroupsForAppointmentsUseCase: FindAddableGroupsForAppointmentsUseCase;
+  getGroupPortalLinkPlanUseCase: GetGroupPortalLinkPlanUseCase;
+  sendGroupPortalLinksUseCase: SendGroupPortalLinksUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
@@ -416,6 +423,69 @@ export async function registerServiceGroupRoutes(
         })),
         ...(result.reason ? { reason: result.reason } : {}),
       }));
+    },
+  );
+
+  // GET /v1/service-groups/:groupId/portal-link-plan — read-only preview
+  // powering the "Send portal link" confirm dialog. AM/OP only.
+  app.get(
+    '/v1/service-groups/:groupId/portal-link-plan',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ groupId: z.string().uuid() }),
+        response: { 200: successResponseSchema(getGroupPortalLinkPlanResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const auth = request.authContext!;
+      if (auth.role !== 'AM' && auth.role !== 'OP') {
+        return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'AM or OP role required' } });
+      }
+      const params = groupIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid group ID', params.error.errors);
+      }
+      const result = await container.getGroupPortalLinkPlanUseCase.execute({
+        groupId: params.data.groupId,
+        actor: auth,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/service-groups/:groupId/portal-links — send the tenant
+  // confirmation portal link to every appointment in the group (skipping
+  // already-confirmed ones; resending stale/date-changed ones). AM/OP only.
+  app.post(
+    '/v1/service-groups/:groupId/portal-links',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ groupId: z.string().uuid() }),
+        body: sendGroupPortalLinksRequestSchema,
+        response: { 200: successResponseSchema(sendGroupPortalLinksResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const auth = request.authContext!;
+      if (auth.role !== 'AM' && auth.role !== 'OP') {
+        return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'AM or OP role required' } });
+      }
+      const params = groupIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid group ID', params.error.errors);
+      }
+      const parsed = sendGroupPortalLinksRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.sendGroupPortalLinksUseCase.execute({
+        groupId: params.data.groupId,
+        actor: auth,
+        actorTimezone: parsed.data.actorTimezone,
+      });
+      return reply.status(200).send(success(result));
     },
   );
 }

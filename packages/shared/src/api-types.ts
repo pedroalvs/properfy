@@ -6680,6 +6680,117 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/service-groups/{groupId}/portal-link-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    groupId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                items: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    appointmentNumber: number;
+                                    propertyCode: string | null;
+                                    /** @enum {string} */
+                                    plannedAction: "SEND" | "SEND_AFTER_RESET" | "SKIP_ALREADY_CONFIRMED" | "SKIP_NOT_SENDABLE";
+                                }[];
+                                summary: {
+                                    total: number;
+                                    willSend: number;
+                                    willResendDateChanged: number;
+                                    alreadyConfirmed: number;
+                                    notSendable: number;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/service-groups/{groupId}/portal-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    groupId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        actorTimezone?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                results: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    /** @enum {string} */
+                                    status: "SENT" | "DATE_CHANGED_RESENT" | "ALREADY_CONFIRMED" | "NOT_SENDABLE" | "NO_PRIMARY_CONTACT" | "IDEMPOTENT_REPLAY" | "ERROR";
+                                    error?: {
+                                        code: string;
+                                        message: string;
+                                    };
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/marketplace/offers": {
         parameters: {
             query?: never;
