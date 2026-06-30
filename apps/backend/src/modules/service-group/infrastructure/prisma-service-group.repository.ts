@@ -8,6 +8,7 @@ import type {
   PaginationParams,
   ServiceGroupWithAppointments,
   ServiceGroupMapAppointment,
+  GroupAppointmentConfirmationRow,
   MarketplaceOffer,
   MarketplaceOfferDetail,
   PortalEligibleGroup,
@@ -249,6 +250,48 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         inspectorName: row.inspector?.name ?? null,
       }];
     });
+  }
+
+  async findGroupAppointmentsWithConfirmation(
+    groupId: string,
+  ): Promise<GroupAppointmentConfirmationRow[]> {
+    const rows = await this.prisma.appointment.findMany({
+      where: { service_group_id: groupId, deleted_at: null },
+      orderBy: { appointment_number: 'asc' },
+      select: {
+        id: true,
+        appointment_number: true,
+        tenant_id: true,
+        status: true,
+        scheduled_date: true,
+        time_slot: true,
+        tenant_confirmation_status: true,
+        active_confirmation_cycle: {
+          select: { scheduled_date: true, time_slot: true, status: true },
+        },
+        property: {
+          select: { property_code: true, street: true, suburb: true },
+        },
+      },
+    });
+    return rows.map((a): GroupAppointmentConfirmationRow => ({
+      id: a.id,
+      appointmentNumber: a.appointment_number,
+      tenantId: a.tenant_id,
+      status: a.status,
+      scheduledDate: a.scheduled_date,
+      timeSlot: a.time_slot,
+      tenantConfirmationStatus: a.tenant_confirmation_status,
+      activeCycle: a.active_confirmation_cycle
+        ? {
+            scheduledDate: a.active_confirmation_cycle.scheduled_date,
+            timeSlot: a.active_confirmation_cycle.time_slot,
+            status: a.active_confirmation_cycle.status,
+          }
+        : null,
+      propertyCode: a.property?.property_code ?? null,
+      propertyAddress: a.property ? `${a.property.street}, ${a.property.suburb}` : null,
+    }));
   }
 
   async count(filters: ServiceGroupFilters): Promise<number> {
