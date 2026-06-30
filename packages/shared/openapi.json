@@ -11390,6 +11390,15 @@
             "in": "query",
             "name": "confirmationStatus",
             "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "serviceGroupId",
+            "required": false
           }
         ],
         "responses": {
@@ -15800,6 +15809,214 @@
                       },
                       "required": [
                         "groups"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/service-groups/{groupId}/portal-link-plan": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "groupId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "appointmentId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "appointmentNumber": {
+                                "type": "integer"
+                              },
+                              "propertyCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "plannedAction": {
+                                "type": "string",
+                                "enum": [
+                                  "SEND",
+                                  "SEND_AFTER_RESET",
+                                  "SKIP_ALREADY_CONFIRMED",
+                                  "SKIP_NOT_SENDABLE"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "appointmentId",
+                              "appointmentNumber",
+                              "propertyCode",
+                              "plannedAction"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "summary": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "integer"
+                            },
+                            "willSend": {
+                              "type": "integer"
+                            },
+                            "willResendDateChanged": {
+                              "type": "integer"
+                            },
+                            "alreadyConfirmed": {
+                              "type": "integer"
+                            },
+                            "notSendable": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "total",
+                            "willSend",
+                            "willResendDateChanged",
+                            "alreadyConfirmed",
+                            "notSendable"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "summary"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/service-groups/{groupId}/portal-links": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "actorTimezone": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "groupId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "appointmentId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "SENT",
+                                  "DATE_CHANGED_RESENT",
+                                  "ALREADY_CONFIRMED",
+                                  "NOT_SENDABLE",
+                                  "NO_PRIMARY_CONTACT",
+                                  "IDEMPOTENT_REPLAY",
+                                  "ERROR"
+                                ]
+                              },
+                              "error": {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "message"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "appointmentId",
+                              "status"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "results"
                       ],
                       "additionalProperties": false
                     }

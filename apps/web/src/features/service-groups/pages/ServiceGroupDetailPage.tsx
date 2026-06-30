@@ -13,6 +13,7 @@ import { useAssignInspector } from '../hooks/useAssignInspector';
 import { useCancelServiceGroup } from '../hooks/useCancelServiceGroup';
 import { useRejectServiceGroup } from '../hooks/useRejectServiceGroup';
 import { useRepublishServiceGroup } from '../hooks/useRepublishServiceGroup';
+import { useSendGroupPortalLinks } from '../hooks/useSendGroupPortalLinks';
 import { ServiceGroupStatusChip } from '../components/ServiceGroupStatusChip';
 import { ServiceGroupDetailSections } from '../components/ServiceGroupDetailSections';
 import { ManualAssignModal } from '../components/ManualAssignModal';
@@ -20,6 +21,7 @@ import { CancelGroupModal } from '../components/CancelGroupModal';
 import { RejectGroupModal } from '../components/RejectGroupModal';
 import { RepublishGroupModal } from '../components/RepublishGroupModal';
 import { EditGroupModal } from '../components/EditGroupModal';
+import { SendPortalLinkDialog } from '../components/SendPortalLinkDialog';
 import { useGoBack } from '@/hooks/useGoBack';
 
 export function ServiceGroupDetailPage() {
@@ -31,12 +33,22 @@ export function ServiceGroupDetailPage() {
   const { cancel } = useCancelServiceGroup(id ?? null, refetch);
   const { reject } = useRejectServiceGroup(id ?? null, refetch);
   const { republish } = useRepublishServiceGroup(id ?? null, refetch);
+  const { send: sendPortalLinks, isSending: isSendingPortalLinks } = useSendGroupPortalLinks(
+    id ?? null,
+    refetch,
+  );
 
   const [assignOpen, setAssignOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [republishOpen, setRepublishOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [portalLinkOpen, setPortalLinkOpen] = useState(false);
+
+  const handleSendPortalLinks = useCallback(() => {
+    sendPortalLinks(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    setPortalLinkOpen(false);
+  }, [sendPortalLinks]);
 
   const handleAssign = useCallback(
     (inspectorId: string) => {
@@ -114,6 +126,9 @@ export function ServiceGroupDetailPage() {
   const canEdit = !isAccepted;
   // Backend allows manual assignment while the group is DRAFT or PUBLISHED (group.canAssign()).
   const canAssign = isDraft || isPublished;
+  // Portal links can only go to AWAITING_INSPECTOR/SCHEDULED appointments, which
+  // exist only in non-terminal groups. Hidden for CANCELLED/REJECTED groups.
+  const canSendPortalLinks = isDraft || isPublished || isAccepted;
 
   // Publish requires every appointment to be AWAITING_INSPECTOR.
   // Surface blocking appointments so the user knows what to fix before clicking.
@@ -217,6 +232,16 @@ export function ServiceGroupDetailPage() {
             Republish
           </Button>
         )}
+        {canSendPortalLinks && (
+          <Button
+            variant="outlined"
+            loading={isSendingPortalLinks}
+            onClick={() => setPortalLinkOpen(true)}
+          >
+            <i className="mdi mdi-email-fast-outline text-base" aria-hidden="true" />
+            Send portal link
+          </Button>
+        )}
       </div>
 
       <ManualAssignModal
@@ -242,6 +267,13 @@ export function ServiceGroupDetailPage() {
         onClose={() => setRepublishOpen(false)}
         onRepublish={handleRepublish}
         serviceGroupId={id ?? ''}
+      />
+      <SendPortalLinkDialog
+        open={portalLinkOpen}
+        onClose={() => setPortalLinkOpen(false)}
+        serviceGroupId={id ?? ''}
+        sending={isSendingPortalLinks}
+        onConfirm={handleSendPortalLinks}
       />
       <EditGroupModal
         open={editOpen}

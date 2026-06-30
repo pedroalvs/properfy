@@ -386,6 +386,8 @@ import { BulkReopenForRescheduleUseCase } from '../modules/appointment/applicati
 import { AddAppointmentsToGroupUseCase } from '../modules/service-group/application/use-cases/add-appointments-to-group.use-case';
 import { CheckAppointmentsEligibilityForGroupUseCase } from '../modules/service-group/application/use-cases/check-appointments-eligibility-for-group.use-case';
 import { FindAddableGroupsForAppointmentsUseCase } from '../modules/service-group/application/use-cases/find-addable-groups-for-appointments.use-case';
+import { GetGroupPortalLinkPlanUseCase } from '../modules/service-group/application/use-cases/get-group-portal-link-plan.use-case';
+import { SendGroupPortalLinksUseCase } from '../modules/service-group/application/use-cases/send-group-portal-links.use-case';
 import { DraftInspectorInvoiceUseCase } from '../modules/billing/application/use-cases/draft-inspector-invoice.use-case';
 import { ReopenForRescheduleUseCase } from '../modules/appointment/application/use-cases/reopen-for-reschedule.use-case';
 import { PrismaAppointmentImportRepository } from '../modules/appointment/infrastructure/prisma-appointment-import.repository';
@@ -921,6 +923,21 @@ export function createContainer(logger: Logger): AppContainer {
   const findAddableGroupsForAppointmentsUseCase = new FindAddableGroupsForAppointmentsUseCase(
     serviceGroupRepo,
     appointmentRepo,
+    authorizationService,
+  );
+
+  // Group "Send portal link" — preview + execute. Reuses the per-appointment
+  // GeneratePortalTokenUseCase and the bulk-resend idempotency bucket.
+  const getGroupPortalLinkPlanUseCase = new GetGroupPortalLinkPlanUseCase(
+    serviceGroupRepo,
+    authorizationService,
+  );
+  const sendGroupPortalLinksUseCase = new SendGroupPortalLinksUseCase(
+    serviceGroupRepo,
+    generatePortalTokenUseCase,
+    confirmationCycleService,
+    idempotencyService,
+    auditService,
     authorizationService,
   );
 
@@ -1478,6 +1495,8 @@ export function createContainer(logger: Logger): AppContainer {
       addAppointmentsToGroupUseCase,
       checkAppointmentsEligibilityForGroupUseCase,
       findAddableGroupsForAppointmentsUseCase,
+      getGroupPortalLinkPlanUseCase,
+      sendGroupPortalLinksUseCase,
       jwtService,
       tenantRepo,
     },

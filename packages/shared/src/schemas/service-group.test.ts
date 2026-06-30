@@ -10,6 +10,9 @@ import {
   addAppointmentsToGroupRequestSchema,
   eligibilityCheckRequestSchema,
   eligibilityCheckResponseSchema,
+  getGroupPortalLinkPlanResponseSchema,
+  sendGroupPortalLinksRequestSchema,
+  sendGroupPortalLinksResponseSchema,
 } from './service-group';
 
 const validUuid = '550e8400-e29b-41d4-a716-446655440000';
@@ -296,5 +299,59 @@ describe('eligibilityCheckResponseSchema (026 §FR-503)', () => {
       groupAccepts: false,
       groupReasons: [],
     }).success).toBe(false);
+  });
+});
+
+describe('group portal-link schemas', () => {
+  it('accepts an empty send request body', () => {
+    expect(sendGroupPortalLinksRequestSchema.safeParse({}).success).toBe(true);
+  });
+
+  it('accepts a send request with actorTimezone', () => {
+    expect(
+      sendGroupPortalLinksRequestSchema.safeParse({ actorTimezone: 'Australia/Sydney' }).success,
+    ).toBe(true);
+  });
+
+  it('accepts a valid plan response', () => {
+    expect(
+      getGroupPortalLinkPlanResponseSchema.safeParse({
+        items: [
+          { appointmentId: validUuid, appointmentNumber: 1, propertyCode: 'P-001', plannedAction: 'SEND' },
+          { appointmentId: validUuid, appointmentNumber: 2, propertyCode: null, plannedAction: 'SKIP_ALREADY_CONFIRMED' },
+        ],
+        summary: { total: 2, willSend: 1, willResendDateChanged: 0, alreadyConfirmed: 1, notSendable: 0 },
+      }).success,
+    ).toBe(true);
+  });
+
+  it('rejects a plan item with an unknown plannedAction', () => {
+    expect(
+      getGroupPortalLinkPlanResponseSchema.safeParse({
+        items: [{ appointmentId: validUuid, appointmentNumber: 1, propertyCode: null, plannedAction: 'MAYBE' }],
+        summary: { total: 1, willSend: 0, willResendDateChanged: 0, alreadyConfirmed: 0, notSendable: 1 },
+      }).success,
+    ).toBe(false);
+  });
+
+  it('accepts a valid send response with mixed statuses', () => {
+    expect(
+      sendGroupPortalLinksResponseSchema.safeParse({
+        results: [
+          { appointmentId: validUuid, status: 'SENT' },
+          { appointmentId: validUuid, status: 'DATE_CHANGED_RESENT' },
+          { appointmentId: validUuid, status: 'ALREADY_CONFIRMED' },
+          { appointmentId: validUuid, status: 'ERROR', error: { code: 'DISPATCH_FAILED', message: 'boom' } },
+        ],
+      }).success,
+    ).toBe(true);
+  });
+
+  it('rejects a send result with an unknown status', () => {
+    expect(
+      sendGroupPortalLinksResponseSchema.safeParse({
+        results: [{ appointmentId: validUuid, status: 'WHATEVER' }],
+      }).success,
+    ).toBe(false);
   });
 });

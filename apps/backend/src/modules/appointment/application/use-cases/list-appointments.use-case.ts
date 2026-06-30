@@ -27,6 +27,7 @@ export interface ListAppointmentsInput {
     contactSearch?: string;
     hasTenantNote?: boolean;
     confirmationStatus?: string;
+    serviceGroupId?: string;
   };
   pagination: PaginationParams;
   actor: AuthContext;
@@ -136,6 +137,7 @@ export class ListAppointmentsUseCase {
       contactSearch: filters.contactSearch,
       hasTenantNote: filters.hasTenantNote,
       confirmationStatus: filters.confirmationStatus,
+      serviceGroupId: filters.serviceGroupId,
     };
 
     const [data, total] = await Promise.all([
