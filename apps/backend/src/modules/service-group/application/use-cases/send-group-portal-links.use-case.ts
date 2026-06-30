@@ -119,13 +119,28 @@ export class SendGroupPortalLinksUseCase {
         }
 
         const dispatch = await this.generatePortalToken.execute({ appointmentId: row.id, actor: input.actor });
-        const status: SendGroupPortalLinksResultItem['status'] =
-          dispatch.dispatched === false && dispatch.reason === 'NO_PRIMARY_CONTACT'
-            ? 'NO_PRIMARY_CONTACT'
-            : action === 'SEND_AFTER_RESET'
-              ? 'DATE_CHANGED_RESENT'
-              : 'SENT';
 
+        if (dispatch.dispatched === false) {
+          if (dispatch.reason === 'NO_PRIMARY_CONTACT') {
+            // No canonical recipient — a stable outcome; cache it so a same-day
+            // retry is a no-op (matches bulk-resend).
+            const result: SendGroupPortalLinksResultItem = { appointmentId: row.id, status: 'NO_PRIMARY_CONTACT' };
+            await this.idempotency.set(idemKey, IDEMPOTENCY_SCOPE, result, IDEMPOTENCY_TTL_HOURS);
+            results.push(result);
+          } else {
+            // DISPATCH_FAILED — the notification never went out. Surface as ERROR
+            // and do NOT cache, so a retry re-attempts the send.
+            results.push({
+              appointmentId: row.id,
+              status: 'ERROR',
+              error: { code: ERROR_CODE, message: 'Notification dispatch failed' },
+            });
+          }
+          continue;
+        }
+
+        const status: SendGroupPortalLinksResultItem['status'] =
+          action === 'SEND_AFTER_RESET' ? 'DATE_CHANGED_RESENT' : 'SENT';
         const result: SendGroupPortalLinksResultItem = { appointmentId: row.id, status };
         await this.idempotency.set(idemKey, IDEMPOTENCY_SCOPE, result, IDEMPOTENCY_TTL_HOURS);
         results.push(result);

@@ -107,13 +107,31 @@ describe('SendGroupPortalLinksUseCase', () => {
     expect(m.generatePortalToken.execute).not.toHaveBeenCalled();
   });
 
-  it('passes through NO_PRIMARY_CONTACT from the portal-token use case', async () => {
+  it('passes through NO_PRIMARY_CONTACT and caches it', async () => {
     m.groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([row({ id: 'a1' })]);
     (m.generatePortalToken.execute as ReturnType<typeof vi.fn>).mockResolvedValue({ dispatched: false, reason: 'NO_PRIMARY_CONTACT' });
 
     const out = await m.useCase.execute({ groupId: 'group-1', actor: makeActor() });
 
     expect(out.results).toEqual([{ appointmentId: 'a1', status: 'NO_PRIMARY_CONTACT' }]);
+    expect(m.idempotency.set).toHaveBeenCalledWith(
+      expect.any(String),
+      'bulk_resend_reminder',
+      { appointmentId: 'a1', status: 'NO_PRIMARY_CONTACT' },
+      36,
+    );
+  });
+
+  it('maps DISPATCH_FAILED to ERROR and does NOT cache it (so a retry re-sends)', async () => {
+    m.groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([row({ id: 'a1' })]);
+    (m.generatePortalToken.execute as ReturnType<typeof vi.fn>).mockResolvedValue({ dispatched: false, reason: 'DISPATCH_FAILED' });
+
+    const out = await m.useCase.execute({ groupId: 'group-1', actor: makeActor() });
+
+    expect(out.results).toEqual([
+      { appointmentId: 'a1', status: 'ERROR', error: { code: 'DISPATCH_FAILED', message: 'Notification dispatch failed' } },
+    ]);
+    expect(m.idempotency.set).not.toHaveBeenCalled();
   });
 
   it('skips NOT_SENDABLE and ALREADY_CONFIRMED without dispatching or recording idempotency', async () => {

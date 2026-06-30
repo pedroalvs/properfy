@@ -105,4 +105,16 @@ describe('GetGroupPortalLinkPlanUseCase', () => {
     expect(result.items.map((i) => i.appointmentId)).toEqual(['mine']);
     expect(result.summary.total).toBe(1);
   });
+
+  it('AM sees all rows of a cross-tenant group (no tenant filter)', async () => {
+    groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([
+      row({ id: 'tenant-1-appt', tenantId: 'tenant-1' }),
+      row({ id: 'tenant-2-appt', tenantId: 'tenant-2' }),
+    ]);
+
+    const result = await useCase.execute({ groupId: 'group-1', actor: makeActor({ role: 'AM', tenantId: null }) });
+
+    expect(result.items.map((i) => i.appointmentId)).toEqual(['tenant-1-appt', 'tenant-2-appt']);
+    expect(result.summary.total).toBe(2);
+  });
 });

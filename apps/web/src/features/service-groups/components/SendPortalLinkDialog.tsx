@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useGroupPortalLinkPlan } from '../hooks/useGroupPortalLinkPlan';
 
@@ -27,7 +28,7 @@ export function SendPortalLinkDialog({
   const summary = plan?.summary;
   const willAct = summary ? summary.willSend + summary.willResendDateChanged : 0;
 
-  let message: React.ReactNode;
+  let message: ReactNode;
   if (isLoading) {
     message = 'Loading appointments…';
   } else if (isError || !summary) {
