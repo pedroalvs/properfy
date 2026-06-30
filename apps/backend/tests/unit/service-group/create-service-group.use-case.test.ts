@@ -612,7 +612,9 @@ describe('CreateServiceGroupUseCase', () => {
         );
       }
 
-      const scheduledDate = '2026-07-01';
+      // Relative future date (not a hardcoded calendar date) so the test never drifts
+      // within priorityOfferHours of the real clock and trips PRIORITY_DATE_TOO_CLOSE.
+      const scheduledDate = farFutureDate;
       const result = await useCaseWithTenant.execute({
         appointmentIds,
         serviceTypeId: 'svc-type-1',
