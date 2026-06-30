@@ -26,7 +26,7 @@ export interface NotificationTemplate {
   id: string;
   tenantId: string | null;
   /** Owning agency name for overrides; null for platform defaults. */
-  tenantName: string | null;
+  rentalTenantName: string | null;
   code: string;
   channel: NotificationChannel;
   subject: string;

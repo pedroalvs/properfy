@@ -40,7 +40,7 @@ vi.mock('../../../src/main/container', () => ({
     audit: { jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign } },
     serviceGroup: { jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign } },
     marketplace: { jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign } },
-    tenantPortal: { jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign } },
+    rentalTenantPortal: { jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign } },
     inspectorExecution: { jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign } },
     billing: { jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign } },
     report: { jwtService: { verify: mockJwtVerify, signAccessToken: mockJwtSign } },

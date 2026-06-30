@@ -16,7 +16,7 @@ function makeAppointment(overrides: Partial<AppointmentProps> = {}): Appointment
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 200,
     payoutAmount: 140,
     pricingRuleSnapshotJson: {},

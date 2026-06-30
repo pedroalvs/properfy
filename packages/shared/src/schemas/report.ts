@@ -8,7 +8,7 @@ export const reportFiltersSchema = z.object({
   branchId: z.string().uuid().optional(),
   inspectorId: z.string().uuid().optional(),
   status: z.string().optional(),
-  tenantConfirmationStatus: z.string().optional(),
+  rentalTenantConfirmationStatus: z.string().optional(),
   search: z.string().max(200).optional(),
   emailNotificationStatus: z.string().optional(),
 }).refine(

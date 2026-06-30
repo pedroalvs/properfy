@@ -76,7 +76,7 @@ export function useUserSave(
   }, []);
 
   const save = useCallback(async (data: UserFormData, userId?: string): Promise<SaveResult> => {
-    if (scope === 'tenant' && !tenantId) return { success: false, error: 'No tenant context' };
+    if (scope === 'tenant' && !tenantId) return { success: false, error: 'No agency context' };
 
     setIsSaving(true);
     try {

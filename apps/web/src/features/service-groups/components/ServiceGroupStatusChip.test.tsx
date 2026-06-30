@@ -4,7 +4,7 @@ import { ServiceGroupStatus } from '@properfy/shared';
 import { ServiceGroupStatusChip } from './ServiceGroupStatusChip';
 
 const STATUS_LABELS: Record<ServiceGroupStatus, string> = {
-  DRAFT: 'Awaiting Host',
+  DRAFT: 'Draft',
   PUBLISHED: 'Awaiting Inspector',
   ACCEPTED: 'Accepted',
   CANCELLED: 'Canceled',
@@ -22,7 +22,7 @@ describe('ServiceGroupStatusChip', () => {
 
   it('passes className through', () => {
     render(<ServiceGroupStatusChip status={ServiceGroupStatus.DRAFT} className="my-custom" />);
-    const chip = screen.getByText('Awaiting Host');
+    const chip = screen.getByText('Draft');
     expect(chip.className).toContain('my-custom');
   });
 });

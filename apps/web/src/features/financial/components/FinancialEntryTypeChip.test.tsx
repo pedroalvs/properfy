@@ -4,7 +4,7 @@ import { FinancialEntryType } from '@properfy/shared';
 import { FinancialEntryTypeChip } from './FinancialEntryTypeChip';
 
 const TYPE_LABELS: Record<FinancialEntryType, string> = {
-  TENANT_DEBIT: 'Tenant Debit',
+  TENANT_DEBIT: 'Agency Debit',
   INSPECTOR_PAYOUT: 'Inspector Payout',
   REFUND: 'Refund',
   MANUAL_ADJUSTMENT: 'Manual Adjustment',

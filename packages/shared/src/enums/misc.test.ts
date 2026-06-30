@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   AssetKind,
-  TenantPortalTokenStatus,
-  TenantPortalAction,
+  RentalTenantPortalTokenStatus,
+  RentalTenantPortalAction,
   ReportType,
   ReportStatus,
   ReportFormat,
@@ -20,35 +20,35 @@ describe('AssetKind', () => {
   });
 });
 
-describe('TenantPortalTokenStatus', () => {
+describe('RentalTenantPortalTokenStatus', () => {
   it('should have ACTIVE, EXPIRED, REVOKED, SUPERSEDED values', () => {
-    expect(TenantPortalTokenStatus.ACTIVE).toBe('ACTIVE');
-    expect(TenantPortalTokenStatus.EXPIRED).toBe('EXPIRED');
-    expect(TenantPortalTokenStatus.REVOKED).toBe('REVOKED');
-    expect(TenantPortalTokenStatus.SUPERSEDED).toBe('SUPERSEDED');
+    expect(RentalTenantPortalTokenStatus.ACTIVE).toBe('ACTIVE');
+    expect(RentalTenantPortalTokenStatus.EXPIRED).toBe('EXPIRED');
+    expect(RentalTenantPortalTokenStatus.REVOKED).toBe('REVOKED');
+    expect(RentalTenantPortalTokenStatus.SUPERSEDED).toBe('SUPERSEDED');
   });
 
   it('should have exactly 4 statuses', () => {
-    expect(Object.keys(TenantPortalTokenStatus)).toHaveLength(4);
+    expect(Object.keys(RentalTenantPortalTokenStatus)).toHaveLength(4);
   });
 
   it('should not have USED status', () => {
-    expect(Object.values(TenantPortalTokenStatus)).not.toContain('USED');
+    expect(Object.values(RentalTenantPortalTokenStatus)).not.toContain('USED');
   });
 });
 
-describe('TenantPortalAction', () => {
+describe('RentalTenantPortalAction', () => {
   it('should have VIEW, CONFIRM, RESCHEDULE, CONTACT_UPDATED, UNAVAILABLE_REPORTED, GROUP_JOIN values', () => {
-    expect(TenantPortalAction.VIEW).toBe('VIEW');
-    expect(TenantPortalAction.CONFIRM).toBe('CONFIRM');
-    expect(TenantPortalAction.RESCHEDULE).toBe('RESCHEDULE');
-    expect(TenantPortalAction.CONTACT_UPDATED).toBe('CONTACT_UPDATED');
-    expect(TenantPortalAction.UNAVAILABLE_REPORTED).toBe('UNAVAILABLE_REPORTED');
-    expect(TenantPortalAction.GROUP_JOIN).toBe('GROUP_JOIN');
+    expect(RentalTenantPortalAction.VIEW).toBe('VIEW');
+    expect(RentalTenantPortalAction.CONFIRM).toBe('CONFIRM');
+    expect(RentalTenantPortalAction.RESCHEDULE).toBe('RESCHEDULE');
+    expect(RentalTenantPortalAction.CONTACT_UPDATED).toBe('CONTACT_UPDATED');
+    expect(RentalTenantPortalAction.UNAVAILABLE_REPORTED).toBe('UNAVAILABLE_REPORTED');
+    expect(RentalTenantPortalAction.GROUP_JOIN).toBe('GROUP_JOIN');
   });
 
   it('should have exactly 6 actions', () => {
-    expect(Object.keys(TenantPortalAction)).toHaveLength(6);
+    expect(Object.keys(RentalTenantPortalAction)).toHaveLength(6);
   });
 });
 

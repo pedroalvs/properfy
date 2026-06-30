@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { TokenService } from '../../../src/modules/tenant-portal/domain/token.service';
+import { TokenService } from '../../../src/modules/rental-tenant-portal/domain/token.service';
 
 describe('TokenService', () => {
   const service = new TokenService();

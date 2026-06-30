@@ -77,7 +77,7 @@ export function ContactListPage() {
       const real = (tenantsResp?.data ?? []).map((tenant) => ({ value: tenant.id, label: tenant.name }));
       // 024 §FR-308 — prepend the Standalone sentinel so AM/OP can target
       // tenant-less contacts both for browsing and for creating new rows.
-      return [{ value: STANDALONE_SENTINEL, label: 'Standalone — no tenant' }, ...real];
+      return [{ value: STANDALONE_SENTINEL, label: 'Standalone — no agency' }, ...real];
     },
     [tenantsResp],
   );

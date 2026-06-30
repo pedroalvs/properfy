@@ -26,7 +26,7 @@ function input(overrides: Partial<PortalLinkEligibilityInput>): PortalLinkEligib
     status: 'AWAITING_INSPECTOR',
     scheduledDate: DATE_A,
     timeSlot: SLOT_AM,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     activeCycle: null,
     ...overrides,
   };
@@ -39,7 +39,7 @@ describe('classifyPortalLinkAction', () => {
       (status) => {
         expect(
           classifyPortalLinkAction(
-            input({ status, tenantConfirmationStatus: 'CONFIRMED', activeCycle: { scheduledDate: DATE_A, timeSlot: SLOT_AM, status: 'CONFIRMED' } }),
+            input({ status, rentalTenantConfirmationStatus: 'CONFIRMED', activeCycle: { scheduledDate: DATE_A, timeSlot: SLOT_AM, status: 'CONFIRMED' } }),
           ),
         ).toBe('SKIP_NOT_SENDABLE');
       },
@@ -52,7 +52,7 @@ describe('classifyPortalLinkAction', () => {
         classifyPortalLinkAction(
           input({
             status: 'AWAITING_INSPECTOR',
-            tenantConfirmationStatus: 'CONFIRMED',
+            rentalTenantConfirmationStatus: 'CONFIRMED',
             activeCycle: { scheduledDate: DATE_A, timeSlot: SLOT_AM, status: 'CONFIRMED' },
           }),
         ),
@@ -64,7 +64,7 @@ describe('classifyPortalLinkAction', () => {
         classifyPortalLinkAction(
           input({
             status: 'SCHEDULED',
-            tenantConfirmationStatus: 'CONFIRMED',
+            rentalTenantConfirmationStatus: 'CONFIRMED',
             activeCycle: { scheduledDate: DATE_A, timeSlot: SLOT_AM, status: 'CONFIRMED' },
           }),
         ),
@@ -75,7 +75,7 @@ describe('classifyPortalLinkAction', () => {
       expect(
         classifyPortalLinkAction(
           input({
-            tenantConfirmationStatus: 'CONFIRMED',
+            rentalTenantConfirmationStatus: 'CONFIRMED',
             scheduledDate: new Date('2026-07-01T00:00:00.000Z'),
             activeCycle: { scheduledDate: new Date('2026-07-01T10:30:00.000Z'), timeSlot: SLOT_AM, status: 'CONFIRMED' },
           }),
@@ -89,7 +89,7 @@ describe('classifyPortalLinkAction', () => {
       expect(
         classifyPortalLinkAction(
           input({
-            tenantConfirmationStatus: 'CONFIRMED',
+            rentalTenantConfirmationStatus: 'CONFIRMED',
             scheduledDate: DATE_B,
             activeCycle: { scheduledDate: DATE_A, timeSlot: SLOT_AM, status: 'CONFIRMED' },
           }),
@@ -101,7 +101,7 @@ describe('classifyPortalLinkAction', () => {
       expect(
         classifyPortalLinkAction(
           input({
-            tenantConfirmationStatus: 'CONFIRMED',
+            rentalTenantConfirmationStatus: 'CONFIRMED',
             timeSlot: SLOT_PM,
             activeCycle: { scheduledDate: DATE_A, timeSlot: SLOT_AM, status: 'CONFIRMED' },
           }),
@@ -112,7 +112,7 @@ describe('classifyPortalLinkAction', () => {
     it('resends when CONFIRMED but there is no active cycle (denorm/cycle inconsistency)', () => {
       expect(
         classifyPortalLinkAction(
-          input({ tenantConfirmationStatus: 'CONFIRMED', activeCycle: null }),
+          input({ rentalTenantConfirmationStatus: 'CONFIRMED', activeCycle: null }),
         ),
       ).toBe('SEND_AFTER_RESET');
     });
@@ -121,9 +121,9 @@ describe('classifyPortalLinkAction', () => {
   describe('SEND — sendable status, not confirmed', () => {
     it.each(['PENDING', 'UNAVAILABLE', 'NO_RESPONSE'])(
       'sends when status is sendable and confirmation is %s',
-      (tenantConfirmationStatus) => {
+      (rentalTenantConfirmationStatus) => {
         expect(
-          classifyPortalLinkAction(input({ tenantConfirmationStatus })),
+          classifyPortalLinkAction(input({ rentalTenantConfirmationStatus })),
         ).toBe('SEND');
       },
     );
@@ -131,7 +131,7 @@ describe('classifyPortalLinkAction', () => {
     it('sends when there is no confirmation cycle yet (never confirmed)', () => {
       expect(
         classifyPortalLinkAction(
-          input({ status: 'SCHEDULED', tenantConfirmationStatus: 'PENDING', activeCycle: null }),
+          input({ status: 'SCHEDULED', rentalTenantConfirmationStatus: 'PENDING', activeCycle: null }),
         ),
       ).toBe('SEND');
     });

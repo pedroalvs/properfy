@@ -57,7 +57,7 @@ function makeAppointmentResult(id: string) {
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 150,
     payoutAmount: 80,
     pricingRuleSnapshotJson: {},
@@ -83,7 +83,7 @@ const basePayload = {
   scheduledDate: '2027-06-01',
   timeSlot: '09:00-10:00',
   keyRequired: false,
-  contact: { tenantName: 'Test Tenant', primaryEmail: 'test@example.com' },
+  contact: { rentalTenantName: 'Test Tenant', primaryEmail: 'test@example.com' },
 };
 
 let app: FastifyInstance;

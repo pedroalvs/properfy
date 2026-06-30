@@ -12,9 +12,9 @@ function makeTemplate(overrides: Partial<NotificationTemplateProps> = {}): Notif
     templateCode: 'INSPECTION_NOTICE',
     channel: 'EMAIL',
     subject: 'Your upcoming inspection',
-    bodyHtml: '<p>Hello {{tenantName}}</p>',
-    bodyText: 'Hello {{tenantName}}',
-    variablesJson: ['tenantName'],
+    bodyHtml: '<p>Hello {{rentalTenantName}}</p>',
+    bodyText: 'Hello {{rentalTenantName}}',
+    variablesJson: ['rentalTenantName'],
     isActive: true,
     createdAt: now,
     updatedAt: now,
@@ -31,9 +31,9 @@ describe('NotificationTemplateEntity', () => {
     expect(template.templateCode).toBe('INSPECTION_NOTICE');
     expect(template.channel).toBe('EMAIL');
     expect(template.subject).toBe('Your upcoming inspection');
-    expect(template.bodyHtml).toBe('<p>Hello {{tenantName}}</p>');
-    expect(template.bodyText).toBe('Hello {{tenantName}}');
-    expect(template.variablesJson).toEqual(['tenantName']);
+    expect(template.bodyHtml).toBe('<p>Hello {{rentalTenantName}}</p>');
+    expect(template.bodyText).toBe('Hello {{rentalTenantName}}');
+    expect(template.variablesJson).toEqual(['rentalTenantName']);
     expect(template.active).toBe(true);
   });
 

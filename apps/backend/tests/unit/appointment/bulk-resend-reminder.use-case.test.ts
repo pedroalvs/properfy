@@ -13,7 +13,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BulkResendReminderUseCase } from '../../../src/modules/appointment/application/use-cases/bulk-resend-reminder.use-case';
-import type { GeneratePortalTokenUseCase } from '../../../src/modules/tenant-portal/application/use-cases/generate-portal-token.use-case';
+import type { GeneratePortalTokenUseCase } from '../../../src/modules/rental-tenant-portal/application/use-cases/generate-portal-token.use-case';
 import type { IIdempotencyService } from '../../../src/shared/domain/idempotency.service';
 
 const APPT_ID_1 = 'aaaaaaaa-0000-4000-8000-000000000001';

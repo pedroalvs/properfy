@@ -42,11 +42,11 @@ const PLATFORM_DEFAULTS: NotificationTemplate[] = [
   {
     id: 'd1',
     tenantId: null,
-    tenantName: null,
+    rentalTenantName: null,
     code: 'INSPECTION_NOTICE',
     channel: 'EMAIL',
     subject: 'Inspection notice',
-    body: 'Hi {{tenantName}} at {{propertyAddress}} on {{scheduledDate}} {{timeSlot}}',
+    body: 'Hi {{rentalTenantName}} at {{propertyAddress}} on {{scheduledDate}} {{timeSlot}}',
     active: true,
     notificationClass: 'OPERATIONAL',
     requiredVariables: [],
@@ -134,7 +134,7 @@ describe('TemplateCreateDrawer', () => {
 
     expect(screen.getByLabelText('Subject')).toHaveValue('Inspection notice');
     expect(screen.getByLabelText('Body')).toHaveValue(
-      'Hi {{tenantName}} at {{propertyAddress}} on {{scheduledDate}} {{timeSlot}}',
+      'Hi {{rentalTenantName}} at {{propertyAddress}} on {{scheduledDate}} {{timeSlot}}',
     );
   });
 

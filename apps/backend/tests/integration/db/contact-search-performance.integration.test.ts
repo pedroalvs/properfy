@@ -37,7 +37,7 @@ beforeAll(async () => {
     contacts.push(new ContactEntity({
       id: crypto.randomUUID(),
       tenantId,
-      type: i % 5 === 0 ? 'PROPERTY_MANAGER' : i % 3 === 0 ? 'BROKER' : 'TENANT',
+      type: i % 5 === 0 ? 'PROPERTY_MANAGER' : i % 3 === 0 ? 'BROKER' : 'RENTAL_TENANT',
       displayName: `${randomFirstName(i)} ${randomLastName(i)}`,
       company: i % 10 === 0 ? `Company ${i}` : null,
       primaryEmail: `contact${i}@perf-tenant-${Math.random().toString(36).slice(2, 6)}.example.com`,
@@ -115,7 +115,7 @@ describe('Contact search performance (SC-005 / NFR-001)', () => {
       data: {
         id: crypto.randomUUID(),
         tenant_id: tenant2.id,
-        type: 'TENANT',
+        type: 'RENTAL_TENANT',
         display_name: 'Unique Only In Tenant 2',
         primary_email: 'uniqueonly@tenant2.example.com',
         additional_channels_json: [],

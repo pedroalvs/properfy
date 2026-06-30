@@ -23,7 +23,7 @@ export class DispatchEscalationsUseCase {
     private readonly buildNotificationPayload: BuildNotificationPayloadService,
     private readonly appointmentCodeFormatter: AppointmentCodeFormatter,
     private readonly createNotification: CreateNotificationUseCase,
-    private readonly tenantPortalBaseUrl: string,
+    private readonly rentalTenantPortalBaseUrl: string,
   ) {}
 
   async execute(today?: Date): Promise<DispatchEscalationsOutput> {
@@ -38,7 +38,7 @@ export class DispatchEscalationsUseCase {
     const appointments = await this.appointmentRepo.findScheduledOnDate(targetDate);
 
     for (const { appointment, contact } of appointments) {
-      if (appointment.tenantConfirmationStatus === 'CONFIRMED') {
+      if (appointment.rentalTenantConfirmationStatus === 'CONFIRMED') {
         skipped++;
         continue;
       }
@@ -75,7 +75,7 @@ export class DispatchEscalationsUseCase {
               contact,
               branchName: branch.name,
               rawPortalToken: null,
-              portalBaseUrl: this.tenantPortalBaseUrl,
+              portalBaseUrl: this.rentalTenantPortalBaseUrl,
               appointmentCodeFormatter: this.appointmentCodeFormatter,
             }),
           });
@@ -107,7 +107,7 @@ export class DispatchEscalationsUseCase {
               appointment,
               contact,
               rawPortalToken: null,
-              portalBaseUrl: this.tenantPortalBaseUrl,
+              portalBaseUrl: this.rentalTenantPortalBaseUrl,
               appointmentCodeFormatter: this.appointmentCodeFormatter,
             }),
           });

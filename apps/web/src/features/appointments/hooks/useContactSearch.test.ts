@@ -30,7 +30,7 @@ const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_CONTACTS = {
   data: [
-    { id: 'c-1', displayName: 'John Doe', primaryEmail: 'john@test.com', primaryPhone: '11999', type: 'TENANT', isActive: true },
+    { id: 'c-1', displayName: 'John Doe', primaryEmail: 'john@test.com', primaryPhone: '11999', type: 'RENTAL_TENANT', isActive: true },
     { id: 'c-2', displayName: 'Jane Smith', primaryEmail: 'jane@test.com', primaryPhone: null, type: 'PROPERTY_MANAGER', isActive: true },
   ],
   pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 },

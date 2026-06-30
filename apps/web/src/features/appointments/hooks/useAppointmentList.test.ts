@@ -125,7 +125,7 @@ describe('useAppointmentList', () => {
 
   it('initializes supported filters from query params', async () => {
     const wrapper = createRouterQueryWrapper(
-      '/appointments?status=DONE&tenantConfirmationStatus=NO_RESPONSE&startDate=2026-03-01&endDate=2026-03-31',
+      '/appointments?status=DONE&rentalTenantConfirmationStatus=NO_RESPONSE&startDate=2026-03-01&endDate=2026-03-31',
     );
     const { result } = renderHook(() => useAppointmentList(), { wrapper });
 
@@ -134,14 +134,14 @@ describe('useAppointmentList', () => {
     });
 
     expect(result.current.filters.status).toBe('DONE');
-    expect(result.current.filters.tenantConfirmationStatus).toBe('NO_RESPONSE');
+    expect(result.current.filters.rentalTenantConfirmationStatus).toBe('NO_RESPONSE');
     expect(result.current.filters.startDate).toBe('2026-03-01');
     expect(result.current.filters.endDate).toBe('2026-03-31');
     expect(mockGet).toHaveBeenCalledWith('/v1/appointments', {
       params: {
         query: expect.objectContaining({
           status: 'DONE',
-          tenantConfirmationStatus: 'NO_RESPONSE',
+          rentalTenantConfirmationStatus: 'NO_RESPONSE',
           fromDate: '2026-03-01',
           toDate: '2026-03-31',
         }),

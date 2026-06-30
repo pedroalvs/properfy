@@ -38,7 +38,7 @@ function makeAppointmentEntity(
     keyRequired: false,
     meetingLocation: 'Front door',
     keyLocation: 'Lockbox #3',
-    tenantConfirmationStatus: 'CONFIRMED',
+    rentalTenantConfirmationStatus: 'CONFIRMED',
     priceAmount: 200,
     payoutAmount: 140,
     pricingRuleSnapshotJson: {},
@@ -64,12 +64,12 @@ function makeContact(
     id: 'contact-1',
     appointmentId: 'appt-1',
     contactId: null,
-    role: 'TENANT',
+    role: 'RENTAL_TENANT',
     isPrimary: true,
     snapshotName: null,
     snapshotEmail: null,
     snapshotPhone: null,
-    tenantName: 'John Smith',
+    rentalTenantName: 'John Smith',
     primaryEmail: 'john@example.com',
     secondaryEmail: null,
     primaryPhone: '+61400000000',
@@ -88,7 +88,7 @@ function makeRestriction(): AppointmentRestrictionEntity {
     unavailableDaysJson: ['Monday'],
     unavailableHoursJson: ['08:00-09:00'],
     notes: 'Dog in backyard',
-    source: 'TENANT',
+    source: 'RENTAL_TENANT',
     createdAt: new Date(),
     updatedAt: new Date(),
   });
@@ -258,7 +258,7 @@ describe('GetAppointmentDetailUseCase', () => {
     expect(result.keyLocation).toBe('Lockbox #3');
 
     expect(result.contact).not.toBeNull();
-    expect(result.contact!.tenantName).toBe('John Smith');
+    expect(result.contact!.rentalTenantName).toBe('John Smith');
     expect(result.contact!.primaryEmail).toBe('john@example.com');
     expect(result.contact!.primaryPhone).toBe('+61400000000');
     expect(result.contact!.secondaryPhone).toBe('+61400000001');
@@ -333,7 +333,7 @@ describe('GetAppointmentDetailUseCase', () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(
       makeAppointmentWithRelations({
         scheduledDate: new Date('2026-03-21T12:00:00Z'),
-        tenantConfirmationStatus: 'PENDING',
+        rentalTenantConfirmationStatus: 'PENDING',
         keyRequired: false,
       }),
     );
@@ -358,7 +358,7 @@ describe('GetAppointmentDetailUseCase', () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(
       makeAppointmentWithRelations({
         scheduledDate: new Date('2026-03-21T12:00:00Z'),
-        tenantConfirmationStatus: 'PENDING',
+        rentalTenantConfirmationStatus: 'PENDING',
         keyRequired: false,
       }),
     );
@@ -377,7 +377,7 @@ describe('GetAppointmentDetailUseCase', () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(
       makeAppointmentWithRelations({
         scheduledDate: new Date('2026-03-21T12:00:00Z'),
-        tenantConfirmationStatus: 'UNAVAILABLE',
+        rentalTenantConfirmationStatus: 'UNAVAILABLE',
         keyRequired: false,
       }),
     );
@@ -397,7 +397,7 @@ describe('GetAppointmentDetailUseCase', () => {
       makeAppointmentWithRelations({
         status: 'DONE',
         scheduledDate: new Date('2026-03-21T12:00:00Z'),
-        tenantConfirmationStatus: 'PENDING',
+        rentalTenantConfirmationStatus: 'PENDING',
         keyRequired: false,
       }),
     );

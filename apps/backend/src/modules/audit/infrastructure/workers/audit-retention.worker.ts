@@ -19,7 +19,7 @@ export interface AuditRetentionResult {
   hardDeletedCount: number;
   skippedInProgressCount: number;
   erroredCount: number;
-  tenantPortalMovedCount: number;
+  rentalTenantPortalMovedCount: number;
 }
 
 /**
@@ -43,7 +43,7 @@ export interface AuditRetentionResult {
  *      per run with the full summary (FR-028).
  *   6. **Hard-delete sweep** as a separate final phase, off by default per
  *      category (FR-005 + FR-034).
- *   7. **Second pass** against `tenant_portal_activities` (FR-031).
+ *   7. **Second pass** against `rental_tenant_portal_activities` (FR-031).
  */
 export class AuditRetentionWorker {
   constructor(
@@ -66,7 +66,7 @@ export class AuditRetentionWorker {
       hardDeletedCount: 0,
       skippedInProgressCount: 0,
       erroredCount: 0,
-      tenantPortalMovedCount: 0,
+      rentalTenantPortalMovedCount: 0,
     };
 
     try {
@@ -113,12 +113,12 @@ export class AuditRetentionWorker {
         }
       }
 
-      // Phase 3: tenant_portal_activities parallel pass
+      // Phase 3: rental_tenant_portal_activities parallel pass
       for (const category of categories) {
         const cutoffDate = new Date(now.getTime() - category.retentionMs());
         try {
-          const moved = await this.processTenantPortalMove(category.name, cutoffDate);
-          result.tenantPortalMovedCount += moved;
+          const moved = await this.processRentalTenantPortalMove(category.name, cutoffDate);
+          result.rentalTenantPortalMovedCount += moved;
         } catch (err) {
           this.logger.error(
             { err, category: category.name },
@@ -144,7 +144,7 @@ export class AuditRetentionWorker {
         hardDeletedCount: result.hardDeletedCount,
         skippedInProgressCount: result.skippedInProgressCount,
         erroredCount: result.erroredCount,
-        tenantPortalMovedCount: result.tenantPortalMovedCount,
+        rentalTenantPortalMovedCount: result.rentalTenantPortalMovedCount,
         startedAtIso: startedAt.toISOString(),
         finishedAtIso: new Date().toISOString(),
       },
@@ -279,16 +279,16 @@ export class AuditRetentionWorker {
 
   /**
    * Feature 020 FR-031: same hot → cold move against the parallel
-   * `tenant_portal_activities` surface. Uses raw SQL because the table has a
+   * `rental_tenant_portal_activities` surface. Uses raw SQL because the table has a
    * different shape and a light-touch repository is not warranted yet.
    */
-  private async processTenantPortalMove(
+  private async processRentalTenantPortalMove(
     category: AuditRetentionCategory,
     cutoffDate: Date,
   ): Promise<number> {
     return this.prisma.$transaction(async (tx) => {
       const rows: Array<{ id: string }> = await tx.$queryRawUnsafe(
-        `SELECT id FROM "tenant_portal_activities"
+        `SELECT id FROM "rental_tenant_portal_activities"
          WHERE retention_category = $1::"AuditRetentionCategory"
            AND created_at < $2
            AND redaction_status != 'IN_PROGRESS'
@@ -301,21 +301,21 @@ export class AuditRetentionWorker {
       const ids = rows.map((r) => r.id);
 
       await tx.$executeRawUnsafe(
-        `INSERT INTO "tenant_portal_activities_archive"
-           (id, appointment_id, tenant_portal_token_id, action, previous_values_json,
+        `INSERT INTO "rental_tenant_portal_activities_archive"
+           (id, appointment_id, rental_tenant_portal_token_id, action, previous_values_json,
             new_values_json, ip_address, user_agent, created_at,
             retention_category, redaction_status, cold_storage)
-         SELECT id, appointment_id, tenant_portal_token_id, action, previous_values_json,
+         SELECT id, appointment_id, rental_tenant_portal_token_id, action, previous_values_json,
                 new_values_json, ip_address, user_agent, created_at,
                 retention_category, redaction_status, true
-         FROM "tenant_portal_activities"
+         FROM "rental_tenant_portal_activities"
          WHERE id = ANY($1)
          ON CONFLICT (id) DO NOTHING`,
         ids,
       );
 
       const deleted: number = await tx.$executeRawUnsafe(
-        `DELETE FROM "tenant_portal_activities" WHERE id = ANY($1)`,
+        `DELETE FROM "rental_tenant_portal_activities" WHERE id = ANY($1)`,
         ids,
       );
 

@@ -1,4 +1,4 @@
-import type { GeneratePortalTokenUseCase, AuthContext } from '../../../tenant-portal/application/use-cases/generate-portal-token.use-case';
+import type { GeneratePortalTokenUseCase, AuthContext } from '../../../rental-tenant-portal/application/use-cases/generate-portal-token.use-case';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import type { BulkResendReminderResult } from '@properfy/shared';
 

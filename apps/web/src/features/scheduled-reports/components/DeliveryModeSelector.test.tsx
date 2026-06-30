@@ -16,7 +16,7 @@ describe('DeliveryModeSelector', () => {
 
   it('renders TENANT_WIDE label', () => {
     render(<DeliveryModeSelector value="TENANT_WIDE" onChange={vi.fn()} />);
-    expect(screen.getByText('All users in tenant')).toBeInTheDocument();
+    expect(screen.getByText('All users in agency')).toBeInTheDocument();
   });
 
   it('calls onChange when a mode is selected', async () => {

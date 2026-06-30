@@ -27,7 +27,7 @@ function makeAppointmentEntity(overrides: Partial<ConstructorParameters<typeof A
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 150,
     payoutAmount: 80,
     pricingRuleSnapshotJson: {},
@@ -50,7 +50,7 @@ function makeContact(): AppointmentContactEntity {
   return new AppointmentContactEntity({
     id: 'contact-1',
     appointmentId: 'appt-1',
-    tenantName: 'John Smith',
+    rentalTenantName: 'John Smith',
     primaryEmail: 'john@example.com',
     secondaryEmail: null,
     primaryPhone: '+61400000000',
@@ -218,7 +218,7 @@ describe('GetAppointmentUseCase', () => {
     });
 
     expect(result.contact).not.toBeNull();
-    expect(result.contact?.tenantName).toBe('John Smith');
+    expect(result.contact?.rentalTenantName).toBe('John Smith');
     expect(result.restrictions).toHaveLength(1);
     expect(result.restrictions[0].source).toBe('OPERATOR');
   });

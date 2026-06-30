@@ -5,7 +5,7 @@
  * Consumers reading `response.data.<field>` would silently see
  * `undefined` (the same class of bug as BUG-023-001 — the regression
  * test for that fix lives at
- * `tests/integration/tenant-portal/tenant-portal.routes.test.ts`).
+ * `tests/integration/rental-tenant-portal/rental-tenant-portal.routes.test.ts`).
  * This file pins the canonical `{ data: { ... } }` shape for each
  * endpoint touched by the cleanup.
  */

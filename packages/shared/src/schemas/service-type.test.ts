@@ -10,22 +10,22 @@ describe('createServiceTypeSchema', () => {
     code: 'ROUTINE_INSP',
     name: 'Routine Inspection',
     flowType: 'ROUTINE' as const,
-    requiresTenantConfirmation: true,
+    requiresRentalTenantConfirmation: true,
   };
 
-  it('should accept valid input with requiresTenantConfirmation=true', () => {
+  it('should accept valid input with requiresRentalTenantConfirmation=true', () => {
     const result = createServiceTypeSchema.safeParse(validInput);
     expect(result.success).toBe(true);
   });
 
-  it('should accept requiresTenantConfirmation=false', () => {
-    const result = createServiceTypeSchema.safeParse({ ...validInput, requiresTenantConfirmation: false });
+  it('should accept requiresRentalTenantConfirmation=false', () => {
+    const result = createServiceTypeSchema.safeParse({ ...validInput, requiresRentalTenantConfirmation: false });
     expect(result.success).toBe(true);
-    if (result.success) expect(result.data.requiresTenantConfirmation).toBe(false);
+    if (result.success) expect(result.data.requiresRentalTenantConfirmation).toBe(false);
   });
 
-  it('should reject missing requiresTenantConfirmation', () => {
-    const { requiresTenantConfirmation: _, ...rest } = validInput;
+  it('should reject missing requiresRentalTenantConfirmation', () => {
+    const { requiresRentalTenantConfirmation: _, ...rest } = validInput;
     const result = createServiceTypeSchema.safeParse(rest);
     expect(result.success).toBe(false);
   });

@@ -34,7 +34,7 @@ export interface DashboardStatsOutput {
     scheduledDate: string;
   }>;
   pendingActions: {
-    noResponseTenants: number;
+    noResponseRentalTenants: number;
     pendingOperatorCrossChecks: number;
     pendingFinancialEntries: number;
     processingReports: number;

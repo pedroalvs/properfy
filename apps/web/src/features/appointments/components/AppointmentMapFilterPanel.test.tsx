@@ -16,7 +16,7 @@ vi.mock('@/lib/status-colors', () => ({
     REJECTED: { bg: '#FFAB91', text: '#000', label: 'Rejected' },
   },
   SERVICE_GROUP_STATUS_MAP: {
-    DRAFT: { bg: '#E1BEE7', text: '#000', label: 'Awaiting Host' },
+    DRAFT: { bg: '#E1BEE7', text: '#000', label: 'Draft' },
     PUBLISHED: { bg: '#FFE0B2', text: '#000', label: 'Awaiting Inspector' },
     ACCEPTED: { bg: '#C8E6C9', text: '#000', label: 'Accepted' },
     CANCELLED: { bg: '#FFCDD2', text: '#000', label: 'Canceled' },
@@ -71,12 +71,12 @@ describe('AppointmentMapFilterPanel', () => {
 
   it('group mode shows correct default status selections', () => {
     renderPanel({ mode: 'groups' });
-    const awaitingHost = screen.getByRole('button', { name: 'Awaiting Host' });
+    const draftGroup = screen.getByRole('button', { name: 'Draft' });
     const awaitingInspector = screen.getByRole('button', { name: 'Awaiting Inspector' });
     const accepted = screen.getByRole('button', { name: 'Accepted' });
     const canceled = screen.getByRole('button', { name: 'Canceled' });
 
-    expect(awaitingHost.getAttribute('aria-pressed')).toBe('true');
+    expect(draftGroup.getAttribute('aria-pressed')).toBe('true');
     expect(awaitingInspector.getAttribute('aria-pressed')).toBe('true');
     expect(accepted.getAttribute('aria-pressed')).toBe('true');
     expect(canceled.getAttribute('aria-pressed')).toBe('true');

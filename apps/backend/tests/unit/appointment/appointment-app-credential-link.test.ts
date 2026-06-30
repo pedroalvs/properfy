@@ -54,7 +54,7 @@ function makeRepos() {
   const serviceTypeRepo = {
     findById: vi.fn().mockResolvedValue(new ServiceTypeEntity({
       id: 'svc-type-1', code: 'ROUTINE', name: 'Routine', flowType: 'STANDARD',
-      requiresTenantConfirmation: false, status: 'ACTIVE', createdAt: new Date(), updatedAt: new Date(),
+      requiresRentalTenantConfirmation: false, status: 'ACTIVE', createdAt: new Date(), updatedAt: new Date(),
     })),
   } as any;
   const pricingRuleRepo = {
@@ -81,7 +81,7 @@ function makeActor(): AuthContext {
 const baseInput = {
   branchId: BRANCH_B, propertyId: PROPERTY_B, serviceTypeId: 'svc-type-1',
   scheduledDate: futureDateStr(60), timeSlot: '09:00-10:00', keyRequired: false,
-  contacts: [{ contactId: undefined, inline: { type: 'TENANT', displayName: 'Pat', primaryEmail: 'p@x.com' }, role: 'TENANT', isPrimary: true }] as any,
+  contacts: [{ contactId: undefined, inline: { type: 'RENTAL_TENANT', displayName: 'Pat', primaryEmail: 'p@x.com' }, role: 'RENTAL_TENANT', isPrimary: true }] as any,
 };
 
 describe('CreateAppointmentUseCase — app-credential linking', () => {

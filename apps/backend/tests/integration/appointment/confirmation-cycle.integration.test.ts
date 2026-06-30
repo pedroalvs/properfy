@@ -8,9 +8,9 @@
  *   1. Creates an appointment with an ACTIVE portal token and a PENDING cycle.
  *   2. Calls `invalidateOnReopen` — the outer transaction must:
  *      a. Mark the cycle SUPERSEDED in `appointment_confirmation_cycles`
- *      b. Mark the token SUPERSEDED in `tenant_portal_tokens`
+ *      b. Mark the token SUPERSEDED in `rental_tenant_portal_tokens`
  *      c. Clear `active_confirmation_cycle_id` on the appointment row
- *      d. Set `tenant_confirmation_status` to PENDING (reset denorm)
+ *      d. Set `rental_tenant_confirmation_status` to PENDING (reset denorm)
  *   3. Verifies all four side-effects in the same DB query after the call.
  *   4. Verifies no half-applied state is observable (the "atomicity" contract):
  *      if a subsequent read sees the cycle as SUPERSEDED, the token MUST also
@@ -18,7 +18,7 @@
  *
  * Why this cannot be covered by unit tests:
  *   - Unit mocks accept any arguments and return configured values; they cannot
- *     detect that `prisma.tenantPortalToken.update(...)` was simply never called.
+ *     detect that `prisma.rentalTenantPortalToken.update(...)` was simply never called.
  *   - BUG-01 from QA cycle 1/2 was precisely this: `invalidateOnReopen` reached
  *     into the tx manually but skipped the token-update step, passing all unit
  *     tests. Only a real-DB test reading back the token row reveals the gap.
@@ -66,7 +66,7 @@ async function seedAppointmentWithActiveCycle(prisma: PrismaClient) {
     data: {
       code: `C1-ST-${suffix}`,
       name: `C1 Routine ${suffix}`, flow_type: 'ROUTINE',
-      requires_tenant_confirmation: true, status: 'ACTIVE',
+      requires_rental_tenant_confirmation: true, status: 'ACTIVE',
     },
   });
   const user = await prisma.user.create({
@@ -84,13 +84,13 @@ async function seedAppointmentWithActiveCycle(prisma: PrismaClient) {
       service_type_id: serviceType.id, status: 'SCHEDULED',
       scheduled_date: new Date('2026-07-01'), time_slot: 'MORNING',
       price_amount: '100.00', payout_amount: '80.00',
-      pricing_rule_snapshot_json: {}, tenant_confirmation_status: 'PENDING',
+      pricing_rule_snapshot_json: {}, rental_tenant_confirmation_status: 'PENDING',
       created_by_user_id: user.id,
     },
   });
 
   // Create portal token
-  const token = await prisma.tenantPortalToken.create({
+  const token = await prisma.rentalTenantPortalToken.create({
     data: {
       appointment_id: appointment.id,
       token_hash: `hash-${Math.random().toString(36).slice(2)}`,
@@ -110,7 +110,7 @@ async function seedAppointmentWithActiveCycle(prisma: PrismaClient) {
   });
 
   // Link the token to the cycle and set appointment denorm
-  await prisma.tenantPortalToken.update({
+  await prisma.rentalTenantPortalToken.update({
     where: { id: token.id },
     data: { confirmation_cycle_id: cycle.id },
   });
@@ -134,13 +134,13 @@ describe('C1 — confirmation-cycle atomicity (real DB)', () => {
     expect(cycle?.invalidated_at).not.toBeNull();
 
     // Verify token marked SUPERSEDED (BUG-01 guard: this was the missing step)
-    const token = await harness.prisma.tenantPortalToken.findUnique({ where: { id: tokenId } });
+    const token = await harness.prisma.rentalTenantPortalToken.findUnique({ where: { id: tokenId } });
     expect(token?.status).toBe('SUPERSEDED');
 
     // Verify appointment denorm cleared
     const appointment = await harness.prisma.appointment.findUnique({ where: { id: appointmentId } });
     expect(appointment?.active_confirmation_cycle_id).toBeNull();
-    expect(appointment?.tenant_confirmation_status).toBe('PENDING');
+    expect(appointment?.rental_tenant_confirmation_status).toBe('PENDING');
   });
 
   it('invalidateOnReopen is a no-op when no active cycle exists', async () => {
@@ -163,7 +163,7 @@ describe('C1 — confirmation-cycle atomicity (real DB)', () => {
     const serviceType = await harness.prisma.serviceType.create({
       data: {
         code: `NOP-${nopSuffix}`, name: `NOP ST ${nopSuffix}`,
-        flow_type: 'ROUTINE', requires_tenant_confirmation: true, status: 'ACTIVE',
+        flow_type: 'ROUTINE', requires_rental_tenant_confirmation: true, status: 'ACTIVE',
       },
     });
     const user = await harness.prisma.user.create({
@@ -179,7 +179,7 @@ describe('C1 — confirmation-cycle atomicity (real DB)', () => {
         service_type_id: serviceType.id, status: 'SCHEDULED',
         scheduled_date: new Date('2026-07-01'), time_slot: 'MORNING',
         price_amount: '100.00', payout_amount: '80.00',
-        pricing_rule_snapshot_json: {}, tenant_confirmation_status: 'PENDING',
+        pricing_rule_snapshot_json: {}, rental_tenant_confirmation_status: 'PENDING',
         created_by_user_id: user.id,
       },
     });
@@ -197,7 +197,7 @@ describe('C1 — confirmation-cycle atomicity (real DB)', () => {
     // structural guarantee that both columns changed in the same transaction.
     const [cycle, token] = await Promise.all([
       harness.prisma.appointmentConfirmationCycle.findUnique({ where: { id: cycleId } }),
-      harness.prisma.tenantPortalToken.findUnique({ where: { id: tokenId } }),
+      harness.prisma.rentalTenantPortalToken.findUnique({ where: { id: tokenId } }),
     ]);
 
     // Either both are SUPERSEDED or neither is (consistency check)

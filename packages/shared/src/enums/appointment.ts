@@ -8,16 +8,16 @@ export const AppointmentStatus = {
 } as const;
 export type AppointmentStatus = (typeof AppointmentStatus)[keyof typeof AppointmentStatus];
 
-export const TenantConfirmationStatus = {
+export const RentalTenantConfirmationStatus = {
   PENDING: 'PENDING',
   CONFIRMED: 'CONFIRMED',
   UNAVAILABLE: 'UNAVAILABLE',
   NO_RESPONSE: 'NO_RESPONSE',
 } as const;
-export type TenantConfirmationStatus = (typeof TenantConfirmationStatus)[keyof typeof TenantConfirmationStatus];
+export type RentalTenantConfirmationStatus = (typeof RentalTenantConfirmationStatus)[keyof typeof RentalTenantConfirmationStatus];
 
 export const RestrictionSource = {
-  TENANT_PORTAL: 'TENANT_PORTAL',
+  RENTAL_TENANT_PORTAL: 'RENTAL_TENANT_PORTAL',
   OPERATOR: 'OPERATOR',
   IMPORT: 'IMPORT',
 } as const;

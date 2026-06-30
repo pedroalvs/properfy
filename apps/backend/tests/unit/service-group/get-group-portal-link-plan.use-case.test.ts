@@ -22,7 +22,7 @@ function row(overrides: Partial<GroupAppointmentConfirmationRow>): GroupAppointm
     status: 'AWAITING_INSPECTOR',
     scheduledDate: DATE_A,
     timeSlot: SLOT,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     activeCycle: null,
     propertyCode: 'P-001',
     propertyAddress: '1 Main St, Sydney',
@@ -53,9 +53,9 @@ describe('GetGroupPortalLinkPlanUseCase', () => {
 
   it('classifies a mixed list and produces summary counts', async () => {
     groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([
-      row({ id: 'a-send', tenantConfirmationStatus: 'PENDING' }),
-      row({ id: 'a-confirmed', tenantConfirmationStatus: 'CONFIRMED', activeCycle: { scheduledDate: DATE_A, timeSlot: SLOT, status: 'CONFIRMED' } }),
-      row({ id: 'a-stale', tenantConfirmationStatus: 'CONFIRMED', scheduledDate: DATE_B, activeCycle: { scheduledDate: DATE_A, timeSlot: SLOT, status: 'CONFIRMED' } }),
+      row({ id: 'a-send', rentalTenantConfirmationStatus: 'PENDING' }),
+      row({ id: 'a-confirmed', rentalTenantConfirmationStatus: 'CONFIRMED', activeCycle: { scheduledDate: DATE_A, timeSlot: SLOT, status: 'CONFIRMED' } }),
+      row({ id: 'a-stale', rentalTenantConfirmationStatus: 'CONFIRMED', scheduledDate: DATE_B, activeCycle: { scheduledDate: DATE_A, timeSlot: SLOT, status: 'CONFIRMED' } }),
       row({ id: 'a-draft', status: 'DRAFT' }),
     ]);
 

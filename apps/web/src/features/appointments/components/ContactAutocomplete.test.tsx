@@ -58,7 +58,7 @@ describe('ContactAutocomplete', () => {
 
   it('shows results when available', () => {
     mockResults.push(
-      { id: 'c-1', displayName: 'John Doe', primaryEmail: 'john@test.com', primaryPhone: null, type: 'TENANT', isActive: true },
+      { id: 'c-1', displayName: 'John Doe', primaryEmail: 'john@test.com', primaryPhone: null, type: 'RENTAL_TENANT', isActive: true },
     );
     mockSearchValue = 'John';
 
@@ -76,7 +76,7 @@ describe('ContactAutocomplete', () => {
   });
 
   it('calls onSelect when a contact is clicked', () => {
-    const contact = { id: 'c-1', displayName: 'John Doe', primaryEmail: 'john@test.com', primaryPhone: null, type: 'TENANT', isActive: true };
+    const contact = { id: 'c-1', displayName: 'John Doe', primaryEmail: 'john@test.com', primaryPhone: null, type: 'RENTAL_TENANT', isActive: true };
     mockResults.push(contact);
     mockSearchValue = 'John';
 

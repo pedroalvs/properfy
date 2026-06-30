@@ -60,10 +60,10 @@ export const SERVICE_GROUP_EVENTS = {
 } as const;
 
 export const TENANT_PORTAL_EVENTS = {
-  CONFIRMED: 'tenant_portal.confirmed.v1',
-  RESCHEDULED: 'tenant_portal.rescheduled.v1',
-  CONTACT_UPDATED: 'tenant_portal.contact_updated.v1',
-  UNAVAILABLE: 'tenant_portal.unavailable.v1',
+  CONFIRMED: 'rental_tenant_portal.confirmed.v1',
+  RESCHEDULED: 'rental_tenant_portal.rescheduled.v1',
+  CONTACT_UPDATED: 'rental_tenant_portal.contact_updated.v1',
+  UNAVAILABLE: 'rental_tenant_portal.unavailable.v1',
 } as const;
 
 export const APPOINTMENT_EVENTS = {

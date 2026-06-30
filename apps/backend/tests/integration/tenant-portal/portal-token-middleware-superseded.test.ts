@@ -15,9 +15,9 @@
  *     superseded by a newer one. Tenant-facing UI can show "A new link has been sent".
  *
  * Tested routes (all behind `portalAuth`):
- *   GET  /v1/tenant-portal/:token       → 410 (portal data)
- *   POST /v1/tenant-portal/:token/confirm → 410 (confirm action)
- *   POST /v1/tenant-portal/:token/reschedule → 410 (reschedule action)
+ *   GET  /v1/rental-tenant-portal/:token       → 410 (portal data)
+ *   POST /v1/rental-tenant-portal/:token/confirm → 410 (confirm action)
+ *   POST /v1/rental-tenant-portal/:token/reschedule → 410 (reschedule action)
  *
  * Uses mock-container with `tokenRepo.findByTokenHash` returning a SUPERSEDED
  * token entity — the same strategy used by all other portal route tests in this
@@ -30,7 +30,7 @@ import supertest from 'supertest';
 import { buildApp } from '../../../src/main/server';
 import type { FastifyInstance } from 'fastify';
 import { createMockContainer } from '../../helpers/mock-container';
-import { TenantPortalTokenEntity } from '../../../src/modules/tenant-portal/domain/tenant-portal-token.entity';
+import { RentalTenantPortalTokenEntity } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-token.entity';
 
 const mockFindByTokenHash = vi.fn();
 const mockHashToken = vi.fn();
@@ -49,7 +49,7 @@ vi.mock('../../../src/main/container', () => ({
     audit: { jwtService: { verify: mockJwtVerify } },
     serviceGroup: { jwtService: { verify: mockJwtVerify } },
     marketplace: { jwtService: { verify: mockJwtVerify } },
-    tenantPortal: {
+    rentalTenantPortal: {
       getPortalDataUseCase: { execute: vi.fn() },
       confirmAppointmentUseCase: { execute: vi.fn() },
       rescheduleRequestUseCase: { execute: vi.fn() },
@@ -81,8 +81,8 @@ const APPOINTMENT_ID = 'c0000000-0000-4000-8000-000000000001';
 const TOKEN_ID = 'd0000000-0000-4000-8000-000000000002';
 const RAW_TOKEN = 'raw-superseded-token';
 
-function makeSupersededToken(): TenantPortalTokenEntity {
-  return new TenantPortalTokenEntity({
+function makeSupersededToken(): RentalTenantPortalTokenEntity {
+  return new RentalTenantPortalTokenEntity({
     id: TOKEN_ID,
     appointmentId: APPOINTMENT_ID,
     tokenHash: 'hashed-superseded',
@@ -115,32 +115,32 @@ beforeEach(() => {
 });
 
 describe('Portal middleware — SUPERSEDED token → 410', () => {
-  it('GET /v1/tenant-portal/:token returns 410 for SUPERSEDED token', async () => {
+  it('GET /v1/rental-tenant-portal/:token returns 410 for SUPERSEDED token', async () => {
     mockFindByTokenHash.mockResolvedValueOnce(makeSupersededToken());
 
     const res = await supertest(app.server)
-      .get(`/v1/tenant-portal/${RAW_TOKEN}`);
+      .get(`/v1/rental-tenant-portal/${RAW_TOKEN}`);
 
     expect(res.status).toBe(410);
     expect(res.body.error.code).toBe('PORTAL_TOKEN_SUPERSEDED');
   });
 
-  it('POST /v1/tenant-portal/:token/confirm returns 410 for SUPERSEDED token', async () => {
+  it('POST /v1/rental-tenant-portal/:token/confirm returns 410 for SUPERSEDED token', async () => {
     mockFindByTokenHash.mockResolvedValueOnce(makeSupersededToken());
 
     const res = await supertest(app.server)
-      .post(`/v1/tenant-portal/${RAW_TOKEN}/confirm`)
+      .post(`/v1/rental-tenant-portal/${RAW_TOKEN}/confirm`)
       .send({ confirmedByTenant: true });
 
     expect(res.status).toBe(410);
     expect(res.body.error.code).toBe('PORTAL_TOKEN_SUPERSEDED');
   });
 
-  it('POST /v1/tenant-portal/:token/reschedule returns 410 for SUPERSEDED token', async () => {
+  it('POST /v1/rental-tenant-portal/:token/reschedule returns 410 for SUPERSEDED token', async () => {
     mockFindByTokenHash.mockResolvedValueOnce(makeSupersededToken());
 
     const res = await supertest(app.server)
-      .post(`/v1/tenant-portal/${RAW_TOKEN}/reschedule`)
+      .post(`/v1/rental-tenant-portal/${RAW_TOKEN}/reschedule`)
       .send({ newDate: '2026-09-01', newTimeSlot: 'MORNING' });
 
     expect(res.status).toBe(410);
@@ -148,7 +148,7 @@ describe('Portal middleware — SUPERSEDED token → 410', () => {
   });
 
   it('ACTIVE token does not return 410', async () => {
-    const activeToken = new TenantPortalTokenEntity({
+    const activeToken = new RentalTenantPortalTokenEntity({
       id: TOKEN_ID,
       appointmentId: APPOINTMENT_ID,
       tokenHash: 'hashed-superseded',
@@ -165,7 +165,7 @@ describe('Portal middleware — SUPERSEDED token → 410', () => {
     mockFindByTokenHash.mockResolvedValueOnce(activeToken);
 
     const res = await supertest(app.server)
-      .get(`/v1/tenant-portal/${RAW_TOKEN}`);
+      .get(`/v1/rental-tenant-portal/${RAW_TOKEN}`);
 
     // 410 is specifically for SUPERSEDED — active token should not trigger it
     expect(res.status).not.toBe(410);

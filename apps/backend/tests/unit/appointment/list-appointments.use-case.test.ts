@@ -21,7 +21,7 @@ function makeAppointmentListItem(overrides: Partial<ConstructorParameters<typeof
       keyRequired: false,
       meetingLocation: null,
       keyLocation: null,
-      tenantConfirmationStatus: 'PENDING',
+      rentalTenantConfirmationStatus: 'PENDING',
       priceAmount: 150,
       payoutAmount: 80,
       pricingRuleSnapshotJson: {},
@@ -424,35 +424,35 @@ describe('ListAppointmentsUseCase', () => {
     });
   });
 
-  describe('hasTenantNote filter', () => {
-    it('passes hasTenantNote=true filter to repository', async () => {
+  describe('hasRentalTenantNote filter', () => {
+    it('passes hasRentalTenantNote=true filter to repository', async () => {
       vi.mocked(appointmentRepo.findAll).mockResolvedValue([]);
       vi.mocked(appointmentRepo.count).mockResolvedValue(0);
 
       await useCase.execute({
-        filters: { hasTenantNote: true },
+        filters: { hasRentalTenantNote: true },
         pagination: defaultPagination,
         actor: makeActor({ role: 'AM' }),
       });
 
       expect(appointmentRepo.findAll).toHaveBeenCalledWith(
-        expect.objectContaining({ hasTenantNote: true }),
+        expect.objectContaining({ hasRentalTenantNote: true }),
         defaultPagination,
       );
     });
 
-    it('passes hasTenantNote=false filter to repository', async () => {
+    it('passes hasRentalTenantNote=false filter to repository', async () => {
       vi.mocked(appointmentRepo.findAll).mockResolvedValue([]);
       vi.mocked(appointmentRepo.count).mockResolvedValue(0);
 
       await useCase.execute({
-        filters: { hasTenantNote: false },
+        filters: { hasRentalTenantNote: false },
         pagination: defaultPagination,
         actor: makeActor({ role: 'AM' }),
       });
 
       expect(appointmentRepo.findAll).toHaveBeenCalledWith(
-        expect.objectContaining({ hasTenantNote: false }),
+        expect.objectContaining({ hasRentalTenantNote: false }),
         defaultPagination,
       );
     });

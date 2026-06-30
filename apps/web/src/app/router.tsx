@@ -50,7 +50,7 @@ const TenantListPage = Loadable(lazyRetry(() => import('@/features/tenants/pages
 const TenantDetailPage = Loadable(lazyRetry(() => import('@/features/tenants/pages/TenantDetailPage').then(m => ({ default: m.TenantDetailPage }))));
 const ReportListPage = Loadable(lazyRetry(() => import('@/features/reports/pages/ReportListPage').then(m => ({ default: m.ReportListPage }))));
 const DashboardPage = Loadable(lazyRetry(() => import('@/features/dashboard/pages/DashboardPage').then(m => ({ default: m.DashboardPage }))));
-const PortalPage = Loadable(lazyRetry(() => import('@/features/tenant-portal/pages/PortalPage').then(m => ({ default: m.PortalPage }))));
+const PortalPage = Loadable(lazyRetry(() => import('@/features/rental-tenant-portal/pages/PortalPage').then(m => ({ default: m.PortalPage }))));
 const ServiceTypeListPage = Loadable(lazyRetry(() => import('@/features/service-types/pages/ServiceTypeListPage').then(m => ({ default: m.ServiceTypeListPage }))));
 const PricingRuleListPage = Loadable(lazyRetry(() => import('@/features/pricing-rules/pages/PricingRuleListPage').then(m => ({ default: m.PricingRuleListPage }))));
 const AccountSettingsPage = Loadable(lazyRetry(() => import('@/features/settings/pages/AccountSettingsPage').then(m => ({ default: m.AccountSettingsPage }))));
@@ -75,7 +75,7 @@ import { AppErrorBoundary } from '@/components/feedback/AppErrorBoundary';
 
 function PortalRedirect() {
   const { token } = useParams();
-  return <Navigate to={`/tenant-portal/${token}`} replace />;
+  return <Navigate to={`/rental-tenant-portal/${token}`} replace />;
 }
 
 /**
@@ -98,8 +98,14 @@ export const router = createBrowserRouter([
     errorElement: <AppErrorBoundary />,
   },
   {
-    path: '/tenant-portal/:token',
+    path: '/rental-tenant-portal/:token',
     element: <PortalPage />,
+    errorElement: <AppErrorBoundary />,
+  },
+  {
+    // Legacy alias: magic links already sent point here → redirect to canonical.
+    path: '/tenant-portal/:token',
+    element: <PortalRedirect />,
     errorElement: <AppErrorBoundary />,
   },
   {

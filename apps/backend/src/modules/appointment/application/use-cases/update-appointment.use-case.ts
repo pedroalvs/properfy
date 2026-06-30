@@ -47,7 +47,7 @@ export interface UpdateAppointmentInput {
     customFields?: Record<string, unknown> | null;
     /** @deprecated Use contacts array */
     contact?: {
-      tenantName: string;
+      rentalTenantName: string;
       primaryEmail?: string | null;
       secondaryEmail?: string | null;
       primaryPhone?: string | null;
@@ -95,7 +95,7 @@ export interface UpdateAppointmentOutput {
   keyRequired: boolean;
   meetingLocation: string | null;
   keyLocation: string | null;
-  tenantConfirmationStatus: string;
+  rentalTenantConfirmationStatus: string;
   priceAmount: number;
   payoutAmount: number;
   pricingRuleSnapshotJson: Record<string, unknown>;
@@ -299,7 +299,7 @@ export class UpdateAppointmentUseCase {
           id: crypto.randomUUID(), appointmentId, contactId: cId,
           role: entry.role as AppointmentContactRole, isPrimary: entry.isPrimary,
           snapshotName: sName, snapshotEmail: sEmail, snapshotPhone: sPhone,
-          tenantName: sName, primaryEmail: sEmail, secondaryEmail: null,
+          rentalTenantName: sName, primaryEmail: sEmail, secondaryEmail: null,
           primaryPhone: sPhone, secondaryPhone: null, createdAt: now, updatedAt: now,
         }));
       }
@@ -307,7 +307,7 @@ export class UpdateAppointmentUseCase {
       // Legacy path: single contact upsert (backward compat)
       if (found.contact) {
         await this.appointmentRepo.updateContact(appointmentId, {
-          tenantName: data.contact.tenantName,
+          rentalTenantName: data.contact.rentalTenantName,
           primaryEmail: data.contact.primaryEmail ?? null,
           secondaryEmail: data.contact.secondaryEmail ?? null,
           primaryPhone: data.contact.primaryPhone ?? null,
@@ -317,10 +317,10 @@ export class UpdateAppointmentUseCase {
         const now = this.clock.now();
         const contact = new AppointmentContactEntity({
           id: crypto.randomUUID(), appointmentId, contactId: null,
-          role: 'TENANT' as AppointmentContactRole, isPrimary: true,
-          snapshotName: data.contact.tenantName, snapshotEmail: data.contact.primaryEmail ?? null,
+          role: 'RENTAL_TENANT' as AppointmentContactRole, isPrimary: true,
+          snapshotName: data.contact.rentalTenantName, snapshotEmail: data.contact.primaryEmail ?? null,
           snapshotPhone: data.contact.primaryPhone ?? null,
-          tenantName: data.contact.tenantName, primaryEmail: data.contact.primaryEmail ?? null,
+          rentalTenantName: data.contact.rentalTenantName, primaryEmail: data.contact.primaryEmail ?? null,
           secondaryEmail: data.contact.secondaryEmail ?? null,
           primaryPhone: data.contact.primaryPhone ?? null, secondaryPhone: data.contact.secondaryPhone ?? null,
           createdAt: now, updatedAt: now,
@@ -424,7 +424,7 @@ export class UpdateAppointmentUseCase {
       keyRequired: after.keyRequired as boolean,
       meetingLocation: after.meetingLocation,
       keyLocation: after.keyLocation,
-      tenantConfirmationStatus: appointment.tenantConfirmationStatus,
+      rentalTenantConfirmationStatus: appointment.rentalTenantConfirmationStatus,
       priceAmount: appointment.priceAmount,
       payoutAmount: appointment.payoutAmount,
       pricingRuleSnapshotJson: appointment.pricingRuleSnapshotJson,

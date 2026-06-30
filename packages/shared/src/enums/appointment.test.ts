@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { AppointmentStatus, TenantConfirmationStatus, RestrictionSource } from './appointment';
+import { AppointmentStatus, RentalTenantConfirmationStatus, RestrictionSource } from './appointment';
 
 describe('AppointmentStatus', () => {
   it('should have all expected values', () => {
@@ -16,18 +16,18 @@ describe('AppointmentStatus', () => {
   });
 });
 
-describe('TenantConfirmationStatus', () => {
+describe('RentalTenantConfirmationStatus', () => {
   it('should have all expected values', () => {
-    expect(TenantConfirmationStatus.PENDING).toBe('PENDING');
-    expect(TenantConfirmationStatus.CONFIRMED).toBe('CONFIRMED');
-    expect(TenantConfirmationStatus.UNAVAILABLE).toBe('UNAVAILABLE');
-    expect(TenantConfirmationStatus.NO_RESPONSE).toBe('NO_RESPONSE');
+    expect(RentalTenantConfirmationStatus.PENDING).toBe('PENDING');
+    expect(RentalTenantConfirmationStatus.CONFIRMED).toBe('CONFIRMED');
+    expect(RentalTenantConfirmationStatus.UNAVAILABLE).toBe('UNAVAILABLE');
+    expect(RentalTenantConfirmationStatus.NO_RESPONSE).toBe('NO_RESPONSE');
   });
 });
 
 describe('RestrictionSource', () => {
   it('should have all expected values', () => {
-    expect(RestrictionSource.TENANT_PORTAL).toBe('TENANT_PORTAL');
+    expect(RestrictionSource.RENTAL_TENANT_PORTAL).toBe('RENTAL_TENANT_PORTAL');
     expect(RestrictionSource.OPERATOR).toBe('OPERATOR');
     expect(RestrictionSource.IMPORT).toBe('IMPORT');
   });

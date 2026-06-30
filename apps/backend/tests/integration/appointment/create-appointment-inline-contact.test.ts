@@ -67,7 +67,7 @@ function makeAppointmentResult(contactOverrides: Record<string, unknown>[] = [])
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 150,
     payoutAmount: 80,
     pricingRuleSnapshotJson: {},
@@ -105,7 +105,7 @@ describe('POST /v1/appointments — inline contact idempotency (feature 021)', (
     mockCreateAppointmentExecute.mockResolvedValue(makeAppointmentResult([{
       id: 'junction-1',
       contactId: EXISTING_CONTACT_ID,
-      role: 'TENANT',
+      role: 'RENTAL_TENANT',
       isPrimary: true,
       snapshotName: 'Alice Smith',
       snapshotEmail: 'alice@example.com',
@@ -119,11 +119,11 @@ describe('POST /v1/appointments — inline contact idempotency (feature 021)', (
         ...basePayload,
         contacts: [{
           inline: {
-            type: 'TENANT',
+            type: 'RENTAL_TENANT',
             displayName: 'Alice Smith',
             primaryEmail: 'alice@example.com',
           },
-          role: 'TENANT',
+          role: 'RENTAL_TENANT',
           isPrimary: true,
         }],
       });
@@ -155,8 +155,8 @@ describe('POST /v1/appointments — inline contact idempotency (feature 021)', (
       .send({
         ...basePayload,
         contacts: [{
-          inline: { type: 'TENANT', displayName: 'No Channel Contact' },
-          role: 'TENANT',
+          inline: { type: 'RENTAL_TENANT', displayName: 'No Channel Contact' },
+          role: 'RENTAL_TENANT',
           isPrimary: true,
         }],
       });
@@ -171,7 +171,7 @@ describe('POST /v1/appointments — inline contact idempotency (feature 021)', (
       {
         id: 'junction-1',
         contactId: 'cid-1',
-        role: 'TENANT',
+        role: 'RENTAL_TENANT',
         isPrimary: true,
         snapshotName: 'Primary Tenant',
         snapshotEmail: 'primary@example.com',
@@ -195,8 +195,8 @@ describe('POST /v1/appointments — inline contact idempotency (feature 021)', (
         ...basePayload,
         contacts: [
           {
-            inline: { type: 'TENANT', displayName: 'Primary Tenant', primaryEmail: 'primary@example.com' },
-            role: 'TENANT',
+            inline: { type: 'RENTAL_TENANT', displayName: 'Primary Tenant', primaryEmail: 'primary@example.com' },
+            role: 'RENTAL_TENANT',
             isPrimary: true,
           },
           {
@@ -210,7 +210,7 @@ describe('POST /v1/appointments — inline contact idempotency (feature 021)', (
     expect(res.status).toBe(201);
     expect(res.body.data.contacts).toHaveLength(2);
     const roles = res.body.data.contacts.map((c: { role: string }) => c.role);
-    expect(roles).toContain('TENANT');
+    expect(roles).toContain('RENTAL_TENANT');
     expect(roles).toContain('PROPERTY_MANAGER');
     const primaries = res.body.data.contacts.filter((c: { isPrimary: boolean }) => c.isPrimary);
     expect(primaries).toHaveLength(1);

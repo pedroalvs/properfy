@@ -74,7 +74,7 @@ export class RejectUnconfirmedAppointmentsUseCase {
             status: 'REJECTED',
             reason: REJECTION_REASON,
             rejectionReasonCode: 'TENANT_NO_RESPONSE',
-            tenantConfirmationStatus: 'NO_RESPONSE',
+            rentalTenantConfirmationStatus: 'NO_RESPONSE',
             serviceGroupId: null,
           });
           if (this.cycleService) {
@@ -102,12 +102,12 @@ export class RejectUnconfirmedAppointmentsUseCase {
           tenantId: appointment.tenantId,
           before: {
             status: previousStatus,
-            tenantConfirmationStatus: appointment.tenantConfirmationStatus,
+            rentalTenantConfirmationStatus: appointment.rentalTenantConfirmationStatus,
             serviceGroupId: appointment.serviceGroupId,
           },
           after: {
             status: 'REJECTED',
-            tenantConfirmationStatus: 'NO_RESPONSE',
+            rentalTenantConfirmationStatus: 'NO_RESPONSE',
             rejectionReasonCode: 'TENANT_NO_RESPONSE',
             serviceGroupId: null,
           },

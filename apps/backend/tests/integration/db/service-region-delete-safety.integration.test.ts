@@ -152,7 +152,7 @@ describe('T184 — delete safety', () => {
         code: `ST-DEL-${Math.random().toString(36).slice(2, 8)}`,
         name: 'Test Service Type',
         flow_type: 'ROUTINE',
-        requires_tenant_confirmation: true,
+        requires_rental_tenant_confirmation: true,
         status: 'ACTIVE',
       },
     });

@@ -116,10 +116,10 @@ describe('Tenant appointment_code_prefix + ServiceGroup group_number (real DB)',
     // Two independent fixtures (different tenants/service types) prove the
     // sequence is global, not just increasing within one group of inserts.
     const fixtureA = await seedLegacyDoneAppointment(harness.prisma, {
-      tenantName: `Group Seq A ${randomUUID().slice(0, 8)}`,
+      rentalTenantName: `Group Seq A ${randomUUID().slice(0, 8)}`,
     });
     const fixtureB = await seedLegacyDoneAppointment(harness.prisma, {
-      tenantName: `Group Seq B ${randomUUID().slice(0, 8)}`,
+      rentalTenantName: `Group Seq B ${randomUUID().slice(0, 8)}`,
     });
 
     const gA = makeGroup(fixtureA.serviceTypeId, fixtureA.userId);

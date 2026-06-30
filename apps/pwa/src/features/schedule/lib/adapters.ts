@@ -1,4 +1,4 @@
-import { ServiceTypeFlowType, TenantConfirmationStatus, type AppointmentStatus } from '@properfy/shared';
+import { ServiceTypeFlowType, RentalTenantConfirmationStatus, type AppointmentStatus } from '@properfy/shared';
 import type { InspectorAppointment, InspectorAppointmentDetailResponse } from '../types';
 
 function normalizeFlowType(flowType: string | null | undefined): ServiceTypeFlowType {
@@ -8,15 +8,15 @@ function normalizeFlowType(flowType: string | null | undefined): ServiceTypeFlow
   return ServiceTypeFlowType.ROUTINE;
 }
 
-function normalizeTenantConfirmation(status: string | null | undefined): TenantConfirmationStatus {
+function normalizeTenantConfirmation(status: string | null | undefined): RentalTenantConfirmationStatus {
   if (
-    status === TenantConfirmationStatus.CONFIRMED
-    || status === TenantConfirmationStatus.UNAVAILABLE
-    || status === TenantConfirmationStatus.NO_RESPONSE
+    status === RentalTenantConfirmationStatus.CONFIRMED
+    || status === RentalTenantConfirmationStatus.UNAVAILABLE
+    || status === RentalTenantConfirmationStatus.NO_RESPONSE
   ) {
     return status;
   }
-  return TenantConfirmationStatus.PENDING;
+  return RentalTenantConfirmationStatus.PENDING;
 }
 
 export function mapInspectorAppointmentDetail(
@@ -34,12 +34,12 @@ export function mapInspectorAppointmentDetail(
     timeSlotStart: detail.timeSlotStart,
     timeSlotEnd: detail.timeSlotEnd,
     status: detail.status as AppointmentStatus,
-    tenantConfirmation: normalizeTenantConfirmation(detail.tenantConfirmation),
+    rentalTenantConfirmation: normalizeTenantConfirmation(detail.rentalTenantConfirmation),
     serviceTypeName: detail.serviceTypeName ?? 'Inspection',
     flowType: normalizeFlowType(detail.flowType),
-    tenantName: detail.tenantName,
-    tenantPhone: detail.tenantPhone,
-    tenantEmail: detail.tenantEmail,
+    rentalTenantName: detail.rentalTenantName,
+    rentalTenantPhone: detail.rentalTenantPhone,
+    rentalTenantEmail: detail.rentalTenantEmail,
     keyRequired: detail.keyRequired,
     meetingLocation: detail.meetingLocation,
     restrictions: detail.restrictionsSummary,
