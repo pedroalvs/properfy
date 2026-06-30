@@ -10936,6 +10936,10 @@
                           "format": "uuid",
                           "nullable": true
                         },
+                        "serviceGroupCode": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "status": {
                           "type": "string"
                         },
@@ -11386,6 +11390,15 @@
             "in": "query",
             "name": "confirmationStatus",
             "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "serviceGroupId",
+            "required": false
           }
         ],
         "responses": {
@@ -11429,6 +11442,10 @@
                           "serviceGroupId": {
                             "type": "string",
                             "format": "uuid",
+                            "nullable": true
+                          },
+                          "serviceGroupCode": {
+                            "type": "string",
                             "nullable": true
                           },
                           "status": {
@@ -11749,6 +11766,10 @@
                         "serviceGroupId": {
                           "type": "string",
                           "format": "uuid",
+                          "nullable": true
+                        },
+                        "serviceGroupCode": {
+                          "type": "string",
                           "nullable": true
                         },
                         "status": {
@@ -12317,6 +12338,10 @@
                         "serviceGroupId": {
                           "type": "string",
                           "format": "uuid",
+                          "nullable": true
+                        },
+                        "serviceGroupCode": {
+                          "type": "string",
                           "nullable": true
                         },
                         "status": {

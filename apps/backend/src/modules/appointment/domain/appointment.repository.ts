@@ -84,6 +84,8 @@ export interface AppointmentListItem {
   branchName: string;
   serviceTypeName: string;
   inspectorName: string | null;
+  /** Service group's sequential number (group_number); null when ungrouped. */
+  serviceGroupNumber: number | null;
 }
 
 // `ContactFilters`, `ContactListItem`, and `ContactDetail` were retired
