@@ -4654,6 +4654,7 @@ export interface paths {
                     contactSearch?: string;
                     hasTenantNote?: boolean;
                     confirmationStatus?: "sent" | "not_sent";
+                    serviceGroupId?: string;
                 };
                 header?: never;
                 path?: never;
@@ -4683,6 +4684,7 @@ export interface paths {
                                 inspectorId: string | null;
                                 /** Format: uuid */
                                 serviceGroupId?: string | null;
+                                serviceGroupCode?: string | null;
                                 status: string;
                                 scheduledDate: string;
                                 timeSlot: string;
@@ -4866,6 +4868,7 @@ export interface paths {
                                 inspectorId: string | null;
                                 /** Format: uuid */
                                 serviceGroupId?: string | null;
+                                serviceGroupCode?: string | null;
                                 status: string;
                                 scheduledDate: string;
                                 timeSlot: string;
@@ -4972,6 +4975,7 @@ export interface paths {
                                 inspectorId: string | null;
                                 /** Format: uuid */
                                 serviceGroupId?: string | null;
+                                serviceGroupCode?: string | null;
                                 status: string;
                                 scheduledDate: string;
                                 timeSlot: string;
@@ -5154,6 +5158,7 @@ export interface paths {
                                 inspectorId: string | null;
                                 /** Format: uuid */
                                 serviceGroupId?: string | null;
+                                serviceGroupCode?: string | null;
                                 status: string;
                                 scheduledDate: string;
                                 timeSlot: string;

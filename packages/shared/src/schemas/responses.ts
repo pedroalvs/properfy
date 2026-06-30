@@ -224,6 +224,8 @@ export const appointmentResponseSchema = z.object({
   serviceTypeId: z.string().uuid(),
   inspectorId: z.string().uuid().nullable(),
   serviceGroupId: z.string().uuid().nullable().optional(),
+  /** Human-friendly service group code (String(group_number)); null/absent when ungrouped. */
+  serviceGroupCode: z.string().nullable().optional(),
   status: z.string(),
   scheduledDate: dateStr(),
   timeSlot: z.string(),
