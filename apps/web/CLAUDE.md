@@ -82,7 +82,7 @@ apps/web/
 │   │   ├── marketplace/
 │   │   ├── inspectors/
 │   │   ├── tenants/
-│   │   ├── tenant-portal/
+│   │   ├── rental-tenant-portal/
 │   │   ├── notifications/
 │   │   ├── billing/
 │   │   ├── reports/
