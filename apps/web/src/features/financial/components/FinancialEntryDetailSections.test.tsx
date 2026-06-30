@@ -40,7 +40,7 @@ describe('FinancialEntryDetailSections', () => {
 
   it('shows entry type chip and status chip', () => {
     render(<FinancialEntryDetailSections entry={baseEntry} />);
-    expect(screen.getByText('Tenant Debit')).toBeInTheDocument();
+    expect(screen.getByText('Agency Debit')).toBeInTheDocument();
     expect(screen.getByText('Approved')).toBeInTheDocument();
   });
 

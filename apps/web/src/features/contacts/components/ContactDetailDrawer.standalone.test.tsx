@@ -78,7 +78,7 @@ describe('ContactDetailDrawer — Standalone label (024 §FR-301)', () => {
     // Heading shows the contact's display name regardless of tenant linkage.
     expect(screen.getByRole('heading', { name: 'Standalone Pat' })).toBeInTheDocument();
     // The Standalone affordance appears alongside the type/status chips.
-    expect(screen.getByLabelText(/Standalone contact \(no tenant\)/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Standalone contact \(no agency\)/i)).toBeInTheDocument();
     expect(screen.getByText(/^Standalone$/)).toBeInTheDocument();
   });
 
@@ -86,6 +86,6 @@ describe('ContactDetailDrawer — Standalone label (024 §FR-301)', () => {
     renderWith('pinned');
 
     expect(screen.getByRole('heading', { name: 'Pat Manager' })).toBeInTheDocument();
-    expect(screen.queryByLabelText(/Standalone contact \(no tenant\)/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Standalone contact \(no agency\)/i)).not.toBeInTheDocument();
   });
 });

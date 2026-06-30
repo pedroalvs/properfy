@@ -122,7 +122,7 @@ describe('SERVICE_GROUP_STATUS_MAP', () => {
   });
 
   it('returns correct labels', () => {
-    expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.DRAFT].label).toBe('Awaiting Host');
+    expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.DRAFT].label).toBe('Draft');
     expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.PUBLISHED].label).toBe('Awaiting Inspector');
     expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.ACCEPTED].label).toBe('Accepted');
     expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.CANCELLED].label).toBe('Canceled');
@@ -184,8 +184,8 @@ describe('USER_ROLE_MAP', () => {
   it('returns correct labels', () => {
     expect(USER_ROLE_MAP[UserRole.AM].label).toBe('Admin Master');
     expect(USER_ROLE_MAP[UserRole.OP].label).toBe('Operator');
-    expect(USER_ROLE_MAP[UserRole.CL_ADMIN].label).toBe('Client Admin');
-    expect(USER_ROLE_MAP[UserRole.CL_USER].label).toBe('Client User');
+    expect(USER_ROLE_MAP[UserRole.CL_ADMIN].label).toBe('Real Estate');
+    expect(USER_ROLE_MAP[UserRole.CL_USER].label).toBe('Real Estate Operator');
     expect(USER_ROLE_MAP[UserRole.INSP].label).toBe('Inspector');
     expect(USER_ROLE_MAP[UserRole.TNT].label).toBe('Tenant');
   });
@@ -243,7 +243,7 @@ describe('FINANCIAL_ENTRY_TYPE_MAP', () => {
   });
 
   it('returns correct labels in English', () => {
-    expect(FINANCIAL_ENTRY_TYPE_MAP[FinancialEntryType.TENANT_DEBIT].label).toBe('Tenant Debit');
+    expect(FINANCIAL_ENTRY_TYPE_MAP[FinancialEntryType.TENANT_DEBIT].label).toBe('Agency Debit');
     expect(FINANCIAL_ENTRY_TYPE_MAP[FinancialEntryType.INSPECTOR_PAYOUT].label).toBe('Inspector Payout');
     expect(FINANCIAL_ENTRY_TYPE_MAP[FinancialEntryType.REFUND].label).toBe('Refund');
     expect(FINANCIAL_ENTRY_TYPE_MAP[FinancialEntryType.MANUAL_ADJUSTMENT].label).toBe('Manual Adjustment');

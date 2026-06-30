@@ -45,7 +45,7 @@ export function TimeSlotConfigPage() {
 
   const branchFilterOptions = [
     { value: '', label: 'All' },
-    { value: '__tenant_default__', label: 'Tenant Default' },
+    { value: '__tenant_default__', label: 'Agency Default' },
     ...branchOptions,
   ];
 
@@ -184,7 +184,7 @@ export function TimeSlotConfigPage() {
       hideOnMobile: true,
       render: (row: TimeSlot) => (
         <span className="text-sm text-text-secondary">
-          {row.branchId ? branchOptions.find((b) => b.value === row.branchId)?.label ?? 'Branch' : 'Tenant Default'}
+          {row.branchId ? branchOptions.find((b) => b.value === row.branchId)?.label ?? 'Branch' : 'Agency Default'}
         </span>
       ),
     },
@@ -234,7 +234,7 @@ export function TimeSlotConfigPage() {
                 setSelectedBranchId('');
               }}
               options={tenantOptions}
-              placeholder={isLoadingTenants ? 'Loading...' : 'All Tenants'}
+              placeholder={isLoadingTenants ? 'Loading...' : 'All Agencies'}
             />
           )}
           <FilterSelect

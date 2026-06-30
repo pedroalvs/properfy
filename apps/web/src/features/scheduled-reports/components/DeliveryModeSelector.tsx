@@ -4,7 +4,7 @@ import type { ScheduleDeliveryMode } from '../types';
 const DELIVERY_MODE_OPTIONS: SelectOption[] = [
   { value: 'OWNER_ONLY', label: 'Owner only' },
   { value: 'RECIPIENT_LIST', label: 'Recipient list' },
-  { value: 'TENANT_WIDE', label: 'All users in tenant' },
+  { value: 'TENANT_WIDE', label: 'All users in agency' },
 ];
 
 interface DeliveryModeSelectorProps {

@@ -189,7 +189,7 @@ export function AppointmentMapDetailPanel({
       {/* Always-expanded summary: CLIENT + PROPERTIES */}
       <div className="space-y-2 border-b border-border-subtle px-4 py-3">
         <div>
-          <p className="text-[10px] uppercase tracking-wide text-text-muted">Client</p>
+          <p className="text-[10px] uppercase tracking-wide text-text-muted">Agency</p>
           <p className="text-sm text-text-primary" data-testid="map-detail-client">{clientName}</p>
         </div>
         <div>

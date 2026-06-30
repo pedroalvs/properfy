@@ -71,7 +71,7 @@ export function ConsentOverrideModal({ consent, onClose, onSuccess }: ConsentOve
             rows={4}
             maxLength={1000}
             className="mb-3 w-full rounded border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
-            placeholder="Customer called in to confirm they want to receive notifications"
+            placeholder="Contact called in to confirm they want to receive notifications"
             required
           />
           {errorMsg && (

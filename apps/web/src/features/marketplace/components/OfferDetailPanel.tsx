@@ -52,7 +52,7 @@ export function OfferDetailPanel({ offer, detail, detailLoading, onAccept, isAcc
 
       <div className="mb-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
         <div>
-          <span className="text-text-muted text-xs">Client</span>
+          <span className="text-text-muted text-xs">Agency</span>
           <p className="font-medium text-text-primary">{offer.tenantName}</p>
         </div>
         <div>

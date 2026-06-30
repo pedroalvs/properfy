@@ -243,7 +243,7 @@ export function MapBulkActionModal({
     },
     {
       key: 'client',
-      label: 'Client',
+      label: 'Agency',
       render: (row) => <span className="text-sm text-text-primary">{row.clientName ?? '—'}</span>,
     },
     {
