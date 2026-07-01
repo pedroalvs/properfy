@@ -79,6 +79,13 @@ interface MapBulkActionModalProps {
   isError?: boolean;
   /** Retry handler for the error state. */
   onRetry?: () => void;
+  /**
+   * When provided, the parent drives the checked rows: each new value REPLACES
+   * the current selection with exactly these ids. Used by the group drill-down
+   * lasso to check the appointments enclosed by the polygon. Leave undefined for
+   * the Appointments-tab lasso flow, where selection stays fully uncontrolled.
+   */
+  externalSelectedIds?: string[];
 }
 
 interface RowResult {
@@ -129,6 +136,7 @@ export function MapBulkActionModal({
   isLoading = false,
   isError = false,
   onRetry,
+  externalSelectedIds,
 }: MapBulkActionModalProps) {
   const { widthPx, isDragging, onHandleMouseDown } = useResizableWidth({
     initialPx: Math.round(window.innerWidth * 0.6),
@@ -174,6 +182,20 @@ export function MapBulkActionModal({
     setActiveAction(null);
     setResults(null);
   }, [appointmentIdSignature]);
+
+  // Group-modal lasso seed: when the parent drives the selection
+  // (`externalSelectedIds` provided), each new value REPLACES the checked rows
+  // with exactly those ids. Declared AFTER the appointment-change reset so, when
+  // both fire on the same render (e.g. mount), this one wins. Keyed on the array
+  // REFERENCE: the parent passes stable state, so this re-runs ONLY when the
+  // parent sets a new selection (a fresh lasso draw or a teardown) — never on
+  // unrelated re-renders. That both preserves manual toggles BETWEEN draws and
+  // re-applies an identical lasso drawn twice (each draw is a new array).
+  // Undefined = uncontrolled (the Appointments-tab lasso flow).
+  useEffect(() => {
+    if (externalSelectedIds === undefined) return;
+    setCheckedIds(new Set(externalSelectedIds));
+  }, [externalSelectedIds]);
 
   const allChecked = appointments.length > 0 && checkedIds.size === appointments.length;
   const indeterminate = checkedIds.size > 0 && checkedIds.size < appointments.length;
