@@ -109,6 +109,27 @@ describe('meResponseSchema', () => {
     const result = meResponseSchema.safeParse(without);
     expect(result.success).toBe(false);
   });
+
+  it('should retain clUserPermissions when present (031)', () => {
+    const result = meResponseSchema.safeParse({
+      ...validMe,
+      role: 'CL_USER',
+      tenantId: 'b1ffcd00-0a1c-4ef9-cc7e-7cc0ce491b22',
+      clUserPermissions: ['view_financials', 'create_appointments'],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.clUserPermissions).toEqual(['view_financials', 'create_appointments']);
+    }
+  });
+
+  it('should accept a me response without clUserPermissions (optional, 031)', () => {
+    const result = meResponseSchema.safeParse(validMe);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.clUserPermissions).toBeUndefined();
+    }
+  });
 });
 
 describe('portalDataResponseSchema', () => {

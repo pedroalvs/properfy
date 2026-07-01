@@ -38,7 +38,6 @@ export const tenantSettingsSchema = z.object({
   // Feature flags (tenant-level policy)
   allowClientCancellation: z.boolean().default(true),
   allowClientRescheduling: z.boolean().default(true),
-  allowClientFinancialView: z.boolean().default(false),
   allowClientUserManagement: z.boolean().default(false),
 
   // Inspector offer config
@@ -53,6 +52,8 @@ export const tenantSettingsSchema = z.object({
     'reschedule_appointments',
     'force_confirmation',
     'create_properties',
+    // 031 — configurable per-agency financial access for CL_USER cohort.
+    'view_financials',
   ])).default([]),
 
   // Email template overrides (per-event)
