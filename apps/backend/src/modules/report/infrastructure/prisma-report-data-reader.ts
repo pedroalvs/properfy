@@ -1,4 +1,4 @@
-import { type PrismaClient, type Prisma, AppointmentStatus } from '@prisma/client';
+import type { PrismaClient, Prisma, AppointmentStatus } from '@prisma/client';
 import type { IReportDataReader, ReportDataFilters } from '../domain/report-data-reader';
 
 /**

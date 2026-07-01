@@ -141,13 +141,19 @@ describe('getAppointmentRows', () => {
     expect(rows[0].appointmentNumber).toBe(apt1Number);
   });
 
-  it('groupProperties orders rows so each property is contiguous', async () => {
-    const rows = await reader.getAppointmentRows(baseFilters({ groupProperties: true }));
-    // Bondi (apt1 Mar10, apt2 Mar20) then Manly (apt3). Property blocks must be contiguous.
-    const suburbs = rows.map((r) => r.suburb);
-    const firstManly = suburbs.indexOf('Manly');
-    const lastBondi = suburbs.lastIndexOf('Bondi');
-    expect(lastBondi).toBeLessThan(firstManly);
+  it('groupProperties makes each property block contiguous (regardless of block order)', async () => {
+    // Ordering is by property_id (random UUID), so the property that comes first is
+    // non-deterministic — the guarantee is contiguity, not a specific block order.
+    const grouped = (await reader.getAppointmentRows(baseFilters({ groupProperties: true }))).map((r) => r.suburb as string);
+    // Collapsing consecutive duplicates must leave each property's suburb appearing once.
+    const collapsed = grouped.filter((s, i) => i === 0 || s !== grouped[i - 1]);
+    expect(new Set(collapsed).size).toBe(collapsed.length);
+
+    // Sanity: without grouping, the date-ordered sequence interleaves the two Bondi
+    // appointments around the Manly one, so it is NOT contiguous.
+    const ungrouped = (await reader.getAppointmentRows(baseFilters())).map((r) => r.suburb as string);
+    const ungroupedCollapsed = ungrouped.filter((s, i) => i === 0 || s !== ungrouped[i - 1]);
+    expect(new Set(ungroupedCollapsed).size).toBeLessThan(ungroupedCollapsed.length);
   });
 });
 
