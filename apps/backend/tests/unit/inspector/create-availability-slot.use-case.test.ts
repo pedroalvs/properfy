@@ -23,7 +23,6 @@ function makeInspector(
     status: 'ACTIVE',
     paymentSettingsJson: {},
     serviceTypesJson: [{ serviceTypeId: 'service-1', certified: false }],
-    clientEligibilityJson: [{ tenantId: 'tenant-1', eligible: true }],
     blockedClientsJson: [],
     fullName: null,
     address: null,

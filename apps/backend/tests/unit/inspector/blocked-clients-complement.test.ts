@@ -11,7 +11,6 @@ function makeInspector(blockedClients: string[]) {
     status: 'ACTIVE',
     paymentSettingsJson: {},
     serviceTypesJson: [],
-    clientEligibilityJson: [],
     blockedClientsJson: blockedClients,
     fullName: null,
     address: null,

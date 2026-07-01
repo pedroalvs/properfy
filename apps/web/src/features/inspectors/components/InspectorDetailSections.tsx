@@ -71,11 +71,6 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
     { pageSize: 100 },
   );
   const tenantNameMap = new Map((tenantsData?.data ?? []).map((item) => [item.id, item.name]));
-  const clientEligibilityLabels = (inspector.clientEligibility ?? []).map((entry) => {
-    const id = typeof entry === 'string' ? entry : entry.tenantId;
-    return tenantNameMap.get(id) ?? id;
-  });
-
   const blockedClientLabels = (inspector.blockedClients ?? []).map(
     (id) => tenantNameMap.get(id) ?? id,
   );
@@ -137,7 +132,6 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
       <FormSection title="Coverage">
         <DetailRow label="Regions" value={formatList(regionLabels)} />
         <DetailRow label="Service Types" value={formatList(serviceTypeLabels)} />
-        <DetailRow label="Agency Eligibility" value={formatList(clientEligibilityLabels)} />
         <DetailRow label="Blocked Agencies" value={formatList(blockedClientLabels)} />
       </FormSection>
 

@@ -401,7 +401,6 @@ async function main() {
         { serviceTypeId: serviceTypeIds.routine, certified: true },
         { serviceTypeId: serviceTypeIds.ingoing, certified: true },
       ],
-      client_eligibility_json: [IDS.tenant, IDS.tenant2],
     },
     create: {
       id: IDS.inspectorLinked,
@@ -414,7 +413,6 @@ async function main() {
         { serviceTypeId: serviceTypeIds.routine, certified: true },
         { serviceTypeId: serviceTypeIds.ingoing, certified: true },
       ],
-      client_eligibility_json: [IDS.tenant, IDS.tenant2],
     },
   });
 
@@ -425,7 +423,6 @@ async function main() {
         { serviceTypeId: serviceTypeIds.routine, certified: true },
         { serviceTypeId: serviceTypeIds.outgoing, certified: true },
       ],
-      client_eligibility_json: [IDS.tenant],
     },
     create: {
       id: IDS.inspectorIndep,
@@ -437,7 +434,6 @@ async function main() {
         { serviceTypeId: serviceTypeIds.routine, certified: true },
         { serviceTypeId: serviceTypeIds.outgoing, certified: true },
       ],
-      client_eligibility_json: [IDS.tenant],
     },
   });
 
@@ -449,7 +445,6 @@ async function main() {
         { serviceTypeId: serviceTypeIds.ingoing, certified: true },
         { serviceTypeId: serviceTypeIds.outgoing, certified: true },
       ],
-      client_eligibility_json: [IDS.tenant2],
     },
     create: {
       id: IDS.inspectorLinked2,
@@ -463,7 +458,6 @@ async function main() {
         { serviceTypeId: serviceTypeIds.ingoing, certified: true },
         { serviceTypeId: serviceTypeIds.outgoing, certified: true },
       ],
-      client_eligibility_json: [IDS.tenant2],
     },
   });
 

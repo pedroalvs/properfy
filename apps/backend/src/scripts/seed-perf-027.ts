@@ -87,7 +87,6 @@ async function main() {
         status: 'ACTIVE',
         payment_settings_json: {},
         service_types_json: [],
-        client_eligibility_json: [],
         blocked_clients_json: [],
       },
     });
