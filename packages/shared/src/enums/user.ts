@@ -24,6 +24,5 @@ export const CL_USER_PERMISSIONS = [
   'reschedule_appointments',
   'force_confirmation',
   'create_properties',
-  'export_reports',
 ] as const;
 export type ClUserPermission = (typeof CL_USER_PERMISSIONS)[number];

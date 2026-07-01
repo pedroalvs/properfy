@@ -1,17 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ReportType, ReportStatus, ReportFormat } from '@properfy/shared';
+import { ReportType, ReportStatus } from '@properfy/shared';
 import { ReportDetailSections } from './ReportDetailSections';
 import type { ReportDetail } from '../types';
 
 const baseReport: ReportDetail = {
   id: 'rpt-01',
-  reportType: ReportType.INSPECTIONS_SCHEDULED,
+  reportType: ReportType.APPOINTMENTS,
   status: ReportStatus.READY,
-  format: ReportFormat.XLSX,
   requestedBy: { id: 'u-1', name: 'Admin Principal' },
-  fileKey: 'reports/vistorias-agendadas-marco-2026.xlsx',
-  filters: { fromDate: '2026-03-01', toDate: '2026-03-15' },
+  fileKey: 'reports/appointments-march-2026.xlsx',
+  filters: { fromDate: '2026-03-01', toDate: '2026-03-15', dateAxis: 'SCHEDULED', groupProperties: false },
   createdAt: '2026-03-15T14:00:00Z',
   updatedAt: '2026-03-15T14:30:00Z',
   fileSize: 1048576,
@@ -28,7 +27,7 @@ describe('ReportDetailSections', () => {
 
   it('shows report type chip', () => {
     render(<ReportDetailSections report={baseReport} />);
-    expect(screen.getByText('Scheduled Inspections')).toBeInTheDocument();
+    expect(screen.getByText('Appointments')).toBeInTheDocument();
   });
 
   it('shows report status chip', () => {
@@ -36,14 +35,14 @@ describe('ReportDetailSections', () => {
     expect(screen.getByText('Ready')).toBeInTheDocument();
   });
 
-  it('shows format', () => {
+  it('does not show a Format row', () => {
     render(<ReportDetailSections report={baseReport} />);
-    expect(screen.getByText('XLSX')).toBeInTheDocument();
+    expect(screen.queryByText('Format')).not.toBeInTheDocument();
   });
 
   it('shows file name when present, em-dash when null', () => {
     render(<ReportDetailSections report={baseReport} />);
-    expect(screen.getByText('vistorias-agendadas-marco-2026.xlsx')).toBeInTheDocument();
+    expect(screen.getByText('appointments-march-2026.xlsx')).toBeInTheDocument();
   });
 
   it('shows file size formatted when present, em-dash when null', () => {
@@ -59,6 +58,8 @@ describe('ReportDetailSections', () => {
 
   it('shows filters when present, em-dash when null', () => {
     render(<ReportDetailSections report={baseReport} />);
-    expect(screen.getByText('fromDate: 2026-03-01, toDate: 2026-03-15')).toBeInTheDocument();
+    expect(
+      screen.getByText('fromDate: 2026-03-01, toDate: 2026-03-15, dateAxis: SCHEDULED, groupProperties: false'),
+    ).toBeInTheDocument();
   });
 });

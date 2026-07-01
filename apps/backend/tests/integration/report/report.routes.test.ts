@@ -61,9 +61,8 @@ beforeEach(() => { vi.clearAllMocks(); });
 const fullReport = {
   id: REPORT_ID,
   tenantId: null,
-  reportType: 'INSPECTIONS_SCHEDULED',
-  filtersJson: { fromDate: '2026-01-01', toDate: '2026-03-01' },
-  format: 'XLSX',
+  reportType: 'APPOINTMENTS',
+  filtersJson: { fromDate: '2026-01-01', toDate: '2026-03-01', dateAxis: 'SCHEDULED' },
   status: 'READY',
   fileKey: null,
   requestedByUserId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a99',
@@ -81,12 +80,12 @@ const fullReport = {
 
 describe('POST /v1/reports', () => {
   const validBody = {
-    reportType: 'INSPECTIONS_SCHEDULED',
+    reportType: 'APPOINTMENTS',
     filters: {
       fromDate: '2026-01-01',
       toDate: '2026-03-01',
+      dateAxis: 'SCHEDULED',
     },
-    format: 'XLSX',
   };
 
   it('should return 401 without auth', async () => {
@@ -99,7 +98,7 @@ describe('POST /v1/reports', () => {
     mockRequestReportExecute.mockResolvedValueOnce({
       reportId: REPORT_ID,
       status: 'PENDING',
-      reportType: 'INSPECTIONS_SCHEDULED',
+      reportType: 'APPOINTMENTS',
       createdAt: '2026-03-16T09:00:00.000Z',
     });
 
@@ -111,48 +110,36 @@ describe('POST /v1/reports', () => {
     expect(res.status).toBe(202);
     expect(res.body.data.reportId).toBe(REPORT_ID);
     expect(res.body.data.status).toBe('PENDING');
-    expect(res.body.data.reportType).toBe('INSPECTIONS_SCHEDULED');
+    expect(res.body.data.reportType).toBe('APPOINTMENTS');
     expect(res.body.message).toBe('Report generation request accepted');
   });
 
-  it('should return 403 when CL_ADMIN requests INSPECTOR_PERFORMANCE', async () => {
+  it('should return 403 when a non-operator requests a report', async () => {
     mockJwtVerify.mockResolvedValueOnce(clAdminContext);
 
-    const { ReportTypeForbiddenError } = await import(
+    const { ReportForbiddenError } = await import(
       '../../../src/modules/report/domain/report.errors'
     );
-    mockRequestReportExecute.mockRejectedValueOnce(new ReportTypeForbiddenError());
+    mockRequestReportExecute.mockRejectedValueOnce(new ReportForbiddenError());
 
+    // Uses a valid new report type so the request reaches auth (body validation runs first).
     const res = await supertest(app.server)
       .post('/v1/reports')
       .set('Authorization', 'Bearer valid-token')
-      .send({
-        reportType: 'INSPECTOR_PERFORMANCE',
-        filters: { fromDate: '2026-01-01', toDate: '2026-03-01' },
-        format: 'XLSX',
-      });
+      .send({ reportType: 'APPOINTMENTS', filters: { fromDate: '2026-01-01', toDate: '2026-03-01' } });
 
     expect(res.status).toBe(403);
   });
 
-  it('should return 403 when CL_ADMIN provides tenantId not matching own', async () => {
-    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
-
-    const { ReportTenantScopeViolationError } = await import(
-      '../../../src/modules/report/domain/report.errors'
-    );
-    mockRequestReportExecute.mockRejectedValueOnce(new ReportTenantScopeViolationError());
+  it('should return 400 for a removed legacy report type', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
       .post('/v1/reports')
       .set('Authorization', 'Bearer valid-token')
-      .send({
-        reportType: 'INSPECTIONS_SCHEDULED',
-        filters: { fromDate: '2026-01-01', toDate: '2026-03-01', tenantId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22' },
-        format: 'XLSX',
-      });
+      .send({ reportType: 'INSPECTIONS_SCHEDULED', filters: { fromDate: '2026-01-01', toDate: '2026-03-01' } });
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(400);
   });
 
   it('should return 422 when date range is invalid', async () => {
@@ -166,11 +153,7 @@ describe('POST /v1/reports', () => {
     const res = await supertest(app.server)
       .post('/v1/reports')
       .set('Authorization', 'Bearer valid-token')
-      .send({
-        reportType: 'INSPECTIONS_SCHEDULED',
-        filters: { fromDate: '2024-01-01', toDate: '2026-03-01' },
-        format: 'XLSX',
-      });
+      .send({ reportType: 'APPOINTMENTS', filters: { fromDate: '2024-01-01', toDate: '2026-03-01' } });
 
     expect(res.status).toBe(422);
   });
@@ -265,7 +248,7 @@ describe('GET /v1/reports/:reportId/download', () => {
   it('should return 200 with download URL for AM', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
     const downloadResult = {
-      downloadUrl: 'https://storage.example.com/signed/reports/platform/INSPECTIONS_SCHEDULED/report-id.xlsx?token=stub-token',
+      downloadUrl: 'https://storage.example.com/signed/reports/platform/APPOINTMENTS/report-id.xlsx?token=stub-token',
       expiresAt: '2026-03-16T11:00:00.000Z',
     };
     mockDownloadReportExecute.mockResolvedValueOnce(downloadResult);

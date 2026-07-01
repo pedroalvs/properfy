@@ -6,9 +6,8 @@ function makeReport(overrides: Partial<ReportProps> = {}): ReportEntity {
   return new ReportEntity({
     id: 'report-1',
     tenantId: 'tenant-1',
-    reportType: 'INSPECTIONS_SCHEDULED',
+    reportType: 'APPOINTMENTS',
     filtersJson: { fromDate: '2026-01-01', toDate: '2026-03-01' },
-    format: 'XLSX',
     status: 'PENDING',
     fileKey: null,
     requestedByUserId: 'user-1',
@@ -39,9 +38,8 @@ describe('ReportEntity', () => {
       const props: ReportProps = {
         id: 'report-42',
         tenantId: 'tenant-5',
-        reportType: 'FINANCIAL_SERVICES',
+        reportType: 'FINANCIAL',
         filtersJson: { branchId: 'b-1' },
-        format: 'XLSX',
         status: 'READY',
         fileKey: 'reports/report-42.xlsx',
         requestedByUserId: 'user-7',
@@ -59,9 +57,8 @@ describe('ReportEntity', () => {
 
       expect(report.id).toBe('report-42');
       expect(report.tenantId).toBe('tenant-5');
-      expect(report.reportType).toBe('FINANCIAL_SERVICES');
+      expect(report.reportType).toBe('FINANCIAL');
       expect(report.filtersJson).toEqual({ branchId: 'b-1' });
-      expect(report.format).toBe('XLSX');
       expect(report.status).toBe('READY');
       expect(report.fileKey).toBe('reports/report-42.xlsx');
       expect(report.requestedByUserId).toBe('user-7');
