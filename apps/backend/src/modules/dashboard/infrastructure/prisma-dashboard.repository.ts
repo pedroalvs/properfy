@@ -173,26 +173,34 @@ export class PrismaDashboardRepository implements DashboardRepository {
         },
       }),
 
-      // Quick stats: active inspectors
+      // Quick stats: active inspectors available to this tenant.
+      // An ACTIVE inspector is available unless the tenant is in its
+      // deny-list (`blocked_clients_json`). AM/OP (no tenant scope) count all.
       tenantId
         ? this.prisma.inspector.findMany({
             where: { status: 'ACTIVE', deleted_at: null },
-            select: { client_eligibility_json: true },
+            select: { blocked_clients_json: true },
           }).then((rows) =>
             rows.filter((r) => {
-              const eligibility = (r.client_eligibility_json as string[]) ?? [];
-              return eligibility.includes(tenantId);
+              const blocked = Array.isArray(r.blocked_clients_json)
+                ? (r.blocked_clients_json as string[])
+                : [];
+              return !blocked.includes(tenantId);
             }).length,
           )
         : this.prisma.inspector.count({
             where: { status: 'ACTIVE', deleted_at: null },
           }),
 
-      // Quick stats: active service groups
+      // Quick stats: active service groups. Service groups are cross-tenant
+      // (they carry no `tenant_id`); for a tenant-scoped dashboard, count the
+      // groups that contain at least one of the tenant's appointments.
       this.prisma.serviceGroup.count({
         where: {
-          ...tenantFilter,
           status: { in: ['DRAFT', 'PUBLISHED', 'ACCEPTED'] },
+          ...(tenantId
+            ? { appointments: { some: { tenant_id: tenantId, deleted_at: null } } }
+            : {}),
         },
       }),
 

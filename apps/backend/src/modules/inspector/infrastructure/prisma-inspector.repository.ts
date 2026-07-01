@@ -28,8 +28,6 @@ function mapToEntity(row: {
   phone: string | null;
   status: string;
   payment_settings_json: unknown;
-  /** Denormalized cache — NOT authoritative for region assignment. Use inspector_regions join table for all business logic. */
-  regions_json: unknown;
   service_types_json: unknown;
   client_eligibility_json: unknown;
   blocked_clients_json: unknown;
