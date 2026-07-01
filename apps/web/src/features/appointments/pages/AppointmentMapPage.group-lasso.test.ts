@@ -63,36 +63,47 @@ describe('AppointmentMapPage — group-modal lasso wiring (source guards)', () =
   });
 
   it('in the group drill-down the lasso seeds the modal selection then drops the polygon (no review)', () => {
-    const idx = PAGE_SOURCE.indexOf('const handleLassoSelectionChange');
-    expect(idx, 'handleLassoSelectionChange not found').toBeGreaterThan(-1);
-    const handlerSlice = PAGE_SOURCE.slice(idx, idx + 900);
+    // Bound the slice to the callback itself (start marker → next declaration)
+    // rather than a magic char window, so it stays valid as the file grows.
+    const start = PAGE_SOURCE.indexOf('const handleLassoSelectionChange');
+    expect(start, 'handleLassoSelectionChange not found').toBeGreaterThan(-1);
+    const end = PAGE_SOURCE.indexOf('const handleLassoToggle', start);
+    expect(end, 'handleLassoToggle (callback end marker) not found').toBeGreaterThan(start);
+    const handler = PAGE_SOURCE.slice(start, end);
     // Group branch short-circuits BEFORE the appointments-flow selection
     // (which starts at `setLassoSelectedIds(ids)` and later goes to 'review').
-    expect(handlerSlice).toContain("if (mode === 'groups' && selectedGroupItem) {");
-    expect(handlerSlice).toContain('setGroupLassoSelectedIds(ids);');
-    const groupBranchIdx = handlerSlice.indexOf("if (mode === 'groups' && selectedGroupItem) {");
-    const apptFlowIdx = handlerSlice.indexOf('setLassoSelectedIds(ids);');
+    expect(handler).toContain("if (mode === 'groups' && selectedGroupItem) {");
+    expect(handler).toContain('setGroupLassoSelectedIds(ids);');
+    const groupBranchIdx = handler.indexOf("if (mode === 'groups' && selectedGroupItem) {");
+    const apptFlowIdx = handler.indexOf('setLassoSelectedIds(ids);');
     expect(groupBranchIdx).toBeGreaterThan(-1);
     expect(apptFlowIdx).toBeGreaterThan(groupBranchIdx);
   });
 
-  it('passes the lasso selection to the group modal via externalSelectedIds', () => {
-    expect(PAGE_SOURCE).toContain('externalSelectedIds={groupLassoSelectedIds}');
+  it('models the group-lasso selection as a tri-state (null / empty / matches) and passes it uncontrolled when null', () => {
+    // `null` = no completed lasso yet → the modal stays uncontrolled.
+    expect(PAGE_SOURCE).toMatch(/useState<string\[\] \| null>\(null\)/);
+    expect(PAGE_SOURCE).toContain('externalSelectedIds={groupLassoSelectedIds ?? undefined}');
   });
 
-  it('fully resets the group lasso when the drilled group changes or the drill-down closes', () => {
+  it('fully resets the group lasso to null when the drilled group changes or the drill-down closes', () => {
     const idx = PAGE_SOURCE.indexOf('}, [mode, selectedGroupItem?.id]);');
     expect(idx, 'teardown effect not found').toBeGreaterThan(-1);
-    const slice = PAGE_SOURCE.slice(idx - 200, idx + 40);
-    expect(slice).toContain("setLassoState('idle');");
-    expect(slice).toContain('setGroupLassoSelectedIds([]);');
+    // Anchor the region on the effect body's opening rather than a fixed window.
+    const bodyStart = PAGE_SOURCE.lastIndexOf('useEffect(() => {', idx);
+    expect(bodyStart, 'teardown effect body start not found').toBeGreaterThan(-1);
+    const effect = PAGE_SOURCE.slice(bodyStart, idx + 40);
+    expect(effect).toContain("setLassoState('idle');");
+    expect(effect).toContain('setGroupLassoSelectedIds(null);');
   });
 
   it('disables the drill-down appointment markers while drawing (closing-click guard)', () => {
-    const drillIdx = PAGE_SOURCE.indexOf("groupModePins.kind === 'appointments' &&");
-    expect(drillIdx, 'drill-down marker block not found').toBeGreaterThan(-1);
-    const drillBlock = PAGE_SOURCE.slice(drillIdx, drillIdx + 700);
+    // Bound to the drill-down marker block (its start marker → its onClick).
+    const start = PAGE_SOURCE.indexOf("groupModePins.kind === 'appointments' &&");
+    expect(start, 'drill-down marker block not found').toBeGreaterThan(-1);
+    const end = PAGE_SOURCE.indexOf('handleGroupAppointmentMarkerClick', start);
+    expect(end, 'drill-down marker onClick not found').toBeGreaterThan(start);
+    const drillBlock = PAGE_SOURCE.slice(start, end);
     expect(drillBlock).toContain("disabled={lassoState === 'drawing'}");
-    expect(drillBlock).toContain('handleGroupAppointmentMarkerClick');
   });
 });

@@ -171,10 +171,13 @@ export function AppointmentMapPage() {
   const [lassoState, setLassoState] = useState<LassoState>('idle');
   const [lassoSelectedIds, setLassoSelectedIds] = useState<string[]>([]);
   // Group drill-down: the ids the lasso enclosed, fed into the OPEN group
-  // modal's checkbox selection (replace semantics). Kept separate from
-  // `lassoSelectedIds` (the Appointments-flow selection) so the two contexts
-  // never cross-talk.
-  const [groupLassoSelectedIds, setGroupLassoSelectedIds] = useState<string[]>([]);
+  // modal's checkbox selection (replace semantics). Three states:
+  //   null → no completed lasso yet (modal stays uncontrolled — manual toggles)
+  //   []   → a lasso completed enclosing nothing (replace selection with empty)
+  //   [..] → a lasso completed with matches
+  // Kept separate from `lassoSelectedIds` (the Appointments-flow selection) so
+  // the two contexts never cross-talk.
+  const [groupLassoSelectedIds, setGroupLassoSelectedIds] = useState<string[] | null>(null);
   const [groupModalOpen, setGroupModalOpen] = useState(false);
   const [groupModalSeedIds, setGroupModalSeedIds] = useState<string[]>([]);
   // 026 §FR-510 — Add-to-group sub-modal seeded from the bulk modal footer.
@@ -465,7 +468,7 @@ export function AppointmentMapPage() {
   // also vanish because `lassoAvailable` forces MapLassoSelect to 'idle').
   useEffect(() => {
     setLassoState('idle');
-    setGroupLassoSelectedIds([]);
+    setGroupLassoSelectedIds(null);
   }, [mode, selectedGroupItem?.id]);
 
   // Issue #3 (UX smoke): marker click on the map MUST focus the map on
@@ -1032,7 +1035,8 @@ export function AppointmentMapPage() {
         open={mode === 'groups' && !!selectedGroupItem}
         // Lasso → group modal bridge: the polygon-enclosed ids REPLACE the
         // modal's checked rows (see handleLassoSelectionChange + teardown effect).
-        externalSelectedIds={groupLassoSelectedIds}
+        // `null` (no completed lasso) → undefined → modal stays uncontrolled.
+        externalSelectedIds={groupLassoSelectedIds ?? undefined}
         isLoading={groupApptFetching}
         isError={groupApptError}
         onRetry={() => { void refetchGroupAppointments(); }}
