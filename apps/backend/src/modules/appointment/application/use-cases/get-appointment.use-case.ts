@@ -1,4 +1,4 @@
-import { type AuthContext, type AppointmentApp, isAppointmentOverdue } from '@properfy/shared';
+import { type AuthContext, type AppointmentApp, type AppointmentCustomField, isAppointmentOverdue } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../domain/appointment.repository';
@@ -35,7 +35,7 @@ export interface GetAppointmentOutput {
   notes: string | null;
   rentalTenantNote: string | null;
   observation: string | null;
-  customFieldsJson: Record<string, unknown> | null;
+  customFieldsJson: AppointmentCustomField[] | null;
   reason: string | null;
   rejectionReasonCode: string | null;
   createdByUserId: string;

@@ -1,4 +1,4 @@
-import type { AppointmentStatus, RentalTenantConfirmationStatus, ServiceTypeFlowType } from '@properfy/shared';
+import type { AppointmentStatus, RentalTenantConfirmationStatus, ServiceTypeFlowType, AppointmentCustomField } from '@properfy/shared';
 
 export interface InspectorAppointment {
   id: string;
@@ -22,6 +22,8 @@ export interface InspectorAppointment {
   propertyLongitude: number | null;
   notes: string | null;
   observation: string | null;
+  /** Operator-defined custom fields, read-only for the inspector (max 4). */
+  customFields: AppointmentCustomField[];
   isOverdue?: boolean;
   agencyName?: string;
   /** App credentials linked to this appointment (live reference). */
@@ -87,6 +89,7 @@ export interface InspectorAppointmentDetailResponse {
     propertyLongitude: number | null;
     notes: string | null;
     observation: string | null;
+    customFields?: AppointmentCustomField[];
     isOverdue?: boolean;
     agencyName?: string;
     apps?: Array<{ id: string; name: string; username: string; password: string }>;

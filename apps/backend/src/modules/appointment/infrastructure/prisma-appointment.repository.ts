@@ -24,6 +24,7 @@ import type {
   RestrictionSource,
   CancellationReasonCode,
   RejectionReasonCode,
+  AppointmentCustomField,
 } from '@properfy/shared';
 
 function toSnakeCase(s: string): string {
@@ -63,7 +64,12 @@ function mapToEntity(row: any): AppointmentEntity {
     notes: row.notes,
     rentalTenantNote: row.rental_tenant_note ?? null,
     observation: row.observation ?? null,
-    customFieldsJson: row.custom_fields_json as Record<string, unknown> | null,
+    // Defensive: the column historically held free-form JSON. Only accept the
+    // current `{ label, value }[]` shape; coerce anything else (legacy objects,
+    // null) to null so the entity type stays honest.
+    customFieldsJson: Array.isArray(row.custom_fields_json)
+      ? (row.custom_fields_json as AppointmentCustomField[])
+      : null,
     reason: row.reason,
     cancellationReasonCode: (row.cancellation_reason_code as CancellationReasonCode) ?? null,
     rejectionReasonCode: (row.rejection_reason_code as RejectionReasonCode) ?? null,
@@ -284,7 +290,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       notes: string | null;
       rentalTenantNote: string | null;
       observation: string | null;
-      customFieldsJson: Record<string, unknown> | null;
+      customFieldsJson: AppointmentCustomField[] | null;
       reason: string | null;
       cancellationReasonCode: CancellationReasonCode | null;
       rejectionReasonCode: RejectionReasonCode | null;

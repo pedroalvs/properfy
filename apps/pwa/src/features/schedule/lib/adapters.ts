@@ -46,6 +46,7 @@ export function mapInspectorAppointmentDetail(
     propertyLongitude: detail.propertyLongitude,
     notes: detail.notes,
     observation: detail.observation,
+    customFields: detail.customFields ?? [],
     isOverdue: detail.isOverdue ?? false,
     agencyName: detail.agencyName,
     apps: detail.apps ?? [],

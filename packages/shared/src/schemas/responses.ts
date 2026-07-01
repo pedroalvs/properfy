@@ -310,6 +310,12 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
   notes: z.string().nullable(),
   observation: z.string().nullable(),
   restrictionsSummary: z.string().nullable(),
+  /**
+   * Operator-defined custom fields, read-only for the inspector. Kept permissive
+   * (no length/required) on the response so legacy/edge data never trips the
+   * fastify serializer; the use case normalizes shape and count.
+   */
+  customFields: z.array(z.object({ label: z.string(), value: z.string() })).optional(),
   contact: z.object({
     rentalTenantName: z.string(),
     primaryEmail: z.string().nullable(),
