@@ -123,6 +123,22 @@ export function selectGroupModePins(args: {
   return { kind: 'groups', items: args.groupPins };
 }
 
+/**
+ * Which point set the lasso hit-tests against. Inside the Groups drill-down (a
+ * group modal is open) the lasso selects among THAT group's appointment pins;
+ * otherwise it uses the Appointments-mode pins. Exported so the wiring is
+ * unit-testable without a live Mapbox instance.
+ */
+export function resolveActiveLassoPoints(args: {
+  mode: FilterMode;
+  groupDrilledIn: boolean;
+  appointmentPoints: LassoPoint[];
+  groupAppointmentPoints: LassoPoint[];
+}): LassoPoint[] {
+  if (args.mode === 'groups' && args.groupDrilledIn) return args.groupAppointmentPoints;
+  return args.appointmentPoints;
+}
+
 export function AppointmentMapPage() {
 
   const queryClient = useQueryClient();
@@ -154,6 +170,14 @@ export function AppointmentMapPage() {
   // 'applying' is the brief window during an in-flight bulk action.
   const [lassoState, setLassoState] = useState<LassoState>('idle');
   const [lassoSelectedIds, setLassoSelectedIds] = useState<string[]>([]);
+  // Group drill-down: the ids the lasso enclosed, fed into the OPEN group
+  // modal's checkbox selection (replace semantics). Three states:
+  //   null → no completed lasso yet (modal stays uncontrolled — manual toggles)
+  //   []   → a lasso completed enclosing nothing (replace selection with empty)
+  //   [..] → a lasso completed with matches
+  // Kept separate from `lassoSelectedIds` (the Appointments-flow selection) so
+  // the two contexts never cross-talk.
+  const [groupLassoSelectedIds, setGroupLassoSelectedIds] = useState<string[] | null>(null);
   const [groupModalOpen, setGroupModalOpen] = useState(false);
   const [groupModalSeedIds, setGroupModalSeedIds] = useState<string[]>([]);
   // 026 §FR-510 — Add-to-group sub-modal seeded from the bulk modal footer.
@@ -435,6 +459,18 @@ export function AppointmentMapPage() {
     setSelectedGroupItem(null);
   }, [mode]);
 
+  // The group-modal lasso lives ONLY inside an open group drill-down. Reset it
+  // (state + seeded selection) whenever the drilled group changes or we leave
+  // the drill-down — so a polygon/selection never lingers across groups or back
+  // into Appointments mode. Keyed on the group ID (not the object) so a fresh
+  // draw within the same group is preserved. This is the single source of
+  // lasso teardown for the group flow (the Select-Area button and the polygon
+  // also vanish because `lassoAvailable` forces MapLassoSelect to 'idle').
+  useEffect(() => {
+    setLassoState('idle');
+    setGroupLassoSelectedIds(null);
+  }, [mode, selectedGroupItem?.id]);
+
   // Issue #3 (UX smoke): marker click on the map MUST focus the map on
   // the clicked pin — same affordance as the sidebar list-item handler
   // below. Pre-fix, the marker handler only updated selection state, so
@@ -527,6 +563,15 @@ export function AppointmentMapPage() {
   // that are already visible should not trigger a zoom — that was the
   // BUG-zoom-out behaviour the lasso state machine + this guard fixes.
   const handleLassoSelectionChange = useCallback((ids: string[]) => {
+    // Group drill-down: the lasso drives the ALREADY-OPEN group modal's
+    // checkbox selection (replace). No 'review' state and no second modal —
+    // seed the ids and drop the polygon so focus returns to the modal + its
+    // footer actions. (User decision: replace + clear polygon.)
+    if (mode === 'groups' && selectedGroupItem) {
+      setGroupLassoSelectedIds(ids);
+      setLassoState('idle');
+      return;
+    }
     setLassoSelectedIds(ids);
     if (ids.length === 0) {
       setLassoState('idle');
@@ -557,7 +602,7 @@ export function AppointmentMapPage() {
       }
     }
     setLassoState('review');
-  }, [appointmentData, mapInstance]);
+  }, [appointmentData, mapInstance, mode, selectedGroupItem]);
 
   const handleLassoToggle = useCallback(() => {
     setLassoState((prev) => {
@@ -778,6 +823,27 @@ export function AppointmentMapPage() {
     [validAppointmentPins],
   );
 
+  // The lasso is available in Appointments mode AND inside the Groups
+  // drill-down (a group modal is open). In the drill-down it hit-tests against
+  // THAT group's appointment pins.
+  const groupLassoActive = mode === 'groups' && !!selectedGroupItem;
+  const lassoAvailable = mode === 'appointments' || groupLassoActive;
+  const groupLassoPoints: LassoPoint[] = useMemo(
+    () =>
+      validGroupApptPins.map((item) => ({
+        id: item.id,
+        longitude: item.longitude,
+        latitude: item.latitude,
+      })),
+    [validGroupApptPins],
+  );
+  const activeLassoPoints = resolveActiveLassoPoints({
+    mode,
+    groupDrilledIn: !!selectedGroupItem,
+    appointmentPoints: lassoPoints,
+    groupAppointmentPoints: groupLassoPoints,
+  });
+
   // Per-mode cursor class on the map wrapper. While drawing a lasso the
   // cursor must be `crosshair` consistently — without an explicit class
   // the default canvas cursor (`grab`) bleeds through when the pointer
@@ -835,6 +901,10 @@ export function AppointmentMapPage() {
               icon={STATUS_ICONS[item.status] ?? 'mdi-map-marker'}
               label={item.code}
               active={selectedItem?.id === item.id}
+              // Same guard as Appointments-mode pins: while sketching a lasso a
+              // click near a pin must reach the map (to close the polygon), not
+              // the marker button.
+              disabled={lassoState === 'drawing'}
               onClick={() => handleGroupAppointmentMarkerClick(item)}
             />
           ))}
@@ -843,8 +913,8 @@ export function AppointmentMapPage() {
       <MapLassoSelect
         ref={lassoRef}
         map={mapInstance}
-        points={lassoPoints}
-        lassoState={mode === 'appointments' ? lassoState : 'idle'}
+        points={activeLassoPoints}
+        lassoState={lassoAvailable ? lassoState : 'idle'}
         onSelectionChange={handleLassoSelectionChange}
         onPolygonCleared={handleLassoCleared}
       />
@@ -854,7 +924,7 @@ export function AppointmentMapPage() {
           are undiscoverable. This top-center banner gives the operator
           visible Finish + Cancel buttons + a guidance line for the
           keyboard shortcuts. */}
-      {mode === 'appointments' && lassoState === 'drawing' && (
+      {lassoAvailable && lassoState === 'drawing' && (
         <div
           className="pointer-events-none absolute left-1/2 top-4 z-40 -translate-x-1/2 transform"
           data-testid="lasso-draw-banner"
@@ -892,7 +962,7 @@ export function AppointmentMapPage() {
 
       <MapFloatingAction
         actions={[
-          ...(mode === 'appointments'
+          ...(lassoAvailable
             ? [{ icon: 'mdi-selection-drag', label: 'Select Area', onClick: handleLassoToggle, active: lassoState !== 'idle' }]
             : []),
           { icon: 'mdi-crosshairs-gps', label: 'Re-center', onClick: handleRecenter },
@@ -963,6 +1033,10 @@ export function AppointmentMapPage() {
       <MapBulkActionModal
         appointments={groupAppointments}
         open={mode === 'groups' && !!selectedGroupItem}
+        // Lasso → group modal bridge: the polygon-enclosed ids REPLACE the
+        // modal's checked rows (see handleLassoSelectionChange + teardown effect).
+        // `null` (no completed lasso) → undefined → modal stays uncontrolled.
+        externalSelectedIds={groupLassoSelectedIds ?? undefined}
         isLoading={groupApptFetching}
         isError={groupApptError}
         onRetry={() => { void refetchGroupAppointments(); }}
