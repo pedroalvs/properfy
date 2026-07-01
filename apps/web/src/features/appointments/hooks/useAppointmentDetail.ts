@@ -24,8 +24,15 @@ function normalizeCustomFields(raw: unknown): Array<{ label: string; value: stri
   );
 }
 
+/**
+ * The wire shape actually returned by the API: custom fields arrive under the
+ * opaque `customFieldsJson` (not the normalized `customFields`). Typing the query
+ * with this makes any accidental read of `raw.customFields` a compile error.
+ */
+type RawAppointmentDetail = Omit<AppointmentDetail, 'customFields'> & { customFieldsJson?: unknown };
+
 export function useAppointmentDetail(id: string | null): UseAppointmentDetailReturn {
-  const { data: response, isLoading, isError, refetch } = useDetailQuery<AppointmentDetail>(
+  const { data: response, isLoading, isError, refetch } = useDetailQuery<RawAppointmentDetail>(
     ['appointments', id],
     `/v1/appointments/${id}`,
     { enabled: !!id },
@@ -35,7 +42,7 @@ export function useAppointmentDetail(id: string | null): UseAppointmentDetailRet
   const appointment: AppointmentDetail | null = raw
     ? {
         ...raw,
-        customFields: normalizeCustomFields((raw as { customFieldsJson?: unknown }).customFieldsJson),
+        customFields: normalizeCustomFields(raw.customFieldsJson),
       }
     : null;
 

@@ -1,4 +1,5 @@
-import type { AuthContext, AppointmentApp } from '@properfy/shared';
+import type { AuthContext, AppointmentApp, AppointmentCustomField } from '@properfy/shared';
+import { customFieldSchema, CUSTOM_FIELDS_MAX } from '@properfy/shared';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../appointment/domain/appointment.repository';
 import type { IAppCredentialRepository } from '../../../app-credential/domain/app-credential.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
@@ -20,23 +21,17 @@ export interface GetAppointmentDetailInput {
 
 /**
  * Normalize the opaque `customFieldsJson` into the read-only `{ label, value }[]`
- * the inspector contract expects. Defensive against legacy/malformed data: keeps
- * only rows with a non-empty string label and value, and caps the list at 4.
+ * the inspector contract expects. Reuses the shared `customFieldSchema` so
+ * trimming and the label/value length caps are applied consistently with the
+ * write contract; drops legacy/malformed rows and caps the list.
  */
-function normalizeCustomFields(raw: unknown): Array<{ label: string; value: string }> {
+function normalizeCustomFields(raw: unknown): AppointmentCustomField[] {
   if (!Array.isArray(raw)) return [];
   return raw
-    .filter(
-      (row): row is { label: string; value: string } =>
-        !!row &&
-        typeof row === 'object' &&
-        typeof (row as { label?: unknown }).label === 'string' &&
-        (row as { label: string }).label.trim() !== '' &&
-        typeof (row as { value?: unknown }).value === 'string' &&
-        (row as { value: string }).value.trim() !== '',
-    )
-    .slice(0, 4)
-    .map((row) => ({ label: row.label, value: row.value }));
+    .map((row) => customFieldSchema.safeParse(row))
+    .filter((result): result is { success: true; data: AppointmentCustomField } => result.success)
+    .map((result) => result.data)
+    .slice(0, CUSTOM_FIELDS_MAX);
 }
 
 export interface JobDetailsAgency {
@@ -118,7 +113,7 @@ export interface AppointmentDetailOutput {
   observation: string | null;
   restrictionsSummary: string | null;
   /** Operator-defined custom fields, read-only for the inspector (max 4). */
-  customFields: Array<{ label: string; value: string }>;
+  customFields: AppointmentCustomField[];
   contact: {
     rentalTenantName: string;
     primaryEmail: string | null;

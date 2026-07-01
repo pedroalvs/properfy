@@ -54,18 +54,24 @@ const observationUpdateField = z
   .optional()
   .transform((v) => (v == null ? v : v.trim() === '' ? null : v));
 
+/** Single source of truth for custom-field limits (shared by schema, backend
+ *  normalization and the web form's maxLength props). */
+export const CUSTOM_FIELD_LABEL_MAX = 50;
+export const CUSTOM_FIELD_VALUE_MAX = 500;
+export const CUSTOM_FIELDS_MAX = 4;
+
 /**
  * Repeatable operator-defined custom field on an appointment. Each entry is a
- * required `{ label, value }` pair; a maximum of 4 are allowed per appointment.
- * Stored opaquely in `appointments.custom_fields_json`. Input is validated
- * strictly; response schemas stay permissive (see responses.ts) to avoid the
- * fastify serializer throwing on legacy/edge data.
+ * required `{ label, value }` pair; a maximum of {@link CUSTOM_FIELDS_MAX} are
+ * allowed per appointment. Stored opaquely in `appointments.custom_fields_json`.
+ * Input is validated strictly; response schemas stay permissive (see
+ * responses.ts) to avoid the fastify serializer throwing on legacy/edge data.
  */
-const customFieldSchema = z.object({
-  label: z.string().trim().min(1).max(50),
-  value: z.string().trim().min(1).max(500),
+export const customFieldSchema = z.object({
+  label: z.string().trim().min(1).max(CUSTOM_FIELD_LABEL_MAX),
+  value: z.string().trim().min(1).max(CUSTOM_FIELD_VALUE_MAX),
 });
-export const appointmentCustomFieldsSchema = z.array(customFieldSchema).max(4);
+export const appointmentCustomFieldsSchema = z.array(customFieldSchema).max(CUSTOM_FIELDS_MAX);
 export type AppointmentCustomField = z.infer<typeof customFieldSchema>;
 
 export const createAppointmentSchema = z.object({

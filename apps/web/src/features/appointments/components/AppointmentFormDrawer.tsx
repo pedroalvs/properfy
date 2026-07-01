@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AppointmentStatus, AppointmentContactRole, ContactType, ContactChannelType, todayLocalDateString, isTimeStartInPastForDate, validateEditedSchedule } from '@properfy/shared';
+import { AppointmentStatus, AppointmentContactRole, ContactType, ContactChannelType, todayLocalDateString, isTimeStartInPastForDate, validateEditedSchedule, CUSTOM_FIELD_LABEL_MAX, CUSTOM_FIELD_VALUE_MAX } from '@properfy/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
@@ -963,7 +963,7 @@ export function AppointmentFormDrawer({
 
                   <FormSection title="Custom Fields">
                     {form.customFields.map((field, idx) => (
-                      <div key={field.key} className="flex items-start gap-3 mb-3">
+                      <div key={field.key} className="flex flex-col gap-3 mb-3 md:flex-row md:items-start">
                         <FormField
                           label={`Label ${idx + 1}`}
                           required
@@ -973,7 +973,7 @@ export function AppointmentFormDrawer({
                           <TextInput
                             value={field.label}
                             onChange={(v) => updateCustomField(field.key, 'label', v)}
-                            maxLength={50}
+                            maxLength={CUSTOM_FIELD_LABEL_MAX}
                             placeholder="e.g. Gate code"
                             error={!!errors.customFields?.[idx]?.label}
                             aria-label={`Custom field ${idx + 1} label`}
@@ -988,7 +988,7 @@ export function AppointmentFormDrawer({
                           <TextInput
                             value={field.value}
                             onChange={(v) => updateCustomField(field.key, 'value', v)}
-                            maxLength={500}
+                            maxLength={CUSTOM_FIELD_VALUE_MAX}
                             placeholder="e.g. 1234"
                             error={!!errors.customFields?.[idx]?.value}
                             aria-label={`Custom field ${idx + 1} value`}
@@ -997,7 +997,7 @@ export function AppointmentFormDrawer({
                         <button
                           type="button"
                           onClick={() => removeCustomField(field.key)}
-                          className="text-error hover:text-error/80 text-sm font-medium mt-8"
+                          className="self-end text-error hover:text-error/80 text-sm font-medium md:mt-8 md:self-auto"
                           aria-label={`Remove custom field ${idx + 1}`}
                         >
                           <i className="mdi mdi-close-circle-outline text-lg" aria-hidden="true" />

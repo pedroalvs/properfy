@@ -1,5 +1,12 @@
 import { useState, useCallback } from 'react';
-import { RestrictionSource, ContactType, createAppointmentSchema, updateAppointmentSchema } from '@properfy/shared';
+import {
+  RestrictionSource,
+  ContactType,
+  createAppointmentSchema,
+  updateAppointmentSchema,
+  CUSTOM_FIELD_LABEL_MAX,
+  CUSTOM_FIELD_VALUE_MAX,
+} from '@properfy/shared';
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import type { AppointmentFormData, AppointmentFormErrors, ContactFormEntry } from '../types';
@@ -228,9 +235,9 @@ export function useAppointmentSave(): UseAppointmentSaveReturn {
       if (label === '' && value === '') return;
       const rowError: Partial<Record<'label' | 'value', string>> = {};
       if (label === '') rowError.label = 'Label is required';
-      else if (label.length > 50) rowError.label = 'Max 50 characters';
+      else if (label.length > CUSTOM_FIELD_LABEL_MAX) rowError.label = `Max ${CUSTOM_FIELD_LABEL_MAX} characters`;
       if (value === '') rowError.value = 'Value is required';
-      else if (value.length > 500) rowError.value = 'Max 500 characters';
+      else if (value.length > CUSTOM_FIELD_VALUE_MAX) rowError.value = `Max ${CUSTOM_FIELD_VALUE_MAX} characters`;
       if (Object.keys(rowError).length > 0) customFieldsErrors[idx] = rowError;
     });
     if (data.customFields.length > MAX_CUSTOM_FIELDS) {

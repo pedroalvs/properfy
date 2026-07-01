@@ -6,6 +6,7 @@ import type {
   ContactChannelType,
   AppointmentCustomField,
 } from '@properfy/shared';
+import { CUSTOM_FIELDS_MAX } from '@properfy/shared';
 
 export type { AppointmentStatus } from '@properfy/shared';
 
@@ -149,8 +150,8 @@ export interface CustomFieldEntry {
   value: string;
 }
 
-/** Max number of custom fields allowed per appointment (matches the shared schema). */
-export const MAX_CUSTOM_FIELDS = 4;
+/** Max number of custom fields allowed per appointment (single source: shared schema). */
+export const MAX_CUSTOM_FIELDS = CUSTOM_FIELDS_MAX;
 
 export interface AppointmentFormData {
   branchId: string;

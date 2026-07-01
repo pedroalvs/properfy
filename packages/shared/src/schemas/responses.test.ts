@@ -6,6 +6,7 @@ import {
   portalDataResponseSchema,
   dashboardStatsResponseSchema,
   inspectorDayCountSchema,
+  inspectorAppointmentDetailResponseSchema,
 } from './responses';
 
 describe('loginResponseSchema', () => {
@@ -317,6 +318,72 @@ describe('inspectorDayCountSchema', () => {
       inspectorName: 'Alice',
       count: 5,
       alertLevel: null,
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('inspectorAppointmentDetailResponseSchema — customFields', () => {
+  const validBase = {
+    id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    status: 'SCHEDULED',
+    scheduledDate: '2027-06-15',
+    timeSlotStart: '09:00',
+    timeSlotEnd: '11:00',
+    serviceTypeId: 'b1ffcd00-0a1c-4ef9-cc7e-7cc0ce491b22',
+    serviceTypeName: 'Routine Inspection',
+    flowType: 'ROUTINE',
+    propertyId: 'c2ddfe22-2b3c-4ef9-cc7e-7cc0ce491b33',
+    propertyAddress: '123 Main St',
+    suburb: 'Brunswick',
+    propertyLatitude: null,
+    propertyLongitude: null,
+    rentalTenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmation: 'PENDING',
+    keyRequired: false,
+    meetingLocation: null,
+    keyLocation: null,
+    rentalTenantName: 'John Tenant',
+    rentalTenantPhone: null,
+    rentalTenantEmail: null,
+    notes: null,
+    observation: null,
+    restrictionsSummary: null,
+    contact: null,
+    restrictions: [],
+    execution: null,
+    assets: [],
+    apps: [],
+  };
+
+  it('accepts a valid customFields array', () => {
+    const result = inspectorAppointmentDetailResponseSchema.safeParse({
+      ...validBase,
+      customFields: [
+        { label: 'Gate code', value: '1234' },
+        { label: 'Parking', value: 'Level 2' },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts an empty customFields array and an omitted field', () => {
+    expect(inspectorAppointmentDetailResponseSchema.safeParse({ ...validBase, customFields: [] }).success).toBe(true);
+    expect(inspectorAppointmentDetailResponseSchema.safeParse(validBase).success).toBe(true);
+  });
+
+  it('rejects malformed customFields entries (wrong types)', () => {
+    const result = inspectorAppointmentDetailResponseSchema.safeParse({
+      ...validBase,
+      customFields: [{ label: 123, value: true }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a non-array customFields', () => {
+    const result = inspectorAppointmentDetailResponseSchema.safeParse({
+      ...validBase,
+      customFields: { label: 'Gate', value: '1' },
     });
     expect(result.success).toBe(false);
   });

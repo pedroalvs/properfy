@@ -16,6 +16,9 @@ vi.mock('@properfy/shared', () => ({
   todayLocalDateString: () => '2026-03-29',
   isTimeStartInPastForDate: () => false,
   validateEditedSchedule: () => ({ ok: true }),
+  CUSTOM_FIELD_LABEL_MAX: 50,
+  CUSTOM_FIELD_VALUE_MAX: 500,
+  CUSTOM_FIELDS_MAX: 4,
 }));
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } }));
 vi.mock('@/services/api', () => ({
