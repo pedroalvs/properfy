@@ -61,16 +61,27 @@ CL_ADMIN/CL_USER are always own-tenant scoped and see only Agency-relevant entry
 
 ## Delivery batches (PRs)
 
-1. **PR-1 (this) — Shared contract foundation.** `financial.agency_view` +
+1. **PR-1 — Shared contract foundation.** `financial.agency_view` +
    `financial.agency_export` matrix actions (`cl_user_flag: view_financials`); `view_financials`
    added to `clUserPermissions` + `CL_USER_PERMISSIONS`; `allowClientFinancialView` removed;
    `clUserPermissions` exposed on `meResponseSchema`; openapi/api-types regenerated.
-2. **PR-2 — Backend billing RBAC unification + route cleanup** (wire CL_USER resolver into
-   billing; remove deprecated/duplicate routes).
+2. **PR-2 (this) — Backend billing route cleanup.** Remove the deprecated `/v1/invoices/*` block
+   (incl. `/close` `/pay` aliases) and the duplicate `PATCH /v1/financial/entries/:id/approve`
+   (canonical `POST` kept); migrate the one web caller (`useFinancialBatchApprove`) PATCH→POST;
+   regenerate the contract.
 3. **PR-3 — Remove orphan tenant-invoice** (backend + shared + destructive migration).
-4. **PR-4 — Backend Agency financial surface** (extrato / services rendered / scoped export).
+4. **PR-4 — Backend Agency financial surface + RBAC unification.** Extrato / services rendered /
+   scoped export; inject `AuthorizationService` into the billing container, wire the CL_USER
+   permissions resolver into billing auth, and unify the route-level role checks onto
+   `assertRoles` + `assertClUserPermission('view_financials')`.
 5. **PR-5 — Web Agency financial surface + client-side gating** (`/v1/me` flags).
 6. **PR-6 — PWA earnings/history redesign** (parallelizable after PR-1).
+
+> **Re-split note:** the CL_USER-resolver wiring + route-level RBAC-mechanism unification were
+> moved from PR-2 into PR-4. Rationale: the resolver is only consumed by
+> `assertClUserPermission('view_financials')` (added in PR-4), and any CL read path to
+> `financial_entries` must ship together with the `INSPECTOR_PAYOUT` entry-type exclusion — so
+> coupling them keeps PR-2 a pure, low-risk cleanup and avoids duplicate container/mock churn.
 
 ## PR-1 functional requirements (delivered)
 
@@ -84,3 +95,15 @@ CL_ADMIN/CL_USER are always own-tenant scoped and see only Agency-relevant entry
 - **FR-031-04:** `meResponseSchema` optionally carries `clUserPermissions: string[]`.
 
 Backoffice financial actions (`financial.view/approve/manual_adjustment/refund`) remain AM/OP-only.
+
+## PR-2 functional requirements (delivered)
+
+- **FR-031-05:** The deprecated `/v1/invoices/*` routes (`GET /v1/invoices`, `POST
+  /v1/invoices/generate`, `GET /v1/invoices/:id`, `POST /v1/invoices/:id/close`, `POST
+  /v1/invoices/:id/pay`, `GET /v1/invoices/:id/download`) are removed and resolve to 404. The
+  canonical `/v1/billing/invoices/*` routes are unchanged.
+- **FR-031-06:** The duplicate `PATCH /v1/financial/entries/:entryId/approve` is removed (404);
+  the canonical `POST` variant is the single approve verb. The sole web caller
+  (`useFinancialBatchApprove`) uses `POST`.
+- **FR-031-07:** No inspector-invoice use-case, entity, or canonical route is changed (the
+  removed routes were legacy aliases / a duplicate verb only).

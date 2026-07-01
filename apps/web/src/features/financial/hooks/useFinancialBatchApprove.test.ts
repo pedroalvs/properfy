@@ -28,11 +28,11 @@ import { api } from '@/services/api';
 import { useFinancialBatchApprove } from './useFinancialBatchApprove';
 import { createQueryWrapper } from '@/test-utils/test-wrappers';
 
-const mockPatch = api.PATCH as ReturnType<typeof vi.fn>;
+const mockPost = api.POST as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
-  mockPatch.mockReset();
-  mockPatch.mockResolvedValue({ data: { data: {} } });
+  mockPost.mockReset();
+  mockPost.mockResolvedValue({ data: { data: {} } });
 });
 
 describe('useFinancialBatchApprove', () => {
@@ -54,11 +54,11 @@ describe('useFinancialBatchApprove', () => {
 
     expect(approveResult?.success).toBe(true);
     expect(approveResult?.failedCount).toBe(0);
-    expect(mockPatch).toHaveBeenCalledTimes(2);
+    expect(mockPost).toHaveBeenCalledTimes(2);
   });
 
   it('reports failed entries', async () => {
-    mockPatch
+    mockPost
       .mockResolvedValueOnce({ data: { data: {} } })
       .mockResolvedValueOnce({ error: { error: { message: 'Failed' } } });
 

@@ -9,8 +9,9 @@
  *
  * This test verifies:
  * 1. POST approve → 200 with full entity fields (status APPROVED, approvedByUserId non-null)
- * 2. PATCH approve → 200 with full entity fields (same use-case, both HTTP verbs)
- * 3. Retry (already APPROVED) → 422 ENTRY_NOT_PENDING
+ * 2. Retry (already APPROVED) → 409 ENTRY_NOT_PENDING
+ *
+ * (031 PR-2: the duplicate PATCH verb was removed; POST is canonical.)
  */
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
 import supertest from 'supertest';
@@ -145,43 +146,6 @@ describe('POST /v1/financial/entries/:entryId/approve — QA-010-HIGH-001', () =
   it('should return 401 without auth', async () => {
     const res = await supertest(app.server)
       .post(`/v1/financial/entries/${ENTRY_ID}/approve`);
-
-    expect(res.status).toBe(401);
-  });
-});
-
-describe('PATCH /v1/financial/entries/:entryId/approve — QA-010-HIGH-001', () => {
-  it('should return 200 with full enriched entry fields after approval', async () => {
-    mockJwtVerify.mockResolvedValueOnce(amContext);
-    mockApproveFinancialEntryExecute.mockResolvedValueOnce(approvedEnrichedEntry);
-
-    const res = await supertest(app.server)
-      .patch(`/v1/financial/entries/${ENTRY_ID}/approve`)
-      .set('Authorization', 'Bearer valid-token');
-
-    expect(res.status).toBe(200);
-    expect(res.body.data.id).toBe(ENTRY_ID);
-    expect(res.body.data.status).toBe('APPROVED');
-    expect(res.body.data.approvedByUserId).toBe(AM_USER_ID);
-    expect(res.body.data.tenantId).toBe(TENANT_ID);
-    expect(res.body.data.amount).toBe(150);
-  });
-
-  it('should return 409 ENTRY_NOT_PENDING when entry is already approved (retry)', async () => {
-    mockJwtVerify.mockResolvedValueOnce(amContext);
-    mockApproveFinancialEntryExecute.mockRejectedValueOnce(new EntryNotPendingError());
-
-    const res = await supertest(app.server)
-      .patch(`/v1/financial/entries/${ENTRY_ID}/approve`)
-      .set('Authorization', 'Bearer valid-token');
-
-    expect(res.status).toBe(409);
-    expect(res.body.error.code).toBe('ENTRY_NOT_PENDING');
-  });
-
-  it('should return 401 without auth', async () => {
-    const res = await supertest(app.server)
-      .patch(`/v1/financial/entries/${ENTRY_ID}/approve`);
 
     expect(res.status).toBe(401);
   });

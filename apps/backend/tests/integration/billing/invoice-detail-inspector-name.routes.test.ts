@@ -124,18 +124,3 @@ describe('GET /v1/billing/invoices/:invoiceId — QA-017-MEDIUM-001', () => {
     expect(res.body.error.code).toBe('INVOICE_NOT_FOUND');
   });
 });
-
-describe('GET /v1/invoices/:invoiceId (deprecated alias) — QA-017-MEDIUM-001', () => {
-  it('returns 200 with inspectorName as a non-null string', async () => {
-    mockJwtVerify.mockResolvedValueOnce(amContext);
-    mockGetInvoiceExecute.mockResolvedValueOnce(invoiceWithInspectorName);
-
-    const res = await supertest(app.server)
-      .get(`/v1/invoices/${INVOICE_ID}`)
-      .set('Authorization', 'Bearer valid-token');
-
-    expect(res.status).toBe(200);
-    expect(res.body.data.inspectorName).toBe('John Inspector');
-    expect(res.body.data.inspectorName).not.toBeNull();
-  });
-});
