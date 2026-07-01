@@ -161,6 +161,16 @@ describe('ListFinancialEntriesUseCase', () => {
     );
   });
 
+  it.each(['CL_ADMIN', 'CL_USER'] as const)(
+    'should fail closed for %s without a tenant scope (no unscoped read)',
+    async (role) => {
+      await expect(
+        useCase.execute({ ...defaultInput, actor: makeActor({ role, tenantId: null }) }),
+      ).rejects.toThrow(ForbiddenError);
+      expect(entryRepo.findAllEnriched).not.toHaveBeenCalled();
+    },
+  );
+
   it('should exclude INSPECTOR_PAYOUT from CL_ADMIN reads by default', async () => {
     vi.mocked(entryRepo.findAllEnriched).mockResolvedValue([]);
     vi.mocked(entryRepo.count).mockResolvedValue(0);

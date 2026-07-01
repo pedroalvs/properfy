@@ -110,7 +110,12 @@ export class ListFinancialEntriesUseCase {
       // entry types. INSPECTOR_PAYOUT is the platform↔inspector leg and must
       // never be exposed to an agency. The `view_financials` flag (CL_USER) is
       // enforced at the route layer, not here.
-      filters.tenantId = actor.tenantId!;
+      // Fail closed: never fall back to an unscoped read when the JWT lacks a
+      // tenant (the repository skips the tenant filter for a falsy tenantId).
+      if (!actor.tenantId) {
+        throw new ForbiddenError('TENANT_SCOPE_REQUIRED', 'Agency financial access requires a tenant scope');
+      }
+      filters.tenantId = actor.tenantId;
       if (input.type) {
         if (!AGENCY_ENTRY_TYPES.includes(input.type as FinancialEntryType)) {
           throw new ForbiddenError('FORBIDDEN', 'Agencies cannot view this entry type');

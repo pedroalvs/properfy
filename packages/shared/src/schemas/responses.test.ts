@@ -150,6 +150,11 @@ describe('meResponseSchema', () => {
       expect(result.data.clUserPermissions).toBeUndefined();
     }
   });
+
+  it('should reject clUserPermissions with non-string elements (031)', () => {
+    const result = meResponseSchema.safeParse({ ...validMe, clUserPermissions: [123, 'view_financials'] });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('portalDataResponseSchema', () => {

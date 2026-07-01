@@ -44,7 +44,9 @@ destructive migrations and route removals are acceptable.
 | Inspector-invoice ops (generate/mark-paid/reverse/reconcile) | ✅ | ✅ | ❌ | ❌ | ❌ |
 | `financial.agency_view` (extrato / services rendered / summary) | ✅ | ✅ | ✅ | flag `view_financials` | ❌ |
 | `financial.agency_export` (own-tenant XLSX) | ✅ | ✅ | ✅ | flag `view_financials` | ❌ |
-| Own earnings + history (`INSPECTOR_PAYOUT`, own inspector) | ✅ | ✅ | ❌ | ❌ | ✅ own-only |
+| Own earnings + history — INSP self-service (`INSPECTOR_PAYOUT`, own inspector) † | ❌ | ❌ | ❌ | ❌ | ✅ own-only |
+
+† AM/OP do **not** have an "own earnings" surface; they see all payouts (incl. `INSPECTOR_PAYOUT`) via the **backoffice ledger** row above (`financial.view`). This keeps the own-earnings surface INSP-only, consistent with `015-permissions-rbac-matrix`.
 
 CL_ADMIN/CL_USER are always own-tenant scoped and see only Agency-relevant entry types
 (`TENANT_DEBIT`, `REFUND`, `MANUAL_ADJUSTMENT`) — never `INSPECTOR_PAYOUT`.

@@ -247,6 +247,39 @@ describe('GetMeUseCase', () => {
     expect(result.clUserPermissions).toEqual([]);
   });
 
+  it('should fall back to [] when the tenant has no clUserPermissions setting', async () => {
+    const user = makeUser({ role: 'CL_USER', tenantId: 'tenant-1' });
+    vi.mocked(userRepo.findById).mockResolvedValue(user);
+    // settingsJson present but without the clUserPermissions key (the undefined path).
+    vi.mocked(tenantRepo.findById).mockResolvedValue(
+      new TenantEntity({
+        id: 'tenant-1', name: 'Acme', legalName: 'Acme Pty', timezone: 'Australia/Sydney',
+        currency: 'AUD', settingsJson: {}, status: 'ACTIVE',
+        createdAt: new Date('2024-01-01'), updatedAt: new Date('2024-01-01'), deletedAt: null,
+      }),
+    );
+
+    const result = await useCase.execute('user-1');
+
+    expect(result.clUserPermissions).toEqual([]);
+  });
+
+  it('should ignore a malformed (non-array) clUserPermissions setting', async () => {
+    const user = makeUser({ role: 'CL_USER', tenantId: 'tenant-1' });
+    vi.mocked(userRepo.findById).mockResolvedValue(user);
+    vi.mocked(tenantRepo.findById).mockResolvedValue(
+      new TenantEntity({
+        id: 'tenant-1', name: 'Acme', legalName: 'Acme Pty', timezone: 'Australia/Sydney',
+        currency: 'AUD', settingsJson: { clUserPermissions: 'not-an-array' }, status: 'ACTIVE',
+        createdAt: new Date('2024-01-01'), updatedAt: new Date('2024-01-01'), deletedAt: null,
+      }),
+    );
+
+    const result = await useCase.execute('user-1');
+
+    expect(result.clUserPermissions).toEqual([]);
+  });
+
   it('should not resolve clUserPermissions for non-CL_USER roles', async () => {
     const user = makeUser({ role: 'CL_ADMIN', tenantId: 'tenant-1' });
     vi.mocked(userRepo.findById).mockResolvedValue(user);

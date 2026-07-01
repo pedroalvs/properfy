@@ -184,6 +184,7 @@ An Admin Master or Operator configures which fine-grained permissions CL_USER ac
 | `create_appointments` | Create new appointments | APPROVED, NOT YET IMPLEMENTED |
 | `create_properties` | Create new properties | APPROVED, NOT YET IMPLEMENTED |
 | `export_reports` | Export report data | APPROVED, NOT YET IMPLEMENTED |
+| `view_financials` | View the agency financial surface (extrato / services / export) | IMPLEMENTED (031) |
 
 ---
 
@@ -283,7 +284,7 @@ Two runtime-only actors exist that are not persisted as user roles: TNT (tenant 
 #### CL_USER Permission Flags
 
 - **FR-010** (`APPROVED, PARTIALLY IMPLEMENTED`): CL_USER actions beyond read-only MUST be gated by permission flags stored in tenant settings (`tenants.settings_json.clUserPermissions`).
-- **FR-011**: The canonical list of CL_USER permission flags MUST be: `cancel_appointments`, `reject_appointments`, `force_confirmation`, `reschedule_appointments`, `create_appointments`, `create_properties`, `export_reports`.
+- **FR-011**: The canonical list of CL_USER permission flags MUST be: `cancel_appointments`, `reject_appointments`, `force_confirmation`, `reschedule_appointments`, `create_appointments`, `create_properties`, `export_reports`, `view_financials` (031 — the first *read* flag; it gates the agency financial surface).
 - **FR-012**: When a CL_USER attempts a flagged action, the system MUST check the flag against the tenant's settings. If the flag is absent or false, the action MUST be rejected with `FORBIDDEN`.
 - **FR-013**: CL_USER MUST always retain read access to entities within their tenant scope regardless of permission flags. Permission flags only gate write/transition actions.
 

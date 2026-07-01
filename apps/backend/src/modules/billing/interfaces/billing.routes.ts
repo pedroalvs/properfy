@@ -94,9 +94,11 @@ export async function registerBillingRoutes(
     // 031 — resolve CL_USER permission flags so agency read routes can enforce
     // `view_financials` via assertClUserPermission. Without this, the flag is
     // always empty and every flagged CL_USER would be silently denied.
+    // settingsJson is untyped JSON — normalize to a string[] before use.
     async (tenantId) => {
       const tenant = await container.tenantRepo.findById(tenantId);
-      return (tenant?.settingsJson?.clUserPermissions as string[] | undefined) ?? [];
+      const raw = tenant?.settingsJson?.clUserPermissions;
+      return Array.isArray(raw) ? raw.filter((p): p is string => typeof p === 'string') : [];
     },
   );
 

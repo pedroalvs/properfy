@@ -62,7 +62,9 @@ export class GetMeUseCase {
     let clUserPermissions: string[] | undefined;
     if (user.role === 'CL_USER' && user.tenantId) {
       const tenant = await this.tenantRepo.findById(user.tenantId);
-      clUserPermissions = (tenant?.settingsJson?.clUserPermissions as string[] | undefined) ?? [];
+      // settingsJson is untyped JSON — normalize to a string[] before returning.
+      const raw = tenant?.settingsJson?.clUserPermissions;
+      clUserPermissions = Array.isArray(raw) ? raw.filter((p): p is string => typeof p === 'string') : [];
     }
 
     return {

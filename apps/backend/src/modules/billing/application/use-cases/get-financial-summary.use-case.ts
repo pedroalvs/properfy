@@ -24,8 +24,16 @@ export class GetFinancialSummaryUseCase {
     let tenantId: string | undefined;
     if (actor.role === 'AM') {
       tenantId = input.tenantId;
-    } else if (actor.role === 'OP' || actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
-      tenantId = actor.tenantId!;
+    } else if (actor.role === 'OP') {
+      // OP is the platform operational team (tenantId is null → platform-wide).
+      tenantId = actor.tenantId ?? undefined;
+    } else if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
+      // Fail closed: an agency read must be tenant-scoped. Never fall back to an
+      // unscoped (cross-tenant) summary when the JWT lacks a tenant.
+      if (!actor.tenantId) {
+        throw new ForbiddenError('TENANT_SCOPE_REQUIRED', 'Agency financial access requires a tenant scope');
+      }
+      tenantId = actor.tenantId;
     } else {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions to view financial summary');
     }

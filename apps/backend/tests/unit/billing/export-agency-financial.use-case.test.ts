@@ -96,4 +96,21 @@ describe('ExportAgencyFinancialUseCase', () => {
       sut.useCase.execute({ actor: makeActor({ role: 'AM', tenantId: null }) }),
     ).rejects.toThrow(ValidationError);
   });
+
+  it('fails closed for a CL role without a tenant scope (ignores input.tenantId)', async () => {
+    const { ForbiddenError } = await import('../../../src/shared/domain/errors');
+    await expect(
+      sut.useCase.execute({ tenantId: 'tenant-other', actor: makeActor({ role: 'CL_USER', tenantId: null }) }),
+    ).rejects.toThrow(ForbiddenError);
+    expect(sut.entryRepo.findAllEnriched).not.toHaveBeenCalled();
+  });
+
+  it('rejects an over-large export instead of loading an unbounded history', async () => {
+    vi.mocked(sut.entryRepo.count).mockResolvedValue(5001);
+
+    await expect(
+      sut.useCase.execute({ actor: makeActor() }),
+    ).rejects.toThrow(ValidationError);
+    expect(sut.entryRepo.findAllEnriched).not.toHaveBeenCalled();
+  });
 });
