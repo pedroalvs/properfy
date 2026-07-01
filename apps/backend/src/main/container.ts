@@ -243,9 +243,6 @@ import { PrismaReportRepository } from '../modules/report/infrastructure/prisma-
 import { StubReportStorageService } from '../modules/report/infrastructure/stub-report-storage.service';
 import { SupabaseReportStorageService } from '../modules/report/infrastructure/supabase-report-storage.service';
 import { ExcelJsXlsxGenerator } from '../modules/report/infrastructure/exceljs-xlsx-generator';
-import { CsvReportGenerator } from '../modules/report/infrastructure/csv-report-generator';
-import { PdfReportGenerator } from '../modules/report/infrastructure/pdf-report-generator';
-import { XlsxReportGeneratorAdapter } from '../modules/report/infrastructure/xlsx-report-generator-adapter';
 import { PrismaReportDataReader } from '../modules/report/infrastructure/prisma-report-data-reader';
 import { StubJobQueue } from '../shared/infrastructure/stub-job-queue';
 import { PgBossJobQueue } from '../shared/infrastructure/pgboss-job-queue';
@@ -254,20 +251,6 @@ import { GetReportStatusUseCase } from '../modules/report/application/use-cases/
 import { DownloadReportUseCase } from '../modules/report/application/use-cases/download-report.use-case';
 import { ListReportsUseCase } from '../modules/report/application/use-cases/list-reports.use-case';
 import { ProcessReportJobUseCase } from '../modules/report/application/use-cases/process-report-job.use-case';
-import { CreateScheduledReportUseCase } from '../modules/report/application/use-cases/create-scheduled-report.use-case';
-import { ListScheduledReportsUseCase } from '../modules/report/application/use-cases/list-scheduled-reports.use-case';
-import { GetScheduledReportUseCase } from '../modules/report/application/use-cases/get-scheduled-report.use-case';
-import { UpdateScheduledReportUseCase } from '../modules/report/application/use-cases/update-scheduled-report.use-case';
-import { PauseScheduledReportUseCase } from '../modules/report/application/use-cases/pause-scheduled-report.use-case';
-import { ResumeScheduledReportUseCase } from '../modules/report/application/use-cases/resume-scheduled-report.use-case';
-import { DeleteScheduledReportUseCase } from '../modules/report/application/use-cases/delete-scheduled-report.use-case';
-import { ReassignScheduleOwnershipUseCase } from '../modules/report/application/use-cases/reassign-schedule-ownership.use-case';
-import { ListScheduleRunsUseCase } from '../modules/report/application/use-cases/list-schedule-runs.use-case';
-import { DeliverScheduledReportUseCase } from '../modules/report/application/use-cases/deliver-scheduled-report.use-case';
-import { PrismaScheduledReportRunRepository } from '../modules/report/infrastructure/prisma-scheduled-report-run.repository';
-import { PrismaScheduleRecipientResolver } from '../modules/report/infrastructure/prisma-schedule-recipient-resolver';
-import { PrismaScheduledReportRepository } from '../modules/report/infrastructure/prisma-scheduled-report.repository';
-import { ProcessSchedulesWorker } from '../modules/report/infrastructure/workers/process-schedules.worker';
 import type { ReportRouteContainer } from '../modules/report/interfaces/report.routes';
 
 // Notification module
@@ -443,7 +426,7 @@ export interface AppContainer {
   cleanupSessionsWorker: CleanupSessionsWorker;
   keyExpiryCheckWorker: KeyExpiryCheckWorker;
   expireFilesWorker: ExpireFilesWorker;
-  processSchedulesWorker: ProcessSchedulesWorker;
+  processReportJobUseCase: ProcessReportJobUseCase;
   appointmentImportWorker: AppointmentImportWorker;
   generateInvoiceFileWorker: GenerateInvoiceFileWorker;
   expireTokensWorker: ExpireTokensWorker;
@@ -989,75 +972,10 @@ export function createContainer(logger: Logger): AppContainer {
   const reportJobQueue = env.ENABLE_JOB_QUEUE === 'true'
     ? new PgBossJobQueue()
     : new StubJobQueue();
-  const requestReportUseCase = new RequestReportUseCase(reportRepo, reportJobQueue, auditService, tenantRepo, authorizationService);
+  const requestReportUseCase = new RequestReportUseCase(reportRepo, reportJobQueue, auditService);
   const getReportStatusUseCase = new GetReportStatusUseCase(reportRepo, userManagementRepo, reportStorageService);
   const downloadReportUseCase = new DownloadReportUseCase(reportRepo, reportStorageService);
   const listReportsUseCase = new ListReportsUseCase(reportRepo, userManagementRepo, reportStorageService);
-  const csvGenerator = new CsvReportGenerator();
-  const pdfGenerator = new PdfReportGenerator();
-  const xlsxGeneratorAdapter = new XlsxReportGeneratorAdapter(xlsxGenerator);
-  const generatorMap = {
-    XLSX: xlsxGeneratorAdapter,
-    CSV: csvGenerator,
-    PDF: pdfGenerator,
-  };
-  // Note: processReportJobUseCase is constructed later (after scheduledReportRunRepo
-  // and deliverScheduledReportUseCase exist) to wire in the Feature 019 fan-out hook.
-
-  // Scheduled report repositories and use cases (Feature 019)
-  const scheduledReportRepo = new PrismaScheduledReportRepository(prisma);
-  const scheduledReportRunRepo = new PrismaScheduledReportRunRepository(prisma);
-  const scheduleRecipientResolver = new PrismaScheduleRecipientResolver(userManagementRepo);
-  const createScheduledReportUseCase = new CreateScheduledReportUseCase(
-    scheduledReportRepo,
-    auditService,
-    userManagementRepo,
-    authorizationService,
-  );
-  const listScheduledReportsUseCase = new ListScheduledReportsUseCase(
-    scheduledReportRepo,
-    scheduledReportRunRepo,
-  );
-  const getScheduledReportUseCase = new GetScheduledReportUseCase(
-    scheduledReportRepo,
-    scheduledReportRunRepo,
-  );
-  const updateScheduledReportUseCase = new UpdateScheduledReportUseCase(
-    scheduledReportRepo,
-    auditService,
-  );
-  const pauseScheduledReportUseCase = new PauseScheduledReportUseCase(
-    scheduledReportRepo,
-    auditService,
-  );
-  const resumeScheduledReportUseCase = new ResumeScheduledReportUseCase(
-    scheduledReportRepo,
-    auditService,
-  );
-  const deleteScheduledReportUseCase = new DeleteScheduledReportUseCase(
-    scheduledReportRepo,
-    auditService,
-  );
-  const reassignScheduleOwnershipUseCase = new ReassignScheduleOwnershipUseCase(
-    scheduledReportRepo,
-    userManagementRepo,
-    auditService,
-  );
-  const listScheduleRunsUseCase = new ListScheduleRunsUseCase(
-    scheduledReportRepo,
-    scheduledReportRunRepo,
-  );
-  const deliverScheduledReportUseCase = new DeliverScheduledReportUseCase(
-    scheduledReportRepo,
-    scheduledReportRunRepo,
-    reportRepo,
-    scheduleRecipientResolver,
-    createNotificationUseCase,
-    auditService,
-    logger,
-  );
-
-  // Feature 019: construct processReportJobUseCase AFTER its schedule deps are ready
   const processReportJobUseCase = new ProcessReportJobUseCase(
     reportRepo,
     reportStorageService,
@@ -1065,9 +983,6 @@ export function createContainer(logger: Logger): AppContainer {
     reportDataReader,
     createNotificationUseCase,
     userManagementRepo,
-    generatorMap,
-    scheduledReportRunRepo,
-    deliverScheduledReportUseCase,
   );
 
   // Notification providers and services (notificationRepo + notificationTemplateRepo created above)
@@ -1244,14 +1159,6 @@ export function createContainer(logger: Logger): AppContainer {
   const cleanupSessionsWorker = new CleanupSessionsWorker(sessionRepo, logger);
   const keyExpiryCheckWorker = new KeyExpiryCheckWorker(jwtService, auditService, logger);
   const expireFilesWorker = new ExpireFilesWorker(reportRepo, reportStorageService, logger);
-  const processSchedulesWorker = new ProcessSchedulesWorker(
-    scheduledReportRepo,
-    scheduledReportRunRepo,
-    requestReportUseCase,
-    userManagementRepo,
-    auditService,
-    logger,
-  );
   const generateInvoiceFileWorker = new GenerateInvoiceFileWorker(
     inspectorInvoiceRepo, financialEntryRepo, xlsxGenerator, reportStorageService, logger,
   );
@@ -1570,17 +1477,6 @@ export function createContainer(logger: Logger): AppContainer {
       getReportStatusUseCase,
       downloadReportUseCase,
       listReportsUseCase,
-      processReportJobUseCase,
-      createScheduledReportUseCase,
-      listScheduledReportsUseCase,
-      // Feature 019
-      getScheduledReportUseCase,
-      updateScheduledReportUseCase,
-      pauseScheduledReportUseCase,
-      resumeScheduledReportUseCase,
-      deleteScheduledReportUseCase,
-      reassignScheduleOwnershipUseCase,
-      listScheduleRunsUseCase,
       jwtService,
       tenantRepo,
     },
@@ -1646,7 +1542,7 @@ export function createContainer(logger: Logger): AppContainer {
     cleanupSessionsWorker,
     keyExpiryCheckWorker,
     expireFilesWorker,
-    processSchedulesWorker,
+    processReportJobUseCase,
     geocodeWorker,
     geocodeRetryWorker,
     propertyImportWorker,

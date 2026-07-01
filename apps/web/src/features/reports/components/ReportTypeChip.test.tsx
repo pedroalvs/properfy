@@ -4,13 +4,10 @@ import { ReportType } from '@properfy/shared';
 import { ReportTypeChip } from './ReportTypeChip';
 
 const TYPE_LABELS: Record<ReportType, string> = {
-  INSPECTIONS_SCHEDULED: 'Scheduled Inspections',
-  INSPECTIONS_DONE: 'Completed Inspections',
-  INSPECTIONS_CANCELLED: 'Cancelled Inspections',
-  INSPECTIONS_REJECTED: 'Rejected Inspections',
-  INSPECTOR_PERFORMANCE: 'Inspector Performance',
-  CONFIRMATION_STATUS: 'Confirmation Status',
-  FINANCIAL_SERVICES: 'Financial Services',
+  APPOINTMENTS: 'Appointments',
+  FINANCIAL: 'Financial',
+  PERFORMANCE: 'Performance',
+  AGENCIES: 'Agencies',
 };
 
 describe('ReportTypeChip', () => {
@@ -23,8 +20,8 @@ describe('ReportTypeChip', () => {
   );
 
   it('passes className through', () => {
-    render(<ReportTypeChip reportType={ReportType.INSPECTIONS_DONE} className="my-custom" />);
-    const chip = screen.getByText('Completed Inspections');
+    render(<ReportTypeChip reportType={ReportType.FINANCIAL} className="my-custom" />);
+    const chip = screen.getByText('Financial');
     expect(chip.className).toContain('my-custom');
   });
 });

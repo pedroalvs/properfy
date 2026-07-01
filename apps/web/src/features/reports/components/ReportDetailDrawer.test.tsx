@@ -54,10 +54,10 @@ vi.mock('../hooks/useReportDetail', () => ({
     if (id === 'loading') return { report: null, isLoading: true, isError: false, refetch: vi.fn() };
     return {
       report: {
-        id: 'rpt-01', reportType: 'INSPECTIONS_SCHEDULED', status: 'READY',
-        format: 'XLSX', requestedBy: { id: 'u-1', name: 'Admin Principal' },
-        fileKey: 'reports/vistorias-agendadas-marco-2026.xlsx', fileSize: 1048576,
-        filters: { fromDate: '2026-03-01', toDate: '2026-03-15' },
+        id: 'rpt-01', reportType: 'APPOINTMENTS', status: 'READY',
+        requestedBy: { id: 'u-1', name: 'Admin Principal' },
+        fileKey: 'reports/appointments-march-2026.xlsx', fileSize: 1048576,
+        filters: { fromDate: '2026-03-01', toDate: '2026-03-15', dateAxis: 'SCHEDULED', groupProperties: false },
         createdAt: '2026-03-15T10:00:00Z', updatedAt: '2026-03-15T10:00:00Z',
       },
       isLoading: false, isError: false, refetch: vi.fn(),
@@ -94,7 +94,7 @@ function renderDrawer(props: { reportId: string | null; open: boolean; onClose?:
 describe('ReportDetailDrawer', () => {
   it('renders drawer with report file name in header', () => {
     renderDrawer({ reportId: 'rpt-01', open: true });
-    const matches = screen.getAllByText('vistorias-agendadas-marco-2026.xlsx');
+    const matches = screen.getAllByText('appointments-march-2026.xlsx');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 

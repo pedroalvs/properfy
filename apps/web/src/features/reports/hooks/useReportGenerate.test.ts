@@ -29,38 +29,41 @@ describe('useReportGenerate', () => {
     vi.clearAllMocks();
   });
 
-  it('calls mutate with report input', () => {
+  const SAMPLE_INPUT = {
+    reportType: 'APPOINTMENTS',
+    filters: {
+      fromDate: '2026-03-01',
+      toDate: '2026-03-31',
+      dateAxis: 'SCHEDULED',
+      groupProperties: false,
+    },
+  } as const;
+
+  it('calls mutate with the full report input shape', () => {
     const { result } = renderHook(() => useReportGenerate(), { wrapper });
 
     act(() => {
-      result.current.generate({
-        reportType: 'INSPECTIONS_DONE',
-        filters: { fromDate: '2026-03-01', toDate: '2026-03-31' },
-      });
+      result.current.generate(SAMPLE_INPUT);
     });
 
     expect(mockMutate).toHaveBeenCalledWith(
-      {
-        reportType: 'INSPECTIONS_DONE',
-        filters: { fromDate: '2026-03-01', toDate: '2026-03-31' },
-      },
+      SAMPLE_INPUT,
       expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
     );
   });
 
-  it('shows success snackbar on success', () => {
+  it('shows success snackbar and runs the caller onSuccess on success', () => {
     mockMutate.mockImplementation((_data: unknown, opts: any) => opts.onSuccess());
+    const onSuccess = vi.fn();
 
     const { result } = renderHook(() => useReportGenerate(), { wrapper });
 
     act(() => {
-      result.current.generate({
-        reportType: 'INSPECTIONS_DONE',
-        filters: { fromDate: '2026-03-01', toDate: '2026-03-31' },
-      });
+      result.current.generate(SAMPLE_INPUT, { onSuccess });
     });
 
     expect(mockShowSuccess).toHaveBeenCalledWith('Report generation started');
+    expect(onSuccess).toHaveBeenCalled();
   });
 
   it('shows error snackbar on failure', () => {
@@ -71,10 +74,7 @@ describe('useReportGenerate', () => {
     const { result } = renderHook(() => useReportGenerate(), { wrapper });
 
     act(() => {
-      result.current.generate({
-        reportType: 'INSPECTIONS_DONE',
-        filters: { fromDate: '2026-03-01', toDate: '2026-03-31' },
-      });
+      result.current.generate(SAMPLE_INPUT);
     });
 
     expect(mockShowError).toHaveBeenCalledWith('Generation failed');

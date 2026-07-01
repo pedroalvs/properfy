@@ -449,7 +449,6 @@ describe('tenantSettingsSchema', () => {
       allowClientCancellation: false,
       allowClientRescheduling: true,
       allowClientFinancialView: true,
-      allowClientReportExport: false,
       allowClientUserManagement: true,
       priorityOfferHours: 48,
       inspectorOfferRadiusKm: 5,
@@ -492,7 +491,6 @@ describe('tenantSettingsSchema', () => {
     expect(result.allowClientCancellation).toBe(true);
     expect(result.allowClientRescheduling).toBe(true);
     expect(result.allowClientFinancialView).toBe(false);
-    expect(result.allowClientReportExport).toBe(false);
     expect(result.allowClientUserManagement).toBe(false);
     expect(result.priorityOfferHours).toBe(24);
     expect(result.inspectorOfferRadiusKm).toBe(2);
@@ -562,34 +560,6 @@ describe('tenantSettingsSchema', () => {
     const result = tenantSettingsSchema.safeParse({
       inspectionWindowBeforeMinutes: 30.5,
     });
-    expect(result.success).toBe(false);
-  });
-
-  it('should default maxConcurrentReports to 10', () => {
-    const result = tenantSettingsSchema.parse({});
-    expect(result.maxConcurrentReports).toBe(10);
-  });
-
-  it('should accept maxConcurrentReports within range 1-50', () => {
-    const result = tenantSettingsSchema.safeParse({ maxConcurrentReports: 25 });
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.maxConcurrentReports).toBe(25);
-    }
-  });
-
-  it('should reject maxConcurrentReports below 1', () => {
-    const result = tenantSettingsSchema.safeParse({ maxConcurrentReports: 0 });
-    expect(result.success).toBe(false);
-  });
-
-  it('should reject maxConcurrentReports above 50', () => {
-    const result = tenantSettingsSchema.safeParse({ maxConcurrentReports: 51 });
-    expect(result.success).toBe(false);
-  });
-
-  it('should reject non-integer maxConcurrentReports', () => {
-    const result = tenantSettingsSchema.safeParse({ maxConcurrentReports: 10.5 });
     expect(result.success).toBe(false);
   });
 });

@@ -68,22 +68,7 @@ export function ReportTable({
       key: 'reportType',
       label: 'Type',
       width: '200px',
-      render: (row) => (
-        <div className="flex flex-col gap-1">
-          <ReportTypeChip reportType={row.reportType} />
-          {row.scheduledReportId && (
-            <a
-              href={`/scheduled-reports/${row.scheduledReportId}`}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--color-primary)] hover:underline"
-              title="From scheduled report"
-              data-testid="scheduled-report-chip"
-            >
-              <i className="mdi mdi-calendar-clock text-sm" aria-hidden="true" />
-              Scheduled
-            </a>
-          )}
-        </div>
-      ),
+      render: (row) => <ReportTypeChip reportType={row.reportType} />,
     },
     {
       key: 'status',

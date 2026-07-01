@@ -55,12 +55,13 @@ describe('permissions utility', () => {
     it('should return the flag key for CL_USER-flagged actions', () => {
       expect(getRequiredClUserFlag('appointment.create')).toBe('create_appointments');
       expect(getRequiredClUserFlag('appointment.cancel')).toBe('cancel_appointments');
-      expect(getRequiredClUserFlag('report.export')).toBe('export_reports');
     });
 
     it('should return undefined for non-flagged actions', () => {
       expect(getRequiredClUserFlag('tenant.create')).toBeUndefined();
       expect(getRequiredClUserFlag('financial.approve')).toBeUndefined();
+      // report.export was removed from the RBAC matrix (reports are AM/OP-only).
+      expect(getRequiredClUserFlag('report.export')).toBeUndefined();
     });
 
     it('should return undefined for unknown actions', () => {

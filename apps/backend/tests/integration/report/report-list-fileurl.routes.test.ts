@@ -51,9 +51,8 @@ const amContext = { userId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a10', tenantId: nu
 const readyReportWithUrl = {
   id: REPORT_ID,
   tenantId: null,
-  reportType: 'INSPECTIONS_SCHEDULED',
-  filtersJson: { fromDate: '2026-01-01', toDate: '2026-03-01' },
-  format: 'XLSX',
+  reportType: 'APPOINTMENTS',
+  filtersJson: { fromDate: '2026-01-01', toDate: '2026-03-01', dateAxis: 'SCHEDULED' },
   status: 'READY',
   fileKey: 'reports/tenant-1/2026-03-16/report.xlsx',
   fileUrl: 'https://supabase.example/storage/v1/object/sign/reports/tenant-1/2026-03-16/report.xlsx?token=signed',

@@ -196,7 +196,6 @@ model Tenant {
   property_imports       PropertyImport[]
   appointment_time_slots AppointmentTimeSlot[]
   service_regions        ServiceRegion[]
-  scheduled_reports      ScheduledReport[]
   contacts               Contact[]
   app_credentials        AppCredential[]
 
@@ -271,7 +270,6 @@ model User {
   created_imports           AppointmentImport[]   @relation("importCreatedBy")
   created_property_imports  PropertyImport[]      @relation("propertyImportCreatedBy")
   created_service_regions   ServiceRegion[]       @relation("ServiceRegionCreatedBy")
-  created_scheduled_reports ScheduledReport[]     @relation("scheduledReportCreatedBy")
   uploaded_email_assets      EmailAsset[]          @relation("EmailAssetUploadedBy")
 
   @@index([tenant_id])
@@ -1332,13 +1330,10 @@ model NotificationAttempt {
 }
 
 enum ReportType {
-  INSPECTIONS_SCHEDULED
-  INSPECTIONS_DONE
-  INSPECTIONS_CANCELLED
-  INSPECTIONS_REJECTED
-  INSPECTOR_PERFORMANCE
-  CONFIRMATION_STATUS
-  FINANCIAL_SERVICES
+  APPOINTMENTS
+  FINANCIAL
+  PERFORMANCE
+  AGENCIES
 }
 
 enum ReportStatus {
@@ -1348,46 +1343,14 @@ enum ReportStatus {
   FAILED
 }
 
-enum ReportFormat {
-  XLSX
-  CSV
-  PDF
-}
-
-// Feature 019: schedule delivery targets
-enum ScheduleDeliveryMode {
-  OWNER_ONLY
-  RECIPIENT_LIST
-  TENANT_WIDE
-}
-
-// Feature 019: schedule lifecycle status (distinct from legacy is_active flag)
-enum ScheduleStatus {
-  ACTIVE
-  PAUSED
-}
-
-// Feature 019: per-run ledger status
-enum ScheduleRunStatus {
-  queued
-  running
-  completed
-  failed
-  skipped_catchup
-  skipped_empty
-}
-
 model Report {
   id                   String       @id @default(uuid())
   tenant_id            String?
   report_type          ReportType
   filters_json         Json
-  format               ReportFormat @default(XLSX)
   status               ReportStatus @default(PENDING)
   file_key             String?
   requested_by_user_id String
-  // Feature 019: optional back-reference to the scheduled_report that created this report row
-  scheduled_report_id  String?
   started_at           DateTime?
   completed_at         DateTime?
   failed_at            DateTime?
@@ -1397,10 +1360,8 @@ model Report {
   created_at           DateTime     @default(now())
   updated_at           DateTime     @updatedAt
 
-  tenant          Tenant?              @relation(fields: [tenant_id], references: [id])
-  requestedBy     User                 @relation(fields: [requested_by_user_id], references: [id])
-  scheduledReport ScheduledReport?     @relation(fields: [scheduled_report_id], references: [id], onDelete: SetNull)
-  scheduleRuns    ScheduledReportRun[]
+  tenant      Tenant? @relation(fields: [tenant_id], references: [id])
+  requestedBy User    @relation(fields: [requested_by_user_id], references: [id])
 
   @@index([tenant_id])
   @@index([report_type])
@@ -1408,7 +1369,6 @@ model Report {
   @@index([requested_by_user_id])
   @@index([created_at])
   @@index([expires_at])
-  @@index([scheduled_report_id])
   @@map("reports")
 }
 
@@ -1524,67 +1484,6 @@ model InspectorRegion {
   @@map("inspector_regions")
 }
 
-model ScheduledReport {
-  id                        String               @id @default(uuid())
-  tenant_id                 String
-  report_type               ReportType
-  filters_json              Json
-  format                    ReportFormat         @default(XLSX)
-  cron_expression           String               @db.VarChar(100)
-  // Legacy single-recipient delivery field (Feature 019 deprecates this in favor of delivery_mode + recipient_user_ids)
-  delivery_email            String               @db.VarChar(254)
-  // Feature 019: lifecycle columns
-  display_name              String?              @db.VarChar(120)
-  delivery_mode             ScheduleDeliveryMode @default(OWNER_ONLY)
-  recipient_user_ids        Json                 @default("[]")
-  skip_delivery_when_empty  Boolean              @default(false)
-  consecutive_failure_count Int                  @default(0)
-  status                    ScheduleStatus       @default(ACTIVE)
-  deleted_at                DateTime?
-  // Legacy flag kept for back-compat; new code must read `status`
-  is_active                 Boolean              @default(true)
-  last_run_at               DateTime?
-  next_run_at               DateTime?
-  created_by_user_id        String
-  created_at                DateTime             @default(now())
-  updated_at                DateTime             @updatedAt
-
-  tenant    Tenant               @relation(fields: [tenant_id], references: [id])
-  createdBy User                 @relation("scheduledReportCreatedBy", fields: [created_by_user_id], references: [id])
-  reports   Report[]
-  runs      ScheduledReportRun[]
-
-  @@index([tenant_id])
-  @@index([is_active, next_run_at])
-  @@index([status, next_run_at])
-  @@index([created_by_user_id])
-  @@map("scheduled_reports")
-}
-
-// Feature 019: per-run ledger for scheduled report executions
-model ScheduledReportRun {
-  id                   String            @id @default(uuid())
-  schedule_id          String
-  report_id            String?
-  status               ScheduleRunStatus
-  scheduled_for        DateTime
-  started_at           DateTime?
-  completed_at         DateTime?
-  error_message        String?
-  recipient_count      Int?
-  delivery_status_json Json?
-  created_at           DateTime          @default(now())
-  updated_at           DateTime          @updatedAt
-
-  schedule ScheduledReport @relation(fields: [schedule_id], references: [id], onDelete: Cascade)
-  report   Report?         @relation(fields: [report_id], references: [id], onDelete: SetNull)
-
-  @@unique([schedule_id, scheduled_for])
-  @@index([schedule_id, created_at])
-  @@index([report_id])
-  @@index([status])
-  @@map("scheduled_report_runs")
-}
 
 model NotificationConsent {
   id                 String               @id @default(uuid())

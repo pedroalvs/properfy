@@ -1,17 +1,14 @@
 import { BaseEntity } from '../../../shared/domain/entity';
-import type { ReportType, ReportStatus, ReportFormat } from '@properfy/shared';
+import type { ReportType, ReportStatus } from '@properfy/shared';
 
 export interface ReportProps {
   id: string;
   tenantId: string | null;
   reportType: ReportType;
   filtersJson: Record<string, unknown>;
-  format: ReportFormat;
   status: ReportStatus;
   fileKey: string | null;
   requestedByUserId: string;
-  /** Feature 019: optional back-reference to the schedule that produced this report. */
-  scheduledReportId: string | null;
   startedAt: Date | null;
   completedAt: Date | null;
   failedAt: Date | null;
@@ -26,11 +23,9 @@ export class ReportEntity extends BaseEntity {
   readonly tenantId: string | null;
   readonly reportType: ReportType;
   readonly filtersJson: Record<string, unknown>;
-  readonly format: ReportFormat;
   status: ReportStatus;
   fileKey: string | null;
   readonly requestedByUserId: string;
-  readonly scheduledReportId: string | null;
   startedAt: Date | null;
   completedAt: Date | null;
   failedAt: Date | null;
@@ -43,11 +38,9 @@ export class ReportEntity extends BaseEntity {
     this.tenantId = props.tenantId;
     this.reportType = props.reportType;
     this.filtersJson = props.filtersJson;
-    this.format = props.format;
     this.status = props.status;
     this.fileKey = props.fileKey;
     this.requestedByUserId = props.requestedByUserId;
-    this.scheduledReportId = props.scheduledReportId;
     this.startedAt = props.startedAt;
     this.completedAt = props.completedAt;
     this.failedAt = props.failedAt;

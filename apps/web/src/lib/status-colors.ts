@@ -149,13 +149,10 @@ export const TENANT_ADMIN_STATUS_MAP: Record<string, StatusStyle> = {
 };
 
 export const REPORT_TYPE_MAP: Record<ReportType, StatusStyle> = {
-  [ReportType.INSPECTIONS_SCHEDULED]: { bg: 'var(--color-report-type-scheduled)',    text: 'var(--color-text-primary)', label: 'Scheduled Inspections' },
-  [ReportType.INSPECTIONS_DONE]:      { bg: 'var(--color-report-type-done)',         text: 'var(--color-text-primary)', label: 'Completed Inspections' },
-  [ReportType.INSPECTIONS_CANCELLED]: { bg: 'var(--color-report-type-cancelled)',    text: 'var(--color-text-primary)', label: 'Cancelled Inspections' },
-  [ReportType.INSPECTIONS_REJECTED]:  { bg: 'var(--color-report-type-rejected)',     text: 'var(--color-text-primary)', label: 'Rejected Inspections' },
-  [ReportType.INSPECTOR_PERFORMANCE]: { bg: 'var(--color-report-type-performance)',  text: 'var(--color-text-primary)', label: 'Inspector Performance' },
-  [ReportType.CONFIRMATION_STATUS]:   { bg: 'var(--color-report-type-confirmation)', text: 'var(--color-text-primary)', label: 'Confirmation Status' },
-  [ReportType.FINANCIAL_SERVICES]:    { bg: 'var(--color-report-type-financial)',    text: 'var(--color-text-primary)', label: 'Financial Services' },
+  [ReportType.APPOINTMENTS]: { bg: 'var(--color-report-type-appointments)', text: 'var(--color-text-primary)', label: 'Appointments' },
+  [ReportType.FINANCIAL]:    { bg: 'var(--color-report-type-financial)',    text: 'var(--color-text-primary)', label: 'Financial' },
+  [ReportType.PERFORMANCE]:  { bg: 'var(--color-report-type-performance)',  text: 'var(--color-text-primary)', label: 'Performance' },
+  [ReportType.AGENCIES]:     { bg: 'var(--color-report-type-agencies)',     text: 'var(--color-text-primary)', label: 'Agencies' },
 };
 
 export const REPORT_STATUS_MAP: Record<ReportStatus, StatusStyle> = {

@@ -717,15 +717,13 @@ export interface paths {
                             /** @default false */
                             allowClientFinancialView?: boolean;
                             /** @default false */
-                            allowClientReportExport?: boolean;
-                            /** @default false */
                             allowClientUserManagement?: boolean;
                             /** @default 24 */
                             priorityOfferHours?: number;
                             /** @default 2 */
                             inspectorOfferRadiusKm?: number;
                             /** @default [] */
-                            clUserPermissions?: ("create_appointments" | "cancel_appointments" | "reject_appointments" | "reschedule_appointments" | "force_confirmation" | "create_properties" | "export_reports")[];
+                            clUserPermissions?: ("create_appointments" | "cancel_appointments" | "reject_appointments" | "reschedule_appointments" | "force_confirmation" | "create_properties")[];
                             emailTemplates?: {
                                 initial?: {
                                     subject?: string;
@@ -777,8 +775,6 @@ export interface paths {
                             notificationDailyCapEmail?: number;
                             /** @default 100 */
                             notificationDailyCapSms?: number;
-                            /** @default 10 */
-                            maxConcurrentReports?: number;
                             customFields?: {
                                 [key: string]: unknown;
                             };
@@ -913,15 +909,13 @@ export interface paths {
                             /** @default false */
                             allowClientFinancialView?: boolean;
                             /** @default false */
-                            allowClientReportExport?: boolean;
-                            /** @default false */
                             allowClientUserManagement?: boolean;
                             /** @default 24 */
                             priorityOfferHours?: number;
                             /** @default 2 */
                             inspectorOfferRadiusKm?: number;
                             /** @default [] */
-                            clUserPermissions?: ("create_appointments" | "cancel_appointments" | "reject_appointments" | "reschedule_appointments" | "force_confirmation" | "create_properties" | "export_reports")[];
+                            clUserPermissions?: ("create_appointments" | "cancel_appointments" | "reject_appointments" | "reschedule_appointments" | "force_confirmation" | "create_properties")[];
                             emailTemplates?: {
                                 initial?: {
                                     subject?: string;
@@ -973,8 +967,6 @@ export interface paths {
                             notificationDailyCapEmail?: number;
                             /** @default 100 */
                             notificationDailyCapSms?: number;
-                            /** @default 10 */
-                            maxConcurrentReports?: number;
                             customFields?: {
                                 [key: string]: unknown;
                             };
@@ -10472,7 +10464,7 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    reportType?: "INSPECTIONS_SCHEDULED" | "INSPECTIONS_DONE" | "INSPECTIONS_CANCELLED" | "INSPECTIONS_REJECTED" | "INSPECTOR_PERFORMANCE" | "CONFIRMATION_STATUS" | "FINANCIAL_SERVICES";
+                    reportType?: "APPOINTMENTS" | "FINANCIAL" | "PERFORMANCE" | "AGENCIES";
                     status?: "PENDING" | "PROCESSING" | "READY" | "FAILED";
                     fromDate?: string;
                     toDate?: string;
@@ -10500,7 +10492,6 @@ export interface paths {
                                 reportType: string;
                                 filtersJson?: unknown;
                                 filters?: unknown;
-                                format: string;
                                 status: string;
                                 fileKey?: string | null;
                                 fileUrl?: string | null;
@@ -10539,29 +10530,25 @@ export interface paths {
                 content: {
                     "application/json": {
                         /** @enum {string} */
-                        reportType: "INSPECTIONS_SCHEDULED" | "INSPECTIONS_DONE" | "INSPECTIONS_CANCELLED" | "INSPECTIONS_REJECTED" | "INSPECTOR_PERFORMANCE" | "CONFIRMATION_STATUS" | "FINANCIAL_SERVICES";
+                        reportType: "APPOINTMENTS" | "FINANCIAL" | "PERFORMANCE" | "AGENCIES";
                         filters: {
                             fromDate: string;
                             toDate: string;
+                            /**
+                             * @default SCHEDULED
+                             * @enum {string}
+                             */
+                            dateAxis?: "SCHEDULED" | "CREATED" | "COMPLETED";
                             /** Format: uuid */
                             tenantId?: string;
                             /** Format: uuid */
-                            serviceTypeId?: string;
-                            /** Format: uuid */
                             branchId?: string;
-                            /** Format: uuid */
-                            inspectorId?: string;
-                            status?: string;
-                            rentalTenantConfirmationStatus?: string;
-                            search?: string;
-                            emailNotificationStatus?: string;
+                            suburb?: string;
+                            /** @enum {string} */
+                            status?: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
+                            /** @default false */
+                            groupProperties?: boolean;
                         };
-                        /**
-                         * @default XLSX
-                         * @enum {string}
-                         */
-                        format?: "XLSX" | "CSV" | "PDF";
-                        columns?: string[];
                     };
                 };
             };
@@ -10625,7 +10612,6 @@ export interface paths {
                                 reportType: string;
                                 filtersJson?: unknown;
                                 filters?: unknown;
-                                format: string;
                                 status: string;
                                 fileKey?: string | null;
                                 fileUrl?: string | null;
@@ -10685,371 +10671,6 @@ export interface paths {
                             };
                         };
                     };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/reports/schedules": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: {
-                    page?: number;
-                    pageSize?: number;
-                    status?: "ACTIVE" | "PAUSED";
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                /** Format: uuid */
-                                tenantId: string;
-                                reportType: string;
-                                filtersJson?: unknown;
-                                format: string;
-                                cronExpression: string;
-                                deliveryEmail: string;
-                                isActive: boolean;
-                                lastRunAt?: (string) | null;
-                                nextRunAt?: (string) | null;
-                                /** Format: uuid */
-                                createdByUserId?: string;
-                                createdAt: string;
-                                updatedAt: string;
-                                displayName?: string | null;
-                                /** @enum {string} */
-                                deliveryMode?: "OWNER_ONLY" | "RECIPIENT_LIST" | "TENANT_WIDE";
-                                recipientUserIds?: string[];
-                                skipDeliveryWhenEmpty?: boolean;
-                                consecutiveFailureCount?: number;
-                                /** @enum {string} */
-                                status?: "ACTIVE" | "PAUSED";
-                                deletedAt?: (string) | null;
-                                /** @enum {string|null} */
-                                lastRunStatus?: "queued" | "running" | "completed" | "failed" | "skipped_catchup" | "skipped_empty" | null;
-                            }[];
-                            pagination: {
-                                page: number;
-                                pageSize: number;
-                                total: number;
-                                totalPages: number;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        reportType: "INSPECTIONS_SCHEDULED" | "INSPECTIONS_DONE" | "INSPECTIONS_CANCELLED" | "INSPECTIONS_REJECTED" | "INSPECTOR_PERFORMANCE" | "CONFIRMATION_STATUS" | "FINANCIAL_SERVICES";
-                        /** @default {} */
-                        filtersJson?: {
-                            [key: string]: unknown;
-                        };
-                        /**
-                         * @default XLSX
-                         * @enum {string}
-                         */
-                        format?: "XLSX" | "CSV" | "PDF";
-                        recurrence?: {
-                            /** @enum {string} */
-                            type: "daily";
-                            hour: number;
-                        } | {
-                            /** @enum {string} */
-                            type: "weekly";
-                            dayOfWeek: number;
-                            hour: number;
-                        } | {
-                            /** @enum {string} */
-                            type: "monthly";
-                            dayOfMonth: number;
-                            hour: number;
-                        };
-                        cronExpression?: string;
-                        /**
-                         * @default OWNER_ONLY
-                         * @enum {string}
-                         */
-                        deliveryMode?: "OWNER_ONLY" | "RECIPIENT_LIST" | "TENANT_WIDE";
-                        /** @default [] */
-                        recipientUserIds?: string[];
-                        displayName?: string;
-                        /** @default false */
-                        skipDeliveryWhenEmpty?: boolean;
-                        /** Format: email */
-                        deliveryEmail?: string;
-                        /** Format: uuid */
-                        tenantId?: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description Default Response */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                reportType: string;
-                                cronExpression: string;
-                                deliveryEmail: string;
-                                isActive: boolean;
-                                nextRunAt?: (string) | null;
-                                createdAt: string;
-                            };
-                            message: string;
-                        };
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/reports/schedules/{scheduleId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    scheduleId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    scheduleId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        post?: never;
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    scheduleId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/reports/schedules/{scheduleId}/pause": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    scheduleId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/reports/schedules/{scheduleId}/resume": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    scheduleId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/reports/schedules/{scheduleId}/reassign": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    scheduleId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/reports/schedules/{scheduleId}/runs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    scheduleId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
                 };
             };
         };
