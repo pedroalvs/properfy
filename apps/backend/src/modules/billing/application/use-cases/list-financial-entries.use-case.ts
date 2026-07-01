@@ -1,4 +1,4 @@
-import type { AuthContext } from '@properfy/shared';
+import type { AuthContext, FinancialEntryType } from '@properfy/shared';
 import type {
   IFinancialEntryRepository,
   FinancialEntryFilters,
@@ -6,6 +6,12 @@ import type {
 } from '../../domain/financial-entry.repository';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+
+/**
+ * Entry types an Agency (CL_ADMIN / CL_USER) may see in its financial statement.
+ * INSPECTOR_PAYOUT is deliberately excluded — it is the platform↔inspector leg.
+ */
+const AGENCY_ENTRY_TYPES: FinancialEntryType[] = ['TENANT_DEBIT', 'REFUND', 'MANUAL_ADJUSTMENT'];
 
 export interface ListFinancialEntriesInput {
   type?: string;
@@ -92,13 +98,29 @@ export class ListFinancialEntriesUseCase {
           },
         });
       }
-    } else if (actor.role === 'OP' || actor.role === 'CL_ADMIN') {
-      // OP is tenant-scoped per CORRECTION-001 (2026-04-13); CL_ADMIN reads
-      // own-tenant entries. CL_USER is denied at the route layer (RBAC guard).
+    } else if (actor.role === 'OP') {
+      // OP is tenant-scoped per CORRECTION-001 (2026-04-13). OP is the platform
+      // operational team and sees all entry types (incl. INSPECTOR_PAYOUT).
       filters.tenantId = actor.tenantId!;
       if (input.inspectorId) filters.inspectorId = input.inspectorId;
       if (input.type) filters.entryType = input.type as FinancialEntryFilters['entryType'];
       if (input.status) filters.status = input.status as FinancialEntryFilters['status'];
+    } else if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
+      // 031 — Agency read (extrato): own-tenant, restricted to agency-visible
+      // entry types. INSPECTOR_PAYOUT is the platform↔inspector leg and must
+      // never be exposed to an agency. The `view_financials` flag (CL_USER) is
+      // enforced at the route layer, not here.
+      filters.tenantId = actor.tenantId!;
+      if (input.type) {
+        if (!AGENCY_ENTRY_TYPES.includes(input.type as FinancialEntryType)) {
+          throw new ForbiddenError('FORBIDDEN', 'Agencies cannot view this entry type');
+        }
+        filters.entryType = input.type as FinancialEntryFilters['entryType'];
+      } else {
+        filters.entryTypeIn = [...AGENCY_ENTRY_TYPES];
+      }
+      if (input.status) filters.status = input.status as FinancialEntryFilters['status'];
+      // Note: an inspectorId filter is intentionally NOT honored for agencies.
     } else if (actor.role === 'INSP') {
       // Inspectors: forced inspectorId and entryType
       if (!actor.inspectorId) {
