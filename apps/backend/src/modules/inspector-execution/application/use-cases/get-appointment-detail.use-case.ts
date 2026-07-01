@@ -18,6 +18,27 @@ export interface GetAppointmentDetailInput {
   actor: AuthContext;
 }
 
+/**
+ * Normalize the opaque `customFieldsJson` into the read-only `{ label, value }[]`
+ * the inspector contract expects. Defensive against legacy/malformed data: keeps
+ * only rows with a non-empty string label and value, and caps the list at 4.
+ */
+function normalizeCustomFields(raw: unknown): Array<{ label: string; value: string }> {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(
+      (row): row is { label: string; value: string } =>
+        !!row &&
+        typeof row === 'object' &&
+        typeof (row as { label?: unknown }).label === 'string' &&
+        (row as { label: string }).label.trim() !== '' &&
+        typeof (row as { value?: unknown }).value === 'string' &&
+        (row as { value: string }).value.trim() !== '',
+    )
+    .slice(0, 4)
+    .map((row) => ({ label: row.label, value: row.value }));
+}
+
 export interface JobDetailsAgency {
   id: string;
   name: string;
@@ -96,6 +117,8 @@ export interface AppointmentDetailOutput {
   notes: string | null;
   observation: string | null;
   restrictionsSummary: string | null;
+  /** Operator-defined custom fields, read-only for the inspector (max 4). */
+  customFields: Array<{ label: string; value: string }>;
   contact: {
     rentalTenantName: string;
     primaryEmail: string | null;
@@ -250,6 +273,7 @@ export class GetAppointmentDetailUseCase {
       notes: appointment.notes,
       observation: appointment.observation,
       restrictionsSummary,
+      customFields: normalizeCustomFields(appointment.customFieldsJson),
       contact: contact
         ? {
             rentalTenantName: contact.effectiveName,

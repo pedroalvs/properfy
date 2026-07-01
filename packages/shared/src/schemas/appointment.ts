@@ -54,6 +54,20 @@ const observationUpdateField = z
   .optional()
   .transform((v) => (v == null ? v : v.trim() === '' ? null : v));
 
+/**
+ * Repeatable operator-defined custom field on an appointment. Each entry is a
+ * required `{ label, value }` pair; a maximum of 4 are allowed per appointment.
+ * Stored opaquely in `appointments.custom_fields_json`. Input is validated
+ * strictly; response schemas stay permissive (see responses.ts) to avoid the
+ * fastify serializer throwing on legacy/edge data.
+ */
+const customFieldSchema = z.object({
+  label: z.string().trim().min(1).max(50),
+  value: z.string().trim().min(1).max(500),
+});
+export const appointmentCustomFieldsSchema = z.array(customFieldSchema).max(4);
+export type AppointmentCustomField = z.infer<typeof customFieldSchema>;
+
 export const createAppointmentSchema = z.object({
   branchId: z.string().uuid(),
   propertyId: z.string().uuid().optional(),
@@ -75,7 +89,7 @@ export const createAppointmentSchema = z.object({
   keyLocation: z.string().max(500).optional(),
   notes: z.string().max(2000).optional(),
   observation: observationCreateField,
-  customFields: z.record(z.unknown()).optional(),
+  customFields: appointmentCustomFieldsSchema.optional(),
   actorTimezone: z.string().optional(),
 }).refine(
   (data) => !!data.propertyId !== !!data.property,
@@ -110,7 +124,7 @@ export const updateAppointmentSchema = z.object({
   /** App credentials linked to this appointment. When present, replaces all links (empty array clears). */
   appCredentialIds: z.array(z.string().uuid()).max(50).optional(),
   restriction: restrictionSchema.optional(),
-  customFields: z.record(z.unknown()).nullable().optional(),
+  customFields: appointmentCustomFieldsSchema.nullable().optional(),
   actorTimezone: z.string().optional(),
 }).refine(
   (data) => {

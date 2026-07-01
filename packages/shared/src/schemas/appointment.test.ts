@@ -152,7 +152,7 @@ describe('createAppointmentSchema', () => {
       meetingLocation: 'Front gate',
       keyLocation: 'Lockbox at front door',
       notes: 'Please call before arriving',
-      customFields: { clientRef: 'ABC123' },
+      customFields: [{ label: 'Client Ref', value: 'ABC123' }],
     });
     expect(result.success).toBe(true);
   });
@@ -247,6 +247,123 @@ describe('createAppointmentSchema', () => {
     if (result.success) {
       expect(result.data.observation).toBeUndefined();
     }
+  });
+});
+
+describe('appointment customFields (repeatable label/value, max 4)', () => {
+  const base = {
+    branchId: validBranchId,
+    propertyId: validPropertyId,
+    serviceTypeId: validServiceTypeId,
+    scheduledDate: '2027-04-01',
+    timeSlotStart: '09:00',
+    timeSlotEnd: '10:00',
+    contact: validContact,
+  };
+
+  it('accepts up to 4 label/value pairs', () => {
+    const result = createAppointmentSchema.safeParse({
+      ...base,
+      customFields: [
+        { label: 'Gate code', value: '1234' },
+        { label: 'Parking', value: 'Level 2' },
+        { label: 'Alarm', value: 'Off' },
+        { label: 'Pet', value: 'Dog in yard' },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects more than 4 fields', () => {
+    const result = createAppointmentSchema.safeParse({
+      ...base,
+      customFields: Array.from({ length: 5 }, (_, i) => ({ label: `L${i}`, value: `V${i}` })),
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects an empty label', () => {
+    const result = createAppointmentSchema.safeParse({
+      ...base,
+      customFields: [{ label: '', value: 'x' }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects an empty value', () => {
+    const result = createAppointmentSchema.safeParse({
+      ...base,
+      customFields: [{ label: 'x', value: '' }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a whitespace-only value (trimmed to empty)', () => {
+    const result = createAppointmentSchema.safeParse({
+      ...base,
+      customFields: [{ label: 'x', value: '   ' }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts a 50-char label but rejects 51', () => {
+    const ok = createAppointmentSchema.safeParse({
+      ...base,
+      customFields: [{ label: 'a'.repeat(50), value: 'x' }],
+    });
+    expect(ok.success).toBe(true);
+    const tooLong = createAppointmentSchema.safeParse({
+      ...base,
+      customFields: [{ label: 'a'.repeat(51), value: 'x' }],
+    });
+    expect(tooLong.success).toBe(false);
+  });
+
+  it('accepts a 500-char value but rejects 501', () => {
+    const ok = createAppointmentSchema.safeParse({
+      ...base,
+      customFields: [{ label: 'x', value: 'a'.repeat(500) }],
+    });
+    expect(ok.success).toBe(true);
+    const tooLong = createAppointmentSchema.safeParse({
+      ...base,
+      customFields: [{ label: 'x', value: 'a'.repeat(501) }],
+    });
+    expect(tooLong.success).toBe(false);
+  });
+
+  it('trims label and value', () => {
+    const result = createAppointmentSchema.safeParse({
+      ...base,
+      customFields: [{ label: '  Gate  ', value: '  1234  ' }],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.customFields).toEqual([{ label: 'Gate', value: '1234' }]);
+    }
+  });
+
+  it('allows duplicate labels (it is a list, not a keyed map)', () => {
+    const result = createAppointmentSchema.safeParse({
+      ...base,
+      customFields: [
+        { label: 'Note', value: 'A' },
+        { label: 'Note', value: 'B' },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('update: accepts null to clear all custom fields', () => {
+    const result = updateAppointmentSchema.safeParse({ customFields: null });
+    expect(result.success).toBe(true);
+  });
+
+  it('update: rejects more than 4 fields', () => {
+    const result = updateAppointmentSchema.safeParse({
+      customFields: Array.from({ length: 5 }, (_, i) => ({ label: `L${i}`, value: `V${i}` })),
+    });
+    expect(result.success).toBe(false);
   });
 });
 

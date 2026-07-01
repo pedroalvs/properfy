@@ -3,6 +3,18 @@ import { RestrictionSource, ContactType, createAppointmentSchema, updateAppointm
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import type { AppointmentFormData, AppointmentFormErrors, ContactFormEntry } from '../types';
+import { MAX_CUSTOM_FIELDS } from '../types';
+
+/**
+ * Build the custom-fields payload from form entries: trim label/value and drop
+ * fully-empty rows. Partial rows (only one side filled) are kept so the shared
+ * schema / `validate()` surfaces the error rather than silently dropping input.
+ */
+export function buildCustomFieldsPayload(data: AppointmentFormData): Array<{ label: string; value: string }> {
+  return data.customFields
+    .map((f) => ({ label: f.label.trim(), value: f.value.trim() }))
+    .filter((f) => f.label !== '' || f.value !== '');
+}
 
 /**
  * Build the contacts array payload from form entries (023 §FR-251..255).
@@ -65,6 +77,7 @@ function buildLegacyContact(data: AppointmentFormData) {
 function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
   const contacts = buildContactsPayload(data);
   const contact = buildLegacyContact(data);
+  const customFields = buildCustomFieldsPayload(data);
   const actorTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const restriction = data.hasRestriction
@@ -91,6 +104,7 @@ function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
       ...(data.keyLocation.trim() ? { keyLocation: data.keyLocation.trim() } : {}),
       ...(data.notes.trim() ? { notes: data.notes.trim() } : {}),
       ...(data.observation.trim() ? { observation: data.observation.trim() } : {}),
+      ...(customFields.length > 0 ? { customFields } : {}),
       actorTimezone,
     };
   }
@@ -108,6 +122,9 @@ function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
     ...(contacts ? { contacts } : { contact }),
     // Always send the array on edit so clearing all links persists.
     appCredentialIds: data.appCredentialIds,
+    // Always send custom fields on edit so clearing them all persists (the form
+    // hydrates them from the appointment, mirroring appCredentialIds).
+    customFields,
     ...(data.restrictionTouched ? { restriction } : {}),
     actorTimezone,
   };
@@ -199,6 +216,31 @@ export function useAppointmentSave(): UseAppointmentSaveReturn {
       if (Object.keys(contactsErrors).length > 0) {
         errors.contacts = contactsErrors;
       }
+    }
+    // Custom fields: per-row required + length. Fully-empty rows are dropped on
+    // save (see buildCustomFieldsPayload), so they are not flagged here. The
+    // shared schema's `.max(4)` issue path is unmapped and silently dropped, so
+    // the >4 case is guarded explicitly below (the UI also disables "Add" at 4).
+    const customFieldsErrors: Record<number, Partial<Record<'label' | 'value', string>>> = {};
+    data.customFields.forEach((f, idx) => {
+      const label = f.label.trim();
+      const value = f.value.trim();
+      if (label === '' && value === '') return;
+      const rowError: Partial<Record<'label' | 'value', string>> = {};
+      if (label === '') rowError.label = 'Label is required';
+      else if (label.length > 50) rowError.label = 'Max 50 characters';
+      if (value === '') rowError.value = 'Value is required';
+      else if (value.length > 500) rowError.value = 'Max 500 characters';
+      if (Object.keys(rowError).length > 0) customFieldsErrors[idx] = rowError;
+    });
+    if (data.customFields.length > MAX_CUSTOM_FIELDS) {
+      customFieldsErrors[MAX_CUSTOM_FIELDS] = {
+        ...(customFieldsErrors[MAX_CUSTOM_FIELDS] ?? {}),
+        label: `Maximum ${MAX_CUSTOM_FIELDS} custom fields allowed`,
+      };
+    }
+    if (Object.keys(customFieldsErrors).length > 0) {
+      errors.customFields = customFieldsErrors;
     }
     return errors;
   }, []);
