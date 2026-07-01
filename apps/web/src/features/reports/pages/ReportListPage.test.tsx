@@ -44,8 +44,8 @@ const mockGet = api.GET as ReturnType<typeof vi.fn>;
 const mockPost = api.POST as ReturnType<typeof vi.fn>;
 
 const MOCK_REPORTS = [
-  { id: 'rpt-01', reportType: 'INSPECTIONS_SCHEDULED', status: 'READY', format: 'XLSX', requestedBy: { id: 'u-1', name: 'Admin Principal' }, fileKey: 'reports/rpt-01.xlsx', filters: { fromDate: '2026-03-01', toDate: '2026-03-15' }, createdAt: '2026-03-15' },
-  { id: 'rpt-02', reportType: 'FINANCIAL_SERVICES', status: 'FAILED', format: 'XLSX', requestedBy: { id: 'u-1', name: 'Admin Principal' }, fileKey: null, filters: { fromDate: '2026-03-01', toDate: '2026-03-16' }, createdAt: '2026-03-16' },
+  { id: 'rpt-01', reportType: 'APPOINTMENTS', status: 'READY', requestedBy: { id: 'u-1', name: 'Admin Principal' }, fileKey: 'reports/rpt-01.xlsx', filters: { fromDate: '2026-03-01', toDate: '2026-03-15', dateAxis: 'SCHEDULED', groupProperties: false }, createdAt: '2026-03-15' },
+  { id: 'rpt-02', reportType: 'FINANCIAL', status: 'FAILED', requestedBy: { id: 'u-1', name: 'Admin Principal' }, fileKey: null, filters: { fromDate: '2026-03-01', toDate: '2026-03-16', dateAxis: 'SCHEDULED', groupProperties: false }, createdAt: '2026-03-16' },
 ];
 
 function createWrapper() {
@@ -160,9 +160,8 @@ describe('ReportListPage', () => {
     await waitFor(() => {
       expect(mockPost).toHaveBeenCalledWith('/v1/reports', {
         body: {
-          reportType: 'FINANCIAL_SERVICES',
-          filters: { fromDate: '2026-03-01', toDate: '2026-03-16' },
-          format: 'XLSX',
+          reportType: 'FINANCIAL',
+          filters: { fromDate: '2026-03-01', toDate: '2026-03-16', dateAxis: 'SCHEDULED', groupProperties: false },
         },
       });
     });

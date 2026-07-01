@@ -246,11 +246,6 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
   'report.view': {
     roles: ['AM', 'OP'],
   },
-  'report.export': {
-    roles: ['AM', 'OP', 'CL_USER'],
-    condition: 'cl_user_flag',
-    conditionKey: 'export_reports',
-  },
   'audit.view': {
     roles: ['AM', 'OP', 'CL_ADMIN'],
   },

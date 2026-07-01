@@ -1,40 +1,34 @@
 import type { ReportColumn } from './xlsx-generator';
-import type { ReportType } from '@properfy/shared';
+import type { ReportType, ReportDateAxis } from '@properfy/shared';
 
-export const MAX_DATE_RANGE_MONTHS: Record<string, number> = {
-  INSPECTIONS_SCHEDULED: 12,
-  INSPECTIONS_DONE: 12,
-  INSPECTIONS_CANCELLED: 12,
-  INSPECTIONS_REJECTED: 12,
-  INSPECTOR_PERFORMANCE: 12,
-  CONFIRMATION_STATUS: 6,
-  FINANCIAL_SERVICES: 12,
+/** Maximum Period span per report type, in months. */
+export const MAX_DATE_RANGE_MONTHS: Record<ReportType, number> = {
+  APPOINTMENTS: 12,
+  FINANCIAL: 12,
+  PERFORMANCE: 12,
+  AGENCIES: 12,
 };
 
+/** Maximum concurrent (PENDING/PROCESSING) reports a single user may have queued. */
 export const MAX_CONCURRENT_REPORTS = 3;
 export const REPORT_FILE_RETENTION_DAYS = 30;
 export const PRESIGNED_URL_TTL_SECONDS = 3600;
 
-// Feature 019: scheduled reports constants
-/** Maximum active (non-paused, non-deleted) schedules per user. */
-export const MAX_SCHEDULES_PER_USER = 10;
-/** Upper bound on catch-up rows inserted per worker tick to prevent runaway inserts. */
-export const SCHEDULE_CATCHUP_MAX = 100;
-/** Minutes to delay the next run when a tick hits the concurrent-report limit. */
-export const SCHEDULE_RETRY_BACKOFF_ON_LIMIT_MINUTES = 5;
-/** Number of consecutive failures that triggers automatic pause + owner notification. */
-export const SCHEDULE_AUTO_PAUSE_FAILURE_THRESHOLD = 3;
+/**
+ * The real appointment column each date axis ranges on. Recorded so a generated
+ * report can declare which domain field its Period was applied to.
+ */
+export const REPORT_DATE_AXIS_FIELD: Record<ReportDateAxis, 'scheduled_date' | 'created_at' | 'done_checked_at'> = {
+  SCHEDULED: 'scheduled_date',
+  CREATED: 'created_at',
+  COMPLETED: 'done_checked_at',
+};
 
-export const RESTRICTED_REPORT_TYPES: ReportType[] = [
-  'INSPECTOR_PERFORMANCE',
-  'CONFIRMATION_STATUS',
-  'FINANCIAL_SERVICES',
-];
-
-export const INSPECTION_COLUMNS: ReportColumn[] = [
-  { key: 'appointmentId', label: 'Appointment ID', width: 36 },
-  { key: 'serviceType', label: 'Service Type', width: 25 },
+export const APPOINTMENTS_COLUMNS: ReportColumn[] = [
+  { key: 'appointmentNumber', label: 'Appointment #', width: 14 },
+  { key: 'agency', label: 'Agency', width: 25 },
   { key: 'branch', label: 'Branch', width: 25 },
+  { key: 'serviceType', label: 'Service Type', width: 25 },
   { key: 'propertyAddress', label: 'Property Address', width: 40 },
   { key: 'suburb', label: 'Suburb', width: 20 },
   { key: 'postcode', label: 'Postcode', width: 10 },
@@ -42,70 +36,51 @@ export const INSPECTION_COLUMNS: ReportColumn[] = [
   { key: 'scheduledDate', label: 'Scheduled Date', width: 15 },
   { key: 'timeSlot', label: 'Time Slot', width: 15 },
   { key: 'status', label: 'Status', width: 15 },
-  { key: 'rentalTenantName', label: 'Tenant Name', width: 25 },
-  { key: 'tenantEmail', label: 'Tenant Email', width: 30 },
-  { key: 'tenantPhone', label: 'Tenant Phone', width: 20 },
+  { key: 'rentalTenant', label: 'Rental Tenant', width: 25 },
+  { key: 'email', label: 'Email', width: 30 },
+  { key: 'phone', label: 'Phone', width: 20 },
   { key: 'inspector', label: 'Inspector', width: 25 },
   { key: 'confirmationStatus', label: 'Confirmation Status', width: 20 },
   { key: 'keyRequired', label: 'Key Required', width: 12 },
   { key: 'createdAt', label: 'Created At', width: 20 },
 ];
 
-export const INSPECTOR_PERFORMANCE_COLUMNS: ReportColumn[] = [
-  { key: 'inspectorName', label: 'Inspector Name', width: 25 },
-  { key: 'inspectorEmail', label: 'Inspector Email', width: 30 },
-  { key: 'totalScheduled', label: 'Total Scheduled', width: 15 },
-  { key: 'totalDone', label: 'Total Done', width: 12 },
-  { key: 'totalCancelled', label: 'Total Cancelled', width: 15 },
-  { key: 'totalRejected', label: 'Total Rejected', width: 15 },
+export const FINANCIAL_COLUMNS: ReportColumn[] = [
+  { key: 'entryDate', label: 'Entry Date', width: 15 },
+  { key: 'agency', label: 'Agency', width: 25 },
+  { key: 'entryType', label: 'Entry Type', width: 20 },
+  { key: 'appointmentNumber', label: 'Appointment #', width: 14 },
+  { key: 'inspector', label: 'Inspector', width: 25 },
+  { key: 'description', label: 'Description', width: 40 },
+  { key: 'revenue', label: 'Revenue', width: 14 },
+  { key: 'expense', label: 'Expense', width: 14 },
+  { key: 'currency', label: 'Currency', width: 10 },
+];
+
+export const PERFORMANCE_COLUMNS: ReportColumn[] = [
+  { key: 'inspectorName', label: 'Inspector', width: 25 },
+  { key: 'inspectorEmail', label: 'Email', width: 30 },
+  { key: 'totalAppointments', label: 'Total Appointments', width: 18 },
+  { key: 'completed', label: 'Completed', width: 12 },
+  { key: 'cancelled', label: 'Cancelled', width: 12 },
+  { key: 'rejected', label: 'Rejected', width: 12 },
   { key: 'completionRate', label: 'Completion Rate %', width: 18 },
   { key: 'avgDurationMin', label: 'Avg Duration (min)', width: 18 },
-  { key: 'period', label: 'Period', width: 25 },
 ];
 
-export const CONFIRMATION_STATUS_COLUMNS: ReportColumn[] = [
-  { key: 'appointmentId', label: 'Appointment ID', width: 36 },
-  { key: 'serviceType', label: 'Service Type', width: 25 },
-  { key: 'propertyAddress', label: 'Property Address', width: 40 },
-  { key: 'scheduledDate', label: 'Scheduled Date', width: 15 },
-  { key: 'rentalTenantName', label: 'Tenant Name', width: 25 },
-  { key: 'tenantPhone', label: 'Tenant Phone', width: 20 },
-  { key: 'confirmationStatus', label: 'Confirmation Status', width: 20 },
-  { key: 'initialNoticeSent', label: 'Initial Notice Sent', width: 20 },
-  { key: 'lastReminderSent', label: 'Last Reminder Sent', width: 20 },
-  { key: 'portalLastAccessed', label: 'Portal Last Accessed', width: 20 },
-  { key: 'notes', label: 'Notes', width: 30 },
+export const AGENCIES_COLUMNS: ReportColumn[] = [
+  { key: 'agency', label: 'Agency', width: 30 },
+  { key: 'totalAppointments', label: 'Total Appointments', width: 18 },
+  { key: 'completed', label: 'Completed', width: 12 },
+  { key: 'cancelled', label: 'Cancelled', width: 12 },
+  { key: 'scheduled', label: 'Scheduled', width: 12 },
+  { key: 'activeBranches', label: 'Active Branches', width: 16 },
+  { key: 'activeProperties', label: 'Active Properties', width: 16 },
 ];
 
-export const FINANCIAL_SERVICES_COLUMNS: ReportColumn[] = [
-  { key: 'appointmentId', label: 'Appointment ID', width: 36 },
-  { key: 'serviceType', label: 'Service Type', width: 25 },
-  { key: 'tenant', label: 'Tenant (Agency)', width: 25 },
-  { key: 'branch', label: 'Branch', width: 25 },
-  { key: 'propertyAddress', label: 'Property Address', width: 40 },
-  { key: 'inspector', label: 'Inspector', width: 25 },
-  { key: 'scheduledDate', label: 'Scheduled Date', width: 15 },
-  { key: 'doneDate', label: 'Done Date', width: 15 },
-  { key: 'priceAmount', label: 'Price Amount', width: 15 },
-  { key: 'payoutAmount', label: 'Payout Amount', width: 15 },
-  { key: 'currency', label: 'Currency', width: 10 },
-  { key: 'tenantDebitStatus', label: 'Tenant Debit Status', width: 20 },
-  { key: 'inspectorPayoutStatus', label: 'Inspector Payout Status', width: 22 },
-];
-
-export const REPORT_COLUMNS: Record<string, ReportColumn[]> = {
-  INSPECTIONS_SCHEDULED: INSPECTION_COLUMNS,
-  INSPECTIONS_DONE: INSPECTION_COLUMNS,
-  INSPECTIONS_CANCELLED: INSPECTION_COLUMNS,
-  INSPECTIONS_REJECTED: INSPECTION_COLUMNS,
-  INSPECTOR_PERFORMANCE: INSPECTOR_PERFORMANCE_COLUMNS,
-  CONFIRMATION_STATUS: CONFIRMATION_STATUS_COLUMNS,
-  FINANCIAL_SERVICES: FINANCIAL_SERVICES_COLUMNS,
+export const REPORT_COLUMNS: Record<ReportType, ReportColumn[]> = {
+  APPOINTMENTS: APPOINTMENTS_COLUMNS,
+  FINANCIAL: FINANCIAL_COLUMNS,
+  PERFORMANCE: PERFORMANCE_COLUMNS,
+  AGENCIES: AGENCIES_COLUMNS,
 };
-
-/** Valid column keys per report type (for user-defined column selection). */
-export const REPORT_COLUMN_KEYS: Record<string, Set<string>> = Object.fromEntries(
-  Object.entries(REPORT_COLUMNS).map(([type, cols]) => [type, new Set(cols.map((c) => c.key))]),
-);
-
-export const DEFAULT_TENANT_MAX_CONCURRENT_REPORTS = 10;

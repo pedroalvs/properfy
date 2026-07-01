@@ -100,7 +100,7 @@ async function start() {
   if (env.ENABLE_JOB_QUEUE === 'true') {
     const { registerWorkers } = await import('./workers.js');
     await registerWorkers(
-      container.report.processReportJobUseCase,
+      container.processReportJobUseCase,
       container.notification.sendNotificationUseCase,
       container.notification.pollRetryableNotificationsUseCase,
       container.notification.dispatchRemindersUseCase,
@@ -108,7 +108,6 @@ async function start() {
       container.cleanupSessionsWorker,
       container.keyExpiryCheckWorker,
       container.expireFilesWorker,
-      container.processSchedulesWorker,
       container.geocodeWorker,
       container.geocodeRetryWorker,
       container.propertyImportWorker,

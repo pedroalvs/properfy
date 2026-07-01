@@ -761,7 +761,6 @@ export const reportResponseSchema = z.object({
   reportType: z.string(),
   filtersJson: z.unknown().optional(),
   filters: z.unknown().optional(),
-  format: z.string(),
   status: z.string(),
   fileKey: z.string().nullable().optional(),
   fileUrl: z.string().nullable().optional(),
@@ -791,49 +790,6 @@ export const reportRequestedResponseSchema = z.object({
   }),
   message: z.string(),
 });
-
-export const scheduledReportResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  reportType: z.string(),
-  filtersJson: z.unknown().optional(),
-  format: z.string(),
-  cronExpression: z.string(),
-  deliveryEmail: z.string(),
-  isActive: z.boolean(),
-  lastRunAt: dateStrNullable().optional(),
-  nextRunAt: dateStrNullable().optional(),
-  createdByUserId: z.string().uuid().optional(),
-  createdAt: dateStr(),
-  updatedAt: dateStr(),
-  // Feature 019: lifecycle extensions
-  displayName: z.string().nullable().optional(),
-  deliveryMode: z.enum(['OWNER_ONLY', 'RECIPIENT_LIST', 'TENANT_WIDE']).optional(),
-  recipientUserIds: z.array(z.string().uuid()).optional(),
-  skipDeliveryWhenEmpty: z.boolean().optional(),
-  consecutiveFailureCount: z.number().int().optional(),
-  status: z.enum(['ACTIVE', 'PAUSED']).optional(),
-  deletedAt: dateStrNullable().optional(),
-  lastRunStatus: z
-    .enum(['queued', 'running', 'completed', 'failed', 'skipped_catchup', 'skipped_empty'])
-    .nullable()
-    .optional(),
-});
-
-export const scheduledReportCreatedResponseSchema = z.object({
-  data: z.object({
-    id: z.string().uuid(),
-    reportType: z.string(),
-    cronExpression: z.string(),
-    deliveryEmail: z.string(),
-    isActive: z.boolean(),
-    nextRunAt: dateStrNullable().optional(),
-    createdAt: dateStr(),
-  }),
-  message: z.string(),
-});
-
-export type ScheduledReportResponse = z.infer<typeof scheduledReportResponseSchema>;
 
 // ─── Dashboard ────────────────────────────────────────────────────────────
 

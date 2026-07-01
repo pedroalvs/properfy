@@ -1,33 +1,25 @@
+import type { RequestReportInput } from '@properfy/shared';
 import { useCreateMutation } from '@/hooks/useApiQuery';
 import { useSnackbar } from '@/hooks/useSnackbar';
 
-interface ReportGenerateInput {
-  reportType: string;
-  filters: {
-    fromDate: string;
-    toDate: string;
-    tenantId?: string;
-  };
-  format?: 'XLSX';
-}
-
 export interface UseReportGenerateReturn {
-  generate: (input: ReportGenerateInput) => void;
+  generate: (input: RequestReportInput, options?: { onSuccess?: () => void }) => void;
   isGenerating: boolean;
 }
 
 export function useReportGenerate(): UseReportGenerateReturn {
   const { showSuccess, showError } = useSnackbar();
 
-  const mutation = useCreateMutation<ReportGenerateInput>(
+  const mutation = useCreateMutation<RequestReportInput>(
     '/v1/reports',
     [['reports']],
   );
 
-  const generate = (input: ReportGenerateInput) => {
+  const generate = (input: RequestReportInput, options?: { onSuccess?: () => void }) => {
     mutation.mutate(input, {
       onSuccess: () => {
         showSuccess('Report generation started');
+        options?.onSuccess?.();
       },
       onError: (err) => {
         showError(err.message || 'Failed to generate report');

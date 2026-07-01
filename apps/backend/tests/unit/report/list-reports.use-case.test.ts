@@ -3,15 +3,15 @@ import { ListReportsUseCase } from '../../../src/modules/report/application/use-
 import type { IReportRepository } from '../../../src/modules/report/domain/report.repository';
 import { ReportEntity, type ReportProps } from '../../../src/modules/report/domain/report.entity';
 import type { ListReportsInput, AuthContext } from '../../../src/modules/report/application/use-cases/list-reports.use-case';
+import { ReportForbiddenError } from '../../../src/modules/report/domain/report.errors';
 
 function makeReport(overrides: Partial<ReportProps> = {}): ReportEntity {
   const now = new Date('2026-03-16T10:00:00.000Z');
   const defaults: ReportProps = {
     id: 'report-1',
     tenantId: 'tenant-1',
-    reportType: 'INSPECTIONS_SCHEDULED',
+    reportType: 'APPOINTMENTS',
     filtersJson: { fromDate: '2026-01-01', toDate: '2026-03-01' },
-    format: 'XLSX',
     status: 'READY',
     fileKey: 'reports/report-1.xlsx',
     requestedByUserId: 'user-1',
@@ -33,7 +33,6 @@ function makeSut() {
     findAll: vi.fn().mockResolvedValue([]),
     count: vi.fn().mockResolvedValue(0),
     countByUserAndStatuses: vi.fn(),
-    countByTenantAndStatuses: vi.fn(),
     findExpiredWithFileKey: vi.fn().mockResolvedValue([]),
     save: vi.fn(),
     update: vi.fn(),
@@ -92,41 +91,11 @@ describe('ListReportsUseCase', () => {
     expect(calledFilters).not.toHaveProperty('requestedByUserId');
   });
 
-  it('should scope CL_ADMIN to own reports via requestedByUserId filter', async () => {
-    vi.mocked(reportRepo.findAll).mockResolvedValue([]);
-    vi.mocked(reportRepo.count).mockResolvedValue(0);
-
-    await useCase.execute(
-      makeInput(),
-      makeAuth({ role: 'CL_ADMIN', userId: 'cl-user-1', tenantId: 'tenant-1' }),
-    );
-
-    const calledFilters = vi.mocked(reportRepo.findAll).mock.calls[0][0];
-    expect(calledFilters).toEqual(
-      expect.objectContaining({
-        requestedByUserId: 'cl-user-1',
-        tenantId: 'tenant-1',
-      }),
-    );
-  });
-
-  it('should return null for errorMessage for CL_ADMIN on FAILED reports', async () => {
-    const failedReport = makeReport({
-      status: 'FAILED',
-      errorMessage: 'Internal processing error',
-      completedAt: null,
-      fileKey: null,
-    });
-    vi.mocked(reportRepo.findAll).mockResolvedValue([failedReport]);
-    vi.mocked(reportRepo.count).mockResolvedValue(1);
-
-    const result = await useCase.execute(
-      makeInput(),
-      makeAuth({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
-    );
-
-    expect(result.data[0].errorMessage).toBeNull();
-    expect(result.data[0].status).toBe('FAILED');
+  it.each(['CL_ADMIN', 'CL_USER', 'INSP'] as const)('should forbid %s from listing reports', async (role) => {
+    await expect(
+      useCase.execute(makeInput(), makeAuth({ role, userId: 'u', tenantId: 'tenant-1' })),
+    ).rejects.toThrow(ReportForbiddenError);
+    expect(reportRepo.findAll).not.toHaveBeenCalled();
   });
 
   it('should expose errorMessage for AM on FAILED reports', async () => {
@@ -188,14 +157,14 @@ describe('ListReportsUseCase', () => {
     vi.mocked(reportRepo.count).mockResolvedValue(0);
 
     await useCase.execute(
-      makeInput({ reportType: 'INSPECTIONS_DONE', status: 'READY' }),
+      makeInput({ reportType: 'APPOINTMENTS', status: 'READY' }),
       makeAuth(),
     );
 
     const calledFilters = vi.mocked(reportRepo.findAll).mock.calls[0][0];
     expect(calledFilters).toEqual(
       expect.objectContaining({
-        reportType: 'INSPECTIONS_DONE',
+        reportType: 'APPOINTMENTS',
         status: 'READY',
       }),
     );
@@ -222,9 +191,8 @@ describe('ListReportsUseCase', () => {
   it('should map report entity fields correctly in output', async () => {
     const report = makeReport({
       id: 'report-99',
-      reportType: 'INSPECTIONS_DONE',
+      reportType: 'APPOINTMENTS',
       status: 'READY',
-      format: 'XLSX',
       rowCount: 100,
       requestedByUserId: 'user-5',
     });
@@ -236,9 +204,8 @@ describe('ListReportsUseCase', () => {
     expect(result.data[0]).toEqual(
       expect.objectContaining({
         id: 'report-99',
-        reportType: 'INSPECTIONS_DONE',
+        reportType: 'APPOINTMENTS',
         status: 'READY',
-        format: 'XLSX',
         rowCount: 100,
         requestedBy: { id: 'user-5', name: 'Unknown' },
       }),

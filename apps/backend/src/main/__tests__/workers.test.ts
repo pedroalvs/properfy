@@ -58,7 +58,6 @@ async function callRegisterWorkers(logger: ReturnType<typeof makeLogger>) {
     makeWorkerMock() as any,   // cleanupSessionsWorker
     { execute: vi.fn().mockReturnValue({ daysRemaining: 90, level: 'OK' }) } as any,
     makeWorkerMock() as any,   // expireFilesWorker
-    makeWorkerMock() as any,   // processSchedulesWorker
     makeWorkerMock() as any,   // geocodeWorker
     makeWorkerMock() as any,   // geocodeRetryWorker
     makeWorkerMock() as any,   // propertyImportWorker

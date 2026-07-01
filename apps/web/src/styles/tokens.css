@@ -87,13 +87,10 @@
   --color-confirmation-no-response: #D7CCC8;
 
   /* Report type backgrounds */
-  --color-report-type-scheduled: #B3E5FC;
-  --color-report-type-done: #C8E6C9;
-  --color-report-type-cancelled: #FFCDD2;
-  --color-report-type-rejected: #FFAB91;
-  --color-report-type-performance: #E1BEE7;
-  --color-report-type-confirmation: #FFE0B2;
+  --color-report-type-appointments: #B3E5FC;
   --color-report-type-financial: #DCEDC8;
+  --color-report-type-performance: #E1BEE7;
+  --color-report-type-agencies: #FFE0B2;
 
   /* Geocoding status backgrounds */
   --color-geocoding-pending: #FFE0B2;

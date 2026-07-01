@@ -39,7 +39,6 @@ export const tenantSettingsSchema = z.object({
   allowClientCancellation: z.boolean().default(true),
   allowClientRescheduling: z.boolean().default(true),
   allowClientFinancialView: z.boolean().default(false),
-  allowClientReportExport: z.boolean().default(false),
   allowClientUserManagement: z.boolean().default(false),
 
   // Inspector offer config
@@ -54,7 +53,6 @@ export const tenantSettingsSchema = z.object({
     'reschedule_appointments',
     'force_confirmation',
     'create_properties',
-    'export_reports',
   ])).default([]),
 
   // Email template overrides (per-event)
@@ -86,9 +84,6 @@ export const tenantSettingsSchema = z.object({
   // Notification daily budget caps
   notificationDailyCapEmail: z.number().int().min(0).default(500),
   notificationDailyCapSms: z.number().int().min(0).default(100),
-
-  // Report limits
-  maxConcurrentReports: z.number().int().min(1).max(50).default(10),
 
   // Freeform escape hatch
   customFields: z.record(z.unknown()).optional(),

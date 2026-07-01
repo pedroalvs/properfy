@@ -32,7 +32,7 @@ const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_REPORTS = [
   { id: 'rpt-01', reportType: 'APPOINTMENTS', status: 'COMPLETED', requestedBy: { id: 'u-1', name: 'Admin Principal' } },
-  { id: 'rpt-02', reportType: 'FINANCIAL_SERVICES', status: 'PROCESSING', requestedBy: { id: 'u-1', name: 'Admin Principal' } },
+  { id: 'rpt-02', reportType: 'FINANCIAL', status: 'PROCESSING', requestedBy: { id: 'u-1', name: 'Admin Principal' } },
 ];
 
 beforeEach(() => {
@@ -86,7 +86,7 @@ describe('useReportList', () => {
 
     act(() => {
       result.current.setFilters({
-        reportType: 'FINANCIAL_SERVICES',
+        reportType: 'FINANCIAL',
         status: 'FAILED',
         fromDate: '2026-03-01',
         toDate: '2026-03-31',
@@ -97,7 +97,7 @@ describe('useReportList', () => {
       expect(mockGet).toHaveBeenLastCalledWith('/v1/reports', {
         params: {
           query: expect.objectContaining({
-            reportType: 'FINANCIAL_SERVICES',
+            reportType: 'FINANCIAL',
             status: 'FAILED',
             fromDate: '2026-03-01',
             toDate: '2026-03-31',
@@ -133,7 +133,7 @@ describe('useReportList', () => {
 
   it('initializes supported filters from query params', async () => {
     const wrapper = createRouterQueryWrapper(
-      '/reports?reportType=FINANCIAL_SERVICES&status=PROCESSING&fromDate=2026-03-01&toDate=2026-03-31',
+      '/reports?reportType=FINANCIAL&status=PROCESSING&fromDate=2026-03-01&toDate=2026-03-31',
     );
     const { result } = renderHook(() => useReportList(), { wrapper });
 
@@ -141,14 +141,14 @@ describe('useReportList', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.filters.reportType).toBe('FINANCIAL_SERVICES');
+    expect(result.current.filters.reportType).toBe('FINANCIAL');
     expect(result.current.filters.status).toBe('PROCESSING');
     expect(result.current.filters.fromDate).toBe('2026-03-01');
     expect(result.current.filters.toDate).toBe('2026-03-31');
     expect(mockGet).toHaveBeenCalledWith('/v1/reports', {
       params: {
         query: expect.objectContaining({
-          reportType: 'FINANCIAL_SERVICES',
+          reportType: 'FINANCIAL',
           status: 'PROCESSING',
           fromDate: '2026-03-01',
           toDate: '2026-03-31',

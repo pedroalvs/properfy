@@ -1,19 +1,18 @@
 import { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import type { RequestReportInput } from '@properfy/shared';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
 import { ReportFilters } from '../components/ReportFilters';
 import { ReportTable } from '../components/ReportTable';
 import { ReportDetailDrawer } from '../components/ReportDetailDrawer';
 import { GenerateReportDialog } from '../components/GenerateReportDialog';
 import { useReportList } from '../hooks/useReportList';
+import { useReportGenerate } from '../hooks/useReportGenerate';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
 import type { Report } from '../types';
 import { getReportDownloadName } from '../lib/report-display';
 
 export function ReportListPage() {
-  const navigate = useNavigate();
-
   const {
     data,
     isLoading,
@@ -25,11 +24,11 @@ export function ReportListPage() {
     pagination,
   } = useReportList();
 
-  const { showSuccess, showError } = useSnackbar();
+  const { showError } = useSnackbar();
+  const { generate, isGenerating } = useReportGenerate();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [generateOpen, setGenerateOpen] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
 
   const handleView = useCallback((report: { id: string }) => {
     setSelectedId(report.id);
@@ -41,42 +40,14 @@ export function ReportListPage() {
     setSelectedId(null);
   }, []);
 
-  const handleGenerateSubmit = useCallback(async ({
-    reportType,
-    fromDate,
-    toDate,
-    tenantId,
-  }: {
-    reportType: string;
-    fromDate: string;
-    toDate: string;
-    tenantId?: string;
-  }) => {
-    setIsGenerating(true);
-    try {
-      const { error } = await api.POST('/v1/reports' as any, {
-        body: {
-          reportType,
-          filters: {
-            fromDate,
-            toDate,
-            tenantId,
-          },
-          format: 'XLSX',
-        } as any,
-      });
-      if (error) {
-        throw new Error((error as any)?.error?.message ?? 'Failed to generate report');
-      }
-      showSuccess('Report generation started');
-      setGenerateOpen(false);
-      refetch();
-    } catch (err) {
-      showError(err instanceof Error ? err.message : 'Failed to generate report');
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [refetch, showSuccess, showError]);
+  const handleGenerateSubmit = useCallback((input: RequestReportInput) => {
+    generate(input, {
+      onSuccess: () => {
+        setGenerateOpen(false);
+        refetch();
+      },
+    });
+  }, [generate, refetch]);
 
   const handleDownload = useCallback(async (report: Report) => {
     try {
@@ -106,36 +77,22 @@ export function ReportListPage() {
     }
   }, [showError]);
 
-  const handleRetry = useCallback(async (report: Report) => {
-    try {
-      if (!report.filters) {
-        throw new Error('This report cannot be regenerated because its filters are unavailable');
-      }
-
-      const { error } = await api.POST('/v1/reports' as any, {
-        body: {
-          reportType: report.reportType,
-          filters: report.filters,
-          format: report.format,
-        } as any,
-      });
-      if (error) {
-        throw new Error((error as any)?.error?.message ?? 'Failed to regenerate report');
-      }
-      showSuccess('Report regeneration started');
-      refetch();
-    } catch (err) {
-      showError(err instanceof Error ? err.message : 'Failed to regenerate report');
+  const handleRetry = useCallback((report: Report) => {
+    if (!report.filters) {
+      showError('This report cannot be regenerated because its filters are unavailable');
+      return;
     }
-  }, [refetch, showSuccess, showError]);
+
+    generate(
+      { reportType: report.reportType, filters: report.filters },
+      { onSuccess: () => refetch() },
+    );
+  }, [generate, refetch, showError]);
 
   return (
     <ListFilterTableTemplate
       title="Reports"
       primaryAction={{ label: 'Generate Report', icon: 'mdi-plus', onClick: () => setGenerateOpen(true) }}
-      secondaryActions={[
-        { label: 'Scheduled Reports', icon: 'mdi-calendar-clock', onClick: () => navigate('/scheduled-reports') },
-      ]}
     >
       <ReportFilters
         filters={filters}

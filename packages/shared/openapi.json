@@ -761,10 +761,6 @@
                         "type": "boolean",
                         "default": false
                       },
-                      "allowClientReportExport": {
-                        "type": "boolean",
-                        "default": false
-                      },
                       "allowClientUserManagement": {
                         "type": "boolean",
                         "default": false
@@ -790,8 +786,7 @@
                             "reject_appointments",
                             "reschedule_appointments",
                             "force_confirmation",
-                            "create_properties",
-                            "export_reports"
+                            "create_properties"
                           ]
                         },
                         "default": []
@@ -965,12 +960,6 @@
                         "type": "integer",
                         "minimum": 0,
                         "default": 100
-                      },
-                      "maxConcurrentReports": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 50,
-                        "default": 10
                       },
                       "customFields": {
                         "type": "object",
@@ -1451,10 +1440,6 @@
                         "type": "boolean",
                         "default": false
                       },
-                      "allowClientReportExport": {
-                        "type": "boolean",
-                        "default": false
-                      },
                       "allowClientUserManagement": {
                         "type": "boolean",
                         "default": false
@@ -1480,8 +1465,7 @@
                             "reject_appointments",
                             "reschedule_appointments",
                             "force_confirmation",
-                            "create_properties",
-                            "export_reports"
+                            "create_properties"
                           ]
                         },
                         "default": []
@@ -1655,12 +1639,6 @@
                         "type": "integer",
                         "minimum": 0,
                         "default": 100
-                      },
-                      "maxConcurrentReports": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 50,
-                        "default": 10
                       },
                       "customFields": {
                         "type": "object",
@@ -23605,13 +23583,10 @@
                   "reportType": {
                     "type": "string",
                     "enum": [
-                      "INSPECTIONS_SCHEDULED",
-                      "INSPECTIONS_DONE",
-                      "INSPECTIONS_CANCELLED",
-                      "INSPECTIONS_REJECTED",
-                      "INSPECTOR_PERFORMANCE",
-                      "CONFIRMATION_STATUS",
-                      "FINANCIAL_SERVICES"
+                      "APPOINTMENTS",
+                      "FINANCIAL",
+                      "PERFORMANCE",
+                      "AGENCIES"
                     ]
                   },
                   "filters": {
@@ -23625,11 +23600,16 @@
                         "type": "string",
                         "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                       },
-                      "tenantId": {
+                      "dateAxis": {
                         "type": "string",
-                        "format": "uuid"
+                        "enum": [
+                          "SCHEDULED",
+                          "CREATED",
+                          "COMPLETED"
+                        ],
+                        "default": "SCHEDULED"
                       },
-                      "serviceTypeId": {
+                      "tenantId": {
                         "type": "string",
                         "format": "uuid"
                       },
@@ -23637,22 +23617,24 @@
                         "type": "string",
                         "format": "uuid"
                       },
-                      "inspectorId": {
+                      "suburb": {
                         "type": "string",
-                        "format": "uuid"
+                        "maxLength": 120
                       },
                       "status": {
-                        "type": "string"
-                      },
-                      "rentalTenantConfirmationStatus": {
-                        "type": "string"
-                      },
-                      "search": {
                         "type": "string",
-                        "maxLength": 200
+                        "enum": [
+                          "DRAFT",
+                          "AWAITING_INSPECTOR",
+                          "SCHEDULED",
+                          "DONE",
+                          "CANCELLED",
+                          "REJECTED"
+                        ]
                       },
-                      "emailNotificationStatus": {
-                        "type": "string"
+                      "groupProperties": {
+                        "type": "boolean",
+                        "default": false
                       }
                     },
                     "required": [
@@ -23660,25 +23642,6 @@
                       "toDate"
                     ],
                     "additionalProperties": false
-                  },
-                  "format": {
-                    "type": "string",
-                    "enum": [
-                      "XLSX",
-                      "CSV",
-                      "PDF"
-                    ],
-                    "default": "XLSX"
-                  },
-                  "columns": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 100
-                    },
-                    "minItems": 1,
-                    "maxItems": 50
                   }
                 },
                 "required": [
@@ -23753,13 +23716,10 @@
             "schema": {
               "type": "string",
               "enum": [
-                "INSPECTIONS_SCHEDULED",
-                "INSPECTIONS_DONE",
-                "INSPECTIONS_CANCELLED",
-                "INSPECTIONS_REJECTED",
-                "INSPECTOR_PERFORMANCE",
-                "CONFIRMATION_STATUS",
-                "FINANCIAL_SERVICES"
+                "APPOINTMENTS",
+                "FINANCIAL",
+                "PERFORMANCE",
+                "AGENCIES"
               ]
             },
             "in": "query",
@@ -23847,9 +23807,6 @@
                           },
                           "filtersJson": {},
                           "filters": {},
-                          "format": {
-                            "type": "string"
-                          },
                           "status": {
                             "type": "string"
                           },
@@ -23948,7 +23905,6 @@
                         "required": [
                           "id",
                           "reportType",
-                          "format",
                           "status",
                           "completedAt",
                           "createdAt"
@@ -24031,9 +23987,6 @@
                         },
                         "filtersJson": {},
                         "filters": {},
-                        "format": {
-                          "type": "string"
-                        },
                         "status": {
                           "type": "string"
                         },
@@ -24132,7 +24085,6 @@
                       "required": [
                         "id",
                         "reportType",
-                        "format",
                         "status",
                         "completedAt",
                         "createdAt"
@@ -24204,604 +24156,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/v1/reports/schedules": {
-      "post": {
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "reportType": {
-                    "type": "string",
-                    "enum": [
-                      "INSPECTIONS_SCHEDULED",
-                      "INSPECTIONS_DONE",
-                      "INSPECTIONS_CANCELLED",
-                      "INSPECTIONS_REJECTED",
-                      "INSPECTOR_PERFORMANCE",
-                      "CONFIRMATION_STATUS",
-                      "FINANCIAL_SERVICES"
-                    ]
-                  },
-                  "filtersJson": {
-                    "type": "object",
-                    "additionalProperties": {},
-                    "default": {}
-                  },
-                  "format": {
-                    "type": "string",
-                    "enum": [
-                      "XLSX",
-                      "CSV",
-                      "PDF"
-                    ],
-                    "default": "XLSX"
-                  },
-                  "recurrence": {
-                    "anyOf": [
-                      {
-                        "type": "object",
-                        "properties": {
-                          "type": {
-                            "type": "string",
-                            "enum": [
-                              "daily"
-                            ]
-                          },
-                          "hour": {
-                            "type": "integer",
-                            "minimum": 0,
-                            "maximum": 23
-                          }
-                        },
-                        "required": [
-                          "type",
-                          "hour"
-                        ],
-                        "additionalProperties": false
-                      },
-                      {
-                        "type": "object",
-                        "properties": {
-                          "type": {
-                            "type": "string",
-                            "enum": [
-                              "weekly"
-                            ]
-                          },
-                          "dayOfWeek": {
-                            "type": "integer",
-                            "minimum": 0,
-                            "maximum": 6
-                          },
-                          "hour": {
-                            "type": "integer",
-                            "minimum": 0,
-                            "maximum": 23
-                          }
-                        },
-                        "required": [
-                          "type",
-                          "dayOfWeek",
-                          "hour"
-                        ],
-                        "additionalProperties": false
-                      },
-                      {
-                        "type": "object",
-                        "properties": {
-                          "type": {
-                            "type": "string",
-                            "enum": [
-                              "monthly"
-                            ]
-                          },
-                          "dayOfMonth": {
-                            "type": "integer",
-                            "minimum": 1,
-                            "maximum": 31
-                          },
-                          "hour": {
-                            "type": "integer",
-                            "minimum": 0,
-                            "maximum": 23
-                          }
-                        },
-                        "required": [
-                          "type",
-                          "dayOfMonth",
-                          "hour"
-                        ],
-                        "additionalProperties": false
-                      }
-                    ]
-                  },
-                  "cronExpression": {
-                    "type": "string",
-                    "minLength": 9,
-                    "maxLength": 100
-                  },
-                  "deliveryMode": {
-                    "type": "string",
-                    "enum": [
-                      "OWNER_ONLY",
-                      "RECIPIENT_LIST",
-                      "TENANT_WIDE"
-                    ],
-                    "default": "OWNER_ONLY"
-                  },
-                  "recipientUserIds": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "maxItems": 50,
-                    "default": []
-                  },
-                  "displayName": {
-                    "type": "string",
-                    "maxLength": 120
-                  },
-                  "skipDeliveryWhenEmpty": {
-                    "type": "boolean",
-                    "default": false
-                  },
-                  "deliveryEmail": {
-                    "type": "string",
-                    "format": "email"
-                  },
-                  "tenantId": {
-                    "type": "string",
-                    "format": "uuid"
-                  }
-                },
-                "required": [
-                  "reportType"
-                ],
-                "additionalProperties": false
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "reportType": {
-                          "type": "string"
-                        },
-                        "cronExpression": {
-                          "type": "string"
-                        },
-                        "deliveryEmail": {
-                          "type": "string"
-                        },
-                        "isActive": {
-                          "type": "boolean"
-                        },
-                        "nextRunAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "createdAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "reportType",
-                        "cronExpression",
-                        "deliveryEmail",
-                        "isActive",
-                        "createdAt"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "data",
-                    "message"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      },
-      "get": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "default": 1
-            },
-            "in": "query",
-            "name": "page",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 50,
-              "default": 20
-            },
-            "in": "query",
-            "name": "pageSize",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "ACTIVE",
-                "PAUSED"
-              ]
-            },
-            "in": "query",
-            "name": "status",
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "tenantId": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "reportType": {
-                            "type": "string"
-                          },
-                          "filtersJson": {},
-                          "format": {
-                            "type": "string"
-                          },
-                          "cronExpression": {
-                            "type": "string"
-                          },
-                          "deliveryEmail": {
-                            "type": "string"
-                          },
-                          "isActive": {
-                            "type": "boolean"
-                          },
-                          "lastRunAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ],
-                            "nullable": true
-                          },
-                          "nextRunAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ],
-                            "nullable": true
-                          },
-                          "createdByUserId": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "createdAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
-                          },
-                          "updatedAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
-                          },
-                          "displayName": {
-                            "type": "string",
-                            "nullable": true
-                          },
-                          "deliveryMode": {
-                            "type": "string",
-                            "enum": [
-                              "OWNER_ONLY",
-                              "RECIPIENT_LIST",
-                              "TENANT_WIDE"
-                            ]
-                          },
-                          "recipientUserIds": {
-                            "type": "array",
-                            "items": {
-                              "type": "string",
-                              "format": "uuid"
-                            }
-                          },
-                          "skipDeliveryWhenEmpty": {
-                            "type": "boolean"
-                          },
-                          "consecutiveFailureCount": {
-                            "type": "integer"
-                          },
-                          "status": {
-                            "type": "string",
-                            "enum": [
-                              "ACTIVE",
-                              "PAUSED"
-                            ]
-                          },
-                          "deletedAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ],
-                            "nullable": true
-                          },
-                          "lastRunStatus": {
-                            "type": "string",
-                            "enum": [
-                              "queued",
-                              "running",
-                              "completed",
-                              "failed",
-                              "skipped_catchup",
-                              "skipped_empty"
-                            ],
-                            "nullable": true
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "tenantId",
-                          "reportType",
-                          "format",
-                          "cronExpression",
-                          "deliveryEmail",
-                          "isActive",
-                          "createdAt",
-                          "updatedAt"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "pagination": {
-                      "type": "object",
-                      "properties": {
-                        "page": {
-                          "type": "number"
-                        },
-                        "pageSize": {
-                          "type": "number"
-                        },
-                        "total": {
-                          "type": "number"
-                        },
-                        "totalPages": {
-                          "type": "number"
-                        }
-                      },
-                      "required": [
-                        "page",
-                        "pageSize",
-                        "total",
-                        "totalPages"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "data",
-                    "pagination"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/reports/schedules/{scheduleId}": {
-      "get": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "scheduleId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      },
-      "put": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "scheduleId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      },
-      "delete": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "scheduleId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/v1/reports/schedules/{scheduleId}/pause": {
-      "post": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "scheduleId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/v1/reports/schedules/{scheduleId}/resume": {
-      "post": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "scheduleId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/v1/reports/schedules/{scheduleId}/reassign": {
-      "post": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "scheduleId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/v1/reports/schedules/{scheduleId}/runs": {
-      "get": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "scheduleId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
           }
         }
       }

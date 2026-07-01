@@ -3,7 +3,7 @@
  *
  * Tests all 7 CL_USER permission flags:
  *   create_appointments, cancel_appointments, reject_appointments,
- *   create_properties, reschedule_appointments, force_confirmation, export_reports
+ *   create_properties, reschedule_appointments, force_confirmation
  *
  * For each flag: enabled → action succeeds (use case resolves), disabled → 403
  */
@@ -315,35 +315,22 @@ describe('CL_USER flag: reschedule_appointments', () => {
   });
 });
 
-// ── Flag: export_reports ──────────────────────────────────────────────────────
+// ── Reports are operator-only (AM/OP); CL_USER has no access ───────────────────
 
-describe('CL_USER flag: export_reports', () => {
+describe('CL_USER: reports are operator-only', () => {
   const today = new Date().toISOString().slice(0, 10);
+  // A VALID new report type, so the request reaches the auth layer rather than
+  // being rejected at body validation (which runs before the preHandler).
   const reportPayload = {
-    reportType: 'INSPECTIONS_SCHEDULED',
+    reportType: 'APPOINTMENTS',
     filters: { fromDate: today, toDate: today },
-    format: 'XLSX',
-  };
-  const reportStub = {
-    reportId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a77',
-    status: 'PENDING',
-    reportType: 'INSPECTIONS_SCHEDULED',
-    createdAt: new Date().toISOString(),
   };
 
-  it('with flag → 202 (report requested)', async () => {
-    mockJwtVerify.mockResolvedValue(makeClUserContext(TENANT_ID, ['export_reports']));
-    mockRequestReport.mockResolvedValue(reportStub);
-    const res = await supertest(app.server)
-      .post('/v1/reports')
-      .set('Authorization', 'Bearer t')
-      .send(reportPayload);
-    expect(res.status).toBe(202);
-  });
-
-  it('without flag → 403', async () => {
+  it('CL_USER cannot request a report → 403', async () => {
     mockJwtVerify.mockResolvedValue(makeClUserContext(TENANT_ID, []));
-    mockRequestReport.mockRejectedValue(new ForbiddenError('FORBIDDEN', 'CL_USER does not have export_reports permission'));
+    mockRequestReport.mockRejectedValue(
+      new ForbiddenError('FORBIDDEN', 'Reports are restricted to operators (AM/OP)'),
+    );
     const res = await supertest(app.server)
       .post('/v1/reports')
       .set('Authorization', 'Bearer t')

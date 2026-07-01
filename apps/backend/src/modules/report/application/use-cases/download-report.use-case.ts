@@ -4,6 +4,7 @@ import {
   ReportNotFoundError,
   ReportNotReadyError,
   ReportExpiredError,
+  ReportForbiddenError,
 } from '../../domain/report.errors';
 import { PRESIGNED_URL_TTL_SECONDS } from '../../domain/report.constants';
 
@@ -32,11 +33,9 @@ export class DownloadReportUseCase {
       throw new ReportNotFoundError();
     }
 
-    // Access control: AM/OP can access any; others only own reports
+    // Access control: reports are restricted to operators (AM/OP).
     if (auth.role !== 'AM' && auth.role !== 'OP') {
-      if (report.requestedByUserId !== auth.userId) {
-        throw new ReportNotFoundError();
-      }
+      throw new ReportForbiddenError();
     }
 
     // Must be READY
@@ -62,8 +61,7 @@ export class DownloadReportUseCase {
     // Build fileName: {reportType-kebab}-{fromDate}-to-{toDate}.{ext}
     const filters = report.filtersJson as Record<string, string>;
     const reportTypeKebab = report.reportType.toLowerCase().replace(/_/g, '-');
-    const ext = report.format === 'CSV' ? 'csv' : report.format === 'PDF' ? 'pdf' : 'xlsx';
-    const fileName = `${reportTypeKebab}-${filters.fromDate}-to-${filters.toDate}.${ext}`;
+    const fileName = `${reportTypeKebab}-${filters.fromDate}-to-${filters.toDate}.xlsx`;
 
     const expiresAt = new Date();
     expiresAt.setSeconds(expiresAt.getSeconds() + PRESIGNED_URL_TTL_SECONDS);
