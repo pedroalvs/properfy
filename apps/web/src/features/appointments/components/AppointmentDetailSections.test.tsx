@@ -177,4 +177,28 @@ describe('AppointmentDetailSections', () => {
     expect(screen.getByText('Validated')).toBeInTheDocument();
     expect(screen.getByText(/11\/03\/2026/)).toBeInTheDocument();
   });
+
+  it('renders the Custom Fields section with each label and value when present', () => {
+    render(
+      <AppointmentDetailSections
+        appointment={makeAppointment({
+          customFields: [
+            { label: 'Gate code', value: '1234' },
+            { label: 'Parking', value: 'Level 2' },
+          ],
+        })}
+      />,
+    );
+
+    expect(screen.getByText('Custom Fields')).toBeInTheDocument();
+    expect(screen.getByText('Gate code')).toBeInTheDocument();
+    expect(screen.getByText('1234')).toBeInTheDocument();
+    expect(screen.getByText('Parking')).toBeInTheDocument();
+    expect(screen.getByText('Level 2')).toBeInTheDocument();
+  });
+
+  it('hides the Custom Fields section when there are none', () => {
+    render(<AppointmentDetailSections appointment={makeAppointment({ customFields: [] })} />);
+    expect(screen.queryByText('Custom Fields')).not.toBeInTheDocument();
+  });
 });

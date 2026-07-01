@@ -72,6 +72,32 @@ function renderModal(overrides: Partial<Parameters<typeof MapBulkActionModal>[0]
   );
 }
 
+/**
+ * Like renderModal but keeps a stable provider/router wrapper so the modal
+ * component INSTANCE survives a rerender — letting us assert that changing
+ * `externalSelectedIds` re-seeds the existing selection (not a remount).
+ */
+function renderTree(props: Partial<Parameters<typeof MapBulkActionModal>[0]> = {}) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  const ui = (p: Partial<Parameters<typeof MapBulkActionModal>[0]>) => (
+    <QueryClientProvider client={client}>
+      <MemoryRouter>
+        <MapBulkActionModal
+          appointments={sampleAppointments}
+          open
+          onClose={vi.fn()}
+          actorRole="OP"
+          onAddToGroup={vi.fn()}
+          onCreateGroup={vi.fn()}
+          {...p}
+        />
+      </MemoryRouter>
+    </QueryClientProvider>
+  );
+  const result = render(ui(props));
+  return { ...result, rerenderWith: (p: Partial<Parameters<typeof MapBulkActionModal>[0]>) => result.rerender(ui(p)) };
+}
+
 describe('MapBulkActionModal', () => {
   it('defaults to UNCHECKED — no row checkboxes are ticked on open', () => {
     renderModal();
@@ -284,5 +310,57 @@ describe('MapBulkActionModal', () => {
     // …but the group-creation buttons are gone.
     expect(screen.queryByTestId('bulk-modal-footer-add-to-group')).toBeNull();
     expect(screen.queryByTestId('bulk-modal-footer-create-group')).toBeNull();
+  });
+
+  // ── externalSelectedIds — group-modal lasso seed (replace semantics) ──
+  // The group drill-down lasso drives the modal's row selection from the map:
+  // each completed polygon REPLACES the checked rows with exactly the enclosed
+  // appointments. Omitting the prop keeps the uncontrolled default.
+  describe('externalSelectedIds (group-modal lasso seed)', () => {
+    it('checks exactly the seeded rows when externalSelectedIds is provided', () => {
+      renderModal({ externalSelectedIds: [UUID_A] });
+      expect((screen.getByTestId(`bulk-modal-row-${sampleAppointments[0]!.code}`) as HTMLInputElement).checked).toBe(true);
+      expect((screen.getByTestId(`bulk-modal-row-${sampleAppointments[1]!.code}`) as HTMLInputElement).checked).toBe(false);
+    });
+
+    it('REPLACES the selection when externalSelectedIds changes (does not accumulate)', () => {
+      const { rerenderWith } = renderTree({ externalSelectedIds: [UUID_A] });
+      expect((screen.getByTestId(`bulk-modal-row-${sampleAppointments[0]!.code}`) as HTMLInputElement).checked).toBe(true);
+
+      rerenderWith({ externalSelectedIds: [UUID_B] });
+      // A is now UNCHECKED (replaced), B is checked.
+      expect((screen.getByTestId(`bulk-modal-row-${sampleAppointments[0]!.code}`) as HTMLInputElement).checked).toBe(false);
+      expect((screen.getByTestId(`bulk-modal-row-${sampleAppointments[1]!.code}`) as HTMLInputElement).checked).toBe(true);
+    });
+
+    it('still allows manual row toggling after a seed (seed is a starting point, not a lock)', () => {
+      renderModal({ externalSelectedIds: [UUID_A, UUID_B] });
+      const rowA = screen.getByTestId(`bulk-modal-row-${sampleAppointments[0]!.code}`) as HTMLInputElement;
+      expect(rowA.checked).toBe(true);
+      fireEvent.click(rowA);
+      expect(rowA.checked).toBe(false);
+      expect((screen.getByTestId(`bulk-modal-row-${sampleAppointments[1]!.code}`) as HTMLInputElement).checked).toBe(true);
+    });
+
+    it('re-applies the seed when the same ids arrive as a NEW array (identical lasso drawn twice)', () => {
+      const { rerenderWith } = renderTree({ externalSelectedIds: [UUID_A] });
+      const rowA = () => screen.getByTestId(`bulk-modal-row-${sampleAppointments[0]!.code}`) as HTMLInputElement;
+      expect(rowA().checked).toBe(true);
+
+      // User manually unchecks A between draws.
+      fireEvent.click(rowA());
+      expect(rowA().checked).toBe(false);
+
+      // Same enclosed pin, but a fresh lasso → new array reference. Must re-seed.
+      rerenderWith({ externalSelectedIds: [UUID_A] });
+      expect(rowA().checked).toBe(true);
+    });
+
+    it('does not seed anything when externalSelectedIds is omitted (uncontrolled default)', () => {
+      renderModal();
+      sampleAppointments.forEach((a) =>
+        expect((screen.getByTestId(`bulk-modal-row-${a.code}`) as HTMLInputElement).checked).toBe(false),
+      );
+    });
   });
 });
