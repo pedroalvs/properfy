@@ -18,17 +18,6 @@ function stableSeedUuid(key: string): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
 }
 
-async function withOptionalMissingTable<T>(operation: () => Promise<T>, onMissingTable: () => T): Promise<T> {
-  try {
-    return await operation();
-  } catch (error: any) {
-    if (error?.code === 'P2021') {
-      return onMissingTable();
-    }
-    throw error;
-  }
-}
-
 const IDS = {
   // Tenants
   tenant: stableSeedUuid('tenant'),
@@ -641,7 +630,7 @@ async function main() {
     {
       id: IDS.apptDraft, tenant_id: IDS.tenant, branch_id: IDS.branchCity,
       property_id: IDS.prop1, service_type_id: serviceTypeIds.routine, inspector_id: null,
-      status: 'DRAFT' as const, scheduled_date: futureDate(14), time_slot: '09:00-12:00',
+      status: 'DRAFT' as const, scheduled_date: futureDate(14), time_slot_start: '09:00', time_slot_end: '12:00',
       rental_tenant_confirmation_status: 'PENDING' as const,
       price_amount: 150.00, payout_amount: 80.00, pricing_rule_snapshot_json: pricingSnapshotRoutine,
       created_by_user_id: IDS.userCLAdmin, reason: null,
@@ -649,7 +638,7 @@ async function main() {
     {
       id: IDS.apptAwaiting, tenant_id: IDS.tenant, branch_id: IDS.branchCity,
       property_id: IDS.prop2, service_type_id: serviceTypeIds.routine, inspector_id: null,
-      status: 'AWAITING_INSPECTOR' as const, scheduled_date: futureDate(10), time_slot: '09:00-12:00',
+      status: 'AWAITING_INSPECTOR' as const, scheduled_date: futureDate(10), time_slot_start: '09:00', time_slot_end: '12:00',
       rental_tenant_confirmation_status: 'PENDING' as const,
       price_amount: 150.00, payout_amount: 80.00, pricing_rule_snapshot_json: pricingSnapshotRoutine,
       created_by_user_id: IDS.userOP, reason: null,
@@ -657,7 +646,7 @@ async function main() {
     {
       id: IDS.apptScheduled, tenant_id: IDS.tenant, branch_id: IDS.branchNorth,
       property_id: IDS.prop3, service_type_id: serviceTypeIds.ingoing, inspector_id: IDS.inspectorLinked,
-      status: 'SCHEDULED' as const, scheduled_date: futureDate(7), time_slot: '13:00-16:00',
+      status: 'SCHEDULED' as const, scheduled_date: futureDate(7), time_slot_start: '13:00', time_slot_end: '16:00',
       rental_tenant_confirmation_status: 'CONFIRMED' as const,
       price_amount: 220.00, payout_amount: 120.00, pricing_rule_snapshot_json: pricingSnapshotIngoing,
       created_by_user_id: IDS.userOP, reason: null,
@@ -665,7 +654,7 @@ async function main() {
     {
       id: IDS.apptDone, tenant_id: IDS.tenant, branch_id: IDS.branchNorth,
       property_id: IDS.prop4, service_type_id: serviceTypeIds.routine, inspector_id: IDS.inspectorLinked,
-      status: 'DONE' as const, scheduled_date: pastDate(3), time_slot: '09:00-12:00',
+      status: 'DONE' as const, scheduled_date: pastDate(3), time_slot_start: '09:00', time_slot_end: '12:00',
       rental_tenant_confirmation_status: 'CONFIRMED' as const,
       price_amount: 150.00, payout_amount: 80.00, pricing_rule_snapshot_json: pricingSnapshotRoutine,
       created_by_user_id: IDS.userCLAdmin,
@@ -674,7 +663,7 @@ async function main() {
     {
       id: IDS.apptCancelled, tenant_id: IDS.tenant, branch_id: IDS.branchCity,
       property_id: IDS.prop5, service_type_id: serviceTypeIds.outgoing, inspector_id: null,
-      status: 'CANCELLED' as const, scheduled_date: pastDate(1), time_slot: '09:00-12:00',
+      status: 'CANCELLED' as const, scheduled_date: pastDate(1), time_slot_start: '09:00', time_slot_end: '12:00',
       rental_tenant_confirmation_status: 'PENDING' as const,
       price_amount: 180.00, payout_amount: 100.00, pricing_rule_snapshot_json: pricingSnapshotOutgoing,
       created_by_user_id: IDS.userCLAdmin,
@@ -684,7 +673,7 @@ async function main() {
     {
       id: IDS.apptRejected, tenant_id: IDS.tenant, branch_id: IDS.branchCity,
       property_id: IDS.prop6, service_type_id: serviceTypeIds.routine, inspector_id: null,
-      status: 'REJECTED' as const, scheduled_date: pastDate(5), time_slot: '09:00-12:00',
+      status: 'REJECTED' as const, scheduled_date: pastDate(5), time_slot_start: '09:00', time_slot_end: '12:00',
       rental_tenant_confirmation_status: 'UNAVAILABLE' as const,
       price_amount: 150.00, payout_amount: 80.00, pricing_rule_snapshot_json: pricingSnapshotRoutine,
       created_by_user_id: IDS.userOP,
@@ -694,7 +683,7 @@ async function main() {
     {
       id: IDS.apptScheduled2, tenant_id: IDS.tenant, branch_id: IDS.branchCity,
       property_id: IDS.prop2, service_type_id: serviceTypeIds.routine, inspector_id: IDS.inspectorIndep,
-      status: 'SCHEDULED' as const, scheduled_date: futureDate(5), time_slot: '09:00-12:00',
+      status: 'SCHEDULED' as const, scheduled_date: futureDate(5), time_slot_start: '09:00', time_slot_end: '12:00',
       rental_tenant_confirmation_status: 'CONFIRMED' as const,
       price_amount: 150.00, payout_amount: 80.00, pricing_rule_snapshot_json: pricingSnapshotRoutine,
       created_by_user_id: IDS.userOP, reason: null,
@@ -702,7 +691,7 @@ async function main() {
     {
       id: IDS.apptDone2, tenant_id: IDS.tenant, branch_id: IDS.branchNorth,
       property_id: IDS.prop3, service_type_id: serviceTypeIds.routine, inspector_id: IDS.inspectorIndep,
-      status: 'DONE' as const, scheduled_date: pastDate(7), time_slot: '13:00-16:00',
+      status: 'DONE' as const, scheduled_date: pastDate(7), time_slot_start: '13:00', time_slot_end: '16:00',
       rental_tenant_confirmation_status: 'NO_RESPONSE' as const,
       price_amount: 160.00, payout_amount: 88.00, pricing_rule_snapshot_json: { ...pricingSnapshotRoutine, price_amount: 160, payout_value: 88 },
       created_by_user_id: IDS.userCLAdmin,
@@ -711,7 +700,7 @@ async function main() {
     {
       id: IDS.apptCancelled2, tenant_id: IDS.tenant, branch_id: IDS.branchNorth,
       property_id: IDS.prop3, service_type_id: serviceTypeIds.ingoing, inspector_id: IDS.inspectorLinked,
-      status: 'CANCELLED' as const, scheduled_date: pastDate(2), time_slot: '10:00-13:00',
+      status: 'CANCELLED' as const, scheduled_date: pastDate(2), time_slot_start: '10:00', time_slot_end: '13:00',
       rental_tenant_confirmation_status: 'PENDING' as const,
       price_amount: 220.00, payout_amount: 120.00, pricing_rule_snapshot_json: pricingSnapshotIngoing,
       created_by_user_id: IDS.userOP,
@@ -721,7 +710,7 @@ async function main() {
     {
       id: IDS.apptAwaiting2, tenant_id: IDS.tenant, branch_id: IDS.branchNorth,
       property_id: IDS.prop4, service_type_id: serviceTypeIds.routine, inspector_id: null,
-      status: 'AWAITING_INSPECTOR' as const, scheduled_date: futureDate(12), time_slot: '09:00-12:00',
+      status: 'AWAITING_INSPECTOR' as const, scheduled_date: futureDate(12), time_slot_start: '09:00', time_slot_end: '12:00',
       rental_tenant_confirmation_status: 'PENDING' as const,
       price_amount: 160.00, payout_amount: 88.00, pricing_rule_snapshot_json: { ...pricingSnapshotRoutine, price_amount: 160, payout_value: 88 },
       created_by_user_id: IDS.userOP, reason: null,
@@ -730,7 +719,7 @@ async function main() {
     {
       id: IDS.apptDraftT2, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb,
       property_id: IDS.prop8, service_type_id: serviceTypeIds.routine, inspector_id: null,
-      status: 'DRAFT' as const, scheduled_date: futureDate(20), time_slot: '09:00-12:00',
+      status: 'DRAFT' as const, scheduled_date: futureDate(20), time_slot_start: '09:00', time_slot_end: '12:00',
       rental_tenant_confirmation_status: 'PENDING' as const,
       price_amount: 140.00, payout_amount: 75.00, pricing_rule_snapshot_json: pricingSnapshotT2,
       created_by_user_id: IDS.userCLAdmin2, reason: null,
@@ -738,7 +727,7 @@ async function main() {
     {
       id: IDS.apptScheduledT2, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb,
       property_id: IDS.prop9, service_type_id: serviceTypeIds.routine, inspector_id: IDS.inspectorLinked2,
-      status: 'SCHEDULED' as const, scheduled_date: futureDate(8), time_slot: '10:00-13:00',
+      status: 'SCHEDULED' as const, scheduled_date: futureDate(8), time_slot_start: '10:00', time_slot_end: '13:00',
       rental_tenant_confirmation_status: 'CONFIRMED' as const,
       price_amount: 140.00, payout_amount: 75.00, pricing_rule_snapshot_json: pricingSnapshotT2,
       created_by_user_id: IDS.userCLAdmin2, reason: null,
@@ -746,7 +735,7 @@ async function main() {
     {
       id: IDS.apptDoneT2, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb,
       property_id: IDS.prop10, service_type_id: serviceTypeIds.routine, inspector_id: IDS.inspectorLinked2,
-      status: 'DONE' as const, scheduled_date: pastDate(4), time_slot: '09:00-12:00',
+      status: 'DONE' as const, scheduled_date: pastDate(4), time_slot_start: '09:00', time_slot_end: '12:00',
       rental_tenant_confirmation_status: 'CONFIRMED' as const,
       price_amount: 140.00, payout_amount: 75.00, pricing_rule_snapshot_json: pricingSnapshotT2,
       created_by_user_id: IDS.userCLAdmin2,
@@ -755,7 +744,7 @@ async function main() {
     {
       id: IDS.apptCancelledT2, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb,
       property_id: IDS.prop8, service_type_id: serviceTypeIds.ingoing, inspector_id: null,
-      status: 'CANCELLED' as const, scheduled_date: pastDate(10), time_slot: '14:00-17:00',
+      status: 'CANCELLED' as const, scheduled_date: pastDate(10), time_slot_start: '14:00', time_slot_end: '17:00',
       rental_tenant_confirmation_status: 'PENDING' as const,
       price_amount: 220.00, payout_amount: 120.00, pricing_rule_snapshot_json: pricingSnapshotIngoing,
       created_by_user_id: IDS.userCLAdmin2,
@@ -777,7 +766,8 @@ async function main() {
         inspector_id: a.inspector_id,
         status: a.status,
         scheduled_date: a.scheduled_date,
-        time_slot: a.time_slot,
+        time_slot_start: a.time_slot_start,
+        time_slot_end: a.time_slot_end,
         rental_tenant_confirmation_status: a.rental_tenant_confirmation_status,
         price_amount: a.price_amount,
         payout_amount: a.payout_amount,
@@ -1821,58 +1811,6 @@ async function main() {
     },
   });
   console.log('Property imports: 2 created (COMPLETED, PROCESSING)');
-
-  // ── Appointment Time Slots (tenant-wide defaults) ─────────────────────
-  const timeSlotSeedResult = await withOptionalMissingTable(async () => {
-    for (const tenantId of [IDS.tenant, IDS.tenant2]) {
-      const defaults = [
-        { label: 'Morning', start_time: '09:00', end_time: '12:00', sort_order: 0 },
-        { label: 'Afternoon', start_time: '14:00', end_time: '17:00', sort_order: 1 },
-      ] as const;
-
-      for (const slot of defaults) {
-        const existing = await prisma.appointmentTimeSlot.findFirst({
-          where: {
-            tenant_id: tenantId,
-            branch_id: null,
-            start_time: slot.start_time,
-            end_time: slot.end_time,
-          },
-          select: { id: true },
-        });
-
-        if (existing) {
-          await prisma.appointmentTimeSlot.update({
-            where: { id: existing.id },
-            data: {
-              label: slot.label,
-              sort_order: slot.sort_order,
-              is_active: true,
-            },
-          });
-        } else {
-          await prisma.appointmentTimeSlot.create({
-            data: {
-              tenant_id: tenantId,
-              branch_id: null,
-              label: slot.label,
-              start_time: slot.start_time,
-              end_time: slot.end_time,
-              sort_order: slot.sort_order,
-            },
-          });
-        }
-      }
-    }
-
-    return 'seeded' as const;
-  }, () => 'skipped' as const);
-
-  if (timeSlotSeedResult === 'seeded') {
-    console.log('Appointment time slots: 2 per tenant (Morning, Afternoon)');
-  } else {
-    console.log('Appointment time slots: skipped (table not available in current database)');
-  }
 
   console.log('\n✓ Seeding complete!');
   console.log('─'.repeat(60));

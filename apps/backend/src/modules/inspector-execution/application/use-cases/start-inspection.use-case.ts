@@ -104,7 +104,8 @@ export class StartInspectionUseCase {
       : null;
     const windowCheck = this.timeWindowService.isWithinWindow(
       appointment.scheduledDate,
-      appointment.timeSlot,
+      appointment.timeSlotStart,
+      appointment.timeSlotEnd,
       new Date(),
       timeWindowBounds ?? undefined,
     );

@@ -77,7 +77,8 @@ const MOCK_MAP_DATA = [
     latitude: -33.8688,
     longitude: 151.2093,
     scheduledDate: '2026-04-01',
-    timeSlot: '09:00-12:00',
+    timeSlotStart: '09:00',
+    timeSlotEnd: '12:00',
     inspectorName: 'John Smith',
     branchName: 'Central',
   },
@@ -269,24 +270,34 @@ describe('AppointmentMapPage', () => {
     expect(screen.getByRole('tab', { name: 'Groups' })).toHaveAttribute('aria-selected', 'false');
   });
 
-  // FIX 1 — the Time Slot filter dropdown was empty because the map fetched
-  // the time slots from `/v1/appointment-time-slots`, which does not exist
-  // (the backend exposes the route at `/v1/time-slots`), returning 404.
-  it('fetches time-slot options from /v1/time-slots (not the 404 alias)', async () => {
-    // Resolve every query empty so the assertion isolates the request path
-    // (the bug is the URL, not the payload).
+  // The time-slot catalog is gone: the "Time" filter is now a free from/to
+  // range that maps to the /v1/appointments timeFrom/timeTo query params. The
+  // map must NOT fetch any time-slot catalog endpoint.
+  it('does not fetch any time-slot catalog endpoint', async () => {
     mockGet.mockResolvedValue({
       data: { data: [], pagination: { page: 1, pageSize: 100, total: 0, totalPages: 0 } },
     });
     renderPage();
     await waitFor(() => {
-      expect(mockGet).toHaveBeenCalledWith('/v1/time-slots', {
-        params: { query: expect.any(Object) },
-      });
+      expect(mockGet).toHaveBeenCalledWith('/v1/appointments', expect.anything());
     });
-    expect(mockGet).not.toHaveBeenCalledWith(
-      '/v1/appointment-time-slots',
-      expect.anything(),
-    );
+    expect(mockGet).not.toHaveBeenCalledWith('/v1/time-slots', expect.anything());
+    expect(mockGet).not.toHaveBeenCalledWith('/v1/appointment-time-slots', expect.anything());
+  });
+
+  it('sends timeFrom/timeTo to /v1/appointments when the Time filter is set', async () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId('map-filter-toggle'));
+    fireEvent.change(screen.getByLabelText('Time - start'), { target: { value: '09:00' } });
+    fireEvent.change(screen.getByLabelText('Time - end'), { target: { value: '12:00' } });
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith(
+        '/v1/appointments',
+        expect.objectContaining({
+          params: { query: expect.objectContaining({ timeFrom: '09:00', timeTo: '12:00' }) },
+        }),
+      );
+    });
   });
 });

@@ -50,14 +50,14 @@ describe('BulkRescheduleAppointmentsUseCase', () => {
     await useCase.execute({
       appointmentIds: [APPT_A, APPT_B],
       newDate: '2026-06-01',
-      newTimeSlot: '09:00-10:00',
+      newTimeSlotStart: '09:00', newTimeSlotEnd: '10:00',
       actor,
     });
 
     expect(mocks.updateAppointment.execute).toHaveBeenCalledTimes(2);
     expect(mocks.updateAppointment.execute).toHaveBeenNthCalledWith(1, {
       appointmentId: APPT_A,
-      data: { scheduledDate: '2026-06-01', timeSlot: '09:00-10:00' },
+      data: { scheduledDate: '2026-06-01', timeSlotStart: '09:00', timeSlotEnd: '10:00' },
       actor,
     });
   });

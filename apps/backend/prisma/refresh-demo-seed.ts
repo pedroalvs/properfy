@@ -160,10 +160,6 @@ async function countPlannedDeletes(scope: RefreshScope) {
     }),
     appointmentImports: await prisma.appointmentImport.count({ where: { tenant_id: { in: tenantIds } } }),
     propertyImports: await prisma.propertyImport.count({ where: { tenant_id: { in: tenantIds } } }),
-    appointmentTimeSlots: await optionalOperation(
-      () => prisma.appointmentTimeSlot.count({ where: { tenant_id: { in: tenantIds } } }),
-      0,
-    ),
     inspectorInvoices: await prisma.inspectorInvoice.count({ where: { inspector_id: { in: inspectorIds } } }),
     availabilitySlots: await prisma.inspectorAvailabilitySlot.count({ where: { inspector_id: { in: inspectorIds } } }),
     appointments: await prisma.appointment.count({ where: { id: { in: appointmentIds } } }),
@@ -231,10 +227,6 @@ async function executeRefresh(scope: RefreshScope) {
   });
   await prisma.appointmentImport.deleteMany({ where: { tenant_id: { in: tenantIds } } });
   await prisma.propertyImport.deleteMany({ where: { tenant_id: { in: tenantIds } } });
-  await optionalOperation(
-    () => prisma.appointmentTimeSlot.deleteMany({ where: { tenant_id: { in: tenantIds } } }),
-    { count: 0 },
-  );
   await prisma.inspectorInvoice.deleteMany({ where: { inspector_id: { in: inspectorIds } } });
   await prisma.inspectorAvailabilitySlot.deleteMany({ where: { inspector_id: { in: inspectorIds } } });
   await prisma.appointment.deleteMany({ where: { id: { in: appointmentIds } } });

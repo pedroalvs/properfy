@@ -8,7 +8,8 @@ export interface PropertyAppointment {
   status: string;
   serviceTypeName: string;
   scheduledDate: string;
-  timeSlot: string;
+  timeSlotStart: string;
+  timeSlotEnd: string;
   inspectorName: string | null;
   createdAt: string;
 }

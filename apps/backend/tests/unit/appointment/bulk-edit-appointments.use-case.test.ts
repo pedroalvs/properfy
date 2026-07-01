@@ -4,7 +4,6 @@ import type { IAppointmentRepository, AppointmentWithRelations } from '../../../
 import type { IContactRepository } from '../../../src/modules/contact/domain/contact.repository';
 import type { IInspectorRepository } from '../../../src/modules/inspector/domain/inspector.repository';
 import type { IPricingRuleRepository } from '../../../src/modules/pricing-rule/domain/pricing-rule.repository';
-import type { IAppointmentTimeSlotRepository } from '../../../src/modules/appointment-time-slot/domain/appointment-time-slot.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
@@ -31,7 +30,7 @@ function makeAppointmentEntity(
     inspectorId: null,
     status: 'DRAFT',
     scheduledDate: new Date('2027-06-01'),
-    timeSlot: '09:00-10:00',
+    timeSlotStart: '09:00', timeSlotEnd: '10:00',
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
@@ -104,7 +103,6 @@ describe('BulkEditAppointmentsUseCase', () => {
   let contactRepo: IContactRepository;
   let inspectorRepo: IInspectorRepository;
   let pricingRuleRepo: IPricingRuleRepository;
-  let timeSlotRepo: IAppointmentTimeSlotRepository;
   let auditService: AuditService;
   let authorizationService: AuthorizationService;
   let useCase: BulkEditAppointmentsUseCase;
@@ -157,12 +155,6 @@ describe('BulkEditAppointmentsUseCase', () => {
       update: vi.fn(),
     } as unknown as IPricingRuleRepository;
 
-    timeSlotRepo = {
-      findById: vi.fn(),
-      findAll: vi.fn(),
-      update: vi.fn(),
-    } as unknown as IAppointmentTimeSlotRepository;
-
     auditService = { log: vi.fn() } as unknown as AuditService;
     authorizationService = new AuthorizationService(auditService);
 
@@ -171,7 +163,6 @@ describe('BulkEditAppointmentsUseCase', () => {
       contactRepo,
       inspectorRepo,
       pricingRuleRepo,
-      timeSlotRepo,
       auditService,
       authorizationService,
     );
@@ -214,7 +205,7 @@ describe('BulkEditAppointmentsUseCase', () => {
 
     const result = await useCase.execute({
       ids: ['appt-1'],
-      changes: { timeSlot: '10:00-11:00' },
+      changes: { timeSlotStart: '10:00', timeSlotEnd: '11:00' },
       actor: makeActor({ role: 'AM', tenantId: null }),
     });
 
@@ -229,7 +220,7 @@ describe('BulkEditAppointmentsUseCase', () => {
 
     const result = await useCase.execute({
       ids: ['appt-1'],
-      changes: { timeSlot: '10:00-11:00' },
+      changes: { timeSlotStart: '10:00', timeSlotEnd: '11:00' },
       actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
     });
 
@@ -241,7 +232,7 @@ describe('BulkEditAppointmentsUseCase', () => {
     await expect(
       useCase.execute({
         ids: ['appt-1'],
-        changes: { timeSlot: '10:00-11:00' },
+        changes: { timeSlotStart: '10:00', timeSlotEnd: '11:00' },
         actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
       }),
     ).rejects.toThrow(ForbiddenError);
@@ -251,7 +242,7 @@ describe('BulkEditAppointmentsUseCase', () => {
     await expect(
       useCase.execute({
         ids: ['appt-1'],
-        changes: { timeSlot: '10:00-11:00' },
+        changes: { timeSlotStart: '10:00', timeSlotEnd: '11:00' },
         actor: makeActor({ role: 'CL_USER', tenantId: 'tenant-1' }),
       }),
     ).rejects.toThrow(ForbiddenError);
@@ -261,7 +252,7 @@ describe('BulkEditAppointmentsUseCase', () => {
     await expect(
       useCase.execute({
         ids: ['appt-1'],
-        changes: { timeSlot: '10:00-11:00' },
+        changes: { timeSlotStart: '10:00', timeSlotEnd: '11:00' },
         actor: makeActor({ role: 'INSP', tenantId: 'tenant-1' }),
       }),
     ).rejects.toThrow(ForbiddenError);
@@ -304,7 +295,7 @@ describe('BulkEditAppointmentsUseCase', () => {
 
     const result = await useCase.execute({
       ids: ['appt-1', 'appt-2', 'appt-3'],
-      changes: { timeSlot: '14:00-15:00' },
+      changes: { timeSlotStart: '14:00', timeSlotEnd: '15:00' },
       actor: makeActor(),
     });
 
@@ -344,7 +335,7 @@ describe('BulkEditAppointmentsUseCase', () => {
 
     const result = await useCase.execute({
       ids: ['appt-missing'],
-      changes: { timeSlot: '10:00-11:00' },
+      changes: { timeSlotStart: '10:00', timeSlotEnd: '11:00' },
       actor: makeActor(),
     });
 
@@ -540,7 +531,7 @@ describe('BulkEditAppointmentsUseCase', () => {
 
     await useCase.execute({
       ids: ['appt-1', 'appt-2'],
-      changes: { timeSlot: '11:00-12:00' },
+      changes: { timeSlotStart: '11:00', timeSlotEnd: '12:00' },
       actor: makeActor(),
       requestId: 'req-batch-1',
     });
@@ -553,8 +544,8 @@ describe('BulkEditAppointmentsUseCase', () => {
         actorId: 'user-op',
         entityType: 'appointment',
         entityId: 'appt-1',
-        before: expect.objectContaining({ timeSlot: '09:00-10:00' }),
-        after: expect.objectContaining({ timeSlot: '11:00-12:00' }),
+        before: expect.objectContaining({ timeSlotStart: '09:00', timeSlotEnd: '10:00' }),
+        after: expect.objectContaining({ timeSlotStart: '11:00', timeSlotEnd: '12:00' }),
         metadata: expect.objectContaining({ source: 'bulk-edit', batchId: 'req-batch-1' }),
       }),
     );
@@ -593,7 +584,7 @@ describe('BulkEditAppointmentsUseCase', () => {
 
     const result = await useCase.execute({
       ids: ['appt-1', 'appt-2', 'appt-3'],
-      changes: { timeSlot: '08:00-09:00' },
+      changes: { timeSlotStart: '08:00', timeSlotEnd: '09:00' },
       actor: makeActor(),
     });
 
@@ -612,7 +603,7 @@ describe('BulkEditAppointmentsUseCase', () => {
 
     const result = await useCase.execute({
       ids: ['appt-other-tenant'],
-      changes: { timeSlot: '10:00-11:00' },
+      changes: { timeSlotStart: '10:00', timeSlotEnd: '11:00' },
       actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
     });
 
@@ -629,7 +620,7 @@ describe('BulkEditAppointmentsUseCase', () => {
 
     const result = await useCase.execute({
       ids: ['appt-1'],
-      changes: { timeSlot: '10:00-11:00' },
+      changes: { timeSlotStart: '10:00', timeSlotEnd: '11:00' },
       actor: makeActor({ role: 'AM', tenantId: null }),
     });
 
@@ -687,7 +678,7 @@ describe('BulkEditAppointmentsUseCase', () => {
 
     const result = await useCase.execute({
       ids: ['appt-1'],
-      changes: { timeSlot: '10:00-11:00' },
+      changes: { timeSlotStart: '10:00', timeSlotEnd: '11:00' },
       actor: makeActor(),
     });
 

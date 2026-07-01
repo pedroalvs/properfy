@@ -24,7 +24,7 @@ function makeAppointment(
     inspectorId: 'insp-1',
     status: 'SCHEDULED',
     scheduledDate: new Date('2026-04-10'),
-    timeSlot: '09:00-12:00',
+    timeSlotStart: '09:00', timeSlotEnd: '12:00',
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
@@ -111,7 +111,7 @@ describe('ReopenForRescheduleUseCase', () => {
     const result = await useCase.execute({
       appointmentId: 'appt-1',
       newScheduledDate: '2027-06-15',
-      newTimeSlot: '13:00-16:00',
+      newTimeSlotStart: '13:00', newTimeSlotEnd: '16:00',
       actor: makeActor('AM'),
     });
 
@@ -120,8 +120,10 @@ describe('ReopenForRescheduleUseCase', () => {
     expect(result.status).toBe('DRAFT');
     expect(result.previousScheduledDate).toBe('2026-04-10');
     expect(result.scheduledDate).toBe('2027-06-15');
-    expect(result.previousTimeSlot).toBe('09:00-12:00');
-    expect(result.timeSlot).toBe('13:00-16:00');
+    expect(result.previousTimeSlotStart).toBe('09:00');
+    expect(result.previousTimeSlotEnd).toBe('12:00');
+    expect(result.timeSlotStart).toBe('13:00');
+    expect(result.timeSlotEnd).toBe('16:00');
     expect(result.previousInspectorId).toBe('insp-1');
     expect(result.inspectorId).toBeNull();
     expect(result.rentalTenantConfirmationStatus).toBe('PENDING');
@@ -130,7 +132,7 @@ describe('ReopenForRescheduleUseCase', () => {
     expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
       status: 'DRAFT',
       scheduledDate: new Date('2027-06-15'),
-      timeSlot: '13:00-16:00',
+      timeSlotStart: '13:00', timeSlotEnd: '16:00',
       inspectorId: null,
       rentalTenantConfirmationStatus: 'PENDING',
       reason: null,
@@ -144,7 +146,7 @@ describe('ReopenForRescheduleUseCase', () => {
     const result = await useCase.execute({
       appointmentId: 'appt-1',
       newScheduledDate: '2027-06-20',
-      newTimeSlot: '08:00-11:00',
+      newTimeSlotStart: '08:00', newTimeSlotEnd: '11:00',
       actor: makeActor('SYS' as AuthContext['role']),
     });
 
@@ -159,7 +161,7 @@ describe('ReopenForRescheduleUseCase', () => {
     const result = await useCase.execute({
       appointmentId: 'appt-1',
       newScheduledDate: '2027-06-18',
-      newTimeSlot: '10:00-13:00',
+      newTimeSlotStart: '10:00', newTimeSlotEnd: '13:00',
       actor: makeActor('OP'),
     });
 
@@ -173,7 +175,7 @@ describe('ReopenForRescheduleUseCase', () => {
     await useCase.execute({
       appointmentId: 'appt-1',
       newScheduledDate: '2027-06-15',
-      newTimeSlot: '13:00-16:00',
+      newTimeSlotStart: '13:00', newTimeSlotEnd: '16:00',
       reason: 'Tenant requested new date',
       actor: makeActor('AM'),
     });
@@ -188,14 +190,14 @@ describe('ReopenForRescheduleUseCase', () => {
       before: {
         status: 'SCHEDULED',
         scheduledDate: '2026-04-10',
-        timeSlot: '09:00-12:00',
+        timeSlotStart: '09:00', timeSlotEnd: '12:00',
         inspectorId: 'insp-1',
         rentalTenantConfirmationStatus: 'CONFIRMED',
       },
       after: {
         status: 'DRAFT',
         scheduledDate: '2027-06-15',
-        timeSlot: '13:00-16:00',
+        timeSlotStart: '13:00', timeSlotEnd: '16:00',
         inspectorId: null,
         rentalTenantConfirmationStatus: 'PENDING',
       },
@@ -214,7 +216,7 @@ describe('ReopenForRescheduleUseCase', () => {
     await useCase.execute({
       appointmentId: 'appt-1',
       newScheduledDate: '2027-06-15',
-      newTimeSlot: '13:00-16:00',
+      newTimeSlotStart: '13:00', newTimeSlotEnd: '16:00',
       actor: makeActor('SYS' as AuthContext['role']),
     });
 
@@ -233,7 +235,7 @@ describe('ReopenForRescheduleUseCase', () => {
     await useCase.execute({
       appointmentId: 'appt-1',
       newScheduledDate: '2027-06-15',
-      newTimeSlot: '13:00-16:00',
+      newTimeSlotStart: '13:00', newTimeSlotEnd: '16:00',
       actor: makeActor('AM'),
     });
 
@@ -251,7 +253,7 @@ describe('ReopenForRescheduleUseCase', () => {
       useCase.execute({
         appointmentId: 'appt-1',
         newScheduledDate: '2027-06-15',
-        newTimeSlot: '13:00-16:00',
+        newTimeSlotStart: '13:00', newTimeSlotEnd: '16:00',
         actor: makeActor('AM'),
       }),
     ).rejects.toThrow(AppointmentNotScheduledError);
@@ -269,7 +271,7 @@ describe('ReopenForRescheduleUseCase', () => {
       useCase.execute({
         appointmentId: 'appt-1',
         newScheduledDate: '2027-06-15',
-        newTimeSlot: '13:00-16:00',
+        newTimeSlotStart: '13:00', newTimeSlotEnd: '16:00',
         actor: makeActor('AM'),
       }),
     ).rejects.toThrow(AppointmentNotScheduledError);
@@ -282,7 +284,7 @@ describe('ReopenForRescheduleUseCase', () => {
       useCase.execute({
         appointmentId: 'appt-1',
         newScheduledDate: '2027-06-15',
-        newTimeSlot: '13:00-16:00',
+        newTimeSlotStart: '13:00', newTimeSlotEnd: '16:00',
         actor: makeActor('AM'),
       }),
     ).rejects.toThrow(AppointmentNotScheduledError);
@@ -295,7 +297,7 @@ describe('ReopenForRescheduleUseCase', () => {
       useCase.execute({
         appointmentId: 'appt-1',
         newScheduledDate: '2027-06-15',
-        newTimeSlot: '13:00-16:00',
+        newTimeSlotStart: '13:00', newTimeSlotEnd: '16:00',
         actor: makeActor('AM'),
       }),
     ).rejects.toThrow(AppointmentNotScheduledError);
@@ -308,7 +310,7 @@ describe('ReopenForRescheduleUseCase', () => {
       useCase.execute({
         appointmentId: 'nonexistent',
         newScheduledDate: '2027-06-15',
-        newTimeSlot: '13:00-16:00',
+        newTimeSlotStart: '13:00', newTimeSlotEnd: '16:00',
         actor: makeActor('AM'),
       }),
     ).rejects.toThrow(AppointmentNotFoundError);
@@ -322,7 +324,7 @@ describe('ReopenForRescheduleUseCase', () => {
     const result = await useCase.execute({
       appointmentId: 'appt-1',
       newScheduledDate: '2027-06-15',
-      newTimeSlot: '13:00-16:00',
+      newTimeSlotStart: '13:00', newTimeSlotEnd: '16:00',
       actor: makeActor('CL_ADMIN', { tenantId: 'tenant-1' }),
     });
 
@@ -342,7 +344,7 @@ describe('ReopenForRescheduleUseCase', () => {
       useCase.execute({
         appointmentId: 'appt-foreign',
         newScheduledDate: '2027-06-15',
-        newTimeSlot: '13:00-16:00',
+        newTimeSlotStart: '13:00', newTimeSlotEnd: '16:00',
         actor: makeActor('CL_ADMIN', { tenantId: 'tenant-attacker' }),
       }),
     ).rejects.toThrow(AppointmentNotFoundError);
@@ -361,7 +363,7 @@ describe('ReopenForRescheduleUseCase', () => {
       useCase.execute({
         appointmentId: 'appt-victim',
         newScheduledDate: '2027-06-15',
-        newTimeSlot: '13:00-16:00',
+        newTimeSlotStart: '13:00', newTimeSlotEnd: '16:00',
         actor: makeActor('CL_ADMIN', { tenantId: 'tenant-attacker' }),
       }),
     ).rejects.toThrow(AppointmentNotFoundError);
@@ -377,7 +379,7 @@ describe('ReopenForRescheduleUseCase', () => {
     await useCase.execute({
       appointmentId: 'appt-1',
       newScheduledDate: '2027-06-15',
-      newTimeSlot: '13:00-16:00',
+      newTimeSlotStart: '13:00', newTimeSlotEnd: '16:00',
       actor: makeActor('AM'),
     });
 
@@ -391,7 +393,7 @@ describe('ReopenForRescheduleUseCase', () => {
     await useCase.execute({
       appointmentId: 'appt-1',
       newScheduledDate: '2027-06-15',
-      newTimeSlot: '13:00-16:00',
+      newTimeSlotStart: '13:00', newTimeSlotEnd: '16:00',
       actor: makeActor('OP'),
     });
 
@@ -403,7 +405,7 @@ describe('ReopenForRescheduleUseCase', () => {
       useCase.execute({
         appointmentId: 'appt-1',
         newScheduledDate: '2027-06-15',
-        newTimeSlot: '13:00-16:00',
+        newTimeSlotStart: '13:00', newTimeSlotEnd: '16:00',
         actor: makeActor('CL_USER'),
       }),
     ).rejects.toThrow(ForbiddenError);
@@ -414,7 +416,7 @@ describe('ReopenForRescheduleUseCase', () => {
       useCase.execute({
         appointmentId: 'appt-1',
         newScheduledDate: '2027-06-15',
-        newTimeSlot: '13:00-16:00',
+        newTimeSlotStart: '13:00', newTimeSlotEnd: '16:00',
         actor: makeActor('INSP'),
       }),
     ).rejects.toThrow(ForbiddenError);
@@ -429,7 +431,7 @@ describe('ReopenForRescheduleUseCase', () => {
     const result = await useCase.execute({
       appointmentId: 'appt-1',
       newScheduledDate: '2027-06-15',
-      newTimeSlot: '13:00-16:00',
+      newTimeSlotStart: '13:00', newTimeSlotEnd: '16:00',
       actor: makeActor('AM'),
     });
 
@@ -471,7 +473,7 @@ describe('ReopenForRescheduleUseCase — token revoke (026 §FR-543)', () => {
     await useCase.execute({
       appointmentId: 'appt-1',
       newScheduledDate: '2027-06-15',
-      newTimeSlot: '13:00-16:00',
+      newTimeSlotStart: '13:00', newTimeSlotEnd: '16:00',
       actor: makeActor('OP'),
     });
 
@@ -501,7 +503,7 @@ describe('ReopenForRescheduleUseCase — token revoke (026 §FR-543)', () => {
     await useCase.execute({
       appointmentId: 'appt-1',
       newScheduledDate: '2027-06-15',
-      newTimeSlot: '13:00-16:00',
+      newTimeSlotStart: '13:00', newTimeSlotEnd: '16:00',
       actor: makeActor('OP'),
     });
 

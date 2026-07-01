@@ -9,65 +9,87 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
+function formatDateKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function formatHHmm(date: Date): string {
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
 describe('StartInspectionButton', () => {
   beforeEach(() => {
     mockNavigate.mockClear();
     vi.useRealTimers();
   });
 
-  function formatDateKey(date: Date): string {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-  }
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
-  function formatTimeSlot(date: Date): string {
-    const end = new Date(date.getTime() + 2 * 60 * 60 * 1000);
-    const hh = String(date.getHours()).padStart(2, '0');
-    const mm = String(date.getMinutes()).padStart(2, '0');
-    const endHh = String(end.getHours()).padStart(2, '0');
-    const endMm = String(end.getMinutes()).padStart(2, '0');
-    return `${hh}:${mm}-${endHh}:${endMm}`;
-  }
-
-  it('is disabled when appointment is not today', () => {
+  it('is disabled for a future date', () => {
     renderWithProviders(
-      <StartInspectionButton
-        appointmentId="apt-1"
-        scheduledDate="2099-12-31"
-        timeSlot="09:00-11:00"
-      />,
+      <StartInspectionButton appointmentId="apt-1" scheduledDate="2099-12-31" timeSlotStart="09:00" />,
     );
     const button = screen.getByTestId('start-inspection-button');
     expect(button).toBeDisabled();
     expect(screen.getByTestId('start-inspection-sublabel')).toHaveTextContent('Available on inspection day');
   });
 
-  it('is enabled when within time window', () => {
-    const now = new Date();
-    const start = new Date(now.getTime() + 10 * 60 * 1000); // 10 min in future
-
+  it('is disabled for a past date', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-25T10:00:00'));
     renderWithProviders(
-      <StartInspectionButton
-        appointmentId="apt-1"
-        scheduledDate={formatDateKey(start)}
-        timeSlot={formatTimeSlot(start)}
-      />,
+      <StartInspectionButton appointmentId="apt-1" scheduledDate="2026-03-24" timeSlotStart="09:00" />,
     );
+    const button = screen.getByTestId('start-inspection-button');
+    expect(button).toBeDisabled();
+    expect(screen.getByTestId('start-inspection-sublabel')).toHaveTextContent('Inspection window has passed');
+  });
 
+  it('is enabled within the start window', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-25T10:00:00'));
+    renderWithProviders(
+      <StartInspectionButton appointmentId="apt-1" scheduledDate="2026-03-25" timeSlotStart="10:00" />,
+    );
     const button = screen.getByTestId('start-inspection-button');
     expect(button).not.toBeDisabled();
     expect(button).toHaveTextContent('Start Inspection');
   });
 
-  it('navigates to execution on click', async () => {
+  it('shows a countdown before the window opens', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-25T10:00:00'));
+    renderWithProviders(
+      <StartInspectionButton appointmentId="apt-1" scheduledDate="2026-03-25" timeSlotStart="11:00" />,
+    );
+    const button = screen.getByTestId('start-inspection-button');
+    expect(button).toBeDisabled();
+    expect(screen.getByTestId('start-inspection-sublabel').textContent).toMatch(/Available in \d+ min/);
+  });
+
+  it('is disabled after the start window has passed', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-25T10:00:00'));
+    renderWithProviders(
+      <StartInspectionButton appointmentId="apt-1" scheduledDate="2026-03-25" timeSlotStart="07:00" />,
+    );
+    const button = screen.getByTestId('start-inspection-button');
+    expect(button).toBeDisabled();
+    expect(screen.getByTestId('start-inspection-sublabel')).toHaveTextContent('Start window has passed');
+  });
+
+  it('navigates to execution on click within the window', async () => {
     const user = userEvent.setup();
     const now = new Date();
-    const start = new Date(now.getTime() + 10 * 60 * 1000);
+    const start = new Date(now.getTime() + 10 * 60 * 1000); // 10 min into the future, today
 
     renderWithProviders(
       <StartInspectionButton
         appointmentId="apt-1"
         scheduledDate={formatDateKey(start)}
-        timeSlot={formatTimeSlot(start)}
+        timeSlotStart={formatHHmm(start)}
       />,
     );
 
@@ -75,33 +97,10 @@ describe('StartInspectionButton', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/execution/apt-1');
   });
 
-  it('shows countdown sublabel when before window', () => {
-    const now = new Date();
-    const start = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour in future
-
-    renderWithProviders(
-      <StartInspectionButton
-        appointmentId="apt-1"
-        scheduledDate={formatDateKey(start)}
-        timeSlot={formatTimeSlot(start)}
-      />,
-    );
-
-    const button = screen.getByTestId('start-inspection-button');
-    expect(button).toBeDisabled();
-    expect(screen.getByTestId('start-inspection-sublabel').textContent).toMatch(/Available in \d+ min/);
-  });
-
   it('shows resume state when a local inspection is already in progress', () => {
     renderWithProviders(
-      <StartInspectionButton
-        appointmentId="apt-1"
-        scheduledDate="2099-12-31"
-        timeSlot="09:00-11:00"
-        resume
-      />,
+      <StartInspectionButton appointmentId="apt-1" scheduledDate="2099-12-31" timeSlotStart="09:00" resume />,
     );
-
     const button = screen.getByTestId('start-inspection-button');
     expect(button).not.toBeDisabled();
     expect(button).toHaveTextContent('Resume Inspection');

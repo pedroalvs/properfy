@@ -46,7 +46,7 @@ test.describe('Import Template Download (T035)', () => {
     expect(headers).toContain('propertyCode');
     expect(headers).toContain('serviceTypeCode');
     expect(headers).toContain('scheduledDate');
-    expect(headers).toContain('timeSlotLabel');
+    expect(headers).toContain('timeSlot');
     expect(headers).toContain('keyRequired');
     expect(headers).toContain('primaryContactName');
     expect(headers).toContain('primaryContactEmail');

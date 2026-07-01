@@ -93,7 +93,7 @@ export class JoinGroupUseCase {
     const previousValues = {
       serviceGroupId: previousGroupId,
       scheduledDate: appointment.scheduledDate,
-      timeSlot: appointment.timeSlot,
+      timeSlot: `${appointment.timeSlotStart}-${appointment.timeSlotEnd}`,
       status: appointment.status,
     };
 
@@ -103,9 +103,11 @@ export class JoinGroupUseCase {
     }
 
     // 5-8. Update appointment fields
+    const [groupTimeStart = '', groupTimeEnd = ''] = group.timeWindow.split('-');
     await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, {
       scheduledDate: group.scheduledDate,
-      timeSlot: group.timeWindow,
+      timeSlotStart: groupTimeStart,
+      timeSlotEnd: groupTimeEnd,
       inspectorId: group.assignedInspectorId,
       rentalTenantConfirmationStatus: 'CONFIRMED',
       serviceGroupId: group.id,

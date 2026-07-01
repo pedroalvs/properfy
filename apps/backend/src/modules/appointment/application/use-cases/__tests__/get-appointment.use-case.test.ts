@@ -28,7 +28,7 @@ function makeAppointment(activeConfirmationCycleId: string | null = null): Appoi
     inspectorId: null,
     status: 'SCHEDULED',
     scheduledDate: new Date('2026-06-01'),
-    timeSlot: '09:00-10:00',
+    timeSlotStart: '09:00', timeSlotEnd: '10:00',
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,

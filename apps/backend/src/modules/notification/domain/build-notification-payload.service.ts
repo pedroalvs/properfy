@@ -61,7 +61,7 @@ export class BuildNotificationPayloadService {
       rentalTenantName: ctx.contact.effectiveName,
       propertyAddress: ctx.propertyAddress ?? '',
       scheduledDate,
-      timeSlot: ctx.appointment.timeSlot,
+      timeSlot: `${ctx.appointment.timeSlotStart}-${ctx.appointment.timeSlotEnd}`,
       inspectorName: ctx.inspectorName ?? '',
       agencyName: ctx.tenant.name,
       agencyPhone: typeof settings.contactPhone === 'string' ? settings.contactPhone : '',

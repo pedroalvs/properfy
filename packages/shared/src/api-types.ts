@@ -4650,7 +4650,8 @@ export interface paths {
                     showCancelled?: boolean;
                     overdueOnly?: boolean;
                     ungroupedOnly?: boolean;
-                    timeSlot?: string;
+                    timeFrom?: string;
+                    timeTo?: string;
                     contactSearch?: string;
                     hasRentalTenantNote?: boolean;
                     confirmationStatus?: "sent" | "not_sent";
@@ -4687,7 +4688,8 @@ export interface paths {
                                 serviceGroupCode?: string | null;
                                 status: string;
                                 scheduledDate: string;
-                                timeSlot: string;
+                                timeSlotStart: string;
+                                timeSlotEnd: string;
                                 keyRequired?: boolean;
                                 meetingLocation?: string | null;
                                 keyLocation?: string | null;
@@ -4783,7 +4785,8 @@ export interface paths {
                         serviceTypeId: string;
                         /** Format: date */
                         scheduledDate: string;
-                        timeSlot: string;
+                        timeSlotStart: string;
+                        timeSlotEnd: string;
                         contact?: {
                             rentalTenantName: string;
                             /** Format: email */
@@ -4871,7 +4874,8 @@ export interface paths {
                                 serviceGroupCode?: string | null;
                                 status: string;
                                 scheduledDate: string;
-                                timeSlot: string;
+                                timeSlotStart: string;
+                                timeSlotEnd: string;
                                 keyRequired?: boolean;
                                 meetingLocation?: string | null;
                                 keyLocation?: string | null;
@@ -4978,7 +4982,8 @@ export interface paths {
                                 serviceGroupCode?: string | null;
                                 status: string;
                                 scheduledDate: string;
-                                timeSlot: string;
+                                timeSlotStart: string;
+                                timeSlotEnd: string;
                                 keyRequired?: boolean;
                                 meetingLocation?: string | null;
                                 keyLocation?: string | null;
@@ -5074,7 +5079,8 @@ export interface paths {
                     "application/json": {
                         /** Format: date */
                         scheduledDate?: string;
-                        timeSlot?: string;
+                        timeSlotStart?: string;
+                        timeSlotEnd?: string;
                         keyRequired?: boolean;
                         meetingLocation?: string | null;
                         keyLocation?: string | null;
@@ -5161,7 +5167,8 @@ export interface paths {
                                 serviceGroupCode?: string | null;
                                 status: string;
                                 scheduledDate: string;
-                                timeSlot: string;
+                                timeSlotStart: string;
+                                timeSlotEnd: string;
                                 keyRequired?: boolean;
                                 meetingLocation?: string | null;
                                 keyLocation?: string | null;
@@ -5572,7 +5579,8 @@ export interface paths {
                     "application/json": {
                         appointmentIds: string[];
                         newDate: string;
-                        newTimeSlot?: string;
+                        newTimeSlotStart?: string;
+                        newTimeSlotEnd?: string;
                         actorTimezone?: string;
                     };
                 };
@@ -5744,7 +5752,8 @@ export interface paths {
                     "application/json": {
                         appointmentIds: string[];
                         newDate: string;
-                        newTimeSlot: string;
+                        newTimeSlotStart: string;
+                        newTimeSlotEnd: string;
                         reason?: string;
                         actorTimezone?: string;
                     };
@@ -7683,7 +7692,8 @@ export interface paths {
                 content: {
                     "application/json": {
                         newDate: string;
-                        newTimeSlot: string;
+                        newTimeSlotStart: string;
+                        newTimeSlotEnd: string;
                         restrictions?: {
                             isHome?: boolean | null;
                             unavailableDaysJson?: string[] | null;
@@ -7712,7 +7722,8 @@ export interface paths {
                     content: {
                         "application/json": {
                             scheduledDate: string;
-                            timeSlot: string;
+                            timeSlotStart: string;
+                            timeSlotEnd: string;
                             /** @enum {string} */
                             rentalTenantConfirmationStatus: "PENDING";
                         };
@@ -8085,7 +8096,8 @@ export interface paths {
                                     appointmentCode?: string;
                                     status: string;
                                     scheduledDate: string;
-                                    timeSlot: string;
+                                    timeSlotStart: string;
+                                    timeSlotEnd: string;
                                     /** Format: uuid */
                                     serviceTypeId: string;
                                     /** Format: uuid */
@@ -8104,7 +8116,8 @@ export interface paths {
                                 appointmentCode?: string;
                                 status: string;
                                 scheduledDate: string;
-                                timeSlot: string;
+                                timeSlotStart: string;
+                                timeSlotEnd: string;
                                 /** Format: uuid */
                                 serviceTypeId: string;
                                 /** Format: uuid */
@@ -8165,7 +8178,6 @@ export interface paths {
                                 id: string;
                                 status: string;
                                 scheduledDate: string;
-                                timeSlot: string;
                                 timeSlotStart: string;
                                 timeSlotEnd: string;
                                 /** Format: uuid */
@@ -11987,241 +11999,6 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
-        trace?: never;
-    };
-    "/v1/time-slots": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: {
-                    tenantId?: string;
-                    branchId?: string;
-                    includeInactive?: boolean | string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                /** Format: uuid */
-                                tenantId: string;
-                                /** Format: uuid */
-                                branchId: string | null;
-                                label: string;
-                                startTime: string;
-                                endTime: string;
-                                sortOrder: number;
-                                isActive: boolean;
-                                createdAt?: unknown;
-                                updatedAt?: unknown;
-                            }[];
-                        };
-                    };
-                };
-            };
-        };
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        tenantId?: string;
-                        /** Format: uuid */
-                        branchId?: string | null;
-                        label: string;
-                        startTime: string;
-                        endTime: string;
-                        /** @default 0 */
-                        sortOrder?: number;
-                    };
-                };
-            };
-            responses: {
-                /** @description Default Response */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                /** Format: uuid */
-                                tenantId: string;
-                                /** Format: uuid */
-                                branchId: string | null;
-                                label: string;
-                                startTime: string;
-                                endTime: string;
-                                sortOrder: number;
-                                isActive: boolean;
-                                createdAt?: unknown;
-                                updatedAt?: unknown;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/time-slots/effective": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query: {
-                    branchId: string;
-                    tenantId?: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                label: string;
-                                startTime: string;
-                                endTime: string;
-                                value: string;
-                            }[];
-                        };
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/time-slots/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": "null" | null;
-                    };
-                };
-            };
-        };
-        options?: never;
-        head?: never;
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json": {
-                        label?: string;
-                        startTime?: string;
-                        endTime?: string;
-                        sortOrder?: number;
-                        isActive?: boolean;
-                    };
-                };
-            };
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                /** Format: uuid */
-                                tenantId: string;
-                                /** Format: uuid */
-                                branchId: string | null;
-                                label: string;
-                                startTime: string;
-                                endTime: string;
-                                sortOrder: number;
-                                isActive: boolean;
-                                createdAt?: unknown;
-                                updatedAt?: unknown;
-                            };
-                        };
-                    };
-                };
-            };
-        };
         trace?: never;
     };
     "/v1/service-regions": {

@@ -76,8 +76,8 @@ function renderModal(props: Partial<React.ComponentProps<typeof MapGroupCreateMo
         open={true}
         onClose={vi.fn()}
         selectedAppointments={[
-          { id: 'apt-1', code: 'INS-0001', status: 'DRAFT', propertyAddress: '1 Test St', latitude: 0, longitude: 0, scheduledDate: '2026-07-01', timeSlot: '09:00-10:00', inspectorName: null, branchName: 'Br', tenantId: 'tenant-1', clientName: 'Acme' },
-          { id: 'apt-2', code: 'INS-0002', status: 'DRAFT', propertyAddress: '2 Test St', latitude: 0, longitude: 0, scheduledDate: '2026-07-01', timeSlot: '09:00-10:00', inspectorName: null, branchName: 'Br', tenantId: 'tenant-1', clientName: 'Acme' },
+          { id: 'apt-1', code: 'INS-0001', status: 'DRAFT', propertyAddress: '1 Test St', latitude: 0, longitude: 0, scheduledDate: '2026-07-01', timeSlotStart: '09:00', timeSlotEnd: '10:00', inspectorName: null, branchName: 'Br', tenantId: 'tenant-1', clientName: 'Acme' },
+          { id: 'apt-2', code: 'INS-0002', status: 'DRAFT', propertyAddress: '2 Test St', latitude: 0, longitude: 0, scheduledDate: '2026-07-01', timeSlotStart: '09:00', timeSlotEnd: '10:00', inspectorName: null, branchName: 'Br', tenantId: 'tenant-1', clientName: 'Acme' },
         ]}
         onSuccess={vi.fn()}
         {...props}
@@ -109,8 +109,8 @@ describe('MapGroupCreateModal', () => {
   it('hides the region selector and shows a note for a mixed-agency selection', () => {
     renderModal({
       selectedAppointments: [
-        { id: 'apt-1', code: 'INS-0001', status: 'DRAFT', propertyAddress: '1 Test St', latitude: 0, longitude: 0, scheduledDate: '2026-07-01', timeSlot: '09:00-10:00', inspectorName: null, branchName: 'Br', tenantId: 'tenant-1', clientName: 'Acme' },
-        { id: 'apt-2', code: 'INS-0002', status: 'DRAFT', propertyAddress: '2 Test St', latitude: 0, longitude: 0, scheduledDate: '2026-07-01', timeSlot: '09:00-10:00', inspectorName: null, branchName: 'Br', tenantId: 'tenant-2', clientName: 'Globex' },
+        { id: 'apt-1', code: 'INS-0001', status: 'DRAFT', propertyAddress: '1 Test St', latitude: 0, longitude: 0, scheduledDate: '2026-07-01', timeSlotStart: '09:00', timeSlotEnd: '10:00', inspectorName: null, branchName: 'Br', tenantId: 'tenant-1', clientName: 'Acme' },
+        { id: 'apt-2', code: 'INS-0002', status: 'DRAFT', propertyAddress: '2 Test St', latitude: 0, longitude: 0, scheduledDate: '2026-07-01', timeSlotStart: '09:00', timeSlotEnd: '10:00', inspectorName: null, branchName: 'Br', tenantId: 'tenant-2', clientName: 'Globex' },
       ] as any,
     });
     expect(screen.queryByTestId('region-selector')).not.toBeInTheDocument();
@@ -177,7 +177,7 @@ describe('MapGroupCreateModal', () => {
       latitude: 0,
       longitude: 0,
       scheduledDate: '2026-07-01',
-      timeSlot: '09:00-10:00',
+      timeSlotStart: '09:00', timeSlotEnd: '10:00',
       inspectorName: null,
       branchName: 'Br',
       tenantId: 'tenant-1',
@@ -211,7 +211,7 @@ describe('MapGroupCreateModal', () => {
           latitude: 0,
           longitude: 0,
           scheduledDate: '2026-07-01',
-          timeSlot: '09:00-10:00',
+          timeSlotStart: '09:00', timeSlotEnd: '10:00',
           inspectorName: null,
           branchName: 'Br',
           tenantId: 'tenant-1',
@@ -239,7 +239,7 @@ describe('MapGroupCreateModal', () => {
       latitude: 0,
       longitude: 0,
       scheduledDate: '2026-07-01',
-      timeSlot: '09:00-10:00',
+      timeSlotStart: '09:00', timeSlotEnd: '10:00',
       inspectorName: null,
       branchName: 'Br',
       tenantId: 'tenant-1',

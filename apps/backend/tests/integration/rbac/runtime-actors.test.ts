@@ -152,7 +152,7 @@ describe('TNT actor: portal routes — token-based access control', () => {
     mockTokenRepo.findByTokenHash.mockResolvedValue(null);
     const res = await supertest(app.server)
       .post('/v1/rental-tenant-portal/invalid-raw-token/reschedule')
-      .send({ newDate: futureDate, newTimeSlot: '09:00-10:00' });
+      .send({ newDate: futureDate, newTimeSlotStart: '09:00', newTimeSlotEnd: '10:00' });
     expect(res.status).toBe(404);
   });
 });
@@ -175,7 +175,7 @@ describe('TNT actor: JWT routes are inaccessible without valid JWT', () => {
         propertyId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22',
         serviceTypeId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12',
         scheduledDate: futureDate,
-        timeSlot: '09:00-10:00',
+        timeSlotStart: '09:00', timeSlotEnd: '10:00',
         contact: { rentalTenantName: 'Test Tenant' },
       });
     expect(res.status).toBe(401);
