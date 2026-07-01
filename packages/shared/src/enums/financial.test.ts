@@ -4,7 +4,6 @@ import {
   FinancialEntryStatus,
   BillingPeriodType,
   InspectorInvoiceStatus,
-  TenantInvoiceStatus,
 } from './financial';
 
 describe('FinancialEntryType', () => {
@@ -56,18 +55,5 @@ describe('InspectorInvoiceStatus', () => {
 
   it('should have exactly 5 values', () => {
     expect(Object.keys(InspectorInvoiceStatus)).toHaveLength(5);
-  });
-});
-
-describe('TenantInvoiceStatus', () => {
-  it('should have OPEN, CLOSED, PAID, SUPERSEDED values', () => {
-    expect(TenantInvoiceStatus.OPEN).toBe('OPEN');
-    expect(TenantInvoiceStatus.CLOSED).toBe('CLOSED');
-    expect(TenantInvoiceStatus.PAID).toBe('PAID');
-    expect(TenantInvoiceStatus.SUPERSEDED).toBe('SUPERSEDED');
-  });
-
-  it('should have exactly 4 values', () => {
-    expect(Object.keys(TenantInvoiceStatus)).toHaveLength(4);
   });
 });

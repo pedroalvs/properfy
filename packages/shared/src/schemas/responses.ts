@@ -682,28 +682,6 @@ export const invoiceDownloadResponseSchema = z.object({
   expiresAt: dateStr(),
 });
 
-// ─── Tenant Invoice ───────────────────────────────────────────────────────
-
-export const tenantInvoiceResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  periodFrom: dateStr(),
-  periodTo: dateStr(),
-  totalDebit: z.number(),
-  totalRefund: z.number(),
-  totalAdjustment: z.number(),
-  netAmount: z.number(),
-  currency: z.string(),
-  status: z.string(),
-  fileKey: z.string().nullable().optional(),
-  previousInvoiceId: z.string().uuid().nullable().optional(),
-  generatedByUserId: z.string().uuid().nullable().optional(),
-  generatedAt: dateStrNullable(),
-  notes: z.string().nullable().optional(),
-  createdAt: dateStr(),
-  updatedAt: dateStr().optional(),
-});
-
 // ─── Notification ──────────────────────────────────────────────────────────
 
 export const notificationResponseSchema = z.object({
@@ -874,4 +852,3 @@ export type InspectionAssetResponse = z.infer<typeof inspectionAssetResponseSche
 export type DashboardStatsResponse = z.infer<typeof dashboardStatsResponseSchema>;
 export type InspectorDayCount = z.infer<typeof inspectorDayCountSchema>;
 export type InspectorBreakdowns = z.infer<typeof inspectorBreakdownsSchema>;
-export type TenantInvoiceResponse = z.infer<typeof tenantInvoiceResponseSchema>;

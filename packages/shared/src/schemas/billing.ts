@@ -126,27 +126,6 @@ export const voidFinancialEntrySchema = z.object({
 });
 export type VoidFinancialEntryInput = z.infer<typeof voidFinancialEntrySchema>;
 
-export const generateTenantInvoiceSchema = z.object({
-  tenantId: z.string().uuid(),
-  periodFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  periodTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  currency: z.string().length(3).optional(),
-}).refine(
-  (d) => new Date(d.periodTo) >= new Date(d.periodFrom),
-  { message: 'periodTo must be >= periodFrom' }
-);
-export type GenerateTenantInvoiceInput = z.infer<typeof generateTenantInvoiceSchema>;
-
-export const listTenantInvoicesQuerySchema = z.object({
-  tenantId: z.string().uuid().optional(),
-  status: z.enum(['OPEN', 'CLOSED', 'PAID', 'SUPERSEDED']).optional(),
-  fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD').optional(),
-  toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD').optional(),
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(50).default(20),
-});
-export type ListTenantInvoicesQuery = z.infer<typeof listTenantInvoicesQuerySchema>;
-
 export const regenerateInvoiceSchema = z.object({
   reason: z.string().min(1).max(1000).optional(),
 });

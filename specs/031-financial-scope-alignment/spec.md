@@ -69,7 +69,7 @@ CL_ADMIN/CL_USER are always own-tenant scoped and see only Agency-relevant entry
    (incl. `/close` `/pay` aliases) and the duplicate `PATCH /v1/financial/entries/:id/approve`
    (canonical `POST` kept); migrate the one web caller (`useFinancialBatchApprove`) PATCH→POST;
    regenerate the contract.
-3. **PR-3 — Remove orphan tenant-invoice** (backend + shared + destructive migration).
+3. **PR-3 (this) — Remove orphan tenant-invoice** (backend + shared + destructive migration).
 4. **PR-4 — Backend Agency financial surface + RBAC unification.** Extrato / services rendered /
    scoped export; inject `AuthorizationService` into the billing container, wire the CL_USER
    permissions resolver into billing auth, and unify the route-level role checks onto
@@ -107,3 +107,17 @@ Backoffice financial actions (`financial.view/approve/manual_adjustment/refund`)
   (`useFinancialBatchApprove`) uses `POST`.
 - **FR-031-07:** No inspector-invoice use-case, entity, or canonical route is changed (the
   removed routes were legacy aliases / a duplicate verb only).
+
+## PR-3 functional requirements (delivered)
+
+- **FR-031-08:** The orphan `TenantInvoice` feature is fully removed — the `tenant_invoices`
+  table and `TenantInvoiceStatus` enum are dropped (destructive migration), along with its
+  use-cases (generate / list / regenerate), entity, repository, domain errors, shared schemas
+  (`generateTenantInvoiceSchema`, `listTenantInvoicesQuerySchema`, `tenantInvoiceResponseSchema`),
+  and the `TenantInvoiceStatus` shared enum.
+- **FR-031-09:** The tenant-invoice routes (`POST /v1/billing/tenant-invoices/generate`, `GET
+  /v1/billing/tenant-invoices`, `POST /v1/billing/tenant-invoices/:id/regenerate`) resolve to
+  404. The inspector-invoice regenerate route (`POST /v1/billing/invoices/:id/regenerate`) is
+  unchanged.
+- **FR-031-10:** The Agency financial statement is served live from `financial_entries`
+  (delivered in PR-4); no periodic tenant-invoice generation lifecycle exists.
