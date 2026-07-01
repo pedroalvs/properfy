@@ -37,7 +37,6 @@ import {
 } from '../../domain/appointment.errors';
 import { validateNewSchedule } from '@properfy/shared';
 import type { RestrictionSource } from '@properfy/shared';
-import type { IAppointmentTimeSlotRepository } from '../../../appointment-time-slot/domain/appointment-time-slot.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { SystemClock, type Clock } from '../../../../shared/domain/clock';
@@ -58,7 +57,8 @@ export interface CreateAppointmentInput {
   };
   serviceTypeId: string;
   scheduledDate: string; // YYYY-MM-DD
-  timeSlot: string; // HH:mm-HH:mm
+  timeSlotStart: string; // HH:mm
+  timeSlotEnd: string; // HH:mm
   /** @deprecated Use contacts array instead */
   contact?: {
     rentalTenantName: string;
@@ -111,7 +111,8 @@ export interface CreateAppointmentOutput {
   inspectorId: string | null;
   status: string;
   scheduledDate: Date;
-  timeSlot: string;
+  timeSlotStart: string;
+  timeSlotEnd: string;
   keyRequired: boolean;
   meetingLocation: string | null;
   keyLocation: string | null;
@@ -156,7 +157,6 @@ export class CreateAppointmentUseCase {
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
     private readonly tenantRepo?: ITenantRepository,
-    private readonly timeSlotRepo?: IAppointmentTimeSlotRepository,
     private readonly contactRepo?: IContactRepository,
     // Clock defaults to the system clock for production. Tests that need
     // deterministic past/today/future behaviour pass a FakeClock.
@@ -184,7 +184,7 @@ export class CreateAppointmentUseCase {
     // Falls back to UTC when actorTimezone absent (R7: PWA / future callers).
     {
       const tz = input.actorTimezone ?? 'UTC';
-      const scheduleCheck = validateNewSchedule({ date: input.scheduledDate, timeSlot: input.timeSlot, tz });
+      const scheduleCheck = validateNewSchedule({ date: input.scheduledDate, timeSlot: input.timeSlotStart, tz });
       if (!scheduleCheck.ok) {
         throw scheduleCheck.code === 'TIME_IN_PAST' ? new AppointmentTimeInPastError() : new AppointmentDateInPastError();
       }
@@ -255,19 +255,6 @@ export class CreateAppointmentUseCase {
       throw new AppointmentServiceTypeInactiveError();
     }
 
-    // 5b. Validate timeSlot exists in effective catalog
-    if (this.timeSlotRepo) {
-      const effectiveSlots = await this.timeSlotRepo.findEffective(tenantId, input.branchId);
-      const valid = effectiveSlots.some(
-        (s) => s.compositeValue === input.timeSlot,
-      );
-      if (!valid) {
-        throw new ValidationError(
-          `Time slot "${input.timeSlot}" is not available for this branch`,
-        );
-      }
-    }
-
     // 6. Resolve pricing rule
     const pricingRules = await this.pricingRuleRepo.findAll(
       { tenantId, serviceTypeId: input.serviceTypeId, status: 'ACTIVE' },
@@ -299,7 +286,8 @@ export class CreateAppointmentUseCase {
       inspectorId: null,
       status: 'DRAFT',
       scheduledDate: new Date(input.scheduledDate),
-      timeSlot: input.timeSlot,
+      timeSlotStart: input.timeSlotStart,
+      timeSlotEnd: input.timeSlotEnd,
       keyRequired: input.keyRequired,
       meetingLocation: input.meetingLocation ?? null,
       keyLocation: input.keyLocation ?? null,
@@ -513,7 +501,8 @@ export class CreateAppointmentUseCase {
         propertyId,
         serviceTypeId: input.serviceTypeId,
         scheduledDate: input.scheduledDate,
-        timeSlot: input.timeSlot,
+        timeSlotStart: input.timeSlotStart,
+        timeSlotEnd: input.timeSlotEnd,
       },
     });
 
@@ -527,7 +516,8 @@ export class CreateAppointmentUseCase {
       inspectorId: appointment.inspectorId,
       status: appointment.status,
       scheduledDate: appointment.scheduledDate,
-      timeSlot: appointment.timeSlot,
+      timeSlotStart: appointment.timeSlotStart,
+      timeSlotEnd: appointment.timeSlotEnd,
       keyRequired: appointment.keyRequired,
       meetingLocation: appointment.meetingLocation,
       keyLocation: appointment.keyLocation,

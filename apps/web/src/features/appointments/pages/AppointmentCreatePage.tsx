@@ -10,6 +10,7 @@ import { EmailInput } from '@/components/forms/EmailInput';
 import { PhoneInput } from '@/components/forms/PhoneInput';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { DateInput } from '@/components/forms/DateInput';
+import { TimeRangeInput } from '@/components/forms/TimeRangeInput';
 import { Textarea } from '@/components/forms/Textarea';
 import { Checkbox } from '@/components/forms/Checkbox';
 import { Button } from '@/components/ui/Button';
@@ -20,7 +21,6 @@ import { useFormOptions } from '@/hooks/useFormOptions';
 import { useGoBack } from '@/hooks/useGoBack';
 import { useAppointmentSave } from '../hooks/useAppointmentSave';
 import { AppointmentRestrictionFields } from '../components/AppointmentRestrictionFields';
-import { useTimeSlotOptions } from '../hooks/useTimeSlotOptions';
 import type { AppointmentFormData, AppointmentFormErrors } from '../types';
 import { EMPTY_FORM_DATA } from '../types';
 
@@ -71,14 +71,10 @@ export function AppointmentCreatePage() {
     // so a property created in the new property tab appears when the user returns here.
     { enabled: (!isGlobalRole || !!effectiveTenantId) && !!form.branchId, staleTime: 0 },
   );
-  const { options: timeSlotOptions, isError: timeSlotError, error: timeSlotErrorMsg, refetch: refetchTimeSlots } = useTimeSlotOptions(
-    form.branchId || undefined,
-    effectiveTenantId,
-  );
 
   useEffect(() => {
     if (!isGlobalRole) return;
-    setForm((prev) => ({ ...prev, branchId: '', propertyId: '', timeSlot: '' }));
+    setForm((prev) => ({ ...prev, branchId: '', propertyId: '' }));
   }, [isGlobalRole, selectedTenantId]);
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialData);
@@ -103,12 +99,11 @@ export function AppointmentCreatePage() {
   }, []);
 
   const handleBranchChange = useCallback((branchId: string) => {
-    setForm((prev) => ({ ...prev, branchId, propertyId: '', timeSlot: '' }));
+    setForm((prev) => ({ ...prev, branchId, propertyId: '' }));
     setErrors((prev) => {
       const next = { ...prev };
       delete next.branchId;
       delete next.propertyId;
-      delete next.timeSlot;
       return next;
     });
   }, []);
@@ -161,6 +156,18 @@ export function AppointmentCreatePage() {
 
   const handleSubmit = useCallback(async () => {
     const validationErrors = validate(form, 'create');
+
+    // Past-time guard (applies to ALL roles, incl. AM/OP — native input `min`
+    // is only a hint and does not block this button-submit path).
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (
+      form.timeSlotStart &&
+      form.scheduledDate === todayLocalDateString() &&
+      isTimeStartInPastForDate(form.timeSlotStart, form.scheduledDate, tz)
+    ) {
+      validationErrors.timeSlotStart = validationErrors.timeSlotStart ?? 'Start time is in the past';
+    }
+
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       if (requiresTenantSelection) {
@@ -290,28 +297,20 @@ export function AppointmentCreatePage() {
                 aria-label="Scheduled Date"
               />
             </FormField>
-            <FormField label="Time Slot" required error={errors.timeSlot ?? (timeSlotError ? (timeSlotErrorMsg ?? undefined) : undefined)}>
-              {timeSlotError ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-error">Failed to load time slots</span>
-                  <button type="button" className="text-sm font-semibold text-primary" onClick={() => refetchTimeSlots()}>Retry</button>
-                </div>
-              ) : (
-                <SelectInput
-                  value={form.timeSlot}
-                  onChange={(v) => updateField('timeSlot', v)}
-                  options={(() => {
-                    const today = todayLocalDateString();
-                    if (form.scheduledDate !== today) return timeSlotOptions;
-                    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-                    return timeSlotOptions.filter((opt) => !isTimeStartInPastForDate(opt.value, form.scheduledDate, tz));
-                  })()}
-                  placeholder={!form.branchId ? 'Select a branch first' : 'Select time slot'}
-                  disabled={!form.branchId || timeSlotOptions.length === 0}
-                  error={!!errors.timeSlot}
-                  aria-label="Time Slot"
-                />
-              )}
+            <FormField label="Time Slot" required error={[errors.timeSlotStart, errors.timeSlotEnd].filter(Boolean).join(' ') || undefined}>
+              <TimeRangeInput
+                startTime={form.timeSlotStart}
+                endTime={form.timeSlotEnd}
+                onStartChange={(v) => updateField('timeSlotStart', v)}
+                onEndChange={(v) => updateField('timeSlotEnd', v)}
+                minStartTime={
+                  form.scheduledDate === todayLocalDateString()
+                    ? Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date())
+                    : undefined
+                }
+                error={!!errors.timeSlotStart || !!errors.timeSlotEnd}
+                idPrefix="appointment-time"
+              />
             </FormField>
           </FormSection>
 

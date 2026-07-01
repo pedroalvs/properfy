@@ -21,7 +21,7 @@ function makeAppointment(
       inspectorId: 'insp-1',
       status: 'SCHEDULED',
       scheduledDate: new Date('2026-03-21'),
-      timeSlot: '09:00-11:00',
+      timeSlotStart: '09:00', timeSlotEnd: '11:00',
       keyRequired: false,
       meetingLocation: null,
       keyLocation: null,
@@ -120,7 +120,7 @@ describe('GetInspectorScheduleUseCase', () => {
 
   it('should return schedule for target date with execution statuses', async () => {
     const appt1 = makeAppointment({ id: 'appt-1' });
-    const appt2 = makeAppointment({ id: 'appt-2', timeSlot: '14:00-16:00' });
+    const appt2 = makeAppointment({ id: 'appt-2', timeSlotStart: '14:00', timeSlotEnd: '16:00' });
     vi.mocked(appointmentRepo.findVisibleForInspector).mockResolvedValue([appt1, appt2]);
     vi.mocked(executionRepo.findByAppointmentIds).mockResolvedValue([
       makeExecution({ appointmentId: 'appt-1' }),

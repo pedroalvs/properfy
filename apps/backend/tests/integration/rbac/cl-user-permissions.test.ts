@@ -75,7 +75,7 @@ const apptStub = {
   inspectorId: null,
   status: 'DRAFT',
   scheduledDate: futureDate,
-  timeSlot: '09:00-10:00',
+  timeSlotStart: '09:00', timeSlotEnd: '10:00',
   rentalTenantConfirmationStatus: 'PENDING',
   priceAmount: 0,
   payoutAmount: 0,
@@ -110,7 +110,7 @@ const createApptPayload = {
   propertyId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22',
   serviceTypeId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12',
   scheduledDate: futureDate,
-  timeSlot: '09:00-10:00',
+  timeSlotStart: '09:00', timeSlotEnd: '10:00',
   contact: { rentalTenantName: 'John Smith', primaryPhone: '+61400000000' },
 };
 
@@ -292,11 +292,11 @@ describe('CL_USER flag: reject_appointments', () => {
 // ── Flag: reschedule_appointments ─────────────────────────────────────────────
 
 describe('CL_USER flag: reschedule_appointments', () => {
-  const reschedulePayload = { scheduledDate: futureDate, timeSlot: '10:00-11:00' };
+  const reschedulePayload = { scheduledDate: futureDate, timeSlotStart: '10:00', timeSlotEnd: '11:00' };
 
   it('with flag → 200 (appointment rescheduled)', async () => {
     mockJwtVerify.mockResolvedValue(makeClUserContext(TENANT_ID, ['reschedule_appointments']));
-    mockUpdateAppointment.mockResolvedValue({ ...apptStub, scheduledDate: futureDate, timeSlot: '10:00-11:00' });
+    mockUpdateAppointment.mockResolvedValue({ ...apptStub, scheduledDate: futureDate, timeSlotStart: '10:00', timeSlotEnd: '11:00' });
     const res = await supertest(app.server)
       .patch(`/v1/appointments/${APPT_ID}`)
       .set('Authorization', 'Bearer t')

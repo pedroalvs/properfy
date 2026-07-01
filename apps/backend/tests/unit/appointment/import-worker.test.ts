@@ -2,13 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppointmentImportWorker } from '../../../src/modules/appointment/infrastructure/workers/import.worker';
 import { AppointmentImportEntity } from '../../../src/modules/appointment/domain/appointment-import.entity';
 import { PropertyEntity } from '../../../src/modules/property/domain/property.entity';
-import { AppointmentTimeSlotEntity } from '../../../src/modules/appointment-time-slot/domain/appointment-time-slot.entity';
 import type { IAppointmentImportRepository } from '../../../src/modules/appointment/domain/appointment-import.repository';
 import type { IReportStorageService } from '../../../src/modules/report/domain/report-storage.service';
 import type { IAppointmentRepository } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { IPropertyRepository } from '../../../src/modules/property/domain/property.repository';
 import type { IServiceTypeRepository } from '../../../src/modules/service-type/domain/service-type.repository';
-import type { IAppointmentTimeSlotRepository } from '../../../src/modules/appointment-time-slot/domain/appointment-time-slot.repository';
 import type { Logger } from '../../../src/shared/infrastructure/logger';
 
 function makeImportRecord(): AppointmentImportEntity {
@@ -53,30 +51,12 @@ function makeProperty(overrides: Partial<ConstructorParameters<typeof PropertyEn
   });
 }
 
-function makeSlot(overrides: Partial<ConstructorParameters<typeof AppointmentTimeSlotEntity>[0]> = {}) {
-  return new AppointmentTimeSlotEntity({
-    id: 'slot-1',
-    tenantId: 'tenant-1',
-    branchId: null,
-    label: 'Morning',
-    startTime: '09:00',
-    endTime: '12:00',
-    sortOrder: 1,
-    isActive: true,
-    createdAt: new Date('2026-03-26T10:00:00Z'),
-    updatedAt: new Date('2026-03-26T10:00:00Z'),
-    deletedAt: null,
-    ...overrides,
-  });
-}
-
 describe('AppointmentImportWorker', () => {
   let importRepo: IAppointmentImportRepository;
   let storageService: IReportStorageService;
   let appointmentRepo: IAppointmentRepository;
   let propertyRepo: IPropertyRepository;
   let serviceTypeRepo: IServiceTypeRepository;
-  let timeSlotRepo: IAppointmentTimeSlotRepository;
   let logger: Logger;
   let worker: AppointmentImportWorker;
 
@@ -93,8 +73,8 @@ describe('AppointmentImportWorker', () => {
       delete: vi.fn(),
       download: vi.fn().mockResolvedValue(
         Buffer.from(
-          'propertyCode,scheduledDate,timeSlotLabel,primaryContactName\n' +
-          'PROP-001,2026-04-02,14:00-17:00,John Tenant\n',
+          'propertyCode,scheduledDate,timeSlot,primaryContactName\n' +
+          'PROP-001,2026-04-02,09:00-12:00,John Tenant\n',
         ),
       ),
     } as unknown as IReportStorageService;
@@ -105,7 +85,7 @@ describe('AppointmentImportWorker', () => {
       count: vi.fn(),
       save: vi.fn().mockResolvedValue(undefined),
       update: vi.fn(),
-      saveContact: vi.fn(),
+      saveContact: vi.fn().mockResolvedValue(undefined),
       updateContact: vi.fn(),
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
@@ -136,15 +116,6 @@ describe('AppointmentImportWorker', () => {
       update: vi.fn(),
     };
 
-    timeSlotRepo = {
-      create: vi.fn(),
-      update: vi.fn(),
-      findById: vi.fn(),
-      findAll: vi.fn().mockResolvedValue([makeSlot({ branchId: null, startTime: '09:00', endTime: '12:00' })]),
-      findEffective: vi.fn(),
-      softDelete: vi.fn(),
-    };
-
     logger = {
       info: vi.fn(),
       warn: vi.fn(),
@@ -159,14 +130,32 @@ describe('AppointmentImportWorker', () => {
       propertyRepo,
       serviceTypeRepo,
       logger,
-      timeSlotRepo,
     );
   });
 
-  it('validates imported time slots against tenant defaults when property has no branch', async () => {
+  it('imports a row with a composite timeSlot and splits it into start/end', async () => {
     await worker.execute({ importId: 'import-1' });
 
-    expect(timeSlotRepo.findAll).toHaveBeenCalledWith({ tenantId: 'tenant-1', branchId: null });
+    expect(appointmentRepo.save).toHaveBeenCalledTimes(1);
+    const savedAppointment = (appointmentRepo.save as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(savedAppointment.timeSlotStart).toBe('09:00');
+    expect(savedAppointment.timeSlotEnd).toBe('12:00');
+    expect(importRepo.update).toHaveBeenLastCalledWith(
+      'import-1',
+      expect.objectContaining({ status: 'COMPLETED', totalRows: 1, successCount: 1, errorCount: 0 }),
+    );
+  });
+
+  it('rejects a row missing the timeSlot column with field "timeSlot"', async () => {
+    vi.mocked(storageService.download).mockResolvedValue(
+      Buffer.from(
+        'propertyCode,scheduledDate,primaryContactName\n' +
+        'PROP-001,2026-04-02,John Tenant\n',
+      ),
+    );
+
+    await worker.execute({ importId: 'import-1' });
+
     expect(appointmentRepo.save).not.toHaveBeenCalled();
     expect(importRepo.update).toHaveBeenLastCalledWith(
       'import-1',
@@ -176,59 +165,17 @@ describe('AppointmentImportWorker', () => {
         successCount: 0,
         errorCount: 1,
         errorsJson: [
-          {
-            row: 2,
-            field: 'timeSlotLabel',
-            message: 'Time slot "14:00-17:00" is not in the tenant default catalog',
-          },
+          { row: 2, field: 'timeSlot', message: 'Time slot is required' },
         ],
       }),
     );
   });
 
-  it('falls back to tenant-level slots when property has a branch with no custom slots (QA-006-HIGH-002)', async () => {
-    // Property belongs to a branch, but the branch has no custom slots.
-    // findEffective should fall back to tenant-wide defaults.
-    vi.mocked(propertyRepo.findByPropertyCode).mockResolvedValue(
-      makeProperty({ branchId: 'branch-1' }),
-    );
-
-    // findEffective returns tenant-wide defaults (no branch-specific slots)
-    const tenantSlot = makeSlot({ branchId: null, startTime: '14:00', endTime: '17:00' });
-    vi.mocked(timeSlotRepo.findEffective).mockResolvedValue([tenantSlot]);
-
-    // CSV uses the compositeValue from the tenant slot
+  it('rejects a row whose timeSlot is not in HH:mm-HH:mm format with field "timeSlot"', async () => {
     vi.mocked(storageService.download).mockResolvedValue(
       Buffer.from(
-        'propertyCode,scheduledDate,timeSlotLabel,primaryContactName\n' +
-        'PROP-001,2026-04-02,14:00-17:00,John Tenant\n',
-      ),
-    );
-
-    await worker.execute({ importId: 'import-1' });
-
-    expect(timeSlotRepo.findEffective).toHaveBeenCalledWith('tenant-1', 'branch-1');
-    expect(appointmentRepo.save).toHaveBeenCalledTimes(1);
-    expect(importRepo.update).toHaveBeenLastCalledWith(
-      'import-1',
-      expect.objectContaining({ status: 'COMPLETED', successCount: 1, errorCount: 0 }),
-    );
-  });
-
-  it('rejects import row when time slot is not in the branch effective catalog', async () => {
-    vi.mocked(propertyRepo.findByPropertyCode).mockResolvedValue(
-      makeProperty({ branchId: 'branch-1' }),
-    );
-
-    // Branch has one custom slot: 09:00-12:00
-    const branchSlot = makeSlot({ branchId: 'branch-1', startTime: '09:00', endTime: '12:00' });
-    vi.mocked(timeSlotRepo.findEffective).mockResolvedValue([branchSlot]);
-
-    // CSV tries to use 14:00-17:00 which is not in the branch catalog
-    vi.mocked(storageService.download).mockResolvedValue(
-      Buffer.from(
-        'propertyCode,scheduledDate,timeSlotLabel,primaryContactName\n' +
-        'PROP-001,2026-04-02,14:00-17:00,John Tenant\n',
+        'propertyCode,scheduledDate,timeSlot,primaryContactName\n' +
+        'PROP-001,2026-04-02,Morning,John Tenant\n',
       ),
     );
 
@@ -240,7 +187,7 @@ describe('AppointmentImportWorker', () => {
       expect.objectContaining({
         status: 'FAILED',
         errorsJson: [
-          expect.objectContaining({ field: 'timeSlotLabel', row: 2 }),
+          expect.objectContaining({ row: 2, field: 'timeSlot' }),
         ],
       }),
     );

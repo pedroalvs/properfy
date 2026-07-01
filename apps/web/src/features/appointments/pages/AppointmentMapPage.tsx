@@ -213,7 +213,8 @@ export function AppointmentMapPage() {
     ...(appointmentFilters.branchId ? { branchId: appointmentFilters.branchId } : {}),
     ...(appointmentFilters.dateFrom ? { fromDate: appointmentFilters.dateFrom } : {}),
     ...(appointmentFilters.dateTo ? { toDate: appointmentFilters.dateTo } : {}),
-    ...(appointmentFilters.timeSlot ? { timeSlot: appointmentFilters.timeSlot } : {}),
+    ...(appointmentFilters.timeFrom ? { timeFrom: appointmentFilters.timeFrom } : {}),
+    ...(appointmentFilters.timeTo ? { timeTo: appointmentFilters.timeTo } : {}),
     ...(appointmentFilters.contactSearch ? { contactSearch: appointmentFilters.contactSearch } : {}),
     ...(appointmentFilters.confirmationStatus ? { confirmationStatus: appointmentFilters.confirmationStatus } : {}),
     ...(appointmentFilters.tenantId ? { tenantId: appointmentFilters.tenantId } : {}),
@@ -332,13 +333,6 @@ export function AppointmentMapPage() {
     (item) => ({ value: item.id, label: item.name }),
     { ...(tenantId ? { tenantId } : {}), status: 'ACTIVE' },
     { enabled: !isGlobalRole && !!tenantId },
-  );
-
-  // Time slot options
-  const { options: timeSlotOptions } = useFormOptions<{ id: string; label: string }>(
-    ['time-slots', 'map-filter'],
-    '/v1/time-slots',
-    (item) => ({ value: item.id, label: item.label }),
   );
 
   // Clear stale map reference when mode changes (MapContainer is keyed by mode,
@@ -694,7 +688,6 @@ export function AppointmentMapPage() {
           onGroupFiltersChange={setGroupFilters}
           serviceTypeOptions={serviceTypeOptions}
           branchOptions={branchOptions}
-          timeSlotOptions={timeSlotOptions}
           tenantOptions={tenantOptions}
           actorRole={actorRole}
         />

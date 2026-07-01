@@ -9,8 +9,6 @@ import {
   TenantLegalNameConflictError,
   TenantAppointmentCodePrefixConflictError,
 } from '../../domain/tenant.errors';
-import type { IAppointmentTimeSlotRepository } from '../../../appointment-time-slot/domain/appointment-time-slot.repository';
-import { AppointmentTimeSlotEntity } from '../../../appointment-time-slot/domain/appointment-time-slot.entity';
 import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
 import { TENANT_EVENTS } from '../../../../shared/application/events/domain-event-bus';
 
@@ -41,7 +39,6 @@ export class CreateTenantUseCase {
   constructor(
     private readonly tenantRepo: ITenantRepository,
     private readonly auditService: AuditService,
-    private readonly timeSlotRepo: IAppointmentTimeSlotRepository,
     private readonly authorizationService: AuthorizationService,
     private readonly eventBus?: DomainEventBus,
   ) {}
@@ -92,7 +89,6 @@ export class CreateTenantUseCase {
     });
 
     await this.tenantRepo.save(tenant);
-    await this.seedDefaultTimeSlots(id, now);
 
     this.auditService.log({
       action: 'tenant.created',
@@ -130,30 +126,5 @@ export class CreateTenantUseCase {
       createdAt: tenant.createdAt,
       updatedAt: tenant.updatedAt,
     };
-  }
-
-  private async seedDefaultTimeSlots(tenantId: string, now: Date): Promise<void> {
-    const defaultSlots = [
-      { label: '09:00 - 12:00', startTime: '09:00', endTime: '12:00', sortOrder: 1 },
-      { label: '14:00 - 17:00', startTime: '14:00', endTime: '17:00', sortOrder: 2 },
-    ];
-
-    for (const slot of defaultSlots) {
-      await this.timeSlotRepo.create(
-        new AppointmentTimeSlotEntity({
-          id: crypto.randomUUID(),
-          tenantId,
-          branchId: null,
-          label: slot.label,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          sortOrder: slot.sortOrder,
-          isActive: true,
-          createdAt: now,
-          updatedAt: now,
-          deletedAt: null,
-        }),
-      );
-    }
   }
 }

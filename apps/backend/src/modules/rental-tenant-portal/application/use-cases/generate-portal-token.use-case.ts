@@ -86,7 +86,7 @@ export class GeneratePortalTokenUseCase {
           input.appointmentId,
           appointment.tenantId,
           appointment.scheduledDate,
-          appointment.timeSlot,
+          `${appointment.timeSlotStart}-${appointment.timeSlotEnd}`,
           minted.tokenId,
           tx,
         );

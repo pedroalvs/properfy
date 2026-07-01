@@ -5,7 +5,6 @@ import type { IAppointmentRepository } from '../../domain/appointment.repository
 import type { IContactRepository } from '../../../contact/domain/contact.repository';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
 import type { IPricingRuleRepository } from '../../../pricing-rule/domain/pricing-rule.repository';
-import type { IAppointmentTimeSlotRepository } from '../../../appointment-time-slot/domain/appointment-time-slot.repository';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { AppointmentContactEntity } from '../../domain/appointment-contact.entity';
 import { resolvePricingRule } from '../../../pricing-rule/domain/resolve-pricing-rule';
@@ -14,7 +13,8 @@ import { snapshotPricing, calculatePayoutAmount } from '../../domain/appointment
 const ALLOWED_FIELDS = new Set([
   'assignedInspectorId',
   'scheduledDate',
-  'timeSlot',
+  'timeSlotStart',
+  'timeSlotEnd',
   'branchId',
   'serviceTypeId',
   'propertyManagerContactId',
@@ -52,7 +52,6 @@ export class BulkEditAppointmentsUseCase {
     private readonly contactRepo: IContactRepository,
     private readonly inspectorRepo: IInspectorRepository,
     private readonly pricingRuleRepo: IPricingRuleRepository,
-    private readonly timeSlotRepo: IAppointmentTimeSlotRepository,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
   ) {}
@@ -128,25 +127,29 @@ export class BulkEditAppointmentsUseCase {
           updateData['scheduledDate'] = new Date(changes.scheduledDate as string);
         }
 
-        if (changes.timeSlot !== undefined) {
+        const timeChanged = changes.timeSlotStart !== undefined;
+        if (timeChanged) {
           if (!['DRAFT', 'AWAITING_INSPECTOR'].includes(appointment.status)) {
             failed.push({ id: appointmentId, code: 'APPOINTMENT_UPDATE_NOT_ALLOWED', message: `Cannot change time slot on ${appointment.status} appointment` });
             continue;
           }
-          before['timeSlot'] = appointment.timeSlot;
-          after['timeSlot'] = changes.timeSlot;
-          updateData['timeSlot'] = changes.timeSlot;
+          before['timeSlotStart'] = appointment.timeSlotStart;
+          before['timeSlotEnd'] = appointment.timeSlotEnd;
+          after['timeSlotStart'] = changes.timeSlotStart;
+          after['timeSlotEnd'] = changes.timeSlotEnd;
+          updateData['timeSlotStart'] = changes.timeSlotStart;
+          updateData['timeSlotEnd'] = changes.timeSlotEnd;
         }
 
         // Per-row TZ-aware past-date/time validation (R7: falls back to UTC).
-        if (changes.scheduledDate !== undefined || changes.timeSlot !== undefined) {
+        if (changes.scheduledDate !== undefined || timeChanged) {
           const tz = input.actorTimezone ?? 'UTC';
           const existingDateStr = appointment.scheduledDate.toISOString().slice(0, 10);
           const scheduleCheck = validateEditedSchedule({
             existingDate: existingDateStr,
-            existingTimeSlot: appointment.timeSlot,
+            existingTimeSlot: appointment.timeSlotStart,
             newDate: changes.scheduledDate as string | undefined,
-            newTimeSlot: changes.timeSlot as string | undefined,
+            newTimeSlot: changes.timeSlotStart as string | undefined,
             tz,
           });
           if (!scheduleCheck.ok) {

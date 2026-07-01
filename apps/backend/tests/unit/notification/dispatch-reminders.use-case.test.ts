@@ -22,7 +22,7 @@ function makeAppointment(
     inspectorId: 'insp-1',
     status: 'SCHEDULED',
     scheduledDate: new Date('2026-04-01'),
-    timeSlot: '09:00-12:00',
+    timeSlotStart: '09:00', timeSlotEnd: '12:00',
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
@@ -248,7 +248,7 @@ describe('DispatchRemindersUseCase', () => {
     mockAppointmentRepo.findScheduledOnDate
       .mockResolvedValueOnce([
         makeRelation(
-          { id: 'appt-x', tenantId: 'tenant-x', scheduledDate, timeSlot: '14:00-17:00' },
+          { id: 'appt-x', tenantId: 'tenant-x', scheduledDate, timeSlotStart: '14:00', timeSlotEnd: '17:00' },
           { rentalTenantName: 'Jane Smith', primaryEmail: 'jane@example.com' },
         ),
       ])

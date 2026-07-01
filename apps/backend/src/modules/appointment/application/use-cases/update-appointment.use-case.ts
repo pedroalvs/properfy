@@ -18,7 +18,6 @@ import {
 } from '../../domain/appointment.errors';
 import { validateEditedSchedule } from '@properfy/shared';
 import type { RestrictionSource } from '@properfy/shared';
-import type { IAppointmentTimeSlotRepository } from '../../../appointment-time-slot/domain/appointment-time-slot.repository';
 import { SystemClock, type Clock } from '../../../../shared/domain/clock';
 
 /**
@@ -38,7 +37,8 @@ export interface UpdateAppointmentInput {
   appointmentId: string;
   data: {
     scheduledDate?: string; // YYYY-MM-DD
-    timeSlot?: string; // HH:mm-HH:mm
+    timeSlotStart?: string; // HH:mm
+    timeSlotEnd?: string; // HH:mm
     keyRequired?: boolean;
     meetingLocation?: string | null;
     keyLocation?: string | null;
@@ -91,7 +91,8 @@ export interface UpdateAppointmentOutput {
   inspectorId: string | null;
   status: string;
   scheduledDate: Date;
-  timeSlot: string;
+  timeSlotStart: string;
+  timeSlotEnd: string;
   keyRequired: boolean;
   meetingLocation: string | null;
   keyLocation: string | null;
@@ -114,7 +115,6 @@ export class UpdateAppointmentUseCase {
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
     private readonly tenantRepo?: ITenantRepository,
-    private readonly timeSlotRepo?: IAppointmentTimeSlotRepository,
     private readonly contactRepo?: IContactRepository,
     private readonly clock: Clock = new SystemClock(),
     private readonly appCredentialRepo?: IAppCredentialRepository,
@@ -126,8 +126,10 @@ export class UpdateAppointmentUseCase {
     // RBAC
     this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN', 'CL_USER'], { action: 'appointment.update', entityType: 'Appointment' });
 
+    const timeChanged = data.timeSlotStart !== undefined || data.timeSlotEnd !== undefined;
+
     // CL_USER must have reschedule_appointments permission when changing date/time
-    if (data.scheduledDate !== undefined || data.timeSlot !== undefined) {
+    if (data.scheduledDate !== undefined || timeChanged) {
       this.authorizationService.assertClUserPermission(actor, 'reschedule_appointments');
     }
 
@@ -158,7 +160,8 @@ export class UpdateAppointmentUseCase {
     const before = {
       status: appointment.status,
       scheduledDate: appointment.scheduledDate,
-      timeSlot: appointment.timeSlot,
+      timeSlotStart: appointment.timeSlotStart,
+      timeSlotEnd: appointment.timeSlotEnd,
       keyRequired: appointment.keyRequired,
       meetingLocation: appointment.meetingLocation,
       keyLocation: appointment.keyLocation,
@@ -167,31 +170,16 @@ export class UpdateAppointmentUseCase {
       customFieldsJson: appointment.customFieldsJson,
     };
 
-    // Validate timeSlot against effective catalog
-    if (data.timeSlot !== undefined && this.timeSlotRepo) {
-      const effectiveSlots = await this.timeSlotRepo.findEffective(
-        appointment.tenantId,
-        appointment.branchId,
-      );
-      const valid = effectiveSlots.some(
-        (s) => s.compositeValue === data.timeSlot,
-      );
-      if (!valid) {
-        throw new ValidationError(
-          `Time slot "${data.timeSlot}" is not available for this branch`,
-        );
-      }
-    }
-
     // TZ-aware past-date/time validation for date or time changes. Falls back to UTC (R7).
-    if (data.scheduledDate !== undefined || data.timeSlot !== undefined) {
+    // `validateEditedSchedule` accepts a bare HH:mm start (it splits on '-', a no-op here).
+    if (data.scheduledDate !== undefined || timeChanged) {
       const tz = input.actorTimezone ?? 'UTC';
       const existingDateStr = appointment.scheduledDate.toISOString().slice(0, 10);
       const scheduleCheck = validateEditedSchedule({
         existingDate: existingDateStr,
-        existingTimeSlot: appointment.timeSlot,
+        existingTimeSlot: appointment.timeSlotStart,
         newDate: data.scheduledDate,
-        newTimeSlot: data.timeSlot,
+        newTimeSlot: data.timeSlotStart,
         tz,
       });
       if (!scheduleCheck.ok) {
@@ -204,7 +192,8 @@ export class UpdateAppointmentUseCase {
     if (data.scheduledDate !== undefined) {
       updateData.scheduledDate = new Date(data.scheduledDate);
     }
-    if (data.timeSlot !== undefined) updateData.timeSlot = data.timeSlot;
+    if (data.timeSlotStart !== undefined) updateData.timeSlotStart = data.timeSlotStart;
+    if (data.timeSlotEnd !== undefined) updateData.timeSlotEnd = data.timeSlotEnd;
     if (data.keyRequired !== undefined) updateData.keyRequired = data.keyRequired;
     if (data.meetingLocation !== undefined)
       updateData.meetingLocation = data.meetingLocation ?? null;
@@ -376,7 +365,8 @@ export class UpdateAppointmentUseCase {
     // both the audit snapshot and the response.
     const after = {
       scheduledDate: updateData.scheduledDate ?? appointment.scheduledDate,
-      timeSlot: updateData.timeSlot ?? appointment.timeSlot,
+      timeSlotStart: updateData.timeSlotStart ?? appointment.timeSlotStart,
+      timeSlotEnd: updateData.timeSlotEnd ?? appointment.timeSlotEnd,
       keyRequired: updateData.keyRequired ?? appointment.keyRequired,
       meetingLocation: resolvePatchedField(data.meetingLocation, appointment.meetingLocation),
       keyLocation: resolvePatchedField(data.keyLocation, appointment.keyLocation),
@@ -420,7 +410,8 @@ export class UpdateAppointmentUseCase {
       inspectorId: appointment.inspectorId,
       status: appointment.status,
       scheduledDate: after.scheduledDate as Date,
-      timeSlot: after.timeSlot as string,
+      timeSlotStart: after.timeSlotStart as string,
+      timeSlotEnd: after.timeSlotEnd as string,
       keyRequired: after.keyRequired as boolean,
       meetingLocation: after.meetingLocation,
       keyLocation: after.keyLocation,

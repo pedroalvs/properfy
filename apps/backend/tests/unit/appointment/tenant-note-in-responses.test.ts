@@ -20,7 +20,7 @@ function makeAppointmentEntity(
     inspectorId: null,
     status: 'DRAFT',
     scheduledDate: new Date('2026-04-01'),
-    timeSlot: '09:00-10:00',
+    timeSlotStart: '09:00', timeSlotEnd: '10:00',
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,

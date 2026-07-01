@@ -22,7 +22,6 @@ describe('permissions utility', () => {
 
     it('should return true for CL_ADMIN on client actions', () => {
       expect(canPerform('CL_ADMIN', 'user.list')).toBe(true);
-      expect(canPerform('CL_ADMIN', 'config.time_slots')).toBe(true);
     });
 
     it('should return false for CL_ADMIN on operational actions', () => {

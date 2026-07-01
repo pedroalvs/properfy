@@ -20,7 +20,8 @@ export interface ScheduleAppointmentItem {
   appointmentCode: string;
   status: string;
   scheduledDate: string;
-  timeSlot: string;
+  timeSlotStart: string;
+  timeSlotEnd: string;
   serviceTypeId: string;
   propertyId: string;
   rentalTenantConfirmationStatus: string;
@@ -102,7 +103,8 @@ export class GetInspectorScheduleUseCase {
         appointmentCode: `${codePrefix}-${codePadded}`,
         status: appt.status,
         scheduledDate: targetDateStr,
-        timeSlot: appt.timeSlot,
+        timeSlotStart: appt.timeSlotStart,
+        timeSlotEnd: appt.timeSlotEnd,
         serviceTypeId: appt.serviceTypeId,
         propertyId: appt.propertyId,
         rentalTenantConfirmationStatus: appt.rentalTenantConfirmationStatus,
@@ -154,7 +156,8 @@ export class GetInspectorScheduleUseCase {
           appointmentCode: `${codePrefix}-${codePadded}`,
           status: appt.status,
           scheduledDate: appt.scheduledDate.toISOString().split('T')[0]!,
-          timeSlot: appt.timeSlot,
+          timeSlotStart: appt.timeSlotStart,
+          timeSlotEnd: appt.timeSlotEnd,
           serviceTypeId: appt.serviceTypeId,
           propertyId: appt.propertyId,
           rentalTenantConfirmationStatus: appt.rentalTenantConfirmationStatus,
@@ -221,7 +224,8 @@ export class GetInspectorScheduleUseCase {
         appointmentCode: `${codePrefix}-${codePadded}`,
         status: appt.status,
         scheduledDate: appt.scheduledDate.toISOString().split('T')[0]!,
-        timeSlot: appt.timeSlot,
+        timeSlotStart: appt.timeSlotStart,
+        timeSlotEnd: appt.timeSlotEnd,
         serviceTypeId: appt.serviceTypeId,
         propertyId: appt.propertyId,
         rentalTenantConfirmationStatus: appt.rentalTenantConfirmationStatus,

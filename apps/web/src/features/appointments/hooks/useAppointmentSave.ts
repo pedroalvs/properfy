@@ -81,7 +81,8 @@ function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
       propertyId: data.propertyId || undefined,
       serviceTypeId: data.serviceTypeId || undefined,
       scheduledDate: data.scheduledDate || undefined,
-      timeSlot: data.timeSlot || undefined,
+      timeSlotStart: data.timeSlotStart || undefined,
+      timeSlotEnd: data.timeSlotEnd || undefined,
       ...(contacts ? { contacts } : { contact }),
       ...(data.appCredentialIds.length > 0 ? { appCredentialIds: data.appCredentialIds } : {}),
       ...(data.hasRestriction ? { restriction } : {}),
@@ -96,7 +97,9 @@ function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
 
   return {
     ...(data.scheduledDate ? { scheduledDate: data.scheduledDate } : {}),
-    ...(data.timeSlot ? { timeSlot: data.timeSlot } : {}),
+    ...(data.timeSlotStart && data.timeSlotEnd
+      ? { timeSlotStart: data.timeSlotStart, timeSlotEnd: data.timeSlotEnd }
+      : {}),
     keyRequired: data.keyRequired,
     meetingLocation: data.meetingLocation.trim() || null,
     keyLocation: data.keyLocation.trim() || null,
@@ -117,7 +120,8 @@ const SCHEMA_PATH_TO_FORM_FIELD: Record<string, keyof AppointmentFormData> = {
   propertyId: 'propertyId',
   serviceTypeId: 'serviceTypeId',
   scheduledDate: 'scheduledDate',
-  timeSlot: 'timeSlot',
+  timeSlotStart: 'timeSlotStart',
+  timeSlotEnd: 'timeSlotEnd',
   'contact.rentalTenantName': 'contactName',
   'contact.primaryEmail': 'contactEmail',
   'contact.primaryPhone': 'contactPhone',

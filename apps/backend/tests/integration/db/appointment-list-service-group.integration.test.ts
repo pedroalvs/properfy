@@ -106,7 +106,7 @@ async function seedAppointment(
       service_type_id: params.serviceTypeId,
       status: 'DRAFT',
       scheduled_date: FUTURE_DATE,
-      time_slot: 'MORNING',
+      time_slot_start: '09:00', time_slot_end: '12:00',
       price_amount: '100.00',
       payout_amount: '80.00',
       pricing_rule_snapshot_json: {},

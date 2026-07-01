@@ -130,7 +130,7 @@ describe('ServiceGroupValidator.canAddToGroup (026 §FR-510)', () => {
     tenantId: 'tenant-1',
     serviceGroupId: null,
     scheduledDate: new Date('2026-06-01T00:00:00Z'),
-    timeSlot: '09:00-12:00',
+    timeSlotStart: '09:00', timeSlotEnd: '12:00',
   };
   const baseGroup = {
     status: 'DRAFT' as const,
@@ -205,7 +205,7 @@ describe('ServiceGroupValidator.canAddToGroup (026 §FR-510)', () => {
 
   it('accepts a same-day appointment with a different time slot (time is ignored)', () => {
     expect(ServiceGroupValidator.canAddToGroup(
-      { ...baseAppointment, timeSlot: '13:00-16:00' },
+      { ...baseAppointment, timeSlotStart: '13:00', timeSlotEnd: '16:00' },
       { ...baseGroup, timeWindow: '09:00-12:00' },
     )).toEqual({ ok: true });
   });

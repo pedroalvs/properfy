@@ -109,7 +109,7 @@ beforeAll(async () => {
       tenant_id: tenantB.id, branch_id: branchB.id,
       property_id: propertyB.id, service_type_id: serviceType.id,
       status: 'SCHEDULED', scheduled_date: new Date('2027-04-15'),
-      time_slot: '09:00-10:00',
+      time_slot_start: '09:00', time_slot_end: '10:00',
       price_amount: '100.00', payout_amount: '80.00',
       pricing_rule_snapshot_json: {},
       rental_tenant_confirmation_status: 'CONFIRMED',

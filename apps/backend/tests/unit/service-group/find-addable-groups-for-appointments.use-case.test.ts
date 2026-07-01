@@ -19,7 +19,7 @@ function makeApptResult(overrides: Record<string, unknown> = {}) {
       tenantId: 'tenant-1',
       serviceTypeId: 'svc-1',
       scheduledDate: new Date('2026-07-01T00:00:00.000Z'),
-      timeSlot: '09:00-10:00',
+      timeSlotStart: '09:00', timeSlotEnd: '10:00',
       status: 'DRAFT',
       ...overrides,
     },
@@ -80,8 +80,8 @@ describe('FindAddableGroupsForAppointmentsUseCase', () => {
 
   it('does NOT flag MIXED when appointments share date but differ in time slot (time is ignored)', async () => {
     (appointmentRepo.findById as ReturnType<typeof vi.fn>)
-      .mockResolvedValueOnce(makeApptResult({ scheduledDate: new Date('2026-07-01T00:00:00.000Z'), timeSlot: '09:00-10:00' }))
-      .mockResolvedValueOnce(makeApptResult({ scheduledDate: new Date('2026-07-01T00:00:00.000Z'), timeSlot: '14:00-15:00' }));
+      .mockResolvedValueOnce(makeApptResult({ scheduledDate: new Date('2026-07-01T00:00:00.000Z'), timeSlotStart: '09:00', timeSlotEnd: '10:00' }))
+      .mockResolvedValueOnce(makeApptResult({ scheduledDate: new Date('2026-07-01T00:00:00.000Z'), timeSlotStart: '14:00', timeSlotEnd: '15:00' }));
     const fakeGroups = [{ id: 'g-1', name: 'G', status: 'DRAFT', scheduledDate: new Date(), timeWindow: '09:00-17:00', currentSize: 2, serviceTypeName: 'Routine' }];
     (groupRepo.findAddableForAppointments as ReturnType<typeof vi.fn>).mockResolvedValue(fakeGroups);
 

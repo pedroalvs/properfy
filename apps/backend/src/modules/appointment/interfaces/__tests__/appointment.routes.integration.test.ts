@@ -129,7 +129,7 @@ function makeAppointmentOutput(hasActivePortalToken: boolean) {
     serviceGroupId: null,
     status: 'SCHEDULED',
     scheduledDate: new Date('2026-06-01T00:00:00.000Z'),
-    timeSlot: '09:00-10:00',
+    timeSlotStart: '09:00', timeSlotEnd: '10:00',
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,

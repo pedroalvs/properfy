@@ -40,7 +40,7 @@ const inspCtx     = { userId: 'insp-1', tenantId: null,    role: 'INSP',     bra
 const VALID_BODY = {
   appointmentIds: [APPT_ID_1],
   newDate: '2027-08-01',
-  newTimeSlot: '09:00-10:00',
+  newTimeSlotStart: '09:00', newTimeSlotEnd: '10:00',
   reason: 'Tenant requested',
   actorTimezone: 'Australia/Sydney',
 };
@@ -157,7 +157,7 @@ describe('POST /v1/appointments/bulk-reopen-for-reschedule', () => {
     expect(mockExecute).toHaveBeenCalledWith(
       expect.objectContaining({
         newDate: '2027-08-01',
-        newTimeSlot: '09:00-10:00',
+        newTimeSlotStart: '09:00', newTimeSlotEnd: '10:00',
         reason: 'Tenant requested',
         actorTimezone: 'Australia/Sydney',
       }),
@@ -169,7 +169,7 @@ describe('POST /v1/appointments/bulk-reopen-for-reschedule', () => {
     const res = await supertest(app.server)
       .post('/v1/appointments/bulk-reopen-for-reschedule')
       .set('Authorization', 'Bearer token')
-      .send({ newDate: '2027-08-01', newTimeSlot: '09:00-10:00' });
+      .send({ newDate: '2027-08-01', newTimeSlotStart: '09:00', newTimeSlotEnd: '10:00' });
     expect(res.status).toBe(400);
   });
 });

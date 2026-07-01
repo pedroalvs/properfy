@@ -22,7 +22,7 @@ const BASE_ROW = {
   inspector_id: null,
   status: 'SCHEDULED',
   scheduled_date: new Date('2026-06-01'),
-  time_slot: '09:00-10:00',
+  time_slot_start: '09:00', time_slot_end: '10:00',
   key_required: false,
   meeting_location: null,
   key_location: null,

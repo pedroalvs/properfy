@@ -102,7 +102,7 @@ describe('QA-006-HIGH-001: bulk-edit branchId round-trip (real DB)', () => {
         service_type_id: serviceType.id,
         status: 'DRAFT',
         scheduled_date: new Date('2027-06-15'),
-        time_slot: 'MORNING',
+        time_slot_start: '09:00', time_slot_end: '12:00',
         price_amount: '150.00',
         payout_amount: '100.00',
         pricing_rule_snapshot_json: {},

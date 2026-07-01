@@ -35,7 +35,7 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
         <DetailRow label="Address" value={appointment.propertyAddress} />
         <DetailRow label="Branch" value={appointment.branchName} />
         <DetailRow label="Scheduled Date" value={formatDate(appointment.scheduledDate)} />
-        <DetailRow label="Time Slot" value={appointment.timeSlot} />
+        <DetailRow label="Time Slot" value={`${appointment.timeSlotStart} - ${appointment.timeSlotEnd}`} />
         <DetailRow label="Inspector" value={appointment.inspectorName} />
       </FormSection>
 

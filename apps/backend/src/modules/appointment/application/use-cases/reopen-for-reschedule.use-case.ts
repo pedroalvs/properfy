@@ -22,7 +22,8 @@ export class AppointmentNotScheduledError extends DomainError {
 export interface ReopenForRescheduleInput {
   appointmentId: string;
   newScheduledDate: string; // YYYY-MM-DD
-  newTimeSlot: string; // HH:mm-HH:mm
+  newTimeSlotStart: string; // HH:mm
+  newTimeSlotEnd: string; // HH:mm
   reason?: string;
   actorTimezone?: string;
   actor: AuthContext;
@@ -34,8 +35,10 @@ export interface ReopenForRescheduleOutput {
   status: string;
   previousScheduledDate: string;
   scheduledDate: string;
-  previousTimeSlot: string;
-  timeSlot: string;
+  previousTimeSlotStart: string;
+  previousTimeSlotEnd: string;
+  timeSlotStart: string;
+  timeSlotEnd: string;
   previousInspectorId: string | null;
   inspectorId: null;
   rentalTenantConfirmationStatus: string;
@@ -61,7 +64,7 @@ export class ReopenForRescheduleUseCase {
   ) {}
 
   async execute(input: ReopenForRescheduleInput): Promise<ReopenForRescheduleOutput> {
-    const { appointmentId, newScheduledDate, newTimeSlot, reason, actor } = input;
+    const { appointmentId, newScheduledDate, newTimeSlotStart, newTimeSlotEnd, reason, actor } = input;
 
     // 1. RBAC: CL_ADMIN can reopen (F1 — Revisor cycle 11); SYS for tenant portal flow.
     this.authorizationService.assertRoles(actor, ['AM', 'OP', 'SYS', 'CL_ADMIN'], { action: 'appointment.reopen_reschedule', entityType: 'Appointment' });
@@ -97,9 +100,9 @@ export class ReopenForRescheduleUseCase {
     const existingDateStr = appointment.scheduledDate.toISOString().slice(0, 10);
     const scheduleCheck = validateEditedSchedule({
       existingDate: existingDateStr,
-      existingTimeSlot: appointment.timeSlot,
+      existingTimeSlot: appointment.timeSlotStart,
       newDate: newScheduledDate,
-      newTimeSlot,
+      newTimeSlot: newTimeSlotStart,
       tz,
     });
     if (!scheduleCheck.ok) {
@@ -111,7 +114,8 @@ export class ReopenForRescheduleUseCase {
     const beforeSnapshot = {
       status: appointment.status,
       scheduledDate: previousScheduledDate,
-      timeSlot: appointment.timeSlot,
+      timeSlotStart: appointment.timeSlotStart,
+      timeSlotEnd: appointment.timeSlotEnd,
       inspectorId: appointment.inspectorId,
       rentalTenantConfirmationStatus: appointment.rentalTenantConfirmationStatus,
     };
@@ -124,7 +128,8 @@ export class ReopenForRescheduleUseCase {
         await this.appointmentRepo.update(appointmentId, appointment.tenantId, {
           status: 'DRAFT',
           scheduledDate: new Date(newScheduledDate),
-          timeSlot: newTimeSlot,
+          timeSlotStart: newTimeSlotStart,
+          timeSlotEnd: newTimeSlotEnd,
           inspectorId: null,
           reason: null,
         });
@@ -133,7 +138,8 @@ export class ReopenForRescheduleUseCase {
         await this.appointmentRepo.update(appointmentId, appointment.tenantId, {
           status: 'DRAFT',
           scheduledDate: new Date(newScheduledDate),
-          timeSlot: newTimeSlot,
+          timeSlotStart: newTimeSlotStart,
+          timeSlotEnd: newTimeSlotEnd,
           inspectorId: null,
           reason: null,
           rentalTenantConfirmationStatus: 'PENDING',
@@ -151,7 +157,8 @@ export class ReopenForRescheduleUseCase {
     const afterSnapshot = {
       status: 'DRAFT',
       scheduledDate: newScheduledDate,
-      timeSlot: newTimeSlot,
+      timeSlotStart: newTimeSlotStart,
+      timeSlotEnd: newTimeSlotEnd,
       inspectorId: null,
       rentalTenantConfirmationStatus: 'PENDING',
     };
@@ -195,8 +202,10 @@ export class ReopenForRescheduleUseCase {
       status: 'DRAFT',
       previousScheduledDate,
       scheduledDate: newScheduledDate,
-      previousTimeSlot: appointment.timeSlot,
-      timeSlot: newTimeSlot,
+      previousTimeSlotStart: appointment.timeSlotStart,
+      previousTimeSlotEnd: appointment.timeSlotEnd,
+      timeSlotStart: newTimeSlotStart,
+      timeSlotEnd: newTimeSlotEnd,
       previousInspectorId: appointment.inspectorId,
       inspectorId: null,
       rentalTenantConfirmationStatus: 'PENDING',
