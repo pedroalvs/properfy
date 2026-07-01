@@ -90,7 +90,7 @@ function makeSut(tenantRepo?: ITenantRepository) {
 
   const authorizationService = new AuthorizationService(auditService);
   const useCase = new GenerateInvoiceUseCase(
-    invoiceRepo, financialEntryRepo, auditService, undefined, tenantRepo, authorizationService,
+    invoiceRepo, financialEntryRepo, auditService, authorizationService, undefined, tenantRepo,
   );
 
   return { useCase, invoiceRepo, financialEntryRepo, auditService };

@@ -77,7 +77,22 @@ export class DraftInspectorInvoiceUseCase {
     const totalAmount = entries.reduce((sum: number, e: { amount: any }) => sum + Number(e.amount), 0);
     const currency = entries[0]?.currency ?? 'AUD';
 
-    // 4. Upsert: the unique constraint on (inspector_id, period_start, period_end) is
+    // 4. Guard: reject if the exact-period invoice is already finalized/approved.
+    //    The upsert below is safe to run only for SUPERSEDED and PENDING_REVIEW rows.
+    const exactPeriod = await this.prisma.inspectorInvoice.findFirst({
+      where: {
+        inspector_id: inspectorId,
+        period_start: start,
+        period_end: end,
+      },
+      select: { status: true },
+    });
+    if (exactPeriod && !['PENDING_REVIEW', 'SUPERSEDED'].includes(exactPeriod.status)) {
+      const { DomainError } = await import('../../../../shared/domain/errors');
+      throw new DomainError('INVOICE_PERIOD_FINALIZED', 'Cannot redraft a finalized invoice', 409);
+    }
+
+    // 5. Upsert: the unique constraint on (inspector_id, period_start, period_end) is
     //    status-agnostic, so a separate supersede-then-insert would hit a constraint
     //    violation. Instead, upsert refreshes any existing row for this exact period
     //    (SUPERSEDED or PENDING_REVIEW) back to PENDING_REVIEW with updated amounts,
@@ -112,7 +127,7 @@ export class DraftInspectorInvoiceUseCase {
     });
     const invoiceId = upserted.id;
 
-    // 5. Audit
+    // 6. Audit
     this.auditService.log({
       action: 'inspector_invoice.drafted',
       actorType: 'USER',

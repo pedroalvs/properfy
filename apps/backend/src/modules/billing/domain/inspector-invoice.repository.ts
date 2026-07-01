@@ -15,6 +15,8 @@ export interface InvoicePagination {
 
 export interface InvoiceUpdateData {
   status?: string;
+  totalAmount?: number;
+  currency?: string;
   fileKey?: string | null;
   generatedByUserId?: string | null;
   generatedAt?: Date | null;
