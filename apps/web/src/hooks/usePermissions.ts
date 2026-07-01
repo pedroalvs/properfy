@@ -10,6 +10,12 @@ export interface UsePermissionsResult {
   hasRole: (...roles: UserRole[]) => boolean;
   /** Check if the user can perform an action (per the shared role matrix) */
   canPerform: (action: string) => boolean;
+  /**
+   * Check whether the user holds a CL_USER permission flag (e.g. `view_financials`).
+   * Non-CL_USER roles are unconditional (returns true) — the flag only gates CL_USER,
+   * mirroring the server-side `assertClUserPermission`.
+   */
+  hasClUserFlag: (flag: string) => boolean;
 }
 
 /**
@@ -27,13 +33,19 @@ export function usePermissions(): UsePermissionsResult {
   const { user } = useAuth();
 
   const role = (user?.role as UserRole) ?? null;
+  const clUserPermissions = user?.clUserPermissions;
+  const flagsKey = (clUserPermissions ?? []).join(',');
 
   return useMemo(
     () => ({
       role,
       hasRole: (...roles: UserRole[]) => role !== null && roles.includes(role),
       canPerform: (action: string) => role !== null && can(role, action),
+      hasClUserFlag: (flag: string) =>
+        role !== 'CL_USER' ? role !== null : (clUserPermissions ?? []).includes(flag),
     }),
-    [role],
+    // clUserPermissions is a stable array from useAuth; flagsKey tracks its contents.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [role, flagsKey],
   );
 }

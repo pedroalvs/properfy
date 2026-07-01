@@ -79,7 +79,9 @@ CL_ADMIN/CL_USER are always own-tenant scoped and see only Agency-relevant entry
    statement via report `IXlsxGenerator` reuse). *Services-rendered is delivered as a web tab
    over the existing `entries?type=TENANT_DEBIT` endpoint (PR-6) — each debit is a rendered
    service — rather than a redundant backend endpoint.*
-6. **PR-6 — Web Agency financial surface + client-side gating** (`/v1/me` flags).
+6. **PR-6 (this) — Web Agency financial surface + client-side gating.** Expose `clUserPermissions`
+   on `/v1/me`; new read-only `AgencyFinancialPage` (`/my-financial`) with Statement / Services
+   rendered tabs + XLSX export; `usePermissions.hasClUserFlag`; role+flag-gated sidebar entry.
 7. **PR-7 — PWA earnings/history redesign** (parallelizable after PR-1).
 
 > **Re-split notes:** (a) the CL_USER-resolver wiring + route-level RBAC-mechanism unification
@@ -155,3 +157,17 @@ Backoffice financial actions (`financial.view/approve/manual_adjustment/refund`)
   report-module change), consistent with the existing billing→report coupling.
 - **FR-031-17:** "Services rendered" is the `entries?type=TENANT_DEBIT` view (each debit = a
   completed inspection), surfaced as a web tab in PR-6 — no separate backend endpoint.
+
+## PR-6 functional requirements (delivered)
+
+- **FR-031-18:** `GET /v1/me` returns `clUserPermissions` for CL_USER (from tenant settings), so
+  the web can mirror server-side gating; the get-me use case loads it via `ITenantRepository`.
+- **FR-031-19:** `usePermissions.hasClUserFlag(flag)` evaluates CL_USER flags against
+  `user.clUserPermissions` (non-CL_USER roles pass); `useAuth`'s `AuthUser` carries
+  `clUserPermissions`.
+- **FR-031-20:** New read-only `AgencyFinancialPage` at `/my-financial` (AM/OP/CL_ADMIN/flagged
+  CL_USER) with **Statement** and **Services rendered** (TENANT_DEBIT) tabs, own-tenant summary,
+  and an **Export** (XLSX) action. No backoffice controls (approve/adjust/refund/edit/batch).
+  CL_USER without `view_financials` sees `NoPermissionState`.
+- **FR-031-21:** The sidebar shows a CL-facing **Financial** entry (`/my-financial`) gated by
+  role + the `view_financials` flag; the AM/OP backoffice entry (`/financial`) is unchanged.
