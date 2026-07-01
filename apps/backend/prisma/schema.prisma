@@ -417,7 +417,6 @@ model Inspector {
   phone                      String?         @db.VarChar(20)
   status                     InspectorStatus @default(ACTIVE)
   payment_settings_json      Json            @default("{}")
-  regions_json               Json            @default("[]")
   service_types_json         Json            @default("[]")
   client_eligibility_json    Json            @default("[]")
   // Feedback Round item 1: blocked-clients model (replaces allow-list)
