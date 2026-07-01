@@ -104,6 +104,9 @@ export function GenerateReportDialog({
     ? [{ value: '', label: 'All branches' }, ...branchOptions]
     : [];
 
+  // Agency is optional for AM/OP: an empty selection means "all agencies" (cross-agency).
+  const tenantOptionsWithAll = [{ value: '', label: 'All agencies' }, ...tenantOptions];
+
   const resetForm = useCallback(() => {
     setTenantId('');
     setReportType('');
@@ -123,7 +126,7 @@ export function GenerateReportDialog({
 
   const validate = (): FormErrors => {
     const errs: FormErrors = {};
-    if (isGlobalRole && !tenantId) errs.tenantId = 'Agency is required';
+    // Agency is optional for AM/OP — an empty selection runs the report cross-agency.
     if (!reportType) errs.reportType = 'Report type is required';
     if (!fromDate) errs.fromDate = 'Start date is required';
     if (!toDate) errs.toDate = 'End date is required';
@@ -176,7 +179,7 @@ export function GenerateReportDialog({
     <Dialog open={open} onClose={handleClose} title="Generate Report">
       <div className="flex flex-col gap-4 p-6">
         {isGlobalRole && (
-          <FormField label="Agency" required error={errors.tenantId}>
+          <FormField label="Agency" error={errors.tenantId}>
             <SelectInput
               value={tenantId}
               onChange={(value) => {
@@ -184,8 +187,8 @@ export function GenerateReportDialog({
                 setBranchId('');
                 setErrors((prev) => ({ ...prev, tenantId: undefined }));
               }}
-              options={tenantOptions}
-              placeholder="Select agency"
+              options={tenantOptionsWithAll}
+              placeholder="All agencies"
               error={!!errors.tenantId}
               aria-label="Agency"
             />

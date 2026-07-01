@@ -55,7 +55,7 @@ describe('GenerateReportDialog', () => {
     expect(screen.getByRole('option', { name: 'Agencies' })).toBeInTheDocument();
   });
 
-  it('requires agency selection for global roles', () => {
+  it('lets global roles generate a cross-agency report without selecting an agency', () => {
     mockUseAuth.mockReturnValue({ user: { id: 'u-1', role: 'AM', tenantId: null } });
 
     const onSubmit = vi.fn();
@@ -63,13 +63,17 @@ describe('GenerateReportDialog', () => {
       <GenerateReportDialog open onClose={() => {}} onSubmit={onSubmit} isSubmitting={false} />,
     );
 
+    // No agency selected — an empty agency means "all agencies".
     selectOption('Report Type', 'Appointments');
     fireEvent.change(screen.getByLabelText('From Date'), { target: { value: '2026-03-01' } });
     fireEvent.change(screen.getByLabelText('To Date'), { target: { value: '2026-03-31' } });
     fireEvent.click(screen.getByText('Generate'));
 
-    expect(screen.getByText('Agency is required')).toBeInTheDocument();
-    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.queryByText('Agency is required')).not.toBeInTheDocument();
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    const arg = onSubmit.mock.calls[0][0];
+    expect(arg.reportType).toBe('APPOINTMENTS');
+    expect(arg.filters).not.toHaveProperty('tenantId');
   });
 
   it('submits the full filters shape for global roles (no format field)', () => {
