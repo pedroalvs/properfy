@@ -84,7 +84,7 @@ async function seedAppointmentNoActiveCycle(prisma: PrismaClient) {
     data: {
       tenant_id: tenant.id, branch_id: branch.id, property_id: property.id,
       service_type_id: serviceType.id, status: 'SCHEDULED',
-      scheduled_date: new Date('2026-07-01'), time_slot: 'MORNING',
+      scheduled_date: new Date('2026-07-01'), time_slot_start: '09:00', time_slot_end: '12:00',
       price_amount: '100.00', payout_amount: '80.00',
       pricing_rule_snapshot_json: {}, rental_tenant_confirmation_status: 'PENDING',
       created_by_user_id: user.id,

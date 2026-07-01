@@ -25,7 +25,7 @@ function makeAppointment(overrides: Partial<AppointmentDetail> = {}): Appointmen
     inspectorId: 'insp-1',
     inspectorName: 'Carlos Inspector',
     scheduledDate: '2026-03-25T12:00:00Z',
-    timeSlot: '09:00-12:00',
+    timeSlotStart: '09:00', timeSlotEnd: '12:00',
     keyRequired: true,
     notes: 'Test observation',
     doneCheckedByUserId: null,

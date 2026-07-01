@@ -25,19 +25,12 @@ export function formatScheduleDate(dateStr: string): string {
   });
 }
 
-export function getTimeWindowParts(timeSlot: string): { startTime: string; endTime: string } {
-  const [startTime = '00:00', endTime = '00:00'] = timeSlot.split('-');
-  return { startTime, endTime };
+export function formatTimeWindow(start: string, end: string): string {
+  return `${start} – ${end}`;
 }
 
-export function formatTimeWindow(timeSlot: string): string {
-  const { startTime, endTime } = getTimeWindowParts(timeSlot);
-  return `${startTime} – ${endTime}`;
-}
-
-export function getScheduleStartDateTime(scheduledDate: string, timeSlot: string): Date {
-  const { startTime } = getTimeWindowParts(timeSlot);
-  return new Date(`${scheduledDate}T${startTime}:00`);
+export function getScheduleStartDateTime(scheduledDate: string, start: string): Date {
+  return new Date(`${scheduledDate}T${start}:00`);
 }
 
 export function isScheduleRisk(appointment: Pick<

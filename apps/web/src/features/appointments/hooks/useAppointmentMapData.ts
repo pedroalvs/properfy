@@ -9,7 +9,8 @@ export interface AppointmentMapItem {
   latitude: number;
   longitude: number;
   scheduledDate: string;
-  timeSlot: string;
+  timeSlotStart: string;
+  timeSlotEnd: string;
   inspectorName: string | null;
   branchName: string;
   /** Tenant ID — used for cross-tenant operations (e.g. region resolution for AM/OP). */

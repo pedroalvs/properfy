@@ -307,7 +307,7 @@ describe('PrismaAppointmentRepository.update() — missing field mappings (QA-00
   it('does not include new fields in data when they are not provided', async () => {
     const repo = new PrismaAppointmentRepository(prisma);
     // Only update timeSlot — none of the 5 new fields should appear in data
-    await repo.update('appt-1', 'tenant-1', { timeSlot: '10:00-11:00' });
+    await repo.update('appt-1', 'tenant-1', { timeSlotStart: '10:00', timeSlotEnd: '11:00' });
 
     const calledWith = updateMany.mock.calls[0]?.[0];
     expect(calledWith?.data).not.toHaveProperty('branch_id');

@@ -79,7 +79,7 @@ describe('CreateAppointmentUseCase — TZ-aware date validation', () => {
     branchId: 'br-1',
     propertyId: 'prop-1',
     serviceTypeId: 'svc-1',
-    timeSlot: '09:00-10:00',
+    timeSlotStart: '09:00', timeSlotEnd: '10:00',
     contacts: [{ contactId: 'c-1', role: 'PRIMARY', isPrimary: true }],
     keyRequired: false,
     actorTimezone: TZ,
@@ -95,16 +95,16 @@ describe('CreateAppointmentUseCase — TZ-aware date validation', () => {
   it('should throw AppointmentTimeInPastError for today + already-passed slot', async () => {
     const uc = makeUseCase();
     // At 19:00 AEST, slot 09:00-10:00 is already past.
-    await expect(uc.execute({ ...baseInput, scheduledDate: TODAY, timeSlot: '09:00-10:00' }))
+    await expect(uc.execute({ ...baseInput, scheduledDate: TODAY, timeSlotStart: '09:00', timeSlotEnd: '10:00' }))
       .rejects.toThrow(AppointmentTimeInPastError);
   });
 
   it('should pass through for today + future slot (pricing is checked after, will throw, but not date)', async () => {
     const uc = makeUseCase();
     // Slot 20:00-21:00 is in the future at 19:00 AEST.
-    await expect(uc.execute({ ...baseInput, scheduledDate: TODAY, timeSlot: '20:00-21:00' }))
+    await expect(uc.execute({ ...baseInput, scheduledDate: TODAY, timeSlotStart: '20:00', timeSlotEnd: '21:00' }))
       .rejects.not.toThrow(AppointmentDateInPastError);
-    await expect(uc.execute({ ...baseInput, scheduledDate: TODAY, timeSlot: '20:00-21:00' }))
+    await expect(uc.execute({ ...baseInput, scheduledDate: TODAY, timeSlotStart: '20:00', timeSlotEnd: '21:00' }))
       .rejects.not.toThrow(AppointmentTimeInPastError);
   });
 

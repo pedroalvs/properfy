@@ -157,7 +157,7 @@ describe('POST /v1/appointments/bulk-reschedule', () => {
       .send({
         appointmentIds: [APPT_ID_1],
         newDate: '2026-06-01',
-        newTimeSlot: '09:00-10:00',
+        newTimeSlotStart: '09:00', newTimeSlotEnd: '10:00',
       });
 
     expect(res.status).toBe(200);
@@ -166,7 +166,7 @@ describe('POST /v1/appointments/bulk-reschedule', () => {
       expect.objectContaining({
         appointmentIds: [APPT_ID_1],
         newDate: '2026-06-01',
-        newTimeSlot: '09:00-10:00',
+        newTimeSlotStart: '09:00', newTimeSlotEnd: '10:00',
       }),
     );
   });
@@ -200,7 +200,7 @@ describe('POST /v1/appointments/bulk-reschedule', () => {
     const res = await supertest(app.server)
       .post('/v1/appointments/bulk-reschedule')
       .set('Authorization', 'Bearer token')
-      .send({ appointmentIds: [APPT_ID_1], newDate: '2026-06-01', newTimeSlot: '9-10' });
+      .send({ appointmentIds: [APPT_ID_1], newDate: '2026-06-01', newTimeSlotStart: '9', newTimeSlotEnd: '10' });
 
     expect(res.status).toBe(400);
   });

@@ -3,19 +3,34 @@ import { todayLocalDateString } from '@properfy/shared';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { SelectInput } from '@/components/forms/SelectInput';
+import { TimeRangeInput } from '@/components/forms/TimeRangeInput';
 import { useFormOptions } from '@/hooks/useFormOptions';
-import { useTimeSlotOptions } from '../hooks/useTimeSlotOptions';
 import { api } from '@/services/api';
 import { ContactAutocomplete } from './ContactAutocomplete';
 import type { ContactSearchResult } from '../hooks/useContactSearch';
 import type { Appointment } from '../types';
 
+/** Toggle keys (one checkbox per row). The single `timeSlot` toggle drives a
+ *  free start/end time range that emits BOTH `timeSlotStart` and `timeSlotEnd`
+ *  into the bulk-edit `changes` payload (the backend bulk schema expects them
+ *  together). */
 type FieldKey =
   | 'assignedInspectorId'
   | 'scheduledDate'
   | 'timeSlot'
   | 'serviceTypeId'
   | 'propertyManagerContactId';
+
+/** Value model — one string per change field. The `timeSlot` toggle splits
+ *  into the two `timeSlotStart` / `timeSlotEnd` value keys. */
+interface BulkEditValues {
+  assignedInspectorId?: string;
+  scheduledDate?: string;
+  timeSlotStart?: string;
+  timeSlotEnd?: string;
+  serviceTypeId?: string;
+  propertyManagerContactId?: string;
+}
 
 /** Branch is intentionally NOT in this list — bulk-changing the branch of
  *  multiple appointments is too error-prone and was removed from the UI per
@@ -45,17 +60,14 @@ interface BulkEditModalProps {
 export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }: BulkEditModalProps) {
   const selectedIds = useMemo(() => selectedAppointments.map((a) => a.id), [selectedAppointments]);
 
-  // Derive a single tenant/branch from the selection. Used to scope the
-  // inspector and time-slot dropdowns. When the selection spans tenants or
-  // branches, the dependent dropdown is disabled with a helper.
-  const { activeTenantId, activeBranchId, multiTenant, multiBranch } = useMemo(() => {
+  // Derive a single tenant from the selection. Used to scope the inspector
+  // dropdown. When the selection spans tenants, the inspector field is disabled
+  // with a helper.
+  const { activeTenantId, multiTenant } = useMemo(() => {
     const tenantSet = new Set(selectedAppointments.map((a) => a.tenantId));
-    const branchSet = new Set(selectedAppointments.map((a) => a.branchId));
     return {
       activeTenantId: tenantSet.size === 1 ? [...tenantSet][0]! : undefined,
-      activeBranchId: branchSet.size === 1 ? [...branchSet][0]! : undefined,
       multiTenant: tenantSet.size > 1,
-      multiBranch: branchSet.size > 1,
     };
   }, [selectedAppointments]);
 
@@ -66,7 +78,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
     serviceTypeId: false,
     propertyManagerContactId: false,
   });
-  const [values, setValues] = useState<Partial<Record<FieldKey, string>>>({});
+  const [values, setValues] = useState<BulkEditValues>({});
   const [pmContactLabel, setPmContactLabel] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<BulkEditResult | null>(null);
@@ -87,12 +99,6 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
     '/v1/service-types',
     (item) => ({ value: item.id, label: item.name }),
   );
-
-  const timeSlotResult = useTimeSlotOptions(
-    activeBranchId ?? undefined,
-    activeTenantId ?? undefined,
-  );
-  const timeSlotOptions = timeSlotResult.options;
 
   const reset = useCallback(() => {
     setEnabledFields({
@@ -120,7 +126,12 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
       if (!next[key]) {
         setValues((v) => {
           const copy = { ...v };
-          delete copy[key];
+          if (key === 'timeSlot') {
+            delete copy.timeSlotStart;
+            delete copy.timeSlotEnd;
+          } else {
+            delete copy[key];
+          }
           return copy;
         });
         if (key === 'propertyManagerContactId') setPmContactLabel('');
@@ -129,7 +140,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
     });
   };
 
-  const setFieldValue = (key: FieldKey, value: string) => {
+  const setFieldValue = (key: keyof BulkEditValues, value: string) => {
     setValues((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -149,12 +160,29 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
 
   const handleSubmit = async () => {
     const changes: Record<string, unknown> = {};
-    (Object.keys(enabledFields) as FieldKey[]).forEach((key) => {
+    const scalarKeys = ['assignedInspectorId', 'scheduledDate', 'serviceTypeId', 'propertyManagerContactId'] as const;
+    scalarKeys.forEach((key) => {
       const v = values[key]?.trim();
       if (enabledFields[key] && v) {
         changes[key] = v;
       }
     });
+    // The single "Time Slot" toggle emits BOTH ends together — the backend bulk
+    // schema requires timeSlotStart and timeSlotEnd to be present (or absent) as a pair.
+    if (enabledFields.timeSlot) {
+      const start = values.timeSlotStart?.trim();
+      const end = values.timeSlotEnd?.trim();
+      if (!start || !end) {
+        setErrorMessage('Enter both a start and end time.');
+        return;
+      }
+      if (start >= end) {
+        setErrorMessage('Start time must be before end time.');
+        return;
+      }
+      changes.timeSlotStart = start;
+      changes.timeSlotEnd = end;
+    }
 
     if (Object.keys(changes).length === 0) return;
 
@@ -191,13 +219,6 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
 
   const hasCheckedFields = (Object.values(enabledFields) as boolean[]).some(Boolean);
 
-  // Time-slot field availability: needs all selections to share branch + tenant.
-  const timeSlotDisabled = multiBranch || multiTenant || !activeBranchId;
-  const timeSlotHelper = multiBranch
-    ? 'All selected appointments must share a branch to set a time slot.'
-    : multiTenant
-      ? 'All selected appointments must share an agency to set a time slot.'
-      : null;
   const inspectorDisabled = !activeTenantId;
   const inspectorHelper = multiTenant
     ? 'All selected appointments must share an agency to assign an inspector.'
@@ -304,22 +325,19 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
             />
           </FieldRow>
 
-          {/* Time Slot */}
+          {/* Time Slot — free start/end range. Both ends are applied together. */}
           <FieldRow
             id="bulk-time-slot"
             label={FIELD_LABELS.timeSlot}
             checked={enabledFields.timeSlot}
             onToggle={() => toggleField('timeSlot')}
-            helper={timeSlotHelper}
           >
-            <SelectInput
-              id="bulk-time-slot"
-              aria-label="Set time slot"
-              value={values.timeSlot ?? ''}
-              onChange={(v) => setFieldValue('timeSlot', v)}
-              options={timeSlotOptions}
-              placeholder={timeSlotDisabled ? 'Unavailable' : 'Select time slot'}
-              disabled={timeSlotDisabled}
+            <TimeRangeInput
+              startTime={values.timeSlotStart ?? ''}
+              endTime={values.timeSlotEnd ?? ''}
+              onStartChange={(v) => setFieldValue('timeSlotStart', v)}
+              onEndChange={(v) => setFieldValue('timeSlotEnd', v)}
+              idPrefix="bulk-time-slot"
             />
           </FieldRow>
 

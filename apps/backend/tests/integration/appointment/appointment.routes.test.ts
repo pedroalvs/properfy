@@ -68,7 +68,7 @@ const appointmentResult = {
   serviceGroupId: null,
   status: 'DRAFT',
   scheduledDate: '2026-04-01',
-  timeSlot: '09:00-10:00',
+  timeSlotStart: '09:00', timeSlotEnd: '10:00',
   keyRequired: false,
   meetingLocation: null,
   keyLocation: null,
@@ -128,7 +128,7 @@ const validCreatePayload = {
   propertyId: PROPERTY_ID,
   serviceTypeId: SERVICE_TYPE_ID,
   scheduledDate: '2027-01-15',
-  timeSlot: '09:00-10:00',
+  timeSlotStart: '09:00', timeSlotEnd: '10:00',
   contact: {
     rentalTenantName: 'John Doe',
     primaryEmail: 'john@example.com',
@@ -161,7 +161,7 @@ describe('POST /v1/appointments', () => {
         propertyId: PROPERTY_ID,
         serviceTypeId: SERVICE_TYPE_ID,
         scheduledDate: '2026-04-01',
-        timeSlot: '09:00-10:00',
+        timeSlotStart: '09:00', timeSlotEnd: '10:00',
         contact: { rentalTenantName: 'John Doe' },
       });
 
@@ -259,13 +259,13 @@ describe('PATCH /v1/appointments/:appointmentId', () => {
     expect(res.body.data.notes).toBe('Updated notes');
   });
 
-  it('should return 400 with invalid payload (timeSlot wrong format)', async () => {
+  it('should return 400 with invalid payload (time wrong format)', async () => {
     mockJwtVerify.mockResolvedValueOnce(clAdminContext);
 
     const res = await supertest(app.server)
       .patch(`/v1/appointments/${APPOINTMENT_ID}`)
       .set('Authorization', 'Bearer valid-token')
-      .send({ timeSlot: 'not-a-valid-timeslot' });
+      .send({ timeSlotStart: 'not-a-valid-time', timeSlotEnd: 'also-bad' });
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');

@@ -141,7 +141,7 @@ describe('Portal middleware — SUPERSEDED token → 410', () => {
 
     const res = await supertest(app.server)
       .post(`/v1/rental-tenant-portal/${RAW_TOKEN}/reschedule`)
-      .send({ newDate: '2026-09-01', newTimeSlot: 'MORNING' });
+      .send({ newDate: '2026-09-01', newTimeSlotStart: '09:00', newTimeSlotEnd: '12:00' });
 
     expect(res.status).toBe(410);
     expect(res.body.error.code).toBe('PORTAL_TOKEN_SUPERSEDED');

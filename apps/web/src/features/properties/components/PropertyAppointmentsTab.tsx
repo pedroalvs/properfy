@@ -50,9 +50,10 @@ export function PropertyAppointmentsTab({ propertyId }: PropertyAppointmentsTabP
       render: (row) => <>{formatDate(row.scheduledDate)}</>,
     },
     {
-      key: 'timeSlot',
-      label: 'Time Slot',
+      key: 'timeSlotStart',
+      label: 'Time',
       width: '120px',
+      render: (row) => <>{`${row.timeSlotStart} - ${row.timeSlotEnd}`}</>,
     },
     {
       key: 'inspectorName',

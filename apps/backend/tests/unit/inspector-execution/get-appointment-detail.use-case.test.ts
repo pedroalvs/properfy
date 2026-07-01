@@ -34,7 +34,7 @@ function makeAppointmentEntity(
     inspectorId: 'insp-1',
     status: 'SCHEDULED',
     scheduledDate: new Date('2026-03-21'),
-    timeSlot: '09:00-11:00',
+    timeSlotStart: '09:00', timeSlotEnd: '11:00',
     keyRequired: false,
     meetingLocation: 'Front door',
     keyLocation: 'Lockbox #3',
@@ -253,7 +253,8 @@ describe('GetAppointmentDetailUseCase', () => {
     expect(result.id).toBe('appt-1');
     expect(result.status).toBe('SCHEDULED');
     expect(result.scheduledDate).toBe('2026-03-21');
-    expect(result.timeSlot).toBe('09:00-11:00');
+    expect(result.timeSlotStart).toBe('09:00');
+    expect(result.timeSlotEnd).toBe('11:00');
     expect(result.meetingLocation).toBe('Front door');
     expect(result.keyLocation).toBe('Lockbox #3');
 

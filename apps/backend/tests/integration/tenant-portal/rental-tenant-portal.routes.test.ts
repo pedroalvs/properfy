@@ -178,14 +178,14 @@ describe('POST /v1/rental-tenant-portal/:token/reschedule', () => {
     setupPortalAuth();
     const mockResult = {
       scheduledDate: '2026-05-01',
-      timeSlot: '09:00-10:00',
+      timeSlotStart: '09:00', timeSlotEnd: '10:00',
       rentalTenantConfirmationStatus: 'PENDING',
     };
     mockRescheduleRequestExecute.mockResolvedValueOnce(mockResult);
 
     const res = await supertest(app.server)
       .post('/v1/rental-tenant-portal/valid-raw-token/reschedule')
-      .send({ newDate: '2026-05-01', newTimeSlot: '09:00-10:00' });
+      .send({ newDate: '2026-05-01', newTimeSlotStart: '09:00', newTimeSlotEnd: '10:00' });
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual(mockResult);
@@ -195,7 +195,7 @@ describe('POST /v1/rental-tenant-portal/:token/reschedule', () => {
         appointmentId: APPOINTMENT_ID,
         isReadOnly: false,
         newDate: '2026-05-01',
-        newTimeSlot: '09:00-10:00',
+        newTimeSlotStart: '09:00', newTimeSlotEnd: '10:00',
       }),
     );
   });
@@ -357,14 +357,14 @@ describe('POST /v1/rental-tenant-portal/:token/reschedule — BUG-2 regression: 
     setupPortalAuth();
     mockRescheduleRequestExecute.mockResolvedValueOnce({
       scheduledDate: '2026-05-01',
-      timeSlot: '09:00-10:00',
+      timeSlotStart: '09:00', timeSlotEnd: '10:00',
       rentalTenantConfirmationStatus: 'PENDING',
     });
     const slots = [{ dayOfWeek: 'FRI' as const, start: '14:00', end: '16:00' }];
 
     await supertest(app.server)
       .post('/v1/rental-tenant-portal/valid-raw-token/reschedule')
-      .send({ newDate: '2026-05-01', newTimeSlot: '09:00-10:00', restrictions: { availableSlotsJson: slots } });
+      .send({ newDate: '2026-05-01', newTimeSlotStart: '09:00', newTimeSlotEnd: '10:00', restrictions: { availableSlotsJson: slots } });
 
     expect(mockRescheduleRequestExecute).toHaveBeenCalledWith(
       expect.objectContaining({

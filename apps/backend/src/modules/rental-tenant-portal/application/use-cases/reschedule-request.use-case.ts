@@ -30,7 +30,8 @@ export interface RescheduleRequestInput {
   isReadOnly: boolean;
   isUsed: boolean;
   newDate: string;
-  newTimeSlot: string;
+  newTimeSlotStart: string;
+  newTimeSlotEnd: string;
   restrictions?: {
     isHome: boolean;
     unavailableDaysJson: string[] | null;
@@ -124,7 +125,7 @@ export class RescheduleRequestUseCase {
     // 7. Snapshot previous values
     const previousValues = {
       scheduledDate: appointment.scheduledDate.toISOString(),
-      timeSlot: appointment.timeSlot,
+      timeSlot: `${appointment.timeSlotStart}-${appointment.timeSlotEnd}`,
       rentalTenantConfirmationStatus: appointment.rentalTenantConfirmationStatus,
     };
 
@@ -132,7 +133,8 @@ export class RescheduleRequestUseCase {
     await this.reopenForRescheduleUseCase.execute({
       appointmentId: input.appointmentId,
       newScheduledDate: input.newDate,
-      newTimeSlot: input.newTimeSlot,
+      newTimeSlotStart: input.newTimeSlotStart,
+      newTimeSlotEnd: input.newTimeSlotEnd,
       reason: 'Tenant portal reschedule request',
       actor: {
         userId: 'SYSTEM',
@@ -179,7 +181,7 @@ export class RescheduleRequestUseCase {
     // 10. Record RESCHEDULE activity
     const newValues = {
       scheduledDate: input.newDate,
-      timeSlot: input.newTimeSlot,
+      timeSlot: `${input.newTimeSlotStart}-${input.newTimeSlotEnd}`,
       rentalTenantConfirmationStatus: 'PENDING',
     };
 
@@ -226,7 +228,7 @@ export class RescheduleRequestUseCase {
           tenantId: appointment.tenantId,
           tokenId: input.tokenId,
           newDate: input.newDate,
-          newTimeSlot: input.newTimeSlot,
+          newTimeSlot: `${input.newTimeSlotStart}-${input.newTimeSlotEnd}`,
         },
         occurredAt: new Date(),
       });
@@ -253,7 +255,8 @@ export class RescheduleRequestUseCase {
 
     return {
       scheduledDate: input.newDate,
-      timeSlot: input.newTimeSlot,
+      timeSlotStart: input.newTimeSlotStart,
+      timeSlotEnd: input.newTimeSlotEnd,
       rentalTenantConfirmationStatus: 'PENDING' as const,
     };
   }

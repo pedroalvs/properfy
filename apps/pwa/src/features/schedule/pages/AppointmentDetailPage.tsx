@@ -93,7 +93,7 @@ export function AppointmentDetailPage() {
                 {formatScheduleDate(apt.scheduledDate)}
               </p>
               <p className="mt-0.5 text-base font-bold text-white">
-                {formatTimeWindow(apt.timeSlot)}
+                {formatTimeWindow(apt.timeSlotStart, apt.timeSlotEnd)}
               </p>
             </div>
             <StatusChip status={apt.status} />
@@ -164,7 +164,7 @@ export function AppointmentDetailPage() {
             <StartInspectionButton
               appointmentId={apt.id}
               scheduledDate={apt.scheduledDate}
-              timeSlot={apt.timeSlot}
+              timeSlotStart={apt.timeSlotStart}
               resume={hasResumableExecution}
             />
           </div>

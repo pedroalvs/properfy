@@ -27,7 +27,7 @@ function makeAppointmentEntity(
     inspectorId: null,
     status: 'DRAFT',
     scheduledDate: new Date('2026-04-01'),
-    timeSlot: '09:00-10:00',
+    timeSlotStart: '09:00', timeSlotEnd: '10:00',
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
@@ -231,7 +231,8 @@ describe('GetPortalDataUseCase', () => {
     expect(result.appointment.id).toBe('appt-1');
     expect(result.appointment.status).toBe('DRAFT');
     expect(result.appointment.scheduledDate).toEqual(new Date('2026-04-01'));
-    expect(result.appointment.timeSlot).toBe('09:00-10:00');
+    expect(result.appointment.timeSlotStart).toBe('09:00');
+    expect(result.appointment.timeSlotEnd).toBe('10:00');
     expect(result.appointment.rentalTenantConfirmationStatus).toBe('PENDING');
     expect(result.appointment.keyRequired).toBe(false);
     expect(result.appointment.meetingLocation).toBeNull();

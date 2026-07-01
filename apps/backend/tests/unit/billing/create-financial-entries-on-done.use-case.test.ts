@@ -54,7 +54,7 @@ function makeAppointment(overrides = {}) {
       inspectorId: 'insp-1',
       status: 'DONE',
       scheduledDate: new Date('2026-03-20'),
-      timeSlot: '09:00-11:00',
+      timeSlotStart: '09:00', timeSlotEnd: '11:00',
       keyRequired: false,
       meetingLocation: null,
       keyLocation: null,

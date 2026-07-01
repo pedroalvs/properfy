@@ -38,18 +38,18 @@ describe('PrismaAppointmentRepository date filters', () => {
     );
   });
 
-  it('filters by exact timeSlot match', async () => {
+  it('filters by time range (timeFrom/timeTo) against time_slot_start', async () => {
     const repo = new PrismaAppointmentRepository(prisma);
 
     await repo.findAll(
-      { timeSlot: '09:00-10:00' },
+      { timeFrom: '09:00', timeTo: '10:00' },
       { page: 1, pageSize: 10, sortOrder: 'asc' },
     );
 
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          time_slot: '09:00-10:00',
+          time_slot_start: { gte: '09:00', lte: '10:00' },
         }),
       }),
     );
@@ -153,12 +153,12 @@ describe('PrismaAppointmentRepository date filters', () => {
   it('count uses same filters as findAll', async () => {
     const repo = new PrismaAppointmentRepository(prisma);
 
-    await repo.count({ timeSlot: '10:00-11:00', confirmationStatus: 'not_sent' });
+    await repo.count({ timeFrom: '10:00', timeTo: '11:00', confirmationStatus: 'not_sent' });
 
     expect(count).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          time_slot: '10:00-11:00',
+          time_slot_start: { gte: '10:00', lte: '11:00' },
           notifications: {
             none: expect.objectContaining({
               channel: 'EMAIL',

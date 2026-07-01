@@ -44,18 +44,6 @@ vi.mock('@/components/forms/DateInput', () => ({
   ),
 }));
 
-vi.mock('@/components/forms/TextInput', () => ({
-  TextInput: ({ value, onChange, placeholder, disabled }: { value: string; onChange: (v: string) => void; placeholder?: string; disabled?: boolean }) => (
-    <input
-      aria-label="text-input"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      disabled={disabled}
-    />
-  ),
-}));
-
 vi.mock('@/components/forms/Textarea', () => ({
   Textarea: ({ value, onChange, disabled, 'aria-label': ariaLabel, maxLength }: any) => (
     <textarea
@@ -84,7 +72,7 @@ const BASE_APPOINTMENT: PortalAppointment = {
   id: 'apt-1',
   status: AppointmentStatus.SCHEDULED,
   scheduledDate: SCHEDULED_DATE_ANCHOR,
-  timeSlot: '09:00-11:00',
+  timeSlotStart: '09:00', timeSlotEnd: '11:00',
   serviceTypeId: 'svc-1',
   rentalTenantConfirmationStatus: RentalTenantConfirmationStatus.PENDING,
   keyRequired: false,
@@ -122,7 +110,7 @@ describe('RescheduleForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /Request Reschedule/ }));
 
     expect(await screen.findByText('Please select a new date.')).toBeInTheDocument();
-    expect(screen.getByText('Please enter a time slot.')).toBeInTheDocument();
+    expect(screen.getByText('Please enter a start and end time.')).toBeInTheDocument();
     expect(mockMutateAsync).not.toHaveBeenCalled();
   });
 
@@ -145,9 +133,8 @@ describe('RescheduleForm', () => {
     fireEvent.change(screen.getByLabelText('date-input'), {
       target: { value: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().split('T')[0] },
     });
-    fireEvent.change(screen.getByLabelText('text-input'), {
-      target: { value: '14:00-16:00' },
-    });
+    fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '14:00' } });
+    fireEvent.change(screen.getByLabelText('End time'), { target: { value: '16:00' } });
 
     fireEvent.click(screen.getByRole('button', { name: /Request Reschedule/ }));
 
@@ -174,9 +161,8 @@ describe('RescheduleForm', () => {
     fireEvent.change(screen.getByLabelText('date-input'), {
       target: { value: futureDate },
     });
-    fireEvent.change(screen.getByLabelText('text-input'), {
-      target: { value: '14:00-16:00' },
-    });
+    fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '14:00' } });
+    fireEvent.change(screen.getByLabelText('End time'), { target: { value: '16:00' } });
     fireEvent.change(screen.getByLabelText('Additional notes'), {
       target: { value: 'I need afternoon slots only' },
     });
@@ -201,9 +187,8 @@ describe('RescheduleForm', () => {
     fireEvent.change(screen.getByLabelText('date-input'), {
       target: { value: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().split('T')[0] },
     });
-    fireEvent.change(screen.getByLabelText('text-input'), {
-      target: { value: '14:00-16:00' },
-    });
+    fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '14:00' } });
+    fireEvent.change(screen.getByLabelText('End time'), { target: { value: '16:00' } });
 
     fireEvent.click(screen.getByRole('button', { name: /Request Reschedule/ }));
 

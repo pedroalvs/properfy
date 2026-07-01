@@ -24,7 +24,7 @@ function makeAppointmentEntity(overrides: Partial<ConstructorParameters<typeof A
     inspectorId: null,
     status: 'DRAFT',
     scheduledDate: new Date('2026-04-01'),
-    timeSlot: '09:00-10:00',
+    timeSlotStart: '09:00', timeSlotEnd: '10:00',
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
@@ -623,7 +623,6 @@ describe('UpdateAppointmentUseCase', () => {
         auditService,
         new AuthorizationService(auditService),
         undefined,
-        undefined,
         contactRepo as any,
       );
 
@@ -667,7 +666,6 @@ describe('UpdateAppointmentUseCase', () => {
         appointmentRepo,
         auditService,
         new AuthorizationService(auditService),
-        undefined,
         undefined,
         contactRepo as any,
       );

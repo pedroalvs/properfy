@@ -11,7 +11,7 @@ export function useScheduleDay(
     return appointments
       .filter((apt) => apt.scheduledDate === selectedDate)
       .sort((a, b) => {
-        const timeDiff = a.timeSlot.localeCompare(b.timeSlot);
+        const timeDiff = a.timeSlotStart.localeCompare(b.timeSlotStart);
         if (timeDiff !== 0) return timeDiff;
         return a.suburb.localeCompare(b.suburb);
       });

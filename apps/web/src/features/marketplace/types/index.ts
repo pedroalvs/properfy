@@ -27,7 +27,8 @@ export interface MarketplaceAppointment {
   code: string;
   address: string;
   scheduledDate: string;
-  timeSlot: string;
+  timeSlotStart: string;
+  timeSlotEnd: string;
   latitude: number;
   longitude: number;
 }

@@ -1,3 +1,3 @@
-branchName,propertyCode,serviceTypeCode,scheduledDate,timeSlotLabel,keyRequired,primaryContactName,primaryContactEmail,primaryContactPhone,notes
+branchName,propertyCode,serviceTypeCode,scheduledDate,timeSlot,keyRequired,primaryContactName,primaryContactEmail,primaryContactPhone,notes
 Main Branch,PROP-001,ROUTINE,2026-05-15,09:00-10:00,false,Jane Doe,jane@example.com,+61400000000,First inspection
 West Branch,PROP-002,INGOING,2026-05-16,14:00-15:00,true,John Smith,john@example.com,+61411111111,Key at reception

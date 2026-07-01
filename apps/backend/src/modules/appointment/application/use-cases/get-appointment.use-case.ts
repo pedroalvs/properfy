@@ -23,7 +23,8 @@ export interface GetAppointmentOutput {
   inspectorId: string | null;
   status: string;
   scheduledDate: Date;
-  timeSlot: string;
+  timeSlotStart: string;
+  timeSlotEnd: string;
   keyRequired: boolean;
   meetingLocation: string | null;
   keyLocation: string | null;
@@ -107,7 +108,8 @@ function mapToOutput(found: AppointmentWithRelations, apps: AppointmentApp[]): G
     inspectorId: appointment.inspectorId,
     status: appointment.status,
     scheduledDate: appointment.scheduledDate,
-    timeSlot: appointment.timeSlot,
+    timeSlotStart: appointment.timeSlotStart,
+    timeSlotEnd: appointment.timeSlotEnd,
     keyRequired: appointment.keyRequired,
     meetingLocation: appointment.meetingLocation,
     keyLocation: appointment.keyLocation,
