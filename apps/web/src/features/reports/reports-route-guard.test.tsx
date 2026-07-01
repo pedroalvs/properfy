@@ -68,6 +68,17 @@ describe('reports route guard', () => {
     expect(screen.queryByText('Reports Page')).not.toBeInTheDocument();
   });
 
+  it('redirects CL_ADMIN to dashboard', () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'user-cla', name: 'Client Admin', email: 'cla@test.com', role: 'CL_ADMIN', tenantId: 'tenant-1' },
+      isLoading: false,
+    });
+
+    renderReportsRoute();
+    expect(screen.getByText('Dashboard Redirect')).toBeInTheDocument();
+    expect(screen.queryByText('Reports Page')).not.toBeInTheDocument();
+  });
+
   it('redirects INSP to dashboard', () => {
     mockUseAuth.mockReturnValue({
       user: { id: 'user-insp', name: 'Inspector', email: 'insp@test.com', role: 'INSP', tenantId: null },

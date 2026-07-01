@@ -1,4 +1,4 @@
-import type { ReportDateAxis } from '@properfy/shared';
+import type { ReportDateAxis, AppointmentStatus } from '@properfy/shared';
 
 export interface ReportDataFilters {
   fromDate: string;
@@ -14,7 +14,7 @@ export interface ReportDataFilters {
   /** Case-insensitive match against `property.suburb`. */
   suburb?: string;
   /** Appointment status — narrows the Appointments report. */
-  status?: string;
+  status?: AppointmentStatus;
   /** When true, Appointments rows are ordered so each property's rows are contiguous. */
   groupProperties?: boolean;
 }

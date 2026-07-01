@@ -21,12 +21,16 @@ let propBondiId: string;
 let propManlyId: string;
 let apt1Number: number; // DONE, scheduled Mar 10, created Feb 01, completed Mar 11
 let apt2Number: number; // SCHEDULED, scheduled Mar 20, created Mar 05
-let apt3Number: number; // CANCELLED, scheduled Mar 15, created Mar 02
+// A third appointment (CANCELLED, Manly) and a second agency are seeded for the
+// aggregate/isolation cases; their numbers are asserted via counts, not directly.
 
+// Scoped to the first agency by default so per-report assertions are deterministic;
+// the isolation test overrides `tenantId` to exercise cross-agency behavior.
 const baseFilters = (overrides: Partial<ReportDataFilters> = {}): ReportDataFilters => ({
   fromDate: '2026-03-01',
   toDate: '2026-03-31',
   dateAxis: 'SCHEDULED',
+  tenantId,
   ...overrides,
 });
 
@@ -86,7 +90,35 @@ beforeAll(async () => {
 
   apt1Number = await mkApt({ propertyId: propBondiId, status: 'DONE', scheduled: '2026-03-10', created: '2026-02-01', completed: '2026-03-11', inspector: true });
   apt2Number = await mkApt({ propertyId: propBondiId, status: 'SCHEDULED', scheduled: '2026-03-20', created: '2026-03-05', inspector: true });
-  apt3Number = await mkApt({ propertyId: propManlyId, status: 'CANCELLED', scheduled: '2026-03-15', created: '2026-03-02' });
+  await mkApt({ propertyId: propManlyId, status: 'CANCELLED', scheduled: '2026-03-15', created: '2026-03-02' });
+
+  // Second agency (same March window) — proves the tenant_id filter isolates cross-agency data.
+  const otherTenant = await prisma.tenant.create({
+    data: { name: 'Beta Realty', legal_name: `Beta Realty ${rnd()}`, status: 'ACTIVE', currency: 'AUD' },
+  });
+  const otherBranch = await prisma.branch.create({ data: { tenant_id: otherTenant.id, name: 'Beta CBD', status: 'ACTIVE' } });
+  const otherUser = await prisma.user.create({
+    data: { tenant_id: otherTenant.id, branch_id: otherBranch.id, role: 'OP', name: 'Op2', email: `op2-${rnd()}@t.local`, password_hash: 'x'.repeat(20), status: 'ACTIVE' },
+  });
+  const otherProp = await prisma.property.create({
+    data: { tenant_id: otherTenant.id, branch_id: otherBranch.id, property_code: `BP-${rnd()}`, type: 'RESIDENTIAL', street: 'Beta St', suburb: 'Bondi', postcode: '2000', state: 'NSW', country: 'AU', geocoding_status: 'SUCCESS' },
+  });
+  await prisma.appointment.create({
+    data: {
+      tenant_id: otherTenant.id,
+      branch_id: otherBranch.id,
+      property_id: otherProp.id,
+      service_type_id: serviceType.id,
+      status: 'DONE',
+      scheduled_date: new Date('2026-03-12T00:00:00.000Z'),
+      time_slot: 'MORNING',
+      price_amount: '100.00',
+      payout_amount: '80.00',
+      pricing_rule_snapshot_json: {},
+      rental_tenant_confirmation_status: 'CONFIRMED',
+      created_by_user_id: otherUser.id,
+    },
+  });
 
   // Financial ledger — all in March; one PENDING to prove APPROVED-only filtering.
   const fe = (data: Record<string, unknown>) =>
@@ -104,7 +136,7 @@ beforeAll(async () => {
 afterAll(async () => { await teardownDbHarness(harness); });
 
 describe('getAppointmentRows', () => {
-  it('SCHEDULED axis returns all three March appointments', async () => {
+  it('SCHEDULED axis returns three March appointments for the agency', async () => {
     const rows = await reader.getAppointmentRows(baseFilters());
     expect(rows).toHaveLength(3);
   });
@@ -115,6 +147,16 @@ describe('getAppointmentRows', () => {
     expect(rows[0].appointmentNumber).toBe(apt1Number);
     expect(rows[0].suburb).toBe('Bondi');
     expect(rows[0].agency).toBe('Acme Realty');
+  });
+
+  it('scopes to a single agency via tenantId and excludes other agencies', async () => {
+    const acmeOnly = await reader.getAppointmentRows(baseFilters());
+    expect(acmeOnly.every((r) => r.agency === 'Acme Realty')).toBe(true);
+
+    // Cross-agency (no tenantId) must additionally surface Beta Realty's March appointment.
+    const crossAgency = await reader.getAppointmentRows(baseFilters({ tenantId: undefined }));
+    expect(crossAgency.length).toBeGreaterThan(acmeOnly.length);
+    expect(crossAgency.some((r) => r.agency === 'Beta Realty')).toBe(true);
   });
 
   it('filters by suburb case-insensitively', async () => {

@@ -83,8 +83,10 @@ export function GenerateReportDialog({
     { enabled: isGlobalRole && open },
   );
 
-  // /v1/branches is tenant-scoped: options are keyed off the selected agency
-  // (global roles) or the caller's own tenant (client roles).
+  // Branch options come from the shared useFormOptions hook — the app-wide
+  // typed wrapper over the generated openapi-fetch client used by every branch
+  // selector. /v1/branches is tenant-scoped, so options are keyed off the
+  // selected agency (global roles) or the caller's own tenant (client roles).
   const branchScopeTenantId = isGlobalRole ? tenantId : (user?.tenantId ?? '');
   const { options: branchOptions } = useFormOptions<{ id: string; name: string }>(
     ['reports', 'branch-options', branchScopeTenantId],
@@ -94,7 +96,13 @@ export function GenerateReportDialog({
     { enabled: !!branchScopeTenantId && open },
   );
 
-  const branchOptionsWithAll = [{ value: '', label: 'All branches' }, ...branchOptions];
+  // Only prepend the empty "All branches" option once a tenant scope exists
+  // (i.e. the select is enabled). While disabled, keep the list empty so
+  // SelectInput falls back to its placeholder instead of rendering the empty
+  // option's label (it shows the label for value === '' before the placeholder).
+  const branchOptionsWithAll = branchScopeTenantId
+    ? [{ value: '', label: 'All branches' }, ...branchOptions]
+    : [];
 
   const resetForm = useCallback(() => {
     setTenantId('');

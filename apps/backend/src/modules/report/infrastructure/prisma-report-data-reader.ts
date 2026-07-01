@@ -160,6 +160,9 @@ export class PrismaReportDataReader implements IReportDataReader {
       orderBy: { effective_at: 'asc' },
     });
 
+    // Amounts are 2-decimal money; round at the export boundary so summed
+    // floating-point values don't surface artifacts like 90.00000000001.
+    const round2 = (n: number) => Math.round(n * 100) / 100;
     let totalRevenue = 0;
     let totalExpense = 0;
     const rows: Record<string, unknown>[] = entries.map((e) => {
@@ -192,16 +195,16 @@ export class PrismaReportDataReader implements IReportDataReader {
         appointmentNumber: e.appointment?.appointment_number ?? '',
         inspector: e.inspector?.name ?? '',
         description: e.description ?? '',
-        revenue: revenue !== 0 ? revenue : '',
-        expense: expense !== 0 ? expense : '',
+        revenue: revenue !== 0 ? round2(revenue) : '',
+        expense: expense !== 0 ? round2(expense) : '',
         currency: e.currency,
       };
     });
 
     if (rows.length > 0) {
       const blank = { entryDate: '', agency: '', entryType: '', appointmentNumber: '', inspector: '', currency: '' };
-      rows.push({ ...blank, description: 'TOTAL', revenue: totalRevenue, expense: totalExpense });
-      rows.push({ ...blank, description: 'NET (revenue − expenses)', revenue: totalRevenue - totalExpense, expense: '' });
+      rows.push({ ...blank, description: 'TOTAL', revenue: round2(totalRevenue), expense: round2(totalExpense) });
+      rows.push({ ...blank, description: 'NET (revenue − expenses)', revenue: round2(totalRevenue - totalExpense), expense: '' });
     }
     return rows;
   }

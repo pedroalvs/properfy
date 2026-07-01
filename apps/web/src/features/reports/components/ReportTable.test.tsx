@@ -83,6 +83,26 @@ describe('ReportTable', () => {
     expect(screen.getByLabelText('View')).toBeInTheDocument();
   });
 
+  it('hides retry and falls back to View when a FAILED report has no filters', () => {
+    const report = makeReport({ status: ReportStatus.FAILED, filters: null });
+    render(<ReportTable data={[report]} />);
+    expect(screen.queryByLabelText('Reprocess')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('View')).toBeInTheDocument();
+  });
+
+  it('does not render any scheduled-report UI (removed feature)', () => {
+    // The scheduled-report chip/link was removed when reports were realigned.
+    // Guard against a silent re-introduction of that UI.
+    const reports = [
+      makeReport({ id: 'r-ready', status: ReportStatus.READY }),
+      makeReport({ id: 'r-failed', status: ReportStatus.FAILED }),
+    ];
+    const { container } = render(<ReportTable data={reports} />);
+    expect(screen.queryByText(/scheduled/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /scheduled/i })).not.toBeInTheDocument();
+    expect(container.querySelector('a[href*="scheduled-reports"]')).toBeNull();
+  });
+
   it('shows loading state', () => {
     render(<ReportTable data={[]} loading />);
     expect(screen.getByText('Type')).toBeInTheDocument();

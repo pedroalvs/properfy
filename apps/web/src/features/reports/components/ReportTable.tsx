@@ -34,7 +34,9 @@ function getRowActions(
     ];
   }
 
-  if (row.status === ReportStatus.FAILED) {
+  // Only offer Reprocess when the report has persisted filters to replay.
+  // Without them a retry can only fail, so fall through to the View action.
+  if (row.status === ReportStatus.FAILED && row.filters) {
     return [
       {
         icon: 'mdi-refresh',

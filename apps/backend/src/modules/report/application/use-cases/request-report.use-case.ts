@@ -60,11 +60,10 @@ export class RequestReportUseCase {
     const now = new Date();
     const reportId = randomUUID();
     const dateAxisField = reportType === 'FINANCIAL' ? 'effective_at' : REPORT_DATE_AXIS_FIELD[filters.dateAxis];
-    const filtersJson: Record<string, unknown> = {
-      ...filters,
-      tenantId: effectiveTenantId ?? undefined,
-      dateAxisField,
-    };
+    const filtersJson: Record<string, unknown> = { ...filters, dateAxisField };
+    // Omit tenantId entirely for cross-agency runs (no stray `undefined` in the stored JSON).
+    if (effectiveTenantId) filtersJson.tenantId = effectiveTenantId;
+    else delete filtersJson.tenantId;
 
     const report = new ReportEntity({
       id: reportId,

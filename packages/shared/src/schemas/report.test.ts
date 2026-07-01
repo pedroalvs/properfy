@@ -86,6 +86,11 @@ describe('reportFiltersSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it('should reject an impossible calendar date', () => {
+    const result = reportFiltersSchema.safeParse({ fromDate: '2026-02-31', toDate: '2026-03-01' });
+    expect(result.success).toBe(false);
+  });
+
   it('should reject toDate < fromDate', () => {
     const result = reportFiltersSchema.safeParse({
       fromDate: '2026-02-01',

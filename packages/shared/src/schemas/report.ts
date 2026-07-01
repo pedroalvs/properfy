@@ -2,7 +2,16 @@ import { z } from 'zod';
 import { ReportType, ReportStatus, ReportDateAxis } from '../enums/misc';
 import { AppointmentStatus } from '../enums/appointment';
 
-const dateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD required');
+const dateStringSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD required')
+  .refine((s) => {
+    // Reject impossible calendar dates (e.g. 2026-02-31) that the regex allows.
+    // The preceding regex guarantees exactly three numeric parts.
+    const [y, mo, d] = s.split('-').map(Number) as [number, number, number];
+    const dt = new Date(Date.UTC(y, mo - 1, d));
+    return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d;
+  }, 'Invalid calendar date');
 
 /**
  * Content filters for the report generator.
