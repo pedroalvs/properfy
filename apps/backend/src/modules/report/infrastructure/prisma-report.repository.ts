@@ -2,7 +2,6 @@ import type { PrismaClient } from '@prisma/client';
 import type {
   ReportStatus as PrismaReportStatus,
   ReportType as PrismaReportType,
-  ReportFormat as PrismaReportFormat,
   Prisma,
 } from '@prisma/client';
 import type { IReportRepository, ReportFilters } from '../domain/report.repository';
@@ -42,15 +41,6 @@ export class PrismaReportRepository implements IReportRepository {
     });
   }
 
-  async countByTenantAndStatuses(tenantId: string, statuses: ReportStatus[]): Promise<number> {
-    return this.prisma.report.count({
-      where: {
-        tenant_id: tenantId,
-        status: { in: statuses as PrismaReportStatus[] },
-      },
-    });
-  }
-
   async findExpiredWithFileKey(): Promise<ReportEntity[]> {
     const rows = await this.prisma.report.findMany({
       where: {
@@ -69,11 +59,9 @@ export class PrismaReportRepository implements IReportRepository {
         tenant_id: entity.tenantId,
         report_type: entity.reportType as PrismaReportType,
         filters_json: entity.filtersJson as Prisma.InputJsonValue,
-        format: entity.format as PrismaReportFormat,
         status: entity.status as PrismaReportStatus,
         file_key: entity.fileKey,
         requested_by_user_id: entity.requestedByUserId,
-        scheduled_report_id: entity.scheduledReportId,
         started_at: entity.startedAt,
         completed_at: entity.completedAt,
         failed_at: entity.failedAt,
@@ -91,7 +79,6 @@ export class PrismaReportRepository implements IReportRepository {
         tenant_id: entity.tenantId,
         report_type: entity.reportType as PrismaReportType,
         filters_json: entity.filtersJson as Prisma.InputJsonValue,
-        format: entity.format as PrismaReportFormat,
         status: entity.status as PrismaReportStatus,
         file_key: entity.fileKey,
         started_at: entity.startedAt,
@@ -129,11 +116,9 @@ export class PrismaReportRepository implements IReportRepository {
       tenantId: row.tenant_id,
       reportType: row.report_type,
       filtersJson: row.filters_json as Record<string, unknown>,
-      format: row.format,
       status: row.status,
       fileKey: row.file_key,
       requestedByUserId: row.requested_by_user_id,
-      scheduledReportId: row.scheduled_report_id ?? null,
       startedAt: row.started_at,
       completedAt: row.completed_at,
       failedAt: row.failed_at,

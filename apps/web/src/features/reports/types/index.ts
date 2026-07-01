@@ -1,14 +1,12 @@
-import type { ReportType, ReportStatus, ReportFormat, ReportFilters } from '@properfy/shared';
+import type { ReportType, ReportStatus, ReportFilters } from '@properfy/shared';
 
 export interface Report {
   id: string;
   reportType: ReportType;
   status: ReportStatus;
-  format: ReportFormat;
   requestedBy: { id: string; name: string };
   fileKey?: string | null;
   filters?: ReportFilters | null;
-  scheduledReportId?: string | null;
   createdAt: string;
   updatedAt?: string | null;
 }

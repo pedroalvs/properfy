@@ -9,7 +9,6 @@ import type { DispatchEscalationsUseCase } from '../modules/notification/applica
 import type { CleanupSessionsWorker } from '../modules/auth/infrastructure/workers/cleanup-sessions.worker';
 import type { KeyExpiryCheckWorker } from '../modules/auth/infrastructure/workers/key-expiry-check.worker';
 import type { ExpireFilesWorker } from '../modules/report/infrastructure/workers/expire-files.worker';
-import type { ProcessSchedulesWorker } from '../modules/report/infrastructure/workers/process-schedules.worker';
 import type { GeocodeWorker } from '../modules/property/infrastructure/workers/geocode.worker';
 import type { GeocodeRetryWorker } from '../modules/property/infrastructure/workers/geocode-retry.worker';
 import type { ImportPropertyWorker } from '../modules/property/infrastructure/workers/import-property.worker';
@@ -53,7 +52,6 @@ export async function registerWorkers(
   cleanupSessionsWorker: CleanupSessionsWorker,
   keyExpiryCheckWorker: KeyExpiryCheckWorker,
   expireFilesWorker: ExpireFilesWorker,
-  processSchedulesWorker: ProcessSchedulesWorker,
   geocodeWorker: GeocodeWorker,
   geocodeRetryWorker: GeocodeRetryWorker,
   propertyImportWorker: ImportPropertyWorker,
@@ -138,13 +136,6 @@ export async function registerWorkers(
     logger.info({ jobId: job.id }, 'Processing report.expire-files job');
     const result = await expireFilesWorker.execute();
     logger.info({ jobId: job.id, expiredCount: result.expiredCount }, 'Report file expiry completed');
-  }));
-
-  await boss.schedule('report.process-schedules', '*/15 * * * *', {});
-  await boss.work('report.process-schedules', withJobMetrics('report.process-schedules', async (job) => {
-    logger.info({ jobId: job.id }, 'Processing report.process-schedules job');
-    const result = await processSchedulesWorker.execute();
-    logger.info({ jobId: job.id, processedCount: result.processedCount, failedCount: result.failedCount }, 'Scheduled report processing completed');
   }));
 
   await boss.work('property.geocode', withJobMetrics('property.geocode', async (job) => {
@@ -252,7 +243,7 @@ export async function registerWorkers(
     logger.info({ jobId: job.id, alertedQueues: result.alertedQueues }, 'DLQ monitor completed');
   }));
 
-  logger.info('pg-boss workers registered: report.generate, report.expire-files, report.process-schedules, notification.send, notification.retry-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import, property.import, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.mark-assets-expired, inspection-execution.notify-not-started, service_group.expire-priority, audit.retention, appointment.reject-unconfirmed, system.dlq-monitor');
+  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import, property.import, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.mark-assets-expired, inspection-execution.notify-not-started, service_group.expire-priority, audit.retention, appointment.reject-unconfirmed, system.dlq-monitor');
 
   // On startup: re-enqueue geocoding for all PENDING/FAILED properties that have no coordinates
   const pendingProperties = await prisma.property.findMany({

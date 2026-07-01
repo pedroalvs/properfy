@@ -2,6 +2,7 @@ import type { IReportRepository, ReportFilters } from '../../domain/report.repos
 import type { ReportEntity } from '../../domain/report.entity';
 import type { IReportStorageService } from '../../domain/report-storage.service';
 import { PRESIGNED_URL_TTL_SECONDS } from '../../domain/report.constants';
+import { ReportForbiddenError } from '../../domain/report.errors';
 import type { ReportType, ReportStatus } from '@properfy/shared';
 
 export interface ListReportsInput {
@@ -28,7 +29,6 @@ export interface ListReportsOutput {
     id: string;
     reportType: string;
     status: string;
-    format: string;
     filters: Record<string, unknown>;
     rowCount: number | null;
     requestedBy: { id: string; name: string };
@@ -55,7 +55,12 @@ export class ListReportsUseCase {
 
   async execute(input: ListReportsInput, auth: AuthContext): Promise<ListReportsOutput> {
     const { reportType, status, fromDate, toDate, page, pageSize } = input;
-    const { userId, tenantId, role } = auth;
+    const { role } = auth;
+
+    // Reports are restricted to operators (AM/OP).
+    if (role !== 'AM' && role !== 'OP') {
+      throw new ReportForbiddenError();
+    }
 
     const filters: ReportFilters = {};
     if (reportType) filters.reportType = reportType;
@@ -63,18 +68,10 @@ export class ListReportsUseCase {
     if (fromDate) filters.fromDate = fromDate;
     if (toDate) filters.toDate = toDate;
 
-    // CL roles only see own reports
-    if (role !== 'AM' && role !== 'OP') {
-      filters.requestedByUserId = userId;
-      if (tenantId) filters.tenantId = tenantId;
-    }
-
     const [data, total] = await Promise.all([
       this.reportRepo.findAll(filters, page, pageSize),
       this.reportRepo.count(filters),
     ]);
-
-    const isOperator = role === 'AM' || role === 'OP';
 
     // Batch-fetch user names for requestedBy
     const userIds = [...new Set(data.map((r) => r.requestedByUserId))];
@@ -111,7 +108,6 @@ export class ListReportsUseCase {
         id: r.id,
         reportType: r.reportType,
         status: r.status,
-        format: r.format,
         filters: r.filtersJson,
         rowCount: r.rowCount,
         requestedBy: {
@@ -121,7 +117,7 @@ export class ListReportsUseCase {
         createdAt: r.createdAt,
         completedAt: r.completedAt,
         expiresAt: r.expiresAt,
-        errorMessage: isOperator ? r.errorMessage : null,
+        errorMessage: r.errorMessage,
         fileUrl: fileUrls.get(r.id) ?? null,
       })),
       meta: {

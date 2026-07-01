@@ -22,7 +22,6 @@ export function ReportDetailSections({ report }: ReportDetailSectionsProps) {
       <FormSection title="Report">
         <DetailRow label="Type" value={<ReportTypeChip reportType={report.reportType} />} />
         <DetailRow label="Status" value={<ReportStatusChip status={report.status} />} />
-        <DetailRow label="Format" value={report.format} />
       </FormSection>
 
       <FormSection title="File">

@@ -5,7 +5,7 @@ import {
   RentalTenantPortalAction,
   ReportType,
   ReportStatus,
-  ReportFormat,
+  ReportDateAxis,
 } from './misc';
 
 describe('AssetKind', () => {
@@ -53,18 +53,30 @@ describe('RentalTenantPortalAction', () => {
 });
 
 describe('ReportType', () => {
-  it('should have all 7 report type values', () => {
-    expect(ReportType.INSPECTIONS_SCHEDULED).toBe('INSPECTIONS_SCHEDULED');
-    expect(ReportType.INSPECTIONS_DONE).toBe('INSPECTIONS_DONE');
-    expect(ReportType.INSPECTIONS_CANCELLED).toBe('INSPECTIONS_CANCELLED');
-    expect(ReportType.INSPECTIONS_REJECTED).toBe('INSPECTIONS_REJECTED');
-    expect(ReportType.INSPECTOR_PERFORMANCE).toBe('INSPECTOR_PERFORMANCE');
-    expect(ReportType.CONFIRMATION_STATUS).toBe('CONFIRMATION_STATUS');
-    expect(ReportType.FINANCIAL_SERVICES).toBe('FINANCIAL_SERVICES');
+  it('should have the 4 scoped report type values', () => {
+    expect(ReportType.APPOINTMENTS).toBe('APPOINTMENTS');
+    expect(ReportType.FINANCIAL).toBe('FINANCIAL');
+    expect(ReportType.PERFORMANCE).toBe('PERFORMANCE');
+    expect(ReportType.AGENCIES).toBe('AGENCIES');
   });
 
-  it('should have exactly 7 types', () => {
-    expect(Object.keys(ReportType)).toHaveLength(7);
+  it('should have exactly 4 types', () => {
+    expect(Object.keys(ReportType)).toHaveLength(4);
+  });
+
+  it('should not carry the removed legacy split/confirmation types', () => {
+    const values = Object.values(ReportType) as string[];
+    for (const legacy of [
+      'INSPECTIONS_SCHEDULED',
+      'INSPECTIONS_DONE',
+      'INSPECTIONS_CANCELLED',
+      'INSPECTIONS_REJECTED',
+      'INSPECTOR_PERFORMANCE',
+      'CONFIRMATION_STATUS',
+      'FINANCIAL_SERVICES',
+    ]) {
+      expect(values).not.toContain(legacy);
+    }
   });
 });
 
@@ -81,14 +93,14 @@ describe('ReportStatus', () => {
   });
 });
 
-describe('ReportFormat', () => {
-  it('should have XLSX, CSV, PDF values', () => {
-    expect(ReportFormat.XLSX).toBe('XLSX');
-    expect(ReportFormat.CSV).toBe('CSV');
-    expect(ReportFormat.PDF).toBe('PDF');
+describe('ReportDateAxis', () => {
+  it('should have SCHEDULED, CREATED, COMPLETED values', () => {
+    expect(ReportDateAxis.SCHEDULED).toBe('SCHEDULED');
+    expect(ReportDateAxis.CREATED).toBe('CREATED');
+    expect(ReportDateAxis.COMPLETED).toBe('COMPLETED');
   });
 
-  it('should have exactly 3 formats', () => {
-    expect(Object.keys(ReportFormat)).toHaveLength(3);
+  it('should have exactly 3 axes', () => {
+    expect(Object.keys(ReportDateAxis)).toHaveLength(3);
   });
 });

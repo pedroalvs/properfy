@@ -24,13 +24,10 @@ export const RentalTenantPortalAction = {
 export type RentalTenantPortalAction = (typeof RentalTenantPortalAction)[keyof typeof RentalTenantPortalAction];
 
 export const ReportType = {
-  INSPECTIONS_SCHEDULED: 'INSPECTIONS_SCHEDULED',
-  INSPECTIONS_DONE: 'INSPECTIONS_DONE',
-  INSPECTIONS_CANCELLED: 'INSPECTIONS_CANCELLED',
-  INSPECTIONS_REJECTED: 'INSPECTIONS_REJECTED',
-  INSPECTOR_PERFORMANCE: 'INSPECTOR_PERFORMANCE',
-  CONFIRMATION_STATUS: 'CONFIRMATION_STATUS',
-  FINANCIAL_SERVICES: 'FINANCIAL_SERVICES',
+  APPOINTMENTS: 'APPOINTMENTS',
+  FINANCIAL: 'FINANCIAL',
+  PERFORMANCE: 'PERFORMANCE',
+  AGENCIES: 'AGENCIES',
 } as const;
 export type ReportType = (typeof ReportType)[keyof typeof ReportType];
 
@@ -42,9 +39,17 @@ export const ReportStatus = {
 } as const;
 export type ReportStatus = (typeof ReportStatus)[keyof typeof ReportStatus];
 
-export const ReportFormat = {
-  XLSX: 'XLSX',
-  CSV: 'CSV',
-  PDF: 'PDF',
+/**
+ * Date axis for the report Period filter — selects which real appointment
+ * timestamp the range applies to:
+ *   SCHEDULED → appointments.scheduled_date
+ *   CREATED   → appointments.created_at
+ *   COMPLETED → appointments.done_checked_at
+ * Financial reports ignore this axis and range on financial_entries.effective_at.
+ */
+export const ReportDateAxis = {
+  SCHEDULED: 'SCHEDULED',
+  CREATED: 'CREATED',
+  COMPLETED: 'COMPLETED',
 } as const;
-export type ReportFormat = (typeof ReportFormat)[keyof typeof ReportFormat];
+export type ReportDateAxis = (typeof ReportDateAxis)[keyof typeof ReportDateAxis];

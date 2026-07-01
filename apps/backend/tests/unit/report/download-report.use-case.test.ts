@@ -9,17 +9,17 @@ import {
   ReportNotFoundError,
   ReportNotReadyError,
   ReportExpiredError,
+  ReportForbiddenError,
 } from '../../../src/modules/report/domain/report.errors';
 
 function makeReport(overrides: Partial<ReportProps> = {}): ReportEntity {
   return new ReportEntity({
     id: 'report-1',
     tenantId: 'tenant-1',
-    reportType: 'INSPECTIONS_DONE',
+    reportType: 'APPOINTMENTS',
     filtersJson: { fromDate: '2026-03-01', toDate: '2026-03-15' },
-    format: 'XLSX',
     status: 'READY',
-    fileKey: 'reports/tenant-1/INSPECTIONS_DONE/report-1.xlsx',
+    fileKey: 'reports/tenant-1/APPOINTMENTS/report-1.xlsx',
     requestedByUserId: 'user-1',
     startedAt: new Date('2026-03-16T07:00:02Z'),
     completedAt: new Date('2026-03-16T07:00:45Z'),
@@ -75,7 +75,7 @@ describe('DownloadReportUseCase', () => {
 
     expect(result.downloadUrl).toBe('https://storage.example.com/signed-url');
     expect(storage.generatePresignedGetUrl).toHaveBeenCalledWith(
-      'reports/tenant-1/INSPECTIONS_DONE/report-1.xlsx',
+      'reports/tenant-1/APPOINTMENTS/report-1.xlsx',
       3600,
     );
   });
@@ -87,7 +87,7 @@ describe('DownloadReportUseCase', () => {
 
     const result = await useCase.execute('report-1', defaultAuth);
 
-    expect(result.fileName).toBe('inspections-done-2026-03-01-to-2026-03-15.xlsx');
+    expect(result.fileName).toBe('appointments-2026-03-01-to-2026-03-15.xlsx');
   });
 
   it('returns expiresAt in the future', async () => {
@@ -146,24 +146,13 @@ describe('DownloadReportUseCase', () => {
     expect(result.downloadUrl).toBe('https://storage.example.com/signed-url');
   });
 
-  it('CL_ADMIN can download own report', async () => {
-    const report = makeReport({ requestedByUserId: 'cl-admin-1' });
-    vi.mocked(repo.findById).mockResolvedValue(report);
-    vi.mocked(storage.generatePresignedGetUrl).mockResolvedValue('https://storage.example.com/signed-url');
-
-    const auth: AuthContext = { userId: 'cl-admin-1', tenantId: 'tenant-1', role: 'CL_ADMIN', branchId: null, inspectorId: null };
-    const result = await useCase.execute('report-1', auth);
-
-    expect(result.downloadUrl).toBe('https://storage.example.com/signed-url');
-  });
-
-  it('CL_ADMIN accessing another user report throws ReportNotFoundError', async () => {
-    const report = makeReport({ requestedByUserId: 'other-user' });
+  it.each(['CL_ADMIN', 'CL_USER', 'INSP'] as const)('%s download is forbidden', async (role) => {
+    const report = makeReport({ requestedByUserId: 'user-1' });
     vi.mocked(repo.findById).mockResolvedValue(report);
 
-    const auth: AuthContext = { userId: 'cl-admin-1', tenantId: 'tenant-1', role: 'CL_ADMIN', branchId: null, inspectorId: null };
+    const auth: AuthContext = { userId: 'user-1', tenantId: 'tenant-1', role, branchId: null, inspectorId: null };
 
-    await expect(useCase.execute('report-1', auth)).rejects.toThrow(ReportNotFoundError);
+    await expect(useCase.execute('report-1', auth)).rejects.toThrow(ReportForbiddenError);
   });
 
   it('throws ReportNotFoundError when fileKey is null on READY report', async () => {

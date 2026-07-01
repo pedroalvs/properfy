@@ -1,7 +1,7 @@
 import type { IReportRepository } from '../../domain/report.repository';
 import type { IReportStorageService } from '../../domain/report-storage.service';
 import { PRESIGNED_URL_TTL_SECONDS } from '../../domain/report.constants';
-import { ReportNotFoundError } from '../../domain/report.errors';
+import { ReportNotFoundError, ReportForbiddenError } from '../../domain/report.errors';
 
 export interface AuthContext {
   userId: string;
@@ -17,7 +17,6 @@ export interface GetReportStatusOutput {
   id: string;
   reportType: string;
   status: string;
-  format: string;
   filters: Record<string, unknown>;
   rowCount: number | null;
   requestedBy: { id: string; name: string };
@@ -44,14 +43,10 @@ export class GetReportStatusUseCase {
       throw new ReportNotFoundError();
     }
 
-    // Access control: AM/OP can access any; others only own reports
+    // Access control: reports are restricted to operators (AM/OP).
     if (auth.role !== 'AM' && auth.role !== 'OP') {
-      if (report.requestedByUserId !== auth.userId) {
-        throw new ReportNotFoundError();
-      }
+      throw new ReportForbiddenError();
     }
-
-    const isOperator = auth.role === 'AM' || auth.role === 'OP';
 
     // Resolve user name for requestedBy
     let userName = 'Unknown';
@@ -73,7 +68,6 @@ export class GetReportStatusUseCase {
       id: report.id,
       reportType: report.reportType,
       status: report.status,
-      format: report.format,
       filters: report.filtersJson,
       rowCount: report.rowCount,
       requestedBy: { id: report.requestedByUserId, name: userName },
@@ -82,7 +76,7 @@ export class GetReportStatusUseCase {
       completedAt: report.completedAt,
       failedAt: report.failedAt,
       expiresAt: report.expiresAt,
-      errorMessage: isOperator ? report.errorMessage : null,
+      errorMessage: report.errorMessage,
       fileUrl,
     };
   }
