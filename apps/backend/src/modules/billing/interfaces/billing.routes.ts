@@ -15,6 +15,7 @@ import {
   regenerateInvoiceSchema,
   rejectDraftInvoiceSchema,
   financialEntryResponseSchema,
+  agencyFinancialExportResponseSchema,
   invoiceResponseSchema,
   invoiceDownloadResponseSchema,
   successResponseSchema,
@@ -44,6 +45,7 @@ import type { VoidFinancialEntryUseCase } from '../application/use-cases/void-fi
 import type { RegenerateInspectorInvoiceUseCase } from '../application/use-cases/regenerate-inspector-invoice.use-case';
 import type { ApproveDraftInvoiceUseCase } from '../application/use-cases/approve-draft-invoice.use-case';
 import type { RejectDraftInvoiceUseCase } from '../application/use-cases/reject-draft-invoice.use-case';
+import type { ExportAgencyFinancialUseCase } from '../application/use-cases/export-agency-financial.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 import type { AuthorizationService } from '../../../shared/domain/authorization.service';
 
@@ -68,6 +70,7 @@ export interface BillingRouteContainer {
   regenerateInspectorInvoiceUseCase: RegenerateInspectorInvoiceUseCase;
   approveDraftInvoiceUseCase: ApproveDraftInvoiceUseCase;
   rejectDraftInvoiceUseCase: RejectDraftInvoiceUseCase;
+  exportAgencyFinancialUseCase: ExportAgencyFinancialUseCase;
   authorizationService: AuthorizationService;
   jwtService: JwtService;
   tenantRepo: {
@@ -169,6 +172,33 @@ export async function registerBillingRoutes(
         actor,
       });
       return reply.status(200).send(paginated(result.data, result.total, page, pageSize));
+    },
+  );
+
+  // GET /v1/financial/export — 031: own-tenant financial statement XLSX (agency report)
+  app.get(
+    '/v1/financial/export',
+    {
+      preHandler: authenticate,
+      schema: {
+        querystring: z.object({
+          tenantId: z.string().uuid().optional(),
+          fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD').optional(),
+          toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD').optional(),
+        }),
+        response: { 200: successResponseSchema(agencyFinancialExportResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      assertAgencyRead(request.authContext!, 'financial.agency_export');
+      const query = request.query as { tenantId?: string; fromDate?: string; toDate?: string };
+      const result = await container.exportAgencyFinancialUseCase.execute({
+        tenantId: query.tenantId,
+        fromDate: query.fromDate,
+        toDate: query.toDate,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
     },
   );
 

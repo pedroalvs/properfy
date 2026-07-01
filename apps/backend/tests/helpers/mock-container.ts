@@ -249,6 +249,7 @@ export function createMockContainer(
       regenerateInspectorInvoiceUseCase: { execute: vi.fn() },
       approveDraftInvoiceUseCase: { execute: vi.fn() },
       rejectDraftInvoiceUseCase: { execute: vi.fn() },
+      exportAgencyFinancialUseCase: { execute: vi.fn() },
       // Real service so route-level assertRoles / assertClUserPermission enforce
       // for real in integration tests (not a no-op mock).
       authorizationService: new AuthorizationService({ log: vi.fn() } as never),

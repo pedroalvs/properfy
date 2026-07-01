@@ -15,6 +15,7 @@ import { createMockContainer } from '../../helpers/mock-container';
 
 const mockListEntries = vi.fn();
 const mockGetSummary = vi.fn();
+const mockExport = vi.fn();
 const mockJwtVerify = vi.fn();
 const mockTenantFindById = vi.fn();
 
@@ -37,6 +38,7 @@ vi.mock('../../../src/main/container', () => ({
       billing: {
         listFinancialEntriesUseCase: { execute: mockListEntries },
         getFinancialSummaryUseCase: { execute: mockGetSummary },
+        exportAgencyFinancialUseCase: { execute: mockExport },
         jwtService: { verify: mockJwtVerify },
         tenantRepo: { findById: mockTenantFindById },
       },
@@ -80,6 +82,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockListEntries.mockResolvedValue(emptyPage);
   mockGetSummary.mockResolvedValue(summary);
+  mockExport.mockResolvedValue({ filename: 'financial-statement.xlsx', contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', contentBase64: 'WExTWA==' });
 });
 
 describe('031 PR-4 — GET /v1/financial/entries agency read', () => {
@@ -146,5 +149,36 @@ describe('031 PR-4 — GET /v1/financial/entries/summary agency read', () => {
     mockJwtVerify.mockResolvedValueOnce(am);
     await supertest(app.server).get('/v1/financial/entries/summary').set('Authorization', 'Bearer t').expect(200);
     expect(mockGetSummary).toHaveBeenCalledOnce();
+  });
+});
+
+describe('031 PR-5 — GET /v1/financial/export (agency statement XLSX)', () => {
+  it('CL_ADMIN → 200 with a base64 XLSX payload', async () => {
+    tenantWithoutFlag();
+    mockJwtVerify.mockResolvedValueOnce(clAdmin);
+    const res = await supertest(app.server).get('/v1/financial/export').set('Authorization', 'Bearer t').expect(200);
+    expect(res.body.data.contentBase64).toBe('WExTWA==');
+    expect(res.body.data.filename).toBe('financial-statement.xlsx');
+    expect(mockExport).toHaveBeenCalledOnce();
+  });
+
+  it('CL_USER with view_financials → 200', async () => {
+    tenantWithFlag();
+    mockJwtVerify.mockResolvedValueOnce(clUser);
+    await supertest(app.server).get('/v1/financial/export').set('Authorization', 'Bearer t').expect(200);
+    expect(mockExport).toHaveBeenCalledOnce();
+  });
+
+  it('CL_USER without view_financials → 403 and use case not called', async () => {
+    tenantWithoutFlag();
+    mockJwtVerify.mockResolvedValueOnce(clUser);
+    await supertest(app.server).get('/v1/financial/export').set('Authorization', 'Bearer t').expect(403);
+    expect(mockExport).not.toHaveBeenCalled();
+  });
+
+  it('INSP → 403 (inspectors have no agency export)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(insp);
+    await supertest(app.server).get('/v1/financial/export').set('Authorization', 'Bearer t').expect(403);
+    expect(mockExport).not.toHaveBeenCalled();
   });
 });

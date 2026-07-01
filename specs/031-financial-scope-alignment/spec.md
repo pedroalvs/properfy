@@ -75,8 +75,10 @@ CL_ADMIN/CL_USER are always own-tenant scoped and see only Agency-relevant entry
    container; unify route-level role checks onto `assertRoles` + `assertClUserPermission`; open
    the entries + summary reads to CL_ADMIN / flagged CL_USER, scoped own-tenant and excluding
    `INSPECTOR_PAYOUT`; hide `totalPayouts` from agencies in the summary.
-5. **PR-5 — Backend Agency services-rendered + scoped XLSX export** (own-tenant read + report
-   `IXlsxGenerator` reuse).
+5. **PR-5 (this) — Backend Agency scoped XLSX export** (`GET /v1/financial/export`, own-tenant
+   statement via report `IXlsxGenerator` reuse). *Services-rendered is delivered as a web tab
+   over the existing `entries?type=TENANT_DEBIT` endpoint (PR-6) — each debit is a rendered
+   service — rather than a redundant backend endpoint.*
 6. **PR-6 — Web Agency financial surface + client-side gating** (`/v1/me` flags).
 7. **PR-7 — PWA earnings/history redesign** (parallelizable after PR-1).
 
@@ -141,3 +143,15 @@ Backoffice financial actions (`financial.view/approve/manual_adjustment/refund`)
 - **FR-031-14:** Route-level RBAC on entries/summary/approve/adjust is unified onto
   `AuthorizationService.assertRoles` (+ `assertClUserPermission`), replacing bespoke inline role
   arrays; denials are audited. Inspector-invoice routes are unchanged.
+
+## PR-5 functional requirements (delivered)
+
+- **FR-031-15:** `GET /v1/financial/export` returns a synchronous own-tenant financial statement
+  XLSX (base64 JSON: `{ filename, contentType, contentBase64 }`), gated by `financial.agency_export`
+  (AM/OP/CL_ADMIN unconditionally; CL_USER via `view_financials`; INSP denied). CL roles are
+  forced to their own tenant; the statement contains only agency-visible entry types (no
+  `INSPECTOR_PAYOUT`) and is never silently truncated by a page size.
+- **FR-031-16:** The export reuses the report module's `IXlsxGenerator` port (import-only, no
+  report-module change), consistent with the existing billing→report coupling.
+- **FR-031-17:** "Services rendered" is the `entries?type=TENANT_DEBIT` view (each debit = a
+  completed inspection), surfaced as a web tab in PR-6 — no separate backend endpoint.
