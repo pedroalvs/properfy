@@ -298,15 +298,6 @@ export function createMockContainer(
       jwtService: { ...defaultJwt },
       tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['dashboard'],
-    appointmentTimeSlot: {
-      createAppointmentTimeSlotUseCase: { execute: vi.fn() },
-      updateAppointmentTimeSlotUseCase: { execute: vi.fn() },
-      listAppointmentTimeSlotsUseCase: { execute: vi.fn() },
-      listEffectiveTimeSlotsUseCase: { execute: vi.fn() },
-      deleteAppointmentTimeSlotUseCase: { execute: vi.fn() },
-      jwtService: { ...defaultJwt },
-      tenantRepo: { ...defaultTenantRepo },
-    } as AppContainer['appointmentTimeSlot'],
     serviceRegion: {
       createServiceRegionUseCase: { execute: vi.fn() },
       updateServiceRegionUseCase: { execute: vi.fn() },

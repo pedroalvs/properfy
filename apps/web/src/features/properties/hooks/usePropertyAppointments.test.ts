@@ -31,7 +31,7 @@ import { createQueryWrapper } from '@/test-utils/test-wrappers';
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_APPOINTMENTS = [
-  { id: 'apt-01', code: 'VST-001', status: 'SCHEDULED', serviceTypeName: 'Routine', scheduledDate: '2026-04-01', timeSlot: '09:00-12:00', inspectorName: 'Diego', createdAt: '2026-03-01T10:00:00Z' },
+  { id: 'apt-01', code: 'VST-001', status: 'SCHEDULED', serviceTypeName: 'Routine', scheduledDate: '2026-04-01', timeSlotStart: '09:00', timeSlotEnd: '12:00', inspectorName: 'Diego', createdAt: '2026-03-01T10:00:00Z' },
 ];
 
 beforeEach(() => {

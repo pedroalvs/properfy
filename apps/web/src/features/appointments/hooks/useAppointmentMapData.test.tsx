@@ -50,7 +50,7 @@ const MOCK_DATA = [
     latitude: -33.8688,
     longitude: 151.2093,
     scheduledDate: '2026-04-01',
-    timeSlot: '09:00-12:00',
+    timeSlotStart: '09:00', timeSlotEnd: '12:00',
     inspectorName: 'John',
     branchName: 'Central',
   },

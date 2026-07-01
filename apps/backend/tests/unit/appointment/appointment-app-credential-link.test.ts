@@ -80,8 +80,8 @@ function makeActor(): AuthContext {
 
 const baseInput = {
   branchId: BRANCH_B, propertyId: PROPERTY_B, serviceTypeId: 'svc-type-1',
-  scheduledDate: futureDateStr(60), timeSlot: '09:00-10:00', keyRequired: false,
-  contacts: [{ contactId: undefined, inline: { type: 'RENTAL_TENANT', displayName: 'Pat', primaryEmail: 'p@x.com' }, role: 'RENTAL_TENANT', isPrimary: true }] as any,
+  scheduledDate: futureDateStr(60), timeSlotStart: '09:00', timeSlotEnd: '10:00', keyRequired: false,
+  contacts: [{ contactId: undefined, inline: { type: 'TENANT', displayName: 'Pat', primaryEmail: 'p@x.com' }, role: 'TENANT', isPrimary: true }] as any,
 };
 
 describe('CreateAppointmentUseCase — app-credential linking', () => {
@@ -95,7 +95,7 @@ describe('CreateAppointmentUseCase — app-credential linking', () => {
     useCase = new CreateAppointmentUseCase(
       repos.appointmentRepo, repos.branchRepo, repos.propertyRepo, repos.serviceTypeRepo, repos.pricingRuleRepo,
       { execute: vi.fn() } as any, repos.auditService, new AuthorizationService(repos.auditService),
-      undefined, undefined, (repos as any).contactRepo, undefined, undefined, repos.appCredentialRepo,
+      undefined, (repos as any).contactRepo, undefined, undefined, repos.appCredentialRepo,
     );
   });
 

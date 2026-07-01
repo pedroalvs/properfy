@@ -218,9 +218,6 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
   },
 
   // ── Configuration ────────────────────────────────────────────────────
-  'config.time_slots': {
-    roles: ['AM', 'OP', 'CL_ADMIN'],
-  },
   'config.service_types': {
     roles: ['AM', 'OP'],
   },

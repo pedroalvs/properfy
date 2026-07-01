@@ -230,7 +230,7 @@ describe('POST /v1/appointments/bulk-edit', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({
         ids: tooManyIds,
-        changes: { timeSlot: '10:00-11:00' },
+        changes: { timeSlotStart: '10:00', timeSlotEnd: '11:00' },
       });
 
     expect(res.status).toBe(400);
@@ -251,7 +251,7 @@ describe('POST /v1/appointments/bulk-edit', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({
         ids: [APPT_1],
-        changes: { timeSlot: '10:00-11:00' },
+        changes: { timeSlotStart: '10:00', timeSlotEnd: '11:00' },
       });
 
     expect(res.status).toBe(200);
@@ -267,7 +267,7 @@ describe('POST /v1/appointments/bulk-edit', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({
         ids: [APPT_1],
-        changes: { timeSlot: '10:00-11:00' },
+        changes: { timeSlotStart: '10:00', timeSlotEnd: '11:00' },
       });
 
     expect(res.status).toBe(200);
@@ -286,7 +286,7 @@ describe('POST /v1/appointments/bulk-edit', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({
         ids: [APPT_1],
-        changes: { timeSlot: '10:00-11:00' },
+        changes: { timeSlotStart: '10:00', timeSlotEnd: '11:00' },
       });
 
     expect(res.status).toBe(403);
@@ -306,7 +306,7 @@ describe('POST /v1/appointments/bulk-edit', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({
         ids: [APPT_1],
-        changes: { timeSlot: '10:00-11:00' },
+        changes: { timeSlotStart: '10:00', timeSlotEnd: '11:00' },
       });
 
     expect(res.status).toBe(403);
@@ -374,7 +374,7 @@ describe('POST /v1/appointments/bulk-edit', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({
         ids: [APPT_1],
-        changes: { timeSlot: '10:00-11:00' },
+        changes: { timeSlotStart: '10:00', timeSlotEnd: '11:00' },
       });
 
     expect(res.status).toBe(200);
@@ -396,7 +396,7 @@ describe('POST /v1/appointments/bulk-edit', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({
         ids: [APPT_1],
-        changes: { timeSlot: '10:00-11:00' },
+        changes: { timeSlotStart: '10:00', timeSlotEnd: '11:00' },
       });
 
     expect(res.status).toBe(200);
@@ -417,7 +417,7 @@ describe('POST /v1/appointments/bulk-edit', () => {
     const res = await supertest(app.server)
       .post('/v1/appointments/bulk-edit')
       .set('Authorization', 'Bearer valid-token')
-      .send({ changes: { timeSlot: '10:00-11:00' } });
+      .send({ changes: { timeSlotStart: '10:00', timeSlotEnd: '11:00' } });
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
@@ -429,7 +429,7 @@ describe('POST /v1/appointments/bulk-edit', () => {
     const res = await supertest(app.server)
       .post('/v1/appointments/bulk-edit')
       .set('Authorization', 'Bearer valid-token')
-      .send({ ids: [], changes: { timeSlot: '10:00-11:00' } });
+      .send({ ids: [], changes: { timeSlotStart: '10:00', timeSlotEnd: '11:00' } });
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
@@ -455,7 +455,7 @@ describe('POST /v1/appointments/bulk-edit', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({
         ids: ['not-a-uuid'],
-        changes: { timeSlot: '10:00-11:00' },
+        changes: { timeSlotStart: '10:00', timeSlotEnd: '11:00' },
       });
 
     expect(res.status).toBe(400);
@@ -467,7 +467,7 @@ describe('POST /v1/appointments/bulk-edit', () => {
       .post('/v1/appointments/bulk-edit')
       .send({
         ids: [APPT_1],
-        changes: { timeSlot: '10:00-11:00' },
+        changes: { timeSlotStart: '10:00', timeSlotEnd: '11:00' },
       });
 
     expect(res.status).toBe(401);
@@ -489,7 +489,7 @@ describe('POST /v1/appointments/bulk-edit', () => {
         changes: {
           assignedInspectorId: INSPECTOR_ID,
           scheduledDate: '2027-09-15',
-          timeSlot: '09:00-10:00',
+          timeSlotStart: '09:00', timeSlotEnd: '10:00',
         },
       });
 
@@ -500,7 +500,7 @@ describe('POST /v1/appointments/bulk-edit', () => {
         changes: {
           assignedInspectorId: INSPECTOR_ID,
           scheduledDate: '2027-09-15',
-          timeSlot: '09:00-10:00',
+          timeSlotStart: '09:00', timeSlotEnd: '10:00',
         },
       }),
     );

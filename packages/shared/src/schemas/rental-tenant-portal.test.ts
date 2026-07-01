@@ -82,7 +82,8 @@ describe('rescheduleRequestPortalSchema', () => {
   })();
   const validInput = {
     newDate: futureDate,
-    newTimeSlot: '08:00-10:00',
+    newTimeSlotStart: '08:00',
+    newTimeSlotEnd: '10:00',
   };
 
   it('should accept valid input', () => {
@@ -112,24 +113,35 @@ describe('rescheduleRequestPortalSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('should reject missing newTimeSlot', () => {
-    const { newTimeSlot: _newTimeSlot, ...rest } = validInput;
+  it('should reject missing new time window', () => {
+    const { newTimeSlotStart: _s, newTimeSlotEnd: _e, ...rest } = validInput;
     const result = rescheduleRequestPortalSchema.safeParse(rest);
     expect(result.success).toBe(false);
   });
 
-  it('should reject empty newTimeSlot', () => {
+  it('should reject empty new time window', () => {
     const result = rescheduleRequestPortalSchema.safeParse({
       ...validInput,
-      newTimeSlot: '',
+      newTimeSlotStart: '',
+      newTimeSlotEnd: '',
     });
     expect(result.success).toBe(false);
   });
 
-  it('should reject newTimeSlot exceeding 50 characters', () => {
+  it('should reject a malformed time', () => {
     const result = rescheduleRequestPortalSchema.safeParse({
       ...validInput,
-      newTimeSlot: 'x'.repeat(51),
+      newTimeSlotStart: '8am',
+      newTimeSlotEnd: '10am',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject end time not after start time', () => {
+    const result = rescheduleRequestPortalSchema.safeParse({
+      ...validInput,
+      newTimeSlotStart: '10:00',
+      newTimeSlotEnd: '08:00',
     });
     expect(result.success).toBe(false);
   });
@@ -220,7 +232,8 @@ describe('rescheduleRequestPortalResponseSchema', () => {
   it('should accept the real reschedule command response', () => {
     const result = rescheduleRequestPortalResponseSchema.safeParse({
       scheduledDate: '2026-05-01',
-      timeSlot: '09:00-10:00',
+      timeSlotStart: '09:00',
+      timeSlotEnd: '10:00',
       rentalTenantConfirmationStatus: 'PENDING',
     });
     expect(result.success).toBe(true);

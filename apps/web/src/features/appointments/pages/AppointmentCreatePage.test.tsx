@@ -116,7 +116,8 @@ describe('AppointmentCreatePage', () => {
     expect(screen.getByLabelText('Property')).toBeInTheDocument();
     expect(screen.getByLabelText('Service Type')).toBeInTheDocument();
     expect(screen.getByLabelText('Scheduled Date')).toBeInTheDocument();
-    expect(screen.getByLabelText('Time Slot')).toBeInTheDocument();
+    expect(screen.getByLabelText('Start time')).toBeInTheDocument();
+    expect(screen.getByLabelText('End time')).toBeInTheDocument();
     expect(screen.getByLabelText('Tenant Name')).toBeInTheDocument();
   });
 

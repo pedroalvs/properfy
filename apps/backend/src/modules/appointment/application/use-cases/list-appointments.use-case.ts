@@ -23,7 +23,8 @@ export interface ListAppointmentsInput {
     showCancelled?: boolean;
     overdueOnly?: boolean;
     ungroupedOnly?: boolean;
-    timeSlot?: string;
+    timeFrom?: string;
+    timeTo?: string;
     contactSearch?: string;
     hasRentalTenantNote?: boolean;
     confirmationStatus?: string;
@@ -44,7 +45,8 @@ export interface ListAppointmentsOutput {
     inspectorId: string | null;
     status: string;
     scheduledDate: Date;
-    timeSlot: string;
+    timeSlotStart: string;
+    timeSlotEnd: string;
     keyRequired: boolean;
     meetingLocation: string | null;
     keyLocation: string | null;
@@ -133,7 +135,8 @@ export class ListAppointmentsUseCase {
       showCancelled: filters.showCancelled,
       overdueOnly: filters.overdueOnly,
       ungroupedOnly: filters.ungroupedOnly,
-      timeSlot: filters.timeSlot,
+      timeFrom: filters.timeFrom,
+      timeTo: filters.timeTo,
       contactSearch: filters.contactSearch,
       hasRentalTenantNote: filters.hasRentalTenantNote,
       confirmationStatus: filters.confirmationStatus,
@@ -160,7 +163,8 @@ export class ListAppointmentsUseCase {
         inspectorId: item.appointment.inspectorId,
         status: item.appointment.status,
         scheduledDate: item.appointment.scheduledDate,
-        timeSlot: item.appointment.timeSlot,
+        timeSlotStart: item.appointment.timeSlotStart,
+        timeSlotEnd: item.appointment.timeSlotEnd,
         keyRequired: item.appointment.keyRequired,
         meetingLocation: item.appointment.meetingLocation,
         keyLocation: item.appointment.keyLocation,

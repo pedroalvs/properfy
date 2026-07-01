@@ -194,7 +194,6 @@ model Tenant {
   reports                Report[]
   appointment_imports    AppointmentImport[]
   property_imports       PropertyImport[]
-  appointment_time_slots AppointmentTimeSlot[]
   service_regions        ServiceRegion[]
   contacts               Contact[]
   app_credentials        AppCredential[]
@@ -220,7 +219,6 @@ model Branch {
   properties             Property[]
   price_rules            ServicePriceRule[]
   appointments           Appointment[]
-  appointment_time_slots AppointmentTimeSlot[]
 
   // Case-insensitive unique index on (tenant_id, lower(name)) managed via raw SQL migration
   @@index([tenant_id, name])
@@ -490,7 +488,8 @@ model Appointment {
   service_group_id             String?
   status                       AppointmentStatus        @default(DRAFT)
   scheduled_date               DateTime                 @db.Date
-  time_slot                    String                   @db.VarChar(50)
+  time_slot_start              String                   @db.VarChar(5)
+  time_slot_end                String                   @db.VarChar(5)
   key_required                 Boolean                  @default(false)
   meeting_location             String?                  @db.VarChar(500)
   key_location                 String?                  @db.VarChar(500)
@@ -1420,27 +1419,6 @@ model PropertyImport {
   @@map("property_imports")
 }
 
-model AppointmentTimeSlot {
-  id         String    @id @default(uuid())
-  tenant_id  String
-  branch_id  String?
-  label      String    @db.VarChar(100)
-  start_time String    @db.VarChar(5)
-  end_time   String    @db.VarChar(5)
-  sort_order Int       @default(0)
-  is_active  Boolean   @default(true)
-  created_at DateTime  @default(now())
-  updated_at DateTime  @updatedAt
-  deleted_at DateTime?
-
-  tenant Tenant  @relation(fields: [tenant_id], references: [id])
-  branch Branch? @relation(fields: [branch_id], references: [id])
-
-  @@unique([tenant_id, branch_id, start_time, end_time])
-  @@index([tenant_id, branch_id, is_active])
-  @@index([tenant_id, is_active])
-  @@map("appointment_time_slots")
-}
 
 enum RegionStatus {
   ACTIVE

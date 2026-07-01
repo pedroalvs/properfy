@@ -6,7 +6,6 @@ export interface InspectorAppointment {
   propertyAddress: string;
   suburb: string;
   scheduledDate: string;
-  timeSlot: string;
   timeSlotStart: string;
   timeSlotEnd: string;
   status: AppointmentStatus;
@@ -71,7 +70,6 @@ export interface InspectorAppointmentDetailResponse {
     appointmentCode: string;
     status: AppointmentStatus;
     scheduledDate: string;
-    timeSlot: string;
     timeSlotStart: string;
     timeSlotEnd: string;
     propertyAddress: string;

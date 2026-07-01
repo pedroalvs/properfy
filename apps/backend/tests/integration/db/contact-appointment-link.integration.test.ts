@@ -118,7 +118,7 @@ beforeAll(async () => {
       tenant_id: tenantB.id, branch_id: branchB.id,
       property_id: propertyB.id, service_type_id: serviceType.id,
       status: 'SCHEDULED', scheduled_date: new Date(futureDateStr(60)),
-      time_slot: '09:00-10:00',
+      time_slot_start: '09:00', time_slot_end: '10:00',
       price_amount: '100.00', payout_amount: '80.00',
       pricing_rule_snapshot_json: {},
       rental_tenant_confirmation_status: 'CONFIRMED',
@@ -242,7 +242,6 @@ function buildCreateUseCase() {
     auditService,
     new AuthorizationService(auditService),
     undefined, // tenantRepo
-    undefined, // timeSlotRepo
     contactRepo, // REAL Prisma-backed repo — the SQL contract under test.
   );
   return { useCase, appointmentRepo };
@@ -281,7 +280,7 @@ const baseInputForCreate = () => ({
   propertyId: seed.propertyB,
   serviceTypeId: seed.serviceTypeId,
   scheduledDate: futureDateStr(60),
-  timeSlot: '09:00-10:00',
+  timeSlotStart: '09:00', timeSlotEnd: '10:00',
   keyRequired: false,
 });
 
@@ -368,7 +367,7 @@ describe('BUG-024-002 — UpdateAppointmentUseCase against real Postgres (parity
         tenantId: seed.tenantB, branchId: seed.branchB,
         propertyId: seed.propertyB, serviceTypeId: seed.serviceTypeId,
         inspectorId: null, status: 'DRAFT',
-        scheduledDate: new Date(futureDateStr(60)), timeSlot: '09:00-10:00',
+        scheduledDate: new Date(futureDateStr(60)), timeSlotStart: '09:00', timeSlotEnd: '10:00',
         keyRequired: false, meetingLocation: null, keyLocation: null,
         rentalTenantConfirmationStatus: 'PENDING',
         priceAmount: 150, payoutAmount: 80, pricingRuleSnapshotJson: {},
@@ -387,7 +386,6 @@ describe('BUG-024-002 — UpdateAppointmentUseCase against real Postgres (parity
       auditService,
       new AuthorizationService(auditService),
       undefined, // tenantRepo
-      undefined, // timeSlotRepo
       contactRepo, // REAL Prisma-backed repo
     );
     return { useCase, appointmentRepo };

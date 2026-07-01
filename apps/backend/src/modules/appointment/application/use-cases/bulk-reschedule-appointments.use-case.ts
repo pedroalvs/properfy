@@ -10,7 +10,8 @@ export interface BulkRescheduleAppointmentsInput {
   appointmentIds: string[];
   /** ISO date (YYYY-MM-DD) or full datetime — normalised to YYYY-MM-DD here. */
   newDate: string;
-  newTimeSlot?: string;
+  newTimeSlotStart?: string;
+  newTimeSlotEnd?: string;
   actor: AuthContext;
   actorTimezone?: string;
 }
@@ -61,7 +62,9 @@ export class BulkRescheduleAppointmentsUseCase {
           appointmentId,
           data: {
             scheduledDate: newDate,
-            ...(input.newTimeSlot ? { timeSlot: input.newTimeSlot } : {}),
+            ...(input.newTimeSlotStart && input.newTimeSlotEnd
+              ? { timeSlotStart: input.newTimeSlotStart, timeSlotEnd: input.newTimeSlotEnd }
+              : {}),
           },
           actorTimezone: input.actorTimezone,
           actor: input.actor,

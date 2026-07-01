@@ -10,7 +10,8 @@ const IDEMPOTENCY_TTL_HOURS = 36;
 export interface BulkReopenForRescheduleInput {
   appointmentIds: string[];
   newDate: string;
-  newTimeSlot: string;
+  newTimeSlotStart: string;
+  newTimeSlotEnd: string;
   reason?: string;
   actor: AuthContext;
   actorTimezone?: string;
@@ -135,7 +136,8 @@ export class BulkReopenForRescheduleUseCase {
         await this.reopenForReschedule.execute({
           appointmentId: apptId,
           newScheduledDate: input.newDate.length >= 10 ? input.newDate.slice(0, 10) : input.newDate,
-          newTimeSlot: input.newTimeSlot,
+          newTimeSlotStart: input.newTimeSlotStart,
+          newTimeSlotEnd: input.newTimeSlotEnd,
           ...(input.reason ? { reason: input.reason } : {}),
           actorTimezone: input.actorTimezone,
           actor: input.actor,

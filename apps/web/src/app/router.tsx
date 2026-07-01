@@ -57,7 +57,6 @@ const AccountSettingsPage = Loadable(lazyRetry(() => import('@/features/settings
 const SecuritySettingsPage = Loadable(lazyRetry(() => import('@/features/settings/pages/SecuritySettingsPage').then(m => ({ default: m.SecuritySettingsPage }))));
 const AuditLogListPage = Loadable(lazyRetry(() => import('@/features/audit-logs/pages/AuditLogListPage').then(m => ({ default: m.AuditLogListPage }))));
 const AvailabilitySlotListPage = Loadable(lazyRetry(() => import('@/features/availability-slots/pages/AvailabilitySlotListPage').then(m => ({ default: m.AvailabilitySlotListPage }))));
-const TimeSlotConfigPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/TimeSlotConfigPage').then(m => ({ default: m.TimeSlotConfigPage }))));
 const NotificationTemplateListPage = Loadable(lazyRetry(() => import('@/features/notification-templates/pages/NotificationTemplateListPage').then(m => ({ default: m.NotificationTemplateListPage }))));
 const ConsentLookupPage = Loadable(lazyRetry(() => import('@/features/notification-consents/pages/ConsentLookupPage').then(m => ({ default: m.ConsentLookupPage }))));
 const MarketplacePage = Loadable(lazyRetry(() => import('@/features/marketplace/pages/MarketplacePage').then(m => ({ default: m.MarketplacePage }))));
@@ -282,14 +281,6 @@ export const router = createBrowserRouter([
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
                 <AvailabilitySlotListPage />
-              </AuthGuard>
-            ),
-          },
-          {
-            path: 'time-slots',
-            element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN]}>
-                <TimeSlotConfigPage />
               </AuthGuard>
             ),
           },

@@ -23,10 +23,14 @@ const DEFAULT_BOUNDS: InspectionTimeWindowBounds = {
   afterMinutes: 30,
 };
 
+/** Strict 24h HH:mm — guards combineDateAndTime against Invalid Date / next-day rollover. */
+const HHMM_RE = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+
 export class InspectionTimeWindowService {
   isWithinWindow(
     scheduledDate: Date,
-    timeSlot: string,
+    timeSlotStart: string,
+    timeSlotEnd: string,
     now: Date,
     bounds?: Partial<InspectionTimeWindowBounds>,
   ): { allowed: boolean; reason?: string } {
@@ -35,13 +39,12 @@ export class InspectionTimeWindowService {
       ...bounds,
     };
 
-    const [startTime, endTime] = timeSlot.split('-');
-    if (!startTime || !endTime) {
+    if (!HHMM_RE.test(timeSlotStart) || !HHMM_RE.test(timeSlotEnd) || timeSlotStart >= timeSlotEnd) {
       return { allowed: false, reason: 'Invalid time slot format' };
     }
 
-    const scheduledStart = this.combineDateAndTime(scheduledDate, startTime);
-    const scheduledEnd = this.combineDateAndTime(scheduledDate, endTime);
+    const scheduledStart = this.combineDateAndTime(scheduledDate, timeSlotStart);
+    const scheduledEnd = this.combineDateAndTime(scheduledDate, timeSlotEnd);
 
     const windowOpens = new Date(
       scheduledStart.getTime() - beforeMinutes * 60 * 1000,

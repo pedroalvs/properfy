@@ -6,16 +6,16 @@ import { getScheduleStartDateTime } from '../lib/time-slot';
 interface StartInspectionButtonProps {
   appointmentId: string;
   scheduledDate: string;
-  timeSlot: string;
+  timeSlotStart: string;
   resume?: boolean;
 }
 
 const MINUTES_BEFORE = 30;
 const HOURS_AFTER = 2;
 
-function getWindowState(scheduledDate: string, timeSlot: string): { enabled: boolean; label: string; sublabel?: string } {
+function getWindowState(scheduledDate: string, timeSlotStart: string): { enabled: boolean; label: string; sublabel?: string } {
   const now = new Date();
-  const start = getScheduleStartDateTime(scheduledDate, timeSlot);
+  const start = getScheduleStartDateTime(scheduledDate, timeSlotStart);
   const today = new Date();
 
   const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -57,15 +57,15 @@ function getWindowState(scheduledDate: string, timeSlot: string): { enabled: boo
 export function StartInspectionButton({
   appointmentId,
   scheduledDate,
-  timeSlot,
+  timeSlotStart,
   resume = false,
 }: StartInspectionButtonProps) {
   const navigate = useNavigate();
-  const [windowState, setWindowState] = useState(() => getWindowState(scheduledDate, timeSlot));
+  const [windowState, setWindowState] = useState(() => getWindowState(scheduledDate, timeSlotStart));
 
   const updateState = useCallback(() => {
-    setWindowState(getWindowState(scheduledDate, timeSlot));
-  }, [scheduledDate, timeSlot]);
+    setWindowState(getWindowState(scheduledDate, timeSlotStart));
+  }, [scheduledDate, timeSlotStart]);
 
   useEffect(() => {
     if (resume) return;

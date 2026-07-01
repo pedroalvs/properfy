@@ -52,7 +52,7 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment }: Ap
       <div className="flex items-center justify-between gap-2 border-b border-black/[0.05] bg-gray-50 px-4 py-2">
         <div className="flex items-center gap-2 min-w-0">
           <span className="shrink-0 text-sm font-bold text-text-primary">
-            {formatTimeWindow(appointment.timeSlot)}
+            {formatTimeWindow(appointment.timeSlotStart, appointment.timeSlotEnd)}
           </span>
           {appointment.isOverdue && (
             <span

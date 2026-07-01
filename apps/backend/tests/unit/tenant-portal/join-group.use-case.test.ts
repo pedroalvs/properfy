@@ -23,7 +23,7 @@ function makeAppointment(overrides: Partial<ConstructorParameters<typeof Appoint
     inspectorId: null,
     status: 'AWAITING_INSPECTOR',
     scheduledDate: new Date('2026-05-30'),
-    timeSlot: 'MORNING',
+    timeSlotStart: '09:00', timeSlotEnd: '12:00',
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
@@ -228,7 +228,7 @@ describe('JoinGroupUseCase', () => {
     await useCase.execute(makeInput());
     expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', expect.objectContaining({
       scheduledDate: new Date('2026-05-31'),
-      timeSlot: '09:00-12:00',
+      timeSlotStart: '09:00', timeSlotEnd: '12:00',
       inspectorId: 'insp-1',
       rentalTenantConfirmationStatus: 'CONFIRMED',
       serviceGroupId: 'sg-new',

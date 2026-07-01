@@ -22,7 +22,7 @@ function makeAppointment(overrides: Partial<ConstructorParameters<typeof Appoint
     inspectorId: 'insp-1',
     status: 'DONE',
     scheduledDate: new Date('2026-04-15T00:00:00Z'),
-    timeSlot: 'MORNING',
+    timeSlotStart: '09:00', timeSlotEnd: '12:00',
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,

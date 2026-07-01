@@ -28,7 +28,8 @@ export interface Appointment {
   inspectorId: string | null;
   inspectorName: string | null;
   scheduledDate: string;
-  timeSlot: string;
+  timeSlotStart: string;
+  timeSlotEnd: string;
   keyRequired: boolean;
   notes: string | null;
   doneCheckedByUserId?: string | null;
@@ -143,7 +144,8 @@ export interface AppointmentFormData {
   propertyId: string;
   serviceTypeId: string;
   scheduledDate: string;
-  timeSlot: string;
+  timeSlotStart: string;
+  timeSlotEnd: string;
   /** @deprecated Kept for backward compat with save hook during transition */
   contactName: string;
   /** @deprecated */
@@ -190,7 +192,8 @@ export const EMPTY_FORM_DATA: AppointmentFormData = {
   propertyId: '',
   serviceTypeId: '',
   scheduledDate: '',
-  timeSlot: '',
+  timeSlotStart: '',
+  timeSlotEnd: '',
   contactName: '',
   contactPhone: '',
   contactEmail: '',

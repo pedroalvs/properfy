@@ -39,7 +39,7 @@ export class PrismaReportDataReader implements IReportDataReader {
         postcode: a.property?.postcode ?? '',
         state: a.property?.state ?? '',
         scheduledDate: a.scheduled_date ? a.scheduled_date.toISOString().split('T')[0] : '',
-        timeSlot: a.time_slot,
+        timeSlot: `${a.time_slot_start}-${a.time_slot_end}`,
         status: a.status,
         rentalTenant: contact?.rental_tenant_name ?? '',
         email: contact?.primary_email ?? '',

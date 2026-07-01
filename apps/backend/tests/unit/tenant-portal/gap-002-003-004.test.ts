@@ -43,7 +43,7 @@ function makeAppointment(overrides: Partial<ConstructorParameters<typeof Appoint
     inspectorId: null,
     status: 'AWAITING_INSPECTOR',
     scheduledDate: new Date('2026-04-15'),
-    timeSlot: 'MORNING',
+    timeSlotStart: '09:00', timeSlotEnd: '12:00',
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
@@ -282,7 +282,7 @@ describe('GAP-002: Domain events for portal actions', () => {
       const reopenForReschedule = {
         execute: vi.fn().mockResolvedValue({
           id: 'appt-1', previousStatus: 'SCHEDULED', status: 'DRAFT',
-          scheduledDate: '2026-04-20', timeSlot: 'AFTERNOON',
+          scheduledDate: '2026-04-20', timeSlotStart: '14:00', timeSlotEnd: '17:00',
           rentalTenantConfirmationStatus: 'PENDING',
         }),
       };
@@ -309,7 +309,7 @@ describe('GAP-002: Domain events for portal actions', () => {
         isReadOnly: false,
         isUsed: false,
         newDate,
-        newTimeSlot: 'AFTERNOON',
+        newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',
         ipAddress: '127.0.0.1',
         userAgent: 'Test/1.0',
       });
@@ -391,7 +391,7 @@ describe('GAP-003: Token replay detection', () => {
       const reopenForReschedule = {
         execute: vi.fn().mockResolvedValue({
           id: 'appt-1', previousStatus: 'SCHEDULED', status: 'DRAFT',
-          scheduledDate: '2026-04-20', timeSlot: 'AFTERNOON',
+          scheduledDate: '2026-04-20', timeSlotStart: '14:00', timeSlotEnd: '17:00',
           rentalTenantConfirmationStatus: 'PENDING',
         }),
       };
@@ -421,7 +421,7 @@ describe('GAP-003: Token replay detection', () => {
         isReadOnly: false,
         isUsed: true,
         newDate: new Date(Date.now() + 7*24*3600*1000).toISOString().split('T')[0]!,
-        newTimeSlot: 'AFTERNOON',
+        newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',
         ipAddress: '127.0.0.1',
         userAgent: 'Test/1.0',
       })).rejects.toThrow(PortalTokenAlreadyUsedError);
@@ -438,7 +438,7 @@ describe('GAP-003: Token replay detection', () => {
         isReadOnly: false,
         isUsed: false,
         newDate: new Date(Date.now() + 7*24*3600*1000).toISOString().split('T')[0]!,
-        newTimeSlot: 'AFTERNOON',
+        newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',
         ipAddress: '127.0.0.1',
         userAgent: 'Test/1.0',
       });
@@ -575,7 +575,7 @@ describe('GAP-004: Auto-generate new token on reschedule', () => {
       isReadOnly: false,
       isUsed: false,
       newDate: new Date(Date.now() + 7*24*3600*1000).toISOString().split('T')[0]!,
-      newTimeSlot: 'AFTERNOON',
+      newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',
       ipAddress: '127.0.0.1',
       userAgent: 'Test/1.0',
     });
@@ -607,7 +607,7 @@ describe('GAP-004: Auto-generate new token on reschedule', () => {
       isReadOnly: false,
       isUsed: false,
       newDate,
-      newTimeSlot: 'AFTERNOON',
+      newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',
       ipAddress: '127.0.0.1',
       userAgent: 'Test/1.0',
     });
@@ -650,7 +650,7 @@ describe('GAP-004: Auto-generate new token on reschedule', () => {
       isReadOnly: false,
       isUsed: false,
       newDate: new Date(Date.now() + 7*24*3600*1000).toISOString().split('T')[0]!,
-      newTimeSlot: 'AFTERNOON',
+      newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',
       ipAddress: '127.0.0.1',
       userAgent: 'Test/1.0',
     });

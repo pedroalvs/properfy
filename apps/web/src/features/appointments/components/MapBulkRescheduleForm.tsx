@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
-import { SelectInput } from '@/components/forms/SelectInput';
-import { useTimeSlotOptions } from '../hooks/useTimeSlotOptions';
+import { TimeRangeInput } from '@/components/forms/TimeRangeInput';
 import { todayLocalDateString, isTimeStartInPastForDate } from '@properfy/shared';
 import { useBulkReopenForReschedule } from '../hooks/useBulkReopenForReschedule';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
@@ -19,10 +18,8 @@ interface MapBulkRescheduleFormProps {
  * 026 §FR-540..545 — Bulk reschedule form for the map flow.
  *
  * Key Regras invariants enforced here:
- *  - Time-slot value is sourced from `useTimeSlotOptions(branchId, tenantId)`
- *    — the effective slot catalog. The previous free-text input is
- *    intentionally REMOVED per the Regras matrix (mockup diverges; Regras
- *    prevails).
+ *  - Time window is a free start/end time range (`newTimeSlotStart` /
+ *    `newTimeSlotEnd`), entered via the shared `TimeRangeInput`.
  *  - Same-group only. The submit button is disabled when the selection
  *    spans groups or contains non-grouped items; the tooltip explains
  *    the limitation. Backend ALSO returns INVALID_SCOPE in that case
@@ -38,22 +35,17 @@ export function MapBulkRescheduleForm({
   onComplete,
 }: MapBulkRescheduleFormProps) {
   const [newDate, setNewDate] = useState('');
-  const [newTimeSlot, setNewTimeSlot] = useState('');
+  const [newTimeSlotStart, setNewTimeSlotStart] = useState('');
+  const [newTimeSlotEnd, setNewTimeSlotEnd] = useState('');
   const [reason, setReason] = useState('');
+  const [timeError, setTimeError] = useState<string | null>(null);
 
-  // All checked appointments belong to the same group (precheck enforces it)
-  // so they share the same branchId — read the first row.
-  // C11-T4: branchId is now populated in AppointmentMapItem so the slot catalog
-  // is fetched for the correct branch.
-  const branchId = checkedAppointments[0]?.branchId;
-  const { options: rawSlotOptions = [] } = useTimeSlotOptions(branchId);
   const today = todayLocalDateString();
   const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  // Filter out past time slots when date = today (Layer 4c).
-  const slotOptions = useMemo(() => {
-    if (newDate !== today) return rawSlotOptions;
-    return rawSlotOptions.filter((opt) => !isTimeStartInPastForDate(opt.value, newDate, browserTz));
-  }, [rawSlotOptions, newDate, today, browserTz]);
+  // UX hint: when rescheduling to today, discourage picking a past start time.
+  const minStartTime = newDate === today
+    ? Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date())
+    : undefined;
 
   // Same-group precheck — disable submit when the selection spans
   // groups or contains a non-grouped item.
@@ -67,18 +59,26 @@ export function MapBulkRescheduleForm({
   }, [checkedAppointments]);
 
   const mutation = useBulkReopenForReschedule();
-  const canSubmit = sameGroupCheck.ok && newDate.length === 10 && newTimeSlot.length > 0 && !mutation.isPending;
+  const timeRangeOrdered = newTimeSlotStart.length > 0 && newTimeSlotEnd.length > 0 && newTimeSlotStart < newTimeSlotEnd;
+  const canSubmit = sameGroupCheck.ok && newDate.length === 10 && timeRangeOrdered && !mutation.isPending;
 
   return (
     <form
       onSubmit={async (e) => {
         e.preventDefault();
         if (!canSubmit) return;
+        // Past-time guard (all roles) — native input min is only a hint.
+        if (newDate === today && isTimeStartInPastForDate(newTimeSlotStart, newDate, browserTz)) {
+          setTimeError('Start time is in the past');
+          return;
+        }
+        setTimeError(null);
         const trimmedReason = reason.trim();
         const res = await mutation.mutateAsync({
           appointmentIds: checkedAppointments.map((a) => a.id),
           newDate,
-          newTimeSlot,
+          newTimeSlotStart,
+          newTimeSlotEnd,
           ...(trimmedReason.length >= 3 ? { reason: trimmedReason } : {}),
           ...(actorTimezone ? { actorTimezone } : {}),
         });
@@ -113,18 +113,20 @@ export function MapBulkRescheduleForm({
       <label className="block text-sm font-medium text-text-primary">
         New time slot
         <div className="mt-1" data-testid="map-bulk-reschedule-slot-wrapper">
-          <SelectInput
-            value={newTimeSlot}
-            onChange={setNewTimeSlot}
-            options={slotOptions}
-            placeholder="Select a time slot…"
+          <TimeRangeInput
+            startTime={newTimeSlotStart}
+            endTime={newTimeSlotEnd}
+            onStartChange={(v) => { setNewTimeSlotStart(v); setTimeError(null); }}
+            onEndChange={(v) => { setNewTimeSlotEnd(v); setTimeError(null); }}
+            minStartTime={minStartTime}
+            error={!!timeError}
             disabled={!sameGroupCheck.ok}
-            aria-label="New time slot"
+            idPrefix="map-bulk-reschedule-slot"
           />
         </div>
-        {slotOptions.length === 0 && sameGroupCheck.ok && (
-          <p className="mt-1 text-xs text-text-muted">
-            No effective time slots available for this branch. Configure slots before rescheduling.
+        {timeError && (
+          <p className="mt-1 text-xs text-error" data-testid="map-bulk-reschedule-slot-error">
+            {timeError}
           </p>
         )}
       </label>
