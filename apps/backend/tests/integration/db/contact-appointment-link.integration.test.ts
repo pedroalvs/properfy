@@ -242,7 +242,6 @@ function buildCreateUseCase() {
     auditService,
     new AuthorizationService(auditService),
     undefined, // tenantRepo
-    undefined, // timeSlotRepo
     contactRepo, // REAL Prisma-backed repo — the SQL contract under test.
   );
   return { useCase, appointmentRepo };
@@ -387,7 +386,6 @@ describe('BUG-024-002 — UpdateAppointmentUseCase against real Postgres (parity
       auditService,
       new AuthorizationService(auditService),
       undefined, // tenantRepo
-      undefined, // timeSlotRepo
       contactRepo, // REAL Prisma-backed repo
     );
     return { useCase, appointmentRepo };

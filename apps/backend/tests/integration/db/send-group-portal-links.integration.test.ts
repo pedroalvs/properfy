@@ -100,7 +100,7 @@ async function seedAppointment(
     data: {
       tenant_id: params.tenantId, branch_id: params.branchId, property_id: params.propertyId,
       service_type_id: params.serviceTypeId, status: (params.status ?? 'AWAITING_INSPECTOR') as never,
-      scheduled_date: params.scheduledDate ?? SCHEDULED_DATE, time_slot: SLOT,
+      scheduled_date: params.scheduledDate ?? SCHEDULED_DATE, time_slot_start: '09:00', time_slot_end: '12:00',
       price_amount: '100.00', payout_amount: '80.00', pricing_rule_snapshot_json: {},
       rental_tenant_confirmation_status: (params.rentalTenantConfirmationStatus ?? 'PENDING') as never,
       created_by_user_id: params.createdByUserId, service_group_id: params.groupId,
