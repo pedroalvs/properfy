@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { AppointmentStatus, TenantConfirmationStatus } from '@properfy/shared';
+import { AppointmentStatus, RentalTenantConfirmationStatus } from '@properfy/shared';
 import { AppointmentDetailSections } from './AppointmentDetailSections';
 import type { AppointmentDetail } from '../types';
 
@@ -18,7 +18,7 @@ function makeAppointment(overrides: Partial<AppointmentDetail> = {}): Appointmen
     serviceTypeId: 'svc-1',
     serviceTypeName: 'Move-in Inspection',
     status: AppointmentStatus.DRAFT,
-    tenantConfirmationStatus: TenantConfirmationStatus.CONFIRMED,
+    rentalTenantConfirmationStatus: RentalTenantConfirmationStatus.CONFIRMED,
     contactName: 'John Silva',
     contactPhone: '11999999999',
     contactEmail: 'john@email.com',
@@ -31,13 +31,13 @@ function makeAppointment(overrides: Partial<AppointmentDetail> = {}): Appointmen
     doneCheckedByUserId: null,
     doneCheckedAt: null,
     isOverdue: false,
-    hasTenantNote: false,
+    hasRentalTenantNote: false,
     createdAt: '2026-03-10T10:00:00Z',
     updatedAt: '2026-03-10T10:00:00Z',
     meetingLocation: 'Main entrance',
     keyLocation: 'With the caretaker',
     cancellationReason: null,
-    tenantNote: null,
+    rentalTenantNote: null,
     observation: null,
     hasActivePortalToken: false,
     ...overrides,
@@ -132,10 +132,10 @@ describe('AppointmentDetailSections', () => {
     expect(screen.getByText('Pending operator cross-check')).toBeInTheDocument();
   });
 
-  it('shows tenant note section when tenantNote is present', () => {
+  it('shows tenant note section when rentalTenantNote is present', () => {
     render(
       <AppointmentDetailSections
-        appointment={makeAppointment({ tenantNote: 'I will be late by 10 minutes' })}
+        appointment={makeAppointment({ rentalTenantNote: 'I will be late by 10 minutes' })}
       />,
     );
 
@@ -143,20 +143,20 @@ describe('AppointmentDetailSections', () => {
     expect(screen.getByText('I will be late by 10 minutes')).toBeInTheDocument();
   });
 
-  it('does not show tenant note section when tenantNote is null', () => {
+  it('does not show tenant note section when rentalTenantNote is null', () => {
     render(
       <AppointmentDetailSections
-        appointment={makeAppointment({ tenantNote: null })}
+        appointment={makeAppointment({ rentalTenantNote: null })}
       />,
     );
 
     expect(screen.queryByText('Tenant Note')).not.toBeInTheDocument();
   });
 
-  it('does not show tenant note section when tenantNote is empty string', () => {
+  it('does not show tenant note section when rentalTenantNote is empty string', () => {
     render(
       <AppointmentDetailSections
-        appointment={makeAppointment({ tenantNote: '' })}
+        appointment={makeAppointment({ rentalTenantNote: '' })}
       />,
     );
 

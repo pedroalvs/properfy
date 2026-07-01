@@ -104,7 +104,7 @@ async function seedAppointment(
       price_amount: '100.00',
       payout_amount: '80.00',
       pricing_rule_snapshot_json: {},
-      tenant_confirmation_status: 'PENDING',
+      rental_tenant_confirmation_status: 'PENDING',
       created_by_user_id: fx.userId,
     },
   });
@@ -132,7 +132,7 @@ describe('GET /v1/appointments serviceGroupId filter (real DB)', () => {
         code: `SGF-ST-${stSuffix}`,
         name: `SGF Routine ${stSuffix}`,
         flow_type: 'ROUTINE',
-        requires_tenant_confirmation: true,
+        requires_rental_tenant_confirmation: true,
         status: 'ACTIVE',
       },
     });

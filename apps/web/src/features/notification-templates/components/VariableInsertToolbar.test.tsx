@@ -17,8 +17,8 @@ describe('VariableInsertToolbar', () => {
     const onInsert = vi.fn();
     render(<VariableInsertToolbar onInsert={onInsert} />);
 
-    await user.click(screen.getByLabelText('Insert tenantName'));
-    expect(onInsert).toHaveBeenCalledWith('{{tenantName}}');
+    await user.click(screen.getByLabelText('Insert rentalTenantName'));
+    expect(onInsert).toHaveBeenCalledWith('{{rentalTenantName}}');
   });
 
   it('calls onInsert for different variables', async () => {
@@ -38,7 +38,7 @@ describe('VariableInsertToolbar', () => {
     const onInsert = vi.fn();
     render(<VariableInsertToolbar onInsert={onInsert} disabled />);
 
-    const button = screen.getByLabelText('Insert tenantName');
+    const button = screen.getByLabelText('Insert rentalTenantName');
     expect(button).toBeDisabled();
 
     await user.click(button);

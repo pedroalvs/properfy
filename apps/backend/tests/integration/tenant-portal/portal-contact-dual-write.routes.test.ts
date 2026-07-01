@@ -3,11 +3,11 @@ import supertest from 'supertest';
 import { buildApp } from '../../../src/main/server';
 import type { FastifyInstance } from 'fastify';
 import { createMockContainer } from '../../helpers/mock-container';
-import { TenantPortalTokenEntity } from '../../../src/modules/tenant-portal/domain/tenant-portal-token.entity';
+import { RentalTenantPortalTokenEntity } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-token.entity';
 
 /**
  * Route-level integration for the portal contact dual-write (FR-053).
- * Verifies that PATCH /v1/tenant-portal/:token/contact wires correctly through
+ * Verifies that PATCH /v1/rental-tenant-portal/:token/contact wires correctly through
  * portal-auth middleware → use case, passing the right appointmentId and contact
  * fields. Dual-write logic (snapshot + registry) is exercised inside the use case
  * which is mocked here at the container level.
@@ -35,7 +35,7 @@ vi.mock('../../../src/main/container', () => ({
     audit: { jwtService: { verify: mockJwtVerify } },
     serviceGroup: { jwtService: { verify: mockJwtVerify } },
     marketplace: { jwtService: { verify: mockJwtVerify } },
-    tenantPortal: {
+    rentalTenantPortal: {
       getPortalDataUseCase: { execute: vi.fn() },
       confirmAppointmentUseCase: { execute: vi.fn() },
       rescheduleRequestUseCase: { execute: vi.fn() },
@@ -63,8 +63,8 @@ vi.mock('../../../src/main/container', () => ({
   }),
 }));
 
-function createMockToken(overrides: Partial<ConstructorParameters<typeof TenantPortalTokenEntity>[0]> = {}) {
-  return new TenantPortalTokenEntity({
+function createMockToken(overrides: Partial<ConstructorParameters<typeof RentalTenantPortalTokenEntity>[0]> = {}) {
+  return new RentalTenantPortalTokenEntity({
     id: TOKEN_ID,
     appointmentId: APPOINTMENT_ID,
     tokenHash: 'hashed-token',
@@ -95,11 +95,11 @@ beforeAll(async () => {
 afterAll(async () => { await app.close(); });
 beforeEach(() => { vi.clearAllMocks(); });
 
-describe('PATCH /v1/tenant-portal/:token/contact — dual-write (FR-053)', () => {
+describe('PATCH /v1/rental-tenant-portal/:token/contact — dual-write (FR-053)', () => {
   it('200: returns updated contact and passes appointmentId to use case', async () => {
     setupPortalAuth();
     mockUpdateContactExecute.mockResolvedValue({
-      tenantName: 'John Smith',
+      rentalTenantName: 'John Smith',
       primaryEmail: 'newemail@example.com',
       secondaryEmail: null,
       primaryPhone: '+61400000000',
@@ -107,7 +107,7 @@ describe('PATCH /v1/tenant-portal/:token/contact — dual-write (FR-053)', () =>
     });
 
     const res = await supertest(app.server)
-      .patch('/v1/tenant-portal/valid-raw-token/contact')
+      .patch('/v1/rental-tenant-portal/valid-raw-token/contact')
       .send({ primaryEmail: 'newemail@example.com' });
 
     expect(res.status).toBe(200);
@@ -125,7 +125,7 @@ describe('PATCH /v1/tenant-portal/:token/contact — dual-write (FR-053)', () =>
   it('use case receives both snapshot fields and registry update fields together', async () => {
     setupPortalAuth();
     mockUpdateContactExecute.mockResolvedValue({
-      tenantName: 'John Smith',
+      rentalTenantName: 'John Smith',
       primaryEmail: 'updated@example.com',
       secondaryEmail: null,
       primaryPhone: '+61499999999',
@@ -133,7 +133,7 @@ describe('PATCH /v1/tenant-portal/:token/contact — dual-write (FR-053)', () =>
     });
 
     await supertest(app.server)
-      .patch('/v1/tenant-portal/valid-raw-token/contact')
+      .patch('/v1/rental-tenant-portal/valid-raw-token/contact')
       .send({ primaryEmail: 'updated@example.com', primaryPhone: '+61499999999' });
 
     const [callArgs] = mockUpdateContactExecute.mock.calls[0];
@@ -151,7 +151,7 @@ describe('PATCH /v1/tenant-portal/:token/contact — dual-write (FR-053)', () =>
     // When there is an email conflict, the use case skips the registry write but
     // still succeeds — it returns the snapshot-updated result, and the route returns 200.
     mockUpdateContactExecute.mockResolvedValue({
-      tenantName: 'John Smith',
+      rentalTenantName: 'John Smith',
       primaryEmail: 'newemail@example.com', // snapshot updated
       secondaryEmail: null,
       primaryPhone: null,
@@ -159,7 +159,7 @@ describe('PATCH /v1/tenant-portal/:token/contact — dual-write (FR-053)', () =>
     });
 
     const res = await supertest(app.server)
-      .patch('/v1/tenant-portal/valid-raw-token/contact')
+      .patch('/v1/rental-tenant-portal/valid-raw-token/contact')
       .send({ primaryEmail: 'newemail@example.com' });
 
     expect(res.status).toBe(200);
@@ -171,7 +171,7 @@ describe('PATCH /v1/tenant-portal/:token/contact — dual-write (FR-053)', () =>
     // Legacy rows (contact_id null) are handled inside the use case.
     // The route layer is agnostic — it just passes the appointmentId from the token.
     mockUpdateContactExecute.mockResolvedValue({
-      tenantName: 'Legacy Tenant',
+      rentalTenantName: 'Legacy Tenant',
       primaryEmail: 'legacy@example.com',
       secondaryEmail: null,
       primaryPhone: null,
@@ -179,7 +179,7 @@ describe('PATCH /v1/tenant-portal/:token/contact — dual-write (FR-053)', () =>
     });
 
     const res = await supertest(app.server)
-      .patch('/v1/tenant-portal/valid-raw-token/contact')
+      .patch('/v1/rental-tenant-portal/valid-raw-token/contact')
       .send({ primaryEmail: 'legacy@example.com' });
 
     expect(res.status).toBe(200);
@@ -193,7 +193,7 @@ describe('PATCH /v1/tenant-portal/:token/contact — dual-write (FR-053)', () =>
     mockFindByTokenHash.mockResolvedValue(null);
 
     const res = await supertest(app.server)
-      .patch('/v1/tenant-portal/invalid-token/contact')
+      .patch('/v1/rental-tenant-portal/invalid-token/contact')
       .send({ primaryEmail: 'test@example.com' });
 
     expect(res.status).toBe(404);

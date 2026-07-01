@@ -13,19 +13,19 @@ import {
   bulkActionResponseSchema,
   bulkReopenForRescheduleRequestSchema,
 } from './appointment';
-import { AppointmentStatus, TenantConfirmationStatus } from '../enums/appointment';
+import { AppointmentStatus, RentalTenantConfirmationStatus } from '../enums/appointment';
 import { RestrictionSource } from '../enums/appointment';
 import { CancellationReasonCode, RejectionReasonCode } from '../enums/reason-codes';
 
 const validContact = {
-  tenantName: 'Jane Doe',
+  rentalTenantName: 'Jane Doe',
   primaryEmail: 'jane@example.com',
   primaryPhone: '+61400000000',
 };
 
 const validRestriction = {
   isHome: true,
-  source: RestrictionSource.TENANT_PORTAL,
+  source: RestrictionSource.RENTAL_TENANT_PORTAL,
 };
 
 const validPropertyId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
@@ -505,7 +505,7 @@ describe('listAppointmentsQuerySchema', () => {
       search: 'Main St',
       fromDate: '2026-04-01',
       toDate: '2026-04-30',
-      tenantConfirmationStatus: TenantConfirmationStatus.CONFIRMED,
+      rentalTenantConfirmationStatus: RentalTenantConfirmationStatus.CONFIRMED,
     });
     expect(result.success).toBe(true);
   });
@@ -548,7 +548,7 @@ describe('listAppointmentsQuerySchema', () => {
 describe('forceManualConfirmationSchema', () => {
   it('should be valid with CONFIRMED status and reason', () => {
     const result = forceManualConfirmationSchema.safeParse({
-      tenantConfirmationStatus: 'CONFIRMED',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
       reason: 'Operator confirmed via phone',
     });
     expect(result.success).toBe(true);
@@ -556,7 +556,7 @@ describe('forceManualConfirmationSchema', () => {
 
   it('should be invalid with a non-CONFIRMED status', () => {
     const result = forceManualConfirmationSchema.safeParse({
-      tenantConfirmationStatus: 'PENDING',
+      rentalTenantConfirmationStatus: 'PENDING',
       reason: 'Some reason',
     });
     expect(result.success).toBe(false);
@@ -564,14 +564,14 @@ describe('forceManualConfirmationSchema', () => {
 
   it('should be invalid when reason is missing', () => {
     const result = forceManualConfirmationSchema.safeParse({
-      tenantConfirmationStatus: 'CONFIRMED',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
     });
     expect(result.success).toBe(false);
   });
 
   it('should be invalid when reason is empty string', () => {
     const result = forceManualConfirmationSchema.safeParse({
-      tenantConfirmationStatus: 'CONFIRMED',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
       reason: '',
     });
     expect(result.success).toBe(false);

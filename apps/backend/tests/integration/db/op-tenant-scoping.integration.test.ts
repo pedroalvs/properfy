@@ -58,8 +58,8 @@ describe('DEC-003: OP cross-tenant access (real DB)', () => {
 
   beforeAll(async () => {
     harness = await setupDbHarness();
-    fixtureA = await seedLegacyDoneAppointment(harness.prisma, { tenantName: 'OP-Scope Tenant A' });
-    fixtureB = await seedLegacyDoneAppointment(harness.prisma, { tenantName: 'OP-Scope Tenant B' });
+    fixtureA = await seedLegacyDoneAppointment(harness.prisma, { rentalTenantName: 'OP-Scope Tenant A' });
+    fixtureB = await seedLegacyDoneAppointment(harness.prisma, { rentalTenantName: 'OP-Scope Tenant B' });
   }, 180_000);
 
   afterAll(async () => {

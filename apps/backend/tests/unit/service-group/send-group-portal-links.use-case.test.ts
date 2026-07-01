@@ -5,7 +5,7 @@ import type {
   GroupAppointmentConfirmationRow,
   ServiceGroupWithAppointments,
 } from '../../../src/modules/service-group/domain/service-group.repository';
-import type { GeneratePortalTokenUseCase } from '../../../src/modules/tenant-portal/application/use-cases/generate-portal-token.use-case';
+import type { GeneratePortalTokenUseCase } from '../../../src/modules/rental-tenant-portal/application/use-cases/generate-portal-token.use-case';
 import type { ConfirmationCycleService } from '../../../src/modules/appointment/application/services/confirmation-cycle.service';
 import type { IIdempotencyService } from '../../../src/shared/domain/idempotency.service';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
@@ -26,7 +26,7 @@ function row(overrides: Partial<GroupAppointmentConfirmationRow>): GroupAppointm
     status: 'AWAITING_INSPECTOR',
     scheduledDate: DATE_A,
     timeSlot: SLOT,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     activeCycle: null,
     propertyCode: 'P-001',
     propertyAddress: '1 Main St',
@@ -137,7 +137,7 @@ describe('SendGroupPortalLinksUseCase', () => {
   it('skips NOT_SENDABLE and ALREADY_CONFIRMED without dispatching or recording idempotency', async () => {
     m.groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([
       row({ id: 'draft', status: 'DRAFT' }),
-      row({ id: 'confirmed', tenantConfirmationStatus: 'CONFIRMED', activeCycle: { scheduledDate: DATE_A, timeSlot: SLOT, status: 'CONFIRMED' } }),
+      row({ id: 'confirmed', rentalTenantConfirmationStatus: 'CONFIRMED', activeCycle: { scheduledDate: DATE_A, timeSlot: SLOT, status: 'CONFIRMED' } }),
     ]);
 
     const out = await m.useCase.execute({ groupId: 'group-1', actor: makeActor() });
@@ -153,7 +153,7 @@ describe('SendGroupPortalLinksUseCase', () => {
 
   it('SEND_AFTER_RESET rotates the cycle BEFORE dispatching and bypasses the idempotency read', async () => {
     m.groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([
-      row({ id: 'stale', tenantConfirmationStatus: 'CONFIRMED', scheduledDate: DATE_B, timeSlot: SLOT, activeCycle: { scheduledDate: DATE_A, timeSlot: SLOT, status: 'CONFIRMED' } }),
+      row({ id: 'stale', rentalTenantConfirmationStatus: 'CONFIRMED', scheduledDate: DATE_B, timeSlot: SLOT, activeCycle: { scheduledDate: DATE_A, timeSlot: SLOT, status: 'CONFIRMED' } }),
     ]);
 
     const out = await m.useCase.execute({ groupId: 'group-1', actor: makeActor(), actorTimezone: 'Australia/Sydney' });

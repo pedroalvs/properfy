@@ -28,12 +28,12 @@ export interface GetAppointmentOutput {
   keyRequired: boolean;
   meetingLocation: string | null;
   keyLocation: string | null;
-  tenantConfirmationStatus: string;
+  rentalTenantConfirmationStatus: string;
   priceAmount: number;
   payoutAmount: number;
   pricingRuleSnapshotJson: Record<string, unknown>;
   notes: string | null;
-  tenantNote: string | null;
+  rentalTenantNote: string | null;
   observation: string | null;
   customFieldsJson: Record<string, unknown> | null;
   reason: string | null;
@@ -63,7 +63,7 @@ export interface GetAppointmentOutput {
   /** @deprecated Use contacts[] array. Kept for backward compat — returns the primary contact. */
   contact: {
     id: string;
-    tenantName: string;
+    rentalTenantName: string;
     primaryEmail: string | null;
     secondaryEmail: string | null;
     primaryPhone: string | null;
@@ -113,12 +113,12 @@ function mapToOutput(found: AppointmentWithRelations, apps: AppointmentApp[]): G
     keyRequired: appointment.keyRequired,
     meetingLocation: appointment.meetingLocation,
     keyLocation: appointment.keyLocation,
-    tenantConfirmationStatus: appointment.tenantConfirmationStatus,
+    rentalTenantConfirmationStatus: appointment.rentalTenantConfirmationStatus,
     priceAmount: appointment.priceAmount,
     payoutAmount: appointment.payoutAmount,
     pricingRuleSnapshotJson: appointment.pricingRuleSnapshotJson,
     notes: appointment.notes,
-    tenantNote: appointment.tenantNote,
+    rentalTenantNote: appointment.rentalTenantNote,
     observation: appointment.observation,
     customFieldsJson: appointment.customFieldsJson,
     reason: appointment.reason,
@@ -146,7 +146,7 @@ function mapToOutput(found: AppointmentWithRelations, apps: AppointmentApp[]): G
     contact: contact
       ? {
           id: contact.id,
-          tenantName: contact.effectiveName,
+          rentalTenantName: contact.effectiveName,
           primaryEmail: contact.effectiveEmail,
           secondaryEmail: contact.secondaryEmail,
           primaryPhone: contact.effectivePhone,

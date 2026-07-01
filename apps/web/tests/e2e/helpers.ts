@@ -25,7 +25,7 @@ export function makeAppointment(overrides: Record<string, unknown> = {}) {
     serviceTypeId: 'st-1',
     serviceTypeName: 'Routine Inspection',
     status: 'SCHEDULED',
-    tenantConfirmationStatus: 'CONFIRMED',
+    rentalTenantConfirmationStatus: 'CONFIRMED',
     contactName: 'John Doe',
     contactPhone: '0400000000',
     contactEmail: 'john@test.com',
@@ -48,7 +48,7 @@ export function makeAppointment(overrides: Record<string, unknown> = {}) {
       {
         id: 'ac-1',
         contactId: 'c-1',
-        role: 'TENANT',
+        role: 'RENTAL_TENANT',
         isPrimary: true,
         snapshotName: 'John Doe',
         snapshotEmail: 'john@test.com',

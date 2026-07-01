@@ -22,7 +22,7 @@ vi.mock('../../../src/main/container', () => ({
     audit: { jwtService: { verify: mockJwtVerify } },
     serviceGroup: { jwtService: { verify: mockJwtVerify } },
     marketplace: { jwtService: { verify: mockJwtVerify } },
-    tenantPortal: { jwtService: { verify: mockJwtVerify } },
+    rentalTenantPortal: { jwtService: { verify: mockJwtVerify } },
     inspectorExecution: {
       getAppointmentDetailUseCase: { execute: mockGetAppointmentDetailExecute },
       jwtService: { verify: mockJwtVerify },
@@ -66,11 +66,11 @@ const baseDetail = {
   keyRequired: false,
   meetingLocation: null,
   keyLocation: null,
-  tenantConfirmationStatus: 'CONFIRMED',
-  tenantConfirmation: 'CONFIRMED',
-  tenantName: 'John Smith',
-  tenantPhone: '+61400000000',
-  tenantEmail: 'john@example.com',
+  rentalTenantConfirmationStatus: 'CONFIRMED',
+  rentalTenantConfirmation: 'CONFIRMED',
+  rentalTenantName: 'John Smith',
+  rentalTenantPhone: '+61400000000',
+  rentalTenantEmail: 'john@example.com',
   notes: null,
   observation: null,
   restrictionsSummary: null,
@@ -99,7 +99,7 @@ describe('GET /v1/inspector/appointments/:appointmentId — job details enrichme
     expect(res.body.data.id).toBe(APPOINTMENT_ID);
     expect(res.body.data.propertyAddress).toBe('42 Wallaby Way, Sydney');
     expect(res.body.data.serviceTypeName).toBe('Routine Inspection');
-    expect(res.body.data.tenantName).toBe('John Smith');
+    expect(res.body.data.rentalTenantName).toBe('John Smith');
   });
 
   it('should omit inspectionAppLink when not configured', async () => {
@@ -139,7 +139,7 @@ describe('GET /v1/inspector/appointments/:appointmentId — job details enrichme
       jobDetails: {
         agency: { id: 'tenant-1', name: 'Alpha Realty' },
         tenantContacts: [
-          { name: 'John Smith', email: 'john@example.com', phone: '+61400000000', role: 'TENANT', isPrimary: true },
+          { name: 'John Smith', email: 'john@example.com', phone: '+61400000000', role: 'RENTAL_TENANT', isPrimary: true },
         ],
         keys: { keyRequired: false, keyLocation: null },
         propertyManager: null,
@@ -164,9 +164,9 @@ describe('GET /v1/inspector/appointments/:appointmentId — job details enrichme
     mockJwtVerify.mockResolvedValueOnce(inspContext);
     const withSnapshot = {
       ...baseDetail,
-      tenantName: 'Snapshot Name',
-      tenantPhone: '+61499999999',
-      tenantEmail: 'snapshot@example.com',
+      rentalTenantName: 'Snapshot Name',
+      rentalTenantPhone: '+61499999999',
+      rentalTenantEmail: 'snapshot@example.com',
     };
     mockGetAppointmentDetailExecute.mockResolvedValueOnce(withSnapshot);
 
@@ -175,8 +175,8 @@ describe('GET /v1/inspector/appointments/:appointmentId — job details enrichme
       .set('Authorization', 'Bearer valid-token');
 
     expect(res.status).toBe(200);
-    expect(res.body.data.tenantName).toBe('Snapshot Name');
-    expect(res.body.data.tenantPhone).toBe('+61499999999');
-    expect(res.body.data.tenantEmail).toBe('snapshot@example.com');
+    expect(res.body.data.rentalTenantName).toBe('Snapshot Name');
+    expect(res.body.data.rentalTenantPhone).toBe('+61499999999');
+    expect(res.body.data.rentalTenantEmail).toBe('snapshot@example.com');
   });
 });

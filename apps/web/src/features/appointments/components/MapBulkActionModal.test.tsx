@@ -43,13 +43,13 @@ const sampleAppointments: AppointmentMapItem[] = [
     id: UUID_A, code: 'INS-0001', status: 'DRAFT', propertyAddress: '123 Pitt St', latitude: -33.8, longitude: 151.2,
     scheduledDate: '2026-06-01', timeSlotStart: '09:00', timeSlotEnd: '10:00', inspectorName: 'Alice Smith', branchName: 'Sydney',
     clientName: 'Acme Realty', contactName: 'Bob', contactPhone: '+61400000000', contactEmail: 'b@example.com',
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
   },
   {
     id: UUID_B, code: 'INS-0002', status: 'AWAITING_INSPECTOR', propertyAddress: '456 George St', latitude: -33.9, longitude: 151.3,
     scheduledDate: '2026-06-02', timeSlotStart: '10:00', timeSlotEnd: '11:00', inspectorName: null, branchName: 'Sydney',
     clientName: 'Acme Realty', contactName: 'Carol', contactPhone: null, contactEmail: 'c@example.com',
-    tenantConfirmationStatus: 'CONFIRMED',
+    rentalTenantConfirmationStatus: 'CONFIRMED',
   },
 ];
 
@@ -145,11 +145,11 @@ describe('MapBulkActionModal', () => {
   });
 
   // T-C7 — tenant note icon in Confirm column
-  it('shows note icon with tooltip when hasTenantNote=true', () => {
+  it('shows note icon with tooltip when hasRentalTenantNote=true', () => {
     const withNote: AppointmentMapItem = {
       ...sampleAppointments[0]!,
-      hasTenantNote: true,
-      tenantNote: 'Will be home after 3pm',
+      hasRentalTenantNote: true,
+      rentalTenantNote: 'Will be home after 3pm',
     };
     renderModal({ appointments: [withNote] });
     const icon = screen.getByTestId('bulk-modal-tenant-note-icon');
@@ -157,11 +157,11 @@ describe('MapBulkActionModal', () => {
     expect(icon).toHaveAttribute('aria-label', 'Note: Will be home after 3pm');
   });
 
-  it('shows fallback tooltip text when hasTenantNote=true but tenantNote is null', () => {
+  it('shows fallback tooltip text when hasRentalTenantNote=true but rentalTenantNote is null', () => {
     const withNoteNoText: AppointmentMapItem = {
       ...sampleAppointments[0]!,
-      hasTenantNote: true,
-      tenantNote: null,
+      hasRentalTenantNote: true,
+      rentalTenantNote: null,
     };
     renderModal({ appointments: [withNoteNoText] });
     const icon = screen.getByTestId('bulk-modal-tenant-note-icon');
@@ -196,8 +196,8 @@ describe('MapBulkActionModal', () => {
     expect(screen.getByTestId('group-button-reason').textContent).toContain('already belong to a group');
   });
 
-  it('does not show note icon when hasTenantNote is false or absent', () => {
-    renderModal(); // sampleAppointments have no hasTenantNote
+  it('does not show note icon when hasRentalTenantNote is false or absent', () => {
+    renderModal(); // sampleAppointments have no hasRentalTenantNote
     expect(screen.queryByTestId('bulk-modal-tenant-note-icon')).toBeNull();
   });
 

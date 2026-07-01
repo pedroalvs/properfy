@@ -15,7 +15,7 @@ export interface AppointmentFilters {
   searchAppointmentNumber?: number;
   fromDate?: string;
   toDate?: string;
-  tenantConfirmationStatus?: string;
+  rentalTenantConfirmationStatus?: string;
   showCancelled?: boolean;
   overdueOnly?: boolean;
   ungroupedOnly?: boolean;
@@ -24,9 +24,9 @@ export interface AppointmentFilters {
   timeTo?: string;
   /** Search in appointment_contacts snapshot fields (name, email, phone). */
   contactSearch?: string;
-  /** When true, only appointments with non-empty tenant_note; when false, only those without. */
-  hasTenantNote?: boolean;
-  /** Filter by tenant_confirmation_status enum value. */
+  /** When true, only appointments with non-empty rental_tenant_note; when false, only those without. */
+  hasRentalTenantNote?: boolean;
+  /** Filter by rental_tenant_confirmation_status enum value. */
   confirmationStatus?: string;
   /**
    * Positive membership filter: only appointments belonging to this service
@@ -130,10 +130,10 @@ export interface IAppointmentRepository {
       keyRequired: boolean;
       meetingLocation: string | null;
       keyLocation: string | null;
-      tenantConfirmationStatus: string;
+      rentalTenantConfirmationStatus: string;
       activeConfirmationCycleId: string | null;
       notes: string | null;
-      tenantNote: string | null;
+      rentalTenantNote: string | null;
       observation: string | null;
       customFieldsJson: Record<string, unknown> | null;
       reason: string | null;
@@ -156,7 +156,7 @@ export interface IAppointmentRepository {
   updateContact(
     appointmentId: string,
     data: Partial<{
-      tenantName: string;
+      rentalTenantName: string;
       primaryEmail: string | null;
       secondaryEmail: string | null;
       primaryPhone: string | null;
@@ -189,7 +189,7 @@ export interface IAppointmentRepository {
    * Find active appointments scheduled on the given date that have not been confirmed by the tenant.
    * Returns appointments where:
    *  - scheduledDate falls on the given date
-   *  - tenantConfirmationStatus != 'CONFIRMED'
+   *  - rentalTenantConfirmationStatus != 'CONFIRMED'
    *  - status NOT IN ('DONE', 'CANCELLED', 'REJECTED')
    *  - deletedAt IS NULL
    */

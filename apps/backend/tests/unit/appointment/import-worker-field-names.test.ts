@@ -169,7 +169,7 @@ describe('AppointmentImportWorker — field name alignment with template headers
       expect(contactNameErrors).toHaveLength(0);
     });
 
-    it('rejects a row missing primaryContactName with error field = "primaryContactName" (not "tenantName")', async () => {
+    it('rejects a row missing primaryContactName with error field = "primaryContactName" (not "rentalTenantName")', async () => {
       // timeSlot present and valid so we isolate the primaryContactName check
       const csv = 'propertyCode,scheduledDate,timeSlot\nPROP-001,2026-04-02,09:00-12:00\n';
       const { worker, importRepo } = makeWorker(csv);
@@ -182,12 +182,12 @@ describe('AppointmentImportWorker — field name alignment with template headers
         expect.objectContaining({ field: 'primaryContactName' }),
       );
       // Must NOT produce old field name
-      expect(errors.map((e) => e.field)).not.toContain('tenantName');
+      expect(errors.map((e) => e.field)).not.toContain('rentalTenantName');
     });
   });
 
   describe('primaryContactEmail (new column name)', () => {
-    it('reads primaryContactEmail from row and passes it to the contact entity — not tenantEmail', async () => {
+    it('reads primaryContactEmail from row and passes it to the contact entity — not rentalTenantEmail', async () => {
       const csv =
         'propertyCode,scheduledDate,timeSlot,primaryContactName,primaryContactEmail\n' +
         'PROP-001,2026-04-02,09:00-12:00,John Tenant,john@example.com\n';
@@ -199,8 +199,8 @@ describe('AppointmentImportWorker — field name alignment with template headers
       // The contact entity must carry the email from primaryContactEmail
       expect(saveContactCall.snapshotEmail).toBe('john@example.com');
       expect(saveContactCall.primaryEmail).toBe('john@example.com');
-      // The CSV column used is primaryContactEmail, not the old tenantEmail
-      expect(Object.keys(saveContactCall)).not.toContain('tenantEmail');
+      // The CSV column used is primaryContactEmail, not the old rentalTenantEmail
+      expect(Object.keys(saveContactCall)).not.toContain('rentalTenantEmail');
     });
 
     it('saves a row with no primaryContactEmail without error — the field is optional', async () => {
@@ -222,7 +222,7 @@ describe('AppointmentImportWorker — field name alignment with template headers
   });
 
   describe('primaryContactPhone (new column name)', () => {
-    it('reads primaryContactPhone from row and passes it to the contact entity — not tenantPhone', async () => {
+    it('reads primaryContactPhone from row and passes it to the contact entity — not rentalTenantPhone', async () => {
       const csv =
         'propertyCode,scheduledDate,timeSlot,primaryContactName,primaryContactPhone\n' +
         'PROP-001,2026-04-02,09:00-12:00,John Tenant,+61400000001\n';
@@ -234,8 +234,8 @@ describe('AppointmentImportWorker — field name alignment with template headers
       // The contact entity must carry the phone from primaryContactPhone
       expect(saveContactCall.snapshotPhone).toBe('+61400000001');
       expect(saveContactCall.primaryPhone).toBe('+61400000001');
-      // The CSV column used is primaryContactPhone, not the old tenantPhone
-      expect(Object.keys(saveContactCall)).not.toContain('tenantPhone');
+      // The CSV column used is primaryContactPhone, not the old rentalTenantPhone
+      expect(Object.keys(saveContactCall)).not.toContain('rentalTenantPhone');
     });
 
     it('saves a row with no primaryContactPhone without error — the field is optional', async () => {

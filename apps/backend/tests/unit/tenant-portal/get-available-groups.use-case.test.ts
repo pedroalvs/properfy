@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   GetAvailableGroupsUseCase,
   type GetAvailableGroupsInput,
-} from '../../../src/modules/tenant-portal/application/use-cases/get-available-groups.use-case';
+} from '../../../src/modules/rental-tenant-portal/application/use-cases/get-available-groups.use-case';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import type { PortalEligibleGroup } from '../../../src/modules/service-group/domain/service-group.repository';
 
@@ -20,7 +20,7 @@ function makeAppointment() {
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 100,
     payoutAmount: 70,
     pricingRuleSnapshotJson: {},

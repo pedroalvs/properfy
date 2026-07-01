@@ -37,7 +37,7 @@ vi.mock('../../src/main/container', () => ({
     audit: { jwtService: { verify: mockJwtVerify }, tenantRepo: { findById: mockTenantFindById } },
     serviceGroup: { jwtService: { verify: mockJwtVerify }, tenantRepo: { findById: mockTenantFindById } },
     marketplace: { jwtService: { verify: mockJwtVerify }, tenantRepo: { findById: mockTenantFindById } },
-    tenantPortal: { jwtService: { verify: mockJwtVerify }, tenantRepo: { findById: mockTenantFindById } },
+    rentalTenantPortal: { jwtService: { verify: mockJwtVerify }, tenantRepo: { findById: mockTenantFindById } },
     inspectorExecution: { jwtService: { verify: mockJwtVerify }, tenantRepo: { findById: mockTenantFindById } },
     billing: { jwtService: { verify: mockJwtVerify }, tenantRepo: { findById: mockTenantFindById } },
     report: { jwtService: { verify: mockJwtVerify }, tenantRepo: { findById: mockTenantFindById } },

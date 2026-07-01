@@ -43,7 +43,7 @@ packages/shared/
 ├── src/
 │   ├── enums/
 │   │   ├── appointment-status.ts
-│   │   ├── tenant-confirmation-status.ts
+│   │   ├── rental-tenant-confirmation-status.ts
 │   │   ├── notification-channel.ts
 │   │   ├── notification-status.ts
 │   │   ├── financial-entry-type.ts
@@ -105,7 +105,7 @@ export type AppointmentStatus = typeof AppointmentStatus[keyof typeof Appointmen
 ### Tenant confirmation status
 
 ```typescript
-export const TenantConfirmationStatus = {
+export const RentalTenantConfirmationStatus = {
   PENDING: 'PENDING',
   CONFIRMED: 'CONFIRMED',
   UNAVAILABLE: 'UNAVAILABLE',

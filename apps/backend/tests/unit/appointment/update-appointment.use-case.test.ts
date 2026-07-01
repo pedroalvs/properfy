@@ -28,7 +28,7 @@ function makeAppointmentEntity(overrides: Partial<ConstructorParameters<typeof A
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 150,
     payoutAmount: 80,
     pricingRuleSnapshotJson: {},
@@ -51,7 +51,7 @@ function makeContact(): AppointmentContactEntity {
   return new AppointmentContactEntity({
     id: 'contact-1',
     appointmentId: 'appt-1',
-    tenantName: 'John Smith',
+    rentalTenantName: 'John Smith',
     primaryEmail: 'john@example.com',
     secondaryEmail: null,
     primaryPhone: '+61400000000',
@@ -197,7 +197,7 @@ describe('UpdateAppointmentUseCase', () => {
       appointmentId: 'appt-1',
       data: {
         contact: {
-          tenantName: 'Jane Doe',
+          rentalTenantName: 'Jane Doe',
           primaryEmail: 'jane@example.com',
         },
       },
@@ -206,7 +206,7 @@ describe('UpdateAppointmentUseCase', () => {
 
     expect(appointmentRepo.updateContact).toHaveBeenCalledWith(
       'appt-1',
-      expect.objectContaining({ tenantName: 'Jane Doe' }),
+      expect.objectContaining({ rentalTenantName: 'Jane Doe' }),
     );
     expect(appointmentRepo.saveContact).not.toHaveBeenCalled();
   });
@@ -220,7 +220,7 @@ describe('UpdateAppointmentUseCase', () => {
       appointmentId: 'appt-1',
       data: {
         contact: {
-          tenantName: 'New Contact',
+          rentalTenantName: 'New Contact',
           primaryEmail: 'new@example.com',
         },
       },
@@ -632,11 +632,11 @@ describe('UpdateAppointmentUseCase', () => {
           contacts: [
             {
               inline: {
-                type: 'TENANT',
+                type: 'RENTAL_TENANT',
                 displayName: 'Re-typed Tenant',
                 primaryEmail: 'tenant@example.com',
               },
-              role: 'TENANT',
+              role: 'RENTAL_TENANT',
               isPrimary: true,
             },
           ],
@@ -676,11 +676,11 @@ describe('UpdateAppointmentUseCase', () => {
           contacts: [
             {
               inline: {
-                type: 'TENANT',
+                type: 'RENTAL_TENANT',
                 displayName: 'Brand New',
                 primaryEmail: 'brand.new@example.com',
               },
-              role: 'TENANT',
+              role: 'RENTAL_TENANT',
               isPrimary: true,
             },
           ],

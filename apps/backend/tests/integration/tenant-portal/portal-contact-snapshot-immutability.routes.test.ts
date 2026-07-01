@@ -3,7 +3,7 @@ import supertest from 'supertest';
 import { buildApp } from '../../../src/main/server';
 import type { FastifyInstance } from 'fastify';
 import { createMockContainer } from '../../helpers/mock-container';
-import { TenantPortalTokenEntity } from '../../../src/modules/tenant-portal/domain/tenant-portal-token.entity';
+import { RentalTenantPortalTokenEntity } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-token.entity';
 
 /**
  * Route-level integration for portal contact snapshot immutability (021 invariant).
@@ -42,7 +42,7 @@ vi.mock('../../../src/main/container', () => ({
     audit: { jwtService: { verify: mockJwtVerify } },
     serviceGroup: { jwtService: { verify: mockJwtVerify } },
     marketplace: { jwtService: { verify: mockJwtVerify } },
-    tenantPortal: {
+    rentalTenantPortal: {
       getPortalDataUseCase: { execute: vi.fn() },
       confirmAppointmentUseCase: { execute: vi.fn() },
       rescheduleRequestUseCase: { execute: vi.fn() },
@@ -71,7 +71,7 @@ vi.mock('../../../src/main/container', () => ({
 }));
 
 function tokenForAppointment(appointmentId: string) {
-  return new TenantPortalTokenEntity({
+  return new RentalTenantPortalTokenEntity({
     id: TOKEN_FOR_A,
     appointmentId,
     tokenHash: 'hashed-token-a',
@@ -96,14 +96,14 @@ beforeAll(async () => {
 afterAll(async () => { await app.close(); });
 beforeEach(() => { vi.clearAllMocks(); });
 
-describe('PATCH /v1/tenant-portal/:token/contact — snapshot immutability (feature 021)', () => {
+describe('PATCH /v1/rental-tenant-portal/:token/contact — snapshot immutability (feature 021)', () => {
   it('use case is called with appointment A\'s id — never with appointment B\'s id', async () => {
     // Token is bound to appt-A, not appt-B. Even if they share a registry contact,
     // the route must only invoke the use case for appt-A.
     mockHashToken.mockReturnValue('hashed-token-a');
     mockFindByTokenHash.mockResolvedValue(tokenForAppointment(APPT_A));
     mockUpdateContactExecute.mockResolvedValue({
-      tenantName: 'Alice',
+      rentalTenantName: 'Alice',
       primaryEmail: 'updated@example.com',
       secondaryEmail: null,
       primaryPhone: null,
@@ -111,7 +111,7 @@ describe('PATCH /v1/tenant-portal/:token/contact — snapshot immutability (feat
     });
 
     const res = await supertest(app.server)
-      .patch('/v1/tenant-portal/token-for-a/contact')
+      .patch('/v1/rental-tenant-portal/token-for-a/contact')
       .send({ primaryEmail: 'updated@example.com' });
 
     expect(res.status).toBe(200);
@@ -133,17 +133,17 @@ describe('PATCH /v1/tenant-portal/:token/contact — snapshot immutability (feat
     mockHashToken.mockReturnValue('hashed-token-a');
     mockFindByTokenHash.mockResolvedValue(tokenForAppointment(APPT_A));
     mockUpdateContactExecute.mockResolvedValue({
-      tenantName: 'A', primaryEmail: 'a@example.com', secondaryEmail: null, primaryPhone: null, secondaryPhone: null,
+      rentalTenantName: 'A', primaryEmail: 'a@example.com', secondaryEmail: null, primaryPhone: null, secondaryPhone: null,
     });
 
     const res1 = await supertest(app.server)
-      .patch('/v1/tenant-portal/token-for-a/contact')
+      .patch('/v1/rental-tenant-portal/token-for-a/contact')
       .send({ primaryEmail: 'a@example.com' });
     expect(res1.status).toBe(200);
 
     // Second request: token for appt-B
     mockHashToken.mockReturnValue('hashed-token-b');
-    mockFindByTokenHash.mockResolvedValue(new TenantPortalTokenEntity({
+    mockFindByTokenHash.mockResolvedValue(new RentalTenantPortalTokenEntity({
       id: TOKEN_B,
       appointmentId: APPT_B,
       tokenHash: 'hashed-token-b',
@@ -155,11 +155,11 @@ describe('PATCH /v1/tenant-portal/:token/contact — snapshot immutability (feat
       updatedAt: new Date(),
     }));
     mockUpdateContactExecute.mockResolvedValue({
-      tenantName: 'B', primaryEmail: 'b@example.com', secondaryEmail: null, primaryPhone: null, secondaryPhone: null,
+      rentalTenantName: 'B', primaryEmail: 'b@example.com', secondaryEmail: null, primaryPhone: null, secondaryPhone: null,
     });
 
     const res2 = await supertest(app.server)
-      .patch('/v1/tenant-portal/token-for-b/contact')
+      .patch('/v1/rental-tenant-portal/token-for-b/contact')
       .send({ primaryEmail: 'b@example.com' });
     expect(res2.status).toBe(200);
 

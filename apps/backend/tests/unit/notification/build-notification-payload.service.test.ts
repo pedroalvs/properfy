@@ -26,7 +26,7 @@ function makeAppointment(overrides: Partial<ConstructorParameters<typeof Appoint
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 200,
     payoutAmount: 140,
     pricingRuleSnapshotJson: {},
@@ -68,12 +68,12 @@ function makeContact(overrides: Partial<ConstructorParameters<typeof Appointment
     id: 'contact-1',
     appointmentId: 'appt-1',
     contactId: 'registry-1',
-    role: 'TENANT',
+    role: 'RENTAL_TENANT',
     isPrimary: true,
     snapshotName: 'John Tenant',
     snapshotEmail: 'john@example.com',
     snapshotPhone: '+61400000001',
-    tenantName: 'John Tenant Legacy',
+    rentalTenantName: 'John Tenant Legacy',
     primaryEmail: 'legacy@example.com',
     secondaryEmail: null,
     primaryPhone: '+61400000000',
@@ -189,7 +189,7 @@ describe('BuildNotificationPayloadService', () => {
 
   it('returns all computed vars when templateCode is unknown', () => {
     const result = svc.build(baseCtx({ templateCode: 'NONEXISTENT_CODE' }));
-    expect(result).toHaveProperty('tenantName');
+    expect(result).toHaveProperty('rentalTenantName');
     expect(result).toHaveProperty('scheduledDate');
   });
 

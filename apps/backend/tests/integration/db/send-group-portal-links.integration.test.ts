@@ -20,7 +20,7 @@ import { seedTenant } from '../service-region/helpers/service-region-fixtures';
 import { PrismaServiceGroupRepository } from '../../../src/modules/service-group/infrastructure/prisma-service-group.repository';
 import { SendGroupPortalLinksUseCase } from '../../../src/modules/service-group/application/use-cases/send-group-portal-links.use-case';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
-import type { GeneratePortalTokenUseCase } from '../../../src/modules/tenant-portal/application/use-cases/generate-portal-token.use-case';
+import type { GeneratePortalTokenUseCase } from '../../../src/modules/rental-tenant-portal/application/use-cases/generate-portal-token.use-case';
 import type { ConfirmationCycleService } from '../../../src/modules/appointment/application/services/confirmation-cycle.service';
 import type { IIdempotencyService } from '../../../src/shared/domain/idempotency.service';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
@@ -61,7 +61,7 @@ async function getBranchId(prisma: PrismaClient, tenantId: string): Promise<stri
 async function seedServiceType(prisma: PrismaClient): Promise<string> {
   const suffix = rand();
   const st = await prisma.serviceType.create({
-    data: { code: `ST-${suffix}`, name: `Routine ${suffix}`, flow_type: 'ROUTINE', requires_tenant_confirmation: true, status: 'ACTIVE' },
+    data: { code: `ST-${suffix}`, name: `Routine ${suffix}`, flow_type: 'ROUTINE', requires_rental_tenant_confirmation: true, status: 'ACTIVE' },
   });
   return st.id;
 }
@@ -91,7 +91,7 @@ async function seedAppointment(
   prisma: PrismaClient,
   params: {
     tenantId: string; branchId: string; propertyId: string; serviceTypeId: string; createdByUserId: string; groupId: string;
-    status?: string; tenantConfirmationStatus?: string; scheduledDate?: Date;
+    status?: string; rentalTenantConfirmationStatus?: string; scheduledDate?: Date;
     /** When set, creates an active confirmation cycle for this date/slot and links it. */
     activeCycle?: { scheduledDate: Date; timeSlot: string | null; status: 'PENDING' | 'CONFIRMED' };
   },
@@ -102,7 +102,7 @@ async function seedAppointment(
       service_type_id: params.serviceTypeId, status: (params.status ?? 'AWAITING_INSPECTOR') as never,
       scheduled_date: params.scheduledDate ?? SCHEDULED_DATE, time_slot: SLOT,
       price_amount: '100.00', payout_amount: '80.00', pricing_rule_snapshot_json: {},
-      tenant_confirmation_status: (params.tenantConfirmationStatus ?? 'PENDING') as never,
+      rental_tenant_confirmation_status: (params.rentalTenantConfirmationStatus ?? 'PENDING') as never,
       created_by_user_id: params.createdByUserId, service_group_id: params.groupId,
     },
   });
@@ -138,7 +138,7 @@ describe('group Send portal link — real DB', () => {
     // Tenant A: CONFIRMED but the cycle is for a STALE date (date changed after confirmation).
     const apptA = await seedAppointment(harness.prisma, {
       tenantId: tenantA, branchId: branchA, propertyId: propA, serviceTypeId, createdByUserId: userA, groupId,
-      tenantConfirmationStatus: 'CONFIRMED', scheduledDate: STALE_DATE,
+      rentalTenantConfirmationStatus: 'CONFIRMED', scheduledDate: STALE_DATE,
       activeCycle: { scheduledDate: SCHEDULED_DATE, timeSlot: SLOT, status: 'CONFIRMED' },
     });
     // Tenant B: plain pending, no cycle.
@@ -153,7 +153,7 @@ describe('group Send portal link — real DB', () => {
     expect(new Set(rows.map((r) => r.tenantId))).toEqual(new Set([tenantA, tenantB]));
 
     const a = byId.get(apptA)!;
-    expect(a.tenantConfirmationStatus).toBe('CONFIRMED');
+    expect(a.rentalTenantConfirmationStatus).toBe('CONFIRMED');
     expect(a.scheduledDate.toISOString().slice(0, 10)).toBe('2026-08-08'); // current (stale) date
     expect(a.activeCycle).not.toBeNull();
     expect(a.activeCycle!.scheduledDate.toISOString().slice(0, 10)).toBe('2026-08-01'); // confirmed-for date
@@ -161,7 +161,7 @@ describe('group Send portal link — real DB', () => {
     expect(a.activeCycle!.status).toBe('CONFIRMED');
 
     const b = byId.get(apptB)!;
-    expect(b.tenantConfirmationStatus).toBe('PENDING');
+    expect(b.rentalTenantConfirmationStatus).toBe('PENDING');
     expect(b.activeCycle).toBeNull();
   });
 

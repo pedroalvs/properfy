@@ -7,7 +7,7 @@ import { PrismaAppointmentRepository } from '../prisma-appointment.repository';
  * Implements TC-1 through TC-7 from contracts/appointment-response.contract.md.
  *
  * These tests verify that findById computes hasActivePortalToken correctly by
- * including a filtered `tenant_portal_tokens` relation in the Prisma query.
+ * including a filtered `rental_tenant_portal_tokens` relation in the Prisma query.
  *
  * Per spec §3.B2, Regras invariant B.1.
  */
@@ -26,13 +26,13 @@ const BASE_ROW = {
   key_required: false,
   meeting_location: null,
   key_location: null,
-  tenant_confirmation_status: 'PENDING',
+  rental_tenant_confirmation_status: 'PENDING',
   active_confirmation_cycle_id: null,
   price_amount: 100,
   payout_amount: 80,
   pricing_rule_snapshot_json: {},
   notes: null,
-  tenant_note: null,
+  rental_tenant_note: null,
   custom_fields_json: null,
   reason: null,
   cancellation_reason_code: null,
@@ -55,11 +55,11 @@ const BASE_ROW = {
 };
 
 // Prisma relation field is `portal_tokens` (Prisma model field name).
-// The DB table is `tenant_portal_tokens` via @@map("tenant_portal_tokens") on TenantPortalToken.
-function makeRow(overrides: { tenantPortalTokens?: Array<{ id: string }> } = {}): typeof BASE_ROW & { portal_tokens: Array<{ id: string }> } {
+// The DB table is `rental_tenant_portal_tokens` via @@map("rental_tenant_portal_tokens") on RentalTenantPortalToken.
+function makeRow(overrides: { rentalTenantPortalTokens?: Array<{ id: string }> } = {}): typeof BASE_ROW & { portal_tokens: Array<{ id: string }> } {
   return {
     ...BASE_ROW,
-    portal_tokens: overrides.tenantPortalTokens ?? [],
+    portal_tokens: overrides.rentalTenantPortalTokens ?? [],
   };
 }
 
@@ -71,7 +71,7 @@ function makePrisma(row: object | null) {
 
 describe('PrismaAppointmentRepository.findById — hasActivePortalToken', () => {
   it('TC-1: should return hasActivePortalToken:false when appointment has no tokens', async () => {
-    const repo = new PrismaAppointmentRepository(makePrisma(makeRow({ tenantPortalTokens: [] })));
+    const repo = new PrismaAppointmentRepository(makePrisma(makeRow({ rentalTenantPortalTokens: [] })));
 
     const result = await repo.findById('appt-1', null);
 
@@ -80,7 +80,7 @@ describe('PrismaAppointmentRepository.findById — hasActivePortalToken', () => 
 
   it('TC-2: should return hasActivePortalToken:true for ACTIVE token with expires_at in future', async () => {
     const repo = new PrismaAppointmentRepository(makePrisma(makeRow({
-      tenantPortalTokens: [{ id: 'token-1' }],
+      rentalTenantPortalTokens: [{ id: 'token-1' }],
     })));
 
     const result = await repo.findById('appt-1', null);
@@ -92,7 +92,7 @@ describe('PrismaAppointmentRepository.findById — hasActivePortalToken', () => 
     // Prisma's filtered include applies expires_at > now() server-side.
     // If the token is expired, Prisma returns an empty array.
     const repo = new PrismaAppointmentRepository(makePrisma(makeRow({
-      tenantPortalTokens: [],  // Prisma returned empty because expiry filter excluded it
+      rentalTenantPortalTokens: [],  // Prisma returned empty because expiry filter excluded it
     })));
 
     const result = await repo.findById('appt-1', null);
@@ -102,7 +102,7 @@ describe('PrismaAppointmentRepository.findById — hasActivePortalToken', () => 
 
   it('TC-4: should return hasActivePortalToken:false when Prisma returns empty (REVOKED token excluded)', async () => {
     const repo = new PrismaAppointmentRepository(makePrisma(makeRow({
-      tenantPortalTokens: [],  // Prisma filtered out the REVOKED token
+      rentalTenantPortalTokens: [],  // Prisma filtered out the REVOKED token
     })));
 
     const result = await repo.findById('appt-1', null);
@@ -112,7 +112,7 @@ describe('PrismaAppointmentRepository.findById — hasActivePortalToken', () => 
 
   it('TC-5: should return hasActivePortalToken:false for SUPERSEDED token (filtered out by status predicate)', async () => {
     const repo = new PrismaAppointmentRepository(makePrisma(makeRow({
-      tenantPortalTokens: [],  // Prisma filtered out SUPERSEDED token
+      rentalTenantPortalTokens: [],  // Prisma filtered out SUPERSEDED token
     })));
 
     const result = await repo.findById('appt-1', null);
@@ -122,7 +122,7 @@ describe('PrismaAppointmentRepository.findById — hasActivePortalToken', () => 
 
   it('TC-6: should return hasActivePortalToken:false for EXPIRED status token (filtered out)', async () => {
     const repo = new PrismaAppointmentRepository(makePrisma(makeRow({
-      tenantPortalTokens: [],  // Prisma filtered out EXPIRED status token
+      rentalTenantPortalTokens: [],  // Prisma filtered out EXPIRED status token
     })));
 
     const result = await repo.findById('appt-1', null);
@@ -133,7 +133,7 @@ describe('PrismaAppointmentRepository.findById — hasActivePortalToken', () => 
   it('TC-7: should return hasActivePortalToken:true when one ACTIVE+valid token exists alongside a SUPERSEDED one', async () => {
     // Prisma include with status='ACTIVE' and expires_at>now() returns only the valid token
     const repo = new PrismaAppointmentRepository(makePrisma(makeRow({
-      tenantPortalTokens: [{ id: 'token-current' }],  // Only the valid one passes the filter
+      rentalTenantPortalTokens: [{ id: 'token-current' }],  // Only the valid one passes the filter
     })));
 
     const result = await repo.findById('appt-1', null);
@@ -143,7 +143,7 @@ describe('PrismaAppointmentRepository.findById — hasActivePortalToken', () => 
 
   it('should include portal_tokens in the Prisma include with status+expiry predicate', async () => {
     // `portal_tokens` is the Prisma relation field name on the Appointment model.
-    // DB table is `tenant_portal_tokens` via @@map on TenantPortalToken.
+    // DB table is `rental_tenant_portal_tokens` via @@map on RentalTenantPortalToken.
     const mockPrisma = makePrisma(makeRow());
     const repo = new PrismaAppointmentRepository(mockPrisma);
 

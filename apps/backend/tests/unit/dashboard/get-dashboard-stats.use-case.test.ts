@@ -24,7 +24,7 @@ const mockStats: DashboardStatsOutput = {
     },
   ],
   pendingActions: {
-    noResponseTenants: 1,
+    noResponseRentalTenants: 1,
     pendingOperatorCrossChecks: 4,
     pendingFinancialEntries: 2,
     processingReports: 0,

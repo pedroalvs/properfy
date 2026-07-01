@@ -14,7 +14,7 @@ import { registerMarketplaceRoutes } from '../modules/service-group/interfaces/m
 import { registerAuditRoutes } from '../modules/audit/interfaces/audit.routes';
 import { registerAuditErasureRoutes } from '../modules/audit/interfaces/audit-erasure.routes';
 import { registerAuditRetentionRoutes } from '../modules/audit/interfaces/audit-retention.routes';
-import { registerTenantPortalRoutes } from '../modules/tenant-portal/interfaces/tenant-portal.routes';
+import { registerRentalTenantPortalRoutes } from '../modules/rental-tenant-portal/interfaces/rental-tenant-portal.routes';
 import { registerInspectorExecutionRoutes } from '../modules/inspector-execution/interfaces/inspector-execution.routes';
 import { registerBillingRoutes } from '../modules/billing/interfaces/billing.routes';
 import { registerReportRoutes } from '../modules/report/interfaces/report.routes';
@@ -99,7 +99,7 @@ export async function registerRoutes(
   await registerAuditRoutes(app, container.audit);
   await registerAuditErasureRoutes(app, container.auditErasure);
   await registerAuditRetentionRoutes(app, container.auditRetention);
-  await registerTenantPortalRoutes(app, container.tenantPortal);
+  await registerRentalTenantPortalRoutes(app, container.rentalTenantPortal);
   await registerInspectorExecutionRoutes(app, container.inspectorExecution);
   await registerBillingRoutes(app, container.billing);
   await registerReportRoutes(app, container.report);

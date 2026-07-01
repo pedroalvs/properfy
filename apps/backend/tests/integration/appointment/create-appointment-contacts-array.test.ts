@@ -53,7 +53,7 @@ function makeAppointmentResult(overrides: Record<string, unknown> = {}) {
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 150,
     payoutAmount: 80,
     pricingRuleSnapshotJson: {},
@@ -99,7 +99,7 @@ describe('POST /v1/appointments — contacts[] array path (T014)', () => {
     mockJwtVerify.mockResolvedValue(clAdminContext);
     mockCreateAppointmentExecute.mockResolvedValue(makeAppointmentResult({
       contacts: [{
-        id: 'junction-1', contactId: CONTACT_A_ID, role: 'TENANT', isPrimary: true,
+        id: 'junction-1', contactId: CONTACT_A_ID, role: 'RENTAL_TENANT', isPrimary: true,
         snapshotName: 'Alice', snapshotEmail: 'alice@example.com', snapshotPhone: null,
       }],
     }));
@@ -107,7 +107,7 @@ describe('POST /v1/appointments — contacts[] array path (T014)', () => {
     const res = await supertest(app.server)
       .post('/v1/appointments')
       .set('Authorization', 'Bearer token')
-      .send({ ...basePayload, contacts: [{ contactId: CONTACT_A_ID, role: 'TENANT', isPrimary: true }] });
+      .send({ ...basePayload, contacts: [{ contactId: CONTACT_A_ID, role: 'RENTAL_TENANT', isPrimary: true }] });
 
     expect(res.status).toBe(201);
     expect(res.body.data.contacts[0].contactId).toBe(CONTACT_A_ID);
@@ -125,7 +125,7 @@ describe('POST /v1/appointments — contacts[] array path (T014)', () => {
     mockJwtVerify.mockResolvedValue(clAdminContext);
     mockCreateAppointmentExecute.mockResolvedValue(makeAppointmentResult({
       contacts: [{
-        id: 'junction-2', contactId: 'new-registry-id-00000000001', role: 'TENANT', isPrimary: true,
+        id: 'junction-2', contactId: 'new-registry-id-00000000001', role: 'RENTAL_TENANT', isPrimary: true,
         snapshotName: 'Bob Inline', snapshotEmail: 'bob@inline.com', snapshotPhone: null,
       }],
     }));
@@ -136,8 +136,8 @@ describe('POST /v1/appointments — contacts[] array path (T014)', () => {
       .send({
         ...basePayload,
         contacts: [{
-          inline: { type: 'TENANT', displayName: 'Bob Inline', primaryEmail: 'bob@inline.com' },
-          role: 'TENANT',
+          inline: { type: 'RENTAL_TENANT', displayName: 'Bob Inline', primaryEmail: 'bob@inline.com' },
+          role: 'RENTAL_TENANT',
           isPrimary: true,
         }],
       });
@@ -156,7 +156,7 @@ describe('POST /v1/appointments — contacts[] array path (T014)', () => {
     mockJwtVerify.mockResolvedValue(clAdminContext);
     mockCreateAppointmentExecute.mockResolvedValue(makeAppointmentResult({
       contacts: [
-        { id: 'j1', contactId: CONTACT_A_ID, role: 'TENANT', isPrimary: true, snapshotName: 'Alice', snapshotEmail: 'a@example.com', snapshotPhone: null },
+        { id: 'j1', contactId: CONTACT_A_ID, role: 'RENTAL_TENANT', isPrimary: true, snapshotName: 'Alice', snapshotEmail: 'a@example.com', snapshotPhone: null },
         { id: 'j2', contactId: CONTACT_B_ID, role: 'PROPERTY_MANAGER', isPrimary: false, snapshotName: 'Bob', snapshotEmail: 'b@pm.com', snapshotPhone: null },
       ],
     }));
@@ -167,7 +167,7 @@ describe('POST /v1/appointments — contacts[] array path (T014)', () => {
       .send({
         ...basePayload,
         contacts: [
-          { contactId: CONTACT_A_ID, role: 'TENANT', isPrimary: true },
+          { contactId: CONTACT_A_ID, role: 'RENTAL_TENANT', isPrimary: true },
           { contactId: CONTACT_B_ID, role: 'PROPERTY_MANAGER', isPrimary: false },
         ],
       });
@@ -189,7 +189,7 @@ describe('POST /v1/appointments — contacts[] array path (T014)', () => {
       .set('Authorization', 'Bearer token')
       .send({
         ...basePayload,
-        contacts: [{ contactId: CONTACT_A_ID, role: 'TENANT', isPrimary: false }],
+        contacts: [{ contactId: CONTACT_A_ID, role: 'RENTAL_TENANT', isPrimary: false }],
       });
 
     expect(res.status).toBe(400);
@@ -207,8 +207,8 @@ describe('POST /v1/appointments — contacts[] array path (T014)', () => {
       .send({
         ...basePayload,
         contacts: [
-          { contactId: CONTACT_A_ID, role: 'TENANT', isPrimary: true },
-          { contactId: CONTACT_B_ID, role: 'TENANT', isPrimary: true },
+          { contactId: CONTACT_A_ID, role: 'RENTAL_TENANT', isPrimary: true },
+          { contactId: CONTACT_B_ID, role: 'RENTAL_TENANT', isPrimary: true },
         ],
       });
 
@@ -226,7 +226,7 @@ describe('POST /v1/appointments — contacts[] array path (T014)', () => {
       .set('Authorization', 'Bearer token')
       .send({
         ...basePayload,
-        contacts: [{ contactId: OTHER_TENANT_CONTACT_ID, role: 'TENANT', isPrimary: true }],
+        contacts: [{ contactId: OTHER_TENANT_CONTACT_ID, role: 'RENTAL_TENANT', isPrimary: true }],
       });
 
     expect(res.status).toBe(400);
@@ -244,7 +244,7 @@ describe('POST /v1/appointments — contacts[] array path (T014)', () => {
       .set('Authorization', 'Bearer token')
       .send({
         ...basePayload,
-        contacts: [{ contactId: CONTACT_A_ID, role: 'TENANT', isPrimary: true }],
+        contacts: [{ contactId: CONTACT_A_ID, role: 'RENTAL_TENANT', isPrimary: true }],
       });
 
     expect(res.status).toBe(400);

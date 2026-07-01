@@ -110,7 +110,7 @@ beforeAll(async () => {
     data: {
       code: `BUG-024-002-ST-${Math.random().toString(36).slice(2, 6)}`,
       name: 'Test Inspection', flow_type: 'ROUTINE',
-      requires_tenant_confirmation: false, status: 'ACTIVE',
+      requires_rental_tenant_confirmation: false, status: 'ACTIVE',
     },
   });
   const apptInB = await harness.prisma.appointment.create({
@@ -121,7 +121,7 @@ beforeAll(async () => {
       time_slot_start: '09:00', time_slot_end: '10:00',
       price_amount: '100.00', payout_amount: '80.00',
       pricing_rule_snapshot_json: {},
-      tenant_confirmation_status: 'CONFIRMED',
+      rental_tenant_confirmation_status: 'CONFIRMED',
       created_by_user_id: userB.id,
     },
   });
@@ -138,7 +138,7 @@ beforeAll(async () => {
   });
   const cStandalone = await harness.prisma.contact.create({
     data: {
-      type: 'TENANT',
+      type: 'RENTAL_TENANT',
       display_name: 'Standalone Contact (no junction in B)',
       primary_email: `bug024-002-stand-${Math.random().toString(36).slice(2, 6)}@test.local`,
       additional_channels_json: [], is_active: true,
@@ -153,7 +153,7 @@ beforeAll(async () => {
       appointment: { connect: { id: apptInB.id } },
       contact: { connect: { id: cInA.id } },
       role: 'PROPERTY_MANAGER', is_primary: false,
-      tenant_name: 'A-Owned Contact',
+      rental_tenant_name: 'A-Owned Contact',
       snapshot_name: 'A-Owned Contact',
       snapshot_email: cInA.primary_email,
     },
@@ -211,7 +211,7 @@ function buildCreateUseCase() {
   const serviceTypeRepo: IServiceTypeRepository = {
     findById: vi.fn(async (id: string) => new ServiceTypeEntity({
       id, code: 'ROUTINE', name: 'Routine', flowType: 'STANDARD',
-      requiresTenantConfirmation: false, status: 'ACTIVE',
+      requiresRentalTenantConfirmation: false, status: 'ACTIVE',
       createdAt: new Date(), updatedAt: new Date(),
     })),
     findByCode: vi.fn(), findAll: vi.fn(), count: vi.fn(),
@@ -316,7 +316,7 @@ describe('BUG-024-002 — CreateAppointmentUseCase against real Postgres', () =>
     await expect(
       suiteSpy.useCase.execute({
         ...baseInputForCreate(),
-        contacts: [{ contactId: seed.contactStandalone, role: 'TENANT', isPrimary: true }] as any,
+        contacts: [{ contactId: seed.contactStandalone, role: 'RENTAL_TENANT', isPrimary: true }] as any,
         actor: actor('CL_ADMIN', seed.tenantB),
       }),
     ).rejects.toThrow(NotFoundError);
@@ -327,7 +327,7 @@ describe('BUG-024-002 — CreateAppointmentUseCase against real Postgres', () =>
     await expect(
       suiteSpy.useCase.execute({
         ...baseInputForCreate(),
-        contacts: [{ contactId: NON_EXISTENT_CONTACT_ID, role: 'TENANT', isPrimary: true }] as any,
+        contacts: [{ contactId: NON_EXISTENT_CONTACT_ID, role: 'RENTAL_TENANT', isPrimary: true }] as any,
         actor: actor('CL_ADMIN', seed.tenantB),
       }),
     ).rejects.toThrow(NotFoundError);
@@ -349,7 +349,7 @@ describe('BUG-024-002 — CreateAppointmentUseCase against real Postgres', () =>
   it('AM also links a STANDALONE contact (tenant_id = null) → 201', async () => {
     const result = await suiteSpy.useCase.execute({
       ...baseInputForCreate(),
-      contacts: [{ contactId: seed.contactStandalone, role: 'TENANT', isPrimary: true }] as any,
+      contacts: [{ contactId: seed.contactStandalone, role: 'RENTAL_TENANT', isPrimary: true }] as any,
       actor: actor('AM', null),
     });
 
@@ -370,9 +370,9 @@ describe('BUG-024-002 — UpdateAppointmentUseCase against real Postgres (parity
         inspectorId: null, status: 'DRAFT',
         scheduledDate: new Date(futureDateStr(60)), timeSlotStart: '09:00', timeSlotEnd: '10:00',
         keyRequired: false, meetingLocation: null, keyLocation: null,
-        tenantConfirmationStatus: 'PENDING',
+        rentalTenantConfirmationStatus: 'PENDING',
         priceAmount: 150, payoutAmount: 80, pricingRuleSnapshotJson: {},
-        notes: null, tenantNote: null, customFieldsJson: null,
+        notes: null, rentalTenantNote: null, customFieldsJson: null,
         reason: null, cancellationReasonCode: null, rejectionReasonCode: null,
         createdByUserId: 'user-1',
         doneMarkedByUserId: null, doneCheckedByUserId: null, doneCheckedAt: null,
@@ -415,7 +415,7 @@ describe('BUG-024-002 — UpdateAppointmentUseCase against real Postgres (parity
       useCase.execute({
         appointmentId: seed.appointmentInB,
         data: {
-          contacts: [{ contactId: seed.contactStandalone, role: 'TENANT', isPrimary: true }] as any,
+          contacts: [{ contactId: seed.contactStandalone, role: 'RENTAL_TENANT', isPrimary: true }] as any,
         },
         actor: actor('CL_ADMIN', seed.tenantB),
       }),

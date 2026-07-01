@@ -51,7 +51,7 @@ const sampleAppointment: AppointmentMapItem = {
   contactName: 'Bob',
   contactPhone: '+61400000000',
   contactEmail: 'b@example.com',
-  tenantConfirmationStatus: 'PENDING',
+  rentalTenantConfirmationStatus: 'PENDING',
   serviceTypeName: 'Routine inspection',
 };
 

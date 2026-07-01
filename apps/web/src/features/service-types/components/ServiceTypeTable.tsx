@@ -44,10 +44,10 @@ export function ServiceTypeTable({
       render: (row) => <FlowTypeChip flowType={row.flowType} />,
     },
     {
-      key: 'requiresTenantConfirmation',
+      key: 'requiresRentalTenantConfirmation',
       label: 'Confirmation',
       width: '120px',
-      render: (row) => <BooleanIcon value={row.requiresTenantConfirmation} />,
+      render: (row) => <BooleanIcon value={row.requiresRentalTenantConfirmation} />,
     },
     {
       key: 'status',

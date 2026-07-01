@@ -335,9 +335,9 @@ async function main() {
   // ─── SERVICE TYPES ────────────────────────────────────────────────────────
 
   const serviceTypes = [
-    { id: IDS.stRoutine, code: 'ROUTINE', name: 'Routine Inspection', flow_type: 'ROUTINE' as const, requires_tenant_confirmation: true },
-    { id: IDS.stIngoing, code: 'INGOING', name: 'Ingoing Inspection', flow_type: 'INGOING' as const, requires_tenant_confirmation: false },
-    { id: IDS.stOutgoing, code: 'OUTGOING', name: 'Outgoing Inspection', flow_type: 'OUTGOING' as const, requires_tenant_confirmation: false },
+    { id: IDS.stRoutine, code: 'ROUTINE', name: 'Routine Inspection', flow_type: 'ROUTINE' as const, requires_rental_tenant_confirmation: true },
+    { id: IDS.stIngoing, code: 'INGOING', name: 'Ingoing Inspection', flow_type: 'INGOING' as const, requires_rental_tenant_confirmation: false },
+    { id: IDS.stOutgoing, code: 'OUTGOING', name: 'Outgoing Inspection', flow_type: 'OUTGOING' as const, requires_rental_tenant_confirmation: false },
   ];
 
   for (const st of serviceTypes) {
@@ -631,7 +631,7 @@ async function main() {
       id: IDS.apptDraft, tenant_id: IDS.tenant, branch_id: IDS.branchCity,
       property_id: IDS.prop1, service_type_id: serviceTypeIds.routine, inspector_id: null,
       status: 'DRAFT' as const, scheduled_date: futureDate(14), time_slot_start: '09:00', time_slot_end: '12:00',
-      tenant_confirmation_status: 'PENDING' as const,
+      rental_tenant_confirmation_status: 'PENDING' as const,
       price_amount: 150.00, payout_amount: 80.00, pricing_rule_snapshot_json: pricingSnapshotRoutine,
       created_by_user_id: IDS.userCLAdmin, reason: null,
     },
@@ -639,7 +639,7 @@ async function main() {
       id: IDS.apptAwaiting, tenant_id: IDS.tenant, branch_id: IDS.branchCity,
       property_id: IDS.prop2, service_type_id: serviceTypeIds.routine, inspector_id: null,
       status: 'AWAITING_INSPECTOR' as const, scheduled_date: futureDate(10), time_slot_start: '09:00', time_slot_end: '12:00',
-      tenant_confirmation_status: 'PENDING' as const,
+      rental_tenant_confirmation_status: 'PENDING' as const,
       price_amount: 150.00, payout_amount: 80.00, pricing_rule_snapshot_json: pricingSnapshotRoutine,
       created_by_user_id: IDS.userOP, reason: null,
     },
@@ -647,7 +647,7 @@ async function main() {
       id: IDS.apptScheduled, tenant_id: IDS.tenant, branch_id: IDS.branchNorth,
       property_id: IDS.prop3, service_type_id: serviceTypeIds.ingoing, inspector_id: IDS.inspectorLinked,
       status: 'SCHEDULED' as const, scheduled_date: futureDate(7), time_slot_start: '13:00', time_slot_end: '16:00',
-      tenant_confirmation_status: 'CONFIRMED' as const,
+      rental_tenant_confirmation_status: 'CONFIRMED' as const,
       price_amount: 220.00, payout_amount: 120.00, pricing_rule_snapshot_json: pricingSnapshotIngoing,
       created_by_user_id: IDS.userOP, reason: null,
     },
@@ -655,7 +655,7 @@ async function main() {
       id: IDS.apptDone, tenant_id: IDS.tenant, branch_id: IDS.branchNorth,
       property_id: IDS.prop4, service_type_id: serviceTypeIds.routine, inspector_id: IDS.inspectorLinked,
       status: 'DONE' as const, scheduled_date: pastDate(3), time_slot_start: '09:00', time_slot_end: '12:00',
-      tenant_confirmation_status: 'CONFIRMED' as const,
+      rental_tenant_confirmation_status: 'CONFIRMED' as const,
       price_amount: 150.00, payout_amount: 80.00, pricing_rule_snapshot_json: pricingSnapshotRoutine,
       created_by_user_id: IDS.userCLAdmin,
       done_checked_by_user_id: IDS.userOP, done_checked_at: pastDate(2), reason: null,
@@ -664,7 +664,7 @@ async function main() {
       id: IDS.apptCancelled, tenant_id: IDS.tenant, branch_id: IDS.branchCity,
       property_id: IDS.prop5, service_type_id: serviceTypeIds.outgoing, inspector_id: null,
       status: 'CANCELLED' as const, scheduled_date: pastDate(1), time_slot_start: '09:00', time_slot_end: '12:00',
-      tenant_confirmation_status: 'PENDING' as const,
+      rental_tenant_confirmation_status: 'PENDING' as const,
       price_amount: 180.00, payout_amount: 100.00, pricing_rule_snapshot_json: pricingSnapshotOutgoing,
       created_by_user_id: IDS.userCLAdmin,
       reason: 'Tenant relocated early, inspection no longer needed',
@@ -674,7 +674,7 @@ async function main() {
       id: IDS.apptRejected, tenant_id: IDS.tenant, branch_id: IDS.branchCity,
       property_id: IDS.prop6, service_type_id: serviceTypeIds.routine, inspector_id: null,
       status: 'REJECTED' as const, scheduled_date: pastDate(5), time_slot_start: '09:00', time_slot_end: '12:00',
-      tenant_confirmation_status: 'UNAVAILABLE' as const,
+      rental_tenant_confirmation_status: 'UNAVAILABLE' as const,
       price_amount: 150.00, payout_amount: 80.00, pricing_rule_snapshot_json: pricingSnapshotRoutine,
       created_by_user_id: IDS.userOP,
       reason: 'Property address does not exist, impossible to execute',
@@ -684,7 +684,7 @@ async function main() {
       id: IDS.apptScheduled2, tenant_id: IDS.tenant, branch_id: IDS.branchCity,
       property_id: IDS.prop2, service_type_id: serviceTypeIds.routine, inspector_id: IDS.inspectorIndep,
       status: 'SCHEDULED' as const, scheduled_date: futureDate(5), time_slot_start: '09:00', time_slot_end: '12:00',
-      tenant_confirmation_status: 'CONFIRMED' as const,
+      rental_tenant_confirmation_status: 'CONFIRMED' as const,
       price_amount: 150.00, payout_amount: 80.00, pricing_rule_snapshot_json: pricingSnapshotRoutine,
       created_by_user_id: IDS.userOP, reason: null,
     },
@@ -692,7 +692,7 @@ async function main() {
       id: IDS.apptDone2, tenant_id: IDS.tenant, branch_id: IDS.branchNorth,
       property_id: IDS.prop3, service_type_id: serviceTypeIds.routine, inspector_id: IDS.inspectorIndep,
       status: 'DONE' as const, scheduled_date: pastDate(7), time_slot_start: '13:00', time_slot_end: '16:00',
-      tenant_confirmation_status: 'NO_RESPONSE' as const,
+      rental_tenant_confirmation_status: 'NO_RESPONSE' as const,
       price_amount: 160.00, payout_amount: 88.00, pricing_rule_snapshot_json: { ...pricingSnapshotRoutine, price_amount: 160, payout_value: 88 },
       created_by_user_id: IDS.userCLAdmin,
       done_checked_by_user_id: IDS.userAM, done_checked_at: pastDate(6), reason: null,
@@ -701,7 +701,7 @@ async function main() {
       id: IDS.apptCancelled2, tenant_id: IDS.tenant, branch_id: IDS.branchNorth,
       property_id: IDS.prop3, service_type_id: serviceTypeIds.ingoing, inspector_id: IDS.inspectorLinked,
       status: 'CANCELLED' as const, scheduled_date: pastDate(2), time_slot_start: '10:00', time_slot_end: '13:00',
-      tenant_confirmation_status: 'PENDING' as const,
+      rental_tenant_confirmation_status: 'PENDING' as const,
       price_amount: 220.00, payout_amount: 120.00, pricing_rule_snapshot_json: pricingSnapshotIngoing,
       created_by_user_id: IDS.userOP,
       reason: 'Inspector unavailable on the day',
@@ -711,7 +711,7 @@ async function main() {
       id: IDS.apptAwaiting2, tenant_id: IDS.tenant, branch_id: IDS.branchNorth,
       property_id: IDS.prop4, service_type_id: serviceTypeIds.routine, inspector_id: null,
       status: 'AWAITING_INSPECTOR' as const, scheduled_date: futureDate(12), time_slot_start: '09:00', time_slot_end: '12:00',
-      tenant_confirmation_status: 'PENDING' as const,
+      rental_tenant_confirmation_status: 'PENDING' as const,
       price_amount: 160.00, payout_amount: 88.00, pricing_rule_snapshot_json: { ...pricingSnapshotRoutine, price_amount: 160, payout_value: 88 },
       created_by_user_id: IDS.userOP, reason: null,
     },
@@ -720,7 +720,7 @@ async function main() {
       id: IDS.apptDraftT2, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb,
       property_id: IDS.prop8, service_type_id: serviceTypeIds.routine, inspector_id: null,
       status: 'DRAFT' as const, scheduled_date: futureDate(20), time_slot_start: '09:00', time_slot_end: '12:00',
-      tenant_confirmation_status: 'PENDING' as const,
+      rental_tenant_confirmation_status: 'PENDING' as const,
       price_amount: 140.00, payout_amount: 75.00, pricing_rule_snapshot_json: pricingSnapshotT2,
       created_by_user_id: IDS.userCLAdmin2, reason: null,
     },
@@ -728,7 +728,7 @@ async function main() {
       id: IDS.apptScheduledT2, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb,
       property_id: IDS.prop9, service_type_id: serviceTypeIds.routine, inspector_id: IDS.inspectorLinked2,
       status: 'SCHEDULED' as const, scheduled_date: futureDate(8), time_slot_start: '10:00', time_slot_end: '13:00',
-      tenant_confirmation_status: 'CONFIRMED' as const,
+      rental_tenant_confirmation_status: 'CONFIRMED' as const,
       price_amount: 140.00, payout_amount: 75.00, pricing_rule_snapshot_json: pricingSnapshotT2,
       created_by_user_id: IDS.userCLAdmin2, reason: null,
     },
@@ -736,7 +736,7 @@ async function main() {
       id: IDS.apptDoneT2, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb,
       property_id: IDS.prop10, service_type_id: serviceTypeIds.routine, inspector_id: IDS.inspectorLinked2,
       status: 'DONE' as const, scheduled_date: pastDate(4), time_slot_start: '09:00', time_slot_end: '12:00',
-      tenant_confirmation_status: 'CONFIRMED' as const,
+      rental_tenant_confirmation_status: 'CONFIRMED' as const,
       price_amount: 140.00, payout_amount: 75.00, pricing_rule_snapshot_json: pricingSnapshotT2,
       created_by_user_id: IDS.userCLAdmin2,
       done_checked_by_user_id: IDS.userOP, done_checked_at: pastDate(3), reason: null,
@@ -745,7 +745,7 @@ async function main() {
       id: IDS.apptCancelledT2, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb,
       property_id: IDS.prop8, service_type_id: serviceTypeIds.ingoing, inspector_id: null,
       status: 'CANCELLED' as const, scheduled_date: pastDate(10), time_slot_start: '14:00', time_slot_end: '17:00',
-      tenant_confirmation_status: 'PENDING' as const,
+      rental_tenant_confirmation_status: 'PENDING' as const,
       price_amount: 220.00, payout_amount: 120.00, pricing_rule_snapshot_json: pricingSnapshotIngoing,
       created_by_user_id: IDS.userCLAdmin2,
       reason: 'Client requested cancellation',
@@ -768,7 +768,7 @@ async function main() {
         scheduled_date: a.scheduled_date,
         time_slot_start: a.time_slot_start,
         time_slot_end: a.time_slot_end,
-        tenant_confirmation_status: a.tenant_confirmation_status,
+        rental_tenant_confirmation_status: a.rental_tenant_confirmation_status,
         price_amount: a.price_amount,
         payout_amount: a.payout_amount,
         pricing_rule_snapshot_json: a.pricing_rule_snapshot_json,
@@ -808,7 +808,7 @@ async function main() {
     await prisma.contact.upsert({
       where: { id: c.id },
       update: {},
-      create: { id: c.id, tenant_id: c.tenant_id, type: 'TENANT', display_name: c.display_name, primary_email: c.primary_email, primary_phone: c.primary_phone },
+      create: { id: c.id, tenant_id: c.tenant_id, type: 'RENTAL_TENANT', display_name: c.display_name, primary_email: c.primary_email, primary_phone: c.primary_phone },
     });
   }
 
@@ -838,10 +838,10 @@ async function main() {
         id: ac.id,
         appointment_id: ac.appointment_id,
         contact_id: ac.contact_id,
-        tenant_name: c.display_name,
+        rental_tenant_name: c.display_name,
         primary_email: c.primary_email,
         primary_phone: c.primary_phone,
-        role: 'TENANT',
+        role: 'RENTAL_TENANT',
         is_primary: true,
         snapshot_name: c.display_name,
         snapshot_email: c.primary_email,
@@ -1030,7 +1030,7 @@ async function main() {
       unavailable_days_json: ['MONDAY', 'TUESDAY'],
       unavailable_hours_json: { start: '08:00', end: '10:00' },
       notes: 'Tenant works from home on Monday and Tuesday mornings',
-      source: 'TENANT_PORTAL',
+      source: 'RENTAL_TENANT_PORTAL',
     },
   });
 
@@ -1337,7 +1337,7 @@ async function main() {
 
   // ─── TENANT PORTAL TOKENS ─────────────────────────────────────────────────
 
-  await prisma.tenantPortalToken.upsert({
+  await prisma.rentalTenantPortalToken.upsert({
     where: { token_hash: 'sha256:active-token-for-scheduled-appointment' },
     update: {},
     create: {
@@ -1350,7 +1350,7 @@ async function main() {
     },
   });
 
-  await prisma.tenantPortalToken.upsert({
+  await prisma.rentalTenantPortalToken.upsert({
     where: { token_hash: 'sha256:expired-token-for-cancelled-appointment' },
     update: {},
     create: {
@@ -1362,7 +1362,7 @@ async function main() {
     },
   });
 
-  await prisma.tenantPortalToken.upsert({
+  await prisma.rentalTenantPortalToken.upsert({
     where: { token_hash: 'sha256:revoked-token-for-draft-appointment' },
     update: {},
     create: {
@@ -1377,41 +1377,41 @@ async function main() {
 
   // ─── TENANT PORTAL ACTIVITIES ─────────────────────────────────────────────
 
-  await prisma.tenantPortalActivity.upsert({
+  await prisma.rentalTenantPortalActivity.upsert({
     where: { id: IDS.pa1 },
     update: {},
     create: {
       id: IDS.pa1,
       appointment_id: IDS.apptScheduled,
-      tenant_portal_token_id: IDS.pt1,
+      rental_tenant_portal_token_id: IDS.pt1,
       action: 'VIEW',
       ip_address: '203.25.41.100',
       user_agent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
     },
   });
 
-  await prisma.tenantPortalActivity.upsert({
+  await prisma.rentalTenantPortalActivity.upsert({
     where: { id: IDS.pa2 },
     update: {},
     create: {
       id: IDS.pa2,
       appointment_id: IDS.apptScheduled,
-      tenant_portal_token_id: IDS.pt1,
+      rental_tenant_portal_token_id: IDS.pt1,
       action: 'CONFIRM',
-      previous_values_json: { tenant_confirmation_status: 'PENDING' },
-      new_values_json: { tenant_confirmation_status: 'CONFIRMED' },
+      previous_values_json: { rental_tenant_confirmation_status: 'PENDING' },
+      new_values_json: { rental_tenant_confirmation_status: 'CONFIRMED' },
       ip_address: '203.25.41.100',
       user_agent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
     },
   });
 
-  await prisma.tenantPortalActivity.upsert({
+  await prisma.rentalTenantPortalActivity.upsert({
     where: { id: IDS.pa3 },
     update: {},
     create: {
       id: IDS.pa3,
       appointment_id: IDS.apptCancelled2,
-      tenant_portal_token_id: IDS.pt2,
+      rental_tenant_portal_token_id: IDS.pt2,
       action: 'RESCHEDULE',
       previous_values_json: { scheduled_date: pastDate(2).toISOString(), time_slot: '10:00-13:00' },
       new_values_json: { preferred_date: futureDate(5).toISOString(), notes: 'Please reschedule to next week' },
@@ -1429,7 +1429,7 @@ async function main() {
       template_code: 'INSPECTION_NOTICE', status: 'DELIVERED' as const,
       provider_name: 'resend', provider_message_id: 'msg_01HXYZ',
       sent_at: pastDate(10), delivered_at: pastDate(10),
-      payload_json: { tenantName: 'Sophie Brown', propertyAddress: '200 Pacific Hwy, Crows Nest', scheduledDate: '2026-03-15', timeSlot: '09:00-12:00' },
+      payload_json: { rentalTenantName: 'Sophie Brown', propertyAddress: '200 Pacific Hwy, Crows Nest', scheduledDate: '2026-03-15', timeSlot: '09:00-12:00' },
     },
     {
       id: IDS.notif2, tenant_id: IDS.tenant, appointment_id: IDS.apptScheduled,
@@ -1446,7 +1446,7 @@ async function main() {
       provider_name: 'resend',
       failed_at: pastDate(3), failure_reason: 'Recipient email address bounced',
       retry_count: 6, next_retry_at: null,
-      payload_json: { tenantName: 'Maria Garcia', propertyAddress: '88 Crown St, Surry Hills', scheduledDate: '2026-03-28' },
+      payload_json: { rentalTenantName: 'Maria Garcia', propertyAddress: '88 Crown St, Surry Hills', scheduledDate: '2026-03-28' },
     },
     {
       id: IDS.notif4, tenant_id: IDS.tenant, appointment_id: IDS.apptDraft,
@@ -1454,7 +1454,7 @@ async function main() {
       template_code: 'INSPECTION_NOTICE', status: 'PENDING' as const,
       retry_count: 0,
       next_retry_at: new Date(Date.now() + 5 * 60000),
-      payload_json: { tenantName: 'John Smith', propertyAddress: '12 Harbour St, Sydney', scheduledDate: '2026-04-01' },
+      payload_json: { rentalTenantName: 'John Smith', propertyAddress: '12 Harbour St, Sydney', scheduledDate: '2026-04-01' },
     },
     {
       id: IDS.notif5, tenant_id: IDS.tenant, appointment_id: IDS.apptDone2,
@@ -1469,7 +1469,7 @@ async function main() {
       recipient: 'ben.rogers@gmail.com', channel: 'EMAIL' as const,
       template_code: 'INSPECTION_NOTICE', status: 'PENDING' as const,
       retry_count: 0,
-      payload_json: { tenantName: 'Ben Rogers', propertyAddress: '5 Church St, Richmond', scheduledDate: '2026-03-26' },
+      payload_json: { rentalTenantName: 'Ben Rogers', propertyAddress: '5 Church St, Richmond', scheduledDate: '2026-03-26' },
     },
   ];
 
@@ -1502,24 +1502,24 @@ async function main() {
   // ─── NOTIFICATION TEMPLATES ───────────────────────────────────────────────
 
   const templates = [
-    { code: 'INSPECTION_NOTICE', channel: 'EMAIL' as const, subject: 'Upcoming Property Inspection', body: `Dear {{tenantName}}, an inspection has been scheduled for {{propertyAddress}} on {{scheduledDate}} between {{timeSlot}}.` },
-    { code: 'REMINDER_7_DAYS', channel: 'EMAIL' as const, subject: 'Inspection Reminder - 7 Days', body: `Dear {{tenantName}}, this is a reminder that your property inspection at {{propertyAddress}} is in 7 days on {{scheduledDate}}.` },
-    { code: 'REMINDER_5_DAYS', channel: 'EMAIL' as const, subject: 'Inspection Reminder - 5 Days', body: `Dear {{tenantName}}, your property inspection at {{propertyAddress}} is in 5 days on {{scheduledDate}}.` },
-    { code: 'REMINDER_3_DAYS', channel: 'EMAIL' as const, subject: 'Inspection Reminder - 3 Days', body: `Dear {{tenantName}}, your property inspection at {{propertyAddress}} is in 3 days on {{scheduledDate}}.` },
-    { code: 'PROPERTY_MANAGER_ESCALATION', channel: 'EMAIL' as const, subject: 'Tenant Not Responding - Escalation', body: `The tenant {{tenantName}} at {{propertyAddress}} has not responded to the inspection notice for {{scheduledDate}}. Please follow up.` },
+    { code: 'INSPECTION_NOTICE', channel: 'EMAIL' as const, subject: 'Upcoming Property Inspection', body: `Dear {{rentalTenantName}}, an inspection has been scheduled for {{propertyAddress}} on {{scheduledDate}} between {{timeSlot}}.` },
+    { code: 'REMINDER_7_DAYS', channel: 'EMAIL' as const, subject: 'Inspection Reminder - 7 Days', body: `Dear {{rentalTenantName}}, this is a reminder that your property inspection at {{propertyAddress}} is in 7 days on {{scheduledDate}}.` },
+    { code: 'REMINDER_5_DAYS', channel: 'EMAIL' as const, subject: 'Inspection Reminder - 5 Days', body: `Dear {{rentalTenantName}}, your property inspection at {{propertyAddress}} is in 5 days on {{scheduledDate}}.` },
+    { code: 'REMINDER_3_DAYS', channel: 'EMAIL' as const, subject: 'Inspection Reminder - 3 Days', body: `Dear {{rentalTenantName}}, your property inspection at {{propertyAddress}} is in 3 days on {{scheduledDate}}.` },
+    { code: 'PROPERTY_MANAGER_ESCALATION', channel: 'EMAIL' as const, subject: 'Tenant Not Responding - Escalation', body: `The tenant {{rentalTenantName}} at {{propertyAddress}} has not responded to the inspection notice for {{scheduledDate}}. Please follow up.` },
     { code: 'TENANT_SMS_ALERT', channel: 'SMS' as const, subject: null, body: 'Properfy: Inspection at {{propertyAddress}} on {{scheduledDate}}. Confirm at {{portalUrl}}' },
-    { code: 'INSPECTION_CONFIRMED', channel: 'EMAIL' as const, subject: 'Inspection Confirmed', body: 'Dear {{tenantName}}, your inspection at {{propertyAddress}} on {{scheduledDate}} has been confirmed.' },
-    { code: 'INSPECTION_RESCHEDULED', channel: 'EMAIL' as const, subject: 'Inspection Rescheduled', body: 'Dear {{tenantName}}, the inspection at {{propertyAddress}} has been rescheduled. New details will follow.' },
-    { code: 'INSPECTION_CANCELLED', channel: 'EMAIL' as const, subject: 'Inspection Cancelled', body: 'Dear {{tenantName}}, the inspection at {{propertyAddress}} on {{scheduledDate}} has been cancelled.' },
-    { code: 'INSPECTION_UNAVAILABILITY_REPORTED', channel: 'EMAIL' as const, subject: 'Tenant Reported Unavailability', body: 'The tenant {{tenantName}} reported that the inspection at {{propertyAddress}} on {{scheduledDate}} is unavailable. Review appointment {{appointmentReference}} for follow-up.' },
+    { code: 'INSPECTION_CONFIRMED', channel: 'EMAIL' as const, subject: 'Inspection Confirmed', body: 'Dear {{rentalTenantName}}, your inspection at {{propertyAddress}} on {{scheduledDate}} has been confirmed.' },
+    { code: 'INSPECTION_RESCHEDULED', channel: 'EMAIL' as const, subject: 'Inspection Rescheduled', body: 'Dear {{rentalTenantName}}, the inspection at {{propertyAddress}} has been rescheduled. New details will follow.' },
+    { code: 'INSPECTION_CANCELLED', channel: 'EMAIL' as const, subject: 'Inspection Cancelled', body: 'Dear {{rentalTenantName}}, the inspection at {{propertyAddress}} on {{scheduledDate}} has been cancelled.' },
+    { code: 'INSPECTION_UNAVAILABILITY_REPORTED', channel: 'EMAIL' as const, subject: 'Tenant Reported Unavailability', body: 'The tenant {{rentalTenantName}} reported that the inspection at {{propertyAddress}} on {{scheduledDate}} is unavailable. Review appointment {{appointmentReference}} for follow-up.' },
     // Feature 019: report completion / failure notifications (closes 011#GAP-010)
     { code: 'REPORT_READY', channel: 'EMAIL' as const, subject: 'Your report "{{reportType}}" is ready', body: `Hi {{userName}}, your {{reportType}} report is ready. View and download it at {{downloadLink}}. The file is available for 30 days.` },
     { code: 'REPORT_FAILED', channel: 'EMAIL' as const, subject: 'Your report "{{reportType}}" failed', body: `Hi {{userName}}, your {{reportType}} report could not be generated. Reason: {{errorMessage}}. You can retry from the reports page: {{downloadLink}}.` },
     // Feature 007 / Bug B-5: tenant portal deep-link. Enqueued by
     // `GeneratePortalTokenUseCase` when the operator generates a portal link
-    // for the appointment. Expected variables: tenantName, confirmationLink,
+    // for the appointment. Expected variables: rentalTenantName, confirmationLink,
     // scheduledDate. The frontend builds the full URL from the token.
-    { code: 'TENANT_PORTAL_LINK', channel: 'EMAIL' as const, subject: 'Your property inspection portal', body: `Dear {{tenantName}}, confirm, reschedule or update contact details for your inspection on {{scheduledDate}} using this secure link: {{confirmationLink}}.` },
+    { code: 'TENANT_PORTAL_LINK', channel: 'EMAIL' as const, subject: 'Your property inspection portal', body: `Dear {{rentalTenantName}}, confirm, reschedule or update contact details for your inspection on {{scheduledDate}} using this secure link: {{confirmationLink}}.` },
     { code: 'TENANT_PORTAL_LINK', channel: 'SMS' as const, subject: null, body: 'Properfy: inspection on {{scheduledDate}}. Manage it here: {{confirmationLink}}' },
   ];
 

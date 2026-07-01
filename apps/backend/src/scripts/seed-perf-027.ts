@@ -125,7 +125,7 @@ async function main() {
     time_slot_start: '09:00',
     time_slot_end: '12:00',
     key_required: false,
-    tenant_confirmation_status: confirmStatus as any,
+    rental_tenant_confirmation_status: confirmStatus as any,
     price_amount: new Prisma.Decimal('150.00'),
     payout_amount: new Prisma.Decimal('100.00'),
     pricing_rule_snapshot_json: snap,

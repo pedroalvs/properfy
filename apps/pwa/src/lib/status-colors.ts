@@ -1,6 +1,6 @@
 import {
   AppointmentStatus,
-  TenantConfirmationStatus,
+  RentalTenantConfirmationStatus,
   ServiceGroupStatus,
   ServiceTypeFlowType,
 } from '@properfy/shared';
@@ -48,23 +48,23 @@ export function getStatusStyle(status: AppointmentStatus): StatusStyle {
   return APPOINTMENT_STATUS_MAP[status];
 }
 
-export const TENANT_CONFIRMATION_STATUS_MAP: Record<TenantConfirmationStatus, StatusStyle> = {
-  [TenantConfirmationStatus.PENDING]: {
+export const RENTAL_TENANT_CONFIRMATION_STATUS_MAP: Record<RentalTenantConfirmationStatus, StatusStyle> = {
+  [RentalTenantConfirmationStatus.PENDING]: {
     bg: 'var(--color-confirmation-pending)',
     text: 'var(--color-text-primary)',
     label: 'Pending',
   },
-  [TenantConfirmationStatus.CONFIRMED]: {
+  [RentalTenantConfirmationStatus.CONFIRMED]: {
     bg: 'var(--color-confirmation-confirmed)',
     text: 'var(--color-text-primary)',
     label: 'Confirmed',
   },
-  [TenantConfirmationStatus.UNAVAILABLE]: {
+  [RentalTenantConfirmationStatus.UNAVAILABLE]: {
     bg: 'var(--color-confirmation-unavailable)',
     text: 'var(--color-text-primary)',
     label: 'Unavailable',
   },
-  [TenantConfirmationStatus.NO_RESPONSE]: {
+  [RentalTenantConfirmationStatus.NO_RESPONSE]: {
     bg: 'var(--color-confirmation-no-response)',
     text: 'var(--color-text-primary)',
     label: 'No Response',

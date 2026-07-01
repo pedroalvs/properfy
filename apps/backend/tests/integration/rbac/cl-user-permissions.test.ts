@@ -49,7 +49,7 @@ vi.mock('../../../src/main/container', () => ({
     audit: { jwtService: { verify: mockJwtVerify } },
     serviceGroup: { jwtService: { verify: mockJwtVerify } },
     marketplace: { jwtService: { verify: mockJwtVerify } },
-    tenantPortal: { jwtService: { verify: mockJwtVerify } },
+    rentalTenantPortal: { jwtService: { verify: mockJwtVerify } },
     inspectorExecution: { jwtService: { verify: mockJwtVerify } },
     billing: { jwtService: { verify: mockJwtVerify } },
     report: {
@@ -76,7 +76,7 @@ const apptStub = {
   status: 'DRAFT',
   scheduledDate: futureDate,
   timeSlotStart: '09:00', timeSlotEnd: '10:00',
-  tenantConfirmationStatus: 'PENDING',
+  rentalTenantConfirmationStatus: 'PENDING',
   priceAmount: 0,
   payoutAmount: 0,
   notes: null,
@@ -111,7 +111,7 @@ const createApptPayload = {
   serviceTypeId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12',
   scheduledDate: futureDate,
   timeSlotStart: '09:00', timeSlotEnd: '10:00',
-  contact: { tenantName: 'John Smith', primaryPhone: '+61400000000' },
+  contact: { rentalTenantName: 'John Smith', primaryPhone: '+61400000000' },
 };
 
 const createPropPayload = {
@@ -238,8 +238,8 @@ describe('CL_USER flag: create_properties (also governs property.update)', () =>
 // ── Flag: force_confirmation ──────────────────────────────────────────────────
 
 describe('CL_USER flag: force_confirmation', () => {
-  const confirmedStub = { id: APPT_ID, tenantConfirmationStatus: 'CONFIRMED' };
-  const forceConfirmPayload = { tenantConfirmationStatus: 'CONFIRMED' as const, reason: 'Manual override by operator' };
+  const confirmedStub = { id: APPT_ID, rentalTenantConfirmationStatus: 'CONFIRMED' };
+  const forceConfirmPayload = { rentalTenantConfirmationStatus: 'CONFIRMED' as const, reason: 'Manual override by operator' };
 
   it('with flag → 200 (force confirmation executed)', async () => {
     mockJwtVerify.mockResolvedValue(makeClUserContext(TENANT_ID, ['force_confirmation']));

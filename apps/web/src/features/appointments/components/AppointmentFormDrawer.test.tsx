@@ -7,11 +7,11 @@ import { api } from '@/services/api';
 vi.mock('@properfy/shared', () => ({
   contactSchema: { shape: { primaryEmail: { safeParse: () => ({ success: true }) } } },
   AppointmentStatus: { DRAFT: 'DRAFT', SCHEDULED: 'SCHEDULED', AWAITING_INSPECTOR: 'AWAITING_INSPECTOR', DONE: 'DONE', CANCELLED: 'CANCELLED', REJECTED: 'REJECTED' },
-  AppointmentContactRole: { TENANT: 'TENANT', TENANT_REPRESENTATIVE: 'TENANT_REPRESENTATIVE', HOUSEKEEPER: 'HOUSEKEEPER', PROPERTY_MANAGER: 'PROPERTY_MANAGER', BROKER: 'BROKER', OTHER: 'OTHER' },
-  TenantConfirmationStatus: { PENDING: 'PENDING', CONFIRMED: 'CONFIRMED', UNAVAILABLE: 'UNAVAILABLE', NO_RESPONSE: 'NO_RESPONSE' },
+  AppointmentContactRole: { TENANT: 'RENTAL_TENANT', TENANT_REPRESENTATIVE: 'TENANT_REPRESENTATIVE', HOUSEKEEPER: 'HOUSEKEEPER', PROPERTY_MANAGER: 'PROPERTY_MANAGER', BROKER: 'BROKER', OTHER: 'OTHER' },
+  RentalTenantConfirmationStatus: { PENDING: 'PENDING', CONFIRMED: 'CONFIRMED', UNAVAILABLE: 'UNAVAILABLE', NO_RESPONSE: 'NO_RESPONSE' },
   // 023 §FR-251 — inline contact form needs ContactType + ContactChannelType
   // when picking the registry-row type and adding additional channels.
-  ContactType: { TENANT: 'TENANT', PROPERTY_MANAGER: 'PROPERTY_MANAGER', HOUSEKEEPER: 'HOUSEKEEPER', BROKER: 'BROKER', OTHER: 'OTHER' },
+  ContactType: { TENANT: 'RENTAL_TENANT', PROPERTY_MANAGER: 'PROPERTY_MANAGER', HOUSEKEEPER: 'HOUSEKEEPER', BROKER: 'BROKER', OTHER: 'OTHER' },
   ContactChannelType: { EMAIL: 'EMAIL', PHONE: 'PHONE' },
   todayLocalDateString: () => '2026-03-29',
   isTimeStartInPastForDate: () => false,

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { UpdateContactUseCase } from '../../../src/modules/tenant-portal/application/use-cases/update-contact.use-case';
-import type { ITenantPortalActivityRepository } from '../../../src/modules/tenant-portal/domain/tenant-portal-activity.repository';
+import { UpdateContactUseCase } from '../../../src/modules/rental-tenant-portal/application/use-cases/update-contact.use-case';
+import type { IRentalTenantPortalActivityRepository } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-activity.repository';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { PersistentAuditService } from '../../../src/modules/audit/application/services/persistent-audit.service';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
@@ -9,7 +9,7 @@ import {
   PortalActionBlockedError,
   PortalAppointmentInactiveError,
   PortalNoContactFieldsError,
-} from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
+} from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
 
 function makeAppointmentEntity(
   overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {},
@@ -27,7 +27,7 @@ function makeAppointmentEntity(
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 150,
     payoutAmount: 80,
     pricingRuleSnapshotJson: {},
@@ -53,12 +53,12 @@ function makeContact(
     id: 'contact-1',
     appointmentId: 'appt-1',
     contactId: null,
-    role: 'TENANT',
+    role: 'RENTAL_TENANT',
     isPrimary: true,
     snapshotName: 'John Smith',
     snapshotEmail: 'john@example.com',
     snapshotPhone: '+61400000000',
-    tenantName: 'John Smith',
+    rentalTenantName: 'John Smith',
     primaryEmail: 'john@example.com',
     secondaryEmail: 'john2@example.com',
     primaryPhone: '+61400000000',
@@ -98,7 +98,7 @@ function makeInput(overrides: Partial<Parameters<UpdateContactUseCase['execute']
 }
 
 describe('UpdateContactUseCase', () => {
-  let activityRepo: ITenantPortalActivityRepository;
+  let activityRepo: IRentalTenantPortalActivityRepository;
   let appointmentRepo: IAppointmentRepository;
   let auditService: PersistentAuditService;
   let useCase: UpdateContactUseCase;
@@ -146,7 +146,7 @@ describe('UpdateContactUseCase', () => {
     expect(result.primaryEmail).toBe('newemail@example.com');
     expect(result.primaryPhone).toBe('+61400111111');
     // Non-updated fields should retain existing values
-    expect(result.tenantName).toBe('John Smith');
+    expect(result.rentalTenantName).toBe('John Smith');
     expect(result.secondaryEmail).toBe('john2@example.com');
     expect(result.secondaryPhone).toBe('+61400000001');
   });
@@ -171,7 +171,7 @@ describe('UpdateContactUseCase', () => {
     const savedActivity = vi.mocked(activityRepo.save).mock.calls[0][0];
     expect(savedActivity.action).toBe('CONTACT_UPDATED');
     expect(savedActivity.appointmentId).toBe('appt-1');
-    expect(savedActivity.tenantPortalTokenId).toBe('token-1');
+    expect(savedActivity.rentalTenantPortalTokenId).toBe('token-1');
     expect(savedActivity.previousValuesJson).toEqual({ primaryEmail: 'john@example.com' });
     expect(savedActivity.newValuesJson).toEqual({ primaryEmail: 'newemail@example.com' });
     expect(savedActivity.ipAddress).toBe('192.168.1.1');
@@ -225,7 +225,7 @@ describe('UpdateContactUseCase', () => {
     );
 
     expect(auditService.log).toHaveBeenCalledWith({
-      action: 'tenant_portal.contact_updated',
+      action: 'rental_tenant_portal.contact_updated',
       actorType: 'ANONYMOUS',
       entityType: 'appointment_contact',
       entityId: 'appt-1',

@@ -1,6 +1,6 @@
 import type {
   AppointmentStatus,
-  TenantConfirmationStatus,
+  RentalTenantConfirmationStatus,
   AppointmentContactRole,
   ContactType,
   ContactChannelType,
@@ -21,7 +21,7 @@ export interface Appointment {
   serviceTypeId: string;
   serviceTypeName: string;
   status: AppointmentStatus;
-  tenantConfirmationStatus: TenantConfirmationStatus;
+  rentalTenantConfirmationStatus: RentalTenantConfirmationStatus;
   contactName: string;
   contactPhone: string | null;
   contactEmail: string | null;
@@ -35,7 +35,7 @@ export interface Appointment {
   doneCheckedByUserId?: string | null;
   doneCheckedAt?: string | null;
   isOverdue: boolean;
-  hasTenantNote: boolean;
+  hasRentalTenantNote: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -43,7 +43,7 @@ export interface Appointment {
 export interface AppointmentFiltersState {
   search: string;
   status: string;
-  tenantConfirmationStatus: string;
+  rentalTenantConfirmationStatus: string;
   tenantId: string;
   branchId: string;
   serviceTypeId: string;
@@ -67,8 +67,8 @@ export interface AppointmentDetail extends Appointment {
   meetingLocation: string | null;
   keyLocation: string | null;
   cancellationReason: string | null;
-  tenantNote: string | null;
-  /** Operational free-text note set on direct create/edit (distinct from tenant-portal `notes`/`tenantNote`). */
+  rentalTenantNote: string | null;
+  /** Operational free-text note set on direct create/edit (distinct from rental-tenant-portal `notes`/`rentalTenantNote`). */
   observation: string | null;
   /** True when a tenant_portal_tokens row satisfies status='ACTIVE' AND expires_at > NOW. */
   hasActivePortalToken: boolean;
@@ -129,7 +129,7 @@ export interface ContactFormEntry {
    * create path). When `contactId` is set they are ignored.
    *
    * `contactType` is REQUIRED on submit when inline (validate() blocks); the
-   * fallback in `useAppointmentSave` to `ContactType.TENANT` exists only for
+   * fallback in `useAppointmentSave` to `ContactType.RENTAL_TENANT` exists only for
    * backward compatibility with payloads built by older callers and is
    * unreachable from the standard form path.
    */
@@ -182,7 +182,7 @@ export function createEmptyContact(): ContactFormEntry {
     name: '',
     email: '',
     phone: '',
-    role: 'TENANT' as AppointmentContactRole,
+    role: 'RENTAL_TENANT' as AppointmentContactRole,
     isPrimary: false,
   };
 }
@@ -213,7 +213,7 @@ export const EMPTY_FORM_DATA: AppointmentFormData = {
 export const DEFAULT_FILTERS: AppointmentFiltersState = {
   search: '',
   status: '',
-  tenantConfirmationStatus: '',
+  rentalTenantConfirmationStatus: '',
   tenantId: '',
   branchId: '',
   serviceTypeId: '',

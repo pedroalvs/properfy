@@ -4,7 +4,7 @@ import { TopBar } from '@/components/shell/TopBar';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { StatusChip } from '@/components/ui/StatusChip';
-import { TenantConfirmationBanner } from '../components/TenantConfirmationBanner';
+import { RentalTenantConfirmationBanner } from '../components/RentalTenantConfirmationBanner';
 import { PropertyAddressSection } from '../components/PropertyAddressSection';
 import { TenantContactSection } from '../components/TenantContactSection';
 import { AppsSection } from '../components/AppsSection';
@@ -118,13 +118,13 @@ export function AppointmentDetailPage() {
         />
 
         {/* Tenant confirmation status */}
-        <TenantConfirmationBanner status={apt.tenantConfirmation} />
+        <RentalTenantConfirmationBanner status={apt.rentalTenantConfirmation} />
 
         {/* Tenant contact */}
         <TenantContactSection
-          name={apt.tenantName}
-          phone={apt.tenantPhone}
-          email={apt.tenantEmail}
+          name={apt.rentalTenantName}
+          phone={apt.rentalTenantPhone}
+          email={apt.rentalTenantEmail}
         />
 
         {/* Linked apps (credentials the inspector needs on site) */}

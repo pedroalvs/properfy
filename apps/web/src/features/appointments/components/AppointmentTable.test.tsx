@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AppointmentStatus, TenantConfirmationStatus } from '@properfy/shared';
+import { AppointmentStatus, RentalTenantConfirmationStatus } from '@properfy/shared';
 import { AppointmentTable } from './AppointmentTable';
 import type { Appointment } from '../types';
 
@@ -19,7 +19,7 @@ function makeAppointment(overrides: Partial<Appointment> = {}): Appointment {
     serviceTypeId: 'svc-1',
     serviceTypeName: 'Move-in Inspection',
     status: AppointmentStatus.SCHEDULED,
-    tenantConfirmationStatus: TenantConfirmationStatus.CONFIRMED,
+    rentalTenantConfirmationStatus: RentalTenantConfirmationStatus.CONFIRMED,
     contactName: 'John Silva',
     contactPhone: '11999999999',
     contactEmail: 'john@email.com',
@@ -30,7 +30,7 @@ function makeAppointment(overrides: Partial<Appointment> = {}): Appointment {
     keyRequired: false,
     notes: null,
     isOverdue: false,
-    hasTenantNote: false,
+    hasRentalTenantNote: false,
     createdAt: '2026-03-10T10:00:00Z',
     updatedAt: '2026-03-10T10:00:00Z',
     ...overrides,
@@ -112,28 +112,28 @@ describe('AppointmentTable', () => {
     expect(screen.getByText('Network error')).toBeInTheDocument();
   });
 
-  it('shows tenant note icon for REJECTED appointment with hasTenantNote', () => {
+  it('shows tenant note icon for REJECTED appointment with hasRentalTenantNote', () => {
     const apt = makeAppointment({
       status: AppointmentStatus.REJECTED,
-      hasTenantNote: true,
+      hasRentalTenantNote: true,
     });
     render(<AppointmentTable data={[apt]} />);
     expect(screen.getByLabelText('Tenant left a note')).toBeInTheDocument();
   });
 
-  it('shows tenant note icon for SCHEDULED appointment with hasTenantNote (GROUP_JOIN stores notes)', () => {
+  it('shows tenant note icon for SCHEDULED appointment with hasRentalTenantNote (GROUP_JOIN stores notes)', () => {
     const apt = makeAppointment({
       status: AppointmentStatus.SCHEDULED,
-      hasTenantNote: true,
+      hasRentalTenantNote: true,
     });
     render(<AppointmentTable data={[apt]} />);
     expect(screen.getByLabelText('Tenant left a note')).toBeInTheDocument();
   });
 
-  it('does not show tenant note icon for REJECTED appointment without hasTenantNote', () => {
+  it('does not show tenant note icon for REJECTED appointment without hasRentalTenantNote', () => {
     const apt = makeAppointment({
       status: AppointmentStatus.REJECTED,
-      hasTenantNote: false,
+      hasRentalTenantNote: false,
     });
     render(<AppointmentTable data={[apt]} />);
     expect(screen.queryByLabelText('Tenant left a note')).not.toBeInTheDocument();

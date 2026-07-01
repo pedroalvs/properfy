@@ -61,12 +61,12 @@ const MOCK_APPOINTMENTS = [
   {
     id: 'apt-01', code: 'VST-001', status: 'SCHEDULED', branchName: 'Filial Centro',
     address: 'Rua das Flores, 123', contactName: 'João', scheduledDate: '2026-04-01',
-    timeSlotStart: '09:00', timeSlotEnd: '12:00', tenantConfirmationStatus: 'PENDING',
+    timeSlotStart: '09:00', timeSlotEnd: '12:00', rentalTenantConfirmationStatus: 'PENDING',
   },
   {
     id: 'apt-02', code: 'VST-002', status: 'DONE', branchName: 'Filial Norte',
     address: 'Av. Paulista, 1000', contactName: 'Maria', scheduledDate: '2026-04-02',
-    timeSlotStart: '14:00', timeSlotEnd: '17:00', tenantConfirmationStatus: 'CONFIRMED',
+    timeSlotStart: '14:00', timeSlotEnd: '17:00', rentalTenantConfirmationStatus: 'CONFIRMED',
   },
 ];
 

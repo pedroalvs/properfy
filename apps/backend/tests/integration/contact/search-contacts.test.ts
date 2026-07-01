@@ -46,7 +46,7 @@ function makeContact(_label: string, name: string, email: string | null = null, 
   return {
     id: uuid(),
     tenantId: TENANT_A,
-    type: 'TENANT',
+    type: 'RENTAL_TENANT',
     displayName: name,
     company: null,
     primaryEmail: email,

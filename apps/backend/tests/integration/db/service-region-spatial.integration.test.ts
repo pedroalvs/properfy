@@ -195,7 +195,7 @@ describe('resolveRegionsForAppointments — null coordinates handling', () => {
         code: `ST-${Math.random().toString(36).slice(2, 8)}`,
         name: `Routine Inspection ${Math.random().toString(36).slice(2, 8)}`,
         flow_type: 'ROUTINE',
-        requires_tenant_confirmation: true,
+        requires_rental_tenant_confirmation: true,
         status: 'ACTIVE',
       },
     });
@@ -234,7 +234,7 @@ describe('resolveRegionsForAppointments — null coordinates handling', () => {
         price_amount: '100.00',
         payout_amount: '80.00',
         pricing_rule_snapshot_json: {},
-        tenant_confirmation_status: 'PENDING',
+        rental_tenant_confirmation_status: 'PENDING',
         created_by_user_id: userId,
       },
     });
@@ -261,7 +261,7 @@ describe('resolveRegionsForAppointments — null coordinates handling', () => {
         code: `ST-${Math.random().toString(36).slice(2, 8)}`,
         name: `Routine Inspection ${Math.random().toString(36).slice(2, 8)}`,
         flow_type: 'ROUTINE',
-        requires_tenant_confirmation: true,
+        requires_rental_tenant_confirmation: true,
         status: 'ACTIVE',
       },
     });
@@ -305,7 +305,7 @@ describe('resolveRegionsForAppointments — null coordinates handling', () => {
         price_amount: '100.00',
         payout_amount: '80.00',
         pricing_rule_snapshot_json: {},
-        tenant_confirmation_status: 'PENDING',
+        rental_tenant_confirmation_status: 'PENDING',
         created_by_user_id: userId,
       },
     });

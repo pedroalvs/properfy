@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   RescheduleRequestUseCase,
   type RescheduleRequestInput,
-} from '../../../src/modules/tenant-portal/application/use-cases/reschedule-request.use-case';
-import type { ITenantPortalActivityRepository } from '../../../src/modules/tenant-portal/domain/tenant-portal-activity.repository';
-import type { ITenantPortalTokenRepository } from '../../../src/modules/tenant-portal/domain/tenant-portal-token.repository';
+} from '../../../src/modules/rental-tenant-portal/application/use-cases/reschedule-request.use-case';
+import type { IRentalTenantPortalActivityRepository } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-activity.repository';
+import type { IRentalTenantPortalTokenRepository } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-token.repository';
 import type { IAppointmentRepository } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { IServiceTypeRepository } from '../../../src/modules/service-type/domain/service-type.repository';
 import type { IInspectionExecutionRepository } from '../../../src/modules/inspector-execution/domain/inspection-execution.repository';
@@ -15,12 +15,12 @@ import { AppointmentEntity } from '../../../src/modules/appointment/domain/appoi
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { ServiceTypeEntity } from '../../../src/modules/service-type/domain/service-type.entity';
 import { InspectionExecutionEntity } from '../../../src/modules/inspector-execution/domain/inspection-execution.entity';
-import { PortalActionBlockedError } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
-import { PortalAppointmentInactiveError } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
-import { PortalRescheduleNotAllowedError } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
-import { PortalRescheduleWindowExceededError } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
-import { PortalDateInPastError } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
-import { PortalInspectionInProgressError } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
+import { PortalActionBlockedError } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
+import { PortalAppointmentInactiveError } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
+import { PortalRescheduleNotAllowedError } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
+import { PortalRescheduleWindowExceededError } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
+import { PortalDateInPastError } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
+import { PortalInspectionInProgressError } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
 
 function makeAppointment(overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {}) {
   return new AppointmentEntity({
@@ -36,7 +36,7 @@ function makeAppointment(overrides: Partial<ConstructorParameters<typeof Appoint
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 100,
     payoutAmount: 70,
     pricingRuleSnapshotJson: {},
@@ -61,7 +61,7 @@ function makeServiceType(overrides: Partial<ConstructorParameters<typeof Service
     code: 'ROUTINE',
     name: 'Routine Inspection',
     flowType: 'ROUTINE',
-    requiresTenantConfirmation: true,
+    requiresRentalTenantConfirmation: true,
     status: 'ACTIVE',
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),
@@ -238,13 +238,13 @@ describe('RescheduleRequestUseCase', () => {
         timeSlotEnd: input.newTimeSlotEnd,
         previousInspectorId: 'inspector-1',
         inspectorId: null,
-        tenantConfirmationStatus: 'PENDING',
+        rentalTenantConfirmationStatus: 'PENDING',
       })),
     };
 
     useCase = new RescheduleRequestUseCase(
-      activityRepo as unknown as ITenantPortalActivityRepository,
-      tokenRepo as unknown as ITenantPortalTokenRepository,
+      activityRepo as unknown as IRentalTenantPortalActivityRepository,
+      tokenRepo as unknown as IRentalTenantPortalTokenRepository,
       appointmentRepo as unknown as IAppointmentRepository,
       serviceTypeRepo as unknown as IServiceTypeRepository,
       executionRepo as unknown as IInspectionExecutionRepository,
@@ -260,7 +260,7 @@ describe('RescheduleRequestUseCase', () => {
     expect(result).toEqual({
       scheduledDate: FUTURE_DATE,
       timeSlotStart: '14:00', timeSlotEnd: '17:00',
-      tenantConfirmationStatus: 'PENDING',
+      rentalTenantConfirmationStatus: 'PENDING',
     });
 
     // Should call reopenForRescheduleUseCase instead of appointmentRepo.update
@@ -348,12 +348,12 @@ describe('RescheduleRequestUseCase', () => {
     expect(savedActivity.previousValuesJson).toEqual({
       scheduledDate: expect.any(String),
       timeSlot: '09:00-12:00',
-      tenantConfirmationStatus: 'PENDING',
+      rentalTenantConfirmationStatus: 'PENDING',
     });
     expect(savedActivity.newValuesJson).toEqual({
       scheduledDate: FUTURE_DATE,
       timeSlot: '14:00-17:00',
-      tenantConfirmationStatus: 'PENDING',
+      rentalTenantConfirmationStatus: 'PENDING',
     });
     expect(savedActivity.ipAddress).toBe('127.0.0.1');
     expect(savedActivity.userAgent).toBe('TestAgent/1.0');
@@ -374,7 +374,7 @@ describe('RescheduleRequestUseCase', () => {
     const savedRestriction = appointmentRepo.saveRestriction.mock.calls[0][0];
     expect(savedRestriction.isHome).toBe(true);
     expect(savedRestriction.unavailableDaysJson).toEqual(['2026-04-21']);
-    expect(savedRestriction.source).toBe('TENANT_PORTAL');
+    expect(savedRestriction.source).toBe('RENTAL_TENANT_PORTAL');
   });
 
   it('should not save restrictions when not provided', async () => {
@@ -389,7 +389,7 @@ describe('RescheduleRequestUseCase', () => {
 
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
-        action: 'tenant_portal.appointment_rescheduled',
+        action: 'rental_tenant_portal.appointment_rescheduled',
         actorType: 'ANONYMOUS',
         entityType: 'Appointment',
         entityId: 'appt-1',
@@ -448,7 +448,7 @@ describe('RescheduleRequestUseCase', () => {
     executionRepo.findByAppointmentId.mockResolvedValue(finishedExecution);
 
     const result = await useCase.execute(makeInput());
-    expect(result.tenantConfirmationStatus).toBe('PENDING');
+    expect(result.rentalTenantConfirmationStatus).toBe('PENDING');
   });
 
   it('should not call appointmentRepo.update directly — all updates go through ReopenForRescheduleUseCase', async () => {
@@ -572,7 +572,7 @@ describe('RescheduleRequestUseCase – onNotificationHandler', () => {
         timeSlotStart: '14:00', timeSlotEnd: '17:00',
         previousInspectorId: 'inspector-1',
         inspectorId: null,
-        tenantConfirmationStatus: 'PENDING',
+        rentalTenantConfirmationStatus: 'PENDING',
       }),
     };
     onNotificationHandler = {
@@ -581,8 +581,8 @@ describe('RescheduleRequestUseCase – onNotificationHandler', () => {
 
     return {
       useCase: new RescheduleRequestUseCase(
-        activityRepo as unknown as ITenantPortalActivityRepository,
-        tokenRepo as unknown as ITenantPortalTokenRepository,
+        activityRepo as unknown as IRentalTenantPortalActivityRepository,
+        tokenRepo as unknown as IRentalTenantPortalTokenRepository,
         appointmentRepo as unknown as IAppointmentRepository,
         serviceTypeRepo as unknown as IServiceTypeRepository,
         executionRepo as unknown as IInspectionExecutionRepository,
@@ -592,8 +592,8 @@ describe('RescheduleRequestUseCase – onNotificationHandler', () => {
         onNotificationHandler,
       ),
       useCaseWithout: new RescheduleRequestUseCase(
-        activityRepo as unknown as ITenantPortalActivityRepository,
-        tokenRepo as unknown as ITenantPortalTokenRepository,
+        activityRepo as unknown as IRentalTenantPortalActivityRepository,
+        tokenRepo as unknown as IRentalTenantPortalTokenRepository,
         appointmentRepo as unknown as IAppointmentRepository,
         serviceTypeRepo as unknown as IServiceTypeRepository,
         executionRepo as unknown as IInspectionExecutionRepository,
@@ -623,7 +623,7 @@ describe('RescheduleRequestUseCase – onNotificationHandler', () => {
 
     const result = await useCase.execute(makeInput());
 
-    expect(result.tenantConfirmationStatus).toBe('PENDING');
+    expect(result.rentalTenantConfirmationStatus).toBe('PENDING');
   });
 
   it('does not call onNotificationHandler when not provided', async () => {

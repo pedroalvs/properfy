@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { paginationSchema } from './pagination';
 import { contactSchema, appointmentContactsArraySchema } from './contact';
 import { restrictionSchema } from './restriction';
-import { AppointmentStatus, TenantConfirmationStatus } from '../enums/appointment';
+import { AppointmentStatus, RentalTenantConfirmationStatus } from '../enums/appointment';
 import { CancellationReasonCode, RejectionReasonCode } from '../enums/reason-codes';
 
 // Inline property for creation (matches createPropertySchema subset)
@@ -34,7 +34,7 @@ const isTimeRangeOrdered = (start?: string, end?: string): boolean =>
 
 /**
  * Operational free-text observation set on direct create/edit (distinct from
- * tenant-portal `notes`/`tenantNote`). Empty/whitespace-only input is normalized
+ * tenant-portal `notes`/`rentalTenantNote`). Empty/whitespace-only input is normalized
  * to "no value" at the contract boundary — a single source of truth so the
  * dedicated `appointment.observation_updated` audit stays honest regardless of
  * which client writes (web, PWA, direct API), instead of relying on each client
@@ -159,7 +159,7 @@ export const listAppointmentsQuerySchema = paginationSchema.extend({
   search: z.string().max(200).optional(),
   fromDate: z.string().date().optional(),
   toDate: z.string().date().optional(),
-  tenantConfirmationStatus: z.nativeEnum(TenantConfirmationStatus).optional(),
+  rentalTenantConfirmationStatus: z.nativeEnum(RentalTenantConfirmationStatus).optional(),
   showCancelled: z
     .preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean())
     .optional(),
@@ -174,7 +174,7 @@ export const listAppointmentsQuerySchema = paginationSchema.extend({
   timeFrom: z.string().regex(timeRegex, TIME_FORMAT_MESSAGE).optional(),
   timeTo: z.string().regex(timeRegex, TIME_FORMAT_MESSAGE).optional(),
   contactSearch: z.string().max(200).optional(),
-  hasTenantNote: z
+  hasRentalTenantNote: z
     .preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean())
     .optional(),
   confirmationStatus: z.enum(['sent', 'not_sent']).optional(),
@@ -245,7 +245,7 @@ export const bulkEditAppointmentSchema = z.object({
 export type BulkEditAppointmentInput = z.infer<typeof bulkEditAppointmentSchema>;
 
 export const forceManualConfirmationSchema = z.object({
-  tenantConfirmationStatus: z.literal('CONFIRMED'),
+  rentalTenantConfirmationStatus: z.literal('CONFIRMED'),
   reason: z.string().min(1).max(1000),
 });
 export type ForceManualConfirmationInput = z.infer<typeof forceManualConfirmationSchema>;

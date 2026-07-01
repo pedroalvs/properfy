@@ -35,7 +35,7 @@ function makeAppointment(overrides: Partial<ConstructorParameters<typeof Appoint
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 200,
     payoutAmount: 140,
     pricingRuleSnapshotJson: {},
@@ -1231,14 +1231,14 @@ describe('ExecuteStatusTransitionUseCase – INSP DONE pending cross-check', () 
 describe('ExecuteStatusTransitionUseCase – service type confirmation rules', () => {
   it('throws AppointmentTenantConfirmationRequiredError for ROUTINE inspection without confirmation', async () => {
     appointmentRepo.findById.mockResolvedValue(
-      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null, tenantConfirmationStatus: 'PENDING' }),
+      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null, rentalTenantConfirmationStatus: 'PENDING' }),
     );
     serviceTypeRepo.findById.mockResolvedValue({
       id: 'st-1',
       code: 'ROUTINE_INSP',
       name: 'Routine Inspection',
       flowType: 'ROUTINE',
-      requiresTenantConfirmation: true,
+      requiresRentalTenantConfirmation: true,
       status: 'ACTIVE',
     });
     const uc = makeUseCase({ withServiceTypeRepo: true });
@@ -1254,14 +1254,14 @@ describe('ExecuteStatusTransitionUseCase – service type confirmation rules', (
 
   it('AM does not bypass ROUTINE tenant confirmation when assigning inspector', async () => {
     appointmentRepo.findById.mockResolvedValue(
-      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null, tenantConfirmationStatus: 'PENDING' }),
+      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null, rentalTenantConfirmationStatus: 'PENDING' }),
     );
     serviceTypeRepo.findById.mockResolvedValue({
       id: 'st-1',
       code: 'ROUTINE_INSP',
       name: 'Routine Inspection',
       flowType: 'ROUTINE',
-      requiresTenantConfirmation: true,
+      requiresRentalTenantConfirmation: true,
       status: 'ACTIVE',
     });
     const uc = makeUseCase({ withServiceTypeRepo: true });
@@ -1277,14 +1277,14 @@ describe('ExecuteStatusTransitionUseCase – service type confirmation rules', (
 
   it('allows ROUTINE inspection to proceed when tenant is confirmed', async () => {
     appointmentRepo.findById.mockResolvedValue(
-      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null, tenantConfirmationStatus: 'CONFIRMED' }),
+      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null, rentalTenantConfirmationStatus: 'CONFIRMED' }),
     );
     serviceTypeRepo.findById.mockResolvedValue({
       id: 'st-1',
       code: 'ROUTINE_INSP',
       name: 'Routine Inspection',
       flowType: 'ROUTINE',
-      requiresTenantConfirmation: true,
+      requiresRentalTenantConfirmation: true,
       status: 'ACTIVE',
     });
     const uc = makeUseCase({ withServiceTypeRepo: true });
@@ -1299,14 +1299,14 @@ describe('ExecuteStatusTransitionUseCase – service type confirmation rules', (
 
   it('allows INGOING inspection without tenant confirmation', async () => {
     appointmentRepo.findById.mockResolvedValue(
-      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null, tenantConfirmationStatus: 'PENDING' }),
+      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null, rentalTenantConfirmationStatus: 'PENDING' }),
     );
     serviceTypeRepo.findById.mockResolvedValue({
       id: 'st-2',
       code: 'INGOING_INSP',
       name: 'Ingoing Inspection',
       flowType: 'INGOING',
-      requiresTenantConfirmation: false,
+      requiresRentalTenantConfirmation: false,
       status: 'ACTIVE',
     });
     const uc = makeUseCase({ withServiceTypeRepo: true });
@@ -1321,14 +1321,14 @@ describe('ExecuteStatusTransitionUseCase – service type confirmation rules', (
 
   it('allows OUTGOING inspection without tenant confirmation', async () => {
     appointmentRepo.findById.mockResolvedValue(
-      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null, tenantConfirmationStatus: 'PENDING' }),
+      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null, rentalTenantConfirmationStatus: 'PENDING' }),
     );
     serviceTypeRepo.findById.mockResolvedValue({
       id: 'st-3',
       code: 'OUTGOING_INSP',
       name: 'Outgoing Inspection',
       flowType: 'OUTGOING',
-      requiresTenantConfirmation: false,
+      requiresRentalTenantConfirmation: false,
       status: 'ACTIVE',
     });
     const uc = makeUseCase({ withServiceTypeRepo: true });
@@ -1343,7 +1343,7 @@ describe('ExecuteStatusTransitionUseCase – service type confirmation rules', (
 
   it('allows scheduling without service type repo (backward compatibility)', async () => {
     appointmentRepo.findById.mockResolvedValue(
-      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null, tenantConfirmationStatus: 'PENDING' }),
+      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null, rentalTenantConfirmationStatus: 'PENDING' }),
     );
     const uc = makeUseCase();
     const result = await uc.execute({
@@ -1552,10 +1552,10 @@ describe('ExecuteStatusTransitionUseCase – domain event bus', () => {
     const eventBus = new DomainEventBus();
     const emitSpy = vi.spyOn(eventBus, 'emit');
     appointmentRepo.findById.mockResolvedValue(
-      makeWithRelations({ status: 'AWAITING_INSPECTOR', serviceGroupId: 'sg-1', tenantConfirmationStatus: 'CONFIRMED' }),
+      makeWithRelations({ status: 'AWAITING_INSPECTOR', serviceGroupId: 'sg-1', rentalTenantConfirmationStatus: 'CONFIRMED' }),
     );
     inspectorRepo.findById.mockResolvedValue({ id: 'insp-1', name: 'John Inspector', userId: null });
-    serviceTypeRepo.findById.mockResolvedValue({ flowType: 'ROUTINE', requiresTenantConfirmation: true });
+    serviceTypeRepo.findById.mockResolvedValue({ flowType: 'ROUTINE', requiresRentalTenantConfirmation: true });
 
     const uc = makeUseCase({ domainEventBus: eventBus, withServiceTypeRepo: true });
     await uc.execute({

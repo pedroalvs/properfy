@@ -21,7 +21,7 @@ import { buildApp } from '../../../src/main/server';
 import type { FastifyInstance } from 'fastify';
 import { createMockContainer } from '../../helpers/mock-container';
 import { AppointmentNotFoundError } from '../../../src/modules/appointment/domain/appointment.errors';
-import { NoActivePortalTokenError } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
+import { NoActivePortalTokenError } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
 import { PortalTokenNotDecryptableError } from '../../../src/modules/appointment/domain/confirmation-cycle.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 
@@ -30,7 +30,7 @@ const mockJwtVerify = vi.fn();
 
 const APPOINTMENT_ID = 'a0000000-0000-4000-8000-000000000001';
 const TOKEN_ID = 'b0000000-0000-4000-8000-000000000002';
-const PORTAL_URL = 'https://portal.properfy.com/tenant-portal/raw-token-abc';
+const PORTAL_URL = 'https://portal.properfy.com/rental-tenant-portal/raw-token-abc';
 const EXPIRES_AT = '2026-08-01T00:00:00.000Z';
 
 vi.mock('../../../src/main/container', () => ({
@@ -50,7 +50,7 @@ vi.mock('../../../src/main/container', () => ({
     audit: { jwtService: { verify: mockJwtVerify } },
     serviceGroup: { jwtService: { verify: mockJwtVerify } },
     marketplace: { jwtService: { verify: mockJwtVerify } },
-    tenantPortal: { jwtService: { verify: mockJwtVerify } },
+    rentalTenantPortal: { jwtService: { verify: mockJwtVerify } },
     inspectorExecution: { jwtService: { verify: mockJwtVerify } },
     billing: { jwtService: { verify: mockJwtVerify } },
     report: { jwtService: { verify: mockJwtVerify } },
@@ -102,7 +102,7 @@ describe('GET /v1/appointments/:appointmentId/portal-link', () => {
         .set('Authorization', 'Bearer valid-token');
 
       expect(res.status).toBe(200);
-      expect(res.body.data.portalUrl).toContain('/tenant-portal/');
+      expect(res.body.data.portalUrl).toContain('/rental-tenant-portal/');
     });
   });
 

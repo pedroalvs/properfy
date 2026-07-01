@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
-import { ConfirmAppointmentUseCase } from '../../../src/modules/tenant-portal/application/use-cases/confirm-appointment.use-case';
-import { RescheduleRequestUseCase, type RescheduleRequestInput } from '../../../src/modules/tenant-portal/application/use-cases/reschedule-request.use-case';
-import { ReportUnavailabilityUseCase, type ReportUnavailabilityInput } from '../../../src/modules/tenant-portal/application/use-cases/report-unavailability.use-case';
-import { UpdateContactUseCase } from '../../../src/modules/tenant-portal/application/use-cases/update-contact.use-case';
-import type { ITenantPortalActivityRepository } from '../../../src/modules/tenant-portal/domain/tenant-portal-activity.repository';
-import type { ITenantPortalTokenRepository } from '../../../src/modules/tenant-portal/domain/tenant-portal-token.repository';
+import { ConfirmAppointmentUseCase } from '../../../src/modules/rental-tenant-portal/application/use-cases/confirm-appointment.use-case';
+import { RescheduleRequestUseCase, type RescheduleRequestInput } from '../../../src/modules/rental-tenant-portal/application/use-cases/reschedule-request.use-case';
+import { ReportUnavailabilityUseCase, type ReportUnavailabilityInput } from '../../../src/modules/rental-tenant-portal/application/use-cases/report-unavailability.use-case';
+import { UpdateContactUseCase } from '../../../src/modules/rental-tenant-portal/application/use-cases/update-contact.use-case';
+import type { IRentalTenantPortalActivityRepository } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-activity.repository';
+import type { IRentalTenantPortalTokenRepository } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-token.repository';
 import type { IAppointmentRepository } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { IServiceTypeRepository } from '../../../src/modules/service-type/domain/service-type.repository';
 import type { IInspectionExecutionRepository } from '../../../src/modules/inspector-execution/domain/inspection-execution.repository';
@@ -18,7 +18,7 @@ import { ServiceTypeEntity } from '../../../src/modules/service-type/domain/serv
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import {
   PortalTokenAlreadyUsedError,
-} from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
+} from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
 
 // Freeze "now" at 2026-04-10 so the mock scheduledDate (2026-04-15) stays in
 // the future and the 30-day reschedule window guard never trips on CI date
@@ -47,7 +47,7 @@ function makeAppointment(overrides: Partial<ConstructorParameters<typeof Appoint
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 100,
     payoutAmount: 70,
     pricingRuleSnapshotJson: {},
@@ -71,12 +71,12 @@ function makeContact() {
     id: 'contact-1',
     appointmentId: 'appt-1',
     contactId: null,
-    role: 'TENANT',
+    role: 'RENTAL_TENANT',
     isPrimary: true,
     snapshotName: 'John Smith',
     snapshotEmail: 'john@example.com',
     snapshotPhone: '+61400000000',
-    tenantName: 'John Smith',
+    rentalTenantName: 'John Smith',
     primaryEmail: 'john@example.com',
     secondaryEmail: null,
     primaryPhone: '+61400000000',
@@ -92,7 +92,7 @@ function makeServiceType() {
     code: 'ROUTINE',
     name: 'Routine Inspection',
     flowType: 'ROUTINE',
-    requiresTenantConfirmation: true,
+    requiresRentalTenantConfirmation: true,
     status: 'ACTIVE',
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),
@@ -163,7 +163,7 @@ function makeTokenRepo() {
 
 describe('GAP-002: Domain events for portal actions', () => {
   describe('ConfirmAppointmentUseCase emits CONFIRMED event', () => {
-    it('emits tenant_portal.confirmed.v1 after successful confirmation', async () => {
+    it('emits rental_tenant_portal.confirmed.v1 after successful confirmation', async () => {
       const eventBus = new DomainEventBus();
       const emitted: unknown[] = [];
       eventBus.subscribe(TENANT_PORTAL_EVENTS.CONFIRMED, (e) => { emitted.push(e); });
@@ -174,12 +174,12 @@ describe('GAP-002: Domain events for portal actions', () => {
       const tokenRepo = makeTokenRepo();
 
       const useCase = new ConfirmAppointmentUseCase(
-        activityRepo as unknown as ITenantPortalActivityRepository,
+        activityRepo as unknown as IRentalTenantPortalActivityRepository,
         appointmentRepo as unknown as IAppointmentRepository,
         auditService,
         undefined,
         eventBus,
-        tokenRepo as unknown as ITenantPortalTokenRepository,
+        tokenRepo as unknown as IRentalTenantPortalTokenRepository,
       );
 
       await useCase.execute({
@@ -199,7 +199,7 @@ describe('GAP-002: Domain events for portal actions', () => {
   });
 
   describe('UpdateContactUseCase emits CONTACT_UPDATED event', () => {
-    it('emits tenant_portal.contact_updated.v1 after successful update', async () => {
+    it('emits rental_tenant_portal.contact_updated.v1 after successful update', async () => {
       const eventBus = new DomainEventBus();
       const emitted: unknown[] = [];
       eventBus.subscribe(TENANT_PORTAL_EVENTS.CONTACT_UPDATED, (e) => { emitted.push(e); });
@@ -209,7 +209,7 @@ describe('GAP-002: Domain events for portal actions', () => {
       const auditService = { log: vi.fn() } as unknown as PersistentAuditService;
 
       const useCase = new UpdateContactUseCase(
-        activityRepo as unknown as ITenantPortalActivityRepository,
+        activityRepo as unknown as IRentalTenantPortalActivityRepository,
         appointmentRepo as unknown as IAppointmentRepository,
         auditService,
         eventBus,
@@ -232,7 +232,7 @@ describe('GAP-002: Domain events for portal actions', () => {
   });
 
   describe('ReportUnavailabilityUseCase emits UNAVAILABLE event', () => {
-    it('emits tenant_portal.unavailable.v1 after successful report', async () => {
+    it('emits rental_tenant_portal.unavailable.v1 after successful report', async () => {
       const eventBus = new DomainEventBus();
       const emitted: unknown[] = [];
       eventBus.subscribe(TENANT_PORTAL_EVENTS.UNAVAILABLE, (e) => { emitted.push(e); });
@@ -242,7 +242,7 @@ describe('GAP-002: Domain events for portal actions', () => {
       const auditService = { log: vi.fn() } as unknown as PersistentAuditService;
 
       const useCase = new ReportUnavailabilityUseCase(
-        activityRepo as unknown as ITenantPortalActivityRepository,
+        activityRepo as unknown as IRentalTenantPortalActivityRepository,
         appointmentRepo as unknown as IAppointmentRepository,
         auditService,
         undefined,
@@ -267,7 +267,7 @@ describe('GAP-002: Domain events for portal actions', () => {
   });
 
   describe('RescheduleRequestUseCase emits RESCHEDULED event', () => {
-    it('emits tenant_portal.rescheduled.v1 after successful reschedule', async () => {
+    it('emits rental_tenant_portal.rescheduled.v1 after successful reschedule', async () => {
       const eventBus = new DomainEventBus();
       const emitted: unknown[] = [];
       eventBus.subscribe(TENANT_PORTAL_EVENTS.RESCHEDULED, (e) => { emitted.push(e); });
@@ -283,13 +283,13 @@ describe('GAP-002: Domain events for portal actions', () => {
         execute: vi.fn().mockResolvedValue({
           id: 'appt-1', previousStatus: 'SCHEDULED', status: 'DRAFT',
           scheduledDate: '2026-04-20', timeSlotStart: '14:00', timeSlotEnd: '17:00',
-          tenantConfirmationStatus: 'PENDING',
+          rentalTenantConfirmationStatus: 'PENDING',
         }),
       };
 
       const useCase = new RescheduleRequestUseCase(
-        activityRepo as unknown as ITenantPortalActivityRepository,
-        tokenRepo as unknown as ITenantPortalTokenRepository,
+        activityRepo as unknown as IRentalTenantPortalActivityRepository,
+        tokenRepo as unknown as IRentalTenantPortalTokenRepository,
         appointmentRepo as unknown as IAppointmentRepository,
         serviceTypeRepo as unknown as IServiceTypeRepository,
         executionRepo as unknown as IInspectionExecutionRepository,
@@ -334,7 +334,7 @@ describe('GAP-003: Token replay detection', () => {
       const auditService = { log: vi.fn() } as unknown as PersistentAuditService;
 
       const useCase = new ConfirmAppointmentUseCase(
-        activityRepo as unknown as ITenantPortalActivityRepository,
+        activityRepo as unknown as IRentalTenantPortalActivityRepository,
         appointmentRepo as unknown as IAppointmentRepository,
         auditService,
       );
@@ -358,12 +358,12 @@ describe('GAP-003: Token replay detection', () => {
       const tokenRepo = makeTokenRepo();
 
       const useCase = new ConfirmAppointmentUseCase(
-        activityRepo as unknown as ITenantPortalActivityRepository,
+        activityRepo as unknown as IRentalTenantPortalActivityRepository,
         appointmentRepo as unknown as IAppointmentRepository,
         auditService,
         undefined,
         undefined,
-        tokenRepo as unknown as ITenantPortalTokenRepository,
+        tokenRepo as unknown as IRentalTenantPortalTokenRepository,
       );
 
       await useCase.execute({
@@ -392,14 +392,14 @@ describe('GAP-003: Token replay detection', () => {
         execute: vi.fn().mockResolvedValue({
           id: 'appt-1', previousStatus: 'SCHEDULED', status: 'DRAFT',
           scheduledDate: '2026-04-20', timeSlotStart: '14:00', timeSlotEnd: '17:00',
-          tenantConfirmationStatus: 'PENDING',
+          rentalTenantConfirmationStatus: 'PENDING',
         }),
       };
 
       return {
         useCase: new RescheduleRequestUseCase(
-          activityRepo as unknown as ITenantPortalActivityRepository,
-          tokenRepo as unknown as ITenantPortalTokenRepository,
+          activityRepo as unknown as IRentalTenantPortalActivityRepository,
+          tokenRepo as unknown as IRentalTenantPortalTokenRepository,
           appointmentRepo as unknown as IAppointmentRepository,
           serviceTypeRepo as unknown as IServiceTypeRepository,
           executionRepo as unknown as IInspectionExecutionRepository,
@@ -454,7 +454,7 @@ describe('GAP-003: Token replay detection', () => {
       const auditService = { log: vi.fn() } as unknown as PersistentAuditService;
 
       const useCase = new ReportUnavailabilityUseCase(
-        activityRepo as unknown as ITenantPortalActivityRepository,
+        activityRepo as unknown as IRentalTenantPortalActivityRepository,
         appointmentRepo as unknown as IAppointmentRepository,
         auditService,
       );
@@ -476,13 +476,13 @@ describe('GAP-003: Token replay detection', () => {
       const tokenRepo = makeTokenRepo();
 
       const useCase = new ReportUnavailabilityUseCase(
-        activityRepo as unknown as ITenantPortalActivityRepository,
+        activityRepo as unknown as IRentalTenantPortalActivityRepository,
         appointmentRepo as unknown as IAppointmentRepository,
         auditService,
         undefined,
         undefined,
         undefined,
-        tokenRepo as unknown as ITenantPortalTokenRepository,
+        tokenRepo as unknown as IRentalTenantPortalTokenRepository,
       );
 
       await useCase.execute({
@@ -505,7 +505,7 @@ describe('GAP-003: Token replay detection', () => {
       const auditService = { log: vi.fn() } as unknown as PersistentAuditService;
 
       const useCase = new UpdateContactUseCase(
-        activityRepo as unknown as ITenantPortalActivityRepository,
+        activityRepo as unknown as IRentalTenantPortalActivityRepository,
         appointmentRepo as unknown as IAppointmentRepository,
         auditService,
       );
@@ -542,7 +542,7 @@ describe('GAP-004: Auto-generate new token on reschedule', () => {
       execute: vi.fn().mockImplementation(async (input: { newScheduledDate: string; newTimeSlot: string }) => ({
         id: 'appt-1', previousStatus: 'SCHEDULED', status: 'DRAFT',
         scheduledDate: input.newScheduledDate, timeSlot: input.newTimeSlot,
-        tenantConfirmationStatus: 'PENDING',
+        rentalTenantConfirmationStatus: 'PENDING',
       })),
     };
     const generatePortalTokenUseCase = {
@@ -550,8 +550,8 @@ describe('GAP-004: Auto-generate new token on reschedule', () => {
     };
 
     const useCase = new RescheduleRequestUseCase(
-      activityRepo as unknown as ITenantPortalActivityRepository,
-      tokenRepo as unknown as ITenantPortalTokenRepository,
+      activityRepo as unknown as IRentalTenantPortalActivityRepository,
+      tokenRepo as unknown as IRentalTenantPortalTokenRepository,
       appointmentRepo as unknown as IAppointmentRepository,
       serviceTypeRepo as unknown as IServiceTypeRepository,
       executionRepo as unknown as IInspectionExecutionRepository,
@@ -612,7 +612,7 @@ describe('GAP-004: Auto-generate new token on reschedule', () => {
       userAgent: 'Test/1.0',
     });
 
-    expect(result.tenantConfirmationStatus).toBe('PENDING');
+    expect(result.rentalTenantConfirmationStatus).toBe('PENDING');
     expect(result.scheduledDate).toBe(newDate);
   });
 
@@ -628,13 +628,13 @@ describe('GAP-004: Auto-generate new token on reschedule', () => {
       execute: vi.fn().mockImplementation(async (input: { newScheduledDate: string; newTimeSlot: string }) => ({
         id: 'appt-1', previousStatus: 'SCHEDULED', status: 'DRAFT',
         scheduledDate: input.newScheduledDate, timeSlot: input.newTimeSlot,
-        tenantConfirmationStatus: 'PENDING',
+        rentalTenantConfirmationStatus: 'PENDING',
       })),
     };
 
     const useCase = new RescheduleRequestUseCase(
-      activityRepo as unknown as ITenantPortalActivityRepository,
-      tokenRepo as unknown as ITenantPortalTokenRepository,
+      activityRepo as unknown as IRentalTenantPortalActivityRepository,
+      tokenRepo as unknown as IRentalTenantPortalTokenRepository,
       appointmentRepo as unknown as IAppointmentRepository,
       serviceTypeRepo as unknown as IServiceTypeRepository,
       executionRepo as unknown as IInspectionExecutionRepository,
@@ -655,6 +655,6 @@ describe('GAP-004: Auto-generate new token on reschedule', () => {
       userAgent: 'Test/1.0',
     });
 
-    expect(result.tenantConfirmationStatus).toBe('PENDING');
+    expect(result.rentalTenantConfirmationStatus).toBe('PENDING');
   });
 });

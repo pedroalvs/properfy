@@ -101,7 +101,7 @@ beforeAll(async () => {
     data: {
       code: `REVIEW-1-ST-${Math.random().toString(36).slice(2, 6)}`,
       name: 'Test Inspection', flow_type: 'ROUTINE',
-      requires_tenant_confirmation: false, status: 'ACTIVE',
+      requires_rental_tenant_confirmation: false, status: 'ACTIVE',
     },
   });
   const apptInB = await harness.prisma.appointment.create({
@@ -112,7 +112,7 @@ beforeAll(async () => {
       time_slot_start: '09:00', time_slot_end: '10:00',
       price_amount: '100.00', payout_amount: '80.00',
       pricing_rule_snapshot_json: {},
-      tenant_confirmation_status: 'CONFIRMED',
+      rental_tenant_confirmation_status: 'CONFIRMED',
       created_by_user_id: userB.id,
     },
   });
@@ -138,7 +138,7 @@ beforeAll(async () => {
   });
   const cStandalone = await harness.prisma.contact.create({
     data: {
-      type: 'TENANT',
+      type: 'RENTAL_TENANT',
       display_name: 'Standalone Contact (no junction)',
       primary_email: `review-1-stand-${Math.random().toString(36).slice(2, 6)}@test.local`,
       additional_channels_json: [], is_active: true,
@@ -146,7 +146,7 @@ beforeAll(async () => {
   });
   const cStandaloneInB = await harness.prisma.contact.create({
     data: {
-      type: 'TENANT',
+      type: 'RENTAL_TENANT',
       display_name: 'Standalone Contact (junction in B)',
       primary_email: `review-1-stand-b-${Math.random().toString(36).slice(2, 6)}@test.local`,
       additional_channels_json: [], is_active: true,
@@ -160,7 +160,7 @@ beforeAll(async () => {
       appointment: { connect: { id: apptInB.id } },
       contact: { connect: { id: cInA.id } },
       role: 'PROPERTY_MANAGER', is_primary: false,
-      tenant_name: 'A-Owned Contact',
+      rental_tenant_name: 'A-Owned Contact',
       snapshot_name: 'A-Owned Contact',
       snapshot_email: cInA.primary_email,
     },
@@ -169,8 +169,8 @@ beforeAll(async () => {
     data: {
       appointment: { connect: { id: apptInB.id } },
       contact: { connect: { id: cStandaloneInB.id } },
-      role: 'TENANT', is_primary: true,
-      tenant_name: 'Standalone Contact (junction in B)',
+      role: 'RENTAL_TENANT', is_primary: true,
+      rental_tenant_name: 'Standalone Contact (junction in B)',
       snapshot_name: 'Standalone Contact (junction in B)',
       snapshot_email: cStandaloneInB.primary_email,
     },

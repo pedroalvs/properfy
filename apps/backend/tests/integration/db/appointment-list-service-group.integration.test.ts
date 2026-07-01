@@ -55,7 +55,7 @@ async function seedServiceType(prisma: PrismaClient): Promise<string> {
       code: `ST-${suffix}`,
       name: `Routine ${suffix}`,
       flow_type: 'ROUTINE',
-      requires_tenant_confirmation: true,
+      requires_rental_tenant_confirmation: true,
       status: 'ACTIVE',
     },
   });
@@ -110,7 +110,7 @@ async function seedAppointment(
       price_amount: '100.00',
       payout_amount: '80.00',
       pricing_rule_snapshot_json: {},
-      tenant_confirmation_status: 'PENDING',
+      rental_tenant_confirmation_status: 'PENDING',
       created_by_user_id: params.userId,
       ...(params.groupId ? { service_group_id: params.groupId } : {}),
     },

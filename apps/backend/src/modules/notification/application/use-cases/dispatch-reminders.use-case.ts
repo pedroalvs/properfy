@@ -25,7 +25,7 @@ export class DispatchRemindersUseCase {
     private readonly buildNotificationPayload: BuildNotificationPayloadService,
     private readonly appointmentCodeFormatter: AppointmentCodeFormatter,
     private readonly createNotification: CreateNotificationUseCase,
-    private readonly tenantPortalBaseUrl: string,
+    private readonly rentalTenantPortalBaseUrl: string,
   ) {}
 
   async execute(today?: Date): Promise<DispatchRemindersOutput> {
@@ -81,7 +81,7 @@ export class DispatchRemindersUseCase {
           appointment,
           contact,
           rawPortalToken: null,
-          portalBaseUrl: this.tenantPortalBaseUrl,
+          portalBaseUrl: this.rentalTenantPortalBaseUrl,
           appointmentCodeFormatter: this.appointmentCodeFormatter,
         });
 

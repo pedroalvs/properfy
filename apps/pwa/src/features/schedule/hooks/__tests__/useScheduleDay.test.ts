@@ -1,6 +1,6 @@
 import { useScheduleDay } from '../useScheduleDay';
 import { renderHook } from '@testing-library/react';
-import { AppointmentStatus, TenantConfirmationStatus, ServiceTypeFlowType } from '@properfy/shared';
+import { AppointmentStatus, RentalTenantConfirmationStatus, ServiceTypeFlowType } from '@properfy/shared';
 import type { InspectorAppointment } from '../../types';
 
 function makeApt(overrides: Partial<InspectorAppointment> = {}): InspectorAppointment {
@@ -13,12 +13,12 @@ function makeApt(overrides: Partial<InspectorAppointment> = {}): InspectorAppoin
     timeSlotStart: '09:00',
     timeSlotEnd: '11:00',
     status: AppointmentStatus.SCHEDULED,
-    tenantConfirmation: TenantConfirmationStatus.CONFIRMED,
+    rentalTenantConfirmation: RentalTenantConfirmationStatus.CONFIRMED,
     serviceTypeName: 'Routine',
     flowType: ServiceTypeFlowType.ROUTINE,
-    tenantName: 'Test',
-    tenantPhone: null,
-    tenantEmail: null,
+    rentalTenantName: 'Test',
+    rentalTenantPhone: null,
+    rentalTenantEmail: null,
     keyRequired: false,
     meetingLocation: null,
     restrictions: null,

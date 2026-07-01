@@ -31,8 +31,8 @@ import { EMPTY_FORM_DATA, createEmptyContact } from '../types';
 import type { ContactSearchResult } from '../hooks/useContactSearch';
 
 const CONTACT_ROLE_OPTIONS = [
-  { value: AppointmentContactRole.TENANT, label: 'Tenant' },
-  { value: AppointmentContactRole.TENANT_REPRESENTATIVE, label: 'Tenant Representative' },
+  { value: AppointmentContactRole.RENTAL_TENANT, label: 'Tenant' },
+  { value: AppointmentContactRole.RENTAL_TENANT_REPRESENTATIVE, label: 'Tenant Representative' },
   { value: AppointmentContactRole.HOUSEKEEPER, label: 'Housekeeper' },
   { value: AppointmentContactRole.PROPERTY_MANAGER, label: 'Property Manager' },
   { value: AppointmentContactRole.BROKER, label: 'Broker' },
@@ -44,7 +44,7 @@ const CONTACT_ROLE_OPTIONS = [
 // THIS specific appointment. Keep the labels distinct in the UI to avoid
 // the "I picked Tenant in role, why am I being asked again?" confusion.
 const CONTACT_TYPE_OPTIONS = [
-  { value: ContactType.TENANT, label: 'Tenant' },
+  { value: ContactType.RENTAL_TENANT, label: 'Tenant' },
   { value: ContactType.PROPERTY_MANAGER, label: 'Property Manager' },
   { value: ContactType.HOUSEKEEPER, label: 'Housekeeper' },
   { value: ContactType.BROKER, label: 'Broker' },
@@ -147,7 +147,7 @@ export function AppointmentFormDrawer({
               name: c.snapshotName ?? '',
               email: c.snapshotEmail ?? '',
               phone: c.snapshotPhone ?? '',
-              role: c.role ?? ('TENANT' as AppointmentContactRole),
+              role: c.role ?? ('RENTAL_TENANT' as AppointmentContactRole),
               isPrimary: c.isPrimary ?? false,
             }))
           : [
@@ -156,7 +156,7 @@ export function AppointmentFormDrawer({
                 name: appointment.contactName ?? '',
                 email: appointment.contactEmail ?? '',
                 phone: appointment.contactPhone ?? '',
-                role: 'TENANT' as AppointmentContactRole,
+                role: 'RENTAL_TENANT' as AppointmentContactRole,
                 isPrimary: true,
               },
             ];

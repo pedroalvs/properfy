@@ -1,6 +1,6 @@
 import { screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { AppointmentStatus, TenantConfirmationStatus, ServiceTypeFlowType } from '@properfy/shared';
+import { AppointmentStatus, RentalTenantConfirmationStatus, ServiceTypeFlowType } from '@properfy/shared';
 import { render } from '@testing-library/react';
 import { AppointmentDetailPage } from '../AppointmentDetailPage';
 
@@ -31,8 +31,8 @@ vi.mock('@/components/ui/StatusChip', () => ({
   StatusChip: ({ status }: { status?: string }) => <div>{status ?? 'chip'}</div>,
 }));
 
-vi.mock('../../components/TenantConfirmationBanner', () => ({
-  TenantConfirmationBanner: () => <div>Tenant confirmation</div>,
+vi.mock('../../components/RentalTenantConfirmationBanner', () => ({
+  RentalTenantConfirmationBanner: () => <div>Tenant confirmation</div>,
 }));
 
 vi.mock('../../components/PropertyAddressSection', () => ({
@@ -73,12 +73,12 @@ const appointmentData = {
     timeSlotStart: '09:00',
     timeSlotEnd: '11:00',
     status: AppointmentStatus.SCHEDULED,
-    tenantConfirmation: TenantConfirmationStatus.CONFIRMED,
+    rentalTenantConfirmation: RentalTenantConfirmationStatus.CONFIRMED,
     serviceTypeName: 'Routine Inspection',
     flowType: ServiceTypeFlowType.ROUTINE,
-    tenantName: 'John Tenant',
-    tenantPhone: null,
-    tenantEmail: null,
+    rentalTenantName: 'John Tenant',
+    rentalTenantPhone: null,
+    rentalTenantEmail: null,
     keyRequired: false,
     meetingLocation: null,
     restrictions: null,

@@ -1,19 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { GetPortalDataUseCase } from '../../../src/modules/tenant-portal/application/use-cases/get-portal-data.use-case';
-import type { ITenantPortalTokenRepository } from '../../../src/modules/tenant-portal/domain/tenant-portal-token.repository';
-import type { ITenantPortalActivityRepository } from '../../../src/modules/tenant-portal/domain/tenant-portal-activity.repository';
+import { GetPortalDataUseCase } from '../../../src/modules/rental-tenant-portal/application/use-cases/get-portal-data.use-case';
+import type { IRentalTenantPortalTokenRepository } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-token.repository';
+import type { IRentalTenantPortalActivityRepository } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-activity.repository';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { IPropertyRepository } from '../../../src/modules/property/domain/property.repository';
 import type { IServiceTypeRepository } from '../../../src/modules/service-type/domain/service-type.repository';
 import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
-import { TenantPortalActivityEntity } from '../../../src/modules/tenant-portal/domain/tenant-portal-activity.entity';
+import { RentalTenantPortalActivityEntity } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-activity.entity';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { AppointmentContactEntity } from '../../../src/modules/appointment/domain/appointment-contact.entity';
 import { AppointmentRestrictionEntity } from '../../../src/modules/appointment/domain/appointment-restriction.entity';
 import { PropertyEntity } from '../../../src/modules/property/domain/property.entity';
 import { ServiceTypeEntity } from '../../../src/modules/service-type/domain/service-type.entity';
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
-import { PortalAppointmentInactiveError } from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
+import { PortalAppointmentInactiveError } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
 
 function makeAppointmentEntity(
   overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {},
@@ -31,7 +31,7 @@ function makeAppointmentEntity(
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 150,
     payoutAmount: 80,
     pricingRuleSnapshotJson: {},
@@ -54,7 +54,7 @@ function makeContact(): AppointmentContactEntity {
   return new AppointmentContactEntity({
     id: 'contact-1',
     appointmentId: 'appt-1',
-    tenantName: 'John Smith',
+    rentalTenantName: 'John Smith',
     primaryEmail: 'john@example.com',
     secondaryEmail: null,
     primaryPhone: '+61400000000',
@@ -72,7 +72,7 @@ function makeRestriction(): AppointmentRestrictionEntity {
     unavailableDaysJson: ['Monday'],
     unavailableHoursJson: ['08:00-09:00'],
     notes: 'Dog at home',
-    source: 'TENANT_PORTAL',
+    source: 'RENTAL_TENANT_PORTAL',
     createdAt: new Date(),
     updatedAt: new Date(),
   });
@@ -108,7 +108,7 @@ function makeServiceType(): ServiceTypeEntity {
     code: 'ROUTINE',
     name: 'Routine Inspection',
     flowType: 'ROUTINE',
-    requiresTenantConfirmation: true,
+    requiresRentalTenantConfirmation: true,
     status: 'ACTIVE',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -157,8 +157,8 @@ function makeTenantEntity(overrides: Partial<ConstructorParameters<typeof Tenant
 }
 
 describe('GetPortalDataUseCase', () => {
-  let tokenRepo: ITenantPortalTokenRepository;
-  let activityRepo: ITenantPortalActivityRepository;
+  let tokenRepo: IRentalTenantPortalTokenRepository;
+  let activityRepo: IRentalTenantPortalActivityRepository;
   let appointmentRepo: IAppointmentRepository;
   let propertyRepo: IPropertyRepository;
   let serviceTypeRepo: IServiceTypeRepository;
@@ -233,7 +233,7 @@ describe('GetPortalDataUseCase', () => {
     expect(result.appointment.scheduledDate).toEqual(new Date('2026-04-01'));
     expect(result.appointment.timeSlotStart).toBe('09:00');
     expect(result.appointment.timeSlotEnd).toBe('10:00');
-    expect(result.appointment.tenantConfirmationStatus).toBe('PENDING');
+    expect(result.appointment.rentalTenantConfirmationStatus).toBe('PENDING');
     expect(result.appointment.keyRequired).toBe(false);
     expect(result.appointment.meetingLocation).toBeNull();
     expect(result.appointment.notes).toBe('Some notes');
@@ -254,7 +254,7 @@ describe('GetPortalDataUseCase', () => {
       country: 'AU',
     });
     expect(result.contact).toEqual({
-      tenantName: 'John Smith',
+      rentalTenantName: 'John Smith',
       primaryEmail: 'john@example.com',
       secondaryEmail: null,
       primaryPhone: '+61400000000',
@@ -265,7 +265,7 @@ describe('GetPortalDataUseCase', () => {
       unavailableDaysJson: ['Monday'],
       unavailableHoursJson: ['08:00-09:00'],
       notes: 'Dog at home',
-      source: 'TENANT_PORTAL',
+      source: 'RENTAL_TENANT_PORTAL',
     });
     expect(result.existingResponse).toBeUndefined();
   });
@@ -296,7 +296,7 @@ describe('GetPortalDataUseCase', () => {
     const savedActivity = vi.mocked(activityRepo.save).mock.calls[0][0];
     expect(savedActivity.action).toBe('VIEW');
     expect(savedActivity.appointmentId).toBe('appt-1');
-    expect(savedActivity.tenantPortalTokenId).toBe('token-1');
+    expect(savedActivity.rentalTenantPortalTokenId).toBe('token-1');
     expect(savedActivity.ipAddress).toBe('192.168.1.1');
     expect(savedActivity.userAgent).toBe('Mozilla/5.0');
     expect(savedActivity.previousValuesJson).toBeNull();
@@ -361,7 +361,7 @@ describe('GetPortalDataUseCase', () => {
       unavailableDaysJson: ['Monday'],
       unavailableHoursJson: ['08:00-09:00'],
       notes: 'Dog at home',
-      source: 'TENANT_PORTAL',
+      source: 'RENTAL_TENANT_PORTAL',
     });
   });
 
@@ -418,25 +418,25 @@ describe('GetPortalDataUseCase', () => {
     vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
     vi.mocked(activityRepo.findLatestByTokenAndAction)
       .mockResolvedValueOnce(
-        new TenantPortalActivityEntity({
+        new RentalTenantPortalActivityEntity({
           id: 'act-confirm',
           appointmentId: 'appt-1',
-          tenantPortalTokenId: 'token-1',
+          rentalTenantPortalTokenId: 'token-1',
           action: 'CONFIRM',
-          previousValuesJson: { tenantConfirmationStatus: 'PENDING' },
-          newValuesJson: { tenantConfirmationStatus: 'CONFIRMED' },
+          previousValuesJson: { rentalTenantConfirmationStatus: 'PENDING' },
+          newValuesJson: { rentalTenantConfirmationStatus: 'CONFIRMED' },
           ipAddress: null,
           userAgent: null,
           createdAt: new Date('2026-03-20T10:00:00.000Z'),
         }),
       )
       .mockResolvedValueOnce(
-        new TenantPortalActivityEntity({
+        new RentalTenantPortalActivityEntity({
           id: 'act-reschedule',
           appointmentId: 'appt-1',
-          tenantPortalTokenId: 'token-1',
+          rentalTenantPortalTokenId: 'token-1',
           action: 'RESCHEDULE',
-          previousValuesJson: { tenantConfirmationStatus: 'PENDING' },
+          previousValuesJson: { rentalTenantConfirmationStatus: 'PENDING' },
           newValuesJson: { scheduledDate: '2026-04-10', timeSlot: '13:00-15:00' },
           ipAddress: null,
           userAgent: null,
@@ -462,13 +462,13 @@ describe('GetPortalDataUseCase', () => {
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(
-        new TenantPortalActivityEntity({
+        new RentalTenantPortalActivityEntity({
           id: 'act-unavailable',
           appointmentId: 'appt-1',
-          tenantPortalTokenId: 'token-1',
+          rentalTenantPortalTokenId: 'token-1',
           action: 'UNAVAILABLE_REPORTED',
-          previousValuesJson: { tenantConfirmationStatus: 'PENDING' },
-          newValuesJson: { tenantConfirmationStatus: 'UNAVAILABLE' },
+          previousValuesJson: { rentalTenantConfirmationStatus: 'PENDING' },
+          newValuesJson: { rentalTenantConfirmationStatus: 'UNAVAILABLE' },
           ipAddress: null,
           userAgent: null,
           createdAt: new Date('2026-03-21T12:30:00.000Z'),

@@ -1,4 +1,4 @@
-import type { AppointmentStatus, TenantConfirmationStatus, ServiceTypeFlowType } from '@properfy/shared';
+import type { AppointmentStatus, RentalTenantConfirmationStatus, ServiceTypeFlowType } from '@properfy/shared';
 
 export interface InspectorAppointment {
   id: string;
@@ -9,12 +9,12 @@ export interface InspectorAppointment {
   timeSlotStart: string;
   timeSlotEnd: string;
   status: AppointmentStatus;
-  tenantConfirmation: TenantConfirmationStatus;
+  rentalTenantConfirmation: RentalTenantConfirmationStatus;
   serviceTypeName: string;
   flowType: ServiceTypeFlowType;
-  tenantName: string;
-  tenantPhone: string | null;
-  tenantEmail: string | null;
+  rentalTenantName: string;
+  rentalTenantPhone: string | null;
+  rentalTenantEmail: string | null;
   keyRequired: boolean;
   meetingLocation: string | null;
   restrictions: string | null;
@@ -74,12 +74,12 @@ export interface InspectorAppointmentDetailResponse {
     timeSlotEnd: string;
     propertyAddress: string;
     suburb: string;
-    tenantConfirmation: TenantConfirmationStatus;
+    rentalTenantConfirmation: RentalTenantConfirmationStatus;
     serviceTypeName: string | null;
     flowType: ServiceTypeFlowType;
-    tenantName: string;
-    tenantPhone: string | null;
-    tenantEmail: string | null;
+    rentalTenantName: string;
+    rentalTenantPhone: string | null;
+    rentalTenantEmail: string | null;
     keyRequired: boolean;
     meetingLocation: string | null;
     restrictionsSummary: string | null;

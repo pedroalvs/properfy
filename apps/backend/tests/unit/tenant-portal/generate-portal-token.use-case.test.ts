@@ -3,12 +3,12 @@ import {
   GeneratePortalTokenUseCase,
   type AuthContext,
   type GeneratePortalTokenInput,
-} from '../../../src/modules/tenant-portal/application/use-cases/generate-portal-token.use-case';
-import type { ITenantPortalTokenRepository } from '../../../src/modules/tenant-portal/domain/tenant-portal-token.repository';
+} from '../../../src/modules/rental-tenant-portal/application/use-cases/generate-portal-token.use-case';
+import type { IRentalTenantPortalTokenRepository } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-token.repository';
 import type { IAppointmentRepository } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
 import type { PersistentAuditService } from '../../../src/modules/audit/application/services/persistent-audit.service';
-import type { MintPortalTokenService } from '../../../src/modules/tenant-portal/domain/mint-portal-token.service';
+import type { MintPortalTokenService } from '../../../src/modules/rental-tenant-portal/domain/mint-portal-token.service';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { ConflictError, ForbiddenError, NotFoundError } from '../../../src/shared/domain/errors';
@@ -27,7 +27,7 @@ function makeAppointment(overrides: Partial<ConstructorParameters<typeof Appoint
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 100,
     payoutAmount: 70,
     pricingRuleSnapshotJson: {},
@@ -173,7 +173,7 @@ describe('GeneratePortalTokenUseCase', () => {
     auditService = { log: vi.fn() };
 
     useCase = new GeneratePortalTokenUseCase(
-      tokenRepo as unknown as ITenantPortalTokenRepository,
+      tokenRepo as unknown as IRentalTenantPortalTokenRepository,
       appointmentRepo as unknown as IAppointmentRepository,
       tenantRepo as unknown as ITenantRepository,
       mintPortalTokenService as unknown as MintPortalTokenService,
@@ -313,7 +313,7 @@ describe('GeneratePortalTokenUseCase', () => {
 
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
-        action: 'tenant_portal.token_generated',
+        action: 'rental_tenant_portal.token_generated',
         actorType: 'USER',
         actorId: 'admin-42',
         entityType: 'tenant_portal_token',
@@ -349,7 +349,7 @@ describe('GeneratePortalTokenUseCase', () => {
     });
 
     const uc = new GeneratePortalTokenUseCase(
-      tokenRepo as unknown as ITenantPortalTokenRepository,
+      tokenRepo as unknown as IRentalTenantPortalTokenRepository,
       appointmentRepo as unknown as IAppointmentRepository,
       tenantRepo as unknown as ITenantRepository,
       mintPortalTokenService as unknown as MintPortalTokenService,
@@ -387,7 +387,7 @@ describe('GeneratePortalTokenUseCase', () => {
     });
 
     const uc = new GeneratePortalTokenUseCase(
-      tokenRepo as unknown as ITenantPortalTokenRepository,
+      tokenRepo as unknown as IRentalTenantPortalTokenRepository,
       appointmentRepo as unknown as IAppointmentRepository,
       tenantRepo as unknown as ITenantRepository,
       mintPortalTokenService as unknown as MintPortalTokenService,
@@ -423,7 +423,7 @@ describe('GeneratePortalTokenUseCase', () => {
     });
 
     const uc = new GeneratePortalTokenUseCase(
-      tokenRepo as unknown as ITenantPortalTokenRepository,
+      tokenRepo as unknown as IRentalTenantPortalTokenRepository,
       appointmentRepo as unknown as IAppointmentRepository,
       tenantRepo as unknown as ITenantRepository,
       mintPortalTokenService as unknown as MintPortalTokenService,
@@ -466,7 +466,7 @@ describe('GeneratePortalTokenUseCase', () => {
     });
 
     const uc = new GeneratePortalTokenUseCase(
-      tokenRepo as unknown as ITenantPortalTokenRepository,
+      tokenRepo as unknown as IRentalTenantPortalTokenRepository,
       appointmentRepo as unknown as IAppointmentRepository,
       tenantRepo as unknown as ITenantRepository,
       mintPortalTokenService as unknown as MintPortalTokenService,

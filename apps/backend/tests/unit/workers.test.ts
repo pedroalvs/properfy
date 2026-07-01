@@ -131,7 +131,7 @@ describe('registerWorkers', () => {
     expect(mockWork).toHaveBeenCalledWith('appointment.import', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('property.import', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('billing.generate-invoice-file', expect.any(Function));
-    expect(mockWork).toHaveBeenCalledWith('tenant-portal.expire-tokens', expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('rental-tenant-portal.expire-tokens', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('inspection-execution.mark-assets-expired', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('inspection-execution.notify-not-started', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('service_group.expire-priority', expect.any(Function));
@@ -147,7 +147,7 @@ describe('registerWorkers', () => {
     expect(mockSchedule).toHaveBeenCalledWith('report.expire-files', '0 3 * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('report.process-schedules', expect.any(String), {});
     expect(mockSchedule).toHaveBeenCalledWith('property.geocode-retry', '*/15 * * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('tenant-portal.expire-tokens', '*/15 * * * *', {});
+    expect(mockSchedule).toHaveBeenCalledWith('rental-tenant-portal.expire-tokens', '*/15 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('inspection-execution.mark-assets-expired', '*/5 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('inspection-execution.notify-not-started', '0 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('service_group.expire-priority', '0 * * * *', {});

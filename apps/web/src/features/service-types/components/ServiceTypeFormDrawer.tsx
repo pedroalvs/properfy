@@ -53,7 +53,7 @@ export function ServiceTypeFormDrawer({
         code: serviceType.code,
         name: serviceType.name,
         flowType: serviceType.flowType,
-        requiresTenantConfirmation: serviceType.requiresTenantConfirmation,
+        requiresRentalTenantConfirmation: serviceType.requiresRentalTenantConfirmation,
       };
       setForm(data);
       setInitialData(data);
@@ -171,8 +171,8 @@ export function ServiceTypeFormDrawer({
                   <FormSection title="Options">
                     <Checkbox
                       label="Requires tenant confirmation"
-                      checked={form.requiresTenantConfirmation}
-                      onChange={(v) => updateField('requiresTenantConfirmation', v)}
+                      checked={form.requiresRentalTenantConfirmation}
+                      onChange={(v) => updateField('requiresRentalTenantConfirmation', v)}
                     />
                   </FormSection>
                 </div>

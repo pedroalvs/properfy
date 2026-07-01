@@ -57,7 +57,7 @@ function makeAppointmentWithRelations(overrides: Record<string, unknown> = {}, r
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'CONFIRMED',
+    rentalTenantConfirmationStatus: 'CONFIRMED',
     priceAmount: 200,
     payoutAmount: 140,
     pricingRuleSnapshotJson: {},

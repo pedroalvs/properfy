@@ -26,7 +26,7 @@ function makeAppointment(
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'CONFIRMED',
+    rentalTenantConfirmationStatus: 'CONFIRMED',
     priceAmount: 200,
     payoutAmount: 140,
     pricingRuleSnapshotJson: {},
@@ -51,7 +51,7 @@ function makeContact(
   return new AppointmentContactEntity({
     id: 'contact-1',
     appointmentId: 'appt-1',
-    tenantName: 'John Doe',
+    rentalTenantName: 'John Doe',
     primaryEmail: 'john@example.com',
     secondaryEmail: null,
     primaryPhone: null,
@@ -249,7 +249,7 @@ describe('DispatchRemindersUseCase', () => {
       .mockResolvedValueOnce([
         makeRelation(
           { id: 'appt-x', tenantId: 'tenant-x', scheduledDate, timeSlotStart: '14:00', timeSlotEnd: '17:00' },
-          { tenantName: 'Jane Smith', primaryEmail: 'jane@example.com' },
+          { rentalTenantName: 'Jane Smith', primaryEmail: 'jane@example.com' },
         ),
       ])
       .mockResolvedValueOnce([])
@@ -266,7 +266,7 @@ describe('DispatchRemindersUseCase', () => {
         channel: 'EMAIL',
         templateCode: 'REMINDER_7_DAYS',
         payloadJson: expect.objectContaining({
-          tenantName: 'Jane Smith',
+          rentalTenantName: 'Jane Smith',
           scheduledDate: '2026-03-24',
         }),
       }),
@@ -305,7 +305,7 @@ describe('DispatchRemindersUseCase', () => {
         .mockResolvedValueOnce([
           makeRelation(
             { id: 'appt-sms', tenantId: 'tenant-sms' },
-            { primaryEmail: null, primaryPhone: '+61400000000', tenantName: 'SMS Tenant' },
+            { primaryEmail: null, primaryPhone: '+61400000000', rentalTenantName: 'SMS Tenant' },
           ),
         ])
         .mockResolvedValueOnce([])

@@ -85,19 +85,19 @@ export interface AppointmentDetailOutput {
   suburb: string;
   propertyLatitude: number | null;
   propertyLongitude: number | null;
-  tenantConfirmationStatus: string;
-  tenantConfirmation: string;
+  rentalTenantConfirmationStatus: string;
+  rentalTenantConfirmation: string;
   keyRequired: boolean;
   meetingLocation: string | null;
   keyLocation: string | null;
-  tenantName: string;
-  tenantPhone: string | null;
-  tenantEmail: string | null;
+  rentalTenantName: string;
+  rentalTenantPhone: string | null;
+  rentalTenantEmail: string | null;
   notes: string | null;
   observation: string | null;
   restrictionsSummary: string | null;
   contact: {
-    tenantName: string;
+    rentalTenantName: string;
     primaryEmail: string | null;
     primaryPhone: string | null;
     secondaryPhone: string | null;
@@ -183,7 +183,7 @@ export class GetAppointmentDetailUseCase {
       const today = new Date();
       const isVisible = this.t1Service.isVisibleForInspector(
         flowType,
-        appointment.tenantConfirmationStatus,
+        appointment.rentalTenantConfirmationStatus,
         appointment.keyRequired,
         appointment.scheduledDate,
         today,
@@ -239,20 +239,20 @@ export class GetAppointmentDetailUseCase {
       suburb: result.propertySuburb ?? '',
       propertyLatitude: result.propertyLatitude ?? null,
       propertyLongitude: result.propertyLongitude ?? null,
-      tenantConfirmationStatus: appointment.tenantConfirmationStatus,
-      tenantConfirmation: appointment.tenantConfirmationStatus,
+      rentalTenantConfirmationStatus: appointment.rentalTenantConfirmationStatus,
+      rentalTenantConfirmation: appointment.rentalTenantConfirmationStatus,
       keyRequired: appointment.keyRequired,
       meetingLocation: appointment.meetingLocation,
       keyLocation: appointment.keyLocation,
-      tenantName: contact?.tenantName ?? '',
-      tenantPhone: contact?.primaryPhone ?? null,
-      tenantEmail: contact?.effectiveEmail ?? null,
+      rentalTenantName: contact?.rentalTenantName ?? '',
+      rentalTenantPhone: contact?.primaryPhone ?? null,
+      rentalTenantEmail: contact?.effectiveEmail ?? null,
       notes: appointment.notes,
       observation: appointment.observation,
       restrictionsSummary,
       contact: contact
         ? {
-            tenantName: contact.effectiveName,
+            rentalTenantName: contact.effectiveName,
             primaryEmail: contact.effectiveEmail,
             primaryPhone: contact.effectivePhone,
             secondaryPhone: contact.secondaryPhone,

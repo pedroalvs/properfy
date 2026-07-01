@@ -95,7 +95,7 @@ apps/backend/
 │   │   ├── appointment/
 │   │   ├── service-group/
 │   │   ├── marketplace/
-│   │   ├── tenant-portal/
+│   │   ├── rental-tenant-portal/
 │   │   ├── inspector-execution/
 │   │   ├── notification/
 │   │   ├── billing/
@@ -265,7 +265,7 @@ See `projeto-consolidado/modelo-dados-executavel.md` for complete entity definit
 10. `ServicePriceRule` – pricing per client/type
 11. `ServiceGroup` – grouped inspections for marketplace
 12. `InspectorAvailabilitySlot` – inspector schedule
-13. `TenantPortalToken` – portal access token
+13. `RentalTenantPortalToken` – portal access token
 14. `Notification` – sent notification record
 15. `InspectionExecution` – execution record with geolocation
 16. `InspectionAsset` – evidence files
@@ -276,7 +276,7 @@ See `projeto-consolidado/modelo-dados-executavel.md` for complete entity definit
 **Key enums:**
 
 - `appointment_status`: `DRAFT`, `AWAITING_INSPECTOR`, `SCHEDULED`, `REJECTED`, `CANCELLED`, `DONE`
-- `tenant_confirmation_status`: `PENDING`, `CONFIRMED`, `UNAVAILABLE`, `NO_RESPONSE`
+- `rental_tenant_confirmation_status`: `PENDING`, `CONFIRMED`, `UNAVAILABLE`, `NO_RESPONSE`
 - `notification_channel`: `EMAIL`, `SMS`, `WHATSAPP`
 - `notification_status`: `PENDING`, `SENT`, `DELIVERED`, `FAILED`
 - `financial_entry_type`: `TENANT_DEBIT`, `INSPECTOR_PAYOUT`, `REFUND`, `MANUAL_ADJUSTMENT`

@@ -28,7 +28,7 @@ function makeAppointment(
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 200,
     payoutAmount: 140,
     pricingRuleSnapshotJson: {},
@@ -53,7 +53,7 @@ function makeContact(
   return new AppointmentContactEntity({
     id: 'contact-1',
     appointmentId: 'appt-1',
-    tenantName: 'John Doe',
+    rentalTenantName: 'John Doe',
     primaryEmail: 'john@example.com',
     secondaryEmail: null,
     primaryPhone: '+61400000000',
@@ -210,7 +210,7 @@ describe('DispatchEscalationsUseCase', () => {
 
   it('skips confirmed appointments', async () => {
     mockAppointmentRepo.findScheduledOnDate.mockResolvedValueOnce([
-      makeRelation({ tenantConfirmationStatus: 'CONFIRMED' }),
+      makeRelation({ rentalTenantConfirmationStatus: 'CONFIRMED' }),
     ]);
 
     const result = await useCase.execute(today);
@@ -316,12 +316,12 @@ describe('DispatchEscalationsUseCase', () => {
     expect(result.skipped).toBe(1);
   });
 
-  it('passes correct payloadJson for PM escalation (includes branchName and tenantName)', async () => {
+  it('passes correct payloadJson for PM escalation (includes branchName and rentalTenantName)', async () => {
     const scheduledDate = new Date('2026-03-19T00:00:00.000Z');
     mockAppointmentRepo.findScheduledOnDate.mockResolvedValueOnce([
       makeRelation(
         { id: 'appt-x', tenantId: 'tenant-x', branchId: 'branch-1', scheduledDate, timeSlotStart: '14:00', timeSlotEnd: '17:00' },
-        { tenantName: 'Jane Smith', primaryPhone: '+61400111222' },
+        { rentalTenantName: 'Jane Smith', primaryPhone: '+61400111222' },
       ),
     ]);
     mockTenantRepo.findById.mockResolvedValue(makeTenant('tenant-x'));
@@ -336,7 +336,7 @@ describe('DispatchEscalationsUseCase', () => {
         channel: 'EMAIL',
         templateCode: 'PROPERTY_MANAGER_ESCALATION',
         payloadJson: expect.objectContaining({
-          tenantName: 'Jane Smith',
+          rentalTenantName: 'Jane Smith',
           scheduledDate: '2026-03-19',
           branchName: 'Main Branch',
         }),
@@ -344,12 +344,12 @@ describe('DispatchEscalationsUseCase', () => {
     );
   });
 
-  it('passes correct payloadJson for SMS (tenantName and scheduledDate)', async () => {
+  it('passes correct payloadJson for SMS (rentalTenantName and scheduledDate)', async () => {
     const scheduledDate = new Date('2026-03-19T00:00:00.000Z');
     mockAppointmentRepo.findScheduledOnDate.mockResolvedValueOnce([
       makeRelation(
         { id: 'appt-x', tenantId: 'tenant-x', scheduledDate, timeSlotStart: '14:00', timeSlotEnd: '17:00' },
-        { tenantName: 'Jane Smith', primaryPhone: '+61400111222' },
+        { rentalTenantName: 'Jane Smith', primaryPhone: '+61400111222' },
       ),
     ]);
     mockTenantRepo.findById.mockResolvedValue(makeTenant('tenant-x'));
@@ -364,7 +364,7 @@ describe('DispatchEscalationsUseCase', () => {
         channel: 'SMS',
         templateCode: 'TENANT_SMS_ALERT',
         payloadJson: expect.objectContaining({
-          tenantName: 'Jane Smith',
+          rentalTenantName: 'Jane Smith',
           scheduledDate: '2026-03-19',
         }),
       }),

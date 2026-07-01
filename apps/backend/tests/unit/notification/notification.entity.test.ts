@@ -17,7 +17,7 @@ function makeNotification(overrides: Partial<NotificationProps> = {}): Notificat
     deliveredAt: null,
     failedAt: null,
     failureReason: null,
-    payloadJson: { tenantName: 'John' },
+    payloadJson: { rentalTenantName: 'John' },
     retryCount: 0,
     nextRetryAt: null,
     createdAt: now,
@@ -48,7 +48,7 @@ describe('NotificationEntity', () => {
     expect(notification.deliveredAt).toBeNull();
     expect(notification.failedAt).toBeNull();
     expect(notification.failureReason).toBeNull();
-    expect(notification.payloadJson).toEqual({ tenantName: 'John' });
+    expect(notification.payloadJson).toEqual({ rentalTenantName: 'John' });
     expect(notification.retryCount).toBe(0);
     expect(notification.nextRetryAt).toBeNull();
   });

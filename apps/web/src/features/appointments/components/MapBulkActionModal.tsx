@@ -284,14 +284,14 @@ export function MapBulkActionModal({
       render: (row) => (
         <div className="flex items-center justify-center gap-1">
           <ConfirmationChannelIcons
-            tenantConfirmationStatus={row.tenantConfirmationStatus}
+            rentalTenantConfirmationStatus={row.rentalTenantConfirmationStatus}
             hasEmail={!!row.contactEmail}
             hasSms={!!row.contactPhone}
           />
-          {row.hasTenantNote && (
+          {row.hasRentalTenantNote && (
             <IconWithTooltip
               icon="mdi-note-text-outline"
-              label={row.tenantNote ? `Note: ${row.tenantNote}` : 'Tenant left a note via portal'}
+              label={row.rentalTenantNote ? `Note: ${row.rentalTenantNote}` : 'Tenant left a note via portal'}
               colour="text-text-secondary"
               testId="bulk-modal-tenant-note-icon"
             />

@@ -25,7 +25,7 @@ function makeAppointment(
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 200,
     payoutAmount: 140,
     pricingRuleSnapshotJson: {},
@@ -106,14 +106,14 @@ describe('ForceManualTenantConfirmationUseCase – happy path', () => {
     const uc = makeUseCase();
     const result = await uc.execute({
       appointmentId: 'appt-1',
-      tenantConfirmationStatus: 'CONFIRMED',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
       reason: 'Tenant confirmed verbally',
       actor: makeActor('AM'),
     });
     expect(result.id).toBe('appt-1');
-    expect(result.tenantConfirmationStatus).toBe('CONFIRMED');
+    expect(result.rentalTenantConfirmationStatus).toBe('CONFIRMED');
     expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
-      tenantConfirmationStatus: 'CONFIRMED',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
     });
   });
 
@@ -122,11 +122,11 @@ describe('ForceManualTenantConfirmationUseCase – happy path', () => {
     const uc = makeUseCase();
     const result = await uc.execute({
       appointmentId: 'appt-1',
-      tenantConfirmationStatus: 'CONFIRMED',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
       reason: 'OP confirms on behalf',
       actor: makeActor('OP'),
     });
-    expect(result.tenantConfirmationStatus).toBe('CONFIRMED');
+    expect(result.rentalTenantConfirmationStatus).toBe('CONFIRMED');
   });
 });
 
@@ -144,7 +144,7 @@ describe('ForceManualTenantConfirmationUseCase – RBAC', () => {
     await expect(
       uc.execute({
         appointmentId: 'appt-1',
-        tenantConfirmationStatus: 'CONFIRMED',
+        rentalTenantConfirmationStatus: 'CONFIRMED',
         reason: 'Some reason',
         actor: makeActor(role),
       }),
@@ -156,7 +156,7 @@ describe('ForceManualTenantConfirmationUseCase – RBAC', () => {
     await expect(
       uc.execute({
         appointmentId: 'appt-1',
-        tenantConfirmationStatus: 'CONFIRMED',
+        rentalTenantConfirmationStatus: 'CONFIRMED',
         reason: 'Some reason',
         actor: makeActor('CL_ADMIN'),
       }),
@@ -170,7 +170,7 @@ describe('ForceManualTenantConfirmationUseCase – RBAC', () => {
     await expect(
       uc.execute({
         appointmentId: 'appt-1',
-        tenantConfirmationStatus: 'CONFIRMED',
+        rentalTenantConfirmationStatus: 'CONFIRMED',
         reason: 'Some reason',
         actor: makeActor('CL_USER'),
       }),
@@ -187,11 +187,11 @@ describe('ForceManualTenantConfirmationUseCase – RBAC', () => {
       );
       const result = await uc.execute({
         appointmentId: 'appt-1',
-        tenantConfirmationStatus: 'CONFIRMED',
+        rentalTenantConfirmationStatus: 'CONFIRMED',
         reason: 'Tenant confirmed by phone',
         actor: makeActor('CL_USER', { clUserPermissions: ['force_confirmation'] }),
       });
-      expect(result.tenantConfirmationStatus).toBe('CONFIRMED');
+      expect(result.rentalTenantConfirmationStatus).toBe('CONFIRMED');
     });
 
     it('CL_USER without force_confirmation permission is forbidden', async () => {
@@ -201,7 +201,7 @@ describe('ForceManualTenantConfirmationUseCase – RBAC', () => {
       await expect(
         uc.execute({
           appointmentId: 'appt-1',
-          tenantConfirmationStatus: 'CONFIRMED',
+          rentalTenantConfirmationStatus: 'CONFIRMED',
           reason: 'Some reason',
           actor: makeActor('CL_USER', { clUserPermissions: [] }),
         }),
@@ -221,7 +221,7 @@ describe('ForceManualTenantConfirmationUseCase – error cases', () => {
     await expect(
       uc.execute({
         appointmentId: 'nonexistent',
-        tenantConfirmationStatus: 'CONFIRMED',
+        rentalTenantConfirmationStatus: 'CONFIRMED',
         reason: 'Some reason',
         actor: makeActor('AM'),
       }),
@@ -236,12 +236,12 @@ describe('ForceManualTenantConfirmationUseCase – error cases', () => {
 describe('ForceManualTenantConfirmationUseCase – audit log', () => {
   it('calls audit log with reason and correct before/after', async () => {
     appointmentRepo.findById.mockResolvedValue(
-      makeWithRelations({ tenantConfirmationStatus: 'PENDING' }),
+      makeWithRelations({ rentalTenantConfirmationStatus: 'PENDING' }),
     );
     const uc = makeUseCase();
     await uc.execute({
       appointmentId: 'appt-1',
-      tenantConfirmationStatus: 'CONFIRMED',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
       reason: 'Tenant called in',
       actor: makeActor('OP', { userId: 'op-user-1' }),
     });
@@ -253,8 +253,8 @@ describe('ForceManualTenantConfirmationUseCase – audit log', () => {
         entityType: 'Appointment',
         entityId: 'appt-1',
         tenantId: 'tenant-1',
-        before: { tenantConfirmationStatus: 'PENDING' },
-        after: { tenantConfirmationStatus: 'CONFIRMED' },
+        before: { rentalTenantConfirmationStatus: 'PENDING' },
+        after: { rentalTenantConfirmationStatus: 'CONFIRMED' },
         reason: 'Tenant called in',
       }),
     );
@@ -265,7 +265,7 @@ describe('ForceManualTenantConfirmationUseCase – audit log', () => {
     const uc = makeUseCase();
     await uc.execute({
       appointmentId: 'appt-1',
-      tenantConfirmationStatus: 'CONFIRMED',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
       reason: 'Test',
       actor: makeActor('AM'),
     });
@@ -285,7 +285,7 @@ describe('ForceManualTenantConfirmationUseCase – audit log', () => {
 
       await uc.execute({
         appointmentId: 'appt-1',
-        tenantConfirmationStatus: 'CONFIRMED',
+        rentalTenantConfirmationStatus: 'CONFIRMED',
         reason: 'Tenant confirmed by phone',
         actor: makeActor('CL_USER', {
           tenantId: 'tenant-1',
@@ -309,7 +309,7 @@ describe('ForceManualTenantConfirmationUseCase – audit log', () => {
       await expect(
         uc.execute({
           appointmentId: 'appt-1',
-          tenantConfirmationStatus: 'CONFIRMED',
+          rentalTenantConfirmationStatus: 'CONFIRMED',
           reason: 'Cross-tenant attempt',
           actor: makeActor('CL_USER', {
             tenantId: 'tenant-1',

@@ -15,7 +15,7 @@ const makeItem = (overrides: Partial<(typeof items)[0]> = {}) => ({
   timeSlotEnd: '12:00',
   serviceTypeId: '00000000-0000-0000-0000-000000000099',
   propertyId: '00000000-0000-0000-0000-000000000088',
-  tenantConfirmationStatus: 'CONFIRMED',
+  rentalTenantConfirmationStatus: 'CONFIRMED',
   keyRequired: false,
   meetingLocation: null,
   executionStatus: 'FINISHED' as const,

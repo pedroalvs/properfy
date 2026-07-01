@@ -37,7 +37,7 @@ const VALID_DATA: ServiceTypeFormData = {
   code: 'ROUTINE_IN',
   name: 'Routine Ingoing',
   flowType: 'INGOING',
-  requiresTenantConfirmation: true,
+  requiresRentalTenantConfirmation: true,
 };
 
 beforeEach(() => {

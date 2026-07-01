@@ -54,7 +54,7 @@ function makeRepos() {
   const serviceTypeRepo = {
     findById: vi.fn().mockResolvedValue(new ServiceTypeEntity({
       id: 'svc-type-1', code: 'ROUTINE', name: 'Routine', flowType: 'STANDARD',
-      requiresTenantConfirmation: false, status: 'ACTIVE', createdAt: new Date(), updatedAt: new Date(),
+      requiresRentalTenantConfirmation: false, status: 'ACTIVE', createdAt: new Date(), updatedAt: new Date(),
     })),
   } as any;
   const pricingRuleRepo = {

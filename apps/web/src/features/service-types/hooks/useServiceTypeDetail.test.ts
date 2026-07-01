@@ -32,7 +32,7 @@ const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_SERVICE_TYPE = {
   id: 'st-01', code: 'ROUTINE_IN', name: 'Routine Ingoing', flowType: 'INGOING',
-  requiresTenantConfirmation: true, status: 'ACTIVE',
+  requiresRentalTenantConfirmation: true, status: 'ACTIVE',
   createdAt: '2026-03-01T10:00:00Z', updatedAt: '2026-03-01T10:00:00Z',
 };
 

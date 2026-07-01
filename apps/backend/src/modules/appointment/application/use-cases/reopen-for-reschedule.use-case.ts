@@ -3,7 +3,7 @@ import type { PrismaClient, Prisma } from '@prisma/client';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
-import type { ITenantPortalTokenRepository } from '../../../tenant-portal/domain/tenant-portal-token.repository';
+import type { IRentalTenantPortalTokenRepository } from '../../../rental-tenant-portal/domain/rental-tenant-portal-token.repository';
 import type { ConfirmationCycleService } from '../services/confirmation-cycle.service';
 import { DomainError } from '../../../../shared/domain/errors';
 import { AppointmentNotFoundError, AppointmentDateInPastError, AppointmentTimeInPastError } from '../../domain/appointment.errors';
@@ -41,7 +41,7 @@ export interface ReopenForRescheduleOutput {
   timeSlotEnd: string;
   previousInspectorId: string | null;
   inspectorId: null;
-  tenantConfirmationStatus: string;
+  rentalTenantConfirmationStatus: string;
 }
 
 export class ReopenForRescheduleUseCase {
@@ -57,7 +57,7 @@ export class ReopenForRescheduleUseCase {
      * callers that constructed this use case without it keep working —
      * the additive code path is gated by `if (this.tokenRepo)`.
      */
-    private readonly tokenRepo?: ITenantPortalTokenRepository,
+    private readonly tokenRepo?: IRentalTenantPortalTokenRepository,
     /** 028 — optional. When wired, supersedes the current confirmation cycle on reopen. */
     private readonly cycleService?: ConfirmationCycleService,
     private readonly prisma?: PrismaClient,
@@ -71,7 +71,7 @@ export class ReopenForRescheduleUseCase {
 
     // 2. Resolve tenant scope for lookup. AM and OP are cross-tenant per
     //    Constitution v1.3.0; SYS carries the appointment's tenant in its
-    //    actor for the tenant-portal flow but is treated as global at lookup.
+    //    actor for the rental-tenant-portal flow but is treated as global at lookup.
     //    CL_ADMIN (and any future CL_* role) is tenant-scoped — pin findById
     //    to actor.tenantId so an attacker with a foreign appointment ID gets
     //    a 404, not unintended access (Revisor cycle 2/2 finding).
@@ -117,7 +117,7 @@ export class ReopenForRescheduleUseCase {
       timeSlotStart: appointment.timeSlotStart,
       timeSlotEnd: appointment.timeSlotEnd,
       inspectorId: appointment.inspectorId,
-      tenantConfirmationStatus: appointment.tenantConfirmationStatus,
+      rentalTenantConfirmationStatus: appointment.rentalTenantConfirmationStatus,
     };
 
     // 5. Atomic update: revert to DRAFT, update date/time, clear inspector.
@@ -142,7 +142,7 @@ export class ReopenForRescheduleUseCase {
           timeSlotEnd: newTimeSlotEnd,
           inspectorId: null,
           reason: null,
-          tenantConfirmationStatus: 'PENDING',
+          rentalTenantConfirmationStatus: 'PENDING',
         });
       }
     };
@@ -160,7 +160,7 @@ export class ReopenForRescheduleUseCase {
       timeSlotStart: newTimeSlotStart,
       timeSlotEnd: newTimeSlotEnd,
       inspectorId: null,
-      tenantConfirmationStatus: 'PENDING',
+      rentalTenantConfirmationStatus: 'PENDING',
     };
 
     this.auditService.log({
@@ -186,7 +186,7 @@ export class ReopenForRescheduleUseCase {
     if (this.tokenRepo) {
       await this.tokenRepo.revokeAllForAppointment(appointmentId);
       this.auditService.log({
-        action: 'tenant_portal.tokens_revoked',
+        action: 'rental_tenant_portal.tokens_revoked',
         actorType: actor.role === 'SYS' ? 'SYSTEM' : 'USER',
         actorId: actor.userId,
         entityType: 'Appointment',
@@ -208,7 +208,7 @@ export class ReopenForRescheduleUseCase {
       timeSlotEnd: newTimeSlotEnd,
       previousInspectorId: appointment.inspectorId,
       inspectorId: null,
-      tenantConfirmationStatus: 'PENDING',
+      rentalTenantConfirmationStatus: 'PENDING',
     };
   }
 }

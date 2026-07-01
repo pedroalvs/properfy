@@ -2,15 +2,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   ReportUnavailabilityUseCase,
   type ReportUnavailabilityInput,
-} from '../../../src/modules/tenant-portal/application/use-cases/report-unavailability.use-case';
-import type { ITenantPortalActivityRepository } from '../../../src/modules/tenant-portal/domain/tenant-portal-activity.repository';
+} from '../../../src/modules/rental-tenant-portal/application/use-cases/report-unavailability.use-case';
+import type { IRentalTenantPortalActivityRepository } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-activity.repository';
 import type { IAppointmentRepository } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { PersistentAuditService } from '../../../src/modules/audit/application/services/persistent-audit.service';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import {
   PortalAppointmentInactiveError,
   PortalInspectionAlreadyStartedError,
-} from '../../../src/modules/tenant-portal/domain/tenant-portal.errors';
+} from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
 import { InspectionExecutionEntity } from '../../../src/modules/inspector-execution/domain/inspection-execution.entity';
 
 function makeAppointment(overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {}) {
@@ -27,7 +27,7 @@ function makeAppointment(overrides: Partial<ConstructorParameters<typeof Appoint
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 100,
     payoutAmount: 70,
     pricingRuleSnapshotJson: {},
@@ -105,7 +105,7 @@ describe('ReportUnavailabilityUseCase', () => {
     executionRepo = { findByAppointmentId: vi.fn().mockResolvedValue(null) };
 
     useCase = new ReportUnavailabilityUseCase(
-      activityRepo as unknown as ITenantPortalActivityRepository,
+      activityRepo as unknown as IRentalTenantPortalActivityRepository,
       appointmentRepo as unknown as IAppointmentRepository,
       auditService as unknown as PersistentAuditService,
       notificationHandler,
@@ -113,33 +113,33 @@ describe('ReportUnavailabilityUseCase', () => {
     );
   });
 
-  it('should set tenantConfirmationStatus to UNAVAILABLE when within window', async () => {
+  it('should set rentalTenantConfirmationStatus to UNAVAILABLE when within window', async () => {
     const result = await useCase.execute(makeInput());
 
     expect(result).toEqual({
-      tenantConfirmationStatus: 'UNAVAILABLE',
+      rentalTenantConfirmationStatus: 'UNAVAILABLE',
       urgentMode: false,
     });
 
     expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
-      tenantConfirmationStatus: 'UNAVAILABLE',
+      rentalTenantConfirmationStatus: 'UNAVAILABLE',
     });
   });
 
   it('allows urgent unavailable reports after cutoff while the inspection has not started', async () => {
     await expect(useCase.execute(makeInput({ isReadOnly: true }))).resolves.toEqual({
-      tenantConfirmationStatus: 'UNAVAILABLE',
+      rentalTenantConfirmationStatus: 'UNAVAILABLE',
       urgentMode: true,
     });
 
     expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
-      tenantConfirmationStatus: 'UNAVAILABLE',
+      rentalTenantConfirmationStatus: 'UNAVAILABLE',
     });
   });
 
   it('should return idempotent success if already UNAVAILABLE without recording new activity', async () => {
     appointmentRepo.findById.mockResolvedValue({
-      appointment: makeAppointment({ tenantConfirmationStatus: 'UNAVAILABLE' }),
+      appointment: makeAppointment({ rentalTenantConfirmationStatus: 'UNAVAILABLE' }),
       contact: null,
       restrictions: [],
     });
@@ -147,7 +147,7 @@ describe('ReportUnavailabilityUseCase', () => {
     const result = await useCase.execute(makeInput());
 
     expect(result).toEqual({
-      tenantConfirmationStatus: 'UNAVAILABLE',
+      rentalTenantConfirmationStatus: 'UNAVAILABLE',
       urgentMode: false,
     });
 
@@ -159,7 +159,7 @@ describe('ReportUnavailabilityUseCase', () => {
 
   it('should throw PortalAppointmentInactiveError for CANCELLED appointment', async () => {
     appointmentRepo.findById.mockResolvedValue({
-      appointment: makeAppointment({ status: 'CANCELLED', tenantConfirmationStatus: 'PENDING' }),
+      appointment: makeAppointment({ status: 'CANCELLED', rentalTenantConfirmationStatus: 'PENDING' }),
       contact: null,
       restrictions: [],
     });
@@ -169,7 +169,7 @@ describe('ReportUnavailabilityUseCase', () => {
 
   it('should throw PortalAppointmentInactiveError for DONE appointment', async () => {
     appointmentRepo.findById.mockResolvedValue({
-      appointment: makeAppointment({ status: 'DONE', tenantConfirmationStatus: 'PENDING' }),
+      appointment: makeAppointment({ status: 'DONE', rentalTenantConfirmationStatus: 'PENDING' }),
       contact: null,
       restrictions: [],
     });
@@ -179,7 +179,7 @@ describe('ReportUnavailabilityUseCase', () => {
 
   it('should throw PortalAppointmentInactiveError for REJECTED appointment', async () => {
     appointmentRepo.findById.mockResolvedValue({
-      appointment: makeAppointment({ status: 'REJECTED', tenantConfirmationStatus: 'PENDING' }),
+      appointment: makeAppointment({ status: 'REJECTED', rentalTenantConfirmationStatus: 'PENDING' }),
       contact: null,
       restrictions: [],
     });
@@ -194,10 +194,10 @@ describe('ReportUnavailabilityUseCase', () => {
     const savedActivity = activityRepo.save.mock.calls[0][0];
     expect(savedActivity.action).toBe('UNAVAILABLE_REPORTED');
     expect(savedActivity.previousValuesJson).toEqual({
-      tenantConfirmationStatus: 'PENDING',
+      rentalTenantConfirmationStatus: 'PENDING',
     });
     expect(savedActivity.newValuesJson).toEqual({
-      tenantConfirmationStatus: 'UNAVAILABLE',
+      rentalTenantConfirmationStatus: 'UNAVAILABLE',
     });
     expect(savedActivity.ipAddress).toBe('127.0.0.1');
     expect(savedActivity.userAgent).toBe('TestAgent/1.0');
@@ -217,7 +217,7 @@ describe('ReportUnavailabilityUseCase', () => {
     notificationHandler.execute.mockRejectedValueOnce(new Error('Queue failure'));
 
     await expect(useCase.execute(makeInput())).resolves.toEqual({
-      tenantConfirmationStatus: 'UNAVAILABLE',
+      rentalTenantConfirmationStatus: 'UNAVAILABLE',
       urgentMode: false,
     });
   });
@@ -237,7 +237,7 @@ describe('ReportUnavailabilityUseCase', () => {
     const savedRestriction = appointmentRepo.saveRestriction.mock.calls[0][0];
     expect(savedRestriction.isHome).toBe(false);
     expect(savedRestriction.notes).toBe('Away on holiday');
-    expect(savedRestriction.source).toBe('TENANT_PORTAL');
+    expect(savedRestriction.source).toBe('RENTAL_TENANT_PORTAL');
   });
 
   it('should not save restrictions when not provided', async () => {
@@ -252,7 +252,7 @@ describe('ReportUnavailabilityUseCase', () => {
 
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
-        action: 'tenant_portal.unavailability_reported',
+        action: 'rental_tenant_portal.unavailability_reported',
         actorType: 'ANONYMOUS',
         entityType: 'Appointment',
         entityId: 'appt-1',
@@ -315,7 +315,7 @@ describe('ReportUnavailabilityUseCase', () => {
 
     const activityCall = activityRepo.save.mock.calls[0]?.[0];
     expect(activityCall?.newValuesJson).toMatchObject({
-      tenantConfirmationStatus: 'UNAVAILABLE',
+      rentalTenantConfirmationStatus: 'UNAVAILABLE',
       availableSlotsJson: slots,
     });
   });

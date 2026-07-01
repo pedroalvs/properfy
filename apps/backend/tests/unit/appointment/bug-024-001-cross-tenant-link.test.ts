@@ -66,7 +66,7 @@ function makeProperty(tenantId: string, branchId: string, propertyId: string): P
 function makeServiceType(): ServiceTypeEntity {
   return new ServiceTypeEntity({
     id: 'svc-type-1', code: 'ROUTINE', name: 'Routine', flowType: 'STANDARD',
-    requiresTenantConfirmation: false, status: 'ACTIVE',
+    requiresRentalTenantConfirmation: false, status: 'ACTIVE',
     createdAt: new Date(), updatedAt: new Date(),
   });
 }
@@ -80,7 +80,7 @@ function makePricingRule(tenantId: string): PricingRuleEntity {
 }
 function makeContact(id: string, tenantId: string | null, email: string): ContactEntity {
   return new ContactEntity({
-    id, tenantId, type: 'TENANT', displayName: 'Pat',
+    id, tenantId, type: 'RENTAL_TENANT', displayName: 'Pat',
     company: null, primaryEmail: email, primaryPhone: null,
     additionalChannels: [], notes: null, isActive: true,
     createdAt: new Date(), updatedAt: new Date(),
@@ -199,7 +199,7 @@ describe('BUG-024-001 — CreateAppointmentUseCase cross-tenant contact link', (
 
     const result = await useCase.execute({
       ...baseInputForCreate,
-      contacts: [{ contactId: STANDALONE_CONTACT_ID, role: 'TENANT', isPrimary: true }] as any,
+      contacts: [{ contactId: STANDALONE_CONTACT_ID, role: 'RENTAL_TENANT', isPrimary: true }] as any,
       actor: makeActor('AM', null),
     });
 
@@ -225,7 +225,7 @@ describe('BUG-024-001 — CreateAppointmentUseCase cross-tenant contact link', (
 
     const result = await useCase.execute({
       ...baseInputForCreate,
-      contacts: [{ contactId: TENANT_A_CONTACT_ID, role: 'TENANT', isPrimary: true }] as any,
+      contacts: [{ contactId: TENANT_A_CONTACT_ID, role: 'RENTAL_TENANT', isPrimary: true }] as any,
       actor: makeActor('OP', TENANT_B),
     });
 
@@ -250,7 +250,7 @@ describe('BUG-024-001 — CreateAppointmentUseCase cross-tenant contact link', (
     await expect(
       useCase.execute({
         ...baseInputForCreate,
-        contacts: [{ contactId: STANDALONE_CONTACT_ID, role: 'TENANT', isPrimary: true }] as any,
+        contacts: [{ contactId: STANDALONE_CONTACT_ID, role: 'RENTAL_TENANT', isPrimary: true }] as any,
         actor: makeActor('CL_ADMIN', TENANT_B),
       }),
     ).rejects.toThrow(NotFoundError);
@@ -268,7 +268,7 @@ describe('BUG-024-001 — CreateAppointmentUseCase cross-tenant contact link', (
 
     const result = await useCase.execute({
       ...baseInputForCreate,
-      contacts: [{ contactId: TENANT_A_CONTACT_ID, role: 'TENANT', isPrimary: true }] as any,
+      contacts: [{ contactId: TENANT_A_CONTACT_ID, role: 'RENTAL_TENANT', isPrimary: true }] as any,
       actor: makeActor('CL_ADMIN', TENANT_B),
     });
 
@@ -304,12 +304,12 @@ describe('BUG-024-001 — UpdateAppointmentUseCase cross-tenant contact link (pa
       keyRequired: false,
       meetingLocation: null,
       keyLocation: null,
-      tenantConfirmationStatus: 'PENDING',
+      rentalTenantConfirmationStatus: 'PENDING',
       priceAmount: 150,
       payoutAmount: 80,
       pricingRuleSnapshotJson: {},
       notes: null,
-      tenantNote: null,
+      rentalTenantNote: null,
       customFieldsJson: null,
       reason: null,
       cancellationReasonCode: null,
@@ -350,7 +350,7 @@ describe('BUG-024-001 — UpdateAppointmentUseCase cross-tenant contact link (pa
     await useCase.execute({
       appointmentId: APPOINTMENT_ID,
       data: {
-        contacts: [{ contactId: STANDALONE_CONTACT_ID, role: 'TENANT', isPrimary: true }] as any,
+        contacts: [{ contactId: STANDALONE_CONTACT_ID, role: 'RENTAL_TENANT', isPrimary: true }] as any,
       },
       actor: makeActor('AM', null),
     });
@@ -373,7 +373,7 @@ describe('BUG-024-001 — UpdateAppointmentUseCase cross-tenant contact link (pa
       useCase.execute({
         appointmentId: APPOINTMENT_ID,
         data: {
-          contacts: [{ contactId: STANDALONE_CONTACT_ID, role: 'TENANT', isPrimary: true }] as any,
+          contacts: [{ contactId: STANDALONE_CONTACT_ID, role: 'RENTAL_TENANT', isPrimary: true }] as any,
         },
         actor: makeActor('CL_ADMIN', TENANT_B),
       }),

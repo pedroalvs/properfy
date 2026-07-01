@@ -7,7 +7,7 @@
  * modulo the appointment-only `role` / `isPrimary` envelope.
  *
  * Why this guard exists: the prior 023 round shipped with
- * `type: ContactType.TENANT` hardcoded for inline contacts, silently
+ * `type: ContactType.RENTAL_TENANT` hardcoded for inline contacts, silently
  * downgrading every OWNER/HOUSEKEEPER/BROKER/PROPERTY_MANAGER inline
  * creation to TENANT in the registry. This test will fail loudly if the
  * inline path ever diverges from the dedicated path again.
@@ -64,7 +64,7 @@ describe('Cross-form contact contract (023 §FR-258 / T-2-907)', () => {
           name: 'Jane Doe',
           email: 'jane@example.com',
           phone: '+61400000000',
-          role: 'TENANT',
+          role: 'RENTAL_TENANT',
           isPrimary: true,
           contactType: ContactType.PROPERTY_MANAGER,
           company: 'Smith Realty',
@@ -92,7 +92,7 @@ describe('Cross-form contact contract (023 §FR-258 / T-2-907)', () => {
           name: 'John Owner',
           email: 'owner@example.com',
           phone: '',
-          role: 'TENANT',
+          role: 'RENTAL_TENANT',
           isPrimary: true,
           // Pick a non-TENANT type — the prior bug hardcoded TENANT here.
           contactType: ContactType.BROKER,
@@ -114,7 +114,7 @@ describe('Cross-form contact contract (023 §FR-258 / T-2-907)', () => {
           name: 'Already Registered',
           email: 'reg@example.com',
           phone: '',
-          role: 'TENANT',
+          role: 'RENTAL_TENANT',
           isPrimary: true,
         },
       ],
@@ -128,7 +128,7 @@ describe('Cross-form contact contract (023 §FR-258 / T-2-907)', () => {
     // Dedicated form with NO optional fields filled.
     const contactForm: ContactFormData = {
       ...EMPTY_CONTACT_FORM,
-      type: ContactType.TENANT,
+      type: ContactType.RENTAL_TENANT,
       displayName: 'Minimal Contact',
       primaryEmail: 'minimal@example.com',
     };
@@ -142,9 +142,9 @@ describe('Cross-form contact contract (023 §FR-258 / T-2-907)', () => {
           name: 'Minimal Contact',
           email: 'minimal@example.com',
           phone: '',
-          role: 'TENANT',
+          role: 'RENTAL_TENANT',
           isPrimary: true,
-          contactType: ContactType.TENANT,
+          contactType: ContactType.RENTAL_TENANT,
         },
       ],
     };

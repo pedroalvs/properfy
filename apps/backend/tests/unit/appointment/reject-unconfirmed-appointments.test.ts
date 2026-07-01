@@ -23,7 +23,7 @@ function makeAppointment(
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 150,
     payoutAmount: 80,
     pricingRuleSnapshotJson: {},
@@ -147,7 +147,7 @@ describe('RejectUnconfirmedAppointmentsUseCase', () => {
   });
 
   it('should reject SCHEDULED appointment with PENDING confirmation for tomorrow', async () => {
-    const appt = makeAppointment({ status: 'SCHEDULED', tenantConfirmationStatus: 'PENDING' });
+    const appt = makeAppointment({ status: 'SCHEDULED', rentalTenantConfirmationStatus: 'PENDING' });
     vi.mocked(appointmentRepo.findUnconfirmedForDate).mockResolvedValue([appt]);
 
     const result = await useCase.execute();
@@ -160,14 +160,14 @@ describe('RejectUnconfirmedAppointmentsUseCase', () => {
         status: 'REJECTED',
         reason: 'Tenant did not respond to confirmation request',
         rejectionReasonCode: 'TENANT_NO_RESPONSE',
-        tenantConfirmationStatus: 'NO_RESPONSE',
+        rentalTenantConfirmationStatus: 'NO_RESPONSE',
         serviceGroupId: null,
       },
     );
   });
 
   it('should reject DRAFT appointment with PENDING confirmation for tomorrow', async () => {
-    const appt = makeAppointment({ status: 'DRAFT', tenantConfirmationStatus: 'PENDING' });
+    const appt = makeAppointment({ status: 'DRAFT', rentalTenantConfirmationStatus: 'PENDING' });
     vi.mocked(appointmentRepo.findUnconfirmedForDate).mockResolvedValue([appt]);
 
     const result = await useCase.execute();
@@ -181,7 +181,7 @@ describe('RejectUnconfirmedAppointmentsUseCase', () => {
   });
 
   it('should reject AWAITING_INSPECTOR appointment with PENDING confirmation for tomorrow', async () => {
-    const appt = makeAppointment({ status: 'AWAITING_INSPECTOR', tenantConfirmationStatus: 'PENDING' });
+    const appt = makeAppointment({ status: 'AWAITING_INSPECTOR', rentalTenantConfirmationStatus: 'PENDING' });
     vi.mocked(appointmentRepo.findUnconfirmedForDate).mockResolvedValue([appt]);
 
     const result = await useCase.execute();
@@ -218,7 +218,7 @@ describe('RejectUnconfirmedAppointmentsUseCase', () => {
   it('should remove rejected appointment from service group (serviceGroupId = null)', async () => {
     const appt = makeAppointment({
       status: 'SCHEDULED',
-      tenantConfirmationStatus: 'PENDING',
+      rentalTenantConfirmationStatus: 'PENDING',
       serviceGroupId: 'group-1',
     });
     vi.mocked(appointmentRepo.findUnconfirmedForDate).mockResolvedValue([appt]);
@@ -247,7 +247,7 @@ describe('RejectUnconfirmedAppointmentsUseCase', () => {
     const appt = makeAppointment({
       id: 'appt-1',
       status: 'SCHEDULED',
-      tenantConfirmationStatus: 'PENDING',
+      rentalTenantConfirmationStatus: 'PENDING',
       serviceGroupId: 'group-1',
     });
     vi.mocked(appointmentRepo.findUnconfirmedForDate).mockResolvedValue([appt]);
@@ -277,7 +277,7 @@ describe('RejectUnconfirmedAppointmentsUseCase', () => {
     const appt = makeAppointment({
       id: 'appt-1',
       status: 'SCHEDULED',
-      tenantConfirmationStatus: 'PENDING',
+      rentalTenantConfirmationStatus: 'PENDING',
       serviceGroupId: 'group-1',
     });
     vi.mocked(appointmentRepo.findUnconfirmedForDate).mockResolvedValue([appt]);
@@ -301,7 +301,7 @@ describe('RejectUnconfirmedAppointmentsUseCase', () => {
   it('should create audit log entries for each rejected appointment', async () => {
     const appt = makeAppointment({
       status: 'SCHEDULED',
-      tenantConfirmationStatus: 'PENDING',
+      rentalTenantConfirmationStatus: 'PENDING',
       serviceGroupId: 'group-1',
     });
     vi.mocked(appointmentRepo.findUnconfirmedForDate).mockResolvedValue([appt]);
@@ -323,7 +323,7 @@ describe('RejectUnconfirmedAppointmentsUseCase', () => {
         before: expect.objectContaining({ status: 'SCHEDULED' }),
         after: expect.objectContaining({
           status: 'REJECTED',
-          tenantConfirmationStatus: 'NO_RESPONSE',
+          rentalTenantConfirmationStatus: 'NO_RESPONSE',
           rejectionReasonCode: 'TENANT_NO_RESPONSE',
         }),
         reason: 'Tenant did not respond to confirmation request',
@@ -347,13 +347,13 @@ describe('RejectUnconfirmedAppointmentsUseCase', () => {
     const appt1 = makeAppointment({
       id: 'appt-1',
       status: 'SCHEDULED',
-      tenantConfirmationStatus: 'PENDING',
+      rentalTenantConfirmationStatus: 'PENDING',
       serviceGroupId: 'group-1',
     });
     const appt2 = makeAppointment({
       id: 'appt-2',
       status: 'AWAITING_INSPECTOR',
-      tenantConfirmationStatus: 'UNAVAILABLE',
+      rentalTenantConfirmationStatus: 'UNAVAILABLE',
       serviceGroupId: 'group-2',
     });
     vi.mocked(appointmentRepo.findUnconfirmedForDate).mockResolvedValue([appt1, appt2]);
@@ -398,12 +398,12 @@ describe('RejectUnconfirmedAppointmentsUseCase', () => {
     const appt1 = makeAppointment({
       id: 'appt-1',
       status: 'SCHEDULED',
-      tenantConfirmationStatus: 'PENDING',
+      rentalTenantConfirmationStatus: 'PENDING',
     });
     const appt2 = makeAppointment({
       id: 'appt-2',
       status: 'SCHEDULED',
-      tenantConfirmationStatus: 'PENDING',
+      rentalTenantConfirmationStatus: 'PENDING',
     });
     vi.mocked(appointmentRepo.findUnconfirmedForDate).mockResolvedValue([appt1, appt2]);
 
@@ -424,7 +424,7 @@ describe('RejectUnconfirmedAppointmentsUseCase', () => {
   it('should handle appointments with UNAVAILABLE confirmation status', async () => {
     const appt = makeAppointment({
       status: 'SCHEDULED',
-      tenantConfirmationStatus: 'UNAVAILABLE',
+      rentalTenantConfirmationStatus: 'UNAVAILABLE',
     });
     vi.mocked(appointmentRepo.findUnconfirmedForDate).mockResolvedValue([appt]);
 
@@ -436,7 +436,7 @@ describe('RejectUnconfirmedAppointmentsUseCase', () => {
       'tenant-1',
       expect.objectContaining({
         status: 'REJECTED',
-        tenantConfirmationStatus: 'NO_RESPONSE',
+        rentalTenantConfirmationStatus: 'NO_RESPONSE',
       }),
     );
   });

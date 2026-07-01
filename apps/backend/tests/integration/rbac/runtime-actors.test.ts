@@ -82,7 +82,7 @@ vi.mock('../../../src/main/container', () => ({
     audit: { jwtService: { verify: mockJwtVerify } },
     serviceGroup: { jwtService: { verify: mockJwtVerify } },
     marketplace: { jwtService: { verify: mockJwtVerify } },
-    tenantPortal: {
+    rentalTenantPortal: {
       jwtService: { verify: mockJwtVerify },
       getPortalDataUseCase: { execute: mockGetPortalData },
       confirmAppointmentUseCase: { execute: mockConfirmAppointment },
@@ -131,27 +131,27 @@ beforeEach(() => {
 // ── TNT actor: portal routes require valid token ──────────────────────────────
 
 describe('TNT actor: portal routes — token-based access control', () => {
-  it('GET /v1/tenant-portal/:token — no valid token → 404 (PortalTokenInvalidError extends NotFoundError)', async () => {
+  it('GET /v1/rental-tenant-portal/:token — no valid token → 404 (PortalTokenInvalidError extends NotFoundError)', async () => {
     // tokenRepo returns null = invalid token → PortalTokenInvalidError (extends NotFoundError) → 404
     mockTokenRepo.findByTokenHash.mockResolvedValue(null);
     const res = await supertest(app.server)
-      .get('/v1/tenant-portal/invalid-raw-token');
+      .get('/v1/rental-tenant-portal/invalid-raw-token');
     expect(res.status).toBe(404);
   });
 
-  it('POST /v1/tenant-portal/:token/confirm — no valid token + valid body → 404', async () => {
+  it('POST /v1/rental-tenant-portal/:token/confirm — no valid token + valid body → 404', async () => {
     // Send a valid body to pass schema validation; portal middleware then rejects token (404)
     mockTokenRepo.findByTokenHash.mockResolvedValue(null);
     const res = await supertest(app.server)
-      .post('/v1/tenant-portal/invalid-raw-token/confirm')
+      .post('/v1/rental-tenant-portal/invalid-raw-token/confirm')
       .send({});
     expect(res.status).toBe(404);
   });
 
-  it('POST /v1/tenant-portal/:token/reschedule — no valid token → 404', async () => {
+  it('POST /v1/rental-tenant-portal/:token/reschedule — no valid token → 404', async () => {
     mockTokenRepo.findByTokenHash.mockResolvedValue(null);
     const res = await supertest(app.server)
-      .post('/v1/tenant-portal/invalid-raw-token/reschedule')
+      .post('/v1/rental-tenant-portal/invalid-raw-token/reschedule')
       .send({ newDate: futureDate, newTimeSlotStart: '09:00', newTimeSlotEnd: '10:00' });
     expect(res.status).toBe(404);
   });
@@ -176,7 +176,7 @@ describe('TNT actor: JWT routes are inaccessible without valid JWT', () => {
         serviceTypeId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12',
         scheduledDate: futureDate,
         timeSlotStart: '09:00', timeSlotEnd: '10:00',
-        contact: { tenantName: 'Test Tenant' },
+        contact: { rentalTenantName: 'Test Tenant' },
       });
     expect(res.status).toBe(401);
   });

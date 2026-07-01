@@ -51,7 +51,7 @@ function makeAppointmentResult(overrides: Record<string, unknown> = {}) {
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 150,
     payoutAmount: 80,
     pricingRuleSnapshotJson: {},
@@ -89,7 +89,7 @@ describe('GET /v1/appointments/:id — enriched detail response (T017)', () => {
     mockGetAppointmentExecute.mockResolvedValue(makeAppointmentResult({
       contacts: [
         // primary first
-        { id: 'j-primary', contactId: TENANT_CONTACT_ID, role: 'TENANT', isPrimary: true, snapshotName: 'Alice Primary', snapshotEmail: 'alice@example.com', snapshotPhone: '+61400000001' },
+        { id: 'j-primary', contactId: TENANT_CONTACT_ID, role: 'RENTAL_TENANT', isPrimary: true, snapshotName: 'Alice Primary', snapshotEmail: 'alice@example.com', snapshotPhone: '+61400000001' },
         // secondary second
         { id: 'j-secondary', contactId: PM_CONTACT_ID, role: 'PROPERTY_MANAGER', isPrimary: false, snapshotName: 'Bob PM', snapshotEmail: 'bob@pm.com', snapshotPhone: '+61400000002' },
       ],
@@ -103,7 +103,7 @@ describe('GET /v1/appointments/:id — enriched detail response (T017)', () => {
     const contacts = res.body.data.contacts;
     expect(contacts).toHaveLength(2);
     expect(contacts[0].isPrimary).toBe(true);
-    expect(contacts[0].role).toBe('TENANT');
+    expect(contacts[0].role).toBe('RENTAL_TENANT');
     expect(contacts[1].isPrimary).toBe(false);
     expect(contacts[1].role).toBe('PROPERTY_MANAGER');
   });
@@ -113,7 +113,7 @@ describe('GET /v1/appointments/:id — enriched detail response (T017)', () => {
     mockGetAppointmentExecute.mockResolvedValue(makeAppointmentResult({
       contacts: [
         {
-          id: 'j-tenant', contactId: TENANT_CONTACT_ID, role: 'TENANT', isPrimary: true,
+          id: 'j-tenant', contactId: TENANT_CONTACT_ID, role: 'RENTAL_TENANT', isPrimary: true,
           snapshotName: 'Alice', snapshotEmail: 'alice@example.com', snapshotPhone: null,
         },
         {
@@ -146,7 +146,7 @@ describe('GET /v1/appointments/:id — enriched detail response (T017)', () => {
     mockGetAppointmentExecute.mockResolvedValue(makeAppointmentResult({
       keyRequired: true,
       keyLocation: 'Lockbox at front door',
-      contacts: [{ id: 'j1', contactId: TENANT_CONTACT_ID, role: 'TENANT', isPrimary: true, snapshotName: 'Alice', snapshotEmail: 'alice@example.com', snapshotPhone: null }],
+      contacts: [{ id: 'j1', contactId: TENANT_CONTACT_ID, role: 'RENTAL_TENANT', isPrimary: true, snapshotName: 'Alice', snapshotEmail: 'alice@example.com', snapshotPhone: null }],
     }));
 
     const res = await supertest(app.server)
@@ -164,7 +164,7 @@ describe('GET /v1/appointments/:id — enriched detail response (T017)', () => {
       contacts: [{
         id: 'j-legacy',
         contactId: null,
-        role: 'TENANT',
+        role: 'RENTAL_TENANT',
         isPrimary: true,
         snapshotName: 'Legacy Tenant Name',
         snapshotEmail: 'legacy@example.com',

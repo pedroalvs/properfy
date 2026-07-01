@@ -2,7 +2,7 @@ import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
 import { BooleanIcon } from '@/components/ui/BooleanIcon';
 import { AppointmentStatus } from '@properfy/shared';
-import { TENANT_CONFIRMATION_STATUS_MAP } from '@/lib/status-colors';
+import { RENTAL_TENANT_CONFIRMATION_STATUS_MAP } from '@/lib/status-colors';
 import { formatDate, formatDateTime } from '@/lib/format-date';
 import type { AppointmentDetail } from '../types';
 
@@ -11,7 +11,7 @@ interface AppointmentDetailSectionsProps {
 }
 
 export function AppointmentDetailSections({ appointment }: AppointmentDetailSectionsProps) {
-  const confirmationStyle = TENANT_CONFIRMATION_STATUS_MAP[appointment.tenantConfirmationStatus];
+  const confirmationStyle = RENTAL_TENANT_CONFIRMATION_STATUS_MAP[appointment.rentalTenantConfirmationStatus];
   const isPendingOperationalCrossCheck =
     appointment.status === AppointmentStatus.DONE && !appointment.doneCheckedByUserId;
 
@@ -89,13 +89,13 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
         </FormSection>
       )}
 
-      {appointment.tenantNote && (
+      {appointment.rentalTenantNote && (
         <div className="rounded border border-info/30 bg-info/5 p-4">
           <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-text-secondary">
             Tenant Note
           </h3>
           <p className="whitespace-pre-wrap text-sm text-text-primary">
-            {appointment.tenantNote}
+            {appointment.rentalTenantNote}
           </p>
         </div>
       )}

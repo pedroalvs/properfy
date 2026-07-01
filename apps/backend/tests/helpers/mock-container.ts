@@ -188,7 +188,7 @@ export function createMockContainer(
       jwtService: { ...defaultJwt },
       tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['marketplace'],
-    tenantPortal: {
+    rentalTenantPortal: {
       getPortalDataUseCase: { execute: vi.fn() },
       confirmAppointmentUseCase: { execute: vi.fn() },
       rescheduleRequestUseCase: { execute: vi.fn() },
@@ -210,7 +210,7 @@ export function createMockContainer(
       tokenService: { generateRawToken: vi.fn(), hashToken: vi.fn() },
       jwtService: { ...defaultJwt },
       tenantRepo: { ...defaultTenantRepo },
-    } as AppContainer['tenantPortal'],
+    } as AppContainer['rentalTenantPortal'],
     inspectorExecution: {
       getInspectorScheduleUseCase: { execute: vi.fn() },
       getAppointmentDetailUseCase: { execute: vi.fn() },

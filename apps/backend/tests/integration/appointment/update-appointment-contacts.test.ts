@@ -50,7 +50,7 @@ function makeAppointmentResult(overrides: Record<string, unknown> = {}) {
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    tenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 150,
     payoutAmount: 80,
     pricingRuleSnapshotJson: {},
@@ -89,7 +89,7 @@ describe('PATCH /v1/appointments/:id — contacts[] replacement (T016)', () => {
       contacts: [{
         id: 'new-junction-1',
         contactId: CONTACT_NEW_ID,
-        role: 'TENANT',
+        role: 'RENTAL_TENANT',
         isPrimary: true,
         snapshotName: 'New Contact',
         snapshotEmail: 'new@example.com',
@@ -101,7 +101,7 @@ describe('PATCH /v1/appointments/:id — contacts[] replacement (T016)', () => {
       .patch(`/v1/appointments/${APPOINTMENT_ID}`)
       .set('Authorization', 'Bearer token')
       .send({
-        contacts: [{ contactId: CONTACT_NEW_ID, role: 'TENANT', isPrimary: true }],
+        contacts: [{ contactId: CONTACT_NEW_ID, role: 'RENTAL_TENANT', isPrimary: true }],
       });
 
     expect(res.status).toBe(200);
@@ -137,7 +137,7 @@ describe('PATCH /v1/appointments/:id — contacts[] replacement (T016)', () => {
       contacts: [{
         id: 'existing-junction-1',
         contactId: 'f5555555-0000-4000-8000-000000000099',
-        role: 'TENANT',
+        role: 'RENTAL_TENANT',
         isPrimary: true,
         snapshotName: 'Existing Contact',
         snapshotEmail: 'existing@example.com',
@@ -163,7 +163,7 @@ describe('PATCH /v1/appointments/:id — contacts[] replacement (T016)', () => {
       contacts: [{
         id: 'new-junction-inline',
         contactId: 'new-inline-registry-id-uuid001',
-        role: 'TENANT',
+        role: 'RENTAL_TENANT',
         isPrimary: true,
         snapshotName: 'Inline Replacement',
         snapshotEmail: 'inline.replacement@example.com',
@@ -176,8 +176,8 @@ describe('PATCH /v1/appointments/:id — contacts[] replacement (T016)', () => {
       .set('Authorization', 'Bearer token')
       .send({
         contacts: [{
-          inline: { type: 'TENANT', displayName: 'Inline Replacement', primaryEmail: 'inline.replacement@example.com' },
-          role: 'TENANT',
+          inline: { type: 'RENTAL_TENANT', displayName: 'Inline Replacement', primaryEmail: 'inline.replacement@example.com' },
+          role: 'RENTAL_TENANT',
           isPrimary: true,
         }],
       });

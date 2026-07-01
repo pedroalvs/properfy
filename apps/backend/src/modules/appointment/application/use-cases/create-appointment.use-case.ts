@@ -61,7 +61,7 @@ export interface CreateAppointmentInput {
   timeSlotEnd: string; // HH:mm
   /** @deprecated Use contacts array instead */
   contact?: {
-    tenantName: string;
+    rentalTenantName: string;
     primaryEmail?: string;
     secondaryEmail?: string;
     primaryPhone?: string;
@@ -116,7 +116,7 @@ export interface CreateAppointmentOutput {
   keyRequired: boolean;
   meetingLocation: string | null;
   keyLocation: string | null;
-  tenantConfirmationStatus: string;
+  rentalTenantConfirmationStatus: string;
   priceAmount: number;
   payoutAmount: number;
   pricingRuleSnapshotJson: Record<string, unknown>;
@@ -129,7 +129,7 @@ export interface CreateAppointmentOutput {
   updatedAt: Date;
   contact: {
     id: string;
-    tenantName: string;
+    rentalTenantName: string;
     primaryEmail: string | null;
     secondaryEmail: string | null;
     primaryPhone: string | null;
@@ -291,7 +291,7 @@ export class CreateAppointmentUseCase {
       keyRequired: input.keyRequired,
       meetingLocation: input.meetingLocation ?? null,
       keyLocation: input.keyLocation ?? null,
-      tenantConfirmationStatus: 'PENDING',
+      rentalTenantConfirmationStatus: 'PENDING',
       priceAmount: pricingRule.priceAmount,
       payoutAmount,
       pricingRuleSnapshotJson: snapshot as unknown as Record<string, unknown>,
@@ -425,7 +425,7 @@ export class CreateAppointmentUseCase {
           snapshotName,
           snapshotEmail,
           snapshotPhone,
-          tenantName: snapshotName,
+          rentalTenantName: snapshotName,
           primaryEmail: snapshotEmail,
           secondaryEmail: null,
           primaryPhone: snapshotPhone,
@@ -447,12 +447,12 @@ export class CreateAppointmentUseCase {
         id: contactRowId,
         appointmentId,
         contactId: null,
-        role: 'TENANT' as AppointmentContactRole,
+        role: 'RENTAL_TENANT' as AppointmentContactRole,
         isPrimary: true,
-        snapshotName: input.contact.tenantName,
+        snapshotName: input.contact.rentalTenantName,
         snapshotEmail: input.contact.primaryEmail ?? null,
         snapshotPhone: input.contact.primaryPhone ?? null,
-        tenantName: input.contact.tenantName,
+        rentalTenantName: input.contact.rentalTenantName,
         primaryEmail: input.contact.primaryEmail ?? null,
         secondaryEmail: input.contact.secondaryEmail ?? null,
         primaryPhone: input.contact.primaryPhone ?? null,
@@ -521,7 +521,7 @@ export class CreateAppointmentUseCase {
       keyRequired: appointment.keyRequired,
       meetingLocation: appointment.meetingLocation,
       keyLocation: appointment.keyLocation,
-      tenantConfirmationStatus: appointment.tenantConfirmationStatus,
+      rentalTenantConfirmationStatus: appointment.rentalTenantConfirmationStatus,
       priceAmount: appointment.priceAmount,
       payoutAmount: appointment.payoutAmount,
       pricingRuleSnapshotJson: appointment.pricingRuleSnapshotJson,
@@ -535,7 +535,7 @@ export class CreateAppointmentUseCase {
       contact: contact
         ? {
             id: contact.id,
-            tenantName: contact.tenantName,
+            rentalTenantName: contact.rentalTenantName,
             primaryEmail: contact.primaryEmail,
             secondaryEmail: contact.secondaryEmail,
             primaryPhone: contact.primaryPhone,
@@ -543,7 +543,7 @@ export class CreateAppointmentUseCase {
           }
         : {
             id: '',
-            tenantName: '',
+            rentalTenantName: '',
             primaryEmail: null,
             secondaryEmail: null,
             primaryPhone: null,

@@ -5,15 +5,15 @@ export const AssetKind = {
 } as const;
 export type AssetKind = (typeof AssetKind)[keyof typeof AssetKind];
 
-export const TenantPortalTokenStatus = {
+export const RentalTenantPortalTokenStatus = {
   ACTIVE: 'ACTIVE',
   EXPIRED: 'EXPIRED',
   REVOKED: 'REVOKED',
   SUPERSEDED: 'SUPERSEDED',
 } as const;
-export type TenantPortalTokenStatus = (typeof TenantPortalTokenStatus)[keyof typeof TenantPortalTokenStatus];
+export type RentalTenantPortalTokenStatus = (typeof RentalTenantPortalTokenStatus)[keyof typeof RentalTenantPortalTokenStatus];
 
-export const TenantPortalAction = {
+export const RentalTenantPortalAction = {
   VIEW: 'VIEW',
   CONFIRM: 'CONFIRM',
   RESCHEDULE: 'RESCHEDULE',
@@ -21,7 +21,7 @@ export const TenantPortalAction = {
   UNAVAILABLE_REPORTED: 'UNAVAILABLE_REPORTED',
   GROUP_JOIN: 'GROUP_JOIN',
 } as const;
-export type TenantPortalAction = (typeof TenantPortalAction)[keyof typeof TenantPortalAction];
+export type RentalTenantPortalAction = (typeof RentalTenantPortalAction)[keyof typeof RentalTenantPortalAction];
 
 export const ReportType = {
   INSPECTIONS_SCHEDULED: 'INSPECTIONS_SCHEDULED',

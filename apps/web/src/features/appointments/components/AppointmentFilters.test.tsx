@@ -124,7 +124,7 @@ describe('AppointmentFilters', () => {
 
     expect(onChange).toHaveBeenCalledWith({
       ...DEFAULT_FILTERS,
-      tenantConfirmationStatus: 'NO_RESPONSE',
+      rentalTenantConfirmationStatus: 'NO_RESPONSE',
     });
   });
 });

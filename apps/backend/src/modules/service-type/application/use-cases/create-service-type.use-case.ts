@@ -9,7 +9,7 @@ export interface CreateServiceTypeInput {
   code: string;
   name: string;
   flowType: ServiceTypeFlowType;
-  requiresTenantConfirmation: boolean;
+  requiresRentalTenantConfirmation: boolean;
   actor: AuthContext;
 }
 
@@ -18,7 +18,7 @@ export interface CreateServiceTypeOutput {
   code: string;
   name: string;
   flowType: string;
-  requiresTenantConfirmation: boolean;
+  requiresRentalTenantConfirmation: boolean;
   status: string;
   createdAt: Date;
   updatedAt: Date;
@@ -31,7 +31,7 @@ export class CreateServiceTypeUseCase {
   ) {}
 
   async execute(input: CreateServiceTypeInput): Promise<CreateServiceTypeOutput> {
-    const { code, name, flowType, requiresTenantConfirmation, actor } = input;
+    const { code, name, flowType, requiresRentalTenantConfirmation, actor } = input;
 
     if (actor.role !== 'AM') {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
@@ -55,7 +55,7 @@ export class CreateServiceTypeUseCase {
       code,
       name,
       flowType,
-      requiresTenantConfirmation,
+      requiresRentalTenantConfirmation,
       status: 'ACTIVE',
       createdAt: now,
       updatedAt: now,
@@ -74,7 +74,7 @@ export class CreateServiceTypeUseCase {
         code,
         name,
         flowType,
-        requiresTenantConfirmation: serviceType.requiresTenantConfirmation,
+        requiresRentalTenantConfirmation: serviceType.requiresRentalTenantConfirmation,
         status: 'ACTIVE',
       },
     });
@@ -84,7 +84,7 @@ export class CreateServiceTypeUseCase {
       code: serviceType.code,
       name: serviceType.name,
       flowType: serviceType.flowType,
-      requiresTenantConfirmation: serviceType.requiresTenantConfirmation,
+      requiresRentalTenantConfirmation: serviceType.requiresRentalTenantConfirmation,
       status: serviceType.status,
       createdAt: serviceType.createdAt,
       updatedAt: serviceType.updatedAt,

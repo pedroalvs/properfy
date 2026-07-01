@@ -136,7 +136,7 @@ describe('useAppointmentSave', () => {
         timeSlotEnd: VALID_CREATE_DATA.timeSlotEnd,
         keyRequired: VALID_CREATE_DATA.keyRequired,
         contact: {
-          tenantName: VALID_CREATE_DATA.contactName,
+          rentalTenantName: VALID_CREATE_DATA.contactName,
           primaryEmail: VALID_CREATE_DATA.contactEmail,
           primaryPhone: VALID_CREATE_DATA.contactPhone,
         },
@@ -166,7 +166,7 @@ describe('useAppointmentSave', () => {
         notes: null,
         observation: null,
         contact: {
-          tenantName: VALID_CREATE_DATA.contactName,
+          rentalTenantName: VALID_CREATE_DATA.contactName,
           primaryEmail: VALID_CREATE_DATA.contactEmail,
           primaryPhone: VALID_CREATE_DATA.contactPhone,
         },
@@ -263,7 +263,7 @@ describe('useAppointmentSave', () => {
           name: 'John Doe',
           email: 'john@test.com',
           phone: '11999999999',
-          role: 'TENANT' as any,
+          role: 'RENTAL_TENANT' as any,
           isPrimary: true,
         },
       ],
@@ -278,7 +278,7 @@ describe('useAppointmentSave', () => {
         contacts: [
           {
             contactId: 'f47ac10b-58cc-4372-a567-0e02b2c3d499',
-            role: 'TENANT',
+            role: 'RENTAL_TENANT',
             isPrimary: true,
           },
         ],
@@ -313,7 +313,7 @@ describe('useAppointmentSave', () => {
         contacts: [
           {
             inline: {
-              type: 'TENANT',
+              type: 'RENTAL_TENANT',
               displayName: 'Jane Doe',
               primaryEmail: 'jane@test.com',
               primaryPhone: null,
@@ -339,7 +339,7 @@ describe('useAppointmentSave', () => {
           name: 'Registry Contact',
           email: 'reg@test.com',
           phone: '',
-          role: 'TENANT' as any,
+          role: 'RENTAL_TENANT' as any,
           isPrimary: true,
         },
         {
@@ -360,7 +360,7 @@ describe('useAppointmentSave', () => {
     const call = mockPost.mock.calls[0]!;
     const contacts = (call[1] as any).body.contacts;
     expect(contacts).toHaveLength(2);
-    expect(contacts[0]).toEqual({ contactId: 'f47ac10b-58cc-4372-a567-0e02b2c3d499', role: 'TENANT', isPrimary: true });
+    expect(contacts[0]).toEqual({ contactId: 'f47ac10b-58cc-4372-a567-0e02b2c3d499', role: 'RENTAL_TENANT', isPrimary: true });
     expect(contacts[1]).toHaveProperty('inline');
     expect(contacts[1].inline.displayName).toBe('New Contact');
   });

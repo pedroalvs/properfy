@@ -138,7 +138,7 @@ export interface GroupAppointmentConfirmationRow {
   status: string;
   scheduledDate: Date;
   timeSlot: string;
-  tenantConfirmationStatus: string;
+  rentalTenantConfirmationStatus: string;
   activeCycle: { scheduledDate: Date; timeSlot: string | null; status: string } | null;
   propertyCode: string | null;
   propertyAddress: string | null;
