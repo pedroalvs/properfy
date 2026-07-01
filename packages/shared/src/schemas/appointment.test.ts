@@ -12,6 +12,7 @@ import {
   bulkActionResultItemSchema,
   bulkActionResponseSchema,
   bulkReopenForRescheduleRequestSchema,
+  normalizeCustomFields,
 } from './appointment';
 import { AppointmentStatus, RentalTenantConfirmationStatus } from '../enums/appointment';
 import { RestrictionSource } from '../enums/appointment';
@@ -364,6 +365,38 @@ describe('appointment customFields (repeatable label/value, max 4)', () => {
       customFields: Array.from({ length: 5 }, (_, i) => ({ label: `L${i}`, value: `V${i}` })),
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe('normalizeCustomFields', () => {
+  it('returns [] for non-array input (null, object, string)', () => {
+    expect(normalizeCustomFields(null)).toEqual([]);
+    expect(normalizeCustomFields({ realtyDescription: 'legacy' })).toEqual([]);
+    expect(normalizeCustomFields('nope')).toEqual([]);
+  });
+
+  it('keeps valid rows and trims them', () => {
+    expect(normalizeCustomFields([{ label: '  Gate  ', value: '  1234  ' }])).toEqual([
+      { label: 'Gate', value: '1234' },
+    ]);
+  });
+
+  it('drops malformed rows and caps the result at 4', () => {
+    const input = [
+      { label: 'A', value: '1' },
+      { label: '', value: 'x' }, // blank label -> dropped
+      { label: 'B' }, // missing value -> dropped
+      { label: 'C', value: '3' },
+      { label: 'D', value: '4' },
+      { label: 'E', value: '5' },
+      { label: 'F', value: '6' },
+    ];
+    expect(normalizeCustomFields(input)).toEqual([
+      { label: 'A', value: '1' },
+      { label: 'C', value: '3' },
+      { label: 'D', value: '4' },
+      { label: 'E', value: '5' },
+    ]);
   });
 });
 

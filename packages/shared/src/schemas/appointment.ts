@@ -74,6 +74,22 @@ export const customFieldSchema = z.object({
 export const appointmentCustomFieldsSchema = z.array(customFieldSchema).max(CUSTOM_FIELDS_MAX);
 export type AppointmentCustomField = z.infer<typeof customFieldSchema>;
 
+/**
+ * Normalize an opaque `custom_fields_json` value (possibly legacy/malformed) into
+ * a clean, contract-valid `{ label, value }[]`, capped at {@link CUSTOM_FIELDS_MAX}.
+ * Non-array inputs and rows that fail {@link customFieldSchema} (missing/blank/oversized
+ * label or value) are dropped. Shared by the inspector detail response mapping and
+ * the web appointment-detail hook so the read-side transformation stays consistent.
+ */
+export function normalizeCustomFields(raw: unknown): AppointmentCustomField[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((row) => customFieldSchema.safeParse(row))
+    .filter((result): result is { success: true; data: AppointmentCustomField } => result.success)
+    .map((result) => result.data)
+    .slice(0, CUSTOM_FIELDS_MAX);
+}
+
 export const createAppointmentSchema = z.object({
   branchId: z.string().uuid(),
   propertyId: z.string().uuid().optional(),

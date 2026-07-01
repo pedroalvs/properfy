@@ -1,5 +1,5 @@
 import type { AuthContext, AppointmentApp, AppointmentCustomField } from '@properfy/shared';
-import { customFieldSchema, CUSTOM_FIELDS_MAX } from '@properfy/shared';
+import { normalizeCustomFields } from '@properfy/shared';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../appointment/domain/appointment.repository';
 import type { IAppCredentialRepository } from '../../../app-credential/domain/app-credential.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
@@ -17,21 +17,6 @@ import {
 export interface GetAppointmentDetailInput {
   appointmentId: string;
   actor: AuthContext;
-}
-
-/**
- * Normalize the opaque `customFieldsJson` into the read-only `{ label, value }[]`
- * the inspector contract expects. Reuses the shared `customFieldSchema` so
- * trimming and the label/value length caps are applied consistently with the
- * write contract; drops legacy/malformed rows and caps the list.
- */
-function normalizeCustomFields(raw: unknown): AppointmentCustomField[] {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .map((row) => customFieldSchema.safeParse(row))
-    .filter((result): result is { success: true; data: AppointmentCustomField } => result.success)
-    .map((result) => result.data)
-    .slice(0, CUSTOM_FIELDS_MAX);
 }
 
 export interface JobDetailsAgency {

@@ -1,4 +1,5 @@
 import { useDetailQuery } from '@/hooks/useApiQuery';
+import { normalizeCustomFields } from '@properfy/shared';
 import type { AppointmentDetail } from '../types';
 
 export interface UseAppointmentDetailReturn {
@@ -6,22 +7,6 @@ export interface UseAppointmentDetailReturn {
   isLoading: boolean;
   isError: boolean;
   refetch: () => void;
-}
-
-/**
- * The API returns custom fields under the opaque `customFieldsJson` field. Coerce
- * it into the typed `customFields` array the UI consumes, tolerating legacy /
- * non-array values (which become an empty list).
- */
-function normalizeCustomFields(raw: unknown): Array<{ label: string; value: string }> {
-  if (!Array.isArray(raw)) return [];
-  return raw.filter(
-    (row): row is { label: string; value: string } =>
-      !!row &&
-      typeof row === 'object' &&
-      typeof (row as { label?: unknown }).label === 'string' &&
-      typeof (row as { value?: unknown }).value === 'string',
-  );
 }
 
 /**
