@@ -5,7 +5,7 @@ export interface InvoiceFilters {
   inspectorId?: string;
   status?: InspectorInvoiceStatus;
   /** Persisted statuses to match (from a product status bucket). */
-  statusIn?: string[];
+  statusIn?: InspectorInvoiceStatus[];
   /** Content filter: invoices whose snapshot has ≥1 line for this agency (tenant). */
   agencyId?: string;
   /** Content filter: invoices whose snapshot has ≥1 line for this branch. */

@@ -212,7 +212,7 @@ export function InvoiceDetailDrawer({
                         <tbody>
                           {invoice.lineItemsSnapshot.map((line) => (
                             <tr key={line.appointmentId} className="border-t border-black/5">
-                              <td className="py-1 pr-3">{line.serviceDate}</td>
+                              <td className="py-1 pr-3">{formatDate(line.serviceDate)}</td>
                               <td className="py-1 pr-3">{line.appointmentCode}</td>
                               <td className="py-1 pr-3">{line.propertyAddress ?? '—'}</td>
                               <td className="py-1 pr-3">{line.serviceType ?? '—'}</td>

@@ -152,7 +152,7 @@ describe('ListInvoicesUseCase', () => {
     ).rejects.toThrow(ForbiddenError);
   });
 
-  it('allows OP to list all invoices (spec 032 reverses the OP exclusion)', async () => {
+  it('allows OP to list all invoices and honours the inspector filter (spec 032 reverses the OP exclusion)', async () => {
     const { useCase, invoiceRepo } = sut;
     vi.mocked(invoiceRepo.findAll).mockResolvedValue([makeInvoice()]);
     vi.mocked(invoiceRepo.count).mockResolvedValue(1);
@@ -164,24 +164,30 @@ describe('ListInvoicesUseCase', () => {
       actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
     });
     expect(result.data).toHaveLength(1);
+    expect(vi.mocked(invoiceRepo.findAll).mock.calls[0][0].inspectorId).toBe('insp-1');
   });
 
-  it('maps the status bucket and agency/branch content filters to repo filters', async () => {
+  it.each([
+    ['pending', ['PENDING_REVIEW']],
+    ['approved', ['CLOSED', 'PAID']],
+    ['rejected', ['VOID']],
+  ] as const)('maps the %s status bucket to repo statusIn', async (bucket, expected) => {
     const { useCase, invoiceRepo } = sut;
     vi.mocked(invoiceRepo.findAll).mockResolvedValue([]);
     vi.mocked(invoiceRepo.count).mockResolvedValue(0);
 
-    await useCase.execute({
-      status: 'approved',
-      agencyId: 'ag-1',
-      branchId: 'b-1',
-      page: 1,
-      pageSize: 10,
-      actor: makeActor({ role: 'AM' }),
-    });
+    await useCase.execute({ status: bucket, page: 1, pageSize: 10, actor: makeActor({ role: 'AM' }) });
+    expect(vi.mocked(invoiceRepo.findAll).mock.calls[0][0].statusIn).toEqual(expected);
+  });
+
+  it('passes agency/branch content filters through to the repo', async () => {
+    const { useCase, invoiceRepo } = sut;
+    vi.mocked(invoiceRepo.findAll).mockResolvedValue([]);
+    vi.mocked(invoiceRepo.count).mockResolvedValue(0);
+
+    await useCase.execute({ agencyId: 'ag-1', branchId: 'b-1', page: 1, pageSize: 10, actor: makeActor({ role: 'AM' }) });
 
     const filters = vi.mocked(invoiceRepo.findAll).mock.calls[0][0];
-    expect(filters.statusIn).toEqual(['CLOSED', 'PAID']);
     expect(filters.agencyId).toBe('ag-1');
     expect(filters.branchId).toBe('b-1');
   });
