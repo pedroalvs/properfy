@@ -63,161 +63,202 @@ function createWrapper() {
   };
 }
 
+const PREVIEW_RESPONSE = {
+  importId: 'import-123',
+  branchId: 'branch-1',
+  tenantId: 'tenant-1',
+  summary: { totalRows: 1, importable: 1, withWarnings: 0, withErrors: 0 },
+  rows: [{ rowNumber: 2, severity: 'ready', importable: true }],
+};
+
 beforeEach(() => {
   mockPost.mockReset();
   mockGet.mockReset();
 });
 
 describe('useAppointmentImport', () => {
-  it('upload calls POST with FormData', async () => {
-    mockPost.mockResolvedValue({
-      data: { data: { importId: 'import-123', status: 'PENDING', acceptedCount: 0, warningCount: 0, errorCount: 0 } },
-    });
+  describe('preview', () => {
+    it('POSTs multipart FormData with branchId appended before the file', async () => {
+      mockPost.mockResolvedValue({ data: { data: PREVIEW_RESPONSE } });
+      const { result } = renderHook(() => useAppointmentImport(), { wrapper: createWrapper() });
+      const file = new File(['Type\nRoutine Inspection\n'], 'import.csv', { type: 'text/csv' });
 
-    const { result } = renderHook(() => useAppointmentImport(), {
-      wrapper: createWrapper(),
-    });
+      await act(async () => {
+        await result.current.preview(file, 'branch-1');
+      });
 
-    const file = new File(['a,b\n1,2'], 'test.csv', { type: 'text/csv' });
-
-    await act(async () => {
-      result.current.upload(file);
-    });
-
-    await waitFor(() => {
       expect(mockPost).toHaveBeenCalledTimes(1);
+      const [path, options] = mockPost.mock.calls[0]!;
+      expect(path).toBe('/v1/appointments/import/preview');
+      const formData = options.body as FormData;
+      expect(formData).toBeInstanceOf(FormData);
+      const keys = Array.from(formData.keys());
+      expect(keys.indexOf('branchId')).toBeLessThan(keys.indexOf('file'));
+      expect(formData.get('branchId')).toBe('branch-1');
     });
 
-    const callArgs = mockPost.mock.calls[0]!;
-    expect(callArgs[0]).toBe('/v1/appointments/import');
-    expect(callArgs[1].body).toBeInstanceOf(FormData);
+    it('includes actorTimezone when provided', async () => {
+      mockPost.mockResolvedValue({ data: { data: PREVIEW_RESPONSE } });
+      const { result } = renderHook(() => useAppointmentImport(), { wrapper: createWrapper() });
+      const file = new File(['data'], 'import.csv');
+
+      await act(async () => {
+        await result.current.preview(file, 'branch-1', 'Australia/Sydney');
+      });
+
+      const formData = mockPost.mock.calls[0]![1].body as FormData;
+      expect(formData.get('actorTimezone')).toBe('Australia/Sydney');
+    });
+
+    it('returns the preview response data', async () => {
+      mockPost.mockResolvedValue({ data: { data: PREVIEW_RESPONSE } });
+      const { result } = renderHook(() => useAppointmentImport(), { wrapper: createWrapper() });
+      const file = new File(['data'], 'import.csv');
+
+      let returned: unknown;
+      await act(async () => {
+        returned = await result.current.preview(file, 'branch-1');
+      });
+
+      expect(returned).toEqual(PREVIEW_RESPONSE);
+    });
+
+    it('returns null and does not throw when the API errors', async () => {
+      mockPost.mockResolvedValue({ error: { code: 'VALIDATION_ERROR', message: 'bad file' } });
+      const { result } = renderHook(() => useAppointmentImport(), { wrapper: createWrapper() });
+      const file = new File(['data'], 'import.csv');
+
+      let returned: unknown = 'not-set';
+      await act(async () => {
+        returned = await result.current.preview(file, 'branch-1');
+      });
+
+      expect(returned).toBeNull();
+    });
+
+    it('tracks isPreviewing around the call', async () => {
+      let resolvePost!: (v: unknown) => void;
+      mockPost.mockReturnValue(new Promise((resolve) => { resolvePost = resolve; }));
+      const { result } = renderHook(() => useAppointmentImport(), { wrapper: createWrapper() });
+      const file = new File(['data'], 'import.csv');
+
+      let previewPromise!: Promise<unknown>;
+      act(() => {
+        previewPromise = result.current.preview(file, 'branch-1');
+      });
+      await waitFor(() => expect(result.current.isPreviewing).toBe(true));
+
+      await act(async () => {
+        resolvePost({ data: { data: PREVIEW_RESPONSE } });
+        await previewPromise;
+      });
+      expect(result.current.isPreviewing).toBe(false);
+    });
   });
 
-  it('sets Idempotency-Key header', async () => {
-    mockPost.mockResolvedValue({
-      data: { data: { importId: 'import-456', status: 'PENDING', acceptedCount: 0, warningCount: 0, errorCount: 0 } },
+  describe('commit', () => {
+    it('POSTs to the commit endpoint with skipInvalidRows and an Idempotency-Key header', async () => {
+      mockPost.mockResolvedValue({ data: { data: { importId: 'import-123', status: 'PROCESSING' } } });
+      const { result } = renderHook(() => useAppointmentImport(), { wrapper: createWrapper() });
+
+      let ok = false;
+      await act(async () => {
+        ok = await result.current.commit('import-123', { skipInvalidRows: true, actorTimezone: 'Australia/Sydney' });
+      });
+
+      expect(ok).toBe(true);
+      expect(mockPost).toHaveBeenCalledWith(
+        '/v1/appointments/import/{importId}/commit',
+        expect.objectContaining({
+          params: { path: { importId: 'import-123' } },
+          body: { skipInvalidRows: true, actorTimezone: 'Australia/Sydney' },
+        }),
+      );
+      const headers = mockPost.mock.calls[0]![1].headers;
+      expect(typeof headers['Idempotency-Key']).toBe('string');
     });
 
-    const { result } = renderHook(() => useAppointmentImport(), {
-      wrapper: createWrapper(),
+    it('sends the same Idempotency-Key on a retry for the same importId', async () => {
+      mockPost.mockResolvedValue({ data: { data: { importId: 'import-123', status: 'PROCESSING' } } });
+      const { result } = renderHook(() => useAppointmentImport(), { wrapper: createWrapper() });
+
+      await act(async () => { await result.current.commit('import-123', { skipInvalidRows: false }); });
+      await act(async () => { await result.current.commit('import-123', { skipInvalidRows: false }); });
+
+      const firstKey = mockPost.mock.calls[0]![1].headers['Idempotency-Key'];
+      const secondKey = mockPost.mock.calls[1]![1].headers['Idempotency-Key'];
+      expect(secondKey).toBe(firstKey);
     });
 
-    const file = new File(['data'], 'test.csv', { type: 'text/csv' });
+    it('uses a different Idempotency-Key for a different importId', async () => {
+      mockPost.mockResolvedValue({ data: { data: { importId: 'import-123', status: 'PROCESSING' } } });
+      const { result } = renderHook(() => useAppointmentImport(), { wrapper: createWrapper() });
 
-    await act(async () => {
-      result.current.upload(file);
+      await act(async () => { await result.current.commit('import-123', { skipInvalidRows: false }); });
+      await act(async () => { await result.current.commit('import-456', { skipInvalidRows: false }); });
+
+      const firstKey = mockPost.mock.calls[0]![1].headers['Idempotency-Key'];
+      const secondKey = mockPost.mock.calls[1]![1].headers['Idempotency-Key'];
+      expect(secondKey).not.toBe(firstKey);
     });
 
-    await waitFor(() => {
-      expect(mockPost).toHaveBeenCalledTimes(1);
+    it('returns false and does not throw when the API errors', async () => {
+      mockPost.mockResolvedValue({ error: { code: 'CONFLICT', message: 'has errors' } });
+      const { result } = renderHook(() => useAppointmentImport(), { wrapper: createWrapper() });
+
+      let ok = true;
+      await act(async () => {
+        ok = await result.current.commit('import-123', { skipInvalidRows: false });
+      });
+
+      expect(ok).toBe(false);
     });
 
-    const callArgs = mockPost.mock.calls[0]!;
-    expect(callArgs[1].headers['Idempotency-Key']).toBeDefined();
-    expect(typeof callArgs[1].headers['Idempotency-Key']).toBe('string');
-  });
-
-  it('sets import status to PROCESSING after upload', async () => {
-    mockPost.mockResolvedValue({
-      data: { data: { importId: 'import-789', status: 'PENDING', acceptedCount: 0, warningCount: 0, errorCount: 0 } },
-    });
-
-    const { result } = renderHook(() => useAppointmentImport(), {
-      wrapper: createWrapper(),
-    });
-
-    const file = new File(['data'], 'test.csv', { type: 'text/csv' });
-
-    await act(async () => {
-      result.current.upload(file);
-    });
-
-    await waitFor(() => {
-      expect(result.current.importStatus).not.toBeNull();
-      expect(result.current.importStatus?.status).toBe('PROCESSING');
-      expect(result.current.importStatus?.id).toBe('import-789');
-    });
-  });
-
-  it('polls status endpoint after upload', async () => {
-    mockPost.mockResolvedValue({
-      data: { data: { importId: 'import-poll', status: 'PENDING', acceptedCount: 0, warningCount: 0, errorCount: 0 } },
-    });
-
-    mockGet.mockResolvedValue({
-      data: {
+    it('starts polling the status endpoint after a successful commit', async () => {
+      mockPost.mockResolvedValue({ data: { data: { importId: 'import-123', status: 'PROCESSING' } } });
+      mockGet.mockResolvedValue({
         data: {
-          id: 'import-poll',
-          status: 'COMPLETED',
-          totalRows: 10,
-          successCount: 10,
-          errorCount: 0,
-          errorsJson: [],
+          data: {
+            id: 'import-123', branchId: 'branch-1', status: 'COMPLETED',
+            totalRows: 1, successCount: 1, errorCount: 0, resultsJson: [],
+          },
         },
-      },
+      });
+      const { result } = renderHook(() => useAppointmentImport(), { wrapper: createWrapper() });
+
+      await act(async () => {
+        await result.current.commit('import-123', { skipInvalidRows: false });
+      });
+
+      await waitFor(() => expect(mockGet).toHaveBeenCalled(), { timeout: 5000 });
+      await waitFor(() => expect(result.current.importStatus?.status).toBe('COMPLETED'));
     });
 
-    const { result } = renderHook(() => useAppointmentImport(), {
-      wrapper: createWrapper(),
-    });
-
-    const file = new File(['data'], 'test.csv', { type: 'text/csv' });
-
-    await act(async () => {
-      result.current.upload(file);
-    });
-
-    await waitFor(() => {
-      expect(result.current.importStatus).not.toBeNull();
-    });
-
-    // The polling query should have been triggered
-    await waitFor(
-      () => {
-        expect(mockGet).toHaveBeenCalled();
-      },
-      { timeout: 5000 },
-    );
-  });
-
-  it('normalizes errorsJson from polling response', async () => {
-    mockPost.mockResolvedValue({
-      data: { data: { importId: 'import-errors', status: 'PENDING', acceptedCount: 0, warningCount: 0, errorCount: 0 } },
-    });
-
-    mockGet.mockResolvedValue({
-      data: {
+    it('normalizes resultsJson into per-row results', async () => {
+      mockPost.mockResolvedValue({ data: { data: { importId: 'import-123', status: 'PROCESSING' } } });
+      mockGet.mockResolvedValue({
         data: {
-          id: 'import-errors',
-          status: 'FAILED',
-          totalRows: 2,
-          successCount: 0,
-          errorCount: 2,
-          errorsJson: [
-            { row: 2, field: 'propertyCode', message: 'Property not found' },
-            { row: 4, field: 'tenantName', message: 'Tenant name is required' },
-          ],
+          data: {
+            id: 'import-123', branchId: 'branch-1', status: 'FAILED',
+            totalRows: 2, successCount: 1, errorCount: 1,
+            resultsJson: [
+              { rowNumber: 2, status: 'created', appointmentId: 'apt-1' },
+              { rowNumber: 3, status: 'error', message: 'No service type found' },
+            ],
+          },
         },
-      },
+      });
+      const { result } = renderHook(() => useAppointmentImport(), { wrapper: createWrapper() });
+
+      await act(async () => {
+        await result.current.commit('import-123', { skipInvalidRows: true });
+      });
+
+      await waitFor(() => expect(result.current.importStatus?.status).toBe('FAILED'));
+      expect(result.current.importStatus?.results).toEqual([
+        { rowNumber: 2, status: 'created', appointmentId: 'apt-1', message: undefined },
+        { rowNumber: 3, status: 'error', appointmentId: undefined, message: 'No service type found' },
+      ]);
     });
-
-    const { result } = renderHook(() => useAppointmentImport(), {
-      wrapper: createWrapper(),
-    });
-
-    const file = new File(['data'], 'test.csv', { type: 'text/csv' });
-
-    await act(async () => {
-      result.current.upload(file);
-    });
-
-    await waitFor(() => {
-      expect(result.current.importStatus?.status).toBe('FAILED');
-    });
-
-    expect(result.current.importStatus?.errors).toEqual([
-      { row: 2, message: 'Property not found' },
-      { row: 4, message: 'Tenant name is required' },
-    ]);
   });
 });

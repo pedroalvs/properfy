@@ -253,6 +253,42 @@ describe('CreateAppointmentUseCase', () => {
     expect(result.observation).toBeNull();
   });
 
+  it('should accept and persist customFields on create', async () => {
+    vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(pricingRuleRepo.findAll).mockResolvedValue([makePricingRule()]);
+
+    const customFields = [
+      { label: 'Gate code', value: '4321' },
+      { label: 'Parking', value: 'Level 2' },
+    ];
+    const result = await useCase.execute({
+      ...baseInput,
+      customFields,
+      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    });
+
+    expect(result.customFieldsJson).toEqual(customFields);
+    expect(appointmentRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ customFieldsJson: customFields }),
+    );
+  });
+
+  it('should default customFieldsJson to null when omitted on create', async () => {
+    vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(pricingRuleRepo.findAll).mockResolvedValue([makePricingRule()]);
+
+    const result = await useCase.execute({
+      ...baseInput,
+      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    });
+
+    expect(result.customFieldsJson).toBeNull();
+  });
+
   it('should create appointment for OP resolving tenant from the branch (cross-tenant)', async () => {
     vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
     vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());

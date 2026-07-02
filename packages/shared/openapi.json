@@ -10858,8 +10858,28 @@
                     "maxLength": 2000
                   },
                   "customFields": {
-                    "type": "object",
-                    "additionalProperties": {}
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "label": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 50
+                        },
+                        "value": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        }
+                      },
+                      "required": [
+                        "label",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 4
                   },
                   "actorTimezone": {
                     "type": "string"
@@ -12283,8 +12303,28 @@
                     "additionalProperties": false
                   },
                   "customFields": {
-                    "type": "object",
-                    "additionalProperties": {},
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "label": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 50
+                        },
+                        "value": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        }
+                      },
+                      "required": [
+                        "label",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 4,
                     "nullable": true
                   },
                   "actorTimezone": {
@@ -13670,8 +13710,377 @@
         }
       }
     },
-    "/v1/appointments/import": {
+    "/v1/appointments/import/preview": {
       "post": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "importId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "branchId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "tenantId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "summary": {
+                          "type": "object",
+                          "properties": {
+                            "totalRows": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "importable": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "withWarnings": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "withErrors": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "totalRows",
+                            "importable",
+                            "withWarnings",
+                            "withErrors"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "rows": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "rowNumber": {
+                                "type": "integer",
+                                "exclusiveMinimum": true,
+                                "minimum": 0
+                              },
+                              "severity": {
+                                "type": "string",
+                                "enum": [
+                                  "ready",
+                                  "warning",
+                                  "error"
+                                ]
+                              },
+                              "importable": {
+                                "type": "boolean"
+                              },
+                              "serviceTypeName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "serviceTypeId": {
+                                "type": "string",
+                                "format": "uuid",
+                                "nullable": true
+                              },
+                              "scheduledDate": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "scheduledDateDefaulted": {
+                                "type": "boolean"
+                              },
+                              "timeSlotStart": {
+                                "type": "string"
+                              },
+                              "timeSlotEnd": {
+                                "type": "string"
+                              },
+                              "timeDefaulted": {
+                                "type": "boolean"
+                              },
+                              "notes": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "property": {
+                                "type": "object",
+                                "properties": {
+                                  "resolution": {
+                                    "type": "string",
+                                    "enum": [
+                                      "existing",
+                                      "new"
+                                    ]
+                                  },
+                                  "propertyId": {
+                                    "type": "string",
+                                    "format": "uuid",
+                                    "nullable": true
+                                  },
+                                  "propertyCode": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "street": {
+                                    "type": "string"
+                                  },
+                                  "addressLine2": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "suburb": {
+                                    "type": "string"
+                                  },
+                                  "state": {
+                                    "type": "string"
+                                  },
+                                  "postcode": {
+                                    "type": "string"
+                                  },
+                                  "country": {
+                                    "type": "string"
+                                  },
+                                  "duplicateOfRow": {
+                                    "type": "integer",
+                                    "exclusiveMinimum": true,
+                                    "minimum": 0,
+                                    "nullable": true
+                                  }
+                                },
+                                "required": [
+                                  "resolution",
+                                  "propertyId",
+                                  "propertyCode",
+                                  "street",
+                                  "addressLine2",
+                                  "suburb",
+                                  "state",
+                                  "postcode",
+                                  "country",
+                                  "duplicateOfRow"
+                                ],
+                                "additionalProperties": false,
+                                "nullable": true
+                              },
+                              "contact": {
+                                "type": "object",
+                                "properties": {
+                                  "resolution": {
+                                    "type": "string",
+                                    "enum": [
+                                      "existing",
+                                      "new"
+                                    ]
+                                  },
+                                  "contactId": {
+                                    "type": "string",
+                                    "format": "uuid",
+                                    "nullable": true
+                                  },
+                                  "displayName": {
+                                    "type": "string"
+                                  },
+                                  "primaryEmail": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "primaryPhone": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "additionalChannels": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "channel": {
+                                          "type": "string",
+                                          "enum": [
+                                            "EMAIL",
+                                            "PHONE"
+                                          ]
+                                        },
+                                        "value": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 254
+                                        },
+                                        "label": {
+                                          "type": "string",
+                                          "maxLength": 100
+                                        }
+                                      },
+                                      "required": [
+                                        "channel",
+                                        "value"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "channelsDropped": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "resolution",
+                                  "contactId",
+                                  "displayName",
+                                  "primaryEmail",
+                                  "primaryPhone",
+                                  "additionalChannels",
+                                  "channelsDropped"
+                                ],
+                                "additionalProperties": false,
+                                "nullable": true
+                              },
+                              "customFields": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "label": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 50
+                                    },
+                                    "value": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 500
+                                    }
+                                  },
+                                  "required": [
+                                    "label",
+                                    "value"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "maxItems": 4
+                              },
+                              "customFieldsTruncated": {
+                                "type": "boolean"
+                              },
+                              "issues": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "field": {
+                                      "type": "string"
+                                    },
+                                    "code": {
+                                      "type": "string"
+                                    },
+                                    "severity": {
+                                      "type": "string",
+                                      "enum": [
+                                        "warning",
+                                        "error"
+                                      ]
+                                    },
+                                    "message": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "field",
+                                    "code",
+                                    "severity",
+                                    "message"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "rowNumber",
+                              "severity",
+                              "importable",
+                              "serviceTypeName",
+                              "serviceTypeId",
+                              "scheduledDate",
+                              "scheduledDateDefaulted",
+                              "timeSlotStart",
+                              "timeSlotEnd",
+                              "timeDefaulted",
+                              "notes",
+                              "property",
+                              "contact",
+                              "customFields",
+                              "customFieldsTruncated",
+                              "issues"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "importId",
+                        "branchId",
+                        "tenantId",
+                        "summary",
+                        "rows"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/appointments/import/{importId}/commit": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "skipInvalidRows": {
+                    "type": "boolean"
+                  },
+                  "actorTimezone": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "skipInvalidRows"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "importId",
+            "required": true
+          }
+        ],
         "responses": {
           "200": {
             "description": "Default Response"
@@ -13680,6 +14089,26 @@
       }
     },
     "/v1/appointments/import/{importId}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "importId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/appointments/import/{importId}/errors.csv": {
       "get": {
         "parameters": [
           {
@@ -18413,6 +18842,25 @@
                         "restrictionsSummary": {
                           "type": "string",
                           "nullable": true
+                        },
+                        "customFields": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "label": {
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "label",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          }
                         },
                         "contact": {
                           "type": "object",

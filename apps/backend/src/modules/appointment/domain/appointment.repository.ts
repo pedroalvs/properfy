@@ -1,4 +1,4 @@
-import type { CancellationReasonCode, RejectionReasonCode } from '@properfy/shared';
+import type { CancellationReasonCode, RejectionReasonCode, AppointmentCustomField } from '@properfy/shared';
 import type { AppointmentEntity } from './appointment.entity';
 import type { AppointmentContactEntity } from './appointment-contact.entity';
 import type { AppointmentRestrictionEntity } from './appointment-restriction.entity';
@@ -135,7 +135,7 @@ export interface IAppointmentRepository {
       notes: string | null;
       rentalTenantNote: string | null;
       observation: string | null;
-      customFieldsJson: Record<string, unknown> | null;
+      customFieldsJson: AppointmentCustomField[] | null;
       reason: string | null;
       cancellationReasonCode: CancellationReasonCode | null;
       rejectionReasonCode: RejectionReasonCode | null;

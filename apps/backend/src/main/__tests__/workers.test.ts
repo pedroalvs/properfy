@@ -61,7 +61,8 @@ async function callRegisterWorkers(logger: ReturnType<typeof makeLogger>) {
     makeWorkerMock() as any,   // geocodeWorker
     makeWorkerMock() as any,   // geocodeRetryWorker
     makeWorkerMock() as any,   // propertyImportWorker
-    makeWorkerMock() as any,   // appointmentImportWorker
+    makeWorkerMock() as any,   // appointmentImportCommitWorker
+    makeWorkerMock() as any,   // sweepAbandonedAppointmentImportsWorker
     makeWorkerMock() as any,   // generateInvoiceFileWorker
     makeWorkerMock() as any,   // expireTokensWorker
     makeWorkerMock() as any,   // expireAssetsWorker

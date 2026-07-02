@@ -1,5 +1,5 @@
 import { BaseEntity } from '../../../shared/domain/entity';
-import type { AppointmentStatus, RentalTenantConfirmationStatus, CancellationReasonCode, RejectionReasonCode } from '@properfy/shared';
+import type { AppointmentStatus, RentalTenantConfirmationStatus, CancellationReasonCode, RejectionReasonCode, AppointmentCustomField } from '@properfy/shared';
 import { TRANSITION_RULES } from './appointment-state-machine';
 
 export interface AppointmentProps {
@@ -27,7 +27,7 @@ export interface AppointmentProps {
   rentalTenantNote?: string | null;
   /** Operational free-text note set on direct create/edit (distinct from rental-tenant-portal `notes`/`rentalTenantNote`). */
   observation?: string | null;
-  customFieldsJson: Record<string, unknown> | null;
+  customFieldsJson: AppointmentCustomField[] | null;
   reason: string | null;
   cancellationReasonCode: CancellationReasonCode | null;
   rejectionReasonCode: RejectionReasonCode | null;
@@ -63,7 +63,7 @@ export class AppointmentEntity extends BaseEntity {
   readonly notes: string | null;
   readonly rentalTenantNote: string | null;
   readonly observation: string | null;
-  readonly customFieldsJson: Record<string, unknown> | null;
+  readonly customFieldsJson: AppointmentCustomField[] | null;
   reason: string | null;
   cancellationReasonCode: CancellationReasonCode | null;
   rejectionReasonCode: RejectionReasonCode | null;

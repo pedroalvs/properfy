@@ -218,6 +218,7 @@ model Branch {
   properties             Property[]
   price_rules            ServicePriceRule[]
   appointments           Appointment[]
+  appointment_imports    AppointmentImport[]
 
   // Case-insensitive unique index on (tenant_id, lower(name)) managed via raw SQL migration
   @@index([tenant_id, name])
@@ -339,6 +340,22 @@ model Property {
   postcode         String          @db.VarChar(20)
   state            String          @db.VarChar(100)
   country          String          @default("AU") @db.VarChar(100)
+  // Deterministic normalized-address key — trim + collapse-whitespace +
+  // lowercase join of street|address_line_2(''-coalesced)|suburb|state|postcode.
+  // ALWAYS recomputed by a BEFORE INSERT/UPDATE trigger (see migration
+  // 20260701230009) from whatever address ends up in the row, so every
+  // create/update site (including test fixtures and seed scripts that predate
+  // this feature and don't know about it) gets a correct value without
+  // having to pass one — the `@default("")` below only exists to keep Prisma's
+  // generated Create input optional; the literal default is never what
+  // actually lands in a committed row. The JS twin
+  // (shared/domain/normalize-address.ts) is used by `findByNormalizedAddress`'s
+  // query and the appointment-import resolver's intra-batch grouping — it
+  // MUST stay normalization-identical to the trigger's SQL. Backs the
+  // `properties_normalized_address_active_unique` partial unique index
+  // (WHERE deleted_at IS NULL), the DB-level guarantee behind the "perfect
+  // address match" property-reuse rule.
+  normalized_address_key String    @default("") @db.VarChar(750)
   lat              Decimal?        @db.Decimal(10, 7)
   lng              Decimal?        @db.Decimal(10, 7)
   geocoding_status GeocodingStatus @default(PENDING)
@@ -358,6 +375,8 @@ model Property {
   @@index([tenant_id, type])
   @@index([branch_id])
   @@index([deleted_at])
+  // Partial unique index managed in migration SQL (WHERE deleted_at IS NULL):
+  // - properties_normalized_address_active_unique ON (tenant_id, normalized_address_key)
   @@map("properties")
 }
 
@@ -1336,6 +1355,17 @@ model Report {
 model AppointmentImport {
   id                 String   @id @default(uuid())
   tenant_id          String
+  // Appointment-import redesign — the preview/commit split.  `status` gains
+  // a PREVIEW value (still a plain VarChar, no enum migration needed) for
+  // the window between a synchronous preview and a requested commit.
+  // `branch_id` is set at preview time (selected by the operator) and is
+  // what both preview and commit derive tenant scope from for AM/OP.
+  // `preview_json` caches the full resolver output shown to the operator;
+  // `results_json` is written incrementally per row by the commit worker so
+  // a crash/retry mid-batch resumes rather than risking a duplicate
+  // appointment (the resolver itself is always re-run fresh at commit —
+  // `preview_json` is a display cache, never authoritative for commit).
+  branch_id          String?
   status             String   @default("PENDING") @db.VarChar(20)
   file_key           String   @db.VarChar(500)
   original_filename  String   @db.VarChar(255)
@@ -1343,12 +1373,15 @@ model AppointmentImport {
   success_count      Int      @default(0)
   error_count        Int      @default(0)
   errors_json        Json?
+  preview_json       Json?
+  results_json       Json?
   created_by_user_id String
   created_at         DateTime @default(now())
   updated_at         DateTime @updatedAt
 
-  tenant     Tenant @relation(fields: [tenant_id], references: [id])
-  created_by User   @relation("importCreatedBy", fields: [created_by_user_id], references: [id])
+  tenant     Tenant  @relation(fields: [tenant_id], references: [id])
+  branch     Branch? @relation(fields: [branch_id], references: [id])
+  created_by User    @relation("importCreatedBy", fields: [created_by_user_id], references: [id])
 
   @@index([tenant_id])
   @@index([status])

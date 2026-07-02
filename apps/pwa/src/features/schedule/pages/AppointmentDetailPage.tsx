@@ -155,6 +155,21 @@ export function AppointmentDetailPage() {
           </section>
         )}
 
+        {/* Custom Fields (read-only) */}
+        {apt.customFields.length > 0 && (
+          <section className="rounded-[20px] border border-black/[0.06] bg-white px-4 py-4 shadow-[0_8px_24px_rgba(15,23,42,0.07)]">
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Custom Fields</p>
+            <dl className="mt-2 space-y-2">
+              {apt.customFields.map((field, idx) => (
+                <div key={idx}>
+                  <dt className="text-xs font-semibold text-text-secondary">{field.label}</dt>
+                  <dd className="text-sm text-text-primary">{field.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        )}
+
         {/* Job Details */}
         {jobDetails && <JobDetailsSection jobDetails={jobDetails} />}
 

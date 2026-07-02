@@ -2,80 +2,86 @@ import { useState, useCallback, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import type { AppointmentImportPreviewResponse } from '@properfy/shared';
 
 const MAX_POLL_ATTEMPTS = 20;
 
-export interface ImportStatus {
-  id: string;
-  status: 'PROCESSING' | 'COMPLETED' | 'FAILED';
-  progress: number;
-  successCount: number;
-  errorCount: number;
-  errors: { row: number; message: string }[];
+export interface ImportRowResultEntry {
+  rowNumber: number;
+  status: 'created' | 'error';
+  appointmentId?: string;
+  message?: string;
 }
 
-interface BackendImportCreateResponse {
-  importId: string;
-  status: string;
-  acceptedCount: number;
-  warningCount: number;
+export interface ImportStatus {
+  id: string;
+  branchId: string | null;
+  status: 'PREVIEW' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  totalRows: number;
+  successCount: number;
   errorCount: number;
+  results: ImportRowResultEntry[];
 }
 
 interface BackendImportStatusResponse {
   id: string;
+  branchId: string | null;
   status: string;
   totalRows: number;
   successCount: number;
   errorCount: number;
-  errorsJson: unknown[] | null;
+  resultsJson: unknown;
 }
 
-function normalizeErrors(errorsJson: unknown[] | null): ImportStatus['errors'] {
-  if (!Array.isArray(errorsJson)) return [];
+function normalizeResults(resultsJson: unknown): ImportRowResultEntry[] {
+  if (!Array.isArray(resultsJson)) return [];
 
-  return errorsJson.flatMap((entry) => {
+  return resultsJson.flatMap((entry) => {
     if (!entry || typeof entry !== 'object') return [];
-
-    const rowValue = 'row' in entry ? (entry as { row?: unknown }).row : undefined;
-    const messageValue = 'message' in entry ? (entry as { message?: unknown }).message : undefined;
-
-    if (typeof rowValue !== 'number' || typeof messageValue !== 'string') {
+    const e = entry as Record<string, unknown>;
+    if (typeof e['rowNumber'] !== 'number' || (e['status'] !== 'created' && e['status'] !== 'error')) {
       return [];
     }
-
-    return [{ row: rowValue, message: messageValue }];
+    return [{
+      rowNumber: e['rowNumber'],
+      status: e['status'] as 'created' | 'error',
+      appointmentId: typeof e['appointmentId'] === 'string' ? e['appointmentId'] : undefined,
+      message: typeof e['message'] === 'string' ? e['message'] : undefined,
+    }];
   });
 }
 
 function normalizeStatus(data: BackendImportStatusResponse): ImportStatus {
-  const status =
-    data.status === 'COMPLETED' || data.status === 'FAILED'
+  const status: ImportStatus['status'] =
+    data.status === 'PREVIEW' || data.status === 'COMPLETED' || data.status === 'FAILED'
       ? data.status
       : 'PROCESSING';
 
   return {
     id: data.id,
+    branchId: data.branchId,
     status,
-    progress: status === 'PROCESSING' ? 0 : 100,
+    totalRows: data.totalRows,
     successCount: data.successCount,
     errorCount: data.errorCount,
-    errors: normalizeErrors(data.errorsJson),
+    results: normalizeResults(data.resultsJson),
   };
 }
 
 export interface UseAppointmentImportReturn {
-  upload: (file: File) => void;
-  isUploading: boolean;
+  preview: (file: File, branchId: string, actorTimezone?: string) => Promise<AppointmentImportPreviewResponse | null>;
+  isPreviewing: boolean;
+  commit: (importId: string, opts: { skipInvalidRows: boolean; actorTimezone?: string }) => Promise<boolean>;
+  isCommitting: boolean;
   importStatus: ImportStatus | null;
   isPolling: boolean;
 }
 
 export function useAppointmentImport(): UseAppointmentImportReturn {
   const { showError } = useSnackbar();
-  const [isUploading, setIsUploading] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [isCommitting, setIsCommitting] = useState(false);
   const [importId, setImportId] = useState<string | null>(null);
-  const [initialStatus, setInitialStatus] = useState<ImportStatus | null>(null);
   const pollingEnabledRef = useRef(false);
   const pollAttemptsRef = useRef(0);
 
@@ -109,61 +115,79 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
     },
   });
 
-  const importStatus = pollQuery.data ?? initialStatus;
-
-  const upload = useCallback(
-    async (file: File) => {
-      setIsUploading(true);
-      setInitialStatus(null);
-      setImportId(null);
-      pollingEnabledRef.current = false;
-      pollAttemptsRef.current = 0;
-
+  const preview = useCallback(
+    async (file: File, branchId: string, actorTimezone?: string): Promise<AppointmentImportPreviewResponse | null> => {
+      setIsPreviewing(true);
       try {
         const formData = new FormData();
+        // branchId (and actorTimezone) appended BEFORE the file — the backend
+        // reads all multipart parts regardless of order, but this keeps
+        // client and server conventions aligned per the documented contract.
+        formData.append('branchId', branchId);
+        if (actorTimezone) formData.append('actorTimezone', actorTimezone);
         formData.append('file', file);
 
-        const idempotencyKey = crypto.randomUUID();
-
-        const { data, error } = await api.POST('/v1/appointments/import' as any, {
+        const { data, error } = await api.POST('/v1/appointments/import/preview' as any, {
           body: formData as any,
-          headers: {
-            'Idempotency-Key': idempotencyKey,
-          },
           bodySerializer: (body: any) => body,
         } as any);
 
         if (error) {
-          showError('Failed to upload file for import');
-          return;
+          showError('Failed to preview the import file');
+          return null;
         }
 
-        const responseData = data as { data: BackendImportCreateResponse };
-        const newImportId = responseData.data.importId;
-        const status: ImportStatus = {
-          id: newImportId,
-          status: 'PROCESSING',
-          progress: 0,
-          successCount: responseData.data.acceptedCount,
-          errorCount: responseData.data.errorCount,
-          errors: [],
-        };
-        setInitialStatus(status);
-        setImportId(newImportId);
-        pollingEnabledRef.current = true;
+        return (data as { data: AppointmentImportPreviewResponse }).data;
       } catch {
-        showError('Failed to upload file for import');
+        showError('Failed to preview the import file');
+        return null;
       } finally {
-        setIsUploading(false);
+        setIsPreviewing(false);
+      }
+    },
+    [showError],
+  );
+
+  const commit = useCallback(
+    async (id: string, opts: { skipInvalidRows: boolean; actorTimezone?: string }): Promise<boolean> => {
+      setIsCommitting(true);
+      pollAttemptsRef.current = 0;
+      try {
+        // Derived from the importId, not randomUUID() — a retry of the same
+        // logical commit (e.g. a flaky network response after the request
+        // actually landed) must reuse the same key so the backend can
+        // recognize it as a replay instead of a second attempt.
+        const idempotencyKey = `appointment-import-commit:${id}`;
+        const { error } = await api.POST('/v1/appointments/import/{importId}/commit' as any, {
+          params: { path: { importId: id } } as any,
+          body: { skipInvalidRows: opts.skipInvalidRows, actorTimezone: opts.actorTimezone },
+          headers: { 'Idempotency-Key': idempotencyKey },
+        } as any);
+
+        if (error) {
+          showError('Failed to start the import');
+          return false;
+        }
+
+        setImportId(id);
+        pollingEnabledRef.current = true;
+        return true;
+      } catch {
+        showError('Failed to start the import');
+        return false;
+      } finally {
+        setIsCommitting(false);
       }
     },
     [showError],
   );
 
   return {
-    upload,
-    isUploading,
-    importStatus,
+    preview,
+    isPreviewing,
+    commit,
+    isCommitting,
+    importStatus: pollQuery.data ?? null,
     isPolling: pollQuery.isFetching,
   };
 }
