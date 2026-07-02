@@ -279,6 +279,7 @@ export interface paths {
                             /** Format: uuid */
                             inspectorId?: string | null;
                             inspectorPhotoUrl?: string | null;
+                            clUserPermissions?: string[];
                         };
                     };
                 };
@@ -715,15 +716,13 @@ export interface paths {
                             /** @default true */
                             allowClientRescheduling?: boolean;
                             /** @default false */
-                            allowClientFinancialView?: boolean;
-                            /** @default false */
                             allowClientUserManagement?: boolean;
                             /** @default 24 */
                             priorityOfferHours?: number;
                             /** @default 2 */
                             inspectorOfferRadiusKm?: number;
                             /** @default [] */
-                            clUserPermissions?: ("create_appointments" | "cancel_appointments" | "reject_appointments" | "reschedule_appointments" | "force_confirmation" | "create_properties")[];
+                            clUserPermissions?: ("create_appointments" | "cancel_appointments" | "reject_appointments" | "reschedule_appointments" | "force_confirmation" | "create_properties" | "view_financials")[];
                             emailTemplates?: {
                                 initial?: {
                                     subject?: string;
@@ -907,15 +906,13 @@ export interface paths {
                             /** @default true */
                             allowClientRescheduling?: boolean;
                             /** @default false */
-                            allowClientFinancialView?: boolean;
-                            /** @default false */
                             allowClientUserManagement?: boolean;
                             /** @default 24 */
                             priorityOfferHours?: number;
                             /** @default 2 */
                             inspectorOfferRadiusKm?: number;
                             /** @default [] */
-                            clUserPermissions?: ("create_appointments" | "cancel_appointments" | "reject_appointments" | "reschedule_appointments" | "force_confirmation" | "create_properties")[];
+                            clUserPermissions?: ("create_appointments" | "cancel_appointments" | "reject_appointments" | "reschedule_appointments" | "force_confirmation" | "create_properties" | "view_financials")[];
                             emailTemplates?: {
                                 initial?: {
                                     subject?: string;
@@ -9102,6 +9099,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/financial/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    tenantId?: string;
+                    fromDate?: string;
+                    toDate?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                filename: string;
+                                contentType: string;
+                                contentBase64: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/financial/entries/{entryId}": {
         parameters: {
             query?: never;
@@ -9233,58 +9275,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    entryId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                /** Format: uuid */
-                                tenantId: string;
-                                /** Format: uuid */
-                                appointmentId: string | null;
-                                /** Format: uuid */
-                                inspectorId: string | null;
-                                entryType: string;
-                                amount: number;
-                                currency: string;
-                                status: string;
-                                description: string;
-                                effectiveAt: string;
-                                /** Format: uuid */
-                                initiatedByUserId: string;
-                                /** Format: uuid */
-                                approvedByUserId: string | null;
-                                approvedAt: (string) | null;
-                                /** Format: uuid */
-                                referenceEntryId: string | null;
-                                reason: string | null;
-                                createdAt: string;
-                                updatedAt?: string;
-                                appointmentCode?: string | null;
-                                relatedEntityName?: string | null;
-                                approvedByName?: string | null;
-                            };
-                        };
-                    };
-                };
-            };
-        };
+        patch?: never;
         trace?: never;
     };
     "/v1/financial/entries/{entryId}/cancel": {
@@ -9946,147 +9937,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/billing/tenant-invoices/generate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        tenantId: string;
-                        periodFrom: string;
-                        periodTo: string;
-                        currency?: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description Default Response */
-                202: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                /** Format: uuid */
-                                tenantId: string;
-                                periodFrom: string;
-                                periodTo: string;
-                                totalDebit: number;
-                                totalRefund: number;
-                                totalAdjustment: number;
-                                netAmount: number;
-                                currency: string;
-                                status: string;
-                                fileKey?: string | null;
-                                /** Format: uuid */
-                                previousInvoiceId?: string | null;
-                                /** Format: uuid */
-                                generatedByUserId?: string | null;
-                                generatedAt: (string) | null;
-                                notes?: string | null;
-                                createdAt: string;
-                                updatedAt?: string;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/billing/tenant-invoices": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: {
-                    tenantId?: string;
-                    status?: "OPEN" | "CLOSED" | "PAID" | "SUPERSEDED";
-                    fromDate?: string;
-                    toDate?: string;
-                    page?: number;
-                    pageSize?: number;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                /** Format: uuid */
-                                tenantId: string;
-                                periodFrom: string;
-                                periodTo: string;
-                                totalDebit: number;
-                                totalRefund: number;
-                                totalAdjustment: number;
-                                netAmount: number;
-                                currency: string;
-                                status: string;
-                                fileKey?: string | null;
-                                /** Format: uuid */
-                                previousInvoiceId?: string | null;
-                                /** Format: uuid */
-                                generatedByUserId?: string | null;
-                                generatedAt: (string) | null;
-                                notes?: string | null;
-                                createdAt: string;
-                                updatedAt?: string;
-                            }[];
-                            pagination: {
-                                page: number;
-                                pageSize: number;
-                                total: number;
-                                totalPages: number;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/billing/invoices/{invoiceId}/regenerate": {
         parameters: {
             query?: never;
@@ -10140,73 +9990,6 @@ export interface paths {
                                 /** Format: uuid */
                                 paidByUserId?: string | null;
                                 paymentReference?: string | null;
-                                notes?: string | null;
-                                createdAt: string;
-                                updatedAt?: string;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/billing/tenant-invoices/{invoiceId}/regenerate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    invoiceId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json": {
-                        reason?: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description Default Response */
-                202: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                /** Format: uuid */
-                                tenantId: string;
-                                periodFrom: string;
-                                periodTo: string;
-                                totalDebit: number;
-                                totalRefund: number;
-                                totalAdjustment: number;
-                                netAmount: number;
-                                currency: string;
-                                status: string;
-                                fileKey?: string | null;
-                                /** Format: uuid */
-                                previousInvoiceId?: string | null;
-                                /** Format: uuid */
-                                generatedByUserId?: string | null;
-                                generatedAt: (string) | null;
                                 notes?: string | null;
                                 createdAt: string;
                                 updatedAt?: string;
@@ -10292,332 +10075,6 @@ export interface paths {
                 };
             };
         };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/invoices": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: {
-                    inspectorId?: string;
-                    status?: "PENDING_REVIEW" | "OPEN" | "CLOSED" | "PAID" | "SUPERSEDED";
-                    fromDate?: string;
-                    toDate?: string;
-                    page?: number;
-                    pageSize?: number;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                /** Format: uuid */
-                                inspectorId: string;
-                                inspectorName?: string | null;
-                                periodStart: string;
-                                periodEnd: string;
-                                periodType: string;
-                                status: string;
-                                totalAmount: number;
-                                currency: string;
-                                fileKey?: string | null;
-                                /** Format: uuid */
-                                generatedByUserId?: string | null;
-                                generatedAt: (string) | null;
-                                paidAt: (string) | null;
-                                /** Format: uuid */
-                                paidByUserId?: string | null;
-                                paymentReference?: string | null;
-                                notes?: string | null;
-                                createdAt: string;
-                                updatedAt?: string;
-                            }[];
-                            pagination: {
-                                page: number;
-                                pageSize: number;
-                                total: number;
-                                totalPages: number;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/invoices/generate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        inspectorId: string;
-                        /** Format: uuid */
-                        tenantId?: string;
-                        periodStart: string;
-                        periodEnd: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description Default Response */
-                202: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                /** Format: uuid */
-                                inspectorId: string;
-                                inspectorName?: string | null;
-                                periodStart: string;
-                                periodEnd: string;
-                                periodType: string;
-                                status: string;
-                                totalAmount: number;
-                                currency: string;
-                                fileKey?: string | null;
-                                /** Format: uuid */
-                                generatedByUserId?: string | null;
-                                generatedAt: (string) | null;
-                                paidAt: (string) | null;
-                                /** Format: uuid */
-                                paidByUserId?: string | null;
-                                paymentReference?: string | null;
-                                notes?: string | null;
-                                createdAt: string;
-                                updatedAt?: string;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/invoices/{invoiceId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    invoiceId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                /** Format: uuid */
-                                inspectorId: string;
-                                inspectorName?: string | null;
-                                periodStart: string;
-                                periodEnd: string;
-                                periodType: string;
-                                status: string;
-                                totalAmount: number;
-                                currency: string;
-                                fileKey?: string | null;
-                                /** Format: uuid */
-                                generatedByUserId?: string | null;
-                                generatedAt: (string) | null;
-                                paidAt: (string) | null;
-                                /** Format: uuid */
-                                paidByUserId?: string | null;
-                                paymentReference?: string | null;
-                                notes?: string | null;
-                                createdAt: string;
-                                updatedAt?: string;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/invoices/{invoiceId}/close": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    invoiceId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/invoices/{invoiceId}/pay": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    invoiceId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json": {
-                        /** Format: date-time */
-                        paidAt?: string;
-                        paymentReference?: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/invoices/{invoiceId}/download": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    invoiceId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                downloadUrl: string;
-                                expiresAt: string;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;

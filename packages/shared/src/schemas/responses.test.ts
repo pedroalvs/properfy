@@ -6,8 +6,28 @@ import {
   portalDataResponseSchema,
   dashboardStatsResponseSchema,
   inspectorDayCountSchema,
+  agencyFinancialExportResponseSchema,
   inspectorAppointmentDetailResponseSchema,
 } from './responses';
+
+describe('agencyFinancialExportResponseSchema (031)', () => {
+  it('accepts a base64 XLSX payload', () => {
+    const result = agencyFinancialExportResponseSchema.safeParse({
+      filename: 'financial-statement.xlsx',
+      contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      contentBase64: 'WExTWA==',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a payload missing contentBase64', () => {
+    const result = agencyFinancialExportResponseSchema.safeParse({
+      filename: 'x.xlsx',
+      contentType: 'application/octet-stream',
+    });
+    expect(result.success).toBe(false);
+  });
+});
 
 describe('loginResponseSchema', () => {
   const validLogin = {
@@ -108,6 +128,32 @@ describe('meResponseSchema', () => {
   it('should reject missing createdAt field', () => {
     const { createdAt: _createdAt, ...without } = validMe;
     const result = meResponseSchema.safeParse(without);
+    expect(result.success).toBe(false);
+  });
+
+  it('should retain clUserPermissions when present (031)', () => {
+    const result = meResponseSchema.safeParse({
+      ...validMe,
+      role: 'CL_USER',
+      tenantId: 'b1ffcd00-0a1c-4ef9-cc7e-7cc0ce491b22',
+      clUserPermissions: ['view_financials', 'create_appointments'],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.clUserPermissions).toEqual(['view_financials', 'create_appointments']);
+    }
+  });
+
+  it('should accept a me response without clUserPermissions (optional, 031)', () => {
+    const result = meResponseSchema.safeParse(validMe);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.clUserPermissions).toBeUndefined();
+    }
+  });
+
+  it('should reject clUserPermissions with non-string elements (031)', () => {
+    const result = meResponseSchema.safeParse({ ...validMe, clUserPermissions: [123, 'view_financials'] });
     expect(result.success).toBe(false);
   });
 });

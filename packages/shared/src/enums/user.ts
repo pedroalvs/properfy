@@ -24,5 +24,7 @@ export const CL_USER_PERMISSIONS = [
   'reschedule_appointments',
   'force_confirmation',
   'create_properties',
+  // 031 — configurable per-agency financial access for CL_USER cohort.
+  'view_financials',
 ] as const;
 export type ClUserPermission = (typeof CL_USER_PERMISSIONS)[number];

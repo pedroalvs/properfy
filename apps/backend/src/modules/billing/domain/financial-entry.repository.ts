@@ -6,6 +6,12 @@ export interface FinancialEntryFilters {
   appointmentId?: string;
   inspectorId?: string;
   entryType?: FinancialEntryType;
+  /**
+   * Restrict to a set of entry types (WHERE entry_type IN (...)). Used to scope
+   * Agency (CL) reads to their visible types, excluding INSPECTOR_PAYOUT. A
+   * specific `entryType` takes precedence over `entryTypeIn`.
+   */
+  entryTypeIn?: FinancialEntryType[];
   status?: FinancialEntryStatus;
   fromDate?: string;
   toDate?: string;

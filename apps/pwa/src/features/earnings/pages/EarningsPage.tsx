@@ -1,221 +1,204 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
-import { useListQuery } from '@/hooks/useApiQuery';
-import { EarningsSummaryCard } from '../components/EarningsSummaryCard';
-import { formatDate } from '@/lib/format-date';
 import { TopBar } from '@/components/shell/TopBar';
+import { formatDate } from '@/lib/format-date';
+import { useInspectorEarnings, type PayoutEntry } from '../hooks/useInspectorEarnings';
+import { EarningsChart, type ChartBar } from '../components/EarningsChart';
 
-interface FinancialEntry {
-  id: string;
-  entryType: string;
-  amount: number;
-  currency: string;
-  status: string;
-  effectiveAt: string;
-}
-
-interface PaginatedResponse {
-  data: FinancialEntry[];
-  pagination: {
-    page: number;
-    pageSize: number;
-    total: number;
-    totalPages: number;
-  };
-}
+type Segment = 'earnings' | 'history';
 
 function formatCurrency(amount: number, currency = 'AUD'): string {
-  return new Intl.NumberFormat('en-AU', {
-    style: 'currency',
-    currency,
-  }).format(amount);
+  return new Intl.NumberFormat('en-AU', { style: 'currency', currency }).format(amount);
 }
 
-function formatMonthYear(year: number, month: number): string {
-  const date = new Date(year, month, 1);
-  return date.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' });
-}
-
-function getMonthRange(year: number, month: number): { fromDate: string; toDate: string } {
-  const from = new Date(year, month, 1);
-  const to = new Date(year, month + 1, 0); // last day of month
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  return {
-    fromDate: `${from.getFullYear()}-${pad(from.getMonth() + 1)}-${pad(from.getDate())}`,
-    toDate: `${to.getFullYear()}-${pad(to.getMonth() + 1)}-${pad(to.getDate())}`,
+/** Payment status chip for a payout entry. */
+function StatusChip({ status }: { status: string }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    APPROVED: { label: 'Approved', cls: 'bg-success/10 text-success' },
+    PENDING: { label: 'Pending', cls: 'bg-warning/10 text-warning' },
+    CANCELLED: { label: 'Cancelled', cls: 'bg-error/10 text-error' },
+    VOIDED: { label: 'Voided', cls: 'bg-gray-200 text-text-secondary' },
   };
+  const s = map[status] ?? { label: status, cls: 'bg-gray-200 text-text-secondary' };
+  return <span className={`rounded px-2 py-0.5 text-xs font-semibold ${s.cls}`}>{s.label}</span>;
 }
 
-function isCurrentMonth(year: number, month: number): boolean {
+/** Build a last-N-months series of approved earnings for the chart. */
+function buildMonthlySeries(entries: PayoutEntry[], months: number): ChartBar[] {
   const now = new Date();
-  return year === now.getFullYear() && month === now.getMonth();
+  const buckets: ChartBar[] = [];
+  const totals = new Map<string, number>();
+  for (const e of entries) {
+    if (e.status !== 'APPROVED') continue;
+    const d = new Date(e.effectiveAt);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    totals.set(key, (totals.get(key) ?? 0) + e.amount);
+  }
+  for (let i = months - 1; i >= 0; i -= 1) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    buckets.push({ label: d.toLocaleDateString('en-AU', { month: 'short' }), value: totals.get(key) ?? 0 });
+  }
+  return buckets;
 }
 
 export function EarningsPage() {
-  const { user } = useAuth();
   const navigate = useNavigate();
+  const { entries, currency, totalApproved, nextPayment, isLoading, error } = useInspectorEarnings();
 
-  const now = new Date();
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
+  const [segment, setSegment] = useState<Segment>('earnings');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
-  const canGoNext = !isCurrentMonth(selectedYear, selectedMonth);
-
-  const goToPreviousMonth = useCallback(() => {
-    setSelectedMonth((m) => {
-      if (m === 0) {
-        setSelectedYear((y) => y - 1);
-        return 11;
-      }
-      return m - 1;
+  const filtered = useMemo(() => {
+    return entries.filter((e) => {
+      const day = e.effectiveAt.slice(0, 10);
+      if (fromDate && day < fromDate) return false;
+      if (toDate && day > toDate) return false;
+      return true;
     });
+  }, [entries, fromDate, toDate]);
+
+  const monthlyBars = useMemo(() => buildMonthlySeries(filtered, 6), [filtered]);
+
+  const clearRange = useCallback(() => {
+    setFromDate('');
+    setToDate('');
   }, []);
 
-  const goToNextMonth = useCallback(() => {
-    if (canGoNext) {
-      setSelectedMonth((m) => {
-        if (m === 11) {
-          setSelectedYear((y) => y + 1);
-          return 0;
-        }
-        return m + 1;
-      });
-    }
-  }, [canGoNext]);
-
-  const { fromDate, toDate } = useMemo(
-    () => getMonthRange(selectedYear, selectedMonth),
-    [selectedYear, selectedMonth],
+  const dateFilter = (
+    <div className="flex items-end gap-2 rounded-[20px] bg-white px-4 py-3 shadow-sm">
+      <label className="flex flex-1 flex-col gap-1">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">From</span>
+        <input
+          type="date"
+          value={fromDate}
+          onChange={(e) => setFromDate(e.target.value)}
+          className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+          aria-label="From date"
+        />
+      </label>
+      <label className="flex flex-1 flex-col gap-1">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">To</span>
+        <input
+          type="date"
+          value={toDate}
+          onChange={(e) => setToDate(e.target.value)}
+          className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+          aria-label="To date"
+        />
+      </label>
+      {(fromDate || toDate) && (
+        <button type="button" onClick={clearRange} className="pb-1.5 text-xs font-semibold text-primary" aria-label="Clear date filter">
+          Clear
+        </button>
+      )}
+    </div>
   );
-
-  const { data, isLoading, error } = useListQuery<PaginatedResponse>(
-    ['earnings', user?.id, fromDate, toDate],
-    '/v1/financial/entries',
-    {
-      type: 'INSPECTOR_PAYOUT',
-      status: 'APPROVED',
-      pageSize: '100',
-      sortBy: 'effectiveAt',
-      sortOrder: 'desc',
-      fromDate,
-      toDate,
-    },
-    { enabled: !!user },
-  );
-
-  const entries = data?.data ?? [];
-  const primaryCurrency = entries[0]?.currency ?? 'AUD';
-  const totalEarnings = entries.reduce((sum, e) => sum + e.amount, 0);
 
   return (
     <div className="w-full">
       <TopBar title="Earnings" />
       <div className="flex flex-col gap-4 p-4">
-      <section className="rounded-[28px] bg-[linear-gradient(135deg,_rgba(22,163,74,0.96),_rgba(34,197,94,0.78))] px-5 py-5 text-white shadow-[0_18px_44px_rgba(22,163,74,0.18)]">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">Approved payouts</p>
-        <h1 className="mt-3 text-2xl font-bold tracking-tight">{formatCurrency(totalEarnings, primaryCurrency)}</h1>
-        <p className="mt-1 text-sm text-white/80">
-          {entries.length} payment{entries.length === 1 ? '' : 's'} in {formatMonthYear(selectedYear, selectedMonth)}
-        </p>
-      </section>
+        {/* Segmented control: Earnings | History */}
+        <div className="grid grid-cols-2 gap-1 rounded-full bg-gray-100 p-1" role="tablist">
+          {(['earnings', 'history'] as const).map((seg) => (
+            <button
+              key={seg}
+              type="button"
+              role="tab"
+              aria-selected={segment === seg}
+              onClick={() => setSegment(seg)}
+              className={`rounded-full py-2 text-sm font-semibold capitalize transition-colors ${
+                segment === seg ? 'bg-white text-secondary shadow-sm' : 'text-text-secondary'
+              }`}
+            >
+              {seg}
+            </button>
+          ))}
+        </div>
 
-      {/* Draft Invoice CTA */}
-      <button
-        type="button"
-        onClick={() => navigate('/earnings/draft-invoice')}
-        className="flex w-full items-center justify-between rounded-[20px] border border-primary/20 bg-primary/5 px-4 py-3.5 text-left shadow-sm"
-        data-testid="draft-invoice-cta"
-      >
-        <div className="flex items-center gap-3">
-          <i className="mdi mdi-file-document-outline text-xl text-primary" aria-hidden="true" />
-          <div>
-            <p className="text-sm font-semibold text-primary">Draft Invoice</p>
-            <p className="text-xs text-text-secondary">Generate an invoice for a period</p>
+        {isLoading && (
+          <div className="flex flex-col gap-3">
+            <div className="h-24 animate-pulse rounded-lg bg-gray-200" />
+            <div className="h-32 animate-pulse rounded-lg bg-gray-200" />
           </div>
-        </div>
-        <i className="mdi mdi-chevron-right text-xl text-primary" aria-hidden="true" />
-      </button>
+        )}
 
-      <div className="flex items-center justify-between rounded-[20px] bg-white px-4 py-3 shadow-sm">
-        <button
-          type="button"
-          onClick={goToPreviousMonth}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-text-secondary active:bg-gray-100"
-          aria-label="Previous month"
-        >
-          <i className="mdi mdi-chevron-left text-2xl" aria-hidden="true" />
-        </button>
-        <span className="text-sm font-semibold text-text-primary">
-          {formatMonthYear(selectedYear, selectedMonth)}
-        </span>
-        <button
-          type="button"
-          onClick={goToNextMonth}
-          disabled={!canGoNext}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-text-secondary active:bg-gray-100 disabled:opacity-30"
-          aria-label="Next month"
-        >
-          <i className="mdi mdi-chevron-right text-2xl" aria-hidden="true" />
-        </button>
-      </div>
+        {error && (
+          <div className="rounded-[24px] bg-white p-6 text-center shadow-sm">
+            <i className="mdi mdi-cash-multiple text-[48px] text-text-muted" aria-hidden="true" />
+            <p className="mt-4 text-sm text-text-secondary">
+              {error.message || 'Unable to load earnings at this time. Please try again later.'}
+            </p>
+          </div>
+        )}
 
-      {isLoading && (
-        <div className="flex flex-col gap-3">
-          <div className="h-24 animate-pulse rounded-lg bg-gray-200" />
-          <div className="h-24 animate-pulse rounded-lg bg-gray-200" />
-        </div>
-      )}
+        {!isLoading && !error && segment === 'earnings' && (
+          <>
+            <section className="grid grid-cols-2 gap-3">
+              <div className="rounded-[20px] bg-white px-4 py-4 shadow-sm" data-testid="next-payment-card">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Next payment</p>
+                <p className="mt-2 text-xl font-bold text-text-primary">{formatCurrency(nextPayment, currency)}</p>
+                <p className="mt-0.5 text-[11px] text-text-secondary">Approved, awaiting payout</p>
+              </div>
+              <div className="rounded-[20px] bg-[linear-gradient(135deg,_rgba(22,163,74,0.96),_rgba(34,197,94,0.78))] px-4 py-4 text-white shadow-sm" data-testid="total-earnings-card">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-white/70">Total with Properfy</p>
+                <p className="mt-2 text-xl font-bold">{formatCurrency(totalApproved, currency)}</p>
+                <p className="mt-0.5 text-[11px] text-white/80">All-time approved</p>
+              </div>
+            </section>
 
-      {error && (
-        <div className="rounded-[24px] bg-white p-6 text-center shadow-sm">
-          <i className="mdi mdi-cash-multiple text-[48px] text-text-muted" aria-hidden="true" />
-          <p className="mt-4 text-base font-semibold text-text-primary">Financial summary</p>
-          <p className="mt-1 text-sm text-text-secondary">
-            {error.message || 'Unable to load earnings at this time. Please try again later.'}
-          </p>
-        </div>
-      )}
+            {dateFilter}
 
-      {!isLoading && !error && (
-        <>
-          <EarningsSummaryCard
-            label={formatMonthYear(selectedYear, selectedMonth)}
-            amount={formatCurrency(totalEarnings, primaryCurrency)}
-            subtitle={`${entries.length} payments`}
-          />
-
-          {entries.length === 0 && (
-            <div className="rounded-[24px] bg-white p-6 text-center shadow-sm">
-              <i className="mdi mdi-cash-multiple text-[48px] text-text-muted" aria-hidden="true" />
-              <p className="mt-4 text-sm text-text-secondary">
-                No earnings recorded for {formatMonthYear(selectedYear, selectedMonth)}.
-              </p>
-            </div>
-          )}
-
-          {entries.length > 0 && (
             <div className="flex flex-col gap-2">
-              <h2 className="text-sm font-semibold text-text-secondary">Payments</h2>
-              {entries.slice(0, 10).map((entry) => (
-                <div key={entry.id} className="flex items-center justify-between rounded-[20px] border border-white/70 bg-white/92 px-4 py-3 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
-                  <div>
-                    <p className="text-sm font-medium text-text-primary">
-                      {formatCurrency(entry.amount, entry.currency)}
-                    </p>
-                    <p className="text-xs text-text-muted">
-                      {formatDate(entry.effectiveAt)}
-                    </p>
-                  </div>
-                  <span className="rounded bg-success/10 px-2 py-0.5 text-xs font-semibold text-success">
-                    Approved
-                  </span>
-                </div>
-              ))}
+              <h2 className="text-sm font-semibold text-text-secondary">Earnings over time</h2>
+              <EarningsChart bars={monthlyBars} currency={currency} />
             </div>
-          )}
-        </>
-      )}
+
+            {/* Draft Invoice CTA (inspector-invoice feature — preserved) */}
+            <button
+              type="button"
+              onClick={() => navigate('/earnings/draft-invoice')}
+              className="flex w-full items-center justify-between rounded-[20px] border border-primary/20 bg-primary/5 px-4 py-3.5 text-left shadow-sm"
+              data-testid="draft-invoice-cta"
+            >
+              <div className="flex items-center gap-3">
+                <i className="mdi mdi-file-document-outline text-xl text-primary" aria-hidden="true" />
+                <div>
+                  <p className="text-sm font-semibold text-primary">Draft Invoice</p>
+                  <p className="text-xs text-text-secondary">Generate an invoice for a period</p>
+                </div>
+              </div>
+              <i className="mdi mdi-chevron-right text-xl text-primary" aria-hidden="true" />
+            </button>
+          </>
+        )}
+
+        {!isLoading && !error && segment === 'history' && (
+          <>
+            {dateFilter}
+            {filtered.length === 0 ? (
+              <div className="rounded-[24px] bg-white p-6 text-center shadow-sm">
+                <i className="mdi mdi-cash-multiple text-[48px] text-text-muted" aria-hidden="true" />
+                <p className="mt-4 text-sm text-text-secondary">No payouts for this period.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <h2 className="text-sm font-semibold text-text-secondary">Payment history</h2>
+                {filtered.map((entry) => (
+                  <div key={entry.id} className="flex items-center justify-between rounded-[20px] bg-white px-4 py-3 shadow-sm">
+                    <div>
+                      <p className="text-sm font-medium text-text-primary">{formatCurrency(entry.amount, entry.currency)}</p>
+                      <p className="text-xs text-text-muted">{formatDate(entry.effectiveAt)}</p>
+                    </div>
+                    <StatusChip status={entry.status} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

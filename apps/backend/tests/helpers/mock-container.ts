@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 import type { AppContainer } from '../../src/main/container';
+import { AuthorizationService } from '../../src/shared/domain/authorization.service';
 
 type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
@@ -247,12 +248,13 @@ export function createMockContainer(
       reverseInvoicePaymentUseCase: { execute: vi.fn() },
       getReconciliationSummaryUseCase: { execute: vi.fn() },
       voidFinancialEntryUseCase: { execute: vi.fn() },
-      generateTenantInvoiceUseCase: { execute: vi.fn() },
       regenerateInspectorInvoiceUseCase: { execute: vi.fn() },
-      regenerateTenantInvoiceUseCase: { execute: vi.fn() },
-      listTenantInvoicesUseCase: { execute: vi.fn() },
       approveDraftInvoiceUseCase: { execute: vi.fn() },
       rejectDraftInvoiceUseCase: { execute: vi.fn() },
+      exportAgencyFinancialUseCase: { execute: vi.fn() },
+      // Real service so route-level assertRoles / assertClUserPermission enforce
+      // for real in integration tests (not a no-op mock).
+      authorizationService: new AuthorizationService({ log: vi.fn() } as never),
       jwtService: { ...defaultJwt },
       tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['billing'],

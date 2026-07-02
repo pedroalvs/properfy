@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyReply } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import {
   listFinancialEntriesQuerySchema,
@@ -12,19 +12,19 @@ import {
   generateInvoiceSchema,
   listInvoicesQuerySchema,
   voidFinancialEntrySchema,
-  generateTenantInvoiceSchema,
-  listTenantInvoicesQuerySchema,
   regenerateInvoiceSchema,
   rejectDraftInvoiceSchema,
   financialEntryResponseSchema,
+  agencyFinancialExportResponseSchema,
   invoiceResponseSchema,
-  tenantInvoiceResponseSchema,
   invoiceDownloadResponseSchema,
   successResponseSchema,
   paginatedResponseSchema,
 } from '@properfy/shared';
+import type { AuthContext } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
-import { ForbiddenError, ValidationError } from '../../../shared/domain/errors';
+import { ValidationError } from '../../../shared/domain/errors';
+import { normalizeClUserPermissions } from '../../../shared/domain/cl-user-permissions';
 import { success, paginated } from '../../../shared/interfaces/response';
 import type { GetFinancialSummaryUseCase } from '../application/use-cases/get-financial-summary.use-case';
 import type { ListFinancialEntriesUseCase } from '../application/use-cases/list-financial-entries.use-case';
@@ -43,13 +43,12 @@ import type { ReverseInvoicePaymentUseCase } from '../application/use-cases/reve
 import type { GetReconciliationSummaryUseCase } from '../application/use-cases/get-reconciliation-summary.use-case';
 import type { CreateFinancialEntriesOnDoneUseCase } from '../application/use-cases/create-financial-entries-on-done.use-case';
 import type { VoidFinancialEntryUseCase } from '../application/use-cases/void-financial-entry.use-case';
-import type { GenerateTenantInvoiceUseCase } from '../application/use-cases/generate-tenant-invoice.use-case';
 import type { RegenerateInspectorInvoiceUseCase } from '../application/use-cases/regenerate-inspector-invoice.use-case';
-import type { RegenerateTenantInvoiceUseCase } from '../application/use-cases/regenerate-tenant-invoice.use-case';
-import type { ListTenantInvoicesUseCase } from '../application/use-cases/list-tenant-invoices.use-case';
 import type { ApproveDraftInvoiceUseCase } from '../application/use-cases/approve-draft-invoice.use-case';
 import type { RejectDraftInvoiceUseCase } from '../application/use-cases/reject-draft-invoice.use-case';
+import type { ExportAgencyFinancialUseCase } from '../application/use-cases/export-agency-financial.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
+import type { AuthorizationService } from '../../../shared/domain/authorization.service';
 
 export interface BillingRouteContainer {
   createFinancialEntriesOnDoneUseCase: CreateFinancialEntriesOnDoneUseCase;
@@ -69,14 +68,15 @@ export interface BillingRouteContainer {
   reverseInvoicePaymentUseCase: ReverseInvoicePaymentUseCase;
   getReconciliationSummaryUseCase: GetReconciliationSummaryUseCase;
   voidFinancialEntryUseCase: VoidFinancialEntryUseCase;
-  generateTenantInvoiceUseCase: GenerateTenantInvoiceUseCase;
   regenerateInspectorInvoiceUseCase: RegenerateInspectorInvoiceUseCase;
-  regenerateTenantInvoiceUseCase: RegenerateTenantInvoiceUseCase;
-  listTenantInvoicesUseCase: ListTenantInvoicesUseCase;
   approveDraftInvoiceUseCase: ApproveDraftInvoiceUseCase;
   rejectDraftInvoiceUseCase: RejectDraftInvoiceUseCase;
+  exportAgencyFinancialUseCase: ExportAgencyFinancialUseCase;
+  authorizationService: AuthorizationService;
   jwtService: JwtService;
-  tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
+  tenantRepo: {
+    findById(id: string): Promise<{ isActive(): boolean; settingsJson?: Record<string, unknown> } | null>;
+  };
 }
 
 const entryIdParam = z.object({ entryId: z.string().uuid() });
@@ -92,7 +92,26 @@ export async function registerBillingRoutes(
       const tenant = await container.tenantRepo.findById(tenantId);
       return tenant?.isActive() ?? false;
     },
+    // 031 — resolve CL_USER permission flags so agency read routes can enforce
+    // `view_financials` via assertClUserPermission. Without this, the flag is
+    // always empty and every flagged CL_USER would be silently denied.
+    // settingsJson is untyped JSON — normalize to a string[] before use.
+    async (tenantId) => {
+      const tenant = await container.tenantRepo.findById(tenantId);
+      return normalizeClUserPermissions(tenant?.settingsJson?.clUserPermissions);
+    },
   );
+
+  // 031 — helper: gate an Agency read route. AM/OP/CL_ADMIN pass unconditionally;
+  // CL_USER additionally needs the `view_financials` flag. INSP is never allowed
+  // on agency surfaces (its own-payout access is handled on the entries route).
+  function assertAgencyRead(actor: AuthContext, action: string): void {
+    container.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN', 'CL_USER'], {
+      action,
+      entityType: 'FinancialEntry',
+    });
+    container.authorizationService.assertClUserPermission(actor, 'view_financials');
+  }
 
   // GET /v1/financial/entries/summary
   app.get(
@@ -120,6 +139,7 @@ export async function registerBillingRoutes(
       },
     },
     async (request, reply) => {
+      assertAgencyRead(request.authContext!, 'financial.agency_view');
       const query = request.query as { tenantId?: string; effectiveFrom?: string; effectiveTo?: string };
       const result = await container.getFinancialSummaryUseCase.execute({
         tenantId: query.tenantId,
@@ -137,9 +157,13 @@ export async function registerBillingRoutes(
     { preHandler: authenticate, schema: { querystring: listFinancialEntriesQuerySchema, response: { 200: paginatedResponseSchema(financialEntryResponseSchema) } } },
     async (request, reply) => {
       const actor = request.authContext!;
-      if (!['AM', 'OP', 'CL_ADMIN', 'INSP'].includes(actor.role)) {
-        throw new ForbiddenError('FORBIDDEN', 'Not authorized to list financial entries');
-      }
+      // AM/OP backoffice + CL_ADMIN/CL_USER agency read + INSP own-payouts.
+      // CL_USER additionally requires the `view_financials` flag (no-op for others).
+      container.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN', 'CL_USER', 'INSP'], {
+        action: 'financial.list_entries',
+        entityType: 'FinancialEntry',
+      });
+      container.authorizationService.assertClUserPermission(actor, 'view_financials');
       const parsed = listFinancialEntriesQuerySchema.safeParse(request.query);
       if (!parsed.success) {
         throw new ValidationError('Invalid query parameters', parsed.error.errors);
@@ -150,6 +174,33 @@ export async function registerBillingRoutes(
         actor,
       });
       return reply.status(200).send(paginated(result.data, result.total, page, pageSize));
+    },
+  );
+
+  // GET /v1/financial/export — 031: own-tenant financial statement XLSX (agency report)
+  app.get(
+    '/v1/financial/export',
+    {
+      preHandler: authenticate,
+      schema: {
+        querystring: z.object({
+          tenantId: z.string().uuid().optional(),
+          fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD').optional(),
+          toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD').optional(),
+        }),
+        response: { 200: successResponseSchema(agencyFinancialExportResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      assertAgencyRead(request.authContext!, 'financial.agency_export');
+      const query = request.query as { tenantId?: string; fromDate?: string; toDate?: string };
+      const result = await container.exportAgencyFinancialUseCase.execute({
+        tenantId: query.tenantId,
+        fromDate: query.fromDate,
+        toDate: query.toDate,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
     },
   );
 
@@ -176,34 +227,15 @@ export async function registerBillingRoutes(
     { preHandler: authenticate, schema: { params: z.object({ entryId: z.string().uuid() }), response: { 200: successResponseSchema(financialEntryResponseSchema) } } },
     async (request, reply) => {
       const actor = request.authContext!;
-      if (!['AM', 'OP'].includes(actor.role)) {
-        throw new ForbiddenError('FORBIDDEN', 'Only AM and OP can approve financial entries');
-      }
       const params = entryIdParam.safeParse(request.params);
       if (!params.success) {
         throw new ValidationError('Invalid entry ID', params.error.errors);
       }
-      const result = await container.approveFinancialEntryUseCase.execute({
-        entryId: params.data.entryId,
-        actor,
+      container.authorizationService.assertRoles(actor, ['AM', 'OP'], {
+        action: 'financial.approve',
+        entityType: 'FinancialEntry',
+        entityId: params.data.entryId,
       });
-      return reply.status(200).send(success(result));
-    },
-  );
-
-  // PATCH /v1/financial/entries/:entryId/approve
-  app.patch(
-    '/v1/financial/entries/:entryId/approve',
-    { preHandler: authenticate, schema: { params: z.object({ entryId: z.string().uuid() }), response: { 200: successResponseSchema(financialEntryResponseSchema) } } },
-    async (request, reply) => {
-      const actor = request.authContext!;
-      if (!['AM', 'OP'].includes(actor.role)) {
-        throw new ForbiddenError('FORBIDDEN', 'Only AM and OP can approve financial entries');
-      }
-      const params = entryIdParam.safeParse(request.params);
-      if (!params.success) {
-        throw new ValidationError('Invalid entry ID', params.error.errors);
-      }
       const result = await container.approveFinancialEntryUseCase.execute({
         entryId: params.data.entryId,
         actor,
@@ -240,9 +272,10 @@ export async function registerBillingRoutes(
     { preHandler: authenticate, schema: { body: createManualAdjustmentSchema, response: { 201: successResponseSchema(financialEntryResponseSchema) } } },
     async (request, reply) => {
       const actor = request.authContext!;
-      if (!['AM', 'OP'].includes(actor.role)) {
-        throw new ForbiddenError('FORBIDDEN', 'Only AM and OP can create manual adjustments');
-      }
+      container.authorizationService.assertRoles(actor, ['AM', 'OP'], {
+        action: 'financial.manual_adjustment',
+        entityType: 'FinancialEntry',
+      });
       const parsed = createManualAdjustmentSchema.safeParse(request.body);
       if (!parsed.success) {
         throw new ValidationError('Request payload is invalid', parsed.error.errors);
@@ -460,43 +493,6 @@ export async function registerBillingRoutes(
     },
   );
 
-  // --- Tenant invoice routes: /v1/billing/tenant-invoices/* (GAP-004) ---
-
-  // POST /v1/billing/tenant-invoices/generate
-  app.post(
-    '/v1/billing/tenant-invoices/generate',
-    { preHandler: authenticate, schema: { body: generateTenantInvoiceSchema, response: { 202: successResponseSchema(tenantInvoiceResponseSchema) } } },
-    async (request, reply) => {
-      const parsed = generateTenantInvoiceSchema.safeParse(request.body);
-      if (!parsed.success) {
-        throw new ValidationError('Request payload is invalid', parsed.error.errors);
-      }
-      const result = await container.generateTenantInvoiceUseCase.execute({
-        ...parsed.data,
-        actor: request.authContext!,
-      });
-      return reply.status(202).send(success(result));
-    },
-  );
-
-  // GET /v1/billing/tenant-invoices
-  app.get(
-    '/v1/billing/tenant-invoices',
-    { preHandler: authenticate, schema: { querystring: listTenantInvoicesQuerySchema, response: { 200: paginatedResponseSchema(tenantInvoiceResponseSchema) } } },
-    async (request, reply) => {
-      const parsed = listTenantInvoicesQuerySchema.safeParse(request.query);
-      if (!parsed.success) {
-        throw new ValidationError('Invalid query parameters', parsed.error.errors);
-      }
-      const { page, pageSize } = parsed.data;
-      const result = await container.listTenantInvoicesUseCase.execute({
-        ...parsed.data,
-        actor: request.authContext!,
-      });
-      return reply.status(200).send(paginated(result.data, result.total, page, pageSize));
-    },
-  );
-
   // --- Invoice regeneration routes (GAP-007) ---
 
   // POST /v1/billing/invoices/:invoiceId/regenerate
@@ -513,28 +509,6 @@ export async function registerBillingRoutes(
         throw new ValidationError('Request payload is invalid', parsed.error.errors);
       }
       const result = await container.regenerateInspectorInvoiceUseCase.execute({
-        invoiceId: params.data.invoiceId,
-        reason: parsed.data.reason,
-        actor: request.authContext!,
-      });
-      return reply.status(202).send(success(result));
-    },
-  );
-
-  // POST /v1/billing/tenant-invoices/:invoiceId/regenerate
-  app.post(
-    '/v1/billing/tenant-invoices/:invoiceId/regenerate',
-    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), body: regenerateInvoiceSchema, response: { 202: successResponseSchema(tenantInvoiceResponseSchema) } } },
-    async (request, reply) => {
-      const params = invoiceIdParam.safeParse(request.params);
-      if (!params.success) {
-        throw new ValidationError('Invalid invoice ID', params.error.errors);
-      }
-      const parsed = regenerateInvoiceSchema.safeParse(request.body);
-      if (!parsed.success) {
-        throw new ValidationError('Request payload is invalid', parsed.error.errors);
-      }
-      const result = await container.regenerateTenantInvoiceUseCase.execute({
         invoiceId: params.data.invoiceId,
         reason: parsed.data.reason,
         actor: request.authContext!,
@@ -576,140 +550,6 @@ export async function registerBillingRoutes(
       const result = await container.rejectDraftInvoiceUseCase.execute({
         invoiceId: params.data.invoiceId,
         reason: parsed.data.reason,
-        actor: request.authContext!,
-      });
-      return reply.status(200).send(success(result));
-    },
-  );
-
-  // --- Deprecated legacy routes: /v1/invoices/* ---
-  // These forward to the same handlers but add Deprecation and Sunset headers.
-
-  const DEPRECATION_DATE = 'Sun, 01 Nov 2026 00:00:00 GMT';
-  const SUNSET_DATE = 'Sun, 01 Feb 2027 00:00:00 GMT';
-  const DEPRECATION_LINK = '</v1/billing/invoices>; rel="successor-version"';
-
-  function addDeprecationHeaders(reply: FastifyReply): void {
-    reply.header('Deprecation', DEPRECATION_DATE);
-    reply.header('Sunset', SUNSET_DATE);
-    reply.header('Link', DEPRECATION_LINK);
-  }
-
-  // GET /v1/invoices (deprecated)
-  app.get(
-    '/v1/invoices',
-    { preHandler: authenticate, schema: { querystring: listInvoicesQuerySchema, response: { 200: paginatedResponseSchema(invoiceResponseSchema) } } },
-    async (request, reply) => {
-      addDeprecationHeaders(reply);
-      const parsed = listInvoicesQuerySchema.safeParse(request.query);
-      if (!parsed.success) {
-        throw new ValidationError('Invalid query parameters', parsed.error.errors);
-      }
-      const { page, pageSize } = parsed.data;
-      const result = await container.listInvoicesUseCase.execute({
-        ...parsed.data,
-        actor: request.authContext!,
-      });
-      return reply.status(200).send(paginated(result.data, result.total, page, pageSize));
-    },
-  );
-
-  // POST /v1/invoices/generate (deprecated)
-  app.post(
-    '/v1/invoices/generate',
-    { preHandler: authenticate, schema: { body: generateInvoiceSchema, response: { 202: successResponseSchema(invoiceResponseSchema) } } },
-    async (request, reply) => {
-      addDeprecationHeaders(reply);
-      const parsed = generateInvoiceSchema.safeParse(request.body);
-      if (!parsed.success) {
-        throw new ValidationError('Request payload is invalid', parsed.error.errors);
-      }
-      const result = await container.generateInvoiceUseCase.execute({
-        ...parsed.data,
-        actor: request.authContext!,
-      });
-      return reply.status(202).send(success(result));
-    },
-  );
-
-  // GET /v1/invoices/:invoiceId (deprecated)
-  app.get(
-    '/v1/invoices/:invoiceId',
-    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), response: { 200: successResponseSchema(invoiceResponseSchema) } } },
-    async (request, reply) => {
-      addDeprecationHeaders(reply);
-      const params = invoiceIdParam.safeParse(request.params);
-      if (!params.success) {
-        throw new ValidationError('Invalid invoice ID', params.error.errors);
-      }
-      const result = await container.getInvoiceUseCase.execute({
-        invoiceId: params.data.invoiceId,
-        actor: request.authContext!,
-      });
-      return reply.status(200).send(success(result));
-    },
-  );
-
-  // POST /v1/invoices/:invoiceId/close — alias for approve-draft (QA-017-HIGH-001)
-  app.post(
-    '/v1/invoices/:invoiceId/close',
-    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }) } },
-    async (request, reply) => {
-      const actor = request.authContext!;
-      if (!['AM', 'OP'].includes(actor.role)) {
-        throw new ForbiddenError('FORBIDDEN', 'Only AM and OP can close invoices');
-      }
-      const params = invoiceIdParam.safeParse(request.params);
-      if (!params.success) {
-        throw new ValidationError('Invalid invoice ID', params.error.errors);
-      }
-      const result = await container.approveDraftInvoiceUseCase.execute({
-        invoiceId: params.data.invoiceId,
-        actor,
-      });
-      return reply.status(200).send(success(result));
-    },
-  );
-
-  // POST /v1/invoices/:invoiceId/pay — alias for mark-paid (QA-017-HIGH-001)
-  app.post(
-    '/v1/invoices/:invoiceId/pay',
-    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), body: markInvoicePaidSchema } },
-    async (request, reply) => {
-      const actor = request.authContext!;
-      if (!['AM', 'OP'].includes(actor.role)) {
-        throw new ForbiddenError('FORBIDDEN', 'Only AM and OP can mark invoices as paid');
-      }
-      const params = invoiceIdParam.safeParse(request.params);
-      if (!params.success) {
-        throw new ValidationError('Invalid invoice ID', params.error.errors);
-      }
-      const parsed = markInvoicePaidSchema.safeParse(request.body);
-      if (!parsed.success) {
-        throw new ValidationError('Request payload is invalid', parsed.error.errors);
-      }
-      const result = await container.markInvoicePaidUseCase.execute({
-        invoiceId: params.data.invoiceId,
-        paidAt: parsed.data.paidAt,
-        paymentReference: parsed.data.paymentReference,
-        actor,
-      });
-      return reply.status(200).send(success(result));
-    },
-  );
-
-  // GET /v1/invoices/:invoiceId/download (deprecated)
-  app.get(
-    '/v1/invoices/:invoiceId/download',
-    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), response: { 200: successResponseSchema(invoiceDownloadResponseSchema) } } },
-    async (request, reply) => {
-      addDeprecationHeaders(reply);
-      const params = invoiceIdParam.safeParse(request.params);
-      if (!params.success) {
-        throw new ValidationError('Invalid invoice ID', params.error.errors);
-      }
-      const result = await container.downloadInvoiceUseCase.execute({
-        invoiceId: params.data.invoiceId,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));

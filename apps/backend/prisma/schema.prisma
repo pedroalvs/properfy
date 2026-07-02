@@ -188,7 +188,6 @@ model Tenant {
   price_rules            ServicePriceRule[]
   appointments           Appointment[]
   financial_entries      FinancialEntry[]
-  tenant_invoices        TenantInvoice[]
   notifications          Notification[]
   notification_templates NotificationTemplate[]
   reports                Report[]
@@ -264,7 +263,6 @@ model User {
   generated_invoices        InspectorInvoice[]    @relation("InspectorInvoiceGeneratedBy")
   paid_invoices             InspectorInvoice[]    @relation("InspectorInvoicePaidBy")
   consent_changes           NotificationConsent[] @relation("NotificationConsentChangedBy")
-  generated_tenant_invoices TenantInvoice[]
   requested_reports         Report[]
   created_imports           AppointmentImport[]   @relation("importCreatedBy")
   created_property_imports  PropertyImport[]      @relation("propertyImportCreatedBy")
@@ -1236,42 +1234,6 @@ model InspectorInvoice {
   @@index([inspector_id, status])
   @@index([period_start, period_end])
   @@map("inspector_invoices")
-}
-
-enum TenantInvoiceStatus {
-  OPEN
-  CLOSED
-  PAID
-  SUPERSEDED
-}
-
-model TenantInvoice {
-  id                   String              @id @default(uuid())
-  tenant_id            String
-  period_from          DateTime            @db.Date
-  period_to            DateTime            @db.Date
-  total_debit          Decimal             @default(0) @db.Decimal(12, 2)
-  total_refund         Decimal             @default(0) @db.Decimal(12, 2)
-  total_adjustment     Decimal             @default(0) @db.Decimal(12, 2)
-  net_amount           Decimal             @default(0) @db.Decimal(12, 2)
-  currency             String              @db.Char(3)
-  status               TenantInvoiceStatus @default(OPEN)
-  file_key             String?
-  previous_invoice_id  String?             @unique
-  generated_by_user_id String?
-  generated_at         DateTime?
-  notes                String?
-  created_at           DateTime            @default(now())
-  updated_at           DateTime            @updatedAt
-
-  tenant          Tenant         @relation(fields: [tenant_id], references: [id])
-  generatedBy     User?          @relation(fields: [generated_by_user_id], references: [id])
-  previousInvoice TenantInvoice? @relation("TenantInvoiceChain", fields: [previous_invoice_id], references: [id])
-  supersededBy    TenantInvoice? @relation("TenantInvoiceChain")
-
-  @@index([tenant_id, status])
-  @@index([period_from, period_to])
-  @@map("tenant_invoices")
 }
 
 model Notification {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { UserRole, UserStatus } from './user';
+import { UserRole, UserStatus, CL_USER_PERMISSIONS } from './user';
 
 describe('UserRole', () => {
   it('should have all expected values', () => {
@@ -28,5 +28,16 @@ describe('UserStatus', () => {
     expect(UserStatus.ACTIVE).toBe('ACTIVE');
     expect(UserStatus.INACTIVE).toBe('INACTIVE');
     expect(UserStatus.LOCKED).toBe('LOCKED');
+  });
+});
+
+describe('CL_USER_PERMISSIONS (031)', () => {
+  it('includes the configurable view_financials flag', () => {
+    expect(CL_USER_PERMISSIONS).toContain('view_financials');
+  });
+
+  it('retains the existing operational permissions', () => {
+    expect(CL_USER_PERMISSIONS).toContain('create_appointments');
+    expect(CL_USER_PERMISSIONS).toContain('reschedule_appointments');
   });
 });

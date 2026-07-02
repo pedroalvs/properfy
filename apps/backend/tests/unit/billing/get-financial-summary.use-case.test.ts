@@ -88,6 +88,64 @@ describe('GetFinancialSummaryUseCase', () => {
     });
   });
 
+  it.each(['CL_ADMIN', 'CL_USER'] as const)(
+    'hides inspector payouts (totalPayouts=0) from %s while keeping own-tenant totals',
+    async (role) => {
+      vi.mocked(entryRepo.getSummary).mockResolvedValue({
+        totalDebits: 5000,
+        totalPayouts: 3000,
+        totalAdjustments: 200,
+        totalRefunds: 150,
+        pendingCount: 7,
+        currency: null,
+      });
+      vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
+
+      const result = await useCase.execute({
+        actor: makeActor({ role, tenantId: 'tenant-1' }),
+      });
+
+      // own-tenant scope enforced
+      expect(entryRepo.getSummary).toHaveBeenCalledWith('tenant-1', undefined);
+      // payouts hidden; agency-relevant totals preserved
+      expect(result.totalPayouts).toBe(0);
+      expect(result.totalDebits).toBe(5000);
+      expect(result.totalRefunds).toBe(150);
+      expect(result.totalAdjustments).toBe(200);
+      expect(result.currency).toBe('USD');
+    },
+  );
+
+  it.each(['CL_ADMIN', 'CL_USER'] as const)(
+    'fails closed (403) for %s without a tenant scope instead of an unscoped read',
+    async (role) => {
+      const { ForbiddenError } = await import('../../../src/shared/domain/errors');
+      await expect(
+        useCase.execute({ actor: makeActor({ role, tenantId: null }) }),
+      ).rejects.toThrow(ForbiddenError);
+      expect(entryRepo.getSummary).not.toHaveBeenCalled();
+    },
+  );
+
+  it('keeps totalPayouts visible for AM/OP (backoffice)', async () => {
+    vi.mocked(entryRepo.getSummary).mockResolvedValue({
+      totalDebits: 5000,
+      totalPayouts: 3000,
+      totalAdjustments: 0,
+      totalRefunds: 0,
+      pendingCount: 0,
+      currency: null,
+    });
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
+    });
+
+    expect(result.totalPayouts).toBe(3000);
+  });
+
   it('keeps currency null when no tenant scope is resolved', async () => {
     vi.mocked(entryRepo.getSummary).mockResolvedValue({
       totalDebits: 0,

@@ -229,13 +229,10 @@ import { BatchMarkInvoicesPaidUseCase } from '../modules/billing/application/use
 import { ReverseInvoicePaymentUseCase } from '../modules/billing/application/use-cases/reverse-invoice-payment.use-case';
 import { GetReconciliationSummaryUseCase } from '../modules/billing/application/use-cases/get-reconciliation-summary.use-case';
 import { VoidFinancialEntryUseCase } from '../modules/billing/application/use-cases/void-financial-entry.use-case';
-import { GenerateTenantInvoiceUseCase } from '../modules/billing/application/use-cases/generate-tenant-invoice.use-case';
 import { RegenerateInspectorInvoiceUseCase } from '../modules/billing/application/use-cases/regenerate-inspector-invoice.use-case';
-import { RegenerateTenantInvoiceUseCase } from '../modules/billing/application/use-cases/regenerate-tenant-invoice.use-case';
-import { ListTenantInvoicesUseCase } from '../modules/billing/application/use-cases/list-tenant-invoices.use-case';
 import { ApproveDraftInvoiceUseCase } from '../modules/billing/application/use-cases/approve-draft-invoice.use-case';
 import { RejectDraftInvoiceUseCase } from '../modules/billing/application/use-cases/reject-draft-invoice.use-case';
-import { PrismaTenantInvoiceRepository } from '../modules/billing/infrastructure/prisma-tenant-invoice.repository';
+import { ExportAgencyFinancialUseCase } from '../modules/billing/application/use-cases/export-agency-financial.use-case';
 import type { BillingRouteContainer } from '../modules/billing/interfaces/billing.routes';
 
 // Report module
@@ -498,7 +495,7 @@ export function createContainer(logger: Logger): AppContainer {
   const loginUseCase = new LoginUseCase(userRepo, sessionRepo, jwtService, totpService, auditService, inspectorRepo, totpEncryptionService, sessionTrustService);
   const refreshTokenUseCase = new RefreshTokenUseCase(userRepo, sessionRepo, jwtService, auditService, inspectorRepo);
   const logoutUseCase = new LogoutUseCase(sessionRepo, auditService);
-  const getMeUseCase = new GetMeUseCase(userRepo, inspectorRepo, storageService);
+  const getMeUseCase = new GetMeUseCase(userRepo, inspectorRepo, storageService, tenantRepo);
   const passwordHistoryRepo = new PrismaPasswordHistoryRepository(prisma);
   const changePasswordUseCase = new ChangePasswordUseCase(userRepo, sessionRepo, auditService, passwordHistoryRepo);
   const revokeSessionUseCase = new RevokeSessionUseCase(sessionRepo, auditService);
@@ -651,7 +648,6 @@ export function createContainer(logger: Logger): AppContainer {
   // Billing repositories (needed before appointments for onDoneHandler wiring)
   const financialEntryRepo = new PrismaFinancialEntryRepository(prisma);
   const inspectorInvoiceRepo = new PrismaInspectorInvoiceRepository(prisma);
-  const tenantInvoiceRepo = new PrismaTenantInvoiceRepository(prisma);
 
   // Appointment time slot
   const createTenantUseCase = new CreateTenantUseCase(tenantRepo, auditService, authorizationService, domainEventBus);
@@ -945,16 +941,15 @@ export function createContainer(logger: Logger): AppContainer {
   const reverseInvoicePaymentUseCase = new ReverseInvoicePaymentUseCase(inspectorInvoiceRepo, auditService, authorizationService);
   const getReconciliationSummaryUseCase = new GetReconciliationSummaryUseCase(inspectorInvoiceRepo, authorizationService);
   const voidFinancialEntryUseCase = new VoidFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService);
-  const generateTenantInvoiceUseCase = new GenerateTenantInvoiceUseCase(tenantInvoiceRepo, financialEntryRepo, auditService, billingJobQueue, authorizationService);
   const regenerateInspectorInvoiceUseCase = new RegenerateInspectorInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, billingJobQueue, authorizationService);
-  const regenerateTenantInvoiceUseCase = new RegenerateTenantInvoiceUseCase(tenantInvoiceRepo, financialEntryRepo, auditService, billingJobQueue, authorizationService);
-  const listTenantInvoicesUseCase = new ListTenantInvoicesUseCase(tenantInvoiceRepo);
   const approveDraftInvoiceUseCase = new ApproveDraftInvoiceUseCase(inspectorInvoiceRepo, auditService, authorizationService, billingJobQueue);
   const rejectDraftInvoiceUseCase = new RejectDraftInvoiceUseCase(inspectorInvoiceRepo, auditService, authorizationService);
 
   // Report repositories and use cases
   const reportRepo = new PrismaReportRepository(prisma);
   const xlsxGenerator = new ExcelJsXlsxGenerator();
+  // 031 — agency financial statement export reuses the report XLSX generator.
+  const exportAgencyFinancialUseCase = new ExportAgencyFinancialUseCase(financialEntryRepo, tenantRepo, xlsxGenerator);
   const reportDataReader = new PrismaReportDataReader(prisma);
   const reportJobQueue = env.ENABLE_JOB_QUEUE === 'true'
     ? new PgBossJobQueue()
@@ -1456,12 +1451,11 @@ export function createContainer(logger: Logger): AppContainer {
       reverseInvoicePaymentUseCase,
       getReconciliationSummaryUseCase,
       voidFinancialEntryUseCase,
-      generateTenantInvoiceUseCase,
       regenerateInspectorInvoiceUseCase,
-      regenerateTenantInvoiceUseCase,
-      listTenantInvoicesUseCase,
       approveDraftInvoiceUseCase,
       rejectDraftInvoiceUseCase,
+      exportAgencyFinancialUseCase,
+      authorizationService,
       jwtService,
       tenantRepo,
     },
