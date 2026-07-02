@@ -30,7 +30,6 @@ import type { ConfirmAssetUploadUseCase } from '../application/use-cases/confirm
 import type { SaveExecutionProgressUseCase } from '../application/use-cases/save-execution-progress.use-case';
 import type { ReopenExecutionUseCase } from '../application/use-cases/reopen-execution.use-case';
 import type { GetMarketplaceOffersUseCase } from '../../service-group/application/use-cases/get-marketplace-offers.use-case';
-import type { DraftInspectorInvoiceUseCase } from '../../billing/application/use-cases/draft-inspector-invoice.use-case';
 import type { GetAvailablePeriodsUseCase } from '../../billing/application/use-cases/get-available-periods.use-case';
 import type { PreviewInvoiceUseCase } from '../../billing/application/use-cases/preview-invoice.use-case';
 import type { RequestInvoiceUseCase } from '../../billing/application/use-cases/request-invoice.use-case';
@@ -38,7 +37,6 @@ import type { ListAppointmentAssetsUseCase } from '../application/use-cases/list
 import type { GetAppointmentAssetDownloadUrlUseCase } from '../application/use-cases/get-appointment-asset-download-url.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 import {
-  draftInvoiceSchema,
   availablePeriodsQuerySchema,
   previewInvoiceQuerySchema,
   requestInvoiceSchema,
@@ -57,7 +55,6 @@ export interface InspectorExecutionRouteContainer {
   requestAssetUploadUseCase: RequestAssetUploadUseCase;
   confirmAssetUploadUseCase: ConfirmAssetUploadUseCase;
   getMarketplaceOffersUseCase: GetMarketplaceOffersUseCase;
-  draftInspectorInvoiceUseCase: DraftInspectorInvoiceUseCase;
   getAvailablePeriodsUseCase: GetAvailablePeriodsUseCase;
   previewInvoiceUseCase: PreviewInvoiceUseCase;
   requestInvoiceUseCase: RequestInvoiceUseCase;
@@ -356,37 +353,9 @@ export async function registerInspectorExecutionRoutes(
     },
   );
 
-  // POST /v1/inspector/invoices/draft — thin delegation to billing (FR-060)
-  app.post(
-    '/v1/inspector/invoices/draft',
-    { preHandler: authenticate },
-    async (request, reply) => {
-      const auth = request.authContext!;
-      if (auth.role !== 'INSP') {
-        return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'Only inspectors can draft invoices' } });
-      }
-      if (!auth.inspectorId) {
-        return reply.status(400).send({ error: { code: 'INSPECTOR_NOT_LINKED', message: 'Inspector not linked to user account' } });
-      }
-
-      const parsed = draftInvoiceSchema.safeParse(request.body);
-      if (!parsed.success) {
-        return reply.status(400).send({
-          error: { code: 'VALIDATION_ERROR', message: 'Invalid draft invoice payload', details: parsed.error.errors },
-        });
-      }
-
-      const result = await container.draftInspectorInvoiceUseCase.execute({
-        inspectorId: auth.inspectorId,
-        periodStart: parsed.data.periodStart,
-        periodEnd: parsed.data.periodEnd,
-      });
-
-      return reply.status(201).send(success(result));
-    },
-  );
-
   // ─── Inspector Property Invoice request flow (spec 032) — INSP own-only ───
+  // (The legacy free-form /v1/inspector/invoices/draft route was removed in favour of the
+  // closed-period request flow below.)
 
   // GET /v1/inspector/invoices/available-periods — selectable closed periods for the inspector cycle
   app.get(

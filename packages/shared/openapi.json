@@ -20278,15 +20278,6 @@
         }
       }
     },
-    "/v1/inspector/invoices/draft": {
-      "post": {
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
     "/v1/inspector/invoices/available-periods": {
       "get": {
         "responses": {

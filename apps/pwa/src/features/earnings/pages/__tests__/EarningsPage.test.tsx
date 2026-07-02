@@ -33,7 +33,7 @@ describe('EarningsPage', () => {
     });
   });
 
-  it('shows the Earnings segment with next-payment, total, chart and draft-invoice CTA', async () => {
+  it('shows the Earnings segment with next-payment, total, chart and invoice CTAs', async () => {
     renderWithProviders(<EarningsPage />);
 
     await waitFor(() => {
@@ -43,7 +43,8 @@ describe('EarningsPage', () => {
       expect(screen.getByTestId('next-payment-card')).toHaveTextContent(/90\.00/);
     });
     expect(screen.getByTestId('earnings-chart')).toBeInTheDocument();
-    expect(screen.getByTestId('draft-invoice-cta')).toBeInTheDocument();
+    expect(screen.getByTestId('request-invoice-cta')).toBeInTheDocument();
+    expect(screen.getByTestId('my-invoices-cta')).toBeInTheDocument();
   });
 
   it('switches to the History segment showing payouts with payment-status chips', async () => {
@@ -58,8 +59,8 @@ describe('EarningsPage', () => {
       expect(screen.getByText('Approved')).toBeInTheDocument();
       expect(screen.getByText('Pending')).toBeInTheDocument();
     });
-    // The draft-invoice CTA belongs to the Earnings segment only.
-    expect(screen.queryByTestId('draft-invoice-cta')).not.toBeInTheDocument();
+    // The invoice CTAs belong to the Earnings segment only.
+    expect(screen.queryByTestId('request-invoice-cta')).not.toBeInTheDocument();
   });
 
   it('filters the history by date range', async () => {
