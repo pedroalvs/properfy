@@ -3,7 +3,9 @@ import { GetMeUseCase } from '../../../src/modules/auth/application/use-cases/ge
 import type { IUserRepository } from '../../../src/modules/auth/domain/user.repository';
 import type { IInspectorRepository } from '../../../src/modules/inspector/domain/inspector.repository';
 import type { IStorageService } from '../../../src/modules/inspector-execution/domain/storage.service';
+import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
 import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
+import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
 import { UnauthorizedError } from '../../../src/shared/domain/errors';
 
@@ -68,7 +70,16 @@ describe('GetMeUseCase', () => {
   let userRepo: IUserRepository;
   let inspectorRepo: IInspectorRepository;
   let storageService: IStorageService;
+  let tenantRepo: ITenantRepository;
   let useCase: GetMeUseCase;
+
+  function makeTenant(clUserPermissions: string[]): TenantEntity {
+    return new TenantEntity({
+      id: 'tenant-1', name: 'Acme', legalName: 'Acme Pty', timezone: 'Australia/Sydney',
+      currency: 'AUD', settingsJson: { clUserPermissions }, status: 'ACTIVE',
+      createdAt: new Date('2024-01-01'), updatedAt: new Date('2024-01-01'), deletedAt: null,
+    });
+  }
 
   beforeEach(() => {
     userRepo = {
@@ -96,7 +107,15 @@ describe('GetMeUseCase', () => {
       headObject: vi.fn(),
       deleteObject: vi.fn(),
     } as unknown as IStorageService;
-    useCase = new GetMeUseCase(userRepo, inspectorRepo, storageService);
+    tenantRepo = {
+      findById: vi.fn(),
+      findByLegalName: vi.fn(),
+      findAll: vi.fn(),
+      count: vi.fn(),
+      save: vi.fn(),
+      update: vi.fn(),
+    } as unknown as ITenantRepository;
+    useCase = new GetMeUseCase(userRepo, inspectorRepo, storageService, tenantRepo);
   });
 
   it('should return user profile for active user', async () => {
@@ -204,5 +223,37 @@ describe('GetMeUseCase', () => {
     await useCase.execute('user-1');
 
     expect(inspectorRepo.findByUserId).not.toHaveBeenCalled();
+  });
+
+  // 031: expose CL_USER permission flags so the web can mirror server-side gating.
+  it('should return clUserPermissions from tenant settings for a CL_USER', async () => {
+    const user = makeUser({ role: 'CL_USER', tenantId: 'tenant-1' });
+    vi.mocked(userRepo.findById).mockResolvedValue(user);
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant(['view_financials', 'create_appointments']));
+
+    const result = await useCase.execute('user-1');
+
+    expect(tenantRepo.findById).toHaveBeenCalledWith('tenant-1');
+    expect(result.clUserPermissions).toEqual(['view_financials', 'create_appointments']);
+  });
+
+  it('should default clUserPermissions to [] for a CL_USER whose tenant has none', async () => {
+    const user = makeUser({ role: 'CL_USER', tenantId: 'tenant-1' });
+    vi.mocked(userRepo.findById).mockResolvedValue(user);
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant([]));
+
+    const result = await useCase.execute('user-1');
+
+    expect(result.clUserPermissions).toEqual([]);
+  });
+
+  it('should not resolve clUserPermissions for non-CL_USER roles', async () => {
+    const user = makeUser({ role: 'CL_ADMIN', tenantId: 'tenant-1' });
+    vi.mocked(userRepo.findById).mockResolvedValue(user);
+
+    const result = await useCase.execute('user-1');
+
+    expect(tenantRepo.findById).not.toHaveBeenCalled();
+    expect(result.clUserPermissions).toBeUndefined();
   });
 });
