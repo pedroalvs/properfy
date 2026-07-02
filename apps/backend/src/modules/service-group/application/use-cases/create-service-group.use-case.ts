@@ -14,6 +14,7 @@ import { validateNewSchedule } from '@properfy/shared';
 import { NotFoundError } from '../../../../shared/domain/errors';
 import type { PriorityMode } from '@properfy/shared';
 import { SystemClock, type Clock } from '../../../../shared/domain/clock';
+import { trySyncAppointmentTimeSlotToGroup, type ServiceGroupTimeSyncLogger } from '../sync-appointment-time-slot-to-group';
 
 export interface CreateServiceGroupInput {
   appointmentIds: string[];
@@ -63,6 +64,7 @@ export class CreateServiceGroupUseCase {
     private readonly serviceRegionRepo: IServiceRegionRepository,
     private readonly tenantRepo?: ITenantRepository,
     private readonly clock: Clock = new SystemClock(),
+    private readonly logger: ServiceGroupTimeSyncLogger = { error: () => undefined },
   ) {}
 
   async execute(input: CreateServiceGroupInput): Promise<CreateServiceGroupOutput> {
@@ -99,6 +101,8 @@ export class CreateServiceGroupUseCase {
         serviceTypeId: appt.serviceTypeId,
         tenantId: appt.tenantId,
         serviceGroupId: appt.serviceGroupId,
+        timeSlotStart: appt.timeSlotStart,
+        timeSlotEnd: appt.timeSlotEnd,
       });
     }
 
@@ -187,6 +191,18 @@ export class CreateServiceGroupUseCase {
 
     // 7. Link appointments to group and transition DRAFT ones to AWAITING_INSPECTOR
     await this.serviceGroupRepo.linkAppointments(input.appointmentIds, groupId);
+
+    for (const appt of appointments) {
+      await trySyncAppointmentTimeSlotToGroup({
+        appointmentRepo: this.appointmentRepo,
+        auditService: this.auditService,
+        appointment: appt,
+        groupTimeWindow: input.timeWindow,
+        groupId,
+        actor,
+        logger: this.logger,
+      });
+    }
 
     const transitionIds = appointments
       .filter((appt) => appt.status === 'DRAFT' || appt.status === 'REJECTED')
