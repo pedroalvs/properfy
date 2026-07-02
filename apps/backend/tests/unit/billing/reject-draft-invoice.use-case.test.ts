@@ -11,13 +11,14 @@ import { AuthorizationService } from '../../../src/shared/domain/authorization.s
 const invoiceRepo = {
   findById: vi.fn(),
   findByInspectorAndPeriod: vi.fn(),
-  findOverlapping: vi.fn(),
+  findActiveByInspectorAndPeriod: vi.fn(),
   findAll: vi.fn(),
   findManyByIds: vi.fn(),
   count: vi.fn(),
   save: vi.fn(),
   update: vi.fn(),
   deleteById: vi.fn(),
+  voidIfPendingReview: vi.fn(),
   getReconciliationAggregates: vi.fn(),
 };
 
@@ -78,7 +79,7 @@ describe('RejectDraftInvoiceUseCase', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     invoiceRepo.findById.mockResolvedValue(makePendingReviewInvoice());
-    invoiceRepo.update.mockResolvedValue(undefined);
+    invoiceRepo.voidIfPendingReview.mockResolvedValue(true);
   });
 
   it('should transition a PENDING_REVIEW invoice to VOID with the reason, and not delete it', async () => {
@@ -93,10 +94,9 @@ describe('RejectDraftInvoiceUseCase', () => {
     expect(result.invoiceId).toBe('inv-1');
     expect(result.status).toBe('VOID');
 
-    expect(invoiceRepo.update).toHaveBeenCalledWith('inv-1', {
-      status: 'VOID',
-      notes: 'Period is incorrect, please resubmit',
-    });
+    // Guarded conditional update (WHERE status=PENDING_REVIEW) so a concurrent approve can't be
+    // overwritten.
+    expect(invoiceRepo.voidIfPendingReview).toHaveBeenCalledWith('inv-1', 'Period is incorrect, please resubmit');
     expect(invoiceRepo.deleteById).not.toHaveBeenCalled();
 
     expect(auditService.log).toHaveBeenCalledWith(

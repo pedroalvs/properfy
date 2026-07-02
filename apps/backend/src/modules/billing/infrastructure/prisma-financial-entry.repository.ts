@@ -328,7 +328,7 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
     inspectorId: string,
     periodStart: Date,
     periodEnd: Date,
-  ): Promise<InvoiceSnapshotLine[]> {
+  ): Promise<{ lines: InvoiceSnapshotLine[]; currencies: string[] }> {
     const rows = await this.prisma.financialEntry.findMany({
       where: {
         inspector_id: inspectorId,
@@ -340,6 +340,7 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
       orderBy: { effective_at: 'asc' },
       select: {
         amount: true,
+        currency: true,
         effective_at: true,
         appointment: {
           select: {
@@ -355,24 +356,25 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
       },
     });
 
-    return rows
-      .filter((row) => row.appointment !== null)
-      .map((row) => {
-        const appt = row.appointment!;
-        const p = appt.property;
-        return {
-          serviceDate: row.effective_at.toISOString().slice(0, 10),
-          appointmentId: appt.id,
-          appointmentCode: AppointmentCodeFormatter.formatParts(appt.appointment_number, appt.tenant?.appointment_code_prefix ?? null),
-          propertyAddress: p ? `${p.street}, ${p.suburb} ${p.state} ${p.postcode}` : null,
-          serviceType: appt.service_type?.name ?? null,
-          amount: Number(row.amount),
-          agencyId: appt.tenant?.id ?? null,
-          agencyName: appt.tenant?.name ?? null,
-          branchId: appt.branch_id ?? null,
-          branchName: appt.branch?.name ?? null,
-        };
-      });
+    const withAppointment = rows.filter((row) => row.appointment !== null);
+    const lines: InvoiceSnapshotLine[] = withAppointment.map((row) => {
+      const appt = row.appointment!;
+      const p = appt.property;
+      return {
+        serviceDate: row.effective_at.toISOString().slice(0, 10),
+        appointmentId: appt.id,
+        appointmentCode: AppointmentCodeFormatter.formatParts(appt.appointment_number, appt.tenant?.appointment_code_prefix ?? null),
+        propertyAddress: p ? `${p.street}, ${p.suburb} ${p.state} ${p.postcode}` : null,
+        serviceType: appt.service_type?.name ?? null,
+        amount: Number(row.amount),
+        agencyId: appt.tenant?.id ?? null,
+        agencyName: appt.tenant?.name ?? null,
+        branchId: appt.branch_id ?? null,
+        branchName: appt.branch?.name ?? null,
+      };
+    });
+    const currencies = [...new Set(withAppointment.map((row) => row.currency))];
+    return { lines, currencies };
   }
 
   async sumRefundsByReferenceEntryId(referenceEntryId: string): Promise<number> {

@@ -2,6 +2,11 @@
 
 > Portal: Master Admin / Operator (apps/web)
 > Last updated: 2026-03-15
+>
+> ⚠️ **Partially superseded.** The Inspector **Property Invoice** surface (list/detail/approve/reject/
+> filters) is now specified by `specs/032-inspector-property-invoice/spec.md`. The admin
+> "Generate Invoice" button + modal described below were removed in favour of the inspector-request →
+> AM/OP approve/reject flow. This document survives only for the financial-entries ledger sections.
 
 ---
 

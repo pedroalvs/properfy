@@ -224,6 +224,14 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
     });
   }
 
+  async voidIfPendingReview(invoiceId: string, reason: string): Promise<boolean> {
+    const result = await this.prisma.inspectorInvoice.updateMany({
+      where: { id: invoiceId, status: 'PENDING_REVIEW' },
+      data: { status: 'VOID', notes: reason },
+    });
+    return result.count === 1;
+  }
+
   async getReconciliationAggregates(
     filters: ReconciliationAggregateFilters,
   ): Promise<ReconciliationAggregateRow[]> {
