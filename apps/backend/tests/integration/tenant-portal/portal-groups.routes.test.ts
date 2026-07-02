@@ -10,6 +10,7 @@ import {
   PortalGroupNotFoundError,
   PortalGroupFullError,
   PortalGroupUnavailableError,
+  PortalGroupSlotUnavailableError,
 } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
 
 const APPOINTMENT_ID = '00000000-0000-0000-0000-000000000001';
@@ -108,9 +109,10 @@ describe('GET /v1/rental-tenant-portal/:token/available-groups', () => {
     const mockResult = {
       groups: [
         {
-          id: GROUP_ID,
+          groupId: GROUP_ID,
           scheduledDate: '2026-06-01',
-          timeWindow: '09:00-12:00',
+          timeSlotStart: '13:00',
+          timeSlotEnd: '15:00',
           suburb: 'Surry Hills',
           inspectorName: 'John Smith',
           confirmedCount: 3,
@@ -162,7 +164,8 @@ describe('POST /v1/rental-tenant-portal/:token/join-group', () => {
     setupPortalAuth();
     const mockResult = {
       scheduledDate: '2026-06-01',
-      timeWindow: '09:00-12:00',
+      timeSlotStart: '13:00',
+      timeSlotEnd: '15:00',
       rentalTenantConfirmationStatus: 'CONFIRMED',
       appointmentStatus: 'SCHEDULED',
       inspector: { id: '00000000-0000-0000-0000-000000000010', name: 'John Smith' },
@@ -171,7 +174,12 @@ describe('POST /v1/rental-tenant-portal/:token/join-group', () => {
 
     const res = await supertest(app.server)
       .post('/v1/rental-tenant-portal/valid-token/join-group')
-      .send({ groupId: GROUP_ID });
+      .send({
+        groupId: GROUP_ID,
+        scheduledDate: '2026-06-01',
+        timeSlotStart: '13:00',
+        timeSlotEnd: '15:00',
+      });
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual(mockResult);
@@ -180,6 +188,9 @@ describe('POST /v1/rental-tenant-portal/:token/join-group', () => {
         tokenId: TOKEN_ID,
         appointmentId: APPOINTMENT_ID,
         groupId: GROUP_ID,
+        scheduledDate: '2026-06-01',
+        timeSlotStart: '13:00',
+        timeSlotEnd: '15:00',
         isReadOnly: false,
         isUsed: false,
       }),
@@ -190,7 +201,8 @@ describe('POST /v1/rental-tenant-portal/:token/join-group', () => {
     setupPortalAuth();
     mockJoinGroupExecute.mockResolvedValueOnce({
       scheduledDate: '2026-06-01',
-      timeWindow: '09:00-12:00',
+      timeSlotStart: '13:00',
+      timeSlotEnd: '15:00',
       rentalTenantConfirmationStatus: 'CONFIRMED',
       appointmentStatus: 'SCHEDULED',
       inspector: { id: '00000000-0000-0000-0000-000000000010', name: 'John Smith' },
@@ -198,7 +210,13 @@ describe('POST /v1/rental-tenant-portal/:token/join-group', () => {
 
     await supertest(app.server)
       .post('/v1/rental-tenant-portal/valid-token/join-group')
-      .send({ groupId: GROUP_ID, rentalTenantNote: 'Please ring bell' });
+      .send({
+        groupId: GROUP_ID,
+        scheduledDate: '2026-06-01',
+        timeSlotStart: '13:00',
+        timeSlotEnd: '15:00',
+        rentalTenantNote: 'Please ring bell',
+      });
 
     expect(mockJoinGroupExecute).toHaveBeenCalledWith(
       expect.objectContaining({ rentalTenantNote: 'Please ring bell' }),
@@ -232,7 +250,12 @@ describe('POST /v1/rental-tenant-portal/:token/join-group', () => {
 
     const res = await supertest(app.server)
       .post('/v1/rental-tenant-portal/valid-token/join-group')
-      .send({ groupId: GROUP_ID });
+      .send({
+        groupId: GROUP_ID,
+        scheduledDate: '2026-06-01',
+        timeSlotStart: '13:00',
+        timeSlotEnd: '15:00',
+      });
 
     expect(res.status).toBe(409);
   });
@@ -245,7 +268,12 @@ describe('POST /v1/rental-tenant-portal/:token/join-group', () => {
 
     const res = await supertest(app.server)
       .post('/v1/rental-tenant-portal/valid-token/join-group')
-      .send({ groupId: GROUP_ID });
+      .send({
+        groupId: GROUP_ID,
+        scheduledDate: '2026-06-01',
+        timeSlotStart: '13:00',
+        timeSlotEnd: '15:00',
+      });
 
     expect(res.status).toBe(403);
   });
@@ -256,7 +284,12 @@ describe('POST /v1/rental-tenant-portal/:token/join-group', () => {
 
     const res = await supertest(app.server)
       .post('/v1/rental-tenant-portal/valid-token/join-group')
-      .send({ groupId: GROUP_ID });
+      .send({
+        groupId: GROUP_ID,
+        scheduledDate: '2026-06-01',
+        timeSlotStart: '13:00',
+        timeSlotEnd: '15:00',
+      });
 
     expect(res.status).toBe(404);
   });
@@ -267,7 +300,12 @@ describe('POST /v1/rental-tenant-portal/:token/join-group', () => {
 
     const res = await supertest(app.server)
       .post('/v1/rental-tenant-portal/valid-token/join-group')
-      .send({ groupId: GROUP_ID });
+      .send({
+        groupId: GROUP_ID,
+        scheduledDate: '2026-06-01',
+        timeSlotStart: '13:00',
+        timeSlotEnd: '15:00',
+      });
 
     expect(res.status).toBe(409);
   });
@@ -278,9 +316,31 @@ describe('POST /v1/rental-tenant-portal/:token/join-group', () => {
 
     const res = await supertest(app.server)
       .post('/v1/rental-tenant-portal/valid-token/join-group')
-      .send({ groupId: GROUP_ID });
+      .send({
+        groupId: GROUP_ID,
+        scheduledDate: '2026-06-01',
+        timeSlotStart: '13:00',
+        timeSlotEnd: '15:00',
+      });
 
     expect(res.status).toBe(409);
+  });
+
+  it('should return 422 when selected slot is no longer available', async () => {
+    setupPortalAuth();
+    mockJoinGroupExecute.mockRejectedValueOnce(new PortalGroupSlotUnavailableError());
+
+    const res = await supertest(app.server)
+      .post('/v1/rental-tenant-portal/valid-token/join-group')
+      .send({
+        groupId: GROUP_ID,
+        scheduledDate: '2026-06-01',
+        timeSlotStart: '13:00',
+        timeSlotEnd: '15:00',
+      });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('PORTAL_GROUP_SLOT_UNAVAILABLE');
   });
 
   it('should return 404 for invalid token', async () => {
@@ -289,7 +349,12 @@ describe('POST /v1/rental-tenant-portal/:token/join-group', () => {
 
     const res = await supertest(app.server)
       .post('/v1/rental-tenant-portal/bad-token/join-group')
-      .send({ groupId: GROUP_ID });
+      .send({
+        groupId: GROUP_ID,
+        scheduledDate: '2026-06-01',
+        timeSlotStart: '13:00',
+        timeSlotEnd: '15:00',
+      });
 
     expect(res.status).toBe(404);
   });

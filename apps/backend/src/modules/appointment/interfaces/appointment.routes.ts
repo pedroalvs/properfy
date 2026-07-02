@@ -50,6 +50,10 @@ import type { IIdempotencyService } from '../../../shared/domain/idempotency.ser
 import { GetPortalLinkResponse } from '@properfy/shared';
 
 const importIdParam = z.object({ importId: z.string().uuid() });
+const previewImportMultipartFieldsSchema = z.object({
+  branchId: z.string().uuid({ message: 'branchId must be a valid UUID' }),
+  actorTimezone: z.string().min(1).optional(),
+});
 const commitAppointmentImportSchema = z.object({
   skipInvalidRows: z.boolean(),
   actorTimezone: z.string().optional(),
@@ -586,15 +590,16 @@ export async function registerAppointmentRoutes(
       if (!fileBuffer || !filename) {
         throw new ValidationError('File upload is required');
       }
-      if (!branchId) {
-        throw new ValidationError('branchId is required');
+      const parsedFields = previewImportMultipartFieldsSchema.safeParse({ branchId, actorTimezone });
+      if (!parsedFields.success) {
+        throw new ValidationError('Invalid multipart fields', parsedFields.error.errors);
       }
 
       const result = await container.previewAppointmentImportUseCase.execute({
         fileBuffer,
         filename,
-        branchId,
-        actorTimezone,
+        branchId: parsedFields.data.branchId,
+        actorTimezone: parsedFields.data.actorTimezone,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));

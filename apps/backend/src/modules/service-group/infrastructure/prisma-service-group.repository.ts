@@ -11,7 +11,7 @@ import type {
   GroupAppointmentConfirmationRow,
   MarketplaceOffer,
   MarketplaceOfferDetail,
-  PortalEligibleGroup,
+  PortalEligibleSlot,
 } from '../domain/service-group.repository';
 import type { ServiceGroupStatus, PriorityMode } from '@properfy/shared';
 import { resolveCentroid } from '../../../shared/infrastructure/suburb-centroid-resolver';
@@ -832,58 +832,101 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     `;
   }
 
-  async findPortalEligibleGroups(params: {
+  async findPortalEligibleSlots(params: {
     tenantId: string;
     serviceTypeId: string;
     propertyId: string;
     today: Date;
-  }): Promise<PortalEligibleGroup[]> {
+  }): Promise<PortalEligibleSlot[]> {
     const todayStr = params.today.toISOString().slice(0, 10);
 
     type Row = {
-      id: string;
+      group_id: string;
       scheduled_date: Date;
-      time_window: string;
+      time_slot_start: string;
+      time_slot_end: string;
       suburb: string;
       inspector_name: string;
       confirmed_count: bigint;
     };
 
     const rows = await this.prisma.$queryRaw<Row[]>`
-      SELECT DISTINCT ON (sg.id)
-        sg.id,
-        sg.scheduled_date,
-        sg.time_window,
-        p.suburb,
+      WITH eligible_groups AS (
+        SELECT DISTINCT sg.id
+        FROM service_groups sg
+        JOIN appointments a ON a.service_group_id = sg.id AND a.deleted_at IS NULL
+        JOIN properties p ON p.id = a.property_id AND p.deleted_at IS NULL
+        WHERE a.tenant_id = ${params.tenantId}
+          AND sg.service_type_id = ${params.serviceTypeId}
+          AND sg.status = 'ACCEPTED'
+          AND sg.confirmed_count < 10
+          AND sg.scheduled_date::date > ${todayStr}::date
+          AND p.coordinates IS NOT NULL
+          AND ST_DWithin(
+            p.coordinates::geography,
+            (SELECT coordinates::geography FROM properties WHERE id = ${params.propertyId} AND deleted_at IS NULL),
+            2000
+          )
+        )
+      SELECT
+        sg.id AS group_id,
+        a.scheduled_date,
+        a.time_slot_start,
+        a.time_slot_end,
+        MIN(p.suburb) AS suburb,
         i.name AS inspector_name,
         sg.confirmed_count
-      FROM service_groups sg
+      FROM eligible_groups eg
+      JOIN service_groups sg ON sg.id = eg.id
       JOIN inspectors i ON i.id = sg.assigned_inspector_id
       JOIN appointments a ON a.service_group_id = sg.id AND a.deleted_at IS NULL
       JOIN properties p ON p.id = a.property_id AND p.deleted_at IS NULL
       WHERE a.tenant_id = ${params.tenantId}
-        AND sg.service_type_id = ${params.serviceTypeId}
-        AND sg.status = 'ACCEPTED'
-        AND sg.confirmed_count < 10
-        AND sg.scheduled_date::date > ${todayStr}::date
-        AND p.coordinates IS NOT NULL
-        AND ST_DWithin(
-          p.coordinates::geography,
-          (SELECT coordinates::geography FROM properties WHERE id = ${params.propertyId} AND deleted_at IS NULL),
-          2000
-        )
-      ORDER BY sg.id, sg.scheduled_date ASC
+        AND a.scheduled_date::date > ${todayStr}::date
+        AND a.time_slot_start IS NOT NULL
+        AND a.time_slot_end IS NOT NULL
+      GROUP BY sg.id, a.scheduled_date, a.time_slot_start, a.time_slot_end, i.name, sg.confirmed_count
+      ORDER BY a.scheduled_date ASC, a.time_slot_start ASC, a.time_slot_end ASC, sg.id ASC
     `;
 
     return rows.map((row) => ({
-      id: row.id,
+      groupId: row.group_id,
       scheduledDate: row.scheduled_date,
-      timeWindow: row.time_window,
+      timeSlotStart: row.time_slot_start,
+      timeSlotEnd: row.time_slot_end,
       suburb: row.suburb,
       inspectorName: row.inspector_name,
       confirmedCount: Number(row.confirmed_count),
       capacityMax: 10 as const,
     }));
+  }
+
+  async hasPortalMemberSlot(params: {
+    groupId: string;
+    scheduledDate: string;
+    timeSlotStart: string;
+    timeSlotEnd: string;
+    today: Date;
+  }): Promise<boolean> {
+    const todayStr = params.today.toISOString().slice(0, 10);
+
+    type Row = { exists: boolean };
+    const rows = await this.prisma.$queryRaw<Row[]>`
+      SELECT EXISTS (
+        SELECT 1
+        FROM appointments a
+        WHERE a.service_group_id = ${params.groupId}
+          AND a.deleted_at IS NULL
+          AND a.scheduled_date::date = ${params.scheduledDate}::date
+          AND a.scheduled_date::date > ${todayStr}::date
+          AND a.time_slot_start = ${params.timeSlotStart}
+          AND a.time_slot_end = ${params.timeSlotEnd}
+          AND a.time_slot_start IS NOT NULL
+          AND a.time_slot_end IS NOT NULL
+      ) AS "exists"
+    `;
+
+    return rows[0]?.exists === true;
   }
 
   async findAddableForAppointments(params: {

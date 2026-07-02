@@ -344,6 +344,7 @@ export function createMockContainer(
     keyExpiryCheckWorker: { execute: vi.fn() } as AppContainer['keyExpiryCheckWorker'],
     expirePriorityWorker: { execute: vi.fn() } as AppContainer['expirePriorityWorker'],
     auditRetentionWorker: { execute: vi.fn() } as AppContainer['auditRetentionWorker'],
+    rejectUnconfirmedWorker: { execute: vi.fn() } as AppContainer['rejectUnconfirmedWorker'],
   };
 
   return deepMerge(base, overrides as DeepPartial<Record<string, unknown>>) as unknown as AppContainer;

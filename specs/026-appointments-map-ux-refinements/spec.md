@@ -119,7 +119,7 @@ The Reschedule action opens a form with:
 
 **Backend**: uses the existing `ReopenForRescheduleUseCase` per Regras (NOT a new use case). Audit emits `appointment.rescheduled` with before/after `{ scheduledDate, timeSlot }`. **Portal tokens for the appointment are revoked** (consistency with 007 portal flow — Regras-mandated refactor).
 
-**Date window**: backend enforces ≤ 30 days from the original `scheduledDate` (existing `ReopenForRescheduleUseCase` validation).
+**Date window**: backend enforces ≤ 30 days from the original `scheduledDate` for client roles (check lives in `BulkReopenForRescheduleUseCase`). AM/OP are exempt from the window.
 
 **RBAC** (matriz 2.2): AM, OP, CL_ADMIN (within own tenant). CL_USER excluded.
 
@@ -128,7 +128,7 @@ The Reschedule action opens a form with:
 1. **Given** 3 checked appointments in the same service group, **When** operator opens Reschedule, **Then** the form shows date picker + time slot dropdown populated from `/v1/time-slots/effective`; the operator picks a new date + slot + optional reason and confirms; backend processes via `ReopenForRescheduleUseCase` per item.
 2. **Given** the checked set spans 2 different service groups, **When** operator opens the dropdown, **Then** Reschedule is disabled with the same-group tooltip.
 3. **Given** a successful reschedule, **When** backend processes, **Then** portal tokens for each appointment are revoked (`tokenRepo.revokeAllForAppointment(appointmentId)`); the audit log shows `appointment.rescheduled` with before/after.
-4. **Given** the operator picks a date > 30 days from the original, **When** the backend validates, **Then** the per-item result returns `INVALID_DATE_WINDOW`; modal surfaces the error.
+4. **Given** a CL_ADMIN picks a date > 30 days from the original, **When** the backend validates, **Then** the per-item result returns `INVALID_DATE_WINDOW`; modal surfaces the error. AM/OP actors are exempt from the window and the reschedule proceeds.
 5. **Given** no numeric "Slot Size" input is shown, **When** operator inspects the form, **Then** only the dropdown picker is present — the design system is honoured.
 
 ### User Story 6 — Click appointment code opens marker detail panel (Item 6)
@@ -206,7 +206,7 @@ Clicking the `<AppointmentCodePill>` in a modal row opens the same `AppointmentM
 - **FR-541**: The Reschedule form MUST use a dropdown picker populated from `useTimeSlotOptions(branchId, tenantId)` (existing hook against `/v1/time-slots/effective`). NO numeric "Slot Size (minutes)" input.
 - **FR-542**: Bulk reschedule is LIMITED to appointments within the same service group in this cycle. Frontend pre-check: if the checked set spans groups (or mixes grouped/non-grouped), the Reschedule menu item is disabled with a tooltip "Bulk reschedule limited to appointments within the same group in this cycle". Backend ALSO validates and returns `INVALID_SCOPE` for items breaching the constraint.
 - **FR-543**: On successful reschedule, the backend MUST revoke active portal tokens for the appointment via `tokenRepo.revokeAllForAppointment(appointmentId)` — consistency with 007 portal reschedule flow. Audit emits `appointment.rescheduled` with `before/after: { scheduledDate, timeSlot }` + a separate `tenant_portal.tokens_revoked` event per appointment.
-- **FR-544**: Date window validation MAX 30 days from original `scheduledDate` (existing `ReopenForRescheduleUseCase` rule). Per-item result `INVALID_DATE_WINDOW` if breached.
+- **FR-544**: Date window validation MAX 30 days from original `scheduledDate` for client roles (check implemented in `BulkReopenForRescheduleUseCase`); AM/OP are exempt. Per-item result `INVALID_DATE_WINDOW` if breached.
 - **FR-545**: Reason is OPTIONAL.
 
 #### Code click → marker detail panel (Item 6)

@@ -7,7 +7,7 @@ import { PortalLayout } from '../components/PortalLayout';
 import { PortalErrorState } from '../components/PortalErrorState';
 import { AppointmentInfoCard } from '../components/AppointmentInfoCard';
 import { InspectionConfirmationForm } from '../components/InspectionConfirmationForm';
-import { AvailableGroupsList } from '../components/AvailableGroupsList';
+import { AvailableGroupsList, getAvailableGroupSlotKey } from '../components/AvailableGroupsList';
 import { RescheduleForm } from '../components/RescheduleForm';
 import { ContactForm } from '../components/ContactForm';
 import { RentalTenantPortalExpiredView } from '../components/RentalTenantPortalExpiredView';
@@ -19,8 +19,8 @@ import {
   useConfirmAppointment,
   useReportUnavailability,
   useAvailableGroups,
-  useJoinGroup,
 } from '../hooks/usePortalData';
+import { useJoinGroupFlow } from '../hooks/useJoinGroupFlow';
 import type { AvailableSlot } from '../types';
 
 const EXPIRED_CODES = new Set(['PORTAL_TOKEN_EXPIRED']);
@@ -35,19 +35,21 @@ export function PortalPage() {
 
   const [changeTimeOpen, setChangeTimeOpen] = useState(false);
   const [proposeNewDateOpen, setProposeNewDateOpen] = useState(false);
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
 
   const availableGroupsQuery = useAvailableGroups(token ?? '', changeTimeOpen);
-  const joinGroupMutation = useJoinGroup(token ?? '');
+  const { refetch: refetchAvailableGroups } = availableGroupsQuery;
+  const handleJoinedSlot = useCallback(() => {
+    setChangeTimeOpen(false);
+  }, []);
+  const handleSlotUnavailable = useCallback(() => {
+    refetchAvailableGroups();
+  }, [refetchAvailableGroups]);
+  const joinGroupFlow = useJoinGroupFlow(token ?? '', {
+    onJoined: handleJoinedSlot,
+    onSlotUnavailable: handleSlotUnavailable,
+  });
 
   const handleDeadlineExpire = useCallback(() => { refetch(); }, [refetch]);
-
-  const handleJoinGroup = useCallback(async () => {
-    if (!selectedGroupId) return;
-    await joinGroupMutation.mutateAsync({ groupId: selectedGroupId });
-    setChangeTimeOpen(false);
-    setSelectedGroupId(null);
-  }, [joinGroupMutation, selectedGroupId]);
 
   const handleConfirm = useCallback(
     async (rentalTenantNote?: string) => {
@@ -245,7 +247,10 @@ export function PortalPage() {
             {!changeTimeOpen ? (
               <button
                 type="button"
-                onClick={() => setChangeTimeOpen(true)}
+                onClick={() => {
+                  setChangeTimeOpen(true);
+                  joinGroupFlow.clearError();
+                }}
                 className="text-sm font-medium text-primary hover:underline"
               >
                 Change time
@@ -255,7 +260,10 @@ export function PortalPage() {
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => { setChangeTimeOpen(false); setSelectedGroupId(null); }}
+                    onClick={() => {
+                      setChangeTimeOpen(false);
+                      joinGroupFlow.clearSelection();
+                    }}
                     className="text-sm text-text-muted hover:text-text-primary"
                   >
                     ← Back
@@ -268,19 +276,33 @@ export function PortalPage() {
                   groups={availableGroupsQuery.data?.groups ?? []}
                   isLoading={availableGroupsQuery.isLoading}
                   isError={availableGroupsQuery.isError}
-                  selectedGroupId={selectedGroupId ?? undefined}
-                  onSelect={setSelectedGroupId}
+                  selectedSlotKey={
+                    joinGroupFlow.selectedSlot
+                      ? getAvailableGroupSlotKey(joinGroupFlow.selectedSlot)
+                      : undefined
+                  }
+                  onSelect={joinGroupFlow.selectSlot}
                   onRetry={() => availableGroupsQuery.refetch()}
                 />
-                {selectedGroupId && (
-                  <button
-                    type="button"
-                    onClick={handleJoinGroup}
-                    disabled={joinGroupMutation.isPending}
-                    className="w-full rounded bg-primary py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60"
+                {joinGroupFlow.joinErrorMessage && (
+                  <p
+                    className="rounded border border-error/20 bg-error/10 px-3 py-2 text-sm text-error"
+                    role="alert"
                   >
-                    {joinGroupMutation.isPending ? 'Joining…' : 'Join this time slot'}
-                  </button>
+                    {joinGroupFlow.joinErrorMessage}
+                  </p>
+                )}
+                {joinGroupFlow.selectedSlot && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={joinGroupFlow.joinSelectedSlot}
+                      disabled={joinGroupFlow.isJoining}
+                      className="w-full rounded bg-primary py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60"
+                    >
+                      {joinGroupFlow.isJoining ? 'Joining…' : 'Join this time slot'}
+                    </button>
+                  </>
                 )}
               </div>
             )}

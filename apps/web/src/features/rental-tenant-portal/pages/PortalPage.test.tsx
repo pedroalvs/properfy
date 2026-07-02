@@ -33,6 +33,7 @@ import { ApiError } from '@/lib/api-error';
 import { PortalPage } from './PortalPage';
 
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
+const mockPost = api.POST as ReturnType<typeof vi.fn>;
 
 const MOCK_PORTAL_DATA = {
   token: { status: 'ACTIVE', isReadOnly: false },
@@ -81,6 +82,7 @@ function createWrapper(initialPath: string = '/portal/test-token') {
 
 beforeEach(() => {
   mockGet.mockReset();
+  mockPost.mockReset();
 });
 
 function renderPortal(path?: string) {
@@ -335,6 +337,81 @@ describe('PortalPage', () => {
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: 'Propose new date' })).not.toBeInTheDocument();
     });
+  });
+
+  function mockPortalDataWithAvailableGroups() {
+    mockGet.mockImplementation((path: string) => {
+      if (path.endsWith('/available-groups')) {
+        return Promise.resolve({
+          data: {
+            groups: [
+              {
+                groupId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+                scheduledDate: '2026-06-10',
+                timeSlotStart: '09:00',
+                timeSlotEnd: '10:00',
+                suburb: 'Surry Hills',
+                inspectorName: 'John Smith',
+                confirmedCount: 3,
+                capacityMax: 10,
+              },
+            ],
+          },
+        });
+      }
+
+      return Promise.resolve({ data: MOCK_PORTAL_DATA });
+    });
+  }
+
+  it('shows a recoverable error and clears selection when the selected time slot is no longer available', async () => {
+    const user = userEvent.setup();
+    mockPortalDataWithAvailableGroups();
+    mockPost.mockResolvedValue({
+      data: undefined,
+      error: new ApiError(422, 'Slot unavailable', 'PORTAL_GROUP_SLOT_UNAVAILABLE'),
+    });
+    renderPortal();
+
+    await user.click(await screen.findByRole('button', { name: 'Change time' }));
+    await user.click(await screen.findByRole('button', { name: /Surry Hills/i }));
+    await user.click(screen.getByRole('button', { name: 'Join this time slot' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'This time slot is no longer available. Please pick another one.',
+    );
+    expect(screen.queryByRole('button', { name: 'Join this time slot' })).not.toBeInTheDocument();
+    expect(mockPost).toHaveBeenCalledWith(
+      '/v1/rental-tenant-portal/test-token/join-group',
+      {
+        body: {
+          groupId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+          scheduledDate: '2026-06-10',
+          timeSlotStart: '09:00',
+          timeSlotEnd: '10:00',
+        },
+      },
+    );
+    expect(mockGet.mock.calls.filter(([path]) => String(path).endsWith('/available-groups')).length).toBeGreaterThan(1);
+  });
+
+  it('shows a generic recoverable error when joining a time slot fails for another reason', async () => {
+    const user = userEvent.setup();
+    mockPortalDataWithAvailableGroups();
+    mockPost.mockResolvedValue({
+      data: undefined,
+      error: new ApiError(500, 'Server error', 'UNEXPECTED_ERROR'),
+    });
+    renderPortal();
+
+    await user.click(await screen.findByRole('button', { name: 'Change time' }));
+    await user.click(await screen.findByRole('button', { name: /Surry Hills/i }));
+    await user.click(screen.getByRole('button', { name: 'Join this time slot' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'We could not join this time slot. Please try again.',
+    );
+    expect(screen.getByRole('button', { name: 'Join this time slot' })).toBeInTheDocument();
   });
 
   it('shows generic error state for unknown API errors', async () => {

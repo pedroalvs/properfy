@@ -146,14 +146,61 @@ describe('PrismaPropertyRepository.findManyByNormalizedAddressKeys', () => {
   });
 });
 
+describe('PrismaPropertyRepository.update — tenant scoping', () => {
+  it('does not write coordinates when the tenant-scoped update matches no row (cross-tenant id)', async () => {
+    const tenantA = await seedTenant('T-coord-scope-A');
+    const tenantB = await seedTenant('T-coord-scope-B');
+    const propertyBId = crypto.randomUUID();
+    await repo.save(buildProperty({ id: propertyBId, tenantId: tenantB, street: '20 Guard St', suburb: 'Oatley', postcode: '2223' }));
+
+    // Calling update with tenant A's scope but tenant B's property id must be
+    // a no-op — including for syncCoordinates, which writes the PostGIS
+    // `coordinates` column by id alone and has no tenant_id in its own WHERE.
+    await repo.update(propertyBId, tenantA, { lat: -33.9, lng: 151.1 });
+
+    const [row] = await harness.prisma.$queryRaw<Array<{ has_coords: boolean }>>`
+      SELECT (coordinates IS NOT NULL) AS has_coords FROM properties WHERE id = ${propertyBId}
+    `;
+    expect(row!.has_coords).toBe(false);
+  });
+
+  it('does write coordinates when the tenant-scoped update matches the row', async () => {
+    const tenantId = await seedTenant('T-coord-scope-match');
+    const propertyId = crypto.randomUUID();
+    await repo.save(buildProperty({ id: propertyId, tenantId, street: '21 Guard St', suburb: 'Oatley', postcode: '2223' }));
+
+    await repo.update(propertyId, tenantId, { lat: -33.9, lng: 151.1 });
+
+    const [row] = await harness.prisma.$queryRaw<Array<{ has_coords: boolean }>>`
+      SELECT (coordinates IS NOT NULL) AS has_coords FROM properties WHERE id = ${propertyId}
+    `;
+    expect(row!.has_coords).toBe(true);
+  });
+});
+
 describe('properties_normalized_address_active_unique (partial unique index)', () => {
-  it('rejects a second active property with the same tenant+address', async () => {
+  it('rejects a second active property with the same tenant+address as a clean PropertyAddressConflictError, not a raw P2002', async () => {
+    const { PropertyAddressConflictError } = await import('../../../src/modules/property/domain/property.errors');
     const tenantId = await seedTenant('T-dup-guard');
     await repo.save(buildProperty({ id: crypto.randomUUID(), tenantId, street: '2 Dup St', suburb: 'Peakhurst', postcode: '2210' }));
 
     await expect(
       repo.save(buildProperty({ id: crypto.randomUUID(), tenantId, street: '2 Dup St', suburb: 'Peakhurst', postcode: '2210' })),
-    ).rejects.toThrow();
+    ).rejects.toBeInstanceOf(PropertyAddressConflictError);
+  });
+
+  it('rejects a concurrent update that would collide with another property, as a clean PropertyAddressConflictError', async () => {
+    const { PropertyAddressConflictError } = await import('../../../src/modules/property/domain/property.errors');
+    const tenantId = await seedTenant('T-dup-update-race');
+    await repo.save(buildProperty({ id: crypto.randomUUID(), tenantId, street: '10 Taken St', suburb: 'Mortdale', postcode: '2223' }));
+    const otherId = crypto.randomUUID();
+    await repo.save(buildProperty({ id: otherId, tenantId, street: '11 Free St', suburb: 'Mortdale', postcode: '2223' }));
+
+    // Simulates the race the use-case pre-check can't fully close: the row
+    // is updated to an address that collides with the first property.
+    await expect(
+      repo.update(otherId, tenantId, { street: '10 Taken St' }),
+    ).rejects.toBeInstanceOf(PropertyAddressConflictError);
   });
 
   it('allows reusing an address once the original is soft-deleted', async () => {

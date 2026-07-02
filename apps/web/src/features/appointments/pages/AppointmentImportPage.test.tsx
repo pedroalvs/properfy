@@ -341,3 +341,46 @@ describe('AppointmentImportPage', () => {
     ));
   });
 });
+
+describe('AppointmentImportPage — errors.csv download', () => {
+  it('downloads errors.csv through the shared API client once the import completes with errors', async () => {
+    setRole('CL_ADMIN', 'tenant-1');
+    mockGet.mockImplementation((path: string) => {
+      if (path === '/v1/branches') return list([{ id: 'branch-9', name: 'Branch Nine' }]);
+      if (path === '/v1/appointments/import/{importId}/errors.csv') {
+        return Promise.resolve({ data: new Blob(['row,message\n3,boom'], { type: 'text/csv' }) });
+      }
+      return Promise.resolve({
+        data: {
+          data: {
+            id: 'import-1', branchId: 'branch-9', status: 'COMPLETED',
+            totalRows: 1, successCount: 0, errorCount: 1, resultsJson: [{ rowNumber: 2, status: 'error', message: 'boom' }],
+          },
+        },
+      });
+    });
+    mockPost.mockImplementation((path: string) => {
+      if (path === '/v1/appointments/import/preview') return Promise.resolve({ data: { data: PREVIEW_RESPONSE } });
+      return Promise.resolve({ data: { data: { importId: 'import-1', status: 'PROCESSING' } } });
+    });
+    renderPage();
+
+    fireEvent.click(screen.getByLabelText('Branch'));
+    fireEvent.click(await screen.findByText('Branch Nine'));
+    const file = new File(['data'], 'import.csv', { type: 'text/csv' });
+    fireEvent.change(screen.getByTestId('file-input'), { target: { files: [file] } });
+    await waitFor(() => expect(screen.getByText('Next')).not.toBeDisabled());
+    fireEvent.click(screen.getByText('Next'));
+    await waitFor(() => expect(screen.getByText('Ready')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Next'));
+    fireEvent.click(screen.getByText('Start Import'));
+
+    const downloadButton = await screen.findByText('Download errors.csv');
+    fireEvent.click(downloadButton);
+
+    await waitFor(() => expect(mockGet).toHaveBeenCalledWith(
+      '/v1/appointments/import/{importId}/errors.csv',
+      expect.objectContaining({ params: { path: { importId: 'import-1' } } }),
+    ));
+  });
+});
