@@ -3,6 +3,8 @@ import type { UserRole, UserStatus } from '@properfy/shared';
 import { UnauthorizedError } from '../../../../shared/domain/errors';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
 import type { IStorageService } from '../../../inspector-execution/domain/storage.service';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
+import { normalizeClUserPermissions } from '../../../../shared/domain/cl-user-permissions';
 
 const AVATAR_BUCKET = 'inspector-avatars';
 const AVATAR_SIGNED_URL_TTL = 900; // 15 minutes
@@ -21,6 +23,9 @@ export interface GetMeOutput {
   createdAt: string;
   inspectorId: string | null;
   inspectorPhotoUrl: string | null;
+  // 031 — CL_USER granular permission flags (tenant-cohort) so the web can
+  // mirror server-side gating (e.g. `view_financials`) for nav/route visibility.
+  clUserPermissions?: string[];
 }
 
 export class GetMeUseCase {
@@ -28,6 +33,7 @@ export class GetMeUseCase {
     private readonly userRepo: IUserRepository,
     private readonly inspectorRepo: IInspectorRepository,
     private readonly storageService: IStorageService,
+    private readonly tenantRepo: ITenantRepository,
   ) {}
 
   async execute(userId: string): Promise<GetMeOutput> {
@@ -54,6 +60,13 @@ export class GetMeUseCase {
       }
     }
 
+    let clUserPermissions: string[] | undefined;
+    if (user.role === 'CL_USER' && user.tenantId) {
+      const tenant = await this.tenantRepo.findById(user.tenantId);
+      // settingsJson is untyped JSON — normalize to a string[] before returning.
+      clUserPermissions = normalizeClUserPermissions(tenant?.settingsJson?.clUserPermissions);
+    }
+
     return {
       id: user.id,
       name: user.name,
@@ -68,6 +81,7 @@ export class GetMeUseCase {
       createdAt: user.createdAt.toISOString(),
       inspectorId,
       inspectorPhotoUrl,
+      clUserPermissions,
     };
   }
 }

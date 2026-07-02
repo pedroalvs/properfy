@@ -96,4 +96,33 @@ describe('ExportAgencyFinancialUseCase', () => {
       sut.useCase.execute({ actor: makeActor({ role: 'AM', tenantId: null }) }),
     ).rejects.toThrow(ValidationError);
   });
+
+  it('fails closed for a CL role without a tenant scope (ignores input.tenantId)', async () => {
+    const { ForbiddenError } = await import('../../../src/shared/domain/errors');
+    await expect(
+      sut.useCase.execute({ tenantId: 'tenant-other', actor: makeActor({ role: 'CL_USER', tenantId: null }) }),
+    ).rejects.toThrow(ForbiddenError);
+    expect(sut.entryRepo.findAllEnriched).not.toHaveBeenCalled();
+  });
+
+  it('rejects an over-large export instead of loading an unbounded history', async () => {
+    vi.mocked(sut.entryRepo.count).mockResolvedValue(5001);
+
+    await expect(
+      sut.useCase.execute({ actor: makeActor() }),
+    ).rejects.toThrow(ValidationError);
+    expect(sut.entryRepo.findAllEnriched).not.toHaveBeenCalled();
+  });
+
+  it('allows an export at exactly the cap boundary and fetches all 5000 rows', async () => {
+    vi.mocked(sut.entryRepo.count).mockResolvedValue(5000);
+    vi.mocked(sut.entryRepo.findAllEnriched).mockResolvedValue([]);
+
+    await expect(sut.useCase.execute({ actor: makeActor() })).resolves.toBeDefined();
+    expect(sut.entryRepo.findAllEnriched).toHaveBeenCalledOnce();
+    // Pin the page size to the full count — guards against a truncating regression
+    // at the cap that would silently drop rows.
+    const [, pagination] = vi.mocked(sut.entryRepo.findAllEnriched).mock.calls[0];
+    expect(pagination.pageSize).toBe(5000);
+  });
 });

@@ -181,4 +181,10 @@ describe('031 PR-5 — GET /v1/financial/export (agency statement XLSX)', () => 
     await supertest(app.server).get('/v1/financial/export').set('Authorization', 'Bearer t').expect(403);
     expect(mockExport).not.toHaveBeenCalled();
   });
+
+  it('AM → 200 (unconditional backoffice access)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(am);
+    await supertest(app.server).get('/v1/financial/export?tenantId=' + TENANT_ID).set('Authorization', 'Bearer t').expect(200);
+    expect(mockExport).toHaveBeenCalledOnce();
+  });
 });

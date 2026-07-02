@@ -116,6 +116,17 @@ describe('GetFinancialSummaryUseCase', () => {
     },
   );
 
+  it.each(['CL_ADMIN', 'CL_USER'] as const)(
+    'fails closed (403) for %s without a tenant scope instead of an unscoped read',
+    async (role) => {
+      const { ForbiddenError } = await import('../../../src/shared/domain/errors');
+      await expect(
+        useCase.execute({ actor: makeActor({ role, tenantId: null }) }),
+      ).rejects.toThrow(ForbiddenError);
+      expect(entryRepo.getSummary).not.toHaveBeenCalled();
+    },
+  );
+
   it('keeps totalPayouts visible for AM/OP (backoffice)', async () => {
     vi.mocked(entryRepo.getSummary).mockResolvedValue({
       totalDebits: 5000,

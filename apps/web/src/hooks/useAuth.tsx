@@ -16,6 +16,8 @@ export interface AuthUser {
   phone?: string | null;
   lastLoginAt?: string | null;
   createdAt?: string;
+  /** 031 — CL_USER granular permission flags (tenant-cohort), from /v1/me. */
+  clUserPermissions?: string[];
 }
 
 interface AuthContextValue {
@@ -47,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             phone?: string | null;
             lastLoginAt?: string | null;
             createdAt?: string;
+            clUserPermissions?: string[];
           };
           setUser({
             id: me.id,
@@ -59,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             phone: me.phone,
             lastLoginAt: me.lastLoginAt,
             createdAt: me.createdAt,
+            clUserPermissions: me.clUserPermissions,
           });
         }
       })

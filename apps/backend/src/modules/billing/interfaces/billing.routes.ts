@@ -24,6 +24,7 @@ import {
 import type { AuthContext } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
+import { normalizeClUserPermissions } from '../../../shared/domain/cl-user-permissions';
 import { success, paginated } from '../../../shared/interfaces/response';
 import type { GetFinancialSummaryUseCase } from '../application/use-cases/get-financial-summary.use-case';
 import type { ListFinancialEntriesUseCase } from '../application/use-cases/list-financial-entries.use-case';
@@ -94,9 +95,10 @@ export async function registerBillingRoutes(
     // 031 — resolve CL_USER permission flags so agency read routes can enforce
     // `view_financials` via assertClUserPermission. Without this, the flag is
     // always empty and every flagged CL_USER would be silently denied.
+    // settingsJson is untyped JSON — normalize to a string[] before use.
     async (tenantId) => {
       const tenant = await container.tenantRepo.findById(tenantId);
-      return (tenant?.settingsJson?.clUserPermissions as string[] | undefined) ?? [];
+      return normalizeClUserPermissions(tenant?.settingsJson?.clUserPermissions);
     },
   );
 

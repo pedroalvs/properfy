@@ -495,7 +495,7 @@ export function createContainer(logger: Logger): AppContainer {
   const loginUseCase = new LoginUseCase(userRepo, sessionRepo, jwtService, totpService, auditService, inspectorRepo, totpEncryptionService, sessionTrustService);
   const refreshTokenUseCase = new RefreshTokenUseCase(userRepo, sessionRepo, jwtService, auditService, inspectorRepo);
   const logoutUseCase = new LogoutUseCase(sessionRepo, auditService);
-  const getMeUseCase = new GetMeUseCase(userRepo, inspectorRepo, storageService);
+  const getMeUseCase = new GetMeUseCase(userRepo, inspectorRepo, storageService, tenantRepo);
   const passwordHistoryRepo = new PrismaPasswordHistoryRepository(prisma);
   const changePasswordUseCase = new ChangePasswordUseCase(userRepo, sessionRepo, auditService, passwordHistoryRepo);
   const revokeSessionUseCase = new RevokeSessionUseCase(sessionRepo, auditService);

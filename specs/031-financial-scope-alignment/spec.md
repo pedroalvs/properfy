@@ -1,6 +1,6 @@
 # 031 — Financial Module Scope Alignment
 
-**Status:** In progress (PR-1 landed: shared contract foundation)
+**Status:** Complete — all 7 PRs implemented (shared → backend → web → PWA), each stacked and green.
 **Cross-feature:** `010-billing-ledger` (ledger), `015-permissions-rbac-matrix` (RBAC), `027-pwa-improvements` (PWA), `002-tenants-branches` (tenant settings)
 **Out of scope:** Inspector-invoice lifecycle redesign (separate feature). This effort only preserves minimal structural compatibility with inspector invoices.
 
@@ -44,7 +44,9 @@ destructive migrations and route removals are acceptable.
 | Inspector-invoice ops (generate/mark-paid/reverse/reconcile) | ✅ | ✅ | ❌ | ❌ | ❌ |
 | `financial.agency_view` (extrato / services rendered / summary) | ✅ | ✅ | ✅ | flag `view_financials` | ❌ |
 | `financial.agency_export` (own-tenant XLSX) | ✅ | ✅ | ✅ | flag `view_financials` | ❌ |
-| Own earnings + history (`INSPECTOR_PAYOUT`, own inspector) | ✅ | ✅ | ❌ | ❌ | ✅ own-only |
+| Own earnings + history — INSP self-service (`INSPECTOR_PAYOUT`, own inspector) † | ❌ | ❌ | ❌ | ❌ | ✅ own-only |
+
+† AM/OP do **not** have an "own earnings" surface; they see all payouts (incl. `INSPECTOR_PAYOUT`) via the **backoffice ledger** row above (`financial.view`). This keeps the own-earnings surface INSP-only, consistent with `015-permissions-rbac-matrix`.
 
 CL_ADMIN/CL_USER are always own-tenant scoped and see only Agency-relevant entry types
 (`TENANT_DEBIT`, `REFUND`, `MANUAL_ADJUSTMENT`) — never `INSPECTOR_PAYOUT`.
@@ -79,8 +81,12 @@ CL_ADMIN/CL_USER are always own-tenant scoped and see only Agency-relevant entry
    statement via report `IXlsxGenerator` reuse). *Services-rendered is delivered as a web tab
    over the existing `entries?type=TENANT_DEBIT` endpoint (PR-6) — each debit is a rendered
    service — rather than a redundant backend endpoint.*
-6. **PR-6 — Web Agency financial surface + client-side gating** (`/v1/me` flags).
-7. **PR-7 — PWA earnings/history redesign** (parallelizable after PR-1).
+6. **PR-6 (this) — Web Agency financial surface + client-side gating.** Expose `clUserPermissions`
+   on `/v1/me`; new read-only `AgencyFinancialPage` (`/my-financial`) with Statement / Services
+   rendered tabs + XLSX export; `usePermissions.hasClUserFlag`; role+flag-gated sidebar entry.
+7. **PR-7 (this) — PWA earnings/history redesign.** Segmented Earnings / History screen with
+   Next payment, Total earnings with Properfy, date filter, inline-SVG chart, and payment-status
+   history; draft-invoice CTA preserved; 4-tab bar unchanged.
 
 > **Re-split notes:** (a) the CL_USER-resolver wiring + route-level RBAC-mechanism unification
 > moved from PR-2 into PR-4 (the resolver is only consumed by
@@ -155,3 +161,29 @@ Backoffice financial actions (`financial.view/approve/manual_adjustment/refund`)
   report-module change), consistent with the existing billing→report coupling.
 - **FR-031-17:** "Services rendered" is the `entries?type=TENANT_DEBIT` view (each debit = a
   completed inspection), surfaced as a web tab in PR-6 — no separate backend endpoint.
+
+## PR-6 functional requirements (delivered)
+
+- **FR-031-18:** `GET /v1/me` returns `clUserPermissions` for CL_USER (from tenant settings), so
+  the web can mirror server-side gating; the get-me use case loads it via `ITenantRepository`.
+- **FR-031-19:** `usePermissions.hasClUserFlag(flag)` evaluates CL_USER flags against
+  `user.clUserPermissions` (non-CL_USER roles pass); `useAuth`'s `AuthUser` carries
+  `clUserPermissions`.
+- **FR-031-20:** New read-only `AgencyFinancialPage` at `/my-financial` (AM/OP/CL_ADMIN/flagged
+  CL_USER) with **Statement** and **Services rendered** (TENANT_DEBIT) tabs, own-tenant summary,
+  and an **Export** (XLSX) action. No backoffice controls (approve/adjust/refund/edit/batch).
+  CL_USER without `view_financials` sees `NoPermissionState`.
+- **FR-031-21:** The sidebar shows a CL-facing **Financial** entry (`/my-financial`) gated by
+  role + the `view_financials` flag; the AM/OP backoffice entry (`/financial`) is unchanged.
+
+## PR-7 functional requirements (delivered)
+
+- **FR-031-22:** The PWA Earnings tab is a segmented **Earnings / History** screen (4-tab bottom
+  bar unchanged; "User" = the Profile tab).
+- **FR-031-23:** Earnings segment shows **Next payment** (approved-not-yet-paid payouts),
+  **Total earnings with Properfy** (all-time approved), a **date-range filter**, and an
+  **inline-SVG chart** of monthly approved earnings (no chart dependency).
+- **FR-031-24:** History segment lists the inspector's payouts (all statuses) with
+  payment-status chips, filterable by date range.
+- **FR-031-25:** The draft-invoice CTA + route are preserved (belong to the separate
+  inspector-invoice feature); the orphaned `EarningsSummaryCard` was removed.

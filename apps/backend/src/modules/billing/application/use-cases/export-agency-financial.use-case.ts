@@ -7,11 +7,19 @@ import type { ITenantRepository } from '../../../tenant/domain/tenant.repository
 import type { IXlsxGenerator, ReportColumn } from '../../../report/domain/xlsx-generator';
 import { ValidationError } from '../../../../shared/domain/errors';
 import { TenantNotFoundError } from '../../../tenant/domain/tenant.errors';
+import { requireAgencyTenantScope } from '../agency-scope';
 
 /** Agency-visible entry types (never INSPECTOR_PAYOUT). Mirrors the extrato read. */
 const AGENCY_ENTRY_TYPES: FinancialEntryType[] = ['TENANT_DEBIT', 'REFUND', 'MANUAL_ADJUSTMENT'];
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+/**
+ * Cap for a single synchronous export. Statements above this must be narrowed
+ * with a date range, so the hot request path never loads/encodes an unbounded
+ * history (would risk timeouts / memory pressure).
+ */
+const MAX_EXPORT_ROWS = 5000;
 
 const COLUMNS: ReportColumn[] = [
   { key: 'date', label: 'Date', width: 14 },
@@ -46,9 +54,15 @@ export class ExportAgencyFinancialUseCase {
   async execute(input: ExportAgencyFinancialInput): Promise<ExportAgencyFinancialOutput> {
     const { actor } = input;
 
-    // CL roles are forced to their own tenant; AM/OP (tenant-null) may target a
-    // tenant explicitly. The export always resolves to a single agency scope.
-    const tenantId = actor.tenantId ?? input.tenantId;
+    // Resolve the single agency scope. CL roles are forced to their own tenant
+    // (fail closed — they can never target another tenant via `input.tenantId`);
+    // AM/OP (tenant-null) may target a tenant explicitly.
+    let tenantId: string | undefined;
+    if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
+      tenantId = requireAgencyTenantScope(actor);
+    } else {
+      tenantId = actor.tenantId ?? input.tenantId;
+    }
     if (!tenantId) {
       throw new ValidationError('A tenant scope is required to export a financial statement', []);
     }
@@ -66,8 +80,15 @@ export class ExportAgencyFinancialUseCase {
     if (input.toDate) filters.toDate = input.toDate;
 
     // Bounded, on-demand statement: fetch the full set (count then take) so the
-    // export is never silently truncated by a page size.
+    // export is never silently truncated. Reject over-large sets instead of
+    // synchronously loading/encoding an unbounded history on the request thread.
     const total = await this.entryRepo.count(filters);
+    if (total > MAX_EXPORT_ROWS) {
+      throw new ValidationError(
+        `This statement has ${total} entries (max ${MAX_EXPORT_ROWS} per export). Narrow the date range and try again.`,
+        [],
+      );
+    }
     const enriched = total > 0
       ? await this.entryRepo.findAllEnriched(filters, {
           page: 1,
