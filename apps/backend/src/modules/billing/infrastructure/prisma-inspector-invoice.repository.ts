@@ -49,7 +49,8 @@ function buildWhereClause(filters: InvoiceFilters): Record<string, unknown> {
   const where: Record<string, unknown> = {};
 
   if (filters.inspectorId) where.inspector_id = filters.inspectorId;
-  if (filters.status) where.status = filters.status;
+  if (filters.statusIn && filters.statusIn.length > 0) where.status = { in: filters.statusIn };
+  else if (filters.status) where.status = filters.status;
 
   if (filters.fromDate || filters.toDate) {
     const periodStart: Record<string, Date> = {};
@@ -57,6 +58,15 @@ function buildWhereClause(filters: InvoiceFilters): Record<string, unknown> {
     if (filters.toDate) periodStart.lte = new Date(filters.toDate + 'T23:59:59.999Z');
     where.period_start = periodStart;
   }
+
+  // Content filters: match invoices whose frozen snapshot contains ≥1 line for the agency/branch.
+  // `array_contains` compiles to the Postgres `@>` operator, which does partial-object containment
+  // within array elements (a line `{agencyId,...}` contains `{agencyId}`). Agency and branch may
+  // match different lines, so they combine with AND.
+  const contentConds: Record<string, unknown>[] = [];
+  if (filters.agencyId) contentConds.push({ line_items_snapshot: { array_contains: [{ agencyId: filters.agencyId }] } });
+  if (filters.branchId) contentConds.push({ line_items_snapshot: { array_contains: [{ branchId: filters.branchId }] } });
+  if (contentConds.length > 0) where.AND = contentConds;
 
   return where;
 }

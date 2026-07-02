@@ -26,6 +26,8 @@ export function useInvoiceList(): UseInvoiceListReturn {
       page,
       pageSize,
       ...(filters.inspectorId ? { inspectorId: filters.inspectorId } : {}),
+      ...(filters.agencyId ? { agencyId: filters.agencyId } : {}),
+      ...(filters.branchId ? { branchId: filters.branchId } : {}),
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.periodStart ? { fromDate: filters.periodStart } : {}),
       ...(filters.periodEnd ? { toDate: filters.periodEnd } : {}),

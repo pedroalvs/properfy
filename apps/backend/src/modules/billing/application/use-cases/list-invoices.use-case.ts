@@ -1,4 +1,5 @@
-import type { AuthContext } from '@properfy/shared';
+import type { AuthContext, InvoiceStatusBucket } from '@properfy/shared';
+import { INVOICE_STATUS_BUCKETS, formatInvoiceNumber } from '@properfy/shared';
 import type {
   IInspectorInvoiceRepository,
   InvoiceFilters,
@@ -8,7 +9,9 @@ import { ForbiddenError } from '../../../../shared/domain/errors';
 
 export interface ListInvoicesInput {
   inspectorId?: string;
-  status?: string;
+  agencyId?: string;
+  branchId?: string;
+  status?: string; // 3-bucket: pending | approved | rejected
   fromDate?: string;
   toDate?: string;
   page: number;
@@ -18,6 +21,8 @@ export interface ListInvoicesInput {
 
 export interface InvoiceOutputItem {
   id: string;
+  invoiceNumber: number | null;
+  invoiceNumberDisplay: string | null;
   inspectorId: string;
   inspectorName: string | null;
   periodStart: string;
@@ -53,13 +58,11 @@ export class ListInvoicesUseCase {
       pageSize: input.pageSize,
     };
 
-    // Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13): inspector
-    // invoices are not tenant-scoped (inspectors are cross-tenant entities),
-    // so cross-inspector listing is restricted to AM. OP loses access.
-    if (actor.role === 'AM') {
+    // Inspector Property Invoices are global (not tenant-scoped): AM/OP list all; INSP own-only.
+    // (spec 032 reverses the earlier OP exclusion — an inspector invoice is a platform document.)
+    if (actor.role === 'AM' || actor.role === 'OP') {
       if (input.inspectorId) filters.inspectorId = input.inspectorId;
     } else if (actor.role === 'INSP') {
-      // Inspector: forced to own invoices
       if (!actor.inspectorId) {
         throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
       }
@@ -68,7 +71,11 @@ export class ListInvoicesUseCase {
       throw new ForbiddenError('FORBIDDEN', 'You do not have permission to list invoices');
     }
 
-    if (input.status) filters.status = input.status as InvoiceFilters['status'];
+    if (input.status && input.status in INVOICE_STATUS_BUCKETS) {
+      filters.statusIn = [...INVOICE_STATUS_BUCKETS[input.status as InvoiceStatusBucket]];
+    }
+    if (input.agencyId) filters.agencyId = input.agencyId;
+    if (input.branchId) filters.branchId = input.branchId;
     if (input.fromDate) filters.fromDate = input.fromDate;
     if (input.toDate) filters.toDate = input.toDate;
 
@@ -80,6 +87,8 @@ export class ListInvoicesUseCase {
     return {
       data: data.map((invoice) => ({
         id: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        invoiceNumberDisplay: formatInvoiceNumber(invoice.invoiceNumber),
         inspectorId: invoice.inspectorId,
         inspectorName: invoice.inspectorName,
         periodStart: formatDate(invoice.periodStart),

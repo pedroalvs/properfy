@@ -84,6 +84,13 @@ export function InvoiceTable({
   const columns: DataTableColumn<Invoice>[] = [
     ...selectionColumn,
     {
+      key: 'invoiceNumberDisplay',
+      label: 'Number',
+      width: '120px',
+      sortable: true,
+      render: (row) => <>{row.invoiceNumberDisplay ?? '—'}</>,
+    },
+    {
       key: 'inspectorId',
       label: 'Inspector',
       width: '180px',

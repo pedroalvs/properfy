@@ -53,8 +53,23 @@ export interface FinancialSummary {
   currency: string | null;
 }
 
+export interface InvoiceSnapshotLine {
+  serviceDate: string;
+  appointmentId: string;
+  appointmentCode: string;
+  propertyAddress: string | null;
+  serviceType: string | null;
+  amount: number;
+  agencyId: string | null;
+  agencyName: string | null;
+  branchId: string | null;
+  branchName: string | null;
+}
+
 export interface Invoice {
   id: string;
+  invoiceNumber: number | null;
+  invoiceNumberDisplay: string | null;
   inspectorId: string;
   periodStart: string;
   periodEnd: string;
@@ -74,18 +89,23 @@ export interface Invoice {
 
 export interface InvoiceDetail extends Invoice {
   generatedByUserId?: string | null;
+  lineItemsSnapshot: InvoiceSnapshotLine[] | null;
   notes: string | null;
 }
 
 export interface InvoiceFiltersState {
   inspectorId: string;
-  status: string;
+  agencyId: string;
+  branchId: string;
+  status: string; // 3-bucket: '' | 'pending' | 'approved' | 'rejected'
   periodStart: string;
   periodEnd: string;
 }
 
 export const DEFAULT_INVOICE_FILTERS: InvoiceFiltersState = {
   inspectorId: '',
+  agencyId: '',
+  branchId: '',
   status: '',
   periodStart: '',
   periodEnd: '',
