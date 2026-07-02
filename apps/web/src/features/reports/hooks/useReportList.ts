@@ -1,8 +1,12 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
+import type { ReportStatus } from '@properfy/shared';
+import { usePaginatedQuery, type ListParams, type PaginatedResponse } from '@/hooks/useApiQuery';
 import type { DataTablePagination } from '@/components/data/DataTable';
 import { DEFAULT_FILTERS, type Report, type ReportFiltersState } from '../types';
+
+const REPORT_POLL_INTERVAL_MS = 3000;
+const ACTIVE_REPORT_STATUSES = new Set<ReportStatus>(['PENDING', 'PROCESSING']);
 
 export interface UseReportListReturn {
   data: Report[];
@@ -40,6 +44,14 @@ export function useReportList(): UseReportListReturn {
     ['reports'],
     '/v1/reports',
     params,
+    {
+      refetchInterval: (query) => {
+        const reports = (query.state.data as PaginatedResponse<Report> | undefined)?.data ?? [];
+        return reports.some((report) => ACTIVE_REPORT_STATUSES.has(report.status))
+          ? REPORT_POLL_INTERVAL_MS
+          : false;
+      },
+    },
   );
 
   const pagination: DataTablePagination = {

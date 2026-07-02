@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 
 vi.mock('@/config/env', () => ({
@@ -31,16 +31,21 @@ import { createRouterQueryWrapper } from '@/test-utils/test-wrappers';
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_REPORTS = [
-  { id: 'rpt-01', reportType: 'APPOINTMENTS', status: 'COMPLETED', requestedBy: { id: 'u-1', name: 'Admin Principal' } },
-  { id: 'rpt-02', reportType: 'FINANCIAL', status: 'PROCESSING', requestedBy: { id: 'u-1', name: 'Admin Principal' } },
+  { id: 'rpt-01', reportType: 'APPOINTMENTS', status: 'READY', requestedBy: { id: 'u-1', name: 'Admin Principal' } },
+  { id: 'rpt-02', reportType: 'FINANCIAL', status: 'READY', requestedBy: { id: 'u-1', name: 'Admin Principal' } },
 ];
 
 beforeEach(() => {
+  vi.useRealTimers();
   mockGet.mockReset();
   mockGet.mockResolvedValue({ data: {
     data: MOCK_REPORTS,
     pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
   } });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe('useReportList', () => {
@@ -155,5 +160,51 @@ describe('useReportList', () => {
         }),
       },
     });
+  });
+
+  it('polls while a report is pending or processing', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockGet.mockResolvedValue({
+      data: {
+        data: [
+          { id: 'rpt-01', reportType: 'APPOINTMENTS', status: 'PROCESSING', requestedBy: { id: 'u-1', name: 'Admin Principal' } },
+        ],
+        pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1 },
+      },
+    });
+
+    const wrapper = createRouterQueryWrapper();
+    const { result } = renderHook(() => useReportList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+    expect(mockGet).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('stops polling when all reports are ready', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    const wrapper = createRouterQueryWrapper();
+    const { result } = renderHook(() => useReportList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+    expect(mockGet).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+
+    expect(mockGet).toHaveBeenCalledTimes(1);
   });
 });

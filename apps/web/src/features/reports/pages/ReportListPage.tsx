@@ -9,8 +9,13 @@ import { useReportList } from '../hooks/useReportList';
 import { useReportGenerate } from '../hooks/useReportGenerate';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
+import type { paths } from '@properfy/shared';
+import { unwrapSuccessData } from '@/lib/api-envelope';
 import type { Report } from '../types';
 import { getReportDownloadName } from '../lib/report-display';
+
+type ReportDownloadResponse =
+  paths['/v1/reports/{reportId}/download']['get']['responses'][200]['content']['application/json'];
 
 export function ReportListPage() {
   const {
@@ -52,14 +57,14 @@ export function ReportListPage() {
   const handleDownload = useCallback(async (report: Report) => {
     try {
       const { data: fileData, error } = await api.GET(
-        `/v1/reports/${report.id}/download` as any,
-        {},
+        '/v1/reports/{reportId}/download',
+        { params: { path: { reportId: report.id } } },
       );
       if (error) {
         throw new Error((error as any)?.error?.message ?? 'Failed to download report');
       }
 
-      const downloadUrl = (fileData as { downloadUrl?: string } | undefined)?.downloadUrl;
+      const downloadUrl = unwrapSuccessData<ReportDownloadResponse['data']>(fileData)?.downloadUrl;
       if (!downloadUrl) {
         throw new Error('Report download URL is unavailable');
       }

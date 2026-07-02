@@ -127,7 +127,15 @@ describe('ReportListPage', () => {
           pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
         },
       })
-      .mockResolvedValueOnce({ data: { downloadUrl: 'https://cdn.example.com/report.xlsx', expiresAt: '2026-03-24T12:00:00Z' } });
+      .mockResolvedValueOnce({
+        data: {
+          data: {
+            downloadUrl: 'https://cdn.example.com/report.xlsx',
+            fileName: 'appointments-2026-03-01-to-2026-03-15.xlsx',
+            expiresAt: '2026-03-24T12:00:00Z',
+          },
+        },
+      });
 
     renderPage();
 
@@ -138,7 +146,9 @@ describe('ReportListPage', () => {
     fireEvent.click(screen.getByLabelText('Download'));
 
     await waitFor(() => {
-      expect(mockGet).toHaveBeenCalledWith('/v1/reports/rpt-01/download', {});
+      expect(mockGet).toHaveBeenCalledWith('/v1/reports/{reportId}/download', {
+        params: { path: { reportId: 'rpt-01' } },
+      });
     });
 
     expect(anchor.href).toBe('https://cdn.example.com/report.xlsx');

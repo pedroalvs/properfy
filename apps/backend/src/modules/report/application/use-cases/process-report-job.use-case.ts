@@ -19,6 +19,7 @@ export interface ReportUserReader {
 }
 
 const XLSX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const EMPTY_APPOINTMENTS_REPORT_MESSAGE = 'No appointments found for the selected agency and period.';
 
 export class ProcessReportJobUseCase {
   constructor(
@@ -62,6 +63,10 @@ export class ProcessReportJobUseCase {
           break;
         default:
           throw new Error(`Unsupported report type: ${report.reportType}`);
+      }
+
+      if (report.reportType === 'APPOINTMENTS' && rows.length === 0) {
+        throw new Error(EMPTY_APPOINTMENTS_REPORT_MESSAGE);
       }
 
       // 5. Generate the XLSX (the only supported output format)
