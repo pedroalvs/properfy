@@ -9,7 +9,15 @@ describe('ImportStatus', () => {
     expect(ImportStatus.FAILED).toBe('FAILED');
   });
 
-  it('has exactly 4 values', () => {
-    expect(Object.keys(ImportStatus)).toHaveLength(4);
+  // PREVIEW is appointment-import-specific (the new preview/commit split) — a
+  // record sits in PREVIEW after the synchronous preview and before commit is
+  // requested. Property import never assigns it; sharing the enum avoids a
+  // parallel per-domain status type.
+  it('has a PREVIEW status for the preview/commit split', () => {
+    expect(ImportStatus.PREVIEW).toBe('PREVIEW');
+  });
+
+  it('has exactly 5 values', () => {
+    expect(Object.keys(ImportStatus)).toHaveLength(5);
   });
 });

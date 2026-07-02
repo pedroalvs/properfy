@@ -22,7 +22,7 @@ export function useFinancialBatchApprove(): UseFinancialBatchApproveReturn {
     try {
       const results = await Promise.allSettled(
         ids.map(async (id) => {
-          const { error, response } = await api.PATCH(`/v1/financial/entries/${id}/approve` as any, {});
+          const { error, response } = await api.POST(`/v1/financial/entries/${id}/approve` as any, {});
           if (error) {
             const err = error as any;
             throw {

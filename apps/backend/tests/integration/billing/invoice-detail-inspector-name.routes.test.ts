@@ -44,10 +44,7 @@ vi.mock('../../../src/main/container', () => ({
       reverseInvoicePaymentUseCase: { execute: vi.fn() },
       getReconciliationSummaryUseCase: { execute: vi.fn() },
       voidFinancialEntryUseCase: { execute: vi.fn() },
-      generateTenantInvoiceUseCase: { execute: vi.fn() },
       regenerateInspectorInvoiceUseCase: { execute: vi.fn() },
-      regenerateTenantInvoiceUseCase: { execute: vi.fn() },
-      listTenantInvoicesUseCase: { execute: vi.fn() },
       approveDraftInvoiceUseCase: { execute: vi.fn() },
       rejectDraftInvoiceUseCase: { execute: vi.fn() },
       jwtService: { verify: mockJwtVerify },
@@ -122,20 +119,5 @@ describe('GET /v1/billing/invoices/:invoiceId — QA-017-MEDIUM-001', () => {
 
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('INVOICE_NOT_FOUND');
-  });
-});
-
-describe('GET /v1/invoices/:invoiceId (deprecated alias) — QA-017-MEDIUM-001', () => {
-  it('returns 200 with inspectorName as a non-null string', async () => {
-    mockJwtVerify.mockResolvedValueOnce(amContext);
-    mockGetInvoiceExecute.mockResolvedValueOnce(invoiceWithInspectorName);
-
-    const res = await supertest(app.server)
-      .get(`/v1/invoices/${INVOICE_ID}`)
-      .set('Authorization', 'Bearer valid-token');
-
-    expect(res.status).toBe(200);
-    expect(res.body.data.inspectorName).toBe('John Inspector');
-    expect(res.body.data.inspectorName).not.toBeNull();
   });
 });

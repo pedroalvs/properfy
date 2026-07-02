@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { can } from './role-matrix';
+import { can, getMatrixEntry } from './role-matrix';
 import type { UserRole } from '../enums/user';
 
 describe('service_region.list', () => {
@@ -33,6 +33,16 @@ describe('service_region.resolve', () => {
 
   it.each<UserRole>(['CL_ADMIN', 'CL_USER', 'INSP'])('denies %s', (role) => {
     expect(can(role, 'service_region.resolve')).toBe(false);
+  });
+});
+
+describe('appointment.import', () => {
+  it.each<UserRole>(['AM', 'OP', 'CL_ADMIN'])('allows %s', (role) => {
+    expect(can(role, 'appointment.import')).toBe(true);
+  });
+
+  it.each<UserRole>(['CL_USER', 'INSP'])('denies %s', (role) => {
+    expect(can(role, 'appointment.import')).toBe(false);
   });
 });
 
@@ -139,5 +149,53 @@ describe('appointment.bulk_reopen_for_reschedule (026 §FR-540, matriz 2.2)', ()
 
   it.each<UserRole>(['CL_USER', 'INSP'])('denies %s', (role) => {
     expect(can(role, 'appointment.bulk_reopen_for_reschedule')).toBe(false);
+  });
+});
+
+// 031 Financial scope alignment — Agency read surfaces.
+// AM/OP (platform) + CL_ADMIN (own agency) unconditionally; CL_USER is in the
+// base list but gated by the `view_financials` cl_user_flag at runtime.
+describe('financial.agency_view (031)', () => {
+  it.each<UserRole>(['AM', 'OP', 'CL_ADMIN', 'CL_USER'])('allows %s (base)', (role) => {
+    expect(can(role, 'financial.agency_view')).toBe(true);
+  });
+
+  it.each<UserRole>(['INSP', 'TNT'])('denies %s', (role) => {
+    expect(can(role, 'financial.agency_view')).toBe(false);
+  });
+
+  it('is gated by the view_financials cl_user_flag', () => {
+    const entry = getMatrixEntry('financial.agency_view');
+    expect(entry?.condition).toBe('cl_user_flag');
+    expect(entry?.conditionKey).toBe('view_financials');
+  });
+});
+
+describe('financial.agency_export (031)', () => {
+  it.each<UserRole>(['AM', 'OP', 'CL_ADMIN', 'CL_USER'])('allows %s (base)', (role) => {
+    expect(can(role, 'financial.agency_export')).toBe(true);
+  });
+
+  it.each<UserRole>(['INSP', 'TNT'])('denies %s', (role) => {
+    expect(can(role, 'financial.agency_export')).toBe(false);
+  });
+
+  it('is gated by the view_financials cl_user_flag', () => {
+    const entry = getMatrixEntry('financial.agency_export');
+    expect(entry?.condition).toBe('cl_user_flag');
+    expect(entry?.conditionKey).toBe('view_financials');
+  });
+});
+
+// Backoffice financial actions stay AM/OP-only (unchanged by 031).
+describe('financial.view / approve (backoffice, unchanged)', () => {
+  it.each<UserRole>(['AM', 'OP'])('allows %s', (role) => {
+    expect(can(role, 'financial.view')).toBe(true);
+    expect(can(role, 'financial.approve')).toBe(true);
+  });
+
+  it.each<UserRole>(['CL_ADMIN', 'CL_USER', 'INSP'])('denies %s', (role) => {
+    expect(can(role, 'financial.view')).toBe(false);
+    expect(can(role, 'financial.approve')).toBe(false);
   });
 });

@@ -71,6 +71,23 @@ describe('createAppointmentSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('strips an extraneous skipTimeInPastCheck field — the engine-only past-date bypass is unreachable via the public schema', () => {
+    const result = createAppointmentSchema.safeParse({
+      branchId: validBranchId,
+      propertyId: validPropertyId,
+      serviceTypeId: validServiceTypeId,
+      scheduledDate: '2027-04-01',
+      timeSlotStart: '09:00',
+      timeSlotEnd: '10:00',
+      contact: validContact,
+      skipTimeInPastCheck: true,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).not.toHaveProperty('skipTimeInPastCheck');
+    }
+  });
+
   it('should be invalid when both propertyId and property are provided', () => {
     const result = createAppointmentSchema.safeParse({
       branchId: validBranchId,

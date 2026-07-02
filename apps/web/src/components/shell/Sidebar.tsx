@@ -20,6 +20,8 @@ interface NavItem {
   to?: string;
   submenu?: NavSubmenuItem[];
   roles?: string[];
+  /** 031 — additional CL_USER flag gate (only applies to CL_USER; others pass). */
+  flag?: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -48,6 +50,8 @@ const NAV_ITEMS: NavItem[] = [
   { icon: 'mdi-store-outline', label: 'Marketplace', to: '/marketplace', roles: [UserRole.INSP] },
   { icon: 'mdi-calendar-clock-outline', label: 'Availability', to: '/availability-slots', roles: [UserRole.AM, UserRole.OP] },
   { icon: 'mdi-bank-outline', label: 'Financial', to: '/financial', roles: [UserRole.AM, UserRole.OP] },
+  // 031 — Agency financial surface: CL_ADMIN always; CL_USER gated by `view_financials`.
+  { icon: 'mdi-bank-outline', label: 'Financial', to: '/my-financial', roles: [UserRole.CL_ADMIN, UserRole.CL_USER], flag: 'view_financials' },
   { icon: 'mdi-chart-bar', label: 'Reports', to: '/reports', roles: [UserRole.AM, UserRole.OP] },
   {
     icon: 'mdi-cog-outline',
@@ -64,9 +68,19 @@ const NAV_ITEMS: NavItem[] = [
   { icon: 'mdi-history', label: 'Audit Logs', to: '/audit-logs', roles: [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN] },
 ];
 
-function filterNavItems(items: NavItem[], role: string | undefined): NavItem[] {
+function filterNavItems(
+  items: NavItem[],
+  role: string | undefined,
+  clUserPermissions: string[] | undefined,
+): NavItem[] {
+  const flagOk = (item: NavItem): boolean => {
+    if (!item.flag) return true;
+    // The flag only gates CL_USER; other roles pass if their role is allowed.
+    if (role !== 'CL_USER') return true;
+    return (clUserPermissions ?? []).includes(item.flag);
+  };
   return items
-    .filter((item) => !item.roles || (role && item.roles.includes(role)))
+    .filter((item) => (!item.roles || (role && item.roles.includes(role))) && flagOk(item))
     .map((item) => {
       if (!item.submenu) return item;
       const filteredSubmenu = item.submenu.filter(
@@ -86,7 +100,13 @@ interface SidebarProps {
 export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
   const { user } = useAuth();
   const { pathname } = useLocation();
-  const visibleItems = useMemo(() => filterNavItems(NAV_ITEMS, user?.role), [user?.role]);
+  const clFlagsKey = (user?.clUserPermissions ?? []).join(',');
+  const visibleItems = useMemo(
+    () => filterNavItems(NAV_ITEMS, user?.role, user?.clUserPermissions),
+    // clFlagsKey tracks clUserPermissions contents for memoization.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [user?.role, clFlagsKey],
+  );
   const isMapRoute = pathname.includes('/map');
 
   return (

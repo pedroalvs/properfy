@@ -281,6 +281,12 @@
                     "inspectorPhotoUrl": {
                       "type": "string",
                       "nullable": true
+                    },
+                    "clUserPermissions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
                     }
                   },
                   "required": [
@@ -757,10 +763,6 @@
                         "type": "boolean",
                         "default": true
                       },
-                      "allowClientFinancialView": {
-                        "type": "boolean",
-                        "default": false
-                      },
                       "allowClientUserManagement": {
                         "type": "boolean",
                         "default": false
@@ -786,7 +788,8 @@
                             "reject_appointments",
                             "reschedule_appointments",
                             "force_confirmation",
-                            "create_properties"
+                            "create_properties",
+                            "view_financials"
                           ]
                         },
                         "default": []
@@ -1436,10 +1439,6 @@
                         "type": "boolean",
                         "default": true
                       },
-                      "allowClientFinancialView": {
-                        "type": "boolean",
-                        "default": false
-                      },
                       "allowClientUserManagement": {
                         "type": "boolean",
                         "default": false
@@ -1465,7 +1464,8 @@
                             "reject_appointments",
                             "reschedule_appointments",
                             "force_confirmation",
-                            "create_properties"
+                            "create_properties",
+                            "view_financials"
                           ]
                         },
                         "default": []
@@ -13710,8 +13710,377 @@
         }
       }
     },
-    "/v1/appointments/import": {
+    "/v1/appointments/import/preview": {
       "post": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "importId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "branchId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "tenantId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "summary": {
+                          "type": "object",
+                          "properties": {
+                            "totalRows": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "importable": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "withWarnings": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "withErrors": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "totalRows",
+                            "importable",
+                            "withWarnings",
+                            "withErrors"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "rows": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "rowNumber": {
+                                "type": "integer",
+                                "exclusiveMinimum": true,
+                                "minimum": 0
+                              },
+                              "severity": {
+                                "type": "string",
+                                "enum": [
+                                  "ready",
+                                  "warning",
+                                  "error"
+                                ]
+                              },
+                              "importable": {
+                                "type": "boolean"
+                              },
+                              "serviceTypeName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "serviceTypeId": {
+                                "type": "string",
+                                "format": "uuid",
+                                "nullable": true
+                              },
+                              "scheduledDate": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "scheduledDateDefaulted": {
+                                "type": "boolean"
+                              },
+                              "timeSlotStart": {
+                                "type": "string"
+                              },
+                              "timeSlotEnd": {
+                                "type": "string"
+                              },
+                              "timeDefaulted": {
+                                "type": "boolean"
+                              },
+                              "notes": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "property": {
+                                "type": "object",
+                                "properties": {
+                                  "resolution": {
+                                    "type": "string",
+                                    "enum": [
+                                      "existing",
+                                      "new"
+                                    ]
+                                  },
+                                  "propertyId": {
+                                    "type": "string",
+                                    "format": "uuid",
+                                    "nullable": true
+                                  },
+                                  "propertyCode": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "street": {
+                                    "type": "string"
+                                  },
+                                  "addressLine2": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "suburb": {
+                                    "type": "string"
+                                  },
+                                  "state": {
+                                    "type": "string"
+                                  },
+                                  "postcode": {
+                                    "type": "string"
+                                  },
+                                  "country": {
+                                    "type": "string"
+                                  },
+                                  "duplicateOfRow": {
+                                    "type": "integer",
+                                    "exclusiveMinimum": true,
+                                    "minimum": 0,
+                                    "nullable": true
+                                  }
+                                },
+                                "required": [
+                                  "resolution",
+                                  "propertyId",
+                                  "propertyCode",
+                                  "street",
+                                  "addressLine2",
+                                  "suburb",
+                                  "state",
+                                  "postcode",
+                                  "country",
+                                  "duplicateOfRow"
+                                ],
+                                "additionalProperties": false,
+                                "nullable": true
+                              },
+                              "contact": {
+                                "type": "object",
+                                "properties": {
+                                  "resolution": {
+                                    "type": "string",
+                                    "enum": [
+                                      "existing",
+                                      "new"
+                                    ]
+                                  },
+                                  "contactId": {
+                                    "type": "string",
+                                    "format": "uuid",
+                                    "nullable": true
+                                  },
+                                  "displayName": {
+                                    "type": "string"
+                                  },
+                                  "primaryEmail": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "primaryPhone": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "additionalChannels": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "channel": {
+                                          "type": "string",
+                                          "enum": [
+                                            "EMAIL",
+                                            "PHONE"
+                                          ]
+                                        },
+                                        "value": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 254
+                                        },
+                                        "label": {
+                                          "type": "string",
+                                          "maxLength": 100
+                                        }
+                                      },
+                                      "required": [
+                                        "channel",
+                                        "value"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "channelsDropped": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "resolution",
+                                  "contactId",
+                                  "displayName",
+                                  "primaryEmail",
+                                  "primaryPhone",
+                                  "additionalChannels",
+                                  "channelsDropped"
+                                ],
+                                "additionalProperties": false,
+                                "nullable": true
+                              },
+                              "customFields": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "label": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 50
+                                    },
+                                    "value": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 500
+                                    }
+                                  },
+                                  "required": [
+                                    "label",
+                                    "value"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "maxItems": 4
+                              },
+                              "customFieldsTruncated": {
+                                "type": "boolean"
+                              },
+                              "issues": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "field": {
+                                      "type": "string"
+                                    },
+                                    "code": {
+                                      "type": "string"
+                                    },
+                                    "severity": {
+                                      "type": "string",
+                                      "enum": [
+                                        "warning",
+                                        "error"
+                                      ]
+                                    },
+                                    "message": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "field",
+                                    "code",
+                                    "severity",
+                                    "message"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "rowNumber",
+                              "severity",
+                              "importable",
+                              "serviceTypeName",
+                              "serviceTypeId",
+                              "scheduledDate",
+                              "scheduledDateDefaulted",
+                              "timeSlotStart",
+                              "timeSlotEnd",
+                              "timeDefaulted",
+                              "notes",
+                              "property",
+                              "contact",
+                              "customFields",
+                              "customFieldsTruncated",
+                              "issues"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "importId",
+                        "branchId",
+                        "tenantId",
+                        "summary",
+                        "rows"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/appointments/import/{importId}/commit": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "skipInvalidRows": {
+                    "type": "boolean"
+                  },
+                  "actorTimezone": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "skipInvalidRows"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "importId",
+            "required": true
+          }
+        ],
         "responses": {
           "200": {
             "description": "Default Response"
@@ -13720,6 +14089,26 @@
       }
     },
     "/v1/appointments/import/{importId}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "importId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/appointments/import/{importId}/errors.csv": {
       "get": {
         "parameters": [
           {
@@ -20255,6 +20644,77 @@
         }
       }
     },
+    "/v1/financial/export": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "tenantId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "fromDate",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "toDate",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "filename": {
+                          "type": "string"
+                        },
+                        "contentType": {
+                          "type": "string"
+                        },
+                        "contentBase64": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "filename",
+                        "contentType",
+                        "contentBase64"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/financial/entries/{entryId}": {
       "get": {
         "parameters": [
@@ -20422,169 +20882,6 @@
     },
     "/v1/financial/entries/{entryId}/approve": {
       "post": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "name": "entryId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "tenantId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "appointmentId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "inspectorId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "entryType": {
-                          "type": "string"
-                        },
-                        "amount": {
-                          "type": "number"
-                        },
-                        "currency": {
-                          "type": "string"
-                        },
-                        "status": {
-                          "type": "string"
-                        },
-                        "description": {
-                          "type": "string"
-                        },
-                        "effectiveAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "initiatedByUserId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "approvedByUserId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "approvedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "referenceEntryId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "reason": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "createdAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "updatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "appointmentCode": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "relatedEntityName": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "approvedByName": {
-                          "type": "string",
-                          "nullable": true
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "tenantId",
-                        "appointmentId",
-                        "inspectorId",
-                        "entryType",
-                        "amount",
-                        "currency",
-                        "status",
-                        "description",
-                        "effectiveAt",
-                        "initiatedByUserId",
-                        "approvedByUserId",
-                        "approvedAt",
-                        "referenceEntryId",
-                        "reason",
-                        "createdAt"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      },
-      "patch": {
         "parameters": [
           {
             "schema": {
@@ -22086,417 +22383,6 @@
         }
       }
     },
-    "/v1/billing/tenant-invoices/generate": {
-      "post": {
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "tenantId": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
-                  "periodFrom": {
-                    "type": "string",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                  },
-                  "periodTo": {
-                    "type": "string",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                  },
-                  "currency": {
-                    "type": "string",
-                    "minLength": 3,
-                    "maxLength": 3
-                  }
-                },
-                "required": [
-                  "tenantId",
-                  "periodFrom",
-                  "periodTo"
-                ],
-                "additionalProperties": false
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "202": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "tenantId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "periodFrom": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "periodTo": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "totalDebit": {
-                          "type": "number"
-                        },
-                        "totalRefund": {
-                          "type": "number"
-                        },
-                        "totalAdjustment": {
-                          "type": "number"
-                        },
-                        "netAmount": {
-                          "type": "number"
-                        },
-                        "currency": {
-                          "type": "string"
-                        },
-                        "status": {
-                          "type": "string"
-                        },
-                        "fileKey": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "previousInvoiceId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "generatedByUserId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "generatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "notes": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "createdAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "updatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "tenantId",
-                        "periodFrom",
-                        "periodTo",
-                        "totalDebit",
-                        "totalRefund",
-                        "totalAdjustment",
-                        "netAmount",
-                        "currency",
-                        "status",
-                        "generatedAt",
-                        "createdAt"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/billing/tenant-invoices": {
-      "get": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "query",
-            "name": "tenantId",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "OPEN",
-                "CLOSED",
-                "PAID",
-                "SUPERSEDED"
-              ]
-            },
-            "in": "query",
-            "name": "status",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string",
-              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-            },
-            "in": "query",
-            "name": "fromDate",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string",
-              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-            },
-            "in": "query",
-            "name": "toDate",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "default": 1
-            },
-            "in": "query",
-            "name": "page",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 50,
-              "default": 20
-            },
-            "in": "query",
-            "name": "pageSize",
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "tenantId": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "periodFrom": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
-                          },
-                          "periodTo": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
-                          },
-                          "totalDebit": {
-                            "type": "number"
-                          },
-                          "totalRefund": {
-                            "type": "number"
-                          },
-                          "totalAdjustment": {
-                            "type": "number"
-                          },
-                          "netAmount": {
-                            "type": "number"
-                          },
-                          "currency": {
-                            "type": "string"
-                          },
-                          "status": {
-                            "type": "string"
-                          },
-                          "fileKey": {
-                            "type": "string",
-                            "nullable": true
-                          },
-                          "previousInvoiceId": {
-                            "type": "string",
-                            "format": "uuid",
-                            "nullable": true
-                          },
-                          "generatedByUserId": {
-                            "type": "string",
-                            "format": "uuid",
-                            "nullable": true
-                          },
-                          "generatedAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ],
-                            "nullable": true
-                          },
-                          "notes": {
-                            "type": "string",
-                            "nullable": true
-                          },
-                          "createdAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
-                          },
-                          "updatedAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "tenantId",
-                          "periodFrom",
-                          "periodTo",
-                          "totalDebit",
-                          "totalRefund",
-                          "totalAdjustment",
-                          "netAmount",
-                          "currency",
-                          "status",
-                          "generatedAt",
-                          "createdAt"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "pagination": {
-                      "type": "object",
-                      "properties": {
-                        "page": {
-                          "type": "number"
-                        },
-                        "pageSize": {
-                          "type": "number"
-                        },
-                        "total": {
-                          "type": "number"
-                        },
-                        "totalPages": {
-                          "type": "number"
-                        }
-                      },
-                      "required": [
-                        "page",
-                        "pageSize",
-                        "total",
-                        "totalPages"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "data",
-                    "pagination"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/billing/invoices/{invoiceId}/regenerate": {
       "post": {
         "requestBody": {
@@ -22680,176 +22566,6 @@
         }
       }
     },
-    "/v1/billing/tenant-invoices/{invoiceId}/regenerate": {
-      "post": {
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "reason": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 1000
-                  }
-                },
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "name": "invoiceId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "202": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "tenantId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "periodFrom": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "periodTo": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "totalDebit": {
-                          "type": "number"
-                        },
-                        "totalRefund": {
-                          "type": "number"
-                        },
-                        "totalAdjustment": {
-                          "type": "number"
-                        },
-                        "netAmount": {
-                          "type": "number"
-                        },
-                        "currency": {
-                          "type": "string"
-                        },
-                        "status": {
-                          "type": "string"
-                        },
-                        "fileKey": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "previousInvoiceId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "generatedByUserId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "generatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "notes": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "createdAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "updatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "tenantId",
-                        "periodFrom",
-                        "periodTo",
-                        "totalDebit",
-                        "totalRefund",
-                        "totalAdjustment",
-                        "netAmount",
-                        "currency",
-                        "status",
-                        "generatedAt",
-                        "createdAt"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/billing/invoices/{invoiceId}/approve-draft": {
       "post": {
         "parameters": [
@@ -22907,726 +22623,6 @@
         "responses": {
           "200": {
             "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/v1/invoices": {
-      "get": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "query",
-            "name": "inspectorId",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "PENDING_REVIEW",
-                "OPEN",
-                "CLOSED",
-                "PAID",
-                "SUPERSEDED"
-              ]
-            },
-            "in": "query",
-            "name": "status",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string",
-              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-            },
-            "in": "query",
-            "name": "fromDate",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string",
-              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-            },
-            "in": "query",
-            "name": "toDate",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "default": 1
-            },
-            "in": "query",
-            "name": "page",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 50,
-              "default": 20
-            },
-            "in": "query",
-            "name": "pageSize",
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "inspectorId": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "inspectorName": {
-                            "type": "string",
-                            "nullable": true
-                          },
-                          "periodStart": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
-                          },
-                          "periodEnd": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
-                          },
-                          "periodType": {
-                            "type": "string"
-                          },
-                          "status": {
-                            "type": "string"
-                          },
-                          "totalAmount": {
-                            "type": "number"
-                          },
-                          "currency": {
-                            "type": "string"
-                          },
-                          "fileKey": {
-                            "type": "string",
-                            "nullable": true
-                          },
-                          "generatedByUserId": {
-                            "type": "string",
-                            "format": "uuid",
-                            "nullable": true
-                          },
-                          "generatedAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ],
-                            "nullable": true
-                          },
-                          "paidAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ],
-                            "nullable": true
-                          },
-                          "paidByUserId": {
-                            "type": "string",
-                            "format": "uuid",
-                            "nullable": true
-                          },
-                          "paymentReference": {
-                            "type": "string",
-                            "nullable": true
-                          },
-                          "notes": {
-                            "type": "string",
-                            "nullable": true
-                          },
-                          "createdAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
-                          },
-                          "updatedAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "inspectorId",
-                          "periodStart",
-                          "periodEnd",
-                          "periodType",
-                          "status",
-                          "totalAmount",
-                          "currency",
-                          "generatedAt",
-                          "paidAt",
-                          "createdAt"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "pagination": {
-                      "type": "object",
-                      "properties": {
-                        "page": {
-                          "type": "number"
-                        },
-                        "pageSize": {
-                          "type": "number"
-                        },
-                        "total": {
-                          "type": "number"
-                        },
-                        "totalPages": {
-                          "type": "number"
-                        }
-                      },
-                      "required": [
-                        "page",
-                        "pageSize",
-                        "total",
-                        "totalPages"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "data",
-                    "pagination"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/invoices/generate": {
-      "post": {
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "inspectorId": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
-                  "tenantId": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
-                  "periodStart": {
-                    "type": "string",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                  },
-                  "periodEnd": {
-                    "type": "string",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                  }
-                },
-                "required": [
-                  "inspectorId",
-                  "periodStart",
-                  "periodEnd"
-                ],
-                "additionalProperties": false
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "202": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "inspectorId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "inspectorName": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "periodStart": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "periodEnd": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "periodType": {
-                          "type": "string"
-                        },
-                        "status": {
-                          "type": "string"
-                        },
-                        "totalAmount": {
-                          "type": "number"
-                        },
-                        "currency": {
-                          "type": "string"
-                        },
-                        "fileKey": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "generatedByUserId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "generatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "paidAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "paidByUserId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "paymentReference": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "notes": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "createdAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "updatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "inspectorId",
-                        "periodStart",
-                        "periodEnd",
-                        "periodType",
-                        "status",
-                        "totalAmount",
-                        "currency",
-                        "generatedAt",
-                        "paidAt",
-                        "createdAt"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/invoices/{invoiceId}": {
-      "get": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "name": "invoiceId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "inspectorId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "inspectorName": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "periodStart": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "periodEnd": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "periodType": {
-                          "type": "string"
-                        },
-                        "status": {
-                          "type": "string"
-                        },
-                        "totalAmount": {
-                          "type": "number"
-                        },
-                        "currency": {
-                          "type": "string"
-                        },
-                        "fileKey": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "generatedByUserId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "generatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "paidAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "paidByUserId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "paymentReference": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "notes": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "createdAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "updatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "inspectorId",
-                        "periodStart",
-                        "periodEnd",
-                        "periodType",
-                        "status",
-                        "totalAmount",
-                        "currency",
-                        "generatedAt",
-                        "paidAt",
-                        "createdAt"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/invoices/{invoiceId}/close": {
-      "post": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "name": "invoiceId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/v1/invoices/{invoiceId}/pay": {
-      "post": {
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "paidAt": {
-                    "type": "string",
-                    "format": "date-time"
-                  },
-                  "paymentReference": {
-                    "type": "string",
-                    "maxLength": 255
-                  }
-                },
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "name": "invoiceId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/v1/invoices/{invoiceId}/download": {
-      "get": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "name": "invoiceId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "downloadUrl": {
-                          "type": "string"
-                        },
-                        "expiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        }
-                      },
-                      "required": [
-                        "downloadUrl",
-                        "expiresAt"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
           }
         }
       }

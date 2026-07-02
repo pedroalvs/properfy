@@ -46,6 +46,7 @@ const ServiceGroupDetailPage = Loadable(lazyRetry(() => import('@/features/servi
 const UserListPage = Loadable(lazyRetry(() => import('@/features/users/pages/UserListPage').then(m => ({ default: m.UserListPage }))));
 const FinancialEntriesPage = Loadable(lazyRetry(() => import('@/features/financial/pages/FinancialEntriesPage').then(m => ({ default: m.FinancialEntriesPage }))));
 const InvoicesPage = Loadable(lazyRetry(() => import('@/features/financial/pages/InvoicesPage').then(m => ({ default: m.InvoicesPage }))));
+const AgencyFinancialPage = Loadable(lazyRetry(() => import('@/features/financial/pages/AgencyFinancialPage').then(m => ({ default: m.AgencyFinancialPage }))));
 const TenantListPage = Loadable(lazyRetry(() => import('@/features/tenants/pages/TenantListPage').then(m => ({ default: m.TenantListPage }))));
 const TenantDetailPage = Loadable(lazyRetry(() => import('@/features/tenants/pages/TenantDetailPage').then(m => ({ default: m.TenantDetailPage }))));
 const ReportListPage = Loadable(lazyRetry(() => import('@/features/reports/pages/ReportListPage').then(m => ({ default: m.ReportListPage }))));
@@ -153,7 +154,7 @@ export const router = createBrowserRouter([
           {
             path: 'appointments/import',
             element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
+              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN]}>
                 <AppointmentImportPage />
               </AuthGuard>
             ),
@@ -292,6 +293,17 @@ export const router = createBrowserRouter([
               { path: 'entries', element: <FinancialEntriesPage /> },
               { path: 'invoices', element: <InvoicesPage /> },
             ],
+          },
+          {
+            // 031 — Agency financial surface (read-only). CL_USER is admitted at the
+            // route level and gated in-page by the `view_financials` flag (backend
+            // also enforces it); mirrors the /properties/new precedent.
+            path: 'my-financial',
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
+                <AgencyFinancialPage />
+              </AuthGuard>
+            ),
           },
           {
             path: 'inspectors',

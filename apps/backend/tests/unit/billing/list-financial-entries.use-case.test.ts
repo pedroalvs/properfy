@@ -140,14 +140,75 @@ describe('ListFinancialEntriesUseCase', () => {
     );
   });
 
-  it('should throw ForbiddenError for CL_USER (denied at use case level as belt-and-suspenders)', async () => {
+  // 031: CL_USER agency read is allowed here (own-tenant, agency-scoped); the
+  // `view_financials` flag is enforced at the route layer, not the use case.
+  it('should scope CL_USER to own tenant and agency-visible entry types', async () => {
+    vi.mocked(entryRepo.findAllEnriched).mockResolvedValue([makeEnriched()]);
+    vi.mocked(entryRepo.count).mockResolvedValue(1);
+
+    await useCase.execute({
+      ...defaultInput,
+      tenantId: 'tenant-other', // ignored
+      actor: makeActor({ role: 'CL_USER', tenantId: 'tenant-1' }),
+    });
+
+    expect(entryRepo.findAllEnriched).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        entryTypeIn: ['TENANT_DEBIT', 'REFUND', 'MANUAL_ADJUSTMENT'],
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it.each(['CL_ADMIN', 'CL_USER'] as const)(
+    'should fail closed for %s without a tenant scope (no unscoped read)',
+    async (role) => {
+      await expect(
+        useCase.execute({ ...defaultInput, actor: makeActor({ role, tenantId: null }) }),
+      ).rejects.toThrow(ForbiddenError);
+      expect(entryRepo.findAllEnriched).not.toHaveBeenCalled();
+    },
+  );
+
+  it('should exclude INSPECTOR_PAYOUT from CL_ADMIN reads by default', async () => {
+    vi.mocked(entryRepo.findAllEnriched).mockResolvedValue([]);
+    vi.mocked(entryRepo.count).mockResolvedValue(0);
+
+    await useCase.execute({
+      ...defaultInput,
+      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    });
+
+    const [filtersArg] = vi.mocked(entryRepo.findAllEnriched).mock.calls[0];
+    expect(filtersArg.entryTypeIn).toEqual(['TENANT_DEBIT', 'REFUND', 'MANUAL_ADJUSTMENT']);
+    expect(filtersArg.entryTypeIn).not.toContain('INSPECTOR_PAYOUT');
+  });
+
+  it('should forbid a CL role requesting INSPECTOR_PAYOUT explicitly', async () => {
     await expect(
       useCase.execute({
         ...defaultInput,
-        actor: makeActor({ role: 'CL_USER', tenantId: 'tenant-2' }),
+        type: 'INSPECTOR_PAYOUT',
+        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
       }),
     ).rejects.toThrow(ForbiddenError);
     expect(entryRepo.findAllEnriched).not.toHaveBeenCalled();
+  });
+
+  it('should honor an agency-visible type filter for a CL role (no entryTypeIn)', async () => {
+    vi.mocked(entryRepo.findAllEnriched).mockResolvedValue([]);
+    vi.mocked(entryRepo.count).mockResolvedValue(0);
+
+    await useCase.execute({
+      ...defaultInput,
+      type: 'TENANT_DEBIT',
+      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    });
+
+    const [filtersArg] = vi.mocked(entryRepo.findAllEnriched).mock.calls[0];
+    expect(filtersArg.entryType).toBe('TENANT_DEBIT');
+    expect(filtersArg.entryTypeIn).toBeUndefined();
   });
 
   it('should force inspectorId and entryType for INSP role', async () => {

@@ -75,6 +75,13 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
   },
 
   // ── Appointment Lifecycle ────────────────────────────────────────────
+  // Frontend-gating only: the backend enforces roles directly via
+  // `assertRoles(actor, ['AM','OP','CL_ADMIN'], ...)` in the import use
+  // cases, not via this matrix. This entry exists so `usePermissions()
+  // .canPerform('appointment.import')` can gate the UI consistently.
+  'appointment.import': {
+    roles: ['AM', 'OP', 'CL_ADMIN'],
+  },
   'appointment.create': {
     roles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'],
     condition: 'cl_user_flag',
@@ -204,6 +211,7 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
   },
 
   // ── Financial Operations ─────────────────────────────────────────────
+  // Backoffice (platform) financial operations — AM/OP only.
   'financial.view': {
     roles: ['AM', 'OP'],
   },
@@ -215,6 +223,20 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
   },
   'financial.refund': {
     roles: ['AM', 'OP'],
+  },
+  // 031 §Financial scope alignment — Agency read surfaces (extrato / services
+  // rendered / summary). AM/OP (platform) and CL_ADMIN (own agency) see them
+  // unconditionally; CL_USER is gated by the `view_financials` tenant flag.
+  'financial.agency_view': {
+    roles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'],
+    condition: 'cl_user_flag',
+    conditionKey: 'view_financials',
+  },
+  // 031 — Own-tenant financial statement XLSX export; same gating as agency_view.
+  'financial.agency_export': {
+    roles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'],
+    condition: 'cl_user_flag',
+    conditionKey: 'view_financials',
   },
 
   // ── Configuration ────────────────────────────────────────────────────

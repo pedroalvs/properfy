@@ -1,71 +1,68 @@
 /**
  * Manual emitter — run when template columns change.
  * Usage from repo root: node apps/web/scripts/generate-import-templates.cjs
- * Outputs: apps/web/public/templates/appointments-import-template.xlsx
+ * Outputs: apps/web/public/templates/appointments-import-template.csv
+ *
+ * Columns mirror `APPOINTMENT_IMPORT_HEADER_MAP` in
+ * apps/backend/src/modules/appointment/infrastructure/appointment-import-parser.ts
+ * exactly — keep the two in sync. Custom fields are any `CUSTOM: {name}`
+ * header (max 4); the example rows below show all 4 slots filled in.
  */
+const fs = require('fs');
 const path = require('path');
-const ExcelJS = require(path.resolve(__dirname, '../../backend/node_modules/exceljs'));
 
-async function generate() {
-  const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'Properfy';
-  workbook.created = new Date();
+const HEADERS = [
+  'Type', 'Date', 'Start Time', 'End Time',
+  'Street', 'Suburb', 'State', 'Postcode', 'Country', 'Address line 2',
+  'Notes', 'Realty description',
+  'Tenant name', 'Tenant mail', 'Tenant phone',
+  'EMAIL: Tenant secondary mail', 'PHONE: Tenant secondary phone',
+  'EMAIL: Tenant tertiary mail', 'PHONE: Tenant tertiary phone',
+  'EMAIL: Tenant quaternary mail', 'PHONE: Tenant quaternary phone',
+  'CUSTOM: Complete Property Address', 'CUSTOM: Access Instructions',
+  'CUSTOM: Alarm Code', 'CUSTOM: Parking Notes',
+];
 
-  const sheet = workbook.addWorksheet('Appointments');
+const ROWS = [
+  {
+    'Type': 'Routine Inspection', 'Date': '2027-06-15', 'Start Time': '08:00', 'End Time': '17:00',
+    'Street': '12 Example St', 'Suburb': 'Kogarah', 'State': 'NSW', 'Postcode': '2217', 'Country': 'AU', 'Address line 2': 'Unit 4',
+    'Notes': 'Front gate code 1234', 'Realty description': '3-bedroom townhouse',
+    'Tenant name': 'Jane Smith', 'Tenant mail': 'jane.smith@example.com', 'Tenant phone': '0400000001',
+    'EMAIL: Tenant secondary mail': 'jane.alt@example.com', 'PHONE: Tenant secondary phone': '0400000002',
+    'EMAIL: Tenant tertiary mail': '', 'PHONE: Tenant tertiary phone': '',
+    'EMAIL: Tenant quaternary mail': '', 'PHONE: Tenant quaternary phone': '',
+    'CUSTOM: Complete Property Address': '12 Example St, Unit 4, Kogarah NSW 2217',
+    'CUSTOM: Access Instructions': 'Ring buzzer 4', 'CUSTOM: Alarm Code': '9182', 'CUSTOM: Parking Notes': 'Street parking only',
+  },
+  {
+    'Type': 'Ingoing Inspection', 'Date': '', 'Start Time': '', 'End Time': '',
+    'Street': '88 Sample Rd', 'Suburb': 'Carlton', 'State': 'VIC', 'Postcode': '3053', 'Country': 'AU', 'Address line 2': '',
+    'Notes': '', 'Realty description': '',
+    'Tenant name': 'John Doe, Alex Doe', 'Tenant mail': 'john.doe@example.com', 'Tenant phone': '0400000003',
+    'EMAIL: Tenant secondary mail': '', 'PHONE: Tenant secondary phone': '',
+    'EMAIL: Tenant tertiary mail': '', 'PHONE: Tenant tertiary phone': '',
+    'EMAIL: Tenant quaternary mail': '', 'PHONE: Tenant quaternary phone': '',
+    'CUSTOM: Complete Property Address': '88 Sample Rd, Carlton VIC 3053',
+    'CUSTOM: Access Instructions': '', 'CUSTOM: Alarm Code': '', 'CUSTOM: Parking Notes': '',
+  },
+];
 
-  sheet.columns = [
-    { header: 'branchName', key: 'branchName', width: 20 },
-    { header: 'propertyCode', key: 'propertyCode', width: 20 },
-    { header: 'serviceTypeCode', key: 'serviceTypeCode', width: 20 },
-    { header: 'scheduledDate', key: 'scheduledDate', width: 15 },
-    { header: 'timeSlotLabel', key: 'timeSlotLabel', width: 15 },
-    { header: 'keyRequired', key: 'keyRequired', width: 12 },
-    { header: 'primaryContactName', key: 'primaryContactName', width: 25 },
-    { header: 'primaryContactEmail', key: 'primaryContactEmail', width: 30 },
-    { header: 'primaryContactPhone', key: 'primaryContactPhone', width: 20 },
-    { header: 'notes', key: 'notes', width: 30 },
+function csvEscape(value) {
+  const str = String(value ?? '');
+  if (/[",\n]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
+  return str;
+}
+
+function generate() {
+  const lines = [
+    HEADERS.map(csvEscape).join(','),
+    ...ROWS.map((row) => HEADERS.map((h) => csvEscape(row[h])).join(',')),
   ];
 
-  // Style header row
-  const headerRow = sheet.getRow(1);
-  headerRow.font = { bold: true };
-  headerRow.fill = {
-    type: 'pattern',
-    pattern: 'solid',
-    fgColor: { argb: 'FFE0E9F0' },
-  };
-  headerRow.commit();
-
-  // Example rows
-  sheet.addRow({
-    branchName: 'Main Branch',
-    propertyCode: 'PROP-001',
-    serviceTypeCode: 'ROUTINE',
-    scheduledDate: '2027-06-15',
-    timeSlotLabel: '09:00-10:00',
-    keyRequired: 'false',
-    primaryContactName: 'Jane Smith',
-    primaryContactEmail: 'jane.smith@example.com',
-    primaryContactPhone: '+61400000001',
-    notes: 'Sample row 1',
-  });
-
-  sheet.addRow({
-    branchName: 'South Branch',
-    propertyCode: 'PROP-002',
-    serviceTypeCode: 'INGOING',
-    scheduledDate: '2027-06-20',
-    timeSlotLabel: '14:00-15:00',
-    keyRequired: 'true',
-    primaryContactName: 'John Doe',
-    primaryContactEmail: 'john.doe@example.com',
-    primaryContactPhone: '+61400000002',
-    notes: 'Sample row 2 — key required',
-  });
-
-  const outPath = path.resolve(__dirname, '../public/templates/appointments-import-template.xlsx');
-  await workbook.xlsx.writeFile(outPath);
+  const outPath = path.resolve(__dirname, '../public/templates/appointments-import-template.csv');
+  fs.writeFileSync(outPath, lines.join('\n') + '\n', 'utf8');
   console.log('Generated:', outPath);
 }
 
-generate().catch((err) => { console.error(err); process.exit(1); });
+generate();

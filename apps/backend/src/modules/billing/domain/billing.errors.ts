@@ -94,24 +94,6 @@ export class EntryNotApprovedError extends ConflictError {
   }
 }
 
-export class TenantInvoiceNotFoundError extends NotFoundError {
-  constructor() {
-    super('TENANT_INVOICE_NOT_FOUND', 'Tenant invoice not found');
-  }
-}
-
-export class TenantInvoicePeriodOverlapError extends ConflictError {
-  constructor() {
-    super('TENANT_INVOICE_PERIOD_OVERLAP', 'An overlapping tenant invoice already exists for this tenant');
-  }
-}
-
-export class TenantInvoiceNotRegenerableError extends ConflictError {
-  constructor() {
-    super('TENANT_INVOICE_NOT_REGENERABLE', 'Tenant invoice must be CLOSED or PAID to regenerate');
-  }
-}
-
 export class InvoiceNotRegenerableError extends ConflictError {
   constructor() {
     super('INVOICE_NOT_REGENERABLE', 'Invoice must be CLOSED or PAID to regenerate');

@@ -68,6 +68,9 @@ export const meResponseSchema = z.object({
   createdAt: dateStr(),
   inspectorId: z.string().uuid().nullable().optional(),
   inspectorPhotoUrl: z.string().nullable().optional(),
+  // 031 — CL_USER granular permission flags (tenant-cohort), so the web can
+  // mirror server-side gating (e.g. `view_financials`) for nav visibility.
+  clUserPermissions: z.array(z.string()).optional(),
 });
 
 // ─── Tenant ────────────────────────────────────────────────────────────────
@@ -685,26 +688,14 @@ export const invoiceDownloadResponseSchema = z.object({
   expiresAt: dateStr(),
 });
 
-// ─── Tenant Invoice ───────────────────────────────────────────────────────
-
-export const tenantInvoiceResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  periodFrom: dateStr(),
-  periodTo: dateStr(),
-  totalDebit: z.number(),
-  totalRefund: z.number(),
-  totalAdjustment: z.number(),
-  netAmount: z.number(),
-  currency: z.string(),
-  status: z.string(),
-  fileKey: z.string().nullable().optional(),
-  previousInvoiceId: z.string().uuid().nullable().optional(),
-  generatedByUserId: z.string().uuid().nullable().optional(),
-  generatedAt: dateStrNullable(),
-  notes: z.string().nullable().optional(),
-  createdAt: dateStr(),
-  updatedAt: dateStr().optional(),
+// ─── Agency financial export (031) ───────────────────────────────────────────
+// Synchronous own-tenant XLSX statement. The file is returned base64-encoded so
+// it flows through the standard JSON envelope + typed OpenAPI client (no signed
+// URL / storage round-trip for a bounded, on-demand agency statement).
+export const agencyFinancialExportResponseSchema = z.object({
+  filename: z.string(),
+  contentType: z.string(),
+  contentBase64: z.string(),
 });
 
 // ─── Notification ──────────────────────────────────────────────────────────
@@ -868,6 +859,7 @@ export type AppointmentResponse = z.infer<typeof appointmentResponseSchema>;
 export type ServiceGroupResponse = z.infer<typeof serviceGroupResponseSchema>;
 export type AuditLogResponse = z.infer<typeof auditLogResponseSchema>;
 export type FinancialEntryResponse = z.infer<typeof financialEntryResponseSchema>;
+export type AgencyFinancialExportResponse = z.infer<typeof agencyFinancialExportResponseSchema>;
 export type InvoiceResponse = z.infer<typeof invoiceResponseSchema>;
 export type NotificationResponse = z.infer<typeof notificationResponseSchema>;
 export type NotificationTemplateResponse = z.infer<typeof notificationTemplateResponseSchema>;
@@ -877,4 +869,3 @@ export type InspectionAssetResponse = z.infer<typeof inspectionAssetResponseSche
 export type DashboardStatsResponse = z.infer<typeof dashboardStatsResponseSchema>;
 export type InspectorDayCount = z.infer<typeof inspectorDayCountSchema>;
 export type InspectorBreakdowns = z.infer<typeof inspectorBreakdownsSchema>;
-export type TenantInvoiceResponse = z.infer<typeof tenantInvoiceResponseSchema>;

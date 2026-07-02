@@ -40,6 +40,24 @@ export interface IPropertyRepository {
     propertyCode: string,
     tenantId: string,
   ): Promise<PropertyEntity | null>;
+  /**
+   * "Perfect match" lookup for the appointment-import property-reuse rule —
+   * exact match (via the normalized-address key, see
+   * `shared/domain/normalize-address.ts`) within the tenant, excluding
+   * soft-deleted rows. Backed by the `properties_normalized_address_active_unique`
+   * partial unique index, so this is an indexed equality lookup, not a scan.
+   */
+  findByNormalizedAddress(
+    tenantId: string,
+    addr: { street: string; addressLine2: string | null; suburb: string; state: string; postcode: string },
+  ): Promise<PropertyEntity | null>;
+  /**
+   * Batched counterpart of `findByNormalizedAddress` — one indexed `IN` query
+   * for many keys instead of many round-trips, for callers (e.g. the
+   * appointment-import row resolver) that need to match hundreds/thousands
+   * of rows against existing properties in a single pass.
+   */
+  findManyByNormalizedAddressKeys(tenantId: string, keys: string[]): Promise<PropertyEntity[]>;
   findAll(
     filters: PropertyFilters,
     pagination: PaginationParams,

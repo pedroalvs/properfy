@@ -229,13 +229,10 @@ import { BatchMarkInvoicesPaidUseCase } from '../modules/billing/application/use
 import { ReverseInvoicePaymentUseCase } from '../modules/billing/application/use-cases/reverse-invoice-payment.use-case';
 import { GetReconciliationSummaryUseCase } from '../modules/billing/application/use-cases/get-reconciliation-summary.use-case';
 import { VoidFinancialEntryUseCase } from '../modules/billing/application/use-cases/void-financial-entry.use-case';
-import { GenerateTenantInvoiceUseCase } from '../modules/billing/application/use-cases/generate-tenant-invoice.use-case';
 import { RegenerateInspectorInvoiceUseCase } from '../modules/billing/application/use-cases/regenerate-inspector-invoice.use-case';
-import { RegenerateTenantInvoiceUseCase } from '../modules/billing/application/use-cases/regenerate-tenant-invoice.use-case';
-import { ListTenantInvoicesUseCase } from '../modules/billing/application/use-cases/list-tenant-invoices.use-case';
 import { ApproveDraftInvoiceUseCase } from '../modules/billing/application/use-cases/approve-draft-invoice.use-case';
 import { RejectDraftInvoiceUseCase } from '../modules/billing/application/use-cases/reject-draft-invoice.use-case';
-import { PrismaTenantInvoiceRepository } from '../modules/billing/infrastructure/prisma-tenant-invoice.repository';
+import { ExportAgencyFinancialUseCase } from '../modules/billing/application/use-cases/export-agency-financial.use-case';
 import type { BillingRouteContainer } from '../modules/billing/interfaces/billing.routes';
 
 // Report module
@@ -354,7 +351,9 @@ import { UpdateAppointmentUseCase } from '../modules/appointment/application/use
 import { ExecuteStatusTransitionUseCase } from '../modules/appointment/application/use-cases/execute-status-transition.use-case';
 import { PerformCrossCheckUseCase } from '../modules/appointment/application/use-cases/perform-cross-check.use-case';
 import { ForceManualTenantConfirmationUseCase } from '../modules/appointment/application/use-cases/force-manual-confirmation.use-case';
-import { ImportAppointmentsUseCase } from '../modules/appointment/application/use-cases/import-appointments.use-case';
+import { PreviewAppointmentImportUseCase } from '../modules/appointment/application/use-cases/preview-appointment-import.use-case';
+import { CommitAppointmentImportUseCase } from '../modules/appointment/application/use-cases/commit-appointment-import.use-case';
+import { ExportAppointmentImportErrorsUseCase } from '../modules/appointment/application/use-cases/export-appointment-import-errors.use-case';
 import { GetImportStatusUseCase } from '../modules/appointment/application/use-cases/get-import-status.use-case';
 import { CompensateFinancialOnDoneRejectedHandler } from '../modules/appointment/application/handlers/compensate-financial-on-done-rejected.handler';
 import { APPOINTMENT_EVENTS } from '../shared/application/events/domain-event-bus';
@@ -374,7 +373,9 @@ import { SendGroupPortalLinksUseCase } from '../modules/service-group/applicatio
 import { DraftInspectorInvoiceUseCase } from '../modules/billing/application/use-cases/draft-inspector-invoice.use-case';
 import { ReopenForRescheduleUseCase } from '../modules/appointment/application/use-cases/reopen-for-reschedule.use-case';
 import { PrismaAppointmentImportRepository } from '../modules/appointment/infrastructure/prisma-appointment-import.repository';
-import { AppointmentImportWorker } from '../modules/appointment/infrastructure/workers/import.worker';
+import { AppointmentImportRowResolver } from '../modules/appointment/application/services/appointment-import-row-resolver';
+import { AppointmentImportCommitWorker } from '../modules/appointment/infrastructure/workers/appointment-import-commit.worker';
+import { SweepAbandonedAppointmentImportsWorker } from '../modules/appointment/infrastructure/workers/sweep-abandoned-appointment-imports.worker';
 import { RejectUnconfirmedAppointmentsUseCase } from '../modules/appointment/application/use-cases/reject-unconfirmed-appointments.use-case';
 import { RejectUnconfirmedWorker } from '../modules/appointment/infrastructure/workers/reject-unconfirmed.worker';
 import { GetPortalLinkUseCase } from '../modules/rental-tenant-portal/application/use-cases/get-portal-link.use-case';
@@ -419,7 +420,8 @@ export interface AppContainer {
   keyExpiryCheckWorker: KeyExpiryCheckWorker;
   expireFilesWorker: ExpireFilesWorker;
   processReportJobUseCase: ProcessReportJobUseCase;
-  appointmentImportWorker: AppointmentImportWorker;
+  appointmentImportCommitWorker: AppointmentImportCommitWorker;
+  sweepAbandonedAppointmentImportsWorker: SweepAbandonedAppointmentImportsWorker;
   generateInvoiceFileWorker: GenerateInvoiceFileWorker;
   expireTokensWorker: ExpireTokensWorker;
   expireAssetsWorker: ExpireAssetsWorker;
@@ -493,7 +495,7 @@ export function createContainer(logger: Logger): AppContainer {
   const loginUseCase = new LoginUseCase(userRepo, sessionRepo, jwtService, totpService, auditService, inspectorRepo, totpEncryptionService, sessionTrustService);
   const refreshTokenUseCase = new RefreshTokenUseCase(userRepo, sessionRepo, jwtService, auditService, inspectorRepo);
   const logoutUseCase = new LogoutUseCase(sessionRepo, auditService);
-  const getMeUseCase = new GetMeUseCase(userRepo, inspectorRepo, storageService);
+  const getMeUseCase = new GetMeUseCase(userRepo, inspectorRepo, storageService, tenantRepo);
   const passwordHistoryRepo = new PrismaPasswordHistoryRepository(prisma);
   const changePasswordUseCase = new ChangePasswordUseCase(userRepo, sessionRepo, auditService, passwordHistoryRepo);
   const revokeSessionUseCase = new RevokeSessionUseCase(sessionRepo, auditService);
@@ -646,7 +648,6 @@ export function createContainer(logger: Logger): AppContainer {
   // Billing repositories (needed before appointments for onDoneHandler wiring)
   const financialEntryRepo = new PrismaFinancialEntryRepository(prisma);
   const inspectorInvoiceRepo = new PrismaInspectorInvoiceRepository(prisma);
-  const tenantInvoiceRepo = new PrismaTenantInvoiceRepository(prisma);
 
   // Appointment time slot
   const createTenantUseCase = new CreateTenantUseCase(tenantRepo, auditService, authorizationService, domainEventBus);
@@ -940,16 +941,15 @@ export function createContainer(logger: Logger): AppContainer {
   const reverseInvoicePaymentUseCase = new ReverseInvoicePaymentUseCase(inspectorInvoiceRepo, auditService, authorizationService);
   const getReconciliationSummaryUseCase = new GetReconciliationSummaryUseCase(inspectorInvoiceRepo, authorizationService);
   const voidFinancialEntryUseCase = new VoidFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService);
-  const generateTenantInvoiceUseCase = new GenerateTenantInvoiceUseCase(tenantInvoiceRepo, financialEntryRepo, auditService, billingJobQueue, authorizationService);
   const regenerateInspectorInvoiceUseCase = new RegenerateInspectorInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, billingJobQueue, authorizationService);
-  const regenerateTenantInvoiceUseCase = new RegenerateTenantInvoiceUseCase(tenantInvoiceRepo, financialEntryRepo, auditService, billingJobQueue, authorizationService);
-  const listTenantInvoicesUseCase = new ListTenantInvoicesUseCase(tenantInvoiceRepo);
   const approveDraftInvoiceUseCase = new ApproveDraftInvoiceUseCase(inspectorInvoiceRepo, auditService, authorizationService, billingJobQueue);
   const rejectDraftInvoiceUseCase = new RejectDraftInvoiceUseCase(inspectorInvoiceRepo, auditService, authorizationService);
 
   // Report repositories and use cases
   const reportRepo = new PrismaReportRepository(prisma);
   const xlsxGenerator = new ExcelJsXlsxGenerator();
+  // 031 — agency financial statement export reuses the report XLSX generator.
+  const exportAgencyFinancialUseCase = new ExportAgencyFinancialUseCase(financialEntryRepo, tenantRepo, xlsxGenerator);
   const reportDataReader = new PrismaReportDataReader(prisma);
   const reportJobQueue = env.ENABLE_JOB_QUEUE === 'true'
     ? new PgBossJobQueue()
@@ -1127,13 +1127,22 @@ export function createContainer(logger: Logger): AppContainer {
     (event) => compensateFinancialOnDoneRejectedHandler.handle(event),
   );
 
-  // Appointment import (depends on reportStorageService and job queue)
+  // Appointment import — preview/commit split (depends on reportStorageService and job queue)
   const appointmentImportRepo = new PrismaAppointmentImportRepository(prisma);
   const importJobQueue = env.ENABLE_JOB_QUEUE === 'true'
     ? new PgBossJobQueue()
     : new StubJobQueue();
-  const importAppointmentsUseCase = new ImportAppointmentsUseCase(
-    appointmentImportRepo, reportStorageService, importJobQueue, idempotencyService, authorizationService,
+  const appointmentImportRowResolver = new AppointmentImportRowResolver(
+    propertyRepo, serviceTypeRepo, pricingRuleRepo, contactRepo,
+  );
+  const previewAppointmentImportUseCase = new PreviewAppointmentImportUseCase(
+    appointmentImportRepo, reportStorageService, branchRepo, appointmentImportRowResolver, authorizationService,
+  );
+  const commitAppointmentImportUseCase = new CommitAppointmentImportUseCase(
+    appointmentImportRepo, importJobQueue, authorizationService, idempotencyService,
+  );
+  const exportAppointmentImportErrorsUseCase = new ExportAppointmentImportErrorsUseCase(
+    appointmentImportRepo, authorizationService,
   );
   const getImportStatusUseCase = new GetImportStatusUseCase(appointmentImportRepo, authorizationService);
 
@@ -1188,8 +1197,12 @@ export function createContainer(logger: Logger): AppContainer {
   );
   const listRetentionRunsUseCase = new ListRetentionRunsUseCase(auditLogRepo);
 
-  const appointmentImportWorker = new AppointmentImportWorker(
-    appointmentImportRepo, reportStorageService, appointmentRepo, propertyRepo, serviceTypeRepo, logger,
+  const appointmentImportCommitWorker = new AppointmentImportCommitWorker(
+    appointmentImportRepo, reportStorageService, propertyRepo, appointmentImportRowResolver,
+    createAppointmentUseCase, importJobQueue, auditService, logger,
+  );
+  const sweepAbandonedAppointmentImportsWorker = new SweepAbandonedAppointmentImportsWorker(
+    appointmentImportRepo, reportStorageService, logger,
   );
 
   // Property import (depends on reportStorageService and job queue)
@@ -1319,7 +1332,9 @@ export function createContainer(logger: Logger): AppContainer {
       performCrossCheckUseCase,
       forceManualConfirmationUseCase,
       reopenForRescheduleUseCase,
-      importAppointmentsUseCase,
+      previewAppointmentImportUseCase,
+      commitAppointmentImportUseCase,
+      exportAppointmentImportErrorsUseCase,
       getImportStatusUseCase,
       deleteAppointmentUseCase,
       bulkEditAppointmentsUseCase,
@@ -1436,12 +1451,11 @@ export function createContainer(logger: Logger): AppContainer {
       reverseInvoicePaymentUseCase,
       getReconciliationSummaryUseCase,
       voidFinancialEntryUseCase,
-      generateTenantInvoiceUseCase,
       regenerateInspectorInvoiceUseCase,
-      regenerateTenantInvoiceUseCase,
-      listTenantInvoicesUseCase,
       approveDraftInvoiceUseCase,
       rejectDraftInvoiceUseCase,
+      exportAgencyFinancialUseCase,
+      authorizationService,
       jwtService,
       tenantRepo,
     },
@@ -1519,7 +1533,8 @@ export function createContainer(logger: Logger): AppContainer {
     geocodeWorker,
     geocodeRetryWorker,
     propertyImportWorker,
-    appointmentImportWorker,
+    appointmentImportCommitWorker,
+    sweepAbandonedAppointmentImportsWorker,
     generateInvoiceFileWorker,
     expireTokensWorker,
     expireAssetsWorker,

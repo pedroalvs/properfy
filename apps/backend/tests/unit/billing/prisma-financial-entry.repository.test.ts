@@ -48,3 +48,40 @@ describe('PrismaFinancialEntryRepository.getSummary', () => {
     });
   });
 });
+
+describe('PrismaFinancialEntryRepository buildWhere — entryTypeIn (031)', () => {
+  const count = vi.fn();
+  const prisma = { financialEntry: { count } };
+  let repository: PrismaFinancialEntryRepository;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    repository = new PrismaFinancialEntryRepository(prisma as never);
+  });
+
+  it('translates entryTypeIn into a WHERE entry_type IN (...) clause', async () => {
+    count.mockResolvedValue(3);
+    await repository.count({
+      tenantId: 'tenant-1',
+      entryTypeIn: ['TENANT_DEBIT', 'REFUND', 'MANUAL_ADJUSTMENT'],
+    });
+    expect(count).toHaveBeenCalledWith({
+      where: {
+        tenant_id: 'tenant-1',
+        entry_type: { in: ['TENANT_DEBIT', 'REFUND', 'MANUAL_ADJUSTMENT'] },
+      },
+    });
+  });
+
+  it('a specific entryType takes precedence over entryTypeIn', async () => {
+    count.mockResolvedValue(1);
+    await repository.count({
+      tenantId: 'tenant-1',
+      entryType: 'TENANT_DEBIT',
+      entryTypeIn: ['TENANT_DEBIT', 'REFUND', 'MANUAL_ADJUSTMENT'],
+    });
+    expect(count).toHaveBeenCalledWith({
+      where: { tenant_id: 'tenant-1', entry_type: 'TENANT_DEBIT' },
+    });
+  });
+});

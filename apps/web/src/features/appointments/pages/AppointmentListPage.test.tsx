@@ -153,6 +153,48 @@ describe('AppointmentListPage', () => {
     expect(screen.getByText('Map View')).toBeInTheDocument();
   });
 
+  it('shows Import button for AM role', () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u1', name: 'Admin', email: 'am@test.com', role: 'AM', tenantId: null },
+      token: 'token',
+      isAuthenticated: true,
+      isLoading: false,
+      login: vi.fn(),
+      logout: vi.fn(),
+    });
+    renderPage();
+    expect(screen.getByText('Import')).toBeInTheDocument();
+  });
+
+  // Regression test: the Import button was gated on the `property.import`
+  // action instead of `appointment.import`, so a CL_ADMIN reaching the
+  // /appointments/import route had no visible entry point.
+  it('shows Import button for CL_ADMIN role', () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u2', name: 'Client', email: 'cl@test.com', role: 'CL_ADMIN', tenantId: 'tenant-1' },
+      token: 'token',
+      isAuthenticated: true,
+      isLoading: false,
+      login: vi.fn(),
+      logout: vi.fn(),
+    });
+    renderPage();
+    expect(screen.getByText('Import')).toBeInTheDocument();
+  });
+
+  it('hides Import button for CL_USER role', () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u3', name: 'Client User', email: 'clu@test.com', role: 'CL_USER', tenantId: 'tenant-1' },
+      token: 'token',
+      isAuthenticated: true,
+      isLoading: false,
+      login: vi.fn(),
+      logout: vi.fn(),
+    });
+    renderPage();
+    expect(screen.queryByText('Import')).not.toBeInTheDocument();
+  });
+
   it('renders filter bar with search and status controls', () => {
     renderPage();
     expect(screen.getByLabelText('Search')).toBeInTheDocument();

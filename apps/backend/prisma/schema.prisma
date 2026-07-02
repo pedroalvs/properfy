@@ -188,7 +188,6 @@ model Tenant {
   price_rules            ServicePriceRule[]
   appointments           Appointment[]
   financial_entries      FinancialEntry[]
-  tenant_invoices        TenantInvoice[]
   notifications          Notification[]
   notification_templates NotificationTemplate[]
   reports                Report[]
@@ -219,6 +218,7 @@ model Branch {
   properties             Property[]
   price_rules            ServicePriceRule[]
   appointments           Appointment[]
+  appointment_imports    AppointmentImport[]
 
   // Case-insensitive unique index on (tenant_id, lower(name)) managed via raw SQL migration
   @@index([tenant_id, name])
@@ -263,7 +263,6 @@ model User {
   generated_invoices        InspectorInvoice[]    @relation("InspectorInvoiceGeneratedBy")
   paid_invoices             InspectorInvoice[]    @relation("InspectorInvoicePaidBy")
   consent_changes           NotificationConsent[] @relation("NotificationConsentChangedBy")
-  generated_tenant_invoices TenantInvoice[]
   requested_reports         Report[]
   created_imports           AppointmentImport[]   @relation("importCreatedBy")
   created_property_imports  PropertyImport[]      @relation("propertyImportCreatedBy")
@@ -341,6 +340,22 @@ model Property {
   postcode         String          @db.VarChar(20)
   state            String          @db.VarChar(100)
   country          String          @default("AU") @db.VarChar(100)
+  // Deterministic normalized-address key — trim + collapse-whitespace +
+  // lowercase join of street|address_line_2(''-coalesced)|suburb|state|postcode.
+  // ALWAYS recomputed by a BEFORE INSERT/UPDATE trigger (see migration
+  // 20260701230009) from whatever address ends up in the row, so every
+  // create/update site (including test fixtures and seed scripts that predate
+  // this feature and don't know about it) gets a correct value without
+  // having to pass one — the `@default("")` below only exists to keep Prisma's
+  // generated Create input optional; the literal default is never what
+  // actually lands in a committed row. The JS twin
+  // (shared/domain/normalize-address.ts) is used by `findByNormalizedAddress`'s
+  // query and the appointment-import resolver's intra-batch grouping — it
+  // MUST stay normalization-identical to the trigger's SQL. Backs the
+  // `properties_normalized_address_active_unique` partial unique index
+  // (WHERE deleted_at IS NULL), the DB-level guarantee behind the "perfect
+  // address match" property-reuse rule.
+  normalized_address_key String    @default("") @db.VarChar(750)
   lat              Decimal?        @db.Decimal(10, 7)
   lng              Decimal?        @db.Decimal(10, 7)
   geocoding_status GeocodingStatus @default(PENDING)
@@ -360,6 +375,8 @@ model Property {
   @@index([tenant_id, type])
   @@index([branch_id])
   @@index([deleted_at])
+  // Partial unique index managed in migration SQL (WHERE deleted_at IS NULL):
+  // - properties_normalized_address_active_unique ON (tenant_id, normalized_address_key)
   @@map("properties")
 }
 
@@ -1219,42 +1236,6 @@ model InspectorInvoice {
   @@map("inspector_invoices")
 }
 
-enum TenantInvoiceStatus {
-  OPEN
-  CLOSED
-  PAID
-  SUPERSEDED
-}
-
-model TenantInvoice {
-  id                   String              @id @default(uuid())
-  tenant_id            String
-  period_from          DateTime            @db.Date
-  period_to            DateTime            @db.Date
-  total_debit          Decimal             @default(0) @db.Decimal(12, 2)
-  total_refund         Decimal             @default(0) @db.Decimal(12, 2)
-  total_adjustment     Decimal             @default(0) @db.Decimal(12, 2)
-  net_amount           Decimal             @default(0) @db.Decimal(12, 2)
-  currency             String              @db.Char(3)
-  status               TenantInvoiceStatus @default(OPEN)
-  file_key             String?
-  previous_invoice_id  String?             @unique
-  generated_by_user_id String?
-  generated_at         DateTime?
-  notes                String?
-  created_at           DateTime            @default(now())
-  updated_at           DateTime            @updatedAt
-
-  tenant          Tenant         @relation(fields: [tenant_id], references: [id])
-  generatedBy     User?          @relation(fields: [generated_by_user_id], references: [id])
-  previousInvoice TenantInvoice? @relation("TenantInvoiceChain", fields: [previous_invoice_id], references: [id])
-  supersededBy    TenantInvoice? @relation("TenantInvoiceChain")
-
-  @@index([tenant_id, status])
-  @@index([period_from, period_to])
-  @@map("tenant_invoices")
-}
-
 model Notification {
   id                  String              @id @default(uuid())
   tenant_id           String
@@ -1374,6 +1355,17 @@ model Report {
 model AppointmentImport {
   id                 String   @id @default(uuid())
   tenant_id          String
+  // Appointment-import redesign — the preview/commit split.  `status` gains
+  // a PREVIEW value (still a plain VarChar, no enum migration needed) for
+  // the window between a synchronous preview and a requested commit.
+  // `branch_id` is set at preview time (selected by the operator) and is
+  // what both preview and commit derive tenant scope from for AM/OP.
+  // `preview_json` caches the full resolver output shown to the operator;
+  // `results_json` is written incrementally per row by the commit worker so
+  // a crash/retry mid-batch resumes rather than risking a duplicate
+  // appointment (the resolver itself is always re-run fresh at commit —
+  // `preview_json` is a display cache, never authoritative for commit).
+  branch_id          String?
   status             String   @default("PENDING") @db.VarChar(20)
   file_key           String   @db.VarChar(500)
   original_filename  String   @db.VarChar(255)
@@ -1381,12 +1373,15 @@ model AppointmentImport {
   success_count      Int      @default(0)
   error_count        Int      @default(0)
   errors_json        Json?
+  preview_json       Json?
+  results_json       Json?
   created_by_user_id String
   created_at         DateTime @default(now())
   updated_at         DateTime @updatedAt
 
-  tenant     Tenant @relation(fields: [tenant_id], references: [id])
-  created_by User   @relation("importCreatedBy", fields: [created_by_user_id], references: [id])
+  tenant     Tenant  @relation(fields: [tenant_id], references: [id])
+  branch     Branch? @relation(fields: [branch_id], references: [id])
+  created_by User    @relation("importCreatedBy", fields: [created_by_user_id], references: [id])
 
   @@index([tenant_id])
   @@index([status])
