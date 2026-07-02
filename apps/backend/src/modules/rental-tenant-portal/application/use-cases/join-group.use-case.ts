@@ -12,6 +12,7 @@ import {
   PortalGroupNotFoundError,
   PortalGroupFullError,
   PortalGroupUnavailableError,
+  PortalGroupSlotUnavailableError,
 } from '../../domain/rental-tenant-portal.errors';
 
 interface IStatusTransitionUseCase {
@@ -26,6 +27,9 @@ export interface JoinGroupInput {
   tokenId: string;
   appointmentId: string;
   groupId: string;
+  scheduledDate: string;
+  timeSlotStart: string;
+  timeSlotEnd: string;
   isReadOnly: boolean;
   isUsed: boolean;
   rentalTenantNote?: string;
@@ -35,7 +39,8 @@ export interface JoinGroupInput {
 
 export interface JoinGroupOutput {
   scheduledDate: string;
-  timeWindow: string;
+  timeSlotStart: string;
+  timeSlotEnd: string;
   rentalTenantConfirmationStatus: 'CONFIRMED';
   appointmentStatus: 'SCHEDULED';
   inspector: { id: string; name: string };
@@ -88,6 +93,16 @@ export class JoinGroupUseCase {
     if (group.confirmedCount >= 10) {
       throw new PortalGroupFullError();
     }
+    const hasSelectedSlot = await this.serviceGroupRepo.hasPortalMemberSlot({
+      groupId: group.id,
+      scheduledDate: input.scheduledDate,
+      timeSlotStart: input.timeSlotStart,
+      timeSlotEnd: input.timeSlotEnd,
+      today: new Date(),
+    });
+    if (!hasSelectedSlot) {
+      throw new PortalGroupSlotUnavailableError();
+    }
 
     const previousGroupId = appointment.serviceGroupId;
     const previousValues = {
@@ -103,11 +118,10 @@ export class JoinGroupUseCase {
     }
 
     // 5-8. Update appointment fields
-    const [groupTimeStart = '', groupTimeEnd = ''] = group.timeWindow.split('-');
     await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, {
-      scheduledDate: group.scheduledDate,
-      timeSlotStart: groupTimeStart,
-      timeSlotEnd: groupTimeEnd,
+      scheduledDate: new Date(input.scheduledDate),
+      timeSlotStart: input.timeSlotStart,
+      timeSlotEnd: input.timeSlotEnd,
       inspectorId: group.assignedInspectorId,
       rentalTenantConfirmationStatus: 'CONFIRMED',
       serviceGroupId: group.id,
@@ -144,8 +158,8 @@ export class JoinGroupUseCase {
       previousValuesJson: previousValues as Record<string, unknown>,
       newValuesJson: {
         serviceGroupId: group.id,
-        scheduledDate: group.scheduledDate,
-        timeSlot: group.timeWindow,
+        scheduledDate: input.scheduledDate,
+        timeSlot: `${input.timeSlotStart}-${input.timeSlotEnd}`,
         rentalTenantConfirmationStatus: 'CONFIRMED',
       },
       ipAddress: input.ipAddress,
@@ -162,8 +176,23 @@ export class JoinGroupUseCase {
       entityId: input.appointmentId,
       tenantId: appointment.tenantId,
       before: previousValues as Record<string, unknown>,
-      after: { serviceGroupId: group.id, rentalTenantConfirmationStatus: 'CONFIRMED' },
-      metadata: { groupId: group.id, previousGroupId, urgentMode: false },
+      after: {
+        serviceGroupId: group.id,
+        scheduledDate: input.scheduledDate,
+        timeSlotStart: input.timeSlotStart,
+        timeSlotEnd: input.timeSlotEnd,
+        rentalTenantConfirmationStatus: 'CONFIRMED',
+      },
+      metadata: {
+        groupId: group.id,
+        previousGroupId,
+        urgentMode: false,
+        selectedSlot: {
+          scheduledDate: input.scheduledDate,
+          timeSlotStart: input.timeSlotStart,
+          timeSlotEnd: input.timeSlotEnd,
+        },
+      },
       ipAddress: input.ipAddress ?? undefined,
     });
 
@@ -184,8 +213,9 @@ export class JoinGroupUseCase {
     }
 
     return {
-      scheduledDate: group.scheduledDate.toISOString().slice(0, 10),
-      timeWindow: group.timeWindow,
+      scheduledDate: input.scheduledDate,
+      timeSlotStart: input.timeSlotStart,
+      timeSlotEnd: input.timeSlotEnd,
       rentalTenantConfirmationStatus: 'CONFIRMED',
       appointmentStatus: 'SCHEDULED',
       inspector: { id: group.assignedInspectorId, name: assignedInspectorName },

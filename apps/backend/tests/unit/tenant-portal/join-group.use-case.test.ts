@@ -11,6 +11,7 @@ import {
   PortalGroupNotFoundError,
   PortalGroupFullError,
   PortalGroupUnavailableError,
+  PortalGroupSlotUnavailableError,
 } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
 
 function makeAppointment(overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {}) {
@@ -78,6 +79,9 @@ function makeInput(overrides: Partial<JoinGroupInput> = {}): JoinGroupInput {
     tokenId: 'token-1',
     appointmentId: 'appt-1',
     groupId: 'sg-new',
+    scheduledDate: '2026-06-02',
+    timeSlotStart: '13:00',
+    timeSlotEnd: '15:00',
     isReadOnly: false,
     isUsed: false,
     ipAddress: '127.0.0.1',
@@ -93,6 +97,7 @@ describe('JoinGroupUseCase', () => {
   };
   let serviceGroupRepo: {
     findById: ReturnType<typeof vi.fn>;
+    hasPortalMemberSlot: ReturnType<typeof vi.fn>;
     decrementConfirmedCount: ReturnType<typeof vi.fn>;
     incrementConfirmedCount: ReturnType<typeof vi.fn>;
   };
@@ -119,6 +124,7 @@ describe('JoinGroupUseCase', () => {
         tenantIds: ['tenant-1'],
         appointments: [],
       }),
+      hasPortalMemberSlot: vi.fn().mockResolvedValue(true),
       decrementConfirmedCount: vi.fn().mockResolvedValue(undefined),
       incrementConfirmedCount: vi.fn().mockResolvedValue(undefined),
     };
@@ -213,11 +219,17 @@ describe('JoinGroupUseCase', () => {
     await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupUnavailableError);
   });
 
+  it('should throw PortalGroupSlotUnavailableError when selected slot is not a current member appointment slot', async () => {
+    serviceGroupRepo.hasPortalMemberSlot.mockResolvedValue(false);
+    await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupSlotUnavailableError);
+  });
+
   it('should return correct output on happy path', async () => {
     const result = await useCase.execute(makeInput());
     expect(result).toMatchObject({
-      scheduledDate: '2026-05-31',
-      timeWindow: '09:00-12:00',
+      scheduledDate: '2026-06-02',
+      timeSlotStart: '13:00',
+      timeSlotEnd: '15:00',
       rentalTenantConfirmationStatus: 'CONFIRMED',
       appointmentStatus: 'SCHEDULED',
       inspector: { id: 'insp-1', name: 'John Smith' },
@@ -227,8 +239,8 @@ describe('JoinGroupUseCase', () => {
   it('should update appointment with group details', async () => {
     await useCase.execute(makeInput());
     expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', expect.objectContaining({
-      scheduledDate: new Date('2026-05-31'),
-      timeSlotStart: '09:00', timeSlotEnd: '12:00',
+      scheduledDate: new Date('2026-06-02'),
+      timeSlotStart: '13:00', timeSlotEnd: '15:00',
       inspectorId: 'insp-1',
       rentalTenantConfirmationStatus: 'CONFIRMED',
       serviceGroupId: 'sg-new',
@@ -238,6 +250,16 @@ describe('JoinGroupUseCase', () => {
   it('should increment confirmed_count of new group', async () => {
     await useCase.execute(makeInput());
     expect(serviceGroupRepo.incrementConfirmedCount).toHaveBeenCalledWith('sg-new');
+  });
+
+  it('should validate the selected slot tuple against group member appointments', async () => {
+    await useCase.execute(makeInput());
+    expect(serviceGroupRepo.hasPortalMemberSlot).toHaveBeenCalledWith(expect.objectContaining({
+      groupId: 'sg-new',
+      scheduledDate: '2026-06-02',
+      timeSlotStart: '13:00',
+      timeSlotEnd: '15:00',
+    }));
   });
 
   it('should decrement confirmed_count of previous group when appointment was in one', async () => {

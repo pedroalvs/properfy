@@ -7,7 +7,7 @@ import { PortalLayout } from '../components/PortalLayout';
 import { PortalErrorState } from '../components/PortalErrorState';
 import { AppointmentInfoCard } from '../components/AppointmentInfoCard';
 import { InspectionConfirmationForm } from '../components/InspectionConfirmationForm';
-import { AvailableGroupsList } from '../components/AvailableGroupsList';
+import { AvailableGroupsList, getAvailableGroupSlotKey } from '../components/AvailableGroupsList';
 import { RescheduleForm } from '../components/RescheduleForm';
 import { ContactForm } from '../components/ContactForm';
 import { RentalTenantPortalExpiredView } from '../components/RentalTenantPortalExpiredView';
@@ -21,7 +21,7 @@ import {
   useAvailableGroups,
   useJoinGroup,
 } from '../hooks/usePortalData';
-import type { AvailableSlot } from '../types';
+import type { AvailableGroup, AvailableSlot } from '../types';
 
 const EXPIRED_CODES = new Set(['PORTAL_TOKEN_EXPIRED']);
 const INVALID_CODES = new Set(['PORTAL_TOKEN_INVALID', 'PORTAL_TOKEN_NOT_FOUND']);
@@ -35,7 +35,7 @@ export function PortalPage() {
 
   const [changeTimeOpen, setChangeTimeOpen] = useState(false);
   const [proposeNewDateOpen, setProposeNewDateOpen] = useState(false);
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<AvailableGroup | null>(null);
 
   const availableGroupsQuery = useAvailableGroups(token ?? '', changeTimeOpen);
   const joinGroupMutation = useJoinGroup(token ?? '');
@@ -43,11 +43,16 @@ export function PortalPage() {
   const handleDeadlineExpire = useCallback(() => { refetch(); }, [refetch]);
 
   const handleJoinGroup = useCallback(async () => {
-    if (!selectedGroupId) return;
-    await joinGroupMutation.mutateAsync({ groupId: selectedGroupId });
+    if (!selectedSlot) return;
+    await joinGroupMutation.mutateAsync({
+      groupId: selectedSlot.groupId,
+      scheduledDate: selectedSlot.scheduledDate,
+      timeSlotStart: selectedSlot.timeSlotStart,
+      timeSlotEnd: selectedSlot.timeSlotEnd,
+    });
     setChangeTimeOpen(false);
-    setSelectedGroupId(null);
-  }, [joinGroupMutation, selectedGroupId]);
+    setSelectedSlot(null);
+  }, [joinGroupMutation, selectedSlot]);
 
   const handleConfirm = useCallback(
     async (rentalTenantNote?: string) => {
@@ -255,7 +260,7 @@ export function PortalPage() {
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => { setChangeTimeOpen(false); setSelectedGroupId(null); }}
+                    onClick={() => { setChangeTimeOpen(false); setSelectedSlot(null); }}
                     className="text-sm text-text-muted hover:text-text-primary"
                   >
                     ← Back
@@ -268,11 +273,11 @@ export function PortalPage() {
                   groups={availableGroupsQuery.data?.groups ?? []}
                   isLoading={availableGroupsQuery.isLoading}
                   isError={availableGroupsQuery.isError}
-                  selectedGroupId={selectedGroupId ?? undefined}
-                  onSelect={setSelectedGroupId}
+                  selectedSlotKey={selectedSlot ? getAvailableGroupSlotKey(selectedSlot) : undefined}
+                  onSelect={setSelectedSlot}
                   onRetry={() => availableGroupsQuery.refetch()}
                 />
-                {selectedGroupId && (
+                {selectedSlot && (
                   <button
                     type="button"
                     onClick={handleJoinGroup}

@@ -44,33 +44,49 @@ const portalRestrictionsSchema = z
 export const availableGroupsResponseSchema = z.object({
   groups: z.array(
     z.object({
-      id: z.string().uuid(),
+      groupId: z.string().uuid(),
       scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      timeWindow: z.string().min(1),
+      timeSlotStart: z.string().regex(HHMM_REGEX, 'Must be HH:mm'),
+      timeSlotEnd: z.string().regex(HHMM_REGEX, 'Must be HH:mm'),
       suburb: z.string(),
       inspectorName: z.string(),
       confirmedCount: z.number().int().min(0),
       capacityMax: z.number().int().positive(),
     }),
+  ).refine(
+    (groups) => groups.every((group) => group.timeSlotStart < group.timeSlotEnd),
+    { message: 'End time must be after start time' },
   ),
 });
 export type AvailableGroupsResponse = z.infer<typeof availableGroupsResponseSchema>;
 
 // POST /join-group request
-export const joinGroupRequestSchema = z.object({
-  groupId: z.string().uuid(),
-  rentalTenantNote: z.string().max(2000).optional(),
-});
+export const joinGroupRequestSchema = z
+  .object({
+    groupId: z.string().uuid(),
+    scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    timeSlotStart: z.string().regex(HHMM_REGEX, 'Must be HH:mm'),
+    timeSlotEnd: z.string().regex(HHMM_REGEX, 'Must be HH:mm'),
+    rentalTenantNote: z.string().max(2000).optional(),
+  })
+  .refine((data) => data.timeSlotStart < data.timeSlotEnd, {
+    message: 'End time must be after start time',
+    path: ['timeSlotEnd'],
+  });
 export type JoinGroupRequestInput = z.infer<typeof joinGroupRequestSchema>;
 
 // POST /join-group response
 export const joinGroupResponseSchema = z.object({
   scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  timeWindow: z.string().min(1),
+  timeSlotStart: z.string().regex(HHMM_REGEX),
+  timeSlotEnd: z.string().regex(HHMM_REGEX),
   rentalTenantConfirmationStatus: z.literal('CONFIRMED'),
   appointmentStatus: z.literal('SCHEDULED'),
   inspector: z.object({ id: z.string().uuid(), name: z.string() }),
-});
+}).refine(
+  (data) => data.timeSlotStart < data.timeSlotEnd,
+  { message: 'End time must be after start time', path: ['timeSlotEnd'] },
+);
 export type JoinGroupResponse = z.infer<typeof joinGroupResponseSchema>;
 
 // POST /confirm body

@@ -18069,7 +18069,7 @@
                       "items": {
                         "type": "object",
                         "properties": {
-                          "id": {
+                          "groupId": {
                             "type": "string",
                             "format": "uuid"
                           },
@@ -18077,9 +18077,13 @@
                             "type": "string",
                             "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                           },
-                          "timeWindow": {
+                          "timeSlotStart": {
                             "type": "string",
-                            "minLength": 1
+                            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                          },
+                          "timeSlotEnd": {
+                            "type": "string",
+                            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
                           },
                           "suburb": {
                             "type": "string"
@@ -18098,9 +18102,10 @@
                           }
                         },
                         "required": [
-                          "id",
+                          "groupId",
                           "scheduledDate",
-                          "timeWindow",
+                          "timeSlotStart",
+                          "timeSlotEnd",
                           "suburb",
                           "inspectorName",
                           "confirmedCount",
@@ -18133,13 +18138,28 @@
                     "type": "string",
                     "format": "uuid"
                   },
+                  "scheduledDate": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "timeSlotStart": {
+                    "type": "string",
+                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                  },
+                  "timeSlotEnd": {
+                    "type": "string",
+                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                  },
                   "rentalTenantNote": {
                     "type": "string",
                     "maxLength": 2000
                   }
                 },
                 "required": [
-                  "groupId"
+                  "groupId",
+                  "scheduledDate",
+                  "timeSlotStart",
+                  "timeSlotEnd"
                 ],
                 "additionalProperties": false
               }
@@ -18169,9 +18189,13 @@
                       "type": "string",
                       "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                     },
-                    "timeWindow": {
+                    "timeSlotStart": {
                       "type": "string",
-                      "minLength": 1
+                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                    },
+                    "timeSlotEnd": {
+                      "type": "string",
+                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
                     },
                     "rentalTenantConfirmationStatus": {
                       "type": "string",
@@ -18205,7 +18229,8 @@
                   },
                   "required": [
                     "scheduledDate",
-                    "timeWindow",
+                    "timeSlotStart",
+                    "timeSlotEnd",
                     "rentalTenantConfirmationStatus",
                     "appointmentStatus",
                     "inspector"
