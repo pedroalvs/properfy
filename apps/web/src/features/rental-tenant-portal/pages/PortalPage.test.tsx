@@ -339,8 +339,7 @@ describe('PortalPage', () => {
     });
   });
 
-  it('shows a recoverable error when the selected time slot is no longer available', async () => {
-    const user = userEvent.setup();
+  function mockPortalDataWithAvailableGroups() {
     mockGet.mockImplementation((path: string) => {
       if (path.endsWith('/available-groups')) {
         return Promise.resolve({
@@ -363,6 +362,11 @@ describe('PortalPage', () => {
 
       return Promise.resolve({ data: MOCK_PORTAL_DATA });
     });
+  }
+
+  it('shows a recoverable error and clears selection when the selected time slot is no longer available', async () => {
+    const user = userEvent.setup();
+    mockPortalDataWithAvailableGroups();
     mockPost.mockResolvedValue({
       data: undefined,
       error: new ApiError(422, 'Slot unavailable', 'PORTAL_GROUP_SLOT_UNAVAILABLE'),
@@ -376,7 +380,7 @@ describe('PortalPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'This time slot is no longer available. Please pick another one.',
     );
-    expect(screen.getByRole('button', { name: 'Join this time slot' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Join this time slot' })).not.toBeInTheDocument();
     expect(mockPost).toHaveBeenCalledWith(
       '/v1/rental-tenant-portal/test-token/join-group',
       {
@@ -388,6 +392,26 @@ describe('PortalPage', () => {
         },
       },
     );
+    expect(mockGet.mock.calls.filter(([path]) => String(path).endsWith('/available-groups')).length).toBeGreaterThan(1);
+  });
+
+  it('shows a generic recoverable error when joining a time slot fails for another reason', async () => {
+    const user = userEvent.setup();
+    mockPortalDataWithAvailableGroups();
+    mockPost.mockResolvedValue({
+      data: undefined,
+      error: new ApiError(500, 'Server error', 'UNEXPECTED_ERROR'),
+    });
+    renderPortal();
+
+    await user.click(await screen.findByRole('button', { name: 'Change time' }));
+    await user.click(await screen.findByRole('button', { name: /Surry Hills/i }));
+    await user.click(screen.getByRole('button', { name: 'Join this time slot' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'We could not join this time slot. Please try again.',
+    );
+    expect(screen.getByRole('button', { name: 'Join this time slot' })).toBeInTheDocument();
   });
 
   it('shows generic error state for unknown API errors', async () => {

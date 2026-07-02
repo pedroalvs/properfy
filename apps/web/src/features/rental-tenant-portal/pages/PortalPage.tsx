@@ -19,9 +19,9 @@ import {
   useConfirmAppointment,
   useReportUnavailability,
   useAvailableGroups,
-  useJoinGroup,
 } from '../hooks/usePortalData';
-import type { AvailableGroup, AvailableSlot } from '../types';
+import { useJoinGroupFlow } from '../hooks/useJoinGroupFlow';
+import type { AvailableSlot } from '../types';
 
 const EXPIRED_CODES = new Set(['PORTAL_TOKEN_EXPIRED']);
 const INVALID_CODES = new Set(['PORTAL_TOKEN_INVALID', 'PORTAL_TOKEN_NOT_FOUND']);
@@ -35,42 +35,21 @@ export function PortalPage() {
 
   const [changeTimeOpen, setChangeTimeOpen] = useState(false);
   const [proposeNewDateOpen, setProposeNewDateOpen] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<AvailableGroup | null>(null);
-  const [joinErrorMessage, setJoinErrorMessage] = useState<string | null>(null);
 
   const availableGroupsQuery = useAvailableGroups(token ?? '', changeTimeOpen);
-  const joinGroupMutation = useJoinGroup(token ?? '');
+  const { refetch: refetchAvailableGroups } = availableGroupsQuery;
+  const handleJoinedSlot = useCallback(() => {
+    setChangeTimeOpen(false);
+  }, []);
+  const handleSlotUnavailable = useCallback(() => {
+    refetchAvailableGroups();
+  }, [refetchAvailableGroups]);
+  const joinGroupFlow = useJoinGroupFlow(token ?? '', {
+    onJoined: handleJoinedSlot,
+    onSlotUnavailable: handleSlotUnavailable,
+  });
 
   const handleDeadlineExpire = useCallback(() => { refetch(); }, [refetch]);
-
-  const handleJoinGroup = useCallback(async () => {
-    if (!selectedSlot) return;
-    setJoinErrorMessage(null);
-
-    try {
-      await joinGroupMutation.mutateAsync({
-        groupId: selectedSlot.groupId,
-        scheduledDate: selectedSlot.scheduledDate,
-        timeSlotStart: selectedSlot.timeSlotStart,
-        timeSlotEnd: selectedSlot.timeSlotEnd,
-      });
-      setChangeTimeOpen(false);
-      setSelectedSlot(null);
-    } catch (err) {
-      const apiError = err instanceof ApiError ? err : null;
-      setJoinErrorMessage(
-        apiError?.code === 'PORTAL_GROUP_SLOT_UNAVAILABLE'
-          ? 'This time slot is no longer available. Please pick another one.'
-          : 'We could not join this time slot. Please try again.',
-      );
-    }
-  }, [joinGroupMutation, selectedSlot]);
-
-  const handleSelectSlot = useCallback((group: AvailableGroup) => {
-    joinGroupMutation.reset();
-    setJoinErrorMessage(null);
-    setSelectedSlot(group);
-  }, [joinGroupMutation]);
 
   const handleConfirm = useCallback(
     async (rentalTenantNote?: string) => {
@@ -270,7 +249,7 @@ export function PortalPage() {
                 type="button"
                 onClick={() => {
                   setChangeTimeOpen(true);
-                  setJoinErrorMessage(null);
+                  joinGroupFlow.clearError();
                 }}
                 className="text-sm font-medium text-primary hover:underline"
               >
@@ -283,8 +262,7 @@ export function PortalPage() {
                     type="button"
                     onClick={() => {
                       setChangeTimeOpen(false);
-                      setSelectedSlot(null);
-                      setJoinErrorMessage(null);
+                      joinGroupFlow.clearSelection();
                     }}
                     className="text-sm text-text-muted hover:text-text-primary"
                   >
@@ -298,27 +276,31 @@ export function PortalPage() {
                   groups={availableGroupsQuery.data?.groups ?? []}
                   isLoading={availableGroupsQuery.isLoading}
                   isError={availableGroupsQuery.isError}
-                  selectedSlotKey={selectedSlot ? getAvailableGroupSlotKey(selectedSlot) : undefined}
-                  onSelect={handleSelectSlot}
+                  selectedSlotKey={
+                    joinGroupFlow.selectedSlot
+                      ? getAvailableGroupSlotKey(joinGroupFlow.selectedSlot)
+                      : undefined
+                  }
+                  onSelect={joinGroupFlow.selectSlot}
                   onRetry={() => availableGroupsQuery.refetch()}
                 />
-                {selectedSlot && (
+                {joinGroupFlow.joinErrorMessage && (
+                  <p
+                    className="rounded border border-error/20 bg-error/10 px-3 py-2 text-sm text-error"
+                    role="alert"
+                  >
+                    {joinGroupFlow.joinErrorMessage}
+                  </p>
+                )}
+                {joinGroupFlow.selectedSlot && (
                   <>
-                    {joinErrorMessage && (
-                      <p
-                        className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-                        role="alert"
-                      >
-                        {joinErrorMessage}
-                      </p>
-                    )}
                     <button
                       type="button"
-                      onClick={handleJoinGroup}
-                      disabled={joinGroupMutation.isPending}
+                      onClick={joinGroupFlow.joinSelectedSlot}
+                      disabled={joinGroupFlow.isJoining}
                       className="w-full rounded bg-primary py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60"
                     >
-                      {joinGroupMutation.isPending ? 'Joining…' : 'Join this time slot'}
+                      {joinGroupFlow.isJoining ? 'Joining…' : 'Join this time slot'}
                     </button>
                   </>
                 )}

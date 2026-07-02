@@ -93,12 +93,33 @@ export class JoinGroupUseCase {
     if (group.confirmedCount >= 10) {
       throw new PortalGroupFullError();
     }
+    if (!appointment.propertyId || !appointment.serviceTypeId) {
+      throw new PortalGroupSlotUnavailableError();
+    }
+
+    const now = new Date();
+    const eligibleSlots = await this.serviceGroupRepo.findPortalEligibleSlots({
+      tenantId: appointment.tenantId,
+      serviceTypeId: appointment.serviceTypeId,
+      propertyId: appointment.propertyId,
+      today: now,
+    });
+    const selectedEligibleSlot = eligibleSlots.find((slot) => (
+      slot.groupId === group.id &&
+      slot.scheduledDate.toISOString().slice(0, 10) === input.scheduledDate &&
+      slot.timeSlotStart === input.timeSlotStart &&
+      slot.timeSlotEnd === input.timeSlotEnd
+    ));
+    if (!selectedEligibleSlot) {
+      throw new PortalGroupSlotUnavailableError();
+    }
+
     const hasSelectedSlot = await this.serviceGroupRepo.hasPortalMemberSlot({
       groupId: group.id,
       scheduledDate: input.scheduledDate,
       timeSlotStart: input.timeSlotStart,
       timeSlotEnd: input.timeSlotEnd,
-      today: new Date(),
+      today: now,
     });
     if (!hasSelectedSlot) {
       throw new PortalGroupSlotUnavailableError();

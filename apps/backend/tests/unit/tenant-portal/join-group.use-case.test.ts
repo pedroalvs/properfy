@@ -97,6 +97,7 @@ describe('JoinGroupUseCase', () => {
   };
   let serviceGroupRepo: {
     findById: ReturnType<typeof vi.fn>;
+    findPortalEligibleSlots: ReturnType<typeof vi.fn>;
     hasPortalMemberSlot: ReturnType<typeof vi.fn>;
     decrementConfirmedCount: ReturnType<typeof vi.fn>;
     incrementConfirmedCount: ReturnType<typeof vi.fn>;
@@ -124,6 +125,18 @@ describe('JoinGroupUseCase', () => {
         tenantIds: ['tenant-1'],
         appointments: [],
       }),
+      findPortalEligibleSlots: vi.fn().mockResolvedValue([
+        {
+          groupId: 'sg-new',
+          scheduledDate: new Date('2026-06-02T00:00:00.000Z'),
+          timeSlotStart: '13:00',
+          timeSlotEnd: '15:00',
+          suburb: 'Surry Hills',
+          inspectorName: 'John Smith',
+          confirmedCount: 3,
+          capacityMax: 10,
+        },
+      ]),
       hasPortalMemberSlot: vi.fn().mockResolvedValue(true),
       decrementConfirmedCount: vi.fn().mockResolvedValue(undefined),
       incrementConfirmedCount: vi.fn().mockResolvedValue(undefined),
@@ -224,6 +237,24 @@ describe('JoinGroupUseCase', () => {
     await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupSlotUnavailableError);
   });
 
+  it('should throw PortalGroupSlotUnavailableError when selected slot is not eligible for the portal appointment', async () => {
+    serviceGroupRepo.findPortalEligibleSlots.mockResolvedValue([
+      {
+        groupId: 'sg-new',
+        scheduledDate: new Date('2026-06-03T00:00:00.000Z'),
+        timeSlotStart: '16:00',
+        timeSlotEnd: '17:00',
+        suburb: 'Surry Hills',
+        inspectorName: 'John Smith',
+        confirmedCount: 3,
+        capacityMax: 10,
+      },
+    ]);
+
+    await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupSlotUnavailableError);
+    expect(serviceGroupRepo.hasPortalMemberSlot).not.toHaveBeenCalled();
+  });
+
   it('should return correct output on happy path', async () => {
     const result = await useCase.execute(makeInput());
     expect(result).toMatchObject({
@@ -254,6 +285,11 @@ describe('JoinGroupUseCase', () => {
 
   it('should validate the selected slot tuple against group member appointments', async () => {
     await useCase.execute(makeInput());
+    expect(serviceGroupRepo.findPortalEligibleSlots).toHaveBeenCalledWith(expect.objectContaining({
+      tenantId: 'tenant-1',
+      serviceTypeId: 'stype-1',
+      propertyId: 'prop-1',
+    }));
     expect(serviceGroupRepo.hasPortalMemberSlot).toHaveBeenCalledWith(expect.objectContaining({
       groupId: 'sg-new',
       scheduledDate: '2026-06-02',
