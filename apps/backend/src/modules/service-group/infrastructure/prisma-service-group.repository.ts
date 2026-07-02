@@ -881,7 +881,8 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       JOIN inspectors i ON i.id = sg.assigned_inspector_id
       JOIN appointments a ON a.service_group_id = sg.id AND a.deleted_at IS NULL
       JOIN properties p ON p.id = a.property_id AND p.deleted_at IS NULL
-      WHERE a.scheduled_date::date > ${todayStr}::date
+      WHERE a.tenant_id = ${params.tenantId}
+        AND a.scheduled_date::date > ${todayStr}::date
         AND a.time_slot_start IS NOT NULL
         AND a.time_slot_end IS NOT NULL
       GROUP BY sg.id, a.scheduled_date, a.time_slot_start, a.time_slot_end, i.name, sg.confirmed_count

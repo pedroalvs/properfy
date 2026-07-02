@@ -36,6 +36,7 @@ export function PortalPage() {
   const [changeTimeOpen, setChangeTimeOpen] = useState(false);
   const [proposeNewDateOpen, setProposeNewDateOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<AvailableGroup | null>(null);
+  const [joinErrorMessage, setJoinErrorMessage] = useState<string | null>(null);
 
   const availableGroupsQuery = useAvailableGroups(token ?? '', changeTimeOpen);
   const joinGroupMutation = useJoinGroup(token ?? '');
@@ -44,15 +45,32 @@ export function PortalPage() {
 
   const handleJoinGroup = useCallback(async () => {
     if (!selectedSlot) return;
-    await joinGroupMutation.mutateAsync({
-      groupId: selectedSlot.groupId,
-      scheduledDate: selectedSlot.scheduledDate,
-      timeSlotStart: selectedSlot.timeSlotStart,
-      timeSlotEnd: selectedSlot.timeSlotEnd,
-    });
-    setChangeTimeOpen(false);
-    setSelectedSlot(null);
+    setJoinErrorMessage(null);
+
+    try {
+      await joinGroupMutation.mutateAsync({
+        groupId: selectedSlot.groupId,
+        scheduledDate: selectedSlot.scheduledDate,
+        timeSlotStart: selectedSlot.timeSlotStart,
+        timeSlotEnd: selectedSlot.timeSlotEnd,
+      });
+      setChangeTimeOpen(false);
+      setSelectedSlot(null);
+    } catch (err) {
+      const apiError = err instanceof ApiError ? err : null;
+      setJoinErrorMessage(
+        apiError?.code === 'PORTAL_GROUP_SLOT_UNAVAILABLE'
+          ? 'This time slot is no longer available. Please pick another one.'
+          : 'We could not join this time slot. Please try again.',
+      );
+    }
   }, [joinGroupMutation, selectedSlot]);
+
+  const handleSelectSlot = useCallback((group: AvailableGroup) => {
+    joinGroupMutation.reset();
+    setJoinErrorMessage(null);
+    setSelectedSlot(group);
+  }, [joinGroupMutation]);
 
   const handleConfirm = useCallback(
     async (rentalTenantNote?: string) => {
@@ -250,7 +268,10 @@ export function PortalPage() {
             {!changeTimeOpen ? (
               <button
                 type="button"
-                onClick={() => setChangeTimeOpen(true)}
+                onClick={() => {
+                  setChangeTimeOpen(true);
+                  setJoinErrorMessage(null);
+                }}
                 className="text-sm font-medium text-primary hover:underline"
               >
                 Change time
@@ -260,7 +281,11 @@ export function PortalPage() {
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => { setChangeTimeOpen(false); setSelectedSlot(null); }}
+                    onClick={() => {
+                      setChangeTimeOpen(false);
+                      setSelectedSlot(null);
+                      setJoinErrorMessage(null);
+                    }}
                     className="text-sm text-text-muted hover:text-text-primary"
                   >
                     ← Back
@@ -274,18 +299,28 @@ export function PortalPage() {
                   isLoading={availableGroupsQuery.isLoading}
                   isError={availableGroupsQuery.isError}
                   selectedSlotKey={selectedSlot ? getAvailableGroupSlotKey(selectedSlot) : undefined}
-                  onSelect={setSelectedSlot}
+                  onSelect={handleSelectSlot}
                   onRetry={() => availableGroupsQuery.refetch()}
                 />
                 {selectedSlot && (
-                  <button
-                    type="button"
-                    onClick={handleJoinGroup}
-                    disabled={joinGroupMutation.isPending}
-                    className="w-full rounded bg-primary py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60"
-                  >
-                    {joinGroupMutation.isPending ? 'Joining…' : 'Join this time slot'}
-                  </button>
+                  <>
+                    {joinErrorMessage && (
+                      <p
+                        className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                        role="alert"
+                      >
+                        {joinErrorMessage}
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleJoinGroup}
+                      disabled={joinGroupMutation.isPending}
+                      className="w-full rounded bg-primary py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60"
+                    >
+                      {joinGroupMutation.isPending ? 'Joining…' : 'Join this time slot'}
+                    </button>
+                  </>
                 )}
               </div>
             )}

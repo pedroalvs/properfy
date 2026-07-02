@@ -184,6 +184,18 @@ describe('PrismaServiceGroupRepository portal member slots — real DB', () => {
       lat: -33.965,
       lng: 151.309,
     });
+    const {
+      tenantId: foreignTenantId,
+      userId: foreignUserId,
+    } = await seedTenant(harness.prisma, 'Foreign Portal Slots Agency');
+    const foreignBranchId = await getBranchId(harness.prisma, foreignTenantId);
+    const foreignNearPropertyId = await seedPropertyPoint(harness.prisma, {
+      tenantId: foreignTenantId,
+      branchId: foreignBranchId,
+      suburb: 'Foreign Near Slot',
+      lat: -33.866,
+      lng: 151.210,
+    });
 
     const eligibleGroupId = await seedAcceptedGroup(harness.prisma, {
       serviceTypeId,
@@ -234,6 +246,17 @@ describe('PrismaServiceGroupRepository portal member slots — real DB', () => {
       timeSlotStart: '15:00',
       timeSlotEnd: '16:00',
     });
+    await seedAppointment(harness.prisma, {
+      tenantId: foreignTenantId,
+      branchId: foreignBranchId,
+      propertyId: foreignNearPropertyId,
+      serviceTypeId,
+      createdByUserId: foreignUserId,
+      groupId: eligibleGroupId,
+      scheduledDate: SLOT_TWO_DATE,
+      timeSlotStart: '16:00',
+      timeSlotEnd: '17:00',
+    });
 
     const farOnlyGroupId = await seedAcceptedGroup(harness.prisma, {
       serviceTypeId,
@@ -250,6 +273,22 @@ describe('PrismaServiceGroupRepository portal member slots — real DB', () => {
       scheduledDate: SLOT_ONE_DATE,
       timeSlotStart: '11:00',
       timeSlotEnd: '12:00',
+    });
+    const foreignGroupId = await seedAcceptedGroup(harness.prisma, {
+      serviceTypeId,
+      createdByUserId: foreignUserId,
+      inspectorId,
+    });
+    await seedAppointment(harness.prisma, {
+      tenantId: foreignTenantId,
+      branchId: foreignBranchId,
+      propertyId: foreignNearPropertyId,
+      serviceTypeId,
+      createdByUserId: foreignUserId,
+      groupId: foreignGroupId,
+      scheduledDate: SLOT_ONE_DATE,
+      timeSlotStart: '17:00',
+      timeSlotEnd: '18:00',
     });
 
     const slots = await repo.findPortalEligibleSlots({
@@ -279,6 +318,13 @@ describe('PrismaServiceGroupRepository portal member slots — real DB', () => {
       },
     ]);
     expect(slots.every((slot) => slot.groupId !== farOnlyGroupId)).toBe(true);
+    expect(slots.every((slot) => slot.groupId !== foreignGroupId)).toBe(true);
+    expect(slots.some((slot) => (
+      slot.groupId === eligibleGroupId &&
+      slot.scheduledDate.toISOString().slice(0, 10) === '2026-08-04' &&
+      slot.timeSlotStart === '16:00' &&
+      slot.timeSlotEnd === '17:00'
+    ))).toBe(false);
     expect(slots[0]!.inspectorName).toBe('Slot Inspector');
     expect(slots[0]!.confirmedCount).toBe(3);
     expect(slots[0]!.capacityMax).toBe(10);

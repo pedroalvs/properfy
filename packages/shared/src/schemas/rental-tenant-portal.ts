@@ -9,6 +9,7 @@ export type PortalTokenParam = z.infer<typeof portalTokenParam>;
 
 // Weekly availability slot (used in "No" flow and in join-group rentalTenantNote context)
 const HH_MM = /^\d{2}:\d{2}$/;
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const DAY_OF_WEEK = z.enum(['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']);
 
 export const availableSlotSchema = z
@@ -45,7 +46,7 @@ export const availableGroupsResponseSchema = z.object({
   groups: z.array(
     z.object({
       groupId: z.string().uuid(),
-      scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      scheduledDate: z.string().regex(DATE_REGEX),
       timeSlotStart: z.string().regex(HHMM_REGEX, 'Must be HH:mm'),
       timeSlotEnd: z.string().regex(HHMM_REGEX, 'Must be HH:mm'),
       suburb: z.string(),
@@ -64,7 +65,7 @@ export type AvailableGroupsResponse = z.infer<typeof availableGroupsResponseSche
 export const joinGroupRequestSchema = z
   .object({
     groupId: z.string().uuid(),
-    scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    scheduledDate: z.string().regex(DATE_REGEX),
     timeSlotStart: z.string().regex(HHMM_REGEX, 'Must be HH:mm'),
     timeSlotEnd: z.string().regex(HHMM_REGEX, 'Must be HH:mm'),
     rentalTenantNote: z.string().max(2000).optional(),
@@ -77,7 +78,7 @@ export type JoinGroupRequestInput = z.infer<typeof joinGroupRequestSchema>;
 
 // POST /join-group response
 export const joinGroupResponseSchema = z.object({
-  scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  scheduledDate: z.string().regex(DATE_REGEX),
   timeSlotStart: z.string().regex(HHMM_REGEX),
   timeSlotEnd: z.string().regex(HHMM_REGEX),
   rentalTenantConfirmationStatus: z.literal('CONFIRMED'),
@@ -104,7 +105,7 @@ export type ConfirmAppointmentPortalResponse = z.infer<typeof confirmAppointment
 
 // POST /reschedule body
 export const rescheduleRequestPortalSchema = z.object({
-  newDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD'),
+  newDate: z.string().regex(DATE_REGEX, 'Must be YYYY-MM-DD'),
   newTimeSlotStart: z.string().regex(HHMM_REGEX, 'Must be HH:mm'),
   newTimeSlotEnd: z.string().regex(HHMM_REGEX, 'Must be HH:mm'),
   restrictions: portalRestrictionsSchema,
@@ -116,7 +117,7 @@ export const rescheduleRequestPortalSchema = z.object({
 export type RescheduleRequestPortalInput = z.infer<typeof rescheduleRequestPortalSchema>;
 
 export const rescheduleRequestPortalResponseSchema = z.object({
-  scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  scheduledDate: z.string().regex(DATE_REGEX),
   timeSlotStart: z.string().regex(HHMM_REGEX),
   timeSlotEnd: z.string().regex(HHMM_REGEX),
   rentalTenantConfirmationStatus: z.literal('PENDING'),

@@ -387,6 +387,42 @@ describe('availableGroupsResponseSchema', () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it('should reject group with end time not after start time', () => {
+    const result = availableGroupsResponseSchema.safeParse({
+      groups: [
+        {
+          groupId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+          scheduledDate: '2026-06-10',
+          timeSlotStart: '12:00',
+          timeSlotEnd: '09:00',
+          suburb: 'Surry Hills',
+          inspectorName: 'John Smith',
+          confirmedCount: 3,
+          capacityMax: 10,
+        },
+      ],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject group with malformed slot times', () => {
+    const result = availableGroupsResponseSchema.safeParse({
+      groups: [
+        {
+          groupId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+          scheduledDate: '2026-06-10',
+          timeSlotStart: '9am',
+          timeSlotEnd: '12:00',
+          suburb: 'Surry Hills',
+          inspectorName: 'John Smith',
+          confirmedCount: 3,
+          capacityMax: 10,
+        },
+      ],
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('joinGroupResponseSchema', () => {
@@ -407,6 +443,32 @@ describe('joinGroupResponseSchema', () => {
     const result = joinGroupResponseSchema.safeParse({
       scheduledDate: '2026-06-10',
       timeWindow: '09:00-12:00',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
+      appointmentStatus: 'SCHEDULED',
+      inspector: { id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', name: 'John Smith' },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject end time not after start time', () => {
+    const result = joinGroupResponseSchema.safeParse({
+      scheduledDate: '2026-06-10',
+      timeSlotStart: '12:00',
+      timeSlotEnd: '09:00',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
+      appointmentStatus: 'SCHEDULED',
+      inspector: { id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', name: 'John Smith' },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject malformed slot times', () => {
+    const result = joinGroupResponseSchema.safeParse({
+      scheduledDate: '2026-06-10',
+      timeSlotStart: '09:00',
+      timeSlotEnd: 'noon',
       rentalTenantConfirmationStatus: 'CONFIRMED',
       appointmentStatus: 'SCHEDULED',
       inspector: { id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', name: 'John Smith' },
