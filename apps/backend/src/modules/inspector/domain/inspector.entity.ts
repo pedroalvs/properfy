@@ -5,6 +5,7 @@ import type {
   ServiceTypeEntry,
   ClientEligibilityEntry,
   AvailabilityTemplate,
+  BillingPeriodType,
 } from '@properfy/shared';
 import { availabilityTemplateSchema } from '@properfy/shared';
 
@@ -34,6 +35,9 @@ export interface InspectorProps {
   policeCheckMetaJson: Record<string, unknown> | null;
   photoStorageKey: string | null;
   availabilityTemplateJson: Record<string, unknown>;
+  // Inspector Property Invoice (spec 032): billing cycle used to compute closed periods.
+  // Read-only for now; the app defaults to FORTNIGHTLY when null (editor UI is a later PR).
+  billingCycle: BillingPeriodType | null;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -62,6 +66,7 @@ export class InspectorEntity extends BaseEntity {
   readonly policeCheckMetaJson: Record<string, unknown> | null;
   readonly photoStorageKey: string | null;
   readonly availabilityTemplateJson: Record<string, unknown>;
+  readonly billingCycle: BillingPeriodType | null;
   readonly deletedAt: Date | null;
 
   constructor(props: InspectorProps) {
@@ -87,7 +92,13 @@ export class InspectorEntity extends BaseEntity {
     this.policeCheckMetaJson = props.policeCheckMetaJson;
     this.photoStorageKey = props.photoStorageKey;
     this.availabilityTemplateJson = props.availabilityTemplateJson;
+    this.billingCycle = props.billingCycle;
     this.deletedAt = props.deletedAt;
+  }
+
+  /** Billing cycle for invoice periods; defaults to FORTNIGHTLY when unset. */
+  get effectiveBillingCycle(): BillingPeriodType {
+    return this.billingCycle ?? 'FORTNIGHTLY';
   }
 
   /** Returns the weekly availability template, defaulting all-false when the JSON is empty. */

@@ -710,6 +710,40 @@ export const invoiceDownloadResponseSchema = z.object({
   expiresAt: dateStr(),
 });
 
+// ─── Inspector Property Invoice request flow (spec 032) ───────────────────
+
+export const availablePeriodResponseSchema = z.object({
+  periodType: z.string(),
+  periodStart: z.string(), // YYYY-MM-DD
+  periodEnd: z.string(), // YYYY-MM-DD
+});
+
+export const availablePeriodsResponseSchema = z.object({
+  billingCycle: z.string(),
+  periods: z.array(availablePeriodResponseSchema),
+});
+
+export const invoicePreviewResponseSchema = z.object({
+  periodType: z.string(),
+  periodStart: z.string(),
+  periodEnd: z.string(),
+  payoutCount: z.number().int(),
+  totalAmount: z.number(),
+  currency: z.string().nullable(),
+});
+
+export const requestInvoiceResponseSchema = z.object({
+  invoiceId: z.string().uuid(),
+  inspectorId: z.string().uuid(),
+  periodType: z.string(),
+  periodStart: z.string(),
+  periodEnd: z.string(),
+  status: z.string(),
+  totalAmount: z.number(),
+  currency: z.string(),
+  payoutCount: z.number().int(),
+});
+
 // ─── Agency financial export (031) ───────────────────────────────────────────
 // Synchronous own-tenant XLSX statement. The file is returned base64-encoded so
 // it flows through the standard JSON envelope + typed OpenAPI client (no signed

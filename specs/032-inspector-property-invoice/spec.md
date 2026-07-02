@@ -63,8 +63,8 @@ GST/tax, ABN/tax compliance, tax invoice, external accounting integration, invoi
 ## Delivery (6 sequenced PRs, each green + staging-safe)
 
 1. **Foundation** — additive schema/enums (`VOID`, `FORTNIGHTLY` rename, `issued_at` rename, `invoice_number`/`inspector_name`/`line_items_snapshot`, `inspectors.billing_cycle`), shared contracts, `formatInvoiceNumber`.
-2. **Request flow** — closed-period service + request/preview/available-periods use cases and routes (`/draft` kept alive).
+2. **Request flow** — closed-period service + request/preview/available-periods use cases and routes (`/draft` kept alive); **ACTIVE-only partial unique index** replaces the status-agnostic composite unique.
 3. **Approval** — snapshot freeze + numbering + "PROPERTY INVOICE" PDF; reject → VOID; remove admin generate & regenerate.
 4. **Read RBAC + web** — OP read access, agency/branch content filters, 3-bucket status, remove agency gate, OpenAPI regen.
 5. **PWA** — request (closed-period selector) + own-only list/detail/history; retire `/draft`.
-6. **Cleanup** — remove `OPEN`/`SUPERSEDED` enum values + `previous_invoice_id`; partial unique index over ACTIVE statuses.
+6. **Cleanup** — remove `OPEN`/`SUPERSEDED` enum values + `previous_invoice_id`.

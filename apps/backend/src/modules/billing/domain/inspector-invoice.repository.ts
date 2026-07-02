@@ -43,6 +43,12 @@ export interface ReconciliationAggregateRow {
 export interface IInspectorInvoiceRepository {
   findById(id: string): Promise<InspectorInvoiceEntity | null>;
   findByInspectorAndPeriod(inspectorId: string, periodStart: Date, periodEnd: Date): Promise<InspectorInvoiceEntity | null>;
+  /**
+   * Finds an ACTIVE invoice (PENDING_REVIEW / CLOSED / PAID) for the exact (inspector, period).
+   * VOID/SUPERSEDED are excluded so a rejected request can be re-submitted. Enforces the
+   * one-active-invoice-per-period rule at the application layer until the partial unique index lands.
+   */
+  findActiveByInspectorAndPeriod(inspectorId: string, periodStart: Date, periodEnd: Date): Promise<InspectorInvoiceEntity | null>;
   findOverlapping(inspectorId: string, periodStart: Date, periodEnd: Date): Promise<InspectorInvoiceEntity | null>;
   findAll(filters: InvoiceFilters, pagination: InvoicePagination): Promise<InspectorInvoiceEntity[]>;
   findManyByIds(ids: string[]): Promise<InspectorInvoiceEntity[]>;

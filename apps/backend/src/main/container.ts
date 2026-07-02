@@ -371,6 +371,9 @@ import { FindAddableGroupsForAppointmentsUseCase } from '../modules/service-grou
 import { GetGroupPortalLinkPlanUseCase } from '../modules/service-group/application/use-cases/get-group-portal-link-plan.use-case';
 import { SendGroupPortalLinksUseCase } from '../modules/service-group/application/use-cases/send-group-portal-links.use-case';
 import { DraftInspectorInvoiceUseCase } from '../modules/billing/application/use-cases/draft-inspector-invoice.use-case';
+import { GetAvailablePeriodsUseCase } from '../modules/billing/application/use-cases/get-available-periods.use-case';
+import { PreviewInvoiceUseCase } from '../modules/billing/application/use-cases/preview-invoice.use-case';
+import { RequestInvoiceUseCase } from '../modules/billing/application/use-cases/request-invoice.use-case';
 import { ReopenForRescheduleUseCase } from '../modules/appointment/application/use-cases/reopen-for-reschedule.use-case';
 import { PrismaAppointmentImportRepository } from '../modules/appointment/infrastructure/prisma-appointment-import.repository';
 import { AppointmentImportRowResolver } from '../modules/appointment/application/services/appointment-import-row-resolver';
@@ -799,6 +802,9 @@ export function createContainer(logger: Logger): AppContainer {
     inspectionExecutionRepo, inspectionAssetRepo, storageService, appointmentRepo, authorizationService,
   );
   const draftInspectorInvoiceUseCase = new DraftInspectorInvoiceUseCase(prisma, auditService);
+  const getAvailablePeriodsUseCase = new GetAvailablePeriodsUseCase(inspectorRepo);
+  const previewInvoiceUseCase = new PreviewInvoiceUseCase(inspectorRepo, financialEntryRepo);
+  const requestInvoiceUseCase = new RequestInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, inspectorRepo, auditService);
   const confirmAssetUploadUseCase = new ConfirmAssetUploadUseCase(
     inspectionAssetRepo, storageService, authorizationService,
   );
@@ -1428,6 +1434,9 @@ export function createContainer(logger: Logger): AppContainer {
       confirmAssetUploadUseCase,
       getMarketplaceOffersUseCase,
       draftInspectorInvoiceUseCase,
+      getAvailablePeriodsUseCase,
+      previewInvoiceUseCase,
+      requestInvoiceUseCase,
       listAppointmentAssetsUseCase,
       getAppointmentAssetDownloadUrlUseCase,
       jwtService,

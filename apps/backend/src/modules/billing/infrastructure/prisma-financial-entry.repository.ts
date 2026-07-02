@@ -296,6 +296,33 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
     return Number(result._sum.amount) || 0;
   }
 
+  async aggregateApprovedPayoutsForInspectorInPeriod(
+    inspectorId: string,
+    periodStart: Date,
+    periodEnd: Date,
+  ): Promise<{ totalAmount: number; count: number; currencies: string[] }> {
+    const rows = await this.prisma.financialEntry.groupBy({
+      by: ['currency'],
+      where: {
+        inspector_id: inspectorId,
+        entry_type: 'INSPECTOR_PAYOUT',
+        status: 'APPROVED',
+        effective_at: { gte: periodStart, lte: periodEnd },
+      },
+      _sum: { amount: true },
+      _count: { _all: true },
+    });
+    let totalAmount = 0;
+    let count = 0;
+    const currencies: string[] = [];
+    for (const row of rows) {
+      totalAmount += Number(row._sum.amount ?? 0);
+      count += row._count._all;
+      currencies.push(row.currency);
+    }
+    return { totalAmount, count, currencies };
+  }
+
   async sumRefundsByReferenceEntryId(referenceEntryId: string): Promise<number> {
     const result = await this.prisma.financialEntry.aggregate({
       where: {

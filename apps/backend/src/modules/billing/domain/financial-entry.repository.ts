@@ -53,6 +53,16 @@ export interface IFinancialEntryRepository {
   updateStatus(id: string, tenantId: string, status: FinancialEntryStatus, approvedByUserId?: string, approvedAt?: Date): Promise<void>;
   transitionStatus(id: string, tenantId: string, fromStatus: FinancialEntryStatus, toStatus: FinancialEntryStatus, approvedByUserId?: string, approvedAt?: Date): Promise<void>;
   sumApprovedPayoutsForInspectorInPeriod(inspectorId: string, periodStart: Date, periodEnd: Date): Promise<number>;
+  /**
+   * Aggregate of approved INSPECTOR_PAYOUT entries in a period: total, count and distinct
+   * currencies. Used by the invoice request/preview flow (spec 032) to build previews and to
+   * detect empty periods / mixed currencies without a live re-query per line.
+   */
+  aggregateApprovedPayoutsForInspectorInPeriod(
+    inspectorId: string,
+    periodStart: Date,
+    periodEnd: Date,
+  ): Promise<{ totalAmount: number; count: number; currencies: string[] }>;
   sumRefundsByReferenceEntryId(referenceEntryId: string): Promise<number>;
   sumApprovedEntriesForTenantInPeriod(tenantId: string, periodStart: Date, periodEnd: Date): Promise<{
     totalDebit: number;

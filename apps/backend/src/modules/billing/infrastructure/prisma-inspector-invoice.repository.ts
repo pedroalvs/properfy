@@ -87,6 +87,23 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
     return row ? mapToEntity(row) : null;
   }
 
+  async findActiveByInspectorAndPeriod(
+    inspectorId: string,
+    periodStart: Date,
+    periodEnd: Date,
+  ): Promise<InspectorInvoiceEntity | null> {
+    const row = await this.prisma.inspectorInvoice.findFirst({
+      where: {
+        inspector_id: inspectorId,
+        period_start: periodStart,
+        period_end: periodEnd,
+        status: { in: ['PENDING_REVIEW', 'CLOSED', 'PAID'] },
+      },
+      include: { inspector: { select: { name: true } } },
+    });
+    return row ? mapToEntity(row) : null;
+  }
+
   async findOverlapping(
     inspectorId: string,
     periodStart: Date,
@@ -155,6 +172,7 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
         paid_by_user_id: invoice.paidByUserId,
         payment_reference: invoice.paymentReference,
         notes: invoice.notes,
+        drafted_by_inspector_id: invoice.draftedByInspectorId,
       },
     });
   }

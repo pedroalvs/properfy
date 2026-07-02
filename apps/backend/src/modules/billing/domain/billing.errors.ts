@@ -106,6 +106,43 @@ export class InvoiceNotPendingReviewError extends ConflictError {
   }
 }
 
+// ─── Inspector invoice request flow (spec 032) ───────────────────────────
+
+export class InvoicePeriodNotClosedError extends DomainError {
+  constructor() {
+    super('INVOICE_PERIOD_NOT_CLOSED', 'Invoices can only be requested for a period that has fully ended', 422);
+  }
+}
+
+export class InvoicePeriodNotAlignedError extends DomainError {
+  constructor() {
+    super('INVOICE_PERIOD_NOT_ALIGNED', 'The selected period does not match the inspector billing cycle', 422);
+  }
+}
+
+export class InvoiceEmptyPeriodError extends DomainError {
+  constructor() {
+    super('INVOICE_EMPTY_PERIOD', 'No approved payout entries found in the specified period', 422);
+  }
+}
+
+export class InvoiceActiveExistsError extends ConflictError {
+  constructor() {
+    super('INVOICE_ACTIVE_EXISTS', 'An active invoice already exists for this inspector and period');
+  }
+}
+
+export class InvoiceMixedCurrencyError extends DomainError {
+  constructor(public readonly currencies: string[]) {
+    super(
+      'INVOICE_MIXED_CURRENCY',
+      `Approved payouts in this period span multiple currencies: ${currencies.join(', ')}`,
+      422,
+      { currencies },
+    );
+  }
+}
+
 // ─── Payment reconciliation (feature 017) ────────────────────────────────
 
 export class InvoiceAlreadyPaidError extends ConflictError {
