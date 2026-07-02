@@ -79,7 +79,8 @@ export class ApproveDraftInvoiceUseCase {
     if (currencies.length > 1) {
       throw new InvoiceMixedCurrencyError(currencies);
     }
-    const totalAmount = snapshot.reduce((sum, line) => sum + line.amount, 0);
+    // Round to cents so accumulated float error (e.g. 80.00000000001) can't be frozen as the total.
+    const totalAmount = Math.round(snapshot.reduce((sum, line) => sum + line.amount, 0) * 100) / 100;
 
     // 4. Atomically transition PENDING_REVIEW → CLOSED, assign number, freeze snapshot.
     const now = new Date();

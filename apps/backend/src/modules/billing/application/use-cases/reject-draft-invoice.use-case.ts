@@ -68,7 +68,8 @@ export class RejectDraftInvoiceUseCase {
         invoiceId,
         draftedByInspectorId: invoice.draftedByInspectorId,
         rejectedByUserId: actor.userId,
-        reason,
+        // Log the persisted (trimmed) reason so the audit trail matches invoice.notes exactly.
+        reason: invoice.notes,
       },
     });
 

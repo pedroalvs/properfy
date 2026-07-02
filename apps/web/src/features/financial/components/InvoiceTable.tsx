@@ -95,7 +95,7 @@ export function InvoiceTable({
       label: 'Inspector',
       width: '180px',
       sortable: true,
-      render: (row) => <>{resolveInspectorLabel?.(row.inspectorId) ?? row.inspectorId}</>,
+      render: (row) => <>{resolveInspectorLabel?.(row.inspectorId) ?? '—'}</>,
     },
     {
       key: 'periodStart',

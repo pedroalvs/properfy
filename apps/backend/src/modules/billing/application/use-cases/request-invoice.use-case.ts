@@ -125,9 +125,14 @@ export class RequestInvoiceUseCase {
     } catch (err) {
       // A concurrent request can insert the same active (inspector, period) between the findActive
       // check above and this save; the partial unique index is the backstop. Surface it as the clean
-      // domain conflict rather than a 500. (duck-typed P2002 to keep the application layer Prisma-free)
+      // domain conflict rather than a 500. (duck-typed to keep the application layer Prisma-free)
+      // Narrow to the active-period index so any OTHER unique violation still surfaces as a genuine
+      // integrity error instead of being mislabelled "active invoice exists".
       if (err && typeof err === 'object' && 'code' in err && (err as { code?: unknown }).code === 'P2002') {
-        throw new InvoiceActiveExistsError();
+        const target = String((err as { meta?: { target?: unknown } }).meta?.target ?? '');
+        if (target.includes('period') || target.includes('active')) {
+          throw new InvoiceActiveExistsError();
+        }
       }
       throw err;
     }
