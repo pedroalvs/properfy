@@ -232,6 +232,60 @@ describe('CreateServiceGroupUseCase', () => {
     );
   });
 
+  it('syncs an appointment outside the group time window to the full group window', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+      makeAppointmentWithRelations({ id: 'appt-1', timeSlotStart: '08:00', timeSlotEnd: '10:00' }),
+    );
+
+    await useCase.execute({
+      appointmentIds: ['appt-1'],
+      serviceTypeId: 'svc-type-1',
+      scheduledDate: farFutureDate,
+      timeWindow: '09:00-12:00',
+      priorityMode: 'STANDARD',
+      serviceRegionId: REGION_ID,
+      actor: makeActor(),
+    });
+
+    expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
+      timeSlotStart: '09:00',
+      timeSlotEnd: '12:00',
+    });
+    expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'appointment.updated',
+      entityId: 'appt-1',
+      before: { timeSlotStart: '08:00', timeSlotEnd: '10:00' },
+      after: { timeSlotStart: '09:00', timeSlotEnd: '12:00' },
+      reason: 'Added to service group',
+      metadata: expect.objectContaining({ automaticTimeSlotSync: true, groupId: expect.any(String) }),
+    }));
+  });
+
+  it('does not update appointment time when it is fully inside the group time window', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+      makeAppointmentWithRelations({ id: 'appt-1', timeSlotStart: '09:30', timeSlotEnd: '10:30' }),
+    );
+
+    await useCase.execute({
+      appointmentIds: ['appt-1'],
+      serviceTypeId: 'svc-type-1',
+      scheduledDate: farFutureDate,
+      timeWindow: '09:00-12:00',
+      priorityMode: 'STANDARD',
+      serviceRegionId: REGION_ID,
+      actor: makeActor(),
+    });
+
+    expect(appointmentRepo.update).not.toHaveBeenCalledWith('appt-1', 'tenant-1', expect.objectContaining({
+      timeSlotStart: expect.any(String),
+      timeSlotEnd: expect.any(String),
+    }));
+    expect(auditService.log).not.toHaveBeenCalledWith(expect.objectContaining({
+      action: 'appointment.updated',
+      entityId: 'appt-1',
+    }));
+  });
+
   it('should throw NotFoundError when service region does not exist', async () => {
     serviceRegionRepo = createMockRegionRepo(null);
     const authorizationService = new AuthorizationService(auditService);

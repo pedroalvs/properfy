@@ -5,6 +5,7 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { NotFoundError } from '../../../../shared/domain/errors';
 import { ServiceGroupValidator, type AddToGroupReason } from '../../domain/service-group.validator';
+import { getServiceGroupTimeSlotAdjustment } from '../service-group-time-slot-sync';
 
 export type AddToGroupResultStatus = 'OK' | AddToGroupReason | 'NOT_FOUND' | 'ERROR';
 
@@ -107,6 +108,29 @@ export class AddAppointmentsToGroupUseCase {
       try {
         await this.groupRepo.linkAppointments([apptId], input.groupId);
         currentSize += 1;
+
+        const adjustment = getServiceGroupTimeSlotAdjustment(appointment, group.timeWindow);
+        if (adjustment) {
+          await this.appointmentRepo.update(apptId, appointment.tenantId, {
+            timeSlotStart: adjustment.timeSlotStart,
+            timeSlotEnd: adjustment.timeSlotEnd,
+          });
+          this.auditService.log({
+            action: 'appointment.updated',
+            actorType: 'SYSTEM',
+            actorId: input.actor.userId,
+            entityType: 'Appointment',
+            entityId: apptId,
+            tenantId: appointment.tenantId,
+            before: adjustment.before,
+            after: {
+              timeSlotStart: adjustment.timeSlotStart,
+              timeSlotEnd: adjustment.timeSlotEnd,
+            },
+            reason: 'Added to service group',
+            metadata: { groupId: input.groupId, automaticTimeSlotSync: true },
+          });
+        }
 
         if (appointment.status === 'DRAFT') {
           // DRAFT→AWAITING_INSPECTOR rule = OP+SYS; system-triggered by group add.

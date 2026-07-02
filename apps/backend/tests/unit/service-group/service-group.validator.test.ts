@@ -203,7 +203,7 @@ describe('ServiceGroupValidator.canAddToGroup (026 §FR-510)', () => {
     )).toEqual({ ok: false, reasonCode: 'INVALID_DATE' });
   });
 
-  it('accepts a same-day appointment with a different time slot (time is ignored)', () => {
+  it('accepts a same-day appointment with a different time slot because eligibility ignores time and commit normalizes it', () => {
     expect(ServiceGroupValidator.canAddToGroup(
       { ...baseAppointment, timeSlotStart: '13:00', timeSlotEnd: '16:00' },
       { ...baseGroup, timeWindow: '09:00-12:00' },

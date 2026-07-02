@@ -14,6 +14,7 @@ import { validateNewSchedule } from '@properfy/shared';
 import { NotFoundError } from '../../../../shared/domain/errors';
 import type { PriorityMode } from '@properfy/shared';
 import { SystemClock, type Clock } from '../../../../shared/domain/clock';
+import { getServiceGroupTimeSlotAdjustment } from '../service-group-time-slot-sync';
 
 export interface CreateServiceGroupInput {
   appointmentIds: string[];
@@ -99,6 +100,8 @@ export class CreateServiceGroupUseCase {
         serviceTypeId: appt.serviceTypeId,
         tenantId: appt.tenantId,
         serviceGroupId: appt.serviceGroupId,
+        timeSlotStart: appt.timeSlotStart,
+        timeSlotEnd: appt.timeSlotEnd,
       });
     }
 
@@ -187,6 +190,33 @@ export class CreateServiceGroupUseCase {
 
     // 7. Link appointments to group and transition DRAFT ones to AWAITING_INSPECTOR
     await this.serviceGroupRepo.linkAppointments(input.appointmentIds, groupId);
+
+    for (const appt of appointments) {
+      const adjustment = getServiceGroupTimeSlotAdjustment(appt, input.timeWindow);
+      if (!adjustment) {
+        continue;
+      }
+
+      await this.appointmentRepo.update(appt.id, appt.tenantId, {
+        timeSlotStart: adjustment.timeSlotStart,
+        timeSlotEnd: adjustment.timeSlotEnd,
+      });
+      this.auditService.log({
+        action: 'appointment.updated',
+        actorType: 'SYSTEM',
+        actorId: actor.userId,
+        entityType: 'Appointment',
+        entityId: appt.id,
+        tenantId: appt.tenantId,
+        before: adjustment.before,
+        after: {
+          timeSlotStart: adjustment.timeSlotStart,
+          timeSlotEnd: adjustment.timeSlotEnd,
+        },
+        reason: 'Added to service group',
+        metadata: { groupId, automaticTimeSlotSync: true },
+      });
+    }
 
     const transitionIds = appointments
       .filter((appt) => appt.status === 'DRAFT' || appt.status === 'REJECTED')
