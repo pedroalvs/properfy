@@ -13,14 +13,14 @@ function makeInvoice(overrides: Partial<InspectorInvoiceProps> = {}): InspectorI
     inspectorId: 'insp-1',
     periodStart: new Date('2026-03-01'),
     periodEnd: new Date('2026-03-15'),
-    periodType: 'BIWEEKLY',
+    periodType: 'FORTNIGHTLY',
     status: 'CLOSED',
     totalAmount: 1400,
     currency: 'AUD',
     fileKey: null,
     previousInvoiceId: null,
     generatedByUserId: 'user-am',
-    generatedAt: now,
+    issuedAt: now,
     paidAt: null,
     notes: null,
     createdAt: now,
@@ -160,7 +160,7 @@ describe('GetInvoiceUseCase', () => {
       makeInvoice({
         fileKey: 'invoices/insp-1/invoice-1.xlsx',
         generatedByUserId: 'user-am',
-        generatedAt: genAt,
+        issuedAt: genAt,
         paidAt,
         notes: 'Test note',
       }),
@@ -173,7 +173,7 @@ describe('GetInvoiceUseCase', () => {
 
     expect(result.fileKey).toBe('invoices/insp-1/invoice-1.xlsx');
     expect(result.generatedByUserId).toBe('user-am');
-    expect(result.generatedAt).toBe(genAt.toISOString());
+    expect(result.issuedAt).toBe(genAt.toISOString());
     expect(result.paidAt).toBe(paidAt.toISOString());
     expect(result.notes).toBe('Test note');
   });

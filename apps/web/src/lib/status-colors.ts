@@ -140,6 +140,7 @@ export const INVOICE_STATUS_MAP: Record<InvoiceStatus, StatusStyle> = {
   CLOSED:     { bg: 'var(--color-invoice-sent)', text: 'var(--color-text-primary)', label: 'Closed' },
   PAID:       { bg: 'var(--color-status-done)', text: 'var(--color-text-primary)', label: 'Paid' },
   SUPERSEDED: { bg: 'var(--color-status-cancelled)', text: 'var(--color-text-primary)', label: 'Superseded' },
+  VOID:       { bg: 'var(--color-status-cancelled)', text: 'var(--color-text-primary)', label: 'Rejected' },
 };
 
 export const TENANT_ADMIN_STATUS_MAP: Record<string, StatusStyle> = {

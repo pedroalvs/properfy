@@ -30,14 +30,14 @@ function makePendingReviewInvoice(overrides: Record<string, unknown> = {}) {
     inspectorId: 'insp-1',
     periodStart: new Date('2026-03-01'),
     periodEnd: new Date('2026-03-15'),
-    periodType: 'BIWEEKLY',
+    periodType: 'FORTNIGHTLY',
     status: 'PENDING_REVIEW',
     totalAmount: 1200,
     currency: 'AUD',
     fileKey: null,
     previousInvoiceId: null,
     generatedByUserId: null,
-    generatedAt: null,
+    issuedAt: null,
     paidAt: null,
     paidByUserId: null,
     paymentReference: null,
@@ -91,12 +91,12 @@ describe('ApproveDraftInvoiceUseCase', () => {
     expect(result.id).toBe('inv-1');
     expect(result.status).toBe('CLOSED');
     expect(result.generatedByUserId).toBe('op-1');
-    expect(result.generatedAt).toBeDefined();
+    expect(result.issuedAt).toBeDefined();
 
     expect(invoiceRepo.update).toHaveBeenCalledWith('inv-1', {
       status: 'CLOSED',
       generatedByUserId: 'op-1',
-      generatedAt: expect.any(Date),
+      issuedAt: expect.any(Date),
     });
 
     expect(jobQueue.enqueue).toHaveBeenCalledWith(

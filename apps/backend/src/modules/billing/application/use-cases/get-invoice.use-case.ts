@@ -20,7 +20,7 @@ export interface GetInvoiceOutput {
   currency: string;
   fileKey: string | null;
   generatedByUserId: string | null;
-  generatedAt: string | null;
+  issuedAt: string | null;
   paidAt: string | null;
   paidByUserId: string | null;
   paymentReference: string | null;
@@ -69,7 +69,7 @@ export class GetInvoiceUseCase {
       currency: invoice.currency,
       fileKey: invoice.fileKey,
       generatedByUserId: invoice.generatedByUserId,
-      generatedAt: invoice.generatedAt ? invoice.generatedAt.toISOString() : null,
+      issuedAt: invoice.issuedAt ? invoice.issuedAt.toISOString() : null,
       paidAt: invoice.paidAt ? invoice.paidAt.toISOString() : null,
       paidByUserId: invoice.paidByUserId,
       paymentReference: invoice.paymentReference,

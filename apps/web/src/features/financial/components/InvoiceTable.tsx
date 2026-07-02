@@ -6,7 +6,7 @@ import type { Invoice } from '../types';
 
 const FREQUENCY_LABELS: Record<string, string> = {
   WEEKLY: 'Weekly',
-  BIWEEKLY: 'Biweekly',
+  FORTNIGHTLY: 'Fortnightly',
   MONTHLY: 'Monthly',
 };
 

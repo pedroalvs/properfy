@@ -27,7 +27,7 @@ export interface InvoiceOutputItem {
   totalAmount: number;
   currency: string;
   fileKey: string | null;
-  generatedAt: string | null;
+  issuedAt: string | null;
   paidAt: string | null;
   paidByUserId: string | null;
   paymentReference: string | null;
@@ -89,7 +89,7 @@ export class ListInvoicesUseCase {
         totalAmount: Number(invoice.totalAmount),
         currency: invoice.currency,
         fileKey: invoice.fileKey,
-        generatedAt: invoice.generatedAt ? invoice.generatedAt.toISOString() : null,
+        issuedAt: invoice.issuedAt ? invoice.issuedAt.toISOString() : null,
         paidAt: invoice.paidAt ? invoice.paidAt.toISOString() : null,
         paidByUserId: invoice.paidByUserId,
         paymentReference: invoice.paymentReference,

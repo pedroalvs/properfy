@@ -26,7 +26,7 @@ export interface RegenerateInspectorInvoiceOutput {
   fileKey: string | null;
   previousInvoiceId: string | null;
   generatedByUserId: string | null;
-  generatedAt: string | null;
+  issuedAt: string | null;
   paidAt: string | null;
   notes: string | null;
   createdAt: string;
@@ -71,6 +71,7 @@ export class RegenerateInspectorInvoiceUseCase {
     const newInvoiceId = randomUUID();
     const newInvoice = new InspectorInvoiceEntity({
       id: newInvoiceId,
+      invoiceNumber: null,
       inspectorId: existing.inspectorId,
       periodStart: existing.periodStart,
       periodEnd: existing.periodEnd,
@@ -78,10 +79,11 @@ export class RegenerateInspectorInvoiceUseCase {
       status: 'CLOSED',
       totalAmount,
       currency: existing.currency,
+      lineItemsSnapshot: null,
       fileKey: null,
       previousInvoiceId: invoiceId,
       generatedByUserId: actor.userId,
-      generatedAt: now,
+      issuedAt: now,
       paidAt: null,
       paidByUserId: null,
       paymentReference: null,
@@ -135,7 +137,7 @@ export class RegenerateInspectorInvoiceUseCase {
       fileKey: newInvoice.fileKey,
       previousInvoiceId: invoiceId,
       generatedByUserId: newInvoice.generatedByUserId,
-      generatedAt: newInvoice.generatedAt?.toISOString() ?? null,
+      issuedAt: newInvoice.issuedAt?.toISOString() ?? null,
       paidAt: newInvoice.paidAt?.toISOString() ?? null,
       notes: newInvoice.notes,
       createdAt: newInvoice.createdAt.toISOString(),

@@ -19,7 +19,7 @@ import { RejectDraftModal } from './RejectDraftModal';
 
 const FREQUENCY_LABELS: Record<string, string> = {
   WEEKLY: 'Weekly',
-  BIWEEKLY: 'Biweekly',
+  FORTNIGHTLY: 'Fortnightly',
   MONTHLY: 'Monthly',
 };
 
@@ -206,7 +206,7 @@ export function InvoiceDetailDrawer({
 
                 <FormSection title="Record">
                   <DetailRow label="Created at" value={formatDateTime(invoice.createdAt)} />
-                  <DetailRow label="Generated at" value={invoice.generatedAt ? formatDateTime(invoice.generatedAt) : 'Pending generation'} />
+                  <DetailRow label="Issued at" value={invoice.issuedAt ? formatDateTime(invoice.issuedAt) : 'Pending generation'} />
                   <DetailRow label="Paid at" value={invoice.paidAt ? formatDateTime(invoice.paidAt) : 'Not paid'} />
                   {invoice.status === 'PAID' && (
                     <>

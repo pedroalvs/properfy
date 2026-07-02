@@ -670,29 +670,34 @@ Append-only ledger of financial transactions. Immutable after approval.
 
 Closing document for inspector payouts in a billing period.
 
+Inspector Property Invoice — global per inspector + billing period (never per agency/branch). See `specs/032-inspector-property-invoice/spec.md`.
+
 | Column | Type | Nullable | Default | Description |
 |---|---|---|---|---|
 | `id` | uuid | no | generated | Primary key |
+| `invoice_number` | int | yes | — | Sequential number assigned only at approval (NULL while PENDING_REVIEW / VOID). Unique. Displayed as `PINV-000123`. |
 | `inspector_id` | uuid | no | — | FK → inspectors |
+| `inspector_name` | text | yes | — | Frozen inspector name snapshot (set at approval) |
 | `period_start` | date | no | — | Billing period start |
 | `period_end` | date | no | — | Billing period end |
-| `period_type` | BillingPeriodType | no | — | `WEEKLY` / `BIWEEKLY` / `MONTHLY` |
-| `status` | InspectorInvoiceStatus | no | `OPEN` | `PENDING_REVIEW` / `OPEN` / `CLOSED` / `PAID` / `SUPERSEDED`. `PENDING_REVIEW` = inspector-drafted, awaiting admin approval (feature 008/010). |
-| `total_amount` | decimal(12,2) | no | `0` | Sum of approved INSPECTOR_PAYOUT entries in the period |
+| `period_type` | BillingPeriodType | no | — | `WEEKLY` / `FORTNIGHTLY` / `MONTHLY` |
+| `status` | InspectorInvoiceStatus | no | `OPEN` | `PENDING_REVIEW` / `CLOSED` / `PAID` / `VOID` (+ legacy `OPEN` / `SUPERSEDED`, removed in the cleanup batch). Pending=`PENDING_REVIEW`, Approved=`CLOSED`\|`PAID`, Rejected=`VOID`. |
+| `total_amount` | decimal(12,2) | no | `0` | Sum of approved INSPECTOR_PAYOUT entries in the period (frozen at approval) |
 | `currency` | char(3) | no | — | |
-| `file_key` | text | yes | — | Storage key for generated PDF |
-| `generated_by_user_id` | uuid | yes | — | FK → users. Operator who generated/approved. |
-| `generated_at` | timestamptz | yes | — | |
-| `drafted_by_inspector_id` | text | yes | — | Inspector ID when created via PWA draft flow (feature 008). NULL for operator-generated invoices. |
+| `line_items_snapshot` | jsonb | yes | — | Frozen payout lines (serviceDate, appointmentCode, propertyAddress, serviceType, amount, agencyId/Name, branchId/Name). Agency/branch are line-level only. |
+| `file_key` | text | yes | — | Storage key for the generated PROPERTY INVOICE PDF |
+| `generated_by_user_id` | uuid | yes | — | FK → users. Operator who approved. |
+| `issued_at` | timestamptz | yes | — | When the invoice was issued (approved → CLOSED) |
+| `drafted_by_inspector_id` | text | yes | — | Inspector ID when requested via the PWA. NULL for operator-generated invoices. |
 | `paid_at` | timestamptz | yes | — | When marked as paid (feature 017) |
 | `paid_by_user_id` | uuid | yes | — | FK → users (feature 017) |
 | `payment_reference` | varchar(255) | yes | — | External payment reference (feature 017) |
-| `notes` | text | yes | — | |
-| `previous_invoice_id` | uuid | yes | — | FK → inspector_invoices (self). For supersession chain. Unique. |
+| `notes` | text | yes | — | Rejection reason when VOID |
+| `previous_invoice_id` | uuid | yes | — | Legacy supersession chain FK (removed in the cleanup batch). Unique. |
 | `created_at` | timestamptz | no | `now()` | |
 | `updated_at` | timestamptz | no | auto | |
 
-**Unique**: `(inspector_id, period_start, period_end)`
+**Unique**: `(inspector_id, period_start, period_end)` — replaced by a partial unique index over ACTIVE statuses (`PENDING_REVIEW` / `CLOSED` / `PAID`) in the cleanup batch. `invoice_number` unique.
 
 ---
 

@@ -27,7 +27,7 @@ export interface BatchMarkInvoicesPaidOutput {
  * - Processes CLOSED invoices, skipping already-paid and non-closed without failing the batch
  * - Produces ONE audit record per processed invoice (not one for the batch)
  * - Shared paidAt/paymentReference across the whole batch
- * - Validates paidAt once for the whole batch (UTC + 1h grace); per-invoice "before generatedAt"
+ * - Validates paidAt once for the whole batch (UTC + 1h grace); per-invoice "before issuedAt"
  *   check is performed inside the loop
  *
  * Note: Idempotency (one Idempotency-Key per batch request — Q3 clarification) is handled at the
@@ -54,7 +54,7 @@ export class BatchMarkInvoicesPaidUseCase {
     // 2. Determine and validate shared paidAt (once per batch)
     const now = this.clock.now();
     const paidAt = input.paidAt ? new Date(input.paidAt) : now;
-    // Shared "not in future" validation — use null generatedAt so only the future check applies here
+    // Shared "not in future" validation — use null issuedAt so only the future check applies here
     validatePaidAt(paidAt, null, now);
 
     const paymentReference = input.paymentReference ?? null;
@@ -84,15 +84,15 @@ export class BatchMarkInvoicesPaidUseCase {
         continue;
       }
 
-      // Per-invoice "not before generatedAt" check — skip instead of throwing so the batch
+      // Per-invoice "not before issuedAt" check — skip instead of throwing so the batch
       // semantics remain "process what can be processed". Mirror the 60s grace from
       // `validatePaidAt` so client-side datetime truncation (datetime-local drops seconds)
-      // doesn't push the batch path into a false "before generatedAt" verdict for the
+      // doesn't push the batch path into a false "before issuedAt" verdict for the
       // common "mark paid now right after invoice generation" case (Bug B-7).
       const BATCH_BEFORE_GENERATED_GRACE_MS = 60 * 1000;
       if (
-        invoice.generatedAt &&
-        paidAt.getTime() < invoice.generatedAt.getTime() - BATCH_BEFORE_GENERATED_GRACE_MS
+        invoice.issuedAt &&
+        paidAt.getTime() < invoice.issuedAt.getTime() - BATCH_BEFORE_GENERATED_GRACE_MS
       ) {
         // For this edge case, surface it as a skip with NOT_CLOSED (closest existing reason).
         // A future refinement could add a more specific INVALID_DATE reason.

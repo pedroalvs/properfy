@@ -17,7 +17,7 @@ export interface ApproveDraftInvoiceOutput {
   id: string;
   status: 'CLOSED';
   generatedByUserId: string;
-  generatedAt: string;
+  issuedAt: string;
 }
 
 export class ApproveDraftInvoiceUseCase {
@@ -54,7 +54,7 @@ export class ApproveDraftInvoiceUseCase {
     await this.invoiceRepo.update(invoiceId, {
       status: 'CLOSED',
       generatedByUserId: actor.userId,
-      generatedAt: now,
+      issuedAt: now,
     });
 
     // 5. Enqueue file generation
@@ -79,7 +79,7 @@ export class ApproveDraftInvoiceUseCase {
       id: invoiceId,
       status: 'CLOSED',
       generatedByUserId: actor.userId,
-      generatedAt: now.toISOString(),
+      issuedAt: now.toISOString(),
     };
   }
 }

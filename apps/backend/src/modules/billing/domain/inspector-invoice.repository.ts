@@ -1,5 +1,5 @@
 import type { InspectorInvoiceEntity } from './inspector-invoice.entity';
-import type { InspectorInvoiceStatus } from '@properfy/shared';
+import type { InspectorInvoiceStatus, InvoiceSnapshotLine } from '@properfy/shared';
 
 export interface InvoiceFilters {
   inspectorId?: string;
@@ -15,9 +15,12 @@ export interface InvoicePagination {
 
 export interface InvoiceUpdateData {
   status?: string;
+  invoiceNumber?: number | null;
+  inspectorName?: string | null;
+  lineItemsSnapshot?: InvoiceSnapshotLine[] | null;
   fileKey?: string | null;
   generatedByUserId?: string | null;
-  generatedAt?: Date | null;
+  issuedAt?: Date | null;
   paidAt?: Date | null;
   paidByUserId?: string | null;
   paymentReference?: string | null;
@@ -48,7 +51,7 @@ export interface IInspectorInvoiceRepository {
   update(id: string, data: InvoiceUpdateData): Promise<void>;
   deleteById(id: string): Promise<void>;
   /**
-   * Returns raw aggregate rows grouped by (status, currency) filtered by generatedAt range.
+   * Returns raw aggregate rows grouped by (status, currency) filtered by issuedAt range.
    * Only includes invoices in CLOSED or PAID status.
    * The use case layer is responsible for detecting multi-currency scope and summing per status.
    */

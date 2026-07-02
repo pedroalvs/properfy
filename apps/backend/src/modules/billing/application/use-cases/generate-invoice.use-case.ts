@@ -14,7 +14,7 @@ export interface GenerateInvoiceInput {
   tenantId?: string;
   periodStart: string; // YYYY-MM-DD
   periodEnd: string; // YYYY-MM-DD
-  periodType?: BillingPeriodType; // defaults to 'BIWEEKLY'
+  periodType?: BillingPeriodType; // defaults to 'FORTNIGHTLY'
   currency?: string; // defaults to 'AUD'
   actor: AuthContext;
 }
@@ -30,7 +30,7 @@ export interface GenerateInvoiceOutput {
   currency: string;
   fileKey: string | null;
   generatedByUserId: string | null;
-  generatedAt: string | null;
+  issuedAt: string | null;
   paidAt: string | null;
   notes: string | null;
   createdAt: string;
@@ -80,7 +80,7 @@ export class GenerateInvoiceUseCase {
         currency: existing.currency,
         fileKey: existing.fileKey,
         generatedByUserId: existing.generatedByUserId,
-        generatedAt: existing.generatedAt?.toISOString() ?? null,
+        issuedAt: existing.issuedAt?.toISOString() ?? null,
         paidAt: existing.paidAt?.toISOString() ?? null,
         notes: existing.notes,
         createdAt: existing.createdAt.toISOString(),
@@ -106,17 +106,19 @@ export class GenerateInvoiceUseCase {
     const invoiceId = randomUUID();
     const invoice = new InspectorInvoiceEntity({
       id: invoiceId,
+      invoiceNumber: null,
       inspectorId,
       periodStart: startDate,
       periodEnd: endDate,
-      periodType: input.periodType ?? 'BIWEEKLY',
+      periodType: input.periodType ?? 'FORTNIGHTLY',
       status: 'CLOSED',
       totalAmount,
       currency: input.currency ?? 'AUD',
+      lineItemsSnapshot: null,
       fileKey: null,
       previousInvoiceId: null,
       generatedByUserId: actor.userId,
-      generatedAt: now,
+      issuedAt: now,
       paidAt: null,
       paidByUserId: null,
       paymentReference: null,
@@ -162,7 +164,7 @@ export class GenerateInvoiceUseCase {
       currency: input.currency ?? 'AUD',
       fileKey: invoice.fileKey,
       generatedByUserId: invoice.generatedByUserId,
-      generatedAt: invoice.generatedAt?.toISOString() ?? null,
+      issuedAt: invoice.issuedAt?.toISOString() ?? null,
       paidAt: invoice.paidAt?.toISOString() ?? null,
       notes: invoice.notes,
       createdAt: invoice.createdAt.toISOString(),

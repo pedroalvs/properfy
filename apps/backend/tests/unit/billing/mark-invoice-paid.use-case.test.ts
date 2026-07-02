@@ -30,14 +30,14 @@ function makeClosedInvoice(overrides: Record<string, unknown> = {}) {
     inspectorId: 'insp-1',
     periodStart: new Date('2026-03-01'),
     periodEnd: new Date('2026-03-15'),
-    periodType: 'BIWEEKLY',
+    periodType: 'FORTNIGHTLY',
     status: 'CLOSED',
     totalAmount: 1200,
     currency: 'AUD',
     fileKey: 'invoices/inv-1.xlsx',
     previousInvoiceId: null,
     generatedByUserId: 'op-1',
-    generatedAt: new Date('2026-03-16T10:00:00.000Z'),
+    issuedAt: new Date('2026-03-16T10:00:00.000Z'),
     paidAt: null,
     paidByUserId: null,
     paymentReference: null,
@@ -189,7 +189,7 @@ describe('MarkInvoicePaidUseCase', () => {
     expect(result.status).toBe('PAID');
   });
 
-  it('should reject paidAt before invoice.generatedAt', async () => {
+  it('should reject paidAt before invoice.issuedAt', async () => {
     const sut = makeSut();
     // Invoice was generated on 2026-03-16; payment before that is invalid
     const tooEarly = '2026-03-10T00:00:00.000Z';
@@ -201,16 +201,16 @@ describe('MarkInvoicePaidUseCase', () => {
 
   // Bug B-7 (QA 2026-04-18). Datetime-local pickers truncate seconds, so
   // "mark paid now" can submit a timestamp a few hundred ms before the
-  // invoice's generatedAt. A 1-minute grace absorbs that without letting
+  // invoice's issuedAt. A 1-minute grace absorbs that without letting
   // genuinely-backdated payments through.
   it('should accept paidAt within the 1-minute truncation grace window', async () => {
     const sut = makeSut();
-    const generatedAt = new Date(Date.now() - 30 * 1000); // 30s ago
+    const issuedAt = new Date(Date.now() - 30 * 1000); // 30s ago
     invoiceRepo.findById.mockResolvedValue(
-      makeClosedInvoice({ generatedAt }),
+      makeClosedInvoice({ issuedAt }),
     );
-    // 45s before generatedAt — inside the 60s grace
-    const slightlyEarly = new Date(generatedAt.getTime() - 45 * 1000).toISOString();
+    // 45s before issuedAt — inside the 60s grace
+    const slightlyEarly = new Date(issuedAt.getTime() - 45 * 1000).toISOString();
 
     const result = await sut.execute({
       invoiceId: 'inv-1',
@@ -223,7 +223,7 @@ describe('MarkInvoicePaidUseCase', () => {
 
   it('exposes INVOICE_PAYMENT_DATE_INVALID error code (not VALIDATION_ERROR)', async () => {
     const sut = makeSut();
-    const tooEarly = '2026-03-01T00:00:00.000Z'; // well before generatedAt
+    const tooEarly = '2026-03-01T00:00:00.000Z'; // well before issuedAt
 
     try {
       await sut.execute({ invoiceId: 'inv-1', paidAt: tooEarly, actor: opActor });

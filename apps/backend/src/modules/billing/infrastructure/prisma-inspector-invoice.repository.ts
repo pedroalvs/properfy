@@ -1,5 +1,5 @@
-import type { PrismaClient } from '@prisma/client';
-import type { InspectorInvoiceStatus, BillingPeriodType } from '@properfy/shared';
+import { Prisma, type PrismaClient } from '@prisma/client';
+import type { InspectorInvoiceStatus, BillingPeriodType, InvoiceSnapshotLine } from '@properfy/shared';
 import { InspectorInvoiceEntity } from '../domain/inspector-invoice.entity';
 import type {
   IInspectorInvoiceRepository,
@@ -10,21 +10,31 @@ import type {
   ReconciliationAggregateRow,
 } from '../domain/inspector-invoice.repository';
 
+/** Serialize a snapshot for a nullable Json column (DbNull → SQL NULL). */
+function toSnapshotJson(
+  snapshot: InvoiceSnapshotLine[] | null,
+): Prisma.InputJsonValue | typeof Prisma.DbNull {
+  return snapshot === null ? Prisma.DbNull : (snapshot as unknown as Prisma.InputJsonValue);
+}
+
 function mapToEntity(row: any): InspectorInvoiceEntity {
   return new InspectorInvoiceEntity({
     id: row.id,
+    invoiceNumber: row.invoice_number ?? null,
     inspectorId: row.inspector_id,
-    inspectorName: row.inspector?.name ?? null,
+    // Prefer the frozen snapshot name; fall back to the live inspector join for pre-approval reads.
+    inspectorName: row.inspector_name ?? row.inspector?.name ?? null,
     periodStart: row.period_start,
     periodEnd: row.period_end,
     periodType: row.period_type as BillingPeriodType,
     status: row.status as InspectorInvoiceStatus,
     totalAmount: Number(row.total_amount),
     currency: row.currency,
+    lineItemsSnapshot: (row.line_items_snapshot as InvoiceSnapshotLine[] | null) ?? null,
     fileKey: row.file_key,
     previousInvoiceId: row.previous_invoice_id ?? null,
     generatedByUserId: row.generated_by_user_id,
-    generatedAt: row.generated_at,
+    issuedAt: row.issued_at,
     paidAt: row.paid_at,
     paidByUserId: row.paid_by_user_id ?? null,
     paymentReference: row.payment_reference ?? null,
@@ -127,17 +137,20 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
     await this.prisma.inspectorInvoice.create({
       data: {
         id: invoice.id,
+        invoice_number: invoice.invoiceNumber,
         inspector_id: invoice.inspectorId,
+        inspector_name: invoice.inspectorName,
         period_start: invoice.periodStart,
         period_end: invoice.periodEnd,
         period_type: invoice.periodType,
         status: invoice.status,
         total_amount: invoice.totalAmount,
         currency: invoice.currency,
+        line_items_snapshot: toSnapshotJson(invoice.lineItemsSnapshot),
         file_key: invoice.fileKey,
         previous_invoice_id: invoice.previousInvoiceId,
         generated_by_user_id: invoice.generatedByUserId,
-        generated_at: invoice.generatedAt,
+        issued_at: invoice.issuedAt,
         paid_at: invoice.paidAt,
         paid_by_user_id: invoice.paidByUserId,
         payment_reference: invoice.paymentReference,
@@ -149,9 +162,12 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
   async update(id: string, data: InvoiceUpdateData): Promise<void> {
     const updateData: Record<string, unknown> = {};
     if (data.status !== undefined) updateData.status = data.status;
+    if (data.invoiceNumber !== undefined) updateData.invoice_number = data.invoiceNumber;
+    if (data.inspectorName !== undefined) updateData.inspector_name = data.inspectorName;
+    if (data.lineItemsSnapshot !== undefined) updateData.line_items_snapshot = toSnapshotJson(data.lineItemsSnapshot);
     if (data.fileKey !== undefined) updateData.file_key = data.fileKey;
     if (data.generatedByUserId !== undefined) updateData.generated_by_user_id = data.generatedByUserId;
-    if (data.generatedAt !== undefined) updateData.generated_at = data.generatedAt;
+    if (data.issuedAt !== undefined) updateData.issued_at = data.issuedAt;
     if (data.paidAt !== undefined) updateData.paid_at = data.paidAt;
     if (data.paidByUserId !== undefined) updateData.paid_by_user_id = data.paidByUserId;
     if (data.paymentReference !== undefined) updateData.payment_reference = data.paymentReference;
@@ -167,7 +183,7 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
     filters: ReconciliationAggregateFilters,
   ): Promise<ReconciliationAggregateRow[]> {
     const where: Record<string, unknown> = {
-      generated_at: {
+      issued_at: {
         gte: filters.from,
         lte: filters.to,
       },
