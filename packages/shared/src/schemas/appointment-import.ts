@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { additionalChannelSchema } from './contact';
-import { customFieldSchema, CUSTOM_FIELDS_MAX } from './appointment';
+import { customFieldSchema, CUSTOM_FIELDS_MAX, HHMM_REGEX } from './appointment';
 
 /**
  * Single source of truth for the appointment-import preview/commit contract.
@@ -78,8 +78,8 @@ export const resolvedImportRowSchema = z.object({
   serviceTypeId: z.string().uuid().nullable(),
   scheduledDate: z.string().date(),
   scheduledDateDefaulted: z.boolean(),
-  timeSlotStart: z.string(),
-  timeSlotEnd: z.string(),
+  timeSlotStart: z.string().regex(HHMM_REGEX, 'Must be HH:mm format'),
+  timeSlotEnd: z.string().regex(HHMM_REGEX, 'Must be HH:mm format'),
   timeDefaulted: z.boolean(),
   notes: z.string().nullable(),
   property: importPropertyPlanSchema.nullable(),

@@ -111,6 +111,16 @@ describe('importContactPlanSchema', () => {
     });
     expect(result.success).toBe(true);
   });
+
+  it('rejects an unknown resolution', () => {
+    const result = importContactPlanSchema.safeParse({ ...VALID_CONTACT_PLAN, resolution: 'linked' });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a non-boolean channelsDropped', () => {
+    const result = importContactPlanSchema.safeParse({ ...VALID_CONTACT_PLAN, channelsDropped: 'yes' });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('resolvedImportRowSchema', () => {
@@ -145,6 +155,11 @@ describe('resolvedImportRowSchema', () => {
     const result = resolvedImportRowSchema.safeParse({ ...VALID_ROW, rowNumber: -1 });
     expect(result.success).toBe(false);
   });
+
+  it('rejects a malformed timeSlotStart', () => {
+    const result = resolvedImportRowSchema.safeParse({ ...VALID_ROW, timeSlotStart: '8am' });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('importSummarySchema', () => {
@@ -156,6 +171,20 @@ describe('importSummarySchema', () => {
       withErrors: 2,
     });
     expect(result.success).toBe(true);
+  });
+
+  it('rejects a negative totalRows', () => {
+    const result = importSummarySchema.safeParse({
+      totalRows: -1, importable: 0, withWarnings: 0, withErrors: 0,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a non-integer count', () => {
+    const result = importSummarySchema.safeParse({
+      totalRows: 10, importable: 8.5, withWarnings: 3, withErrors: 2,
+    });
+    expect(result.success).toBe(false);
   });
 });
 
@@ -169,5 +198,27 @@ describe('appointmentImportPreviewResponseSchema', () => {
       rows: [VALID_ROW],
     });
     expect(result.success).toBe(true);
+  });
+
+  it('rejects a malformed importId', () => {
+    const result = appointmentImportPreviewResponseSchema.safeParse({
+      importId: 'not-a-uuid',
+      branchId: '55555555-5555-5555-5555-555555555555',
+      tenantId: '66666666-6666-6666-6666-666666666666',
+      summary: { totalRows: 1, importable: 1, withWarnings: 1, withErrors: 0 },
+      rows: [VALID_ROW],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a malformed branchId', () => {
+    const result = appointmentImportPreviewResponseSchema.safeParse({
+      importId: '44444444-4444-4444-4444-444444444444',
+      branchId: 'not-a-uuid',
+      tenantId: '66666666-6666-6666-6666-666666666666',
+      summary: { totalRows: 1, importable: 1, withWarnings: 1, withErrors: 0 },
+      rows: [VALID_ROW],
+    });
+    expect(result.success).toBe(false);
   });
 });

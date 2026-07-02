@@ -147,13 +147,28 @@ describe('PrismaPropertyRepository.findManyByNormalizedAddressKeys', () => {
 });
 
 describe('properties_normalized_address_active_unique (partial unique index)', () => {
-  it('rejects a second active property with the same tenant+address', async () => {
+  it('rejects a second active property with the same tenant+address as a clean PropertyAddressConflictError, not a raw P2002', async () => {
+    const { PropertyAddressConflictError } = await import('../../../src/modules/property/domain/property.errors');
     const tenantId = await seedTenant('T-dup-guard');
     await repo.save(buildProperty({ id: crypto.randomUUID(), tenantId, street: '2 Dup St', suburb: 'Peakhurst', postcode: '2210' }));
 
     await expect(
       repo.save(buildProperty({ id: crypto.randomUUID(), tenantId, street: '2 Dup St', suburb: 'Peakhurst', postcode: '2210' })),
-    ).rejects.toThrow();
+    ).rejects.toBeInstanceOf(PropertyAddressConflictError);
+  });
+
+  it('rejects a concurrent update that would collide with another property, as a clean PropertyAddressConflictError', async () => {
+    const { PropertyAddressConflictError } = await import('../../../src/modules/property/domain/property.errors');
+    const tenantId = await seedTenant('T-dup-update-race');
+    await repo.save(buildProperty({ id: crypto.randomUUID(), tenantId, street: '10 Taken St', suburb: 'Mortdale', postcode: '2223' }));
+    const otherId = crypto.randomUUID();
+    await repo.save(buildProperty({ id: otherId, tenantId, street: '11 Free St', suburb: 'Mortdale', postcode: '2223' }));
+
+    // Simulates the race the use-case pre-check can't fully close: the row
+    // is updated to an address that collides with the first property.
+    await expect(
+      repo.update(otherId, tenantId, { street: '10 Taken St' }),
+    ).rejects.toBeInstanceOf(PropertyAddressConflictError);
   });
 
   it('allows reusing an address once the original is soft-deleted', async () => {
