@@ -243,6 +243,27 @@ describe('AppointmentImportCommitWorker', () => {
     expect(resultsUpdates[resultsUpdates.length - 1]![1].resultsJson).toHaveLength(2);
   });
 
+  it('updates successCount/errorCount/totalRows on every row, not just at the end (frontend progress bar depends on this)', async () => {
+    const deps = buildDeps();
+    deps.importRepo.findById.mockResolvedValue(buildRecord());
+    deps.resolver.resolve.mockResolvedValue({
+      rows: [readyRow({ rowNumber: 2 }), readyRow({ rowNumber: 3 }), readyRow({ rowNumber: 4 })],
+    });
+    const worker = buildWorker(deps);
+
+    await worker.execute({ importId: 'import-1', actor: ACTOR });
+
+    // Per-row updates only — excludes the final update, which also sets
+    // `status` and would otherwise double-count the last row's numbers.
+    const progressUpdates = deps.importRepo.update.mock.calls
+      .map((c: any[]) => c[1])
+      .filter((data: any) => data.resultsJson && data.status === undefined);
+    expect(progressUpdates).toHaveLength(3);
+    expect(progressUpdates.map((u: any) => u.successCount)).toEqual([1, 2, 3]);
+    expect(progressUpdates.map((u: any) => u.errorCount)).toEqual([0, 0, 0]);
+    expect(progressUpdates.every((u: any) => u.totalRows === 3)).toBe(true);
+  });
+
   it('resumes from a prior partial attempt without re-committing an already-recorded row', async () => {
     const deps = buildDeps();
     deps.importRepo.findById.mockResolvedValue(buildRecord({

@@ -91,18 +91,24 @@ export class AppointmentImportCommitWorker {
 
       for (const row of rows) {
         const prior = priorByRow.get(row.rowNumber);
-        if (prior) {
-          results.push(prior);
-          await this.importRepo.update(importId, { resultsJson: [...results] });
-          continue;
-        }
-
-        const result = await this.processRow(row, importRecord.tenantId, importRecord.branchId, importId, actor, tz, createdPropertyIds);
+        const result = prior ?? await this.processRow(row, importRecord.tenantId, importRecord.branchId, importId, actor, tz, createdPropertyIds);
         results.push(result);
-        // A fresh copy per call — not just cosmetic for tests that snapshot
-        // mock-call arguments; it also protects any future repository
-        // implementation from an accidental shared-reference mutation.
-        await this.importRepo.update(importId, { resultsJson: [...results] });
+        // successCount/errorCount/totalRows are updated on every row, not
+        // just at the end — the frontend's progress bar derives
+        // percent-complete from these fields while the batch is still
+        // running (previously only resultsJson was written per row, so the
+        // bar stayed at 0% for the whole batch and only jumped at the end,
+        // or never if polling gave up first).
+        await this.importRepo.update(importId, {
+          // A fresh array copy per call — not just cosmetic for tests that
+          // snapshot mock-call arguments; it also protects any future
+          // repository implementation from an accidental shared-reference
+          // mutation.
+          resultsJson: [...results],
+          totalRows: rows.length,
+          successCount: results.filter((r) => r.status === 'created').length,
+          errorCount: results.filter((r) => r.status === 'error').length,
+        });
       }
 
       const successCount = results.filter((r) => r.status === 'created').length;
