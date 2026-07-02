@@ -17,14 +17,14 @@ function makeInvoice(overrides: Partial<InspectorInvoiceProps> = {}): InspectorI
     inspectorId: 'insp-1',
     periodStart: new Date('2026-03-01'),
     periodEnd: new Date('2026-03-15'),
-    periodType: 'BIWEEKLY',
+    periodType: 'FORTNIGHTLY',
     status: 'CLOSED',
     totalAmount: 1400,
     currency: 'AUD',
     fileKey: null,
     previousInvoiceId: null,
     generatedByUserId: 'user-am',
-    generatedAt: now,
+    issuedAt: now,
     paidAt: null,
     notes: null,
     createdAt: now,
@@ -124,7 +124,7 @@ describe('GenerateInvoiceUseCase', () => {
     expect(result.currency).toBe('AUD');
     expect(result.id).toBeDefined();
     expect(result.inspectorId).toBe('insp-1');
-    expect(result.periodType).toBe('BIWEEKLY');
+    expect(result.periodType).toBe('FORTNIGHTLY');
     expect(result.fileKey).toBeNull();
 
     expect(invoiceRepo.save).toHaveBeenCalledWith(
@@ -133,7 +133,7 @@ describe('GenerateInvoiceUseCase', () => {
         status: 'CLOSED',
         totalAmount: 2500,
         currency: 'AUD',
-        periodType: 'BIWEEKLY',
+        periodType: 'FORTNIGHTLY',
       }),
     );
 

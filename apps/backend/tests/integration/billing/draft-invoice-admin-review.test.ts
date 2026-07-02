@@ -63,7 +63,7 @@ describe('POST /v1/billing/invoices/:invoiceId/approve-draft', () => {
       id: INVOICE_ID,
       status: 'CLOSED',
       generatedByUserId: 'am-1',
-      generatedAt: '2026-04-12T10:00:00.000Z',
+      issuedAt: '2026-04-12T10:00:00.000Z',
     });
 
     const res = await supertest(app.server)

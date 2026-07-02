@@ -16,16 +16,18 @@ export type FinancialEntryStatus = (typeof FinancialEntryStatus)[keyof typeof Fi
 
 export const BillingPeriodType = {
   WEEKLY: 'WEEKLY',
-  BIWEEKLY: 'BIWEEKLY',
+  FORTNIGHTLY: 'FORTNIGHTLY',
   MONTHLY: 'MONTHLY',
 } as const;
 export type BillingPeriodType = (typeof BillingPeriodType)[keyof typeof BillingPeriodType];
 
 export const InspectorInvoiceStatus = {
   PENDING_REVIEW: 'PENDING_REVIEW',
+  // OPEN and SUPERSEDED are legacy values retained only until the destructive cleanup batch.
   OPEN: 'OPEN',
   CLOSED: 'CLOSED',
   PAID: 'PAID',
   SUPERSEDED: 'SUPERSEDED',
+  VOID: 'VOID',
 } as const;
 export type InspectorInvoiceStatus = (typeof InspectorInvoiceStatus)[keyof typeof InspectorInvoiceStatus];

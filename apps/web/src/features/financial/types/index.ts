@@ -63,7 +63,7 @@ export interface Invoice {
   currency: string;
   status: InspectorInvoiceStatus;
   fileKey: string | null;
-  generatedAt: string | null;
+  issuedAt: string | null;
   paidAt: string | null;
   // Payment reconciliation fields (feature 017)
   paidByUserId: string | null;

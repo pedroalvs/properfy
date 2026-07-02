@@ -102,7 +102,7 @@ export class DraftInspectorInvoiceUseCase {
         inspector_id: inspectorId,
         period_start: start,
         period_end: end,
-        period_type: 'BIWEEKLY',
+        period_type: 'FORTNIGHTLY',
         status: 'PENDING_REVIEW',
         total_amount: totalAmount,
         currency,

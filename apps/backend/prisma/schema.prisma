@@ -434,6 +434,9 @@ model Inspector {
   phone                      String?         @db.VarChar(20)
   status                     InspectorStatus @default(ACTIVE)
   payment_settings_json      Json            @default("{}")
+  // Inspector Property Invoice: billing cycle used to compute closed periods.
+  // Nullable; the application defaults to FORTNIGHTLY when unset (spec 032).
+  billing_cycle              BillingPeriodType?
   regions_json               Json            @default("[]")
   service_types_json         Json            @default("[]")
   client_eligibility_json    Json            @default("[]")
@@ -969,11 +972,12 @@ enum InspectorInvoiceStatus {
   CLOSED
   PAID
   SUPERSEDED
+  VOID
 }
 
 enum BillingPeriodType {
   WEEKLY
-  BIWEEKLY
+  FORTNIGHTLY
   MONTHLY
 }
 
@@ -1203,16 +1207,19 @@ model FinancialEntry {
 
 model InspectorInvoice {
   id                      String                 @id @default(uuid())
+  invoice_number          Int?                   @unique
   inspector_id            String
+  inspector_name          String?
   period_start            DateTime               @db.Date
   period_end              DateTime               @db.Date
   period_type             BillingPeriodType
   status                  InspectorInvoiceStatus @default(OPEN)
   total_amount            Decimal                @default(0) @db.Decimal(12, 2)
   currency                String                 @db.Char(3)
+  line_items_snapshot     Json?
   file_key                String?
   generated_by_user_id    String?
-  generated_at            DateTime?
+  issued_at               DateTime?
   paid_at                 DateTime?
   paid_by_user_id         String?
   payment_reference       String?                @db.VarChar(255)

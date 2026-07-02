@@ -126,7 +126,7 @@ export class InvoicePaymentDateInvalidError extends DomainError {
       'INVOICE_PAYMENT_DATE_INVALID',
       kind === 'future'
         ? 'paidAt cannot be in the future (server UTC + 1h grace window exceeded)'
-        : 'paidAt cannot be before the invoice generatedAt timestamp',
+        : 'paidAt cannot be before the invoice issuedAt timestamp',
       400,
       { kind },
     );

@@ -661,8 +661,28 @@ export const financialEntryResponseSchema = z.object({
 
 // ─── Invoice ───────────────────────────────────────────────────────────────
 
+// One frozen payout line inside an inspector Property Invoice snapshot. Agency and
+// branch are line-level attributes only (never invoice ownership). Join-derived display
+// fields are nullable so the response serializer never throws if a relation is absent.
+export const invoiceSnapshotLineSchema = z.object({
+  serviceDate: dateStr(),
+  appointmentId: z.string().uuid(),
+  appointmentCode: z.string(),
+  propertyAddress: z.string().nullable(),
+  serviceType: z.string().nullable(),
+  amount: z.number(),
+  agencyId: z.string().uuid().nullable(),
+  agencyName: z.string().nullable(),
+  branchId: z.string().uuid().nullable(),
+  branchName: z.string().nullable(),
+});
+export type InvoiceSnapshotLine = z.infer<typeof invoiceSnapshotLineSchema>;
+
 export const invoiceResponseSchema = z.object({
   id: z.string().uuid(),
+  // Sequential number assigned only at approval (null while PENDING_REVIEW / VOID).
+  invoiceNumber: z.number().int().nullable().optional(),
+  invoiceNumberDisplay: z.string().nullable().optional(),
   inspectorId: z.string().uuid(),
   inspectorName: z.string().nullable().optional(),
   periodStart: dateStr(),
@@ -671,9 +691,11 @@ export const invoiceResponseSchema = z.object({
   status: z.string(),
   totalAmount: z.number(),
   currency: z.string(),
+  // Frozen at approval; null until then.
+  lineItemsSnapshot: z.array(invoiceSnapshotLineSchema).nullable().optional(),
   fileKey: z.string().nullable().optional(),
   generatedByUserId: z.string().uuid().nullable().optional(),
-  generatedAt: dateStrNullable(),
+  issuedAt: dateStrNullable(),
   paidAt: dateStrNullable(),
   // Payment reconciliation fields (feature 017) — populated when invoice transitions to PAID
   paidByUserId: z.string().uuid().nullable().optional(),

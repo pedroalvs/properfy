@@ -1184,7 +1184,7 @@ async function main() {
       currency: 'AUD',
       file_key: 'invoices/inspector-linked/2026-W11.xlsx',
       generated_by_user_id: IDS.userAM,
-      generated_at: pastDate(3),
+      issued_at: pastDate(3),
     },
   });
 
@@ -1202,7 +1202,7 @@ async function main() {
       currency: 'AUD',
       file_key: 'invoices/inspector-indep/2026-02.xlsx',
       generated_by_user_id: IDS.userAM,
-      generated_at: pastDate(15),
+      issued_at: pastDate(15),
       paid_at: pastDate(10),
     },
   });

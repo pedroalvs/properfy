@@ -12,7 +12,7 @@ import { useGenerateInvoice } from '../hooks/useGenerateInvoice';
 
 const FREQUENCY_OPTIONS = [
   { label: 'Weekly', value: 'WEEKLY' },
-  { label: 'Biweekly', value: 'BIWEEKLY' },
+  { label: 'Fortnightly', value: 'FORTNIGHTLY' },
   { label: 'Monthly', value: 'MONTHLY' },
 ];
 
@@ -109,7 +109,7 @@ export function GenerateInvoiceModal({ open, onClose, onGenerated, tenantId }: G
         inspectorId: form.inspectorId,
         periodStart: form.periodStart,
         periodEnd: form.periodEnd,
-        periodType: form.periodType as 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY',
+        periodType: form.periodType as 'WEEKLY' | 'FORTNIGHTLY' | 'MONTHLY',
       });
       showSuccess('Invoice generated successfully');
       setForm(EMPTY_FORM);
