@@ -167,7 +167,7 @@ export class PrismaReportDataReader implements IReportDataReader {
     let totalExpense = 0;
     const rows: Record<string, unknown>[] = entries.map((e) => {
       const amount = Number(e.amount);
-      // Invoice convention (generate-tenant-invoice): revenue = debit − refund + adjustment.
+      // Agency revenue convention: revenue = debit − refund + adjustment.
       // tenant_id is always set, so inspector-scope is the revenue/expense discriminator.
       let revenue = 0;
       let expense = 0;

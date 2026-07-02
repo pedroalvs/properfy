@@ -89,3 +89,24 @@ describe('031 PR-2 — removed duplicate PATCH approve returns 404', () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe('031 PR-3 — removed orphan tenant-invoice routes return 404', () => {
+  it.each([
+    ['post', '/v1/billing/tenant-invoices/generate'],
+    ['get', '/v1/billing/tenant-invoices'],
+    ['post', `/v1/billing/tenant-invoices/${INVOICE_ID}/regenerate`],
+  ])('%s %s → 404', async (method, path) => {
+    const res = await (supertest(app.server) as any)[method](path).set(
+      'Authorization',
+      'Bearer any-token',
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it('inspector-invoice regenerate remains registered (not 404)', async () => {
+    const res = await supertest(app.server)
+      .post(`/v1/billing/invoices/${INVOICE_ID}/regenerate`)
+      .send({});
+    expect(res.status).toBe(401);
+  });
+});

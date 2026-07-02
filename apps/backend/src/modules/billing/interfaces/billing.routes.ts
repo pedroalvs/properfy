@@ -12,13 +12,10 @@ import {
   generateInvoiceSchema,
   listInvoicesQuerySchema,
   voidFinancialEntrySchema,
-  generateTenantInvoiceSchema,
-  listTenantInvoicesQuerySchema,
   regenerateInvoiceSchema,
   rejectDraftInvoiceSchema,
   financialEntryResponseSchema,
   invoiceResponseSchema,
-  tenantInvoiceResponseSchema,
   invoiceDownloadResponseSchema,
   successResponseSchema,
   paginatedResponseSchema,
@@ -43,10 +40,7 @@ import type { ReverseInvoicePaymentUseCase } from '../application/use-cases/reve
 import type { GetReconciliationSummaryUseCase } from '../application/use-cases/get-reconciliation-summary.use-case';
 import type { CreateFinancialEntriesOnDoneUseCase } from '../application/use-cases/create-financial-entries-on-done.use-case';
 import type { VoidFinancialEntryUseCase } from '../application/use-cases/void-financial-entry.use-case';
-import type { GenerateTenantInvoiceUseCase } from '../application/use-cases/generate-tenant-invoice.use-case';
 import type { RegenerateInspectorInvoiceUseCase } from '../application/use-cases/regenerate-inspector-invoice.use-case';
-import type { RegenerateTenantInvoiceUseCase } from '../application/use-cases/regenerate-tenant-invoice.use-case';
-import type { ListTenantInvoicesUseCase } from '../application/use-cases/list-tenant-invoices.use-case';
 import type { ApproveDraftInvoiceUseCase } from '../application/use-cases/approve-draft-invoice.use-case';
 import type { RejectDraftInvoiceUseCase } from '../application/use-cases/reject-draft-invoice.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
@@ -69,10 +63,7 @@ export interface BillingRouteContainer {
   reverseInvoicePaymentUseCase: ReverseInvoicePaymentUseCase;
   getReconciliationSummaryUseCase: GetReconciliationSummaryUseCase;
   voidFinancialEntryUseCase: VoidFinancialEntryUseCase;
-  generateTenantInvoiceUseCase: GenerateTenantInvoiceUseCase;
   regenerateInspectorInvoiceUseCase: RegenerateInspectorInvoiceUseCase;
-  regenerateTenantInvoiceUseCase: RegenerateTenantInvoiceUseCase;
-  listTenantInvoicesUseCase: ListTenantInvoicesUseCase;
   approveDraftInvoiceUseCase: ApproveDraftInvoiceUseCase;
   rejectDraftInvoiceUseCase: RejectDraftInvoiceUseCase;
   jwtService: JwtService;
@@ -439,43 +430,6 @@ export async function registerBillingRoutes(
     },
   );
 
-  // --- Tenant invoice routes: /v1/billing/tenant-invoices/* (GAP-004) ---
-
-  // POST /v1/billing/tenant-invoices/generate
-  app.post(
-    '/v1/billing/tenant-invoices/generate',
-    { preHandler: authenticate, schema: { body: generateTenantInvoiceSchema, response: { 202: successResponseSchema(tenantInvoiceResponseSchema) } } },
-    async (request, reply) => {
-      const parsed = generateTenantInvoiceSchema.safeParse(request.body);
-      if (!parsed.success) {
-        throw new ValidationError('Request payload is invalid', parsed.error.errors);
-      }
-      const result = await container.generateTenantInvoiceUseCase.execute({
-        ...parsed.data,
-        actor: request.authContext!,
-      });
-      return reply.status(202).send(success(result));
-    },
-  );
-
-  // GET /v1/billing/tenant-invoices
-  app.get(
-    '/v1/billing/tenant-invoices',
-    { preHandler: authenticate, schema: { querystring: listTenantInvoicesQuerySchema, response: { 200: paginatedResponseSchema(tenantInvoiceResponseSchema) } } },
-    async (request, reply) => {
-      const parsed = listTenantInvoicesQuerySchema.safeParse(request.query);
-      if (!parsed.success) {
-        throw new ValidationError('Invalid query parameters', parsed.error.errors);
-      }
-      const { page, pageSize } = parsed.data;
-      const result = await container.listTenantInvoicesUseCase.execute({
-        ...parsed.data,
-        actor: request.authContext!,
-      });
-      return reply.status(200).send(paginated(result.data, result.total, page, pageSize));
-    },
-  );
-
   // --- Invoice regeneration routes (GAP-007) ---
 
   // POST /v1/billing/invoices/:invoiceId/regenerate
@@ -492,28 +446,6 @@ export async function registerBillingRoutes(
         throw new ValidationError('Request payload is invalid', parsed.error.errors);
       }
       const result = await container.regenerateInspectorInvoiceUseCase.execute({
-        invoiceId: params.data.invoiceId,
-        reason: parsed.data.reason,
-        actor: request.authContext!,
-      });
-      return reply.status(202).send(success(result));
-    },
-  );
-
-  // POST /v1/billing/tenant-invoices/:invoiceId/regenerate
-  app.post(
-    '/v1/billing/tenant-invoices/:invoiceId/regenerate',
-    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), body: regenerateInvoiceSchema, response: { 202: successResponseSchema(tenantInvoiceResponseSchema) } } },
-    async (request, reply) => {
-      const params = invoiceIdParam.safeParse(request.params);
-      if (!params.success) {
-        throw new ValidationError('Invalid invoice ID', params.error.errors);
-      }
-      const parsed = regenerateInvoiceSchema.safeParse(request.body);
-      if (!parsed.success) {
-        throw new ValidationError('Request payload is invalid', parsed.error.errors);
-      }
-      const result = await container.regenerateTenantInvoiceUseCase.execute({
         invoiceId: params.data.invoiceId,
         reason: parsed.data.reason,
         actor: request.authContext!,

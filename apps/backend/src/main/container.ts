@@ -229,13 +229,9 @@ import { BatchMarkInvoicesPaidUseCase } from '../modules/billing/application/use
 import { ReverseInvoicePaymentUseCase } from '../modules/billing/application/use-cases/reverse-invoice-payment.use-case';
 import { GetReconciliationSummaryUseCase } from '../modules/billing/application/use-cases/get-reconciliation-summary.use-case';
 import { VoidFinancialEntryUseCase } from '../modules/billing/application/use-cases/void-financial-entry.use-case';
-import { GenerateTenantInvoiceUseCase } from '../modules/billing/application/use-cases/generate-tenant-invoice.use-case';
 import { RegenerateInspectorInvoiceUseCase } from '../modules/billing/application/use-cases/regenerate-inspector-invoice.use-case';
-import { RegenerateTenantInvoiceUseCase } from '../modules/billing/application/use-cases/regenerate-tenant-invoice.use-case';
-import { ListTenantInvoicesUseCase } from '../modules/billing/application/use-cases/list-tenant-invoices.use-case';
 import { ApproveDraftInvoiceUseCase } from '../modules/billing/application/use-cases/approve-draft-invoice.use-case';
 import { RejectDraftInvoiceUseCase } from '../modules/billing/application/use-cases/reject-draft-invoice.use-case';
-import { PrismaTenantInvoiceRepository } from '../modules/billing/infrastructure/prisma-tenant-invoice.repository';
 import type { BillingRouteContainer } from '../modules/billing/interfaces/billing.routes';
 
 // Report module
@@ -651,7 +647,6 @@ export function createContainer(logger: Logger): AppContainer {
   // Billing repositories (needed before appointments for onDoneHandler wiring)
   const financialEntryRepo = new PrismaFinancialEntryRepository(prisma);
   const inspectorInvoiceRepo = new PrismaInspectorInvoiceRepository(prisma);
-  const tenantInvoiceRepo = new PrismaTenantInvoiceRepository(prisma);
 
   // Appointment time slot
   const createTenantUseCase = new CreateTenantUseCase(tenantRepo, auditService, authorizationService, domainEventBus);
@@ -945,10 +940,7 @@ export function createContainer(logger: Logger): AppContainer {
   const reverseInvoicePaymentUseCase = new ReverseInvoicePaymentUseCase(inspectorInvoiceRepo, auditService, authorizationService);
   const getReconciliationSummaryUseCase = new GetReconciliationSummaryUseCase(inspectorInvoiceRepo, authorizationService);
   const voidFinancialEntryUseCase = new VoidFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService);
-  const generateTenantInvoiceUseCase = new GenerateTenantInvoiceUseCase(tenantInvoiceRepo, financialEntryRepo, auditService, billingJobQueue, authorizationService);
   const regenerateInspectorInvoiceUseCase = new RegenerateInspectorInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, billingJobQueue, authorizationService);
-  const regenerateTenantInvoiceUseCase = new RegenerateTenantInvoiceUseCase(tenantInvoiceRepo, financialEntryRepo, auditService, billingJobQueue, authorizationService);
-  const listTenantInvoicesUseCase = new ListTenantInvoicesUseCase(tenantInvoiceRepo);
   const approveDraftInvoiceUseCase = new ApproveDraftInvoiceUseCase(inspectorInvoiceRepo, auditService, authorizationService, billingJobQueue);
   const rejectDraftInvoiceUseCase = new RejectDraftInvoiceUseCase(inspectorInvoiceRepo, auditService, authorizationService);
 
@@ -1456,10 +1448,7 @@ export function createContainer(logger: Logger): AppContainer {
       reverseInvoicePaymentUseCase,
       getReconciliationSummaryUseCase,
       voidFinancialEntryUseCase,
-      generateTenantInvoiceUseCase,
       regenerateInspectorInvoiceUseCase,
-      regenerateTenantInvoiceUseCase,
-      listTenantInvoicesUseCase,
       approveDraftInvoiceUseCase,
       rejectDraftInvoiceUseCase,
       jwtService,
