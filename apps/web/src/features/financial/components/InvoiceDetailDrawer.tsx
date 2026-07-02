@@ -19,7 +19,7 @@ import { RejectDraftModal } from './RejectDraftModal';
 
 const FREQUENCY_LABELS: Record<string, string> = {
   WEEKLY: 'Weekly',
-  BIWEEKLY: 'Biweekly',
+  FORTNIGHTLY: 'Fortnightly',
   MONTHLY: 'Monthly',
 };
 
@@ -50,7 +50,7 @@ export function InvoiceDetailDrawer({
   const inspectorLabel = invoice
     ? (resolveInspectorLabel?.(invoice.inspectorId) ?? invoice.inspectorId)
     : '';
-  const canDownload = !!invoice && invoice.status !== 'OPEN' && invoice.status !== 'PENDING_REVIEW' && !!invoice.fileKey;
+  const canDownload = !!invoice && invoice.status !== 'PENDING_REVIEW' && !!invoice.fileKey;
 
   const [markPaidOpen, setMarkPaidOpen] = useState(false);
   const [reverseOpen, setReverseOpen] = useState(false);
@@ -180,6 +180,7 @@ export function InvoiceDetailDrawer({
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <div className="flex flex-col gap-6">
                 <FormSection title="Invoice Details">
+                  <DetailRow label="Number" value={invoice.invoiceNumberDisplay ?? '—'} />
                   <DetailRow label="Inspector" value={inspectorLabel} />
                   <DetailRow label="Period" value={`${formatDate(invoice.periodStart)} - ${formatDate(invoice.periodEnd)}`} />
                   <DetailRow label="Period Type" value={FREQUENCY_LABELS[invoice.periodType] ?? invoice.periodType} />
@@ -191,22 +192,50 @@ export function InvoiceDetailDrawer({
                       This draft invoice is awaiting admin review before it becomes active.
                     </p>
                   )}
-                  {invoice.status === 'OPEN' && (
-                    <p className="text-sm text-text-muted">
-                      This invoice is still open. The total can change until the invoice is closed.
-                    </p>
-                  )}
                 </FormSection>
+
+                {invoice.lineItemsSnapshot && invoice.lineItemsSnapshot.length > 0 && (
+                  <FormSection title="Property Invoice line items">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-left text-text-muted">
+                            <th className="py-1 pr-3">Date</th>
+                            <th className="py-1 pr-3">Appointment</th>
+                            <th className="py-1 pr-3">Property</th>
+                            <th className="py-1 pr-3">Service</th>
+                            <th className="py-1 pr-3">Agency</th>
+                            <th className="py-1 pr-3">Branch</th>
+                            <th className="py-1 text-right">Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {invoice.lineItemsSnapshot.map((line) => (
+                            <tr key={line.appointmentId} className="border-t border-black/5">
+                              <td className="py-1 pr-3">{formatDate(line.serviceDate)}</td>
+                              <td className="py-1 pr-3">{line.appointmentCode}</td>
+                              <td className="py-1 pr-3">{line.propertyAddress ?? '—'}</td>
+                              <td className="py-1 pr-3">{line.serviceType ?? '—'}</td>
+                              <td className="py-1 pr-3">{line.agencyName ?? '—'}</td>
+                              <td className="py-1 pr-3">{line.branchName ?? '—'}</td>
+                              <td className="py-1 text-right">{formatCurrency(line.amount, invoice.currency)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </FormSection>
+                )}
 
                 {invoice.notes && (
                   <FormSection title="Notes">
-                    <DetailRow label="Notes" value={invoice.notes} />
+                    <DetailRow label={invoice.status === 'VOID' ? 'Rejection reason' : 'Notes'} value={invoice.notes} />
                   </FormSection>
                 )}
 
                 <FormSection title="Record">
                   <DetailRow label="Created at" value={formatDateTime(invoice.createdAt)} />
-                  <DetailRow label="Generated at" value={invoice.generatedAt ? formatDateTime(invoice.generatedAt) : 'Pending generation'} />
+                  <DetailRow label="Issued at" value={invoice.issuedAt ? formatDateTime(invoice.issuedAt) : 'Pending generation'} />
                   <DetailRow label="Paid at" value={invoice.paidAt ? formatDateTime(invoice.paidAt) : 'Not paid'} />
                   {invoice.status === 'PAID' && (
                     <>

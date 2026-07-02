@@ -4,6 +4,8 @@ import { InspectorInvoiceEntity } from '../../../src/modules/billing/domain/insp
 import {
   InvoiceNotFoundError,
   InvoiceNotPendingReviewError,
+  InvoiceEmptyPeriodError,
+  InvoiceMixedCurrencyError,
 } from '../../../src/modules/billing/domain/billing.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
@@ -11,33 +13,47 @@ import { AuthorizationService } from '../../../src/shared/domain/authorization.s
 const invoiceRepo = {
   findById: vi.fn(),
   findByInspectorAndPeriod: vi.fn(),
-  findOverlapping: vi.fn(),
+  findActiveByInspectorAndPeriod: vi.fn(),
   findAll: vi.fn(),
   findManyByIds: vi.fn(),
   count: vi.fn(),
   save: vi.fn(),
   update: vi.fn(),
   deleteById: vi.fn(),
+  assignNumberAndFreeze: vi.fn(),
   getReconciliationAggregates: vi.fn(),
+};
+
+const financialEntryRepo = {
+  aggregateApprovedPayoutsForInspectorInPeriod: vi.fn(),
+  findApprovedPayoutLinesForSnapshot: vi.fn(),
 };
 
 const auditService = { log: vi.fn() };
 const jobQueue = { enqueue: vi.fn().mockResolvedValue(undefined) };
 
+const SNAPSHOT = [
+  { serviceDate: '2026-03-02', appointmentId: 'a1', appointmentCode: 'ABC-0001', propertyAddress: '1 St', serviceType: 'Routine', amount: 350, agencyId: 'ag1', agencyName: 'Agency', branchId: 'b1', branchName: 'Branch' },
+  { serviceDate: '2026-03-05', appointmentId: 'a2', appointmentCode: 'ABC-0002', propertyAddress: '2 St', serviceType: 'Routine', amount: 350, agencyId: 'ag1', agencyName: 'Agency', branchId: 'b1', branchName: 'Branch' },
+];
+
 function makePendingReviewInvoice(overrides: Record<string, unknown> = {}) {
   return new InspectorInvoiceEntity({
     id: 'inv-1',
+    invoiceNumber: null,
     inspectorId: 'insp-1',
+    inspectorName: 'Jane Inspector',
     periodStart: new Date('2026-03-01'),
     periodEnd: new Date('2026-03-15'),
-    periodType: 'BIWEEKLY',
+    periodType: 'FORTNIGHTLY',
     status: 'PENDING_REVIEW',
-    totalAmount: 1200,
+    totalAmount: 0,
     currency: 'AUD',
+    lineItemsSnapshot: null,
     fileKey: null,
     previousInvoiceId: null,
     generatedByUserId: null,
-    generatedAt: null,
+    issuedAt: null,
     paidAt: null,
     paidByUserId: null,
     paymentReference: null,
@@ -49,30 +65,16 @@ function makePendingReviewInvoice(overrides: Record<string, unknown> = {}) {
   });
 }
 
-const opActor = {
-  userId: 'op-1',
-  tenantId: 'tenant-1',
-  role: 'OP' as const,
-  branchId: null,
-  inspectorId: null,
-};
-
-const amActor = {
-  userId: 'am-1',
-  tenantId: null,
-  role: 'AM' as const,
-  branchId: null,
-  inspectorId: null,
-};
-
+const opActor = { userId: 'op-1', tenantId: 'tenant-1', role: 'OP' as const, branchId: null, inspectorId: null };
 const authorizationService = new AuthorizationService(auditService as any);
 
 function makeSut() {
   return new ApproveDraftInvoiceUseCase(
-    invoiceRepo,
+    invoiceRepo as any,
+    financialEntryRepo as any,
     auditService as any,
     authorizationService,
-    jobQueue,
+    jobQueue as any,
   );
 }
 
@@ -80,77 +82,72 @@ describe('ApproveDraftInvoiceUseCase', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     invoiceRepo.findById.mockResolvedValue(makePendingReviewInvoice());
-    invoiceRepo.update.mockResolvedValue(undefined);
+    // Single read now returns both the frozen lines and the currencies (closes the TOCTOU window).
+    financialEntryRepo.findApprovedPayoutLinesForSnapshot.mockResolvedValue({ lines: SNAPSHOT, currencies: ['AUD'] });
+    invoiceRepo.assignNumberAndFreeze.mockResolvedValue(42);
   });
 
-  it('should approve a PENDING_REVIEW invoice and transition to CLOSED', async () => {
-    const sut = makeSut();
+  it('freezes the snapshot, assigns a number, sets issued_at and enqueues the PDF', async () => {
+    const result = await makeSut().execute({ invoiceId: 'inv-1', actor: opActor });
 
-    const result = await sut.execute({ invoiceId: 'inv-1', actor: opActor });
-
-    expect(result.id).toBe('inv-1');
     expect(result.status).toBe('CLOSED');
+    expect(result.invoiceNumber).toBe(42);
+    expect(result.invoiceNumberDisplay).toBe('PINV-000042');
     expect(result.generatedByUserId).toBe('op-1');
-    expect(result.generatedAt).toBeDefined();
 
-    expect(invoiceRepo.update).toHaveBeenCalledWith('inv-1', {
-      status: 'CLOSED',
+    expect(invoiceRepo.assignNumberAndFreeze).toHaveBeenCalledWith('inv-1', {
+      lineItemsSnapshot: SNAPSHOT,
+      totalAmount: 700,
+      inspectorName: 'Jane Inspector',
+      issuedAt: expect.any(Date),
       generatedByUserId: 'op-1',
-      generatedAt: expect.any(Date),
     });
-
-    expect(jobQueue.enqueue).toHaveBeenCalledWith(
-      'billing.generate-invoice-file',
-      { invoiceId: 'inv-1' },
-    );
-
+    expect(jobQueue.enqueue).toHaveBeenCalledWith('billing.generate-invoice-file', { invoiceId: 'inv-1' });
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'inspector_invoice.approved',
-        actorType: 'USER',
-        actorId: 'op-1',
-        entityType: 'InspectorInvoice',
-        entityId: 'inv-1',
-        after: expect.objectContaining({
-          inspectorId: 'insp-1',
-          invoiceId: 'inv-1',
-          draftedByInspectorId: 'insp-1',
-          approvedByUserId: 'op-1',
-        }),
+        after: expect.objectContaining({ invoiceNumber: 42, totalAmount: 700, lineCount: 2 }),
       }),
     );
   });
 
-  it('should reject when invoice not found', async () => {
-    const sut = makeSut();
+  it('never leaks a raw UUID in the snapshot appointment code', async () => {
+    await makeSut().execute({ invoiceId: 'inv-1', actor: opActor });
+    const frozen = invoiceRepo.assignNumberAndFreeze.mock.calls[0][1].lineItemsSnapshot;
+    for (const line of frozen) {
+      expect(line.appointmentCode).toMatch(/^[A-Za-z0-9]{3,4}-\d{4,}$/);
+    }
+  });
+
+  it('rejects when invoice not found', async () => {
     invoiceRepo.findById.mockResolvedValue(null);
-
-    await expect(
-      sut.execute({ invoiceId: 'nonexistent', actor: opActor }),
-    ).rejects.toThrow(InvoiceNotFoundError);
+    await expect(makeSut().execute({ invoiceId: 'x', actor: opActor })).rejects.toThrow(InvoiceNotFoundError);
   });
 
-  it('should reject when invoice is not in PENDING_REVIEW status', async () => {
-    const sut = makeSut();
+  it('rejects when invoice is not PENDING_REVIEW', async () => {
     invoiceRepo.findById.mockResolvedValue(makePendingReviewInvoice({ status: 'CLOSED' }));
-
-    await expect(
-      sut.execute({ invoiceId: 'inv-1', actor: opActor }),
-    ).rejects.toThrow(InvoiceNotPendingReviewError);
+    await expect(makeSut().execute({ invoiceId: 'inv-1', actor: opActor })).rejects.toThrow(InvoiceNotPendingReviewError);
   });
 
-  it('should reject non-AM/OP actor (CL_ADMIN)', async () => {
-    const sut = makeSut();
-    const clientActor = {
-      userId: 'cl-1',
-      tenantId: 'tenant-1',
-      role: 'CL_ADMIN' as const,
-      branchId: null,
-      inspectorId: null,
-    };
+  it('rejects when the period has no approved payouts at approval time', async () => {
+    financialEntryRepo.findApprovedPayoutLinesForSnapshot.mockResolvedValue({ lines: [], currencies: [] });
+    await expect(makeSut().execute({ invoiceId: 'inv-1', actor: opActor })).rejects.toThrow(InvoiceEmptyPeriodError);
+    expect(invoiceRepo.assignNumberAndFreeze).not.toHaveBeenCalled();
+  });
 
-    await expect(
-      sut.execute({ invoiceId: 'inv-1', actor: clientActor }),
-    ).rejects.toThrow(ForbiddenError);
+  it('rejects when payouts span multiple currencies at approval time', async () => {
+    financialEntryRepo.findApprovedPayoutLinesForSnapshot.mockResolvedValue({ lines: SNAPSHOT, currencies: ['AUD', 'USD'] });
+    await expect(makeSut().execute({ invoiceId: 'inv-1', actor: opActor })).rejects.toThrow(InvoiceMixedCurrencyError);
+  });
+
+  it('throws NotPendingReview when it loses an approval race (assignNumberAndFreeze returns null)', async () => {
+    invoiceRepo.assignNumberAndFreeze.mockResolvedValue(null);
+    await expect(makeSut().execute({ invoiceId: 'inv-1', actor: opActor })).rejects.toThrow(InvoiceNotPendingReviewError);
+    expect(jobQueue.enqueue).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-AM/OP actor', async () => {
+    const clientActor = { userId: 'cl-1', tenantId: 'tenant-1', role: 'CL_ADMIN' as const, branchId: null, inspectorId: null };
+    await expect(makeSut().execute({ invoiceId: 'inv-1', actor: clientActor })).rejects.toThrow(ForbiddenError);
   });
 });

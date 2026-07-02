@@ -3,7 +3,6 @@ import {
   listFinancialEntriesQuerySchema,
   createManualAdjustmentSchema,
   createRefundSchema,
-  generateInvoiceSchema,
   listInvoicesQuerySchema,
 } from './billing';
 
@@ -122,36 +121,6 @@ describe('createRefundSchema', () => {
   });
 });
 
-describe('generateInvoiceSchema', () => {
-  it('should accept valid input', () => {
-    const result = generateInvoiceSchema.safeParse({
-      inspectorId: '550e8400-e29b-41d4-a716-446655440000',
-      periodStart: '2026-03-01',
-      periodEnd: '2026-03-15',
-      periodType: 'MONTHLY',
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('should reject periodEnd before periodStart', () => {
-    const result = generateInvoiceSchema.safeParse({
-      inspectorId: '550e8400-e29b-41d4-a716-446655440000',
-      periodStart: '2026-03-15',
-      periodEnd: '2026-03-01',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('should reject invalid date format', () => {
-    const result = generateInvoiceSchema.safeParse({
-      inspectorId: '550e8400-e29b-41d4-a716-446655440000',
-      periodStart: '03-01-2026',
-      periodEnd: '03-15-2026',
-    });
-    expect(result.success).toBe(false);
-  });
-});
-
 describe('listInvoicesQuerySchema', () => {
   it('should accept empty object with defaults', () => {
     const result = listInvoicesQuerySchema.safeParse({});
@@ -162,12 +131,24 @@ describe('listInvoicesQuerySchema', () => {
     }
   });
 
-  it('should accept valid input with status', () => {
+  it('should accept a 3-bucket status plus agency/branch content filters', () => {
     const result = listInvoicesQuerySchema.safeParse({
-      status: 'OPEN',
+      status: 'approved',
       inspectorId: '550e8400-e29b-41d4-a716-446655440000',
+      agencyId: '550e8400-e29b-41d4-a716-446655440001',
+      branchId: '550e8400-e29b-41d4-a716-446655440002',
     });
     expect(result.success).toBe(true);
+  });
+
+  it('should accept each status bucket', () => {
+    for (const status of ['pending', 'approved', 'rejected']) {
+      expect(listInvoicesQuerySchema.safeParse({ status }).success).toBe(true);
+    }
+  });
+
+  it('should reject a raw persisted status (buckets only)', () => {
+    expect(listInvoicesQuerySchema.safeParse({ status: 'CLOSED' }).success).toBe(false);
   });
 
   it('should reject invalid status enum', () => {

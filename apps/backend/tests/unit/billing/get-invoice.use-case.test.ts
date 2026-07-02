@@ -13,14 +13,14 @@ function makeInvoice(overrides: Partial<InspectorInvoiceProps> = {}): InspectorI
     inspectorId: 'insp-1',
     periodStart: new Date('2026-03-01'),
     periodEnd: new Date('2026-03-15'),
-    periodType: 'BIWEEKLY',
+    periodType: 'FORTNIGHTLY',
     status: 'CLOSED',
     totalAmount: 1400,
     currency: 'AUD',
     fileKey: null,
     previousInvoiceId: null,
     generatedByUserId: 'user-am',
-    generatedAt: now,
+    issuedAt: now,
     paidAt: null,
     notes: null,
     createdAt: now,
@@ -136,19 +136,15 @@ describe('GetInvoiceUseCase', () => {
     ).rejects.toThrow(ForbiddenError);
   });
 
-  it('should reject OP from GET inspector invoice (CORRECTION-001 close-it)', async () => {
+  it('allows OP to view any inspector invoice (spec 032 reverses the OP exclusion)', async () => {
     const { useCase, invoiceRepo } = sut;
-
     vi.mocked(invoiceRepo.findById).mockResolvedValue(makeInvoice());
 
-    // Sprint 1 W-4-IMPL: inspector invoices are not tenant-scoped, so
-    // cross-inspector GET by ID is AM-only. OP loses access.
-    await expect(
-      useCase.execute({
-        invoiceId: 'invoice-1',
-        actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
-      }),
-    ).rejects.toThrow(ForbiddenError);
+    const result = await useCase.execute({
+      invoiceId: 'invoice-1',
+      actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
+    });
+    expect(result.id).toBe('invoice-1');
   });
 
   it('should return all detail fields', async () => {
@@ -160,7 +156,7 @@ describe('GetInvoiceUseCase', () => {
       makeInvoice({
         fileKey: 'invoices/insp-1/invoice-1.xlsx',
         generatedByUserId: 'user-am',
-        generatedAt: genAt,
+        issuedAt: genAt,
         paidAt,
         notes: 'Test note',
       }),
@@ -173,7 +169,7 @@ describe('GetInvoiceUseCase', () => {
 
     expect(result.fileKey).toBe('invoices/insp-1/invoice-1.xlsx');
     expect(result.generatedByUserId).toBe('user-am');
-    expect(result.generatedAt).toBe(genAt.toISOString());
+    expect(result.issuedAt).toBe(genAt.toISOString());
     expect(result.paidAt).toBe(paidAt.toISOString());
     expect(result.notes).toBe('Test note');
   });

@@ -1,9 +1,14 @@
 import type { AuthContext } from '@properfy/shared';
+import { formatInvoiceNumber } from '@properfy/shared';
 import type { IInspectorInvoiceRepository } from '../../domain/inspector-invoice.repository';
+import type { IFinancialEntryRepository } from '../../domain/financial-entry.repository';
 import {
   InvoiceNotFoundError,
   InvoiceNotPendingReviewError,
+  InvoiceEmptyPeriodError,
+  InvoiceMixedCurrencyError,
 } from '../../domain/billing.errors';
+import { periodEffectiveRange } from '../../domain/billing-period.service';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IJobQueue } from '../../../../shared/domain/job-queue';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
@@ -15,14 +20,23 @@ export interface ApproveDraftInvoiceInput {
 
 export interface ApproveDraftInvoiceOutput {
   id: string;
+  invoiceNumber: number;
+  invoiceNumberDisplay: string;
   status: 'CLOSED';
   generatedByUserId: string;
-  generatedAt: string;
+  issuedAt: string;
 }
 
+/**
+ * Approves a PENDING_REVIEW invoice (AM/OP): freezes the line-item snapshot, total and inspector
+ * name, assigns the sequential number, stamps issued_at, and enqueues the PDF job (spec 032).
+ * The snapshot is built from the current approved INSPECTOR_PAYOUT ledger — the invoice never
+ * mutates the ledger and, once emitted, never recalculates.
+ */
 export class ApproveDraftInvoiceUseCase {
   constructor(
     private readonly invoiceRepo: IInspectorInvoiceRepository,
+    private readonly financialEntryRepo: IFinancialEntryRepository,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
     private readonly jobQueue: IJobQueue,
@@ -38,48 +52,87 @@ export class ApproveDraftInvoiceUseCase {
       entityId: invoiceId,
     });
 
-    // 2. Load invoice
+    // 2. Load invoice, require PENDING_REVIEW.
     const invoice = await this.invoiceRepo.findById(invoiceId);
     if (!invoice) {
       throw new InvoiceNotFoundError();
     }
-
-    // 3. Check status must be PENDING_REVIEW
     if (invoice.status !== 'PENDING_REVIEW') {
       throw new InvoiceNotPendingReviewError();
     }
 
-    // 4. Transition to CLOSED
+    // 3. Build the snapshot AND validate from the same single read (payouts may have changed since
+    //    the request). Deriving the empty/currency checks from the exact rows being frozen closes
+    //    the TOCTOU window a separate aggregate read would leave open.
+    const fromStr = invoice.periodStart.toISOString().slice(0, 10);
+    const toStr = invoice.periodEnd.toISOString().slice(0, 10);
+    const { from, to } = periodEffectiveRange(fromStr, toStr);
+
+    const { lines: snapshot, currencies } = await this.financialEntryRepo.findApprovedPayoutLinesForSnapshot(
+      invoice.inspectorId,
+      from,
+      to,
+    );
+    if (snapshot.length === 0) {
+      throw new InvoiceEmptyPeriodError();
+    }
+    if (currencies.length > 1) {
+      throw new InvoiceMixedCurrencyError(currencies);
+    }
+    // Round to cents so accumulated float error (e.g. 80.00000000001) can't be frozen as the total.
+    const totalAmount = Math.round(snapshot.reduce((sum, line) => sum + line.amount, 0) * 100) / 100;
+
+    // 4. Atomically transition PENDING_REVIEW → CLOSED, assign number, freeze snapshot.
     const now = new Date();
-    await this.invoiceRepo.update(invoiceId, {
-      status: 'CLOSED',
+    const assignedNumber = await this.invoiceRepo.assignNumberAndFreeze(invoiceId, {
+      lineItemsSnapshot: snapshot,
+      totalAmount,
+      inspectorName: invoice.inspectorName,
+      issuedAt: now,
       generatedByUserId: actor.userId,
-      generatedAt: now,
     });
+    if (assignedNumber === null) {
+      // Lost an approval race — another operator already approved it.
+      throw new InvoiceNotPendingReviewError();
+    }
 
-    // 5. Enqueue file generation
-    await this.jobQueue.enqueue('billing.generate-invoice-file', { invoiceId });
-
-    // 6. Audit log
-    this.auditService.log({
-      action: 'inspector_invoice.approved',
-      actorType: 'USER',
-      actorId: actor.userId,
-      entityType: 'InspectorInvoice',
-      entityId: invoiceId,
-      after: {
-        inspectorId: invoice.inspectorId,
-        invoiceId,
-        draftedByInspectorId: invoice.draftedByInspectorId,
-        approvedByUserId: actor.userId,
-      },
-    });
+    // 5. Post-freeze side effects are best-effort: the invoice is already irrevocably CLOSED and
+    //    numbered, so a PDF-enqueue or audit failure must NOT surface as "approve failed" (which
+    //    would make the client retry into InvoiceNotPendingReviewError and orphan the PDF job). The
+    //    PDF worker is idempotent, so a later re-enqueue/reconciliation recovers a missed job.
+    try {
+      await this.jobQueue.enqueue('billing.generate-invoice-file', { invoiceId });
+    } catch {
+      // swallow — the invoice is valid; the PDF can be regenerated by the idempotent worker.
+    }
+    try {
+      this.auditService.log({
+        action: 'inspector_invoice.approved',
+        actorType: 'USER',
+        actorId: actor.userId,
+        entityType: 'InspectorInvoice',
+        entityId: invoiceId,
+        after: {
+          inspectorId: invoice.inspectorId,
+          invoiceId,
+          invoiceNumber: assignedNumber,
+          draftedByInspectorId: invoice.draftedByInspectorId,
+          approvedByUserId: actor.userId,
+          totalAmount,
+          lineCount: snapshot.length,
+        },
+      });
+    } catch {
+      // swallow — audit is best-effort relative to the committed state transition.
+    }
 
     return {
       id: invoiceId,
+      invoiceNumber: assignedNumber,
+      invoiceNumberDisplay: formatInvoiceNumber(assignedNumber)!,
       status: 'CLOSED',
       generatedByUserId: actor.userId,
-      generatedAt: now.toISOString(),
+      issuedAt: now.toISOString(),
     };
   }
 }

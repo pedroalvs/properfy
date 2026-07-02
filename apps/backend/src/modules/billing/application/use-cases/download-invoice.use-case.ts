@@ -34,10 +34,9 @@ export class DownloadInvoiceUseCase {
       throw new InvoiceNotFoundError();
     }
 
-    // 2. Scope check. Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13):
-    //    inspector invoices are not tenant-scoped, so cross-inspector access
-    //    is AM-only. OP loses access to inspector invoice downloads.
-    if (actor.role === 'AM') {
+    // 2. Scope check (spec 032): inspector invoices are global platform documents.
+    //    AM/OP have full access; INSP is restricted to its own.
+    if (actor.role === 'AM' || actor.role === 'OP') {
       // Full access
     } else if (actor.role === 'INSP') {
       if (!actor.inspectorId) {

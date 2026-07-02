@@ -64,12 +64,12 @@ describe('InvoiceDetailDrawer', () => {
         inspectorId: 'insp-01',
         periodStart: '2026-03-01',
         periodEnd: '2026-03-15',
-        periodType: 'BIWEEKLY',
+        invoiceNumber: null,        invoiceNumberDisplay: null,        periodType: 'FORTNIGHTLY',
         totalAmount: 1800,
         currency: 'AUD',
         status: 'CLOSED',
         fileKey: 'invoices/inv-01.pdf',
-        generatedAt: '2026-03-16T10:00:00Z',
+        issuedAt: '2026-03-16T10:00:00Z',
         paidAt: null,
         paidByUserId: null,
         paymentReference: null,
@@ -86,24 +86,24 @@ describe('InvoiceDetailDrawer', () => {
       { wrapper: createQueryWrapper() },
     );
     expect(screen.getByText('Invoice - Diego')).toBeInTheDocument();
-    expect(screen.getByText('Biweekly')).toBeInTheDocument();
+    expect(screen.getByText('Fortnightly')).toBeInTheDocument();
     expect(screen.getByText(/01\/03\/2026 - 15\/03\/2026/)).toBeInTheDocument();
     expect(screen.getByText('Download')).toBeInTheDocument();
   });
 
-  it('shows an open-invoice warning and disables download when the invoice is still open', () => {
+  it('disables download for a PENDING_REVIEW invoice (not yet issued)', () => {
     mockUseInvoiceDetail.mockReturnValue({
       invoice: {
         id: 'inv-02',
         inspectorId: 'insp-02',
         periodStart: '2026-03-01',
         periodEnd: '2026-03-15',
-        periodType: 'BIWEEKLY',
+        invoiceNumber: null,        invoiceNumberDisplay: null,        periodType: 'FORTNIGHTLY',
         totalAmount: 1800,
         currency: 'AUD',
-        status: 'OPEN',
+        status: 'PENDING_REVIEW',
         fileKey: null,
-        generatedAt: null,
+        issuedAt: null,
         paidAt: null,
         paidByUserId: null,
         paymentReference: null,
@@ -120,7 +120,6 @@ describe('InvoiceDetailDrawer', () => {
       { wrapper: createQueryWrapper() },
     );
 
-    expect(screen.getByText('This invoice is still open. The total can change until the invoice is closed.')).toBeInTheDocument();
     expect(screen.getByLabelText('Download invoice')).toBeDisabled();
   });
 });

@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import {
   inspectorScheduleQuerySchema,
@@ -30,11 +30,20 @@ import type { ConfirmAssetUploadUseCase } from '../application/use-cases/confirm
 import type { SaveExecutionProgressUseCase } from '../application/use-cases/save-execution-progress.use-case';
 import type { ReopenExecutionUseCase } from '../application/use-cases/reopen-execution.use-case';
 import type { GetMarketplaceOffersUseCase } from '../../service-group/application/use-cases/get-marketplace-offers.use-case';
-import type { DraftInspectorInvoiceUseCase } from '../../billing/application/use-cases/draft-inspector-invoice.use-case';
+import type { GetAvailablePeriodsUseCase } from '../../billing/application/use-cases/get-available-periods.use-case';
+import type { PreviewInvoiceUseCase } from '../../billing/application/use-cases/preview-invoice.use-case';
+import type { RequestInvoiceUseCase } from '../../billing/application/use-cases/request-invoice.use-case';
 import type { ListAppointmentAssetsUseCase } from '../application/use-cases/list-appointment-assets.use-case';
 import type { GetAppointmentAssetDownloadUrlUseCase } from '../application/use-cases/get-appointment-asset-download-url.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
-import { draftInvoiceSchema } from '@properfy/shared';
+import {
+  availablePeriodsQuerySchema,
+  previewInvoiceQuerySchema,
+  requestInvoiceSchema,
+  availablePeriodsResponseSchema,
+  invoicePreviewResponseSchema,
+  requestInvoiceResponseSchema,
+} from '@properfy/shared';
 
 export interface InspectorExecutionRouteContainer {
   getInspectorScheduleUseCase: GetInspectorScheduleUseCase;
@@ -46,7 +55,9 @@ export interface InspectorExecutionRouteContainer {
   requestAssetUploadUseCase: RequestAssetUploadUseCase;
   confirmAssetUploadUseCase: ConfirmAssetUploadUseCase;
   getMarketplaceOffersUseCase: GetMarketplaceOffersUseCase;
-  draftInspectorInvoiceUseCase: DraftInspectorInvoiceUseCase;
+  getAvailablePeriodsUseCase: GetAvailablePeriodsUseCase;
+  previewInvoiceUseCase: PreviewInvoiceUseCase;
+  requestInvoiceUseCase: RequestInvoiceUseCase;
   listAppointmentAssetsUseCase: ListAppointmentAssetsUseCase;
   getAppointmentAssetDownloadUrlUseCase: GetAppointmentAssetDownloadUrlUseCase;
   jwtService: JwtService;
@@ -342,33 +353,90 @@ export async function registerInspectorExecutionRoutes(
     },
   );
 
-  // POST /v1/inspector/invoices/draft — thin delegation to billing (FR-060)
-  app.post(
-    '/v1/inspector/invoices/draft',
-    { preHandler: authenticate },
+  // ─── Inspector Property Invoice request flow (spec 032) — INSP own-only ───
+  // (The legacy free-form /v1/inspector/invoices/draft route was removed in favour of the
+  // closed-period request flow below.)
+
+  /**
+   * Guards an INSP-only, must-be-linked route: sends the matching error response and returns null
+   * when the actor is not a linked inspector, otherwise returns the inspector id. Keeps the three
+   * invoice routes below thin and their authorization identical.
+   */
+  const requireLinkedInspector = (
+    auth: { role: string; inspectorId: string | null },
+    reply: FastifyReply,
+    action: string,
+  ): string | null => {
+    if (auth.role !== 'INSP') {
+      reply.status(403).send({ error: { code: 'FORBIDDEN', message: `Only inspectors can ${action}` } });
+      return null;
+    }
+    if (!auth.inspectorId) {
+      reply.status(400).send({ error: { code: 'INSPECTOR_NOT_LINKED', message: 'Inspector not linked to user account' } });
+      return null;
+    }
+    return auth.inspectorId;
+  };
+
+  // GET /v1/inspector/invoices/available-periods — selectable closed periods for the inspector cycle
+  app.get(
+    '/v1/inspector/invoices/available-periods',
+    { preHandler: authenticate, schema: { response: { 200: availablePeriodsResponseSchema } } },
     async (request, reply) => {
       const auth = request.authContext!;
-      if (auth.role !== 'INSP') {
-        return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'Only inspectors can draft invoices' } });
-      }
-      if (!auth.inspectorId) {
-        return reply.status(400).send({ error: { code: 'INSPECTOR_NOT_LINKED', message: 'Inspector not linked to user account' } });
-      }
-
-      const parsed = draftInvoiceSchema.safeParse(request.body);
+      const inspectorId = requireLinkedInspector(auth, reply, 'list invoice periods');
+      if (inspectorId === null) return reply;
+      const parsed = availablePeriodsQuerySchema.safeParse(request.query);
       if (!parsed.success) {
-        return reply.status(400).send({
-          error: { code: 'VALIDATION_ERROR', message: 'Invalid draft invoice payload', details: parsed.error.errors },
-        });
+        return reply.status(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Invalid query', details: parsed.error.errors } });
       }
+      const result = await container.getAvailablePeriodsUseCase.execute({
+        inspectorId,
+        count: parsed.data.count,
+      });
+      return reply.status(200).send(result);
+    },
+  );
 
-      const result = await container.draftInspectorInvoiceUseCase.execute({
-        inspectorId: auth.inspectorId,
+  // GET /v1/inspector/invoices/preview — live preview (count/total/currency) for a chosen period
+  app.get(
+    '/v1/inspector/invoices/preview',
+    { preHandler: authenticate, schema: { response: { 200: invoicePreviewResponseSchema } } },
+    async (request, reply) => {
+      const auth = request.authContext!;
+      const inspectorId = requireLinkedInspector(auth, reply, 'preview invoices');
+      if (inspectorId === null) return reply;
+      const parsed = previewInvoiceQuerySchema.safeParse(request.query);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Invalid query', details: parsed.error.errors } });
+      }
+      const result = await container.previewInvoiceUseCase.execute({
+        inspectorId,
         periodStart: parsed.data.periodStart,
         periodEnd: parsed.data.periodEnd,
       });
+      return reply.status(200).send(result);
+    },
+  );
 
-      return reply.status(201).send(success(result));
+  // POST /v1/inspector/invoices/request — confirm a request for a chosen closed period
+  app.post(
+    '/v1/inspector/invoices/request',
+    { preHandler: authenticate, schema: { response: { 201: requestInvoiceResponseSchema } } },
+    async (request, reply) => {
+      const auth = request.authContext!;
+      const inspectorId = requireLinkedInspector(auth, reply, 'request invoices');
+      if (inspectorId === null) return reply;
+      const parsed = requestInvoiceSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Invalid request invoice payload', details: parsed.error.errors } });
+      }
+      const result = await container.requestInvoiceUseCase.execute({
+        inspectorId,
+        periodStart: parsed.data.periodStart,
+        periodEnd: parsed.data.periodEnd,
+      });
+      return reply.status(201).send(result);
     },
   );
 }

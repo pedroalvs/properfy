@@ -74,7 +74,7 @@ describe('GetReconciliationSummaryUseCase', () => {
     expect(result.totalInvoicedAmount).toBe(result.totalPaidAmount + result.totalUnpaidAmount);
   });
 
-  it('filters by generatedAt (start/end of day boundaries)', async () => {
+  it('filters by issuedAt (start/end of day boundaries)', async () => {
     const sut = makeSut();
     invoiceRepo.getReconciliationAggregates.mockResolvedValue([]);
 

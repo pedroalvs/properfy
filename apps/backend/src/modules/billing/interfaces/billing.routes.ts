@@ -9,10 +9,8 @@ import {
   batchMarkInvoicesPaidSchema,
   reverseInvoicePaymentSchema,
   reconciliationSummaryQuerySchema,
-  generateInvoiceSchema,
   listInvoicesQuerySchema,
   voidFinancialEntrySchema,
-  regenerateInvoiceSchema,
   rejectDraftInvoiceSchema,
   financialEntryResponseSchema,
   agencyFinancialExportResponseSchema,
@@ -32,7 +30,6 @@ import type { GetFinancialEntryUseCase } from '../application/use-cases/get-fina
 import type { ApproveFinancialEntryUseCase } from '../application/use-cases/approve-financial-entry.use-case';
 import type { CreateManualAdjustmentUseCase } from '../application/use-cases/create-manual-adjustment.use-case';
 import type { CreateRefundUseCase } from '../application/use-cases/create-refund.use-case';
-import type { GenerateInvoiceUseCase } from '../application/use-cases/generate-invoice.use-case';
 import type { ListInvoicesUseCase } from '../application/use-cases/list-invoices.use-case';
 import type { GetInvoiceUseCase } from '../application/use-cases/get-invoice.use-case';
 import type { DownloadInvoiceUseCase } from '../application/use-cases/download-invoice.use-case';
@@ -43,7 +40,6 @@ import type { ReverseInvoicePaymentUseCase } from '../application/use-cases/reve
 import type { GetReconciliationSummaryUseCase } from '../application/use-cases/get-reconciliation-summary.use-case';
 import type { CreateFinancialEntriesOnDoneUseCase } from '../application/use-cases/create-financial-entries-on-done.use-case';
 import type { VoidFinancialEntryUseCase } from '../application/use-cases/void-financial-entry.use-case';
-import type { RegenerateInspectorInvoiceUseCase } from '../application/use-cases/regenerate-inspector-invoice.use-case';
 import type { ApproveDraftInvoiceUseCase } from '../application/use-cases/approve-draft-invoice.use-case';
 import type { RejectDraftInvoiceUseCase } from '../application/use-cases/reject-draft-invoice.use-case';
 import type { ExportAgencyFinancialUseCase } from '../application/use-cases/export-agency-financial.use-case';
@@ -59,7 +55,6 @@ export interface BillingRouteContainer {
   cancelFinancialEntryUseCase: CancelFinancialEntryUseCase;
   createManualAdjustmentUseCase: CreateManualAdjustmentUseCase;
   createRefundUseCase: CreateRefundUseCase;
-  generateInvoiceUseCase: GenerateInvoiceUseCase;
   listInvoicesUseCase: ListInvoicesUseCase;
   getInvoiceUseCase: GetInvoiceUseCase;
   downloadInvoiceUseCase: DownloadInvoiceUseCase;
@@ -68,7 +63,6 @@ export interface BillingRouteContainer {
   reverseInvoicePaymentUseCase: ReverseInvoicePaymentUseCase;
   getReconciliationSummaryUseCase: GetReconciliationSummaryUseCase;
   voidFinancialEntryUseCase: VoidFinancialEntryUseCase;
-  regenerateInspectorInvoiceUseCase: RegenerateInspectorInvoiceUseCase;
   approveDraftInvoiceUseCase: ApproveDraftInvoiceUseCase;
   rejectDraftInvoiceUseCase: RejectDraftInvoiceUseCase;
   exportAgencyFinancialUseCase: ExportAgencyFinancialUseCase;
@@ -337,23 +331,6 @@ export async function registerBillingRoutes(
     },
   );
 
-  // POST /v1/billing/invoices/generate
-  app.post(
-    '/v1/billing/invoices/generate',
-    { preHandler: authenticate, schema: { body: generateInvoiceSchema, response: { 202: successResponseSchema(invoiceResponseSchema) } } },
-    async (request, reply) => {
-      const parsed = generateInvoiceSchema.safeParse(request.body);
-      if (!parsed.success) {
-        throw new ValidationError('Request payload is invalid', parsed.error.errors);
-      }
-      const result = await container.generateInvoiceUseCase.execute({
-        ...parsed.data,
-        actor: request.authContext!,
-      });
-      return reply.status(202).send(success(result));
-    },
-  );
-
   // GET /v1/billing/invoices/:invoiceId
   app.get(
     '/v1/billing/invoices/:invoiceId',
@@ -494,28 +471,6 @@ export async function registerBillingRoutes(
   );
 
   // --- Invoice regeneration routes (GAP-007) ---
-
-  // POST /v1/billing/invoices/:invoiceId/regenerate
-  app.post(
-    '/v1/billing/invoices/:invoiceId/regenerate',
-    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), body: regenerateInvoiceSchema, response: { 202: successResponseSchema(invoiceResponseSchema) } } },
-    async (request, reply) => {
-      const params = invoiceIdParam.safeParse(request.params);
-      if (!params.success) {
-        throw new ValidationError('Invalid invoice ID', params.error.errors);
-      }
-      const parsed = regenerateInvoiceSchema.safeParse(request.body);
-      if (!parsed.success) {
-        throw new ValidationError('Request payload is invalid', parsed.error.errors);
-      }
-      const result = await container.regenerateInspectorInvoiceUseCase.execute({
-        invoiceId: params.data.invoiceId,
-        reason: parsed.data.reason,
-        actor: request.authContext!,
-      });
-      return reply.status(202).send(success(result));
-    },
-  );
 
   // POST /v1/billing/invoices/:invoiceId/approve-draft
   app.post(

@@ -1,45 +1,22 @@
 import { useState, useCallback, useMemo } from 'react';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
-import { useAuth } from '@/hooks/useAuth';
-import { useFormOptions } from '@/hooks/useFormOptions';
 import { usePermissions } from '@/hooks/usePermissions';
-import { FormField } from '@/components/forms/FormField';
-import { SelectInput } from '@/components/forms/SelectInput';
+import { useFormOptions } from '@/hooks/useFormOptions';
 import { Button } from '@/components/ui/Button';
 import { InvoiceFilters } from '../components/InvoiceFilters';
 import { InvoiceTable } from '../components/InvoiceTable';
 import { InvoiceDetailDrawer } from '../components/InvoiceDetailDrawer';
-import { GenerateInvoiceModal } from '../components/GenerateInvoiceModal';
 import { MarkInvoicePaidModal } from '../components/MarkInvoicePaidModal';
 import { ReconciliationSummary } from '../components/ReconciliationSummary';
 import { useInvoiceList } from '../hooks/useInvoiceList';
 import { useInvoiceDownload } from '../hooks/useInvoiceDownload';
 import { useReconciliationSummary } from '../hooks/useReconciliationSummary';
-import { FilterRequiredState } from '@/components/feedback/FilterRequiredState';
 import type { Invoice } from '../types';
 
 export function InvoicesPage() {
-  const { user } = useAuth();
   const { hasRole } = usePermissions();
   const canModifyPayments = hasRole('AM', 'OP');
-  const isGlobalRole = user?.role === 'AM' || user?.role === 'OP';
-  const [selectedTenantId, setSelectedTenantId] = useState('');
-  const effectiveTenantId = isGlobalRole ? selectedTenantId : user?.tenantId ?? undefined;
-  const requiresTenantSelection = isGlobalRole && !selectedTenantId;
-  const { options: tenantOptions } = useFormOptions<{ id: string; name: string }>(
-    ['tenants', 'invoice-form-options'],
-    '/v1/tenants',
-    (item) => ({ value: item.id, label: item.name }),
-    undefined,
-    { enabled: isGlobalRole },
-  );
-  const { options: inspectorOptions } = useFormOptions<{ id: string; name: string | null }>(
-    ['inspectors', 'invoice-filter-options', effectiveTenantId ?? ''],
-    '/v1/inspectors',
-    (item) => ({ value: item.id, label: item.name ?? item.id }),
-    effectiveTenantId ? { tenantId: effectiveTenantId } : undefined,
-    { enabled: !isGlobalRole || !!effectiveTenantId },
-  );
+
   const {
     data,
     isLoading,
@@ -51,6 +28,26 @@ export function InvoicesPage() {
     pagination,
   } = useInvoiceList();
 
+  // Inspector Property Invoices are global — filters (agency/branch/inspector) are content/owner
+  // filters, not an agency gate. AM/OP see all invoices immediately.
+  const { options: inspectorOptions } = useFormOptions<{ id: string; name: string | null }>(
+    ['inspectors', 'invoice-filter-options'],
+    '/v1/inspectors',
+    (item) => ({ value: item.id, label: item.name ?? item.id }),
+  );
+  const { options: agencyOptions } = useFormOptions<{ id: string; name: string }>(
+    ['tenants', 'invoice-agency-options'],
+    '/v1/tenants',
+    (item) => ({ value: item.id, label: item.name }),
+  );
+  const { options: branchOptions } = useFormOptions<{ id: string; name: string }>(
+    ['branches', 'invoice-branch-options', filters.agencyId],
+    '/v1/branches',
+    (item) => ({ value: item.id, label: item.name }),
+    filters.agencyId ? { tenantId: filters.agencyId } : undefined,
+    { enabled: !!filters.agencyId },
+  );
+
   const { download } = useInvoiceDownload();
 
   const {
@@ -61,19 +58,17 @@ export function InvoicesPage() {
     from: filters.periodStart,
     to: filters.periodEnd,
     inspectorId: filters.inspectorId || undefined,
-    enabled: !requiresTenantSelection,
   });
-  const inspectorLabelById = Object.fromEntries(
-    inspectorOptions.map((option) => [option.value, option.label]),
-  );
+
+  const inspectorLabelById = Object.fromEntries(inspectorOptions.map((o) => [o.value, o.label]));
   const resolveInspectorLabel = useCallback(
-    (inspectorId: string) => inspectorLabelById[inspectorId] ?? inspectorId,
+    // Never surface the raw inspector id when the label lookup misses (feedback_no_raw_ids_in_ui).
+    (inspectorId: string) => inspectorLabelById[inspectorId] ?? '—',
     [inspectorLabelById],
   );
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [generateOpen, setGenerateOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [markPaidIds, setMarkPaidIds] = useState<string[] | null>(null);
 
@@ -91,11 +86,6 @@ export function InvoicesPage() {
     download(invoice.id);
   }, [download]);
 
-  const handleGenerated = useCallback(() => {
-    setGenerateOpen(false);
-    refetch();
-  }, [refetch]);
-
   const handleToggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -112,14 +102,10 @@ export function InvoicesPage() {
 
   const handleToggleSelectAllClosed = useCallback(() => {
     setSelectedIds((prev) => {
-      const allSelected =
-        closedIdsOnPage.length > 0 && closedIdsOnPage.every((id) => prev.has(id));
+      const allSelected = closedIdsOnPage.length > 0 && closedIdsOnPage.every((id) => prev.has(id));
       const next = new Set(prev);
-      if (allSelected) {
-        closedIdsOnPage.forEach((id) => next.delete(id));
-      } else {
-        closedIdsOnPage.forEach((id) => next.add(id));
-      }
+      if (allSelected) closedIdsOnPage.forEach((id) => next.delete(id));
+      else closedIdsOnPage.forEach((id) => next.add(id));
       return next;
     });
   }, [closedIdsOnPage]);
@@ -144,58 +130,34 @@ export function InvoicesPage() {
 
   return (
     <>
-      <ListFilterTableTemplate
-        title="Invoices"
-        primaryAction={{
-          label: 'Generate Invoice',
-          icon: 'mdi-receipt-text-plus-outline',
-          onClick: () => setGenerateOpen(true),
-        }}
-      >
-        {isGlobalRole && (
-          <div className="px-0 pb-2">
-            <FormField label="Agency">
-              <SelectInput
-                value={selectedTenantId}
-                onChange={setSelectedTenantId}
-                options={tenantOptions}
-                placeholder="Select agency to filter invoices"
-                aria-label="Agency"
-              />
-            </FormField>
-          </div>
-        )}
-        {requiresTenantSelection ? (
-          <FilterRequiredState message="Select an agency to view invoices." />
-        ) : (
-          <>
-            <InvoiceFilters
-              filters={filters}
-              onFiltersChange={setFilters}
-              inspectorOptions={inspectorOptions}
-            />
-            <ReconciliationSummary
-              summary={reconciliationSummary}
-              isLoading={summaryLoading}
-              multiCurrencyError={multiCurrencyError}
-            />
-            <InvoiceTable
-              data={data}
-              loading={isLoading}
-              error={isError ? (errorMessage ?? 'Failed to load invoices') : undefined}
-              onRetryError={refetch}
-              pagination={pagination}
-              resolveInspectorLabel={resolveInspectorLabel}
-              onView={handleView}
-              onDownload={handleDownload}
-              onMarkPaid={handleMarkPaidSingle}
-              canModifyPayments={canModifyPayments}
-              selectedIds={canModifyPayments ? selectedIds : undefined}
-              onToggleSelect={canModifyPayments ? handleToggleSelect : undefined}
-              onToggleSelectAllClosed={canModifyPayments ? handleToggleSelectAllClosed : undefined}
-            />
-          </>
-        )}
+      <ListFilterTableTemplate title="Invoices">
+        <InvoiceFilters
+          filters={filters}
+          onFiltersChange={setFilters}
+          inspectorOptions={inspectorOptions}
+          agencyOptions={agencyOptions}
+          branchOptions={branchOptions}
+        />
+        <ReconciliationSummary
+          summary={reconciliationSummary}
+          isLoading={summaryLoading}
+          multiCurrencyError={multiCurrencyError}
+        />
+        <InvoiceTable
+          data={data}
+          loading={isLoading}
+          error={isError ? (errorMessage ?? 'Failed to load invoices') : undefined}
+          onRetryError={refetch}
+          pagination={pagination}
+          resolveInspectorLabel={resolveInspectorLabel}
+          onView={handleView}
+          onDownload={handleDownload}
+          onMarkPaid={handleMarkPaidSingle}
+          canModifyPayments={canModifyPayments}
+          selectedIds={canModifyPayments ? selectedIds : undefined}
+          onToggleSelect={canModifyPayments ? handleToggleSelect : undefined}
+          onToggleSelectAllClosed={canModifyPayments ? handleToggleSelectAllClosed : undefined}
+        />
       </ListFilterTableTemplate>
       {canModifyPayments && selectedIds.size > 0 && (
         <div
@@ -218,12 +180,6 @@ export function InvoicesPage() {
         open={drawerOpen}
         onClose={handleCloseDrawer}
         resolveInspectorLabel={resolveInspectorLabel}
-      />
-      <GenerateInvoiceModal
-        open={generateOpen}
-        onClose={() => setGenerateOpen(false)}
-        onGenerated={handleGenerated}
-        tenantId={effectiveTenantId}
       />
       {markPaidIds && (
         <MarkInvoicePaidModal

@@ -1,4 +1,5 @@
-import type { AuthContext } from '@properfy/shared';
+import type { AuthContext, InvoiceSnapshotLine } from '@properfy/shared';
+import { formatInvoiceNumber } from '@properfy/shared';
 import type { IInspectorInvoiceRepository } from '../../domain/inspector-invoice.repository';
 import { InvoiceNotFoundError } from '../../domain/billing.errors';
 import { ForbiddenError } from '../../../../shared/domain/errors';
@@ -10,6 +11,8 @@ export interface GetInvoiceInput {
 
 export interface GetInvoiceOutput {
   id: string;
+  invoiceNumber: number | null;
+  invoiceNumberDisplay: string | null;
   inspectorId: string;
   inspectorName: string | null;
   periodStart: string;
@@ -18,9 +21,10 @@ export interface GetInvoiceOutput {
   status: string;
   totalAmount: number;
   currency: string;
+  lineItemsSnapshot: InvoiceSnapshotLine[] | null;
   fileKey: string | null;
   generatedByUserId: string | null;
-  generatedAt: string | null;
+  issuedAt: string | null;
   paidAt: string | null;
   paidByUserId: string | null;
   paymentReference: string | null;
@@ -41,10 +45,9 @@ export class GetInvoiceUseCase {
       throw new InvoiceNotFoundError();
     }
 
-    // 2. Scope check. Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13):
-    //    inspector invoices are not tenant-scoped, so cross-inspector access
-    //    is AM-only. OP loses access to inspector invoices by ID.
-    if (actor.role === 'AM') {
+    // 2. Scope check (spec 032): inspector invoices are global platform documents.
+    //    AM/OP have full access; INSP is restricted to its own.
+    if (actor.role === 'AM' || actor.role === 'OP') {
       // Full access
     } else if (actor.role === 'INSP') {
       if (!actor.inspectorId) {
@@ -59,6 +62,8 @@ export class GetInvoiceUseCase {
 
     return {
       id: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      invoiceNumberDisplay: formatInvoiceNumber(invoice.invoiceNumber),
       inspectorId: invoice.inspectorId,
       inspectorName: invoice.inspectorName,
       periodStart: invoice.periodStart.toISOString().slice(0, 10),
@@ -67,9 +72,10 @@ export class GetInvoiceUseCase {
       status: invoice.status,
       totalAmount: Number(invoice.totalAmount),
       currency: invoice.currency,
+      lineItemsSnapshot: invoice.lineItemsSnapshot,
       fileKey: invoice.fileKey,
       generatedByUserId: invoice.generatedByUserId,
-      generatedAt: invoice.generatedAt ? invoice.generatedAt.toISOString() : null,
+      issuedAt: invoice.issuedAt ? invoice.issuedAt.toISOString() : null,
       paidAt: invoice.paidAt ? invoice.paidAt.toISOString() : null,
       paidByUserId: invoice.paidByUserId,
       paymentReference: invoice.paymentReference,

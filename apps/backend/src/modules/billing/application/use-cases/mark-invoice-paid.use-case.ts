@@ -14,7 +14,7 @@ import { SystemClock, type Clock } from '../../../../shared/domain/clock';
 const FUTURE_GRACE_MS = 60 * 60 * 1000; // 1 hour
 
 /**
- * Grace window in milliseconds for the "paidAt is before generatedAt" check.
+ * Grace window in milliseconds for the "paidAt is before issuedAt" check.
  * Client-side date pickers (datetime-local, date) truncate precision below the
  * minute — sending e.g. `2026-04-18T14:45:00.000Z` when the invoice was in
  * fact generated at `2026-04-18T14:45:23.456Z`. Absorbing a small truncation
@@ -41,14 +41,14 @@ export interface MarkInvoicePaidOutput {
 /**
  * Validate the provided paidAt against two constraints:
  * 1. Not in the future (beyond serverUtcNow + 1h grace) — Q4 clarification
- * 2. Not before the invoice generatedAt timestamp
+ * 2. Not before the invoice issuedAt timestamp
  * Throws `InvoicePaymentDateInvalidError` with the specific reason.
  */
-export function validatePaidAt(paidAt: Date, generatedAt: Date | null, now: Date = new Date()): void {
+export function validatePaidAt(paidAt: Date, issuedAt: Date | null, now: Date = new Date()): void {
   if (paidAt.getTime() > now.getTime() + FUTURE_GRACE_MS) {
     throw new InvoicePaymentDateInvalidError('future');
   }
-  if (generatedAt && paidAt.getTime() < generatedAt.getTime() - BEFORE_GENERATED_GRACE_MS) {
+  if (issuedAt && paidAt.getTime() < issuedAt.getTime() - BEFORE_GENERATED_GRACE_MS) {
     throw new InvoicePaymentDateInvalidError('before_generated_at');
   }
 }
@@ -88,7 +88,7 @@ export class MarkInvoicePaidUseCase {
     // 4. Determine paidAt and validate date constraints (FR-006)
     const now = this.clock.now();
     const paidAt = input.paidAt ? new Date(input.paidAt) : now;
-    validatePaidAt(paidAt, invoice.generatedAt, now);
+    validatePaidAt(paidAt, invoice.issuedAt, now);
 
     const paymentReference = input.paymentReference ?? null;
     const before = {
