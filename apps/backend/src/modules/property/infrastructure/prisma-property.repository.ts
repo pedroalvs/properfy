@@ -284,16 +284,22 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     // every UPDATE, so a partial address-field diff still lands correctly
     // without this repository needing to fetch-and-merge first.
 
+    let updatedCount = 0;
     try {
-      await this.prisma.property.updateMany({
+      const result = await this.prisma.property.updateMany({
         where: { id, tenant_id: tenantId },
         data: updateData,
       });
+      updatedCount = result.count;
     } catch (error) {
       rethrowPropertyConflict(error);
     }
 
-    if (data.lat !== undefined || data.lng !== undefined) {
+    // syncCoordinates writes by id alone (no tenant_id in its WHERE — see
+    // below), so it must never run when the tenant-scoped updateMany above
+    // matched nothing: otherwise a property id belonging to a different
+    // tenant than `tenantId` would still get its coordinates overwritten.
+    if (updatedCount > 0 && (data.lat !== undefined || data.lng !== undefined)) {
       await this.syncCoordinates(id, data.lat ?? null, data.lng ?? null);
     }
   }

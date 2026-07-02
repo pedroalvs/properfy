@@ -160,6 +160,11 @@ describe('resolvedImportRowSchema', () => {
     const result = resolvedImportRowSchema.safeParse({ ...VALID_ROW, timeSlotStart: '8am' });
     expect(result.success).toBe(false);
   });
+
+  it('rejects a malformed timeSlotEnd', () => {
+    const result = resolvedImportRowSchema.safeParse({ ...VALID_ROW, timeSlotEnd: '5pm' });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('importSummarySchema', () => {

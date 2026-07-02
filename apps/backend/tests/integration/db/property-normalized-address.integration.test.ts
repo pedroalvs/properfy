@@ -146,6 +146,38 @@ describe('PrismaPropertyRepository.findManyByNormalizedAddressKeys', () => {
   });
 });
 
+describe('PrismaPropertyRepository.update — tenant scoping', () => {
+  it('does not write coordinates when the tenant-scoped update matches no row (cross-tenant id)', async () => {
+    const tenantA = await seedTenant('T-coord-scope-A');
+    const tenantB = await seedTenant('T-coord-scope-B');
+    const propertyBId = crypto.randomUUID();
+    await repo.save(buildProperty({ id: propertyBId, tenantId: tenantB, street: '20 Guard St', suburb: 'Oatley', postcode: '2223' }));
+
+    // Calling update with tenant A's scope but tenant B's property id must be
+    // a no-op — including for syncCoordinates, which writes the PostGIS
+    // `coordinates` column by id alone and has no tenant_id in its own WHERE.
+    await repo.update(propertyBId, tenantA, { lat: -33.9, lng: 151.1 });
+
+    const [row] = await harness.prisma.$queryRaw<Array<{ has_coords: boolean }>>`
+      SELECT (coordinates IS NOT NULL) AS has_coords FROM properties WHERE id = ${propertyBId}
+    `;
+    expect(row!.has_coords).toBe(false);
+  });
+
+  it('does write coordinates when the tenant-scoped update matches the row', async () => {
+    const tenantId = await seedTenant('T-coord-scope-match');
+    const propertyId = crypto.randomUUID();
+    await repo.save(buildProperty({ id: propertyId, tenantId, street: '21 Guard St', suburb: 'Oatley', postcode: '2223' }));
+
+    await repo.update(propertyId, tenantId, { lat: -33.9, lng: 151.1 });
+
+    const [row] = await harness.prisma.$queryRaw<Array<{ has_coords: boolean }>>`
+      SELECT (coordinates IS NOT NULL) AS has_coords FROM properties WHERE id = ${propertyId}
+    `;
+    expect(row!.has_coords).toBe(true);
+  });
+});
+
 describe('properties_normalized_address_active_unique (partial unique index)', () => {
   it('rejects a second active property with the same tenant+address as a clean PropertyAddressConflictError, not a raw P2002', async () => {
     const { PropertyAddressConflictError } = await import('../../../src/modules/property/domain/property.errors');
