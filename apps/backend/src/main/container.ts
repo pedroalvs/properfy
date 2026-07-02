@@ -850,7 +850,7 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Service group repositories and use cases
   const serviceGroupRepo = new PrismaServiceGroupRepository(prisma);
-  const createServiceGroupUseCase = new CreateServiceGroupUseCase(serviceGroupRepo, appointmentRepo, auditService, authorizationService, serviceRegionRepo, tenantRepo);
+  const createServiceGroupUseCase = new CreateServiceGroupUseCase(serviceGroupRepo, appointmentRepo, auditService, authorizationService, serviceRegionRepo, tenantRepo, undefined, logger);
   const getServiceGroupUseCase = new GetServiceGroupUseCase(serviceGroupRepo, authorizationService);
   const listServiceGroupsUseCase = new ListServiceGroupsUseCase(serviceGroupRepo, authorizationService);
   const publishServiceGroupUseCase = new PublishServiceGroupUseCase(serviceGroupRepo, auditService, serviceRegionRepo, authorizationService, domainEventBus);
@@ -880,6 +880,7 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentRepo,
     auditService,
     authorizationService,
+    logger,
   );
   const checkAppointmentsEligibilityForGroupUseCase = new CheckAppointmentsEligibilityForGroupUseCase(
     serviceGroupRepo,

@@ -14,7 +14,7 @@ import { validateNewSchedule } from '@properfy/shared';
 import { NotFoundError } from '../../../../shared/domain/errors';
 import type { PriorityMode } from '@properfy/shared';
 import { SystemClock, type Clock } from '../../../../shared/domain/clock';
-import { trySyncAppointmentTimeSlotToGroup } from '../sync-appointment-time-slot-to-group';
+import { trySyncAppointmentTimeSlotToGroup, type ServiceGroupTimeSyncLogger } from '../sync-appointment-time-slot-to-group';
 
 export interface CreateServiceGroupInput {
   appointmentIds: string[];
@@ -64,6 +64,7 @@ export class CreateServiceGroupUseCase {
     private readonly serviceRegionRepo: IServiceRegionRepository,
     private readonly tenantRepo?: ITenantRepository,
     private readonly clock: Clock = new SystemClock(),
+    private readonly logger: ServiceGroupTimeSyncLogger = { error: () => undefined },
   ) {}
 
   async execute(input: CreateServiceGroupInput): Promise<CreateServiceGroupOutput> {
@@ -199,6 +200,7 @@ export class CreateServiceGroupUseCase {
         groupTimeWindow: input.timeWindow,
         groupId,
         actor,
+        logger: this.logger,
       });
     }
 

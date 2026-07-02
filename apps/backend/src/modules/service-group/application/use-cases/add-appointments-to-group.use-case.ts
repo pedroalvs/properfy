@@ -5,7 +5,7 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { NotFoundError } from '../../../../shared/domain/errors';
 import { ServiceGroupValidator, type AddToGroupReason } from '../../domain/service-group.validator';
-import { trySyncAppointmentTimeSlotToGroup } from '../sync-appointment-time-slot-to-group';
+import { trySyncAppointmentTimeSlotToGroup, type ServiceGroupTimeSyncLogger } from '../sync-appointment-time-slot-to-group';
 
 export type AddToGroupResultStatus = 'OK' | AddToGroupReason | 'NOT_FOUND' | 'ERROR';
 
@@ -46,6 +46,7 @@ export class AddAppointmentsToGroupUseCase {
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
+    private readonly logger: ServiceGroupTimeSyncLogger = { error: () => undefined },
   ) {}
 
   async execute(input: AddAppointmentsToGroupInput): Promise<AddAppointmentsToGroupOutput> {
@@ -116,6 +117,7 @@ export class AddAppointmentsToGroupUseCase {
           groupTimeWindow: group.timeWindow,
           groupId: input.groupId,
           actor: input.actor,
+          logger: this.logger,
         });
 
         if (appointment.status === 'DRAFT') {

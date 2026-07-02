@@ -18,6 +18,7 @@ import {
 import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { ServiceRegionEntity } from '../../../src/modules/service-region/domain/service-region.entity';
+import type { ServiceGroupTimeSyncLogger } from '../../../src/modules/service-group/application/sync-appointment-time-slot-to-group';
 
 const REGION_ID = 'region-1';
 
@@ -125,6 +126,7 @@ describe('CreateServiceGroupUseCase', () => {
   let appointmentRepo: IAppointmentRepository;
   let serviceRegionRepo: IServiceRegionRepository;
   let auditService: AuditService;
+  let logger: ServiceGroupTimeSyncLogger;
   let useCase: CreateServiceGroupUseCase;
 
   beforeEach(() => {
@@ -156,6 +158,7 @@ describe('CreateServiceGroupUseCase', () => {
     };
     serviceRegionRepo = createMockRegionRepo();
     auditService = { log: vi.fn() } as unknown as AuditService;
+    logger = { error: vi.fn() } as unknown as ServiceGroupTimeSyncLogger;
 
     const authorizationService = new AuthorizationService(auditService);
     useCase = new CreateServiceGroupUseCase(
@@ -164,6 +167,9 @@ describe('CreateServiceGroupUseCase', () => {
       auditService,
       authorizationService,
       serviceRegionRepo,
+      undefined,
+      undefined,
+      logger,
     );
   });
 
@@ -284,6 +290,7 @@ describe('CreateServiceGroupUseCase', () => {
       action: 'appointment.updated',
       entityId: 'appt-1',
     }));
+    expect(logger.error).not.toHaveBeenCalled();
   });
 
   it('does not fail group creation when an appointment has malformed legacy time values', async () => {
@@ -309,6 +316,7 @@ describe('CreateServiceGroupUseCase', () => {
       action: 'appointment.updated',
       entityId: 'appt-1',
     }));
+    expect(logger.error).not.toHaveBeenCalled();
   });
 
   it('does not fail group creation when the post-link time sync update fails', async () => {
@@ -338,6 +346,15 @@ describe('CreateServiceGroupUseCase', () => {
       action: 'appointment.updated',
       entityId: 'appt-1',
     }));
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({
+        err: expect.any(Error),
+        appointmentId: 'appt-1',
+        tenantId: 'tenant-1',
+        groupId: expect.any(String),
+      }),
+      'appointment time-slot sync to group failed',
+    );
   });
 
   it('should throw NotFoundError when service region does not exist', async () => {

@@ -1,7 +1,10 @@
 import type { AuthContext } from '@properfy/shared';
 import type { AuditService } from '../../../shared/infrastructure/audit';
+import type { Logger } from '../../../shared/infrastructure/logger';
 import type { IAppointmentRepository } from '../../appointment/domain/appointment.repository';
 import { getServiceGroupTimeSlotAdjustment, type AppointmentTimeSlot } from '../domain/service-group-time-slot-sync';
+
+export type ServiceGroupTimeSyncLogger = Pick<Logger, 'error'>;
 
 export interface AppointmentForServiceGroupTimeSync extends AppointmentTimeSlot {
   id: string;
@@ -15,6 +18,7 @@ export interface SyncAppointmentTimeSlotToGroupInput {
   groupTimeWindow: string;
   groupId: string;
   actor: AuthContext;
+  logger: ServiceGroupTimeSyncLogger;
 }
 
 export async function syncAppointmentTimeSlotToGroup(input: SyncAppointmentTimeSlotToGroupInput): Promise<void> {
@@ -47,8 +51,17 @@ export async function syncAppointmentTimeSlotToGroup(input: SyncAppointmentTimeS
 export async function trySyncAppointmentTimeSlotToGroup(input: SyncAppointmentTimeSlotToGroupInput): Promise<void> {
   try {
     await syncAppointmentTimeSlotToGroup(input);
-  } catch {
+  } catch (err) {
     // The group/link write may already be committed. Time sync is best-effort
     // and must not make the caller report a false failure for a linked item.
+    input.logger.error(
+      {
+        err,
+        appointmentId: input.appointment.id,
+        tenantId: input.appointment.tenantId,
+        groupId: input.groupId,
+      },
+      'appointment time-slot sync to group failed',
+    );
   }
 }

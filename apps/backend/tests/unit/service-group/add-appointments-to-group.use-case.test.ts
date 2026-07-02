@@ -7,6 +7,7 @@ import type { IAppointmentRepository, AppointmentWithRelations } from '../../../
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
+import type { ServiceGroupTimeSyncLogger } from '../../../src/modules/service-group/application/sync-appointment-time-slot-to-group';
 
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
   return {
@@ -108,6 +109,7 @@ describe('AddAppointmentsToGroupUseCase', () => {
   let groupRepo: IServiceGroupRepository;
   let appointmentRepo: IAppointmentRepository;
   let auditService: AuditService;
+  let logger: ServiceGroupTimeSyncLogger;
   let useCase: AddAppointmentsToGroupUseCase;
 
   beforeEach(() => {
@@ -120,11 +122,13 @@ describe('AddAppointmentsToGroupUseCase', () => {
       update: vi.fn(),
     } as unknown as IAppointmentRepository;
     auditService = { log: vi.fn() } as unknown as AuditService;
+    logger = { error: vi.fn() } as unknown as ServiceGroupTimeSyncLogger;
     useCase = new AddAppointmentsToGroupUseCase(
       groupRepo,
       appointmentRepo,
       auditService,
       new AuthorizationService(auditService),
+      logger,
     );
   });
 
@@ -177,6 +181,7 @@ describe('AddAppointmentsToGroupUseCase', () => {
       action: 'appointment.updated',
       entityId: 'appt-1',
     }));
+    expect(logger.error).not.toHaveBeenCalled();
   });
 
   it('keeps the linked OK result when legacy malformed time cannot be synced', async () => {
@@ -217,6 +222,15 @@ describe('AddAppointmentsToGroupUseCase', () => {
       action: 'appointment.updated',
       entityId: 'appt-1',
     }));
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({
+        err: expect.any(Error),
+        appointmentId: 'appt-1',
+        tenantId: 'tenant-1',
+        groupId: 'group-1',
+      }),
+      'appointment time-slot sync to group failed',
+    );
   });
 
   it('does not update time for an ineligible appointment', async () => {
