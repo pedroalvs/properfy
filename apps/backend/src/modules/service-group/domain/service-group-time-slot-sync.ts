@@ -12,8 +12,12 @@ export function getServiceGroupTimeSlotAdjustment(
   groupTimeWindow: string,
 ): TimeSlotAdjustment | null {
   const [groupStart, groupEnd] = parseTimeWindow(groupTimeWindow);
-  const appointmentStart = parseTime(appointment.timeSlotStart);
-  const appointmentEnd = parseTime(appointment.timeSlotEnd);
+  const appointmentStart = parseAppointmentTime(appointment.timeSlotStart);
+  const appointmentEnd = parseAppointmentTime(appointment.timeSlotEnd);
+
+  if (!appointmentStart || !appointmentEnd) {
+    return null;
+  }
 
   if (appointmentStart.minutes >= groupStart.minutes && appointmentEnd.minutes <= groupEnd.minutes) {
     return null;
@@ -35,19 +39,27 @@ function parseTimeWindow(timeWindow: string): [{ value: string; minutes: number 
     throw new Error(`Invalid service group time window: ${timeWindow}`);
   }
 
-  return [parseTime(start), parseTime(end)];
+  return [parseGroupTime(start), parseGroupTime(end)];
 }
 
-function parseTime(value: string): { value: string; minutes: number } {
+function parseGroupTime(value: string): { value: string; minutes: number } {
+  const parsed = parseAppointmentTime(value);
+  if (!parsed) {
+    throw new Error(`Invalid time value: ${value}`);
+  }
+  return parsed;
+}
+
+function parseAppointmentTime(value: string): { value: string; minutes: number } | null {
   const match = /^(\d{2}):(\d{2})$/.exec(value);
   if (!match) {
-    throw new Error(`Invalid time value: ${value}`);
+    return null;
   }
 
   const hours = Number(match[1]);
   const minutes = Number(match[2]);
   if (hours > 23 || minutes > 59) {
-    throw new Error(`Invalid time value: ${value}`);
+    return null;
   }
 
   return { value, minutes: hours * 60 + minutes };

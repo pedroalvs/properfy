@@ -155,6 +155,70 @@ describe('AddAppointmentsToGroupUseCase', () => {
     }));
   });
 
+  it('does not update time for an OK appointment fully inside the group time window', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+      makeAppointmentWithRelations({ id: 'appt-1', timeSlotStart: '09:30', timeSlotEnd: '10:30' }),
+    );
+
+    const result = await useCase.execute({
+      groupId: 'group-1',
+      appointmentIds: ['appt-1'],
+      actor: makeActor(),
+    });
+
+    expect(result.results).toEqual([{ appointmentId: 'appt-1', status: 'OK' }]);
+    expect(groupRepo.linkAppointments).toHaveBeenCalledWith(['appt-1'], 'group-1');
+    expect(appointmentRepo.update).not.toHaveBeenCalled();
+    expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'appointment.added_to_group',
+      entityId: 'appt-1',
+    }));
+    expect(auditService.log).not.toHaveBeenCalledWith(expect.objectContaining({
+      action: 'appointment.updated',
+      entityId: 'appt-1',
+    }));
+  });
+
+  it('keeps the linked OK result when legacy malformed time cannot be synced', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+      makeAppointmentWithRelations({ id: 'appt-1', timeSlotStart: '010:00', timeSlotEnd: '11:00' }),
+    );
+
+    const result = await useCase.execute({
+      groupId: 'group-1',
+      appointmentIds: ['appt-1'],
+      actor: makeActor(),
+    });
+
+    expect(result.results).toEqual([{ appointmentId: 'appt-1', status: 'OK' }]);
+    expect(groupRepo.linkAppointments).toHaveBeenCalledWith(['appt-1'], 'group-1');
+    expect(appointmentRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('keeps the linked OK result when the post-link time sync update fails', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+      makeAppointmentWithRelations({ id: 'appt-1', timeSlotStart: '08:00', timeSlotEnd: '10:00' }),
+    );
+    vi.mocked(appointmentRepo.update).mockRejectedValueOnce(new Error('sync failed'));
+
+    const result = await useCase.execute({
+      groupId: 'group-1',
+      appointmentIds: ['appt-1'],
+      actor: makeActor(),
+    });
+
+    expect(result.results).toEqual([{ appointmentId: 'appt-1', status: 'OK' }]);
+    expect(groupRepo.linkAppointments).toHaveBeenCalledWith(['appt-1'], 'group-1');
+    expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
+      timeSlotStart: '09:00',
+      timeSlotEnd: '12:00',
+    });
+    expect(auditService.log).not.toHaveBeenCalledWith(expect.objectContaining({
+      action: 'appointment.updated',
+      entityId: 'appt-1',
+    }));
+  });
+
   it('does not update time for an ineligible appointment', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
       makeAppointmentWithRelations({

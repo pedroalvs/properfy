@@ -14,7 +14,7 @@ import { validateNewSchedule } from '@properfy/shared';
 import { NotFoundError } from '../../../../shared/domain/errors';
 import type { PriorityMode } from '@properfy/shared';
 import { SystemClock, type Clock } from '../../../../shared/domain/clock';
-import { getServiceGroupTimeSlotAdjustment } from '../service-group-time-slot-sync';
+import { trySyncAppointmentTimeSlotToGroup } from '../sync-appointment-time-slot-to-group';
 
 export interface CreateServiceGroupInput {
   appointmentIds: string[];
@@ -192,29 +192,13 @@ export class CreateServiceGroupUseCase {
     await this.serviceGroupRepo.linkAppointments(input.appointmentIds, groupId);
 
     for (const appt of appointments) {
-      const adjustment = getServiceGroupTimeSlotAdjustment(appt, input.timeWindow);
-      if (!adjustment) {
-        continue;
-      }
-
-      await this.appointmentRepo.update(appt.id, appt.tenantId, {
-        timeSlotStart: adjustment.timeSlotStart,
-        timeSlotEnd: adjustment.timeSlotEnd,
-      });
-      this.auditService.log({
-        action: 'appointment.updated',
-        actorType: 'SYSTEM',
-        actorId: actor.userId,
-        entityType: 'Appointment',
-        entityId: appt.id,
-        tenantId: appt.tenantId,
-        before: adjustment.before,
-        after: {
-          timeSlotStart: adjustment.timeSlotStart,
-          timeSlotEnd: adjustment.timeSlotEnd,
-        },
-        reason: 'Added to service group',
-        metadata: { groupId, automaticTimeSlotSync: true },
+      await trySyncAppointmentTimeSlotToGroup({
+        appointmentRepo: this.appointmentRepo,
+        auditService: this.auditService,
+        appointment: appt,
+        groupTimeWindow: input.timeWindow,
+        groupId,
+        actor,
       });
     }
 

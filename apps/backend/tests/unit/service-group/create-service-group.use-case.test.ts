@@ -286,6 +286,60 @@ describe('CreateServiceGroupUseCase', () => {
     }));
   });
 
+  it('does not fail group creation when an appointment has malformed legacy time values', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+      makeAppointmentWithRelations({ id: 'appt-1', timeSlotStart: '010:00', timeSlotEnd: '10:00' }),
+    );
+
+    const result = await useCase.execute({
+      appointmentIds: ['appt-1'],
+      serviceTypeId: 'svc-type-1',
+      scheduledDate: farFutureDate,
+      timeWindow: '09:00-12:00',
+      priorityMode: 'STANDARD',
+      serviceRegionId: REGION_ID,
+      actor: makeActor(),
+    });
+
+    expect(result.id).toBeDefined();
+    expect(serviceGroupRepo.save).toHaveBeenCalledOnce();
+    expect(serviceGroupRepo.linkAppointments).toHaveBeenCalledWith(['appt-1'], expect.any(String));
+    expect(appointmentRepo.update).not.toHaveBeenCalled();
+    expect(auditService.log).not.toHaveBeenCalledWith(expect.objectContaining({
+      action: 'appointment.updated',
+      entityId: 'appt-1',
+    }));
+  });
+
+  it('does not fail group creation when the post-link time sync update fails', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+      makeAppointmentWithRelations({ id: 'appt-1', timeSlotStart: '08:00', timeSlotEnd: '10:00' }),
+    );
+    vi.mocked(appointmentRepo.update).mockRejectedValueOnce(new Error('sync failed'));
+
+    const result = await useCase.execute({
+      appointmentIds: ['appt-1'],
+      serviceTypeId: 'svc-type-1',
+      scheduledDate: farFutureDate,
+      timeWindow: '09:00-12:00',
+      priorityMode: 'STANDARD',
+      serviceRegionId: REGION_ID,
+      actor: makeActor(),
+    });
+
+    expect(result.id).toBeDefined();
+    expect(serviceGroupRepo.save).toHaveBeenCalledOnce();
+    expect(serviceGroupRepo.linkAppointments).toHaveBeenCalledWith(['appt-1'], expect.any(String));
+    expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
+      timeSlotStart: '09:00',
+      timeSlotEnd: '12:00',
+    });
+    expect(auditService.log).not.toHaveBeenCalledWith(expect.objectContaining({
+      action: 'appointment.updated',
+      entityId: 'appt-1',
+    }));
+  });
+
   it('should throw NotFoundError when service region does not exist', async () => {
     serviceRegionRepo = createMockRegionRepo(null);
     const authorizationService = new AuthorizationService(auditService);

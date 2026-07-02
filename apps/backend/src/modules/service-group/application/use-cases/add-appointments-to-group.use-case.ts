@@ -5,7 +5,7 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { NotFoundError } from '../../../../shared/domain/errors';
 import { ServiceGroupValidator, type AddToGroupReason } from '../../domain/service-group.validator';
-import { getServiceGroupTimeSlotAdjustment } from '../service-group-time-slot-sync';
+import { trySyncAppointmentTimeSlotToGroup } from '../sync-appointment-time-slot-to-group';
 
 export type AddToGroupResultStatus = 'OK' | AddToGroupReason | 'NOT_FOUND' | 'ERROR';
 
@@ -109,28 +109,14 @@ export class AddAppointmentsToGroupUseCase {
         await this.groupRepo.linkAppointments([apptId], input.groupId);
         currentSize += 1;
 
-        const adjustment = getServiceGroupTimeSlotAdjustment(appointment, group.timeWindow);
-        if (adjustment) {
-          await this.appointmentRepo.update(apptId, appointment.tenantId, {
-            timeSlotStart: adjustment.timeSlotStart,
-            timeSlotEnd: adjustment.timeSlotEnd,
-          });
-          this.auditService.log({
-            action: 'appointment.updated',
-            actorType: 'SYSTEM',
-            actorId: input.actor.userId,
-            entityType: 'Appointment',
-            entityId: apptId,
-            tenantId: appointment.tenantId,
-            before: adjustment.before,
-            after: {
-              timeSlotStart: adjustment.timeSlotStart,
-              timeSlotEnd: adjustment.timeSlotEnd,
-            },
-            reason: 'Added to service group',
-            metadata: { groupId: input.groupId, automaticTimeSlotSync: true },
-          });
-        }
+        await trySyncAppointmentTimeSlotToGroup({
+          appointmentRepo: this.appointmentRepo,
+          auditService: this.auditService,
+          appointment,
+          groupTimeWindow: group.timeWindow,
+          groupId: input.groupId,
+          actor: input.actor,
+        });
 
         if (appointment.status === 'DRAFT') {
           // DRAFT→AWAITING_INSPECTOR rule = OP+SYS; system-triggered by group add.

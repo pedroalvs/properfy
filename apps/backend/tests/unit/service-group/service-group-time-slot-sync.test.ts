@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getServiceGroupTimeSlotAdjustment } from '../../../src/modules/service-group/application/service-group-time-slot-sync';
+import { getServiceGroupTimeSlotAdjustment } from '../../../src/modules/service-group/domain/service-group-time-slot-sync';
 
 describe('getServiceGroupTimeSlotAdjustment', () => {
   it('keeps appointments fully inside the group time window unchanged', () => {
@@ -22,5 +22,12 @@ describe('getServiceGroupTimeSlotAdjustment', () => {
       timeSlotEnd: '12:00',
       before: { timeSlotStart, timeSlotEnd },
     });
+  });
+
+  it('skips malformed legacy appointment times instead of throwing', () => {
+    expect(getServiceGroupTimeSlotAdjustment(
+      { timeSlotStart: '010:00', timeSlotEnd: '11:00' },
+      '09:00-12:00',
+    )).toBeNull();
   });
 });
