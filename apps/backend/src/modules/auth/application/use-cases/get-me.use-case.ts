@@ -4,6 +4,7 @@ import { UnauthorizedError } from '../../../../shared/domain/errors';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
 import type { IStorageService } from '../../../inspector-execution/domain/storage.service';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
+import { normalizeClUserPermissions } from '../../../../shared/domain/cl-user-permissions';
 
 const AVATAR_BUCKET = 'inspector-avatars';
 const AVATAR_SIGNED_URL_TTL = 900; // 15 minutes
@@ -63,8 +64,7 @@ export class GetMeUseCase {
     if (user.role === 'CL_USER' && user.tenantId) {
       const tenant = await this.tenantRepo.findById(user.tenantId);
       // settingsJson is untyped JSON — normalize to a string[] before returning.
-      const raw = tenant?.settingsJson?.clUserPermissions;
-      clUserPermissions = Array.isArray(raw) ? raw.filter((p): p is string => typeof p === 'string') : [];
+      clUserPermissions = normalizeClUserPermissions(tenant?.settingsJson?.clUserPermissions);
     }
 
     return {

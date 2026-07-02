@@ -24,6 +24,7 @@ import {
 import type { AuthContext } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
+import { normalizeClUserPermissions } from '../../../shared/domain/cl-user-permissions';
 import { success, paginated } from '../../../shared/interfaces/response';
 import type { GetFinancialSummaryUseCase } from '../application/use-cases/get-financial-summary.use-case';
 import type { ListFinancialEntriesUseCase } from '../application/use-cases/list-financial-entries.use-case';
@@ -97,8 +98,7 @@ export async function registerBillingRoutes(
     // settingsJson is untyped JSON — normalize to a string[] before use.
     async (tenantId) => {
       const tenant = await container.tenantRepo.findById(tenantId);
-      const raw = tenant?.settingsJson?.clUserPermissions;
-      return Array.isArray(raw) ? raw.filter((p): p is string => typeof p === 'string') : [];
+      return normalizeClUserPermissions(tenant?.settingsJson?.clUserPermissions);
     },
   );
 

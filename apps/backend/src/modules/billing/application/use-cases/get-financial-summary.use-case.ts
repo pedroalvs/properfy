@@ -1,5 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import { requireAgencyTenantScope } from '../agency-scope';
 import type { IFinancialEntryRepository, FinancialEntrySummary } from '../../domain/financial-entry.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import { TenantNotFoundError } from '../../../tenant/domain/tenant.errors';
@@ -30,10 +31,7 @@ export class GetFinancialSummaryUseCase {
     } else if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
       // Fail closed: an agency read must be tenant-scoped. Never fall back to an
       // unscoped (cross-tenant) summary when the JWT lacks a tenant.
-      if (!actor.tenantId) {
-        throw new ForbiddenError('TENANT_SCOPE_REQUIRED', 'Agency financial access requires a tenant scope');
-      }
-      tenantId = actor.tenantId;
+      tenantId = requireAgencyTenantScope(actor);
     } else {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions to view financial summary');
     }

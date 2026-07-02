@@ -113,4 +113,12 @@ describe('ExportAgencyFinancialUseCase', () => {
     ).rejects.toThrow(ValidationError);
     expect(sut.entryRepo.findAllEnriched).not.toHaveBeenCalled();
   });
+
+  it('allows an export at exactly the cap boundary (5000 rows)', async () => {
+    vi.mocked(sut.entryRepo.count).mockResolvedValue(5000);
+    vi.mocked(sut.entryRepo.findAllEnriched).mockResolvedValue([]);
+
+    await expect(sut.useCase.execute({ actor: makeActor() })).resolves.toBeDefined();
+    expect(sut.entryRepo.findAllEnriched).toHaveBeenCalledOnce();
+  });
 });

@@ -6,6 +6,7 @@ import type {
 } from '../../domain/financial-entry.repository';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import { requireAgencyTenantScope } from '../agency-scope';
 
 /**
  * Entry types an Agency (CL_ADMIN / CL_USER) may see in its financial statement.
@@ -112,10 +113,7 @@ export class ListFinancialEntriesUseCase {
       // enforced at the route layer, not here.
       // Fail closed: never fall back to an unscoped read when the JWT lacks a
       // tenant (the repository skips the tenant filter for a falsy tenantId).
-      if (!actor.tenantId) {
-        throw new ForbiddenError('TENANT_SCOPE_REQUIRED', 'Agency financial access requires a tenant scope');
-      }
-      filters.tenantId = actor.tenantId;
+      filters.tenantId = requireAgencyTenantScope(actor);
       if (input.type) {
         if (!AGENCY_ENTRY_TYPES.includes(input.type as FinancialEntryType)) {
           throw new ForbiddenError('FORBIDDEN', 'Agencies cannot view this entry type');

@@ -5,8 +5,9 @@ import type {
 } from '../../domain/financial-entry.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { IXlsxGenerator, ReportColumn } from '../../../report/domain/xlsx-generator';
-import { ValidationError, ForbiddenError } from '../../../../shared/domain/errors';
+import { ValidationError } from '../../../../shared/domain/errors';
 import { TenantNotFoundError } from '../../../tenant/domain/tenant.errors';
+import { requireAgencyTenantScope } from '../agency-scope';
 
 /** Agency-visible entry types (never INSPECTOR_PAYOUT). Mirrors the extrato read. */
 const AGENCY_ENTRY_TYPES: FinancialEntryType[] = ['TENANT_DEBIT', 'REFUND', 'MANUAL_ADJUSTMENT'];
@@ -58,10 +59,7 @@ export class ExportAgencyFinancialUseCase {
     // AM/OP (tenant-null) may target a tenant explicitly.
     let tenantId: string | undefined;
     if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
-      if (!actor.tenantId) {
-        throw new ForbiddenError('TENANT_SCOPE_REQUIRED', 'Agency financial access requires a tenant scope');
-      }
-      tenantId = actor.tenantId;
+      tenantId = requireAgencyTenantScope(actor);
     } else {
       tenantId = actor.tenantId ?? input.tenantId;
     }
