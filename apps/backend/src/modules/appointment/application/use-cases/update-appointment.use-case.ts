@@ -1,4 +1,4 @@
-import { type AuthContext, type AppointmentContactRole } from '@properfy/shared';
+import { type AuthContext, type AppointmentContactRole, type AppointmentCustomField } from '@properfy/shared';
 import { NotFoundError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
@@ -44,7 +44,7 @@ export interface UpdateAppointmentInput {
     keyLocation?: string | null;
     notes?: string | null;
     observation?: string | null;
-    customFields?: Record<string, unknown> | null;
+    customFields?: AppointmentCustomField[] | null;
     /** @deprecated Use contacts array */
     contact?: {
       rentalTenantName: string;
@@ -102,7 +102,7 @@ export interface UpdateAppointmentOutput {
   pricingRuleSnapshotJson: Record<string, unknown>;
   notes: string | null;
   observation: string | null;
-  customFieldsJson: Record<string, unknown> | null;
+  customFieldsJson: AppointmentCustomField[] | null;
   reason: string | null;
   createdByUserId: string;
   createdAt: Date;

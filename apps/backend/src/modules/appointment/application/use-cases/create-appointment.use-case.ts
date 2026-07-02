@@ -1,5 +1,5 @@
 import { type AuthContext, type PropertyType } from '@properfy/shared';
-import type { AppointmentContactRole, AppointmentApp } from '@properfy/shared';
+import type { AppointmentContactRole, AppointmentApp, AppointmentCustomField } from '@properfy/shared';
 import {
   NotFoundError,
   ValidationError,
@@ -96,9 +96,19 @@ export interface CreateAppointmentInput {
   keyLocation?: string;
   notes?: string;
   observation?: string;
-  customFields?: Record<string, unknown>;
+  customFields?: AppointmentCustomField[];
   idempotencyKey?: string;
   actorTimezone?: string;
+  /**
+   * Bypasses ONLY the time-of-day re-check (`TIME_IN_PAST`) below — the
+   * date-level check (`DATE_IN_PAST`) always still runs regardless of this
+   * flag. Exists solely for the appointment-import commit worker: a row
+   * whose date was empty and defaulted to "today" must not fail just because
+   * the batch is committed later in the day than its defaulted 08:00 start.
+   * Not present on `createAppointmentSchema`, so unreachable from the public
+   * HTTP API — set exclusively by the commit worker.
+   */
+  skipTimeInPastCheck?: boolean;
   actor: AuthContext;
 }
 
@@ -122,7 +132,7 @@ export interface CreateAppointmentOutput {
   pricingRuleSnapshotJson: Record<string, unknown>;
   notes: string | null;
   observation: string | null;
-  customFieldsJson: Record<string, unknown> | null;
+  customFieldsJson: AppointmentCustomField[] | null;
   reason: string | null;
   createdByUserId: string;
   createdAt: Date;
@@ -182,11 +192,17 @@ export class CreateAppointmentUseCase {
 
     // 1c. TZ-aware past-date/time validation — fail fast before expensive repo lookups.
     // Falls back to UTC when actorTimezone absent (R7: PWA / future callers).
+    // DATE_IN_PAST always throws, regardless of skipTimeInPastCheck — only
+    // the time-of-day outcome is ever bypassed (see the flag's doc comment).
     {
       const tz = input.actorTimezone ?? 'UTC';
       const scheduleCheck = validateNewSchedule({ date: input.scheduledDate, timeSlot: input.timeSlotStart, tz });
       if (!scheduleCheck.ok) {
-        throw scheduleCheck.code === 'TIME_IN_PAST' ? new AppointmentTimeInPastError() : new AppointmentDateInPastError();
+        if (scheduleCheck.code === 'TIME_IN_PAST') {
+          if (!input.skipTimeInPastCheck) throw new AppointmentTimeInPastError();
+        } else {
+          throw new AppointmentDateInPastError();
+        }
       }
     }
 

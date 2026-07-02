@@ -4831,8 +4831,9 @@ export interface paths {
                         notes?: string;
                         observation?: string;
                         customFields?: {
-                            [key: string]: unknown;
-                        };
+                            label: string;
+                            value: string;
+                        }[];
                         actorTimezone?: string;
                     };
                 };
@@ -5124,8 +5125,9 @@ export interface paths {
                             source: "RENTAL_TENANT_PORTAL" | "OPERATOR" | "IMPORT";
                         };
                         customFields?: {
-                            [key: string]: unknown;
-                        } | null;
+                            label: string;
+                            value: string;
+                        }[] | null;
                         actorTimezone?: string;
                     };
                 };
@@ -5779,7 +5781,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/appointments/import": {
+    "/v1/appointments/import/preview": {
         parameters: {
             query?: never;
             header?: never;
@@ -5802,6 +5804,123 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                importId: string;
+                                /** Format: uuid */
+                                branchId: string;
+                                /** Format: uuid */
+                                tenantId: string;
+                                summary: {
+                                    totalRows: number;
+                                    importable: number;
+                                    withWarnings: number;
+                                    withErrors: number;
+                                };
+                                rows: {
+                                    rowNumber: number;
+                                    /** @enum {string} */
+                                    severity: "ready" | "warning" | "error";
+                                    importable: boolean;
+                                    serviceTypeName: string | null;
+                                    /** Format: uuid */
+                                    serviceTypeId: string | null;
+                                    /** Format: date */
+                                    scheduledDate: string;
+                                    scheduledDateDefaulted: boolean;
+                                    timeSlotStart: string;
+                                    timeSlotEnd: string;
+                                    timeDefaulted: boolean;
+                                    notes: string | null;
+                                    property: {
+                                        /** @enum {string} */
+                                        resolution: "existing" | "new";
+                                        /** Format: uuid */
+                                        propertyId: string | null;
+                                        propertyCode: string | null;
+                                        street: string;
+                                        addressLine2: string | null;
+                                        suburb: string;
+                                        state: string;
+                                        postcode: string;
+                                        country: string;
+                                        duplicateOfRow: number | null;
+                                    } | null;
+                                    contact: {
+                                        /** @enum {string} */
+                                        resolution: "existing" | "new";
+                                        /** Format: uuid */
+                                        contactId: string | null;
+                                        displayName: string;
+                                        primaryEmail: string | null;
+                                        primaryPhone: string | null;
+                                        additionalChannels: {
+                                            /** @enum {string} */
+                                            channel: "EMAIL" | "PHONE";
+                                            value: string;
+                                            label?: string;
+                                        }[];
+                                        channelsDropped: boolean;
+                                    } | null;
+                                    customFields: {
+                                        label: string;
+                                        value: string;
+                                    }[];
+                                    customFieldsTruncated: boolean;
+                                    issues: {
+                                        field: string;
+                                        code: string;
+                                        /** @enum {string} */
+                                        severity: "warning" | "error";
+                                        message: string;
+                                    }[];
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/appointments/import/{importId}/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    importId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        skipInvalidRows: boolean;
+                        actorTimezone?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
                     content?: never;
                 };
             };
@@ -5813,6 +5932,41 @@ export interface paths {
         trace?: never;
     };
     "/v1/appointments/import/{importId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    importId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/appointments/import/{importId}/errors.csv": {
         parameters: {
             query?: never;
             header?: never;
@@ -8190,6 +8344,10 @@ export interface paths {
                                 notes: string | null;
                                 observation: string | null;
                                 restrictionsSummary: string | null;
+                                customFields?: {
+                                    label: string;
+                                    value: string;
+                                }[];
                                 contact: {
                                     rentalTenantName: string;
                                     primaryEmail: string | null;

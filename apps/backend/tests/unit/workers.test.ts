@@ -42,7 +42,8 @@ describe('registerWorkers', () => {
   const mockExpireFilesExecute = vi.fn().mockResolvedValue({ expiredCount: 0 });
   const mockGeocodeExecute = vi.fn().mockResolvedValue(undefined);
   const mockGeocodeRetryExecute = vi.fn().mockResolvedValue({ reenqueuedCount: 0, pendingReenqueuedCount: 0, failedGeocodingCount: 0 });
-  const mockImportExecute = vi.fn().mockResolvedValue(undefined);
+  const mockCommitExecute = vi.fn().mockResolvedValue(undefined);
+  const mockSweepExecute = vi.fn().mockResolvedValue({ sweptCount: 0 });
   const mockPropertyImportExecute = vi.fn().mockResolvedValue(undefined);
   const mockGenerateInvoiceFileExecute = vi.fn().mockResolvedValue(undefined);
   const mockExpireTokensExecute = vi.fn().mockResolvedValue({ expiredCount: 0 });
@@ -57,7 +58,8 @@ describe('registerWorkers', () => {
   const mockExpireFilesWorker = { execute: mockExpireFilesExecute } as any;
   const mockGeocodeWorker = { execute: mockGeocodeExecute } as any;
   const mockGeocodeRetryWorker = { execute: mockGeocodeRetryExecute } as any;
-  const mockImportWorker = { execute: mockImportExecute } as any;
+  const mockAppointmentImportCommitWorker = { execute: mockCommitExecute } as any;
+  const mockSweepAbandonedAppointmentImportsWorker = { execute: mockSweepExecute } as any;
   const mockPropertyImportWorker = { execute: mockPropertyImportExecute } as any;
   const mockGenerateInvoiceFileWorker = { execute: mockGenerateInvoiceFileExecute } as any;
   const mockExpireTokensWorker = { execute: mockExpireTokensExecute } as any;
@@ -94,7 +96,8 @@ describe('registerWorkers', () => {
       mockGeocodeWorker,
       mockGeocodeRetryWorker,
       mockPropertyImportWorker,
-      mockImportWorker,
+      mockAppointmentImportCommitWorker,
+      mockSweepAbandonedAppointmentImportsWorker,
       mockGenerateInvoiceFileWorker,
       mockExpireTokensWorker,
       mockExpireAssetsWorker,
@@ -113,7 +116,7 @@ describe('registerWorkers', () => {
   it('registers all workers and schedules', async () => {
     await callRegister();
 
-    expect(mockWork).toHaveBeenCalledTimes(20);
+    expect(mockWork).toHaveBeenCalledTimes(21);
     expect(mockWork).toHaveBeenCalledWith('report.generate', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.send', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.retry-poll', expect.any(Function));
@@ -124,7 +127,8 @@ describe('registerWorkers', () => {
     expect(mockWork).toHaveBeenCalledWith('report.expire-files', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('property.geocode', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('property.geocode-retry', expect.any(Function));
-    expect(mockWork).toHaveBeenCalledWith('appointment.import', expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('appointment.import.commit', expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('appointment.import.sweep-abandoned', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('property.import', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('billing.generate-invoice-file', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('rental-tenant-portal.expire-tokens', expect.any(Function));
@@ -134,7 +138,7 @@ describe('registerWorkers', () => {
     expect(mockWork).toHaveBeenCalledWith('audit.retention', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('appointment.reject-unconfirmed', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('system.dlq-monitor', expect.any(Function));
-    expect(mockSchedule).toHaveBeenCalledTimes(14);
+    expect(mockSchedule).toHaveBeenCalledTimes(15);
     expect(mockSchedule).toHaveBeenCalledWith('notification.retry-poll', '*/5 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('notification.dispatch-reminders', '0 8 * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('notification.dispatch-escalations', '0 8 * * *', {});
@@ -148,6 +152,7 @@ describe('registerWorkers', () => {
     expect(mockSchedule).toHaveBeenCalledWith('service_group.expire-priority', '0 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('audit.retention', '30 3 * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('appointment.reject-unconfirmed', '0 9 * * *', {});
+    expect(mockSchedule).toHaveBeenCalledWith('appointment.import.sweep-abandoned', '0 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('system.dlq-monitor', '*/5 * * * *', {});
   });
 

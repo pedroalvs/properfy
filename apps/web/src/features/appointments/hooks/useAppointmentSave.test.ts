@@ -53,6 +53,7 @@ const VALID_CREATE_DATA: AppointmentFormData = {
   contactPhone: '11999999999',
   contactEmail: 'joao@email.com',
   contacts: [],
+  customFields: [],
   appCredentialIds: [],
   keyRequired: false,
   meetingLocation: '',
@@ -170,6 +171,7 @@ describe('useAppointmentSave', () => {
           primaryEmail: VALID_CREATE_DATA.contactEmail,
           primaryPhone: VALID_CREATE_DATA.contactPhone,
         },
+        customFields: [],
         appCredentialIds: [],
         actorTimezone: expect.any(String),
       },
@@ -377,6 +379,110 @@ describe('useAppointmentSave', () => {
 
     expect(saveResult?.success).toBe(false);
     expect(saveResult?.error).toBe('Server error');
+  });
+
+  describe('customFields', () => {
+    const cf = (label: string, value: string) => ({ key: `k-${label}`, label, value });
+
+    it('includes trimmed customFields on create when set, omits when all empty', async () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+
+      await act(async () => {
+        await result.current.save({
+          ...VALID_CREATE_DATA,
+          customFields: [cf('  Gate code  ', '  1234  '), cf('Parking', 'Level 2')],
+        });
+      });
+      expect(mockPost).toHaveBeenCalledWith('/v1/appointments', {
+        body: expect.objectContaining({
+          customFields: [
+            { label: 'Gate code', value: '1234' },
+            { label: 'Parking', value: 'Level 2' },
+          ],
+        }),
+      });
+
+      mockPost.mockClear();
+      await act(async () => {
+        await result.current.save({ ...VALID_CREATE_DATA, customFields: [cf('', ''), cf('  ', '  ')] });
+      });
+      expect((mockPost.mock.calls[0]![1] as any).body).not.toHaveProperty('customFields');
+    });
+
+    it('always sends customFields array on edit (empty array clears)', async () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+
+      await act(async () => {
+        await result.current.save({ ...VALID_CREATE_DATA, customFields: [] }, 'apt-01');
+      });
+      expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/apt-01', {
+        body: expect.objectContaining({ customFields: [] }),
+      });
+
+      mockPatch.mockClear();
+      await act(async () => {
+        await result.current.save({ ...VALID_CREATE_DATA, customFields: [cf('Gate', '1')] }, 'apt-01');
+      });
+      expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/apt-01', {
+        body: expect.objectContaining({ customFields: [{ label: 'Gate', value: '1' }] }),
+      });
+    });
+
+    it('validate flags a row missing its value', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+      const errors = result.current.validate(
+        { ...VALID_CREATE_DATA, customFields: [cf('Gate', '')] },
+        'create',
+      );
+      expect(errors.customFields?.[0]?.value).toBeDefined();
+    });
+
+    it('validate flags a row missing its label', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+      const errors = result.current.validate(
+        { ...VALID_CREATE_DATA, customFields: [cf('', '1234')] },
+        'create',
+      );
+      expect(errors.customFields?.[0]?.label).toBeDefined();
+    });
+
+    it('validate flags a label longer than 50 and a value longer than 500', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+      const errors = result.current.validate(
+        { ...VALID_CREATE_DATA, customFields: [cf('a'.repeat(51), 'b'.repeat(501))] },
+        'create',
+      );
+      expect(errors.customFields?.[0]?.label).toBeDefined();
+      expect(errors.customFields?.[0]?.value).toBeDefined();
+    });
+
+    it('validate ignores fully-empty rows (no error)', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+      const errors = result.current.validate(
+        { ...VALID_CREATE_DATA, customFields: [cf('', '')] },
+        'create',
+      );
+      expect(errors.customFields).toBeUndefined();
+    });
+
+    it('validate flags more than 4 custom fields', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+      const errors = result.current.validate(
+        {
+          ...VALID_CREATE_DATA,
+          customFields: Array.from({ length: 5 }, (_, i) => cf(`L${i}`, `V${i}`)),
+        },
+        'create',
+      );
+      expect(errors.customFields).toBeDefined();
+    });
   });
 
   it('isSaving is true during save operation', async () => {

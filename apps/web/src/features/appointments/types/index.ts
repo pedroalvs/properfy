@@ -4,7 +4,9 @@ import type {
   AppointmentContactRole,
   ContactType,
   ContactChannelType,
+  AppointmentCustomField,
 } from '@properfy/shared';
+import { CUSTOM_FIELDS_MAX } from '@properfy/shared';
 
 export type { AppointmentStatus } from '@properfy/shared';
 
@@ -78,6 +80,8 @@ export interface AppointmentDetail extends Appointment {
   rejectionReasonCode?: string | null;
   reason?: string | null;
   contacts?: AppointmentContactEntry[];
+  /** Operator-defined custom fields (label/value pairs, max 4). */
+  customFields?: AppointmentCustomField[];
   /** App credentials linked to this appointment (live reference). */
   apps?: Array<{ id: string; name: string; username: string; password: string }>;
   restrictions?: Array<{
@@ -139,6 +143,16 @@ export interface ContactFormEntry {
   notes?: string;
 }
 
+/** A single operator-defined custom field row in the appointment form. */
+export interface CustomFieldEntry {
+  key: string;
+  label: string;
+  value: string;
+}
+
+/** Max number of custom fields allowed per appointment (single source: shared schema). */
+export const MAX_CUSTOM_FIELDS = CUSTOM_FIELDS_MAX;
+
 export interface AppointmentFormData {
   branchId: string;
   propertyId: string;
@@ -153,6 +167,8 @@ export interface AppointmentFormData {
   /** @deprecated */
   contactEmail: string;
   contacts: ContactFormEntry[];
+  /** Operator-defined custom fields (label/value pairs, max 4). */
+  customFields: CustomFieldEntry[];
   /** App credential ids linked to this appointment (live reference, many-to-many). */
   appCredentialIds: string[];
   keyRequired: boolean;
@@ -172,9 +188,18 @@ export interface AppointmentFormData {
  * stops the scalar string from colliding with the nested shape, which
  * surfaced as a type error after 023 added the inline-create validation.
  */
-export type AppointmentFormErrors = Partial<Omit<Record<keyof AppointmentFormData, string>, 'contacts'>> & {
+export type AppointmentFormErrors = Partial<Omit<Record<keyof AppointmentFormData, string>, 'contacts' | 'customFields'>> & {
   contacts?: Record<number, Partial<Record<keyof ContactFormEntry, string>>>;
+  customFields?: Record<number, Partial<Record<'label' | 'value', string>>>;
 };
+
+export function createEmptyCustomField(): CustomFieldEntry {
+  return {
+    key: crypto.randomUUID(),
+    label: '',
+    value: '',
+  };
+}
 
 export function createEmptyContact(): ContactFormEntry {
   return {
@@ -198,6 +223,7 @@ export const EMPTY_FORM_DATA: AppointmentFormData = {
   contactPhone: '',
   contactEmail: '',
   contacts: [{ ...createEmptyContact(), isPrimary: true }],
+  customFields: [],
   appCredentialIds: [],
   keyRequired: false,
   meetingLocation: '',

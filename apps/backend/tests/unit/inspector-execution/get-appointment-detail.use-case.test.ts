@@ -427,4 +427,54 @@ describe('GetAppointmentDetailUseCase', () => {
     expect(result.contact).toBeNull();
     expect(result.restrictions).toHaveLength(0);
   });
+
+  describe('customFields (read-only for inspector)', () => {
+    it('returns the appointment custom fields', async () => {
+      const customFields = [
+        { label: 'Gate code', value: '1234' },
+        { label: 'Parking', value: 'Level 2' },
+      ];
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ customFieldsJson: customFields }),
+      );
+
+      const result = await useCase.execute({ appointmentId: 'appt-1', actor: inspActor });
+
+      expect(result.customFields).toEqual(customFields);
+    });
+
+    it('returns an empty array when there are no custom fields', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ customFieldsJson: null }),
+      );
+
+      const result = await useCase.execute({ appointmentId: 'appt-1', actor: inspActor });
+
+      expect(result.customFields).toEqual([]);
+    });
+
+    it('drops malformed rows and caps the list at 4', async () => {
+      const stored = [
+        { label: 'A', value: '1' },
+        { label: '', value: 'x' }, // dropped: empty label
+        { label: 'B' }, // dropped: missing value
+        { label: 'C', value: '3' },
+        { label: 'D', value: '4' },
+        { label: 'E', value: '5' },
+        { label: 'F', value: '6' },
+      ] as unknown as { label: string; value: string }[];
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ customFieldsJson: stored }),
+      );
+
+      const result = await useCase.execute({ appointmentId: 'appt-1', actor: inspActor });
+
+      expect(result.customFields).toEqual([
+        { label: 'A', value: '1' },
+        { label: 'C', value: '3' },
+        { label: 'D', value: '4' },
+        { label: 'E', value: '5' },
+      ]);
+    });
+  });
 });

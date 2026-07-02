@@ -1,4 +1,5 @@
-import type { AuthContext, AppointmentApp } from '@properfy/shared';
+import type { AuthContext, AppointmentApp, AppointmentCustomField } from '@properfy/shared';
+import { normalizeCustomFields } from '@properfy/shared';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../appointment/domain/appointment.repository';
 import type { IAppCredentialRepository } from '../../../app-credential/domain/app-credential.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
@@ -96,6 +97,8 @@ export interface AppointmentDetailOutput {
   notes: string | null;
   observation: string | null;
   restrictionsSummary: string | null;
+  /** Operator-defined custom fields, read-only for the inspector (max 4). */
+  customFields: AppointmentCustomField[];
   contact: {
     rentalTenantName: string;
     primaryEmail: string | null;
@@ -250,6 +253,7 @@ export class GetAppointmentDetailUseCase {
       notes: appointment.notes,
       observation: appointment.observation,
       restrictionsSummary,
+      customFields: normalizeCustomFields(appointment.customFieldsJson),
       contact: contact
         ? {
             rentalTenantName: contact.effectiveName,

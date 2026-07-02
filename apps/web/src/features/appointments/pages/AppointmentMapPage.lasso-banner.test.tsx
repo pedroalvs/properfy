@@ -28,9 +28,11 @@ const PAGE_SOURCE = readFileSync(
 
 describe('AppointmentMapPage — lasso draw affordance (Issue A re-fix)', () => {
   it('renders the lasso-draw banner only while lassoState === drawing', () => {
-    // The banner JSX must be guarded by `lassoState === 'drawing'` AND
-    // `mode === 'appointments'` so it never bleeds into groups mode.
-    expect(PAGE_SOURCE).toMatch(/mode === 'appointments' && lassoState === 'drawing'/);
+    // The banner JSX is guarded by `lassoAvailable && lassoState === 'drawing'`.
+    // `lassoAvailable` is true in Appointments mode AND the Groups drill-down
+    // (group modal open), so the banner surfaces in both lasso contexts while
+    // still never showing in Groups mode with no group drilled in.
+    expect(PAGE_SOURCE).toMatch(/lassoAvailable && lassoState === 'drawing'/);
     expect(PAGE_SOURCE).toMatch(/data-testid="lasso-draw-banner"/);
   });
 
