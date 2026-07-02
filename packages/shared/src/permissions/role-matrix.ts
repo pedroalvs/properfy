@@ -150,7 +150,8 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
   },
   // 026 §FR-540 — bulk reopen for reschedule; matriz 2.2 grants the
   // reschedule write surface to CL_ADMIN in addition to the OP-team.
-  // The underlying ReopenForRescheduleUseCase enforces the 30-day window;
+  // BulkReopenForRescheduleUseCase enforces the 30-day window for client
+  // roles (AM/OP are exempt);
   // the route layer enforces this RBAC base; CL_USER is not allowed even
   // with the `reschedule_appointments` flag because bulk reschedule is
   // operator coordination (single-item reschedule via the standard
