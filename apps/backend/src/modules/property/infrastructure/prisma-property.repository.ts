@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { PropertyType as PrismaPropertyType, GeocodingStatus as PrismaGeocodingStatus, Prisma } from '@prisma/client';
 import { PropertyEntity } from '../domain/property.entity';
+import { buildNormalizedAddressKey } from '../../../shared/domain/normalize-address';
 import type {
   IPropertyRepository,
   PropertyFilters,
@@ -106,6 +107,32 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     return row ? mapToEntity(row) : null;
   }
 
+  async findByNormalizedAddress(
+    tenantId: string,
+    addr: { street: string; addressLine2: string | null; suburb: string; state: string; postcode: string },
+  ): Promise<PropertyEntity | null> {
+    const row = await this.prisma.property.findFirst({
+      where: {
+        tenant_id: tenantId,
+        normalized_address_key: buildNormalizedAddressKey(addr),
+        deleted_at: null,
+      },
+    });
+    return row ? mapToEntity(row) : null;
+  }
+
+  async findManyByNormalizedAddressKeys(tenantId: string, keys: string[]): Promise<PropertyEntity[]> {
+    if (keys.length === 0) return [];
+    const rows = await this.prisma.property.findMany({
+      where: {
+        tenant_id: tenantId,
+        normalized_address_key: { in: keys },
+        deleted_at: null,
+      },
+    });
+    return rows.map(mapToEntity);
+  }
+
   async findAll(
     filters: PropertyFilters,
     pagination: PaginationParams,
@@ -168,6 +195,9 @@ export class PrismaPropertyRepository implements IPropertyRepository {
         postcode: property.postcode,
         state: property.state,
         country: property.country,
+        // normalized_address_key is intentionally omitted — a DB trigger
+        // (see migration 20260701230009) always (re)computes it from the
+        // row's own address fields on every insert/update.
         lat: property.lat,
         lng: property.lng,
         geocoding_status: property.geocodingStatus as PrismaGeocodingStatus,
@@ -221,6 +251,11 @@ export class PrismaPropertyRepository implements IPropertyRepository {
       updateData['rules_json'] = data.rulesJson;
     if (data.deletedAt !== undefined)
       updateData['deleted_at'] = data.deletedAt;
+    // normalized_address_key is intentionally never set here — the DB
+    // trigger recomputes it from whatever address ends up in the row on
+    // every UPDATE, so a partial address-field diff still lands correctly
+    // without this repository needing to fetch-and-merge first.
+
     await this.prisma.property.updateMany({
       where: { id, tenant_id: tenantId },
       data: updateData,

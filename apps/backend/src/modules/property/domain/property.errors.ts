@@ -15,6 +15,15 @@ export class PropertyCodeConflictError extends ConflictError {
   }
 }
 
+export class PropertyAddressConflictError extends ConflictError {
+  constructor() {
+    super(
+      'PROPERTY_ADDRESS_CONFLICT',
+      'An active property with this exact address already exists in this tenant',
+    );
+  }
+}
+
 export class PropertyHasActiveAppointmentsError extends ConflictError {
   constructor() {
     super(

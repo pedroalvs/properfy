@@ -11,12 +11,17 @@ export interface GetImportStatusInput {
 export interface GetImportStatusOutput {
   id: string;
   tenantId: string;
+  branchId: string | null;
   status: string;
   originalFilename: string;
   totalRows: number;
   successCount: number;
   errorCount: number;
   errorsJson: unknown[] | null;
+  /** Cached row-resolver output from the last preview (`{ summary, rows }`). */
+  previewJson: unknown | null;
+  /** Per-row commit outcomes, written incrementally by the commit worker. */
+  resultsJson: unknown | null;
   createdByUserId: string;
   createdAt: Date;
   updatedAt: Date;
@@ -44,12 +49,15 @@ export class GetImportStatusUseCase {
     return {
       id: importRecord.id,
       tenantId: importRecord.tenantId,
+      branchId: importRecord.branchId,
       status: importRecord.status,
       originalFilename: importRecord.originalFilename,
       totalRows: importRecord.totalRows,
       successCount: importRecord.successCount,
       errorCount: importRecord.errorCount,
       errorsJson: importRecord.errorsJson,
+      previewJson: importRecord.previewJson,
+      resultsJson: importRecord.resultsJson,
       createdByUserId: importRecord.createdByUserId,
       createdAt: importRecord.createdAt,
       updatedAt: importRecord.updatedAt,

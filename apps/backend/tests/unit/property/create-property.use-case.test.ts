@@ -5,7 +5,7 @@ import type { IBranchRepository } from '../../../src/modules/tenant/domain/branc
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { PropertyEntity } from '../../../src/modules/property/domain/property.entity';
-import { PropertyCodeConflictError } from '../../../src/modules/property/domain/property.errors';
+import { PropertyCodeConflictError, PropertyAddressConflictError } from '../../../src/modules/property/domain/property.errors';
 import { BranchNotFoundError } from '../../../src/modules/tenant/domain/tenant.errors';
 import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
 import { BranchEntity } from '../../../src/modules/tenant/domain/branch.entity';
@@ -77,6 +77,8 @@ describe('CreatePropertyUseCase', () => {
     propertyRepo = {
       findById: vi.fn(),
       findByPropertyCode: vi.fn(),
+      findByNormalizedAddress: vi.fn(),
+      findManyByNormalizedAddressKeys: vi.fn(),
       findAll: vi.fn(),
       count: vi.fn(),
       save: vi.fn(),
@@ -205,6 +207,26 @@ describe('CreatePropertyUseCase', () => {
         actor: makeActor(),
       }),
     ).rejects.toThrow(PropertyCodeConflictError);
+  });
+
+  it('should throw PROPERTY_ADDRESS_CONFLICT when an active property with the same address exists (not a 500)', async () => {
+    vi.mocked(propertyRepo.findByPropertyCode).mockResolvedValue(null);
+    vi.mocked(propertyRepo.findByNormalizedAddress).mockResolvedValue(makeProperty());
+
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        propertyCode: 'PROP-002',
+        type: 'RESIDENTIAL',
+        street: '123 Main St',
+        suburb: 'Sydney',
+        postcode: '2000',
+        state: 'NSW',
+        country: 'AU',
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(PropertyAddressConflictError);
+    expect(propertyRepo.save).not.toHaveBeenCalled();
   });
 
   it('should throw BRANCH_NOT_FOUND when branchId is invalid', async () => {

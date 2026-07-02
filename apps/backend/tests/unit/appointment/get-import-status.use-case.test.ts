@@ -21,6 +21,7 @@ function makeImportRecord(overrides: Partial<ConstructorParameters<typeof Appoin
   return new AppointmentImportEntity({
     id: 'import-1',
     tenantId: 'tenant-1',
+    branchId: 'branch-1',
     status: 'COMPLETED',
     fileKey: 'imports/appointments/import-1/file.xlsx',
     originalFilename: 'file.xlsx',
@@ -28,6 +29,8 @@ function makeImportRecord(overrides: Partial<ConstructorParameters<typeof Appoin
     successCount: 95,
     errorCount: 5,
     errorsJson: [{ row: 3, message: 'Invalid date' }],
+    previewJson: { summary: { totalRows: 100, importable: 95, withWarnings: 10, withErrors: 5 }, rows: [] },
+    resultsJson: [{ rowNumber: 3, status: 'error', message: 'Invalid date' }],
     createdByUserId: 'user-1',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -63,6 +66,9 @@ describe('GetImportStatusUseCase', () => {
     expect(result.successCount).toBe(95);
     expect(result.errorCount).toBe(5);
     expect(result.errorsJson).toHaveLength(1);
+    expect(result.branchId).toBe('branch-1');
+    expect(result.previewJson).toEqual({ summary: { totalRows: 100, importable: 95, withWarnings: 10, withErrors: 5 }, rows: [] });
+    expect(result.resultsJson).toEqual([{ rowNumber: 3, status: 'error', message: 'Invalid date' }]);
   });
 
   it('should throw NotFoundError when import not found', async () => {
