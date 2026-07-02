@@ -232,6 +232,7 @@ import { VoidFinancialEntryUseCase } from '../modules/billing/application/use-ca
 import { RegenerateInspectorInvoiceUseCase } from '../modules/billing/application/use-cases/regenerate-inspector-invoice.use-case';
 import { ApproveDraftInvoiceUseCase } from '../modules/billing/application/use-cases/approve-draft-invoice.use-case';
 import { RejectDraftInvoiceUseCase } from '../modules/billing/application/use-cases/reject-draft-invoice.use-case';
+import { ExportAgencyFinancialUseCase } from '../modules/billing/application/use-cases/export-agency-financial.use-case';
 import type { BillingRouteContainer } from '../modules/billing/interfaces/billing.routes';
 
 // Report module
@@ -947,6 +948,8 @@ export function createContainer(logger: Logger): AppContainer {
   // Report repositories and use cases
   const reportRepo = new PrismaReportRepository(prisma);
   const xlsxGenerator = new ExcelJsXlsxGenerator();
+  // 031 — agency financial statement export reuses the report XLSX generator.
+  const exportAgencyFinancialUseCase = new ExportAgencyFinancialUseCase(financialEntryRepo, tenantRepo, xlsxGenerator);
   const reportDataReader = new PrismaReportDataReader(prisma);
   const reportJobQueue = env.ENABLE_JOB_QUEUE === 'true'
     ? new PgBossJobQueue()
@@ -1451,6 +1454,7 @@ export function createContainer(logger: Logger): AppContainer {
       regenerateInspectorInvoiceUseCase,
       approveDraftInvoiceUseCase,
       rejectDraftInvoiceUseCase,
+      exportAgencyFinancialUseCase,
       authorizationService,
       jwtService,
       tenantRepo,

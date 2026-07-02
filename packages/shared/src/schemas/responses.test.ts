@@ -6,8 +6,28 @@ import {
   portalDataResponseSchema,
   dashboardStatsResponseSchema,
   inspectorDayCountSchema,
+  agencyFinancialExportResponseSchema,
   inspectorAppointmentDetailResponseSchema,
 } from './responses';
+
+describe('agencyFinancialExportResponseSchema (031)', () => {
+  it('accepts a base64 XLSX payload', () => {
+    const result = agencyFinancialExportResponseSchema.safeParse({
+      filename: 'financial-statement.xlsx',
+      contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      contentBase64: 'WExTWA==',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a payload missing contentBase64', () => {
+    const result = agencyFinancialExportResponseSchema.safeParse({
+      filename: 'x.xlsx',
+      contentType: 'application/octet-stream',
+    });
+    expect(result.success).toBe(false);
+  });
+});
 
 describe('loginResponseSchema', () => {
   const validLogin = {

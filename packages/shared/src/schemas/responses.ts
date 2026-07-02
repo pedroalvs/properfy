@@ -688,6 +688,16 @@ export const invoiceDownloadResponseSchema = z.object({
   expiresAt: dateStr(),
 });
 
+// ─── Agency financial export (031) ───────────────────────────────────────────
+// Synchronous own-tenant XLSX statement. The file is returned base64-encoded so
+// it flows through the standard JSON envelope + typed OpenAPI client (no signed
+// URL / storage round-trip for a bounded, on-demand agency statement).
+export const agencyFinancialExportResponseSchema = z.object({
+  filename: z.string(),
+  contentType: z.string(),
+  contentBase64: z.string(),
+});
+
 // ─── Notification ──────────────────────────────────────────────────────────
 
 export const notificationResponseSchema = z.object({
@@ -849,6 +859,7 @@ export type AppointmentResponse = z.infer<typeof appointmentResponseSchema>;
 export type ServiceGroupResponse = z.infer<typeof serviceGroupResponseSchema>;
 export type AuditLogResponse = z.infer<typeof auditLogResponseSchema>;
 export type FinancialEntryResponse = z.infer<typeof financialEntryResponseSchema>;
+export type AgencyFinancialExportResponse = z.infer<typeof agencyFinancialExportResponseSchema>;
 export type InvoiceResponse = z.infer<typeof invoiceResponseSchema>;
 export type NotificationResponse = z.infer<typeof notificationResponseSchema>;
 export type NotificationTemplateResponse = z.infer<typeof notificationTemplateResponseSchema>;
