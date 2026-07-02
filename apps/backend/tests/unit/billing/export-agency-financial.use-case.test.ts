@@ -114,11 +114,15 @@ describe('ExportAgencyFinancialUseCase', () => {
     expect(sut.entryRepo.findAllEnriched).not.toHaveBeenCalled();
   });
 
-  it('allows an export at exactly the cap boundary (5000 rows)', async () => {
+  it('allows an export at exactly the cap boundary and fetches all 5000 rows', async () => {
     vi.mocked(sut.entryRepo.count).mockResolvedValue(5000);
     vi.mocked(sut.entryRepo.findAllEnriched).mockResolvedValue([]);
 
     await expect(sut.useCase.execute({ actor: makeActor() })).resolves.toBeDefined();
     expect(sut.entryRepo.findAllEnriched).toHaveBeenCalledOnce();
+    // Pin the page size to the full count — guards against a truncating regression
+    // at the cap that would silently drop rows.
+    const [, pagination] = vi.mocked(sut.entryRepo.findAllEnriched).mock.calls[0];
+    expect(pagination.pageSize).toBe(5000);
   });
 });
