@@ -152,19 +152,38 @@ describe('ListInvoicesUseCase', () => {
     ).rejects.toThrow(ForbiddenError);
   });
 
-  it('should reject OP from inspector invoice list (CORRECTION-001 close-it)', async () => {
-    const { useCase } = sut;
+  it('allows OP to list all invoices (spec 032 reverses the OP exclusion)', async () => {
+    const { useCase, invoiceRepo } = sut;
+    vi.mocked(invoiceRepo.findAll).mockResolvedValue([makeInvoice()]);
+    vi.mocked(invoiceRepo.count).mockResolvedValue(1);
 
-    // Sprint 1 W-4-IMPL: OP no longer has cross-inspector access because
-    // inspector invoices are not tenant-scoped.
-    await expect(
-      useCase.execute({
-        inspectorId: 'insp-2',
-        page: 1,
-        pageSize: 10,
-        actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
-      }),
-    ).rejects.toThrow(ForbiddenError);
+    const result = await useCase.execute({
+      inspectorId: 'insp-1',
+      page: 1,
+      pageSize: 10,
+      actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
+    });
+    expect(result.data).toHaveLength(1);
+  });
+
+  it('maps the status bucket and agency/branch content filters to repo filters', async () => {
+    const { useCase, invoiceRepo } = sut;
+    vi.mocked(invoiceRepo.findAll).mockResolvedValue([]);
+    vi.mocked(invoiceRepo.count).mockResolvedValue(0);
+
+    await useCase.execute({
+      status: 'approved',
+      agencyId: 'ag-1',
+      branchId: 'b-1',
+      page: 1,
+      pageSize: 10,
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    const filters = vi.mocked(invoiceRepo.findAll).mock.calls[0][0];
+    expect(filters.statusIn).toEqual(['CLOSED', 'PAID']);
+    expect(filters.agencyId).toBe('ag-1');
+    expect(filters.branchId).toBe('b-1');
   });
 
   it('should allow AM to filter by inspectorId', async () => {

@@ -20262,6 +20262,160 @@
         }
       }
     },
+    "/v1/inspector/invoices/available-periods": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "billingCycle": {
+                      "type": "string"
+                    },
+                    "periods": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "periodType": {
+                            "type": "string"
+                          },
+                          "periodStart": {
+                            "type": "string"
+                          },
+                          "periodEnd": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "periodType",
+                          "periodStart",
+                          "periodEnd"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "billingCycle",
+                    "periods"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/inspector/invoices/preview": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "periodType": {
+                      "type": "string"
+                    },
+                    "periodStart": {
+                      "type": "string"
+                    },
+                    "periodEnd": {
+                      "type": "string"
+                    },
+                    "payoutCount": {
+                      "type": "integer"
+                    },
+                    "totalAmount": {
+                      "type": "number"
+                    },
+                    "currency": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "periodType",
+                    "periodStart",
+                    "periodEnd",
+                    "payoutCount",
+                    "totalAmount",
+                    "currency"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/inspector/invoices/request": {
+      "post": {
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "invoiceId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "inspectorId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "periodType": {
+                      "type": "string"
+                    },
+                    "periodStart": {
+                      "type": "string"
+                    },
+                    "periodEnd": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "totalAmount": {
+                      "type": "number"
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "payoutCount": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "invoiceId",
+                    "inspectorId",
+                    "periodType",
+                    "periodStart",
+                    "periodEnd",
+                    "status",
+                    "totalAmount",
+                    "currency",
+                    "payoutCount"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/financial/entries/summary": {
       "get": {
         "parameters": [
@@ -21506,12 +21660,28 @@
           {
             "schema": {
               "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "agencyId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "branchId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
               "enum": [
-                "PENDING_REVIEW",
-                "OPEN",
-                "CLOSED",
-                "PAID",
-                "SUPERSEDED"
+                "pending",
+                "approved",
+                "rejected"
               ]
             },
             "in": "query",
@@ -21575,6 +21745,14 @@
                             "type": "string",
                             "format": "uuid"
                           },
+                          "invoiceNumber": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "invoiceNumberDisplay": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "inspectorId": {
                             "type": "string",
                             "format": "uuid"
@@ -21617,6 +21795,75 @@
                           "currency": {
                             "type": "string"
                           },
+                          "lineItemsSnapshot": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "serviceDate": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "string",
+                                      "format": "date-time"
+                                    }
+                                  ]
+                                },
+                                "appointmentId": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "appointmentCode": {
+                                  "type": "string"
+                                },
+                                "propertyAddress": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "serviceType": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "amount": {
+                                  "type": "number"
+                                },
+                                "agencyId": {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "nullable": true
+                                },
+                                "agencyName": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "branchId": {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "nullable": true
+                                },
+                                "branchName": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              },
+                              "required": [
+                                "serviceDate",
+                                "appointmentId",
+                                "appointmentCode",
+                                "propertyAddress",
+                                "serviceType",
+                                "amount",
+                                "agencyId",
+                                "agencyName",
+                                "branchId",
+                                "branchName"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "nullable": true
+                          },
                           "fileKey": {
                             "type": "string",
                             "nullable": true
@@ -21626,7 +21873,7 @@
                             "format": "uuid",
                             "nullable": true
                           },
-                          "generatedAt": {
+                          "issuedAt": {
                             "anyOf": [
                               {
                                 "type": "string"
@@ -21695,7 +21942,7 @@
                           "status",
                           "totalAmount",
                           "currency",
-                          "generatedAt",
+                          "issuedAt",
                           "paidAt",
                           "createdAt"
                         ],
@@ -21739,195 +21986,6 @@
         }
       }
     },
-    "/v1/billing/invoices/generate": {
-      "post": {
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "inspectorId": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
-                  "tenantId": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
-                  "periodStart": {
-                    "type": "string",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                  },
-                  "periodEnd": {
-                    "type": "string",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                  }
-                },
-                "required": [
-                  "inspectorId",
-                  "periodStart",
-                  "periodEnd"
-                ],
-                "additionalProperties": false
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "202": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "inspectorId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "inspectorName": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "periodStart": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "periodEnd": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "periodType": {
-                          "type": "string"
-                        },
-                        "status": {
-                          "type": "string"
-                        },
-                        "totalAmount": {
-                          "type": "number"
-                        },
-                        "currency": {
-                          "type": "string"
-                        },
-                        "fileKey": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "generatedByUserId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "generatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "paidAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "paidByUserId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "paymentReference": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "notes": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "createdAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "updatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "inspectorId",
-                        "periodStart",
-                        "periodEnd",
-                        "periodType",
-                        "status",
-                        "totalAmount",
-                        "currency",
-                        "generatedAt",
-                        "paidAt",
-                        "createdAt"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/billing/invoices/{invoiceId}": {
       "get": {
         "parameters": [
@@ -21956,6 +22014,14 @@
                           "type": "string",
                           "format": "uuid"
                         },
+                        "invoiceNumber": {
+                          "type": "integer",
+                          "nullable": true
+                        },
+                        "invoiceNumberDisplay": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "inspectorId": {
                           "type": "string",
                           "format": "uuid"
@@ -21998,6 +22064,75 @@
                         "currency": {
                           "type": "string"
                         },
+                        "lineItemsSnapshot": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "serviceDate": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                ]
+                              },
+                              "appointmentId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "appointmentCode": {
+                                "type": "string"
+                              },
+                              "propertyAddress": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "serviceType": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "amount": {
+                                "type": "number"
+                              },
+                              "agencyId": {
+                                "type": "string",
+                                "format": "uuid",
+                                "nullable": true
+                              },
+                              "agencyName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "branchId": {
+                                "type": "string",
+                                "format": "uuid",
+                                "nullable": true
+                              },
+                              "branchName": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "serviceDate",
+                              "appointmentId",
+                              "appointmentCode",
+                              "propertyAddress",
+                              "serviceType",
+                              "amount",
+                              "agencyId",
+                              "agencyName",
+                              "branchId",
+                              "branchName"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "nullable": true
+                        },
                         "fileKey": {
                           "type": "string",
                           "nullable": true
@@ -22007,7 +22142,7 @@
                           "format": "uuid",
                           "nullable": true
                         },
-                        "generatedAt": {
+                        "issuedAt": {
                           "anyOf": [
                             {
                               "type": "string"
@@ -22076,7 +22211,7 @@
                         "status",
                         "totalAmount",
                         "currency",
-                        "generatedAt",
+                        "issuedAt",
                         "paidAt",
                         "createdAt"
                       ],
@@ -22368,189 +22503,6 @@
                       "required": [
                         "id",
                         "status"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/billing/invoices/{invoiceId}/regenerate": {
-      "post": {
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "reason": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 1000
-                  }
-                },
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "name": "invoiceId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "202": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "inspectorId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "inspectorName": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "periodStart": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "periodEnd": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "periodType": {
-                          "type": "string"
-                        },
-                        "status": {
-                          "type": "string"
-                        },
-                        "totalAmount": {
-                          "type": "number"
-                        },
-                        "currency": {
-                          "type": "string"
-                        },
-                        "fileKey": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "generatedByUserId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "generatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "paidAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "paidByUserId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "paymentReference": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "notes": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "createdAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "updatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "inspectorId",
-                        "periodStart",
-                        "periodEnd",
-                        "periodType",
-                        "status",
-                        "totalAmount",
-                        "currency",
-                        "generatedAt",
-                        "paidAt",
-                        "createdAt"
                       ],
                       "additionalProperties": false
                     }

@@ -35,7 +35,7 @@ const MOCK_INVOICE = {
   inspectorId: 'insp-01',
   periodStart: '2026-03-01',
   periodEnd: '2026-03-15',
-  periodType: 'FORTNIGHTLY',
+  invoiceNumber: null,  invoiceNumberDisplay: null,  periodType: 'FORTNIGHTLY',
   totalAmount: 1800,
   currency: 'AUD',
   status: 'CLOSED',

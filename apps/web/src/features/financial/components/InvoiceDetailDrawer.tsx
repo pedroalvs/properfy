@@ -180,6 +180,7 @@ export function InvoiceDetailDrawer({
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <div className="flex flex-col gap-6">
                 <FormSection title="Invoice Details">
+                  <DetailRow label="Number" value={invoice.invoiceNumberDisplay ?? '—'} />
                   <DetailRow label="Inspector" value={inspectorLabel} />
                   <DetailRow label="Period" value={`${formatDate(invoice.periodStart)} - ${formatDate(invoice.periodEnd)}`} />
                   <DetailRow label="Period Type" value={FREQUENCY_LABELS[invoice.periodType] ?? invoice.periodType} />
@@ -198,9 +199,42 @@ export function InvoiceDetailDrawer({
                   )}
                 </FormSection>
 
+                {invoice.lineItemsSnapshot && invoice.lineItemsSnapshot.length > 0 && (
+                  <FormSection title="Property Invoice line items">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-left text-text-muted">
+                            <th className="py-1 pr-3">Date</th>
+                            <th className="py-1 pr-3">Appointment</th>
+                            <th className="py-1 pr-3">Property</th>
+                            <th className="py-1 pr-3">Service</th>
+                            <th className="py-1 pr-3">Agency</th>
+                            <th className="py-1 pr-3">Branch</th>
+                            <th className="py-1 text-right">Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {invoice.lineItemsSnapshot.map((line) => (
+                            <tr key={line.appointmentId} className="border-t border-black/5">
+                              <td className="py-1 pr-3">{line.serviceDate}</td>
+                              <td className="py-1 pr-3">{line.appointmentCode}</td>
+                              <td className="py-1 pr-3">{line.propertyAddress ?? '—'}</td>
+                              <td className="py-1 pr-3">{line.serviceType ?? '—'}</td>
+                              <td className="py-1 pr-3">{line.agencyName ?? '—'}</td>
+                              <td className="py-1 pr-3">{line.branchName ?? '—'}</td>
+                              <td className="py-1 text-right">{formatCurrency(line.amount, invoice.currency)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </FormSection>
+                )}
+
                 {invoice.notes && (
                   <FormSection title="Notes">
-                    <DetailRow label="Notes" value={invoice.notes} />
+                    <DetailRow label={invoice.status === 'VOID' ? 'Rejection reason' : 'Notes'} value={invoice.notes} />
                   </FormSection>
                 )}
 

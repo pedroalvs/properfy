@@ -136,19 +136,15 @@ describe('GetInvoiceUseCase', () => {
     ).rejects.toThrow(ForbiddenError);
   });
 
-  it('should reject OP from GET inspector invoice (CORRECTION-001 close-it)', async () => {
+  it('allows OP to view any inspector invoice (spec 032 reverses the OP exclusion)', async () => {
     const { useCase, invoiceRepo } = sut;
-
     vi.mocked(invoiceRepo.findById).mockResolvedValue(makeInvoice());
 
-    // Sprint 1 W-4-IMPL: inspector invoices are not tenant-scoped, so
-    // cross-inspector GET by ID is AM-only. OP loses access.
-    await expect(
-      useCase.execute({
-        invoiceId: 'invoice-1',
-        actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
-      }),
-    ).rejects.toThrow(ForbiddenError);
+    const result = await useCase.execute({
+      invoiceId: 'invoice-1',
+      actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
+    });
+    expect(result.id).toBe('invoice-1');
   });
 
   it('should return all detail fields', async () => {

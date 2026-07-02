@@ -31,3 +31,15 @@ export const InspectorInvoiceStatus = {
   VOID: 'VOID',
 } as const;
 export type InspectorInvoiceStatus = (typeof InspectorInvoiceStatus)[keyof typeof InspectorInvoiceStatus];
+
+/**
+ * Product-facing 3-bucket status filter for inspector Property Invoices (spec 032):
+ * Pending = PENDING_REVIEW, Approved = CLOSED | PAID, Rejected = VOID.
+ * PAID is an internal payment state shown as a complementary badge, not a separate bucket.
+ */
+export const INVOICE_STATUS_BUCKETS = {
+  pending: ['PENDING_REVIEW'],
+  approved: ['CLOSED', 'PAID'],
+  rejected: ['VOID'],
+} as const;
+export type InvoiceStatusBucket = keyof typeof INVOICE_STATUS_BUCKETS;
