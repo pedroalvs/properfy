@@ -95,4 +95,23 @@ describe('Invoice request flow (real DB)', () => {
     const uc = await buildUseCase();
     await expect(uc.execute({ inspectorId, ...PERIOD })).rejects.toBeInstanceOf(InvoiceEmptyPeriodError);
   });
+
+  it('two concurrent requests for the same period: one wins, the other gets a clean conflict (partial-unique backstop)', async () => {
+    const inspectorId = await seedInspectorWithPayouts('c', ['AUD']);
+    const uc = await buildUseCase();
+
+    // The app-level findActive check has a race window; the partial unique index is the backstop and
+    // must surface as InvoiceActiveExistsError, not a raw 500 (P2002).
+    const results = await Promise.allSettled([
+      uc.execute({ inspectorId, ...PERIOD }),
+      uc.execute({ inspectorId, ...PERIOD }),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    const rejected = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[];
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0].reason).toBeInstanceOf(InvoiceActiveExistsError);
+
+    const count = await harness.prisma.inspectorInvoice.count({ where: { inspector_id: inspectorId, status: 'PENDING_REVIEW' } });
+    expect(count).toBe(1);
+  });
 });
