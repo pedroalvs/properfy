@@ -1,3 +1,4 @@
+import type { AuthContext } from '@properfy/shared';
 import { getQueue, resolvePgBossSchema, assertQueueDbConsistency } from '../shared/infrastructure/queue';
 import { metrics } from '../shared/infrastructure/metrics';
 import { runWithRequestContext } from '../shared/infrastructure/request-context';
@@ -12,7 +13,8 @@ import type { ExpireFilesWorker } from '../modules/report/infrastructure/workers
 import type { GeocodeWorker } from '../modules/property/infrastructure/workers/geocode.worker';
 import type { GeocodeRetryWorker } from '../modules/property/infrastructure/workers/geocode-retry.worker';
 import type { ImportPropertyWorker } from '../modules/property/infrastructure/workers/import-property.worker';
-import type { AppointmentImportWorker } from '../modules/appointment/infrastructure/workers/import.worker';
+import type { AppointmentImportCommitWorker } from '../modules/appointment/infrastructure/workers/appointment-import-commit.worker';
+import type { SweepAbandonedAppointmentImportsWorker } from '../modules/appointment/infrastructure/workers/sweep-abandoned-appointment-imports.worker';
 import type { GenerateInvoiceFileWorker } from '../modules/billing/infrastructure/workers/generate-invoice-file.worker';
 import type { ExpireTokensWorker } from '../modules/rental-tenant-portal/infrastructure/workers/expire-tokens.worker';
 import type { ExpireAssetsWorker } from '../modules/inspector-execution/infrastructure/workers/expire-assets.worker';
@@ -55,7 +57,8 @@ export async function registerWorkers(
   geocodeWorker: GeocodeWorker,
   geocodeRetryWorker: GeocodeRetryWorker,
   propertyImportWorker: ImportPropertyWorker,
-  appointmentImportWorker: AppointmentImportWorker,
+  appointmentImportCommitWorker: AppointmentImportCommitWorker,
+  sweepAbandonedAppointmentImportsWorker: SweepAbandonedAppointmentImportsWorker,
   generateInvoiceFileWorker: GenerateInvoiceFileWorker,
   expireTokensWorker: ExpireTokensWorker,
   expireAssetsWorker: ExpireAssetsWorker,
@@ -153,10 +156,20 @@ export async function registerWorkers(
     logger.info({ jobId: job.id, reenqueuedCount: result.reenqueuedCount, pendingReenqueuedCount: result.pendingReenqueuedCount, failedGeocodingCount: result.failedGeocodingCount }, 'Geocode retry sweep completed');
   }));
 
-  await boss.work('appointment.import', withJobMetrics('appointment.import', async (job) => {
-    const { importId } = job.data as { importId: string };
-    logger.info({ importId, jobId: job.id }, 'Processing appointment.import job');
-    await appointmentImportWorker.execute({ importId });
+  await boss.work('appointment.import.commit', withJobMetrics('appointment.import.commit', async (job) => {
+    const { importId, actorTimezone, actor } = job.data as {
+      importId: string; actorTimezone?: string; actor: AuthContext;
+    };
+    logger.info({ importId, jobId: job.id }, 'Processing appointment.import.commit job');
+    await appointmentImportCommitWorker.execute({ importId, actorTimezone, actor });
+  }));
+
+  // Sweep abandoned appointment-import previews (never committed) — hourly
+  await boss.schedule('appointment.import.sweep-abandoned', '0 * * * *', {});
+  await boss.work('appointment.import.sweep-abandoned', withJobMetrics('appointment.import.sweep-abandoned', async (job) => {
+    logger.info({ jobId: job.id }, 'Processing appointment.import.sweep-abandoned job');
+    const result = await sweepAbandonedAppointmentImportsWorker.execute();
+    logger.info({ jobId: job.id, sweptCount: result.sweptCount }, 'Abandoned appointment-import sweep completed');
   }));
 
   await boss.work('property.import', withJobMetrics('property.import', async (job) => {
@@ -243,7 +256,7 @@ export async function registerWorkers(
     logger.info({ jobId: job.id, alertedQueues: result.alertedQueues }, 'DLQ monitor completed');
   }));
 
-  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import, property.import, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.mark-assets-expired, inspection-execution.notify-not-started, service_group.expire-priority, audit.retention, appointment.reject-unconfirmed, system.dlq-monitor');
+  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, property.import, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.mark-assets-expired, inspection-execution.notify-not-started, service_group.expire-priority, audit.retention, appointment.reject-unconfirmed, system.dlq-monitor');
 
   // On startup: re-enqueue geocoding for all PENDING/FAILED properties that have no coordinates
   const pendingProperties = await prisma.property.findMany({

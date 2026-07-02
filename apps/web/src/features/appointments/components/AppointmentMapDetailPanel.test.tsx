@@ -19,7 +19,7 @@
  * tests for clamping are no longer needed — clamping is gone.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -28,11 +28,13 @@ import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 
 // Capture the id passed to useAppointmentDetail so we can assert lazy fetch.
 const detailIdSpy = vi.fn();
+// Mutable detail returned by the mocked hook (default null = not loaded yet).
+let mockDetail: Record<string, unknown> | null = null;
 
 vi.mock('../hooks/useAppointmentDetail', () => ({
   useAppointmentDetail: (id: string | null) => {
     detailIdSpy(id);
-    return { appointment: null, isLoading: false, isError: false, refetch: vi.fn() };
+    return { appointment: mockDetail, isLoading: false, isError: false, refetch: vi.fn() };
   },
 }));
 
@@ -72,6 +74,31 @@ function renderPanel(props: Partial<Parameters<typeof AppointmentMapDetailPanel>
 }
 
 describe('AppointmentMapDetailPanel (content)', () => {
+  afterEach(() => {
+    mockDetail = null;
+  });
+
+  it('shows custom fields in the Custom fields section once detail loads', () => {
+    mockDetail = {
+      customFields: [
+        { label: 'Gate code', value: '1234' },
+        { label: 'Parking', value: 'Level 2' },
+      ],
+    };
+    renderPanel();
+    fireEvent.click(screen.getByTestId('map-detail-section-customFields'));
+    expect(screen.getByText('Gate code:')).toBeInTheDocument();
+    expect(screen.getByText(/1234/)).toBeInTheDocument();
+    expect(screen.getByText('Parking:')).toBeInTheDocument();
+  });
+
+  it('shows an empty state in the Custom fields section when there are none', () => {
+    mockDetail = { customFields: [] };
+    renderPanel();
+    fireEvent.click(screen.getByTestId('map-detail-section-customFields'));
+    expect(screen.getByText('No custom fields.')).toBeInTheDocument();
+  });
+
   it('renders CLIENT and PROPERTIES from the marker payload; eager fetch starts on mount', () => {
     renderPanel();
     expect(screen.getByTestId('map-detail-client').textContent).toBe('Acme Realty');

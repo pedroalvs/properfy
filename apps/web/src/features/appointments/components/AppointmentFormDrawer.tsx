@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AppointmentStatus, AppointmentContactRole, ContactType, ContactChannelType, todayLocalDateString, isTimeStartInPastForDate, validateEditedSchedule } from '@properfy/shared';
+import { AppointmentStatus, AppointmentContactRole, ContactType, ContactChannelType, todayLocalDateString, isTimeStartInPastForDate, validateEditedSchedule, CUSTOM_FIELD_LABEL_MAX, CUSTOM_FIELD_VALUE_MAX } from '@properfy/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
@@ -27,7 +27,7 @@ import { AppointmentRestrictionFields } from './AppointmentRestrictionFields';
 import { ContactAutocomplete } from './ContactAutocomplete';
 import { AppCredentialMultiSelect } from './AppCredentialMultiSelect';
 import type { AppointmentFormData, AppointmentFormErrors, ContactFormEntry } from '../types';
-import { EMPTY_FORM_DATA, createEmptyContact } from '../types';
+import { EMPTY_FORM_DATA, createEmptyContact, createEmptyCustomField, MAX_CUSTOM_FIELDS } from '../types';
 import type { ContactSearchResult } from '../hooks/useContactSearch';
 
 const CONTACT_ROLE_OPTIONS = [
@@ -172,6 +172,11 @@ export function AppointmentFormDrawer({
         contactPhone: appointment.contactPhone ?? '',
         contactEmail: appointment.contactEmail ?? '',
         contacts,
+        customFields: (appointment.customFields ?? []).map((f) => ({
+          key: crypto.randomUUID(),
+          label: f.label,
+          value: f.value,
+        })),
         appCredentialIds: (appointment.apps ?? []).map((a) => a.id),
         keyRequired: appointment.keyRequired,
         meetingLocation: appointment.meetingLocation ?? '',
@@ -364,6 +369,33 @@ export function AppointmentFormDrawer({
       })),
     }));
   }, []);
+
+  const addCustomField = useCallback(() => {
+    setForm((prev) =>
+      prev.customFields.length >= MAX_CUSTOM_FIELDS
+        ? prev
+        : { ...prev, customFields: [...prev.customFields, createEmptyCustomField()] },
+    );
+  }, []);
+
+  const removeCustomField = useCallback((key: string) => {
+    setForm((prev) => ({
+      ...prev,
+      customFields: prev.customFields.filter((f) => f.key !== key),
+    }));
+  }, []);
+
+  const updateCustomField = useCallback(
+    (key: string, field: 'label' | 'value', value: string) => {
+      setForm((prev) => ({
+        ...prev,
+        customFields: prev.customFields.map((f) =>
+          f.key === key ? { ...f, [field]: value } : f,
+        ),
+      }));
+    },
+    [],
+  );
 
   const handleSubmit = useCallback(async () => {
     const mode = isEditMode ? 'edit' : 'create';
@@ -927,6 +959,62 @@ export function AppointmentFormDrawer({
                         aria-label="Observation"
                       />
                     </FormField>
+                  </FormSection>
+
+                  <FormSection title="Custom Fields">
+                    {form.customFields.map((field, idx) => (
+                      <div key={field.key} className="flex flex-col gap-3 mb-3 md:flex-row md:items-start">
+                        <FormField
+                          label={`Label ${idx + 1}`}
+                          required
+                          error={errors.customFields?.[idx]?.label}
+                          className="flex-1"
+                        >
+                          <TextInput
+                            value={field.label}
+                            onChange={(v) => updateCustomField(field.key, 'label', v)}
+                            maxLength={CUSTOM_FIELD_LABEL_MAX}
+                            placeholder="e.g. Gate code"
+                            error={!!errors.customFields?.[idx]?.label}
+                            aria-label={`Custom field ${idx + 1} label`}
+                          />
+                        </FormField>
+                        <FormField
+                          label={`Value ${idx + 1}`}
+                          required
+                          error={errors.customFields?.[idx]?.value}
+                          className="flex-1"
+                        >
+                          <TextInput
+                            value={field.value}
+                            onChange={(v) => updateCustomField(field.key, 'value', v)}
+                            maxLength={CUSTOM_FIELD_VALUE_MAX}
+                            placeholder="e.g. 1234"
+                            error={!!errors.customFields?.[idx]?.value}
+                            aria-label={`Custom field ${idx + 1} value`}
+                          />
+                        </FormField>
+                        <button
+                          type="button"
+                          onClick={() => removeCustomField(field.key)}
+                          className="self-end text-error hover:text-error/80 text-sm font-medium md:mt-8 md:self-auto"
+                          aria-label={`Remove custom field ${idx + 1}`}
+                        >
+                          <i className="mdi mdi-close-circle-outline text-lg" aria-hidden="true" />
+                        </button>
+                      </div>
+                    ))}
+                    <Button
+                      variant="secondary"
+                      onClick={addCustomField}
+                      disabled={form.customFields.length >= MAX_CUSTOM_FIELDS}
+                    >
+                      <i className="mdi mdi-plus" aria-hidden="true" />
+                      Add field
+                    </Button>
+                    <p className="mt-1 text-xs text-text-muted">
+                      Up to {MAX_CUSTOM_FIELDS} custom fields per appointment.
+                    </p>
                   </FormSection>
                 </div>
               </div>

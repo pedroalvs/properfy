@@ -75,6 +75,13 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
   },
 
   // ── Appointment Lifecycle ────────────────────────────────────────────
+  // Frontend-gating only: the backend enforces roles directly via
+  // `assertRoles(actor, ['AM','OP','CL_ADMIN'], ...)` in the import use
+  // cases, not via this matrix. This entry exists so `usePermissions()
+  // .canPerform('appointment.import')` can gate the UI consistently.
+  'appointment.import': {
+    roles: ['AM', 'OP', 'CL_ADMIN'],
+  },
   'appointment.create': {
     roles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'],
     condition: 'cl_user_flag',

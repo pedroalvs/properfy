@@ -394,6 +394,82 @@ describe('UpdateAppointmentUseCase', () => {
     });
   });
 
+  describe('customFields', () => {
+    it('persists the customFields array via the repository update payload', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+
+      const customFields = [
+        { label: 'Gate code', value: '1234' },
+        { label: 'Parking', value: 'Level 2' },
+      ];
+      const result = await useCase.execute({
+        appointmentId: 'appt-1',
+        data: { customFields },
+        actor: makeActor(),
+      });
+
+      expect(result.customFieldsJson).toEqual(customFields);
+      expect(appointmentRepo.update).toHaveBeenCalledWith(
+        'appt-1',
+        'tenant-1',
+        expect.objectContaining({ customFieldsJson: customFields }),
+      );
+    });
+
+    it('clears custom fields when passed null', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ customFieldsJson: [{ label: 'Gate', value: '1' }] }),
+      );
+
+      const result = await useCase.execute({
+        appointmentId: 'appt-1',
+        data: { customFields: null },
+        actor: makeActor(),
+      });
+
+      expect(result.customFieldsJson).toBeNull();
+      expect(appointmentRepo.update).toHaveBeenCalledWith(
+        'appt-1',
+        'tenant-1',
+        expect.objectContaining({ customFieldsJson: null }),
+      );
+    });
+
+    it('clears custom fields when passed an empty array', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ customFieldsJson: [{ label: 'Gate', value: '1' }] }),
+      );
+
+      const result = await useCase.execute({
+        appointmentId: 'appt-1',
+        data: { customFields: [] },
+        actor: makeActor(),
+      });
+
+      expect(result.customFieldsJson).toEqual([]);
+      expect(appointmentRepo.update).toHaveBeenCalledWith(
+        'appt-1',
+        'tenant-1',
+        expect.objectContaining({ customFieldsJson: [] }),
+      );
+    });
+
+    it('leaves custom fields untouched when the field is absent', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ customFieldsJson: [{ label: 'Gate', value: '1' }] }),
+      );
+
+      await useCase.execute({
+        appointmentId: 'appt-1',
+        data: { notes: 'only notes' },
+        actor: makeActor(),
+      });
+
+      const updateArg = vi.mocked(appointmentRepo.update).mock.calls[0]![2];
+      expect(updateArg).not.toHaveProperty('customFieldsJson');
+    });
+  });
+
   it('reflects clearing a nullable field to null in both the audit after-state and the response', async () => {
     // Regression: the old `updateData.X ?? appointment.X` pattern resurrected the
     // previous value on clear-to-null, so the audit claimed "unchanged" and the

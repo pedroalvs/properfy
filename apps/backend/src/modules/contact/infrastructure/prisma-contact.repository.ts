@@ -274,6 +274,20 @@ export class PrismaContactRepository implements IContactRepository {
     return row ? mapToEntity(row) : null;
   }
 
+  async findManyActiveByEmailsOrPhones(emails: string[], phones: string[]): Promise<ContactEntity[]> {
+    if (emails.length === 0 && phones.length === 0) return [];
+    const or: Array<Record<string, unknown>> = [];
+    if (emails.length > 0) or.push({ primary_email: { in: emails } });
+    if (phones.length > 0) or.push({ primary_phone: { in: phones } });
+    const rows = await this.prisma.contact.findMany({
+      where: {
+        is_active: true,
+        OR: or,
+      } as any,
+    });
+    return rows.map(mapToEntity);
+  }
+
   /**
    * 024 §FR-303 — visibility check for CL roles. Returns true iff the
    * contact appears in at least one `appointment_contacts` row whose joined

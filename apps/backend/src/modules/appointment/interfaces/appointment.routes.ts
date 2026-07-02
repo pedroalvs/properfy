@@ -19,6 +19,7 @@ import {
   bulkActionResponseSchema,
   successResponseSchema,
   paginatedResponseSchema,
+  appointmentImportPreviewResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
@@ -30,7 +31,9 @@ import type { UpdateAppointmentUseCase } from '../application/use-cases/update-a
 import type { ExecuteStatusTransitionUseCase } from '../application/use-cases/execute-status-transition.use-case';
 import type { PerformCrossCheckUseCase } from '../application/use-cases/perform-cross-check.use-case';
 import type { ForceManualTenantConfirmationUseCase } from '../application/use-cases/force-manual-confirmation.use-case';
-import type { ImportAppointmentsUseCase } from '../application/use-cases/import-appointments.use-case';
+import type { PreviewAppointmentImportUseCase } from '../application/use-cases/preview-appointment-import.use-case';
+import type { CommitAppointmentImportUseCase } from '../application/use-cases/commit-appointment-import.use-case';
+import type { ExportAppointmentImportErrorsUseCase } from '../application/use-cases/export-appointment-import-errors.use-case';
 import type { GetImportStatusUseCase } from '../application/use-cases/get-import-status.use-case';
 import type { DeleteAppointmentUseCase } from '../application/use-cases/delete-appointment.use-case';
 import type { BulkEditAppointmentsUseCase } from '../application/use-cases/bulk-edit-appointments.use-case';
@@ -47,6 +50,10 @@ import type { IIdempotencyService } from '../../../shared/domain/idempotency.ser
 import { GetPortalLinkResponse } from '@properfy/shared';
 
 const importIdParam = z.object({ importId: z.string().uuid() });
+const commitAppointmentImportSchema = z.object({
+  skipInvalidRows: z.boolean(),
+  actorTimezone: z.string().optional(),
+});
 
 export interface AppointmentRouteContainer {
   createAppointmentUseCase: CreateAppointmentUseCase;
@@ -57,7 +64,9 @@ export interface AppointmentRouteContainer {
   performCrossCheckUseCase: PerformCrossCheckUseCase;
   forceManualConfirmationUseCase: ForceManualTenantConfirmationUseCase;
   reopenForRescheduleUseCase: ReopenForRescheduleUseCase;
-  importAppointmentsUseCase: ImportAppointmentsUseCase;
+  previewAppointmentImportUseCase: PreviewAppointmentImportUseCase;
+  commitAppointmentImportUseCase: CommitAppointmentImportUseCase;
+  exportAppointmentImportErrorsUseCase: ExportAppointmentImportErrorsUseCase;
   getImportStatusUseCase: GetImportStatusUseCase;
   deleteAppointmentUseCase: DeleteAppointmentUseCase;
   bulkEditAppointmentsUseCase: BulkEditAppointmentsUseCase;
@@ -538,9 +547,9 @@ export async function registerAppointmentRoutes(
     },
   );
 
-  // POST /v1/appointments/import — 202 (multipart file upload)
+  // POST /v1/appointments/import/preview — 200 (multipart: branchId field + file)
   app.post(
-    '/v1/appointments/import',
+    '/v1/appointments/import/preview',
     {
       preHandler: authenticate,
       config: {
@@ -549,22 +558,77 @@ export async function registerAppointmentRoutes(
           timeWindow: '1 minute',
         },
       },
+      schema: {
+        response: { 200: successResponseSchema(appointmentImportPreviewResponseSchema) },
+      },
     },
     async (request, reply) => {
-      const idempotencyKey = request.headers['idempotency-key'] as string | undefined;
-      if (!idempotencyKey) {
-        throw new ValidationError('Idempotency-Key header is required for import');
+      // Manual part-by-part iteration (not request.file(), which only reads
+      // the first file part) so the branchId form field is available
+      // alongside the file regardless of field order in the multipart body —
+      // clients should still append branchId before the file for robustness.
+      let fileBuffer: Buffer | undefined;
+      let filename: string | undefined;
+      let branchId: string | undefined;
+      let actorTimezone: string | undefined;
+
+      for await (const part of request.parts()) {
+        if (part.type === 'file') {
+          fileBuffer = await part.toBuffer();
+          filename = part.filename;
+        } else if (part.fieldname === 'branchId') {
+          branchId = String(part.value);
+        } else if (part.fieldname === 'actorTimezone') {
+          actorTimezone = String(part.value);
+        }
       }
 
-      const data = await request.file();
-      if (!data) {
+      if (!fileBuffer || !filename) {
         throw new ValidationError('File upload is required');
       }
+      if (!branchId) {
+        throw new ValidationError('branchId is required');
+      }
 
-      const fileBuffer = await data.toBuffer();
-      const result = await container.importAppointmentsUseCase.execute({
+      const result = await container.previewAppointmentImportUseCase.execute({
         fileBuffer,
-        filename: data.filename,
+        filename,
+        branchId,
+        actorTimezone,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/appointments/import/:importId/commit — 202
+  app.post(
+    '/v1/appointments/import/:importId/commit',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: importIdParam,
+        body: commitAppointmentImportSchema,
+      },
+    },
+    async (request, reply) => {
+      const params = importIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid import ID', params.error.errors);
+      }
+      const idempotencyKey = request.headers['idempotency-key'] as string | undefined;
+      if (!idempotencyKey) {
+        throw new ValidationError('Idempotency-Key header is required for commit');
+      }
+      const parsed = commitAppointmentImportSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+
+      const result = await container.commitAppointmentImportUseCase.execute({
+        importId: params.data.importId,
+        skipInvalidRows: parsed.data.skipInvalidRows,
+        actorTimezone: parsed.data.actorTimezone,
         idempotencyKey,
         actor: request.authContext!,
       });
@@ -591,6 +655,35 @@ export async function registerAppointmentRoutes(
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
+    },
+  );
+
+  // GET /v1/appointments/import/:importId/errors.csv — download error rows as CSV
+  app.get(
+    '/v1/appointments/import/:importId/errors.csv',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: importIdParam,
+      },
+    },
+    async (request, reply) => {
+      const params = importIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid import ID', params.error.errors);
+      }
+      const csv = await container.exportAppointmentImportErrorsUseCase.execute({
+        importId: params.data.importId,
+        actor: request.authContext!,
+      });
+      return reply
+        .status(200)
+        .header('Content-Type', 'text/csv')
+        .header(
+          'Content-Disposition',
+          `attachment; filename="import-${params.data.importId}-errors.csv"`,
+        )
+        .send(csv);
     },
   );
 

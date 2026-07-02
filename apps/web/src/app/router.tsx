@@ -154,7 +154,7 @@ export const router = createBrowserRouter([
           {
             path: 'appointments/import',
             element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
+              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN]}>
                 <AppointmentImportPage />
               </AuthGuard>
             ),

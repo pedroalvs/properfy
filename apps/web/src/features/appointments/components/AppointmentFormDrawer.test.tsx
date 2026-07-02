@@ -16,6 +16,9 @@ vi.mock('@properfy/shared', () => ({
   todayLocalDateString: () => '2026-03-29',
   isTimeStartInPastForDate: () => false,
   validateEditedSchedule: () => ({ ok: true }),
+  CUSTOM_FIELD_LABEL_MAX: 50,
+  CUSTOM_FIELD_VALUE_MAX: 500,
+  CUSTOM_FIELDS_MAX: 4,
 }));
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } }));
 vi.mock('@/services/api', () => ({
@@ -359,5 +362,33 @@ describe('AppointmentFormDrawer', () => {
         status: 'ACTIVE',
       });
     });
+  });
+
+  it('adds custom field rows and disables "Add field" at the max of 4', () => {
+    renderDrawer();
+
+    const addBtn = screen.getByText('Add field').closest('button')!;
+    expect(addBtn).not.toBeDisabled();
+    // No rows initially.
+    expect(screen.queryByLabelText('Custom field 1 label')).not.toBeInTheDocument();
+
+    for (let i = 0; i < 4; i++) fireEvent.click(addBtn);
+
+    expect(screen.getByLabelText('Custom field 4 label')).toBeInTheDocument();
+    expect(screen.getByLabelText('Custom field 4 value')).toBeInTheDocument();
+    expect(addBtn).toBeDisabled();
+  });
+
+  it('removes a custom field row and re-enables "Add field"', () => {
+    renderDrawer();
+
+    const addBtn = screen.getByText('Add field').closest('button')!;
+    for (let i = 0; i < 4; i++) fireEvent.click(addBtn);
+    expect(addBtn).toBeDisabled();
+
+    fireEvent.click(screen.getByLabelText('Remove custom field 1'));
+
+    expect(addBtn).not.toBeDisabled();
+    expect(screen.queryByLabelText('Custom field 4 label')).not.toBeInTheDocument();
   });
 });

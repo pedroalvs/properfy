@@ -54,6 +54,42 @@ const observationUpdateField = z
   .optional()
   .transform((v) => (v == null ? v : v.trim() === '' ? null : v));
 
+/** Single source of truth for custom-field limits (shared by schema, backend
+ *  normalization and the web form's maxLength props). */
+export const CUSTOM_FIELD_LABEL_MAX = 50;
+export const CUSTOM_FIELD_VALUE_MAX = 500;
+export const CUSTOM_FIELDS_MAX = 4;
+
+/**
+ * Repeatable operator-defined custom field on an appointment. Each entry is a
+ * required `{ label, value }` pair; a maximum of {@link CUSTOM_FIELDS_MAX} are
+ * allowed per appointment. Stored opaquely in `appointments.custom_fields_json`.
+ * Input is validated strictly; response schemas stay permissive (see
+ * responses.ts) to avoid the fastify serializer throwing on legacy/edge data.
+ */
+export const customFieldSchema = z.object({
+  label: z.string().trim().min(1).max(CUSTOM_FIELD_LABEL_MAX),
+  value: z.string().trim().min(1).max(CUSTOM_FIELD_VALUE_MAX),
+});
+export const appointmentCustomFieldsSchema = z.array(customFieldSchema).max(CUSTOM_FIELDS_MAX);
+export type AppointmentCustomField = z.infer<typeof customFieldSchema>;
+
+/**
+ * Normalize an opaque `custom_fields_json` value (possibly legacy/malformed) into
+ * a clean, contract-valid `{ label, value }[]`, capped at {@link CUSTOM_FIELDS_MAX}.
+ * Non-array inputs and rows that fail {@link customFieldSchema} (missing/blank/oversized
+ * label or value) are dropped. Shared by the inspector detail response mapping and
+ * the web appointment-detail hook so the read-side transformation stays consistent.
+ */
+export function normalizeCustomFields(raw: unknown): AppointmentCustomField[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((row) => customFieldSchema.safeParse(row))
+    .filter((result): result is { success: true; data: AppointmentCustomField } => result.success)
+    .map((result) => result.data)
+    .slice(0, CUSTOM_FIELDS_MAX);
+}
+
 export const createAppointmentSchema = z.object({
   branchId: z.string().uuid(),
   propertyId: z.string().uuid().optional(),
@@ -75,7 +111,7 @@ export const createAppointmentSchema = z.object({
   keyLocation: z.string().max(500).optional(),
   notes: z.string().max(2000).optional(),
   observation: observationCreateField,
-  customFields: z.record(z.unknown()).optional(),
+  customFields: appointmentCustomFieldsSchema.optional(),
   actorTimezone: z.string().optional(),
 }).refine(
   (data) => !!data.propertyId !== !!data.property,
@@ -110,7 +146,7 @@ export const updateAppointmentSchema = z.object({
   /** App credentials linked to this appointment. When present, replaces all links (empty array clears). */
   appCredentialIds: z.array(z.string().uuid()).max(50).optional(),
   restriction: restrictionSchema.optional(),
-  customFields: z.record(z.unknown()).nullable().optional(),
+  customFields: appointmentCustomFieldsSchema.nullable().optional(),
   actorTimezone: z.string().optional(),
 }).refine(
   (data) => {
