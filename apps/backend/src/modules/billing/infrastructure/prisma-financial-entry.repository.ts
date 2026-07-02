@@ -45,6 +45,7 @@ function buildWhereClause(filters: FinancialEntryFilters): Record<string, unknow
   if (filters.appointmentId) where.appointment_id = filters.appointmentId;
   if (filters.inspectorId) where.inspector_id = filters.inspectorId;
   if (filters.entryType) where.entry_type = filters.entryType;
+  else if (filters.entryTypeIn) where.entry_type = { in: filters.entryTypeIn };
   if (filters.status) where.status = filters.status;
 
   if (filters.fromDate || filters.toDate) {

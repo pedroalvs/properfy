@@ -36,8 +36,13 @@ export class GetFinancialSummaryUseCase {
 
     const summary = await this.entryRepo.getSummary(tenantId, dateRange);
 
+    // 031 — Agencies must not see inspector payouts (the platform↔inspector leg
+    // and thus the platform's margin). Hide the aggregate from CL roles.
+    const isAgency = actor.role === 'CL_ADMIN' || actor.role === 'CL_USER';
+    const scoped = isAgency ? { ...summary, totalPayouts: 0 } : summary;
+
     if (!tenantId) {
-      return summary;
+      return scoped;
     }
 
     const tenant = await this.tenantRepo.findById(tenantId);
@@ -46,7 +51,7 @@ export class GetFinancialSummaryUseCase {
     }
 
     return {
-      ...summary,
+      ...scoped,
       currency: tenant.currency,
     };
   }

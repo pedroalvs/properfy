@@ -65,23 +65,27 @@ CL_ADMIN/CL_USER are always own-tenant scoped and see only Agency-relevant entry
    `financial.agency_export` matrix actions (`cl_user_flag: view_financials`); `view_financials`
    added to `clUserPermissions` + `CL_USER_PERMISSIONS`; `allowClientFinancialView` removed;
    `clUserPermissions` exposed on `meResponseSchema`; openapi/api-types regenerated.
-2. **PR-2 (this) — Backend billing route cleanup.** Remove the deprecated `/v1/invoices/*` block
+2. **PR-2 — Backend billing route cleanup.** Remove the deprecated `/v1/invoices/*` block
    (incl. `/close` `/pay` aliases) and the duplicate `PATCH /v1/financial/entries/:id/approve`
    (canonical `POST` kept); migrate the one web caller (`useFinancialBatchApprove`) PATCH→POST;
    regenerate the contract.
-3. **PR-3 (this) — Remove orphan tenant-invoice** (backend + shared + destructive migration).
-4. **PR-4 — Backend Agency financial surface + RBAC unification.** Extrato / services rendered /
-   scoped export; inject `AuthorizationService` into the billing container, wire the CL_USER
-   permissions resolver into billing auth, and unify the route-level role checks onto
-   `assertRoles` + `assertClUserPermission('view_financials')`.
-5. **PR-5 — Web Agency financial surface + client-side gating** (`/v1/me` flags).
-6. **PR-6 — PWA earnings/history redesign** (parallelizable after PR-1).
+3. **PR-3 — Remove orphan tenant-invoice** (backend + shared + destructive migration).
+4. **PR-4 (this) — Backend Agency read (extrato + summary) + RBAC unification.** Wire the CL_USER
+   permissions resolver into billing auth; inject `AuthorizationService` into the billing
+   container; unify route-level role checks onto `assertRoles` + `assertClUserPermission`; open
+   the entries + summary reads to CL_ADMIN / flagged CL_USER, scoped own-tenant and excluding
+   `INSPECTOR_PAYOUT`; hide `totalPayouts` from agencies in the summary.
+5. **PR-5 — Backend Agency services-rendered + scoped XLSX export** (own-tenant read + report
+   `IXlsxGenerator` reuse).
+6. **PR-6 — Web Agency financial surface + client-side gating** (`/v1/me` flags).
+7. **PR-7 — PWA earnings/history redesign** (parallelizable after PR-1).
 
-> **Re-split note:** the CL_USER-resolver wiring + route-level RBAC-mechanism unification were
-> moved from PR-2 into PR-4. Rationale: the resolver is only consumed by
-> `assertClUserPermission('view_financials')` (added in PR-4), and any CL read path to
-> `financial_entries` must ship together with the `INSPECTOR_PAYOUT` entry-type exclusion — so
-> coupling them keeps PR-2 a pure, low-risk cleanup and avoids duplicate container/mock churn.
+> **Re-split notes:** (a) the CL_USER-resolver wiring + route-level RBAC-mechanism unification
+> moved from PR-2 into PR-4 (the resolver is only consumed by
+> `assertClUserPermission('view_financials')`, and any CL read path to `financial_entries` must
+> ship with the `INSPECTOR_PAYOUT` exclusion). (b) PR-4 was split: the Agency **read** (extrato +
+> summary + RBAC) is PR-4; **services-rendered + scoped export** became PR-5, to isolate the
+> RBAC work from the cross-module XLSX coupling. Web/PWA shifted to PR-6/PR-7.
 
 ## PR-1 functional requirements (delivered)
 
@@ -121,3 +125,19 @@ Backoffice financial actions (`financial.view/approve/manual_adjustment/refund`)
   unchanged.
 - **FR-031-10:** The Agency financial statement is served live from `financial_entries`
   (delivered in PR-4); no periodic tenant-invoice generation lifecycle exists.
+
+## PR-4 functional requirements (delivered)
+
+- **FR-031-11:** Billing auth middleware resolves CL_USER permission flags from tenant settings
+  (`resolveClUserPermissions` wired), so `assertClUserPermission('view_financials')` is
+  enforceable on billing routes (closes the silent-no-op trap).
+- **FR-031-12:** `GET /v1/financial/entries` is readable by AM/OP (backoffice), CL_ADMIN (own
+  agency), INSP (own payouts) and CL_USER **only** with `view_financials`. For CL roles the read
+  is own-tenant and excludes `INSPECTOR_PAYOUT` (via `entryTypeIn`); requesting `INSPECTOR_PAYOUT`
+  explicitly is `FORBIDDEN`.
+- **FR-031-13:** `GET /v1/financial/entries/summary` is gated to AM/OP/CL_ADMIN/flagged-CL_USER
+  (INSP denied); for CL roles `totalPayouts` is hidden (returned as 0) so the platform margin is
+  not exposed.
+- **FR-031-14:** Route-level RBAC on entries/summary/approve/adjust is unified onto
+  `AuthorizationService.assertRoles` (+ `assertClUserPermission`), replacing bespoke inline role
+  arrays; denials are audited. Inspector-invoice routes are unchanged.

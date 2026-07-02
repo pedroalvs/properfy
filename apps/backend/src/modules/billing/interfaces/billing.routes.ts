@@ -20,8 +20,9 @@ import {
   successResponseSchema,
   paginatedResponseSchema,
 } from '@properfy/shared';
+import type { AuthContext } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
-import { ForbiddenError, ValidationError } from '../../../shared/domain/errors';
+import { ValidationError } from '../../../shared/domain/errors';
 import { success, paginated } from '../../../shared/interfaces/response';
 import type { GetFinancialSummaryUseCase } from '../application/use-cases/get-financial-summary.use-case';
 import type { ListFinancialEntriesUseCase } from '../application/use-cases/list-financial-entries.use-case';
@@ -44,6 +45,7 @@ import type { RegenerateInspectorInvoiceUseCase } from '../application/use-cases
 import type { ApproveDraftInvoiceUseCase } from '../application/use-cases/approve-draft-invoice.use-case';
 import type { RejectDraftInvoiceUseCase } from '../application/use-cases/reject-draft-invoice.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
+import type { AuthorizationService } from '../../../shared/domain/authorization.service';
 
 export interface BillingRouteContainer {
   createFinancialEntriesOnDoneUseCase: CreateFinancialEntriesOnDoneUseCase;
@@ -66,8 +68,11 @@ export interface BillingRouteContainer {
   regenerateInspectorInvoiceUseCase: RegenerateInspectorInvoiceUseCase;
   approveDraftInvoiceUseCase: ApproveDraftInvoiceUseCase;
   rejectDraftInvoiceUseCase: RejectDraftInvoiceUseCase;
+  authorizationService: AuthorizationService;
   jwtService: JwtService;
-  tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
+  tenantRepo: {
+    findById(id: string): Promise<{ isActive(): boolean; settingsJson?: Record<string, unknown> } | null>;
+  };
 }
 
 const entryIdParam = z.object({ entryId: z.string().uuid() });
@@ -83,7 +88,25 @@ export async function registerBillingRoutes(
       const tenant = await container.tenantRepo.findById(tenantId);
       return tenant?.isActive() ?? false;
     },
+    // 031 — resolve CL_USER permission flags so agency read routes can enforce
+    // `view_financials` via assertClUserPermission. Without this, the flag is
+    // always empty and every flagged CL_USER would be silently denied.
+    async (tenantId) => {
+      const tenant = await container.tenantRepo.findById(tenantId);
+      return (tenant?.settingsJson?.clUserPermissions as string[] | undefined) ?? [];
+    },
   );
+
+  // 031 — helper: gate an Agency read route. AM/OP/CL_ADMIN pass unconditionally;
+  // CL_USER additionally needs the `view_financials` flag. INSP is never allowed
+  // on agency surfaces (its own-payout access is handled on the entries route).
+  function assertAgencyRead(actor: AuthContext, action: string): void {
+    container.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN', 'CL_USER'], {
+      action,
+      entityType: 'FinancialEntry',
+    });
+    container.authorizationService.assertClUserPermission(actor, 'view_financials');
+  }
 
   // GET /v1/financial/entries/summary
   app.get(
@@ -111,6 +134,7 @@ export async function registerBillingRoutes(
       },
     },
     async (request, reply) => {
+      assertAgencyRead(request.authContext!, 'financial.agency_view');
       const query = request.query as { tenantId?: string; effectiveFrom?: string; effectiveTo?: string };
       const result = await container.getFinancialSummaryUseCase.execute({
         tenantId: query.tenantId,
@@ -128,9 +152,13 @@ export async function registerBillingRoutes(
     { preHandler: authenticate, schema: { querystring: listFinancialEntriesQuerySchema, response: { 200: paginatedResponseSchema(financialEntryResponseSchema) } } },
     async (request, reply) => {
       const actor = request.authContext!;
-      if (!['AM', 'OP', 'CL_ADMIN', 'INSP'].includes(actor.role)) {
-        throw new ForbiddenError('FORBIDDEN', 'Not authorized to list financial entries');
-      }
+      // AM/OP backoffice + CL_ADMIN/CL_USER agency read + INSP own-payouts.
+      // CL_USER additionally requires the `view_financials` flag (no-op for others).
+      container.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN', 'CL_USER', 'INSP'], {
+        action: 'financial.list_entries',
+        entityType: 'FinancialEntry',
+      });
+      container.authorizationService.assertClUserPermission(actor, 'view_financials');
       const parsed = listFinancialEntriesQuerySchema.safeParse(request.query);
       if (!parsed.success) {
         throw new ValidationError('Invalid query parameters', parsed.error.errors);
@@ -167,13 +195,15 @@ export async function registerBillingRoutes(
     { preHandler: authenticate, schema: { params: z.object({ entryId: z.string().uuid() }), response: { 200: successResponseSchema(financialEntryResponseSchema) } } },
     async (request, reply) => {
       const actor = request.authContext!;
-      if (!['AM', 'OP'].includes(actor.role)) {
-        throw new ForbiddenError('FORBIDDEN', 'Only AM and OP can approve financial entries');
-      }
       const params = entryIdParam.safeParse(request.params);
       if (!params.success) {
         throw new ValidationError('Invalid entry ID', params.error.errors);
       }
+      container.authorizationService.assertRoles(actor, ['AM', 'OP'], {
+        action: 'financial.approve',
+        entityType: 'FinancialEntry',
+        entityId: params.data.entryId,
+      });
       const result = await container.approveFinancialEntryUseCase.execute({
         entryId: params.data.entryId,
         actor,
@@ -210,9 +240,10 @@ export async function registerBillingRoutes(
     { preHandler: authenticate, schema: { body: createManualAdjustmentSchema, response: { 201: successResponseSchema(financialEntryResponseSchema) } } },
     async (request, reply) => {
       const actor = request.authContext!;
-      if (!['AM', 'OP'].includes(actor.role)) {
-        throw new ForbiddenError('FORBIDDEN', 'Only AM and OP can create manual adjustments');
-      }
+      container.authorizationService.assertRoles(actor, ['AM', 'OP'], {
+        action: 'financial.manual_adjustment',
+        entityType: 'FinancialEntry',
+      });
       const parsed = createManualAdjustmentSchema.safeParse(request.body);
       if (!parsed.success) {
         throw new ValidationError('Request payload is invalid', parsed.error.errors);

@@ -1451,6 +1451,7 @@ export function createContainer(logger: Logger): AppContainer {
       regenerateInspectorInvoiceUseCase,
       approveDraftInvoiceUseCase,
       rejectDraftInvoiceUseCase,
+      authorizationService,
       jwtService,
       tenantRepo,
     },
