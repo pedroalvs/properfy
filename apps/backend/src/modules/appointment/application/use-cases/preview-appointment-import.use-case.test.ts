@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PreviewAppointmentImportUseCase } from './preview-appointment-import.use-case';
 import { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { BranchEntity } from '../../../tenant/domain/branch.entity';
-import { ValidationError } from '../../../../shared/domain/errors';
+import { ValidationError, ForbiddenError } from '../../../../shared/domain/errors';
 import { AppointmentBranchNotFoundError, AppointmentBranchInactiveError } from '../../domain/appointment.errors';
 import type { AuthContext } from '@properfy/shared';
 
@@ -96,6 +96,16 @@ describe('PreviewAppointmentImportUseCase', () => {
 
       await uc.execute({ fileBuffer: CSV_BUFFER, filename: 'x.csv', branchId: 'branch-1', actor: CL_ADMIN });
       expect(deps.branchRepo.findById).toHaveBeenCalledWith('branch-1', 'tenant-1');
+    });
+
+    it('CL_ADMIN with no tenantId fails closed instead of falling through to a cross-tenant lookup', async () => {
+      const deps = buildDeps();
+      const uc = buildUseCase(deps);
+
+      await expect(
+        uc.execute({ fileBuffer: CSV_BUFFER, filename: 'x.csv', branchId: 'branch-1', actor: { ...CL_ADMIN, tenantId: null } }),
+      ).rejects.toBeInstanceOf(ForbiddenError);
+      expect(deps.branchRepo.findById).not.toHaveBeenCalled();
     });
 
     it('throws when the branch does not exist', async () => {

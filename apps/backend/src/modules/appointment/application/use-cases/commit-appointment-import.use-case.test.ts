@@ -79,7 +79,9 @@ describe('CommitAppointmentImportUseCase', () => {
     const uc = buildUseCase(deps);
     const result = await uc.execute({ importId: 'import-1', skipInvalidRows: true, actor: AM });
     expect(result).toEqual({ importId: 'import-1', status: 'PROCESSING' });
-    expect(deps.jobQueue.enqueue).toHaveBeenCalledWith('appointment.import.commit', expect.objectContaining({ importId: 'import-1', actor: AM }));
+    expect(deps.jobQueue.enqueue).toHaveBeenCalledWith(
+      'appointment.import.commit', expect.objectContaining({ importId: 'import-1', actor: AM }), expect.anything(),
+    );
   });
 
   it('enqueues the commit job and returns PROCESSING when there are no errors', async () => {
@@ -90,7 +92,16 @@ describe('CommitAppointmentImportUseCase', () => {
     expect(result).toEqual({ importId: 'import-1', status: 'PROCESSING' });
     expect(deps.jobQueue.enqueue).toHaveBeenCalledWith('appointment.import.commit', {
       importId: 'import-1', actorTimezone: 'Australia/Sydney', actor: AM,
-    });
+    }, { singletonKey: 'import-1' });
+  });
+
+  it('uses the importId as the job singletonKey so a concurrent commit call cannot double-enqueue', async () => {
+    const deps = buildDeps();
+    deps.importRepo.findById.mockResolvedValue(buildRecord());
+    const uc = buildUseCase(deps);
+    await uc.execute({ importId: 'import-1', skipInvalidRows: false, actor: AM });
+    const [, , options] = deps.jobQueue.enqueue.mock.calls[0]!;
+    expect(options).toEqual({ singletonKey: 'import-1' });
   });
 
   it('returns a cached result on idempotent replay without re-checking record state', async () => {

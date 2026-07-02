@@ -116,6 +116,9 @@ export interface ReportUnavailabilityInput {
 
 export interface JoinGroupInput {
   groupId: string;
+  scheduledDate: string;
+  timeSlotStart: string;
+  timeSlotEnd: string;
   rentalTenantNote?: string;
 }
 

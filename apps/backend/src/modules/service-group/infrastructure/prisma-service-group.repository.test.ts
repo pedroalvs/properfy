@@ -398,7 +398,7 @@ describe('PrismaServiceGroupRepository list filters', () => {
   });
 });
 
-describe('PrismaServiceGroupRepository.findPortalEligibleGroups', () => {
+describe('PrismaServiceGroupRepository.findPortalEligibleSlots', () => {
   const TODAY = new Date('2026-05-24');
 
   function makeRepo(queryRawReturn: unknown[]) {
@@ -410,16 +410,17 @@ describe('PrismaServiceGroupRepository.findPortalEligibleGroups', () => {
   it('returns mapped groups when rows found', async () => {
     const { repo } = makeRepo([
       {
-        id: 'sg-1',
+        group_id: 'sg-1',
         scheduled_date: new Date('2026-05-30'),
-        time_window: '09:00-12:00',
+        time_slot_start: '13:00',
+        time_slot_end: '15:00',
         suburb: 'Surry Hills',
         inspector_name: 'John Smith',
         confirmed_count: BigInt(3),
       },
     ]);
 
-    const result = await repo.findPortalEligibleGroups({
+    const result = await repo.findPortalEligibleSlots({
       tenantId: 'tenant-1',
       serviceTypeId: 'stype-1',
       propertyId: 'prop-1',
@@ -428,8 +429,9 @@ describe('PrismaServiceGroupRepository.findPortalEligibleGroups', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({
-      id: 'sg-1',
-      timeWindow: '09:00-12:00',
+      groupId: 'sg-1',
+      timeSlotStart: '13:00',
+      timeSlotEnd: '15:00',
       suburb: 'Surry Hills',
       inspectorName: 'John Smith',
       confirmedCount: 3,
@@ -440,7 +442,7 @@ describe('PrismaServiceGroupRepository.findPortalEligibleGroups', () => {
 
   it('returns empty array when no rows found', async () => {
     const { repo } = makeRepo([]);
-    const result = await repo.findPortalEligibleGroups({
+    const result = await repo.findPortalEligibleSlots({
       tenantId: 'tenant-1',
       serviceTypeId: 'stype-1',
       propertyId: 'prop-1',
@@ -451,7 +453,7 @@ describe('PrismaServiceGroupRepository.findPortalEligibleGroups', () => {
 
   it('uses ST_DWithin for proximity filter', async () => {
     const { repo, queryRaw } = makeRepo([]);
-    await repo.findPortalEligibleGroups({
+    await repo.findPortalEligibleSlots({
       tenantId: 'tenant-1',
       serviceTypeId: 'stype-1',
       propertyId: 'prop-1',
@@ -461,6 +463,8 @@ describe('PrismaServiceGroupRepository.findPortalEligibleGroups', () => {
     const rawCall = queryRaw.mock.calls[0][0];
     const sqlText = rawCall.map((s: unknown) => String(s)).join('');
     expect(sqlText).toContain('ST_DWithin');
+    expect(sqlText).toContain('eligible_groups');
+    expect(sqlText).toContain('time_slot_start');
     expect(sqlText).toContain('ACCEPTED');
     expect(sqlText).toContain('2000');
   });

@@ -4,9 +4,13 @@ interface AvailableGroupsListProps {
   groups: AvailableGroup[];
   isLoading?: boolean;
   isError?: boolean;
-  selectedGroupId?: string;
-  onSelect: (groupId: string) => void;
+  selectedSlotKey?: string;
+  onSelect: (group: AvailableGroup) => void;
   onRetry?: () => void;
+}
+
+export function getAvailableGroupSlotKey(group: Pick<AvailableGroup, 'groupId' | 'scheduledDate' | 'timeSlotStart' | 'timeSlotEnd'>): string {
+  return `${group.groupId}|${group.scheduledDate}|${group.timeSlotStart}|${group.timeSlotEnd}`;
 }
 
 function SkeletonRow() {
@@ -22,7 +26,7 @@ export function AvailableGroupsList({
   groups,
   isLoading,
   isError,
-  selectedGroupId,
+  selectedSlotKey,
   onSelect,
   onRetry,
 }: AvailableGroupsListProps) {
@@ -62,13 +66,14 @@ export function AvailableGroupsList({
   return (
     <div className="space-y-3">
       {groups.map((group) => {
-        const isSelected = group.id === selectedGroupId;
+        const slotKey = getAvailableGroupSlotKey(group);
+        const isSelected = slotKey === selectedSlotKey;
         return (
           <button
-            key={group.id}
+            key={slotKey}
             type="button"
             data-testid="group-row"
-            onClick={() => onSelect(group.id)}
+            onClick={() => onSelect(group)}
             className={[
               'w-full rounded-lg border bg-white p-4 text-left transition-colors hover:border-primary/50',
               isSelected
@@ -83,7 +88,7 @@ export function AvailableGroupsList({
               </span>
             </div>
             <div className="mt-1 flex items-center gap-3 text-sm text-text-secondary">
-              <span>{group.timeWindow}</span>
+              <span>{group.timeSlotStart}-{group.timeSlotEnd}</span>
               <span>·</span>
               <span>{group.inspectorName}</span>
               <span>·</span>

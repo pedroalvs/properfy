@@ -8019,9 +8019,10 @@ export interface paths {
                         "application/json": {
                             groups: {
                                 /** Format: uuid */
-                                id: string;
+                                groupId: string;
                                 scheduledDate: string;
-                                timeWindow: string;
+                                timeSlotStart: string;
+                                timeSlotEnd: string;
                                 suburb: string;
                                 inspectorName: string;
                                 confirmedCount: number;
@@ -8063,6 +8064,9 @@ export interface paths {
                     "application/json": {
                         /** Format: uuid */
                         groupId: string;
+                        scheduledDate: string;
+                        timeSlotStart: string;
+                        timeSlotEnd: string;
                         rentalTenantNote?: string;
                     };
                 };
@@ -8076,7 +8080,8 @@ export interface paths {
                     content: {
                         "application/json": {
                             scheduledDate: string;
-                            timeWindow: string;
+                            timeSlotStart: string;
+                            timeSlotEnd: string;
                             /** @enum {string} */
                             rentalTenantConfirmationStatus: "CONFIRMED";
                             /** @enum {string} */

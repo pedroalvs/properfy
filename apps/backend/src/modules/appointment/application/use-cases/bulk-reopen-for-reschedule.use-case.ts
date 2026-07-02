@@ -105,10 +105,12 @@ export class BulkReopenForRescheduleUseCase {
         continue;
       }
 
-      // 30-day window check: new date must be within 30 days of the current scheduledDate.
+      // 30-day window check: new date must be within 30 days of the current
+      // scheduledDate. Client roles only — AM/OP are platform-internal and exempt.
       const MAX_RESCHEDULE_WINDOW_DAYS = 30;
+      const windowExempt = input.actor.role === 'AM' || input.actor.role === 'OP';
       const cachedAppt = fetchedAppointments.get(apptId);
-      if (cachedAppt) {
+      if (cachedAppt && !windowExempt) {
         const anchorDate = new Date(cachedAppt.scheduledDate);
         const newDate = new Date(input.newDate.length >= 10 ? input.newDate.slice(0, 10) : input.newDate);
         const diffDays = Math.floor((newDate.getTime() - anchorDate.getTime()) / (1000 * 60 * 60 * 24));

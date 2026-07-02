@@ -1,7 +1,7 @@
 import type { AuthContext } from '@properfy/shared';
 import type { AppointmentImportPreviewResponse } from '@properfy/shared';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
-import { ValidationError } from '../../../../shared/domain/errors';
+import { ValidationError, ForbiddenError } from '../../../../shared/domain/errors';
 import type { IAppointmentImportRepository } from '../../domain/appointment-import.repository';
 import { AppointmentImportEntity } from '../../domain/appointment-import.entity';
 import type { IReportStorageService } from '../../../report/domain/report-storage.service';
@@ -66,7 +66,12 @@ export class PreviewAppointmentImportUseCase {
       if (!branch.isActive()) throw new AppointmentBranchInactiveError();
       tenantId = branch.tenantId;
     } else {
-      tenantId = actor.tenantId!;
+      // Fail closed rather than assert: a CL_ADMIN/CL_USER token without a
+      // tenantId must never fall through to a cross-tenant branch lookup.
+      if (!actor.tenantId) {
+        throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
+      }
+      tenantId = actor.tenantId;
       const branch = await this.branchRepo.findById(branchId, tenantId);
       if (!branch) throw new AppointmentBranchNotFoundError();
       if (!branch.isActive()) throw new AppointmentBranchInactiveError();

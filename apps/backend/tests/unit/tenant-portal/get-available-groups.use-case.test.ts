@@ -4,7 +4,7 @@ import {
   type GetAvailableGroupsInput,
 } from '../../../src/modules/rental-tenant-portal/application/use-cases/get-available-groups.use-case';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
-import type { PortalEligibleGroup } from '../../../src/modules/service-group/domain/service-group.repository';
+import type { PortalEligibleSlot } from '../../../src/modules/service-group/domain/service-group.repository';
 
 function makeAppointment() {
   return new AppointmentEntity({
@@ -38,10 +38,11 @@ function makeAppointment() {
   });
 }
 
-const ELIGIBLE_GROUP: PortalEligibleGroup = {
-  id: 'sg-1',
+const ELIGIBLE_SLOT: PortalEligibleSlot = {
+  groupId: 'sg-1',
   scheduledDate: new Date('2026-05-31'),
-  timeWindow: '09:00-12:00',
+  timeSlotStart: '13:00',
+  timeSlotEnd: '15:00',
   suburb: 'Surry Hills',
   inspectorName: 'John Smith',
   confirmedCount: 3,
@@ -58,7 +59,7 @@ function makeInput(overrides: Partial<GetAvailableGroupsInput> = {}): GetAvailab
 
 describe('GetAvailableGroupsUseCase', () => {
   let appointmentRepo: { findById: ReturnType<typeof vi.fn> };
-  let serviceGroupRepo: { findPortalEligibleGroups: ReturnType<typeof vi.fn> };
+  let serviceGroupRepo: { findPortalEligibleSlots: ReturnType<typeof vi.fn> };
   let useCase: GetAvailableGroupsUseCase;
 
   beforeEach(() => {
@@ -70,7 +71,7 @@ describe('GetAvailableGroupsUseCase', () => {
       }),
     };
     serviceGroupRepo = {
-      findPortalEligibleGroups: vi.fn().mockResolvedValue([ELIGIBLE_GROUP]),
+      findPortalEligibleSlots: vi.fn().mockResolvedValue([ELIGIBLE_SLOT]),
     };
     useCase = new GetAvailableGroupsUseCase(
       appointmentRepo as any,
@@ -82,9 +83,10 @@ describe('GetAvailableGroupsUseCase', () => {
     const result = await useCase.execute(makeInput());
     expect(result.groups).toHaveLength(1);
     expect(result.groups[0]).toMatchObject({
-      id: 'sg-1',
+      groupId: 'sg-1',
       scheduledDate: '2026-05-31',
-      timeWindow: '09:00-12:00',
+      timeSlotStart: '13:00',
+      timeSlotEnd: '15:00',
       suburb: 'Surry Hills',
       inspectorName: 'John Smith',
       confirmedCount: 3,
@@ -95,12 +97,12 @@ describe('GetAvailableGroupsUseCase', () => {
   it('should return empty groups when isReadOnly (past cutoff)', async () => {
     const result = await useCase.execute(makeInput({ isReadOnly: true }));
     expect(result.groups).toEqual([]);
-    expect(serviceGroupRepo.findPortalEligibleGroups).not.toHaveBeenCalled();
+    expect(serviceGroupRepo.findPortalEligibleSlots).not.toHaveBeenCalled();
   });
 
   it('should pass correct params to repository', async () => {
     await useCase.execute(makeInput());
-    expect(serviceGroupRepo.findPortalEligibleGroups).toHaveBeenCalledWith(
+    expect(serviceGroupRepo.findPortalEligibleSlots).toHaveBeenCalledWith(
       expect.objectContaining({
         tenantId: 'tenant-1',
         serviceTypeId: 'stype-1',
@@ -125,6 +127,6 @@ describe('GetAvailableGroupsUseCase', () => {
     });
     const result = await useCase.execute(makeInput());
     expect(result.groups).toEqual([]);
-    expect(serviceGroupRepo.findPortalEligibleGroups).not.toHaveBeenCalled();
+    expect(serviceGroupRepo.findPortalEligibleSlots).not.toHaveBeenCalled();
   });
 });

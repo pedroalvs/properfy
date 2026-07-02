@@ -9,9 +9,33 @@ import type {
   PropertyWithBranch,
 } from '../domain/property.repository';
 import type { PropertyType, GeocodingStatus } from '@properfy/shared';
+import { PropertyCodeConflictError, PropertyAddressConflictError } from '../domain/property.errors';
 
 function toSnakeCase(s: string): string {
   return s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+}
+
+/**
+ * Translates a unique-constraint violation (Prisma P2002) into the matching
+ * domain conflict error — a backstop for the race window the use-case-level
+ * pre-checks (findByPropertyCode / findByNormalizedAddress) leave open,
+ * mirroring PrismaTenantRepository's rethrowPrefixConflict. Verified against
+ * a real Postgres error (see property-normalized-address.integration.test.ts):
+ * `target` is an array of column names — `["tenant_id", "normalized_address_key"]`
+ * for the address index, `["tenant_id", "property_code"]` for the code one —
+ * even for the partial unique index created outside Prisma's own `@@unique`.
+ */
+function rethrowPropertyConflict(error: unknown): never {
+  if (typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === 'P2002') {
+    const target = (error as { meta?: { target?: unknown } }).meta?.target;
+    if (Array.isArray(target) && target.includes('normalized_address_key')) {
+      throw new PropertyAddressConflictError();
+    }
+    if (Array.isArray(target) && target.includes('property_code')) {
+      throw new PropertyCodeConflictError();
+    }
+  }
+  throw error;
 }
 
 function mapToEntity(row: {
@@ -182,29 +206,33 @@ export class PrismaPropertyRepository implements IPropertyRepository {
   }
 
   async save(property: PropertyEntity): Promise<void> {
-    await this.prisma.property.create({
-      data: {
-        id: property.id,
-        tenant_id: property.tenantId,
-        branch_id: property.branchId,
-        property_code: property.propertyCode,
-        type: property.type as PrismaPropertyType,
-        street: property.street,
-        address_line_2: property.addressLine2,
-        suburb: property.suburb,
-        postcode: property.postcode,
-        state: property.state,
-        country: property.country,
-        // normalized_address_key is intentionally omitted — a DB trigger
-        // (see migration 20260701230009) always (re)computes it from the
-        // row's own address fields on every insert/update.
-        lat: property.lat,
-        lng: property.lng,
-        geocoding_status: property.geocodingStatus as PrismaGeocodingStatus,
-        notes: property.notes,
-        rules_json: property.rulesJson as Prisma.InputJsonValue,
-      },
-    });
+    try {
+      await this.prisma.property.create({
+        data: {
+          id: property.id,
+          tenant_id: property.tenantId,
+          branch_id: property.branchId,
+          property_code: property.propertyCode,
+          type: property.type as PrismaPropertyType,
+          street: property.street,
+          address_line_2: property.addressLine2,
+          suburb: property.suburb,
+          postcode: property.postcode,
+          state: property.state,
+          country: property.country,
+          // normalized_address_key is intentionally omitted — a DB trigger
+          // (see migration 20260701230009) always (re)computes it from the
+          // row's own address fields on every insert/update.
+          lat: property.lat,
+          lng: property.lng,
+          geocoding_status: property.geocodingStatus as PrismaGeocodingStatus,
+          notes: property.notes,
+          rules_json: property.rulesJson as Prisma.InputJsonValue,
+        },
+      });
+    } catch (error) {
+      rethrowPropertyConflict(error);
+    }
 
     await this.syncCoordinates(property.id, property.lat, property.lng);
   }
@@ -256,12 +284,22 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     // every UPDATE, so a partial address-field diff still lands correctly
     // without this repository needing to fetch-and-merge first.
 
-    await this.prisma.property.updateMany({
-      where: { id, tenant_id: tenantId },
-      data: updateData,
-    });
+    let updatedCount = 0;
+    try {
+      const result = await this.prisma.property.updateMany({
+        where: { id, tenant_id: tenantId },
+        data: updateData,
+      });
+      updatedCount = result.count;
+    } catch (error) {
+      rethrowPropertyConflict(error);
+    }
 
-    if (data.lat !== undefined || data.lng !== undefined) {
+    // syncCoordinates writes by id alone (no tenant_id in its WHERE — see
+    // below), so it must never run when the tenant-scoped updateMany above
+    // matched nothing: otherwise a property id belonging to a different
+    // tenant than `tenantId` would still get its coordinates overwritten.
+    if (updatedCount > 0 && (data.lat !== undefined || data.lng !== undefined)) {
       await this.syncCoordinates(id, data.lat ?? null, data.lng ?? null);
     }
   }

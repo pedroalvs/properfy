@@ -88,6 +88,13 @@ export class PortalGroupUnavailableError extends ConflictError {
   }
 }
 
+export class PortalGroupSlotUnavailableError extends DomainError {
+  constructor() {
+    super('PORTAL_GROUP_SLOT_UNAVAILABLE', 'Selected time slot is no longer available for joining', 422);
+    this.name = 'PortalGroupSlotUnavailableError';
+  }
+}
+
 export class PortalTokenSupersededError extends DomainError {
   constructor() {
     super('PORTAL_TOKEN_SUPERSEDED', 'This portal token has been superseded by a new confirmation cycle', 410);

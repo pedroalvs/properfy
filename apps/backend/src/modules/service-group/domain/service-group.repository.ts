@@ -113,10 +113,11 @@ export interface ServiceGroupListItem {
   agencies: AgencyRef[];
 }
 
-export interface PortalEligibleGroup {
-  id: string;
+export interface PortalEligibleSlot {
+  groupId: string;
   scheduledDate: Date;
-  timeWindow: string;
+  timeSlotStart: string;
+  timeSlotEnd: string;
   suburb: string;
   inspectorName: string;
   confirmedCount: number;
@@ -226,16 +227,24 @@ export interface IServiceGroupRepository {
   /** Find PUBLISHED groups whose priority window has expired */
   findExpiredPublished(): Promise<ServiceGroupEntity[]>;
   /**
-   * Find ACCEPTED service groups eligible for a tenant to join via the portal.
+   * Find member appointment slots in ACCEPTED service groups eligible for a tenant to join via the portal.
    * Criteria: same tenant + same service type, confirmed_count < 10, scheduled_date >= today+1,
    * and at least one appointment in the group has a property within 2 km of `propertyId`.
    */
-  findPortalEligibleGroups(params: {
+  findPortalEligibleSlots(params: {
     tenantId: string;
     serviceTypeId: string;
     propertyId: string;
     today: Date;
-  }): Promise<PortalEligibleGroup[]>;
+  }): Promise<PortalEligibleSlot[]>;
+  /** Re-check that the selected portal slot still exists on a future member appointment. */
+  hasPortalMemberSlot(params: {
+    groupId: string;
+    scheduledDate: string;
+    timeSlotStart: string;
+    timeSlotEnd: string;
+    today: Date;
+  }): Promise<boolean>;
   /**
    * 026 B1 — find DRAFT/PUBLISHED groups that can absorb a batch of appointments.
    * Groups are tenant-agnostic, so addability is service-type/date/status/
