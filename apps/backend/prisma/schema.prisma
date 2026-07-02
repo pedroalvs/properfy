@@ -434,6 +434,9 @@ model Inspector {
   phone                      String?         @db.VarChar(20)
   status                     InspectorStatus @default(ACTIVE)
   payment_settings_json      Json            @default("{}")
+  // Inspector Property Invoice: billing cycle used to compute closed periods.
+  // Nullable; the application defaults to FORTNIGHTLY when unset (spec 032).
+  billing_cycle              BillingPeriodType?
   regions_json               Json            @default("[]")
   service_types_json         Json            @default("[]")
   client_eligibility_json    Json            @default("[]")
@@ -965,15 +968,14 @@ enum FinancialEntryStatus {
 
 enum InspectorInvoiceStatus {
   PENDING_REVIEW
-  OPEN
   CLOSED
   PAID
-  SUPERSEDED
+  VOID
 }
 
 enum BillingPeriodType {
   WEEKLY
-  BIWEEKLY
+  FORTNIGHTLY
   MONTHLY
 }
 
@@ -1203,16 +1205,19 @@ model FinancialEntry {
 
 model InspectorInvoice {
   id                      String                 @id @default(uuid())
+  invoice_number          Int?                   @unique
   inspector_id            String
+  inspector_name          String?
   period_start            DateTime               @db.Date
   period_end              DateTime               @db.Date
   period_type             BillingPeriodType
-  status                  InspectorInvoiceStatus @default(OPEN)
+  status                  InspectorInvoiceStatus
   total_amount            Decimal                @default(0) @db.Decimal(12, 2)
   currency                String                 @db.Char(3)
+  line_items_snapshot     Json?
   file_key                String?
   generated_by_user_id    String?
-  generated_at            DateTime?
+  issued_at               DateTime?
   paid_at                 DateTime?
   paid_by_user_id         String?
   payment_reference       String?                @db.VarChar(255)
@@ -1225,14 +1230,15 @@ model InspectorInvoice {
   generatedBy User?     @relation("InspectorInvoiceGeneratedBy", fields: [generated_by_user_id], references: [id])
   paidBy      User?     @relation("InspectorInvoicePaidBy", fields: [paid_by_user_id], references: [id])
 
-  previous_invoice_id String? @unique
-
-  previousInvoice InspectorInvoice? @relation("InspectorInvoiceChain", fields: [previous_invoice_id], references: [id])
-  supersededBy    InspectorInvoice? @relation("InspectorInvoiceChain")
-
-  @@unique([inspector_id, period_start, period_end])
+  // Uniqueness on (inspector_id, period_start, period_end) is enforced by a SQL-managed PARTIAL
+  // unique index over ACTIVE statuses only ("inspector_invoices_active_period_unique",
+  // WHERE status IN ('PENDING_REVIEW','CLOSED','PAID')) so a VOID invoice can coexist with a fresh
+  // request for the same period. Prisma cannot express partial unique indexes, so it lives in the
+  // migration and is intentionally absent here (spec 032).
   @@index([inspector_id, status])
   @@index([period_start, period_end])
+  // GIN index backing the agency/branch snapshot CONTENT filters (spec 032).
+  @@index([line_items_snapshot(ops: JsonbPathOps)], type: Gin, map: "inspector_invoices_line_items_snapshot_gin")
   @@map("inspector_invoices")
 }
 

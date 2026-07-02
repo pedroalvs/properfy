@@ -156,21 +156,36 @@ export function EarningsPage() {
               <EarningsChart bars={monthlyBars} currency={currency} />
             </div>
 
-            {/* Draft Invoice CTA (inspector-invoice feature — preserved) */}
+            {/* Inspector Property Invoice CTAs (spec 032) */}
             <button
               type="button"
-              onClick={() => navigate('/earnings/draft-invoice')}
+              onClick={() => navigate('/earnings/request-invoice')}
               className="flex w-full items-center justify-between rounded-[20px] border border-primary/20 bg-primary/5 px-4 py-3.5 text-left shadow-sm"
-              data-testid="draft-invoice-cta"
+              data-testid="request-invoice-cta"
             >
               <div className="flex items-center gap-3">
-                <i className="mdi mdi-file-document-outline text-xl text-primary" aria-hidden="true" />
+                <i className="mdi mdi-file-document-plus-outline text-xl text-primary" aria-hidden="true" />
                 <div>
-                  <p className="text-sm font-semibold text-primary">Draft Invoice</p>
-                  <p className="text-xs text-text-secondary">Generate an invoice for a period</p>
+                  <p className="text-sm font-semibold text-primary">Request Invoice</p>
+                  <p className="text-xs text-text-secondary">For a completed billing period</p>
                 </div>
               </div>
               <i className="mdi mdi-chevron-right text-xl text-primary" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/earnings/invoices')}
+              className="flex w-full items-center justify-between rounded-[20px] border border-black/[0.06] bg-white px-4 py-3.5 text-left shadow-sm"
+              data-testid="my-invoices-cta"
+            >
+              <div className="flex items-center gap-3">
+                <i className="mdi mdi-receipt-text-outline text-xl text-text-secondary" aria-hidden="true" />
+                <div>
+                  <p className="text-sm font-semibold text-text-primary">My Invoices</p>
+                  <p className="text-xs text-text-secondary">View status and download PDFs</p>
+                </div>
+              </div>
+              <i className="mdi mdi-chevron-right text-xl text-text-muted" aria-hidden="true" />
             </button>
           </>
         )}

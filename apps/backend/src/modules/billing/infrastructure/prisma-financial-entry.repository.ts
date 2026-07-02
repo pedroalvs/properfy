@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
-import type { FinancialEntryType, FinancialEntryStatus } from '@properfy/shared';
+import type { FinancialEntryType, FinancialEntryStatus, InvoiceSnapshotLine } from '@properfy/shared';
 import { FinancialEntryEntity } from '../domain/financial-entry.entity';
+import { AppointmentCodeFormatter } from '../../appointment/domain/appointment-code.formatter';
 import type {
   IFinancialEntryRepository,
   FinancialEntryFilters,
@@ -294,6 +295,86 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
       _sum: { amount: true },
     });
     return Number(result._sum.amount) || 0;
+  }
+
+  async aggregateApprovedPayoutsForInspectorInPeriod(
+    inspectorId: string,
+    periodStart: Date,
+    periodEnd: Date,
+  ): Promise<{ totalAmount: number; count: number; currencies: string[] }> {
+    const rows = await this.prisma.financialEntry.groupBy({
+      by: ['currency'],
+      where: {
+        inspector_id: inspectorId,
+        entry_type: 'INSPECTOR_PAYOUT',
+        status: 'APPROVED',
+        effective_at: { gte: periodStart, lte: periodEnd },
+      },
+      _sum: { amount: true },
+      _count: { _all: true },
+    });
+    let totalAmount = 0;
+    let count = 0;
+    const currencies: string[] = [];
+    for (const row of rows) {
+      totalAmount += Number(row._sum.amount ?? 0);
+      count += row._count._all;
+      currencies.push(row.currency);
+    }
+    return { totalAmount, count, currencies };
+  }
+
+  async findApprovedPayoutLinesForSnapshot(
+    inspectorId: string,
+    periodStart: Date,
+    periodEnd: Date,
+  ): Promise<{ lines: InvoiceSnapshotLine[]; currencies: string[] }> {
+    const rows = await this.prisma.financialEntry.findMany({
+      where: {
+        inspector_id: inspectorId,
+        entry_type: 'INSPECTOR_PAYOUT',
+        status: 'APPROVED',
+        effective_at: { gte: periodStart, lte: periodEnd },
+        appointment_id: { not: null },
+      },
+      orderBy: { effective_at: 'asc' },
+      select: {
+        amount: true,
+        currency: true,
+        effective_at: true,
+        appointment: {
+          select: {
+            id: true,
+            appointment_number: true,
+            branch_id: true,
+            property: { select: { street: true, suburb: true, state: true, postcode: true } },
+            branch: { select: { name: true } },
+            service_type: { select: { name: true } },
+            tenant: { select: { id: true, name: true, appointment_code_prefix: true } },
+          },
+        },
+      },
+    });
+
+    const withAppointment = rows.filter((row) => row.appointment !== null);
+    const lines: InvoiceSnapshotLine[] = withAppointment.map((row) => {
+      const appt = row.appointment!;
+      const p = appt.property;
+      return {
+        serviceDate: row.effective_at.toISOString().slice(0, 10),
+        appointmentId: appt.id,
+        appointmentCode: AppointmentCodeFormatter.formatParts(appt.appointment_number, appt.tenant?.appointment_code_prefix ?? null),
+        propertyAddress: p ? `${p.street}, ${p.suburb} ${p.state} ${p.postcode}` : null,
+        serviceType: appt.service_type?.name ?? null,
+        amount: Number(row.amount),
+        agencyId: appt.tenant?.id ?? null,
+        agencyName: appt.tenant?.name ?? null,
+        branchId: appt.branch_id ?? null,
+        branchName: appt.branch?.name ?? null,
+      };
+    });
+    const currencies = [...new Set(withAppointment.map((row) => row.currency))];
+    return { lines, currencies };
   }
 
   async sumRefundsByReferenceEntryId(referenceEntryId: string): Promise<number> {

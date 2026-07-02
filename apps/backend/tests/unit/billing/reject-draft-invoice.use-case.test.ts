@@ -11,13 +11,14 @@ import { AuthorizationService } from '../../../src/shared/domain/authorization.s
 const invoiceRepo = {
   findById: vi.fn(),
   findByInspectorAndPeriod: vi.fn(),
-  findOverlapping: vi.fn(),
+  findActiveByInspectorAndPeriod: vi.fn(),
   findAll: vi.fn(),
   findManyByIds: vi.fn(),
   count: vi.fn(),
   save: vi.fn(),
   update: vi.fn(),
   deleteById: vi.fn(),
+  voidIfPendingReview: vi.fn(),
   getReconciliationAggregates: vi.fn(),
 };
 
@@ -29,14 +30,14 @@ function makePendingReviewInvoice(overrides: Record<string, unknown> = {}) {
     inspectorId: 'insp-1',
     periodStart: new Date('2026-03-01'),
     periodEnd: new Date('2026-03-15'),
-    periodType: 'BIWEEKLY',
+    periodType: 'FORTNIGHTLY',
     status: 'PENDING_REVIEW',
     totalAmount: 1200,
     currency: 'AUD',
     fileKey: null,
     previousInvoiceId: null,
     generatedByUserId: null,
-    generatedAt: null,
+    issuedAt: null,
     paidAt: null,
     paidByUserId: null,
     paymentReference: null,
@@ -78,10 +79,10 @@ describe('RejectDraftInvoiceUseCase', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     invoiceRepo.findById.mockResolvedValue(makePendingReviewInvoice());
-    invoiceRepo.deleteById.mockResolvedValue(undefined);
+    invoiceRepo.voidIfPendingReview.mockResolvedValue(true);
   });
 
-  it('should reject a PENDING_REVIEW invoice, audit, and delete it', async () => {
+  it('should transition a PENDING_REVIEW invoice to VOID with the reason, and not delete it', async () => {
     const sut = makeSut();
 
     const result = await sut.execute({
@@ -91,9 +92,13 @@ describe('RejectDraftInvoiceUseCase', () => {
     });
 
     expect(result.invoiceId).toBe('inv-1');
-    expect(result.status).toBe('DELETED');
+    expect(result.status).toBe('VOID');
 
-    // Audit happens BEFORE delete
+    // Guarded conditional update (WHERE status=PENDING_REVIEW) so a concurrent approve can't be
+    // overwritten.
+    expect(invoiceRepo.voidIfPendingReview).toHaveBeenCalledWith('inv-1', 'Period is incorrect, please resubmit');
+    expect(invoiceRepo.deleteById).not.toHaveBeenCalled();
+
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'inspector_invoice.draft_rejected',
@@ -110,8 +115,6 @@ describe('RejectDraftInvoiceUseCase', () => {
         }),
       }),
     );
-
-    expect(invoiceRepo.deleteById).toHaveBeenCalledWith('inv-1');
   });
 
   it('should reject when invoice not found', async () => {

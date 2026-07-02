@@ -1156,7 +1156,7 @@ async function main() {
   const periodEnd3 = new Date('2026-02-28');
 
   await prisma.inspectorInvoice.upsert({
-    where: { inspector_id_period_start_period_end: { inspector_id: IDS.inspectorLinked, period_start: periodStart1, period_end: periodEnd1 } },
+    where: { id: IDS.inv1 },
     update: {},
     create: {
       id: IDS.inv1,
@@ -1164,14 +1164,14 @@ async function main() {
       period_start: periodStart1,
       period_end: periodEnd1,
       period_type: 'WEEKLY',
-      status: 'OPEN',
+      status: 'PENDING_REVIEW',
       total_amount: 80.00,
       currency: 'AUD',
     },
   });
 
   await prisma.inspectorInvoice.upsert({
-    where: { inspector_id_period_start_period_end: { inspector_id: IDS.inspectorLinked, period_start: periodStart2, period_end: periodEnd2 } },
+    where: { id: IDS.inv2 },
     update: {},
     create: {
       id: IDS.inv2,
@@ -1184,12 +1184,12 @@ async function main() {
       currency: 'AUD',
       file_key: 'invoices/inspector-linked/2026-W11.xlsx',
       generated_by_user_id: IDS.userAM,
-      generated_at: pastDate(3),
+      issued_at: pastDate(3),
     },
   });
 
   await prisma.inspectorInvoice.upsert({
-    where: { inspector_id_period_start_period_end: { inspector_id: IDS.inspectorIndep, period_start: periodStart3, period_end: periodEnd3 } },
+    where: { id: IDS.inv3 },
     update: {},
     create: {
       id: IDS.inv3,
@@ -1202,11 +1202,11 @@ async function main() {
       currency: 'AUD',
       file_key: 'invoices/inspector-indep/2026-02.xlsx',
       generated_by_user_id: IDS.userAM,
-      generated_at: pastDate(15),
+      issued_at: pastDate(15),
       paid_at: pastDate(10),
     },
   });
-  console.log('Inspector invoices: 3 created (OPEN, CLOSED, PAID)');
+  console.log('Inspector invoices: 3 created (PENDING_REVIEW, CLOSED, PAID)');
 
   // ─── INSPECTION EXECUTIONS ────────────────────────────────────────────────
 

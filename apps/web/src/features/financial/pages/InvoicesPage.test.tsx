@@ -42,8 +42,8 @@ import { InvoicesPage } from './InvoicesPage';
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_INVOICES = [
-  { id: 'inv-01', inspectorId: 'insp-01', periodStart: '2026-03-01', periodEnd: '2026-03-15', periodType: 'BIWEEKLY', totalAmount: 1800, currency: 'AUD', status: 'CLOSED', fileKey: 'invoices/inv-01.pdf', generatedAt: '2026-03-16T10:00:00Z', paidAt: null, createdAt: '2026-03-16T10:00:00Z' },
-  { id: 'inv-02', inspectorId: 'insp-02', periodStart: '2026-03-01', periodEnd: '2026-03-31', periodType: 'MONTHLY', totalAmount: 3200, currency: 'AUD', status: 'PAID', fileKey: 'invoices/inv-02.pdf', generatedAt: '2026-03-16T10:00:00Z', paidAt: '2026-03-20T10:00:00Z', createdAt: '2026-03-16T10:00:00Z' },
+  { id: 'inv-01', inspectorId: 'insp-01', periodStart: '2026-03-01', periodEnd: '2026-03-15', invoiceNumber: null, invoiceNumberDisplay: null, periodType: 'FORTNIGHTLY', totalAmount: 1800, currency: 'AUD', status: 'CLOSED', fileKey: 'invoices/inv-01.pdf', issuedAt: '2026-03-16T10:00:00Z', paidAt: null, createdAt: '2026-03-16T10:00:00Z' },
+  { id: 'inv-02', inspectorId: 'insp-02', periodStart: '2026-03-01', periodEnd: '2026-03-31', invoiceNumber: null, invoiceNumberDisplay: null, periodType: 'MONTHLY', totalAmount: 3200, currency: 'AUD', status: 'PAID', fileKey: 'invoices/inv-02.pdf', issuedAt: '2026-03-16T10:00:00Z', paidAt: '2026-03-20T10:00:00Z', createdAt: '2026-03-16T10:00:00Z' },
 ];
 
 function createWrapper() {
@@ -80,16 +80,19 @@ describe('InvoicesPage', () => {
     expect(screen.getByText('Invoices')).toBeInTheDocument();
   });
 
-  it('renders "Generate Invoice" CTA button', () => {
-    renderPage();
-    const matches = screen.getAllByText('Generate Invoice');
-    expect(matches.length).toBeGreaterThanOrEqual(1);
-  });
-
   it('renders filter bar with inspector search and status filter', () => {
     renderPage();
     expect(screen.getByLabelText('Inspector')).toBeInTheDocument();
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
+  });
+
+  it('renders Agency and Branch content filters and no agency gate (spec 032)', async () => {
+    renderPage();
+    expect(screen.getByLabelText('Agency')).toBeInTheDocument();
+    expect(screen.getByLabelText('Branch')).toBeInTheDocument();
+    // The old "Select an agency to view invoices" gate is gone — data renders immediately.
+    expect(screen.queryByText(/Select an agency to view invoices/i)).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Fortnightly')).toBeInTheDocument());
   });
 
   it('renders period date range filters', () => {
@@ -100,9 +103,10 @@ describe('InvoicesPage', () => {
 
   it('renders data table with invoice data after loading', async () => {
     renderPage();
+    // Assert on readable per-row content (period type), never the raw inspector id.
     await waitFor(() => {
-      expect(screen.getByText('insp-01')).toBeInTheDocument();
-      expect(screen.getByText('insp-02')).toBeInTheDocument();
+      expect(screen.getByText('Fortnightly')).toBeInTheDocument();
+      expect(screen.getByText('Monthly')).toBeInTheDocument();
     });
   });
 

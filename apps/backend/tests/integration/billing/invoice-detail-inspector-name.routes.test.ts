@@ -71,7 +71,7 @@ const invoiceWithInspectorName = {
   currency: 'AUD',
   fileKey: null,
   generatedByUserId: null,
-  generatedAt: null,
+  issuedAt: null,
   paidAt: null,
   paidByUserId: null,
   paymentReference: null,

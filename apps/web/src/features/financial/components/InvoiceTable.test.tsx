@@ -9,12 +9,12 @@ const MOCK_INVOICES: Invoice[] = [
     inspectorId: 'insp-01',
     periodStart: '2026-03-01',
     periodEnd: '2026-03-15',
-    periodType: 'BIWEEKLY',
+    invoiceNumber: null,    invoiceNumberDisplay: null,    periodType: 'FORTNIGHTLY',
     totalAmount: 1800,
     currency: 'AUD',
     status: 'CLOSED',
     fileKey: 'invoices/inv-01.pdf',
-    generatedAt: '2026-03-16T10:00:00Z',
+    issuedAt: '2026-03-16T10:00:00Z',
     paidAt: null,
     paidByUserId: null,
     paymentReference: null,
@@ -26,12 +26,12 @@ const MOCK_INVOICES: Invoice[] = [
     inspectorId: 'insp-02',
     periodStart: '2026-03-01',
     periodEnd: '2026-03-31',
-    periodType: 'MONTHLY',
+    invoiceNumber: null,    invoiceNumberDisplay: null,    periodType: 'MONTHLY',
     totalAmount: 3200,
     currency: 'AUD',
     status: 'PAID',
     fileKey: 'invoices/inv-02.pdf',
-    generatedAt: '2026-03-16T10:00:00Z',
+    issuedAt: '2026-03-16T10:00:00Z',
     paidAt: '2026-03-20T10:00:00Z',
     paidByUserId: 'user-01',
     paymentReference: 'PAY-001',
@@ -60,7 +60,7 @@ describe('InvoiceTable', () => {
 
   it('renders period type labels', () => {
     render(<InvoiceTable data={MOCK_INVOICES} />);
-    expect(screen.getByText('Biweekly')).toBeInTheDocument();
+    expect(screen.getByText('Fortnightly')).toBeInTheDocument();
     expect(screen.getByText('Monthly')).toBeInTheDocument();
   });
 

@@ -33,9 +33,9 @@ describe('FinancialEntryStatus', () => {
 });
 
 describe('BillingPeriodType', () => {
-  it('should have WEEKLY, BIWEEKLY, MONTHLY values', () => {
+  it('should have WEEKLY, FORTNIGHTLY, MONTHLY values', () => {
     expect(BillingPeriodType.WEEKLY).toBe('WEEKLY');
-    expect(BillingPeriodType.BIWEEKLY).toBe('BIWEEKLY');
+    expect(BillingPeriodType.FORTNIGHTLY).toBe('FORTNIGHTLY');
     expect(BillingPeriodType.MONTHLY).toBe('MONTHLY');
   });
 
@@ -45,15 +45,14 @@ describe('BillingPeriodType', () => {
 });
 
 describe('InspectorInvoiceStatus', () => {
-  it('should have PENDING_REVIEW, OPEN, CLOSED, PAID, SUPERSEDED values', () => {
+  it('should have PENDING_REVIEW, CLOSED, PAID, VOID values', () => {
     expect(InspectorInvoiceStatus.PENDING_REVIEW).toBe('PENDING_REVIEW');
-    expect(InspectorInvoiceStatus.OPEN).toBe('OPEN');
     expect(InspectorInvoiceStatus.CLOSED).toBe('CLOSED');
     expect(InspectorInvoiceStatus.PAID).toBe('PAID');
-    expect(InspectorInvoiceStatus.SUPERSEDED).toBe('SUPERSEDED');
+    expect(InspectorInvoiceStatus.VOID).toBe('VOID');
   });
 
-  it('should have exactly 5 values', () => {
-    expect(Object.keys(InspectorInvoiceStatus)).toHaveLength(5);
+  it('should have exactly 4 values', () => {
+    expect(Object.keys(InspectorInvoiceStatus)).toHaveLength(4);
   });
 });

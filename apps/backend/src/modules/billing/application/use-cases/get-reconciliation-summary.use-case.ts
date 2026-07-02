@@ -26,7 +26,7 @@ export interface GetReconciliationSummaryOutput {
  * Aggregated reconciliation view for a date range.
  *
  * Per FR-014 / FR-015 / FR-015a and Q1/Q2 clarifications:
- * - The date range filters on the invoice `generatedAt` column
+ * - The date range filters on the invoice `issuedAt` column
  * - Only CLOSED and PAID invoices are included
  * - If the scope contains more than one currency, throws MultiCurrencyScopeError
  *   (caller gets a 400 MULTI_CURRENCY_SCOPE and must narrow filters)

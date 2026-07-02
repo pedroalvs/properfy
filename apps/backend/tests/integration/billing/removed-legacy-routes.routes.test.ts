@@ -103,10 +103,10 @@ describe('031 PR-3 — removed orphan tenant-invoice routes return 404', () => {
     expect(res.status).toBe(404);
   });
 
-  it('inspector-invoice regenerate remains registered (not 404)', async () => {
+  it('inspector-invoice regenerate is removed (404) — spec 032', async () => {
     const res = await supertest(app.server)
       .post(`/v1/billing/invoices/${INVOICE_ID}/regenerate`)
       .send({});
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(404);
   });
 });

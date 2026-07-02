@@ -6,7 +6,7 @@ import type { Invoice } from '../types';
 
 const FREQUENCY_LABELS: Record<string, string> = {
   WEEKLY: 'Weekly',
-  BIWEEKLY: 'Biweekly',
+  FORTNIGHTLY: 'Fortnightly',
   MONTHLY: 'Monthly',
 };
 
@@ -84,11 +84,18 @@ export function InvoiceTable({
   const columns: DataTableColumn<Invoice>[] = [
     ...selectionColumn,
     {
+      key: 'invoiceNumberDisplay',
+      label: 'Number',
+      width: '120px',
+      sortable: true,
+      render: (row) => <>{row.invoiceNumberDisplay ?? '—'}</>,
+    },
+    {
       key: 'inspectorId',
       label: 'Inspector',
       width: '180px',
       sortable: true,
-      render: (row) => <>{resolveInspectorLabel?.(row.inspectorId) ?? row.inspectorId}</>,
+      render: (row) => <>{resolveInspectorLabel?.(row.inspectorId) ?? '—'}</>,
     },
     {
       key: 'periodStart',
@@ -140,7 +147,7 @@ export function InvoiceTable({
             icon: 'mdi-download-outline',
             label: 'Download',
             onClick: () => onDownload?.(row),
-            disabled: row.status === 'OPEN' || row.status === 'PENDING_REVIEW' || !row.fileKey,
+            disabled: row.status === 'PENDING_REVIEW' || !row.fileKey,
           },
         ];
         if (canModifyPayments && row.status === 'CLOSED' && onMarkPaid) {

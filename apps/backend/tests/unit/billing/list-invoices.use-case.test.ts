@@ -12,14 +12,14 @@ function makeInvoice(overrides: Partial<InspectorInvoiceProps> = {}): InspectorI
     inspectorId: 'insp-1',
     periodStart: new Date('2026-03-01'),
     periodEnd: new Date('2026-03-15'),
-    periodType: 'BIWEEKLY',
+    periodType: 'FORTNIGHTLY',
     status: 'CLOSED',
     totalAmount: 1400,
     currency: 'AUD',
     fileKey: null,
     previousInvoiceId: null,
     generatedByUserId: 'user-am',
-    generatedAt: now,
+    issuedAt: now,
     paidAt: null,
     notes: null,
     createdAt: now,
@@ -152,19 +152,44 @@ describe('ListInvoicesUseCase', () => {
     ).rejects.toThrow(ForbiddenError);
   });
 
-  it('should reject OP from inspector invoice list (CORRECTION-001 close-it)', async () => {
-    const { useCase } = sut;
+  it('allows OP to list all invoices and honours the inspector filter (spec 032 reverses the OP exclusion)', async () => {
+    const { useCase, invoiceRepo } = sut;
+    vi.mocked(invoiceRepo.findAll).mockResolvedValue([makeInvoice()]);
+    vi.mocked(invoiceRepo.count).mockResolvedValue(1);
 
-    // Sprint 1 W-4-IMPL: OP no longer has cross-inspector access because
-    // inspector invoices are not tenant-scoped.
-    await expect(
-      useCase.execute({
-        inspectorId: 'insp-2',
-        page: 1,
-        pageSize: 10,
-        actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
-      }),
-    ).rejects.toThrow(ForbiddenError);
+    const result = await useCase.execute({
+      inspectorId: 'insp-1',
+      page: 1,
+      pageSize: 10,
+      actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
+    });
+    expect(result.data).toHaveLength(1);
+    expect(vi.mocked(invoiceRepo.findAll).mock.calls[0][0].inspectorId).toBe('insp-1');
+  });
+
+  it.each([
+    ['pending', ['PENDING_REVIEW']],
+    ['approved', ['CLOSED', 'PAID']],
+    ['rejected', ['VOID']],
+  ] as const)('maps the %s status bucket to repo statusIn', async (bucket, expected) => {
+    const { useCase, invoiceRepo } = sut;
+    vi.mocked(invoiceRepo.findAll).mockResolvedValue([]);
+    vi.mocked(invoiceRepo.count).mockResolvedValue(0);
+
+    await useCase.execute({ status: bucket, page: 1, pageSize: 10, actor: makeActor({ role: 'AM' }) });
+    expect(vi.mocked(invoiceRepo.findAll).mock.calls[0][0].statusIn).toEqual(expected);
+  });
+
+  it('passes agency/branch content filters through to the repo', async () => {
+    const { useCase, invoiceRepo } = sut;
+    vi.mocked(invoiceRepo.findAll).mockResolvedValue([]);
+    vi.mocked(invoiceRepo.count).mockResolvedValue(0);
+
+    await useCase.execute({ agencyId: 'ag-1', branchId: 'b-1', page: 1, pageSize: 10, actor: makeActor({ role: 'AM' }) });
+
+    const filters = vi.mocked(invoiceRepo.findAll).mock.calls[0][0];
+    expect(filters.agencyId).toBe('ag-1');
+    expect(filters.branchId).toBe('b-1');
   });
 
   it('should allow AM to filter by inspectorId', async () => {

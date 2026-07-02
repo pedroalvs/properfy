@@ -1,14 +1,16 @@
 import { FilterBar } from '@/components/filters/FilterBar';
 import { FilterSelect, type FilterSelectOption } from '@/components/filters/FilterSelect';
 import { FilterDateRange } from '@/components/filters/FilterDateRange';
-import { INVOICE_STATUS_MAP } from '@/lib/status-colors';
+import { INVOICE_STATUS_BUCKETS } from '@properfy/shared';
 import type { InvoiceFiltersState } from '../types';
 
+// Product-facing 3-bucket status filter (spec 032). Bucket keys are sourced from the shared
+// contract so a rename on the backend can't silently drift from the UI.
 const STATUS_OPTIONS: FilterSelectOption[] = [
   { label: 'All', value: '' },
-  ...Object.entries(INVOICE_STATUS_MAP).map(([value, config]) => ({
-    label: config.label,
-    value,
+  ...Object.keys(INVOICE_STATUS_BUCKETS).map((bucket) => ({
+    label: bucket.charAt(0).toUpperCase() + bucket.slice(1),
+    value: bucket,
   })),
 ];
 
@@ -16,11 +18,32 @@ interface InvoiceFiltersProps {
   filters: InvoiceFiltersState;
   onFiltersChange: (filters: InvoiceFiltersState) => void;
   inspectorOptions?: FilterSelectOption[];
+  agencyOptions?: FilterSelectOption[];
+  branchOptions?: FilterSelectOption[];
 }
 
-export function InvoiceFilters({ filters, onFiltersChange, inspectorOptions = [] }: InvoiceFiltersProps) {
+export function InvoiceFilters({
+  filters,
+  onFiltersChange,
+  inspectorOptions = [],
+  agencyOptions = [],
+  branchOptions = [],
+}: InvoiceFiltersProps) {
   return (
     <FilterBar>
+      <FilterSelect
+        label="Agency"
+        value={filters.agencyId}
+        // Changing agency resets the branch (branch options cascade from the agency).
+        onChange={(agencyId) => onFiltersChange({ ...filters, agencyId, branchId: '' })}
+        options={[{ label: 'All', value: '' }, ...agencyOptions]}
+      />
+      <FilterSelect
+        label="Branch"
+        value={filters.branchId}
+        onChange={(branchId) => onFiltersChange({ ...filters, branchId })}
+        options={[{ label: 'All', value: '' }, ...branchOptions]}
+      />
       <FilterSelect
         label="Inspector"
         value={filters.inspectorId}

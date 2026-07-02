@@ -661,8 +661,28 @@ export const financialEntryResponseSchema = z.object({
 
 // ─── Invoice ───────────────────────────────────────────────────────────────
 
+// One frozen payout line inside an inspector Property Invoice snapshot. Agency and
+// branch are line-level attributes only (never invoice ownership). Join-derived display
+// fields are nullable so the response serializer never throws if a relation is absent.
+export const invoiceSnapshotLineSchema = z.object({
+  serviceDate: dateStr(),
+  appointmentId: z.string().uuid(),
+  appointmentCode: z.string(),
+  propertyAddress: z.string().nullable(),
+  serviceType: z.string().nullable(),
+  amount: z.number(),
+  agencyId: z.string().uuid().nullable(),
+  agencyName: z.string().nullable(),
+  branchId: z.string().uuid().nullable(),
+  branchName: z.string().nullable(),
+});
+export type InvoiceSnapshotLine = z.infer<typeof invoiceSnapshotLineSchema>;
+
 export const invoiceResponseSchema = z.object({
   id: z.string().uuid(),
+  // Sequential number assigned only at approval (null while PENDING_REVIEW / VOID).
+  invoiceNumber: z.number().int().nullable().optional(),
+  invoiceNumberDisplay: z.string().nullable().optional(),
   inspectorId: z.string().uuid(),
   inspectorName: z.string().nullable().optional(),
   periodStart: dateStr(),
@@ -671,9 +691,11 @@ export const invoiceResponseSchema = z.object({
   status: z.string(),
   totalAmount: z.number(),
   currency: z.string(),
+  // Frozen at approval; null until then.
+  lineItemsSnapshot: z.array(invoiceSnapshotLineSchema).nullable().optional(),
   fileKey: z.string().nullable().optional(),
   generatedByUserId: z.string().uuid().nullable().optional(),
-  generatedAt: dateStrNullable(),
+  issuedAt: dateStrNullable(),
   paidAt: dateStrNullable(),
   // Payment reconciliation fields (feature 017) — populated when invoice transitions to PAID
   paidByUserId: z.string().uuid().nullable().optional(),
@@ -686,6 +708,40 @@ export const invoiceResponseSchema = z.object({
 export const invoiceDownloadResponseSchema = z.object({
   downloadUrl: z.string(),
   expiresAt: dateStr(),
+});
+
+// ─── Inspector Property Invoice request flow (spec 032) ───────────────────
+
+export const availablePeriodResponseSchema = z.object({
+  periodType: z.string(),
+  periodStart: z.string(), // YYYY-MM-DD
+  periodEnd: z.string(), // YYYY-MM-DD
+});
+
+export const availablePeriodsResponseSchema = z.object({
+  billingCycle: z.string(),
+  periods: z.array(availablePeriodResponseSchema),
+});
+
+export const invoicePreviewResponseSchema = z.object({
+  periodType: z.string(),
+  periodStart: z.string(),
+  periodEnd: z.string(),
+  payoutCount: z.number().int(),
+  totalAmount: z.number(),
+  currency: z.string().nullable(),
+});
+
+export const requestInvoiceResponseSchema = z.object({
+  invoiceId: z.string().uuid(),
+  inspectorId: z.string().uuid(),
+  periodType: z.string(),
+  periodStart: z.string(),
+  periodEnd: z.string(),
+  status: z.string(),
+  totalAmount: z.number(),
+  currency: z.string(),
+  payoutCount: z.number().int(),
 });
 
 // ─── Agency financial export (031) ───────────────────────────────────────────

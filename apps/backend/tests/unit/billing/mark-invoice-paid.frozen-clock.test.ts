@@ -26,14 +26,14 @@ describe('MarkInvoicePaidUseCase — frozen clock grace windows', () => {
       inspectorId: 'insp-1',
       periodStart: new Date('2026-03-01'),
       periodEnd: new Date('2026-03-15'),
-      periodType: 'BIWEEKLY',
+      periodType: 'FORTNIGHTLY',
       status: 'CLOSED',
       totalAmount: 1200,
       currency: 'AUD',
       fileKey: 'invoices/inv-1.xlsx',
       previousInvoiceId: null,
       generatedByUserId: 'op-1',
-      generatedAt: new Date('2026-06-15T12:00:00.000Z'),
+      issuedAt: new Date('2026-06-15T12:00:00.000Z'),
       paidAt: null,
       paidByUserId: null,
       paymentReference: null,
@@ -91,12 +91,12 @@ describe('MarkInvoicePaidUseCase — frozen clock grace windows', () => {
     ).rejects.toBeInstanceOf(InvoicePaymentDateInvalidError);
   });
 
-  it('accepts paidAt truncated to the minute even when generatedAt has subsecond precision (B-7 shape)', async () => {
-    // generatedAt is 2026-06-15T12:00:15.500Z — typical DB timestamp with ms.
+  it('accepts paidAt truncated to the minute even when issuedAt has subsecond precision (B-7 shape)', async () => {
+    // issuedAt is 2026-06-15T12:00:15.500Z — typical DB timestamp with ms.
     // Client sends paidAt truncated to the minute: 2026-06-15T12:00:00Z. That
-    // is 15.5 seconds BEFORE generatedAt, well inside the 60s BEFORE_GENERATED grace.
+    // is 15.5 seconds BEFORE issuedAt, well inside the 60s BEFORE_GENERATED grace.
     invoiceRepo.findById.mockResolvedValue(
-      makeInvoice({ generatedAt: new Date('2026-06-15T12:00:15.500Z') }),
+      makeInvoice({ issuedAt: new Date('2026-06-15T12:00:15.500Z') }),
     );
     const clock = new FakeClock(new Date('2026-06-15T12:01:00.000Z'));
     const uc = buildUseCase(clock);
@@ -109,9 +109,9 @@ describe('MarkInvoicePaidUseCase — frozen clock grace windows', () => {
     expect(result.status).toBe('PAID');
   });
 
-  it('rejects paidAt 90s before generatedAt — outside the 60s BEFORE_GENERATED grace', async () => {
+  it('rejects paidAt 90s before issuedAt — outside the 60s BEFORE_GENERATED grace', async () => {
     invoiceRepo.findById.mockResolvedValue(
-      makeInvoice({ generatedAt: new Date('2026-06-15T12:00:00.000Z') }),
+      makeInvoice({ issuedAt: new Date('2026-06-15T12:00:00.000Z') }),
     );
     const clock = new FakeClock(new Date('2026-06-15T12:05:00.000Z'));
     const uc = buildUseCase(clock);
