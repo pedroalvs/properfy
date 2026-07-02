@@ -1,5 +1,5 @@
 import type { FinancialEntryEntity } from './financial-entry.entity';
-import type { FinancialEntryType, FinancialEntryStatus } from '@properfy/shared';
+import type { FinancialEntryType, FinancialEntryStatus, InvoiceSnapshotLine } from '@properfy/shared';
 
 export interface FinancialEntryFilters {
   tenantId?: string;
@@ -63,6 +63,16 @@ export interface IFinancialEntryRepository {
     periodStart: Date,
     periodEnd: Date,
   ): Promise<{ totalAmount: number; count: number; currencies: string[] }>;
+  /**
+   * Builds the frozen snapshot lines for an invoice: one line per approved INSPECTOR_PAYOUT entry
+   * in the period, joined to appointment → property / branch / service type / tenant (agency).
+   * Agency and branch are line-level attributes only. (spec 032)
+   */
+  findApprovedPayoutLinesForSnapshot(
+    inspectorId: string,
+    periodStart: Date,
+    periodEnd: Date,
+  ): Promise<InvoiceSnapshotLine[]>;
   sumRefundsByReferenceEntryId(referenceEntryId: string): Promise<number>;
   sumApprovedEntriesForTenantInPeriod(tenantId: string, periodStart: Date, periodEnd: Date): Promise<{
     totalDebit: number;

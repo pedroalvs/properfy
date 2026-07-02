@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/Button';
 import { InvoiceFilters } from '../components/InvoiceFilters';
 import { InvoiceTable } from '../components/InvoiceTable';
 import { InvoiceDetailDrawer } from '../components/InvoiceDetailDrawer';
-import { GenerateInvoiceModal } from '../components/GenerateInvoiceModal';
 import { MarkInvoicePaidModal } from '../components/MarkInvoicePaidModal';
 import { ReconciliationSummary } from '../components/ReconciliationSummary';
 import { useInvoiceList } from '../hooks/useInvoiceList';
@@ -73,7 +72,6 @@ export function InvoicesPage() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [generateOpen, setGenerateOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [markPaidIds, setMarkPaidIds] = useState<string[] | null>(null);
 
@@ -90,11 +88,6 @@ export function InvoicesPage() {
   const handleDownload = useCallback((invoice: Invoice) => {
     download(invoice.id);
   }, [download]);
-
-  const handleGenerated = useCallback(() => {
-    setGenerateOpen(false);
-    refetch();
-  }, [refetch]);
 
   const handleToggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -144,14 +137,7 @@ export function InvoicesPage() {
 
   return (
     <>
-      <ListFilterTableTemplate
-        title="Invoices"
-        primaryAction={{
-          label: 'Generate Invoice',
-          icon: 'mdi-receipt-text-plus-outline',
-          onClick: () => setGenerateOpen(true),
-        }}
-      >
+      <ListFilterTableTemplate title="Invoices">
         {isGlobalRole && (
           <div className="px-0 pb-2">
             <FormField label="Agency">
@@ -218,12 +204,6 @@ export function InvoicesPage() {
         open={drawerOpen}
         onClose={handleCloseDrawer}
         resolveInspectorLabel={resolveInspectorLabel}
-      />
-      <GenerateInvoiceModal
-        open={generateOpen}
-        onClose={() => setGenerateOpen(false)}
-        onGenerated={handleGenerated}
-        tenantId={effectiveTenantId}
       />
       {markPaidIds && (
         <MarkInvoicePaidModal

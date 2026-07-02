@@ -220,7 +220,6 @@ import { ApproveFinancialEntryUseCase } from '../modules/billing/application/use
 import { CancelFinancialEntryUseCase } from '../modules/billing/application/use-cases/cancel-financial-entry.use-case';
 import { CreateManualAdjustmentUseCase } from '../modules/billing/application/use-cases/create-manual-adjustment.use-case';
 import { CreateRefundUseCase } from '../modules/billing/application/use-cases/create-refund.use-case';
-import { GenerateInvoiceUseCase } from '../modules/billing/application/use-cases/generate-invoice.use-case';
 import { ListInvoicesUseCase } from '../modules/billing/application/use-cases/list-invoices.use-case';
 import { GetInvoiceUseCase } from '../modules/billing/application/use-cases/get-invoice.use-case';
 import { DownloadInvoiceUseCase } from '../modules/billing/application/use-cases/download-invoice.use-case';
@@ -229,7 +228,6 @@ import { BatchMarkInvoicesPaidUseCase } from '../modules/billing/application/use
 import { ReverseInvoicePaymentUseCase } from '../modules/billing/application/use-cases/reverse-invoice-payment.use-case';
 import { GetReconciliationSummaryUseCase } from '../modules/billing/application/use-cases/get-reconciliation-summary.use-case';
 import { VoidFinancialEntryUseCase } from '../modules/billing/application/use-cases/void-financial-entry.use-case';
-import { RegenerateInspectorInvoiceUseCase } from '../modules/billing/application/use-cases/regenerate-inspector-invoice.use-case';
 import { ApproveDraftInvoiceUseCase } from '../modules/billing/application/use-cases/approve-draft-invoice.use-case';
 import { RejectDraftInvoiceUseCase } from '../modules/billing/application/use-cases/reject-draft-invoice.use-case';
 import { ExportAgencyFinancialUseCase } from '../modules/billing/application/use-cases/export-agency-financial.use-case';
@@ -302,6 +300,7 @@ import { CleanupSessionsWorker } from '../modules/auth/infrastructure/workers/cl
 import { KeyExpiryCheckWorker } from '../modules/auth/infrastructure/workers/key-expiry-check.worker';
 import { ExpireFilesWorker } from '../modules/report/infrastructure/workers/expire-files.worker';
 import { GenerateInvoiceFileWorker } from '../modules/billing/infrastructure/workers/generate-invoice-file.worker';
+import { PdfKitInvoicePdfGenerator } from '../modules/billing/infrastructure/pdfkit-invoice-pdf.generator';
 import { ExpireTokensWorker } from '../modules/rental-tenant-portal/infrastructure/workers/expire-tokens.worker';
 import { ExpireAssetsWorker } from '../modules/inspector-execution/infrastructure/workers/expire-assets.worker';
 import { NotifyStuckInspectionsWorker } from '../modules/inspector-execution/infrastructure/workers/notify-stuck.worker';
@@ -935,7 +934,6 @@ export function createContainer(logger: Logger): AppContainer {
   const reportStorageService = s3Client
     ? new SupabaseReportStorageService(s3Client, env.SUPABASE_STORAGE_BUCKET)
     : new StubReportStorageService();
-  const generateInvoiceUseCase = new GenerateInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, billingJobQueue, tenantRepo, authorizationService);
   const listInvoicesUseCase = new ListInvoicesUseCase(inspectorInvoiceRepo);
   const getInvoiceUseCase = new GetInvoiceUseCase(inspectorInvoiceRepo);
   const downloadInvoiceUseCase = new DownloadInvoiceUseCase(
@@ -947,8 +945,7 @@ export function createContainer(logger: Logger): AppContainer {
   const reverseInvoicePaymentUseCase = new ReverseInvoicePaymentUseCase(inspectorInvoiceRepo, auditService, authorizationService);
   const getReconciliationSummaryUseCase = new GetReconciliationSummaryUseCase(inspectorInvoiceRepo, authorizationService);
   const voidFinancialEntryUseCase = new VoidFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService);
-  const regenerateInspectorInvoiceUseCase = new RegenerateInspectorInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, billingJobQueue, authorizationService);
-  const approveDraftInvoiceUseCase = new ApproveDraftInvoiceUseCase(inspectorInvoiceRepo, auditService, authorizationService, billingJobQueue);
+  const approveDraftInvoiceUseCase = new ApproveDraftInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, authorizationService, billingJobQueue);
   const rejectDraftInvoiceUseCase = new RejectDraftInvoiceUseCase(inspectorInvoiceRepo, auditService, authorizationService);
 
   // Report repositories and use cases
@@ -1156,8 +1153,9 @@ export function createContainer(logger: Logger): AppContainer {
   const cleanupSessionsWorker = new CleanupSessionsWorker(sessionRepo, logger);
   const keyExpiryCheckWorker = new KeyExpiryCheckWorker(jwtService, auditService, logger);
   const expireFilesWorker = new ExpireFilesWorker(reportRepo, reportStorageService, logger);
+  const invoicePdfGenerator = new PdfKitInvoicePdfGenerator();
   const generateInvoiceFileWorker = new GenerateInvoiceFileWorker(
-    inspectorInvoiceRepo, financialEntryRepo, xlsxGenerator, reportStorageService, logger,
+    inspectorInvoiceRepo, invoicePdfGenerator, reportStorageService, logger,
   );
   const expireTokensWorker = new ExpireTokensWorker(rentalTenantPortalTokenRepo, logger);
   const expireAssetsWorker = new ExpireAssetsWorker(inspectionAssetRepo, storageService, logger);
@@ -1451,7 +1449,6 @@ export function createContainer(logger: Logger): AppContainer {
       cancelFinancialEntryUseCase,
       createManualAdjustmentUseCase,
       createRefundUseCase,
-      generateInvoiceUseCase,
       listInvoicesUseCase,
       getInvoiceUseCase,
       downloadInvoiceUseCase,
@@ -1460,7 +1457,6 @@ export function createContainer(logger: Logger): AppContainer {
       reverseInvoicePaymentUseCase,
       getReconciliationSummaryUseCase,
       voidFinancialEntryUseCase,
-      regenerateInspectorInvoiceUseCase,
       approveDraftInvoiceUseCase,
       rejectDraftInvoiceUseCase,
       exportAgencyFinancialUseCase,

@@ -78,10 +78,10 @@ describe('RejectDraftInvoiceUseCase', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     invoiceRepo.findById.mockResolvedValue(makePendingReviewInvoice());
-    invoiceRepo.deleteById.mockResolvedValue(undefined);
+    invoiceRepo.update.mockResolvedValue(undefined);
   });
 
-  it('should reject a PENDING_REVIEW invoice, audit, and delete it', async () => {
+  it('should transition a PENDING_REVIEW invoice to VOID with the reason, and not delete it', async () => {
     const sut = makeSut();
 
     const result = await sut.execute({
@@ -91,9 +91,14 @@ describe('RejectDraftInvoiceUseCase', () => {
     });
 
     expect(result.invoiceId).toBe('inv-1');
-    expect(result.status).toBe('DELETED');
+    expect(result.status).toBe('VOID');
 
-    // Audit happens BEFORE delete
+    expect(invoiceRepo.update).toHaveBeenCalledWith('inv-1', {
+      status: 'VOID',
+      notes: 'Period is incorrect, please resubmit',
+    });
+    expect(invoiceRepo.deleteById).not.toHaveBeenCalled();
+
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'inspector_invoice.draft_rejected',
@@ -110,8 +115,6 @@ describe('RejectDraftInvoiceUseCase', () => {
         }),
       }),
     );
-
-    expect(invoiceRepo.deleteById).toHaveBeenCalledWith('inv-1');
   });
 
   it('should reject when invoice not found', async () => {

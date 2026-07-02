@@ -33,16 +33,6 @@ export const createRefundSchema = z.object({
 });
 export type CreateRefundInput = z.infer<typeof createRefundSchema>;
 
-export const generateInvoiceSchema = z.object({
-  inspectorId: z.string().uuid(),
-  tenantId: z.string().uuid().optional(),
-  periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  periodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-}).refine(
-  (d) => new Date(d.periodEnd) >= new Date(d.periodStart),
-  { message: 'periodEnd must be >= periodStart' }
-);
-export type GenerateInvoiceInput = z.infer<typeof generateInvoiceSchema>;
 
 export const cancelFinancialEntrySchema = z.object({
   reason: z.string().min(1).max(1000),
@@ -126,7 +116,3 @@ export const voidFinancialEntrySchema = z.object({
 });
 export type VoidFinancialEntryInput = z.infer<typeof voidFinancialEntrySchema>;
 
-export const regenerateInvoiceSchema = z.object({
-  reason: z.string().min(1).max(1000).optional(),
-});
-export type RegenerateInvoiceInput = z.infer<typeof regenerateInvoiceSchema>;

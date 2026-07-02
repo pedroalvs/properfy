@@ -16,8 +16,6 @@ export { useInvoiceList } from './useInvoiceList';
 export type { UseInvoiceListReturn } from './useInvoiceList';
 export { useInvoiceDetail } from './useInvoiceDetail';
 export type { UseInvoiceDetailReturn } from './useInvoiceDetail';
-export { useGenerateInvoice } from './useGenerateInvoice';
-export type { GenerateInvoiceInput } from './useGenerateInvoice';
 export { useInvoiceDownload } from './useInvoiceDownload';
 export type { UseInvoiceDownloadReturn } from './useInvoiceDownload';
 export { useReconciliationSummary } from './useReconciliationSummary';

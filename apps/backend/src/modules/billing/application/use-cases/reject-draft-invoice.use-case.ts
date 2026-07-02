@@ -15,7 +15,7 @@ export interface RejectDraftInvoiceInput {
 
 export interface RejectDraftInvoiceOutput {
   invoiceId: string;
-  status: 'DELETED';
+  status: 'VOID';
 }
 
 export class RejectDraftInvoiceUseCase {
@@ -46,7 +46,10 @@ export class RejectDraftInvoiceUseCase {
       throw new InvoiceNotPendingReviewError();
     }
 
-    // 4. Audit BEFORE delete
+    // 4. Transition PENDING_REVIEW → VOID, retaining the row and the reason (no hard delete).
+    await this.invoiceRepo.update(invoiceId, { status: 'VOID', notes: reason });
+
+    // 5. Audit.
     this.auditService.log({
       action: 'inspector_invoice.draft_rejected',
       actorType: 'USER',
@@ -62,12 +65,9 @@ export class RejectDraftInvoiceUseCase {
       },
     });
 
-    // 5. Delete invoice
-    await this.invoiceRepo.deleteById(invoiceId);
-
     return {
       invoiceId,
-      status: 'DELETED',
+      status: 'VOID',
     };
   }
 }
