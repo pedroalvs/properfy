@@ -58,16 +58,6 @@ export const saveExecutionProgressSchema = z.object({
 
 export type SaveExecutionProgressInput = z.infer<typeof saveExecutionProgressSchema>;
 
-// Draft invoice (Feedback Round item 5 — FR-060). Retained until the PWA request flow ships.
-export const draftInvoiceSchema = z.object({
-  periodStart: z.string().date(),
-  periodEnd: z.string().date(),
-}).refine(
-  (data) => data.periodEnd > data.periodStart,
-  { message: 'periodEnd must be after periodStart', path: ['periodEnd'] },
-);
-export type DraftInvoiceInput = z.infer<typeof draftInvoiceSchema>;
-
 // ─── Inspector Property Invoice request flow (spec 032) ───────────────────
 
 /** Query for the list of selectable closed periods for the inspector's cycle. */

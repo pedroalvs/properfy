@@ -49,9 +49,19 @@ const EarningsPage = lazy(() =>
     default: module.EarningsPage,
   })),
 );
-const DraftInvoiceScreen = lazy(() =>
-  import('@/features/earnings/components/DraftInvoiceScreen').then((module) => ({
-    default: module.DraftInvoiceScreen,
+const RequestInvoiceScreen = lazy(() =>
+  import('@/features/earnings/components/RequestInvoiceScreen').then((module) => ({
+    default: module.RequestInvoiceScreen,
+  })),
+);
+const InvoiceListScreen = lazy(() =>
+  import('@/features/earnings/pages/InvoiceListScreen').then((module) => ({
+    default: module.InvoiceListScreen,
+  })),
+);
+const InvoiceDetailScreen = lazy(() =>
+  import('@/features/earnings/pages/InvoiceDetailScreen').then((module) => ({
+    default: module.InvoiceDetailScreen,
   })),
 );
 
@@ -99,7 +109,9 @@ export const router = createBrowserRouter(
                 { path: 'schedule/:appointmentId', element: lazyElement(AppointmentDetailPage) },
                 { path: 'marketplace', element: lazyElement(MarketplacePage) },
                 { path: 'earnings', element: lazyElement(EarningsPage) },
-                { path: 'earnings/draft-invoice', element: lazyElement(DraftInvoiceScreen) },
+                { path: 'earnings/request-invoice', element: lazyElement(RequestInvoiceScreen) },
+                { path: 'earnings/invoices', element: lazyElement(InvoiceListScreen) },
+                { path: 'earnings/invoices/:invoiceId', element: lazyElement(InvoiceDetailScreen) },
                 { path: 'profile', element: lazyElement(ProfilePage) },
                 { path: 'profile/edit', element: lazyElement(ProfileEditPage) },
               ],

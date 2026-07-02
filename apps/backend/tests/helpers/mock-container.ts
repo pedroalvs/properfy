@@ -224,7 +224,6 @@ export function createMockContainer(
       requestAssetUploadUseCase: { execute: vi.fn() },
       confirmAssetUploadUseCase: { execute: vi.fn() },
       getMarketplaceOffersUseCase: { execute: vi.fn() },
-      draftInspectorInvoiceUseCase: { execute: vi.fn() },
       listAppointmentAssetsUseCase: { execute: vi.fn() },
       getAppointmentAssetDownloadUrlUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
