@@ -448,7 +448,6 @@ describe('tenantSettingsSchema', () => {
       primaryColor: '#FF5733',
       allowClientCancellation: false,
       allowClientRescheduling: true,
-      allowClientFinancialView: true,
       allowClientUserManagement: true,
       priorityOfferHours: 48,
       inspectorOfferRadiusKm: 5,
@@ -471,6 +470,19 @@ describe('tenantSettingsSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it('should accept the view_financials clUserPermission (031)', () => {
+    const result = tenantSettingsSchema.safeParse({ clUserPermissions: ['view_financials'] });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.clUserPermissions).toContain('view_financials');
+    }
+  });
+
+  it('should no longer expose the removed allowClientFinancialView flag (031)', () => {
+    const result = tenantSettingsSchema.parse({});
+    expect(result).not.toHaveProperty('allowClientFinancialView');
+  });
+
   it('should reject billingDayOfWeek out of range', () => {
     const result = tenantSettingsSchema.safeParse({ billingDayOfWeek: 7 });
     expect(result.success).toBe(false);
@@ -490,7 +502,6 @@ describe('tenantSettingsSchema', () => {
     const result = tenantSettingsSchema.parse({});
     expect(result.allowClientCancellation).toBe(true);
     expect(result.allowClientRescheduling).toBe(true);
-    expect(result.allowClientFinancialView).toBe(false);
     expect(result.allowClientUserManagement).toBe(false);
     expect(result.priorityOfferHours).toBe(24);
     expect(result.inspectorOfferRadiusKm).toBe(2);

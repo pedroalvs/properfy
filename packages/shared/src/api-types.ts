@@ -279,6 +279,7 @@ export interface paths {
                             /** Format: uuid */
                             inspectorId?: string | null;
                             inspectorPhotoUrl?: string | null;
+                            clUserPermissions?: string[];
                         };
                     };
                 };
@@ -715,15 +716,13 @@ export interface paths {
                             /** @default true */
                             allowClientRescheduling?: boolean;
                             /** @default false */
-                            allowClientFinancialView?: boolean;
-                            /** @default false */
                             allowClientUserManagement?: boolean;
                             /** @default 24 */
                             priorityOfferHours?: number;
                             /** @default 2 */
                             inspectorOfferRadiusKm?: number;
                             /** @default [] */
-                            clUserPermissions?: ("create_appointments" | "cancel_appointments" | "reject_appointments" | "reschedule_appointments" | "force_confirmation" | "create_properties")[];
+                            clUserPermissions?: ("create_appointments" | "cancel_appointments" | "reject_appointments" | "reschedule_appointments" | "force_confirmation" | "create_properties" | "view_financials")[];
                             emailTemplates?: {
                                 initial?: {
                                     subject?: string;
@@ -907,15 +906,13 @@ export interface paths {
                             /** @default true */
                             allowClientRescheduling?: boolean;
                             /** @default false */
-                            allowClientFinancialView?: boolean;
-                            /** @default false */
                             allowClientUserManagement?: boolean;
                             /** @default 24 */
                             priorityOfferHours?: number;
                             /** @default 2 */
                             inspectorOfferRadiusKm?: number;
                             /** @default [] */
-                            clUserPermissions?: ("create_appointments" | "cancel_appointments" | "reject_appointments" | "reschedule_appointments" | "force_confirmation" | "create_properties")[];
+                            clUserPermissions?: ("create_appointments" | "cancel_appointments" | "reject_appointments" | "reschedule_appointments" | "force_confirmation" | "create_properties" | "view_financials")[];
                             emailTemplates?: {
                                 initial?: {
                                     subject?: string;

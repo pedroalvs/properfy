@@ -281,6 +281,12 @@
                     "inspectorPhotoUrl": {
                       "type": "string",
                       "nullable": true
+                    },
+                    "clUserPermissions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
                     }
                   },
                   "required": [
@@ -757,10 +763,6 @@
                         "type": "boolean",
                         "default": true
                       },
-                      "allowClientFinancialView": {
-                        "type": "boolean",
-                        "default": false
-                      },
                       "allowClientUserManagement": {
                         "type": "boolean",
                         "default": false
@@ -786,7 +788,8 @@
                             "reject_appointments",
                             "reschedule_appointments",
                             "force_confirmation",
-                            "create_properties"
+                            "create_properties",
+                            "view_financials"
                           ]
                         },
                         "default": []
@@ -1436,10 +1439,6 @@
                         "type": "boolean",
                         "default": true
                       },
-                      "allowClientFinancialView": {
-                        "type": "boolean",
-                        "default": false
-                      },
                       "allowClientUserManagement": {
                         "type": "boolean",
                         "default": false
@@ -1465,7 +1464,8 @@
                             "reject_appointments",
                             "reschedule_appointments",
                             "force_confirmation",
-                            "create_properties"
+                            "create_properties",
+                            "view_financials"
                           ]
                         },
                         "default": []

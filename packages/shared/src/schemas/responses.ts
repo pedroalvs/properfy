@@ -68,6 +68,9 @@ export const meResponseSchema = z.object({
   createdAt: dateStr(),
   inspectorId: z.string().uuid().nullable().optional(),
   inspectorPhotoUrl: z.string().nullable().optional(),
+  // 031 — CL_USER granular permission flags (tenant-cohort), so the web can
+  // mirror server-side gating (e.g. `view_financials`) for nav visibility.
+  clUserPermissions: z.array(z.string()).optional(),
 });
 
 // ─── Tenant ────────────────────────────────────────────────────────────────

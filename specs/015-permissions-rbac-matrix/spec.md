@@ -134,10 +134,13 @@ Each action in the platform has a defined set of roles that may perform it. The 
 | List regions | Yes | Yes | Yes | Yes | Asgn | INSP: assigned regions only |
 | Resolve regions | Yes | Yes | No | No | No | |
 | **Financial Operations** | | | | | | |
-| View financial entries | Yes | Yes | No | No | No | |
+| View financial entries (backoffice) | Yes | Yes | No | No | No | Platform ledger backoffice |
 | Approve financial entry | Yes | Yes | No | No | No | Cannot self-approve |
 | Create manual adjustment | Yes | Yes | No | No | No | Idempotent |
 | Create refund | Yes | Yes | No | No | No | Idempotent |
+| View agency financial statement / services rendered / summary | Yes | Yes | Yes | Flag | No | 031: own-tenant read; `financial.agency_view`; CL_USER via `view_financials` |
+| Export agency financial statement (XLSX) | Yes | Yes | Yes | Flag | No | 031: own-tenant; `financial.agency_export`; CL_USER via `view_financials` |
+| View own earnings / financial history | No | No | No | No | Yes | 031: INSP own `INSPECTOR_PAYOUT` only |
 | **Configuration** | | | | | | |
 | Manage time slots | Yes | Yes | Yes | No | No | CL_ADMIN: own tenant |
 | Manage service types | Yes | No | No | No | No | Master catalog, not day-to-day operations |
@@ -168,7 +171,7 @@ An Admin Master or Operator configures which fine-grained permissions CL_USER ac
 1. **Given** an AM or OP actor, **When** they update a tenant's settings to include a CL_USER permission (e.g., `cancel_appointments`), **Then** the setting is persisted and an audit record is written.
 2. **Given** a CL_USER actor whose tenant has `cancel_appointments` enabled, **When** they attempt to cancel an appointment, **Then** the system allows the action.
 3. **Given** a CL_USER actor whose tenant does NOT have `cancel_appointments` enabled, **When** they attempt to cancel an appointment, **Then** the system returns `FORBIDDEN`.
-4. **Given** a CL_USER actor, **When** they attempt any action not listed in the CL_USER permission flags (e.g., financial operations), **Then** the system returns `FORBIDDEN` regardless of tenant settings.
+4. **Given** a CL_USER actor, **When** they attempt any action not listed in the CL_USER permission flags (e.g., financial backoffice operations such as approve/adjust/refund), **Then** the system returns `FORBIDDEN` regardless of tenant settings. (031: agency financial *read* surfaces are the exception — allowed when the `view_financials` flag is set.)
 
 **CL_USER Permission Flags (canonical list)**:
 
