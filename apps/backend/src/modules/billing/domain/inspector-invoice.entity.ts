@@ -1,5 +1,6 @@
 import { BaseEntity } from '../../../shared/domain/entity';
 import type { InspectorInvoiceStatus, BillingPeriodType, InvoiceSnapshotLine } from '@properfy/shared';
+import { ACTIVE_INVOICE_STATUSES } from '@properfy/shared';
 
 export interface InspectorInvoiceProps {
   id: string;
@@ -98,7 +99,7 @@ export class InspectorInvoiceEntity extends BaseEntity {
    * VOID (and the legacy SUPERSEDED) are excluded so a rejected request can be re-submitted.
    */
   isActive(): boolean {
-    return this.status === 'PENDING_REVIEW' || this.status === 'CLOSED' || this.status === 'PAID';
+    return (ACTIVE_INVOICE_STATUSES as readonly string[]).includes(this.status);
   }
 
   isReady(): boolean {
@@ -140,11 +141,15 @@ export class InspectorInvoiceEntity extends BaseEntity {
    * (never hard-deleted). The reason is stored in notes.
    */
   void(reason: string): void {
+    const trimmedReason = reason.trim();
+    if (!trimmedReason) {
+      throw new Error(`Cannot reject invoice ${this.id}: a reason is required`);
+    }
     if (this.status !== 'PENDING_REVIEW') {
       throw new Error(`Cannot reject invoice ${this.id}: current status is ${this.status}`);
     }
     this.status = 'VOID';
-    this.notes = reason;
+    this.notes = trimmedReason;
   }
 
   /**

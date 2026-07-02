@@ -40,3 +40,10 @@ export const INVOICE_STATUS_BUCKETS = {
   rejected: ['VOID'],
 } as const;
 export type InvoiceStatusBucket = keyof typeof INVOICE_STATUS_BUCKETS;
+
+/**
+ * ACTIVE statuses participate in the one-invoice-per-(inspector, period) rule (a VOID invoice may
+ * coexist with a fresh request). Single source of truth for the entity, repository queries and the
+ * partial unique index (which mirrors this list in SQL). (spec 032)
+ */
+export const ACTIVE_INVOICE_STATUSES = ['PENDING_REVIEW', 'CLOSED', 'PAID'] as const;

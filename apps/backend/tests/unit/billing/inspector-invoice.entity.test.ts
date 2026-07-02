@@ -202,5 +202,10 @@ describe('InspectorInvoiceEntity', () => {
       const invoice = makeInvoice({ status: 'CLOSED' });
       expect(() => invoice.void('reason')).toThrow();
     });
+
+    it('throws when the reason is empty or whitespace', () => {
+      expect(() => makeInvoice({ status: 'PENDING_REVIEW' }).void('')).toThrow();
+      expect(() => makeInvoice({ status: 'PENDING_REVIEW' }).void('   ')).toThrow();
+    });
   });
 });

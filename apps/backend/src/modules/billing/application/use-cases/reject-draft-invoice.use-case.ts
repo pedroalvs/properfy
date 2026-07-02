@@ -46,8 +46,10 @@ export class RejectDraftInvoiceUseCase {
       throw new InvoiceNotPendingReviewError();
     }
 
-    // 4. Transition PENDING_REVIEW → VOID, retaining the row and the reason (no hard delete).
-    await this.invoiceRepo.update(invoiceId, { status: 'VOID', notes: reason });
+    // 4. Transition PENDING_REVIEW → VOID via the domain method (validates the reason), retaining
+    //    the row (no hard delete).
+    invoice.void(reason);
+    await this.invoiceRepo.update(invoiceId, { status: invoice.status, notes: invoice.notes });
 
     // 5. Audit.
     this.auditService.log({

@@ -1,5 +1,6 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
 import type { InspectorInvoiceStatus, BillingPeriodType, InvoiceSnapshotLine } from '@properfy/shared';
+import { ACTIVE_INVOICE_STATUSES } from '@properfy/shared';
 import { InspectorInvoiceEntity } from '../domain/inspector-invoice.entity';
 import type {
   IInspectorInvoiceRepository,
@@ -106,7 +107,7 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
         inspector_id: inspectorId,
         period_start: periodStart,
         period_end: periodEnd,
-        status: { in: ['PENDING_REVIEW', 'CLOSED', 'PAID'] },
+        status: { in: [...ACTIVE_INVOICE_STATUSES] },
       },
       include: { inspector: { select: { name: true } } },
     });
