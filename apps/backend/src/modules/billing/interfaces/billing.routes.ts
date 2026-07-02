@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyReply } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import {
   listFinancialEntriesQuerySchema,
@@ -172,27 +172,6 @@ export async function registerBillingRoutes(
 
   // POST /v1/financial/entries/:entryId/approve
   app.post(
-    '/v1/financial/entries/:entryId/approve',
-    { preHandler: authenticate, schema: { params: z.object({ entryId: z.string().uuid() }), response: { 200: successResponseSchema(financialEntryResponseSchema) } } },
-    async (request, reply) => {
-      const actor = request.authContext!;
-      if (!['AM', 'OP'].includes(actor.role)) {
-        throw new ForbiddenError('FORBIDDEN', 'Only AM and OP can approve financial entries');
-      }
-      const params = entryIdParam.safeParse(request.params);
-      if (!params.success) {
-        throw new ValidationError('Invalid entry ID', params.error.errors);
-      }
-      const result = await container.approveFinancialEntryUseCase.execute({
-        entryId: params.data.entryId,
-        actor,
-      });
-      return reply.status(200).send(success(result));
-    },
-  );
-
-  // PATCH /v1/financial/entries/:entryId/approve
-  app.patch(
     '/v1/financial/entries/:entryId/approve',
     { preHandler: authenticate, schema: { params: z.object({ entryId: z.string().uuid() }), response: { 200: successResponseSchema(financialEntryResponseSchema) } } },
     async (request, reply) => {
@@ -576,140 +555,6 @@ export async function registerBillingRoutes(
       const result = await container.rejectDraftInvoiceUseCase.execute({
         invoiceId: params.data.invoiceId,
         reason: parsed.data.reason,
-        actor: request.authContext!,
-      });
-      return reply.status(200).send(success(result));
-    },
-  );
-
-  // --- Deprecated legacy routes: /v1/invoices/* ---
-  // These forward to the same handlers but add Deprecation and Sunset headers.
-
-  const DEPRECATION_DATE = 'Sun, 01 Nov 2026 00:00:00 GMT';
-  const SUNSET_DATE = 'Sun, 01 Feb 2027 00:00:00 GMT';
-  const DEPRECATION_LINK = '</v1/billing/invoices>; rel="successor-version"';
-
-  function addDeprecationHeaders(reply: FastifyReply): void {
-    reply.header('Deprecation', DEPRECATION_DATE);
-    reply.header('Sunset', SUNSET_DATE);
-    reply.header('Link', DEPRECATION_LINK);
-  }
-
-  // GET /v1/invoices (deprecated)
-  app.get(
-    '/v1/invoices',
-    { preHandler: authenticate, schema: { querystring: listInvoicesQuerySchema, response: { 200: paginatedResponseSchema(invoiceResponseSchema) } } },
-    async (request, reply) => {
-      addDeprecationHeaders(reply);
-      const parsed = listInvoicesQuerySchema.safeParse(request.query);
-      if (!parsed.success) {
-        throw new ValidationError('Invalid query parameters', parsed.error.errors);
-      }
-      const { page, pageSize } = parsed.data;
-      const result = await container.listInvoicesUseCase.execute({
-        ...parsed.data,
-        actor: request.authContext!,
-      });
-      return reply.status(200).send(paginated(result.data, result.total, page, pageSize));
-    },
-  );
-
-  // POST /v1/invoices/generate (deprecated)
-  app.post(
-    '/v1/invoices/generate',
-    { preHandler: authenticate, schema: { body: generateInvoiceSchema, response: { 202: successResponseSchema(invoiceResponseSchema) } } },
-    async (request, reply) => {
-      addDeprecationHeaders(reply);
-      const parsed = generateInvoiceSchema.safeParse(request.body);
-      if (!parsed.success) {
-        throw new ValidationError('Request payload is invalid', parsed.error.errors);
-      }
-      const result = await container.generateInvoiceUseCase.execute({
-        ...parsed.data,
-        actor: request.authContext!,
-      });
-      return reply.status(202).send(success(result));
-    },
-  );
-
-  // GET /v1/invoices/:invoiceId (deprecated)
-  app.get(
-    '/v1/invoices/:invoiceId',
-    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), response: { 200: successResponseSchema(invoiceResponseSchema) } } },
-    async (request, reply) => {
-      addDeprecationHeaders(reply);
-      const params = invoiceIdParam.safeParse(request.params);
-      if (!params.success) {
-        throw new ValidationError('Invalid invoice ID', params.error.errors);
-      }
-      const result = await container.getInvoiceUseCase.execute({
-        invoiceId: params.data.invoiceId,
-        actor: request.authContext!,
-      });
-      return reply.status(200).send(success(result));
-    },
-  );
-
-  // POST /v1/invoices/:invoiceId/close — alias for approve-draft (QA-017-HIGH-001)
-  app.post(
-    '/v1/invoices/:invoiceId/close',
-    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }) } },
-    async (request, reply) => {
-      const actor = request.authContext!;
-      if (!['AM', 'OP'].includes(actor.role)) {
-        throw new ForbiddenError('FORBIDDEN', 'Only AM and OP can close invoices');
-      }
-      const params = invoiceIdParam.safeParse(request.params);
-      if (!params.success) {
-        throw new ValidationError('Invalid invoice ID', params.error.errors);
-      }
-      const result = await container.approveDraftInvoiceUseCase.execute({
-        invoiceId: params.data.invoiceId,
-        actor,
-      });
-      return reply.status(200).send(success(result));
-    },
-  );
-
-  // POST /v1/invoices/:invoiceId/pay — alias for mark-paid (QA-017-HIGH-001)
-  app.post(
-    '/v1/invoices/:invoiceId/pay',
-    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), body: markInvoicePaidSchema } },
-    async (request, reply) => {
-      const actor = request.authContext!;
-      if (!['AM', 'OP'].includes(actor.role)) {
-        throw new ForbiddenError('FORBIDDEN', 'Only AM and OP can mark invoices as paid');
-      }
-      const params = invoiceIdParam.safeParse(request.params);
-      if (!params.success) {
-        throw new ValidationError('Invalid invoice ID', params.error.errors);
-      }
-      const parsed = markInvoicePaidSchema.safeParse(request.body);
-      if (!parsed.success) {
-        throw new ValidationError('Request payload is invalid', parsed.error.errors);
-      }
-      const result = await container.markInvoicePaidUseCase.execute({
-        invoiceId: params.data.invoiceId,
-        paidAt: parsed.data.paidAt,
-        paymentReference: parsed.data.paymentReference,
-        actor,
-      });
-      return reply.status(200).send(success(result));
-    },
-  );
-
-  // GET /v1/invoices/:invoiceId/download (deprecated)
-  app.get(
-    '/v1/invoices/:invoiceId/download',
-    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), response: { 200: successResponseSchema(invoiceDownloadResponseSchema) } } },
-    async (request, reply) => {
-      addDeprecationHeaders(reply);
-      const params = invoiceIdParam.safeParse(request.params);
-      if (!params.success) {
-        throw new ValidationError('Invalid invoice ID', params.error.errors);
-      }
-      const result = await container.downloadInvoiceUseCase.execute({
-        invoiceId: params.data.invoiceId,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
