@@ -13,7 +13,7 @@ import { BranchEntity } from '../../../src/modules/tenant/domain/branch.entity';
 import { PropertyEntity } from '../../../src/modules/property/domain/property.entity';
 import { ServiceTypeEntity } from '../../../src/modules/service-type/domain/service-type.entity';
 import { PricingRuleEntity } from '../../../src/modules/pricing-rule/domain/pricing-rule.entity';
-import { AppointmentDateInPastError } from '../../../src/modules/appointment/domain/appointment.errors';
+import { AppointmentDateInPastError, AppointmentTimeInPastError } from '../../../src/modules/appointment/domain/appointment.errors';
 
 /**
  * Deterministic past-date edge cases. Cycle 6 refactor: validation now uses
@@ -181,5 +181,40 @@ describe('CreateAppointmentUseCase — frozen clock boundary (CL_ADMIN)', () => 
         actor,
       }),
     ).rejects.toBeInstanceOf(AppointmentDateInPastError);
+  });
+
+  // skipTimeInPastCheck — added for the appointment-import commit path
+  // (defaulted-today rows would otherwise fail the engine's stricter
+  // time-of-day re-check when committed later in the day). Must stay
+  // narrow: it bypasses ONLY the time-in-past outcome, never the date check.
+  describe('skipTimeInPastCheck', () => {
+    it('without the flag, rejects a today-dated slot whose start time has already passed', async () => {
+      // Frozen at 14:00 UTC; baseInput's 09:00 start is in the past for "today".
+      vi.useFakeTimers({ now: new Date('2026-06-15T14:00:00Z') });
+      const uc = buildUseCase();
+
+      await expect(
+        uc.execute({ ...baseInput, scheduledDate: '2026-06-15', actor }),
+      ).rejects.toBeInstanceOf(AppointmentTimeInPastError);
+    });
+
+    it('with the flag set, accepts a today-dated slot whose start time has already passed', async () => {
+      vi.useFakeTimers({ now: new Date('2026-06-15T14:00:00Z') });
+      const uc = buildUseCase();
+
+      const result = await uc.execute({
+        ...baseInput, scheduledDate: '2026-06-15', actor, skipTimeInPastCheck: true,
+      });
+      expect(result.id).toBeDefined();
+    });
+
+    it('with the flag set, STILL rejects a genuinely past date (narrow — never bypasses DATE_IN_PAST)', async () => {
+      vi.useFakeTimers({ now: new Date('2026-06-15T14:00:00Z') });
+      const uc = buildUseCase();
+
+      await expect(
+        uc.execute({ ...baseInput, scheduledDate: '2026-06-14', actor, skipTimeInPastCheck: true }),
+      ).rejects.toBeInstanceOf(AppointmentDateInPastError);
+    });
   });
 });

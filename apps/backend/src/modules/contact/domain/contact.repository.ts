@@ -93,6 +93,13 @@ export interface IContactRepository {
     phone: string | null,
   ): Promise<ContactEntity | null>;
   /**
+   * Batched counterpart of `findActiveByEmailOrPhone` — one query matching
+   * many emails/phones at once instead of one round-trip per candidate, for
+   * callers (e.g. the appointment-import row resolver) matching hundreds/
+   * thousands of rows against the registry in a single pass.
+   */
+  findManyActiveByEmailsOrPhones(emails: string[], phones: string[]): Promise<ContactEntity[]>;
+  /**
    * 024 §FR-303 — visibility check used by the get/update/deactivate use
    * cases for CL roles. Returns true iff the contact has at least one
    * `appointment_contacts` row joined to an appointment in the given tenant.

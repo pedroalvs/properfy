@@ -11,7 +11,7 @@ import type { IBranchRepository } from '../../../tenant/domain/branch.repository
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IGeocodingService } from '../../domain/geocoding.service';
 import { PropertyEntity } from '../../domain/property.entity';
-import { PropertyCodeConflictError, TenantInactiveError, BranchInactiveError } from '../../domain/property.errors';
+import { PropertyCodeConflictError, PropertyAddressConflictError, TenantInactiveError, BranchInactiveError } from '../../domain/property.errors';
 import { BranchNotFoundError, TenantNotFoundError } from '../../../tenant/domain/tenant.errors';
 import { sendJob } from '../../../../shared/infrastructure/queue';
 
@@ -149,6 +149,21 @@ export class CreatePropertyUseCase {
     );
     if (existing) {
       throw new PropertyCodeConflictError();
+    }
+
+    // Check address uniqueness within tenant (backed by the
+    // `properties_normalized_address_active_unique` partial unique index —
+    // this pre-check turns a DB constraint violation into a clean 409
+    // instead of an uncaught P2002 surfacing as a 500).
+    const existingByAddress = await this.propertyRepo.findByNormalizedAddress(tenantId, {
+      street: input.street,
+      addressLine2: input.addressLine2 ?? null,
+      suburb: input.suburb,
+      state: input.state,
+      postcode: input.postcode,
+    });
+    if (existingByAddress) {
+      throw new PropertyAddressConflictError();
     }
 
     const now = new Date();
