@@ -54,6 +54,14 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
         <DetailRow label="Key Location" value={appointment.keyLocation} />
       </FormSection>
 
+      {appointment.customFields && appointment.customFields.length > 0 && (
+        <FormSection title="Custom Fields">
+          {appointment.customFields.map((field, idx) => (
+            <DetailRow key={idx} label={field.label} value={field.value} />
+          ))}
+        </FormSection>
+      )}
+
       <FormSection title="Tenant Confirmation">
         <DetailRow
           label="Status"

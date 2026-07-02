@@ -82,6 +82,41 @@ describe('useAppointmentDetail', () => {
     expect(mockGet).toHaveBeenCalledWith('/v1/appointments/apt-01', { params: { query: undefined } });
   });
 
+  it('normalizes customFieldsJson into a typed customFields array', async () => {
+    mockGet.mockResolvedValueOnce({
+      data: {
+        data: {
+          ...MOCK_APPOINTMENT,
+          customFieldsJson: [
+            { label: 'Gate code', value: '1234' },
+            { label: 'Parking', value: 'Level 2' },
+          ],
+        },
+      },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAppointmentDetail('apt-01'), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.appointment?.customFields).toEqual([
+      { label: 'Gate code', value: '1234' },
+      { label: 'Parking', value: 'Level 2' },
+    ]);
+  });
+
+  it('coerces a legacy non-array customFieldsJson to an empty array', async () => {
+    mockGet.mockResolvedValueOnce({
+      data: { data: { ...MOCK_APPOINTMENT, customFieldsJson: { realtyDescription: 'legacy' } } },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAppointmentDetail('apt-01'), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.appointment?.customFields).toEqual([]);
+  });
+
   it('handles API error gracefully', async () => {
     mockGet.mockResolvedValueOnce({ data: undefined, error: { message: 'Not found' } });
     const wrapper = createQueryWrapper();

@@ -1,5 +1,5 @@
 import { type AuthContext, type PropertyType } from '@properfy/shared';
-import type { AppointmentContactRole, AppointmentApp } from '@properfy/shared';
+import type { AppointmentContactRole, AppointmentApp, AppointmentCustomField } from '@properfy/shared';
 import {
   NotFoundError,
   ValidationError,
@@ -96,7 +96,7 @@ export interface CreateAppointmentInput {
   keyLocation?: string;
   notes?: string;
   observation?: string;
-  customFields?: Record<string, unknown>;
+  customFields?: AppointmentCustomField[];
   idempotencyKey?: string;
   actorTimezone?: string;
   actor: AuthContext;
@@ -122,7 +122,7 @@ export interface CreateAppointmentOutput {
   pricingRuleSnapshotJson: Record<string, unknown>;
   notes: string | null;
   observation: string | null;
-  customFieldsJson: Record<string, unknown> | null;
+  customFieldsJson: AppointmentCustomField[] | null;
   reason: string | null;
   createdByUserId: string;
   createdAt: Date;

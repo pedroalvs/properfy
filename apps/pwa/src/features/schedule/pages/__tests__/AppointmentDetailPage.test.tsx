@@ -86,6 +86,7 @@ const appointmentData = {
     propertyLongitude: null,
     notes: null,
     observation: null,
+    customFields: [],
   },
 };
 
@@ -170,5 +171,36 @@ describe('AppointmentDetailPage', () => {
     renderPage();
 
     expect(screen.queryByText('Observation')).not.toBeInTheDocument();
+  });
+
+  it('renders the Custom Fields section read-only when present', () => {
+    mockUseInspectorAppointment.mockReturnValue({
+      data: {
+        data: {
+          ...appointmentData.data,
+          customFields: [
+            { label: 'Gate code', value: '1234' },
+            { label: 'Parking', value: 'Level 2' },
+          ],
+        },
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    renderPage();
+
+    expect(screen.getByText('Custom Fields')).toBeInTheDocument();
+    expect(screen.getByText('Gate code')).toBeInTheDocument();
+    expect(screen.getByText('1234')).toBeInTheDocument();
+    expect(screen.getByText('Parking')).toBeInTheDocument();
+    expect(screen.getByText('Level 2')).toBeInTheDocument();
+  });
+
+  it('hides the Custom Fields section when there are none', () => {
+    renderPage();
+
+    expect(screen.queryByText('Custom Fields')).not.toBeInTheDocument();
   });
 });

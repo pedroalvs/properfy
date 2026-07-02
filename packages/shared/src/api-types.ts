@@ -4834,8 +4834,9 @@ export interface paths {
                         notes?: string;
                         observation?: string;
                         customFields?: {
-                            [key: string]: unknown;
-                        };
+                            label: string;
+                            value: string;
+                        }[];
                         actorTimezone?: string;
                     };
                 };
@@ -5127,8 +5128,9 @@ export interface paths {
                             source: "RENTAL_TENANT_PORTAL" | "OPERATOR" | "IMPORT";
                         };
                         customFields?: {
-                            [key: string]: unknown;
-                        } | null;
+                            label: string;
+                            value: string;
+                        }[] | null;
                         actorTimezone?: string;
                     };
                 };
@@ -8193,6 +8195,10 @@ export interface paths {
                                 notes: string | null;
                                 observation: string | null;
                                 restrictionsSummary: string | null;
+                                customFields?: {
+                                    label: string;
+                                    value: string;
+                                }[];
                                 contact: {
                                     rentalTenantName: string;
                                     primaryEmail: string | null;

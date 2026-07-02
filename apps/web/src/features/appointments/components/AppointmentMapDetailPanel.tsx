@@ -25,6 +25,7 @@ type SectionKey =
   | 'restrictions'
   | 'notes'
   | 'observation'
+  | 'customFields'
   | 'history'
   | 'financials';
 
@@ -43,6 +44,7 @@ const SECTIONS: SectionConfig[] = [
   { key: 'restrictions', icon: 'mdi-alert-octagon-outline', label: 'Restrictions' },
   { key: 'notes', icon: 'mdi-note-text-outline', label: 'Notes' },
   { key: 'observation', icon: 'mdi-text-box-outline', label: 'Observation' },
+  { key: 'customFields', icon: 'mdi-format-list-bulleted', label: 'Custom fields' },
   { key: 'history', icon: 'mdi-history', label: 'History' },
   { key: 'financials', icon: 'mdi-cash', label: 'Financials' },
 ];
@@ -344,6 +346,17 @@ function renderSectionContent(key: SectionKey, ctx: SectionCtx): ReactNode {
       return detail?.observation
         ? <p className="whitespace-pre-wrap">{detail.observation}</p>
         : <p className="text-text-muted">No observation.</p>;
+    case 'customFields':
+      if (!detail || (detail.customFields ?? []).length === 0) {
+        return <p className="text-text-muted">No custom fields.</p>;
+      }
+      return (
+        <div className="space-y-1">
+          {detail.customFields!.map((f, i) => (
+            <p key={i}><span className="text-text-muted">{f.label}:</span> {f.value}</p>
+          ))}
+        </div>
+      );
     case 'history':
       return (
         <p>

@@ -10858,8 +10858,28 @@
                     "maxLength": 2000
                   },
                   "customFields": {
-                    "type": "object",
-                    "additionalProperties": {}
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "label": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 50
+                        },
+                        "value": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        }
+                      },
+                      "required": [
+                        "label",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 4
                   },
                   "actorTimezone": {
                     "type": "string"
@@ -12283,8 +12303,28 @@
                     "additionalProperties": false
                   },
                   "customFields": {
-                    "type": "object",
-                    "additionalProperties": {},
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "label": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 50
+                        },
+                        "value": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        }
+                      },
+                      "required": [
+                        "label",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 4,
                     "nullable": true
                   },
                   "actorTimezone": {
@@ -18413,6 +18453,25 @@
                         "restrictionsSummary": {
                           "type": "string",
                           "nullable": true
+                        },
+                        "customFields": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "label": {
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "label",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          }
                         },
                         "contact": {
                           "type": "object",
