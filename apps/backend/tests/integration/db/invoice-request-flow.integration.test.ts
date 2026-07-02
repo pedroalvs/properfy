@@ -11,7 +11,7 @@ import { PrismaFinancialEntryRepository } from '../../../src/modules/billing/inf
 import { PrismaInspectorInvoiceRepository } from '../../../src/modules/billing/infrastructure/prisma-inspector-invoice.repository';
 import { PrismaInspectorRepository } from '../../../src/modules/inspector/infrastructure/prisma-inspector.repository';
 import { RequestInvoiceUseCase } from '../../../src/modules/billing/application/use-cases/request-invoice.use-case';
-import { InvoiceActiveExistsError, InvoiceEmptyPeriodError } from '../../../src/modules/billing/domain/billing.errors';
+import { InvoiceActiveExistsError, InvoiceEmptyPeriodError, InvoiceMixedCurrencyError } from '../../../src/modules/billing/domain/billing.errors';
 import { FakeClock } from '../../helpers/fake-clock';
 
 let harness: DbHarness;
@@ -94,6 +94,12 @@ describe('Invoice request flow (real DB)', () => {
     const inspectorId = await seedInspectorWithPayouts('b', []); // no payout entries
     const uc = await buildUseCase();
     await expect(uc.execute({ inspectorId, ...PERIOD })).rejects.toBeInstanceOf(InvoiceEmptyPeriodError);
+  });
+
+  it('rejects a period whose approved payouts span multiple currencies', async () => {
+    const inspectorId = await seedInspectorWithPayouts('mc', ['AUD', 'USD']);
+    const uc = await buildUseCase();
+    await expect(uc.execute({ inspectorId, ...PERIOD })).rejects.toBeInstanceOf(InvoiceMixedCurrencyError);
   });
 
   it('two concurrent requests for the same period: one wins, the other gets a clean conflict (partial-unique backstop)', async () => {

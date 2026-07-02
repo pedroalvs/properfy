@@ -3,6 +3,7 @@ import supertest from 'supertest';
 import { buildApp } from '../../../src/main/server';
 import type { FastifyInstance } from 'fastify';
 import { createMockContainer } from '../../helpers/mock-container';
+import { InvoiceEmptyPeriodError, InvoiceActiveExistsError } from '../../../src/modules/billing/domain/billing.errors';
 
 const mockAvailablePeriods = vi.fn();
 const mockPreview = vi.fn();
@@ -111,6 +112,16 @@ describe('GET /v1/inspector/invoices/preview', () => {
       .set('Authorization', 'Bearer valid-token');
     expect(res.status).toBe(403);
   });
+
+  it('returns 400 INSPECTOR_NOT_LINKED for an INSP without a linked inspector', async () => {
+    mockJwtVerify.mockResolvedValueOnce(inspNotLinked);
+    const res = await supertest(app.server)
+      .get('/v1/inspector/invoices/preview?periodStart=2026-06-29&periodEnd=2026-07-12')
+      .set('Authorization', 'Bearer valid-token');
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('INSPECTOR_NOT_LINKED');
+    expect(mockPreview).not.toHaveBeenCalled();
+  });
 });
 
 describe('POST /v1/inspector/invoices/request', () => {
@@ -155,5 +166,38 @@ describe('POST /v1/inspector/invoices/request', () => {
       .send({ periodStart: '2026-07-12', periodEnd: '2026-06-29' });
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('maps InvoiceEmptyPeriodError to a 422 envelope', async () => {
+    mockJwtVerify.mockResolvedValueOnce(inspContext);
+    mockRequest.mockRejectedValueOnce(new InvoiceEmptyPeriodError());
+    const res = await supertest(app.server)
+      .post('/v1/inspector/invoices/request')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ periodStart: '2026-06-29', periodEnd: '2026-07-12' });
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('INVOICE_EMPTY_PERIOD');
+  });
+
+  it('maps InvoiceActiveExistsError to a 409 conflict envelope', async () => {
+    mockJwtVerify.mockResolvedValueOnce(inspContext);
+    mockRequest.mockRejectedValueOnce(new InvoiceActiveExistsError());
+    const res = await supertest(app.server)
+      .post('/v1/inspector/invoices/request')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ periodStart: '2026-06-29', periodEnd: '2026-07-12' });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('INVOICE_ACTIVE_EXISTS');
+  });
+
+  it('returns 400 INSPECTOR_NOT_LINKED for an INSP without a linked inspector', async () => {
+    mockJwtVerify.mockResolvedValueOnce(inspNotLinked);
+    const res = await supertest(app.server)
+      .post('/v1/inspector/invoices/request')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ periodStart: '2026-06-29', periodEnd: '2026-07-12' });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('INSPECTOR_NOT_LINKED');
+    expect(mockRequest).not.toHaveBeenCalled();
   });
 });

@@ -4,6 +4,7 @@ import {
   getCanonicalPeriod,
   isCycleAligned,
   isPeriodClosed,
+  periodEffectiveRange,
 } from '../../../src/modules/billing/domain/billing-period.service';
 
 // A fixed instant: 2026-07-15 12:00 in Australia/Sydney (AEST, UTC+10) → civil date 2026-07-15 (a Wednesday).
@@ -111,5 +112,35 @@ describe('computeClosedPeriods', () => {
       expect(isPeriodClosed(p.periodEnd, NOW)).toBe(true);
     }
     expect(periods).toHaveLength(6);
+  });
+});
+
+describe('periodEffectiveRange (Sydney civil-day boundaries, DST-safe)', () => {
+  it('uses local midnight for the from bound and the last ms of the last day for the to bound', () => {
+    // Non-DST fortnight: Sydney is AEST (+10). 2026-06-29 00:00 local = 2026-06-28T14:00Z.
+    const { from, to } = periodEffectiveRange('2026-06-29', '2026-07-12');
+    expect(from.toISOString()).toBe('2026-06-28T14:00:00.000Z');
+    expect(to.toISOString()).toBe('2026-07-12T13:59:59.999Z');
+  });
+
+  it('keeps the to bound exact when periodEnd is a DST-end Sunday (25h civil day)', () => {
+    // DST ends 2026-04-05 03:00 (clocks back to 02:00). End of 2026-04-05 = start of 2026-04-06
+    // (AEST +10 = 2026-04-05T14:00Z) minus 1ms.
+    const { to } = periodEffectiveRange('2026-03-23', '2026-04-05');
+    expect(to.toISOString()).toBe('2026-04-05T13:59:59.999Z');
+  });
+
+  it('keeps the to bound exact when periodEnd is the day before DST ends (still AEDT +11)', () => {
+    // End of civil day 2026-04-04 = start of 2026-04-05 (still AEDT +11 = 2026-04-04T13:00Z) minus 1ms.
+    // A fixed +23:59:59.999 offset would land an hour late here.
+    const { to } = periodEffectiveRange('2026-03-22', '2026-04-04');
+    expect(to.toISOString()).toBe('2026-04-04T12:59:59.999Z');
+  });
+
+  it('keeps the to bound exact when periodEnd is a DST-start Sunday (23h civil day)', () => {
+    // DST starts 2026-10-04 02:00 (clocks forward to 03:00). End of 2026-10-04 = start of 2026-10-05
+    // (AEDT +11 = 2026-10-04T13:00Z) minus 1ms.
+    const { to } = periodEffectiveRange('2026-09-21', '2026-10-04');
+    expect(to.toISOString()).toBe('2026-10-04T12:59:59.999Z');
   });
 });
