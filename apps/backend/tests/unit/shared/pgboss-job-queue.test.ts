@@ -79,4 +79,27 @@ describe('PgBossJobQueue', () => {
     await queue.enqueue('jobs.bare', { a: 1 });
     expect(sendJobMock.mock.calls[0]![2]).toBeUndefined();
   });
+
+  it('warns when a singletonKey collision silently drops the enqueue (sendJob returns null)', async () => {
+    sendJobMock.mockResolvedValueOnce(null);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const queue = new PgBossJobQueue();
+
+    await queue.enqueue('appointment.import.commit', { importId: 'import-1' }, { singletonKey: 'import-1' });
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    const logged = JSON.parse(warnSpy.mock.calls[0]![0] as string);
+    expect(logged).toEqual({ event: 'queue.singleton_key_collision', jobName: 'appointment.import.commit', singletonKey: 'import-1' });
+    warnSpy.mockRestore();
+  });
+
+  it('does not warn when the enqueue succeeds normally', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const queue = new PgBossJobQueue();
+
+    await queue.enqueue('appointment.import.commit', { importId: 'import-1' }, { singletonKey: 'import-1' });
+
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
 });

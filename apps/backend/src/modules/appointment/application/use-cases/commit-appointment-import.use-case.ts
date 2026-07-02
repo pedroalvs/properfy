@@ -76,11 +76,15 @@ export class CommitAppointmentImportUseCase {
     // request_id is attached automatically by the job-queue infrastructure
     // from the ambient request context (see shared/infrastructure/queue.ts
     // `sendJob` — every job gets `_requestId` for free, no manual threading).
+    // singletonKey (same pattern as the notification workers) closes the
+    // window between this check and the idempotency record being persisted
+    // below — pg-boss refuses a second active job with the same key, so two
+    // concurrent commit calls for the same import can't both get enqueued.
     await this.jobQueue.enqueue('appointment.import.commit', {
       importId,
       actorTimezone: input.actorTimezone,
       actor,
-    });
+    }, { singletonKey: importId });
 
     const result: CommitAppointmentImportOutput = { importId, status: 'PROCESSING' };
 

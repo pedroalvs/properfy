@@ -14,8 +14,7 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { useAuth } from '@/hooks/useAuth';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useFormOptions } from '@/hooks/useFormOptions';
-import { authStorage } from '@/lib/auth-storage';
-import { env } from '@/config/env';
+import { api } from '@/services/api';
 import { useAppointmentImport } from '../hooks/useAppointmentImport';
 import { AppointmentImportPreview } from '../components/AppointmentImportPreview';
 
@@ -23,16 +22,19 @@ const STEPS = ['Upload', 'Preview', 'Confirm', 'Progress'];
 
 async function downloadErrorsCsv(importId: string, onError: (message: string) => void) {
   try {
-    const token = authStorage.getAccessToken();
-    const res = await fetch(`${env.apiBaseUrl}/v1/appointments/import/${importId}/errors.csv`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    if (!res.ok) {
+    // Routed through the shared client (not a bespoke fetch) so auth
+    // headers and the 401-refresh-and-retry flow apply here too.
+    const { data, error } = await api.GET('/v1/appointments/import/{importId}/errors.csv' as any, {
+      params: { path: { importId } } as any,
+      parseAs: 'blob',
+    } as any);
+
+    if (error || !data) {
       onError('Failed to download the errors file');
       return;
     }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
+
+    const url = URL.createObjectURL(data as Blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `import-${importId}-errors.csv`;
