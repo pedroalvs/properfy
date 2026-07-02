@@ -968,10 +968,8 @@ enum FinancialEntryStatus {
 
 enum InspectorInvoiceStatus {
   PENDING_REVIEW
-  OPEN
   CLOSED
   PAID
-  SUPERSEDED
   VOID
 }
 
@@ -1213,7 +1211,7 @@ model InspectorInvoice {
   period_start            DateTime               @db.Date
   period_end              DateTime               @db.Date
   period_type             BillingPeriodType
-  status                  InspectorInvoiceStatus @default(OPEN)
+  status                  InspectorInvoiceStatus
   total_amount            Decimal                @default(0) @db.Decimal(12, 2)
   currency                String                 @db.Char(3)
   line_items_snapshot     Json?
@@ -1232,11 +1230,6 @@ model InspectorInvoice {
   generatedBy User?     @relation("InspectorInvoiceGeneratedBy", fields: [generated_by_user_id], references: [id])
   paidBy      User?     @relation("InspectorInvoicePaidBy", fields: [paid_by_user_id], references: [id])
 
-  previous_invoice_id String? @unique
-
-  previousInvoice InspectorInvoice? @relation("InspectorInvoiceChain", fields: [previous_invoice_id], references: [id])
-  supersededBy    InspectorInvoice? @relation("InspectorInvoiceChain")
-
   // Uniqueness on (inspector_id, period_start, period_end) is enforced by a SQL-managed PARTIAL
   // unique index over ACTIVE statuses only ("inspector_invoices_active_period_unique",
   // WHERE status IN ('PENDING_REVIEW','CLOSED','PAID')) so a VOID invoice can coexist with a fresh
@@ -1244,6 +1237,8 @@ model InspectorInvoice {
   // migration and is intentionally absent here (spec 032).
   @@index([inspector_id, status])
   @@index([period_start, period_end])
+  // GIN index backing the agency/branch snapshot CONTENT filters (spec 032).
+  @@index([line_items_snapshot(ops: JsonbPathOps)], type: Gin, map: "inspector_invoices_line_items_snapshot_gin")
   @@map("inspector_invoices")
 }
 

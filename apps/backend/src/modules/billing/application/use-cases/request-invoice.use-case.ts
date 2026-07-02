@@ -110,7 +110,6 @@ export class RequestInvoiceUseCase {
       currency,
       lineItemsSnapshot: null,
       fileKey: null,
-      previousInvoiceId: null,
       generatedByUserId: null,
       issuedAt: null,
       paidAt: null,

@@ -50,7 +50,7 @@ export function InvoiceDetailDrawer({
   const inspectorLabel = invoice
     ? (resolveInspectorLabel?.(invoice.inspectorId) ?? invoice.inspectorId)
     : '';
-  const canDownload = !!invoice && invoice.status !== 'OPEN' && invoice.status !== 'PENDING_REVIEW' && !!invoice.fileKey;
+  const canDownload = !!invoice && invoice.status !== 'PENDING_REVIEW' && !!invoice.fileKey;
 
   const [markPaidOpen, setMarkPaidOpen] = useState(false);
   const [reverseOpen, setReverseOpen] = useState(false);
@@ -190,11 +190,6 @@ export function InvoiceDetailDrawer({
                   {invoice.status === 'PENDING_REVIEW' && (
                     <p className="text-sm text-text-muted">
                       This draft invoice is awaiting admin review before it becomes active.
-                    </p>
-                  )}
-                  {invoice.status === 'OPEN' && (
-                    <p className="text-sm text-text-muted">
-                      This invoice is still open. The total can change until the invoice is closed.
                     </p>
                   )}
                 </FormSection>

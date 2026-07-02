@@ -14,7 +14,6 @@ export interface InspectorInvoiceProps {
   currency: string;
   lineItemsSnapshot: InvoiceSnapshotLine[] | null;
   fileKey: string | null;
-  previousInvoiceId: string | null;
   generatedByUserId: string | null;
   issuedAt: Date | null;
   paidAt: Date | null;
@@ -48,7 +47,6 @@ export class InspectorInvoiceEntity extends BaseEntity {
   readonly currency: string;
   lineItemsSnapshot: InvoiceSnapshotLine[] | null;
   fileKey: string | null;
-  readonly previousInvoiceId: string | null;
   generatedByUserId: string | null;
   issuedAt: Date | null;
   paidAt: Date | null;
@@ -70,7 +68,6 @@ export class InspectorInvoiceEntity extends BaseEntity {
     this.currency = props.currency;
     this.lineItemsSnapshot = props.lineItemsSnapshot;
     this.fileKey = props.fileKey;
-    this.previousInvoiceId = props.previousInvoiceId;
     this.generatedByUserId = props.generatedByUserId;
     this.issuedAt = props.issuedAt;
     this.paidAt = props.paidAt;
@@ -105,14 +102,6 @@ export class InspectorInvoiceEntity extends BaseEntity {
   }
 
   isReady(): boolean {
-    return this.status === 'CLOSED' || this.status === 'PAID';
-  }
-
-  isSuperseded(): boolean {
-    return this.status === 'SUPERSEDED';
-  }
-
-  canBeRegenerated(): boolean {
     return this.status === 'CLOSED' || this.status === 'PAID';
   }
 
