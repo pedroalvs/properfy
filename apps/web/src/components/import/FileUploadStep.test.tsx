@@ -69,4 +69,31 @@ describe('FileUploadStep', () => {
 
     expect(onFileSelect).toHaveBeenCalledWith(validFile);
   });
+
+  it('shows a remove button for the staged file when onRemove is provided', () => {
+    const file = new File(['test content'], 'data.csv', { type: 'text/csv' });
+    const onRemove = vi.fn();
+
+    render(<FileUploadStep {...defaultProps} selectedFile={file} onRemove={onRemove} />);
+
+    const removeButton = screen.getByRole('button', { name: /remove/i });
+    fireEvent.click(removeButton);
+    expect(onRemove).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not show a remove button when onRemove is not provided (e.g. property import)', () => {
+    const file = new File(['test content'], 'data.csv', { type: 'text/csv' });
+
+    render(<FileUploadStep {...defaultProps} selectedFile={file} />);
+
+    expect(screen.queryByRole('button', { name: /remove/i })).not.toBeInTheDocument();
+  });
+
+  it('does not show a remove button when there is no staged file', () => {
+    const onRemove = vi.fn();
+
+    render(<FileUploadStep {...defaultProps} onRemove={onRemove} />);
+
+    expect(screen.queryByRole('button', { name: /remove/i })).not.toBeInTheDocument();
+  });
 });

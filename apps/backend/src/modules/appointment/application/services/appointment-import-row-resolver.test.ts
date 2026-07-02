@@ -287,7 +287,7 @@ describe('AppointmentImportRowResolver.resolve', () => {
   });
 
   describe('contact resolution', () => {
-    it('errors and leaves contact null when the contact is incomplete', async () => {
+    it('warns and leaves contact null when the contact is incomplete, but still allows the row to import', async () => {
       const repos = buildRepos();
       repos.serviceTypeRepo.findByName.mockResolvedValue(buildServiceType());
       repos.pricingRuleRepo.findAll.mockResolvedValue([buildPricingRule()]);
@@ -295,9 +295,10 @@ describe('AppointmentImportRowResolver.resolve', () => {
       const resolver = buildResolver(repos);
       const { rows } = await resolver.resolve([baseRawRow({ primaryContactPhone: null })], CTX);
       expect(rows[0]!.contact).toBeNull();
-      expect(rows[0]!.importable).toBe(false);
+      expect(rows[0]!.importable).toBe(true);
+      expect(rows[0]!.severity).toBe('warning');
       expect(rows[0]!.issues).toEqual(expect.arrayContaining([
-        expect.objectContaining({ code: 'CONTACT_INCOMPLETE', severity: 'error' }),
+        expect.objectContaining({ code: 'CONTACT_INCOMPLETE', severity: 'warning' }),
       ]));
     });
 

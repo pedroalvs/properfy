@@ -85,10 +85,10 @@ describe('real sample agency export', () => {
   });
 
   it('most rows have a complete primary contact — one known gap (row 13, no phone)', () => {
-    // This is exactly the scenario the resolver's CONTACT_INCOMPLETE error
+    // This is exactly the scenario the resolver's CONTACT_INCOMPLETE warning
     // exists for: row 13 has no phone number in the source spreadsheet. It
-    // will be reported as a per-row error in the preview and excluded from
-    // commit — the other 46 rows still import.
+    // will be reported as a per-row warning in the preview and still
+    // imports — just without a contact attached to the appointment.
     const incomplete = rawRows
       .map((raw, i) => ({ rowNumber: i + 2, contact: normalizeImportRow(raw, IMPORT_DAY).normalized.primaryContact }))
       .filter(({ contact }) => !contact.name || !contact.email || !contact.phone);
