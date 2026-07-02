@@ -4,9 +4,10 @@ import { AvailableGroupsList } from './AvailableGroupsList';
 import type { AvailableGroup } from '@properfy/shared';
 
 const GROUP: AvailableGroup = {
-  id: 'group-1',
+  groupId: 'group-1',
   scheduledDate: '2026-06-15',
-  timeWindow: '09:00-12:00',
+  timeSlotStart: '09:00',
+  timeSlotEnd: '12:00',
   suburb: 'Surry Hills',
   inspectorName: 'John Smith',
   confirmedCount: 3,
@@ -36,19 +37,25 @@ describe('AvailableGroupsList', () => {
     render(<AvailableGroupsList groups={[GROUP]} isLoading={false} onSelect={vi.fn()} />);
     expect(screen.getByText('Surry Hills')).toBeTruthy();
     expect(screen.getByText('09:00-12:00')).toBeTruthy();
+    expect(screen.getByText('2026-06-15')).toBeTruthy();
     expect(screen.getByText('John Smith')).toBeTruthy();
   });
 
-  it('should call onSelect with groupId when a row is clicked', () => {
+  it('should call onSelect with slot tuple when a row is clicked', () => {
     const onSelect = vi.fn();
     render(<AvailableGroupsList groups={[GROUP]} isLoading={false} onSelect={onSelect} />);
     fireEvent.click(screen.getByText('Surry Hills').closest('[data-testid="group-row"]')!);
-    expect(onSelect).toHaveBeenCalledWith('group-1');
+    expect(onSelect).toHaveBeenCalledWith(GROUP);
   });
 
-  it('should highlight selected group', () => {
+  it('should highlight selected slot tuple', () => {
     render(
-      <AvailableGroupsList groups={[GROUP]} isLoading={false} selectedGroupId="group-1" onSelect={vi.fn()} />,
+      <AvailableGroupsList
+        groups={[GROUP]}
+        isLoading={false}
+        selectedSlotKey="group-1|2026-06-15|09:00|12:00"
+        onSelect={vi.fn()}
+      />,
     );
     const row = screen.getByTestId('group-row');
     expect(row.className).toContain('ring');

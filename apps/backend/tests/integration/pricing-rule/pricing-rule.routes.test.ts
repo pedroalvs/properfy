@@ -170,24 +170,28 @@ describe('T141 — concurrent tenant-level rule creation uniqueness', () => {
     };
 
     const [resA, resB] = await Promise.all([
-      supertest(app.server)
-        .post('/v1/pricing-rules')
-        .set('Authorization', 'Bearer valid-token')
-        .send(payload),
-      supertest(app.server)
-        .post('/v1/pricing-rules')
-        .set('Authorization', 'Bearer valid-token')
-        .send(payload),
+      app.inject({
+        method: 'POST',
+        url: '/v1/pricing-rules',
+        headers: { authorization: 'Bearer valid-token' },
+        payload,
+      }),
+      app.inject({
+        method: 'POST',
+        url: '/v1/pricing-rules',
+        headers: { authorization: 'Bearer valid-token' },
+        payload,
+      }),
     ]);
 
-    const statuses = [resA.status, resB.status].sort();
+    const statuses = [resA.statusCode, resB.statusCode].sort();
 
     // One request must succeed (201) and one must be rejected (409 PRICING_RULE_DUPLICATE).
     // If both returned 201 the DB constraint is missing — the test will fail as a signal.
     expect(statuses).toEqual([201, 409]);
 
-    const conflictRes = resA.status === 409 ? resA : resB;
-    expect(conflictRes.body.error.code).toBe('PRICING_RULE_DUPLICATE');
+    const conflictRes = resA.statusCode === 409 ? resA : resB;
+    expect(conflictRes.json().error.code).toBe('PRICING_RULE_DUPLICATE');
   });
 
   it('should surface DB-level conflict as 409 when use case throws PricingRuleDuplicateError', async () => {

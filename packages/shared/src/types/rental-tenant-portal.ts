@@ -7,9 +7,10 @@ export interface AvailableSlot {
 }
 
 export interface AvailableGroup {
-  id: string;
+  groupId: string;
   scheduledDate: string;
-  timeWindow: string;
+  timeSlotStart: string;
+  timeSlotEnd: string;
   suburb: string;
   inspectorName: string;
   confirmedCount: number;

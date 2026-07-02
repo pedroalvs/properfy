@@ -17,9 +17,10 @@ export class GetAvailableGroupsUseCase {
    * Returns an empty list when the token is past the cutoff (isReadOnly = true).
    */
   async execute(input: GetAvailableGroupsInput): Promise<{ groups: Array<{
-    id: string;
+    groupId: string;
     scheduledDate: string;
-    timeWindow: string;
+    timeSlotStart: string;
+    timeSlotEnd: string;
     suburb: string;
     inspectorName: string;
     confirmedCount: number;
@@ -37,7 +38,7 @@ export class GetAvailableGroupsUseCase {
     const { appointment } = result;
     const today = new Date();
 
-    const rows = await this.serviceGroupRepo.findPortalEligibleGroups({
+    const rows = await this.serviceGroupRepo.findPortalEligibleSlots({
       tenantId: appointment.tenantId,
       serviceTypeId: appointment.serviceTypeId,
       propertyId: appointment.propertyId,
@@ -46,9 +47,10 @@ export class GetAvailableGroupsUseCase {
 
     return {
       groups: rows.map((g) => ({
-        id: g.id,
+        groupId: g.groupId,
         scheduledDate: g.scheduledDate.toISOString().slice(0, 10),
-        timeWindow: g.timeWindow,
+        timeSlotStart: g.timeSlotStart,
+        timeSlotEnd: g.timeSlotEnd,
         suburb: g.suburb,
         inspectorName: g.inspectorName,
         confirmedCount: g.confirmedCount,

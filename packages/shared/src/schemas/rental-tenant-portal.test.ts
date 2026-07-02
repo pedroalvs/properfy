@@ -10,6 +10,7 @@ import {
   reportUnavailabilityPortalResponseSchema,
   availableSlotSchema,
   joinGroupRequestSchema,
+  joinGroupResponseSchema,
   availableGroupsResponseSchema,
 } from './rental-tenant-portal';
 
@@ -285,27 +286,60 @@ describe('availableSlotSchema', () => {
 });
 
 describe('joinGroupRequestSchema', () => {
-  it('should accept valid groupId', () => {
-    const result = joinGroupRequestSchema.safeParse({ groupId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' });
+  it('should accept valid selected slot tuple', () => {
+    const result = joinGroupRequestSchema.safeParse({
+      groupId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+      scheduledDate: '2026-06-10',
+      timeSlotStart: '09:00',
+      timeSlotEnd: '12:00',
+    });
     expect(result.success).toBe(true);
   });
 
-  it('should accept groupId with rentalTenantNote', () => {
+  it('should accept selected slot tuple with rentalTenantNote', () => {
     const result = joinGroupRequestSchema.safeParse({
       groupId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+      scheduledDate: '2026-06-10',
+      timeSlotStart: '09:00',
+      timeSlotEnd: '12:00',
       rentalTenantNote: 'Please bring an extra key',
     });
     expect(result.success).toBe(true);
   });
 
   it('should reject non-uuid groupId', () => {
-    const result = joinGroupRequestSchema.safeParse({ groupId: 'not-a-uuid' });
+    const result = joinGroupRequestSchema.safeParse({
+      groupId: 'not-a-uuid',
+      scheduledDate: '2026-06-10',
+      timeSlotStart: '09:00',
+      timeSlotEnd: '12:00',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject missing selected slot fields', () => {
+    const result = joinGroupRequestSchema.safeParse({
+      groupId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject end time before start time', () => {
+    const result = joinGroupRequestSchema.safeParse({
+      groupId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+      scheduledDate: '2026-06-10',
+      timeSlotStart: '12:00',
+      timeSlotEnd: '09:00',
+    });
     expect(result.success).toBe(false);
   });
 
   it('should reject rentalTenantNote exceeding 2000 chars', () => {
     const result = joinGroupRequestSchema.safeParse({
       groupId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+      scheduledDate: '2026-06-10',
+      timeSlotStart: '09:00',
+      timeSlotEnd: '12:00',
       rentalTenantNote: 'x'.repeat(2001),
     });
     expect(result.success).toBe(false);
@@ -322,9 +356,10 @@ describe('availableGroupsResponseSchema', () => {
     const result = availableGroupsResponseSchema.safeParse({
       groups: [
         {
-          id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+          groupId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
           scheduledDate: '2026-06-10',
-          timeWindow: '09:00-12:00',
+          timeSlotStart: '09:00',
+          timeSlotEnd: '12:00',
           suburb: 'Surry Hills',
           inspectorName: 'John Smith',
           confirmedCount: 3,
@@ -339,9 +374,10 @@ describe('availableGroupsResponseSchema', () => {
     const result = availableGroupsResponseSchema.safeParse({
       groups: [
         {
-          id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+          groupId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
           scheduledDate: '10/06/2026',
-          timeWindow: '09:00-12:00',
+          timeSlotStart: '09:00',
+          timeSlotEnd: '12:00',
           suburb: 'Surry Hills',
           inspectorName: 'John Smith',
           confirmedCount: 3,
@@ -349,6 +385,95 @@ describe('availableGroupsResponseSchema', () => {
         },
       ],
     });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject group with end time not after start time', () => {
+    const result = availableGroupsResponseSchema.safeParse({
+      groups: [
+        {
+          groupId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+          scheduledDate: '2026-06-10',
+          timeSlotStart: '12:00',
+          timeSlotEnd: '09:00',
+          suburb: 'Surry Hills',
+          inspectorName: 'John Smith',
+          confirmedCount: 3,
+          capacityMax: 10,
+        },
+      ],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject group with malformed slot times', () => {
+    const result = availableGroupsResponseSchema.safeParse({
+      groups: [
+        {
+          groupId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+          scheduledDate: '2026-06-10',
+          timeSlotStart: '9am',
+          timeSlotEnd: '12:00',
+          suburb: 'Surry Hills',
+          inspectorName: 'John Smith',
+          confirmedCount: 3,
+          capacityMax: 10,
+        },
+      ],
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('joinGroupResponseSchema', () => {
+  it('should accept selected slot response', () => {
+    const result = joinGroupResponseSchema.safeParse({
+      scheduledDate: '2026-06-10',
+      timeSlotStart: '09:00',
+      timeSlotEnd: '12:00',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
+      appointmentStatus: 'SCHEDULED',
+      inspector: { id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', name: 'John Smith' },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject old timeWindow response shape', () => {
+    const result = joinGroupResponseSchema.safeParse({
+      scheduledDate: '2026-06-10',
+      timeWindow: '09:00-12:00',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
+      appointmentStatus: 'SCHEDULED',
+      inspector: { id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', name: 'John Smith' },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject end time not after start time', () => {
+    const result = joinGroupResponseSchema.safeParse({
+      scheduledDate: '2026-06-10',
+      timeSlotStart: '12:00',
+      timeSlotEnd: '09:00',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
+      appointmentStatus: 'SCHEDULED',
+      inspector: { id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', name: 'John Smith' },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject malformed slot times', () => {
+    const result = joinGroupResponseSchema.safeParse({
+      scheduledDate: '2026-06-10',
+      timeSlotStart: '09:00',
+      timeSlotEnd: 'noon',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
+      appointmentStatus: 'SCHEDULED',
+      inspector: { id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', name: 'John Smith' },
+    });
+
     expect(result.success).toBe(false);
   });
 });
