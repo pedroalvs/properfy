@@ -1,5 +1,5 @@
 import type { FinancialEntryEntity } from './financial-entry.entity';
-import type { FinancialEntryType, FinancialEntryStatus } from '@properfy/shared';
+import type { FinancialEntryType, FinancialEntryStatus, InvoiceSnapshotLine } from '@properfy/shared';
 
 export interface FinancialEntryFilters {
   tenantId?: string;
@@ -53,6 +53,26 @@ export interface IFinancialEntryRepository {
   updateStatus(id: string, tenantId: string, status: FinancialEntryStatus, approvedByUserId?: string, approvedAt?: Date): Promise<void>;
   transitionStatus(id: string, tenantId: string, fromStatus: FinancialEntryStatus, toStatus: FinancialEntryStatus, approvedByUserId?: string, approvedAt?: Date): Promise<void>;
   sumApprovedPayoutsForInspectorInPeriod(inspectorId: string, periodStart: Date, periodEnd: Date): Promise<number>;
+  /**
+   * Aggregate of approved INSPECTOR_PAYOUT entries in a period: total, count and distinct
+   * currencies. Used by the invoice request/preview flow (spec 032) to build previews and to
+   * detect empty periods / mixed currencies without a live re-query per line.
+   */
+  aggregateApprovedPayoutsForInspectorInPeriod(
+    inspectorId: string,
+    periodStart: Date,
+    periodEnd: Date,
+  ): Promise<{ totalAmount: number; count: number; currencies: string[] }>;
+  /**
+   * Builds the frozen snapshot lines for an invoice: one line per approved INSPECTOR_PAYOUT entry
+   * in the period, joined to appointment → property / branch / service type / tenant (agency).
+   * Agency and branch are line-level attributes only. (spec 032)
+   */
+  findApprovedPayoutLinesForSnapshot(
+    inspectorId: string,
+    periodStart: Date,
+    periodEnd: Date,
+  ): Promise<InvoiceSnapshotLine[]>;
   sumRefundsByReferenceEntryId(referenceEntryId: string): Promise<number>;
   sumApprovedEntriesForTenantInPeriod(tenantId: string, periodStart: Date, periodEnd: Date): Promise<{
     totalDebit: number;

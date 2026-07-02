@@ -43,13 +43,34 @@ export interface ReconciliationAggregateRow {
 export interface IInspectorInvoiceRepository {
   findById(id: string): Promise<InspectorInvoiceEntity | null>;
   findByInspectorAndPeriod(inspectorId: string, periodStart: Date, periodEnd: Date): Promise<InspectorInvoiceEntity | null>;
-  findOverlapping(inspectorId: string, periodStart: Date, periodEnd: Date): Promise<InspectorInvoiceEntity | null>;
+  /**
+   * Finds an ACTIVE invoice (PENDING_REVIEW / CLOSED / PAID) for the exact (inspector, period).
+   * VOID/SUPERSEDED are excluded so a rejected request can be re-submitted. Enforces the
+   * one-active-invoice-per-period rule at the application layer until the partial unique index lands.
+   */
+  findActiveByInspectorAndPeriod(inspectorId: string, periodStart: Date, periodEnd: Date): Promise<InspectorInvoiceEntity | null>;
   findAll(filters: InvoiceFilters, pagination: InvoicePagination): Promise<InspectorInvoiceEntity[]>;
   findManyByIds(ids: string[]): Promise<InspectorInvoiceEntity[]>;
   count(filters: InvoiceFilters): Promise<number>;
   save(invoice: InspectorInvoiceEntity): Promise<void>;
   update(id: string, data: InvoiceUpdateData): Promise<void>;
   deleteById(id: string): Promise<void>;
+  /**
+   * Atomically transitions PENDING_REVIEW → CLOSED, assigning the next sequence number and freezing
+   * the snapshot / total / inspector name / issued_at in one transaction. Returns the assigned
+   * number, or null if the invoice was no longer PENDING_REVIEW (lost an approval race); the
+   * consumed sequence value becomes a gap in that case. (spec 032)
+   */
+  assignNumberAndFreeze(
+    invoiceId: string,
+    params: {
+      lineItemsSnapshot: InvoiceSnapshotLine[];
+      totalAmount: number;
+      inspectorName: string | null;
+      issuedAt: Date;
+      generatedByUserId: string;
+    },
+  ): Promise<number | null>;
   /**
    * Returns raw aggregate rows grouped by (status, currency) filtered by issuedAt range.
    * Only includes invoices in CLOSED or PAID status.

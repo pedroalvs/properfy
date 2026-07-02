@@ -12,6 +12,7 @@ import type {
   ServiceTypeEntry,
   ClientEligibilityEntry,
   AvailabilityTemplate,
+  BillingPeriodType,
 } from '@properfy/shared';
 import { availabilityTemplateSchema } from '@properfy/shared';
 
@@ -44,6 +45,7 @@ function mapToEntity(row: {
   police_check_meta_json: unknown;
   photo_storage_key: string | null;
   availability_template_json: unknown;
+  billing_cycle: string | null;
   created_at: Date;
   updated_at: Date;
   deleted_at: Date | null;
@@ -72,6 +74,7 @@ function mapToEntity(row: {
     policeCheckMetaJson: row.police_check_meta_json as Record<string, unknown> | null ?? null,
     photoStorageKey: row.photo_storage_key ?? null,
     availabilityTemplateJson: (row.availability_template_json as Record<string, unknown>) ?? {},
+    billingCycle: (row.billing_cycle as BillingPeriodType | null) ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,

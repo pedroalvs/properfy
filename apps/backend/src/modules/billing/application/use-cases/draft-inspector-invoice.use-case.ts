@@ -77,40 +77,45 @@ export class DraftInspectorInvoiceUseCase {
     const totalAmount = entries.reduce((sum: number, e: { amount: any }) => sum + Number(e.amount), 0);
     const currency = entries[0]?.currency ?? 'AUD';
 
-    // 4. Upsert: the unique constraint on (inspector_id, period_start, period_end) is
-    //    status-agnostic, so a separate supersede-then-insert would hit a constraint
-    //    violation. Instead, upsert refreshes any existing row for this exact period
-    //    (SUPERSEDED or PENDING_REVIEW) back to PENDING_REVIEW with updated amounts,
-    //    or creates a new row when none exists.
-    const newId = crypto.randomUUID();
-    const upserted = await this.prisma.inspectorInvoice.upsert({
-      where: {
-        inspector_id_period_start_period_end: {
+    // 4. Refresh any existing row for this exact period back to PENDING_REVIEW with updated
+    //    amounts, or create a new one. (Legacy free-form draft flow, retained until the PWA
+    //    switches to the closed-period request flow. Uses findFirst + update/create rather than a
+    //    composite-key upsert so it no longer depends on the status-agnostic composite unique,
+    //    which is replaced by an ACTIVE-only partial unique index.)
+    const existing = await this.prisma.inspectorInvoice.findFirst({
+      where: { inspector_id: inspectorId, period_start: start, period_end: end },
+      orderBy: { created_at: 'desc' },
+      select: { id: true },
+    });
+    let invoiceId: string;
+    if (existing) {
+      await this.prisma.inspectorInvoice.update({
+        where: { id: existing.id },
+        data: {
+          status: 'PENDING_REVIEW',
+          total_amount: totalAmount,
+          currency,
+          drafted_by_inspector_id: inspectorId,
+        },
+      });
+      invoiceId = existing.id;
+    } else {
+      const created = await this.prisma.inspectorInvoice.create({
+        data: {
+          id: crypto.randomUUID(),
           inspector_id: inspectorId,
           period_start: start,
           period_end: end,
+          period_type: 'FORTNIGHTLY',
+          status: 'PENDING_REVIEW',
+          total_amount: totalAmount,
+          currency,
+          drafted_by_inspector_id: inspectorId,
         },
-      },
-      update: {
-        status: 'PENDING_REVIEW',
-        total_amount: totalAmount,
-        currency,
-        drafted_by_inspector_id: inspectorId,
-      },
-      create: {
-        id: newId,
-        inspector_id: inspectorId,
-        period_start: start,
-        period_end: end,
-        period_type: 'FORTNIGHTLY',
-        status: 'PENDING_REVIEW',
-        total_amount: totalAmount,
-        currency,
-        drafted_by_inspector_id: inspectorId,
-      },
-      select: { id: true },
-    });
-    const invoiceId = upserted.id;
+        select: { id: true },
+      });
+      invoiceId = created.id;
+    }
 
     // 5. Audit
     this.auditService.log({

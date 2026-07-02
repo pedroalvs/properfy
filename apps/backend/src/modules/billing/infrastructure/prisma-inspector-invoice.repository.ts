@@ -87,7 +87,7 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
     return row ? mapToEntity(row) : null;
   }
 
-  async findOverlapping(
+  async findActiveByInspectorAndPeriod(
     inspectorId: string,
     periodStart: Date,
     periodEnd: Date,
@@ -95,10 +95,11 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
     const row = await this.prisma.inspectorInvoice.findFirst({
       where: {
         inspector_id: inspectorId,
-        period_start: { lte: periodEnd },
-        period_end: { gte: periodStart },
-        status: { in: ['OPEN', 'CLOSED'] },
+        period_start: periodStart,
+        period_end: periodEnd,
+        status: { in: ['PENDING_REVIEW', 'CLOSED', 'PAID'] },
       },
+      include: { inspector: { select: { name: true } } },
     });
     return row ? mapToEntity(row) : null;
   }
@@ -155,6 +156,7 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
         paid_by_user_id: invoice.paidByUserId,
         payment_reference: invoice.paymentReference,
         notes: invoice.notes,
+        drafted_by_inspector_id: invoice.draftedByInspectorId,
       },
     });
   }
@@ -177,6 +179,40 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
 
   async deleteById(id: string): Promise<void> {
     await this.prisma.inspectorInvoice.delete({ where: { id } });
+  }
+
+  async assignNumberAndFreeze(
+    invoiceId: string,
+    params: {
+      lineItemsSnapshot: InvoiceSnapshotLine[];
+      totalAmount: number;
+      inspectorName: string | null;
+      issuedAt: Date;
+      generatedByUserId: string;
+    },
+  ): Promise<number | null> {
+    return this.prisma.$transaction(async (tx) => {
+      const seqRows = await tx.$queryRaw<{ n: number }[]>`SELECT nextval('inspector_invoice_number_seq')::int AS n`;
+      const n = seqRows[0]?.n;
+      if (n == null) {
+        throw new Error('Failed to obtain an invoice number from the sequence');
+      }
+      // Conditional update: only one concurrent approval can flip PENDING_REVIEW → CLOSED.
+      // The loser matches 0 rows (row-locked, re-evaluated after the winner commits) → returns null.
+      const result = await tx.inspectorInvoice.updateMany({
+        where: { id: invoiceId, status: 'PENDING_REVIEW' },
+        data: {
+          status: 'CLOSED',
+          invoice_number: n,
+          line_items_snapshot: params.lineItemsSnapshot as unknown as Prisma.InputJsonValue,
+          total_amount: params.totalAmount,
+          inspector_name: params.inspectorName,
+          issued_at: params.issuedAt,
+          generated_by_user_id: params.generatedByUserId,
+        },
+      });
+      return result.count === 1 ? n : null;
+    });
   }
 
   async getReconciliationAggregates(

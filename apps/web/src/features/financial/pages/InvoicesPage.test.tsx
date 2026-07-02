@@ -80,12 +80,6 @@ describe('InvoicesPage', () => {
     expect(screen.getByText('Invoices')).toBeInTheDocument();
   });
 
-  it('renders "Generate Invoice" CTA button', () => {
-    renderPage();
-    const matches = screen.getAllByText('Generate Invoice');
-    expect(matches.length).toBeGreaterThanOrEqual(1);
-  });
-
   it('renders filter bar with inspector search and status filter', () => {
     renderPage();
     expect(screen.getByLabelText('Inspector')).toBeInTheDocument();

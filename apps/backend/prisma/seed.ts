@@ -1156,7 +1156,7 @@ async function main() {
   const periodEnd3 = new Date('2026-02-28');
 
   await prisma.inspectorInvoice.upsert({
-    where: { inspector_id_period_start_period_end: { inspector_id: IDS.inspectorLinked, period_start: periodStart1, period_end: periodEnd1 } },
+    where: { id: IDS.inv1 },
     update: {},
     create: {
       id: IDS.inv1,
@@ -1171,7 +1171,7 @@ async function main() {
   });
 
   await prisma.inspectorInvoice.upsert({
-    where: { inspector_id_period_start_period_end: { inspector_id: IDS.inspectorLinked, period_start: periodStart2, period_end: periodEnd2 } },
+    where: { id: IDS.inv2 },
     update: {},
     create: {
       id: IDS.inv2,
@@ -1189,7 +1189,7 @@ async function main() {
   });
 
   await prisma.inspectorInvoice.upsert({
-    where: { inspector_id_period_start_period_end: { inspector_id: IDS.inspectorIndep, period_start: periodStart3, period_end: periodEnd3 } },
+    where: { id: IDS.inv3 },
     update: {},
     create: {
       id: IDS.inv3,

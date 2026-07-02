@@ -7,11 +7,18 @@ const CODE_PATTERN = /^[A-Za-z0-9]{3,4}-(\d+)$/;
 
 export class AppointmentCodeFormatter {
   format(appointmentNumber: number, tenant: TenantEntity): string {
-    // Prefix is now a dedicated tenant column; fall back to "INS" for legacy
-    // tenants whose prefix has not been backfilled yet.
-    const prefix = tenant.appointmentCodePrefix || 'INS';
+    return AppointmentCodeFormatter.formatParts(appointmentNumber, tenant.appointmentCodePrefix);
+  }
+
+  /**
+   * Core formatting from raw parts (prefix + number), without a TenantEntity. Falls back to "INS"
+   * for legacy tenants whose prefix has not been backfilled. Used where only the prefix column is
+   * available (e.g. the invoice snapshot mapper).
+   */
+  static formatParts(appointmentNumber: number, prefix: string | null | undefined): string {
+    const p = prefix || 'INS';
     const padded = String(appointmentNumber).padStart(4, '0');
-    return `${prefix}-${padded}`;
+    return `${p}-${padded}`;
   }
 
   /**
