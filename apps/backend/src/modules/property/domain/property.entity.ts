@@ -1,4 +1,5 @@
 import { BaseEntity } from '../../../shared/domain/entity';
+import { buildNormalizedAddressKey } from '../../../shared/domain/normalize-address';
 import type { PropertyType, GeocodingStatus, PropertyRules } from '@properfy/shared';
 import type { GeocodingResult } from './geocoding.service';
 
@@ -92,5 +93,18 @@ export class PropertyEntity extends BaseEntity {
     if (this.addressLine2) parts.push(this.addressLine2);
     parts.push(this.suburb, this.state, this.postcode, this.country);
     return parts.join(', ');
+  }
+
+  /** Derived, never stale within a loaded instance — see `buildNormalizedAddressKey`
+   * for why this must stay in lockstep with the Prisma repository and the
+   * appointment-import resolver. */
+  get normalizedAddressKey(): string {
+    return buildNormalizedAddressKey({
+      street: this.street,
+      addressLine2: this.addressLine2,
+      suburb: this.suburb,
+      state: this.state,
+      postcode: this.postcode,
+    });
   }
 }

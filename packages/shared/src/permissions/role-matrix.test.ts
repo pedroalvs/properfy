@@ -36,6 +36,16 @@ describe('service_region.resolve', () => {
   });
 });
 
+describe('appointment.import', () => {
+  it.each<UserRole>(['AM', 'OP', 'CL_ADMIN'])('allows %s', (role) => {
+    expect(can(role, 'appointment.import')).toBe(true);
+  });
+
+  it.each<UserRole>(['CL_USER', 'INSP'])('denies %s', (role) => {
+    expect(can(role, 'appointment.import')).toBe(false);
+  });
+});
+
 describe('contact.list', () => {
   it.each<UserRole>(['AM', 'OP', 'CL_ADMIN', 'CL_USER'])('allows %s', (role) => {
     expect(can(role, 'contact.list')).toBe(true);

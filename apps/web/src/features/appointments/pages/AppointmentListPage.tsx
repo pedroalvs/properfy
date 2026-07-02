@@ -75,7 +75,7 @@ export function AppointmentListPage() {
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
 
   const canCreate = canPerform('appointment.create');
-  const canMapImport = canPerform('property.import');
+  const canMapImport = canPerform('appointment.import');
   const canBulkEdit = canPerform('appointment.cancel');
   const canBulkResend = canPerform('appointment.bulk_resend_reminder');
   const canViewMap = true;

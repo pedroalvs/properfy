@@ -5,6 +5,7 @@ import type { IPropertyRepository } from '../../domain/property.repository';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
 import {
   PropertyNotFoundError,
+  PropertyAddressConflictError,
   BranchInactiveError,
 } from '../../domain/property.errors';
 import { BranchNotFoundError } from '../../../tenant/domain/tenant.errors';
@@ -126,6 +127,24 @@ export class UpdatePropertyUseCase {
     const addressChanged = ADDRESS_FIELDS.some(
       (field) => (data as Record<string, unknown>)[field] !== undefined,
     );
+
+    // When the address changes, pre-check uniqueness against the
+    // `properties_normalized_address_active_unique` partial unique index —
+    // excluding this property itself — so a conflict is a clean 409 instead
+    // of an uncaught P2002 surfacing as a 500.
+    if (addressChanged) {
+      const effectiveAddress = {
+        street: data.street ?? property.street,
+        addressLine2: data.addressLine2 !== undefined ? data.addressLine2 : property.addressLine2,
+        suburb: data.suburb ?? property.suburb,
+        state: data.state ?? property.state,
+        postcode: data.postcode ?? property.postcode,
+      };
+      const existingByAddress = await this.propertyRepo.findByNormalizedAddress(property.tenantId, effectiveAddress);
+      if (existingByAddress && existingByAddress.id !== property.id) {
+        throw new PropertyAddressConflictError();
+      }
+    }
 
     // Manual coordinate unlock: clearing both coords on a MANUAL property resets to PENDING
     const isManualCoordinateUnlock =

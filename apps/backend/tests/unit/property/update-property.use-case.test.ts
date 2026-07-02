@@ -7,6 +7,7 @@ import type { AuthContext } from '@properfy/shared';
 import { PropertyEntity } from '../../../src/modules/property/domain/property.entity';
 import {
   PropertyNotFoundError,
+  PropertyAddressConflictError,
   BranchInactiveError,
 } from '../../../src/modules/property/domain/property.errors';
 import { BranchNotFoundError } from '../../../src/modules/tenant/domain/tenant.errors';
@@ -66,6 +67,8 @@ describe('UpdatePropertyUseCase', () => {
     propertyRepo = {
       findById: vi.fn(),
       findByPropertyCode: vi.fn(),
+      findByNormalizedAddress: vi.fn(),
+      findManyByNormalizedAddressKeys: vi.fn(),
       findAll: vi.fn(),
       count: vi.fn(),
       save: vi.fn(),
@@ -199,6 +202,38 @@ describe('UpdatePropertyUseCase', () => {
       'tenant-1',
       expect.objectContaining({ geocodingStatus: 'PENDING' }),
     );
+  });
+
+  it('should throw PROPERTY_ADDRESS_CONFLICT when the new address matches another active property (not a 500)', async () => {
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(propertyRepo.findByNormalizedAddress).mockResolvedValue(
+      makeProperty({ id: 'prop-other', street: '456 New St' }),
+    );
+
+    await expect(
+      useCase.execute({
+        propertyId: 'prop-1',
+        data: { street: '456 New St' },
+        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+      }),
+    ).rejects.toThrow(PropertyAddressConflictError);
+    expect(propertyRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('does not conflict with itself when the address match found is the same property', async () => {
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    // The lookup can legitimately return this same property (e.g. re-saving
+    // the same address with only casing/whitespace differences).
+    vi.mocked(propertyRepo.findByNormalizedAddress).mockResolvedValue(makeProperty());
+
+    const result = await useCase.execute({
+      propertyId: 'prop-1',
+      data: { street: '123 Main St' },
+      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    });
+
+    expect(result.street).toBe('123 Main St');
+    expect(propertyRepo.update).toHaveBeenCalled();
   });
 
   it('should set MANUAL when both coords and address change are provided', async () => {

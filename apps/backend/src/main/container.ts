@@ -354,7 +354,9 @@ import { UpdateAppointmentUseCase } from '../modules/appointment/application/use
 import { ExecuteStatusTransitionUseCase } from '../modules/appointment/application/use-cases/execute-status-transition.use-case';
 import { PerformCrossCheckUseCase } from '../modules/appointment/application/use-cases/perform-cross-check.use-case';
 import { ForceManualTenantConfirmationUseCase } from '../modules/appointment/application/use-cases/force-manual-confirmation.use-case';
-import { ImportAppointmentsUseCase } from '../modules/appointment/application/use-cases/import-appointments.use-case';
+import { PreviewAppointmentImportUseCase } from '../modules/appointment/application/use-cases/preview-appointment-import.use-case';
+import { CommitAppointmentImportUseCase } from '../modules/appointment/application/use-cases/commit-appointment-import.use-case';
+import { ExportAppointmentImportErrorsUseCase } from '../modules/appointment/application/use-cases/export-appointment-import-errors.use-case';
 import { GetImportStatusUseCase } from '../modules/appointment/application/use-cases/get-import-status.use-case';
 import { CompensateFinancialOnDoneRejectedHandler } from '../modules/appointment/application/handlers/compensate-financial-on-done-rejected.handler';
 import { APPOINTMENT_EVENTS } from '../shared/application/events/domain-event-bus';
@@ -374,7 +376,9 @@ import { SendGroupPortalLinksUseCase } from '../modules/service-group/applicatio
 import { DraftInspectorInvoiceUseCase } from '../modules/billing/application/use-cases/draft-inspector-invoice.use-case';
 import { ReopenForRescheduleUseCase } from '../modules/appointment/application/use-cases/reopen-for-reschedule.use-case';
 import { PrismaAppointmentImportRepository } from '../modules/appointment/infrastructure/prisma-appointment-import.repository';
-import { AppointmentImportWorker } from '../modules/appointment/infrastructure/workers/import.worker';
+import { AppointmentImportRowResolver } from '../modules/appointment/application/services/appointment-import-row-resolver';
+import { AppointmentImportCommitWorker } from '../modules/appointment/infrastructure/workers/appointment-import-commit.worker';
+import { SweepAbandonedAppointmentImportsWorker } from '../modules/appointment/infrastructure/workers/sweep-abandoned-appointment-imports.worker';
 import { RejectUnconfirmedAppointmentsUseCase } from '../modules/appointment/application/use-cases/reject-unconfirmed-appointments.use-case';
 import { RejectUnconfirmedWorker } from '../modules/appointment/infrastructure/workers/reject-unconfirmed.worker';
 import { GetPortalLinkUseCase } from '../modules/rental-tenant-portal/application/use-cases/get-portal-link.use-case';
@@ -419,7 +423,8 @@ export interface AppContainer {
   keyExpiryCheckWorker: KeyExpiryCheckWorker;
   expireFilesWorker: ExpireFilesWorker;
   processReportJobUseCase: ProcessReportJobUseCase;
-  appointmentImportWorker: AppointmentImportWorker;
+  appointmentImportCommitWorker: AppointmentImportCommitWorker;
+  sweepAbandonedAppointmentImportsWorker: SweepAbandonedAppointmentImportsWorker;
   generateInvoiceFileWorker: GenerateInvoiceFileWorker;
   expireTokensWorker: ExpireTokensWorker;
   expireAssetsWorker: ExpireAssetsWorker;
@@ -1127,13 +1132,22 @@ export function createContainer(logger: Logger): AppContainer {
     (event) => compensateFinancialOnDoneRejectedHandler.handle(event),
   );
 
-  // Appointment import (depends on reportStorageService and job queue)
+  // Appointment import — preview/commit split (depends on reportStorageService and job queue)
   const appointmentImportRepo = new PrismaAppointmentImportRepository(prisma);
   const importJobQueue = env.ENABLE_JOB_QUEUE === 'true'
     ? new PgBossJobQueue()
     : new StubJobQueue();
-  const importAppointmentsUseCase = new ImportAppointmentsUseCase(
-    appointmentImportRepo, reportStorageService, importJobQueue, idempotencyService, authorizationService,
+  const appointmentImportRowResolver = new AppointmentImportRowResolver(
+    propertyRepo, serviceTypeRepo, pricingRuleRepo, contactRepo,
+  );
+  const previewAppointmentImportUseCase = new PreviewAppointmentImportUseCase(
+    appointmentImportRepo, reportStorageService, branchRepo, appointmentImportRowResolver, authorizationService,
+  );
+  const commitAppointmentImportUseCase = new CommitAppointmentImportUseCase(
+    appointmentImportRepo, importJobQueue, authorizationService, idempotencyService,
+  );
+  const exportAppointmentImportErrorsUseCase = new ExportAppointmentImportErrorsUseCase(
+    appointmentImportRepo, authorizationService,
   );
   const getImportStatusUseCase = new GetImportStatusUseCase(appointmentImportRepo, authorizationService);
 
@@ -1188,8 +1202,12 @@ export function createContainer(logger: Logger): AppContainer {
   );
   const listRetentionRunsUseCase = new ListRetentionRunsUseCase(auditLogRepo);
 
-  const appointmentImportWorker = new AppointmentImportWorker(
-    appointmentImportRepo, reportStorageService, appointmentRepo, propertyRepo, serviceTypeRepo, logger,
+  const appointmentImportCommitWorker = new AppointmentImportCommitWorker(
+    appointmentImportRepo, reportStorageService, propertyRepo, appointmentImportRowResolver,
+    createAppointmentUseCase, importJobQueue, auditService, logger,
+  );
+  const sweepAbandonedAppointmentImportsWorker = new SweepAbandonedAppointmentImportsWorker(
+    appointmentImportRepo, reportStorageService, logger,
   );
 
   // Property import (depends on reportStorageService and job queue)
@@ -1319,7 +1337,9 @@ export function createContainer(logger: Logger): AppContainer {
       performCrossCheckUseCase,
       forceManualConfirmationUseCase,
       reopenForRescheduleUseCase,
-      importAppointmentsUseCase,
+      previewAppointmentImportUseCase,
+      commitAppointmentImportUseCase,
+      exportAppointmentImportErrorsUseCase,
       getImportStatusUseCase,
       deleteAppointmentUseCase,
       bulkEditAppointmentsUseCase,
@@ -1519,7 +1539,8 @@ export function createContainer(logger: Logger): AppContainer {
     geocodeWorker,
     geocodeRetryWorker,
     propertyImportWorker,
-    appointmentImportWorker,
+    appointmentImportCommitWorker,
+    sweepAbandonedAppointmentImportsWorker,
     generateInvoiceFileWorker,
     expireTokensWorker,
     expireAssetsWorker,
