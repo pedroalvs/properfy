@@ -115,6 +115,28 @@ describe('AppointmentImportCommitWorker', () => {
     ]);
   });
 
+  it('creates the appointment with no contacts when the row has no contact (CONTACT_INCOMPLETE is a warning, not a blocker)', async () => {
+    const deps = buildDeps();
+    deps.importRepo.findById.mockResolvedValue(buildRecord());
+    deps.resolver.resolve.mockResolvedValue({
+      rows: [readyRow({
+        severity: 'warning', contact: null,
+        issues: [{ field: 'contact', code: 'CONTACT_INCOMPLETE', severity: 'warning', message: 'Primary contact is incomplete' }],
+      })],
+    });
+    const worker = buildWorker(deps);
+
+    await worker.execute({ importId: 'import-1', actor: ACTOR });
+
+    expect(deps.createAppointmentUseCase.execute).toHaveBeenCalledTimes(1);
+    const input = deps.createAppointmentUseCase.execute.mock.calls[0]![0];
+    expect(input.contacts).toEqual([]);
+    const [resultsUpdate] = deps.importRepo.update.mock.calls
+      .map((c: any[]) => c[1])
+      .filter((data: any) => data.resultsJson);
+    expect(resultsUpdate.resultsJson.at(-1)).toEqual({ rowNumber: 2, status: 'created', appointmentId: 'apt-1' });
+  });
+
   it('creates a new property directly (bypassing CreatePropertyUseCase) and enqueues async geocode', async () => {
     const deps = buildDeps();
     deps.importRepo.findById.mockResolvedValue(buildRecord());

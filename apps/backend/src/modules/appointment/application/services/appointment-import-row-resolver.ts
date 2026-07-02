@@ -253,7 +253,12 @@ export class AppointmentImportRowResolver {
   ): ResolvedImportRow['contact'] {
     const { name, email, phone } = normalized.primaryContact;
     if (!name || !email || !phone) {
-      issues.push(errorIssue('contact', 'CONTACT_INCOMPLETE', 'Primary contact needs name, email and phone'));
+      // Not required to import — the row still creates an appointment,
+      // just without a contact attached (the engine supports this; see
+      // CreateAppointmentUseCase's `contacts` array, which defaults to
+      // empty). Surfaced as a warning so the operator can still fix the
+      // sheet and re-import if they want the contact.
+      issues.push(warningIssue('contact', 'CONTACT_INCOMPLETE', 'Primary contact is incomplete (missing name, email, or phone) — will import without a contact'));
       return null;
     }
 

@@ -152,6 +152,22 @@ export class AppointmentImportCommitWorker {
     try {
       const propertyId = await this.resolveOrCreateProperty(row, tenantId, createdPropertyIds);
 
+      // A contact is not required to import (CONTACT_INCOMPLETE is a
+      // warning, not an error) — `contacts` defaults to `[]` in
+      // CreateAppointmentUseCase, which creates the appointment with no
+      // contact attached rather than failing.
+      const contacts = row.contact ? [{
+        inline: {
+          type: 'RENTAL_TENANT' as const,
+          displayName: row.contact.displayName,
+          primaryEmail: row.contact.primaryEmail,
+          primaryPhone: row.contact.primaryPhone,
+          additionalChannels: row.contact.additionalChannels,
+        },
+        role: 'RENTAL_TENANT' as const,
+        isPrimary: true,
+      }] : [];
+
       const appointment = await this.createAppointmentUseCase.execute({
         branchId,
         propertyId,
@@ -159,17 +175,7 @@ export class AppointmentImportCommitWorker {
         scheduledDate: row.scheduledDate,
         timeSlotStart: row.timeSlotStart,
         timeSlotEnd: row.timeSlotEnd,
-        contacts: [{
-          inline: {
-            type: 'RENTAL_TENANT',
-            displayName: row.contact!.displayName,
-            primaryEmail: row.contact!.primaryEmail,
-            primaryPhone: row.contact!.primaryPhone,
-            additionalChannels: row.contact!.additionalChannels,
-          },
-          role: 'RENTAL_TENANT',
-          isPrimary: true,
-        }],
+        contacts,
         customFields: row.customFields.length > 0 ? row.customFields : undefined,
         keyRequired: false,
         notes: row.notes ?? undefined,
