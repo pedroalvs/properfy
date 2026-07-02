@@ -96,4 +96,25 @@ describe('FileUploadStep', () => {
 
     expect(screen.queryByRole('button', { name: /remove/i })).not.toBeInTheDocument();
   });
+
+  it('clears the file input value on remove, so the same file can be reselected', () => {
+    // jsdom doesn't populate a file input's `.value` from a synthetic
+    // `files` assignment the way a real browser does, so the reset can't
+    // be observed via a before/after value diff here — instead, spy on
+    // the native value setter to prove the component actually calls it
+    // (real browsers skip firing `change` for a re-picked file unless the
+    // input's value was cleared first).
+    const file = new File(['test content'], 'data.csv', { type: 'text/csv' });
+    const onRemove = vi.fn();
+    const valueSetterSpy = vi.spyOn(window.HTMLInputElement.prototype, 'value', 'set');
+
+    render(<FileUploadStep {...defaultProps} selectedFile={file} onRemove={onRemove} />);
+    valueSetterSpy.mockClear();
+
+    fireEvent.click(screen.getByRole('button', { name: /remove/i }));
+
+    expect(onRemove).toHaveBeenCalledTimes(1);
+    expect(valueSetterSpy).toHaveBeenCalledWith('');
+    valueSetterSpy.mockRestore();
+  });
 });

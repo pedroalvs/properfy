@@ -302,6 +302,21 @@ describe('AppointmentImportRowResolver.resolve', () => {
       ]));
     });
 
+    it('warns that extra channels were not applied either when the incomplete primary contact still has secondary channels', async () => {
+      const repos = buildRepos();
+      repos.serviceTypeRepo.findByName.mockResolvedValue(buildServiceType());
+      repos.pricingRuleRepo.findAll.mockResolvedValue([buildPricingRule()]);
+      repos.propertyRepo.findManyByNormalizedAddressKeys.mockResolvedValue([buildProperty()]);
+      const resolver = buildResolver(repos);
+      const { rows } = await resolver.resolve([baseRawRow({ primaryContactPhone: null, secondaryEmail: 'second@example.com' })], CTX);
+      expect(rows[0]!.contact).toBeNull();
+      expect(rows[0]!.importable).toBe(true);
+      expect(rows[0]!.issues).toEqual(expect.arrayContaining([
+        expect.objectContaining({ code: 'CONTACT_INCOMPLETE', severity: 'warning' }),
+        expect.objectContaining({ code: 'CONTACT_CHANNELS_NOT_APPLIED', severity: 'warning' }),
+      ]));
+    });
+
     it('plans a new contact with additional channels when no match exists', async () => {
       const repos = buildRepos();
       repos.serviceTypeRepo.findByName.mockResolvedValue(buildServiceType());

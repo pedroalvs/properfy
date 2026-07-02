@@ -85,6 +85,14 @@ export function FileUploadStep({
     inputRef.current?.click();
   }, []);
 
+  const handleRemove = useCallback(() => {
+    // Without this, a real browser skips firing `change` when the same
+    // file is re-picked immediately after removal, since the input's
+    // value never actually changed from the browser's point of view.
+    if (inputRef.current) inputRef.current.value = '';
+    onRemove?.();
+  }, [onRemove]);
+
   return (
     <div className="space-y-4">
       <div
@@ -152,7 +160,7 @@ export function FileUploadStep({
           {onRemove && (
             <button
               type="button"
-              onClick={onRemove}
+              onClick={handleRemove}
               aria-label="Remove selected file"
               className="rounded p-1 text-[var(--color-text-muted)] transition-colors hover:bg-red-50 hover:text-[var(--color-error)]"
             >

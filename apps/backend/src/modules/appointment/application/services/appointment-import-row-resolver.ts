@@ -259,6 +259,13 @@ export class AppointmentImportRowResolver {
       // empty). Surfaced as a warning so the operator can still fix the
       // sheet and re-import if they want the contact.
       issues.push(warningIssue('contact', 'CONTACT_INCOMPLETE', 'Primary contact is incomplete (missing name, email, or phone) — will import without a contact'));
+      // With no contact at all being created, any secondary/tertiary/
+      // quaternary email or phone on the sheet has nothing to attach to —
+      // call that out explicitly rather than silently dropping it.
+      if (normalized.additionalChannelCandidates.length > 0) {
+        issues.push(warningIssue('contact', 'CONTACT_CHANNELS_NOT_APPLIED',
+          'Primary contact is incomplete, so the extra channels from the sheet were not applied either'));
+      }
       return null;
     }
 
