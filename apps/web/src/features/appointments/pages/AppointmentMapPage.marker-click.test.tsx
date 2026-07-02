@@ -51,6 +51,25 @@ describe('AppointmentMapPage — marker-click regression (Issue #1)', () => {
     expect(body).not.toMatch(/mapInstance\.fitBounds/);
   });
 
+  it('single click on a group pin previews (setPreviewGroup) without entering the drill-down', () => {
+    const handlerMatch = PAGE_SOURCE.match(/const handleGroupMarkerClick = useCallback\(\(item: ServiceGroupMapPin\)[\s\S]*?\}, \[mapInstance\]\);/);
+    expect(handlerMatch, 'handleGroupMarkerClick definition not found').toBeTruthy();
+    const body = handlerMatch![0];
+    expect(body).toContain('setPreviewGroup(item)');
+    // The drill-down trigger must NOT fire on single click.
+    expect(body).not.toContain('setSelectedGroupItem(item)');
+  });
+
+  it('double click on a group pin enters the drill-down (setSelectedGroupItem)', () => {
+    const handlerMatch = PAGE_SOURCE.match(/const handleGroupMarkerDoubleClick = useCallback\(\(item: ServiceGroupMapPin\)[\s\S]*?\}, \[mapInstance\]\);/);
+    expect(handlerMatch, 'handleGroupMarkerDoubleClick definition not found').toBeTruthy();
+    const body = handlerMatch![0];
+    expect(body).toContain('setSelectedGroupItem(item)');
+    expect(body).toContain('setPreviewGroup(null)');
+    // Group markers must wire both gestures.
+    expect(PAGE_SOURCE).toContain('onDoubleClick={() => handleGroupMarkerDoubleClick(item)}');
+  });
+
   it('auto-fit useEffect gates on the hasFittedRef sentinel to prevent re-fire', () => {
     // The auto-fit must early-return when the (mode, map) pair has
     // already been fitted; without that guard, the effect re-fires on

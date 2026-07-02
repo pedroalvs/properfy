@@ -30,6 +30,7 @@ import { MapListViewToggleButton } from '@/components/map/MapListViewToggleButto
 import { MapBulkActionModal } from '../components/MapBulkActionModal';
 import { MapAddToGroupSubModal } from '../components/MapAddToGroupSubModal';
 import { AppointmentMapDetailPanel } from '../components/AppointmentMapDetailPanel';
+import { GroupMapDetailPanel } from '../components/GroupMapDetailPanel';
 import { MapGroupCreateModal } from '@/features/service-groups/components/MapGroupCreateModal';
 import { useQueryClient } from '@tanstack/react-query';
 import type { UserRole } from '@properfy/shared';
@@ -163,6 +164,11 @@ export function AppointmentMapPage() {
   const [groupFilters, setGroupFilters] = useState<GroupModeFilters>(DEFAULT_GROUP_FILTERS);
   const [selectedItem, setSelectedItem] = useState<AppointmentMapItem | null>(null);
   const [selectedGroupItem, setSelectedGroupItem] = useState<ServiceGroupMapPin | null>(null);
+  // Single-click group-pin PREVIEW (Groups mode): shows the group detail
+  // popup anchored to the pin without entering the drill-down. The
+  // drill-down (hide group pins, show its appointments + table modal) is
+  // reserved for double-click / the popup's OPEN GROUP button.
+  const [previewGroup, setPreviewGroup] = useState<ServiceGroupMapPin | null>(null);
   const [mapInstance, setMapInstance] = useState<mapboxgl.Map | null>(null);
   // 025 §FR-401 — lasso state machine replaces the boolean active flag.
   // 'idle' clears the polygon + draw control; 'drawing' enables the lasso;
@@ -213,6 +219,9 @@ export function AppointmentMapPage() {
   // produced visible decoupling for markers near viewport edges.
   const [appointmentPopupRoot, setAppointmentPopupRoot] = useState<HTMLDivElement | null>(null);
   const appointmentPopupRef = useRef<mapboxgl.Popup | null>(null);
+  // Same Mapbox-native-Popup pattern for the group-pin preview.
+  const [groupPopupRoot, setGroupPopupRoot] = useState<HTMLDivElement | null>(null);
+  const groupPopupRef = useRef<mapboxgl.Popup | null>(null);
   // 025 cycle 2/2 — imperative handle to MapLassoSelect so the page-level
   // banner UI (Finish / Cancel buttons) can drive the close gesture without
   // duplicating the polygon-completion logic.
@@ -453,10 +462,48 @@ export function AppointmentMapPage() {
     };
   }, [mapInstance, appointmentDetailEnabled, selectedItem?.id, selectedItem?.latitude, selectedItem?.longitude]);
 
+  // Group-pin preview popup — same Mapbox-native pattern as the appointment
+  // detail popup above: created imperatively, Mapbox owns per-frame
+  // positioning, React portals the GroupMapDetailPanel content into it.
+  // Only alive while showing group pins (not inside a drill-down).
+  useEffect(() => {
+    if (!mapInstance || mode !== 'groups' || !!selectedGroupItem || !previewGroup) {
+      if (groupPopupRef.current) {
+        groupPopupRef.current.remove();
+        groupPopupRef.current = null;
+        setGroupPopupRoot(null);
+      }
+      return;
+    }
+    const root = document.createElement('div');
+    const popup = new mapboxgl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      closeOnMove: false,
+      maxWidth: '340px',
+      // Larger offset than the appointment popup: the group pin must remain
+      // clickable under an open preview (double-click still enters the
+      // drill-down), so the popup floats clear of the ~40px teardrop.
+      offset: 44,
+      className: 'appt-map-detail-popup',
+    })
+      .setLngLat([previewGroup.longitude, previewGroup.latitude])
+      .setDOMContent(root)
+      .addTo(mapInstance);
+    groupPopupRef.current = popup;
+    setGroupPopupRoot(root);
+    return () => {
+      popup.remove();
+      groupPopupRef.current = null;
+      setGroupPopupRoot(null);
+    };
+  }, [mapInstance, mode, selectedGroupItem, previewGroup?.id, previewGroup?.latitude, previewGroup?.longitude]);
+
   // Clear selection on mode change
   useEffect(() => {
     setSelectedItem(null);
     setSelectedGroupItem(null);
+    setPreviewGroup(null);
   }, [mode]);
 
   // The group-modal lasso lives ONLY inside an open group drill-down. Reset it
@@ -490,7 +537,39 @@ export function AppointmentMapPage() {
     }
   }, [mapInstance]);
 
+  // Single click on a group pin = PREVIEW only (popup anchored to the pin,
+  // group pins stay on the map). Mirrors the Appointments-mode pin behaviour.
+  // The preview is DEFERRED ~250ms so a double-click can cancel it — if the
+  // popup opened on the first click it would render over the pin and swallow
+  // the second click, making the drill-down gesture impossible.
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+  }, []);
   const handleGroupMarkerClick = useCallback((item: ServiceGroupMapPin) => {
+    if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+    previewTimerRef.current = setTimeout(() => {
+      previewTimerRef.current = null;
+      setPreviewGroup(item);
+      setSelectedItem(null);
+      if (mapInstance && item.longitude != null && item.latitude != null) {
+        mapInstance.flyTo({
+          center: [item.longitude, item.latitude],
+          zoom: Math.max(mapInstance.getZoom(), 14),
+          duration: 700,
+        });
+      }
+    }, 250);
+  }, [mapInstance]);
+
+  // Double click (or the preview popup's OPEN GROUP button) = drill-down:
+  // hide the group pins, show the group's appointments and the table modal.
+  const handleGroupMarkerDoubleClick = useCallback((item: ServiceGroupMapPin) => {
+    if (previewTimerRef.current) {
+      clearTimeout(previewTimerRef.current);
+      previewTimerRef.current = null;
+    }
+    setPreviewGroup(null);
     setSelectedGroupItem(item);
     setSelectedItem(null);
     if (mapInstance && item.longitude != null && item.latitude != null) {
@@ -533,6 +612,7 @@ export function AppointmentMapPage() {
   const handleRecenter = useCallback(() => {
     setSelectedItem(null);
     setSelectedGroupItem(null);
+    setPreviewGroup(null);
     // Explicit operator ask: re-fit camera to current data. Clear the
     // "has fitted" sentinel so the auto-fit useEffect runs again next tick.
     hasFittedRef.current = { mode: null, map: null };
@@ -885,8 +965,9 @@ export function AppointmentMapPage() {
               latitude={item.latitude}
               icon={GROUP_STATUS_ICONS[item.status] ?? 'mdi-map-marker'}
               label={item.name ?? ''}
-              active={selectedGroupItem?.id === item.id}
+              active={selectedGroupItem?.id === item.id || previewGroup?.id === item.id}
               onClick={() => handleGroupMarkerClick(item)}
+              onDoubleClick={() => handleGroupMarkerDoubleClick(item)}
             />
           ))}
         {/* Group drill-down: the selected group's appointment pins replace the
@@ -1101,6 +1182,17 @@ export function AppointmentMapPage() {
           onMoreDetails={handleViewDetail}
         />,
         appointmentPopupRoot,
+      )}
+
+      {/* Group-pin preview popup (Groups mode, single click) — same portal
+          pattern; content only, Mapbox positions it. */}
+      {mode === 'groups' && !selectedGroupItem && previewGroup && groupPopupRoot && createPortal(
+        <GroupMapDetailPanel
+          group={previewGroup}
+          onClose={() => setPreviewGroup(null)}
+          onOpenGroup={() => handleGroupMarkerDoubleClick(previewGroup)}
+        />,
+        groupPopupRoot,
       )}
 
       <MapGroupCreateModal
