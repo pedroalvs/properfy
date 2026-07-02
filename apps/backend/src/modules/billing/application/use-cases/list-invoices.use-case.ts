@@ -71,7 +71,9 @@ export class ListInvoicesUseCase {
       throw new ForbiddenError('FORBIDDEN', 'You do not have permission to list invoices');
     }
 
-    if (input.status && input.status in INVOICE_STATUS_BUCKETS) {
+    // hasOwnProperty (not `in`) so inherited Object.prototype keys like 'toString' can't slip
+    // through and later blow up on a spread of a function.
+    if (input.status && Object.prototype.hasOwnProperty.call(INVOICE_STATUS_BUCKETS, input.status)) {
       filters.statusIn = [...INVOICE_STATUS_BUCKETS[input.status as InvoiceStatusBucket]];
     }
     if (input.agencyId) filters.agencyId = input.agencyId;

@@ -1164,7 +1164,7 @@ async function main() {
       period_start: periodStart1,
       period_end: periodEnd1,
       period_type: 'WEEKLY',
-      status: 'OPEN',
+      status: 'PENDING_REVIEW',
       total_amount: 80.00,
       currency: 'AUD',
     },
@@ -1206,7 +1206,7 @@ async function main() {
       paid_at: pastDate(10),
     },
   });
-  console.log('Inspector invoices: 3 created (OPEN, CLOSED, PAID)');
+  console.log('Inspector invoices: 3 created (PENDING_REVIEW, CLOSED, PAID)');
 
   // ─── INSPECTION EXECUTIONS ────────────────────────────────────────────────
 

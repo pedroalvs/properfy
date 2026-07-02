@@ -122,4 +122,40 @@ describe('Invoice approval flow (real DB)', () => {
     expect(row.status).toBe('VOID');
     expect(row.notes).toBe('Wrong period, please resubmit');
   });
+
+  it('two concurrent approvals of the same invoice: exactly one wins (CAS), one gets NotPendingReview', async () => {
+    const invoiceId = await seedRequestedInvoice('e');
+    const { invoiceRepo, financialEntryRepo } = repos();
+    const approve = new ApproveDraftInvoiceUseCase(invoiceRepo, financialEntryRepo, auditStub, new AuthorizationService(auditStub), jobQueueStub);
+
+    const results = await Promise.allSettled([
+      approve.execute({ invoiceId, actor: amActor }),
+      approve.execute({ invoiceId, actor: amActor }),
+    ]);
+    const fulfilled = results.filter((r) => r.status === 'fulfilled');
+    const rejected = results.filter((r) => r.status === 'rejected');
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+
+    const row = await harness.prisma.inspectorInvoice.findUniqueOrThrow({ where: { id: invoiceId } });
+    expect(row.status).toBe('CLOSED');
+    expect(row.invoice_number).not.toBeNull();
+  });
+
+  it('concurrent approve + reject: exactly one wins, the invoice ends CLOSED xor VOID (no overwrite)', async () => {
+    const invoiceId = await seedRequestedInvoice('f');
+    const { invoiceRepo, financialEntryRepo } = repos();
+    const approve = new ApproveDraftInvoiceUseCase(invoiceRepo, financialEntryRepo, auditStub, new AuthorizationService(auditStub), jobQueueStub);
+    const reject = new RejectDraftInvoiceUseCase(invoiceRepo, auditStub, new AuthorizationService(auditStub));
+
+    const results = await Promise.allSettled([
+      approve.execute({ invoiceId, actor: amActor }),
+      reject.execute({ invoiceId, reason: 'Rejecting concurrently', actor: amActor }),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter((r) => r.status === 'rejected')).toHaveLength(1);
+
+    const row = await harness.prisma.inspectorInvoice.findUniqueOrThrow({ where: { id: invoiceId } });
+    expect(['CLOSED', 'VOID']).toContain(row.status);
+  });
 });

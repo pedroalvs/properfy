@@ -23,11 +23,8 @@ export type BillingPeriodType = (typeof BillingPeriodType)[keyof typeof BillingP
 
 export const InspectorInvoiceStatus = {
   PENDING_REVIEW: 'PENDING_REVIEW',
-  // OPEN and SUPERSEDED are legacy values retained only until the destructive cleanup batch.
-  OPEN: 'OPEN',
   CLOSED: 'CLOSED',
   PAID: 'PAID',
-  SUPERSEDED: 'SUPERSEDED',
   VOID: 'VOID',
 } as const;
 export type InspectorInvoiceStatus = (typeof InspectorInvoiceStatus)[keyof typeof InspectorInvoiceStatus];
@@ -43,3 +40,10 @@ export const INVOICE_STATUS_BUCKETS = {
   rejected: ['VOID'],
 } as const;
 export type InvoiceStatusBucket = keyof typeof INVOICE_STATUS_BUCKETS;
+
+/**
+ * ACTIVE statuses participate in the one-invoice-per-(inspector, period) rule (a VOID invoice may
+ * coexist with a fresh request). Single source of truth for the entity, repository queries and the
+ * partial unique index (which mirrors this list in SQL). (spec 032)
+ */
+export const ACTIVE_INVOICE_STATUSES = ['PENDING_REVIEW', 'CLOSED', 'PAID'] as const;

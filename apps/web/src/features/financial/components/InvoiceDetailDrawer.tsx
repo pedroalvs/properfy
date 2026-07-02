@@ -50,7 +50,7 @@ export function InvoiceDetailDrawer({
   const inspectorLabel = invoice
     ? (resolveInspectorLabel?.(invoice.inspectorId) ?? invoice.inspectorId)
     : '';
-  const canDownload = !!invoice && invoice.status !== 'OPEN' && invoice.status !== 'PENDING_REVIEW' && !!invoice.fileKey;
+  const canDownload = !!invoice && invoice.status !== 'PENDING_REVIEW' && !!invoice.fileKey;
 
   const [markPaidOpen, setMarkPaidOpen] = useState(false);
   const [reverseOpen, setReverseOpen] = useState(false);
@@ -192,11 +192,6 @@ export function InvoiceDetailDrawer({
                       This draft invoice is awaiting admin review before it becomes active.
                     </p>
                   )}
-                  {invoice.status === 'OPEN' && (
-                    <p className="text-sm text-text-muted">
-                      This invoice is still open. The total can change until the invoice is closed.
-                    </p>
-                  )}
                 </FormSection>
 
                 {invoice.lineItemsSnapshot && invoice.lineItemsSnapshot.length > 0 && (
@@ -217,7 +212,7 @@ export function InvoiceDetailDrawer({
                         <tbody>
                           {invoice.lineItemsSnapshot.map((line) => (
                             <tr key={line.appointmentId} className="border-t border-black/5">
-                              <td className="py-1 pr-3">{line.serviceDate}</td>
+                              <td className="py-1 pr-3">{formatDate(line.serviceDate)}</td>
                               <td className="py-1 pr-3">{line.appointmentCode}</td>
                               <td className="py-1 pr-3">{line.propertyAddress ?? '—'}</td>
                               <td className="py-1 pr-3">{line.serviceType ?? '—'}</td>

@@ -3,7 +3,7 @@ import {
   PLATFORM_TIMEZONE,
   civilDateInTimezone,
   parseDateInTimezone,
-  endOfDay,
+  endOfCivilDayInTimezone,
 } from '../../../shared/domain/timezone-date';
 
 /**
@@ -114,7 +114,7 @@ export function periodDateColumns(periodStart: string, periodEnd: string): { sta
 export function periodEffectiveRange(periodStart: string, periodEnd: string): { from: Date; to: Date } {
   return {
     from: parseDateInTimezone(periodStart, PLATFORM_TIMEZONE),
-    to: endOfDay(parseDateInTimezone(periodEnd, PLATFORM_TIMEZONE)),
+    to: endOfCivilDayInTimezone(periodEnd, PLATFORM_TIMEZONE),
   };
 }
 

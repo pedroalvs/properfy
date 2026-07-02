@@ -5,10 +5,8 @@ import { InvoiceStatusChip } from './InvoiceStatusChip';
 
 const STATUS_LABELS: Record<InvoiceStatus, string> = {
   PENDING_REVIEW: 'Pending Review',
-  OPEN: 'Open',
   CLOSED: 'Closed',
   PAID: 'Paid',
-  SUPERSEDED: 'Superseded',
   VOID: 'Rejected',
 };
 

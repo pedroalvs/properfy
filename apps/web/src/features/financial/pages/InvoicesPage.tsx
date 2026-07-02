@@ -62,7 +62,8 @@ export function InvoicesPage() {
 
   const inspectorLabelById = Object.fromEntries(inspectorOptions.map((o) => [o.value, o.label]));
   const resolveInspectorLabel = useCallback(
-    (inspectorId: string) => inspectorLabelById[inspectorId] ?? inspectorId,
+    // Never surface the raw inspector id when the label lookup misses (feedback_no_raw_ids_in_ui).
+    (inspectorId: string) => inspectorLabelById[inspectorId] ?? '—',
     [inspectorLabelById],
   );
 

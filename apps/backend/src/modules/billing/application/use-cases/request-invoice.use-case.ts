@@ -110,7 +110,6 @@ export class RequestInvoiceUseCase {
       currency,
       lineItemsSnapshot: null,
       fileKey: null,
-      previousInvoiceId: null,
       generatedByUserId: null,
       issuedAt: null,
       paidAt: null,
@@ -121,7 +120,22 @@ export class RequestInvoiceUseCase {
       createdAt: now,
       updatedAt: now,
     });
-    await this.invoiceRepo.save(invoice);
+    try {
+      await this.invoiceRepo.save(invoice);
+    } catch (err) {
+      // A concurrent request can insert the same active (inspector, period) between the findActive
+      // check above and this save; the partial unique index is the backstop. Surface it as the clean
+      // domain conflict rather than a 500. (duck-typed to keep the application layer Prisma-free)
+      // Narrow to the active-period index so any OTHER unique violation still surfaces as a genuine
+      // integrity error instead of being mislabelled "active invoice exists".
+      if (err && typeof err === 'object' && 'code' in err && (err as { code?: unknown }).code === 'P2002') {
+        const target = String((err as { meta?: { target?: unknown } }).meta?.target ?? '');
+        if (target.includes('period') || target.includes('active')) {
+          throw new InvoiceActiveExistsError();
+        }
+      }
+      throw err;
+    }
 
     this.auditService.log({
       action: 'inspector_invoice.requested',

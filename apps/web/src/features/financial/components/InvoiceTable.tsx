@@ -95,7 +95,7 @@ export function InvoiceTable({
       label: 'Inspector',
       width: '180px',
       sortable: true,
-      render: (row) => <>{resolveInspectorLabel?.(row.inspectorId) ?? row.inspectorId}</>,
+      render: (row) => <>{resolveInspectorLabel?.(row.inspectorId) ?? '—'}</>,
     },
     {
       key: 'periodStart',
@@ -147,7 +147,7 @@ export function InvoiceTable({
             icon: 'mdi-download-outline',
             label: 'Download',
             onClick: () => onDownload?.(row),
-            disabled: row.status === 'OPEN' || row.status === 'PENDING_REVIEW' || !row.fileKey,
+            disabled: row.status === 'PENDING_REVIEW' || !row.fileKey,
           },
         ];
         if (canModifyPayments && row.status === 'CLOSED' && onMarkPaid) {

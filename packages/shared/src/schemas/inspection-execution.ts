@@ -70,7 +70,12 @@ export type AvailablePeriodsQuery = z.infer<typeof availablePeriodsQuerySchema>;
 export const previewInvoiceQuerySchema = z.object({
   periodStart: z.string().date(),
   periodEnd: z.string().date(),
-});
+}).refine(
+  // Same invariant as requestInvoiceSchema, so a preview can't accept a reversed range that the
+  // subsequent request would reject (avoids a confusing preview/request UX mismatch).
+  (data) => data.periodEnd > data.periodStart,
+  { message: 'periodEnd must be after periodStart', path: ['periodEnd'] },
+);
 export type PreviewInvoiceQuery = z.infer<typeof previewInvoiceQuerySchema>;
 
 /** Body to confirm a request for a chosen closed period. */

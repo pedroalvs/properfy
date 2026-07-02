@@ -91,7 +91,7 @@ describe('InvoiceDetailDrawer', () => {
     expect(screen.getByText('Download')).toBeInTheDocument();
   });
 
-  it('shows an open-invoice warning and disables download when the invoice is still open', () => {
+  it('disables download for a PENDING_REVIEW invoice (not yet issued)', () => {
     mockUseInvoiceDetail.mockReturnValue({
       invoice: {
         id: 'inv-02',
@@ -101,7 +101,7 @@ describe('InvoiceDetailDrawer', () => {
         invoiceNumber: null,        invoiceNumberDisplay: null,        periodType: 'FORTNIGHTLY',
         totalAmount: 1800,
         currency: 'AUD',
-        status: 'OPEN',
+        status: 'PENDING_REVIEW',
         fileKey: null,
         issuedAt: null,
         paidAt: null,
@@ -120,7 +120,6 @@ describe('InvoiceDetailDrawer', () => {
       { wrapper: createQueryWrapper() },
     );
 
-    expect(screen.getByText('This invoice is still open. The total can change until the invoice is closed.')).toBeInTheDocument();
     expect(screen.getByLabelText('Download invoice')).toBeDisabled();
   });
 });

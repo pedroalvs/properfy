@@ -86,6 +86,15 @@ describe('InvoicesPage', () => {
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
   });
 
+  it('renders Agency and Branch content filters and no agency gate (spec 032)', async () => {
+    renderPage();
+    expect(screen.getByLabelText('Agency')).toBeInTheDocument();
+    expect(screen.getByLabelText('Branch')).toBeInTheDocument();
+    // The old "Select an agency to view invoices" gate is gone — data renders immediately.
+    expect(screen.queryByText(/Select an agency to view invoices/i)).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Fortnightly')).toBeInTheDocument());
+  });
+
   it('renders period date range filters', () => {
     renderPage();
     expect(screen.getByLabelText('Period - start')).toBeInTheDocument();
@@ -94,9 +103,10 @@ describe('InvoicesPage', () => {
 
   it('renders data table with invoice data after loading', async () => {
     renderPage();
+    // Assert on readable per-row content (period type), never the raw inspector id.
     await waitFor(() => {
-      expect(screen.getByText('insp-01')).toBeInTheDocument();
-      expect(screen.getByText('insp-02')).toBeInTheDocument();
+      expect(screen.getByText('Fortnightly')).toBeInTheDocument();
+      expect(screen.getByText('Monthly')).toBeInTheDocument();
     });
   });
 

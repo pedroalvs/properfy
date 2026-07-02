@@ -39,12 +39,26 @@ export class PdfKitInvoicePdfGenerator implements IInvoicePdfGenerator {
     return `${currency} ${amount.toFixed(2)}`;
   }
 
+  /** Draws the column-label row + underline at `y`; returns the y below the header. */
+  private drawTableHeader(doc: PDFKit.PDFDocument, startX: number, right: number, y: number): number {
+    doc.font('Helvetica-Bold').fontSize(9);
+    let x = startX;
+    for (const col of PdfKitInvoicePdfGenerator.COLUMNS) {
+      doc.text(col.label, x, y, { width: col.width, align: col.key === 'amount' ? 'right' : 'left' });
+      x += col.width;
+    }
+    const bottom = y + 16;
+    doc.moveTo(startX, bottom - 4).lineTo(right, bottom - 4).stroke();
+    return bottom;
+  }
+
   private render(doc: PDFKit.PDFDocument, data: InvoicePdfData): void {
-    const left = doc.page.margins.left;
+    const startX = doc.page.margins.left;
     const right = doc.page.width - doc.page.margins.right;
+    const bottomLimit = () => doc.page.height - doc.page.margins.bottom;
 
     // Title
-    doc.font('Helvetica-Bold').fontSize(20).text('PROPERTY INVOICE', left, doc.y);
+    doc.font('Helvetica-Bold').fontSize(20).text('PROPERTY INVOICE', startX, doc.y);
     doc.moveDown(0.3);
 
     // Meta block
@@ -55,19 +69,10 @@ export class PdfKitInvoicePdfGenerator implements IInvoicePdfGenerator {
     doc.text(`Issued: ${data.issuedAt ?? '-'}`);
     doc.moveDown(0.6);
 
-    // Table header
-    const startX = left;
-    let y = doc.y;
-    doc.font('Helvetica-Bold').fontSize(9);
-    let x = startX;
-    for (const col of PdfKitInvoicePdfGenerator.COLUMNS) {
-      doc.text(col.label, x, y, { width: col.width, align: col.key === 'amount' ? 'right' : 'left' });
-      x += col.width;
-    }
-    y += 16;
-    doc.moveTo(startX, y - 4).lineTo(right, y - 4).stroke();
+    // Table header (page 1)
+    let y = this.drawTableHeader(doc, startX, right, doc.y);
 
-    // Rows
+    // Rows — redraw the header whenever a row spills onto a continuation page.
     doc.font('Helvetica').fontSize(9);
     for (const line of data.lines) {
       const cells: Record<string, string> = {
@@ -79,18 +84,17 @@ export class PdfKitInvoicePdfGenerator implements IInvoicePdfGenerator {
         branchName: line.branchName ?? '-',
         amount: this.money(line.amount, data.currency),
       };
-      // Compute the tallest cell so multi-line addresses don't overlap.
+      // Tallest cell so multi-line addresses don't overlap.
       let rowHeight = 0;
-      x = startX;
       for (const col of PdfKitInvoicePdfGenerator.COLUMNS) {
         rowHeight = Math.max(rowHeight, doc.heightOfString(cells[col.key] ?? '', { width: col.width }));
-        x += col.width;
       }
-      if (y + rowHeight > doc.page.height - doc.page.margins.bottom) {
+      if (y + rowHeight > bottomLimit()) {
         doc.addPage();
-        y = doc.page.margins.top;
+        y = this.drawTableHeader(doc, startX, right, doc.page.margins.top);
+        doc.font('Helvetica').fontSize(9);
       }
-      x = startX;
+      let x = startX;
       for (const col of PdfKitInvoicePdfGenerator.COLUMNS) {
         doc.text(cells[col.key] ?? '', x, y, { width: col.width, align: col.key === 'amount' ? 'right' : 'left' });
         x += col.width;
@@ -98,7 +102,12 @@ export class PdfKitInvoicePdfGenerator implements IInvoicePdfGenerator {
       y += rowHeight + 6;
     }
 
-    // Total
+    // Total — guard against being pushed past the page (a financial doc must never clip its total).
+    const TOTAL_BLOCK_HEIGHT = 30;
+    if (y + TOTAL_BLOCK_HEIGHT > bottomLimit()) {
+      doc.addPage();
+      y = doc.page.margins.top;
+    }
     doc.moveTo(startX, y).lineTo(right, y).stroke();
     y += 8;
     doc.font('Helvetica-Bold').fontSize(11).text(

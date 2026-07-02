@@ -97,8 +97,28 @@ export function useMyInvoiceDetail(id: string | undefined) {
   return useDetailQuery<MyInvoiceDetail>(['my-invoice', id], `/v1/billing/invoices/${id}`, { enabled: !!id });
 }
 
-/** Opens the presigned PDF URL for an approved invoice in a new tab. */
+/**
+ * Opens the presigned PDF URL for an approved invoice in a new tab.
+ *
+ * iOS Safari blocks window.open() called AFTER an await (it's considered disconnected from the user
+ * gesture), so the tab is opened synchronously here — before fetching the signed URL — and then
+ * pointed at the URL once it resolves. Note window.open(..., 'noopener') returns null, which would
+ * break this pattern, so we null out `opener` manually for the same reverse-tabnabbing protection.
+ */
 export async function downloadInvoice(id: string): Promise<void> {
-  const res = await apiGet<{ data: { downloadUrl: string; expiresAt: string } }>(`/v1/billing/invoices/${id}/download`);
-  window.open(res.data.downloadUrl, '_blank', 'noopener');
+  const win = window.open('', '_blank');
+  if (win) win.opener = null;
+  try {
+    const res = await apiGet<{ data: { downloadUrl: string; expiresAt: string } }>(`/v1/billing/invoices/${id}/download`);
+    if (win === null) {
+      // Popup was blocked entirely (never opened) — fall back to same-tab navigation.
+      window.location.href = res.data.downloadUrl;
+    } else if (!win.closed) {
+      win.location.href = res.data.downloadUrl;
+    }
+    // else: the user closed the pre-opened tab — do nothing, rather than yanking the SPA tab away.
+  } catch (err) {
+    win?.close();
+    throw err;
+  }
 }

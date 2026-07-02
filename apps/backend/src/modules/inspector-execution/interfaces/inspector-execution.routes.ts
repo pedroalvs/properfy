@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import {
   inspectorScheduleQuerySchema,
@@ -357,24 +357,41 @@ export async function registerInspectorExecutionRoutes(
   // (The legacy free-form /v1/inspector/invoices/draft route was removed in favour of the
   // closed-period request flow below.)
 
+  /**
+   * Guards an INSP-only, must-be-linked route: sends the matching error response and returns null
+   * when the actor is not a linked inspector, otherwise returns the inspector id. Keeps the three
+   * invoice routes below thin and their authorization identical.
+   */
+  const requireLinkedInspector = (
+    auth: { role: string; inspectorId: string | null },
+    reply: FastifyReply,
+    action: string,
+  ): string | null => {
+    if (auth.role !== 'INSP') {
+      reply.status(403).send({ error: { code: 'FORBIDDEN', message: `Only inspectors can ${action}` } });
+      return null;
+    }
+    if (!auth.inspectorId) {
+      reply.status(400).send({ error: { code: 'INSPECTOR_NOT_LINKED', message: 'Inspector not linked to user account' } });
+      return null;
+    }
+    return auth.inspectorId;
+  };
+
   // GET /v1/inspector/invoices/available-periods — selectable closed periods for the inspector cycle
   app.get(
     '/v1/inspector/invoices/available-periods',
     { preHandler: authenticate, schema: { response: { 200: availablePeriodsResponseSchema } } },
     async (request, reply) => {
       const auth = request.authContext!;
-      if (auth.role !== 'INSP') {
-        return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'Only inspectors can list invoice periods' } });
-      }
-      if (!auth.inspectorId) {
-        return reply.status(400).send({ error: { code: 'INSPECTOR_NOT_LINKED', message: 'Inspector not linked to user account' } });
-      }
+      const inspectorId = requireLinkedInspector(auth, reply, 'list invoice periods');
+      if (inspectorId === null) return reply;
       const parsed = availablePeriodsQuerySchema.safeParse(request.query);
       if (!parsed.success) {
         return reply.status(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Invalid query', details: parsed.error.errors } });
       }
       const result = await container.getAvailablePeriodsUseCase.execute({
-        inspectorId: auth.inspectorId,
+        inspectorId,
         count: parsed.data.count,
       });
       return reply.status(200).send(result);
@@ -387,18 +404,14 @@ export async function registerInspectorExecutionRoutes(
     { preHandler: authenticate, schema: { response: { 200: invoicePreviewResponseSchema } } },
     async (request, reply) => {
       const auth = request.authContext!;
-      if (auth.role !== 'INSP') {
-        return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'Only inspectors can preview invoices' } });
-      }
-      if (!auth.inspectorId) {
-        return reply.status(400).send({ error: { code: 'INSPECTOR_NOT_LINKED', message: 'Inspector not linked to user account' } });
-      }
+      const inspectorId = requireLinkedInspector(auth, reply, 'preview invoices');
+      if (inspectorId === null) return reply;
       const parsed = previewInvoiceQuerySchema.safeParse(request.query);
       if (!parsed.success) {
         return reply.status(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Invalid query', details: parsed.error.errors } });
       }
       const result = await container.previewInvoiceUseCase.execute({
-        inspectorId: auth.inspectorId,
+        inspectorId,
         periodStart: parsed.data.periodStart,
         periodEnd: parsed.data.periodEnd,
       });
@@ -412,18 +425,14 @@ export async function registerInspectorExecutionRoutes(
     { preHandler: authenticate, schema: { response: { 201: requestInvoiceResponseSchema } } },
     async (request, reply) => {
       const auth = request.authContext!;
-      if (auth.role !== 'INSP') {
-        return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'Only inspectors can request invoices' } });
-      }
-      if (!auth.inspectorId) {
-        return reply.status(400).send({ error: { code: 'INSPECTOR_NOT_LINKED', message: 'Inspector not linked to user account' } });
-      }
+      const inspectorId = requireLinkedInspector(auth, reply, 'request invoices');
+      if (inspectorId === null) return reply;
       const parsed = requestInvoiceSchema.safeParse(request.body);
       if (!parsed.success) {
         return reply.status(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Invalid request invoice payload', details: parsed.error.errors } });
       }
       const result = await container.requestInvoiceUseCase.execute({
-        inspectorId: auth.inspectorId,
+        inspectorId,
         periodStart: parsed.data.periodStart,
         periodEnd: parsed.data.periodEnd,
       });

@@ -23,7 +23,10 @@ describe('GetAvailablePeriodsUseCase', () => {
     ]);
   });
 
-  it('defaults to FORTNIGHTLY when the inspector has no billing cycle', async () => {
+  it('uses the inspector effective billing cycle to compute the closed periods', async () => {
+    // (The FORTNIGHTLY default-when-unset fallback lives in the entity's effectiveBillingCycle
+    // getter and is covered by the entity tests; here we assert the use case honours whatever it
+    // returns.)
     const uc = new GetAvailablePeriodsUseCase(
       inspectorRepoReturning({ effectiveBillingCycle: 'FORTNIGHTLY' }),
       new FakeClock(NOW),

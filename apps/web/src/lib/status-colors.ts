@@ -136,10 +136,8 @@ export type InvoiceStatus = InspectorInvoiceStatus;
 
 export const INVOICE_STATUS_MAP: Record<InvoiceStatus, StatusStyle> = {
   PENDING_REVIEW: { bg: 'var(--color-invoice-pending-review)', text: 'var(--color-text-primary)', label: 'Pending Review' },
-  OPEN:       { bg: 'var(--color-status-draft)', text: 'var(--color-text-primary)', label: 'Open' },
   CLOSED:     { bg: 'var(--color-invoice-sent)', text: 'var(--color-text-primary)', label: 'Closed' },
   PAID:       { bg: 'var(--color-status-done)', text: 'var(--color-text-primary)', label: 'Paid' },
-  SUPERSEDED: { bg: 'var(--color-status-cancelled)', text: 'var(--color-text-primary)', label: 'Superseded' },
   VOID:       { bg: 'var(--color-status-cancelled)', text: 'var(--color-text-primary)', label: 'Rejected' },
 };
 

@@ -1,14 +1,17 @@
 import { FilterBar } from '@/components/filters/FilterBar';
 import { FilterSelect, type FilterSelectOption } from '@/components/filters/FilterSelect';
 import { FilterDateRange } from '@/components/filters/FilterDateRange';
+import { INVOICE_STATUS_BUCKETS } from '@properfy/shared';
 import type { InvoiceFiltersState } from '../types';
 
-// Product-facing 3-bucket status filter (spec 032): Pending / Approved / Rejected.
+// Product-facing 3-bucket status filter (spec 032). Bucket keys are sourced from the shared
+// contract so a rename on the backend can't silently drift from the UI.
 const STATUS_OPTIONS: FilterSelectOption[] = [
   { label: 'All', value: '' },
-  { label: 'Pending', value: 'pending' },
-  { label: 'Approved', value: 'approved' },
-  { label: 'Rejected', value: 'rejected' },
+  ...Object.keys(INVOICE_STATUS_BUCKETS).map((bucket) => ({
+    label: bucket.charAt(0).toUpperCase() + bucket.slice(1),
+    value: bucket,
+  })),
 ];
 
 interface InvoiceFiltersProps {

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { PreviewInvoiceUseCase } from '../../../src/modules/billing/application/use-cases/preview-invoice.use-case';
 import {
+  InspectorNotFoundError,
   InvoicePeriodNotAlignedError,
   InvoicePeriodNotClosedError,
 } from '../../../src/modules/billing/domain/billing.errors';
@@ -37,6 +38,23 @@ describe('PreviewInvoiceUseCase', () => {
     const result = await uc.execute({ inspectorId: 'insp-1', ...CLOSED });
     expect(result.payoutCount).toBe(0);
     expect(result.currency).toBeNull();
+  });
+
+  it('reports null currency (a preview, not a rejection) when payouts span multiple currencies', async () => {
+    // Preview intentionally never rejects on mixed currency — it surfaces currency=null and the
+    // subsequent request is what enforces InvoiceMixedCurrencyError.
+    const { uc } = build({ totalAmount: 700, count: 2, currencies: ['AUD', 'USD'] });
+    const result = await uc.execute({ inspectorId: 'insp-1', ...CLOSED });
+    expect(result.payoutCount).toBe(2);
+    expect(result.currency).toBeNull();
+  });
+
+  it('throws InspectorNotFoundError when the inspector does not exist', async () => {
+    const inspectorRepo = { findById: vi.fn().mockResolvedValue(null) } as any;
+    const financialEntryRepo = { aggregateApprovedPayoutsForInspectorInPeriod: vi.fn() } as any;
+    const uc = new PreviewInvoiceUseCase(inspectorRepo, financialEntryRepo, new FakeClock(NOW));
+    await expect(uc.execute({ inspectorId: 'nope', ...CLOSED })).rejects.toBeInstanceOf(InspectorNotFoundError);
+    expect(financialEntryRepo.aggregateApprovedPayoutsForInspectorInPeriod).not.toHaveBeenCalled();
   });
 
   it('rejects a period that is not cycle-aligned', async () => {

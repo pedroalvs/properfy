@@ -64,15 +64,18 @@ export interface IFinancialEntryRepository {
     periodEnd: Date,
   ): Promise<{ totalAmount: number; count: number; currencies: string[] }>;
   /**
-   * Builds the frozen snapshot lines for an invoice: one line per approved INSPECTOR_PAYOUT entry
-   * in the period, joined to appointment → property / branch / service type / tenant (agency).
-   * Agency and branch are line-level attributes only. (spec 032)
+   * Builds the frozen snapshot lines for an invoice from a SINGLE read: one line per approved
+   * INSPECTOR_PAYOUT entry in the period, joined to appointment → property / branch / service type
+   * / tenant (agency), plus the distinct currencies across those entries. Returning currencies here
+   * lets the approval validate emptiness/currency against the exact rows being frozen (no TOCTOU
+   * window between a separate aggregate check and the snapshot). Agency/branch are line-level only.
+   * (spec 032)
    */
   findApprovedPayoutLinesForSnapshot(
     inspectorId: string,
     periodStart: Date,
     periodEnd: Date,
-  ): Promise<InvoiceSnapshotLine[]>;
+  ): Promise<{ lines: InvoiceSnapshotLine[]; currencies: string[] }>;
   sumRefundsByReferenceEntryId(referenceEntryId: string): Promise<number>;
   sumApprovedEntriesForTenantInPeriod(tenantId: string, periodStart: Date, periodEnd: Date): Promise<{
     totalDebit: number;

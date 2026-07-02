@@ -5,7 +5,7 @@ export interface InvoiceFilters {
   inspectorId?: string;
   status?: InspectorInvoiceStatus;
   /** Persisted statuses to match (from a product status bucket). */
-  statusIn?: string[];
+  statusIn?: InspectorInvoiceStatus[];
   /** Content filter: invoices whose snapshot has ≥1 line for this agency (tenant). */
   agencyId?: string;
   /** Content filter: invoices whose snapshot has ≥1 line for this branch. */
@@ -77,6 +77,12 @@ export interface IInspectorInvoiceRepository {
       generatedByUserId: string;
     },
   ): Promise<number | null>;
+  /**
+   * Atomically transitions PENDING_REVIEW → VOID with the reason via a conditional update, so a
+   * concurrent approval cannot be silently overwritten. Returns true iff this call performed the
+   * transition (0 rows → lost the race to an approve/reject). (spec 032)
+   */
+  voidIfPendingReview(invoiceId: string, reason: string): Promise<boolean>;
   /**
    * Returns raw aggregate rows grouped by (status, currency) filtered by issuedAt range.
    * Only includes invoices in CLOSED or PAID status.

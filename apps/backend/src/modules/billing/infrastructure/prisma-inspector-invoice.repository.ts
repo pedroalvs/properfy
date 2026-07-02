@@ -1,5 +1,6 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
 import type { InspectorInvoiceStatus, BillingPeriodType, InvoiceSnapshotLine } from '@properfy/shared';
+import { ACTIVE_INVOICE_STATUSES } from '@properfy/shared';
 import { InspectorInvoiceEntity } from '../domain/inspector-invoice.entity';
 import type {
   IInspectorInvoiceRepository,
@@ -32,7 +33,6 @@ function mapToEntity(row: any): InspectorInvoiceEntity {
     currency: row.currency,
     lineItemsSnapshot: (row.line_items_snapshot as InvoiceSnapshotLine[] | null) ?? null,
     fileKey: row.file_key,
-    previousInvoiceId: row.previous_invoice_id ?? null,
     generatedByUserId: row.generated_by_user_id,
     issuedAt: row.issued_at,
     paidAt: row.paid_at,
@@ -107,7 +107,7 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
         inspector_id: inspectorId,
         period_start: periodStart,
         period_end: periodEnd,
-        status: { in: ['PENDING_REVIEW', 'CLOSED', 'PAID'] },
+        status: { in: [...ACTIVE_INVOICE_STATUSES] },
       },
       include: { inspector: { select: { name: true } } },
     });
@@ -159,7 +159,6 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
         currency: invoice.currency,
         line_items_snapshot: toSnapshotJson(invoice.lineItemsSnapshot),
         file_key: invoice.fileKey,
-        previous_invoice_id: invoice.previousInvoiceId,
         generated_by_user_id: invoice.generatedByUserId,
         issued_at: invoice.issuedAt,
         paid_at: invoice.paidAt,
@@ -223,6 +222,14 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
       });
       return result.count === 1 ? n : null;
     });
+  }
+
+  async voidIfPendingReview(invoiceId: string, reason: string): Promise<boolean> {
+    const result = await this.prisma.inspectorInvoice.updateMany({
+      where: { id: invoiceId, status: 'PENDING_REVIEW' },
+      data: { status: 'VOID', notes: reason },
+    });
+    return result.count === 1;
   }
 
   async getReconciliationAggregates(

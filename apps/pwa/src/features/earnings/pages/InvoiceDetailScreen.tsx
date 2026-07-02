@@ -18,7 +18,9 @@ export function InvoiceDetailScreen() {
     setDownloadError(null);
     try {
       await downloadInvoice(invoice.id);
-    } catch {
+    } catch (err) {
+      // Keep the real error in the console for production diagnosis; show a friendly message.
+      console.error('Invoice PDF download failed', err);
       setDownloadError('The PDF is not ready yet. Please try again shortly.');
     } finally {
       setDownloading(false);

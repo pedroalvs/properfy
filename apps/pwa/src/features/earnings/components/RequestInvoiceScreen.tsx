@@ -8,6 +8,7 @@ import {
   useRequestInvoice,
   type AvailablePeriod,
 } from '../hooks/useInspectorInvoices';
+import { formatInvoiceCurrency } from '../lib/invoiceStatus';
 
 const ERROR_MESSAGES: Record<string, string> = {
   INVOICE_EMPTY_PERIOD: 'No approved payouts found for the selected period.',
@@ -16,10 +17,6 @@ const ERROR_MESSAGES: Record<string, string> = {
   INVOICE_PERIOD_NOT_CLOSED: 'This period has not finished yet.',
   INVOICE_PERIOD_NOT_ALIGNED: 'The period does not match your billing cycle.',
 };
-
-function formatCurrency(amount: number, currency = 'AUD'): string {
-  return new Intl.NumberFormat('en-AU', { style: 'currency', currency }).format(amount);
-}
 
 const PERIOD_LABELS: Record<string, string> = { WEEKLY: 'Weekly', FORTNIGHTLY: 'Fortnightly', MONTHLY: 'Monthly' };
 
@@ -52,7 +49,7 @@ export function RequestInvoiceScreen() {
             data-testid="request-invoice-success"
           >
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">Request submitted</p>
-            <p className="mt-3 text-2xl font-bold tracking-tight">{formatCurrency(request.data.totalAmount, request.data.currency)}</p>
+            <p className="mt-3 text-2xl font-bold tracking-tight">{formatInvoiceCurrency(request.data.totalAmount, request.data.currency)}</p>
             <p className="mt-1 text-sm text-white/80">{request.data.payoutCount} payout{request.data.payoutCount === 1 ? '' : 's'} · awaiting review</p>
             <p className="mt-1 text-xs text-white/60">Period: {request.data.periodStart} to {request.data.periodEnd}</p>
             <div className="mt-4 flex gap-2">
@@ -106,7 +103,7 @@ export function RequestInvoiceScreen() {
                   <div className="mt-3 flex items-end justify-between">
                     <div>
                       <p className="text-2xl font-bold text-text-primary">
-                        {formatCurrency(previewQuery.data.totalAmount, previewQuery.data.currency ?? 'AUD')}
+                        {formatInvoiceCurrency(previewQuery.data.totalAmount, previewQuery.data.currency ?? 'AUD')}
                       </p>
                       <p className="mt-0.5 text-xs text-text-secondary">
                         {previewQuery.data.payoutCount} approved payout{previewQuery.data.payoutCount === 1 ? '' : 's'}

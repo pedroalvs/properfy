@@ -46,8 +46,15 @@ export class RejectDraftInvoiceUseCase {
       throw new InvoiceNotPendingReviewError();
     }
 
-    // 4. Transition PENDING_REVIEW → VOID, retaining the row and the reason (no hard delete).
-    await this.invoiceRepo.update(invoiceId, { status: 'VOID', notes: reason });
+    // 4. Transition PENDING_REVIEW → VOID via the domain method (validates the reason), then persist
+    //    with a guarded conditional update so a concurrent approval can't be silently overwritten.
+    //    Retained in history (no hard delete).
+    invoice.void(reason);
+    const transitioned = await this.invoiceRepo.voidIfPendingReview(invoiceId, invoice.notes ?? reason);
+    if (!transitioned) {
+      // Lost the race — the invoice was approved/rejected concurrently.
+      throw new InvoiceNotPendingReviewError();
+    }
 
     // 5. Audit.
     this.auditService.log({
@@ -61,7 +68,8 @@ export class RejectDraftInvoiceUseCase {
         invoiceId,
         draftedByInspectorId: invoice.draftedByInspectorId,
         rejectedByUserId: actor.userId,
-        reason,
+        // Log the persisted (trimmed) reason so the audit trail matches invoice.notes exactly.
+        reason: invoice.notes,
       },
     });
 

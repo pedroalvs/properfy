@@ -10,12 +10,11 @@ function makeInvoice(overrides: Partial<InspectorInvoiceProps> = {}): InspectorI
     periodStart: new Date('2026-03-01'),
     periodEnd: new Date('2026-03-15'),
     periodType: 'FORTNIGHTLY',
-    status: 'OPEN',
+    status: 'PENDING_REVIEW',
     totalAmount: 1400,
     currency: 'BRL',
     lineItemsSnapshot: null,
     fileKey: null,
-    previousInvoiceId: null,
     generatedByUserId: null,
     issuedAt: null,
     paidAt: null,
@@ -38,7 +37,7 @@ describe('InspectorInvoiceEntity', () => {
     expect(invoice.periodStart).toEqual(new Date('2026-03-01'));
     expect(invoice.periodEnd).toEqual(new Date('2026-03-15'));
     expect(invoice.periodType).toBe('FORTNIGHTLY');
-    expect(invoice.status).toBe('OPEN');
+    expect(invoice.status).toBe('PENDING_REVIEW');
     expect(invoice.totalAmount).toBe(1400);
     expect(invoice.currency).toBe('BRL');
     expect(invoice.fileKey).toBeNull();
@@ -54,8 +53,8 @@ describe('InspectorInvoiceEntity', () => {
       expect(invoice.isClosed()).toBe(true);
     });
 
-    it('should return false when status is OPEN', () => {
-      const invoice = makeInvoice({ status: 'OPEN' });
+    it('should return false when status is PENDING_REVIEW', () => {
+      const invoice = makeInvoice({ status: 'PENDING_REVIEW' });
       expect(invoice.isClosed()).toBe(false);
     });
 
@@ -71,8 +70,8 @@ describe('InspectorInvoiceEntity', () => {
       expect(invoice.isPaid()).toBe(true);
     });
 
-    it('should return false when status is OPEN', () => {
-      const invoice = makeInvoice({ status: 'OPEN' });
+    it('should return false when status is PENDING_REVIEW', () => {
+      const invoice = makeInvoice({ status: 'PENDING_REVIEW' });
       expect(invoice.isPaid()).toBe(false);
     });
 
@@ -93,8 +92,8 @@ describe('InspectorInvoiceEntity', () => {
       expect(invoice.isReady()).toBe(true);
     });
 
-    it('should return false when status is OPEN', () => {
-      const invoice = makeInvoice({ status: 'OPEN' });
+    it('should return false when status is PENDING_REVIEW', () => {
+      const invoice = makeInvoice({ status: 'PENDING_REVIEW' });
       expect(invoice.isReady()).toBe(false);
     });
   });
@@ -135,7 +134,7 @@ describe('InspectorInvoiceEntity', () => {
     it.each(['PENDING_REVIEW', 'CLOSED', 'PAID'] as const)('is active for %s', (status) => {
       expect(makeInvoice({ status }).isActive()).toBe(true);
     });
-    it.each(['VOID', 'SUPERSEDED'] as const)('is not active for %s', (status) => {
+    it.each(['VOID'] as const)('is not active for %s', (status) => {
       expect(makeInvoice({ status }).isActive()).toBe(false);
     });
   });
@@ -202,6 +201,11 @@ describe('InspectorInvoiceEntity', () => {
     it('throws when the invoice is not PENDING_REVIEW', () => {
       const invoice = makeInvoice({ status: 'CLOSED' });
       expect(() => invoice.void('reason')).toThrow();
+    });
+
+    it('throws when the reason is empty or whitespace', () => {
+      expect(() => makeInvoice({ status: 'PENDING_REVIEW' }).void('')).toThrow();
+      expect(() => makeInvoice({ status: 'PENDING_REVIEW' }).void('   ')).toThrow();
     });
   });
 });

@@ -82,8 +82,8 @@ describe('ApproveDraftInvoiceUseCase', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     invoiceRepo.findById.mockResolvedValue(makePendingReviewInvoice());
-    financialEntryRepo.aggregateApprovedPayoutsForInspectorInPeriod.mockResolvedValue({ totalAmount: 700, count: 2, currencies: ['AUD'] });
-    financialEntryRepo.findApprovedPayoutLinesForSnapshot.mockResolvedValue(SNAPSHOT);
+    // Single read now returns both the frozen lines and the currencies (closes the TOCTOU window).
+    financialEntryRepo.findApprovedPayoutLinesForSnapshot.mockResolvedValue({ lines: SNAPSHOT, currencies: ['AUD'] });
     invoiceRepo.assignNumberAndFreeze.mockResolvedValue(42);
   });
 
@@ -130,13 +130,13 @@ describe('ApproveDraftInvoiceUseCase', () => {
   });
 
   it('rejects when the period has no approved payouts at approval time', async () => {
-    financialEntryRepo.aggregateApprovedPayoutsForInspectorInPeriod.mockResolvedValue({ totalAmount: 0, count: 0, currencies: [] });
+    financialEntryRepo.findApprovedPayoutLinesForSnapshot.mockResolvedValue({ lines: [], currencies: [] });
     await expect(makeSut().execute({ invoiceId: 'inv-1', actor: opActor })).rejects.toThrow(InvoiceEmptyPeriodError);
     expect(invoiceRepo.assignNumberAndFreeze).not.toHaveBeenCalled();
   });
 
   it('rejects when payouts span multiple currencies at approval time', async () => {
-    financialEntryRepo.aggregateApprovedPayoutsForInspectorInPeriod.mockResolvedValue({ totalAmount: 700, count: 2, currencies: ['AUD', 'USD'] });
+    financialEntryRepo.findApprovedPayoutLinesForSnapshot.mockResolvedValue({ lines: SNAPSHOT, currencies: ['AUD', 'USD'] });
     await expect(makeSut().execute({ invoiceId: 'inv-1', actor: opActor })).rejects.toThrow(InvoiceMixedCurrencyError);
   });
 
