@@ -5,6 +5,7 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { NotFoundError } from '../../../../shared/domain/errors';
 import { ServiceGroupValidator, type AddToGroupReason } from '../../domain/service-group.validator';
+import { trySyncAppointmentTimeSlotToGroup, type ServiceGroupTimeSyncLogger } from '../sync-appointment-time-slot-to-group';
 
 export type AddToGroupResultStatus = 'OK' | AddToGroupReason | 'NOT_FOUND' | 'ERROR';
 
@@ -45,6 +46,7 @@ export class AddAppointmentsToGroupUseCase {
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
+    private readonly logger: ServiceGroupTimeSyncLogger = { error: () => undefined },
   ) {}
 
   async execute(input: AddAppointmentsToGroupInput): Promise<AddAppointmentsToGroupOutput> {
@@ -107,6 +109,16 @@ export class AddAppointmentsToGroupUseCase {
       try {
         await this.groupRepo.linkAppointments([apptId], input.groupId);
         currentSize += 1;
+
+        await trySyncAppointmentTimeSlotToGroup({
+          appointmentRepo: this.appointmentRepo,
+          auditService: this.auditService,
+          appointment,
+          groupTimeWindow: group.timeWindow,
+          groupId: input.groupId,
+          actor: input.actor,
+          logger: this.logger,
+        });
 
         if (appointment.status === 'DRAFT') {
           // DRAFT→AWAITING_INSPECTOR rule = OP+SYS; system-triggered by group add.
