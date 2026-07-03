@@ -728,6 +728,12 @@ describe('UpdateAppointmentUseCase', () => {
         'DATE_CHANGED',
       );
       expect(result.rentalTenantConfirmationStatus).toBe('PENDING');
+      // Conservative ordering: reset runs BEFORE the date is persisted, so a
+      // partial failure leaves the old date in place and a retry re-detects
+      // the change (a stale CONFIRMED cycle can never survive).
+      expect(cycleService.rotateOnDateChange.mock.invocationCallOrder[0]!).toBeLessThan(
+        vi.mocked(appointmentRepo.update).mock.invocationCallOrder[0]!,
+      );
     });
 
     it('rotates with TIME_CHANGED when only the time slot changed', async () => {
@@ -790,7 +796,11 @@ describe('UpdateAppointmentUseCase', () => {
 
       expect(tokenRepo.revokeAllForAppointment).toHaveBeenCalledWith('appt-1');
       expect(auditService.log).toHaveBeenCalledWith(
-        expect.objectContaining({ action: 'rental_tenant_portal.tokens_revoked' }),
+        expect.objectContaining({
+          action: 'rental_tenant_portal.tokens_revoked',
+          tenantId: 'tenant-1',
+          entityId: 'appt-1',
+        }),
       );
     });
 

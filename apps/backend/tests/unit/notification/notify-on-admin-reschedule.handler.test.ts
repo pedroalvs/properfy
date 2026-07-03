@@ -179,6 +179,32 @@ describe('NotifyOnAdminRescheduleHandler', () => {
     );
   });
 
+  it('skips silently when the tenant is not found', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment(),
+      contact: makeContact(),
+      restrictions: [],
+    });
+    tenantRepo.findById.mockResolvedValue(null);
+
+    await makeHandler().execute({ appointmentId: 'appt-1', tenantId: 'tenant-1' });
+
+    expect(createNotification.execute).not.toHaveBeenCalled();
+  });
+
+  it('skips silently when the contact has neither email nor phone', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment(),
+      contact: makeContact({ primaryEmail: null, primaryPhone: null }),
+      restrictions: [],
+    });
+    tenantRepo.findById.mockResolvedValue(makeTenant());
+
+    await makeHandler().execute({ appointmentId: 'appt-1', tenantId: 'tenant-1' });
+
+    expect(createNotification.execute).not.toHaveBeenCalled();
+  });
+
   it('skips silently when the appointment has no contact', async () => {
     appointmentRepo.findById.mockResolvedValue({
       appointment: makeAppointment(),

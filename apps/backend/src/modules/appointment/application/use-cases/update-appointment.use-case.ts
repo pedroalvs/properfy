@@ -248,15 +248,17 @@ export class UpdateAppointmentUseCase {
       updateData.rentalTenantConfirmationStatus = 'PENDING';
     }
 
-    await this.appointmentRepo.update(
-      appointmentId,
-      appointment.tenantId,
-      updateData,
-    );
-
+    // Confirmation reset + token revoke run BEFORE the appointment update.
+    // The three writes cannot share a transaction (the appointment repository
+    // has no tx-aware update — same architectural gap as reopen-for-reschedule),
+    // so ordering is chosen for a conservative failure mode: if a later step
+    // fails, the appointment still holds the OLD date and `scheduleChanged`
+    // re-detects the change on retry, re-running the reset. The reverse order
+    // would let a stale CONFIRMED cycle survive a partial failure, because the
+    // retry would see the new date already persisted and skip the reset.
     if (scheduleChanged) {
-      // Confirmation reset: supersede the active cycle and open a new PENDING one
-      // for the new date/time (denorm cache updated inside the service).
+      // Supersede the active cycle and open a new PENDING one for the new
+      // date/time (denorm cache updated atomically inside the service).
       if (this.confirmationCycleService && appointment.activeConfirmationCycleId) {
         const newDate = updateData.scheduledDate ?? appointment.scheduledDate;
         const newStart = updateData.timeSlotStart ?? appointment.timeSlotStart;
@@ -283,19 +285,26 @@ export class UpdateAppointmentUseCase {
           metadata: { reason: 'schedule_edit', initiatedBy: actor.role },
         });
       }
+    }
 
-      // SCHEDULED keeps its status and inspector, so no →SCHEDULED transition will
-      // fire INSPECTION_NOTICE — notify the rental tenant of the new date here.
-      // Fire-and-forget: a notification failure must not fail the PATCH.
-      if (appointment.status === 'SCHEDULED' && this.onAdminRescheduleHandler) {
-        try {
-          await this.onAdminRescheduleHandler.execute({
-            appointmentId,
-            tenantId: appointment.tenantId,
-          });
-        } catch {
-          // Handler logs and counts its own failures.
-        }
+    await this.appointmentRepo.update(
+      appointmentId,
+      appointment.tenantId,
+      updateData,
+    );
+
+    // SCHEDULED keeps its status and inspector, so no →SCHEDULED transition will
+    // fire INSPECTION_NOTICE — notify the rental tenant of the new date here,
+    // after the update is persisted. Fire-and-forget: a notification failure
+    // must not fail the PATCH.
+    if (scheduleChanged && appointment.status === 'SCHEDULED' && this.onAdminRescheduleHandler) {
+      try {
+        await this.onAdminRescheduleHandler.execute({
+          appointmentId,
+          tenantId: appointment.tenantId,
+        });
+      } catch {
+        // Handler logs and counts its own failures.
       }
     }
 

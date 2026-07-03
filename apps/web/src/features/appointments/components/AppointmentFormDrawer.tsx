@@ -280,6 +280,13 @@ export function AppointmentFormDrawer({
       form.timeSlotEnd !== initialData.timeSlotEnd);
   const showRescheduleWarning =
     scheduleChanged && appointment?.status === AppointmentStatus.SCHEDULED;
+  const scheduleDescribedBy =
+    [
+      isInServiceGroup ? 'appointment-schedule-group-note' : null,
+      showRescheduleWarning ? 'appointment-schedule-reschedule-note' : null,
+    ]
+      .filter(Boolean)
+      .join(' ') || undefined;
   const canAssignInspector =
     isEditMode &&
     canAssignRole &&
@@ -607,7 +614,7 @@ export function AppointmentFormDrawer({
                       />
                     </FormField>
                     {isInServiceGroup && (
-                      <div className="md:col-span-2">
+                      <div className="md:col-span-2" id="appointment-schedule-group-note">
                         <InfoBanner>
                           This appointment belongs to a service group — its date and time are
                           managed by the group. Reschedule the group from the map view instead.
@@ -615,7 +622,7 @@ export function AppointmentFormDrawer({
                       </div>
                     )}
                     {showRescheduleWarning && (
-                      <div className="md:col-span-2">
+                      <div className="md:col-span-2" id="appointment-schedule-reschedule-note">
                         <InfoBanner>
                           Changing the date or time resets the tenant confirmation to Pending and
                           sends the tenant a new notification with the updated schedule.
@@ -637,6 +644,7 @@ export function AppointmentFormDrawer({
                         })()}
                         error={!!errors.scheduledDate}
                         aria-label="Scheduled Date"
+                        aria-describedby={scheduleDescribedBy}
                       />
                     </FormField>
                     <FormField label="Time Slot" required error={[errors.timeSlotStart, errors.timeSlotEnd].filter(Boolean).join(' ') || undefined}>
@@ -653,6 +661,7 @@ export function AppointmentFormDrawer({
                         }
                         error={!!errors.timeSlotStart || !!errors.timeSlotEnd}
                         idPrefix="appointment-time"
+                        aria-describedby={scheduleDescribedBy}
                       />
                     </FormField>
                   </FormSection>

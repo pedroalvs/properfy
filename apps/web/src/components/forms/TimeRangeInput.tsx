@@ -11,6 +11,7 @@ interface TimeRangeInputProps {
   error?: boolean;
   /** Distinct DOM id prefix so multiple instances on one form stay unique/accessible. */
   idPrefix?: string;
+  'aria-describedby'?: string;
 }
 
 export function TimeRangeInput({
@@ -22,6 +23,7 @@ export function TimeRangeInput({
   disabled,
   error,
   idPrefix = 'time-range',
+  'aria-describedby': ariaDescribedBy,
 }: TimeRangeInputProps) {
   return (
     <div className="flex items-center gap-2">
@@ -33,6 +35,7 @@ export function TimeRangeInput({
         disabled={disabled}
         error={error}
         aria-label="Start time"
+        aria-describedby={ariaDescribedBy}
       />
       <span className="text-sm text-text-muted">to</span>
       <TimeInput
@@ -42,6 +45,7 @@ export function TimeRangeInput({
         disabled={disabled}
         error={error}
         aria-label="End time"
+        aria-describedby={ariaDescribedBy}
       />
     </div>
   );
