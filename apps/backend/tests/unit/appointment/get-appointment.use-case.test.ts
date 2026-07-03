@@ -237,6 +237,33 @@ describe('GetAppointmentUseCase', () => {
     expect(result.restrictions).toHaveLength(0);
   });
 
+  it('should return serviceGroupId and serviceGroupCode for a grouped appointment', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue({
+      ...makeAppointmentWithRelations({ serviceGroupId: 'group-1' }),
+      serviceGroupNumber: 12,
+    });
+
+    const result = await useCase.execute({
+      appointmentId: 'appt-1',
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(result.serviceGroupId).toBe('group-1');
+    expect(result.serviceGroupCode).toBe('12');
+  });
+
+  it('should return null serviceGroupId/serviceGroupCode for an ungrouped appointment', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+
+    const result = await useCase.execute({
+      appointmentId: 'appt-1',
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(result.serviceGroupId).toBeNull();
+    expect(result.serviceGroupCode).toBeNull();
+  });
+
   it('should deny TNT role access', async () => {
     await expect(
       useCase.execute({

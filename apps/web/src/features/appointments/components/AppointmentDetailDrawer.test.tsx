@@ -56,7 +56,7 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
     if (id === 'done') {
       return {
         appointment: {
-          id: 'done', code: 'VST-002', appointmentNumber: 2, status: 'DONE', branchName: 'Downtown Branch',
+          id: 'done', appointmentCode: 'INS-002', appointmentNumber: 2, status: 'DONE', branchName: 'Downtown Branch',
           branchId: 'branch-1', propertyId: 'prop-1', propertyAddress: '123 Flower Street',
           serviceTypeId: 'st-1', serviceTypeName: 'Inspection', tenantId: 'tenant-1',
           rentalTenantConfirmationStatus: 'CONFIRMED', contactName: 'John', scheduledDate: '2026-04-01',
@@ -71,7 +71,7 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
     }
     return {
       appointment: {
-        id: 'apt-01', code: 'VST-001', appointmentNumber: 1, status: 'DRAFT', branchName: 'Downtown Branch',
+        id: 'apt-01', appointmentCode: 'INS-001', appointmentNumber: 1, status: 'DRAFT', branchName: 'Downtown Branch',
         branchId: 'branch-1', propertyId: 'prop-1', propertyAddress: '123 Flower Street',
         serviceTypeId: 'st-1', serviceTypeName: 'Inspection', tenantId: 'tenant-1',
         rentalTenantConfirmationStatus: 'PENDING', contactName: 'John', scheduledDate: '2026-04-01',
@@ -137,7 +137,7 @@ function renderDrawer(props: { appointmentId: string | null; open: boolean; onCl
 describe('AppointmentDetailDrawer', () => {
   it('renders drawer with appointment code in header', () => {
     renderDrawer({ appointmentId: 'apt-01', open: true });
-    expect(screen.getByText(/VST-001/)).toBeInTheDocument();
+    expect(screen.getByText(/INS-001/)).toBeInTheDocument();
   });
 
   it('shows status chip in header', () => {

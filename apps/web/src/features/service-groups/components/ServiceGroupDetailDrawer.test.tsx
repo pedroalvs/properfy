@@ -55,7 +55,7 @@ vi.mock('../hooks/useServiceGroupDetail', () => ({
     if (id === 'loading') return { serviceGroup: null, isLoading: true, isError: false, refetch: vi.fn() };
     return {
       serviceGroup: {
-        id: 'sg-01', name: 'Zona Sul SP', regionName: 'São Paulo - Zona Sul',
+        id: 'sg-01', groupNumber: 12, code: '12', regionName: 'São Paulo - Zona Sul',
         status: 'PUBLISHED', priorityMode: 'STANDARD', inspectorName: 'Carlos Silva',
         inspectorId: 'insp-01', tenantId: 'tenant-1',
         appointmentsCount: 3,
@@ -115,9 +115,9 @@ function renderDrawer(props: { serviceGroupId: string | null; open: boolean; onC
 }
 
 describe('ServiceGroupDetailDrawer', () => {
-  it('renders drawer with service group name in header', () => {
+  it('renders drawer with service group code in header', () => {
     renderDrawer({ serviceGroupId: 'sg-01', open: true });
-    const matches = screen.getAllByText('Zona Sul SP');
+    const matches = screen.getAllByText('Group 12');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 

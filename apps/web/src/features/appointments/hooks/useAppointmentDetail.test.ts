@@ -32,7 +32,7 @@ const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_APPOINTMENT = {
   id: 'apt-01',
-  code: 'VST-001',
+  appointmentCode: 'INS-0042',
   status: 'SCHEDULED',
   contactName: 'João',
   address: 'Rua das Flores, 123',
@@ -53,7 +53,7 @@ describe('useAppointmentDetail', () => {
     });
 
     expect(result.current.appointment).not.toBeNull();
-    expect(result.current.appointment?.code).toBe('VST-001');
+    expect(result.current.appointment?.appointmentCode).toBe('INS-0042');
   });
 
   it('returns null when id is null', () => {

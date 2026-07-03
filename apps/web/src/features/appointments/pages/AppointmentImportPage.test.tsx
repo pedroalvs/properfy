@@ -197,6 +197,27 @@ describe('AppointmentImportPage', () => {
     await waitFor(() => expect(screen.getByText('Next')).not.toBeDisabled());
   });
 
+  it('removes the staged file and disables Next again when the remove button is clicked', async () => {
+    setRole('CL_ADMIN', 'tenant-1');
+    mockGet.mockImplementation((path: string) => {
+      if (path === '/v1/branches') return list([{ id: 'branch-9', name: 'Branch Nine' }]);
+      return list([]);
+    });
+    renderPage();
+
+    fireEvent.click(screen.getByLabelText('Branch'));
+    fireEvent.click(await screen.findByText('Branch Nine'));
+    const file = new File(['data'], 'import.csv', { type: 'text/csv' });
+    fireEvent.change(screen.getByTestId('file-input'), { target: { files: [file] } });
+    await waitFor(() => expect(screen.getByText('Next')).not.toBeDisabled());
+    expect(screen.getByText('import.csv')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /remove/i }));
+
+    expect(screen.queryByText('import.csv')).not.toBeInTheDocument();
+    expect(screen.getByText('Next')).toBeDisabled();
+  });
+
   it('resets the branch selection when the agency changes', async () => {
     mockGet.mockImplementation((path: string) => {
       if (path === '/v1/tenants') return list([{ id: 'tenant-1', name: 'Agency One' }, { id: 'tenant-2', name: 'Agency Two' }]);

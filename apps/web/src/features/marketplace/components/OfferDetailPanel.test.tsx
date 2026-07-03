@@ -27,6 +27,8 @@ function makeDetailAppointment(overrides: Partial<MarketplaceOfferDetail['appoin
     notes: null,
     payoutAmount: 150,
     tenantName: 'Acme Realty',
+    timeSlotStart: '09:00',
+    timeSlotEnd: '10:00',
     ...overrides,
   };
 }

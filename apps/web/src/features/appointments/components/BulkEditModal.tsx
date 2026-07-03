@@ -320,6 +320,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
               type="date"
               value={values.scheduledDate ?? ''}
               onChange={(e) => setFieldValue('scheduledDate', e.target.value)}
+              onClick={(e) => e.currentTarget.showPicker?.()}
               min={todayLocalDateString()}
               className="w-full rounded border border-border-subtle bg-card-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-primary"
             />

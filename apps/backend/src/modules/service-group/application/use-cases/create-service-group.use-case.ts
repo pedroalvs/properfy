@@ -21,7 +21,6 @@ export interface CreateServiceGroupInput {
   serviceTypeId: string;
   scheduledDate: string; // YYYY-MM-DD
   timeWindow: string; // HH:mm-HH:mm
-  name?: string;
   serviceRegionId?: string | null;
   description?: string;
   priorityMode: PriorityMode;
@@ -41,7 +40,6 @@ export interface CreateServiceGroupOutput {
   confirmedCount: number;
   scheduledDate: Date;
   timeWindow: string;
-  name: string | null;
   regionName: string | null;
   description: string | null;
   priorityMode: string;
@@ -172,7 +170,6 @@ export class CreateServiceGroupUseCase {
       confirmedCount: 0,
       scheduledDate: new Date(input.scheduledDate),
       timeWindow: input.timeWindow,
-      name: input.name ?? null,
       regionName,
       description: input.description ?? null,
       priorityMode: input.priorityMode,
@@ -255,7 +252,6 @@ export class CreateServiceGroupUseCase {
       confirmedCount: group.confirmedCount,
       scheduledDate: group.scheduledDate,
       timeWindow: group.timeWindow,
-      name: group.name,
       regionName: group.regionName,
       description: group.description,
       priorityMode: group.priorityMode,

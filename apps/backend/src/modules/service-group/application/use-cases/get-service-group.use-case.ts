@@ -21,7 +21,6 @@ export interface GetServiceGroupOutput {
   confirmedCount: number;
   scheduledDate: Date;
   timeWindow: string;
-  name: string | null;
   serviceRegionId: string | null;
   regionName: string | null;
   description: string | null;
@@ -76,7 +75,6 @@ export class GetServiceGroupUseCase {
       confirmedCount: group.confirmedCount,
       scheduledDate: group.scheduledDate,
       timeWindow: group.timeWindow,
-      name: group.name,
       serviceRegionId: group.serviceRegionId,
       regionName: group.regionName,
       description: group.description,

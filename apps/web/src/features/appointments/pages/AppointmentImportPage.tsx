@@ -94,6 +94,10 @@ export function AppointmentImportPage() {
     setSelectedFile(file);
   }, []);
 
+  const handleRemoveFile = useCallback(() => {
+    setSelectedFile(null);
+  }, []);
+
   const runPreview = useCallback(async () => {
     if (!selectedFile || !branchId) return;
     setPreviewFailed(false);
@@ -199,6 +203,7 @@ export function AppointmentImportPage() {
               acceptedTypes={['.csv', '.xlsx']}
               maxSizeMB={5}
               selectedFile={selectedFile}
+              onRemove={handleRemoveFile}
             />
             <div className="flex justify-end pt-2">
               <Button onClick={runPreview} disabled={!canPreview} loading={isPreviewing}>

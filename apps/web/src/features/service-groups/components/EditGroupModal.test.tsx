@@ -24,7 +24,6 @@ vi.mock('./RegionSelector', () => ({
 const mockServiceGroup = {
   id: 'sg-01',
   tenantId: 'ten-1',
-  name: 'Test Group',
   serviceRegionId: 'r1',
   regionName: 'North',
   inspectorId: null,
@@ -76,7 +75,7 @@ describe('EditGroupModal', () => {
     expect(screen.queryByText('Edit Service Group')).not.toBeInTheDocument();
   });
 
-  it('shows name field pre-filled', () => {
+  it('does not render a name field (group identity is the code)', () => {
     render(
       <EditGroupModal
         open={true}
@@ -85,8 +84,7 @@ describe('EditGroupModal', () => {
         onSaved={vi.fn()}
       />,
     );
-    const nameInput = screen.getByLabelText('Service group name');
-    expect(nameInput).toHaveValue('Test Group');
+    expect(screen.queryByLabelText('Service group name')).not.toBeInTheDocument();
   });
 
   it('shows description field pre-filled', () => {
@@ -219,5 +217,34 @@ describe('EditGroupModal', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('opens the native picker when the scheduled date input is clicked', () => {
+    render(
+      <EditGroupModal
+        open={true}
+        onClose={vi.fn()}
+        serviceGroup={mockServiceGroup}
+        onSaved={vi.fn()}
+      />,
+    );
+    const input = screen.getByLabelText('Scheduled date') as HTMLInputElement;
+    const showPickerSpy = vi.fn();
+    input.showPicker = showPickerSpy;
+    fireEvent.click(input);
+    expect(showPickerSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('is safe when showPicker is undefined (older browsers)', () => {
+    render(
+      <EditGroupModal
+        open={true}
+        onClose={vi.fn()}
+        serviceGroup={mockServiceGroup}
+        onSaved={vi.fn()}
+      />,
+    );
+    // showPicker is undefined by default in jsdom — should not throw
+    expect(() => fireEvent.click(screen.getByLabelText('Scheduled date'))).not.toThrow();
   });
 });

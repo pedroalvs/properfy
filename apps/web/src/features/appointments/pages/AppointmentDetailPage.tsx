@@ -16,7 +16,7 @@ import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { useAppointmentCrossCheck } from '../hooks/useAppointmentCrossCheck';
 import { useAppointmentTransition } from '../hooks/useAppointmentTransition';
 import { getAvailableTransitions } from '../lib/transitions';
-import { isAppointmentEditable } from '../lib/editability';
+import { isAppointmentScheduleEditable } from '../lib/editability';
 import { AppointmentDetailSections } from '../components/AppointmentDetailSections';
 import { AppointmentContactTab } from '../components/AppointmentContactTab';
 import { AppointmentTimelineTab } from '../components/AppointmentTimelineTab';
@@ -87,7 +87,7 @@ export function AppointmentDetailPage() {
   const transitions = appointment?.inspectorId
     ? rawTransitions
     : rawTransitions.filter((t) => t.targetStatus !== 'SCHEDULED');
-  const canEditAppointment = canEdit && !!appointment && isAppointmentEditable(appointment.status);
+  const canEditAppointment = canEdit && !!appointment && isAppointmentScheduleEditable(appointment.status);
   const canCrossCheckDone = !!appointment &&
     isPrivileged &&
     appointment.status === 'DONE' &&
@@ -229,8 +229,7 @@ export function AppointmentDetailPage() {
             <i className="mdi mdi-arrow-left text-xl" aria-hidden="true" />
           </button>
           <h1 className="text-page-title-mobile text-secondary md:text-page-title">
-            {appointment.code}
-            {appointment.appointmentNumber != null && <span className="ml-2 text-base font-normal text-text-muted">#{appointment.appointmentNumber}</span>}
+            {appointment.appointmentCode}
           </h1>
           <AppointmentStatusChip status={appointment.status} doneCheckedByUserId={appointment.doneCheckedByUserId} isOverdue={appointment.isOverdue} />
         </div>

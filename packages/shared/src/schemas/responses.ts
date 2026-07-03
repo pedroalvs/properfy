@@ -3,6 +3,7 @@ import { HHMM_REGEX } from './appointment';
 import { propertyRulesSchema } from './property';
 import { bonusRuleSchema } from './pricing-rule';
 import { appointmentAppSchema } from './app-credential';
+import { AppointmentStatus, ServiceTypeFlowType } from '../enums';
 
 /** Accepts Date objects or ISO strings, coerces to string */
 const dateStr = () => z.union([z.string(), z.date().transform(d => d.toISOString())]);
@@ -257,6 +258,9 @@ export const appointmentResponseSchema = z.object({
   updatedAt: dateStr(),
   appointmentNumber: z.number().optional(),
   // Flat enriched fields for list and detail views
+  /** Formatted appointment code (tenant prefix + padded number, e.g. "INS-0042"). Populated by the detail endpoint. */
+  appointmentCode: z.string().optional(),
+  /** List endpoint alias for the formatted appointment code. */
   code: z.string().optional(),
   propertyAddress: z.string().optional(),
   contactName: z.string().optional(),
@@ -416,7 +420,6 @@ export const serviceGroupResponseSchema = z.object({
   confirmedCount: z.number(),
   scheduledDate: dateStr(),
   timeWindow: z.string(),
-  name: z.string().nullable().optional(),
   regionName: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   priorityMode: z.string(),
@@ -466,6 +469,9 @@ export const marketplaceOfferDetailAppointmentSchema = z.object({
   payoutAmount: z.number().nullable(),
   // Agency (tenant) name of this appointment — shown per-job (groups may be cross-agency).
   tenantName: z.string(),
+  // Appointment's own slot (bare HH:mm) — preferred over the group timeWindow in the UI.
+  timeSlotStart: z.string().regex(HHMM_REGEX),
+  timeSlotEnd: z.string().regex(HHMM_REGEX),
 });
 
 export const marketplaceOfferDetailResponseSchema = marketplaceOfferResponseSchema.extend({
@@ -599,6 +605,31 @@ export const inspectorScheduleItemSchema = z.object({
 export const inspectorScheduleResponseSchema = z.object({
   date: dateStr(),
   appointments: z.array(inspectorScheduleItemSchema),
+});
+
+export const inspectorScheduleMonthItemSchema = inspectorScheduleItemSchema.extend({
+  appointmentCode: z.string(),
+  status: z.nativeEnum(AppointmentStatus),
+  propertyAddress: z.string(),
+  suburb: z.string(),
+  serviceTypeName: z.string(),
+  flowType: z.nativeEnum(ServiceTypeFlowType),
+  isOverdue: z.boolean().optional(),
+});
+
+export const inspectorScheduleMonthDaySchema = z.object({
+  date: dateStr(),
+  count: z.number().int().min(0),
+  hasUrgent: z.boolean(),
+});
+
+export const inspectorScheduleMonthResponseSchema = z.object({
+  today: dateStr(),
+  from: dateStr(),
+  to: dateStr(),
+  days: z.array(inspectorScheduleMonthDaySchema),
+  appointments: z.array(inspectorScheduleMonthItemSchema),
+  overdueAppointments: z.array(inspectorScheduleMonthItemSchema),
 });
 
 export const inspectionExecutionResponseSchema = z.object({

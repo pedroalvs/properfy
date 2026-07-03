@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import {
+  inspectorScheduleMonthQuerySchema,
   inspectorScheduleQuerySchema,
   startInspectionSchema,
   finishInspectionSchema,
@@ -9,6 +10,7 @@ import {
   requestAssetUploadSchema,
   inspectorScheduleResponseSchema,
   inspectorScheduleItemSchema,
+  inspectorScheduleMonthResponseSchema,
   inspectionExecutionResponseSchema,
   inspectionAssetResponseSchema,
   inspectorAppointmentDetailResponseSchema,
@@ -76,6 +78,30 @@ export async function registerInspectorExecutionRoutes(
     async (tenantId) => {
       const tenant = await container.tenantRepo.findById(tenantId);
       return tenant?.isActive() ?? false;
+    },
+  );
+
+  // GET /v1/inspector/schedule/month
+  app.get(
+    '/v1/inspector/schedule/month',
+    {
+      preHandler: authenticate,
+      schema: {
+        querystring: inspectorScheduleMonthQuerySchema,
+        response: {
+          200: successResponseSchema(inspectorScheduleMonthResponseSchema),
+        },
+      },
+    },
+    async (request, reply) => {
+      const parsed = inspectorScheduleMonthQuerySchema.safeParse(request.query);
+      if (!parsed.success) {
+        throw new ValidationError('Invalid query parameters', parsed.error.errors);
+      }
+      const result = await container.getInspectorScheduleUseCase.executeMonth({
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
     },
   );
 

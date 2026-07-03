@@ -77,4 +77,32 @@ describe('EarningsPage', () => {
       expect(screen.getByText('No payouts for this period.')).toBeInTheDocument();
     });
   });
+
+  it('opens the native picker when a date filter input is clicked', async () => {
+    renderWithProviders(<EarningsPage />);
+    await waitFor(() => expect(screen.getByText('Earnings')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('tab', { name: /history/i }));
+    await waitFor(() => expect(screen.getByText('Payment history')).toBeInTheDocument());
+
+    for (const name of ['From date', 'To date']) {
+      const input = screen.getByLabelText(name) as HTMLInputElement;
+      const showPickerSpy = vi.fn();
+      input.showPicker = showPickerSpy;
+      fireEvent.click(input);
+      expect(showPickerSpy).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it('is safe when showPicker is undefined (older browsers)', async () => {
+    renderWithProviders(<EarningsPage />);
+    await waitFor(() => expect(screen.getByText('Earnings')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('tab', { name: /history/i }));
+    await waitFor(() => expect(screen.getByText('Payment history')).toBeInTheDocument());
+
+    // showPicker is undefined by default in jsdom — should not throw
+    expect(() => fireEvent.click(screen.getByLabelText('From date'))).not.toThrow();
+    expect(() => fireEvent.click(screen.getByLabelText('To date'))).not.toThrow();
+  });
 });

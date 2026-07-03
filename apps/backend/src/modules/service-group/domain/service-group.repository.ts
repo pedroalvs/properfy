@@ -7,7 +7,7 @@ export interface ServiceGroupFilters {
   scheduledDateFrom?: string;
   scheduledDateTo?: string;
   priorityMode?: string;
-  /** Text search on group name and description. */
+  /** Text search on group description. */
   search?: string;
   /** Filter by branch ID of linked appointments. */
   branchId?: string;
@@ -101,6 +101,9 @@ export interface MarketplaceOfferDetail extends MarketplaceOffer {
     payoutAmount: number | null;
     /** Agency (tenant) name of this appointment — shown per-job in the offer detail. */
     tenantName: string;
+    /** Appointment's own slot (bare HH:mm) — preferred over the group timeWindow in the UI. */
+    timeSlotStart: string;
+    timeSlotEnd: string;
   }>;
 }
 
@@ -179,7 +182,6 @@ export interface IServiceGroupRepository {
       publishedAt: Date | null;
       assignedAt: Date | null;
       priorityExpiresAt: Date | null;
-      name: string | null;
       regionName: string | null;
       description: string | null;
       serviceRegionId: string | null;
@@ -258,7 +260,6 @@ export interface IServiceGroupRepository {
     id: string;
     groupNumber: number;
     code: string;
-    name: string | null;
     status: string;
     scheduledDate: Date;
     timeWindow: string;

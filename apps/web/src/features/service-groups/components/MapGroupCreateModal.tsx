@@ -3,7 +3,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { createServiceGroupSchema, todayLocalDateString, currentTimeInTzHHmm } from '@properfy/shared';
 import { Dialog } from '@/components/ui/Dialog';
 import { FormField } from '@/components/forms/FormField';
-import { TextInput } from '@/components/forms/TextInput';
 import { DateInput } from '@/components/forms/DateInput';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { Textarea } from '@/components/forms/Textarea';
@@ -43,7 +42,6 @@ export function MapGroupCreateModal({
   const inferredServiceTypeId = selectedAppointments[0]?.serviceTypeId ?? '';
   const inferredServiceTypeName = selectedAppointments[0]?.serviceTypeName;
 
-  const [name, setName] = useState('');
   const [scheduledDate, setScheduledDate] = useState('');
   const [startTime, setStartTime] = useState('08:00');
   const [endTime, setEndTime] = useState('17:00');
@@ -79,7 +77,6 @@ export function MapGroupCreateModal({
       timeWindow,
       ...(serviceRegionId && !isMixedAgency ? { serviceRegionId } : {}),
       priorityMode,
-      ...(name ? { name } : {}),
       ...(description ? { description } : {}),
       actorTimezone: browserTz,
     };
@@ -112,7 +109,7 @@ export function MapGroupCreateModal({
     }
   }, [
     selectedAppointmentIds, serviceTypeId, scheduledDate, startTime, endTime,
-    serviceRegionId, isMixedAgency, priorityMode, name, description,
+    serviceRegionId, isMixedAgency, priorityMode, description,
     showSuccess, showError, queryClient, onSuccess,
   ]);
 
@@ -138,10 +135,6 @@ export function MapGroupCreateModal({
       }
     >
       <div className="space-y-4">
-        <FormField label="Name">
-          <TextInput value={name} onChange={setName} placeholder="Group name" />
-        </FormField>
-
         <FormField label="Service Type" required>
           {inferredServiceTypeId ? (
             <div className="flex items-center gap-2 rounded border border-border-subtle bg-gray-50 px-3 py-2 text-sm">

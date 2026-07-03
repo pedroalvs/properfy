@@ -113,6 +113,11 @@ export class AppointmentEntity extends BaseEntity {
     return this.status === 'DRAFT' || this.status === 'AWAITING_INSPECTOR';
   }
 
+  /** Editable via PATCH (including date/time) in any non-terminal status. */
+  isScheduleEditable(): boolean {
+    return this.status !== 'CANCELLED' && this.status !== 'DONE';
+  }
+
   isActive(): boolean {
     return this.deletedAt === null;
   }

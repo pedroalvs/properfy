@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { TopBar } from '@/components/shell/TopBar';
 import { LoadingState } from '@/components/feedback/LoadingState';
@@ -13,82 +13,69 @@ import { ScheduleHistoryList } from '../components/ScheduleHistoryList';
 import { InstallBannerNative } from '../components/InstallBannerNative';
 import { InstallBannerIos } from '../components/InstallBannerIos';
 import { useInstallPrompt } from '@/app/useInstallPrompt';
-import { useScheduleRange } from '../hooks/useScheduleRange';
+import { useScheduleMonth } from '../hooks/useScheduleMonth';
 import { useScheduleDay } from '../hooks/useScheduleDay';
 import { useScheduleHistory } from '../hooks/useScheduleHistory';
 import { isScheduleRisk, toLocalISODate, formatScheduleDate } from '../lib/time-slot';
 
 type Tab = 'upcoming' | 'history';
 
-function generateDays(count: number): string[] {
-  const days: string[] = [];
-  const today = new Date();
-  for (let i = 0; i < count; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    days.push(toLocalISODate(d));
-  }
-  return days;
-}
-
-function pastDate(daysBack: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - daysBack);
-  return toLocalISODate(d);
-}
-
 export function SchedulePage() {
   const [searchParams] = useSearchParams();
-  const days = useMemo(() => generateDays(60), []);
-  const today = days[0]!;
-  const lastDay = days[days.length - 1]!;
-  const lookbackStart = useMemo(() => pastDate(7), []);
+  const localToday = useMemo(() => toLocalISODate(new Date()), []);
   const initialDate = useMemo(() => {
     const param = searchParams.get('date');
-    if (param && days.includes(param)) return param;
-    return today;
-  }, [searchParams, days, today]);
+    if (param) return param;
+    return localToday;
+  }, [searchParams, localToday]);
   const [selectedDate, setSelectedDate] = useState(initialDate);
 
   const [tab, setTab] = useState<Tab>('upcoming');
   const { isIosSafariEligible, canInstall } = useInstallPrompt();
 
-  const { data, isLoading, isError, error, refetch } = useScheduleRange(lookbackStart, lastDay);
+  const { data, isLoading, isError, error, refetch } = useScheduleMonth();
+  const today = data?.today ?? localToday;
+  const days = useMemo(() => data?.days.map((day) => day.date) ?? [today], [data?.days, today]);
   const dayAppointments = useScheduleDay(data?.appointments, selectedDate);
   const history = useScheduleHistory();
 
+  useEffect(() => {
+    if (!data?.days.length) return;
+    const hasSelectedDate = data.days.some((day) => day.date === selectedDate);
+    if (!hasSelectedDate) {
+      setSelectedDate(data.today);
+    }
+  }, [data?.days, data?.today, selectedDate]);
+
   const appointmentCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const apt of data?.appointments ?? []) {
-      counts[apt.scheduledDate] = (counts[apt.scheduledDate] ?? 0) + 1;
+    for (const day of data?.days ?? []) {
+      counts[day.date] = day.count;
     }
     return counts;
-  }, [data?.appointments]);
+  }, [data?.days]);
 
   const urgentDays = useMemo(() => {
     const set = new Set<string>();
-    for (const apt of data?.appointments ?? []) {
-      if (isScheduleRisk(apt) || apt.isOverdue) {
-        set.add(apt.scheduledDate);
-      }
+    for (const day of data?.days ?? []) {
+      if (day.hasUrgent) set.add(day.date);
     }
     return set;
-  }, [data?.appointments]);
+  }, [data?.days]);
 
   const isToday = selectedDate === today;
-  const dayCount = appointmentCounts[selectedDate] ?? 0;
+  const overdueAppointments = useMemo(
+    () => data?.overdueAppointments ?? [],
+    [data?.overdueAppointments],
+  );
+  const overdueCount = isToday ? overdueAppointments.length : 0;
+  const dayCount = (appointmentCounts[selectedDate] ?? 0) + overdueCount;
   const dayLabel = isToday ? 'Today' : formatScheduleDate(selectedDate);
 
   const stuckAppointments = useMemo(() => {
     if (!isToday) return [];
-    return (data?.appointments ?? []).filter(
-      (apt) => apt.scheduledDate < today && apt.status === 'SCHEDULED',
-    );
-  }, [data?.appointments, today, isToday]);
-
-  const overdueCount = useMemo(() => {
-    return dayAppointments.filter((apt) => apt.isOverdue).length;
-  }, [dayAppointments]);
+    return overdueAppointments;
+  }, [overdueAppointments, isToday]);
 
   const riskCount = useMemo(() => {
     return dayAppointments.filter((apt) => isScheduleRisk(apt)).length;

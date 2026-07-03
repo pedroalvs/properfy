@@ -126,6 +126,7 @@ describe('UpdateAppointmentUseCase — TZ-aware date validation', () => {
           scheduledDate: new Date(`${existingDate}T00:00:00.000Z`),
           timeSlot: existingSlot,
           isEditable: () => true,
+          isScheduleEditable: () => true,
           isDeleted: () => false,
         },
         contact: null, contacts: [], restrictions: [],

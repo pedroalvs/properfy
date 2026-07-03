@@ -8,7 +8,7 @@ function makeAppointment(overrides: Partial<AppointmentDetail> = {}): Appointmen
   return {
     id: 'apt-01',
     appointmentNumber: 1001,
-    code: 'VST-001',
+    appointmentCode: 'INS-0042',
     tenantId: 'tenant-1',
     tenantName: 'Test Agency',
     branchId: 'branch-1',
@@ -94,6 +94,20 @@ describe('AppointmentDetailSections', () => {
     // Both the FormSection title and the DetailRow label render "Observation".
     expect(screen.getAllByText('Observation').length).toBeGreaterThan(0);
     expect(screen.getByText('Gate code is 4321')).toBeInTheDocument();
+  });
+
+  it('shows service group code when grouped, em-dash when ungrouped', () => {
+    const { rerender } = render(
+      <AppointmentDetailSections appointment={makeAppointment({ serviceGroupCode: '12' })} />,
+    );
+    expect(screen.getByText('Service Group')).toBeInTheDocument();
+    expect(screen.getByText('Group 12')).toBeInTheDocument();
+
+    rerender(
+      <AppointmentDetailSections appointment={makeAppointment({ serviceGroupCode: null })} />,
+    );
+    expect(screen.queryByText('Group 12')).not.toBeInTheDocument();
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });
 
   it('shows em-dash for null inspector', () => {

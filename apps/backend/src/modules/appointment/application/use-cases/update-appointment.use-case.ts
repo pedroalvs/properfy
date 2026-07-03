@@ -15,7 +15,10 @@ import {
   AppointmentUpdateNotAllowedError,
   AppointmentDateInPastError,
   AppointmentTimeInPastError,
+  AppointmentInServiceGroupError,
 } from '../../domain/appointment.errors';
+import type { IRentalTenantPortalTokenRepository } from '../../../rental-tenant-portal/domain/rental-tenant-portal-token.repository';
+import type { ConfirmationCycleService } from '../services/confirmation-cycle.service';
 import { validateEditedSchedule } from '@properfy/shared';
 import type { RestrictionSource } from '@properfy/shared';
 import { SystemClock, type Clock } from '../../../../shared/domain/clock';
@@ -109,6 +112,15 @@ export interface UpdateAppointmentOutput {
   updatedAt: Date;
 }
 
+/**
+ * Structural interface for the reschedule notification handler — keeps the
+ * appointment module decoupled from the notification module (same pattern as
+ * OnTransitionHandler in execute-status-transition.use-case.ts).
+ */
+export interface OnAdminRescheduleHandler {
+  execute(input: { appointmentId: string; tenantId: string | null }): Promise<void>;
+}
+
 export class UpdateAppointmentUseCase {
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
@@ -118,6 +130,12 @@ export class UpdateAppointmentUseCase {
     private readonly contactRepo?: IContactRepository,
     private readonly clock: Clock = new SystemClock(),
     private readonly appCredentialRepo?: IAppCredentialRepository,
+    /** Optional. When wired, a real date/time change rotates the active confirmation cycle. */
+    private readonly confirmationCycleService?: ConfirmationCycleService,
+    /** Optional. When wired, a real date/time change revokes all active portal tokens. */
+    private readonly portalTokenRepo?: IRentalTenantPortalTokenRepository,
+    /** Optional. When wired, a date/time change on a SCHEDULED appointment notifies the rental tenant. */
+    private readonly onAdminRescheduleHandler?: OnAdminRescheduleHandler,
   ) {}
 
   async execute(input: UpdateAppointmentInput): Promise<UpdateAppointmentOutput> {
@@ -151,9 +169,24 @@ export class UpdateAppointmentUseCase {
 
     const appointment = found.appointment;
 
-    // Guard: can only update DRAFT or AWAITING_INSPECTOR
-    if (!appointment.isEditable()) {
+    // Guard: editable in any non-terminal status (only CANCELLED/DONE blocked)
+    if (!appointment.isScheduleEditable()) {
       throw new AppointmentUpdateNotAllowedError();
+    }
+
+    // Detect a REAL schedule change (submitting the current values is a no-op)
+    const currentDateStr = appointment.scheduledDate.toISOString().slice(0, 10);
+    const dateChanged = data.scheduledDate !== undefined && data.scheduledDate !== currentDateStr;
+    const timeChangedReal =
+      (data.timeSlotStart !== undefined && data.timeSlotStart !== appointment.timeSlotStart) ||
+      (data.timeSlotEnd !== undefined && data.timeSlotEnd !== appointment.timeSlotEnd);
+    const scheduleChanged = dateChanged || timeChangedReal;
+
+    // Appointments in a service group have their time window managed by the
+    // group (automatic time-slot sync) — individual date/time edits would
+    // break group coherence. Reschedule the whole group via the map/bulk flow.
+    if (scheduleChanged && appointment.serviceGroupId) {
+      throw new AppointmentInServiceGroupError();
     }
 
     // Capture before state for audit
@@ -205,11 +238,75 @@ export class UpdateAppointmentUseCase {
     if (data.customFields !== undefined)
       updateData.customFieldsJson = data.customFields ?? null;
 
+    // No active cycle to rotate — reset the denormalized confirmation status
+    // directly so a previous CONFIRMED does not survive a date/time change.
+    if (
+      scheduleChanged &&
+      !appointment.activeConfirmationCycleId &&
+      appointment.rentalTenantConfirmationStatus !== 'PENDING'
+    ) {
+      updateData.rentalTenantConfirmationStatus = 'PENDING';
+    }
+
+    // Confirmation reset + token revoke run BEFORE the appointment update.
+    // The three writes cannot share a transaction (the appointment repository
+    // has no tx-aware update — same architectural gap as reopen-for-reschedule),
+    // so ordering is chosen for a conservative failure mode: if a later step
+    // fails, the appointment still holds the OLD date and `scheduleChanged`
+    // re-detects the change on retry, re-running the reset. The reverse order
+    // would let a stale CONFIRMED cycle survive a partial failure, because the
+    // retry would see the new date already persisted and skip the reset.
+    if (scheduleChanged) {
+      // Supersede the active cycle and open a new PENDING one for the new
+      // date/time (denorm cache updated atomically inside the service).
+      if (this.confirmationCycleService && appointment.activeConfirmationCycleId) {
+        const newDate = updateData.scheduledDate ?? appointment.scheduledDate;
+        const newStart = updateData.timeSlotStart ?? appointment.timeSlotStart;
+        const newEnd = updateData.timeSlotEnd ?? appointment.timeSlotEnd;
+        await this.confirmationCycleService.rotateOnDateChange(
+          appointmentId,
+          appointment.tenantId,
+          newDate,
+          `${newStart}-${newEnd}`,
+          dateChanged ? 'DATE_CHANGED' : 'TIME_CHANGED',
+        );
+      }
+
+      // Existing portal tokens point at the old date — revoke them (026 §FR-543 pattern).
+      if (this.portalTokenRepo) {
+        await this.portalTokenRepo.revokeAllForAppointment(appointmentId);
+        this.auditService.log({
+          action: 'rental_tenant_portal.tokens_revoked',
+          actorType: 'USER',
+          actorId: actor.userId,
+          entityType: 'Appointment',
+          entityId: appointmentId,
+          tenantId: appointment.tenantId,
+          metadata: { reason: 'schedule_edit', initiatedBy: actor.role },
+        });
+      }
+    }
+
     await this.appointmentRepo.update(
       appointmentId,
       appointment.tenantId,
       updateData,
     );
+
+    // SCHEDULED keeps its status and inspector, so no →SCHEDULED transition will
+    // fire INSPECTION_NOTICE — notify the rental tenant of the new date here,
+    // after the update is persisted. Fire-and-forget: a notification failure
+    // must not fail the PATCH.
+    if (scheduleChanged && appointment.status === 'SCHEDULED' && this.onAdminRescheduleHandler) {
+      try {
+        await this.onAdminRescheduleHandler.execute({
+          appointmentId,
+          tenantId: appointment.tenantId,
+        });
+      } catch {
+        // Handler logs and counts its own failures.
+      }
+    }
 
     // Upsert contacts
     if (data.contacts !== undefined && this.contactRepo) {
@@ -415,7 +512,9 @@ export class UpdateAppointmentUseCase {
       keyRequired: after.keyRequired as boolean,
       meetingLocation: after.meetingLocation,
       keyLocation: after.keyLocation,
-      rentalTenantConfirmationStatus: appointment.rentalTenantConfirmationStatus,
+      rentalTenantConfirmationStatus: scheduleChanged
+        ? 'PENDING'
+        : appointment.rentalTenantConfirmationStatus,
       priceAmount: appointment.priceAmount,
       payoutAmount: appointment.payoutAmount,
       pricingRuleSnapshotJson: appointment.pricingRuleSnapshotJson,

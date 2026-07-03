@@ -8,7 +8,57 @@ import {
   inspectorDayCountSchema,
   agencyFinancialExportResponseSchema,
   inspectorAppointmentDetailResponseSchema,
+  inspectorScheduleMonthResponseSchema,
+  appointmentResponseSchema,
 } from './responses';
+
+describe('appointmentResponseSchema — appointmentCode / code', () => {
+  const validBase = {
+    id: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee111',
+    tenantId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee112',
+    branchId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee113',
+    propertyId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee114',
+    serviceTypeId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee115',
+    inspectorId: null,
+    status: 'SCHEDULED',
+    scheduledDate: '2026-07-10',
+    timeSlotStart: '09:00',
+    timeSlotEnd: '12:00',
+    rentalTenantConfirmationStatus: 'PENDING',
+    priceAmount: 100,
+    payoutAmount: 80,
+    notes: null,
+    createdByUserId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee116',
+    createdAt: '2026-07-01T00:00:00.000Z',
+    updatedAt: '2026-07-01T00:00:00.000Z',
+  };
+
+  it('accepts appointmentCode when present (detail endpoint)', () => {
+    const result = appointmentResponseSchema.safeParse({ ...validBase, appointmentCode: 'INS-0058' });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.appointmentCode).toBe('INS-0058');
+  });
+
+  it('accepts code when present (list endpoint alias)', () => {
+    const result = appointmentResponseSchema.safeParse({ ...validBase, code: 'INS-0058' });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.code).toBe('INS-0058');
+  });
+
+  it('accepts omission of both optional fields', () => {
+    const result = appointmentResponseSchema.safeParse(validBase);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.appointmentCode).toBeUndefined();
+      expect(result.data.code).toBeUndefined();
+    }
+  });
+
+  it('rejects non-string appointmentCode / code', () => {
+    expect(appointmentResponseSchema.safeParse({ ...validBase, appointmentCode: 58 }).success).toBe(false);
+    expect(appointmentResponseSchema.safeParse({ ...validBase, code: 58 }).success).toBe(false);
+  });
+});
 
 describe('agencyFinancialExportResponseSchema (031)', () => {
   it('accepts a base64 XLSX payload', () => {
@@ -61,6 +111,54 @@ describe('loginResponseSchema', () => {
     if (result.success) {
       expect(result.data).not.toHaveProperty('expiresIn');
     }
+  });
+});
+
+describe('inspectorScheduleMonthResponseSchema', () => {
+  const appointment = {
+    id: '00000000-0000-0000-0000-000000000001',
+    appointmentCode: 'INS-0001',
+    status: 'SCHEDULED',
+    scheduledDate: '2026-03-21',
+    timeSlotStart: '09:00',
+    timeSlotEnd: '11:00',
+    serviceTypeId: '00000000-0000-0000-0000-000000000002',
+    propertyId: '00000000-0000-0000-0000-000000000003',
+    propertyAddress: '1 Test St, Sydney NSW 2000',
+    suburb: 'Sydney',
+    serviceTypeName: 'Routine Inspection',
+    flowType: 'ROUTINE',
+    rentalTenantConfirmationStatus: 'CONFIRMED',
+    keyRequired: false,
+    meetingLocation: null,
+    executionStatus: 'NOT_STARTED',
+    agencyName: 'Test Agency',
+  };
+
+  it('accepts the monthly schedule payload used by the PWA schedule screen', () => {
+    const result = inspectorScheduleMonthResponseSchema.safeParse({
+      today: '2026-03-21',
+      from: '2026-03-21',
+      to: '2026-04-20',
+      days: [{ date: '2026-03-21', count: 1, hasUrgent: false }],
+      appointments: [appointment],
+      overdueAppointments: [{ ...appointment, scheduledDate: '2026-03-20', isOverdue: true }],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects appointments without card summary fields', () => {
+    const result = inspectorScheduleMonthResponseSchema.safeParse({
+      today: '2026-03-21',
+      from: '2026-03-21',
+      to: '2026-04-20',
+      days: [{ date: '2026-03-21', count: 1, hasUrgent: false }],
+      appointments: [{ ...appointment, propertyAddress: undefined }],
+      overdueAppointments: [],
+    });
+
+    expect(result.success).toBe(false);
   });
 });
 
