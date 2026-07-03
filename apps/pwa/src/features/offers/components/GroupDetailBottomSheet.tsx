@@ -60,11 +60,6 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept }: Props) {
           <>
             {/* Group-level info */}
             <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-gray-100 pb-3">
-              {data.code && (
-                <span className="rounded bg-secondary/10 px-1.5 py-0.5 font-mono text-[11px] font-bold text-secondary">
-                  Group #{data.code}
-                </span>
-              )}
               <span className="text-sm font-semibold text-text-primary">{data.serviceTypeName}</span>
               <span className="text-sm text-text-secondary">{data.timeWindow}</span>
               <span className="text-xs text-text-muted">{formatDate(data.scheduledDate)}</span>

@@ -85,7 +85,12 @@ describe('GroupDetailBottomSheet', () => {
     render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
     expect(screen.getByText('Bondi NSW')).toBeInTheDocument();
     expect(screen.getByText('Manly NSW')).toBeInTheDocument();
-    expect(screen.getByText('Group #2042')).toBeInTheDocument();
+  });
+
+  it('does not render the group code badge in the header', () => {
+    mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    expect(screen.queryByText(/Group #/)).toBeNull();
   });
 
   it('shows each appointment\'s agency (groups may span agencies)', () => {
