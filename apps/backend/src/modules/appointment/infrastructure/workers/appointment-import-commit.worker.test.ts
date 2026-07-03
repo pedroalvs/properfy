@@ -115,6 +115,28 @@ describe('AppointmentImportCommitWorker', () => {
     ]);
   });
 
+  it('creates the appointment with no contacts when the row has no contact (CONTACT_INCOMPLETE is a warning, not a blocker)', async () => {
+    const deps = buildDeps();
+    deps.importRepo.findById.mockResolvedValue(buildRecord());
+    deps.resolver.resolve.mockResolvedValue({
+      rows: [readyRow({
+        severity: 'warning', contact: null,
+        issues: [{ field: 'contact', code: 'CONTACT_INCOMPLETE', severity: 'warning', message: 'Primary contact is incomplete' }],
+      })],
+    });
+    const worker = buildWorker(deps);
+
+    await worker.execute({ importId: 'import-1', actor: ACTOR });
+
+    expect(deps.createAppointmentUseCase.execute).toHaveBeenCalledTimes(1);
+    const input = deps.createAppointmentUseCase.execute.mock.calls[0]![0];
+    expect(input.contacts).toEqual([]);
+    const [resultsUpdate] = deps.importRepo.update.mock.calls
+      .map((c: any[]) => c[1])
+      .filter((data: any) => data.resultsJson);
+    expect(resultsUpdate.resultsJson.at(-1)).toEqual({ rowNumber: 2, status: 'created', appointmentId: 'apt-1' });
+  });
+
   it('creates a new property directly (bypassing CreatePropertyUseCase) and enqueues async geocode', async () => {
     const deps = buildDeps();
     deps.importRepo.findById.mockResolvedValue(buildRecord());
@@ -219,6 +241,27 @@ describe('AppointmentImportCommitWorker', () => {
     expect(resultsUpdates.length).toBeGreaterThanOrEqual(2);
     expect(resultsUpdates[0]![1].resultsJson).toHaveLength(1);
     expect(resultsUpdates[resultsUpdates.length - 1]![1].resultsJson).toHaveLength(2);
+  });
+
+  it('updates successCount/errorCount/totalRows on every row, not just at the end (frontend progress bar depends on this)', async () => {
+    const deps = buildDeps();
+    deps.importRepo.findById.mockResolvedValue(buildRecord());
+    deps.resolver.resolve.mockResolvedValue({
+      rows: [readyRow({ rowNumber: 2 }), readyRow({ rowNumber: 3 }), readyRow({ rowNumber: 4 })],
+    });
+    const worker = buildWorker(deps);
+
+    await worker.execute({ importId: 'import-1', actor: ACTOR });
+
+    // Per-row updates only — excludes the final update, which also sets
+    // `status` and would otherwise double-count the last row's numbers.
+    const progressUpdates = deps.importRepo.update.mock.calls
+      .map((c: any[]) => c[1])
+      .filter((data: any) => data.resultsJson && data.status === undefined);
+    expect(progressUpdates).toHaveLength(3);
+    expect(progressUpdates.map((u: any) => u.successCount)).toEqual([1, 2, 3]);
+    expect(progressUpdates.map((u: any) => u.errorCount)).toEqual([0, 0, 0]);
+    expect(progressUpdates.every((u: any) => u.totalRows === 3)).toBe(true);
   });
 
   it('resumes from a prior partial attempt without re-committing an already-recorded row', async () => {

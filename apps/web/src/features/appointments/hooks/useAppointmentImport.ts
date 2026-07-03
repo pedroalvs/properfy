@@ -4,7 +4,13 @@ import { api } from '@/services/api';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import type { AppointmentImportPreviewResponse } from '@properfy/shared';
 
-const MAX_POLL_ATTEMPTS = 20;
+// 60 attempts * 3s = 3 minutes. A larger batch (each row does a property
+// lookup/create, a contact lookup/create, and an appointment create with
+// an incremental DB write) can genuinely take longer than the previous
+// budget (20 * 3s = 60s) under real production latency — the batch keeps
+// running server-side regardless, but polling would give up and show a
+// "taking longer than expected" error while the import was still healthy.
+const MAX_POLL_ATTEMPTS = 60;
 
 export interface ImportRowResultEntry {
   rowNumber: number;
