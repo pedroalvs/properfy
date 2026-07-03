@@ -11064,6 +11064,9 @@
                         "appointmentNumber": {
                           "type": "number"
                         },
+                        "appointmentCode": {
+                          "type": "string"
+                        },
                         "code": {
                           "type": "string"
                         },
@@ -11585,6 +11588,9 @@
                           "appointmentNumber": {
                             "type": "number"
                           },
+                          "appointmentCode": {
+                            "type": "string"
+                          },
                           "code": {
                             "type": "string"
                           },
@@ -11912,6 +11918,9 @@
                         },
                         "appointmentNumber": {
                           "type": "number"
+                        },
+                        "appointmentCode": {
+                          "type": "string"
                         },
                         "code": {
                           "type": "string"
@@ -12512,6 +12521,9 @@
                         },
                         "appointmentNumber": {
                           "type": "number"
+                        },
+                        "appointmentCode": {
+                          "type": "string"
                         },
                         "code": {
                           "type": "string"
@@ -13801,10 +13813,12 @@
                                 "type": "boolean"
                               },
                               "timeSlotStart": {
-                                "type": "string"
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
                               },
                               "timeSlotEnd": {
-                                "type": "string"
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
                               },
                               "timeDefaulted": {
                                 "type": "boolean"
@@ -14165,11 +14179,6 @@
                     "type": "string",
                     "pattern": "^\\d{2}:\\d{2}-\\d{2}:\\d{2}$"
                   },
-                  "name": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 255
-                  },
                   "serviceRegionId": {
                     "type": "string",
                     "format": "uuid",
@@ -14278,10 +14287,6 @@
                         },
                         "timeWindow": {
                           "type": "string"
-                        },
-                        "name": {
-                          "type": "string",
-                          "nullable": true
                         },
                         "regionName": {
                           "type": "string",
@@ -14647,10 +14652,6 @@
                           "timeWindow": {
                             "type": "string"
                           },
-                          "name": {
-                            "type": "string",
-                            "nullable": true
-                          },
                           "regionName": {
                             "type": "string",
                             "nullable": true
@@ -14890,10 +14891,6 @@
                         "timeWindow": {
                           "type": "string"
                         },
-                        "name": {
-                          "type": "string",
-                          "nullable": true
-                        },
                         "regionName": {
                           "type": "string",
                           "nullable": true
@@ -15024,11 +15021,6 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "name": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 255
-                  },
                   "serviceRegionId": {
                     "type": "string",
                     "format": "uuid",
@@ -15148,10 +15140,6 @@
                         },
                         "timeWindow": {
                           "type": "string"
-                        },
-                        "name": {
-                          "type": "string",
-                          "nullable": true
                         },
                         "regionName": {
                           "type": "string",
@@ -15365,10 +15353,6 @@
                         },
                         "timeWindow": {
                           "type": "string"
-                        },
-                        "name": {
-                          "type": "string",
-                          "nullable": true
                         },
                         "regionName": {
                           "type": "string",
@@ -15602,10 +15586,6 @@
                         },
                         "timeWindow": {
                           "type": "string"
-                        },
-                        "name": {
-                          "type": "string",
-                          "nullable": true
                         },
                         "regionName": {
                           "type": "string",
@@ -16214,10 +16194,6 @@
                               "code": {
                                 "type": "string"
                               },
-                              "name": {
-                                "type": "string",
-                                "nullable": true
-                              },
                               "status": {
                                 "type": "string"
                               },
@@ -16239,7 +16215,6 @@
                               "id",
                               "groupNumber",
                               "code",
-                              "name",
                               "status",
                               "scheduledDate",
                               "timeWindow",

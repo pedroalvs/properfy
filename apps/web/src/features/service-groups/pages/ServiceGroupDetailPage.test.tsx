@@ -139,7 +139,8 @@ vi.mock('../hooks/useServiceGroupDetail', () => ({
     return {
       serviceGroup: {
         id: 'sg-01',
-        name: 'Test Group ABC',
+        groupNumber: 7,
+        code: '7',
         status: 'DRAFT',
         tenantId: 't-1',
         regionName: 'São Paulo',
@@ -242,10 +243,9 @@ describe('ServiceGroupDetailPage', () => {
     vi.clearAllMocks();
   });
 
-  it('renders group name in header', () => {
+  it('renders group code in header', () => {
     renderPage();
-    // Name appears in header and detail sections
-    expect(screen.getAllByText('Test Group ABC').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Group 7').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders status chip', () => {

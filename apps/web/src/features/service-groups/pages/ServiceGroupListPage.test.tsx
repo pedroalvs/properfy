@@ -43,7 +43,7 @@ import { ServiceGroupListPage } from './ServiceGroupListPage';
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_SERVICE_GROUPS = [
-  { id: 'sg-01', name: 'ABC Paulista', regionName: 'São Paulo - ABC', status: 'PUBLISHED', inspectorName: 'Carlos Silva', priorityMode: 'STANDARD' },
+  { id: 'sg-01', regionName: 'São Paulo - ABC', status: 'PUBLISHED', inspectorName: 'Carlos Silva', priorityMode: 'STANDARD' },
   { id: 'sg-02', name: 'Barra RJ', regionName: 'Rio de Janeiro - Barra', status: 'DRAFT', inspectorName: 'Fernanda Lima', priorityMode: 'PRIORITY_24H' },
 ];
 
@@ -103,13 +103,13 @@ describe('ServiceGroupListPage', () => {
   it('renders data table with service group data after loading', async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText('ABC Paulista')).toBeInTheDocument();
+      expect(screen.getByText('São Paulo - ABC')).toBeInTheDocument();
     });
   });
 
   it('shows loading state initially', () => {
     renderPage();
-    const matches = screen.getAllByText('Name');
+    const matches = screen.getAllByText('Region');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 });

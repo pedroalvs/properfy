@@ -32,7 +32,6 @@ const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_SERVICE_GROUP = {
   id: 'sg-01',
-  name: 'Zona Sul SP',
   regionName: 'São Paulo - Zona Sul',
   status: 'ACTIVE',
 };
@@ -52,7 +51,7 @@ describe('useServiceGroupDetail', () => {
     });
 
     expect(result.current.serviceGroup).not.toBeNull();
-    expect(result.current.serviceGroup?.name).toBe('Zona Sul SP');
+    expect(result.current.serviceGroup?.id).toBe('sg-01');
   });
 
   it('maps serviceRegionId to null when absent from the raw response', async () => {

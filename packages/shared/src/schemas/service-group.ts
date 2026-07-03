@@ -15,7 +15,6 @@ export const createServiceGroupSchema = z.object({
   // Temporal validation is TZ-aware and performed in the use case.
   scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   timeWindow: z.string().regex(timeWindowRegex),
-  name: z.string().min(1).max(255).optional(),
   serviceRegionId: z.string().uuid().nullable().optional(),
   description: z.string().max(5000).optional(),
   priorityMode: z.enum(['STANDARD', 'PRIORITY_24H']).default('STANDARD'),
@@ -24,7 +23,6 @@ export const createServiceGroupSchema = z.object({
 export type CreateServiceGroupInput = z.infer<typeof createServiceGroupSchema>;
 
 export const updateServiceGroupSchema = z.object({
-  name: z.string().min(1).max(255).optional(),
   serviceRegionId: z.string().uuid().nullable().optional(),
   description: z.string().max(5000).optional(),
   // Draft-only fields; temporal validation is TZ-aware and performed in the use case.
@@ -139,7 +137,6 @@ export const addableGroupSummarySchema = z.object({
   // DB-assigned for every group; the single producer (find-addable-groups) maps both.
   groupNumber: z.number(),
   code: z.string(),
-  name: z.string().nullable(),
   status: z.string(),
   scheduledDate: z.string(),
   timeWindow: z.string(),

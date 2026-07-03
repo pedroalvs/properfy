@@ -9,7 +9,6 @@ function makeServiceGroup(overrides: Partial<ServiceGroup> = {}): ServiceGroup {
   return {
     id: 'sg-1',
     tenantId: 'tenant-1',
-    name: 'Zona Sul SP',
     serviceRegionId: null,
     regionName: 'São Paulo - Sul',
     inspectorId: 'insp-1',
@@ -26,7 +25,7 @@ function makeServiceGroup(overrides: Partial<ServiceGroup> = {}): ServiceGroup {
 describe('ServiceGroupTable', () => {
   it('renders column headers', () => {
     render(<ServiceGroupTable data={[]} />);
-    expect(screen.getByText('Name')).toBeInTheDocument();
+    expect(screen.getByText('Code')).toBeInTheDocument();
     expect(screen.getByText('Region')).toBeInTheDocument();
     expect(screen.getByText('Inspector')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
@@ -34,10 +33,9 @@ describe('ServiceGroupTable', () => {
     expect(screen.getByText('Appointments')).toBeInTheDocument();
   });
 
-  it('renders service group data (name, regionName, appointmentsCount)', () => {
+  it('renders service group data (regionName, appointmentsCount)', () => {
     const sg = makeServiceGroup();
     render(<ServiceGroupTable data={[sg]} />);
-    expect(screen.getByText('Zona Sul SP')).toBeInTheDocument();
     expect(screen.getByText('São Paulo - Sul')).toBeInTheDocument();
     expect(screen.getByText('5')).toBeInTheDocument();
   });
@@ -70,7 +68,7 @@ describe('ServiceGroupTable', () => {
 
   it('shows loading state', () => {
     render(<ServiceGroupTable data={[]} loading />);
-    expect(screen.getByText('Name')).toBeInTheDocument();
+    expect(screen.getByText('Code')).toBeInTheDocument();
   });
 
   it('shows empty state when no data', () => {
