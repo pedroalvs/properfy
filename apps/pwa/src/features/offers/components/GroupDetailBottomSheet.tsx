@@ -1,4 +1,5 @@
 import { formatCurrency } from '@/lib/format-currency';
+import { formatDate } from '@/lib/format-date';
 import { useMarketplaceOfferDetail } from '../hooks/useMarketplaceOfferDetail';
 
 interface Props {
@@ -66,7 +67,7 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept }: Props) {
               )}
               <span className="text-sm font-semibold text-text-primary">{data.serviceTypeName}</span>
               <span className="text-sm text-text-secondary">{data.timeWindow}</span>
-              <span className="text-xs text-text-muted">{data.scheduledDate}</span>
+              <span className="text-xs text-text-muted">{formatDate(data.scheduledDate)}</span>
             </div>
 
             <ul className="divide-y divide-gray-100">
