@@ -2,14 +2,17 @@
  * GroupMapDetailPanel — single-click group-pin preview popup (Groups mode).
  *
  * Invariants:
- *   - Renders name (fallback "Service group"), status chip label, size and date
- *     straight from the pin payload — no fetch.
+ *   - Renders name (fallback "Service group"), status chip label, size, date
+ *     and a time range derived from the group's appointments — no fetch of
+ *     its own (the page supplies `appointments`).
  *   - Close button and ESC call onClose.
- *   - OPEN GROUP calls onOpenGroup (same drill-down as double-click).
+ *   - VIEW GROUP opens /service-groups/{id} in a new tab.
+ *   - PUBLISH calls onPublish and is enabled only for DRAFT groups.
+ *   - Focus moves into the dialog on open.
  *   - Renders nothing when group is null.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { GroupMapDetailPanel } from './GroupMapDetailPanel';
 import { ServiceGroupStatus } from '@properfy/shared';
@@ -27,11 +30,15 @@ function renderPanel(props: Partial<Parameters<typeof GroupMapDetailPanel>[0]> =
     <GroupMapDetailPanel
       group={sampleGroup}
       onClose={vi.fn()}
-      onOpenGroup={vi.fn()}
+      onPublish={vi.fn()}
       {...props}
     />,
   );
 }
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('GroupMapDetailPanel', () => {
   it('renders nothing when group is null', () => {
@@ -56,6 +63,22 @@ describe('GroupMapDetailPanel', () => {
     expect(screen.getByTestId('group-map-detail-size')).toHaveTextContent('1 appointment');
   });
 
+  it('shows the min-start / max-end time range across the appointments', () => {
+    renderPanel({
+      appointments: [
+        { timeSlotStart: '10:00', timeSlotEnd: '11:00' },
+        { timeSlotStart: '08:30', timeSlotEnd: '09:30' },
+        { timeSlotStart: '13:00', timeSlotEnd: '14:15' },
+      ],
+    });
+    expect(screen.getByTestId('group-map-detail-when')).toHaveTextContent('08:30 - 14:15');
+  });
+
+  it('omits the time range when appointments are missing or empty', () => {
+    renderPanel({ appointments: [] });
+    expect(screen.getByTestId('group-map-detail-when').textContent).not.toMatch(/\d{2}:\d{2}/);
+  });
+
   it('close button calls onClose', () => {
     const onClose = vi.fn();
     renderPanel({ onClose });
@@ -70,10 +93,43 @@ describe('GroupMapDetailPanel', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('OPEN GROUP calls onOpenGroup', () => {
-    const onOpenGroup = vi.fn();
-    renderPanel({ onOpenGroup });
-    fireEvent.click(screen.getByTestId('group-map-detail-open'));
-    expect(onOpenGroup).toHaveBeenCalledTimes(1);
+  it('VIEW GROUP opens the group detail page in a new tab', () => {
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+    renderPanel();
+    fireEvent.click(screen.getByTestId('group-map-detail-view'));
+    expect(openSpy).toHaveBeenCalledWith(`/service-groups/${sampleGroup.id}`, '_blank');
+  });
+
+  it('PUBLISH is disabled for non-DRAFT groups and never fires onPublish', () => {
+    const onPublish = vi.fn();
+    renderPanel({ onPublish });
+    const btn = screen.getByTestId('group-map-detail-publish');
+    expect(btn).toBeDisabled();
+    fireEvent.click(btn);
+    expect(onPublish).not.toHaveBeenCalled();
+  });
+
+  it('PUBLISH calls onPublish for DRAFT groups', () => {
+    const onPublish = vi.fn();
+    renderPanel({ onPublish, group: { ...sampleGroup, status: ServiceGroupStatus.DRAFT } });
+    const btn = screen.getByTestId('group-map-detail-publish');
+    expect(btn).toBeEnabled();
+    fireEvent.click(btn);
+    expect(onPublish).toHaveBeenCalledTimes(1);
+  });
+
+  it('PUBLISH shows the in-flight state while publishing', () => {
+    renderPanel({
+      group: { ...sampleGroup, status: ServiceGroupStatus.DRAFT },
+      isPublishing: true,
+    });
+    const btn = screen.getByTestId('group-map-detail-publish');
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveTextContent(/publishing/i);
+  });
+
+  it('moves focus into the dialog on open', () => {
+    renderPanel();
+    expect(screen.getByTestId('group-map-detail-panel')).toHaveFocus();
   });
 });

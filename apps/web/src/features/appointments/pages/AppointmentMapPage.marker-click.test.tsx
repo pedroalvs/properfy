@@ -30,24 +30,31 @@ const PAGE_SOURCE = readFileSync(
 );
 
 describe('AppointmentMapPage — marker-click regression (Issue #1)', () => {
-  it('handleMarkerClick uses mapInstance.flyTo with Math.max(getZoom(), 14)', () => {
-    // The handler signature + body must mention both pieces. Pre-fix the
-    // handler used `fitBounds` which always zooms to fit the full pin
-    // collection — that was the smoke-reported bug.
+  it('the shared flyToPoint helper uses flyTo with Math.max(getZoom(), minZoom) — never fitBounds', () => {
+    // Marker handlers now share a single camera helper. The guard moves with
+    // it: flyTo + never-reduce-zoom semantics, and no fitBounds (which always
+    // zooms back out to the full pin collection — the smoke-reported bug).
+    const helperMatch = PAGE_SOURCE.match(/function flyToPoint\([\s\S]*?\n\}/);
+    expect(helperMatch, 'flyToPoint helper not found').toBeTruthy();
+    const body = helperMatch![0];
+    expect(body).toContain('map.flyTo');
+    expect(body).toContain('Math.max(map.getZoom(), opts.minZoom)');
+    expect(body).not.toMatch(/fitBounds/);
+  });
+
+  it('handleMarkerClick delegates the camera move to flyToPoint with minZoom 14', () => {
     const handlerMatch = PAGE_SOURCE.match(/const handleMarkerClick = useCallback\(\(item: AppointmentMapItem\)[\s\S]*?\}, \[mapInstance\]\);/);
     expect(handlerMatch, 'handleMarkerClick definition not found').toBeTruthy();
     const body = handlerMatch![0];
-    expect(body).toContain('mapInstance.flyTo');
-    expect(body).toContain('Math.max(mapInstance.getZoom(), 14)');
+    expect(body).toContain('flyToPoint(mapInstance, item, { minZoom: 14');
     expect(body).not.toMatch(/mapInstance\.fitBounds/);
   });
 
-  it('handleGroupMarkerClick uses flyTo (NOT fitBounds) for the same reason', () => {
+  it('handleGroupMarkerClick delegates to flyToPoint (NOT fitBounds) for the same reason', () => {
     const handlerMatch = PAGE_SOURCE.match(/const handleGroupMarkerClick = useCallback\(\(item: ServiceGroupMapPin\)[\s\S]*?\}, \[mapInstance\]\);/);
     expect(handlerMatch, 'handleGroupMarkerClick definition not found').toBeTruthy();
     const body = handlerMatch![0];
-    expect(body).toContain('mapInstance.flyTo');
-    expect(body).toContain('Math.max(mapInstance.getZoom(), 14)');
+    expect(body).toContain('flyToPoint(mapInstance, item, { minZoom: 14');
     expect(body).not.toMatch(/mapInstance\.fitBounds/);
   });
 

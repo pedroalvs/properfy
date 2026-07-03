@@ -31,6 +31,7 @@ import { MapBulkActionModal } from '../components/MapBulkActionModal';
 import { MapAddToGroupSubModal } from '../components/MapAddToGroupSubModal';
 import { AppointmentMapDetailPanel } from '../components/AppointmentMapDetailPanel';
 import { GroupMapDetailPanel } from '../components/GroupMapDetailPanel';
+import { usePublishServiceGroup } from '@/features/service-groups/hooks/usePublishServiceGroup';
 import { MapGroupCreateModal } from '@/features/service-groups/components/MapGroupCreateModal';
 import { useQueryClient } from '@tanstack/react-query';
 import type { UserRole } from '@properfy/shared';
@@ -73,6 +74,26 @@ interface ServiceGroupMapItem {
 }
 
 type ServiceGroupMapPin = ServiceGroupMapItem & { latitude: number; longitude: number };
+
+/**
+ * Marker-click camera move shared by every pin handler. `Math.max(getZoom(),
+ * minZoom)` focuses without ever reducing zoom — if the user is already
+ * zoomed in past `minZoom`, we keep their zoom (Issue #1 regression guard:
+ * never `fitBounds` here, which zooms back out to the full pin collection).
+ */
+function flyToPoint(
+  map: mapboxgl.Map | null,
+  point: { longitude: number | null; latitude: number | null },
+  opts: { minZoom: number; duration: number; padding?: { right: number } },
+) {
+  if (!map || point.longitude == null || point.latitude == null) return;
+  map.flyTo({
+    center: [point.longitude, point.latitude],
+    zoom: Math.max(map.getZoom(), opts.minZoom),
+    duration: opts.duration,
+    ...(opts.padding ? { padding: opts.padding } : {}),
+  });
+}
 
 function computeGroupCentroid(
   appointments: ServiceGroupMapAppointment[],
@@ -333,6 +354,36 @@ export function AppointmentMapPage() {
   );
   const groupAppointments = useMemo(() => groupApptResponse?.data ?? [], [groupApptResponse]);
 
+  // Group-pin PREVIEW popup data: the map payload carries no time slots, so
+  // the popup's time range comes from the group's appointments. Same query
+  // key/params family as the drill-down above — React Query dedupes when the
+  // operator previews and then drills into the same group.
+  const previewGroupId = mode === 'groups' && !selectedGroupItem ? previewGroup?.id ?? null : null;
+  const previewApptParams: ListParams = useMemo(
+    () => ({ page: 1, pageSize: 100, serviceGroupId: previewGroupId ?? '' }),
+    [previewGroupId],
+  );
+  const { data: previewApptResponse, isFetching: previewApptFetching } =
+    usePaginatedQuery<AppointmentMapItem>(
+      ['appointments-by-group', previewGroupId],
+      '/v1/appointments',
+      previewApptParams,
+      { enabled: !!previewGroupId },
+    );
+  const previewAppointments = useMemo(
+    () => previewApptResponse?.data ?? [],
+    [previewApptResponse],
+  );
+
+  // PUBLISH from the preview popup (DRAFT-only; backend re-validates). On
+  // success, refresh the map pins so the chip/status flips, and close the
+  // preview — the toast is handled inside the hook.
+  const { publish: publishPreviewGroup, isPublishing: isPublishingPreviewGroup } =
+    usePublishServiceGroup(previewGroup?.id ?? null, () => {
+      queryClient.invalidateQueries({ queryKey: ['service-groups-map'] });
+      setPreviewGroup(null);
+    });
+
   // Shared loading/error states
   const isLoading = mode === 'appointments' ? appointmentsLoading : groupsLoading;
   const isFetching = mode === 'appointments' ? appointmentsFetching : groupsFetching;
@@ -528,13 +579,7 @@ export function AppointmentMapPage() {
   const handleMarkerClick = useCallback((item: AppointmentMapItem) => {
     setSelectedItem(item);
     setSelectedGroupItem(null);
-    if (mapInstance && item.longitude != null && item.latitude != null) {
-      mapInstance.flyTo({
-        center: [item.longitude, item.latitude],
-        zoom: Math.max(mapInstance.getZoom(), 14),
-        duration: 700,
-      });
-    }
+    flyToPoint(mapInstance, item, { minZoom: 14, duration: 700 });
   }, [mapInstance]);
 
   // Single click on a group pin = PREVIEW only (popup anchored to the pin,
@@ -552,13 +597,7 @@ export function AppointmentMapPage() {
       previewTimerRef.current = null;
       setPreviewGroup(item);
       setSelectedItem(null);
-      if (mapInstance && item.longitude != null && item.latitude != null) {
-        mapInstance.flyTo({
-          center: [item.longitude, item.latitude],
-          zoom: Math.max(mapInstance.getZoom(), 14),
-          duration: 700,
-        });
-      }
+      flyToPoint(mapInstance, item, { minZoom: 14, duration: 700 });
     }, 250);
   }, [mapInstance]);
 
@@ -572,13 +611,7 @@ export function AppointmentMapPage() {
     setPreviewGroup(null);
     setSelectedGroupItem(item);
     setSelectedItem(null);
-    if (mapInstance && item.longitude != null && item.latitude != null) {
-      mapInstance.flyTo({
-        center: [item.longitude, item.latitude],
-        zoom: Math.max(mapInstance.getZoom(), 14),
-        duration: 700,
-      });
-    }
+    flyToPoint(mapInstance, item, { minZoom: 14, duration: 700 });
   }, [mapInstance]);
 
   // Drill-down appointment-pin click: open the SAME rich detail panel as
@@ -587,14 +620,11 @@ export function AppointmentMapPage() {
   // right for the open group modal so the focused pin stays visible.
   const handleGroupAppointmentMarkerClick = useCallback((item: AppointmentMapItem) => {
     setSelectedItem(item);
-    if (mapInstance && item.longitude != null && item.latitude != null) {
-      mapInstance.flyTo({
-        center: [item.longitude, item.latitude],
-        zoom: Math.max(mapInstance.getZoom(), 15),
-        duration: 600,
-        padding: { right: groupModalWidth + 32 },
-      });
-    }
+    flyToPoint(mapInstance, item, {
+      minZoom: 15,
+      duration: 600,
+      padding: { right: groupModalWidth + 32 },
+    });
   }, [mapInstance, groupModalWidth]);
 
   // 026 cycle 1 devolução — sidePanel is filter-only now; the
@@ -1189,8 +1219,11 @@ export function AppointmentMapPage() {
       {mode === 'groups' && !selectedGroupItem && previewGroup && groupPopupRoot && createPortal(
         <GroupMapDetailPanel
           group={previewGroup}
+          appointments={previewAppointments}
+          isLoadingAppointments={previewApptFetching}
           onClose={() => setPreviewGroup(null)}
-          onOpenGroup={() => handleGroupMarkerDoubleClick(previewGroup)}
+          onPublish={publishPreviewGroup}
+          isPublishing={isPublishingPreviewGroup}
         />,
         groupPopupRoot,
       )}
