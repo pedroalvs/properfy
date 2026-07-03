@@ -124,8 +124,18 @@ export class AppointmentUpdateNotAllowedError extends DomainError {
   constructor() {
     super(
       'APPOINTMENT_UPDATE_NOT_ALLOWED',
-      'Appointment can only be updated in DRAFT or AWAITING_INSPECTOR status',
+      'Appointment cannot be updated in CANCELLED or DONE status',
       422,
+    );
+  }
+}
+
+export class AppointmentInServiceGroupError extends DomainError {
+  constructor() {
+    super(
+      'APPOINTMENT_IN_SERVICE_GROUP',
+      'Date/time of an appointment in a service group is managed by the group; reschedule the group instead',
+      409,
     );
   }
 }

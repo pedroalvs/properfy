@@ -69,6 +69,19 @@ describe('AppointmentEntity', () => {
     });
   });
 
+  describe('isScheduleEditable()', () => {
+    it.each(['DRAFT', 'AWAITING_INSPECTOR', 'SCHEDULED', 'REJECTED'] as const)(
+      'returns true for %s status',
+      (status) => {
+        expect(makeAppointment({ status }).isScheduleEditable()).toBe(true);
+      },
+    );
+
+    it.each(['DONE', 'CANCELLED'] as const)('returns false for %s status', (status) => {
+      expect(makeAppointment({ status }).isScheduleEditable()).toBe(false);
+    });
+  });
+
   describe('isActive() and isDeleted()', () => {
     it('isActive() returns true when deletedAt is null', () => {
       const appt = makeAppointment({ deletedAt: null });

@@ -16,7 +16,7 @@ import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { useAppointmentCrossCheck } from '../hooks/useAppointmentCrossCheck';
 import { useAppointmentTransition } from '../hooks/useAppointmentTransition';
 import { getAvailableTransitions } from '../lib/transitions';
-import { isAppointmentEditable } from '../lib/editability';
+import { isAppointmentScheduleEditable } from '../lib/editability';
 import { AppointmentDetailSections } from '../components/AppointmentDetailSections';
 import { AppointmentContactTab } from '../components/AppointmentContactTab';
 import { AppointmentTimelineTab } from '../components/AppointmentTimelineTab';
@@ -87,7 +87,7 @@ export function AppointmentDetailPage() {
   const transitions = appointment?.inspectorId
     ? rawTransitions
     : rawTransitions.filter((t) => t.targetStatus !== 'SCHEDULED');
-  const canEditAppointment = canEdit && !!appointment && isAppointmentEditable(appointment.status);
+  const canEditAppointment = canEdit && !!appointment && isAppointmentScheduleEditable(appointment.status);
   const canCrossCheckDone = !!appointment &&
     isPrivileged &&
     appointment.status === 'DONE' &&

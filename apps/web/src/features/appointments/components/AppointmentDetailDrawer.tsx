@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { useAppointmentTransition } from '../hooks/useAppointmentTransition';
 import { getAvailableTransitions } from '../lib/transitions';
-import { isAppointmentEditable } from '../lib/editability';
+import { isAppointmentScheduleEditable } from '../lib/editability';
 import { AppointmentDetailSections } from './AppointmentDetailSections';
 import { AppointmentTransitionActions } from './AppointmentTransitionActions';
 
@@ -35,7 +35,7 @@ export function AppointmentDetailDrawer({
     appointment && user
       ? getAvailableTransitions(appointment.status, user.role)
       : [];
-  const canEditAppointment = !!appointment && isAppointmentEditable(appointment.status);
+  const canEditAppointment = !!appointment && isAppointmentScheduleEditable(appointment.status);
 
   const handleEdit = useCallback(() => {
     if (onEdit && appointmentId) {

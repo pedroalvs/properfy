@@ -10,6 +10,7 @@ import {
   AppointmentUpdateNotAllowedError,
   AppointmentPastDateError,
   AppointmentDateInPastError,
+  AppointmentInServiceGroupError,
 } from '../../../src/modules/appointment/domain/appointment.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
@@ -146,18 +147,42 @@ describe('UpdateAppointmentUseCase', () => {
     expect(appointmentRepo.update).toHaveBeenCalled();
   });
 
-  it('should fail to update a SCHEDULED appointment', async () => {
+  it('should update a SCHEDULED appointment keeping status and inspector', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(
-      makeAppointmentWithRelations({ status: 'SCHEDULED' }),
+      makeAppointmentWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
     );
 
-    await expect(
-      useCase.execute({
-        appointmentId: 'appt-1',
-        data: { notes: 'Cannot update' },
-        actor: makeActor(),
-      }),
-    ).rejects.toThrow(AppointmentUpdateNotAllowedError);
+    const result = await useCase.execute({
+      appointmentId: 'appt-1',
+      data: { scheduledDate: '2099-04-10' },
+      actor: makeActor(),
+    });
+
+    expect(result.status).toBe('SCHEDULED');
+    expect(result.inspectorId).toBe('insp-1');
+    expect(appointmentRepo.update).toHaveBeenCalledWith(
+      'appt-1',
+      'tenant-1',
+      expect.objectContaining({ scheduledDate: new Date('2099-04-10') }),
+    );
+    const updateArg = vi.mocked(appointmentRepo.update).mock.calls[0]![2];
+    expect(updateArg).not.toHaveProperty('status');
+    expect(updateArg).not.toHaveProperty('inspectorId');
+  });
+
+  it('should update a REJECTED appointment successfully', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({ status: 'REJECTED' }),
+    );
+
+    const result = await useCase.execute({
+      appointmentId: 'appt-1',
+      data: { scheduledDate: '2099-04-10' },
+      actor: makeActor(),
+    });
+
+    expect(result.status).toBe('REJECTED');
+    expect(appointmentRepo.update).toHaveBeenCalled();
   });
 
   it('should fail to update a DONE appointment', async () => {
@@ -649,6 +674,229 @@ describe('UpdateAppointmentUseCase', () => {
         data: { notes: 'Just a note' },
         actor: makeActor({ role: 'CL_USER', clUserPermissions: [] }),
       });
+      expect(result.id).toBe('appt-1');
+    });
+  });
+
+  // Schedule change on any non-terminal status: confirmation reset + token revoke + notify
+  describe('schedule change side effects', () => {
+    let cycleService: { rotateOnDateChange: ReturnType<typeof vi.fn> };
+    let tokenRepo: { revokeAllForAppointment: ReturnType<typeof vi.fn> };
+    let notifyHandler: { execute: ReturnType<typeof vi.fn> };
+
+    function makeUseCase() {
+      return new UpdateAppointmentUseCase(
+        appointmentRepo,
+        auditService,
+        new AuthorizationService(auditService),
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        cycleService as never,
+        tokenRepo as never,
+        notifyHandler as never,
+      );
+    }
+
+    beforeEach(() => {
+      cycleService = { rotateOnDateChange: vi.fn().mockResolvedValue(undefined) };
+      tokenRepo = { revokeAllForAppointment: vi.fn().mockResolvedValue(undefined) };
+      notifyHandler = { execute: vi.fn().mockResolvedValue(undefined) };
+    });
+
+    it('rotates the confirmation cycle when an active cycle exists and the date changed', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({
+          status: 'SCHEDULED',
+          activeConfirmationCycleId: 'cycle-1',
+          rentalTenantConfirmationStatus: 'CONFIRMED',
+        }),
+      );
+
+      const result = await makeUseCase().execute({
+        appointmentId: 'appt-1',
+        data: { scheduledDate: '2099-04-10' },
+        actor: makeActor(),
+      });
+
+      expect(cycleService.rotateOnDateChange).toHaveBeenCalledWith(
+        'appt-1',
+        'tenant-1',
+        new Date('2099-04-10'),
+        '09:00-10:00',
+        'DATE_CHANGED',
+      );
+      expect(result.rentalTenantConfirmationStatus).toBe('PENDING');
+      // Conservative ordering: reset runs BEFORE the date is persisted, so a
+      // partial failure leaves the old date in place and a retry re-detects
+      // the change (a stale CONFIRMED cycle can never survive).
+      expect(cycleService.rotateOnDateChange.mock.invocationCallOrder[0]!).toBeLessThan(
+        vi.mocked(appointmentRepo.update).mock.invocationCallOrder[0]!,
+      );
+    });
+
+    it('rotates with TIME_CHANGED when only the time slot changed', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({
+          status: 'SCHEDULED',
+          activeConfirmationCycleId: 'cycle-1',
+          scheduledDate: new Date('2099-04-01'),
+        }),
+      );
+
+      await makeUseCase().execute({
+        appointmentId: 'appt-1',
+        data: { timeSlotStart: '14:00', timeSlotEnd: '15:00' },
+        actor: makeActor(),
+      });
+
+      expect(cycleService.rotateOnDateChange).toHaveBeenCalledWith(
+        'appt-1',
+        'tenant-1',
+        new Date('2099-04-01'),
+        '14:00-15:00',
+        'TIME_CHANGED',
+      );
+    });
+
+    it('resets the denormalized confirmation status when no active cycle exists', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({
+          status: 'SCHEDULED',
+          activeConfirmationCycleId: null,
+          rentalTenantConfirmationStatus: 'CONFIRMED',
+        }),
+      );
+
+      await makeUseCase().execute({
+        appointmentId: 'appt-1',
+        data: { scheduledDate: '2099-04-10' },
+        actor: makeActor(),
+      });
+
+      expect(cycleService.rotateOnDateChange).not.toHaveBeenCalled();
+      expect(appointmentRepo.update).toHaveBeenCalledWith(
+        'appt-1',
+        'tenant-1',
+        expect.objectContaining({ rentalTenantConfirmationStatus: 'PENDING' }),
+      );
+    });
+
+    it('revokes portal tokens and audits the revocation', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ status: 'SCHEDULED' }),
+      );
+
+      await makeUseCase().execute({
+        appointmentId: 'appt-1',
+        data: { scheduledDate: '2099-04-10' },
+        actor: makeActor(),
+      });
+
+      expect(tokenRepo.revokeAllForAppointment).toHaveBeenCalledWith('appt-1');
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'rental_tenant_portal.tokens_revoked',
+          tenantId: 'tenant-1',
+          entityId: 'appt-1',
+        }),
+      );
+    });
+
+    it('notifies the rental tenant when a SCHEDULED appointment is rescheduled', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ status: 'SCHEDULED' }),
+      );
+
+      await makeUseCase().execute({
+        appointmentId: 'appt-1',
+        data: { scheduledDate: '2099-04-10' },
+        actor: makeActor(),
+      });
+
+      expect(notifyHandler.execute).toHaveBeenCalledWith({
+        appointmentId: 'appt-1',
+        tenantId: 'tenant-1',
+      });
+    });
+
+    it('does NOT notify when a DRAFT appointment date changes', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ status: 'DRAFT' }),
+      );
+
+      await makeUseCase().execute({
+        appointmentId: 'appt-1',
+        data: { scheduledDate: '2099-04-10' },
+        actor: makeActor(),
+      });
+
+      expect(notifyHandler.execute).not.toHaveBeenCalled();
+    });
+
+    it('does not fail the update when the notification handler throws', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ status: 'SCHEDULED' }),
+      );
+      notifyHandler.execute.mockRejectedValue(new Error('smtp down'));
+
+      const result = await makeUseCase().execute({
+        appointmentId: 'appt-1',
+        data: { scheduledDate: '2099-04-10' },
+        actor: makeActor(),
+      });
+
+      expect(result.id).toBe('appt-1');
+    });
+
+    it('runs no side effects when submitted date/time equal current values', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({
+          status: 'SCHEDULED',
+          activeConfirmationCycleId: 'cycle-1',
+          scheduledDate: new Date('2099-04-01'),
+          rentalTenantConfirmationStatus: 'CONFIRMED',
+        }),
+      );
+
+      const result = await makeUseCase().execute({
+        appointmentId: 'appt-1',
+        data: { scheduledDate: '2099-04-01', timeSlotStart: '09:00', timeSlotEnd: '10:00' },
+        actor: makeActor(),
+      });
+
+      expect(cycleService.rotateOnDateChange).not.toHaveBeenCalled();
+      expect(tokenRepo.revokeAllForAppointment).not.toHaveBeenCalled();
+      expect(notifyHandler.execute).not.toHaveBeenCalled();
+      expect(result.rentalTenantConfirmationStatus).toBe('CONFIRMED');
+    });
+
+    it('rejects a schedule change when the appointment belongs to a service group', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ status: 'SCHEDULED', serviceGroupId: 'group-1' }),
+      );
+
+      await expect(
+        makeUseCase().execute({
+          appointmentId: 'appt-1',
+          data: { scheduledDate: '2099-04-10' },
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow(AppointmentInServiceGroupError);
+    });
+
+    it('allows non-schedule edits on an appointment in a service group', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ status: 'SCHEDULED', serviceGroupId: 'group-1' }),
+      );
+
+      const result = await makeUseCase().execute({
+        appointmentId: 'appt-1',
+        data: { notes: 'group note' },
+        actor: makeActor(),
+      });
+
       expect(result.id).toBe('appt-1');
     });
   });
