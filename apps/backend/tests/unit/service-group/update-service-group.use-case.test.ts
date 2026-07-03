@@ -35,7 +35,6 @@ function makeGroupProps(overrides: Partial<ServiceGroupProps> = {}): ServiceGrou
     confirmedCount: 0,
     scheduledDate: new Date('2026-06-01'),
     timeWindow: '09:00-12:00',
-    name: 'Test Group',
     regionName: null,
     description: null,
     priorityMode: 'STANDARD',
@@ -109,7 +108,7 @@ describe('UpdateServiceGroupUseCase', () => {
     useCase = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService);
   });
 
-  it('should update name and description in any status', async () => {
+  it('should update description in any status', async () => {
     const groupData = makeGroupWithAppointments({ status: 'PUBLISHED' });
     vi.mocked(serviceGroupRepo.findById)
       .mockResolvedValueOnce(groupData)
@@ -117,14 +116,12 @@ describe('UpdateServiceGroupUseCase', () => {
 
     const result = await useCase.execute({
       groupId: 'group-1',
-      name: 'Updated Name',
       description: 'Updated description',
       actor: makeActor(),
     });
 
     expect(result.id).toBe('group-1');
     expect(serviceGroupRepo.update).toHaveBeenCalledWith('group-1', {
-      name: 'Updated Name',
       description: 'Updated description',
     });
   });
@@ -133,7 +130,7 @@ describe('UpdateServiceGroupUseCase', () => {
     await expect(
       useCase.execute({
         groupId: 'group-1',
-        name: 'Updated',
+        description: 'Updated',
         actor: makeActor({ role: 'CL_ADMIN' }),
       }),
     ).rejects.toThrow(ForbiddenError);
@@ -145,7 +142,7 @@ describe('UpdateServiceGroupUseCase', () => {
     await expect(
       useCase.execute({
         groupId: 'nonexistent',
-        name: 'Updated',
+        description: 'Updated',
         actor: makeActor(),
       }),
     ).rejects.toThrow(ServiceGroupNotFoundError);
@@ -305,14 +302,14 @@ describe('UpdateServiceGroupUseCase', () => {
 
     await useCase.execute({
       groupId: 'group-1',
-      name: 'New Name',
+      description: 'New description',
       scheduledDate: FAR_FUTURE_DATE,
       timeWindow: '10:00-14:00',
       actor: makeActor(),
     });
 
     expect(serviceGroupRepo.update).toHaveBeenCalledWith('group-1', {
-      name: 'New Name',
+      description: 'New description',
       scheduledDate: new Date(FAR_FUTURE_DATE),
       timeWindow: '10:00-14:00',
     });

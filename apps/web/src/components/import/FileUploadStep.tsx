@@ -5,6 +5,8 @@ interface FileUploadStepProps {
   acceptedTypes: string[];
   maxSizeMB: number;
   selectedFile: File | null;
+  /** Optional — omit to keep the staged-file display read-only (e.g. property import). */
+  onRemove?: () => void;
 }
 
 function formatFileSize(bytes: number): string {
@@ -22,6 +24,7 @@ export function FileUploadStep({
   acceptedTypes,
   maxSizeMB,
   selectedFile,
+  onRemove,
 }: FileUploadStepProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +85,14 @@ export function FileUploadStep({
     inputRef.current?.click();
   }, []);
 
+  const handleRemove = useCallback(() => {
+    // Without this, a real browser skips firing `change` when the same
+    // file is re-picked immediately after removal, since the input's
+    // value never actually changed from the browser's point of view.
+    if (inputRef.current) inputRef.current.value = '';
+    onRemove?.();
+  }, [onRemove]);
+
   return (
     <div className="space-y-4">
       <div
@@ -138,7 +149,7 @@ export function FileUploadStep({
             className="mdi mdi-file-check text-xl text-[var(--color-success)]"
             aria-hidden="true"
           />
-          <div>
+          <div className="flex-1">
             <p className="text-sm font-semibold text-[var(--color-text-primary)]">
               {selectedFile.name}
             </p>
@@ -146,6 +157,16 @@ export function FileUploadStep({
               {formatFileSize(selectedFile.size)}
             </p>
           </div>
+          {onRemove && (
+            <button
+              type="button"
+              onClick={handleRemove}
+              aria-label="Remove selected file"
+              className="rounded p-1 text-[var(--color-text-muted)] transition-colors hover:bg-red-50 hover:text-[var(--color-error)]"
+            >
+              <i className="mdi mdi-close text-lg" aria-hidden="true" />
+            </button>
+          )}
         </div>
       )}
 

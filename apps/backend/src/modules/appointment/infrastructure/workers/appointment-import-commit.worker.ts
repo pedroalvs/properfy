@@ -91,18 +91,24 @@ export class AppointmentImportCommitWorker {
 
       for (const row of rows) {
         const prior = priorByRow.get(row.rowNumber);
-        if (prior) {
-          results.push(prior);
-          await this.importRepo.update(importId, { resultsJson: [...results] });
-          continue;
-        }
-
-        const result = await this.processRow(row, importRecord.tenantId, importRecord.branchId, importId, actor, tz, createdPropertyIds);
+        const result = prior ?? await this.processRow(row, importRecord.tenantId, importRecord.branchId, importId, actor, tz, createdPropertyIds);
         results.push(result);
-        // A fresh copy per call — not just cosmetic for tests that snapshot
-        // mock-call arguments; it also protects any future repository
-        // implementation from an accidental shared-reference mutation.
-        await this.importRepo.update(importId, { resultsJson: [...results] });
+        // successCount/errorCount/totalRows are updated on every row, not
+        // just at the end — the frontend's progress bar derives
+        // percent-complete from these fields while the batch is still
+        // running (previously only resultsJson was written per row, so the
+        // bar stayed at 0% for the whole batch and only jumped at the end,
+        // or never if polling gave up first).
+        await this.importRepo.update(importId, {
+          // A fresh array copy per call — not just cosmetic for tests that
+          // snapshot mock-call arguments; it also protects any future
+          // repository implementation from an accidental shared-reference
+          // mutation.
+          resultsJson: [...results],
+          totalRows: rows.length,
+          successCount: results.filter((r) => r.status === 'created').length,
+          errorCount: results.filter((r) => r.status === 'error').length,
+        });
       }
 
       const successCount = results.filter((r) => r.status === 'created').length;
@@ -152,6 +158,22 @@ export class AppointmentImportCommitWorker {
     try {
       const propertyId = await this.resolveOrCreateProperty(row, tenantId, createdPropertyIds);
 
+      // A contact is not required to import (CONTACT_INCOMPLETE is a
+      // warning, not an error) — `contacts` defaults to `[]` in
+      // CreateAppointmentUseCase, which creates the appointment with no
+      // contact attached rather than failing.
+      const contacts = row.contact ? [{
+        inline: {
+          type: 'RENTAL_TENANT' as const,
+          displayName: row.contact.displayName,
+          primaryEmail: row.contact.primaryEmail,
+          primaryPhone: row.contact.primaryPhone,
+          additionalChannels: row.contact.additionalChannels,
+        },
+        role: 'RENTAL_TENANT' as const,
+        isPrimary: true,
+      }] : [];
+
       const appointment = await this.createAppointmentUseCase.execute({
         branchId,
         propertyId,
@@ -159,17 +181,7 @@ export class AppointmentImportCommitWorker {
         scheduledDate: row.scheduledDate,
         timeSlotStart: row.timeSlotStart,
         timeSlotEnd: row.timeSlotEnd,
-        contacts: [{
-          inline: {
-            type: 'RENTAL_TENANT',
-            displayName: row.contact!.displayName,
-            primaryEmail: row.contact!.primaryEmail,
-            primaryPhone: row.contact!.primaryPhone,
-            additionalChannels: row.contact!.additionalChannels,
-          },
-          role: 'RENTAL_TENANT',
-          isPrimary: true,
-        }],
+        contacts,
         customFields: row.customFields.length > 0 ? row.customFields : undefined,
         keyRequired: false,
         notes: row.notes ?? undefined,

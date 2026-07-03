@@ -8,7 +8,7 @@ function makeAppointment(overrides: Partial<AppointmentDetail> = {}): Appointmen
   return {
     id: 'apt-01',
     appointmentNumber: 1001,
-    code: 'VST-001',
+    appointmentCode: 'INS-0042',
     tenantId: 'tenant-1',
     tenantName: 'Test Agency',
     branchId: 'branch-1',

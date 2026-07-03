@@ -4704,6 +4704,7 @@ export interface paths {
                                 createdAt: string;
                                 updatedAt: string;
                                 appointmentNumber?: number;
+                                appointmentCode?: string;
                                 code?: string;
                                 propertyAddress?: string;
                                 contactName?: string;
@@ -4891,6 +4892,7 @@ export interface paths {
                                 createdAt: string;
                                 updatedAt: string;
                                 appointmentNumber?: number;
+                                appointmentCode?: string;
                                 code?: string;
                                 propertyAddress?: string;
                                 contactName?: string;
@@ -4999,6 +5001,7 @@ export interface paths {
                                 createdAt: string;
                                 updatedAt: string;
                                 appointmentNumber?: number;
+                                appointmentCode?: string;
                                 code?: string;
                                 propertyAddress?: string;
                                 contactName?: string;
@@ -5185,6 +5188,7 @@ export interface paths {
                                 createdAt: string;
                                 updatedAt: string;
                                 appointmentNumber?: number;
+                                appointmentCode?: string;
                                 code?: string;
                                 propertyAddress?: string;
                                 contactName?: string;
@@ -6092,7 +6096,6 @@ export interface paths {
                                 confirmedCount: number;
                                 scheduledDate: string;
                                 timeWindow: string;
-                                name?: string | null;
                                 regionName?: string | null;
                                 description?: string | null;
                                 priorityMode: string;
@@ -6138,7 +6141,6 @@ export interface paths {
                         serviceTypeId: string;
                         scheduledDate: string;
                         timeWindow: string;
-                        name?: string;
                         /** Format: uuid */
                         serviceRegionId?: string | null;
                         description?: string;
@@ -6179,7 +6181,6 @@ export interface paths {
                                 confirmedCount: number;
                                 scheduledDate: string;
                                 timeWindow: string;
-                                name?: string | null;
                                 regionName?: string | null;
                                 description?: string | null;
                                 priorityMode: string;
@@ -6254,7 +6255,6 @@ export interface paths {
                                 confirmedCount: number;
                                 scheduledDate: string;
                                 timeWindow: string;
-                                name?: string | null;
                                 regionName?: string | null;
                                 description?: string | null;
                                 priorityMode: string;
@@ -6295,7 +6295,6 @@ export interface paths {
             requestBody?: {
                 content: {
                     "application/json": {
-                        name?: string;
                         /** Format: uuid */
                         serviceRegionId?: string | null;
                         description?: string;
@@ -6335,7 +6334,6 @@ export interface paths {
                                 confirmedCount: number;
                                 scheduledDate: string;
                                 timeWindow: string;
-                                name?: string | null;
                                 regionName?: string | null;
                                 description?: string | null;
                                 priorityMode: string;
@@ -6408,7 +6406,6 @@ export interface paths {
                                 confirmedCount: number;
                                 scheduledDate: string;
                                 timeWindow: string;
-                                name?: string | null;
                                 regionName?: string | null;
                                 description?: string | null;
                                 priorityMode: string;
@@ -6492,7 +6489,6 @@ export interface paths {
                                 confirmedCount: number;
                                 scheduledDate: string;
                                 timeWindow: string;
-                                name?: string | null;
                                 regionName?: string | null;
                                 description?: string | null;
                                 priorityMode: string;
@@ -6816,7 +6812,6 @@ export interface paths {
                                     id: string;
                                     groupNumber: number;
                                     code: string;
-                                    name: string | null;
                                     status: string;
                                     scheduledDate: string;
                                     timeWindow: string;

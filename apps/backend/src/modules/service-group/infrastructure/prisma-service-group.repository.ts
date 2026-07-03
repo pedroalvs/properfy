@@ -66,7 +66,6 @@ function mapToEntity(row: any): ServiceGroupEntity {
     confirmedCount: row.confirmed_count,
     scheduledDate: row.scheduled_date,
     timeWindow: row.time_window,
-    name: row.name ?? null,
     regionName: row.region_name ?? null,
     description: row.description ?? null,
     priorityMode: row.priority_mode as PriorityMode,
@@ -312,7 +311,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         confirmed_count: group.confirmedCount,
         scheduled_date: group.scheduledDate,
         time_window: group.timeWindow,
-        name: group.name,
         region_name: group.regionName,
         description: group.description,
         priority_mode: group.priorityMode as PrismaPriorityMode,
@@ -339,7 +337,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       publishedAt: Date | null;
       assignedAt: Date | null;
       priorityExpiresAt: Date | null;
-      name: string | null;
       regionName: string | null;
       description: string | null;
       serviceRegionId: string | null;
@@ -362,7 +359,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       updateData['assigned_at'] = data.assignedAt;
     if (data.priorityExpiresAt !== undefined)
       updateData['priority_expires_at'] = data.priorityExpiresAt;
-    if (data.name !== undefined) updateData['name'] = data.name;
     if (data.regionName !== undefined) updateData['region_name'] = data.regionName;
     if (data.description !== undefined) updateData['description'] = data.description;
     if (data.serviceRegionId !== undefined) updateData['service_region_id'] = data.serviceRegionId;
@@ -774,7 +770,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     }
     if (filters.search) {
       where['OR'] = [
-        { name: { contains: filters.search, mode: 'insensitive' } },
         { description: { contains: filters.search, mode: 'insensitive' } },
       ];
     }
@@ -937,7 +932,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     id: string;
     groupNumber: number;
     code: string;
-    name: string | null;
     status: string;
     scheduledDate: Date;
     timeWindow: string;
@@ -951,7 +945,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     type Row = {
       id: string;
       group_number: number;
-      name: string | null;
       status: string;
       scheduled_date: Date;
       time_window: string;
@@ -963,7 +956,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       SELECT
         sg.id,
         sg.group_number,
-        sg.name,
         sg.status::text,
         sg.scheduled_date,
         sg.time_window,
@@ -976,7 +968,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       WHERE sg.service_type_id = ${params.serviceTypeId}
         AND sg.scheduled_date::date = ${dateStr}::date
         AND sg.status IN ('DRAFT', 'PUBLISHED')
-      GROUP BY sg.id, sg.group_number, sg.name, sg.status, sg.scheduled_date, sg.time_window, sg.service_type_id, st.name
+      GROUP BY sg.id, sg.group_number, sg.status, sg.scheduled_date, sg.time_window, sg.service_type_id, st.name
       ORDER BY sg.created_at ASC
     `;
 
@@ -991,7 +983,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         id: row.id,
         groupNumber: row.group_number,
         code: String(row.group_number),
-        name: row.name,
         status: row.status,
         scheduledDate: row.scheduled_date,
         timeWindow: row.time_window,

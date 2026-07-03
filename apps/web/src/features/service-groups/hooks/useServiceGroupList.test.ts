@@ -31,7 +31,7 @@ import { createQueryWrapper } from '@/test-utils/test-wrappers';
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_SERVICE_GROUPS = [
-  { id: 'sg-01', name: 'ABC Paulista', regionName: 'São Paulo - ABC', status: 'ACTIVE', inspectorName: 'Carlos Silva' },
+  { id: 'sg-01', regionName: 'São Paulo - ABC', status: 'ACTIVE', inspectorName: 'Carlos Silva' },
   { id: 'sg-02', name: 'Barra RJ', regionName: 'Rio de Janeiro - Barra', status: 'DRAFT', inspectorName: 'Fernanda Lima' },
 ];
 
@@ -56,7 +56,7 @@ describe('useServiceGroupList', () => {
     });
 
     expect(result.current.data).toHaveLength(2);
-    expect(result.current.data[0]?.name).toBe('ABC Paulista');
+    expect(result.current.data[0]?.id).toBe('sg-01');
   });
 
   it('initially shows loading then resolves', async () => {
