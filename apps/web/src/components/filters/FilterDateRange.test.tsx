@@ -79,7 +79,7 @@ describe('FilterDateRange', () => {
     for (const name of ['Period - start', 'Period - end']) {
       const input = screen.getByLabelText(name) as HTMLInputElement;
       const showPickerSpy = vi.fn();
-      (input as any).showPicker = showPickerSpy;
+      input.showPicker = showPickerSpy;
       fireEvent.click(input);
       expect(showPickerSpy).toHaveBeenCalledTimes(1);
     }

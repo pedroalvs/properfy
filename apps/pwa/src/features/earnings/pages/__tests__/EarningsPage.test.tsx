@@ -88,7 +88,7 @@ describe('EarningsPage', () => {
     for (const name of ['From date', 'To date']) {
       const input = screen.getByLabelText(name) as HTMLInputElement;
       const showPickerSpy = vi.fn();
-      (input as any).showPicker = showPickerSpy;
+      input.showPicker = showPickerSpy;
       fireEvent.click(input);
       expect(showPickerSpy).toHaveBeenCalledTimes(1);
     }

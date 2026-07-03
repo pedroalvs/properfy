@@ -200,7 +200,7 @@ describe('MarkInvoicePaidModal', () => {
     );
     const input = screen.getByLabelText('Payment Date') as HTMLInputElement;
     const showPickerSpy = vi.fn();
-    (input as any).showPicker = showPickerSpy;
+    input.showPicker = showPickerSpy;
     fireEvent.click(input);
     expect(showPickerSpy).toHaveBeenCalledTimes(1);
   });

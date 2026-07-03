@@ -230,8 +230,21 @@ describe('EditGroupModal', () => {
     );
     const input = screen.getByLabelText('Scheduled date') as HTMLInputElement;
     const showPickerSpy = vi.fn();
-    (input as any).showPicker = showPickerSpy;
+    input.showPicker = showPickerSpy;
     fireEvent.click(input);
     expect(showPickerSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('is safe when showPicker is undefined (older browsers)', () => {
+    render(
+      <EditGroupModal
+        open={true}
+        onClose={vi.fn()}
+        serviceGroup={mockServiceGroup}
+        onSaved={vi.fn()}
+      />,
+    );
+    // showPicker is undefined by default in jsdom — should not throw
+    expect(() => fireEvent.click(screen.getByLabelText('Scheduled date'))).not.toThrow();
   });
 });

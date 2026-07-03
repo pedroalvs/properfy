@@ -75,7 +75,7 @@ describe('MapBulkRescheduleForm — free start/end time range', () => {
     renderForm([makeAppointment()]);
     const input = screen.getByTestId('map-bulk-reschedule-date') as HTMLInputElement;
     const showPickerSpy = vi.fn();
-    (input as any).showPicker = showPickerSpy;
+    input.showPicker = showPickerSpy;
     fireEvent.click(input);
     expect(showPickerSpy).toHaveBeenCalledTimes(1);
   });

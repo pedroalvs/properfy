@@ -253,7 +253,7 @@ describe('BulkEditModal', () => {
     fireEvent.click(screen.getByLabelText('Scheduled Date'));
     const input = screen.getByLabelText('Set scheduled date') as HTMLInputElement;
     const showPickerSpy = vi.fn();
-    (input as any).showPicker = showPickerSpy;
+    input.showPicker = showPickerSpy;
     fireEvent.click(input);
     expect(showPickerSpy).toHaveBeenCalledTimes(1);
   });
