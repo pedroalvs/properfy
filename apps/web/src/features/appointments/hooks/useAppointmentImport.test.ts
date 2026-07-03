@@ -1,9 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/hooks/useAuth';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 import { createElement, type ReactNode } from 'react';
+
+const { mockShowError, mockShowInfo, mockShowSuccess } = vi.hoisted(() => ({
+  mockShowError: vi.fn(),
+  mockShowInfo: vi.fn(),
+  mockShowSuccess: vi.fn(),
+}));
 
 vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
@@ -36,6 +42,20 @@ vi.mock('@/lib/auth-storage', () => ({
     clearTokens: vi.fn(),
   },
 }));
+
+vi.mock('@/hooks/useSnackbar', async () => {
+  const actual = await vi.importActual('@/hooks/useSnackbar');
+  return {
+    ...actual,
+    useSnackbar: () => ({
+      messages: [],
+      showError: mockShowError,
+      showInfo: mockShowInfo,
+      showSuccess: mockShowSuccess,
+      dismiss: vi.fn(),
+    }),
+  };
+});
 
 import { api } from '@/services/api';
 import { useAppointmentImport } from './useAppointmentImport';
@@ -74,6 +94,13 @@ const PREVIEW_RESPONSE = {
 beforeEach(() => {
   mockPost.mockReset();
   mockGet.mockReset();
+  mockShowError.mockReset();
+  mockShowInfo.mockReset();
+  mockShowSuccess.mockReset();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe('useAppointmentImport', () => {
@@ -259,6 +286,74 @@ describe('useAppointmentImport', () => {
         { rowNumber: 2, status: 'created', appointmentId: 'apt-1', message: undefined },
         { rowNumber: 3, status: 'error', appointmentId: undefined, message: 'No service type found' },
       ]);
+    });
+
+    it('keeps polling after a slow-import warning and only shows the warning once', async () => {
+      vi.useFakeTimers();
+      mockPost.mockResolvedValue({ data: { data: { importId: 'import-123', status: 'PROCESSING' } } });
+
+      let statusCalls = 0;
+      mockGet.mockImplementation(() => {
+        statusCalls += 1;
+
+        if (statusCalls <= 20) {
+          return Promise.resolve({
+            data: {
+              data: {
+                id: 'import-123',
+                branchId: 'branch-1',
+                status: 'PROCESSING',
+                totalRows: 2,
+                successCount: 0,
+                errorCount: 0,
+                resultsJson: [],
+              },
+            },
+          });
+        }
+
+        return Promise.resolve({
+          data: {
+            data: {
+              id: 'import-123',
+              branchId: 'branch-1',
+              status: 'COMPLETED',
+              totalRows: 2,
+              successCount: 2,
+              errorCount: 0,
+              resultsJson: [
+                { rowNumber: 2, status: 'created', appointmentId: 'apt-1' },
+                { rowNumber: 3, status: 'created', appointmentId: 'apt-2' },
+              ],
+            },
+          },
+        });
+      });
+
+      const { result } = renderHook(() => useAppointmentImport(), { wrapper: createWrapper() });
+
+      await act(async () => {
+        await result.current.commit('import-123', { skipInvalidRows: false });
+      });
+      await act(async () => {});
+      expect(mockGet).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        for (let i = 0; i < 19; i += 1) {
+          await vi.advanceTimersByTimeAsync(3000);
+        }
+      });
+
+      expect(mockShowError).toHaveBeenCalledTimes(1);
+      expect(mockShowError).toHaveBeenCalledWith('Import is taking longer than expected. Check back later.');
+      expect(mockGet.mock.calls.length).toBeGreaterThan(1);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10000);
+      });
+
+      expect(mockGet.mock.calls.length).toBeGreaterThan(2);
+      expect(mockShowError).toHaveBeenCalledTimes(1);
     });
   });
 });

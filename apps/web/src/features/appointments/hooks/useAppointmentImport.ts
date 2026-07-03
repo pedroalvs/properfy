@@ -4,13 +4,9 @@ import { api } from '@/services/api';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import type { AppointmentImportPreviewResponse } from '@properfy/shared';
 
-// 60 attempts * 3s = 3 minutes. A larger batch (each row does a property
-// lookup/create, a contact lookup/create, and an appointment create with
-// an incremental DB write) can genuinely take longer than the previous
-// budget (20 * 3s = 60s) under real production latency — the batch keeps
-// running server-side regardless, but polling would give up and show a
-// "taking longer than expected" error while the import was still healthy.
-const MAX_POLL_ATTEMPTS = 60;
+const FAST_POLL_INTERVAL_MS = 3000;
+const SLOW_POLL_INTERVAL_MS = 10000;
+const MAX_STALLED_POLL_ATTEMPTS = 20;
 
 export interface ImportRowResultEntry {
   rowNumber: number;
@@ -89,7 +85,9 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
   const [isCommitting, setIsCommitting] = useState(false);
   const [importId, setImportId] = useState<string | null>(null);
   const pollingEnabledRef = useRef(false);
-  const pollAttemptsRef = useRef(0);
+  const stalledPollAttemptsRef = useRef(0);
+  const processedRowsRef = useRef(0);
+  const warnedAboutSlowImportRef = useRef(false);
 
   const pollQuery = useQuery({
     queryKey: ['appointment-import-status', importId],
@@ -106,18 +104,29 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
       const status = query.state.data?.status;
       if (status === 'COMPLETED' || status === 'FAILED') {
         pollingEnabledRef.current = false;
-        pollAttemptsRef.current = 0;
+        stalledPollAttemptsRef.current = 0;
+        processedRowsRef.current = 0;
+        warnedAboutSlowImportRef.current = false;
         return false;
       }
 
-      pollAttemptsRef.current += 1;
-      if (pollAttemptsRef.current >= MAX_POLL_ATTEMPTS) {
-        pollingEnabledRef.current = false;
-        showError('Import is taking longer than expected. Check back later.');
-        return false;
+      const processedRows = (query.state.data?.successCount ?? 0) + (query.state.data?.errorCount ?? 0);
+      if (processedRows > processedRowsRef.current) {
+        processedRowsRef.current = processedRows;
+        stalledPollAttemptsRef.current = 0;
+        return FAST_POLL_INTERVAL_MS;
       }
 
-      return 3000;
+      stalledPollAttemptsRef.current += 1;
+      if (stalledPollAttemptsRef.current >= MAX_STALLED_POLL_ATTEMPTS) {
+        if (!warnedAboutSlowImportRef.current) {
+          warnedAboutSlowImportRef.current = true;
+          showError('Import is taking longer than expected. Check back later.');
+        }
+        return SLOW_POLL_INTERVAL_MS;
+      }
+
+      return FAST_POLL_INTERVAL_MS;
     },
   });
 
@@ -157,7 +166,9 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
   const commit = useCallback(
     async (id: string, opts: { skipInvalidRows: boolean; actorTimezone?: string }): Promise<boolean> => {
       setIsCommitting(true);
-      pollAttemptsRef.current = 0;
+      stalledPollAttemptsRef.current = 0;
+      processedRowsRef.current = 0;
+      warnedAboutSlowImportRef.current = false;
       try {
         // Derived from the importId, not randomUUID() — a retry of the same
         // logical commit (e.g. a flaky network response after the request
