@@ -16,24 +16,48 @@ vi.mock('@/services/api', () => ({
 
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
+const summaryResponse = {
+  currency: 'AUD',
+  totalApproved: 150,
+  nextPayment: 90,
+  monthly: [
+    { month: '2026-02', total: 0 },
+    { month: '2026-03', total: 150 },
+  ],
+};
+
+function payoutsPage(page: number, totalPages: number, entries: unknown[]) {
+  return {
+    data: entries,
+    pagination: { page, pageSize: 20, total: totalPages * 20, totalPages },
+  };
+}
+
+const marchEntries = [
+  { id: 'e1', entryType: 'INSPECTOR_PAYOUT', amount: 150, currency: 'AUD', status: 'APPROVED', effectiveAt: '2026-03-10T10:00:00Z' },
+  { id: 'e2', entryType: 'INSPECTOR_PAYOUT', amount: 90, currency: 'AUD', status: 'PENDING', effectiveAt: '2026-03-20T10:00:00Z' },
+];
+
 describe('EarningsPage', () => {
   beforeEach(() => {
     mockUseAuth.mockReturnValue({
       user: { id: 'usr-1', name: 'Inspector Jane', email: 'jane@test.com', role: 'INSP', tenantId: null },
     });
 
-    mockGet.mockResolvedValue({
-      data: {
-        data: [
-          { id: 'e1', entryType: 'INSPECTOR_PAYOUT', amount: 150, currency: 'AUD', status: 'APPROVED', effectiveAt: '2026-03-10T10:00:00Z' },
-          { id: 'e2', entryType: 'INSPECTOR_PAYOUT', amount: 90, currency: 'AUD', status: 'PENDING', effectiveAt: '2026-03-20T10:00:00Z' },
-        ],
-        pagination: { page: 1, pageSize: 200, total: 2, totalPages: 1 },
-      },
+    mockGet.mockImplementation(async (path: string, opts?: { params?: { query?: Record<string, string> } }) => {
+      if (path === '/v1/inspector/earnings/summary') {
+        return { data: summaryResponse };
+      }
+      if (path === '/v1/financial/entries') {
+        const query = opts?.params?.query ?? {};
+        if (query.fromDate === '2026-04-01') return { data: payoutsPage(1, 1, []) };
+        return { data: payoutsPage(Number(query.page ?? '1'), 1, marchEntries) };
+      }
+      return { data: undefined };
     });
   });
 
-  it('shows the Earnings segment with next-payment, total, chart and invoice CTAs', async () => {
+  it('shows the Earnings segment with next-payment, total, chart and invoice CTAs from the summary endpoint', async () => {
     renderWithProviders(<EarningsPage />);
 
     await waitFor(() => {
@@ -45,6 +69,11 @@ describe('EarningsPage', () => {
     expect(screen.getByTestId('earnings-chart')).toBeInTheDocument();
     expect(screen.getByTestId('request-invoice-cta')).toBeInTheDocument();
     expect(screen.getByTestId('my-invoices-cta')).toBeInTheDocument();
+
+    expect(mockGet).toHaveBeenCalledWith(
+      '/v1/inspector/earnings/summary',
+      expect.objectContaining({ params: { query: { months: '6' } } }),
+    );
   });
 
   it('switches to the History segment showing payouts with payment-status chips', async () => {
@@ -63,19 +92,52 @@ describe('EarningsPage', () => {
     expect(screen.queryByTestId('request-invoice-cta')).not.toBeInTheDocument();
   });
 
-  it('filters the history by date range', async () => {
+  it('applies the date filter server-side (fromDate/toDate query params)', async () => {
     renderWithProviders(<EarningsPage />);
     await waitFor(() => expect(screen.getByText('Earnings')).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('tab', { name: /history/i }));
     await waitFor(() => expect(screen.getByText('Payment history')).toBeInTheDocument());
 
-    // Narrow to a window that excludes both entries (they are in March 2026).
     fireEvent.change(screen.getByLabelText('From date'), { target: { value: '2026-04-01' } });
 
     await waitFor(() => {
       expect(screen.getByText('No payouts for this period.')).toBeInTheDocument();
     });
+    expect(mockGet).toHaveBeenCalledWith(
+      '/v1/financial/entries',
+      expect.objectContaining({
+        params: { query: expect.objectContaining({ fromDate: '2026-04-01', type: 'INSPECTOR_PAYOUT', pageSize: '20' }) },
+      }),
+    );
+  });
+
+  it('loads the next page via the Load more button when more pages exist', async () => {
+    mockGet.mockImplementation(async (path: string, opts?: { params?: { query?: Record<string, string> } }) => {
+      if (path === '/v1/inspector/earnings/summary') return { data: summaryResponse };
+      const page = Number(opts?.params?.query?.page ?? '1');
+      if (page === 1) return { data: payoutsPage(1, 2, marchEntries) };
+      return {
+        data: payoutsPage(2, 2, [
+          { id: 'e3', entryType: 'INSPECTOR_PAYOUT', amount: 55, currency: 'AUD', status: 'APPROVED', effectiveAt: '2026-02-05T10:00:00Z' },
+        ]),
+      };
+    });
+
+    renderWithProviders(<EarningsPage />);
+    await waitFor(() => expect(screen.getByText('Earnings')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('tab', { name: /history/i }));
+    await waitFor(() => expect(screen.getByText('Payment history')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId('history-load-more'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/55\.00/)).toBeInTheDocument();
+    });
+    // Both pages remain rendered (appended, not replaced).
+    expect(screen.getByText(/150\.00/)).toBeInTheDocument();
+    expect(screen.queryByTestId('history-load-more')).not.toBeInTheDocument();
   });
 
   it('opens the native picker when a date filter input is clicked', async () => {

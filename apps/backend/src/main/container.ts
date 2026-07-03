@@ -371,6 +371,7 @@ import { FindAddableGroupsForAppointmentsUseCase } from '../modules/service-grou
 import { GetGroupPortalLinkPlanUseCase } from '../modules/service-group/application/use-cases/get-group-portal-link-plan.use-case';
 import { SendGroupPortalLinksUseCase } from '../modules/service-group/application/use-cases/send-group-portal-links.use-case';
 import { GetAvailablePeriodsUseCase } from '../modules/billing/application/use-cases/get-available-periods.use-case';
+import { GetInspectorEarningsSummaryUseCase } from '../modules/billing/application/use-cases/get-inspector-earnings-summary.use-case';
 import { PreviewInvoiceUseCase } from '../modules/billing/application/use-cases/preview-invoice.use-case';
 import { RequestInvoiceUseCase } from '../modules/billing/application/use-cases/request-invoice.use-case';
 import { ReopenForRescheduleUseCase } from '../modules/appointment/application/use-cases/reopen-for-reschedule.use-case';
@@ -815,6 +816,7 @@ export function createContainer(logger: Logger): AppContainer {
     inspectionExecutionRepo, inspectionAssetRepo, storageService, appointmentRepo, authorizationService,
   );
   const getAvailablePeriodsUseCase = new GetAvailablePeriodsUseCase(inspectorRepo);
+  const getInspectorEarningsSummaryUseCase = new GetInspectorEarningsSummaryUseCase(financialEntryRepo);
   const previewInvoiceUseCase = new PreviewInvoiceUseCase(inspectorRepo, financialEntryRepo);
   const requestInvoiceUseCase = new RequestInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, inspectorRepo, auditService);
   const confirmAssetUploadUseCase = new ConfirmAssetUploadUseCase(
@@ -1446,6 +1448,7 @@ export function createContainer(logger: Logger): AppContainer {
       confirmAssetUploadUseCase,
       getMarketplaceOffersUseCase,
       getAvailablePeriodsUseCase,
+      getInspectorEarningsSummaryUseCase,
       previewInvoiceUseCase,
       requestInvoiceUseCase,
       listAppointmentAssetsUseCase,

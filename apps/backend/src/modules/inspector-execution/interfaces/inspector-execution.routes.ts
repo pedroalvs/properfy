@@ -33,6 +33,7 @@ import type { SaveExecutionProgressUseCase } from '../application/use-cases/save
 import type { ReopenExecutionUseCase } from '../application/use-cases/reopen-execution.use-case';
 import type { GetMarketplaceOffersUseCase } from '../../service-group/application/use-cases/get-marketplace-offers.use-case';
 import type { GetAvailablePeriodsUseCase } from '../../billing/application/use-cases/get-available-periods.use-case';
+import type { GetInspectorEarningsSummaryUseCase } from '../../billing/application/use-cases/get-inspector-earnings-summary.use-case';
 import type { PreviewInvoiceUseCase } from '../../billing/application/use-cases/preview-invoice.use-case';
 import type { RequestInvoiceUseCase } from '../../billing/application/use-cases/request-invoice.use-case';
 import type { ListAppointmentAssetsUseCase } from '../application/use-cases/list-appointment-assets.use-case';
@@ -45,6 +46,8 @@ import {
   availablePeriodsResponseSchema,
   invoicePreviewResponseSchema,
   requestInvoiceResponseSchema,
+  inspectorEarningsSummaryQuerySchema,
+  inspectorEarningsSummaryResponseSchema,
 } from '@properfy/shared';
 
 export interface InspectorExecutionRouteContainer {
@@ -58,6 +61,7 @@ export interface InspectorExecutionRouteContainer {
   confirmAssetUploadUseCase: ConfirmAssetUploadUseCase;
   getMarketplaceOffersUseCase: GetMarketplaceOffersUseCase;
   getAvailablePeriodsUseCase: GetAvailablePeriodsUseCase;
+  getInspectorEarningsSummaryUseCase: GetInspectorEarningsSummaryUseCase;
   previewInvoiceUseCase: PreviewInvoiceUseCase;
   requestInvoiceUseCase: RequestInvoiceUseCase;
   listAppointmentAssetsUseCase: ListAppointmentAssetsUseCase;
@@ -463,6 +467,26 @@ export async function registerInspectorExecutionRoutes(
         periodEnd: parsed.data.periodEnd,
       });
       return reply.status(201).send(result);
+    },
+  );
+
+  // GET /v1/inspector/earnings/summary — own earnings totals + monthly series for the PWA
+  app.get(
+    '/v1/inspector/earnings/summary',
+    { preHandler: authenticate, schema: { response: { 200: inspectorEarningsSummaryResponseSchema } } },
+    async (request, reply) => {
+      const auth = request.authContext!;
+      const inspectorId = requireLinkedInspector(auth, reply, 'view earnings');
+      if (inspectorId === null) return reply;
+      const parsed = inspectorEarningsSummaryQuerySchema.safeParse(request.query);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Invalid query', details: parsed.error.errors } });
+      }
+      const result = await container.getInspectorEarningsSummaryUseCase.execute({
+        inspectorId,
+        months: parsed.data.months,
+      });
+      return reply.status(200).send(result);
     },
   );
 }

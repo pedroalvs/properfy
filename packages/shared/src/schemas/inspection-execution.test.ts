@@ -5,6 +5,7 @@ import {
   startInspectionSchema,
   finishInspectionSchema,
   requestAssetUploadSchema,
+  inspectorEarningsSummaryQuerySchema,
 } from './inspection-execution';
 
 describe('inspectorScheduleQuerySchema', () => {
@@ -135,5 +136,31 @@ describe('requestAssetUploadSchema', () => {
       fileName: 'signature.png',
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe('inspectorEarningsSummaryQuerySchema', () => {
+  it('defaults months to 6', () => {
+    const result = inspectorEarningsSummaryQuerySchema.safeParse({});
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.months).toBe(6);
+  });
+
+  it('coerces string months', () => {
+    const result = inspectorEarningsSummaryQuerySchema.safeParse({ months: '12' });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.months).toBe(12);
+  });
+
+  it('rejects months over 24', () => {
+    expect(inspectorEarningsSummaryQuerySchema.safeParse({ months: 25 }).success).toBe(false);
+  });
+
+  it('rejects months under 1', () => {
+    expect(inspectorEarningsSummaryQuerySchema.safeParse({ months: 0 }).success).toBe(false);
+  });
+
+  it('rejects non-integer months', () => {
+    expect(inspectorEarningsSummaryQuerySchema.safeParse({ months: 1.5 }).success).toBe(false);
   });
 });

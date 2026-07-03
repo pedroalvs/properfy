@@ -775,6 +775,20 @@ export const requestInvoiceResponseSchema = z.object({
   payoutCount: z.number().int(),
 });
 
+// ─── Inspector earnings summary ────────────────────────────────────────────
+// Server-side aggregation for the PWA Earnings screen: all-time approved total,
+// pending ("next payment") total and a last-N-months approved series for the
+// chart — replaces the client fetching every payout row to derive these.
+export const inspectorEarningsSummaryResponseSchema = z.object({
+  currency: z.string().nullable(),
+  totalApproved: z.number(),
+  nextPayment: z.number(),
+  monthly: z.array(z.object({
+    month: z.string(), // YYYY-MM
+    total: z.number(),
+  })),
+});
+
 // ─── Agency financial export (031) ───────────────────────────────────────────
 // Synchronous own-tenant XLSX statement. The file is returned base64-encoded so
 // it flows through the standard JSON envelope + typed OpenAPI client (no signed

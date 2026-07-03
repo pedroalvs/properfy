@@ -8,6 +8,7 @@ import type {
   FinancialEntryPagination,
   FinancialEntrySummary,
   FinancialEntryEnriched,
+  InspectorEarningsSummary,
 } from '../domain/financial-entry.repository';
 import { InvalidEntryStatusTransitionError } from '../domain/billing.errors';
 
@@ -104,6 +105,46 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
     }
 
     return summary;
+  }
+
+  async getInspectorEarningsSummary(inspectorId: string, monthlyFrom: Date): Promise<InspectorEarningsSummary> {
+    const payoutWhere = { inspector_id: inspectorId, entry_type: 'INSPECTOR_PAYOUT' as FinancialEntryType };
+
+    const [byStatus, latest, windowRows] = await Promise.all([
+      this.prisma.financialEntry.groupBy({
+        by: ['status'],
+        where: payoutWhere,
+        _sum: { amount: true },
+      }),
+      this.prisma.financialEntry.findFirst({
+        where: payoutWhere,
+        orderBy: { effective_at: 'desc' },
+        select: { currency: true },
+      }),
+      this.prisma.financialEntry.findMany({
+        where: { ...payoutWhere, status: 'APPROVED' as FinancialEntryStatus, effective_at: { gte: monthlyFrom } },
+        select: { effective_at: true, amount: true },
+      }),
+    ]);
+
+    let totalApproved = 0;
+    let nextPayment = 0;
+    for (const row of byStatus) {
+      const amount = Number(row._sum?.amount ?? 0);
+      if (row.status === 'APPROVED') totalApproved = amount;
+      if (row.status === 'PENDING') nextPayment = amount;
+    }
+
+    const buckets = new Map<string, number>();
+    for (const row of windowRows) {
+      const key = `${row.effective_at.getUTCFullYear()}-${String(row.effective_at.getUTCMonth() + 1).padStart(2, '0')}`;
+      buckets.set(key, (buckets.get(key) ?? 0) + Number(row.amount));
+    }
+    const monthly = [...buckets.entries()]
+      .map(([month, total]) => ({ month, total }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+
+    return { totalApproved, nextPayment, currency: latest?.currency ?? null, monthly };
   }
 
   async findById(id: string, tenantId?: string): Promise<FinancialEntryEntity | null> {
