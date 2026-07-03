@@ -93,4 +93,16 @@ describe('EarningsPage', () => {
       expect(showPickerSpy).toHaveBeenCalledTimes(1);
     }
   });
+
+  it('is safe when showPicker is undefined (older browsers)', async () => {
+    renderWithProviders(<EarningsPage />);
+    await waitFor(() => expect(screen.getByText('Earnings')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('tab', { name: /history/i }));
+    await waitFor(() => expect(screen.getByText('Payment history')).toBeInTheDocument());
+
+    // showPicker is undefined by default in jsdom — should not throw
+    expect(() => fireEvent.click(screen.getByLabelText('From date'))).not.toThrow();
+    expect(() => fireEvent.click(screen.getByLabelText('To date'))).not.toThrow();
+  });
 });
