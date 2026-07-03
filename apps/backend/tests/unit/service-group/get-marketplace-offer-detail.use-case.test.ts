@@ -152,6 +152,7 @@ describe('GetMarketplaceOfferDetailUseCase', () => {
     expect(result.appointments[0].timeSlotStart).toBe('08:00');
     expect(result.appointments[0].timeSlotEnd).toBe('09:00');
     expect(result.appointments[1].timeSlotStart).toBe('10:00');
+    expect(result.appointments[1].timeSlotEnd).toBe('11:00');
     expect(result.payoutEstimate).toBe(250);
 
     // Use case now forwards inspector.blockedClientsJson (denylist) — matches
