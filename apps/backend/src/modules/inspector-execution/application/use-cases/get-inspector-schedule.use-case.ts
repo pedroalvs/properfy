@@ -1,6 +1,7 @@
 import type { AuthContext } from '@properfy/shared';
-import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
+import type { AppointmentListItem, IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { IInspectionExecutionRepository } from '../../domain/inspection-execution.repository';
+import type { InspectionExecutionEntity } from '../../domain/inspection-execution.entity';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 
@@ -32,6 +33,14 @@ export interface ScheduleAppointmentItem {
   isOverdue?: boolean;
 }
 
+export interface ScheduleMonthAppointmentItem extends ScheduleAppointmentItem {
+  appointmentCode: string;
+  propertyAddress: string;
+  suburb: string;
+  serviceTypeName: string;
+  flowType: string;
+}
+
 export interface GetInspectorScheduleOutput {
   date: string;
   appointments: ScheduleAppointmentItem[];
@@ -42,6 +51,21 @@ export interface GetInspectorScheduleRangeOutput {
   total: number;
   page: number;
   pageSize: number;
+}
+
+export interface ScheduleMonthDay {
+  date: string;
+  count: number;
+  hasUrgent: boolean;
+}
+
+export interface GetInspectorScheduleMonthOutput {
+  today: string;
+  from: string;
+  to: string;
+  days: ScheduleMonthDay[];
+  appointments: ScheduleMonthAppointmentItem[];
+  overdueAppointments: ScheduleMonthAppointmentItem[];
 }
 
 export class GetInspectorScheduleUseCase {
@@ -237,5 +261,157 @@ export class GetInspectorScheduleUseCase {
     });
 
     return { data, total, page, pageSize };
+  }
+
+  async executeMonth(input: Pick<GetInspectorScheduleInput, 'actor'>): Promise<GetInspectorScheduleMonthOutput> {
+    const { actor } = input;
+
+    this.authorizationService.assertRoles(actor, ['INSP'], {
+      action: 'inspector.view_own',
+      entityType: 'Appointment',
+    });
+
+    if (!actor.inspectorId) {
+      throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
+    }
+
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0]!;
+    const monthEnd = new Date(today);
+    monthEnd.setUTCDate(monthEnd.getUTCDate() + 30);
+    const toStr = monthEnd.toISOString().split('T')[0]!;
+
+    const visibleAppointments = await this.appointmentRepo.findVisibleForInspector({
+      inspectorId: actor.inspectorId,
+      fromDate: todayStr,
+      toDate: toStr,
+      today,
+    });
+
+    const overdueTo = new Date(today);
+    overdueTo.setUTCDate(overdueTo.getUTCDate() - 1);
+    const overdueToStr = overdueTo.toISOString().split('T')[0]!;
+    const overdueAppointments = await this.appointmentRepo.findAll(
+      {
+        inspectorId: actor.inspectorId,
+        status: ['SCHEDULED'],
+        toDate: overdueToStr,
+      },
+      { page: 1, pageSize: 1000, sortBy: 'scheduled_date', sortOrder: 'asc' },
+    );
+
+    const appointmentIds = [
+      ...visibleAppointments.map((item) => item.appointment.id),
+      ...overdueAppointments.map((item) => item.appointment.id),
+    ];
+    const executions =
+      appointmentIds.length > 0
+        ? await this.executionRepo.findByAppointmentIds(appointmentIds)
+        : [];
+    const executionMap = new Map(executions.map((e) => [e.appointmentId, e]));
+
+    const appointments = visibleAppointments.map((item) =>
+      this.toMonthItem(item, executionMap, false),
+    );
+    const overdueItems = overdueAppointments.map((item) =>
+      this.toMonthItem(item, executionMap, true),
+    );
+
+    const days = this.buildMonthDays(todayStr, toStr, appointments);
+
+    return {
+      today: todayStr,
+      from: todayStr,
+      to: toStr,
+      days,
+      appointments,
+      overdueAppointments: overdueItems,
+    };
+  }
+
+  private buildMonthDays(
+    from: string,
+    to: string,
+    appointments: ScheduleMonthAppointmentItem[],
+  ): ScheduleMonthDay[] {
+    const appointmentsByDate = new Map<string, ScheduleMonthAppointmentItem[]>();
+    for (const appointment of appointments) {
+      const items = appointmentsByDate.get(appointment.scheduledDate) ?? [];
+      items.push(appointment);
+      appointmentsByDate.set(appointment.scheduledDate, items);
+    }
+
+    const days: ScheduleMonthDay[] = [];
+    const current = new Date(`${from}T00:00:00.000Z`);
+    const end = new Date(`${to}T00:00:00.000Z`);
+    while (current <= end) {
+      const date = current.toISOString().split('T')[0]!;
+      const items = appointmentsByDate.get(date) ?? [];
+      days.push({
+        date,
+        count: items.length,
+        hasUrgent: items.some((item) => this.isUrgent(item)),
+      });
+      current.setUTCDate(current.getUTCDate() + 1);
+    }
+
+    return days;
+  }
+
+  private toMonthItem(
+    item: AppointmentListItem,
+    executionMap: Map<string, InspectionExecutionEntity>,
+    isOverdue: boolean,
+  ): ScheduleMonthAppointmentItem {
+    const base = this.toScheduleItem(item, executionMap, undefined, isOverdue);
+    return {
+      ...base,
+      appointmentCode: base.appointmentCode,
+      propertyAddress: item.propertyAddress,
+      suburb: item.propertySuburb ?? '',
+      serviceTypeName: item.serviceTypeName || 'Inspection',
+      flowType: item.serviceTypeFlowType ?? 'ROUTINE',
+      isOverdue: isOverdue || undefined,
+    };
+  }
+
+  private toScheduleItem(
+    item: AppointmentListItem,
+    executionMap: Map<string, InspectionExecutionEntity>,
+    scheduledDateOverride?: string,
+    isOverdue?: boolean,
+  ): ScheduleAppointmentItem {
+    const appt = item.appointment;
+    const exec = executionMap.get(appt.id);
+    let executionStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'FINISHED' = 'NOT_STARTED';
+    if (exec) {
+      executionStatus = exec.isFinished() ? 'FINISHED' : 'IN_PROGRESS';
+    }
+
+    const codePrefix = item.tenantAppointmentCodePrefix ?? 'INS';
+    const codePadded = String(appt.appointmentNumber).padStart(4, '0');
+
+    return {
+      id: appt.id,
+      appointmentCode: `${codePrefix}-${codePadded}`,
+      status: appt.status,
+      scheduledDate: scheduledDateOverride ?? appt.scheduledDate.toISOString().split('T')[0]!,
+      timeSlotStart: appt.timeSlotStart,
+      timeSlotEnd: appt.timeSlotEnd,
+      serviceTypeId: appt.serviceTypeId,
+      propertyId: appt.propertyId,
+      rentalTenantConfirmationStatus: appt.rentalTenantConfirmationStatus,
+      keyRequired: appt.keyRequired,
+      meetingLocation: appt.meetingLocation,
+      agencyName: item.tenantName ?? '',
+      executionStatus,
+      isOverdue: isOverdue || undefined,
+    };
+  }
+
+  private isUrgent(item: ScheduleMonthAppointmentItem): boolean {
+    if (item.flowType !== 'ROUTINE') return false;
+    if (item.keyRequired) return false;
+    return item.rentalTenantConfirmationStatus !== 'CONFIRMED';
   }
 }

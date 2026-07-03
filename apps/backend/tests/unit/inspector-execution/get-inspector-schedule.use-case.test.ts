@@ -45,9 +45,16 @@ function makeAppointment(
     contact: null,
     propertyCode: 'PROP-001',
     propertyAddress: '1 Test St, Suburb NSW 2000',
+    propertySuburb: 'Suburb',
+    propertyLatitude: null,
+    propertyLongitude: null,
+    tenantName: 'Test Agency',
+    tenantAppointmentCodePrefix: 'INS',
     branchName: 'Main Branch',
     serviceTypeName: 'Routine Inspection',
+    serviceTypeFlowType: 'ROUTINE',
     inspectorName: 'Test Inspector',
+    serviceGroupNumber: null,
   };
 }
 
@@ -225,5 +232,70 @@ describe('GetInspectorScheduleUseCase', () => {
     const result = await useCase.execute({ date: '2026-03-21', actor: inspActor });
 
     expect(result.appointments[0].executionStatus).toBe('FINISHED');
+  });
+
+  it('should return a one-month schedule payload with days and overdue appointments', async () => {
+    vi.useFakeTimers({ now: new Date('2026-03-21T10:00:00Z') });
+    const todayAppt = makeAppointment({
+      id: 'appt-today',
+      scheduledDate: new Date('2026-03-21T00:00:00Z'),
+      rentalTenantConfirmationStatus: 'PENDING',
+    });
+    const futureAppt = makeAppointment({
+      id: 'appt-future',
+      scheduledDate: new Date('2026-04-20T00:00:00Z'),
+      serviceTypeId: 'st-2',
+    });
+    const overdueAppt = makeAppointment({
+      id: 'appt-overdue',
+      scheduledDate: new Date('2026-03-20T00:00:00Z'),
+    });
+
+    vi.mocked(appointmentRepo.findVisibleForInspector).mockResolvedValue([todayAppt, futureAppt]);
+    vi.mocked(appointmentRepo.findAll).mockResolvedValue([overdueAppt]);
+    vi.mocked(executionRepo.findByAppointmentIds).mockResolvedValue([
+      makeExecution({ appointmentId: 'appt-today' }),
+      makeExecution({ appointmentId: 'appt-overdue', finishedAt: new Date('2026-03-21T09:00:00Z') }),
+    ]);
+
+    const result = await useCase.executeMonth({ actor: inspActor });
+
+    expect(result.today).toBe('2026-03-21');
+    expect(result.from).toBe('2026-03-21');
+    expect(result.to).toBe('2026-04-20');
+    expect(result.days).toHaveLength(31);
+    expect(result.days[0]).toEqual({ date: '2026-03-21', count: 1, hasUrgent: true });
+    expect(result.appointments).toHaveLength(2);
+    expect(result.appointments[0]).toMatchObject({
+      id: 'appt-today',
+      propertyAddress: '1 Test St, Suburb NSW 2000',
+      suburb: 'Suburb',
+      flowType: 'ROUTINE',
+      executionStatus: 'IN_PROGRESS',
+    });
+    expect(result.overdueAppointments).toHaveLength(1);
+    expect(result.overdueAppointments[0]).toMatchObject({
+      id: 'appt-overdue',
+      scheduledDate: '2026-03-20',
+      isOverdue: true,
+      executionStatus: 'FINISHED',
+    });
+    expect(appointmentRepo.findVisibleForInspector).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inspectorId: 'insp-1',
+        fromDate: '2026-03-21',
+        toDate: '2026-04-20',
+      }),
+    );
+    expect(appointmentRepo.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inspectorId: 'insp-1',
+        status: ['SCHEDULED'],
+        toDate: '2026-03-20',
+      }),
+      expect.objectContaining({ pageSize: 1000 }),
+    );
+
+    vi.useRealTimers();
   });
 });

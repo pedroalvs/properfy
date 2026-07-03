@@ -601,6 +601,30 @@ export const inspectorScheduleResponseSchema = z.object({
   appointments: z.array(inspectorScheduleItemSchema),
 });
 
+export const inspectorScheduleMonthItemSchema = inspectorScheduleItemSchema.extend({
+  appointmentCode: z.string(),
+  propertyAddress: z.string(),
+  suburb: z.string(),
+  serviceTypeName: z.string(),
+  flowType: z.string(),
+  isOverdue: z.boolean().optional(),
+});
+
+export const inspectorScheduleMonthDaySchema = z.object({
+  date: dateStr(),
+  count: z.number().int().min(0),
+  hasUrgent: z.boolean(),
+});
+
+export const inspectorScheduleMonthResponseSchema = z.object({
+  today: dateStr(),
+  from: dateStr(),
+  to: dateStr(),
+  days: z.array(inspectorScheduleMonthDaySchema),
+  appointments: z.array(inspectorScheduleMonthItemSchema),
+  overdueAppointments: z.array(inspectorScheduleMonthItemSchema),
+});
+
 export const inspectionExecutionResponseSchema = z.object({
   id: z.string().uuid(),
   appointmentId: z.string().uuid(),

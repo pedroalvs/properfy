@@ -1,5 +1,9 @@
 import { ServiceTypeFlowType, RentalTenantConfirmationStatus, type AppointmentStatus } from '@properfy/shared';
-import type { InspectorAppointment, InspectorAppointmentDetailResponse } from '../types';
+import type {
+  InspectorAppointment,
+  InspectorAppointmentDetailResponse,
+  InspectorScheduleMonthItem,
+} from '../types';
 
 function normalizeFlowType(flowType: string | null | undefined): ServiceTypeFlowType {
   if (flowType === ServiceTypeFlowType.INGOING || flowType === ServiceTypeFlowType.OUTGOING) {
@@ -50,5 +54,35 @@ export function mapInspectorAppointmentDetail(
     isOverdue: detail.isOverdue ?? false,
     agencyName: detail.agencyName,
     apps: detail.apps ?? [],
+  };
+}
+
+export function mapInspectorScheduleMonthItem(item: InspectorScheduleMonthItem): InspectorAppointment {
+  return {
+    id: item.id,
+    appointmentCode: item.appointmentCode,
+    propertyAddress: item.propertyAddress,
+    suburb: item.suburb,
+    scheduledDate: item.scheduledDate,
+    timeSlotStart: item.timeSlotStart,
+    timeSlotEnd: item.timeSlotEnd,
+    status: item.status as AppointmentStatus,
+    rentalTenantConfirmation: normalizeTenantConfirmation(item.rentalTenantConfirmationStatus),
+    serviceTypeName: item.serviceTypeName,
+    flowType: normalizeFlowType(item.flowType),
+    rentalTenantName: '',
+    rentalTenantPhone: null,
+    rentalTenantEmail: null,
+    keyRequired: item.keyRequired,
+    meetingLocation: item.meetingLocation,
+    restrictions: null,
+    propertyLatitude: null,
+    propertyLongitude: null,
+    notes: null,
+    observation: null,
+    customFields: [],
+    isOverdue: item.isOverdue ?? false,
+    agencyName: item.agencyName ?? undefined,
+    apps: [],
   };
 }

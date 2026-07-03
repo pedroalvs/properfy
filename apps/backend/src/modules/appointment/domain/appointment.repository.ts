@@ -77,6 +77,7 @@ export interface AppointmentListItem {
   contact: AppointmentContactEntity | null;
   propertyCode: string;
   propertyAddress: string;
+  propertySuburb?: string;
   propertyLatitude: number | null;
   propertyLongitude: number | null;
   tenantName: string;
@@ -84,6 +85,7 @@ export interface AppointmentListItem {
   tenantAppointmentCodePrefix: string | null;
   branchName: string;
   serviceTypeName: string;
+  serviceTypeFlowType?: string;
   inspectorName: string | null;
   /** Service group's sequential number (group_number); null when ungrouped. */
   serviceGroupNumber: number | null;

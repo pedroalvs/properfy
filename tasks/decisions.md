@@ -1,5 +1,11 @@
 # Architecture Decisions
 
+## 2026-07-03 - PWA schedule uses fixed monthly screen payload
+
+1. PWA schedule load uses `GET /v1/inspector/schedule/month` instead of one request per day.
+2. The backend owns the screen window: today through today + 30 days, with `days`, `appointments`, and `overdueAppointments` in one response.
+3. Appointment detail stays lazy-loaded via `GET /v1/inspector/appointments/:appointmentId` only after the inspector opens a card.
+
 ## 2026-05-06 - Appointments Map-First, appointmentCode & Operational Cleanup
 
 1. `appointmentCode` = existing `appointmentNumber` formatted via `AppointmentCodeFormatter` (e.g. `INS-0042`). UUID remains internal PK; `appointmentCode` is the user-facing identifier in all portals.
