@@ -557,6 +557,8 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
             key_required: true,
             payout_amount: true,
             notes: true,
+            time_slot_start: true,
+            time_slot_end: true,
             tenant_id: true,
             tenant: { select: { name: true, appointment_code_prefix: true } },
             property: { select: { suburb: true, state: true, street: true } },
@@ -640,6 +642,8 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
           notes: a.notes ?? null,
           payoutAmount: payoutVal,
           tenantName: a.tenant?.name ?? '',
+          timeSlotStart: a.time_slot_start,
+          timeSlotEnd: a.time_slot_end,
         };
       }),
     };

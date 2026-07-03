@@ -16797,6 +16797,14 @@
                               },
                               "tenantName": {
                                 "type": "string"
+                              },
+                              "timeSlotStart": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "timeSlotEnd": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
                               }
                             },
                             "required": [
@@ -16807,7 +16815,9 @@
                               "keyRequired",
                               "notes",
                               "payoutAmount",
-                              "tenantName"
+                              "tenantName",
+                              "timeSlotStart",
+                              "timeSlotEnd"
                             ],
                             "additionalProperties": false
                           }
@@ -18421,6 +18431,333 @@
                     "total",
                     "page",
                     "pageSize"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/inspector/schedule/month": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "today": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        },
+                        "from": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        },
+                        "to": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        },
+                        "days": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "date": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                ]
+                              },
+                              "count": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "hasUrgent": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "date",
+                              "count",
+                              "hasUrgent"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "appointments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "appointmentCode": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "DRAFT",
+                                  "AWAITING_INSPECTOR",
+                                  "SCHEDULED",
+                                  "DONE",
+                                  "CANCELLED",
+                                  "REJECTED"
+                                ]
+                              },
+                              "scheduledDate": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                ]
+                              },
+                              "timeSlotStart": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "timeSlotEnd": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "serviceTypeId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "propertyId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "rentalTenantConfirmationStatus": {
+                                "type": "string"
+                              },
+                              "keyRequired": {
+                                "type": "boolean"
+                              },
+                              "meetingLocation": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "executionStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "NOT_STARTED",
+                                  "IN_PROGRESS",
+                                  "FINISHED"
+                                ]
+                              },
+                              "agencyName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "propertyAddress": {
+                                "type": "string"
+                              },
+                              "suburb": {
+                                "type": "string"
+                              },
+                              "serviceTypeName": {
+                                "type": "string"
+                              },
+                              "flowType": {
+                                "type": "string",
+                                "enum": [
+                                  "ROUTINE",
+                                  "INGOING",
+                                  "OUTGOING"
+                                ]
+                              },
+                              "isOverdue": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "appointmentCode",
+                              "status",
+                              "scheduledDate",
+                              "timeSlotStart",
+                              "timeSlotEnd",
+                              "serviceTypeId",
+                              "propertyId",
+                              "rentalTenantConfirmationStatus",
+                              "keyRequired",
+                              "meetingLocation",
+                              "executionStatus",
+                              "propertyAddress",
+                              "suburb",
+                              "serviceTypeName",
+                              "flowType"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "overdueAppointments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "appointmentCode": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "DRAFT",
+                                  "AWAITING_INSPECTOR",
+                                  "SCHEDULED",
+                                  "DONE",
+                                  "CANCELLED",
+                                  "REJECTED"
+                                ]
+                              },
+                              "scheduledDate": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                ]
+                              },
+                              "timeSlotStart": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "timeSlotEnd": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "serviceTypeId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "propertyId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "rentalTenantConfirmationStatus": {
+                                "type": "string"
+                              },
+                              "keyRequired": {
+                                "type": "boolean"
+                              },
+                              "meetingLocation": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "executionStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "NOT_STARTED",
+                                  "IN_PROGRESS",
+                                  "FINISHED"
+                                ]
+                              },
+                              "agencyName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "propertyAddress": {
+                                "type": "string"
+                              },
+                              "suburb": {
+                                "type": "string"
+                              },
+                              "serviceTypeName": {
+                                "type": "string"
+                              },
+                              "flowType": {
+                                "type": "string",
+                                "enum": [
+                                  "ROUTINE",
+                                  "INGOING",
+                                  "OUTGOING"
+                                ]
+                              },
+                              "isOverdue": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "appointmentCode",
+                              "status",
+                              "scheduledDate",
+                              "timeSlotStart",
+                              "timeSlotEnd",
+                              "serviceTypeId",
+                              "propertyId",
+                              "rentalTenantConfirmationStatus",
+                              "keyRequired",
+                              "meetingLocation",
+                              "executionStatus",
+                              "propertyAddress",
+                              "suburb",
+                              "serviceTypeName",
+                              "flowType"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "today",
+                        "from",
+                        "to",
+                        "days",
+                        "appointments",
+                        "overdueAppointments"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
                   ],
                   "additionalProperties": false
                 }

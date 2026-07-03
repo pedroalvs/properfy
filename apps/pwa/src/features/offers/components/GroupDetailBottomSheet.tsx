@@ -80,6 +80,9 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept }: Props) {
                         </span>
                       )}
                       <p className="font-medium text-secondary">{appt.suburb}</p>
+                      <p data-testid="appointment-time" className="text-xs font-semibold text-text-primary">
+                        {appt.timeSlotStart}–{appt.timeSlotEnd}
+                      </p>
                       {appt.tenantName && (
                         <p data-testid="appointment-agency" className="text-xs text-text-muted">{appt.tenantName}</p>
                       )}

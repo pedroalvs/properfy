@@ -469,6 +469,9 @@ export const marketplaceOfferDetailAppointmentSchema = z.object({
   payoutAmount: z.number().nullable(),
   // Agency (tenant) name of this appointment — shown per-job (groups may be cross-agency).
   tenantName: z.string(),
+  // Appointment's own slot (bare HH:mm) — preferred over the group timeWindow in the UI.
+  timeSlotStart: z.string().regex(HHMM_REGEX),
+  timeSlotEnd: z.string().regex(HHMM_REGEX),
 });
 
 export const marketplaceOfferDetailResponseSchema = marketplaceOfferResponseSchema.extend({

@@ -101,6 +101,9 @@ export interface MarketplaceOfferDetail extends MarketplaceOffer {
     payoutAmount: number | null;
     /** Agency (tenant) name of this appointment — shown per-job in the offer detail. */
     tenantName: string;
+    /** Appointment's own slot (bare HH:mm) — preferred over the group timeWindow in the UI. */
+    timeSlotStart: string;
+    timeSlotEnd: string;
   }>;
 }
 

@@ -7067,6 +7067,8 @@ export interface paths {
                                     notes: string | null;
                                     payoutAmount: number | null;
                                     tenantName: string;
+                                    timeSlotStart: string;
+                                    timeSlotEnd: string;
                                 }[];
                             };
                         };
@@ -8189,6 +8191,102 @@ export interface paths {
                             total: number;
                             page: number;
                             pageSize: number;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector/schedule/month": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                today: string;
+                                from: string;
+                                to: string;
+                                days: {
+                                    date: string;
+                                    count: number;
+                                    hasUrgent: boolean;
+                                }[];
+                                appointments: {
+                                    id: string;
+                                    appointmentCode: string;
+                                    /** @enum {string} */
+                                    status: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
+                                    scheduledDate: string;
+                                    timeSlotStart: string;
+                                    timeSlotEnd: string;
+                                    /** Format: uuid */
+                                    serviceTypeId: string;
+                                    /** Format: uuid */
+                                    propertyId: string;
+                                    rentalTenantConfirmationStatus: string;
+                                    keyRequired: boolean;
+                                    meetingLocation: string | null;
+                                    /** @enum {string} */
+                                    executionStatus: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED";
+                                    agencyName?: string | null;
+                                    propertyAddress: string;
+                                    suburb: string;
+                                    serviceTypeName: string;
+                                    /** @enum {string} */
+                                    flowType: "ROUTINE" | "INGOING" | "OUTGOING";
+                                    isOverdue?: boolean;
+                                }[];
+                                overdueAppointments: {
+                                    id: string;
+                                    appointmentCode: string;
+                                    /** @enum {string} */
+                                    status: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
+                                    scheduledDate: string;
+                                    timeSlotStart: string;
+                                    timeSlotEnd: string;
+                                    /** Format: uuid */
+                                    serviceTypeId: string;
+                                    /** Format: uuid */
+                                    propertyId: string;
+                                    rentalTenantConfirmationStatus: string;
+                                    keyRequired: boolean;
+                                    meetingLocation: string | null;
+                                    /** @enum {string} */
+                                    executionStatus: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED";
+                                    agencyName?: string | null;
+                                    propertyAddress: string;
+                                    suburb: string;
+                                    serviceTypeName: string;
+                                    /** @enum {string} */
+                                    flowType: "ROUTINE" | "INGOING" | "OUTGOING";
+                                    isOverdue?: boolean;
+                                }[];
+                            };
                         };
                     };
                 };

@@ -41,6 +41,8 @@ const mockDetail: MarketplaceOfferDetail = {
       notes: null,
       payoutAmount: 150,
       tenantName: 'Acme Realty',
+      timeSlotStart: '08:00',
+      timeSlotEnd: '09:00',
     },
     {
       id: '00000000-0000-0000-0000-000000000012',
@@ -51,6 +53,8 @@ const mockDetail: MarketplaceOfferDetail = {
       notes: null,
       payoutAmount: 150,
       tenantName: 'Globex Property',
+      timeSlotStart: '11:30',
+      timeSlotEnd: '12:30',
     },
   ],
 };
@@ -125,6 +129,13 @@ describe('GroupDetailBottomSheet', () => {
     render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
     expect(screen.getByText('APT-1001')).toBeInTheDocument();
     expect(screen.getByText('APT-1002')).toBeInTheDocument();
+  });
+
+  it("renders each appointment's own time slot", () => {
+    mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    const times = screen.getAllByTestId('appointment-time').map((el) => el.textContent);
+    expect(times).toEqual(['08:00–09:00', '11:30–12:30']);
   });
 
   it('renders group-level service type and time window', () => {
