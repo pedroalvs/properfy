@@ -483,7 +483,7 @@ export class CreateAppointmentUseCase {
     // 10b. Link app credentials (live reference). Each must belong to this
     // appointment's tenant and be active. Missing-or-other-tenant collapse to
     // the same 404 to avoid leaking another agency's credential existence.
-    const linkedApps = await this.linkAppCredentials(appointmentId, tenantId, input.appCredentialIds);
+    const linkedApps = await this.linkAppCredentials(appointmentId, tenantId, input.branchId, input.appCredentialIds);
 
     // 11. Create restriction if provided
     let restriction: AppointmentRestrictionEntity | null = null;
@@ -595,6 +595,7 @@ export class CreateAppointmentUseCase {
   private async linkAppCredentials(
     appointmentId: string,
     tenantId: string,
+    branchId: string,
     appCredentialIds: string[] | undefined,
   ): Promise<AppointmentApp[]> {
     if (appCredentialIds === undefined || !this.appCredentialRepo) return [];
@@ -610,6 +611,14 @@ export class CreateAppointmentUseCase {
       }
       if (!cred.isActive) {
         throw new ValidationError('APPOINTMENT_APP_CREDENTIAL_INACTIVE', `App credential ${id} is not active`);
+      }
+      // Branch-scoped credentials only attach to appointments of that branch;
+      // agency-wide credentials (branchId null) attach anywhere in the tenant.
+      if (cred.branchId !== null && cred.branchId !== branchId) {
+        throw new ValidationError(
+          'APPOINTMENT_APP_CREDENTIAL_BRANCH_MISMATCH',
+          `App credential ${id} belongs to another branch`,
+        );
       }
     }
 

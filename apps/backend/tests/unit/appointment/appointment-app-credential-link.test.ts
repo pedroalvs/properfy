@@ -26,9 +26,9 @@ const TENANT_A = 'aaaaaaaa-0000-4000-8000-000000000001';
 const BRANCH_B = 'bbbbbbbb-0000-4000-8000-000000000010';
 const PROPERTY_B = 'bbbbbbbb-0000-4000-8000-000000000020';
 
-function cred(id: string, tenantId: string, isActive = true) {
+function cred(id: string, tenantId: string, isActive = true, branchId: string | null = null) {
   return new AppCredentialEntity({
-    id, tenantId, name: `App-${id}`, username: 'u', password: 'p',
+    id, tenantId, branchId, name: `App-${id}`, username: 'u', password: 'p',
     isActive, createdAt: new Date(), updatedAt: new Date(),
   });
 }
@@ -130,6 +130,27 @@ describe('CreateAppointmentUseCase — app-credential linking', () => {
     await expect(
       useCase.execute({ ...baseInput, appCredentialIds: [inactive.id], actor: makeActor() } as any),
     ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('links a credential scoped to the appointment branch and agency-wide ones', async () => {
+    const branchScoped = cred('55555555-0000-4000-8000-000000000005', TENANT_B, true, BRANCH_B);
+    const agencyWide = cred('66666666-0000-4000-8000-000000000006', TENANT_B, true, null);
+    vi.mocked(repos.appCredentialRepo.findByIds).mockResolvedValue([branchScoped, agencyWide]);
+
+    const result = await useCase.execute({
+      ...baseInput, appCredentialIds: [branchScoped.id, agencyWide.id], actor: makeActor(),
+    } as any);
+    expect(result.apps.map((a) => a.id)).toEqual([branchScoped.id, agencyWide.id]);
+  });
+
+  it('rejects a credential scoped to another branch of the same tenant', async () => {
+    const otherBranch = cred('77777777-0000-4000-8000-000000000007', TENANT_B, true, 'other-branch-id');
+    vi.mocked(repos.appCredentialRepo.findByIds).mockResolvedValue([otherBranch]);
+
+    await expect(
+      useCase.execute({ ...baseInput, appCredentialIds: [otherBranch.id], actor: makeActor() } as any),
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(repos.appCredentialRepo.replaceAppointmentLinks).not.toHaveBeenCalled();
   });
 
   it('leaves apps empty when no appCredentialIds are provided', async () => {
