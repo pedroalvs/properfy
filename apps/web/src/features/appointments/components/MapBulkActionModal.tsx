@@ -632,13 +632,15 @@ export function MapBulkActionModal({
   // map stays interactive behind/beside the modal. The centered path
   // keeps the Dialog with backdrop for mobile + tablet viewports where
   // vertical real estate is the constraint.
+  // top-16 (not top-4) so the modal clears the lasso-draw banner
+  // (Cancel / Finish) which sits centered at top-4 in the same band.
   if (position === 'top-right') {
     return (
       <div
-        className={`fixed right-4 top-4 z-40 flex flex-col overflow-hidden rounded-lg border border-border-subtle bg-card-bg shadow-xl${isDragging ? ' select-none' : ''}`}
+        className={`fixed right-4 top-16 z-40 flex flex-col overflow-hidden rounded-lg border border-border-subtle bg-card-bg shadow-xl${isDragging ? ' select-none' : ''}`}
         style={{
           width: `min(${widthPx}px, calc(100vw - 32px))`,
-          maxHeight: 'calc(100vh - 32px)',
+          maxHeight: 'calc(100vh - 80px)',
           pointerEvents: 'auto',
         }}
         role="dialog"

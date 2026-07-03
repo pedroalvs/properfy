@@ -9,6 +9,13 @@ interface MapMarkerProps {
   color?: string;
   label?: string;
   onClick?: () => void;
+  /**
+   * Optional double-click handler. `stopPropagation` on the underlying
+   * button keeps the gesture off the map canvas, so Mapbox's native
+   * double-click zoom does not fire. Note the single-click handler still
+   * fires (twice) before this — callers must keep `onClick` non-destructive.
+   */
+  onDoubleClick?: () => void;
   active?: boolean;
   clustered?: boolean;
   clusterCount?: number;
@@ -56,6 +63,7 @@ export function MapMarker({
   color = 'var(--color-primary)',
   label,
   onClick,
+  onDoubleClick,
   active = false,
   clustered = false,
   clusterCount,
@@ -130,6 +138,11 @@ export function MapMarker({
         e.stopPropagation();
         onClick?.();
       }}
+      onDoubleClick={(e) => {
+        if (disabled) return;
+        e.stopPropagation();
+        onDoubleClick?.();
+      }}
       aria-label={label ?? `Appointment marker at ${latitude}, ${longitude}`}
     >
       <span
@@ -158,6 +171,11 @@ export function MapMarker({
         if (disabled) return;
         e.stopPropagation();
         onClick?.();
+      }}
+      onDoubleClick={(e) => {
+        if (disabled) return;
+        e.stopPropagation();
+        onDoubleClick?.();
       }}
       aria-label={label ?? `Map marker at ${latitude}, ${longitude}`}
     >
