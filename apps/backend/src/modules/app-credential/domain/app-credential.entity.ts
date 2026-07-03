@@ -2,6 +2,8 @@ export interface AppCredentialProps {
   id: string;
   /** Owning agency. App credentials are always tenant-scoped (NOT NULL). */
   tenantId: string;
+  /** Optional branch scope. Null = agency-wide (visible for every branch). */
+  branchId?: string | null;
   name: string;
   username: string;
   /**
@@ -10,6 +12,16 @@ export interface AppCredentialProps {
    * by the repository (encrypt-on-save / decrypt-on-read).
    */
   password: string;
+  /** When true, the app requires an authentication code (authCode must be set). */
+  needsAuthCode?: boolean;
+  /** Plaintext auth code — encrypted at rest by the repository, like password. */
+  authCode?: string | null;
+  /** Link to download or access the app. */
+  appUrl?: string | null;
+  /** Link to usage instructions. */
+  instructionsUrl?: string | null;
+  /** Plaintext instructions password — encrypted at rest, like password. */
+  instructionsPassword?: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -18,9 +30,15 @@ export interface AppCredentialProps {
 export class AppCredentialEntity {
   readonly id: string;
   readonly tenantId: string;
+  readonly branchId: string | null;
   readonly name: string;
   readonly username: string;
   readonly password: string;
+  readonly needsAuthCode: boolean;
+  readonly authCode: string | null;
+  readonly appUrl: string | null;
+  readonly instructionsUrl: string | null;
+  readonly instructionsPassword: string | null;
   readonly isActive: boolean;
   readonly createdAt: Date;
   readonly updatedAt: Date;
@@ -28,9 +46,15 @@ export class AppCredentialEntity {
   constructor(props: AppCredentialProps) {
     this.id = props.id;
     this.tenantId = props.tenantId;
+    this.branchId = props.branchId ?? null;
     this.name = props.name;
     this.username = props.username;
     this.password = props.password;
+    this.needsAuthCode = props.needsAuthCode ?? false;
+    this.authCode = props.authCode ?? null;
+    this.appUrl = props.appUrl ?? null;
+    this.instructionsUrl = props.instructionsUrl ?? null;
+    this.instructionsPassword = props.instructionsPassword ?? null;
     this.isActive = props.isActive;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;

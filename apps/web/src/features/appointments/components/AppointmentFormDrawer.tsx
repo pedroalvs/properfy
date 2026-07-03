@@ -880,6 +880,7 @@ export function AppointmentFormDrawer({
                         value={form.appCredentialIds}
                         onChange={(ids) => setForm((prev) => ({ ...prev, appCredentialIds: ids }))}
                         tenantId={effectiveTenantId || user?.tenantId || undefined}
+                        branchId={form.branchId || undefined}
                         disabled={!!(isGlobalRole && !effectiveTenantId)}
                       />
                     </FormField>

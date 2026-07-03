@@ -219,6 +219,7 @@ model Branch {
   price_rules            ServicePriceRule[]
   appointments           Appointment[]
   appointment_imports    AppointmentImport[]
+  app_credentials        AppCredential[]
 
   // Case-insensitive unique index on (tenant_id, lower(name)) managed via raw SQL migration
   @@index([tenant_id, name])
@@ -690,20 +691,28 @@ model AppointmentContact {
 // base64(iv‖authTag‖ciphertext) produced by Aes256GcmService; the plaintext
 // password is shown in the UI but never stored in clear.
 model AppCredential {
-  id                 String   @id @default(uuid())
-  tenant_id          String
-  name               String   @db.VarChar(200)
-  username           String   @db.VarChar(200)
-  password_encrypted String
-  is_active          Boolean  @default(true)
-  created_at         DateTime @default(now())
-  updated_at         DateTime @updatedAt
+  id                              String   @id @default(uuid())
+  tenant_id                       String
+  branch_id                       String?
+  name                            String   @db.VarChar(200)
+  username                        String   @db.VarChar(200)
+  password_encrypted              String
+  needs_auth_code                 Boolean  @default(false)
+  auth_code_encrypted             String?
+  app_url                         String?  @db.VarChar(1000)
+  instructions_url                String?  @db.VarChar(1000)
+  instructions_password_encrypted String?
+  is_active                       Boolean  @default(true)
+  created_at                      DateTime @default(now())
+  updated_at                      DateTime @updatedAt
 
   tenant       Tenant                     @relation(fields: [tenant_id], references: [id])
+  branch       Branch?                    @relation(fields: [branch_id], references: [id])
   appointments AppointmentAppCredential[]
 
   @@index([tenant_id, is_active])
   @@index([tenant_id, name])
+  @@index([tenant_id, branch_id])
   @@map("app_credentials")
 }
 

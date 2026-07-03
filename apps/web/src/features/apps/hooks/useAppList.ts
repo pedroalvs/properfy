@@ -25,7 +25,7 @@ export interface UseAppListReturn {
  * agency selector lives on the page (it's a scope filter, not a gate — the
  * list shows every agency's apps by default for AM/OP).
  */
-export function useAppList(tenantIdOverride?: string): UseAppListReturn {
+export function useAppList(tenantIdOverride?: string, branchIdOverride?: string): UseAppListReturn {
   const [urlFilters, setFilter] = useUrlFilters(URL_FILTER_SCHEMA);
 
   const filters: AppFiltersState = {
@@ -46,6 +46,7 @@ export function useAppList(tenantIdOverride?: string): UseAppListReturn {
     page,
     pageSize,
     tenantId: tenantIdOverride || undefined,
+    branchId: branchIdOverride || undefined,
     isActive: filters.isActive === '' ? undefined : filters.isActive,
     search: filters.search || undefined,
   } as ListParams;

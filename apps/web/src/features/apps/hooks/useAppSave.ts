@@ -4,12 +4,25 @@ import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import type { AppFormData, AppFormErrors } from '../types';
 
+/** Shared optional fields — empty inputs are sent as null (clears on update). */
+function toOptionalFields(data: AppFormData) {
+  return {
+    branchId: data.branchId || null,
+    needsAuthCode: data.needsAuthCode,
+    authCode: data.needsAuthCode && data.authCode ? data.authCode : null,
+    appUrl: data.appUrl.trim() || null,
+    instructionsUrl: data.instructionsUrl.trim() || null,
+    instructionsPassword: data.instructionsPassword || null,
+  };
+}
+
 function toCreatePayload(data: AppFormData) {
   return {
     tenantId: data.tenantId,
     name: data.name.trim(),
     username: data.username.trim(),
     password: data.password,
+    ...toOptionalFields(data),
   };
 }
 
@@ -18,6 +31,7 @@ function toUpdatePayload(data: AppFormData) {
     name: data.name.trim(),
     username: data.username.trim(),
     password: data.password,
+    ...toOptionalFields(data),
   };
 }
 

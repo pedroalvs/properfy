@@ -220,6 +220,11 @@ export class GetAppointmentDetailUseCase {
           name: a.name,
           username: a.username,
           password: a.password,
+          needsAuthCode: a.needsAuthCode,
+          authCode: a.authCode ?? null,
+          appUrl: a.appUrl ?? null,
+          instructionsUrl: a.instructionsUrl ?? null,
+          instructionsPassword: a.instructionsPassword ?? null,
         }))
       : [];
 

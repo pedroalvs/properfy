@@ -4725,6 +4725,11 @@ export interface paths {
                                     name: string;
                                     username: string;
                                     password: string;
+                                    needsAuthCode: boolean;
+                                    authCode: string | null;
+                                    appUrl: string | null;
+                                    instructionsUrl: string | null;
+                                    instructionsPassword: string | null;
                                 }[];
                                 restrictions?: unknown[];
                                 property?: unknown;
@@ -4913,6 +4918,11 @@ export interface paths {
                                     name: string;
                                     username: string;
                                     password: string;
+                                    needsAuthCode: boolean;
+                                    authCode: string | null;
+                                    appUrl: string | null;
+                                    instructionsUrl: string | null;
+                                    instructionsPassword: string | null;
                                 }[];
                                 restrictions?: unknown[];
                                 property?: unknown;
@@ -5022,6 +5032,11 @@ export interface paths {
                                     name: string;
                                     username: string;
                                     password: string;
+                                    needsAuthCode: boolean;
+                                    authCode: string | null;
+                                    appUrl: string | null;
+                                    instructionsUrl: string | null;
+                                    instructionsPassword: string | null;
                                 }[];
                                 restrictions?: unknown[];
                                 property?: unknown;
@@ -5209,6 +5224,11 @@ export interface paths {
                                     name: string;
                                     username: string;
                                     password: string;
+                                    needsAuthCode: boolean;
+                                    authCode: string | null;
+                                    appUrl: string | null;
+                                    instructionsUrl: string | null;
+                                    instructionsPassword: string | null;
                                 }[];
                                 restrictions?: unknown[];
                                 property?: unknown;
@@ -8202,6 +8222,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/inspector/schedule/month": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                today: string;
+                                from: string;
+                                to: string;
+                                days: {
+                                    date: string;
+                                    count: number;
+                                    hasUrgent: boolean;
+                                }[];
+                                appointments: {
+                                    id: string;
+                                    appointmentCode: string;
+                                    /** @enum {string} */
+                                    status: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
+                                    scheduledDate: string;
+                                    timeSlotStart: string;
+                                    timeSlotEnd: string;
+                                    /** Format: uuid */
+                                    serviceTypeId: string;
+                                    /** Format: uuid */
+                                    propertyId: string;
+                                    rentalTenantConfirmationStatus: string;
+                                    keyRequired: boolean;
+                                    meetingLocation: string | null;
+                                    /** @enum {string} */
+                                    executionStatus: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED";
+                                    agencyName?: string | null;
+                                    propertyAddress: string;
+                                    suburb: string;
+                                    serviceTypeName: string;
+                                    /** @enum {string} */
+                                    flowType: "ROUTINE" | "INGOING" | "OUTGOING";
+                                    isOverdue?: boolean;
+                                }[];
+                                overdueAppointments: {
+                                    id: string;
+                                    appointmentCode: string;
+                                    /** @enum {string} */
+                                    status: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
+                                    scheduledDate: string;
+                                    timeSlotStart: string;
+                                    timeSlotEnd: string;
+                                    /** Format: uuid */
+                                    serviceTypeId: string;
+                                    /** Format: uuid */
+                                    propertyId: string;
+                                    rentalTenantConfirmationStatus: string;
+                                    keyRequired: boolean;
+                                    meetingLocation: string | null;
+                                    /** @enum {string} */
+                                    executionStatus: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED";
+                                    agencyName?: string | null;
+                                    propertyAddress: string;
+                                    suburb: string;
+                                    serviceTypeName: string;
+                                    /** @enum {string} */
+                                    flowType: "ROUTINE" | "INGOING" | "OUTGOING";
+                                    isOverdue?: boolean;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/inspector/schedule": {
         parameters: {
             query?: never;
@@ -8389,6 +8505,11 @@ export interface paths {
                                     name: string;
                                     username: string;
                                     password: string;
+                                    needsAuthCode: boolean;
+                                    authCode: string | null;
+                                    appUrl: string | null;
+                                    instructionsUrl: string | null;
+                                    instructionsPassword: string | null;
                                 }[];
                                 agencyName?: string | null;
                                 payoutAmount?: number | null;
@@ -11811,6 +11932,7 @@ export interface paths {
                 query?: {
                     search?: string;
                     tenantId?: string;
+                    branchId?: string;
                     isActive?: "true" | "false";
                     page?: number;
                     pageSize?: number;
@@ -11835,15 +11957,23 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 tenantId: string;
+                                /** Format: uuid */
+                                branchId: string | null;
                                 name: string;
                                 username: string;
                                 password: string;
+                                needsAuthCode: boolean;
+                                authCode: string | null;
+                                appUrl: string | null;
+                                instructionsUrl: string | null;
+                                instructionsPassword: string | null;
                                 isActive: boolean;
                                 /** Format: date-time */
                                 createdAt: string;
                                 /** Format: date-time */
                                 updatedAt: string;
                                 tenantName: string | null;
+                                branchName: string | null;
                             }[];
                             pagination: {
                                 page: number;
@@ -11869,9 +11999,19 @@ export interface paths {
                     "application/json": {
                         /** Format: uuid */
                         tenantId: string;
+                        /** Format: uuid */
+                        branchId?: string | null;
                         name: string;
                         username: string;
                         password: string;
+                        /** @default false */
+                        needsAuthCode?: boolean;
+                        authCode?: string | null;
+                        /** Format: uri */
+                        appUrl?: string | null;
+                        /** Format: uri */
+                        instructionsUrl?: string | null;
+                        instructionsPassword?: string | null;
                     };
                 };
             };
@@ -11888,9 +12028,16 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 tenantId: string;
+                                /** Format: uuid */
+                                branchId: string | null;
                                 name: string;
                                 username: string;
                                 password: string;
+                                needsAuthCode: boolean;
+                                authCode: string | null;
+                                appUrl: string | null;
+                                instructionsUrl: string | null;
+                                instructionsPassword: string | null;
                                 isActive: boolean;
                                 /** Format: date-time */
                                 createdAt: string;
@@ -11938,9 +12085,16 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 tenantId: string;
+                                /** Format: uuid */
+                                branchId: string | null;
                                 name: string;
                                 username: string;
                                 password: string;
+                                needsAuthCode: boolean;
+                                authCode: string | null;
+                                appUrl: string | null;
+                                instructionsUrl: string | null;
+                                instructionsPassword: string | null;
                                 isActive: boolean;
                                 /** Format: date-time */
                                 createdAt: string;
@@ -11969,9 +12123,18 @@ export interface paths {
             requestBody?: {
                 content: {
                     "application/json": {
+                        /** Format: uuid */
+                        branchId?: string | null;
                         name?: string;
                         username?: string;
                         password?: string;
+                        needsAuthCode?: boolean;
+                        authCode?: string | null;
+                        /** Format: uri */
+                        appUrl?: string | null;
+                        /** Format: uri */
+                        instructionsUrl?: string | null;
+                        instructionsPassword?: string | null;
                         isActive?: boolean;
                     };
                 };
@@ -11989,9 +12152,16 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 tenantId: string;
+                                /** Format: uuid */
+                                branchId: string | null;
                                 name: string;
                                 username: string;
                                 password: string;
+                                needsAuthCode: boolean;
+                                authCode: string | null;
+                                appUrl: string | null;
+                                instructionsUrl: string | null;
+                                instructionsPassword: string | null;
                                 isActive: boolean;
                                 /** Format: date-time */
                                 createdAt: string;
@@ -12037,9 +12207,16 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 tenantId: string;
+                                /** Format: uuid */
+                                branchId: string | null;
                                 name: string;
                                 username: string;
                                 password: string;
+                                needsAuthCode: boolean;
+                                authCode: string | null;
+                                appUrl: string | null;
+                                instructionsUrl: string | null;
+                                instructionsPassword: string | null;
                                 isActive: boolean;
                                 /** Format: date-time */
                                 createdAt: string;

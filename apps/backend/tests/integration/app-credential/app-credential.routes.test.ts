@@ -38,7 +38,8 @@ const inspContext = { userId: 'insp-1', tenantId: null, role: 'INSP', branchId: 
 
 function makeCred(overrides: Record<string, unknown> = {}) {
   return {
-    id: CRED_ID, tenantId: TENANT_A, name: 'Airbnb', username: 'host', password: 'secret',
+    id: CRED_ID, tenantId: TENANT_A, branchId: null, name: 'Airbnb', username: 'host', password: 'secret',
+    needsAuthCode: false, authCode: null, appUrl: null, instructionsUrl: null, instructionsPassword: null,
     isActive: true, createdAt: new Date('2026-01-01T00:00:00.000Z'), updatedAt: new Date('2026-01-01T00:00:00.000Z'),
     ...overrides,
   };
@@ -107,6 +108,52 @@ describe('POST /v1/app-credentials', () => {
       .expect(400);
     expect(mockCreate).not.toHaveBeenCalled();
   });
+
+  it('rejects needsAuthCode=true without authCode (400)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    await supertest(app.server)
+      .post('/v1/app-credentials')
+      .set('Authorization', 'Bearer t')
+      .send({ tenantId: TENANT_A, name: 'A', username: 'u', password: 'p', needsAuthCode: true })
+      .expect(400);
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('accepts and echoes the new fields', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    const branchId = 'bbbbbbbb-0000-4000-8000-000000000001';
+    mockCreate.mockResolvedValueOnce(makeCred({
+      branchId, needsAuthCode: true, authCode: '123456',
+      appUrl: 'https://example.com/app', instructionsUrl: 'https://example.com/docs',
+      instructionsPassword: 'doc-pass',
+    }));
+    const res = await supertest(app.server)
+      .post('/v1/app-credentials')
+      .set('Authorization', 'Bearer t')
+      .send({
+        tenantId: TENANT_A, branchId, name: 'Airbnb', username: 'host', password: 'secret',
+        needsAuthCode: true, authCode: '123456',
+        appUrl: 'https://example.com/app', instructionsUrl: 'https://example.com/docs',
+        instructionsPassword: 'doc-pass',
+      })
+      .expect(201);
+    expect(res.body.data).toMatchObject({
+      branchId, needsAuthCode: true, authCode: '123456',
+      appUrl: 'https://example.com/app', instructionsUrl: 'https://example.com/docs',
+      instructionsPassword: 'doc-pass',
+    });
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ branchId, needsAuthCode: true }));
+  });
+
+  it('rejects an invalid appUrl (400)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    await supertest(app.server)
+      .post('/v1/app-credentials')
+      .set('Authorization', 'Bearer t')
+      .send({ tenantId: TENANT_A, name: 'A', username: 'u', password: 'p', appUrl: 'not-a-url' })
+      .expect(400);
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
 });
 
 describe('GET /v1/app-credentials', () => {
@@ -123,6 +170,31 @@ describe('GET /v1/app-credentials', () => {
   it('INSP is forbidden (403)', async () => {
     mockJwtVerify.mockResolvedValueOnce(inspContext);
     await supertest(app.server).get('/v1/app-credentials').set('Authorization', 'Bearer t').expect(403);
+    expect(mockList).not.toHaveBeenCalled();
+  });
+
+  it('passes branchId through and returns branchName rows', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    const branchId = 'bbbbbbbb-0000-4000-8000-000000000001';
+    mockList.mockResolvedValueOnce({
+      data: [{ credential: makeCred({ branchId }), tenantName: 'Agency A', branchName: 'North Sydney' }],
+      total: 1, page: 1, pageSize: 20,
+    });
+    const res = await supertest(app.server)
+      .get(`/v1/app-credentials?branchId=${branchId}`)
+      .set('Authorization', 'Bearer t')
+      .expect(200);
+    expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ branchId }));
+    expect(res.body.data[0].branchName).toBe('North Sydney');
+    expect(res.body.data[0].branchId).toBe(branchId);
+  });
+
+  it('rejects a non-uuid branchId (400)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    await supertest(app.server)
+      .get('/v1/app-credentials?branchId=nope')
+      .set('Authorization', 'Bearer t')
+      .expect(400);
     expect(mockList).not.toHaveBeenCalled();
   });
 });

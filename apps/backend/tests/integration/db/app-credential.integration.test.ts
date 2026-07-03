@@ -22,7 +22,7 @@ const ENC_KEY = '111111111111111111111111111111111111111111111111111111111111111
 let harness: DbHarness;
 let repo: PrismaAppCredentialRepository;
 
-const seed = { tenantA: '', tenantB: '', appointmentA: '' };
+const seed = { tenantA: '', tenantB: '', appointmentA: '', branchA: '' };
 
 function makeCred(id: string, tenantId: string, name: string, username: string, password: string) {
   const now = new Date();
@@ -39,6 +39,7 @@ beforeAll(async () => {
   seed.tenantB = tenantB.id;
 
   const branchA = await harness.prisma.branch.create({ data: { tenant_id: tenantA.id, name: 'A-Branch', status: 'ACTIVE' } });
+  seed.branchA = branchA.id;
   const userA = await harness.prisma.user.create({
     data: {
       tenant_id: tenantA.id, branch_id: branchA.id, role: 'CL_ADMIN', name: 'A-User',
@@ -126,5 +127,74 @@ describe('PrismaAppCredentialRepository (real DB)', () => {
 
     await repo.replaceAppointmentLinks(seed.appointmentA, []);
     expect(await repo.findByAppointmentId(seed.appointmentA)).toHaveLength(0);
+  });
+
+  it('encrypts authCode and instructionsPassword at rest and decrypts on read', async () => {
+    const now = new Date();
+    const cred = new AppCredentialEntity({
+      id: crypto.randomUUID(), tenantId: seed.tenantA, branchId: seed.branchA,
+      name: 'Secure', username: 'sec', password: 'pw',
+      needsAuthCode: true, authCode: 'auth-code-1234',
+      appUrl: 'https://example.com/app', instructionsUrl: 'https://example.com/docs',
+      instructionsPassword: 'instr-pass-999',
+      isActive: true, createdAt: now, updatedAt: now,
+    });
+    await repo.save(cred);
+
+    const raw = await harness.prisma.appCredential.findUnique({ where: { id: cred.id } });
+    expect(raw!.auth_code_encrypted).not.toBe('auth-code-1234');
+    expect(raw!.instructions_password_encrypted).not.toBe('instr-pass-999');
+    expect(raw!.app_url).toBe('https://example.com/app');
+    expect(raw!.branch_id).toBe(seed.branchA);
+
+    const loaded = await repo.findById(cred.id);
+    expect(loaded!.authCode).toBe('auth-code-1234');
+    expect(loaded!.instructionsPassword).toBe('instr-pass-999');
+    expect(loaded!.needsAuthCode).toBe(true);
+    expect(loaded!.instructionsUrl).toBe('https://example.com/docs');
+
+    // Clearing a secret nulls the stored column.
+    await repo.update(cred.id, { needsAuthCode: false, authCode: null, instructionsPassword: null });
+    const cleared = await repo.findById(cred.id);
+    expect(cleared!.authCode).toBeNull();
+    expect(cleared!.instructionsPassword).toBeNull();
+  });
+
+  it('legacy rows (null new columns) load with safe defaults', async () => {
+    const cred = makeCred(crypto.randomUUID(), seed.tenantA, 'Legacy', 'leg', 'p');
+    await repo.save(cred);
+    const loaded = await repo.findById(cred.id);
+    expect(loaded!.branchId).toBeNull();
+    expect(loaded!.needsAuthCode).toBe(false);
+    expect(loaded!.authCode).toBeNull();
+    expect(loaded!.appUrl).toBeNull();
+    expect(loaded!.instructionsUrl).toBeNull();
+    expect(loaded!.instructionsPassword).toBeNull();
+  });
+
+  it('branchId filter returns branch-scoped + agency-wide, composing with search', async () => {
+    const otherBranch = await harness.prisma.branch.create({
+      data: { tenant_id: seed.tenantA, name: 'A-Branch-2', status: 'ACTIVE' },
+    });
+    const now = new Date();
+    const mk = (name: string, branchId: string | null) =>
+      new AppCredentialEntity({
+        id: crypto.randomUUID(), tenantId: seed.tenantA, branchId, name, username: 'u', password: 'p',
+        isActive: true, createdAt: now, updatedAt: now,
+      });
+    await repo.save(mk('BFILT-branch', seed.branchA));
+    await repo.save(mk('BFILT-agencywide', null));
+    await repo.save(mk('BFILT-other', otherBranch.id));
+
+    const rows = await repo.findAll(
+      { tenantId: seed.tenantA, branchId: seed.branchA, search: 'BFILT' },
+      { page: 1, pageSize: 50, sortOrder: 'asc' },
+    );
+    const names = rows.map((r) => r.credential.name).sort();
+    expect(names).toEqual(['BFILT-agencywide', 'BFILT-branch']);
+    expect(rows.find((r) => r.credential.name === 'BFILT-branch')!.branchName).toBe('A-Branch');
+    expect(rows.find((r) => r.credential.name === 'BFILT-agencywide')!.branchName).toBeNull();
+
+    expect(await repo.count({ tenantId: seed.tenantA, branchId: seed.branchA, search: 'BFILT' })).toBe(2);
   });
 });

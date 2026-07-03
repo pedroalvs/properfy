@@ -8,6 +8,11 @@ interface AppCredentialMultiSelectProps {
   onChange: (ids: string[]) => void;
   /** Apps are tenant-scoped — only this agency's active apps are selectable. */
   tenantId?: string;
+  /**
+   * Narrows the options to this branch's apps plus agency-wide ones
+   * (server-side OR semantics). Already-selected ids are never dropped.
+   */
+  branchId?: string;
   disabled?: boolean;
 }
 
@@ -16,11 +21,14 @@ interface AppCredentialMultiSelectProps {
  * contact autocomplete pattern (search/select from the registry); apps are a
  * small per-agency set, so a single multi-select dropdown is enough.
  */
-export function AppCredentialMultiSelect({ value, onChange, tenantId, disabled }: AppCredentialMultiSelectProps) {
+export function AppCredentialMultiSelect({ value, onChange, tenantId, branchId, disabled }: AppCredentialMultiSelectProps) {
   const { data } = usePaginatedQuery<AppCredentialListItem>(
-    ['app-credentials', 'form-options', tenantId ?? ''],
+    ['app-credentials', 'form-options', tenantId ?? '', branchId ?? ''],
     '/v1/app-credentials',
-    { page: 1, pageSize: 100, tenantId, isActive: 'true', sortBy: 'name', sortOrder: 'asc' },
+    {
+      page: 1, pageSize: 100, tenantId, isActive: 'true', sortBy: 'name', sortOrder: 'asc',
+      ...(branchId ? { branchId } : {}),
+    },
     { enabled: !!tenantId },
   );
 

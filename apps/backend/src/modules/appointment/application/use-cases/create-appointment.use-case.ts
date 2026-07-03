@@ -615,7 +615,17 @@ export class CreateAppointmentUseCase {
     await this.appCredentialRepo.replaceAppointmentLinks(appointmentId, ids);
     return ids.map((id) => {
       const cred = byId.get(id)!;
-      return { id: cred.id, name: cred.name, username: cred.username, password: cred.password };
+      return {
+        id: cred.id,
+        name: cred.name,
+        username: cred.username,
+        password: cred.password,
+        needsAuthCode: cred.needsAuthCode,
+        authCode: cred.authCode ?? null,
+        appUrl: cred.appUrl ?? null,
+        instructionsUrl: cred.instructionsUrl ?? null,
+        instructionsPassword: cred.instructionsPassword ?? null,
+      };
     });
   }
 }

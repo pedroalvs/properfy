@@ -6,6 +6,7 @@ import type { AppointmentStatus } from '@properfy/shared';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { AppointmentCodePill } from './AppointmentCodePill';
+import { SecretValue } from '../../apps/components/SecretValue';
 import { ConfirmationChannelIcons } from './ConfirmationChannelIcons';
 
 interface AppointmentMapDetailPanelProps {
@@ -309,15 +310,41 @@ function renderSectionContent(key: SectionKey, ctx: SectionCtx): ReactNode {
         return <p className="text-text-muted">No apps linked.</p>;
       }
       return (
-        <ul className="space-y-1.5">
+        <ul className="space-y-2.5">
           {detail.apps!.map((a) => (
             <li key={a.id}>
               <span className="font-semibold">{a.name}</span>
               <div className="text-text-muted">
-                <span className="font-mono">{a.username}</span>
-                {' · '}
-                <span className="font-mono">{a.password}</span>
+                Username: <SecretValue value={a.username} label="username" />
               </div>
+              <div className="text-text-muted">
+                Password: <SecretValue value={a.password} maskable label="password" />
+              </div>
+              {a.needsAuthCode && a.authCode && (
+                <div className="text-text-muted">
+                  Auth code: <SecretValue value={a.authCode} maskable label="auth code" />
+                </div>
+              )}
+              {(a.appUrl || a.instructionsUrl) && (
+                <div className="flex gap-3 text-text-muted">
+                  {a.appUrl && (
+                    <a href={a.appUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                      <i className="mdi mdi-open-in-new mr-0.5" aria-hidden="true" />Open app
+                    </a>
+                  )}
+                  {a.instructionsUrl && (
+                    <a href={a.instructionsUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                      <i className="mdi mdi-book-open-variant mr-0.5" aria-hidden="true" />Instructions
+                    </a>
+                  )}
+                </div>
+              )}
+              {a.instructionsPassword && (
+                <div className="text-text-muted">
+                  Instructions password:{' '}
+                  <SecretValue value={a.instructionsPassword} maskable label="instructions password" />
+                </div>
+              )}
             </li>
           ))}
         </ul>

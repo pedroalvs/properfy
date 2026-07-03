@@ -45,6 +45,11 @@ export function AppTable({
       render: (row) => <>{row.tenantName ?? '—'}</>,
     },
     {
+      key: 'branchName',
+      label: 'Branch',
+      render: (row) => <>{row.branchName ?? 'All branches'}</>,
+    },
+    {
       key: 'isActive',
       label: 'Status',
       width: '110px',
