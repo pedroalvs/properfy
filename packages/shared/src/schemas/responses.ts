@@ -3,6 +3,7 @@ import { HHMM_REGEX } from './appointment';
 import { propertyRulesSchema } from './property';
 import { bonusRuleSchema } from './pricing-rule';
 import { appointmentAppSchema } from './app-credential';
+import { AppointmentStatus, ServiceTypeFlowType } from '../enums';
 
 /** Accepts Date objects or ISO strings, coerces to string */
 const dateStr = () => z.union([z.string(), z.date().transform(d => d.toISOString())]);
@@ -601,6 +602,31 @@ export const inspectorScheduleItemSchema = z.object({
 export const inspectorScheduleResponseSchema = z.object({
   date: dateStr(),
   appointments: z.array(inspectorScheduleItemSchema),
+});
+
+export const inspectorScheduleMonthItemSchema = inspectorScheduleItemSchema.extend({
+  appointmentCode: z.string(),
+  status: z.nativeEnum(AppointmentStatus),
+  propertyAddress: z.string(),
+  suburb: z.string(),
+  serviceTypeName: z.string(),
+  flowType: z.nativeEnum(ServiceTypeFlowType),
+  isOverdue: z.boolean().optional(),
+});
+
+export const inspectorScheduleMonthDaySchema = z.object({
+  date: dateStr(),
+  count: z.number().int().min(0),
+  hasUrgent: z.boolean(),
+});
+
+export const inspectorScheduleMonthResponseSchema = z.object({
+  today: dateStr(),
+  from: dateStr(),
+  to: dateStr(),
+  days: z.array(inspectorScheduleMonthDaySchema),
+  appointments: z.array(inspectorScheduleMonthItemSchema),
+  overdueAppointments: z.array(inspectorScheduleMonthItemSchema),
 });
 
 export const inspectionExecutionResponseSchema = z.object({

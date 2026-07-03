@@ -16,6 +16,9 @@ export const inspectorScheduleQuerySchema = z
 
 export type InspectorScheduleQuery = z.infer<typeof inspectorScheduleQuerySchema>;
 
+export const inspectorScheduleMonthQuerySchema = z.object({}).strict();
+export type InspectorScheduleMonthQuery = z.infer<typeof inspectorScheduleMonthQuerySchema>;
+
 export const startInspectionSchema = z.object({
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),

@@ -1,4 +1,13 @@
-import type { AppointmentStatus, RentalTenantConfirmationStatus, ServiceTypeFlowType, AppointmentCustomField } from '@properfy/shared';
+import type { z } from 'zod';
+import type {
+  AppointmentCustomField,
+  AppointmentStatus,
+  RentalTenantConfirmationStatus,
+  ServiceTypeFlowType,
+  inspectorScheduleMonthDaySchema,
+  inspectorScheduleMonthItemSchema,
+  inspectorScheduleMonthResponseSchema,
+} from '@properfy/shared';
 
 export interface InspectorAppointment {
   id: string;
@@ -36,6 +45,10 @@ export interface InspectorScheduleDayResponse {
     id: string;
   }>;
 }
+
+export type InspectorScheduleMonthDay = z.infer<typeof inspectorScheduleMonthDaySchema>;
+export type InspectorScheduleMonthItem = z.infer<typeof inspectorScheduleMonthItemSchema>;
+export type InspectorScheduleMonthResponse = z.infer<typeof inspectorScheduleMonthResponseSchema>;
 
 export interface JobDetailsTenantContact {
   name: string;

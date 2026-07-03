@@ -8,6 +8,7 @@ import {
   inspectorDayCountSchema,
   agencyFinancialExportResponseSchema,
   inspectorAppointmentDetailResponseSchema,
+  inspectorScheduleMonthResponseSchema,
   appointmentResponseSchema,
 } from './responses';
 
@@ -110,6 +111,54 @@ describe('loginResponseSchema', () => {
     if (result.success) {
       expect(result.data).not.toHaveProperty('expiresIn');
     }
+  });
+});
+
+describe('inspectorScheduleMonthResponseSchema', () => {
+  const appointment = {
+    id: '00000000-0000-0000-0000-000000000001',
+    appointmentCode: 'INS-0001',
+    status: 'SCHEDULED',
+    scheduledDate: '2026-03-21',
+    timeSlotStart: '09:00',
+    timeSlotEnd: '11:00',
+    serviceTypeId: '00000000-0000-0000-0000-000000000002',
+    propertyId: '00000000-0000-0000-0000-000000000003',
+    propertyAddress: '1 Test St, Sydney NSW 2000',
+    suburb: 'Sydney',
+    serviceTypeName: 'Routine Inspection',
+    flowType: 'ROUTINE',
+    rentalTenantConfirmationStatus: 'CONFIRMED',
+    keyRequired: false,
+    meetingLocation: null,
+    executionStatus: 'NOT_STARTED',
+    agencyName: 'Test Agency',
+  };
+
+  it('accepts the monthly schedule payload used by the PWA schedule screen', () => {
+    const result = inspectorScheduleMonthResponseSchema.safeParse({
+      today: '2026-03-21',
+      from: '2026-03-21',
+      to: '2026-04-20',
+      days: [{ date: '2026-03-21', count: 1, hasUrgent: false }],
+      appointments: [appointment],
+      overdueAppointments: [{ ...appointment, scheduledDate: '2026-03-20', isOverdue: true }],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects appointments without card summary fields', () => {
+    const result = inspectorScheduleMonthResponseSchema.safeParse({
+      today: '2026-03-21',
+      from: '2026-03-21',
+      to: '2026-04-20',
+      days: [{ date: '2026-03-21', count: 1, hasUrgent: false }],
+      appointments: [{ ...appointment, propertyAddress: undefined }],
+      overdueAppointments: [],
+    });
+
+    expect(result.success).toBe(false);
   });
 });
 

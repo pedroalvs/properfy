@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  inspectorScheduleMonthQuerySchema,
   inspectorScheduleQuerySchema,
   startInspectionSchema,
   finishInspectionSchema,
@@ -19,6 +20,18 @@ describe('inspectorScheduleQuerySchema', () => {
 
   it('should reject invalid date format', () => {
     const result = inspectorScheduleQuerySchema.safeParse({ date: '03-21-2026' });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('inspectorScheduleMonthQuerySchema', () => {
+  it('should accept empty object', () => {
+    const result = inspectorScheduleMonthQuerySchema.safeParse({});
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject query parameters because the window is backend-defined', () => {
+    const result = inspectorScheduleMonthQuerySchema.safeParse({ from: '2026-03-21' });
     expect(result.success).toBe(false);
   });
 });
