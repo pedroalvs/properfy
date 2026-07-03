@@ -55,6 +55,9 @@ export interface GetAppointmentOutput {
   serviceTypeName: string;
   /** Tenant (agency) display name — labelled "CLIENT" in the map detail panel (025 §FR-451). */
   clientName: string;
+  serviceGroupId: string | null;
+  /** Service group code = String(group_number); null when ungrouped. */
+  serviceGroupCode: string | null;
   isOverdue: boolean;
   cancellationReason: string | null;
   latitude: number | null;
@@ -137,6 +140,8 @@ function mapToOutput(found: AppointmentWithRelations, apps: AppointmentApp[]): G
     branchName: found.branchName ?? '',
     serviceTypeName: found.serviceTypeName ?? '',
     clientName: found.tenantName ?? '',
+    serviceGroupId: appointment.serviceGroupId ?? null,
+    serviceGroupCode: found.serviceGroupNumber != null ? String(found.serviceGroupNumber) : null,
     isOverdue: isAppointmentOverdue(appointment.status, appointment.scheduledDate),
     cancellationReason: appointment.reason,
     latitude: found.propertyLatitude ?? null,

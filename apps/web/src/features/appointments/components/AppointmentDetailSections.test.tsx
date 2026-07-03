@@ -96,6 +96,20 @@ describe('AppointmentDetailSections', () => {
     expect(screen.getByText('Gate code is 4321')).toBeInTheDocument();
   });
 
+  it('shows service group code when grouped, em-dash when ungrouped', () => {
+    const { rerender } = render(
+      <AppointmentDetailSections appointment={makeAppointment({ serviceGroupCode: '12' })} />,
+    );
+    expect(screen.getByText('Service Group')).toBeInTheDocument();
+    expect(screen.getByText('Group 12')).toBeInTheDocument();
+
+    rerender(
+      <AppointmentDetailSections appointment={makeAppointment({ serviceGroupCode: null })} />,
+    );
+    expect(screen.queryByText('Group 12')).not.toBeInTheDocument();
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+  });
+
   it('shows em-dash for null inspector', () => {
     render(<AppointmentDetailSections appointment={makeAppointment({ inspectorName: null })} />);
     const dashes = screen.getAllByText('—');

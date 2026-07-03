@@ -37,6 +37,14 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
         <DetailRow label="Scheduled Date" value={formatDate(appointment.scheduledDate)} />
         <DetailRow label="Time Slot" value={`${appointment.timeSlotStart} - ${appointment.timeSlotEnd}`} />
         <DetailRow label="Inspector" value={appointment.inspectorName} />
+        <DetailRow
+          label="Service Group"
+          value={
+            appointment.serviceGroupCode ? (
+              <span className="font-mono">Group {appointment.serviceGroupCode}</span>
+            ) : null
+          }
+        />
       </FormSection>
 
       <FormSection title="Contact">

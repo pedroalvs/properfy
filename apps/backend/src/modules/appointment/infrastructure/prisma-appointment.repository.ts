@@ -140,6 +140,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         branch: { select: { name: true } },
         service_type: { select: { name: true, flow_type: true } },
         inspector: { select: { name: true } },
+        service_group: { select: { group_number: true } },
         // AC-2.1: filtered include — only returns a row when status='ACTIVE' AND expires_at > now().
         // Node clock is the authority per AC-2.5 (matches expire-tokens worker convention).
         // Relation field name is `portal_tokens` (Prisma model field); DB table is `rental_tenant_portal_tokens` via @@map.
@@ -187,6 +188,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       tenantName: (row as any).tenant?.name ?? '',
       tenantAppointmentCodePrefix,
       hasActivePortalToken: ((row as any).portal_tokens as Array<{ id: string }>).length > 0,
+      serviceGroupNumber: (row as any).service_group?.group_number ?? null,
     };
   }
 
