@@ -102,6 +102,7 @@ export function MapBulkRescheduleForm({
           type="date"
           value={newDate}
           onChange={(e) => setNewDate(e.target.value)}
+          onClick={(e) => e.currentTarget.showPicker?.()}
           required
           min={today}
           disabled={!sameGroupCheck.ok}

@@ -190,4 +190,18 @@ describe('MarkInvoicePaidModal', () => {
     fireEvent.click(screen.getByText('Cancel'));
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('opens the native picker when the payment date input is clicked', () => {
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <MarkInvoicePaidModal open={true} onClose={onClose} onSuccess={onSuccess} invoiceIds={[INVOICE_ID]} />
+      </Wrapper>,
+    );
+    const input = screen.getByLabelText('Payment Date') as HTMLInputElement;
+    const showPickerSpy = vi.fn();
+    input.showPicker = showPickerSpy;
+    fireEvent.click(input);
+    expect(showPickerSpy).toHaveBeenCalledTimes(1);
+  });
 });

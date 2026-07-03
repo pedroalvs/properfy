@@ -118,6 +118,7 @@ export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGro
                 type="date"
                 value={scheduledDate}
                 onChange={(e) => setScheduledDate(e.target.value)}
+                onClick={(e) => e.currentTarget.showPicker?.()}
                 // Edit-conditional: always enforce min when editing (service groups start fresh).
                 min={todayLocalDateString()}
                 className="w-full rounded border border-border-subtle bg-white px-3 py-2 text-sm text-text-primary outline-none focus:border-primary focus:ring-1 focus:ring-primary"

@@ -70,4 +70,13 @@ describe('MapBulkRescheduleForm — free start/end time range', () => {
       );
     });
   });
+
+  it('opens the native picker when the date input is clicked', () => {
+    renderForm([makeAppointment()]);
+    const input = screen.getByTestId('map-bulk-reschedule-date') as HTMLInputElement;
+    const showPickerSpy = vi.fn();
+    input.showPicker = showPickerSpy;
+    fireEvent.click(input);
+    expect(showPickerSpy).toHaveBeenCalledTimes(1);
+  });
 });
