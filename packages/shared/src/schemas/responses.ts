@@ -257,6 +257,9 @@ export const appointmentResponseSchema = z.object({
   updatedAt: dateStr(),
   appointmentNumber: z.number().optional(),
   // Flat enriched fields for list and detail views
+  /** Formatted appointment code (tenant prefix + padded number, e.g. "INS-0042"). Populated by the detail endpoint. */
+  appointmentCode: z.string().optional(),
+  /** List endpoint alias for the formatted appointment code. */
   code: z.string().optional(),
   propertyAddress: z.string().optional(),
   contactName: z.string().optional(),
@@ -416,7 +419,6 @@ export const serviceGroupResponseSchema = z.object({
   confirmedCount: z.number(),
   scheduledDate: dateStr(),
   timeWindow: z.string(),
-  name: z.string().nullable().optional(),
   regionName: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   priorityMode: z.string(),

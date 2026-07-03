@@ -229,8 +229,7 @@ export function AppointmentDetailPage() {
             <i className="mdi mdi-arrow-left text-xl" aria-hidden="true" />
           </button>
           <h1 className="text-page-title-mobile text-secondary md:text-page-title">
-            {appointment.code}
-            {appointment.appointmentNumber != null && <span className="ml-2 text-base font-normal text-text-muted">#{appointment.appointmentNumber}</span>}
+            {appointment.appointmentCode}
           </h1>
           <AppointmentStatusChip status={appointment.status} doneCheckedByUserId={appointment.doneCheckedByUserId} isOverdue={appointment.isOverdue} />
         </div>

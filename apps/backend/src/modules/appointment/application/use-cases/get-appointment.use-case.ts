@@ -46,7 +46,6 @@ export interface GetAppointmentOutput {
   // Enriched flat fields
   /** Formatted appointment code (e.g. "INS-0042"). */
   appointmentCode: string;
-  code: string;
   propertyAddress: string;
   contactName: string;
   contactPhone: string | null;
@@ -130,7 +129,6 @@ function mapToOutput(found: AppointmentWithRelations, apps: AppointmentApp[]): G
     updatedAt: appointment.updatedAt,
     // Enriched fields from joins
     appointmentCode,
-    code: found.propertyCode ?? '',
     propertyAddress: found.propertyAddress ?? '',
     contactName: contact?.effectiveName ?? '',
     contactPhone: contact?.effectivePhone ?? null,
