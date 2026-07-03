@@ -76,6 +76,8 @@ export interface AppointmentDetail extends Omit<Appointment, 'code'> {
   observation: string | null;
   /** True when a tenant_portal_tokens row satisfies status='ACTIVE' AND expires_at > NOW. */
   hasActivePortalToken: boolean;
+  /** Set when the appointment belongs to a service group — date/time is managed by the group. */
+  serviceGroupId?: string | null;
   /** Tenant (agency) display name — surfaced as "CLIENT" in the map detail panel (025 §FR-451). */
   clientName?: string;
   /** T-C5-5 — populated when status = REJECTED; surfaced in the map detail panel red banner. */

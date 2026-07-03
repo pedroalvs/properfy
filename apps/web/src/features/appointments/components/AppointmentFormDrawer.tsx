@@ -17,6 +17,7 @@ import { DateInput } from '@/components/forms/DateInput';
 import { TimeRangeInput } from '@/components/forms/TimeRangeInput';
 import { Textarea } from '@/components/forms/Textarea';
 import { Checkbox } from '@/components/forms/Checkbox';
+import { InfoBanner } from '@/components/feedback/InfoBanner';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useAuth } from '@/hooks/useAuth';
 import { useFormOptions } from '@/hooks/useFormOptions';
@@ -269,6 +270,16 @@ export function AppointmentFormDrawer({
   }, []);
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialData);
+  // Date/time of a grouped appointment is managed by the service group (automatic
+  // time-slot sync) — the backend rejects individual schedule edits with 409.
+  const isInServiceGroup = isEditMode && !!appointment?.serviceGroupId;
+  const scheduleChanged =
+    isEditMode &&
+    (form.scheduledDate !== initialData.scheduledDate ||
+      form.timeSlotStart !== initialData.timeSlotStart ||
+      form.timeSlotEnd !== initialData.timeSlotEnd);
+  const showRescheduleWarning =
+    scheduleChanged && appointment?.status === AppointmentStatus.SCHEDULED;
   const canAssignInspector =
     isEditMode &&
     canAssignRole &&
@@ -595,10 +606,27 @@ export function AppointmentFormDrawer({
                         aria-label="Service Type"
                       />
                     </FormField>
+                    {isInServiceGroup && (
+                      <div className="md:col-span-2">
+                        <InfoBanner>
+                          This appointment belongs to a service group — its date and time are
+                          managed by the group. Reschedule the group from the map view instead.
+                        </InfoBanner>
+                      </div>
+                    )}
+                    {showRescheduleWarning && (
+                      <div className="md:col-span-2">
+                        <InfoBanner>
+                          Changing the date or time resets the tenant confirmation to Pending and
+                          sends the tenant a new notification with the updated schedule.
+                        </InfoBanner>
+                      </div>
+                    )}
                     <FormField label="Scheduled Date" required error={errors.scheduledDate}>
                       <DateInput
                         value={form.scheduledDate}
                         onChange={(v) => updateField('scheduledDate', v)}
+                        disabled={isInServiceGroup}
                         // Edit-conditional: allow keeping a legacy past date when editing;
                         // create flow always enforces min=today.
                         min={(() => {
@@ -617,6 +645,7 @@ export function AppointmentFormDrawer({
                         endTime={form.timeSlotEnd}
                         onStartChange={(v) => updateField('timeSlotStart', v)}
                         onEndChange={(v) => updateField('timeSlotEnd', v)}
+                        disabled={isInServiceGroup}
                         minStartTime={
                           form.scheduledDate === todayLocalDateString()
                             ? Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date())
