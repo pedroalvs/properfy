@@ -10,6 +10,7 @@ import {
   inspectorAppointmentDetailResponseSchema,
   inspectorScheduleMonthResponseSchema,
   appointmentResponseSchema,
+  inspectorEarningsSummaryResponseSchema,
 } from './responses';
 
 describe('appointmentResponseSchema — appointmentCode / code', () => {
@@ -528,6 +529,53 @@ describe('inspectorAppointmentDetailResponseSchema — customFields', () => {
     const result = inspectorAppointmentDetailResponseSchema.safeParse({
       ...validBase,
       customFields: { label: 'Gate', value: '1' },
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('inspectorEarningsSummaryResponseSchema', () => {
+  const valid = {
+    currency: 'AUD',
+    totalApproved: 1500.5,
+    nextPayment: 250,
+    monthly: [
+      { month: '2026-06', total: 500 },
+      { month: '2026-07', total: 1000.5 },
+    ],
+  };
+
+  it('accepts a valid payload', () => {
+    expect(inspectorEarningsSummaryResponseSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it('accepts a null currency with an empty monthly array', () => {
+    const result = inspectorEarningsSummaryResponseSchema.safeParse({
+      currency: null,
+      totalApproved: 0,
+      nextPayment: 0,
+      monthly: [],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a month key that is not YYYY-MM', () => {
+    const result = inspectorEarningsSummaryResponseSchema.safeParse({
+      ...valid,
+      monthly: [{ month: '2026-7', total: 1 }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a missing totalApproved', () => {
+    const { totalApproved: _totalApproved, ...rest } = valid;
+    expect(inspectorEarningsSummaryResponseSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it('rejects a non-numeric monthly total', () => {
+    const result = inspectorEarningsSummaryResponseSchema.safeParse({
+      ...valid,
+      monthly: [{ month: '2026-06', total: '500' }],
     });
     expect(result.success).toBe(false);
   });

@@ -140,6 +140,89 @@ describe('EarningsPage', () => {
     expect(screen.queryByTestId('history-load-more')).not.toBeInTheDocument();
   });
 
+  it('auto-loads the next page when the sentinel becomes visible (IntersectionObserver)', async () => {
+    let observerCallback: IntersectionObserverCallback | undefined;
+    const observe = vi.fn();
+    const disconnect = vi.fn();
+    vi.stubGlobal('IntersectionObserver', class {
+      constructor(cb: IntersectionObserverCallback) {
+        observerCallback = cb;
+      }
+      observe = observe;
+      disconnect = disconnect;
+      unobserve = vi.fn();
+      takeRecords = vi.fn();
+      root = null;
+      rootMargin = '';
+      thresholds = [];
+    });
+
+    try {
+      mockGet.mockImplementation(async (path: string, opts?: { params?: { query?: Record<string, string> } }) => {
+        if (path === '/v1/inspector/earnings/summary') return { data: summaryResponse };
+        const page = Number(opts?.params?.query?.page ?? '1');
+        if (page === 1) return { data: payoutsPage(1, 2, marchEntries) };
+        return {
+          data: payoutsPage(2, 2, [
+            { id: 'e3', entryType: 'INSPECTOR_PAYOUT', amount: 55, currency: 'AUD', status: 'APPROVED', effectiveAt: '2026-02-05T10:00:00Z' },
+          ]),
+        };
+      });
+
+      renderWithProviders(<EarningsPage />);
+      await waitFor(() => expect(screen.getByText('Earnings')).toBeInTheDocument());
+
+      fireEvent.click(screen.getByRole('tab', { name: /history/i }));
+      await waitFor(() => expect(screen.getByText('Payment history')).toBeInTheDocument());
+      expect(observe).toHaveBeenCalled();
+
+      // Simulate the sentinel entering the viewport.
+      observerCallback!([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
+
+      await waitFor(() => {
+        expect(screen.getByText(/55\.00/)).toBeInTheDocument();
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('shows an inline retry when loading the next page fails, keeping the list visible', async () => {
+    let failNextPage = true;
+    mockGet.mockImplementation(async (path: string, opts?: { params?: { query?: Record<string, string> } }) => {
+      if (path === '/v1/inspector/earnings/summary') return { data: summaryResponse };
+      const page = Number(opts?.params?.query?.page ?? '1');
+      if (page === 1) return { data: payoutsPage(1, 2, marchEntries) };
+      if (failNextPage) return { error: { error: { code: 'INTERNAL_ERROR', message: 'boom' } } };
+      return {
+        data: payoutsPage(2, 2, [
+          { id: 'e3', entryType: 'INSPECTOR_PAYOUT', amount: 55, currency: 'AUD', status: 'APPROVED', effectiveAt: '2026-02-05T10:00:00Z' },
+        ]),
+      };
+    });
+
+    renderWithProviders(<EarningsPage />);
+    await waitFor(() => expect(screen.getByText('Earnings')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('tab', { name: /history/i }));
+    await waitFor(() => expect(screen.getByText('Payment history')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId('history-load-more'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('history-load-more-error')).toBeInTheDocument();
+    });
+    // Page-1 entries stay rendered despite the failed next page.
+    expect(screen.getByText(/150\.00/)).toBeInTheDocument();
+
+    // Retry succeeds and appends page 2.
+    failNextPage = false;
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => {
+      expect(screen.getByText(/55\.00/)).toBeInTheDocument();
+    });
+  });
+
   it('opens the native picker when a date filter input is clicked', async () => {
     renderWithProviders(<EarningsPage />);
     await waitFor(() => expect(screen.getByText('Earnings')).toBeInTheDocument());

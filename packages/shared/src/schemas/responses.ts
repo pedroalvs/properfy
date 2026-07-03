@@ -784,10 +784,11 @@ export const inspectorEarningsSummaryResponseSchema = z.object({
   totalApproved: z.number(),
   nextPayment: z.number(),
   monthly: z.array(z.object({
-    month: z.string(), // YYYY-MM
+    month: z.string().regex(/^\d{4}-\d{2}$/, 'Must be YYYY-MM'),
     total: z.number(),
   })),
 });
+export type InspectorEarningsSummaryResponse = z.infer<typeof inspectorEarningsSummaryResponseSchema>;
 
 // ─── Agency financial export (031) ───────────────────────────────────────────
 // Synchronous own-tenant XLSX statement. The file is returned base64-encoded so

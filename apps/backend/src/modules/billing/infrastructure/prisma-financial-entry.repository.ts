@@ -11,6 +11,7 @@ import type {
   InspectorEarningsSummary,
 } from '../domain/financial-entry.repository';
 import { InvalidEntryStatusTransitionError } from '../domain/billing.errors';
+import { formatMonthKey } from '../domain/month-key';
 
 function mapToEntity(row: any): FinancialEntryEntity {
   return new FinancialEntryEntity({
@@ -137,7 +138,7 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
 
     const buckets = new Map<string, number>();
     for (const row of windowRows) {
-      const key = `${row.effective_at.getUTCFullYear()}-${String(row.effective_at.getUTCMonth() + 1).padStart(2, '0')}`;
+      const key = formatMonthKey(row.effective_at);
       buckets.set(key, (buckets.get(key) ?? 0) + Number(row.amount));
     }
     const monthly = [...buckets.entries()]

@@ -2,6 +2,7 @@ import { useQuery, useInfiniteQuery, keepPreviousData } from '@tanstack/react-qu
 import { useAuth } from '@/hooks/useAuth';
 import { apiGet } from '@/hooks/useApiQuery';
 import type { ApiError } from '@/lib/api-error';
+import type { InspectorEarningsSummaryResponse } from '@properfy/shared';
 
 export interface PayoutEntry {
   id: string;
@@ -17,15 +18,12 @@ export interface PaginatedPayouts {
   pagination: { page: number; pageSize: number; total: number; totalPages: number };
 }
 
-export interface InspectorEarningsSummary {
-  currency: string | null;
-  /** All-time approved payouts — "Total earnings with Properfy". */
-  totalApproved: number;
-  /** Pending payouts — an estimate of the next payment. */
-  nextPayment: number;
-  /** Last-N-months approved totals (zero-filled, oldest first), month = YYYY-MM. */
-  monthly: { month: string; total: number }[];
-}
+/**
+ * Contract from packages/shared (inspectorEarningsSummaryResponseSchema):
+ * all-time approved total, pending next-payment total and a zero-filled
+ * last-N-months approved series (month = YYYY-MM, oldest first).
+ */
+export type InspectorEarningsSummary = InspectorEarningsSummaryResponse;
 
 /**
  * Server-aggregated earnings summary for the Earnings tab (totals + monthly

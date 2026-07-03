@@ -26,6 +26,19 @@ function StatusChip({ status }: { status: string }) {
   return <span className={`rounded px-2 py-0.5 text-xs font-semibold ${s.cls}`}>{s.label}</span>;
 }
 
+/** Shared error card for a segment: icon + message + retry. */
+function SegmentError({ message, fallback, onRetry }: { message?: string; fallback: string; onRetry: () => void }) {
+  return (
+    <div className="rounded-[24px] bg-white p-6 text-center shadow-sm">
+      <i className="mdi mdi-cash-multiple text-[48px] text-text-muted" aria-hidden="true" />
+      <p className="mt-4 text-sm text-text-secondary">{message || fallback}</p>
+      <button type="button" onClick={onRetry} className="mt-3 text-sm font-semibold text-primary">
+        Retry
+      </button>
+    </div>
+  );
+}
+
 /** Convert a YYYY-MM key from the summary into a short month label (e.g. "Jul"). */
 function monthLabel(month: string): string {
   const [year = 0, m = 1] = month.split('-').map(Number);
@@ -136,15 +149,11 @@ export function EarningsPage() {
         )}
 
         {segment === 'earnings' && summary.error && (
-          <div className="rounded-[24px] bg-white p-6 text-center shadow-sm">
-            <i className="mdi mdi-cash-multiple text-[48px] text-text-muted" aria-hidden="true" />
-            <p className="mt-4 text-sm text-text-secondary">
-              {summary.error.message || 'Unable to load earnings at this time. Please try again later.'}
-            </p>
-            <button type="button" onClick={() => summary.refetch()} className="mt-3 text-sm font-semibold text-primary">
-              Retry
-            </button>
-          </div>
+          <SegmentError
+            message={summary.error.message}
+            fallback="Unable to load earnings at this time. Please try again later."
+            onRetry={() => summary.refetch()}
+          />
         )}
 
         {segment === 'earnings' && !summary.isLoading && !summary.error && summary.data && (
@@ -153,7 +162,7 @@ export function EarningsPage() {
               <div className="rounded-[20px] bg-white px-4 py-4 shadow-sm" data-testid="next-payment-card">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Next payment</p>
                 <p className="mt-2 text-xl font-bold text-text-primary">{formatCurrency(summary.data.nextPayment, currency)}</p>
-                <p className="mt-0.5 text-[11px] text-text-secondary">Approved, awaiting payout</p>
+                <p className="mt-0.5 text-[11px] text-text-secondary">Pending, awaiting approval</p>
               </div>
               <div className="rounded-[20px] bg-[linear-gradient(135deg,_rgba(22,163,74,0.96),_rgba(34,197,94,0.78))] px-4 py-4 text-white shadow-sm" data-testid="total-earnings-card">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-white/70">Total with Properfy</p>
@@ -213,16 +222,12 @@ export function EarningsPage() {
               </div>
             )}
 
-            {history.error && (
-              <div className="rounded-[24px] bg-white p-6 text-center shadow-sm">
-                <i className="mdi mdi-cash-multiple text-[48px] text-text-muted" aria-hidden="true" />
-                <p className="mt-4 text-sm text-text-secondary">
-                  {history.error.message || 'Unable to load payment history. Please try again later.'}
-                </p>
-                <button type="button" onClick={() => history.refetch()} className="mt-3 text-sm font-semibold text-primary">
-                  Retry
-                </button>
-              </div>
+            {history.error && entries.length === 0 && (
+              <SegmentError
+                message={history.error.message}
+                fallback="Unable to load payment history. Please try again later."
+                onRetry={() => history.refetch()}
+              />
             )}
 
             {!history.isLoading && !history.error && entries.length === 0 && (
@@ -232,7 +237,7 @@ export function EarningsPage() {
               </div>
             )}
 
-            {!history.isLoading && !history.error && entries.length > 0 && (
+            {!history.isLoading && entries.length > 0 && (
               <div className="flex flex-col gap-2">
                 <h2 className="text-sm font-semibold text-text-secondary">Payment history</h2>
                 {entries.map((entry) => (
@@ -249,7 +254,18 @@ export function EarningsPage() {
                 {isFetchingNextPage && (
                   <div className="h-16 animate-pulse rounded-lg bg-gray-200" data-testid="history-loading-more" />
                 )}
-                {hasNextPage && !isFetchingNextPage && (
+                {history.isFetchNextPageError && !isFetchingNextPage && (
+                  <div
+                    className="flex items-center justify-between rounded-[20px] bg-white px-4 py-3 shadow-sm"
+                    data-testid="history-load-more-error"
+                  >
+                    <p className="text-xs text-text-secondary">Couldn't load more payouts.</p>
+                    <button type="button" onClick={() => fetchNextPage()} className="text-sm font-semibold text-primary">
+                      Retry
+                    </button>
+                  </div>
+                )}
+                {hasNextPage && !isFetchingNextPage && !history.isFetchNextPageError && (
                   <button
                     type="button"
                     onClick={() => fetchNextPage()}
