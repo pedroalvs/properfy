@@ -1,6 +1,11 @@
 import { useCallback, useState } from 'react';
+import type { paths } from '@properfy/shared';
 import { api } from '@/services/api';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import { unwrapSuccessData } from '@/lib/api-envelope';
+
+type InspectorDocumentDownloadResponse =
+  paths['/v1/inspectors/{inspectorId}/documents/{kind}/download']['get']['responses'][200]['content']['application/json'];
 
 export function useInspectorDocumentDownload() {
   const [isDownloading, setIsDownloading] = useState(false);
@@ -10,16 +15,14 @@ export function useInspectorDocumentDownload() {
     setIsDownloading(true);
     try {
       const { data, error } = await api.GET(
-        `/v1/inspectors/{inspectorId}/documents/{kind}/download` as never,
-        { params: { path: { inspectorId, kind } } } as never,
+        '/v1/inspectors/{inspectorId}/documents/{kind}/download',
+        { params: { path: { inspectorId, kind } } },
       );
       if (error || !data) {
         showError('Failed to get download URL');
         return;
       }
-      // UX-baseline cleanup: backend now wraps the response in
-      // `{ data: { downloadUrl, fileName } }`.
-      const url = (data as { data?: { downloadUrl?: string } }).data?.downloadUrl;
+      const url = unwrapSuccessData<InspectorDocumentDownloadResponse['data']>(data)?.downloadUrl;
       if (url) window.open(url, '_blank');
     } catch {
       showError('Failed to download document');

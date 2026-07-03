@@ -62,4 +62,19 @@ describe('ReportDetailSections', () => {
       screen.getByText('fromDate: 2026-03-01, toDate: 2026-03-15, dateAxis: SCHEDULED, groupProperties: false'),
     ).toBeInTheDocument();
   });
+
+  it('shows the report error message when present', () => {
+    render(
+      <ReportDetailSections
+        report={{
+          ...baseReport,
+          status: ReportStatus.FAILED,
+          errorMessage: 'No appointments found for the selected agency and period.',
+        }}
+      />,
+    );
+
+    expect(screen.getByText('Message')).toBeInTheDocument();
+    expect(screen.getByText('No appointments found for the selected agency and period.')).toBeInTheDocument();
+  });
 });
