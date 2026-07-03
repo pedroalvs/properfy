@@ -34,6 +34,7 @@ export function FilterTimeRange({
             className="min-w-0 flex-1 bg-transparent text-sm text-text-primary outline-none"
             value={startTime}
             onChange={(e) => onStartChange(e.target.value)}
+            onClick={(e) => e.currentTarget.showPicker?.()}
             aria-label={`${label} - start`}
           />
           <span className="px-1 text-xs text-text-muted sm:px-0">to</span>
@@ -42,6 +43,7 @@ export function FilterTimeRange({
             className="min-w-0 flex-1 bg-transparent text-sm text-text-primary outline-none"
             value={endTime}
             onChange={(e) => onEndChange(e.target.value)}
+            onClick={(e) => e.currentTarget.showPicker?.()}
             aria-label={`${label} - end`}
           />
         </div>

@@ -221,6 +221,7 @@ export function MarkInvoicePaidModal({
               className={formInput}
               value={form.paidAt}
               onChange={(e) => updateField('paidAt', e.target.value)}
+              onClick={(e) => e.currentTarget.showPicker?.()}
               aria-label="Payment Date"
             />
           </div>

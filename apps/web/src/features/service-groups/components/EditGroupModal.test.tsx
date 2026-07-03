@@ -218,4 +218,20 @@ describe('EditGroupModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('opens the native picker when the scheduled date input is clicked', () => {
+    render(
+      <EditGroupModal
+        open={true}
+        onClose={vi.fn()}
+        serviceGroup={mockServiceGroup}
+        onSaved={vi.fn()}
+      />,
+    );
+    const input = screen.getByLabelText('Scheduled date') as HTMLInputElement;
+    const showPickerSpy = vi.fn();
+    (input as any).showPicker = showPickerSpy;
+    fireEvent.click(input);
+    expect(showPickerSpy).toHaveBeenCalledTimes(1);
+  });
 });
