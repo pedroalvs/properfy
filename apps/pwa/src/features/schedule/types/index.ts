@@ -1,4 +1,13 @@
-import type { AppointmentStatus, RentalTenantConfirmationStatus, ServiceTypeFlowType, AppointmentCustomField } from '@properfy/shared';
+import type { z } from 'zod';
+import type {
+  AppointmentCustomField,
+  AppointmentStatus,
+  RentalTenantConfirmationStatus,
+  ServiceTypeFlowType,
+  inspectorScheduleMonthDaySchema,
+  inspectorScheduleMonthItemSchema,
+  inspectorScheduleMonthResponseSchema,
+} from '@properfy/shared';
 
 export interface InspectorAppointment {
   id: string;
@@ -37,41 +46,9 @@ export interface InspectorScheduleDayResponse {
   }>;
 }
 
-export interface InspectorScheduleMonthDay {
-  date: string;
-  count: number;
-  hasUrgent: boolean;
-}
-
-export interface InspectorScheduleMonthItem {
-  id: string;
-  appointmentCode: string;
-  status: AppointmentStatus;
-  scheduledDate: string;
-  timeSlotStart: string;
-  timeSlotEnd: string;
-  serviceTypeId: string;
-  propertyId: string;
-  propertyAddress: string;
-  suburb: string;
-  serviceTypeName: string;
-  flowType: ServiceTypeFlowType;
-  rentalTenantConfirmationStatus: RentalTenantConfirmationStatus;
-  keyRequired: boolean;
-  meetingLocation: string | null;
-  executionStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'FINISHED';
-  agencyName?: string | null;
-  isOverdue?: boolean;
-}
-
-export interface InspectorScheduleMonthResponse {
-  today: string;
-  from: string;
-  to: string;
-  days: InspectorScheduleMonthDay[];
-  appointments: InspectorScheduleMonthItem[];
-  overdueAppointments: InspectorScheduleMonthItem[];
-}
+export type InspectorScheduleMonthDay = z.infer<typeof inspectorScheduleMonthDaySchema>;
+export type InspectorScheduleMonthItem = z.infer<typeof inspectorScheduleMonthItemSchema>;
+export type InspectorScheduleMonthResponse = z.infer<typeof inspectorScheduleMonthResponseSchema>;
 
 export interface JobDetailsTenantContact {
   name: string;

@@ -6,10 +6,11 @@ import { AppointmentEntity } from '../../../src/modules/appointment/domain/appoi
 import { InspectionExecutionEntity } from '../../../src/modules/inspector-execution/domain/inspection-execution.entity';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
-import type { AuthContext } from '@properfy/shared';
+import { ServiceTypeFlowType, type AuthContext } from '@properfy/shared';
 
 function makeAppointment(
   overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {},
+  listOverrides: Partial<AppointmentListItem> = {},
 ): AppointmentListItem {
   return {
     appointment: new AppointmentEntity({
@@ -34,7 +35,7 @@ function makeAppointment(
       reason: null,
       createdByUserId: 'user-1',
       doneMarkedByUserId: null,
-    doneCheckedByUserId: null,
+      doneCheckedByUserId: null,
       doneCheckedAt: null,
       serviceGroupId: null,
       createdAt: new Date(),
@@ -52,9 +53,10 @@ function makeAppointment(
     tenantAppointmentCodePrefix: 'INS',
     branchName: 'Main Branch',
     serviceTypeName: 'Routine Inspection',
-    serviceTypeFlowType: 'ROUTINE',
+    serviceTypeFlowType: ServiceTypeFlowType.ROUTINE,
     inspectorName: 'Test Inspector',
     serviceGroupNumber: null,
+    ...listOverrides,
   };
 }
 
@@ -246,12 +248,31 @@ describe('GetInspectorScheduleUseCase', () => {
       scheduledDate: new Date('2026-04-20T00:00:00Z'),
       serviceTypeId: 'st-2',
     });
+    const keyRequiredAppt = makeAppointment({
+      id: 'appt-key-required',
+      scheduledDate: new Date('2026-03-22T00:00:00Z'),
+      keyRequired: true,
+      rentalTenantConfirmationStatus: 'PENDING',
+    });
+    const ingoingAppt = makeAppointment(
+      {
+        id: 'appt-ingoing',
+        scheduledDate: new Date('2026-03-23T00:00:00Z'),
+        rentalTenantConfirmationStatus: 'PENDING',
+      },
+      { serviceTypeFlowType: ServiceTypeFlowType.INGOING },
+    );
     const overdueAppt = makeAppointment({
       id: 'appt-overdue',
       scheduledDate: new Date('2026-03-20T00:00:00Z'),
     });
 
-    vi.mocked(appointmentRepo.findVisibleForInspector).mockResolvedValue([todayAppt, futureAppt]);
+    vi.mocked(appointmentRepo.findVisibleForInspector).mockResolvedValue([
+      todayAppt,
+      futureAppt,
+      keyRequiredAppt,
+      ingoingAppt,
+    ]);
     vi.mocked(appointmentRepo.findAll).mockResolvedValue([overdueAppt]);
     vi.mocked(executionRepo.findByAppointmentIds).mockResolvedValue([
       makeExecution({ appointmentId: 'appt-today' }),
@@ -265,13 +286,21 @@ describe('GetInspectorScheduleUseCase', () => {
     expect(result.to).toBe('2026-04-20');
     expect(result.days).toHaveLength(31);
     expect(result.days[0]).toEqual({ date: '2026-03-21', count: 1, hasUrgent: true });
-    expect(result.appointments).toHaveLength(2);
+    expect(result.appointments).toHaveLength(4);
     expect(result.appointments[0]).toMatchObject({
       id: 'appt-today',
       propertyAddress: '1 Test St, Suburb NSW 2000',
       suburb: 'Suburb',
-      flowType: 'ROUTINE',
+      flowType: ServiceTypeFlowType.ROUTINE,
       executionStatus: 'IN_PROGRESS',
+    });
+    expect(result.days.find((day) => day.date === '2026-03-22')).toMatchObject({
+      count: 1,
+      hasUrgent: false,
+    });
+    expect(result.days.find((day) => day.date === '2026-03-23')).toMatchObject({
+      count: 1,
+      hasUrgent: false,
     });
     expect(result.overdueAppointments).toHaveLength(1);
     expect(result.overdueAppointments[0]).toMatchObject({
@@ -291,6 +320,7 @@ describe('GetInspectorScheduleUseCase', () => {
       expect.objectContaining({
         inspectorId: 'insp-1',
         status: ['SCHEDULED'],
+        fromDate: '2026-02-19',
         toDate: '2026-03-20',
       }),
       expect.objectContaining({ pageSize: 1000 }),

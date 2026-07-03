@@ -44,7 +44,28 @@ const monthlyResponse = {
         agencyName: 'Test Agency',
       },
     ],
-    overdueAppointments: [],
+    overdueAppointments: [
+      {
+        id: '00000000-0000-0000-0000-000000000004',
+        appointmentCode: 'INS-0002',
+        status: AppointmentStatus.SCHEDULED,
+        scheduledDate: '2026-03-20',
+        timeSlotStart: '13:00',
+        timeSlotEnd: '15:00',
+        serviceTypeId: '00000000-0000-0000-0000-000000000002',
+        propertyId: '00000000-0000-0000-0000-000000000005',
+        propertyAddress: '2 Old St, Sydney NSW 2000',
+        suburb: 'Sydney',
+        serviceTypeName: 'Routine Inspection',
+        flowType: ServiceTypeFlowType.ROUTINE,
+        rentalTenantConfirmationStatus: RentalTenantConfirmationStatus.PENDING,
+        keyRequired: false,
+        meetingLocation: null,
+        executionStatus: 'NOT_STARTED',
+        agencyName: 'Test Agency',
+        isOverdue: true,
+      },
+    ],
   },
 };
 
@@ -70,6 +91,12 @@ describe('useScheduleMonth', () => {
       propertyAddress: '1 Test St, Sydney NSW 2000',
       suburb: 'Sydney',
       rentalTenantConfirmation: RentalTenantConfirmationStatus.CONFIRMED,
+    });
+    expect(result.current.data?.overdueAppointments[0]).toMatchObject({
+      id: '00000000-0000-0000-0000-000000000004',
+      propertyAddress: '2 Old St, Sydney NSW 2000',
+      isOverdue: true,
+      rentalTenantConfirmation: RentalTenantConfirmationStatus.PENDING,
     });
   });
 });

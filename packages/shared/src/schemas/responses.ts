@@ -3,6 +3,7 @@ import { HHMM_REGEX } from './appointment';
 import { propertyRulesSchema } from './property';
 import { bonusRuleSchema } from './pricing-rule';
 import { appointmentAppSchema } from './app-credential';
+import { AppointmentStatus, ServiceTypeFlowType } from '../enums';
 
 /** Accepts Date objects or ISO strings, coerces to string */
 const dateStr = () => z.union([z.string(), z.date().transform(d => d.toISOString())]);
@@ -603,10 +604,11 @@ export const inspectorScheduleResponseSchema = z.object({
 
 export const inspectorScheduleMonthItemSchema = inspectorScheduleItemSchema.extend({
   appointmentCode: z.string(),
+  status: z.nativeEnum(AppointmentStatus),
   propertyAddress: z.string(),
   suburb: z.string(),
   serviceTypeName: z.string(),
-  flowType: z.string(),
+  flowType: z.nativeEnum(ServiceTypeFlowType),
   isOverdue: z.boolean().optional(),
 });
 

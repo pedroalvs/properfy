@@ -1,4 +1,4 @@
-import type { AuthContext } from '@properfy/shared';
+import { ServiceTypeFlowType, type AuthContext } from '@properfy/shared';
 import type { AppointmentListItem, IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { IInspectionExecutionRepository } from '../../domain/inspection-execution.repository';
 import type { InspectionExecutionEntity } from '../../domain/inspection-execution.entity';
@@ -34,11 +34,10 @@ export interface ScheduleAppointmentItem {
 }
 
 export interface ScheduleMonthAppointmentItem extends ScheduleAppointmentItem {
-  appointmentCode: string;
   propertyAddress: string;
   suburb: string;
   serviceTypeName: string;
-  flowType: string;
+  flowType: ServiceTypeFlowType;
 }
 
 export interface GetInspectorScheduleOutput {
@@ -111,33 +110,9 @@ export class GetInspectorScheduleUseCase {
         : [];
     const executionMap = new Map(executions.map((e) => [e.appointmentId, e]));
 
-    const items: ScheduleAppointmentItem[] = visibleAppointments.map((item) => {
-      const appt = item.appointment;
-      const exec = executionMap.get(appt.id);
-      let executionStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'FINISHED' = 'NOT_STARTED';
-      if (exec) {
-        executionStatus = exec.isFinished() ? 'FINISHED' : 'IN_PROGRESS';
-      }
-
-      const codePrefix = item.tenantAppointmentCodePrefix ?? 'INS';
-      const codePadded = String(appt.appointmentNumber).padStart(4, '0');
-
-      return {
-        id: appt.id,
-        appointmentCode: `${codePrefix}-${codePadded}`,
-        status: appt.status,
-        scheduledDate: targetDateStr,
-        timeSlotStart: appt.timeSlotStart,
-        timeSlotEnd: appt.timeSlotEnd,
-        serviceTypeId: appt.serviceTypeId,
-        propertyId: appt.propertyId,
-        rentalTenantConfirmationStatus: appt.rentalTenantConfirmationStatus,
-        keyRequired: appt.keyRequired,
-        meetingLocation: appt.meetingLocation,
-        agencyName: item.tenantName ?? '',
-        executionStatus,
-      };
-    });
+    const items = visibleAppointments.map((item) =>
+      this.toScheduleItem(item, executionMap, targetDateStr),
+    );
 
     // When viewing today's schedule, include overdue appointments (scheduled before today).
     // T-1 visibility is intentionally skipped for overdue items — they need operator attention regardless.
@@ -164,34 +139,9 @@ export class GetInspectorScheduleUseCase {
           : [];
       const overdueExecMap = new Map(overdueExecutions.map((e) => [e.appointmentId, e]));
 
-      const overdueItems: ScheduleAppointmentItem[] = overdueAppointments.map((item) => {
-        const appt = item.appointment;
-        const exec = overdueExecMap.get(appt.id);
-        let executionStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'FINISHED' = 'NOT_STARTED';
-        if (exec) {
-          executionStatus = exec.isFinished() ? 'FINISHED' : 'IN_PROGRESS';
-        }
-
-        const codePrefix = item.tenantAppointmentCodePrefix ?? 'INS';
-        const codePadded = String(appt.appointmentNumber).padStart(4, '0');
-
-        return {
-          id: appt.id,
-          appointmentCode: `${codePrefix}-${codePadded}`,
-          status: appt.status,
-          scheduledDate: appt.scheduledDate.toISOString().split('T')[0]!,
-          timeSlotStart: appt.timeSlotStart,
-          timeSlotEnd: appt.timeSlotEnd,
-          serviceTypeId: appt.serviceTypeId,
-          propertyId: appt.propertyId,
-          rentalTenantConfirmationStatus: appt.rentalTenantConfirmationStatus,
-          keyRequired: appt.keyRequired,
-          meetingLocation: appt.meetingLocation,
-          agencyName: item.tenantName ?? '',
-          executionStatus,
-          isOverdue: true,
-        };
-      });
+      const overdueItems = overdueAppointments.map((item) =>
+        this.toScheduleItem(item, overdueExecMap, undefined, true),
+      );
 
       items.unshift(...overdueItems);
     }
@@ -234,31 +184,7 @@ export class GetInspectorScheduleUseCase {
       : [];
     const executionMap = new Map(executions.map((e) => [e.appointmentId, e]));
 
-    const data: ScheduleAppointmentItem[] = rows.map((item) => {
-      const appt = item.appointment;
-      const exec = executionMap.get(appt.id);
-      let executionStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'FINISHED' = 'NOT_STARTED';
-      if (exec) {
-        executionStatus = exec.isFinished() ? 'FINISHED' : 'IN_PROGRESS';
-      }
-      const codePrefix = item.tenantAppointmentCodePrefix ?? 'INS';
-      const codePadded = String(appt.appointmentNumber).padStart(4, '0');
-      return {
-        id: appt.id,
-        appointmentCode: `${codePrefix}-${codePadded}`,
-        status: appt.status,
-        scheduledDate: appt.scheduledDate.toISOString().split('T')[0]!,
-        timeSlotStart: appt.timeSlotStart,
-        timeSlotEnd: appt.timeSlotEnd,
-        serviceTypeId: appt.serviceTypeId,
-        propertyId: appt.propertyId,
-        rentalTenantConfirmationStatus: appt.rentalTenantConfirmationStatus,
-        keyRequired: appt.keyRequired,
-        meetingLocation: appt.meetingLocation,
-        agencyName: item.tenantName ?? '',
-        executionStatus,
-      };
-    });
+    const data = rows.map((item) => this.toScheduleItem(item, executionMap));
 
     return { data, total, page, pageSize };
   }
@@ -281,24 +207,29 @@ export class GetInspectorScheduleUseCase {
     monthEnd.setUTCDate(monthEnd.getUTCDate() + 30);
     const toStr = monthEnd.toISOString().split('T')[0]!;
 
-    const visibleAppointments = await this.appointmentRepo.findVisibleForInspector({
-      inspectorId: actor.inspectorId,
-      fromDate: todayStr,
-      toDate: toStr,
-      today,
-    });
-
+    const overdueFrom = new Date(today);
+    overdueFrom.setUTCDate(overdueFrom.getUTCDate() - 30);
+    const overdueFromStr = overdueFrom.toISOString().split('T')[0]!;
     const overdueTo = new Date(today);
     overdueTo.setUTCDate(overdueTo.getUTCDate() - 1);
     const overdueToStr = overdueTo.toISOString().split('T')[0]!;
-    const overdueAppointments = await this.appointmentRepo.findAll(
-      {
+    const [visibleAppointments, overdueAppointments] = await Promise.all([
+      this.appointmentRepo.findVisibleForInspector({
         inspectorId: actor.inspectorId,
-        status: ['SCHEDULED'],
-        toDate: overdueToStr,
-      },
-      { page: 1, pageSize: 1000, sortBy: 'scheduled_date', sortOrder: 'asc' },
-    );
+        fromDate: todayStr,
+        toDate: toStr,
+        today,
+      }),
+      this.appointmentRepo.findAll(
+        {
+          inspectorId: actor.inspectorId,
+          status: ['SCHEDULED'],
+          fromDate: overdueFromStr,
+          toDate: overdueToStr,
+        },
+        { page: 1, pageSize: 1000, sortBy: 'scheduled_date', sortOrder: 'asc' },
+      ),
+    ]);
 
     const appointmentIds = [
       ...visibleAppointments.map((item) => item.appointment.id),
@@ -366,11 +297,10 @@ export class GetInspectorScheduleUseCase {
     const base = this.toScheduleItem(item, executionMap, undefined, isOverdue);
     return {
       ...base,
-      appointmentCode: base.appointmentCode,
       propertyAddress: item.propertyAddress,
       suburb: item.propertySuburb ?? '',
       serviceTypeName: item.serviceTypeName || 'Inspection',
-      flowType: item.serviceTypeFlowType ?? 'ROUTINE',
+      flowType: item.serviceTypeFlowType ?? ServiceTypeFlowType.ROUTINE,
       isOverdue: isOverdue || undefined,
     };
   }
@@ -410,7 +340,7 @@ export class GetInspectorScheduleUseCase {
   }
 
   private isUrgent(item: ScheduleMonthAppointmentItem): boolean {
-    if (item.flowType !== 'ROUTINE') return false;
+    if (item.flowType !== ServiceTypeFlowType.ROUTINE) return false;
     if (item.keyRequired) return false;
     return item.rentalTenantConfirmationStatus !== 'CONFIRMED';
   }

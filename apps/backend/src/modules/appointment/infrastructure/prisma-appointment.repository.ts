@@ -25,6 +25,7 @@ import type {
   CancellationReasonCode,
   RejectionReasonCode,
   AppointmentCustomField,
+  ServiceTypeFlowType,
 } from '@properfy/shared';
 
 function toSnakeCase(s: string): string {
@@ -230,7 +231,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         tenantAppointmentCodePrefix,
         branchName: row.branch?.name ?? '',
         serviceTypeName: row.service_type?.name ?? '',
-        serviceTypeFlowType: row.service_type?.flow_type ?? 'ROUTINE',
+        serviceTypeFlowType: (row.service_type?.flow_type ?? 'ROUTINE') as ServiceTypeFlowType,
         inspectorName: row.inspector?.name ?? null,
         serviceGroupNumber: row.service_group?.group_number ?? null,
       };

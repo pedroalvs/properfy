@@ -1,4 +1,4 @@
-import { ServiceTypeFlowType, RentalTenantConfirmationStatus, type AppointmentStatus } from '@properfy/shared';
+import { ServiceTypeFlowType, RentalTenantConfirmationStatus } from '@properfy/shared';
 import type {
   InspectorAppointment,
   InspectorAppointmentDetailResponse,
@@ -36,7 +36,7 @@ export function mapInspectorAppointmentDetail(
     scheduledDate: detail.scheduledDate,
     timeSlotStart: detail.timeSlotStart,
     timeSlotEnd: detail.timeSlotEnd,
-    status: detail.status as AppointmentStatus,
+    status: detail.status,
     rentalTenantConfirmation: normalizeTenantConfirmation(detail.rentalTenantConfirmation),
     serviceTypeName: detail.serviceTypeName ?? 'Inspection',
     flowType: normalizeFlowType(detail.flowType),
@@ -66,7 +66,7 @@ export function mapInspectorScheduleMonthItem(item: InspectorScheduleMonthItem):
     scheduledDate: item.scheduledDate,
     timeSlotStart: item.timeSlotStart,
     timeSlotEnd: item.timeSlotEnd,
-    status: item.status as AppointmentStatus,
+    status: item.status,
     rentalTenantConfirmation: normalizeTenantConfirmation(item.rentalTenantConfirmationStatus),
     serviceTypeName: item.serviceTypeName,
     flowType: normalizeFlowType(item.flowType),
