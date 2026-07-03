@@ -152,7 +152,7 @@ export function ServiceGroupDetailPage() {
             <i className="mdi mdi-arrow-left text-xl" aria-hidden="true" />
           </button>
           <h1 className="text-page-title-mobile text-secondary md:text-page-title">
-            {serviceGroup.name}
+            {serviceGroup.code ? `Group ${serviceGroup.code}` : '—'}
           </h1>
           <ServiceGroupStatusChip status={serviceGroup.status} />
         </div>

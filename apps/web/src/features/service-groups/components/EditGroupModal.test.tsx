@@ -24,7 +24,6 @@ vi.mock('./RegionSelector', () => ({
 const mockServiceGroup = {
   id: 'sg-01',
   tenantId: 'ten-1',
-  name: 'Test Group',
   serviceRegionId: 'r1',
   regionName: 'North',
   inspectorId: null,
@@ -76,7 +75,7 @@ describe('EditGroupModal', () => {
     expect(screen.queryByText('Edit Service Group')).not.toBeInTheDocument();
   });
 
-  it('shows name field pre-filled', () => {
+  it('does not render a name field (group identity is the code)', () => {
     render(
       <EditGroupModal
         open={true}
@@ -85,8 +84,7 @@ describe('EditGroupModal', () => {
         onSaved={vi.fn()}
       />,
     );
-    const nameInput = screen.getByLabelText('Service group name');
-    expect(nameInput).toHaveValue('Test Group');
+    expect(screen.queryByLabelText('Service group name')).not.toBeInTheDocument();
   });
 
   it('shows description field pre-filled', () => {

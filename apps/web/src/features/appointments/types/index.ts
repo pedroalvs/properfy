@@ -65,7 +65,9 @@ export interface AppointmentContactEntry {
   snapshotPhone: string | null;
 }
 
-export interface AppointmentDetail extends Appointment {
+export interface AppointmentDetail extends Omit<Appointment, 'code'> {
+  /** Formatted appointment code (tenant prefix + padded number, e.g. "INS-0042"). */
+  appointmentCode: string;
   meetingLocation: string | null;
   keyLocation: string | null;
   cancellationReason: string | null;

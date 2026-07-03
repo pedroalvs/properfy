@@ -62,7 +62,7 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
       return {
         appointment: {
           id: 'with-portal-token',
-          code: 'VST-005',
+          appointmentCode: 'INS-005',
           status: 'SCHEDULED',
           branchName: 'Downtown Branch',
           branchId: 'branch-1',
@@ -102,7 +102,7 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
       return {
         appointment: {
           id: 'awaiting',
-          code: 'VST-003',
+          appointmentCode: 'INS-003',
           status: 'AWAITING_INSPECTOR',
           branchName: 'Downtown Branch',
           branchId: 'branch-1',
@@ -138,7 +138,7 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
       return {
         appointment: {
           id: 'done',
-          code: 'VST-002',
+          appointmentCode: 'INS-002',
           status: 'DONE',
           branchName: 'Downtown Branch',
           branchId: 'branch-1',
@@ -173,7 +173,7 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
     return {
       appointment: {
         id: 'apt-01',
-        code: 'VST-001',
+        appointmentCode: 'INS-001',
         status: 'DRAFT',
         branchName: 'Downtown Branch',
         branchId: 'branch-1',
@@ -296,7 +296,7 @@ describe('AppointmentDetailPage', () => {
 
   it('renders appointment code in header', () => {
     renderPage();
-    expect(screen.getByText('VST-001')).toBeInTheDocument();
+    expect(screen.getByText('INS-001')).toBeInTheDocument();
   });
 
   it('renders status chip', () => {

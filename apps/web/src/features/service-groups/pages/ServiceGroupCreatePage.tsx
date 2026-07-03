@@ -7,7 +7,6 @@ import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
 import { FormActions } from '@/components/forms/FormActions';
 import { SelectInput } from '@/components/forms/SelectInput';
-import { TextInput } from '@/components/forms/TextInput';
 import { DateInput } from '@/components/forms/DateInput';
 import { RegionSelector } from '../components/RegionSelector';
 import { Textarea } from '@/components/forms/Textarea';
@@ -55,7 +54,6 @@ export function ServiceGroupCreatePage() {
   const [startTime, setStartTime] = useState('08:00');
   const [endTime, setEndTime] = useState('17:00');
   const [priorityMode, setPriorityMode] = useState('STANDARD');
-  const [groupName, setGroupName] = useState('');
   const [serviceRegionId, setServiceRegionId] = useState('');
   const [description, setDescription] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -73,7 +71,6 @@ export function ServiceGroupCreatePage() {
     serviceTypeId,
     scheduledDate,
     timeWindow: `${startTime}-${endTime}`,
-    ...(groupName ? { name: groupName } : {}),
     serviceRegionId: serviceRegionId || undefined,
     ...(description ? { description } : {}),
     priorityMode,
@@ -83,7 +80,7 @@ export function ServiceGroupCreatePage() {
 
   const isSelectionValid = selectedIds.length >= 1;
 
-  const isDirty = selectedTenantId !== '' || serviceTypeId !== '' || selectedIds.length > 0 || scheduledDate !== '' || groupName !== '' || serviceRegionId !== '' || description !== '';
+  const isDirty = selectedTenantId !== '' || serviceTypeId !== '' || selectedIds.length > 0 || scheduledDate !== '' || serviceRegionId !== '' || description !== '';
 
   const handleNext = useCallback(() => {
     setStep(2);
@@ -258,18 +255,6 @@ export function ServiceGroupCreatePage() {
         {/* Step 2: Configure & confirm */}
         {step === 2 && (
           <div className="flex flex-col gap-6">
-            <FormSection title="Group Details" columns={2}>
-              <FormField label="Name">
-                <TextInput
-                  value={groupName}
-                  onChange={setGroupName}
-                  placeholder="e.g. Bondi Beach Routine"
-                  aria-label="Group Name"
-                />
-              </FormField>
-              <div />
-            </FormSection>
-
             <FormSection title="Region">
               <RegionSelector
                 appointmentIds={selectedIds}

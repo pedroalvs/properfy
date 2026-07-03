@@ -2,7 +2,6 @@ import { useUpdateMutation } from '@/hooks/useApiQuery';
 import { useSnackbar } from '@/hooks/useSnackbar';
 
 export interface UpdateServiceGroupData {
-  name?: string;
   serviceRegionId?: string | null;
   description?: string;
   scheduledDate?: string;

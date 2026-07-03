@@ -30,7 +30,6 @@ export interface PublishServiceGroupOutput {
   confirmedCount: number;
   scheduledDate: Date;
   timeWindow: string;
-  name: string | null;
   regionName: string | null;
   description: string | null;
   priorityMode: string;
@@ -150,7 +149,6 @@ function mapGroupToOutput(group: ServiceGroupEntity, primaryTenantId: string | n
     confirmedCount: group.confirmedCount,
     scheduledDate: group.scheduledDate,
     timeWindow: group.timeWindow,
-    name: group.name,
     regionName: group.regionName,
     description: group.description,
     priorityMode: group.priorityMode,

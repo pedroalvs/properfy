@@ -50,7 +50,6 @@ export interface ServiceGroupSummary {
   confirmedCount: number;
   scheduledDate: Date;
   timeWindow: string;
-  name: string | null;
   regionName: string | null;
   description: string | null;
   priorityMode: string;
@@ -123,7 +122,6 @@ export class ListServiceGroupsUseCase {
           confirmedCount: g.confirmedCount,
           scheduledDate: g.scheduledDate,
           timeWindow: g.timeWindow,
-          name: g.name,
           regionName: g.regionName,
           description: g.description,
           priorityMode: g.priorityMode,

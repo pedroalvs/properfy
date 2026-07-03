@@ -38,12 +38,6 @@ export function ServiceGroupTable({
       render: (row) => <span className="font-mono text-text-secondary">{row.code ?? '—'}</span>,
     },
     {
-      key: 'name',
-      label: 'Name',
-      sortable: true,
-      render: (row) => <>{row.name ?? '—'}</>,
-    },
-    {
       key: 'agencies',
       label: 'Agency',
       width: '200px',
