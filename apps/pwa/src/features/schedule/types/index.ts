@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 import type {
+  AppointmentApp,
   AppointmentCustomField,
   AppointmentStatus,
   RentalTenantConfirmationStatus,
@@ -36,7 +37,7 @@ export interface InspectorAppointment {
   isOverdue?: boolean;
   agencyName?: string;
   /** App credentials linked to this appointment (live reference). */
-  apps: Array<{ id: string; name: string; username: string; password: string }>;
+  apps: AppointmentApp[];
 }
 
 export interface InspectorScheduleDayResponse {
@@ -105,7 +106,7 @@ export interface InspectorAppointmentDetailResponse {
     customFields?: AppointmentCustomField[];
     isOverdue?: boolean;
     agencyName?: string;
-    apps?: Array<{ id: string; name: string; username: string; password: string }>;
+    apps?: AppointmentApp[];
     jobDetails?: JobDetails;
   };
 }

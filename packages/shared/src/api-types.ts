@@ -4725,6 +4725,11 @@ export interface paths {
                                     name: string;
                                     username: string;
                                     password: string;
+                                    needsAuthCode: boolean;
+                                    authCode: string | null;
+                                    appUrl: string | null;
+                                    instructionsUrl: string | null;
+                                    instructionsPassword: string | null;
                                 }[];
                                 restrictions?: unknown[];
                                 property?: unknown;
@@ -4913,6 +4918,11 @@ export interface paths {
                                     name: string;
                                     username: string;
                                     password: string;
+                                    needsAuthCode: boolean;
+                                    authCode: string | null;
+                                    appUrl: string | null;
+                                    instructionsUrl: string | null;
+                                    instructionsPassword: string | null;
                                 }[];
                                 restrictions?: unknown[];
                                 property?: unknown;
@@ -5022,6 +5032,11 @@ export interface paths {
                                     name: string;
                                     username: string;
                                     password: string;
+                                    needsAuthCode: boolean;
+                                    authCode: string | null;
+                                    appUrl: string | null;
+                                    instructionsUrl: string | null;
+                                    instructionsPassword: string | null;
                                 }[];
                                 restrictions?: unknown[];
                                 property?: unknown;
@@ -5209,6 +5224,11 @@ export interface paths {
                                     name: string;
                                     username: string;
                                     password: string;
+                                    needsAuthCode: boolean;
+                                    authCode: string | null;
+                                    appUrl: string | null;
+                                    instructionsUrl: string | null;
+                                    instructionsPassword: string | null;
                                 }[];
                                 restrictions?: unknown[];
                                 property?: unknown;
@@ -8487,6 +8507,11 @@ export interface paths {
                                     name: string;
                                     username: string;
                                     password: string;
+                                    needsAuthCode: boolean;
+                                    authCode: string | null;
+                                    appUrl: string | null;
+                                    instructionsUrl: string | null;
+                                    instructionsPassword: string | null;
                                 }[];
                                 agencyName?: string | null;
                                 payoutAmount?: number | null;
@@ -11909,6 +11934,7 @@ export interface paths {
                 query?: {
                     search?: string;
                     tenantId?: string;
+                    branchId?: string;
                     isActive?: "true" | "false";
                     page?: number;
                     pageSize?: number;
@@ -11933,15 +11959,23 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 tenantId: string;
+                                /** Format: uuid */
+                                branchId: string | null;
                                 name: string;
                                 username: string;
                                 password: string;
+                                needsAuthCode: boolean;
+                                authCode: string | null;
+                                appUrl: string | null;
+                                instructionsUrl: string | null;
+                                instructionsPassword: string | null;
                                 isActive: boolean;
                                 /** Format: date-time */
                                 createdAt: string;
                                 /** Format: date-time */
                                 updatedAt: string;
                                 tenantName: string | null;
+                                branchName: string | null;
                             }[];
                             pagination: {
                                 page: number;
@@ -11967,9 +12001,19 @@ export interface paths {
                     "application/json": {
                         /** Format: uuid */
                         tenantId: string;
+                        /** Format: uuid */
+                        branchId?: string | null;
                         name: string;
                         username: string;
                         password: string;
+                        /** @default false */
+                        needsAuthCode?: boolean;
+                        authCode?: string | null;
+                        /** Format: uri */
+                        appUrl?: string | null;
+                        /** Format: uri */
+                        instructionsUrl?: string | null;
+                        instructionsPassword?: string | null;
                     };
                 };
             };
@@ -11986,9 +12030,16 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 tenantId: string;
+                                /** Format: uuid */
+                                branchId: string | null;
                                 name: string;
                                 username: string;
                                 password: string;
+                                needsAuthCode: boolean;
+                                authCode: string | null;
+                                appUrl: string | null;
+                                instructionsUrl: string | null;
+                                instructionsPassword: string | null;
                                 isActive: boolean;
                                 /** Format: date-time */
                                 createdAt: string;
@@ -12036,9 +12087,16 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 tenantId: string;
+                                /** Format: uuid */
+                                branchId: string | null;
                                 name: string;
                                 username: string;
                                 password: string;
+                                needsAuthCode: boolean;
+                                authCode: string | null;
+                                appUrl: string | null;
+                                instructionsUrl: string | null;
+                                instructionsPassword: string | null;
                                 isActive: boolean;
                                 /** Format: date-time */
                                 createdAt: string;
@@ -12067,9 +12125,18 @@ export interface paths {
             requestBody?: {
                 content: {
                     "application/json": {
+                        /** Format: uuid */
+                        branchId?: string | null;
                         name?: string;
                         username?: string;
                         password?: string;
+                        needsAuthCode?: boolean;
+                        authCode?: string | null;
+                        /** Format: uri */
+                        appUrl?: string | null;
+                        /** Format: uri */
+                        instructionsUrl?: string | null;
+                        instructionsPassword?: string | null;
                         isActive?: boolean;
                     };
                 };
@@ -12087,9 +12154,16 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 tenantId: string;
+                                /** Format: uuid */
+                                branchId: string | null;
                                 name: string;
                                 username: string;
                                 password: string;
+                                needsAuthCode: boolean;
+                                authCode: string | null;
+                                appUrl: string | null;
+                                instructionsUrl: string | null;
+                                instructionsPassword: string | null;
                                 isActive: boolean;
                                 /** Format: date-time */
                                 createdAt: string;
@@ -12135,9 +12209,16 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 tenantId: string;
+                                /** Format: uuid */
+                                branchId: string | null;
                                 name: string;
                                 username: string;
                                 password: string;
+                                needsAuthCode: boolean;
+                                authCode: string | null;
+                                appUrl: string | null;
+                                instructionsUrl: string | null;
+                                instructionsPassword: string | null;
                                 isActive: boolean;
                                 /** Format: date-time */
                                 createdAt: string;

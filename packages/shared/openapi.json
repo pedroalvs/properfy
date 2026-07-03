@@ -11135,13 +11135,37 @@
                               },
                               "password": {
                                 "type": "string"
+                              },
+                              "needsAuthCode": {
+                                "type": "boolean"
+                              },
+                              "authCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "appUrl": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "instructionsUrl": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "instructionsPassword": {
+                                "type": "string",
+                                "nullable": true
                               }
                             },
                             "required": [
                               "id",
                               "name",
                               "username",
-                              "password"
+                              "password",
+                              "needsAuthCode",
+                              "authCode",
+                              "appUrl",
+                              "instructionsUrl",
+                              "instructionsPassword"
                             ],
                             "additionalProperties": false
                           }
@@ -11659,13 +11683,37 @@
                                 },
                                 "password": {
                                   "type": "string"
+                                },
+                                "needsAuthCode": {
+                                  "type": "boolean"
+                                },
+                                "authCode": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "appUrl": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "instructionsUrl": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "instructionsPassword": {
+                                  "type": "string",
+                                  "nullable": true
                                 }
                               },
                               "required": [
                                 "id",
                                 "name",
                                 "username",
-                                "password"
+                                "password",
+                                "needsAuthCode",
+                                "authCode",
+                                "appUrl",
+                                "instructionsUrl",
+                                "instructionsPassword"
                               ],
                               "additionalProperties": false
                             }
@@ -11990,13 +12038,37 @@
                               },
                               "password": {
                                 "type": "string"
+                              },
+                              "needsAuthCode": {
+                                "type": "boolean"
+                              },
+                              "authCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "appUrl": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "instructionsUrl": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "instructionsPassword": {
+                                "type": "string",
+                                "nullable": true
                               }
                             },
                             "required": [
                               "id",
                               "name",
                               "username",
-                              "password"
+                              "password",
+                              "needsAuthCode",
+                              "authCode",
+                              "appUrl",
+                              "instructionsUrl",
+                              "instructionsPassword"
                             ],
                             "additionalProperties": false
                           }
@@ -12593,13 +12665,37 @@
                               },
                               "password": {
                                 "type": "string"
+                              },
+                              "needsAuthCode": {
+                                "type": "boolean"
+                              },
+                              "authCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "appUrl": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "instructionsUrl": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "instructionsPassword": {
+                                "type": "string",
+                                "nullable": true
                               }
                             },
                             "required": [
                               "id",
                               "name",
                               "username",
-                              "password"
+                              "password",
+                              "needsAuthCode",
+                              "authCode",
+                              "appUrl",
+                              "instructionsUrl",
+                              "instructionsPassword"
                             ],
                             "additionalProperties": false
                           }
@@ -19357,13 +19453,37 @@
                               },
                               "password": {
                                 "type": "string"
+                              },
+                              "needsAuthCode": {
+                                "type": "boolean"
+                              },
+                              "authCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "appUrl": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "instructionsUrl": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "instructionsPassword": {
+                                "type": "string",
+                                "nullable": true
                               }
                             },
                             "required": [
                               "id",
                               "name",
                               "username",
-                              "password"
+                              "password",
+                              "needsAuthCode",
+                              "authCode",
+                              "appUrl",
+                              "instructionsUrl",
+                              "instructionsPassword"
                             ],
                             "additionalProperties": false
                           },
@@ -26518,6 +26638,11 @@
                     "type": "string",
                     "format": "uuid"
                   },
+                  "branchId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  },
                   "name": {
                     "type": "string",
                     "minLength": 1,
@@ -26532,6 +26657,34 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 500
+                  },
+                  "needsAuthCode": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "authCode": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500,
+                    "nullable": true
+                  },
+                  "appUrl": {
+                    "type": "string",
+                    "format": "uri",
+                    "maxLength": 1000,
+                    "nullable": true
+                  },
+                  "instructionsUrl": {
+                    "type": "string",
+                    "format": "uri",
+                    "maxLength": 1000,
+                    "nullable": true
+                  },
+                  "instructionsPassword": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500,
+                    "nullable": true
                   }
                 },
                 "required": [
@@ -26565,6 +26718,11 @@
                           "type": "string",
                           "format": "uuid"
                         },
+                        "branchId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
                         "name": {
                           "type": "string"
                         },
@@ -26573,6 +26731,25 @@
                         },
                         "password": {
                           "type": "string"
+                        },
+                        "needsAuthCode": {
+                          "type": "boolean"
+                        },
+                        "authCode": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "appUrl": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "instructionsUrl": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "instructionsPassword": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "isActive": {
                           "type": "boolean"
@@ -26589,9 +26766,15 @@
                       "required": [
                         "id",
                         "tenantId",
+                        "branchId",
                         "name",
                         "username",
                         "password",
+                        "needsAuthCode",
+                        "authCode",
+                        "appUrl",
+                        "instructionsUrl",
+                        "instructionsPassword",
                         "isActive",
                         "createdAt",
                         "updatedAt"
@@ -26626,6 +26809,15 @@
             },
             "in": "query",
             "name": "tenantId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "branchId",
             "required": false
           },
           {
@@ -26710,6 +26902,11 @@
                             "type": "string",
                             "format": "uuid"
                           },
+                          "branchId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
                           "name": {
                             "type": "string"
                           },
@@ -26718,6 +26915,25 @@
                           },
                           "password": {
                             "type": "string"
+                          },
+                          "needsAuthCode": {
+                            "type": "boolean"
+                          },
+                          "authCode": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "appUrl": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "instructionsUrl": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "instructionsPassword": {
+                            "type": "string",
+                            "nullable": true
                           },
                           "isActive": {
                             "type": "boolean"
@@ -26733,18 +26949,29 @@
                           "tenantName": {
                             "type": "string",
                             "nullable": true
+                          },
+                          "branchName": {
+                            "type": "string",
+                            "nullable": true
                           }
                         },
                         "required": [
                           "id",
                           "tenantId",
+                          "branchId",
                           "name",
                           "username",
                           "password",
+                          "needsAuthCode",
+                          "authCode",
+                          "appUrl",
+                          "instructionsUrl",
+                          "instructionsPassword",
                           "isActive",
                           "createdAt",
                           "updatedAt",
-                          "tenantName"
+                          "tenantName",
+                          "branchName"
                         ],
                         "additionalProperties": false
                       }
@@ -26794,6 +27021,11 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "branchId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  },
                   "name": {
                     "type": "string",
                     "minLength": 1,
@@ -26808,6 +27040,33 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 500
+                  },
+                  "needsAuthCode": {
+                    "type": "boolean"
+                  },
+                  "authCode": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500,
+                    "nullable": true
+                  },
+                  "appUrl": {
+                    "type": "string",
+                    "format": "uri",
+                    "maxLength": 1000,
+                    "nullable": true
+                  },
+                  "instructionsUrl": {
+                    "type": "string",
+                    "format": "uri",
+                    "maxLength": 1000,
+                    "nullable": true
+                  },
+                  "instructionsPassword": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500,
+                    "nullable": true
                   },
                   "isActive": {
                     "type": "boolean"
@@ -26848,6 +27107,11 @@
                           "type": "string",
                           "format": "uuid"
                         },
+                        "branchId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
                         "name": {
                           "type": "string"
                         },
@@ -26856,6 +27120,25 @@
                         },
                         "password": {
                           "type": "string"
+                        },
+                        "needsAuthCode": {
+                          "type": "boolean"
+                        },
+                        "authCode": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "appUrl": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "instructionsUrl": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "instructionsPassword": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "isActive": {
                           "type": "boolean"
@@ -26872,9 +27155,15 @@
                       "required": [
                         "id",
                         "tenantId",
+                        "branchId",
                         "name",
                         "username",
                         "password",
+                        "needsAuthCode",
+                        "authCode",
+                        "appUrl",
+                        "instructionsUrl",
+                        "instructionsPassword",
                         "isActive",
                         "createdAt",
                         "updatedAt"
@@ -26923,6 +27212,11 @@
                           "type": "string",
                           "format": "uuid"
                         },
+                        "branchId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
                         "name": {
                           "type": "string"
                         },
@@ -26931,6 +27225,25 @@
                         },
                         "password": {
                           "type": "string"
+                        },
+                        "needsAuthCode": {
+                          "type": "boolean"
+                        },
+                        "authCode": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "appUrl": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "instructionsUrl": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "instructionsPassword": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "isActive": {
                           "type": "boolean"
@@ -26947,9 +27260,15 @@
                       "required": [
                         "id",
                         "tenantId",
+                        "branchId",
                         "name",
                         "username",
                         "password",
+                        "needsAuthCode",
+                        "authCode",
+                        "appUrl",
+                        "instructionsUrl",
+                        "instructionsPassword",
                         "isActive",
                         "createdAt",
                         "updatedAt"
@@ -27000,6 +27319,11 @@
                           "type": "string",
                           "format": "uuid"
                         },
+                        "branchId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
                         "name": {
                           "type": "string"
                         },
@@ -27008,6 +27332,25 @@
                         },
                         "password": {
                           "type": "string"
+                        },
+                        "needsAuthCode": {
+                          "type": "boolean"
+                        },
+                        "authCode": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "appUrl": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "instructionsUrl": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "instructionsPassword": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "isActive": {
                           "type": "boolean"
@@ -27024,9 +27367,15 @@
                       "required": [
                         "id",
                         "tenantId",
+                        "branchId",
                         "name",
                         "username",
                         "password",
+                        "needsAuthCode",
+                        "authCode",
+                        "appUrl",
+                        "instructionsUrl",
+                        "instructionsPassword",
                         "isActive",
                         "createdAt",
                         "updatedAt"

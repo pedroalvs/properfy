@@ -431,6 +431,14 @@ export class UpdateAppointmentUseCase {
           if (!cred.isActive) {
             throw new ValidationError('APPOINTMENT_APP_CREDENTIAL_INACTIVE', `App credential ${id} is not active`);
           }
+          // Branch-scoped credentials only attach to appointments of that
+          // branch; agency-wide (branchId null) attach anywhere in the tenant.
+          if (cred.branchId !== null && cred.branchId !== appointment.branchId) {
+            throw new ValidationError(
+              'APPOINTMENT_APP_CREDENTIAL_BRANCH_MISMATCH',
+              `App credential ${id} belongs to another branch`,
+            );
+          }
         }
       }
       await this.appCredentialRepo.replaceAppointmentLinks(appointmentId, ids);

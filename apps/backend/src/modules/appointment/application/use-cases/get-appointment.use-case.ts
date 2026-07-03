@@ -3,6 +3,7 @@ import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../domain/appointment.repository';
 import type { IAppCredentialRepository } from '../../../app-credential/domain/app-credential.repository';
+import { toAppointmentApp } from '../../../app-credential/application/appointment-app.mapper';
 import {
   AppointmentNotFoundError,
   AppointmentAccessDeniedError,
@@ -225,12 +226,7 @@ export class GetAppointmentUseCase {
     }
 
     const apps: AppointmentApp[] = this.appCredentialRepo
-      ? (await this.appCredentialRepo.findByAppointmentId(found.appointment.id)).map((a) => ({
-          id: a.id,
-          name: a.name,
-          username: a.username,
-          password: a.password,
-        }))
+      ? (await this.appCredentialRepo.findByAppointmentId(found.appointment.id)).map(toAppointmentApp)
       : [];
 
     return mapToOutput(found, apps);
