@@ -2,6 +2,7 @@ import type { AuthContext, AppointmentApp, AppointmentCustomField } from '@prope
 import { normalizeCustomFields } from '@properfy/shared';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../appointment/domain/appointment.repository';
 import type { IAppCredentialRepository } from '../../../app-credential/domain/app-credential.repository';
+import { toAppointmentApp } from '../../../app-credential/application/appointment-app.mapper';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { IInspectionExecutionRepository } from '../../domain/inspection-execution.repository';
 import type { IInspectionAssetRepository } from '../../domain/inspection-asset.repository';
@@ -215,17 +216,7 @@ export class GetAppointmentDetailUseCase {
 
     // App credentials linked to this appointment (live reference — current values).
     const apps: AppointmentApp[] = this.appCredentialRepo
-      ? (await this.appCredentialRepo.findByAppointmentId(appointment.id)).map((a) => ({
-          id: a.id,
-          name: a.name,
-          username: a.username,
-          password: a.password,
-          needsAuthCode: a.needsAuthCode,
-          authCode: a.authCode ?? null,
-          appUrl: a.appUrl ?? null,
-          instructionsUrl: a.instructionsUrl ?? null,
-          instructionsPassword: a.instructionsPassword ?? null,
-        }))
+      ? (await this.appCredentialRepo.findByAppointmentId(appointment.id)).map(toAppointmentApp)
       : [];
 
     const codePrefix = result.tenantAppointmentCodePrefix ?? 'INS';

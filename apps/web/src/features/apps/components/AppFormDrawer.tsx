@@ -96,9 +96,6 @@ export function AppFormDrawer({ open, onClose, app, defaultTenantId, onSaved }: 
 
   const handleSubmit = useCallback(async () => {
     const validationErrors = validate(form, isEditMode ? 'edit' : 'create');
-    if (form.needsAuthCode && !form.authCode) {
-      validationErrors.authCode = 'Authentication code is required';
-    }
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;

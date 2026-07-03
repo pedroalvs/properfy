@@ -16,6 +16,7 @@ import type { IContactRepository } from '../../../contact/domain/contact.reposit
 import { ContactEntity } from '../../../contact/domain/contact.entity';
 import { ContactNoChannelError } from '../../../contact/domain/contact.errors';
 import type { IAppCredentialRepository } from '../../../app-credential/domain/app-credential.repository';
+import { toAppointmentApp } from '../../../app-credential/application/appointment-app.mapper';
 import { AppointmentEntity } from '../../domain/appointment.entity';
 import { AppointmentContactEntity } from '../../domain/appointment-contact.entity';
 import { AppointmentRestrictionEntity } from '../../domain/appointment-restriction.entity';
@@ -615,17 +616,7 @@ export class CreateAppointmentUseCase {
     await this.appCredentialRepo.replaceAppointmentLinks(appointmentId, ids);
     return ids.map((id) => {
       const cred = byId.get(id)!;
-      return {
-        id: cred.id,
-        name: cred.name,
-        username: cred.username,
-        password: cred.password,
-        needsAuthCode: cred.needsAuthCode,
-        authCode: cred.authCode ?? null,
-        appUrl: cred.appUrl ?? null,
-        instructionsUrl: cred.instructionsUrl ?? null,
-        instructionsPassword: cred.instructionsPassword ?? null,
-      };
+      return toAppointmentApp(cred);
     });
   }
 }

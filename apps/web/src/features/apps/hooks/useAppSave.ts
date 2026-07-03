@@ -67,7 +67,13 @@ export function useAppSave(): UseAppSaveReturn {
     const payload = mode === 'create' ? toCreatePayload(data) : toUpdatePayload(data);
     const schema = mode === 'create' ? appCredentialCreateSchema : appCredentialUpdateSchema;
     const result = schema.safeParse(payload);
-    return result.success ? {} : zodErrorsToFormErrors(result.error.issues);
+    const errors = result.success ? {} : zodErrorsToFormErrors(result.error.issues);
+    // The shared schema only enforces this on create (updates are partial
+    // patches); the form always has the full state, so enforce in both modes.
+    if (data.needsAuthCode && !data.authCode && !errors.authCode) {
+      errors.authCode = 'Authentication code is required';
+    }
+    return errors;
   }, []);
 
   const save = useCallback(async (data: AppFormData, appId?: string): Promise<SaveResult> => {

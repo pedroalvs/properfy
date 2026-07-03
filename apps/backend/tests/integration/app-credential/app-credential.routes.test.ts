@@ -181,12 +181,21 @@ describe('GET /v1/app-credentials', () => {
       total: 1, page: 1, pageSize: 20,
     });
     const res = await supertest(app.server)
-      .get(`/v1/app-credentials?branchId=${branchId}`)
+      .get(`/v1/app-credentials?tenantId=${TENANT_A}&branchId=${branchId}`)
       .set('Authorization', 'Bearer t')
       .expect(200);
-    expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ branchId }));
+    expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ tenantId: TENANT_A, branchId }));
     expect(res.body.data[0].branchName).toBe('North Sydney');
     expect(res.body.data[0].branchId).toBe(branchId);
+  });
+
+  it('rejects branchId without tenantId (400) — agency-wide rows would leak cross-tenant', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    await supertest(app.server)
+      .get('/v1/app-credentials?branchId=bbbbbbbb-0000-4000-8000-000000000001')
+      .set('Authorization', 'Bearer t')
+      .expect(400);
+    expect(mockList).not.toHaveBeenCalled();
   });
 
   it('rejects a non-uuid branchId (400)', async () => {

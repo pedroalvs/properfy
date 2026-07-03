@@ -197,4 +197,31 @@ describe('PrismaAppCredentialRepository (real DB)', () => {
 
     expect(await repo.count({ tenantId: seed.tenantA, branchId: seed.branchA, search: 'BFILT' })).toBe(2);
   });
+
+  it('branch filter does not leak another tenant agency-wide rows; ignored without tenantId', async () => {
+    const now = new Date();
+    const mk = (tenantId: string, name: string) =>
+      new AppCredentialEntity({
+        id: crypto.randomUUID(), tenantId, branchId: null, name, username: 'u', password: 'p',
+        isActive: true, createdAt: now, updatedAt: now,
+      });
+    await repo.save(mk(seed.tenantA, 'XTEN-a-wide'));
+    await repo.save(mk(seed.tenantB, 'XTEN-b-wide'));
+
+    // Tenant-scoped branch filter returns only that tenant's agency-wide row.
+    const scoped = await repo.findAll(
+      { tenantId: seed.tenantA, branchId: seed.branchA, search: 'XTEN' },
+      { page: 1, pageSize: 50, sortOrder: 'asc' },
+    );
+    expect(scoped.map((r) => r.credential.name)).toEqual(['XTEN-a-wide']);
+
+    // Defense in depth: without tenantId the branch OR-expansion is NOT
+    // applied (behaves like no branch filter — the plain AM/OP global list);
+    // the route additionally rejects branchId without tenantId with 400.
+    const unscoped = await repo.findAll(
+      { branchId: seed.branchA, search: 'XTEN' },
+      { page: 1, pageSize: 50, sortOrder: 'asc' },
+    );
+    expect(unscoped.map((r) => r.credential.name).sort()).toEqual(['XTEN-a-wide', 'XTEN-b-wide']);
+  });
 });

@@ -10,7 +10,16 @@ import { z } from 'zod';
 // (the backend repository handles encrypt-on-save / decrypt-on-read).
 
 const secretSchema = z.string().min(1).max(500);
-const urlSchema = z.string().trim().url().max(1000);
+// z.string().url() accepts any scheme (javascript:, data:) — these values are
+// rendered as <a href>, so restrict to http(s) to rule out XSS vectors.
+const urlSchema = z
+  .string()
+  .trim()
+  .url()
+  .max(1000)
+  .refine((value) => /^https?:\/\//i.test(value), {
+    message: 'Only http(s) URLs are allowed',
+  });
 
 // --- App credential (create) ---
 

@@ -34,11 +34,13 @@ describe('useAppSave.validate', () => {
     expect(result.current.validate({ ...VALID, tenantId: '' }, 'edit')).toEqual({});
   });
 
-  it('requires authCode when needsAuthCode is checked (create)', () => {
+  it('requires authCode when needsAuthCode is checked (create and edit)', () => {
     const { result } = renderHook(() => useAppSave(), { wrapper: createQueryWrapper() });
     const errors = result.current.validate({ ...VALID, needsAuthCode: true, authCode: '' }, 'create');
     expect(errors.authCode).toBeDefined();
     expect(result.current.validate({ ...VALID, needsAuthCode: true, authCode: '123' }, 'create')).toEqual({});
+    expect(result.current.validate({ ...VALID, needsAuthCode: true, authCode: '' }, 'edit').authCode).toBeDefined();
+    expect(result.current.validate({ ...VALID, needsAuthCode: true, authCode: '123' }, 'edit')).toEqual({});
   });
 
   it('rejects invalid urls and accepts valid or empty ones', () => {

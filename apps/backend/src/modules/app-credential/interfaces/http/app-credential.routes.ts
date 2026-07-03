@@ -31,17 +31,24 @@ export interface AppCredentialRouteContainer {
 
 const idParam = z.object({ id: z.string().uuid() });
 
-const listQuerySchema = z.object({
-  search: z.string().optional(),
-  tenantId: z.string().uuid().optional(),
-  /** Branch-scoped credentials for this branch plus agency-wide ones. */
-  branchId: z.string().uuid().optional(),
-  isActive: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(20),
-  sortBy: z.enum(['name', 'username', 'createdAt']).default('name'),
-  sortOrder: z.enum(['asc', 'desc']).default('asc'),
-});
+const listQuerySchema = z
+  .object({
+    search: z.string().optional(),
+    tenantId: z.string().uuid().optional(),
+    /** Branch-scoped credentials for this branch plus agency-wide ones. */
+    branchId: z.string().uuid().optional(),
+    isActive: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(20),
+    sortBy: z.enum(['name', 'username', 'createdAt']).default('name'),
+    sortOrder: z.enum(['asc', 'desc']).default('asc'),
+  })
+  .refine((query) => !query.branchId || !!query.tenantId, {
+    // The branch filter includes agency-wide rows (branch_id IS NULL); without
+    // a tenant scope that would return every tenant's agency-wide credentials.
+    path: ['branchId'],
+    message: 'branchId requires tenantId',
+  });
 
 // App credentials are an operational, AM/OP-only registry (CLAUDE.md §6).
 const ALLOWED_ROLES = ['AM', 'OP'] as const;

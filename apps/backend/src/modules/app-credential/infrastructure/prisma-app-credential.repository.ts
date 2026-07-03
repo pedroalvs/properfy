@@ -70,8 +70,11 @@ export class PrismaAppCredentialRepository implements IAppCredentialRepository {
       ];
     }
     // Branch filter = branch-scoped OR agency-wide. Nested under AND so it
-    // does not collide with the search OR above.
-    if (filters.branchId) {
+    // does not collide with the search OR above. Only applied together with a
+    // tenant scope — the agency-wide half (branch_id IS NULL) would otherwise
+    // match every tenant's agency-wide credentials. The route enforces the
+    // same rule; this is defense in depth.
+    if (filters.branchId && filters.tenantId) {
       where.AND = [{ OR: [{ branch_id: filters.branchId }, { branch_id: null }] }];
     }
     return where;

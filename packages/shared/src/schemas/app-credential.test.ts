@@ -38,6 +38,18 @@ describe('appCredentialCreateSchema', () => {
   it('defaults needsAuthCode to false and new fields to absent', () => {
     const parsed = appCredentialCreateSchema.parse(valid);
     expect(parsed.needsAuthCode).toBe(false);
+    expect(parsed.branchId).toBeUndefined();
+    expect(parsed.authCode).toBeUndefined();
+    expect(parsed.appUrl).toBeUndefined();
+    expect(parsed.instructionsUrl).toBeUndefined();
+    expect(parsed.instructionsPassword).toBeUndefined();
+  });
+
+  it('rejects non-http(s) URL schemes (javascript:, data:)', () => {
+    expect(appCredentialCreateSchema.safeParse({ ...valid, appUrl: 'javascript:alert(1)' }).success).toBe(false);
+    expect(appCredentialCreateSchema.safeParse({ ...valid, instructionsUrl: 'data:text/html,x' }).success).toBe(false);
+    expect(appCredentialCreateSchema.safeParse({ ...valid, appUrl: 'ftp://example.com/x' }).success).toBe(false);
+    expect(appCredentialCreateSchema.safeParse({ ...valid, appUrl: 'HTTPS://example.com/x' }).success).toBe(true);
   });
 
   it('accepts branchId as uuid or null and rejects non-uuid', () => {

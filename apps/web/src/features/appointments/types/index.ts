@@ -5,6 +5,7 @@ import type {
   ContactType,
   ContactChannelType,
   AppointmentCustomField,
+  AppointmentApp,
 } from '@properfy/shared';
 import { CUSTOM_FIELDS_MAX } from '@properfy/shared';
 
@@ -85,17 +86,7 @@ export interface AppointmentDetail extends Omit<Appointment, 'code'> {
   /** Operator-defined custom fields (label/value pairs, max 4). */
   customFields?: AppointmentCustomField[];
   /** App credentials linked to this appointment (live reference). */
-  apps?: Array<{
-    id: string;
-    name: string;
-    username: string;
-    password: string;
-    needsAuthCode: boolean;
-    authCode: string | null;
-    appUrl: string | null;
-    instructionsUrl: string | null;
-    instructionsPassword: string | null;
-  }>;
+  apps?: AppointmentApp[];
   restrictions?: Array<{
     id: string;
     isHome: boolean;

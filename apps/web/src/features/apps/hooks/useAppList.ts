@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
 import type { DataTablePagination } from '@/components/data/DataTable';
 import { useUrlFilters, type FilterSchema } from '@/hooks/useUrlFilters';
@@ -35,6 +35,12 @@ export function useAppList(tenantIdOverride?: string, branchIdOverride?: string)
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  // Scope changes (agency/branch selects) can shrink the result set — go back
+  // to page 1 so the user never lands on an empty page.
+  useEffect(() => {
+    setPage(1);
+  }, [tenantIdOverride, branchIdOverride]);
 
   const setFilters = useCallback((next: AppFiltersState) => {
     if (next.search !== filters.search) setFilter('search', next.search);
