@@ -73,6 +73,8 @@ const mockOfferDetail = {
       notes: null,
       payoutAmount: 150,
       tenantName: 'Properfy Realty',
+      timeSlotStart: '08:00',
+      timeSlotEnd: '09:00',
     },
     {
       id: '00000000-0000-0000-0000-000000000012',
@@ -83,6 +85,8 @@ const mockOfferDetail = {
       notes: null,
       payoutAmount: 150,
       tenantName: 'Properfy Realty',
+      timeSlotStart: '10:00',
+      timeSlotEnd: '11:00',
     },
   ],
 };
@@ -118,6 +122,8 @@ describe('GET /v1/marketplace/offers/:groupId (detail — suburb rename)', () =>
     expect(typeof first['suburb']).toBe('string');
     expect(first['suburb']).toMatch(/^[A-Z][a-z]+ [A-Z]{2,3}$/);
     expect(first).not.toHaveProperty('address');
+    expect(first['timeSlotStart']).toBe('08:00');
+    expect(first['timeSlotEnd']).toBe('09:00');
   });
 
   it('should include centroid field (null when not resolved)', async () => {
