@@ -15,6 +15,7 @@ interface TimeInputProps {
   error?: boolean;
   id?: string;
   'aria-label'?: string;
+  'aria-describedby'?: string;
 }
 
 export function TimeInput({
@@ -25,6 +26,7 @@ export function TimeInput({
   error,
   id,
   'aria-label': ariaLabel,
+  'aria-describedby': ariaDescribedBy,
 }: TimeInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerClass = disabled
@@ -48,6 +50,7 @@ export function TimeInput({
         min={min}
         disabled={disabled}
         aria-label={ariaLabel}
+        aria-describedby={ariaDescribedBy}
       />
     </div>
   );

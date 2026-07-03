@@ -27,7 +27,6 @@ function makeServiceGroup(overrides: Partial<ServiceGroupDetail> = {}): ServiceG
   return {
     id: 'sg-01',
     tenantId: 't-1',
-    name: 'Zona Sul SP',
     serviceRegionId: null,
     regionName: 'São Paulo - Sul',
     inspectorId: 'insp-01',
@@ -64,9 +63,8 @@ describe('ServiceGroupDetailSections', () => {
     expect(screen.getByText('Record')).toBeInTheDocument();
   });
 
-  it('renders name and region', () => {
+  it('renders region', () => {
     renderWithRouter(<ServiceGroupDetailSections serviceGroup={makeServiceGroup()} />);
-    expect(screen.getByText('Zona Sul SP')).toBeInTheDocument();
     expect(screen.getByText('São Paulo - Sul')).toBeInTheDocument();
   });
 

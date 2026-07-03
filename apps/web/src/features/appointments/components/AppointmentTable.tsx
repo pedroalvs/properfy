@@ -145,6 +145,17 @@ export function AppointmentTable({
       render: (row) => <>{row.inspectorName ?? '—'}</>,
     },
     {
+      key: 'serviceGroupCode',
+      label: 'Group',
+      width: '90px',
+      render: (row) =>
+        row.serviceGroupCode ? (
+          <span className="font-mono text-sm text-text-secondary">{row.serviceGroupCode}</span>
+        ) : (
+          <>—</>
+        ),
+    },
+    {
       key: 'scheduledDate',
       label: 'Scheduled Date',
       width: '140px',

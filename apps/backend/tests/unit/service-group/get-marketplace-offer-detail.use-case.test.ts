@@ -60,6 +60,8 @@ function makeOfferDetail(overrides: Partial<MarketplaceOfferDetail> = {}): Marke
         keyRequired: true,
         notes: 'Ring the doorbell',
         payoutAmount: 50,
+        timeSlotStart: '08:00',
+        timeSlotEnd: '09:00',
       },
       {
         id: 'appt-2',
@@ -68,6 +70,8 @@ function makeOfferDetail(overrides: Partial<MarketplaceOfferDetail> = {}): Marke
         keyRequired: false,
         notes: null,
         payoutAmount: 50,
+        timeSlotStart: '10:00',
+        timeSlotEnd: '11:00',
       },
     ],
     ...overrides,
@@ -145,6 +149,10 @@ describe('GetMarketplaceOfferDetailUseCase', () => {
     expect(result.appointments[0].appointmentNumber).toBe(1001);
     expect(result.appointments[0].keyRequired).toBe(true);
     expect(result.appointments[1].keyRequired).toBe(false);
+    expect(result.appointments[0].timeSlotStart).toBe('08:00');
+    expect(result.appointments[0].timeSlotEnd).toBe('09:00');
+    expect(result.appointments[1].timeSlotStart).toBe('10:00');
+    expect(result.appointments[1].timeSlotEnd).toBe('11:00');
     expect(result.payoutEstimate).toBe(250);
 
     // Use case now forwards inspector.blockedClientsJson (denylist) — matches

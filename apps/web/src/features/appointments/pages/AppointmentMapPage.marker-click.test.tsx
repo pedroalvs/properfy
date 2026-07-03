@@ -30,25 +30,51 @@ const PAGE_SOURCE = readFileSync(
 );
 
 describe('AppointmentMapPage — marker-click regression (Issue #1)', () => {
-  it('handleMarkerClick uses mapInstance.flyTo with Math.max(getZoom(), 14)', () => {
-    // The handler signature + body must mention both pieces. Pre-fix the
-    // handler used `fitBounds` which always zooms to fit the full pin
-    // collection — that was the smoke-reported bug.
+  it('the shared flyToPoint helper uses flyTo with Math.max(getZoom(), minZoom) — never fitBounds', () => {
+    // Marker handlers now share a single camera helper. The guard moves with
+    // it: flyTo + never-reduce-zoom semantics, and no fitBounds (which always
+    // zooms back out to the full pin collection — the smoke-reported bug).
+    const helperMatch = PAGE_SOURCE.match(/function flyToPoint\([\s\S]*?\n\}/);
+    expect(helperMatch, 'flyToPoint helper not found').toBeTruthy();
+    const body = helperMatch![0];
+    expect(body).toContain('map.flyTo');
+    expect(body).toContain('Math.max(map.getZoom(), opts.minZoom)');
+    expect(body).not.toMatch(/fitBounds/);
+  });
+
+  it('handleMarkerClick delegates the camera move to flyToPoint with minZoom 14', () => {
     const handlerMatch = PAGE_SOURCE.match(/const handleMarkerClick = useCallback\(\(item: AppointmentMapItem\)[\s\S]*?\}, \[mapInstance\]\);/);
     expect(handlerMatch, 'handleMarkerClick definition not found').toBeTruthy();
     const body = handlerMatch![0];
-    expect(body).toContain('mapInstance.flyTo');
-    expect(body).toContain('Math.max(mapInstance.getZoom(), 14)');
+    expect(body).toContain('flyToPoint(mapInstance, item, { minZoom: 14');
     expect(body).not.toMatch(/mapInstance\.fitBounds/);
   });
 
-  it('handleGroupMarkerClick uses flyTo (NOT fitBounds) for the same reason', () => {
+  it('handleGroupMarkerClick delegates to flyToPoint (NOT fitBounds) for the same reason', () => {
     const handlerMatch = PAGE_SOURCE.match(/const handleGroupMarkerClick = useCallback\(\(item: ServiceGroupMapPin\)[\s\S]*?\}, \[mapInstance\]\);/);
     expect(handlerMatch, 'handleGroupMarkerClick definition not found').toBeTruthy();
     const body = handlerMatch![0];
-    expect(body).toContain('mapInstance.flyTo');
-    expect(body).toContain('Math.max(mapInstance.getZoom(), 14)');
+    expect(body).toContain('flyToPoint(mapInstance, item, { minZoom: 14');
     expect(body).not.toMatch(/mapInstance\.fitBounds/);
+  });
+
+  it('single click on a group pin previews (setPreviewGroup) without entering the drill-down', () => {
+    const handlerMatch = PAGE_SOURCE.match(/const handleGroupMarkerClick = useCallback\(\(item: ServiceGroupMapPin\)[\s\S]*?\}, \[mapInstance\]\);/);
+    expect(handlerMatch, 'handleGroupMarkerClick definition not found').toBeTruthy();
+    const body = handlerMatch![0];
+    expect(body).toContain('setPreviewGroup(item)');
+    // The drill-down trigger must NOT fire on single click.
+    expect(body).not.toContain('setSelectedGroupItem(item)');
+  });
+
+  it('double click on a group pin enters the drill-down (setSelectedGroupItem)', () => {
+    const handlerMatch = PAGE_SOURCE.match(/const handleGroupMarkerDoubleClick = useCallback\(\(item: ServiceGroupMapPin\)[\s\S]*?\}, \[mapInstance\]\);/);
+    expect(handlerMatch, 'handleGroupMarkerDoubleClick definition not found').toBeTruthy();
+    const body = handlerMatch![0];
+    expect(body).toContain('setSelectedGroupItem(item)');
+    expect(body).toContain('setPreviewGroup(null)');
+    // Group markers must wire both gestures.
+    expect(PAGE_SOURCE).toContain('onDoubleClick={() => handleGroupMarkerDoubleClick(item)}');
   });
 
   it('auto-fit useEffect gates on the hasFittedRef sentinel to prevent re-fire', () => {

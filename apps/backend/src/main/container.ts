@@ -293,6 +293,7 @@ import { ImagePlaceholderResolver } from '../modules/notification/domain/image-p
 
 // Notification handlers
 import { NotifyOnStatusTransitionHandler } from '../modules/notification/application/handlers/notify-on-status-transition.handler';
+import { NotifyOnAdminRescheduleHandler } from '../modules/notification/application/handlers/notify-on-admin-reschedule.handler';
 import { NotifyOnRentalTenantPortalActionHandler } from '../modules/notification/application/handlers/notify-on-rental-tenant-portal-action.handler';
 
 // Workers
@@ -665,7 +666,8 @@ export function createContainer(logger: Logger): AppContainer {
   );
   const getAppointmentUseCase = new GetAppointmentUseCase(appointmentRepo, authorizationService, appCredentialRepo);
   const listAppointmentsUseCase = new ListAppointmentsUseCase(appointmentRepo, authorizationService);
-  const updateAppointmentUseCase = new UpdateAppointmentUseCase(appointmentRepo, auditService, authorizationService, tenantRepo, contactRepo, undefined, appCredentialRepo);
+  // updateAppointmentUseCase is constructed AFTER the notification handlers below —
+  // schedule edits need confirmationCycleService + portal token repo + reschedule notifier.
   const deleteAppointmentUseCase = new DeleteAppointmentUseCase(appointmentRepo, auditService, authorizationService);
   const bulkEditAppointmentsUseCase = new BulkEditAppointmentsUseCase(
     appointmentRepo, contactRepo, inspectorRepo, pricingRuleRepo,
@@ -714,6 +716,19 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentRepo, propertyRepo, tenantRepo, notificationRepo,
     buildNotificationPayload, appointmentCodeFormatter,
     createNotificationUseCase, env.TENANT_PORTAL_BASE_URL, logger, metrics,
+  );
+  const notifyOnAdminRescheduleHandler = new NotifyOnAdminRescheduleHandler(
+    appointmentRepo, propertyRepo, tenantRepo,
+    mintPortalTokenService, buildNotificationPayload, appointmentCodeFormatter,
+    createNotificationUseCase, env.TENANT_PORTAL_BASE_URL, logger, metrics,
+  );
+
+  // Schedule edits in any non-terminal status: rotates the confirmation cycle,
+  // revokes stale portal tokens and (for SCHEDULED) notifies the rental tenant.
+  const updateAppointmentUseCase = new UpdateAppointmentUseCase(
+    appointmentRepo, auditService, authorizationService, tenantRepo, contactRepo,
+    undefined, appCredentialRepo,
+    confirmationCycleService, rentalTenantPortalTokenRepo, notifyOnAdminRescheduleHandler,
   );
 
   const executeStatusTransitionUseCase = new ExecuteStatusTransitionUseCase(

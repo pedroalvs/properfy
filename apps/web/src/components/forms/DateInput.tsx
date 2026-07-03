@@ -15,6 +15,7 @@ interface DateInputProps {
   error?: boolean;
   id?: string;
   'aria-label'?: string;
+  'aria-describedby'?: string;
 }
 
 export function DateInput({
@@ -26,6 +27,7 @@ export function DateInput({
   error,
   id,
   'aria-label': ariaLabel,
+  'aria-describedby': ariaDescribedBy,
 }: DateInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerClass = disabled
@@ -50,6 +52,7 @@ export function DateInput({
         max={max}
         disabled={disabled}
         aria-label={ariaLabel}
+        aria-describedby={ariaDescribedBy}
       />
     </div>
   );

@@ -140,3 +140,20 @@ describe('GetAppointmentUseCase — hasActivePortalToken must come from found.ha
     expect(result.hasActivePortalToken).toBe(false);
   });
 });
+
+describe('GetAppointmentUseCase — appointment code', () => {
+  it('should return appointmentCode formatted from tenant prefix + appointmentNumber and NOT expose a `code` alias', async () => {
+    const { auth } = makeUseCase();
+    const appointmentRepo = {
+      findById: vi.fn().mockResolvedValue(makeFoundResult({ hasActivePortalToken: false })),
+    };
+    const uc = new GetAppointmentUseCase(appointmentRepo as any, auth);
+
+    const result = await uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR });
+
+    expect(result.appointmentCode).toBe('INS-0001');
+    // The detail response must not alias the property code as `code`
+    // (that made import-created appointments show "IMP-…" in the UI).
+    expect('code' in result).toBe(false);
+  });
+});

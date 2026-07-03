@@ -25,6 +25,7 @@ import type {
   CancellationReasonCode,
   RejectionReasonCode,
   AppointmentCustomField,
+  ServiceTypeFlowType,
 } from '@properfy/shared';
 
 function toSnakeCase(s: string): string {
@@ -137,8 +138,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         property: { select: { property_code: true, street: true, suburb: true, state: true, postcode: true, lat: true, lng: true } },
         tenant: { select: { name: true, appointment_code_prefix: true } },
         branch: { select: { name: true } },
-        service_type: { select: { name: true } },
+        service_type: { select: { name: true, flow_type: true } },
         inspector: { select: { name: true } },
+        service_group: { select: { group_number: true } },
         // AC-2.1: filtered include — only returns a row when status='ACTIVE' AND expires_at > now().
         // Node clock is the authority per AC-2.5 (matches expire-tokens worker convention).
         // Relation field name is `portal_tokens` (Prisma model field); DB table is `rental_tenant_portal_tokens` via @@map.
@@ -186,6 +188,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       tenantName: (row as any).tenant?.name ?? '',
       tenantAppointmentCodePrefix,
       hasActivePortalToken: ((row as any).portal_tokens as Array<{ id: string }>).length > 0,
+      serviceGroupNumber: (row as any).service_group?.group_number ?? null,
     };
   }
 
@@ -206,7 +209,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         property: { select: { property_code: true, street: true, suburb: true, state: true, postcode: true, lat: true, lng: true } },
         tenant: { select: { name: true, appointment_code_prefix: true } },
         branch: { select: { name: true } },
-        service_type: { select: { name: true } },
+        service_type: { select: { name: true, flow_type: true } },
         inspector: { select: { name: true } },
         service_group: { select: { group_number: true } },
       },
@@ -223,12 +226,14 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         contact,
         propertyCode: row.property?.property_code ?? '',
         propertyAddress,
+        propertySuburb: row.property?.suburb ?? '',
         propertyLatitude: row.property?.lat != null ? Number(row.property.lat) : null,
         propertyLongitude: row.property?.lng != null ? Number(row.property.lng) : null,
         tenantName: row.tenant?.name ?? '',
         tenantAppointmentCodePrefix,
         branchName: row.branch?.name ?? '',
         serviceTypeName: row.service_type?.name ?? '',
+        serviceTypeFlowType: (row.service_type?.flow_type ?? 'ROUTINE') as ServiceTypeFlowType,
         inspectorName: row.inspector?.name ?? null,
         serviceGroupNumber: row.service_group?.group_number ?? null,
       };

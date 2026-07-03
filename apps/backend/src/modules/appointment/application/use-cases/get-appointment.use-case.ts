@@ -46,7 +46,6 @@ export interface GetAppointmentOutput {
   // Enriched flat fields
   /** Formatted appointment code (e.g. "INS-0042"). */
   appointmentCode: string;
-  code: string;
   propertyAddress: string;
   contactName: string;
   contactPhone: string | null;
@@ -56,6 +55,9 @@ export interface GetAppointmentOutput {
   serviceTypeName: string;
   /** Tenant (agency) display name — labelled "CLIENT" in the map detail panel (025 §FR-451). */
   clientName: string;
+  serviceGroupId: string | null;
+  /** Service group code = String(group_number); null when ungrouped. */
+  serviceGroupCode: string | null;
   isOverdue: boolean;
   cancellationReason: string | null;
   latitude: number | null;
@@ -130,7 +132,6 @@ function mapToOutput(found: AppointmentWithRelations, apps: AppointmentApp[]): G
     updatedAt: appointment.updatedAt,
     // Enriched fields from joins
     appointmentCode,
-    code: found.propertyCode ?? '',
     propertyAddress: found.propertyAddress ?? '',
     contactName: contact?.effectiveName ?? '',
     contactPhone: contact?.effectivePhone ?? null,
@@ -139,6 +140,8 @@ function mapToOutput(found: AppointmentWithRelations, apps: AppointmentApp[]): G
     branchName: found.branchName ?? '',
     serviceTypeName: found.serviceTypeName ?? '',
     clientName: found.tenantName ?? '',
+    serviceGroupId: appointment.serviceGroupId ?? null,
+    serviceGroupCode: found.serviceGroupNumber != null ? String(found.serviceGroupNumber) : null,
     isOverdue: isAppointmentOverdue(appointment.status, appointment.scheduledDate),
     cancellationReason: appointment.reason,
     latitude: found.propertyLatitude ?? null,

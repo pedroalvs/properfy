@@ -5,6 +5,7 @@ import type { FastifyInstance } from 'fastify';
 import { createMockContainer } from '../../helpers/mock-container';
 
 const mockGetInspectorScheduleExecute = vi.fn();
+const mockGetInspectorScheduleMonthExecute = vi.fn();
 const mockGetAppointmentDetailExecute = vi.fn();
 const mockStartInspectionExecute = vi.fn();
 const mockFinishInspectionExecute = vi.fn();
@@ -29,7 +30,10 @@ vi.mock('../../../src/main/container', () => ({
     marketplace: { jwtService: { verify: mockJwtVerify } },
     rentalTenantPortal: { jwtService: { verify: mockJwtVerify } },
     inspectorExecution: {
-      getInspectorScheduleUseCase: { execute: mockGetInspectorScheduleExecute },
+      getInspectorScheduleUseCase: {
+        execute: mockGetInspectorScheduleExecute,
+        executeMonth: mockGetInspectorScheduleMonthExecute,
+      },
       getAppointmentDetailUseCase: { execute: mockGetAppointmentDetailExecute },
       startInspectionUseCase: { execute: mockStartInspectionExecute },
       finishInspectionUseCase: { execute: mockFinishInspectionExecute },
@@ -101,6 +105,62 @@ describe('GET /v1/inspector/schedule', () => {
       .get('/v1/inspector/schedule');
 
     expect(res.status).toBe(401);
+  });
+});
+
+describe('GET /v1/inspector/schedule/month', () => {
+  it('should return 200 with the monthly schedule payload', async () => {
+    mockJwtVerify.mockResolvedValueOnce(inspContext);
+    mockGetInspectorScheduleMonthExecute.mockResolvedValueOnce({
+      today: '2026-03-21',
+      from: '2026-03-21',
+      to: '2026-04-20',
+      days: [{ date: '2026-03-21', count: 1, hasUrgent: false }],
+      appointments: [
+        {
+          id: APPOINTMENT_ID,
+          appointmentCode: 'INS-0001',
+          status: 'SCHEDULED',
+          scheduledDate: '2026-03-21',
+          timeSlotStart: '09:00',
+          timeSlotEnd: '10:00',
+          serviceTypeId: 'd3eebc99-9c0b-4ef8-bb6d-6bb9bd380a44',
+          propertyId: 'c2eebc99-9c0b-4ef8-bb6d-6bb9bd380a33',
+          propertyAddress: '123 Main St',
+          suburb: 'Sydney',
+          serviceTypeName: 'Routine Inspection',
+          flowType: 'ROUTINE',
+          rentalTenantConfirmationStatus: 'CONFIRMED',
+          keyRequired: false,
+          meetingLocation: null,
+          executionStatus: 'NOT_STARTED',
+          agencyName: 'Test Agency',
+        },
+      ],
+      overdueAppointments: [],
+    });
+
+    const res = await supertest(app.server)
+      .get('/v1/inspector/schedule/month')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.today).toBe('2026-03-21');
+    expect(res.body.data.days).toHaveLength(1);
+    expect(res.body.data.appointments[0].propertyAddress).toBe('123 Main St');
+    expect(mockGetInspectorScheduleMonthExecute).toHaveBeenCalledWith(
+      expect.objectContaining({ actor: expect.objectContaining({ role: 'INSP' }) }),
+    );
+  });
+
+  it('should reject query parameters because the window is fixed by the backend', async () => {
+    mockJwtVerify.mockResolvedValueOnce(inspContext);
+
+    const res = await supertest(app.server)
+      .get('/v1/inspector/schedule/month?from=2026-03-21')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(400);
   });
 });
 

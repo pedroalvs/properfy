@@ -65,4 +65,36 @@ describe('FilterDateRange', () => {
     );
     expect(screen.getAllByText('Period').length).toBeGreaterThanOrEqual(1);
   });
+
+  it('opens the native picker when either input is clicked', () => {
+    render(
+      <FilterDateRange
+        label="Period"
+        startDate=""
+        endDate=""
+        onStartChange={() => {}}
+        onEndChange={() => {}}
+      />,
+    );
+    for (const name of ['Period - start', 'Period - end']) {
+      const input = screen.getByLabelText(name) as HTMLInputElement;
+      const showPickerSpy = vi.fn();
+      input.showPicker = showPickerSpy;
+      fireEvent.click(input);
+      expect(showPickerSpy).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it('is safe when showPicker is undefined (older browsers)', () => {
+    render(
+      <FilterDateRange
+        label="Period"
+        startDate=""
+        endDate=""
+        onStartChange={() => {}}
+        onEndChange={() => {}}
+      />,
+    );
+    expect(() => fireEvent.click(screen.getByLabelText('Period - start'))).not.toThrow();
+  });
 });

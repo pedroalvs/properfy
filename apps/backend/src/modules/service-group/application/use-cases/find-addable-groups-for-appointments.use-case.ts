@@ -7,7 +7,6 @@ export interface AddableGroupSummary {
   id: string;
   groupNumber: number;
   code: string;
-  name: string | null;
   status: string;
   scheduledDate: Date;
   timeWindow: string;

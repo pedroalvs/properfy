@@ -23,7 +23,6 @@ const DRAFT_ONLY_FIELDS = [
 
 export interface UpdateServiceGroupInput {
   groupId: string;
-  name?: string;
   regionName?: string;
   description?: string;
   serviceRegionId?: string | null;
@@ -44,7 +43,6 @@ export interface UpdateServiceGroupOutput {
   confirmedCount: number;
   scheduledDate: Date;
   timeWindow: string;
-  name: string | null;
   regionName: string | null;
   description: string | null;
   priorityMode: string;
@@ -112,7 +110,6 @@ export class UpdateServiceGroupUseCase {
     const updateData: Parameters<IServiceGroupRepository['update']>[1] = {};
 
     // Fields editable in any status
-    if (input.name !== undefined) updateData.name = input.name;
     if (input.regionName !== undefined) updateData.regionName = input.regionName;
     if (input.description !== undefined) updateData.description = input.description;
     if (input.serviceRegionId !== undefined) updateData.serviceRegionId = input.serviceRegionId;
@@ -187,7 +184,6 @@ export class UpdateServiceGroupUseCase {
       confirmedCount: g.confirmedCount,
       scheduledDate: g.scheduledDate,
       timeWindow: g.timeWindow,
-      name: g.name,
       regionName: g.regionName,
       description: g.description,
       priorityMode: g.priorityMode,

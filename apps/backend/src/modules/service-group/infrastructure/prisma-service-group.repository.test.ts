@@ -271,7 +271,7 @@ describe('PrismaServiceGroupRepository list filters', () => {
     countFn.mockResolvedValue(0);
   });
 
-  it('filters by search on name and description', async () => {
+  it('filters by search on description', async () => {
     const repo = new PrismaServiceGroupRepository(prisma);
 
     await repo.findAll(
@@ -283,7 +283,6 @@ describe('PrismaServiceGroupRepository list filters', () => {
       expect.objectContaining({
         where: expect.objectContaining({
           OR: [
-            { name: { contains: 'bondi', mode: 'insensitive' } },
             { description: { contains: 'bondi', mode: 'insensitive' } },
           ],
         }),
@@ -389,7 +388,6 @@ describe('PrismaServiceGroupRepository list filters', () => {
       expect.objectContaining({
         where: expect.objectContaining({
           OR: [
-            { name: { contains: 'test group', mode: 'insensitive' } },
             { description: { contains: 'test group', mode: 'insensitive' } },
           ],
         }),

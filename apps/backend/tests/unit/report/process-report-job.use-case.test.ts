@@ -176,12 +176,25 @@ describe('ProcessReportJobUseCase', () => {
   });
 
   describe('zero rows', () => {
-    it('still generates the XLSX and marks READY with rowCount 0', async () => {
+    it('does not generate an empty APPOINTMENTS XLSX and marks FAILED with a warning', async () => {
       const report = makeReport();
       vi.mocked(reportRepo.findById).mockResolvedValue(report);
       vi.mocked(dataReader.getAppointmentRows).mockResolvedValue([]);
       await useCase.execute('report-1');
-      expect(xlsxGenerator.generate).toHaveBeenCalledWith(REPORT_COLUMNS.APPOINTMENTS, []);
+      expect(xlsxGenerator.generate).not.toHaveBeenCalled();
+      expect(storageService.upload).not.toHaveBeenCalled();
+      expect(report.status).toBe('FAILED');
+      expect(report.errorMessage).toBe('No appointments found for the selected agency and period.');
+      expect(report.fileKey).toBeNull();
+      expect(report.rowCount).toBeNull();
+    });
+
+    it('still allows non-appointment reports with zero rows', async () => {
+      const report = makeReport({ reportType: 'FINANCIAL' });
+      vi.mocked(reportRepo.findById).mockResolvedValue(report);
+      vi.mocked(dataReader.getFinancialRows).mockResolvedValue([]);
+      await useCase.execute('report-1');
+      expect(xlsxGenerator.generate).toHaveBeenCalledWith(REPORT_COLUMNS.FINANCIAL, []);
       expect(report.status).toBe('READY');
       expect(report.rowCount).toBe(0);
     });

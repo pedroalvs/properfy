@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { todayLocalDateString, currentTimeInTzHHmm } from '@properfy/shared';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
-import { TextInput } from '@/components/forms/TextInput';
 import { Textarea } from '@/components/forms/Textarea';
 import { FormField } from '@/components/forms/FormField';
 import { PriorityModeSelect } from './PriorityModeSelect';
@@ -20,7 +19,6 @@ interface EditGroupModalProps {
 }
 
 export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGroupModalProps) {
-  const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [serviceRegionId, setServiceRegionId] = useState('');
   const [scheduledDate, setScheduledDate] = useState('');
@@ -35,7 +33,6 @@ export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGro
 
   useEffect(() => {
     if (open) {
-      setName(serviceGroup.name ?? '');
       setDescription(serviceGroup.description ?? '');
       setServiceRegionId(serviceGroup.serviceRegionId ?? '');
       setScheduledDate('');
@@ -47,10 +44,6 @@ export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGro
 
   const handleSave = () => {
     const data: UpdateServiceGroupData = {};
-
-    if (name.trim()) {
-      data.name = name.trim();
-    }
 
     if (description.trim()) {
       data.description = description.trim();
@@ -100,15 +93,6 @@ export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGro
       }
     >
       <div className="flex flex-col gap-4">
-        <FormField label="Name" required>
-          <TextInput
-            value={name}
-            onChange={setName}
-            placeholder="Service group name"
-            aria-label="Service group name"
-          />
-        </FormField>
-
         <FormField label="Description">
           <Textarea
             value={description}
@@ -134,6 +118,7 @@ export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGro
                 type="date"
                 value={scheduledDate}
                 onChange={(e) => setScheduledDate(e.target.value)}
+                onClick={(e) => e.currentTarget.showPicker?.()}
                 // Edit-conditional: always enforce min when editing (service groups start fresh).
                 min={todayLocalDateString()}
                 className="w-full rounded border border-border-subtle bg-white px-3 py-2 text-sm text-text-primary outline-none focus:border-primary focus:ring-1 focus:ring-primary"

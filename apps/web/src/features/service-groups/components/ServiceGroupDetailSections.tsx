@@ -24,7 +24,6 @@ export function ServiceGroupDetailSections({ serviceGroup }: ServiceGroupDetailS
           label="Code"
           value={serviceGroup.code ? <span className="font-mono">{serviceGroup.code}</span> : '—'}
         />
-        <DetailRow label="Name" value={serviceGroup.name} />
         <DetailRow
           label={serviceGroup.agencies && serviceGroup.agencies.length > 1 ? 'Agencies' : 'Agency'}
           value={

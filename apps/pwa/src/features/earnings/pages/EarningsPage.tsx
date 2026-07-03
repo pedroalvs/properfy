@@ -74,6 +74,7 @@ export function EarningsPage() {
           type="date"
           value={fromDate}
           onChange={(e) => setFromDate(e.target.value)}
+          onClick={(e) => e.currentTarget.showPicker?.()}
           className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
           aria-label="From date"
         />
@@ -84,6 +85,7 @@ export function EarningsPage() {
           type="date"
           value={toDate}
           onChange={(e) => setToDate(e.target.value)}
+          onClick={(e) => e.currentTarget.showPicker?.()}
           className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
           aria-label="To date"
         />

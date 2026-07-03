@@ -44,7 +44,6 @@ export function useServiceGroupList(): UseServiceGroupListReturn {
   const rawData: any[] = response?.data ?? [];
   const data: ServiceGroup[] = rawData.map((item) => ({
     ...item,
-    name: item.name ?? '',
     regionName: item.regionName ?? null,
     inspectorId: item.assignedInspectorId ?? null,
     inspectorName: item.assignedInspectorName ?? null,

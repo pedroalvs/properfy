@@ -32,6 +32,7 @@ export function ReportDetailSections({ report }: ReportDetailSectionsProps) {
       <FormSection title="Request">
         <DetailRow label="Requested By" value={report.requestedBy?.name ?? '—'} />
         <DetailRow label="Filters" value={formatReportFilters(report)} />
+        {report.errorMessage && <DetailRow label="Message" value={report.errorMessage} />}
       </FormSection>
 
       <FormSection title="Record">
