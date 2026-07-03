@@ -48,6 +48,15 @@ describe('AppointmentTable', () => {
     expect(screen.getByText('Inspector')).toBeInTheDocument();
     expect(screen.getByText('Scheduled Date')).toBeInTheDocument();
     expect(screen.getByText('Reviewed')).toBeInTheDocument();
+    expect(screen.getByText('Group')).toBeInTheDocument();
+  });
+
+  it('renders service group code when grouped and em-dash when ungrouped', () => {
+    const grouped = makeAppointment({ id: 'apt-g', serviceGroupCode: '12' });
+    const ungrouped = makeAppointment({ id: 'apt-u', serviceGroupCode: null });
+    render(<AppointmentTable data={[grouped, ungrouped]} />);
+    expect(screen.getByText('12')).toBeInTheDocument();
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });
 
   it('renders appointment data in rows', () => {
@@ -88,7 +97,8 @@ describe('AppointmentTable', () => {
   it('renders em dash for null inspectorName', () => {
     const apt = makeAppointment({ inspectorId: null, inspectorName: null });
     render(<AppointmentTable data={[apt]} />);
-    expect(screen.getAllByText('—')).toHaveLength(2);
+    // Inspector, Reviewed, and Group columns each render an em-dash for this row
+    expect(screen.getAllByText('—')).toHaveLength(3);
   });
 
   it('formats scheduled date', () => {

@@ -75,6 +75,8 @@ export interface AppointmentWithRelations {
    * Used by GetAppointmentUseCase to surface the "Copy Portal Link" button state.
    */
   hasActivePortalToken: boolean;
+  /** Service group's sequential number (group_number); null/absent when ungrouped. */
+  serviceGroupNumber?: number | null;
 }
 
 export interface AppointmentListItem {

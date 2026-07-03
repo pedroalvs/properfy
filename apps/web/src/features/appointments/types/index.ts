@@ -36,6 +36,9 @@ export interface Appointment {
   notes: string | null;
   doneCheckedByUserId?: string | null;
   doneCheckedAt?: string | null;
+  serviceGroupId?: string | null;
+  /** Service group code = String(group_number); null when ungrouped. */
+  serviceGroupCode?: string | null;
   isOverdue: boolean;
   hasRentalTenantNote: boolean;
   createdAt: string;
