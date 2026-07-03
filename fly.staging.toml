@@ -1,5 +1,5 @@
 app = 'properfy'
-primary_region = 'syd'
+primary_region = 'gru'
 
 [build]
   dockerfile = 'apps/backend/Dockerfile'
