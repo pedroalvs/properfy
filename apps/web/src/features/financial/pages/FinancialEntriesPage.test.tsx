@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
+
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>;
+  return { ...actual, useNavigate: () => mockNavigate };
+});
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
 vi.mock('@/config/env', () => ({
@@ -132,6 +138,13 @@ describe('FinancialEntriesPage', () => {
     renderPage();
     expect(screen.getByText('Adjustment')).toBeInTheDocument();
     expect(screen.getByText('Refund')).toBeInTheDocument();
+  });
+
+  it('renders an Invoices action that navigates to the invoices page', () => {
+    renderPage();
+    const button = screen.getByText('Invoices');
+    fireEvent.click(button);
+    expect(mockNavigate).toHaveBeenCalledWith('/financial/invoices');
   });
 
   it('renders filter bar with type and status controls', () => {

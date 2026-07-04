@@ -171,6 +171,7 @@ describe('ListInvoicesUseCase', () => {
     ['pending', ['PENDING_REVIEW']],
     ['approved', ['CLOSED', 'PAID']],
     ['rejected', ['VOID']],
+    ['done', ['CLOSED', 'PAID', 'VOID']],
   ] as const)('maps the %s status bucket to repo statusIn', async (bucket, expected) => {
     const { useCase, invoiceRepo } = sut;
     vi.mocked(invoiceRepo.findAll).mockResolvedValue([]);

@@ -97,7 +97,7 @@ export interface InvoiceFiltersState {
   inspectorId: string;
   agencyId: string;
   branchId: string;
-  status: string; // 3-bucket: '' | 'pending' | 'approved' | 'rejected'
+  status: string; // '' | 'pending' | 'approved' | 'rejected' | 'done' (done = CLOSED+PAID+VOID)
   periodStart: string;
   periodEnd: string;
 }

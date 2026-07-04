@@ -246,6 +246,7 @@ export function createMockContainer(
       batchMarkInvoicesPaidUseCase: { execute: vi.fn() },
       reverseInvoicePaymentUseCase: { execute: vi.fn() },
       getReconciliationSummaryUseCase: { execute: vi.fn() },
+      getInvoiceSummaryUseCase: { execute: vi.fn() },
       voidFinancialEntryUseCase: { execute: vi.fn() },
       regenerateInspectorInvoiceUseCase: { execute: vi.fn() },
       approveDraftInvoiceUseCase: { execute: vi.fn() },

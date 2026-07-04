@@ -12,6 +12,7 @@ const mockCreateManualAdjustmentExecute = vi.fn();
 const mockCreateRefundExecute = vi.fn();
 const mockGenerateInvoiceExecute = vi.fn();
 const mockListInvoicesExecute = vi.fn();
+const mockGetInvoiceSummaryExecute = vi.fn();
 const mockGetInvoiceExecute = vi.fn();
 const mockDownloadInvoiceExecute = vi.fn();
 const mockJwtVerify = vi.fn();
@@ -44,6 +45,7 @@ vi.mock('../../../src/main/container', () => ({
       createRefundUseCase: { execute: mockCreateRefundExecute },
       generateInvoiceUseCase: { execute: mockGenerateInvoiceExecute },
       listInvoicesUseCase: { execute: mockListInvoicesExecute },
+      getInvoiceSummaryUseCase: { execute: mockGetInvoiceSummaryExecute },
       getInvoiceUseCase: { execute: mockGetInvoiceExecute },
       downloadInvoiceUseCase: { execute: mockDownloadInvoiceExecute },
       jwtService: { verify: mockJwtVerify },
@@ -372,6 +374,52 @@ describe('Canonical /v1/billing/invoices/* routes (no deprecation headers)', () 
     expect(res.status).toBe(200);
     expect(res.headers['deprecation']).toBeUndefined();
     expect(res.headers['sunset']).toBeUndefined();
+  });
+
+  it('GET /v1/billing/invoices/summary returns aggregated indicators (static path wins over :invoiceId)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    const summary = {
+      currency: 'AUD',
+      totalCount: 10,
+      pendingCount: 4,
+      approvedCount: 3,
+      paidCount: 2,
+      voidCount: 1,
+      pendingAmount: 1200.5,
+      paidAmount: 800,
+    };
+    mockGetInvoiceSummaryExecute.mockResolvedValueOnce(summary);
+
+    const res = await supertest(app.server)
+      .get('/v1/billing/invoices/summary?inspectorId=f5eebc99-9c0b-4ef8-bb6d-6bb9bd380a66&fromDate=2026-04-01&toDate=2026-04-30')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual(summary);
+    expect(mockGetInvoiceSummaryExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inspectorId: 'f5eebc99-9c0b-4ef8-bb6d-6bb9bd380a66',
+        fromDate: '2026-04-01',
+        toDate: '2026-04-30',
+      }),
+    );
+    expect(mockGetInvoiceExecute).not.toHaveBeenCalled();
+  });
+
+  it('GET /v1/billing/invoices/summary rejects invalid query with 400', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .get('/v1/billing/invoices/summary?inspectorId=not-a-uuid')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(400);
+    expect(mockGetInvoiceSummaryExecute).not.toHaveBeenCalled();
+  });
+
+  it('GET /v1/billing/invoices/summary requires authentication', async () => {
+    const res = await supertest(app.server).get('/v1/billing/invoices/summary');
+    expect(res.status).toBe(401);
   });
 
   it('GET /v1/billing/invoices/:invoiceId should NOT include Deprecation headers', async () => {

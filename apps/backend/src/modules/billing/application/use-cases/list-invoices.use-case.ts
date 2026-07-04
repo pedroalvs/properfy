@@ -1,5 +1,5 @@
 import type { AuthContext, InvoiceStatusBucket } from '@properfy/shared';
-import { INVOICE_STATUS_BUCKETS, formatInvoiceNumber } from '@properfy/shared';
+import { INVOICE_STATUS_BUCKETS, INVOICE_DONE_STATUSES, formatInvoiceNumber } from '@properfy/shared';
 import type {
   IInspectorInvoiceRepository,
   InvoiceFilters,
@@ -73,7 +73,10 @@ export class ListInvoicesUseCase {
 
     // hasOwnProperty (not `in`) so inherited Object.prototype keys like 'toString' can't slip
     // through and later blow up on a spread of a function.
-    if (input.status && Object.prototype.hasOwnProperty.call(INVOICE_STATUS_BUCKETS, input.status)) {
+    if (input.status === 'done') {
+      // "Done" tab: everything no longer pending review (approved ∪ rejected).
+      filters.statusIn = [...INVOICE_DONE_STATUSES];
+    } else if (input.status && Object.prototype.hasOwnProperty.call(INVOICE_STATUS_BUCKETS, input.status)) {
       filters.statusIn = [...INVOICE_STATUS_BUCKETS[input.status as InvoiceStatusBucket]];
     }
     if (input.agencyId) filters.agencyId = input.agencyId;

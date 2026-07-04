@@ -9,6 +9,7 @@ import {
   batchMarkInvoicesPaidSchema,
   reverseInvoicePaymentSchema,
   reconciliationSummaryQuerySchema,
+  invoiceSummaryQuerySchema,
   listInvoicesQuerySchema,
   voidFinancialEntrySchema,
   rejectDraftInvoiceSchema,
@@ -38,6 +39,7 @@ import type { MarkInvoicePaidUseCase } from '../application/use-cases/mark-invoi
 import type { BatchMarkInvoicesPaidUseCase } from '../application/use-cases/batch-mark-invoices-paid.use-case';
 import type { ReverseInvoicePaymentUseCase } from '../application/use-cases/reverse-invoice-payment.use-case';
 import type { GetReconciliationSummaryUseCase } from '../application/use-cases/get-reconciliation-summary.use-case';
+import type { GetInvoiceSummaryUseCase } from '../application/use-cases/get-invoice-summary.use-case';
 import type { CreateFinancialEntriesOnDoneUseCase } from '../application/use-cases/create-financial-entries-on-done.use-case';
 import type { VoidFinancialEntryUseCase } from '../application/use-cases/void-financial-entry.use-case';
 import type { ApproveDraftInvoiceUseCase } from '../application/use-cases/approve-draft-invoice.use-case';
@@ -62,6 +64,7 @@ export interface BillingRouteContainer {
   batchMarkInvoicesPaidUseCase: BatchMarkInvoicesPaidUseCase;
   reverseInvoicePaymentUseCase: ReverseInvoicePaymentUseCase;
   getReconciliationSummaryUseCase: GetReconciliationSummaryUseCase;
+  getInvoiceSummaryUseCase: GetInvoiceSummaryUseCase;
   voidFinancialEntryUseCase: VoidFinancialEntryUseCase;
   approveDraftInvoiceUseCase: ApproveDraftInvoiceUseCase;
   rejectDraftInvoiceUseCase: RejectDraftInvoiceUseCase;
@@ -442,6 +445,27 @@ export async function registerBillingRoutes(
         from: parsed.data.from,
         to: parsed.data.to,
         inspectorId: parsed.data.inspectorId,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // GET /v1/billing/invoices/summary — per-status indicators for the Invoices page
+  app.get(
+    '/v1/billing/invoices/summary',
+    { preHandler: authenticate, schema: { querystring: invoiceSummaryQuerySchema } },
+    async (request, reply) => {
+      const parsed = invoiceSummaryQuerySchema.safeParse(request.query);
+      if (!parsed.success) {
+        throw new ValidationError('Invalid query parameters', parsed.error.errors);
+      }
+      const result = await container.getInvoiceSummaryUseCase.execute({
+        inspectorId: parsed.data.inspectorId,
+        agencyId: parsed.data.agencyId,
+        branchId: parsed.data.branchId,
+        fromDate: parsed.data.fromDate,
+        toDate: parsed.data.toDate,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));

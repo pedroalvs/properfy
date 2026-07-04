@@ -9,6 +9,7 @@ import type {
   InvoiceUpdateData,
   ReconciliationAggregateFilters,
   ReconciliationAggregateRow,
+  StatusAggregateFilters,
 } from '../domain/inspector-invoice.repository';
 
 /** Serialize a snapshot for a nullable Json column (DbNull → SQL NULL). */
@@ -243,6 +244,37 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
       status: { in: ['CLOSED', 'PAID'] },
     };
     if (filters.inspectorId) where.inspector_id = filters.inspectorId;
+
+    const rows = await this.prisma.inspectorInvoice.groupBy({
+      by: ['status', 'currency'],
+      where,
+      _sum: { total_amount: true },
+      _count: { _all: true },
+    });
+
+    return rows.map((row) => ({
+      status: row.status as InspectorInvoiceStatus,
+      currency: row.currency,
+      sumAmount: Number(row._sum.total_amount ?? 0),
+      count: row._count._all,
+    }));
+  }
+
+  async getStatusAggregates(filters: StatusAggregateFilters): Promise<ReconciliationAggregateRow[]> {
+    // Mirrors buildWhereClause semantics (period_start range + snapshot content filters) so the
+    // summary indicators stay consistent with the filtered invoice list.
+    const where: Record<string, unknown> = {};
+    if (filters.inspectorId) where.inspector_id = filters.inspectorId;
+    if (filters.from || filters.to) {
+      const periodStart: Record<string, Date> = {};
+      if (filters.from) periodStart.gte = filters.from;
+      if (filters.to) periodStart.lte = filters.to;
+      where.period_start = periodStart;
+    }
+    const contentConds: Record<string, unknown>[] = [];
+    if (filters.agencyId) contentConds.push({ line_items_snapshot: { array_contains: [{ agencyId: filters.agencyId }] } });
+    if (filters.branchId) contentConds.push({ line_items_snapshot: { array_contains: [{ branchId: filters.branchId }] } });
+    if (contentConds.length > 0) where.AND = contentConds;
 
     const rows = await this.prisma.inspectorInvoice.groupBy({
       by: ['status', 'currency'],
