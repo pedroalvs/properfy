@@ -104,7 +104,6 @@ export interface AppointmentDetailOutput {
     rentalTenantName: string;
     primaryEmail: string | null;
     primaryPhone: string | null;
-    secondaryPhone: string | null;
   } | null;
   restrictions: Array<{
     isHome: boolean;
@@ -243,8 +242,8 @@ export class GetAppointmentDetailUseCase {
       keyRequired: appointment.keyRequired,
       meetingLocation: appointment.meetingLocation,
       keyLocation: appointment.keyLocation,
-      rentalTenantName: contact?.rentalTenantName ?? '',
-      rentalTenantPhone: contact?.primaryPhone ?? null,
+      rentalTenantName: contact?.effectiveName ?? '',
+      rentalTenantPhone: contact?.effectivePhone ?? null,
       rentalTenantEmail: contact?.effectiveEmail ?? null,
       notes: appointment.notes,
       observation: appointment.observation,
@@ -255,7 +254,6 @@ export class GetAppointmentDetailUseCase {
             rentalTenantName: contact.effectiveName,
             primaryEmail: contact.effectiveEmail,
             primaryPhone: contact.effectivePhone,
-            secondaryPhone: contact.secondaryPhone,
           }
         : null,
       restrictions: restrictions.map((r) => ({

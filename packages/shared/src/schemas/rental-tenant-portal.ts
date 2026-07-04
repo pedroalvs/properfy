@@ -131,9 +131,7 @@ export type RescheduleRequestPortalResponse = z.infer<typeof rescheduleRequestPo
 export const updateContactPortalSchema = z
   .object({
     primaryEmail: z.string().email().optional(),
-    secondaryEmail: z.string().email().nullable().optional(),
     primaryPhone: z.string().min(8).max(20).optional(),
-    secondaryPhone: z.string().min(8).max(20).nullable().optional(),
   })
   .refine((data) => Object.values(data).some((v) => v !== undefined), {
     message: 'At least one contact field must be provided',

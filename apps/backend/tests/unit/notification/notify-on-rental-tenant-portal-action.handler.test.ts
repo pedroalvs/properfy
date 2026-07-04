@@ -48,11 +48,12 @@ function makeContact(
   return new AppointmentContactEntity({
     id: 'contact-1',
     appointmentId: 'appt-1',
-    rentalTenantName: 'John Smith',
-    primaryEmail: 'john@example.com',
-    secondaryEmail: null,
-    primaryPhone: '+61400000000',
-    secondaryPhone: null,
+    contactId: null,
+    role: 'RENTAL_TENANT',
+    isPrimary: true,
+    snapshotName: 'John Smith',
+    snapshotEmail: 'john@example.com',
+    snapshotPhone: '+61400000000',
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -241,7 +242,7 @@ describe('NotifyOnRentalTenantPortalActionHandler', () => {
   it('sends SMS fallback on CONFIRM when primaryEmail is null but phone exists', async () => {
     appointmentRepo.findById.mockResolvedValue({
       appointment: makeAppointment(),
-      contact: makeContact({ primaryEmail: null }),
+      contact: makeContact({ snapshotEmail: null }),
       restrictions: [],
     });
 
@@ -261,7 +262,7 @@ describe('NotifyOnRentalTenantPortalActionHandler', () => {
   it('skips notification when no email and no phone', async () => {
     appointmentRepo.findById.mockResolvedValue({
       appointment: makeAppointment(),
-      contact: makeContact({ primaryEmail: null, primaryPhone: null }),
+      contact: makeContact({ snapshotEmail: null, snapshotPhone: null }),
       restrictions: [],
     });
 

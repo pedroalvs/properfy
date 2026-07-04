@@ -40,9 +40,7 @@ export interface PortalAppointment {
 export interface PortalContact {
   rentalTenantName: string;
   primaryEmail: string | null;
-  secondaryEmail: string | null;
   primaryPhone: string | null;
-  secondaryPhone: string | null;
 }
 
 export interface PortalRestrictions {
@@ -98,9 +96,7 @@ export interface RescheduleInput {
 
 export interface UpdateContactInput {
   primaryEmail?: string;
-  secondaryEmail?: string | null;
   primaryPhone?: string;
-  secondaryPhone?: string | null;
 }
 
 export interface ReportUnavailabilityInput {

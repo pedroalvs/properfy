@@ -58,11 +58,6 @@ function makeContact(
     snapshotName: 'John Smith',
     snapshotEmail: 'john@example.com',
     snapshotPhone: '+61400000000',
-    rentalTenantName: 'John Smith',
-    primaryEmail: 'john@example.com',
-    secondaryEmail: 'john2@example.com',
-    primaryPhone: '+61400000000',
-    secondaryPhone: '+61400000001',
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -139,23 +134,21 @@ describe('UpdateContactUseCase', () => {
       }),
     );
 
-    expect(appointmentRepo.updateContact).toHaveBeenCalledWith('appt-1', {
-      primaryEmail: 'newemail@example.com',
-      primaryPhone: '+61400111111',
+    expect(appointmentRepo.updateContactSnapshot).toHaveBeenCalledWith('appt-1', 'contact-1', {
+      snapshotEmail: 'newemail@example.com',
+      snapshotPhone: '+61400111111',
     });
     expect(result.primaryEmail).toBe('newemail@example.com');
     expect(result.primaryPhone).toBe('+61400111111');
     // Non-updated fields should retain existing values
     expect(result.rentalTenantName).toBe('John Smith');
-    expect(result.secondaryEmail).toBe('john2@example.com');
-    expect(result.secondaryPhone).toBe('+61400000001');
   });
 
   it('should block contact updates when token is read-only (expired)', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
 
     await expect(useCase.execute(makeInput({ isReadOnly: true }))).rejects.toThrow(PortalActionBlockedError);
-    expect(appointmentRepo.updateContact).not.toHaveBeenCalled();
+    expect(appointmentRepo.updateContactSnapshot).not.toHaveBeenCalled();
   });
 
   it('should record CONTACT_UPDATED activity with previous and new values', async () => {
@@ -172,6 +165,7 @@ describe('UpdateContactUseCase', () => {
     expect(savedActivity.action).toBe('CONTACT_UPDATED');
     expect(savedActivity.appointmentId).toBe('appt-1');
     expect(savedActivity.rentalTenantPortalTokenId).toBe('token-1');
+    // The audit "before" value is the contact's effective (snapshot) email.
     expect(savedActivity.previousValuesJson).toEqual({ primaryEmail: 'john@example.com' });
     expect(savedActivity.newValuesJson).toEqual({ primaryEmail: 'newemail@example.com' });
     expect(savedActivity.ipAddress).toBe('192.168.1.1');
@@ -187,8 +181,8 @@ describe('UpdateContactUseCase', () => {
       }),
     );
 
-    expect(appointmentRepo.updateContact).toHaveBeenCalledWith('appt-1', {
-      primaryEmail: 'only-email@example.com',
+    expect(appointmentRepo.updateContactSnapshot).toHaveBeenCalledWith('appt-1', 'contact-1', {
+      snapshotEmail: 'only-email@example.com',
     });
     expect(result.primaryEmail).toBe('only-email@example.com');
     expect(result.primaryPhone).toBe('+61400000000');
@@ -214,7 +208,7 @@ describe('UpdateContactUseCase', () => {
     );
 
     await expect(useCase.execute(makeInput())).rejects.toThrow(PortalAppointmentInactiveError);
-    expect(appointmentRepo.updateContact).not.toHaveBeenCalled();
+    expect(appointmentRepo.updateContactSnapshot).not.toHaveBeenCalled();
   });
 
   it('should log audit entry on contact update', async () => {
@@ -234,19 +228,6 @@ describe('UpdateContactUseCase', () => {
       after: { primaryEmail: 'newemail@example.com' },
       ipAddress: '192.168.1.1',
     });
-  });
-
-  it('should allow setting a field to null', async () => {
-    vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
-
-    const result = await useCase.execute(
-      makeInput({ contact: { secondaryEmail: null } }),
-    );
-
-    expect(appointmentRepo.updateContact).toHaveBeenCalledWith('appt-1', {
-      secondaryEmail: null,
-    });
-    expect(result.secondaryEmail).toBeNull();
   });
 
   it('should pass null tenantId to findById', async () => {
