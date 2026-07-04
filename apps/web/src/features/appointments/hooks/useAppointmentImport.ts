@@ -84,10 +84,46 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isCommitting, setIsCommitting] = useState(false);
   const [importId, setImportId] = useState<string | null>(null);
+  const [pollIntervalMs, setPollIntervalMs] = useState<number | false>(false);
   const pollingEnabledRef = useRef(false);
   const stalledPollAttemptsRef = useRef(0);
   const processedRowsRef = useRef(0);
   const warnedAboutSlowImportRef = useRef(false);
+
+  const handlePolledStatus = useCallback((status: ImportStatus) => {
+    if (!pollingEnabledRef.current) {
+      return;
+    }
+
+    if (status.status === 'COMPLETED' || status.status === 'FAILED') {
+      pollingEnabledRef.current = false;
+      stalledPollAttemptsRef.current = 0;
+      processedRowsRef.current = 0;
+      warnedAboutSlowImportRef.current = false;
+      setPollIntervalMs(false);
+      return;
+    }
+
+    const processedRows = status.successCount + status.errorCount;
+    if (processedRows > processedRowsRef.current) {
+      processedRowsRef.current = processedRows;
+      stalledPollAttemptsRef.current = 0;
+      setPollIntervalMs((current) => (current === FAST_POLL_INTERVAL_MS ? current : FAST_POLL_INTERVAL_MS));
+      return;
+    }
+
+    stalledPollAttemptsRef.current += 1;
+    if (stalledPollAttemptsRef.current >= MAX_STALLED_POLL_ATTEMPTS) {
+      if (!warnedAboutSlowImportRef.current) {
+        warnedAboutSlowImportRef.current = true;
+        showError('Import is taking longer than expected. Check back later.');
+      }
+      setPollIntervalMs((current) => (current === SLOW_POLL_INTERVAL_MS ? current : SLOW_POLL_INTERVAL_MS));
+      return;
+    }
+
+    setPollIntervalMs((current) => (current === FAST_POLL_INTERVAL_MS ? current : FAST_POLL_INTERVAL_MS));
+  }, [showError]);
 
   const pollQuery = useQuery({
     queryKey: ['appointment-import-status', importId],
@@ -97,36 +133,17 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
         params: { path: { importId } } as any,
       });
       if (error) throw error;
-      return normalizeStatus((data as { data: BackendImportStatusResponse }).data);
+      const normalized = normalizeStatus((data as { data: BackendImportStatusResponse }).data);
+      handlePolledStatus(normalized);
+      return normalized;
     },
     enabled: !!importId && pollingEnabledRef.current,
     refetchInterval: (query) => {
       const status = query.state.data?.status;
       if (status === 'COMPLETED' || status === 'FAILED') {
-        pollingEnabledRef.current = false;
-        stalledPollAttemptsRef.current = 0;
-        processedRowsRef.current = 0;
-        warnedAboutSlowImportRef.current = false;
         return false;
       }
-
-      const processedRows = (query.state.data?.successCount ?? 0) + (query.state.data?.errorCount ?? 0);
-      if (processedRows > processedRowsRef.current) {
-        processedRowsRef.current = processedRows;
-        stalledPollAttemptsRef.current = 0;
-        return FAST_POLL_INTERVAL_MS;
-      }
-
-      stalledPollAttemptsRef.current += 1;
-      if (stalledPollAttemptsRef.current >= MAX_STALLED_POLL_ATTEMPTS) {
-        if (!warnedAboutSlowImportRef.current) {
-          warnedAboutSlowImportRef.current = true;
-          showError('Import is taking longer than expected. Check back later.');
-        }
-        return SLOW_POLL_INTERVAL_MS;
-      }
-
-      return FAST_POLL_INTERVAL_MS;
+      return pollIntervalMs;
     },
   });
 
@@ -166,9 +183,6 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
   const commit = useCallback(
     async (id: string, opts: { skipInvalidRows: boolean; actorTimezone?: string }): Promise<boolean> => {
       setIsCommitting(true);
-      stalledPollAttemptsRef.current = 0;
-      processedRowsRef.current = 0;
-      warnedAboutSlowImportRef.current = false;
       try {
         // Derived from the importId, not randomUUID() — a retry of the same
         // logical commit (e.g. a flaky network response after the request
@@ -186,6 +200,10 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
           return false;
         }
 
+        stalledPollAttemptsRef.current = 0;
+        processedRowsRef.current = 0;
+        warnedAboutSlowImportRef.current = false;
+        setPollIntervalMs(FAST_POLL_INTERVAL_MS);
         setImportId(id);
         pollingEnabledRef.current = true;
         return true;

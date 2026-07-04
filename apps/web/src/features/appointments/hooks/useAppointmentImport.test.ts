@@ -62,6 +62,7 @@ import { useAppointmentImport } from './useAppointmentImport';
 
 const mockPost = api.POST as ReturnType<typeof vi.fn>;
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
+const POLL_INTERVAL_MS = 3000;
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -339,10 +340,11 @@ describe('useAppointmentImport', () => {
       expect(mockGet).toHaveBeenCalledTimes(1);
 
       await act(async () => {
-        for (let i = 0; i < 19; i += 1) {
+        for (let i = 0; i < 20; i += 1) {
           await vi.advanceTimersByTimeAsync(3000);
         }
       });
+      await act(async () => {});
 
       expect(mockShowError).toHaveBeenCalledTimes(1);
       expect(mockShowError).toHaveBeenCalledWith('Import is taking longer than expected. Check back later.');
@@ -351,9 +353,109 @@ describe('useAppointmentImport', () => {
       await act(async () => {
         await vi.advanceTimersByTimeAsync(10000);
       });
+      await act(async () => {});
 
       expect(mockGet.mock.calls.length).toBeGreaterThan(2);
       expect(mockShowError).toHaveBeenCalledTimes(1);
+    });
+
+    it('resets the stalled poll budget when progress resumes before warning threshold', async () => {
+      vi.useFakeTimers();
+      mockPost.mockResolvedValue({ data: { data: { importId: 'import-123', status: 'PROCESSING' } } });
+
+      let statusCalls = 0;
+      mockGet.mockImplementation(() => {
+        statusCalls += 1;
+
+        if (statusCalls <= 10) {
+          return Promise.resolve({
+            data: {
+              data: {
+                id: 'import-123',
+                branchId: 'branch-1',
+                status: 'PROCESSING',
+                totalRows: 2,
+                successCount: 0,
+                errorCount: 0,
+                resultsJson: [],
+              },
+            },
+          });
+        }
+
+        if (statusCalls === 11) {
+          return Promise.resolve({
+            data: {
+              data: {
+                id: 'import-123',
+                branchId: 'branch-1',
+                status: 'PROCESSING',
+                totalRows: 2,
+                successCount: 1,
+                errorCount: 0,
+                resultsJson: [{ rowNumber: 2, status: 'created', appointmentId: 'apt-1' }],
+              },
+            },
+          });
+        }
+
+        if (statusCalls <= 30) {
+          return Promise.resolve({
+            data: {
+              data: {
+                id: 'import-123',
+                branchId: 'branch-1',
+                status: 'PROCESSING',
+                totalRows: 2,
+                successCount: 1,
+                errorCount: 0,
+                resultsJson: [{ rowNumber: 2, status: 'created', appointmentId: 'apt-1' }],
+              },
+            },
+          });
+        }
+
+        return Promise.resolve({
+          data: {
+            data: {
+              id: 'import-123',
+              branchId: 'branch-1',
+              status: 'COMPLETED',
+              totalRows: 2,
+              successCount: 2,
+              errorCount: 0,
+              resultsJson: [
+                { rowNumber: 2, status: 'created', appointmentId: 'apt-1' },
+                { rowNumber: 3, status: 'created', appointmentId: 'apt-2' },
+              ],
+            },
+          },
+        });
+      });
+
+      const { result } = renderHook(() => useAppointmentImport(), { wrapper: createWrapper() });
+
+      await act(async () => {
+        await result.current.commit('import-123', { skipInvalidRows: false });
+      });
+      await act(async () => {});
+
+      await act(async () => {
+        for (let i = 0; i < 29; i += 1) {
+          await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+        }
+      });
+      await act(async () => {});
+
+      expect(mockShowError).not.toHaveBeenCalled();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+      });
+      await act(async () => {});
+
+      expect(result.current.importStatus?.status).toBe('COMPLETED');
+      expect(mockShowError).not.toHaveBeenCalled();
     });
   });
 });
