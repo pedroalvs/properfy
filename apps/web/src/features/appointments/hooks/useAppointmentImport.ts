@@ -84,19 +84,19 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isCommitting, setIsCommitting] = useState(false);
   const [importId, setImportId] = useState<string | null>(null);
+  const [pollingEnabled, setPollingEnabled] = useState(false);
   const [pollIntervalMs, setPollIntervalMs] = useState<number | false>(false);
-  const pollingEnabledRef = useRef(false);
   const stalledPollAttemptsRef = useRef(0);
   const processedRowsRef = useRef(0);
   const warnedAboutSlowImportRef = useRef(false);
 
   const handlePolledStatus = useCallback((status: ImportStatus) => {
-    if (!pollingEnabledRef.current) {
+    if (!pollingEnabled) {
       return;
     }
 
     if (status.status === 'COMPLETED' || status.status === 'FAILED') {
-      pollingEnabledRef.current = false;
+      setPollingEnabled(false);
       stalledPollAttemptsRef.current = 0;
       processedRowsRef.current = 0;
       warnedAboutSlowImportRef.current = false;
@@ -123,7 +123,7 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
     }
 
     setPollIntervalMs((current) => (current === FAST_POLL_INTERVAL_MS ? current : FAST_POLL_INTERVAL_MS));
-  }, [showError]);
+  }, [pollingEnabled, showError]);
 
   const pollQuery = useQuery({
     queryKey: ['appointment-import-status', importId],
@@ -137,7 +137,7 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
       handlePolledStatus(normalized);
       return normalized;
     },
-    enabled: !!importId && pollingEnabledRef.current,
+    enabled: !!importId && pollingEnabled,
     refetchInterval: (query) => {
       const status = query.state.data?.status;
       if (status === 'COMPLETED' || status === 'FAILED') {
@@ -205,7 +205,7 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
         warnedAboutSlowImportRef.current = false;
         setPollIntervalMs(FAST_POLL_INTERVAL_MS);
         setImportId(id);
-        pollingEnabledRef.current = true;
+        setPollingEnabled(true);
         return true;
       } catch {
         showError('Failed to start the import');
