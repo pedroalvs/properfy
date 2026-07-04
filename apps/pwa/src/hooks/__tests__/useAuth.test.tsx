@@ -91,4 +91,26 @@ describe('useAuth login hydration', () => {
     expect(result.current.user?.email).toBe('jane@test.com');
     expect(result.current.user?.phone).toBeUndefined();
   });
+
+  it('keeps the minimal user when /v1/me resolves with an error envelope', async () => {
+    mockPost.mockResolvedValue({
+      data: { user: loginUser, accessToken: 'at', refreshToken: 'rt' },
+      error: undefined,
+      response: { status: 200 },
+    });
+    mockGet.mockResolvedValue({
+      data: undefined,
+      error: { error: { code: 'INTERNAL', message: 'boom' } },
+    });
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await act(async () => {
+      await result.current.login('jane@test.com', 'secret');
+    });
+
+    expect(result.current.isAuthenticated).toBe(true);
+    expect(result.current.user?.email).toBe('jane@test.com');
+    expect(result.current.user?.phone).toBeUndefined();
+  });
 });
