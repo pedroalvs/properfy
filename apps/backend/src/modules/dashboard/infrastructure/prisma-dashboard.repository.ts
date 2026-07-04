@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { AppointmentCodeFormatter } from '../../appointment/domain/appointment-code.formatter';
 import type { DashboardRepository } from '../domain/dashboard.repository';
 import type { DashboardStatsOutput, InspectorBreakdowns, InspectorDayCount } from '../application/use-cases/get-dashboard-stats.use-case';
 
@@ -125,7 +126,8 @@ export class PrismaDashboardRepository implements DashboardRepository {
         take: 5,
         orderBy: { created_at: 'desc' },
         include: {
-          property: { select: { property_code: true, street: true, suburb: true, state: true, postcode: true } },
+          property: { select: { street: true, suburb: true, state: true, postcode: true } },
+          tenant: { select: { appointment_code_prefix: true } },
         },
       }),
 
@@ -232,13 +234,17 @@ export class PrismaDashboardRepository implements DashboardRepository {
     }
 
     const formattedRecentAppointments = recentAppointments.map((apt) => {
-      const prop = (apt as unknown as { property: { property_code: string; street: string; suburb: string; state: string; postcode: string } }).property;
+      const row = apt as unknown as {
+        property: { street: string; suburb: string; state: string; postcode: string };
+        tenant: { appointment_code_prefix: string | null } | null;
+      };
+      const prop = row.property;
       const address = [prop.street, prop.suburb, prop.state, prop.postcode]
         .filter(Boolean)
         .join(', ');
       return {
         id: apt.id,
-        code: prop.property_code,
+        code: AppointmentCodeFormatter.formatParts(apt.appointment_number, row.tenant?.appointment_code_prefix),
         propertyAddress: address,
         status: apt.status,
         doneCheckedByUserId: apt.done_checked_by_user_id,
