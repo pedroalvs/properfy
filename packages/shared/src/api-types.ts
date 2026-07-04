@@ -4747,7 +4747,8 @@ export interface paths {
                                 cancellationReason?: string | null;
                                 latitude?: number | null;
                                 longitude?: number | null;
-                                propertyType?: string | null;
+                                /** @enum {string|null} */
+                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
                                 propertyAddressLine2?: string | null;
                                 propertyPrivateAreaM2?: number | null;
                                 propertyTotalAreaM2?: number | null;
@@ -4947,7 +4948,8 @@ export interface paths {
                                 cancellationReason?: string | null;
                                 latitude?: number | null;
                                 longitude?: number | null;
-                                propertyType?: string | null;
+                                /** @enum {string|null} */
+                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
                                 propertyAddressLine2?: string | null;
                                 propertyPrivateAreaM2?: number | null;
                                 propertyTotalAreaM2?: number | null;
@@ -5068,7 +5070,8 @@ export interface paths {
                                 cancellationReason?: string | null;
                                 latitude?: number | null;
                                 longitude?: number | null;
-                                propertyType?: string | null;
+                                /** @enum {string|null} */
+                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
                                 propertyAddressLine2?: string | null;
                                 propertyPrivateAreaM2?: number | null;
                                 propertyTotalAreaM2?: number | null;
@@ -5267,7 +5270,8 @@ export interface paths {
                                 cancellationReason?: string | null;
                                 latitude?: number | null;
                                 longitude?: number | null;
-                                propertyType?: string | null;
+                                /** @enum {string|null} */
+                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
                                 propertyAddressLine2?: string | null;
                                 propertyPrivateAreaM2?: number | null;
                                 propertyTotalAreaM2?: number | null;
@@ -8510,7 +8514,8 @@ export interface paths {
                                 propertyLatitude: number | null;
                                 propertyLongitude: number | null;
                                 propertyAddressLine2?: string | null;
-                                propertyType?: string | null;
+                                /** @enum {string|null} */
+                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
                                 propertyPrivateAreaM2?: number | null;
                                 propertyTotalAreaM2?: number | null;
                                 propertyFurnished?: boolean | null;

@@ -1,4 +1,4 @@
-import { type AuthContext, type AppointmentApp, type AppointmentCustomField, isAppointmentOverdue } from '@properfy/shared';
+import { type AuthContext, type AppointmentApp, type AppointmentCustomField, type PropertyType, isAppointmentOverdue } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../domain/appointment.repository';
@@ -64,7 +64,7 @@ export interface GetAppointmentOutput {
   latitude: number | null;
   longitude: number | null;
   /** Property detail attributes (nullable — legacy properties have no values). */
-  propertyType: string | null;
+  propertyType: PropertyType | null;
   propertyAddressLine2: string | null;
   propertyPrivateAreaM2: number | null;
   propertyTotalAreaM2: number | null;

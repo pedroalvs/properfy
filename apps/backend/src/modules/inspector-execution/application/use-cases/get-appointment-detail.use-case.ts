@@ -1,4 +1,4 @@
-import type { AuthContext, AppointmentApp, AppointmentCustomField } from '@properfy/shared';
+import type { AuthContext, AppointmentApp, AppointmentCustomField, PropertyType } from '@properfy/shared';
 import { normalizeCustomFields } from '@properfy/shared';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../appointment/domain/appointment.repository';
 import type { IAppCredentialRepository } from '../../../app-credential/domain/app-credential.repository';
@@ -89,7 +89,7 @@ export interface AppointmentDetailOutput {
   propertyLongitude: number | null;
   // Rent amount intentionally omitted — commercial information not for inspectors.
   propertyAddressLine2: string | null;
-  propertyType: string | null;
+  propertyType: PropertyType | null;
   propertyPrivateAreaM2: number | null;
   propertyTotalAreaM2: number | null;
   propertyFurnished: boolean | null;

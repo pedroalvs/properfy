@@ -11248,6 +11248,13 @@
                         },
                         "propertyType": {
                           "type": "string",
+                          "enum": [
+                            "APARTMENT",
+                            "HOUSE",
+                            "COMMERCIAL",
+                            "INDUSTRIAL",
+                            "RURAL"
+                          ],
                           "nullable": true
                         },
                         "propertyAddressLine2": {
@@ -11824,6 +11831,13 @@
                           },
                           "propertyType": {
                             "type": "string",
+                            "enum": [
+                              "APARTMENT",
+                              "HOUSE",
+                              "COMMERCIAL",
+                              "INDUSTRIAL",
+                              "RURAL"
+                            ],
                             "nullable": true
                           },
                           "propertyAddressLine2": {
@@ -12207,6 +12221,13 @@
                         },
                         "propertyType": {
                           "type": "string",
+                          "enum": [
+                            "APARTMENT",
+                            "HOUSE",
+                            "COMMERCIAL",
+                            "INDUSTRIAL",
+                            "RURAL"
+                          ],
                           "nullable": true
                         },
                         "propertyAddressLine2": {
@@ -12862,6 +12883,13 @@
                         },
                         "propertyType": {
                           "type": "string",
+                          "enum": [
+                            "APARTMENT",
+                            "HOUSE",
+                            "COMMERCIAL",
+                            "INDUSTRIAL",
+                            "RURAL"
+                          ],
                           "nullable": true
                         },
                         "propertyAddressLine2": {
@@ -19489,6 +19517,13 @@
                         },
                         "propertyType": {
                           "type": "string",
+                          "enum": [
+                            "APARTMENT",
+                            "HOUSE",
+                            "COMMERCIAL",
+                            "INDUSTRIAL",
+                            "RURAL"
+                          ],
                           "nullable": true
                         },
                         "propertyPrivateAreaM2": {

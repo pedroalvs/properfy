@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { HHMM_REGEX } from './appointment';
-import { propertyRulesSchema } from './property';
+import { propertyRulesSchema, PROPERTY_TYPE_VALUES } from './property';
 import { bonusRuleSchema } from './pricing-rule';
 import { appointmentAppSchema } from './app-credential';
 import { AppointmentStatus, ServiceTypeFlowType } from '../enums';
@@ -281,7 +281,7 @@ export const appointmentResponseSchema = z.object({
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
   // Property detail attributes (detail endpoint; nullable — legacy properties have no values)
-  propertyType: z.string().nullable().optional(),
+  propertyType: z.enum(PROPERTY_TYPE_VALUES).nullable().optional(),
   propertyAddressLine2: z.string().nullable().optional(),
   propertyPrivateAreaM2: z.number().nullable().optional(),
   propertyTotalAreaM2: z.number().nullable().optional(),
@@ -322,7 +322,7 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
   // Property detail attributes useful in the field (rent amount intentionally
   // NOT exposed to inspectors — commercial information)
   propertyAddressLine2: z.string().nullable().optional(),
-  propertyType: z.string().nullable().optional(),
+  propertyType: z.enum(PROPERTY_TYPE_VALUES).nullable().optional(),
   propertyPrivateAreaM2: z.number().nullable().optional(),
   propertyTotalAreaM2: z.number().nullable().optional(),
   propertyFurnished: z.boolean().nullable().optional(),
