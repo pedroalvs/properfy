@@ -154,7 +154,6 @@ function makeInspector(id: string, userId: string, regions: string[]): Inspector
     status: 'ACTIVE',
     paymentSettingsJson: {},
     serviceTypesJson: [{ serviceTypeId: SERVICE_TYPE_ID, certified: false }],
-    clientEligibilityJson: [{ tenantId: TENANT_ID, eligible: true }],
     blockedClientsJson: [],
     fullName: null,
     address: null,

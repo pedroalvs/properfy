@@ -18,7 +18,6 @@ function makeInspector(
     status: 'ACTIVE',
     paymentSettingsJson: {},
     serviceTypesJson: [{ serviceTypeId: 'service-1', certified: false }],
-    clientEligibilityJson: [{ tenantId: 'tenant-1', eligible: true }],
     blockedClientsJson: [],
     fullName: null,
     address: null,
@@ -97,7 +96,7 @@ describe('GetInspectorUseCase', () => {
 
   it('should return eligible inspector for CL_ADMIN', async () => {
     vi.mocked(inspectorRepo.findById).mockResolvedValue(
-      makeInspector({ clientEligibilityJson: [{ tenantId: 'tenant-1', eligible: true }] }),
+      makeInspector({}),
     );
 
     const result = await useCase.execute({
@@ -110,7 +109,7 @@ describe('GetInspectorUseCase', () => {
 
   it('should throw INSPECTOR_NOT_FOUND for CL_ADMIN when not eligible', async () => {
     vi.mocked(inspectorRepo.findById).mockResolvedValue(
-      makeInspector({ clientEligibilityJson: [{ tenantId: 'tenant-2', eligible: true }], blockedClientsJson: ['tenant-1'] }),
+      makeInspector({ blockedClientsJson: ['tenant-1'] }),
     );
 
     await expect(

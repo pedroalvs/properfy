@@ -269,7 +269,7 @@ describe('BulkEditAppointmentsUseCase', () => {
     vi.mocked(inspectorRepo.findById).mockResolvedValue({
       id: 'insp-1',
       status: 'ACTIVE',
-      clientEligibilityJson: null,
+      isEligibleForTenant: () => true,
     } as any);
 
     const result = await useCase.execute({
@@ -314,7 +314,7 @@ describe('BulkEditAppointmentsUseCase', () => {
 
     vi.mocked(inspectorRepo.findById)
       .mockResolvedValueOnce({ id: 'insp-inactive', status: 'INACTIVE' } as any) // appt-1 → fail
-      .mockResolvedValueOnce({ id: 'insp-active', status: 'ACTIVE', clientEligibilityJson: null } as any); // appt-2 → ok
+      .mockResolvedValueOnce({ id: 'insp-active', status: 'ACTIVE', isEligibleForTenant: () => true } as any); // appt-2 → ok
 
     const result = await useCase.execute({
       ids: ['appt-1', 'appt-2'],
@@ -763,14 +763,15 @@ describe('BulkEditAppointmentsUseCase', () => {
   // Inspector eligibility check
   // -------------------------------------------------------------------------
 
-  it('inspector with non-matching eligibility list → per-row INSPECTOR_NOT_ELIGIBLE error', async () => {
+  it('inspector blocked for the tenant → per-row INSPECTOR_NOT_ELIGIBLE error', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(
       makeAppointmentWithRelations({ status: 'DRAFT', tenantId: 'tenant-1' }),
     );
     vi.mocked(inspectorRepo.findById).mockResolvedValue({
       id: 'insp-1',
       status: 'ACTIVE',
-      clientEligibilityJson: [{ tenantId: 'tenant-other' }], // not tenant-1
+      blockedClientsJson: ['tenant-1'],
+      isEligibleForTenant: (tid: string) => !['tenant-1'].includes(tid),
     } as any);
 
     const result = await useCase.execute({
@@ -783,14 +784,15 @@ describe('BulkEditAppointmentsUseCase', () => {
     expect(result.failed[0]).toMatchObject({ code: 'INSPECTOR_NOT_ELIGIBLE' });
   });
 
-  it('inspector with matching eligibility list → succeeds', async () => {
+  it('inspector not blocked for the tenant → succeeds', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(
       makeAppointmentWithRelations({ status: 'DRAFT', tenantId: 'tenant-1' }),
     );
     vi.mocked(inspectorRepo.findById).mockResolvedValue({
       id: 'insp-1',
       status: 'ACTIVE',
-      clientEligibilityJson: [{ tenantId: 'tenant-1' }],
+      blockedClientsJson: ['tenant-other'],
+      isEligibleForTenant: (tid: string) => !['tenant-other'].includes(tid),
     } as any);
 
     const result = await useCase.execute({
