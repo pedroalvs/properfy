@@ -1,12 +1,13 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
+import { useAuth } from '@/hooks/useAuth';
 import type { AvailabilityTemplate, InspectorAvailabilityResponse } from '@properfy/shared';
-
-const QUERY_KEY = ['inspector', 'availability-template'] as const;
 
 /** PUT /v1/inspectors/me/availability-template with optimistic update. */
 export function useUpdateInspectorAvailabilityTemplate() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const QUERY_KEY = ['inspector', 'availability-template', user?.id];
 
   return useMutation({
     mutationFn: async (template: AvailabilityTemplate) => {

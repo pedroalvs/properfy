@@ -10,6 +10,10 @@ vi.mock('@/services/api', () => ({
   api: { PUT: (...args: unknown[]) => mockApiPut(...args) },
 }));
 
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({ user: { id: 'user-1' } }),
+}));
+
 const OFF = { am: false, pm: false };
 const ON = { am: true, pm: true };
 

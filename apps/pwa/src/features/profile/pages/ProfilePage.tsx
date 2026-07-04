@@ -9,7 +9,6 @@ import { ChangePasswordSection } from '../components/ChangePasswordSection';
 import { TwoFactorSection } from '../components/TwoFactorSection';
 import { SessionsSection } from '../components/SessionsSection';
 import { InstallAppCard } from '../components/InstallAppCard';
-import { UserDataSection } from '../components/UserDataSection';
 import { Button } from '@/components/ui/Button';
 import { useInspectorAvailabilityTemplate } from '../hooks/useInspectorAvailabilityTemplate';
 
@@ -56,14 +55,6 @@ export function ProfilePage() {
           lastLoginAt={user.lastLoginAt}
           photoUrl={user.inspectorPhotoUrl}
         />
-
-        {/* Inspector details (read-only) */}
-        {user.inspectorId && (
-          <UserDataSection
-            inspectorId={user.inspectorId}
-            phone={user.phone}
-          />
-        )}
 
         {/* Inspector details (read-only) */}
         <InspectorDetailsCard />
