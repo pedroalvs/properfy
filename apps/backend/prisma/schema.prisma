@@ -438,7 +438,6 @@ model Inspector {
   // Inspector Property Invoice: billing cycle used to compute closed periods.
   // Nullable; the application defaults to FORTNIGHTLY when unset (spec 032).
   billing_cycle              BillingPeriodType?
-  regions_json               Json            @default("[]")
   service_types_json         Json            @default("[]")
   client_eligibility_json    Json            @default("[]")
   // Feedback Round item 1: blocked-clients model (replaces allow-list)
