@@ -784,7 +784,7 @@ export const inspectorEarningsSummaryResponseSchema = z.object({
   totalApproved: z.number(),
   nextPayment: z.number(),
   monthly: z.array(z.object({
-    month: z.string().regex(/^\d{4}-\d{2}$/, 'Must be YYYY-MM'),
+    month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Must be YYYY-MM'),
     total: z.number(),
   })),
 });

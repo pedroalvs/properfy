@@ -567,6 +567,16 @@ describe('inspectorEarningsSummaryResponseSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it('rejects an out-of-range month (00 or 13)', () => {
+    for (const month of ['2026-00', '2026-13']) {
+      const result = inspectorEarningsSummaryResponseSchema.safeParse({
+        ...valid,
+        monthly: [{ month, total: 1 }],
+      });
+      expect(result.success).toBe(false);
+    }
+  });
+
   it('rejects a missing totalApproved', () => {
     const { totalApproved: _totalApproved, ...rest } = valid;
     expect(inspectorEarningsSummaryResponseSchema.safeParse(rest).success).toBe(false);
