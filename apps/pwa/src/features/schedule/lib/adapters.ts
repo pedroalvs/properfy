@@ -48,6 +48,7 @@ export function mapInspectorAppointmentDetail(
     restrictions: detail.restrictionsSummary,
     propertyLatitude: detail.propertyLatitude,
     propertyLongitude: detail.propertyLongitude,
+    propertyAddressLine2: detail.propertyAddressLine2 ?? null,
     propertyType: detail.propertyType ?? null,
     propertyPrivateAreaM2: detail.propertyPrivateAreaM2 ?? null,
     propertyTotalAreaM2: detail.propertyTotalAreaM2 ?? null,

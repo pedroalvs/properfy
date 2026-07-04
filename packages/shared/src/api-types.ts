@@ -8509,6 +8509,7 @@ export interface paths {
                                 suburb: string;
                                 propertyLatitude: number | null;
                                 propertyLongitude: number | null;
+                                propertyAddressLine2?: string | null;
                                 propertyType?: string | null;
                                 propertyPrivateAreaM2?: number | null;
                                 propertyTotalAreaM2?: number | null;

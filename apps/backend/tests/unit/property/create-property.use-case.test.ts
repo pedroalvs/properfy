@@ -148,6 +148,9 @@ describe('CreatePropertyUseCase', () => {
     expect(result.rentAmount).toBe(3200);
     const saved = vi.mocked(propertyRepo.save).mock.calls[0][0];
     expect(saved.privateAreaM2).toBe(72.5);
+    expect(saved.totalAreaM2).toBe(90);
+    expect(saved.furnished).toBe(true);
+    expect(saved.linenProvided).toBe(false);
     expect(saved.rentAmount).toBe(3200);
   });
 

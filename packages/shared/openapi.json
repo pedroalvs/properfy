@@ -19483,6 +19483,10 @@
                           "type": "number",
                           "nullable": true
                         },
+                        "propertyAddressLine2": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "propertyType": {
                           "type": "string",
                           "nullable": true

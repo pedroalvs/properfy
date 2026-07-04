@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { paginationSchema } from './pagination';
 import { propertyAddressSchema, propertyAddressUpdateSchema } from './address';
+import { PropertyType } from '../enums/property';
 
 /**
  * Schema for property inspection rules stored in `rules_json`.
@@ -31,14 +32,11 @@ export const propertyRulesSchema = z
   .passthrough();
 export type PropertyRules = z.infer<typeof propertyRulesSchema>;
 
-/** Canonical PropertyType values — keep in sync with the Prisma enum. */
-export const PROPERTY_TYPE_VALUES = [
-  'APARTMENT',
-  'HOUSE',
-  'COMMERCIAL',
-  'INDUSTRIAL',
-  'RURAL',
-] as const;
+/** Canonical PropertyType values, derived from the shared enum (single source of truth). */
+export const PROPERTY_TYPE_VALUES = Object.values(PropertyType) as [
+  PropertyType,
+  ...PropertyType[],
+];
 
 export const createPropertySchema = z
   .object({

@@ -1,25 +1,21 @@
+import { PROPERTY_TYPE_LABELS, type PropertyType } from '@properfy/shared';
+
 interface PropertyAddressSectionProps {
   address: string;
+  addressLine2?: string | null;
   suburb?: string;
   latitude: number | null;
   longitude: number | null;
-  propertyType?: string | null;
+  propertyType?: PropertyType | null;
   privateAreaM2?: number | null;
   totalAreaM2?: number | null;
   furnished?: boolean | null;
   linenProvided?: boolean | null;
 }
 
-const PROPERTY_TYPE_LABELS: Record<string, string> = {
-  APARTMENT: 'Apartment',
-  HOUSE: 'House',
-  COMMERCIAL: 'Commercial',
-  INDUSTRIAL: 'Industrial',
-  RURAL: 'Rural',
-};
-
 export function PropertyAddressSection({
   address,
+  addressLine2,
   suburb,
   latitude,
   longitude,
@@ -50,6 +46,7 @@ export function PropertyAddressSection({
       <div className="px-4 pt-4 pb-3">
         <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Property</p>
         <p className="mt-1 text-sm font-semibold leading-5 text-text-primary">{address}</p>
+        {addressLine2 && <p className="text-xs text-text-secondary">{addressLine2}</p>}
         {suburb && <p className="text-xs text-text-secondary">{suburb}</p>}
         {detailChips.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5" data-testid="property-detail-chips">

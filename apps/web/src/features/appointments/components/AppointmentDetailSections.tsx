@@ -4,32 +4,11 @@ import { BooleanIcon } from '@/components/ui/BooleanIcon';
 import { AppointmentStatus } from '@properfy/shared';
 import { RENTAL_TENANT_CONFIRMATION_STATUS_MAP } from '@/lib/status-colors';
 import { formatDate, formatDateTime } from '@/lib/format-date';
+import { formatArea, formatPropertyType, formatRent } from '@/lib/format-property';
 import type { AppointmentDetail } from '../types';
 
 interface AppointmentDetailSectionsProps {
   appointment: AppointmentDetail;
-}
-
-const PROPERTY_TYPE_LABELS: Record<string, string> = {
-  APARTMENT: 'Apartment',
-  HOUSE: 'House',
-  COMMERCIAL: 'Commercial',
-  INDUSTRIAL: 'Industrial',
-  RURAL: 'Rural',
-};
-
-function formatPropertyType(type: string | null | undefined): string | undefined {
-  if (!type) return undefined;
-  return PROPERTY_TYPE_LABELS[type] ?? type;
-}
-
-function formatArea(value: number | null | undefined): string | undefined {
-  return value != null ? `${value} m²` : undefined;
-}
-
-function formatRent(value: number | null | undefined): string | undefined {
-  if (value == null) return undefined;
-  return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(value);
 }
 
 export function AppointmentDetailSections({ appointment }: AppointmentDetailSectionsProps) {

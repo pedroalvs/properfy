@@ -112,6 +112,7 @@ export function AppointmentDetailPage() {
         {/* Property location */}
         <PropertyAddressSection
           address={apt.propertyAddress}
+          addressLine2={apt.propertyAddressLine2}
           suburb={apt.suburb}
           latitude={apt.propertyLatitude}
           longitude={apt.propertyLongitude}

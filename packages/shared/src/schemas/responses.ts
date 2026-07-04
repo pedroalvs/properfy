@@ -321,6 +321,7 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
   propertyLongitude: z.number().nullable(),
   // Property detail attributes useful in the field (rent amount intentionally
   // NOT exposed to inspectors — commercial information)
+  propertyAddressLine2: z.string().nullable().optional(),
   propertyType: z.string().nullable().optional(),
   propertyPrivateAreaM2: z.number().nullable().optional(),
   propertyTotalAreaM2: z.number().nullable().optional(),

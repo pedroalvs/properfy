@@ -88,6 +88,7 @@ export interface AppointmentDetailOutput {
   propertyLatitude: number | null;
   propertyLongitude: number | null;
   // Rent amount intentionally omitted — commercial information not for inspectors.
+  propertyAddressLine2: string | null;
   propertyType: string | null;
   propertyPrivateAreaM2: number | null;
   propertyTotalAreaM2: number | null;
@@ -244,6 +245,7 @@ export class GetAppointmentDetailUseCase {
       suburb: result.propertySuburb ?? '',
       propertyLatitude: result.propertyLatitude ?? null,
       propertyLongitude: result.propertyLongitude ?? null,
+      propertyAddressLine2: result.propertyAddressLine2 ?? null,
       propertyType: result.propertyType ?? null,
       propertyPrivateAreaM2: result.propertyPrivateAreaM2 ?? null,
       propertyTotalAreaM2: result.propertyTotalAreaM2 ?? null,

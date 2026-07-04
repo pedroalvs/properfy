@@ -1,5 +1,6 @@
 import type {
   AppointmentStatus,
+  PropertyType,
   RentalTenantConfirmationStatus,
   AppointmentContactRole,
   ContactType,
@@ -89,7 +90,7 @@ export interface AppointmentDetail extends Omit<Appointment, 'code'> {
   reason?: string | null;
   contacts?: AppointmentContactEntry[];
   /** Property detail attributes (nullable — legacy properties have no values). */
-  propertyType?: string | null;
+  propertyType?: PropertyType | null;
   propertyAddressLine2?: string | null;
   propertyPrivateAreaM2?: number | null;
   propertyTotalAreaM2?: number | null;

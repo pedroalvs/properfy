@@ -1,6 +1,7 @@
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
 import { formatDateTime } from '@/lib/format-date';
+import { formatArea, formatRent, formatYesNo } from '@/lib/format-property';
 import { PropertyTypeChip } from './PropertyTypeChip';
 import { GeocodingStatusBadge } from './GeocodingStatusBadge';
 import type { PropertyDetail } from '../types';
@@ -9,19 +10,6 @@ interface PropertyDetailSectionsProps {
   property: PropertyDetail;
 }
 
-function formatYesNo(value: boolean | null): string | undefined {
-  if (value == null) return undefined;
-  return value ? 'Yes' : 'No';
-}
-
-function formatArea(value: number | null): string | undefined {
-  return value != null ? `${value} m²` : undefined;
-}
-
-function formatRent(value: number | null): string | undefined {
-  if (value == null) return undefined;
-  return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(value);
-}
 
 export function PropertyDetailSections({ property }: PropertyDetailSectionsProps) {
   return (

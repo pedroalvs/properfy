@@ -3,6 +3,7 @@ import type {
   AppointmentApp,
   AppointmentCustomField,
   AppointmentStatus,
+  PropertyType,
   RentalTenantConfirmationStatus,
   ServiceTypeFlowType,
   inspectorScheduleMonthDaySchema,
@@ -31,7 +32,8 @@ export interface InspectorAppointment {
   propertyLatitude: number | null;
   propertyLongitude: number | null;
   /** Property detail attributes (nullable — legacy properties have no values). */
-  propertyType?: string | null;
+  propertyAddressLine2?: string | null;
+  propertyType?: PropertyType | null;
   propertyPrivateAreaM2?: number | null;
   propertyTotalAreaM2?: number | null;
   propertyFurnished?: boolean | null;
@@ -107,7 +109,8 @@ export interface InspectorAppointmentDetailResponse {
     restrictionsSummary: string | null;
     propertyLatitude: number | null;
     propertyLongitude: number | null;
-    propertyType?: string | null;
+    propertyAddressLine2?: string | null;
+    propertyType?: PropertyType | null;
     propertyPrivateAreaM2?: number | null;
     propertyTotalAreaM2?: number | null;
     propertyFurnished?: boolean | null;

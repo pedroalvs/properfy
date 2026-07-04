@@ -1,5 +1,6 @@
 import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
+import { formatRent } from '@/lib/format-property';
 import { PropertyTypeChip } from './PropertyTypeChip';
 import type { Property } from '../types';
 
@@ -62,15 +63,7 @@ export function PropertyTable({
       label: 'Rent',
       width: '110px',
       sortable: true,
-      render: (row) => (
-        <>
-          {row.rentAmount != null
-            ? new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(
-                row.rentAmount,
-              )
-            : '—'}
-        </>
-      ),
+      render: (row) => <>{formatRent(row.rentAmount) ?? '—'}</>,
     },
     {
       key: 'branchName',
