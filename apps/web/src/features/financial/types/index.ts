@@ -93,6 +93,13 @@ export interface InvoiceDetail extends Invoice {
   notes: string | null;
 }
 
+/** Surfaced when a billing summary scope spans more than one currency (400 MULTI_CURRENCY_SCOPE). */
+export interface MultiCurrencyScopeError {
+  code: 'MULTI_CURRENCY_SCOPE';
+  message: string;
+  currencies: string[];
+}
+
 export interface InvoiceFiltersState {
   inspectorId: string;
   agencyId: string;

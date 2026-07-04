@@ -142,7 +142,7 @@ describe('FinancialEntriesPage', () => {
 
   it('renders an Invoices action that navigates to the invoices page', () => {
     renderPage();
-    const button = screen.getByText('Invoices');
+    const button = screen.getByRole('button', { name: 'Invoices' });
     fireEvent.click(button);
     expect(mockNavigate).toHaveBeenCalledWith('/financial/invoices');
   });

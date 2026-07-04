@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { InvoiceSummaryResponse } from '@properfy/shared';
 import { api } from '@/services/api';
 import { ApiError } from '@/lib/api-error';
-import type { MultiCurrencyScopeError } from './useReconciliationSummary';
+import type { MultiCurrencyScopeError } from '../types';
 
 export interface InvoiceSummaryParams {
   inspectorId?: string;
@@ -22,7 +22,6 @@ export interface UseInvoiceSummaryReturn {
 }
 
 interface ApiErrorEnvelope {
-  status?: number;
   error?: {
     code?: string;
     message?: string;
@@ -39,13 +38,16 @@ export function useInvoiceSummary(params: InvoiceSummaryParams): UseInvoiceSumma
   const query = useQuery<{ data: InvoiceSummaryResponse }, ApiError>({
     queryKey: ['billing', 'invoice-summary', queryParams],
     queryFn: async () => {
-      const { data, error } = await api.GET(
+      // The `as never` path cast (route not yet in the strict generated operation types at all
+      // call sites) collapses the result type, so re-assert the openapi-fetch result shape.
+      const { data, error, response } = (await api.GET(
         '/v1/billing/invoices/summary' as never,
         { params: { query: queryParams } } as never,
-      );
+      )) as { data?: unknown; error?: unknown; response?: Response };
       if (error) {
         const envelope = error as ApiErrorEnvelope;
-        const status = envelope.status ?? 500;
+        // The HTTP status lives on the raw Response; the parsed error body only has the envelope.
+        const status = response?.status ?? 500;
         const code = envelope.error?.code;
         const message = envelope.error?.message ?? 'Failed to load invoice summary';
         const details = envelope.error?.details;

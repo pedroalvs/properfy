@@ -1,5 +1,5 @@
 import type { InvoiceSummaryResponse } from '@properfy/shared';
-import type { MultiCurrencyScopeError } from '../hooks/useReconciliationSummary';
+import type { MultiCurrencyScopeError } from '../types';
 
 interface StatCardProps {
   label: string;

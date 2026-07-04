@@ -46,28 +46,43 @@ function mapToEntity(row: any): InspectorInvoiceEntity {
   });
 }
 
-function buildWhereClause(filters: InvoiceFilters): Record<string, unknown> {
+// Shared owner/period/content filter fragment used by both the list where-clause and the status
+// aggregates, so the two cannot silently diverge.
+// Content filters: match invoices whose frozen snapshot contains ≥1 line for the agency/branch.
+// `array_contains` compiles to the Postgres `@>` operator, which does partial-object containment
+// within array elements (a line `{agencyId,...}` contains `{agencyId}`). Agency and branch may
+// match different lines, so they combine with AND.
+function buildContentAndPeriodFilters(filters: StatusAggregateFilters): Record<string, unknown> {
   const where: Record<string, unknown> = {};
 
   if (filters.inspectorId) where.inspector_id = filters.inspectorId;
-  if (filters.statusIn && filters.statusIn.length > 0) where.status = { in: filters.statusIn };
-  else if (filters.status) where.status = filters.status;
 
-  if (filters.fromDate || filters.toDate) {
+  if (filters.from || filters.to) {
     const periodStart: Record<string, Date> = {};
-    if (filters.fromDate) periodStart.gte = new Date(filters.fromDate);
-    if (filters.toDate) periodStart.lte = new Date(filters.toDate + 'T23:59:59.999Z');
+    if (filters.from) periodStart.gte = filters.from;
+    if (filters.to) periodStart.lte = filters.to;
     where.period_start = periodStart;
   }
 
-  // Content filters: match invoices whose frozen snapshot contains ≥1 line for the agency/branch.
-  // `array_contains` compiles to the Postgres `@>` operator, which does partial-object containment
-  // within array elements (a line `{agencyId,...}` contains `{agencyId}`). Agency and branch may
-  // match different lines, so they combine with AND.
   const contentConds: Record<string, unknown>[] = [];
   if (filters.agencyId) contentConds.push({ line_items_snapshot: { array_contains: [{ agencyId: filters.agencyId }] } });
   if (filters.branchId) contentConds.push({ line_items_snapshot: { array_contains: [{ branchId: filters.branchId }] } });
   if (contentConds.length > 0) where.AND = contentConds;
+
+  return where;
+}
+
+function buildWhereClause(filters: InvoiceFilters): Record<string, unknown> {
+  const where = buildContentAndPeriodFilters({
+    inspectorId: filters.inspectorId,
+    agencyId: filters.agencyId,
+    branchId: filters.branchId,
+    from: filters.fromDate ? new Date(filters.fromDate) : undefined,
+    to: filters.toDate ? new Date(filters.toDate + 'T23:59:59.999Z') : undefined,
+  });
+
+  if (filters.statusIn && filters.statusIn.length > 0) where.status = { in: filters.statusIn };
+  else if (filters.status) where.status = filters.status;
 
   return where;
 }
@@ -261,20 +276,10 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
   }
 
   async getStatusAggregates(filters: StatusAggregateFilters): Promise<ReconciliationAggregateRow[]> {
-    // Mirrors buildWhereClause semantics (period_start range + snapshot content filters) so the
-    // summary indicators stay consistent with the filtered invoice list.
-    const where: Record<string, unknown> = {};
-    if (filters.inspectorId) where.inspector_id = filters.inspectorId;
-    if (filters.from || filters.to) {
-      const periodStart: Record<string, Date> = {};
-      if (filters.from) periodStart.gte = filters.from;
-      if (filters.to) periodStart.lte = filters.to;
-      where.period_start = periodStart;
-    }
-    const contentConds: Record<string, unknown>[] = [];
-    if (filters.agencyId) contentConds.push({ line_items_snapshot: { array_contains: [{ agencyId: filters.agencyId }] } });
-    if (filters.branchId) contentConds.push({ line_items_snapshot: { array_contains: [{ branchId: filters.branchId }] } });
-    if (contentConds.length > 0) where.AND = contentConds;
+    // Shares buildContentAndPeriodFilters with the invoice list so indicators and list never
+    // diverge. All filters are optional by design (global overview); the unfiltered groupBy is a
+    // small aggregate over the invoices table, acceptable at current scale.
+    const where = buildContentAndPeriodFilters(filters);
 
     const rows = await this.prisma.inspectorInvoice.groupBy({
       by: ['status', 'currency'],

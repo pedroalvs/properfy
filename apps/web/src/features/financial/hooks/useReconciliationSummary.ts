@@ -2,18 +2,16 @@ import { useQuery } from '@tanstack/react-query';
 import type { ReconciliationSummaryResponse } from '@properfy/shared';
 import { api } from '@/services/api';
 import { ApiError } from '@/lib/api-error';
+import type { MultiCurrencyScopeError } from '../types';
+
+// Re-exported for existing consumers; the canonical definition lives in ../types.
+export type { MultiCurrencyScopeError };
 
 export interface ReconciliationSummaryParams {
   from: string;
   to: string;
   inspectorId?: string;
   enabled?: boolean;
-}
-
-export interface MultiCurrencyScopeError {
-  code: 'MULTI_CURRENCY_SCOPE';
-  message: string;
-  currencies: string[];
 }
 
 export interface UseReconciliationSummaryReturn {
