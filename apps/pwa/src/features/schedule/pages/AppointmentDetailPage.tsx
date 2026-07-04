@@ -115,6 +115,11 @@ export function AppointmentDetailPage() {
           suburb={apt.suburb}
           latitude={apt.propertyLatitude}
           longitude={apt.propertyLongitude}
+          propertyType={apt.propertyType}
+          privateAreaM2={apt.propertyPrivateAreaM2}
+          totalAreaM2={apt.propertyTotalAreaM2}
+          furnished={apt.propertyFurnished}
+          linenProvided={apt.propertyLinenProvided}
         />
 
         {/* Tenant confirmation status */}

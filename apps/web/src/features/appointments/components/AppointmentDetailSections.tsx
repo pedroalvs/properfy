@@ -10,6 +10,28 @@ interface AppointmentDetailSectionsProps {
   appointment: AppointmentDetail;
 }
 
+const PROPERTY_TYPE_LABELS: Record<string, string> = {
+  APARTMENT: 'Apartment',
+  HOUSE: 'House',
+  COMMERCIAL: 'Commercial',
+  INDUSTRIAL: 'Industrial',
+  RURAL: 'Rural',
+};
+
+function formatPropertyType(type: string | null | undefined): string | undefined {
+  if (!type) return undefined;
+  return PROPERTY_TYPE_LABELS[type] ?? type;
+}
+
+function formatArea(value: number | null | undefined): string | undefined {
+  return value != null ? `${value} m²` : undefined;
+}
+
+function formatRent(value: number | null | undefined): string | undefined {
+  if (value == null) return undefined;
+  return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(value);
+}
+
 export function AppointmentDetailSections({ appointment }: AppointmentDetailSectionsProps) {
   const confirmationStyle = RENTAL_TENANT_CONFIRMATION_STATUS_MAP[appointment.rentalTenantConfirmationStatus];
   const isPendingOperationalCrossCheck =
@@ -32,7 +54,6 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
       )}
       <FormSection title="Inspection Details">
         <DetailRow label="Service Type" value={appointment.serviceTypeName} />
-        <DetailRow label="Address" value={appointment.propertyAddress} />
         <DetailRow label="Branch" value={appointment.branchName} />
         <DetailRow label="Scheduled Date" value={formatDate(appointment.scheduledDate)} />
         <DetailRow label="Time Slot" value={`${appointment.timeSlotStart} - ${appointment.timeSlotEnd}`} />
@@ -45,6 +66,31 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
             ) : null
           }
         />
+      </FormSection>
+
+      <FormSection title="Property">
+        <DetailRow label="Address" value={appointment.propertyAddress} />
+        <DetailRow label="Address Line 2" value={appointment.propertyAddressLine2} />
+        <DetailRow label="Type" value={formatPropertyType(appointment.propertyType)} />
+        <DetailRow label="Private Area" value={formatArea(appointment.propertyPrivateAreaM2)} />
+        <DetailRow label="Total Area" value={formatArea(appointment.propertyTotalAreaM2)} />
+        <DetailRow
+          label="Furnished"
+          value={
+            appointment.propertyFurnished != null ? (
+              <BooleanIcon value={appointment.propertyFurnished} />
+            ) : null
+          }
+        />
+        <DetailRow
+          label="Linen Provided"
+          value={
+            appointment.propertyLinenProvided != null ? (
+              <BooleanIcon value={appointment.propertyLinenProvided} />
+            ) : null
+          }
+        />
+        <DetailRow label="Rent Amount" value={formatRent(appointment.propertyRentAmount)} />
       </FormSection>
 
       <FormSection title="Contact">

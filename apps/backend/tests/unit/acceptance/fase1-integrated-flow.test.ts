@@ -94,7 +94,7 @@ function makeProperty(id: string, code: string, suburb: string): PropertyEntity 
     tenantId: TENANT_ID,
     branchId: BRANCH_ID,
     propertyCode: code,
-    type: 'RESIDENTIAL',
+    type: 'HOUSE',
     street: `${code} Test St`,
     addressLine2: null,
     suburb,

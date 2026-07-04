@@ -68,7 +68,7 @@ async function seedProperty(prisma: PrismaClient, tenantId: string, branchId: st
       tenant_id: tenantId,
       branch_id: branchId,
       property_code: `P-${rand()}`,
-      type: 'RESIDENTIAL',
+      type: 'HOUSE',
       street: '1 Test St',
       suburb: 'Sydney',
       postcode: '2000',

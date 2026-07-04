@@ -51,6 +51,28 @@ export function PropertyTable({
       sortable: true,
     },
     {
+      key: 'totalAreaM2',
+      label: 'Area (m²)',
+      width: '110px',
+      sortable: true,
+      render: (row) => <>{row.totalAreaM2 != null ? row.totalAreaM2 : '—'}</>,
+    },
+    {
+      key: 'rentAmount',
+      label: 'Rent',
+      width: '110px',
+      sortable: true,
+      render: (row) => (
+        <>
+          {row.rentAmount != null
+            ? new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(
+                row.rentAmount,
+              )
+            : '—'}
+        </>
+      ),
+    },
+    {
       key: 'branchName',
       label: 'Branch',
       width: '140px',

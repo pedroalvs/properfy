@@ -47,7 +47,7 @@ const propertyStub = {
   tenantId: TENANT_ID,
   branchId: null,
   propertyCode: 'PROP-001',
-  type: 'RESIDENTIAL',
+  type: 'HOUSE',
   street: '1 Main St',
   addressLine2: null,
   suburb: 'Sydney',
@@ -62,7 +62,7 @@ const propertyStub = {
 
 const createPayload = {
   propertyCode: 'PROP-001',
-  type: 'RESIDENTIAL',
+  type: 'HOUSE',
   street: '1 Main St',
   suburb: 'Sydney',
   postcode: '2000',

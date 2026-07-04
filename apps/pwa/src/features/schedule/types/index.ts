@@ -30,6 +30,12 @@ export interface InspectorAppointment {
   restrictions: string | null;
   propertyLatitude: number | null;
   propertyLongitude: number | null;
+  /** Property detail attributes (nullable — legacy properties have no values). */
+  propertyType?: string | null;
+  propertyPrivateAreaM2?: number | null;
+  propertyTotalAreaM2?: number | null;
+  propertyFurnished?: boolean | null;
+  propertyLinenProvided?: boolean | null;
   notes: string | null;
   observation: string | null;
   /** Operator-defined custom fields, read-only for the inspector (max 4). */
@@ -101,6 +107,11 @@ export interface InspectorAppointmentDetailResponse {
     restrictionsSummary: string | null;
     propertyLatitude: number | null;
     propertyLongitude: number | null;
+    propertyType?: string | null;
+    propertyPrivateAreaM2?: number | null;
+    propertyTotalAreaM2?: number | null;
+    propertyFurnished?: boolean | null;
+    propertyLinenProvided?: boolean | null;
     notes: string | null;
     observation: string | null;
     customFields?: AppointmentCustomField[];

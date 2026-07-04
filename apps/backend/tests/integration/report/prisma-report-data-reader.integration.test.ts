@@ -54,7 +54,7 @@ beforeAll(async () => {
 
   const mkProp = async (code: string, suburb: string) =>
     prisma.property.create({
-      data: { tenant_id: tenantId, branch_id: branchId, property_code: `${code}-${rnd()}`, type: 'RESIDENTIAL', street: `${code} St`, suburb, postcode: '2000', state: 'NSW', country: 'AU', geocoding_status: 'SUCCESS' },
+      data: { tenant_id: tenantId, branch_id: branchId, property_code: `${code}-${rnd()}`, type: 'HOUSE', street: `${code} St`, suburb, postcode: '2000', state: 'NSW', country: 'AU', geocoding_status: 'SUCCESS' },
     });
   const propBondi = await mkProp('P1', 'Bondi');
   const propManly = await mkProp('P2', 'Manly');
@@ -102,7 +102,7 @@ beforeAll(async () => {
     data: { tenant_id: otherTenant.id, branch_id: otherBranch.id, role: 'OP', name: 'Op2', email: `op2-${rnd()}@t.local`, password_hash: 'x'.repeat(20), status: 'ACTIVE' },
   });
   const otherProp = await prisma.property.create({
-    data: { tenant_id: otherTenant.id, branch_id: otherBranch.id, property_code: `BP-${rnd()}`, type: 'RESIDENTIAL', street: 'Beta St', suburb: 'Bondi', postcode: '2000', state: 'NSW', country: 'AU', geocoding_status: 'SUCCESS' },
+    data: { tenant_id: otherTenant.id, branch_id: otherBranch.id, property_code: `BP-${rnd()}`, type: 'HOUSE', street: 'Beta St', suburb: 'Bondi', postcode: '2000', state: 'NSW', country: 'AU', geocoding_status: 'SUCCESS' },
   });
   await prisma.appointment.create({
     data: {

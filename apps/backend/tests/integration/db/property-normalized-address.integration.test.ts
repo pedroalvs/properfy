@@ -43,7 +43,7 @@ function buildProperty(overrides: Partial<ConstructorParameters<typeof PropertyE
   return new PropertyEntity({
     branchId: null,
     propertyCode: `P-${Math.random().toString(36).slice(2, 10)}`,
-    type: 'RESIDENTIAL',
+    type: 'HOUSE',
     street: '3/18 Ocean St',
     addressLine2: null,
     suburb: 'Kogarah',
@@ -222,7 +222,7 @@ describe('normalized_address_key trigger', () => {
       data: {
         tenant_id: tenantId,
         property_code: `TRIG-${Math.random().toString(36).slice(2, 10)}`,
-        type: 'RESIDENTIAL',
+        type: 'HOUSE',
         street: '  8   Trigger  St ',
         suburb: 'Monterey',
         postcode: '2217',

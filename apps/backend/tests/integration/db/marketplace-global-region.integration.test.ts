@@ -118,7 +118,7 @@ async function seedPropertyInsideSydney(
       ${tenantId},
       ${branchId},
       ${'P-' + rand()},
-      'RESIDENTIAL',
+      'HOUSE',
       '1 Test St',
       'Sydney',
       '2000',

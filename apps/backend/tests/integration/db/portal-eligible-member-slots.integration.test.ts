@@ -77,7 +77,7 @@ async function seedPropertyPoint(
       ${params.tenantId},
       ${params.branchId},
       ${'P-' + rand()},
-      'RESIDENTIAL',
+      'HOUSE',
       '1 Test St',
       ${params.suburb},
       '2000',

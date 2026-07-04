@@ -21,14 +21,16 @@ import { usePropertyMapData, type PropertyMapItem } from '../hooks/usePropertyMa
 
 const TYPE_OPTIONS = [
   { label: 'All Types', value: '' },
-  { label: 'Residential', value: 'RESIDENTIAL' },
+  { label: 'Apartment', value: 'APARTMENT' },
+  { label: 'House', value: 'HOUSE' },
   { label: 'Commercial', value: 'COMMERCIAL' },
   { label: 'Industrial', value: 'INDUSTRIAL' },
   { label: 'Rural', value: 'RURAL' },
 ];
 
 const TYPE_COLORS: Record<string, string> = {
-  RESIDENTIAL: '#2196F3',
+  APARTMENT: '#2196F3',
+  HOUSE: '#00BCD4',
   COMMERCIAL: '#FF9800',
   INDUSTRIAL: '#795548',
   RURAL: '#4CAF50',

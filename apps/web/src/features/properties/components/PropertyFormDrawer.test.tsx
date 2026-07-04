@@ -51,7 +51,7 @@ vi.mock('../hooks/usePropertySave', () => ({
 
 // Stable reference to prevent infinite re-render in useEffect
 const MOCK_PROPERTY = {
-  id: 'prop-01', propertyCode: 'P-001', type: 'RESIDENTIAL', branchId: 'branch-1',
+  id: 'prop-01', propertyCode: 'P-001', type: 'HOUSE', branchId: 'branch-1',
   street: 'Rua das Flores, 123', addressLine2: 'Apt 4', suburb: 'Centro',
   postcode: '01000-000', state: 'SP', country: 'BR', notes: 'Some notes',
 };

@@ -202,7 +202,7 @@ export async function seedLegacyDoneAppointment(
       tenant_id: tenant.id,
       branch_id: branch.id,
       property_code: `T061-${Math.random().toString(36).slice(2, 10)}`,
-      type: 'RESIDENTIAL',
+      type: 'HOUSE',
       street: '1 Test St',
       suburb: 'Test',
       postcode: '2000',

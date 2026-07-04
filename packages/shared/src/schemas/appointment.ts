@@ -8,7 +8,7 @@ import { CancellationReasonCode, RejectionReasonCode } from '../enums/reason-cod
 // Inline property for creation (matches createPropertySchema subset)
 const inlinePropertySchema = z.object({
   propertyCode: z.string().min(1).max(50).trim(),
-  type: z.enum(['RESIDENTIAL', 'COMMERCIAL', 'INDUSTRIAL', 'RURAL']),
+  type: z.enum(['APARTMENT', 'HOUSE', 'COMMERCIAL', 'INDUSTRIAL', 'RURAL']),
   street: z.string().min(1).max(300).trim(),
   addressLine2: z.string().max(200).trim().optional(),
   suburb: z.string().min(1).max(100).trim(),

@@ -21,6 +21,11 @@ import { EMPTY_PROPERTY_FORM } from '../types';
 import type { AddressLookupSuggestion } from '@/lib/address';
 import { buildAddressLabel } from '@/lib/address';
 
+const YES_NO_OPTIONS = [
+  { label: 'Yes', value: 'true' },
+  { label: 'No', value: 'false' },
+];
+
 interface PropertyFormDrawerProps {
   open: boolean;
   onClose: () => void;
@@ -72,6 +77,12 @@ export function PropertyFormDrawer({
         postcode: property.postcode,
         state: property.state,
         country: property.country,
+        privateAreaM2: property.privateAreaM2 != null ? String(property.privateAreaM2) : '',
+        totalAreaM2: property.totalAreaM2 != null ? String(property.totalAreaM2) : '',
+        furnished: property.furnished == null ? '' : property.furnished ? 'true' : 'false',
+        linenProvided:
+          property.linenProvided == null ? '' : property.linenProvided ? 'true' : 'false',
+        rentAmount: property.rentAmount != null ? String(property.rentAmount) : '',
         notes: property.notes ?? '',
         latitude: property.latitude != null ? String(property.latitude) : '',
         longitude: property.longitude != null ? String(property.longitude) : '',
@@ -291,6 +302,51 @@ export function PropertyFormDrawer({
                         value={form.country}
                         onChange={(v) => updateField('country', v)}
                         aria-label="Country"
+                      />
+                    </FormField>
+                  </FormSection>
+
+                  <FormSection title="Details" columns={2}>
+                    <FormField label="Private Area (m²)" error={errors.privateAreaM2}>
+                      <TextInput
+                        value={form.privateAreaM2}
+                        onChange={(v) => updateField('privateAreaM2', v)}
+                        placeholder="85.5"
+                        aria-label="Private Area (m²)"
+                      />
+                    </FormField>
+                    <FormField label="Total Area (m²)" error={errors.totalAreaM2}>
+                      <TextInput
+                        value={form.totalAreaM2}
+                        onChange={(v) => updateField('totalAreaM2', v)}
+                        placeholder="120"
+                        aria-label="Total Area (m²)"
+                      />
+                    </FormField>
+                    <FormField label="Furnished" error={errors.furnished}>
+                      <SelectInput
+                        value={form.furnished}
+                        onChange={(v) => updateField('furnished', v as '' | 'true' | 'false')}
+                        options={YES_NO_OPTIONS}
+                        placeholder="Not specified"
+                        aria-label="Furnished"
+                      />
+                    </FormField>
+                    <FormField label="Linen Provided" error={errors.linenProvided}>
+                      <SelectInput
+                        value={form.linenProvided}
+                        onChange={(v) => updateField('linenProvided', v as '' | 'true' | 'false')}
+                        options={YES_NO_OPTIONS}
+                        placeholder="Not specified"
+                        aria-label="Linen Provided"
+                      />
+                    </FormField>
+                    <FormField label="Rent Amount" error={errors.rentAmount}>
+                      <TextInput
+                        value={form.rentAmount}
+                        onChange={(v) => updateField('rentAmount', v)}
+                        placeholder="2500.00"
+                        aria-label="Rent Amount"
                       />
                     </FormField>
                   </FormSection>

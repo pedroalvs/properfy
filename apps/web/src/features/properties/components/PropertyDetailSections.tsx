@@ -9,6 +9,20 @@ interface PropertyDetailSectionsProps {
   property: PropertyDetail;
 }
 
+function formatYesNo(value: boolean | null): string | undefined {
+  if (value == null) return undefined;
+  return value ? 'Yes' : 'No';
+}
+
+function formatArea(value: number | null): string | undefined {
+  return value != null ? `${value} m²` : undefined;
+}
+
+function formatRent(value: number | null): string | undefined {
+  if (value == null) return undefined;
+  return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(value);
+}
+
 export function PropertyDetailSections({ property }: PropertyDetailSectionsProps) {
   return (
     <div className="flex flex-col gap-6">
@@ -25,6 +39,14 @@ export function PropertyDetailSections({ property }: PropertyDetailSectionsProps
         <DetailRow label="Postcode" value={property.postcode} />
         <DetailRow label="State" value={property.state} />
         <DetailRow label="Country" value={property.country} />
+      </FormSection>
+
+      <FormSection title="Details">
+        <DetailRow label="Private Area" value={formatArea(property.privateAreaM2)} />
+        <DetailRow label="Total Area" value={formatArea(property.totalAreaM2)} />
+        <DetailRow label="Furnished" value={formatYesNo(property.furnished)} />
+        <DetailRow label="Linen Provided" value={formatYesNo(property.linenProvided)} />
+        <DetailRow label="Rent Amount" value={formatRent(property.rentAmount)} />
       </FormSection>
 
       <FormSection title="Geocoding">

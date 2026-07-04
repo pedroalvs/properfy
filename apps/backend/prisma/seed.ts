@@ -576,17 +576,17 @@ async function main() {
 
   const properties = [
     // Tenant 1 — geocoded
-    { id: IDS.prop1, tenant_id: IDS.tenant, branch_id: IDS.branchCity, property_code: 'SPS-001', type: 'RESIDENTIAL' as const, street: '12 Harbour St', suburb: 'Sydney', postcode: '2000', state: 'NSW', lat: -33.8688, lng: 151.2093, geocoding_status: 'SUCCESS' as const },
-    { id: IDS.prop2, tenant_id: IDS.tenant, branch_id: IDS.branchCity, property_code: 'SPS-002', type: 'RESIDENTIAL' as const, street: '88 Crown St', suburb: 'Surry Hills', postcode: '2010', state: 'NSW', lat: -33.8838, lng: 151.2122, geocoding_status: 'SUCCESS' as const },
-    { id: IDS.prop3, tenant_id: IDS.tenant, branch_id: IDS.branchNorth, property_code: 'SPS-003', type: 'RESIDENTIAL' as const, street: '5 Blue St', suburb: 'North Sydney', postcode: '2060', state: 'NSW', lat: -33.8389, lng: 151.2074, geocoding_status: 'SUCCESS' as const },
+    { id: IDS.prop1, tenant_id: IDS.tenant, branch_id: IDS.branchCity, property_code: 'SPS-001', type: 'HOUSE' as const, street: '12 Harbour St', suburb: 'Sydney', postcode: '2000', state: 'NSW', lat: -33.8688, lng: 151.2093, geocoding_status: 'SUCCESS' as const },
+    { id: IDS.prop2, tenant_id: IDS.tenant, branch_id: IDS.branchCity, property_code: 'SPS-002', type: 'HOUSE' as const, street: '88 Crown St', suburb: 'Surry Hills', postcode: '2010', state: 'NSW', lat: -33.8838, lng: 151.2122, geocoding_status: 'SUCCESS' as const },
+    { id: IDS.prop3, tenant_id: IDS.tenant, branch_id: IDS.branchNorth, property_code: 'SPS-003', type: 'HOUSE' as const, street: '5 Blue St', suburb: 'North Sydney', postcode: '2060', state: 'NSW', lat: -33.8389, lng: 151.2074, geocoding_status: 'SUCCESS' as const },
     { id: IDS.prop4, tenant_id: IDS.tenant, branch_id: IDS.branchNorth, property_code: 'SPS-004', type: 'COMMERCIAL' as const, street: '200 Pacific Hwy', suburb: 'Crows Nest', postcode: '2065', state: 'NSW', lat: -33.8268, lng: 151.2022, geocoding_status: 'SUCCESS' as const },
-    { id: IDS.prop5, tenant_id: IDS.tenant, branch_id: IDS.branchCity, property_code: 'SPS-005', type: 'RESIDENTIAL' as const, street: '33 Glebe Point Rd', suburb: 'Glebe', postcode: '2037', state: 'NSW', lat: -33.8785, lng: 151.1867, geocoding_status: 'SUCCESS' as const },
+    { id: IDS.prop5, tenant_id: IDS.tenant, branch_id: IDS.branchCity, property_code: 'SPS-005', type: 'HOUSE' as const, street: '33 Glebe Point Rd', suburb: 'Glebe', postcode: '2037', state: 'NSW', lat: -33.8785, lng: 151.1867, geocoding_status: 'SUCCESS' as const },
     // Tenant 1 — no geocoding
-    { id: IDS.prop6, tenant_id: IDS.tenant, branch_id: IDS.branchNorth, property_code: 'SPS-006', type: 'RESIDENTIAL' as const, street: '14 Miller St', suburb: 'Chatswood', postcode: '2067', state: 'NSW', lat: -33.7969, lng: 151.1803, geocoding_status: 'SUCCESS' as const },
+    { id: IDS.prop6, tenant_id: IDS.tenant, branch_id: IDS.branchNorth, property_code: 'SPS-006', type: 'HOUSE' as const, street: '14 Miller St', suburb: 'Chatswood', postcode: '2067', state: 'NSW', lat: -33.7969, lng: 151.1803, geocoding_status: 'SUCCESS' as const },
     { id: IDS.prop7, tenant_id: IDS.tenant, branch_id: IDS.branchCity, property_code: 'SPS-007', type: 'INDUSTRIAL' as const, street: '9 Bourke Rd', suburb: 'Alexandria', postcode: '2015', state: 'NSW', lat: -33.8993, lng: 151.1955, geocoding_status: 'SUCCESS' as const },
     // Tenant 2
-    { id: IDS.prop8, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb, property_code: 'MRE-001', type: 'RESIDENTIAL' as const, street: '12 Swanston St', suburb: 'Melbourne', postcode: '3000', state: 'VIC', lat: -37.8136, lng: 144.9631, geocoding_status: 'SUCCESS' as const },
-    { id: IDS.prop9, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb, property_code: 'MRE-002', type: 'RESIDENTIAL' as const, street: '5 Church St', suburb: 'Richmond', postcode: '3121', state: 'VIC', lat: -37.8183, lng: 144.9971, geocoding_status: 'SUCCESS' as const },
+    { id: IDS.prop8, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb, property_code: 'MRE-001', type: 'HOUSE' as const, street: '12 Swanston St', suburb: 'Melbourne', postcode: '3000', state: 'VIC', lat: -37.8136, lng: 144.9631, geocoding_status: 'SUCCESS' as const },
+    { id: IDS.prop9, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb, property_code: 'MRE-002', type: 'HOUSE' as const, street: '5 Church St', suburb: 'Richmond', postcode: '3121', state: 'VIC', lat: -37.8183, lng: 144.9971, geocoding_status: 'SUCCESS' as const },
     { id: IDS.prop10, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb, property_code: 'MRE-003', type: 'COMMERCIAL' as const, street: '100 St Kilda Rd', suburb: 'Southbank', postcode: '3006', state: 'VIC', lat: -37.8305, lng: 144.9675, geocoding_status: 'SUCCESS' as const },
   ];
 

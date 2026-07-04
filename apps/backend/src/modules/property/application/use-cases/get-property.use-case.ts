@@ -25,6 +25,11 @@ export interface GetPropertyOutput {
   latitude: number | null;
   longitude: number | null;
   geocodingStatus: string;
+  privateAreaM2: number | null;
+  totalAreaM2: number | null;
+  furnished: boolean | null;
+  linenProvided: boolean | null;
+  rentAmount: number | null;
   notes: string | null;
   rulesJson: Record<string, unknown>;
   createdAt: Date;
@@ -80,6 +85,11 @@ export class GetPropertyUseCase {
       latitude: found.property.lat,
       longitude: found.property.lng,
       geocodingStatus: found.property.geocodingStatus,
+      privateAreaM2: found.property.privateAreaM2,
+      totalAreaM2: found.property.totalAreaM2,
+      furnished: found.property.furnished,
+      linenProvided: found.property.linenProvided,
+      rentAmount: found.property.rentAmount,
       notes: found.property.notes,
       rulesJson: found.property.rulesJson,
       createdAt: found.property.createdAt,

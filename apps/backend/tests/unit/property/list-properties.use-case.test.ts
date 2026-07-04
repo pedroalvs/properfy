@@ -20,7 +20,7 @@ function makeProperty(
     tenantId: 'tenant-1',
     branchId: null,
     propertyCode: 'PROP-001',
-    type: 'RESIDENTIAL',
+    type: 'HOUSE',
     street: '123 Main St',
     addressLine2: null,
     suburb: 'Sydney',
