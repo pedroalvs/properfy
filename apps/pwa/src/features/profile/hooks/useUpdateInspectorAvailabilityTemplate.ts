@@ -1,12 +1,16 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
+import { useAuth } from '@/hooks/useAuth';
 import type { AvailabilityTemplate, InspectorAvailabilityResponse } from '@properfy/shared';
 
-const QUERY_KEY = ['inspector', 'availability-template'] as const;
+// The availability query caches the API envelope; select() unwraps it for consumers.
+type CachedAvailability = { data: InspectorAvailabilityResponse };
 
 /** PUT /v1/inspectors/me/availability-template with optimistic update. */
 export function useUpdateInspectorAvailabilityTemplate() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const QUERY_KEY = ['inspector', 'availability-template', user?.id];
 
   return useMutation({
     mutationFn: async (template: AvailabilityTemplate) => {
@@ -18,13 +22,13 @@ export function useUpdateInspectorAvailabilityTemplate() {
         const msg = (error as { error?: { message?: string } })?.error?.message;
         throw new Error(msg ?? 'Failed to update availability');
       }
-      return data as InspectorAvailabilityResponse;
+      return data as CachedAvailability;
     },
     onMutate: async (template) => {
       await queryClient.cancelQueries({ queryKey: QUERY_KEY });
-      const snapshot = queryClient.getQueryData<InspectorAvailabilityResponse>(QUERY_KEY);
-      queryClient.setQueryData<InspectorAvailabilityResponse | undefined>(QUERY_KEY, (prev) =>
-        prev ? { ...prev, template } : prev,
+      const snapshot = queryClient.getQueryData<CachedAvailability>(QUERY_KEY);
+      queryClient.setQueryData<CachedAvailability | undefined>(QUERY_KEY, (prev) =>
+        prev ? { data: { ...prev.data, template } } : prev,
       );
       return { snapshot };
     },

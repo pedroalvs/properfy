@@ -1,4 +1,5 @@
 import { useDetailQuery } from '@/hooks/useApiQuery';
+import { useAuth } from '@/hooks/useAuth';
 
 interface InspectorDetail {
   id: string;
@@ -53,12 +54,15 @@ function ExpiryBadge({ expiry }: { expiry: string | null }) {
 }
 
 export function InspectorDetailsCard() {
+  const { user } = useAuth();
   const { data, isLoading, isError } = useDetailQuery<InspectorDetail>(
-    ['inspector', 'me'],
+    ['inspector', 'me', user?.id],
     '/v1/inspectors/me',
     {
+      enabled: !!user,
       staleTime: 5 * 60 * 1000,
       gcTime: 24 * 60 * 60 * 1000,
+      refetchOnWindowFocus: false,
     },
   );
 
