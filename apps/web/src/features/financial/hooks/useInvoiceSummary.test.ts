@@ -71,22 +71,24 @@ describe('useInvoiceSummary', () => {
     expect(opts.params.query).toEqual({ inspectorId: 'insp-1', fromDate: '2026-04-01' });
   });
 
-  it('exposes a multiCurrencyError on MULTI_CURRENCY_SCOPE', async () => {
+  it('exposes a multiCurrencyError on MULTI_CURRENCY_SCOPE and takes the status from the Response', async () => {
     mockGet.mockResolvedValue({
+      // The parsed error body carries no HTTP status — it lives on the raw Response.
       error: {
-        status: 400,
         error: {
           code: 'MULTI_CURRENCY_SCOPE',
           message: 'Multiple currencies in scope',
           details: { currencies: ['AUD', 'USD'] },
         },
       },
+      response: { status: 400 },
     });
 
     const { result } = renderHook(() => useInvoiceSummary({}), { wrapper: createWrapper() });
 
     await waitFor(() => expect(result.current.multiCurrencyError).not.toBeNull());
     expect(result.current.multiCurrencyError?.currencies).toEqual(['AUD', 'USD']);
+    expect(result.current.error?.status).toBe(400);
     expect(result.current.summary).toBeNull();
   });
 });

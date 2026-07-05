@@ -110,6 +110,14 @@ describe('GetInvoiceSummaryUseCase', () => {
     await expect(sut.execute({ actor: opActor })).rejects.toThrow(MultiCurrencyScopeError);
   });
 
+  it('allows the AM role', async () => {
+    const sut = makeSut();
+    invoiceRepo.getStatusAggregates.mockResolvedValue([]);
+
+    const amActor = { ...opActor, userId: 'am-1', role: 'AM' as const, tenantId: null };
+    await expect(sut.execute({ actor: amActor })).resolves.toMatchObject({ totalCount: 0 });
+  });
+
   it('rejects non-AM/OP actors with ForbiddenError', async () => {
     const sut = makeSut();
 

@@ -3,6 +3,7 @@ import supertest from 'supertest';
 import { buildApp } from '../../../src/main/server';
 import type { FastifyInstance } from 'fastify';
 import { createMockContainer } from '../../helpers/mock-container';
+import { MultiCurrencyScopeError } from '../../../src/modules/billing/domain/billing.errors';
 
 const mockGetFinancialSummaryExecute = vi.fn();
 const mockListFinancialEntriesExecute = vi.fn();
@@ -404,6 +405,19 @@ describe('Canonical /v1/billing/invoices/* routes (no deprecation headers)', () 
       }),
     );
     expect(mockGetInvoiceExecute).not.toHaveBeenCalled();
+  });
+
+  it('GET /v1/billing/invoices/summary maps MultiCurrencyScopeError to 400 MULTI_CURRENCY_SCOPE', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockGetInvoiceSummaryExecute.mockRejectedValueOnce(new MultiCurrencyScopeError(['AUD', 'USD']));
+
+    const res = await supertest(app.server)
+      .get('/v1/billing/invoices/summary')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('MULTI_CURRENCY_SCOPE');
+    expect(res.body.error.details).toEqual({ currencies: ['AUD', 'USD'] });
   });
 
   it('GET /v1/billing/invoices/summary rejects invalid query with 400', async () => {
