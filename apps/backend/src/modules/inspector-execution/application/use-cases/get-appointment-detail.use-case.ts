@@ -87,13 +87,14 @@ export interface AppointmentDetailOutput {
   suburb: string;
   propertyLatitude: number | null;
   propertyLongitude: number | null;
-  // Rent amount intentionally omitted — commercial information not for inspectors.
   propertyAddressLine2: string | null;
   propertyType: PropertyType | null;
   propertyPrivateAreaM2: number | null;
   propertyTotalAreaM2: number | null;
   propertyFurnished: boolean | null;
   propertyLinenProvided: boolean | null;
+  // Rent amount intentionally omitted from the property block above — commercial
+  // information not for inspectors.
   rentalTenantConfirmationStatus: string;
   rentalTenantConfirmation: string;
   keyRequired: boolean;
