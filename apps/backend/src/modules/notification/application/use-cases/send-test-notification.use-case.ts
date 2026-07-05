@@ -1,4 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import type { AuthContext } from '@properfy/shared';
+import { prepareSmsBody } from '../../domain/sms-content';
 import { TEMPLATE_VARIABLES, SAMPLE_DATA, type AllowedVariable } from '@properfy/shared';
 import { ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
@@ -129,7 +131,12 @@ export class SendTestNotificationUseCase {
       if (renderedBodyText.trim().length === 0) {
         throw new ValidationError('Rendered SMS body is empty');
       }
-      ({ messageId } = await this.smsProvider.send(input.recipient, renderedBodyText));
+      const prepared = prepareSmsBody(renderedBodyText);
+      ({ messageId } = await this.smsProvider.send(input.recipient, prepared.body, {
+        idempotencyKey: `test-${randomUUID()}`,
+        customRef: `test-${input.templateCode}`,
+        enableUnicode: prepared.unicode,
+      }));
     }
 
     const sentAt = new Date();

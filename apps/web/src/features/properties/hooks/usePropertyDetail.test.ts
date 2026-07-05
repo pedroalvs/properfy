@@ -33,7 +33,7 @@ const mockGet = api.GET as ReturnType<typeof vi.fn>;
 const MOCK_PROPERTY = {
   id: 'prop-01',
   propertyCode: 'IMV-001',
-  type: 'RESIDENTIAL',
+  type: 'HOUSE',
   street: 'Rua das Flores, 123',
 };
 

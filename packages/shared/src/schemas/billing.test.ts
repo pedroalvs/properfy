@@ -4,6 +4,8 @@ import {
   createManualAdjustmentSchema,
   createRefundSchema,
   listInvoicesQuerySchema,
+  invoiceSummaryQuerySchema,
+  invoiceSummaryResponseSchema,
 } from './billing';
 
 describe('listFinancialEntriesQuerySchema', () => {
@@ -142,7 +144,7 @@ describe('listInvoicesQuerySchema', () => {
   });
 
   it('should accept each status bucket', () => {
-    for (const status of ['pending', 'approved', 'rejected']) {
+    for (const status of ['pending', 'approved', 'rejected', 'done']) {
       expect(listInvoicesQuerySchema.safeParse({ status }).success).toBe(true);
     }
   });
@@ -154,6 +156,82 @@ describe('listInvoicesQuerySchema', () => {
   it('should reject invalid status enum', () => {
     const result = listInvoicesQuerySchema.safeParse({
       status: 'INVALID',
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('invoiceSummaryQuerySchema', () => {
+  it('should accept an empty object (all filters optional)', () => {
+    expect(invoiceSummaryQuerySchema.safeParse({}).success).toBe(true);
+  });
+
+  it('should accept all filters together', () => {
+    const result = invoiceSummaryQuerySchema.safeParse({
+      inspectorId: '550e8400-e29b-41d4-a716-446655440000',
+      agencyId: '550e8400-e29b-41d4-a716-446655440001',
+      branchId: '550e8400-e29b-41d4-a716-446655440002',
+      fromDate: '2026-01-01',
+      toDate: '2026-12-31',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject invalid date format', () => {
+    expect(invoiceSummaryQuerySchema.safeParse({ fromDate: '01/01/2026' }).success).toBe(false);
+  });
+
+  it('should reject toDate before fromDate', () => {
+    const result = invoiceSummaryQuerySchema.safeParse({
+      fromDate: '2026-06-30',
+      toDate: '2026-06-01',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject non-uuid inspectorId', () => {
+    expect(invoiceSummaryQuerySchema.safeParse({ inspectorId: 'abc' }).success).toBe(false);
+  });
+});
+
+describe('invoiceSummaryResponseSchema', () => {
+  it('should accept a valid summary payload', () => {
+    const result = invoiceSummaryResponseSchema.safeParse({
+      currency: 'AUD',
+      totalCount: 10,
+      pendingCount: 4,
+      approvedCount: 3,
+      paidCount: 2,
+      voidCount: 1,
+      pendingAmount: 1200.5,
+      paidAmount: 800,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject negative counts', () => {
+    const result = invoiceSummaryResponseSchema.safeParse({
+      currency: 'AUD',
+      totalCount: -1,
+      pendingCount: 0,
+      approvedCount: 0,
+      paidCount: 0,
+      voidCount: 0,
+      pendingAmount: 0,
+      paidAmount: 0,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject missing currency', () => {
+    const result = invoiceSummaryResponseSchema.safeParse({
+      totalCount: 0,
+      pendingCount: 0,
+      approvedCount: 0,
+      paidCount: 0,
+      voidCount: 0,
+      pendingAmount: 0,
+      paidAmount: 0,
     });
     expect(result.success).toBe(false);
   });

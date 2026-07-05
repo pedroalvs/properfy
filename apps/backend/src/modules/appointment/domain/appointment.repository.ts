@@ -1,5 +1,6 @@
 import type {
   AppointmentCustomField,
+  PropertyType,
   CancellationReasonCode,
   RejectionReasonCode,
   ServiceTypeFlowType,
@@ -61,6 +62,13 @@ export interface AppointmentWithRelations {
   propertySuburb?: string;
   propertyLatitude?: number | null;
   propertyLongitude?: number | null;
+  propertyType?: PropertyType | null;
+  propertyAddressLine2?: string | null;
+  propertyPrivateAreaM2?: number | null;
+  propertyTotalAreaM2?: number | null;
+  propertyFurnished?: boolean | null;
+  propertyLinenProvided?: boolean | null;
+  propertyRentAmount?: number | null;
   branchName?: string;
   serviceTypeName?: string;
   inspectorName?: string | null;
@@ -161,18 +169,7 @@ export interface IAppointmentRepository {
     }>,
   ): Promise<void>;
   saveContact(contact: AppointmentContactEntity): Promise<void>;
-  /** @deprecated Use updateContactSnapshot for junction-aware writes. Kept during expand phase. */
-  updateContact(
-    appointmentId: string,
-    data: Partial<{
-      rentalTenantName: string;
-      primaryEmail: string | null;
-      secondaryEmail: string | null;
-      primaryPhone: string | null;
-      secondaryPhone: string | null;
-    }>,
-  ): Promise<void>;
-  /** Update snapshot fields on a specific junction row. Used by portal dual-write (feature 007 FR-053). */
+  /** Update snapshot fields on a specific junction row. Used by portal contact edits and legacy single-contact updates. */
   updateContactSnapshot(
     appointmentId: string,
     contactJunctionId: string,

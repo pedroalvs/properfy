@@ -47,3 +47,9 @@ export type InvoiceStatusBucket = keyof typeof INVOICE_STATUS_BUCKETS;
  * partial unique index (which mirrors this list in SQL). (spec 032)
  */
 export const ACTIVE_INVOICE_STATUSES = ['PENDING_REVIEW', 'CLOSED', 'PAID'] as const;
+
+/**
+ * Statuses shown under the "Done" tab of the backoffice Invoices page — everything that is no
+ * longer pending review (approved, paid or rejected).
+ */
+export const INVOICE_DONE_STATUSES = ['CLOSED', 'PAID', 'VOID'] as const;

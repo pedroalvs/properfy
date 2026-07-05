@@ -1,10 +1,12 @@
 import type {
   AppointmentStatus,
+  PropertyType,
   RentalTenantConfirmationStatus,
   AppointmentContactRole,
   ContactType,
   ContactChannelType,
   AppointmentCustomField,
+  AppointmentApp,
 } from '@properfy/shared';
 import { CUSTOM_FIELDS_MAX } from '@properfy/shared';
 
@@ -87,10 +89,18 @@ export interface AppointmentDetail extends Omit<Appointment, 'code'> {
   rejectionReasonCode?: string | null;
   reason?: string | null;
   contacts?: AppointmentContactEntry[];
+  /** Property detail attributes (nullable — legacy properties have no values). */
+  propertyType?: PropertyType | null;
+  propertyAddressLine2?: string | null;
+  propertyPrivateAreaM2?: number | null;
+  propertyTotalAreaM2?: number | null;
+  propertyFurnished?: boolean | null;
+  propertyLinenProvided?: boolean | null;
+  propertyRentAmount?: number | null;
   /** Operator-defined custom fields (label/value pairs, max 4). */
   customFields?: AppointmentCustomField[];
   /** App credentials linked to this appointment (live reference). */
-  apps?: Array<{ id: string; name: string; username: string; password: string }>;
+  apps?: AppointmentApp[];
   restrictions?: Array<{
     id: string;
     isHome: boolean;

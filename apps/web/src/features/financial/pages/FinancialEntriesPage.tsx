@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useAuth } from '@/hooks/useAuth';
@@ -19,6 +20,7 @@ import { NoPermissionState } from '@/components/feedback/NoPermissionState';
 import { useFinancialList } from '../hooks/useFinancialList';
 
 export function FinancialEntriesPage() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { hasRole } = usePermissions();
   const canViewFinancial = hasRole('AM', 'OP');
@@ -128,6 +130,11 @@ export function FinancialEntriesPage() {
       <ListFilterTableTemplate
         title="Financial Entries"
         secondaryActions={[
+          {
+            label: 'Invoices',
+            icon: 'mdi-file-document-outline',
+            onClick: () => navigate('/financial/invoices'),
+          },
           {
             label: 'Adjustment',
             icon: 'mdi-tune-vertical',

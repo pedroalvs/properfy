@@ -101,9 +101,7 @@ describe('PATCH /v1/rental-tenant-portal/:token/contact — dual-write (FR-053)'
     mockUpdateContactExecute.mockResolvedValue({
       rentalTenantName: 'John Smith',
       primaryEmail: 'newemail@example.com',
-      secondaryEmail: null,
       primaryPhone: '+61400000000',
-      secondaryPhone: null,
     });
 
     const res = await supertest(app.server)
@@ -127,9 +125,7 @@ describe('PATCH /v1/rental-tenant-portal/:token/contact — dual-write (FR-053)'
     mockUpdateContactExecute.mockResolvedValue({
       rentalTenantName: 'John Smith',
       primaryEmail: 'updated@example.com',
-      secondaryEmail: null,
       primaryPhone: '+61499999999',
-      secondaryPhone: null,
     });
 
     await supertest(app.server)
@@ -153,9 +149,7 @@ describe('PATCH /v1/rental-tenant-portal/:token/contact — dual-write (FR-053)'
     mockUpdateContactExecute.mockResolvedValue({
       rentalTenantName: 'John Smith',
       primaryEmail: 'newemail@example.com', // snapshot updated
-      secondaryEmail: null,
       primaryPhone: null,
-      secondaryPhone: null,
     });
 
     const res = await supertest(app.server)
@@ -173,9 +167,7 @@ describe('PATCH /v1/rental-tenant-portal/:token/contact — dual-write (FR-053)'
     mockUpdateContactExecute.mockResolvedValue({
       rentalTenantName: 'Legacy Tenant',
       primaryEmail: 'legacy@example.com',
-      secondaryEmail: null,
       primaryPhone: null,
-      secondaryPhone: null,
     });
 
     const res = await supertest(app.server)

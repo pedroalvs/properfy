@@ -122,6 +122,21 @@ export class PrismaNotificationRepository implements INotificationRepository {
     return rows.map(mapToEntity);
   }
 
+  // Cross-tenant: background reconciliation of SMS delivery receipts
+  async findSmsAwaitingDeliveryReceipt(from: Date, to: Date, limit = 100): Promise<NotificationEntity[]> {
+    const rows = await this.prisma.notification.findMany({
+      where: {
+        channel: 'SMS',
+        status: 'SENT',
+        provider_message_id: { not: null },
+        sent_at: { gte: from, lte: to },
+      },
+      take: limit,
+      orderBy: { sent_at: 'asc' },
+    });
+    return rows.map(mapToEntity);
+  }
+
   async save(notification: NotificationEntity): Promise<void> {
     await this.prisma.notification.create({
       data: {

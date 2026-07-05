@@ -20,6 +20,8 @@ interface InvoiceFiltersProps {
   inspectorOptions?: FilterSelectOption[];
   agencyOptions?: FilterSelectOption[];
   branchOptions?: FilterSelectOption[];
+  /** Hide the status select when the page drives status externally (e.g. Pending/Done tabs). */
+  hideStatus?: boolean;
 }
 
 export function InvoiceFilters({
@@ -28,6 +30,7 @@ export function InvoiceFilters({
   inspectorOptions = [],
   agencyOptions = [],
   branchOptions = [],
+  hideStatus = false,
 }: InvoiceFiltersProps) {
   return (
     <FilterBar>
@@ -50,12 +53,14 @@ export function InvoiceFilters({
         onChange={(inspectorId) => onFiltersChange({ ...filters, inspectorId })}
         options={[{ label: 'All', value: '' }, ...inspectorOptions]}
       />
-      <FilterSelect
-        label="Status"
-        value={filters.status}
-        onChange={(status) => onFiltersChange({ ...filters, status })}
-        options={STATUS_OPTIONS}
-      />
+      {!hideStatus && (
+        <FilterSelect
+          label="Status"
+          value={filters.status}
+          onChange={(status) => onFiltersChange({ ...filters, status })}
+          options={STATUS_OPTIONS}
+        />
+      )}
       <FilterDateRange
         label="Period"
         startDate={filters.periodStart}

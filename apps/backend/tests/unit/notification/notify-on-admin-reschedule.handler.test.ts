@@ -47,11 +47,12 @@ function makeContact(
   return new AppointmentContactEntity({
     id: 'contact-1',
     appointmentId: 'appt-1',
-    rentalTenantName: 'John Smith',
-    primaryEmail: 'john@example.com',
-    secondaryEmail: null,
-    primaryPhone: '+61400000000',
-    secondaryPhone: null,
+    contactId: null,
+    role: 'RENTAL_TENANT',
+    isPrimary: true,
+    snapshotName: 'John Smith',
+    snapshotEmail: 'john@example.com',
+    snapshotPhone: '+61400000000',
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -147,7 +148,7 @@ describe('NotifyOnAdminRescheduleHandler', () => {
   it('falls back to SMS when the contact has no email', async () => {
     appointmentRepo.findById.mockResolvedValue({
       appointment: makeAppointment(),
-      contact: makeContact({ primaryEmail: null }),
+      contact: makeContact({ snapshotEmail: null }),
       restrictions: [],
     });
     tenantRepo.findById.mockResolvedValue(makeTenant());
@@ -195,7 +196,7 @@ describe('NotifyOnAdminRescheduleHandler', () => {
   it('skips silently when the contact has neither email nor phone', async () => {
     appointmentRepo.findById.mockResolvedValue({
       appointment: makeAppointment(),
-      contact: makeContact({ primaryEmail: null, primaryPhone: null }),
+      contact: makeContact({ snapshotEmail: null, snapshotPhone: null }),
       restrictions: [],
     });
     tenantRepo.findById.mockResolvedValue(makeTenant());

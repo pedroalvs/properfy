@@ -67,7 +67,7 @@ const fullProperty = {
   tenantId: TENANT_ID,
   branchId: null,
   propertyCode: 'PROP-001',
-  type: 'RESIDENTIAL',
+  type: 'HOUSE',
   street: '123 Main St',
   addressLine2: null,
   suburb: 'Sydney',
@@ -157,7 +157,7 @@ describe('POST /v1/properties', () => {
       .send({
         tenantId: TENANT_ID,
         propertyCode: 'PROP-001',
-        type: 'RESIDENTIAL',
+        type: 'HOUSE',
         street: '123 Main St',
         suburb: 'Sydney',
         postcode: '2000',
@@ -177,7 +177,7 @@ describe('POST /v1/properties', () => {
       .post('/v1/properties')
       .set('Authorization', 'Bearer valid-token')
       .send({
-        type: 'RESIDENTIAL',
+        type: 'HOUSE',
         street: '123 Main St',
         suburb: 'Sydney',
         postcode: '2000',
@@ -193,7 +193,7 @@ describe('POST /v1/properties', () => {
       .post('/v1/properties')
       .send({
         propertyCode: 'PROP-001',
-        type: 'RESIDENTIAL',
+        type: 'HOUSE',
         street: '123 Main St',
         suburb: 'Sydney',
         postcode: '2000',

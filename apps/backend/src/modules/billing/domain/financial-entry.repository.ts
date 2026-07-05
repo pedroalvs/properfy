@@ -33,6 +33,19 @@ export interface FinancialEntrySummary {
   currency: string | null;
 }
 
+/**
+ * Aggregates for the inspector's own earnings view (PWA): all-time approved
+ * total, pending ("next payment") total, and per-month approved totals from
+ * `monthlyFrom` onwards. `monthly` contains only months with data — the use
+ * case zero-fills the window.
+ */
+export interface InspectorEarningsSummary {
+  totalApproved: number;
+  nextPayment: number;
+  currency: string | null;
+  monthly: { month: string; total: number }[];
+}
+
 export interface FinancialEntryEnriched {
   entity: FinancialEntryEntity;
   appointmentCode: string | null;
@@ -45,6 +58,8 @@ export interface IFinancialEntryRepository {
   findByIdEnriched(id: string, tenantId?: string): Promise<FinancialEntryEnriched | null>;
   findAllEnriched(filters: FinancialEntryFilters, pagination: FinancialEntryPagination): Promise<FinancialEntryEnriched[]>;
   getSummary(tenantId?: string, dateRange?: { effectiveFrom?: string; effectiveTo?: string }): Promise<FinancialEntrySummary>;
+  /** Own-payout aggregates for the inspector earnings screen (see InspectorEarningsSummary). */
+  getInspectorEarningsSummary(inspectorId: string, monthlyFrom: Date): Promise<InspectorEarningsSummary>;
   findByAppointmentAndType(appointmentId: string, entryType: FinancialEntryType): Promise<FinancialEntryEntity | null>;
   findByReferenceEntryIdAndType(referenceEntryId: string, entryType: FinancialEntryType): Promise<FinancialEntryEntity | null>;
   findAll(filters: FinancialEntryFilters, pagination: FinancialEntryPagination): Promise<FinancialEntryEntity[]>;

@@ -4,12 +4,25 @@ import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import type { AppFormData, AppFormErrors } from '../types';
 
+/** Shared optional fields — empty inputs are sent as null (clears on update). */
+function toOptionalFields(data: AppFormData) {
+  return {
+    branchId: data.branchId || null,
+    needsAuthCode: data.needsAuthCode,
+    authCode: data.needsAuthCode && data.authCode ? data.authCode : null,
+    appUrl: data.appUrl.trim() || null,
+    instructionsUrl: data.instructionsUrl.trim() || null,
+    instructionsPassword: data.instructionsPassword || null,
+  };
+}
+
 function toCreatePayload(data: AppFormData) {
   return {
     tenantId: data.tenantId,
     name: data.name.trim(),
     username: data.username.trim(),
     password: data.password,
+    ...toOptionalFields(data),
   };
 }
 
@@ -18,6 +31,7 @@ function toUpdatePayload(data: AppFormData) {
     name: data.name.trim(),
     username: data.username.trim(),
     password: data.password,
+    ...toOptionalFields(data),
   };
 }
 
@@ -53,7 +67,13 @@ export function useAppSave(): UseAppSaveReturn {
     const payload = mode === 'create' ? toCreatePayload(data) : toUpdatePayload(data);
     const schema = mode === 'create' ? appCredentialCreateSchema : appCredentialUpdateSchema;
     const result = schema.safeParse(payload);
-    return result.success ? {} : zodErrorsToFormErrors(result.error.issues);
+    const errors = result.success ? {} : zodErrorsToFormErrors(result.error.issues);
+    // The shared schema only enforces this on create (updates are partial
+    // patches); the form always has the full state, so enforce in both modes.
+    if (data.needsAuthCode && !data.authCode && !errors.authCode) {
+      errors.authCode = 'Authentication code is required';
+    }
+    return errors;
   }, []);
 
   const save = useCallback(async (data: AppFormData, appId?: string): Promise<SaveResult> => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/hooks/useAuth';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
@@ -61,12 +61,28 @@ function createWrapper() {
   };
 }
 
+const MOCK_SUMMARY = {
+  currency: 'AUD',
+  totalCount: 2,
+  pendingCount: 0,
+  approvedCount: 1,
+  paidCount: 1,
+  voidCount: 0,
+  pendingAmount: 0,
+  paidAmount: 3200,
+};
+
 beforeEach(() => {
   mockGet.mockReset();
-  mockGet.mockResolvedValue({ data: {
-    data: MOCK_INVOICES,
-    pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
-  } });
+  mockGet.mockImplementation(async (path: string) => {
+    if (path === '/v1/billing/invoices/summary') {
+      return { data: { data: MOCK_SUMMARY } };
+    }
+    return { data: {
+      data: MOCK_INVOICES,
+      pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
+    } };
+  });
 });
 
 function renderPage() {
@@ -80,10 +96,33 @@ describe('InvoicesPage', () => {
     expect(screen.getByText('Invoices')).toBeInTheDocument();
   });
 
-  it('renders filter bar with inspector search and status filter', () => {
+  it('renders filter bar with inspector filter and NO status select (tabs own status)', () => {
     renderPage();
     expect(screen.getByLabelText('Inspector')).toBeInTheDocument();
-    expect(screen.getByLabelText('Status')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Status')).not.toBeInTheDocument();
+  });
+
+  it('renders Pending and Done tabs with Pending active by default', async () => {
+    renderPage();
+    const pendingTab = screen.getByRole('tab', { name: 'Pending' });
+    const doneTab = screen.getByRole('tab', { name: 'Done' });
+    expect(pendingTab).toHaveAttribute('aria-selected', 'true');
+    expect(doneTab).toHaveAttribute('aria-selected', 'false');
+    // The default list request carries the pending status filter.
+    await waitFor(() => {
+      const listCall = mockGet.mock.calls.find(([path]) => path === '/v1/billing/invoices');
+      expect(listCall?.[1]?.params?.query?.status).toBe('pending');
+    });
+  });
+
+  it('switching to Done requests the done status bucket', async () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: 'Done' }));
+    await waitFor(() => {
+      const listCalls = mockGet.mock.calls.filter(([path]) => path === '/v1/billing/invoices');
+      const last = listCalls[listCalls.length - 1];
+      expect(last?.[1]?.params?.query?.status).toBe('done');
+    });
   });
 
   it('renders Agency and Branch content filters and no agency gate (spec 032)', async () => {
@@ -110,9 +149,10 @@ describe('InvoicesPage', () => {
     });
   });
 
-  it('mounts ReconciliationSummary (T067)', () => {
+  it('mounts the summary indicators above the tabs', () => {
     renderPage();
-    expect(screen.getByTestId('reconciliation-summary')).toBeInTheDocument();
-    expect(screen.getByText('Total Invoiced')).toBeInTheDocument();
+    expect(screen.getByTestId('invoice-summary-indicators')).toBeInTheDocument();
+    expect(screen.getByText('Pending Amount')).toBeInTheDocument();
+    expect(screen.getByText('Paid Amount')).toBeInTheDocument();
   });
 });

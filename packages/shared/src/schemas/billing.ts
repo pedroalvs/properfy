@@ -106,14 +106,39 @@ export const listInvoicesQuerySchema = z.object({
   // Content filters (spec 032): match invoices whose frozen snapshot has ≥1 line for the agency/branch.
   agencyId: z.string().uuid().optional(),
   branchId: z.string().uuid().optional(),
-  // 3-bucket status filter (Pending / Approved / Rejected).
-  status: z.enum(['pending', 'approved', 'rejected']).optional(),
+  // 3-bucket status filter (Pending / Approved / Rejected) plus 'done' = everything not pending.
+  status: z.enum(['pending', 'approved', 'rejected', 'done']).optional(),
   fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD').optional(),
   toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD').optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(50).default(20),
 });
 export type ListInvoicesQuery = z.infer<typeof listInvoicesQuerySchema>;
+
+export const invoiceSummaryQuerySchema = z.object({
+  inspectorId: z.string().uuid().optional(),
+  // Content filters (spec 032): same semantics as listInvoicesQuerySchema.
+  agencyId: z.string().uuid().optional(),
+  branchId: z.string().uuid().optional(),
+  fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD').optional(),
+  toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD').optional(),
+}).refine(
+  (d) => !d.fromDate || !d.toDate || new Date(d.toDate) >= new Date(d.fromDate),
+  { message: 'toDate must be >= fromDate' },
+);
+export type InvoiceSummaryQuery = z.infer<typeof invoiceSummaryQuerySchema>;
+
+export const invoiceSummaryResponseSchema = z.object({
+  currency: z.string().length(3),
+  totalCount: z.number().int().nonnegative(),
+  pendingCount: z.number().int().nonnegative(),
+  approvedCount: z.number().int().nonnegative(),
+  paidCount: z.number().int().nonnegative(),
+  voidCount: z.number().int().nonnegative(),
+  pendingAmount: z.number(),
+  paidAmount: z.number(),
+});
+export type InvoiceSummaryResponse = z.infer<typeof invoiceSummaryResponseSchema>;
 
 export const voidFinancialEntrySchema = z.object({
   reason: z.string().min(1).max(1000),

@@ -77,11 +77,6 @@ function makeContact(overrides: Partial<ConstructorParameters<typeof Appointment
     snapshotName: 'Snapshot Name',
     snapshotEmail: 'snapshot@example.com',
     snapshotPhone: '+61400000001',
-    rentalTenantName: 'Legacy Name',
-    primaryEmail: 'legacy@example.com',
-    secondaryEmail: null,
-    primaryPhone: '+61400000000',
-    secondaryPhone: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -153,53 +148,6 @@ describe('Notification recipient resolution from snapshot fields (T047)', () => 
         templateCode: 'INSPECTION_NOTICE',
         payloadJson: expect.objectContaining({
           rentalTenantName: 'Snapshot Name',
-        }),
-      }),
-    );
-  });
-
-  it('status-transition to SCHEDULED: falls back to legacy primaryEmail when snapshotEmail is null', async () => {
-    const contact = makeContact({
-      snapshotEmail: null,
-      snapshotName: null,
-      // legacy fields present
-      primaryEmail: 'legacy@example.com',
-      rentalTenantName: 'Legacy Name',
-    });
-    // contact.effectiveEmail = null ?? 'legacy@example.com' = 'legacy@example.com'
-
-    appointmentRepo = {
-      findById: vi.fn().mockResolvedValue({
-        appointment: makeAppointment(),
-        contact,
-        contacts: [contact],
-        restrictions: [],
-      }),
-    };
-
-    const handler = new NotifyOnStatusTransitionHandler(
-      appointmentRepo,
-      propertyRepo,
-      tenantRepo,
-      notificationRepo,
-      mintPortalTokenService,
-      buildNotificationPayload,
-      appointmentCodeFormatter,
-      createNotification,
-      'http://localhost:5173',
-    );
-
-    await handler.execute({
-      appointmentId: 'appt-1',
-      previousStatus: 'AWAITING_INSPECTOR',
-      targetStatus: 'SCHEDULED',
-    });
-
-    expect(createNotification.execute).toHaveBeenCalledWith(
-      expect.objectContaining({
-        recipient: 'legacy@example.com',
-        payloadJson: expect.objectContaining({
-          rentalTenantName: 'Legacy Name',
         }),
       }),
     );

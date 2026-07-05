@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   paymentSettingsSchema,
   serviceTypesSchema,
-  clientEligibilitySchema,
   createInspectorSchema,
   updateInspectorSchema,
   listInspectorsQuerySchema,
@@ -111,42 +110,6 @@ describe('serviceTypesSchema', () => {
   });
 });
 
-describe('clientEligibilitySchema', () => {
-  it('should accept valid client eligibility entries', () => {
-    const result = clientEligibilitySchema.safeParse([
-      { tenantId: '550e8400-e29b-41d4-a716-446655440000', eligible: true },
-      { tenantId: '550e8400-e29b-41d4-a716-446655440001', eligible: false },
-    ]);
-    expect(result.success).toBe(true);
-  });
-
-  it('should accept empty array', () => {
-    const result = clientEligibilitySchema.safeParse([]);
-    expect(result.success).toBe(true);
-  });
-
-  it('should reject invalid UUID for tenantId', () => {
-    const result = clientEligibilitySchema.safeParse([
-      { tenantId: 'not-a-uuid', eligible: true },
-    ]);
-    expect(result.success).toBe(false);
-  });
-
-  it('should reject missing eligible field', () => {
-    const result = clientEligibilitySchema.safeParse([
-      { tenantId: '550e8400-e29b-41d4-a716-446655440000' },
-    ]);
-    expect(result.success).toBe(false);
-  });
-
-  it('should reject non-boolean eligible', () => {
-    const result = clientEligibilitySchema.safeParse([
-      { tenantId: '550e8400-e29b-41d4-a716-446655440000', eligible: 'yes' },
-    ]);
-    expect(result.success).toBe(false);
-  });
-});
-
 describe('createInspectorSchema', () => {
   const validInput = {
     name: 'John Smith',
@@ -156,9 +119,6 @@ describe('createInspectorSchema', () => {
     regions: ['Sydney', 'Melbourne'],
     serviceTypes: [
       { serviceTypeId: '550e8400-e29b-41d4-a716-446655440000', certified: true },
-    ],
-    clientEligibility: [
-      { tenantId: '550e8400-e29b-41d4-a716-446655440001', eligible: true },
     ],
   };
 
@@ -177,7 +137,6 @@ describe('createInspectorSchema', () => {
       expect(result.data.paymentSettings).toEqual({});
       expect(result.data.regions).toEqual([]);
       expect(result.data.serviceTypes).toEqual([]);
-      expect(result.data.clientEligibility).toEqual([]);
     }
   });
 
@@ -198,7 +157,6 @@ describe('createInspectorSchema', () => {
     if (result.success) {
       expect(result.data.regions).toEqual([]);
       expect(result.data.serviceTypes).toEqual([]);
-      expect(result.data.clientEligibility).toEqual([]);
     }
   });
 
@@ -207,15 +165,6 @@ describe('createInspectorSchema', () => {
       name: 'John Smith',
       email: 'john@example.com',
       serviceTypes: ['550e8400-e29b-41d4-a716-446655440000'],
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('should reject clientEligibility with plain UUID strings', () => {
-    const result = createInspectorSchema.safeParse({
-      name: 'John Smith',
-      email: 'john@example.com',
-      clientEligibility: ['550e8400-e29b-41d4-a716-446655440000'],
     });
     expect(result.success).toBe(false);
   });
@@ -256,15 +205,6 @@ describe('updateInspectorSchema', () => {
     const result = updateInspectorSchema.safeParse({
       serviceTypes: [
         { serviceTypeId: '550e8400-e29b-41d4-a716-446655440000', certified: true },
-      ],
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('should accept typed clientEligibility update', () => {
-    const result = updateInspectorSchema.safeParse({
-      clientEligibility: [
-        { tenantId: '550e8400-e29b-41d4-a716-446655440000', eligible: false },
       ],
     });
     expect(result.success).toBe(true);

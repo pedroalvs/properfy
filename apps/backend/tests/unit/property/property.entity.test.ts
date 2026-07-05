@@ -8,7 +8,7 @@ function buildProperty(overrides: Partial<ConstructorParameters<typeof PropertyE
     tenantId: 'tenant-1',
     branchId: null,
     propertyCode: 'PROP-001',
-    type: 'RESIDENTIAL',
+    type: 'HOUSE',
     street: '3/18 Ocean St',
     addressLine2: null,
     suburb: 'Kogarah',

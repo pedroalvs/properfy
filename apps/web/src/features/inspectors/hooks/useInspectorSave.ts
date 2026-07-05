@@ -39,14 +39,6 @@ function parseServiceTypeEntries(value: string): Array<{ serviceTypeId: string; 
   return parsed.map((id) => ({ serviceTypeId: id, certified: false }));
 }
 
-function parseClientEligibilityEntries(value: string[]): Array<{ tenantId: string; eligible: boolean }> | undefined {
-  // Drop falsy/blank tenantIds so legacy or partially-loaded form data cannot
-  // produce `[{eligible:true}]` entries that fail server-side `tenantId.uuid` validation.
-  const validIds = value.filter((id): id is string => typeof id === 'string' && id.trim().length > 0);
-  if (validIds.length === 0) return undefined;
-  return validIds.map((id) => ({ tenantId: id, eligible: true }));
-}
-
 export interface SaveResult {
   success: boolean;
   error?: string;
@@ -103,7 +95,6 @@ export function useInspectorSave(): UseInspectorSaveReturn {
         status: data.status || undefined,
         regionIds: data.regionIds.length > 0 ? data.regionIds : [],
         serviceTypes: parseServiceTypeEntries(data.serviceTypes),
-        clientEligibility: parseClientEligibilityEntries(data.clientEligibility),
         fullName: data.fullName?.trim() || undefined,
         abn: data.abn?.trim() || undefined,
         dateOfBirth: data.dateOfBirth || undefined,

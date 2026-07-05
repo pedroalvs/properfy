@@ -101,7 +101,7 @@ beforeAll(async () => {
     data: {
       tenant_id: tenantB.id, branch_id: branchB.id,
       property_code: `BUG-024-002-B-${Math.random().toString(36).slice(2, 6)}`,
-      type: 'RESIDENTIAL',
+      type: 'HOUSE',
       street: '1 B St', suburb: 'B', postcode: '3000', state: 'VIC', country: 'AU',
       geocoding_status: 'SUCCESS',
     },
@@ -153,7 +153,6 @@ beforeAll(async () => {
       appointment: { connect: { id: apptInB.id } },
       contact: { connect: { id: cInA.id } },
       role: 'PROPERTY_MANAGER', is_primary: false,
-      rental_tenant_name: 'A-Owned Contact',
       snapshot_name: 'A-Owned Contact',
       snapshot_email: cInA.primary_email,
     },
@@ -198,7 +197,7 @@ function buildCreateUseCase() {
   const propertyRepo: IPropertyRepository = {
     findById: vi.fn(async (id: string) => new PropertyEntity({
       id, tenantId: seed.tenantB, branchId: seed.branchB,
-      propertyCode: 'PROP-1', type: 'RESIDENTIAL',
+      propertyCode: 'PROP-1', type: 'HOUSE',
       street: '1 St', addressLine2: null, suburb: 'S',
       postcode: '3000', state: 'VIC', country: 'AU',
       lat: null, lng: null, geocodingStatus: 'SUCCESS',

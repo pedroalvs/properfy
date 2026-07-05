@@ -34,6 +34,50 @@ describe('appCredentialCreateSchema', () => {
     expect(appCredentialCreateSchema.safeParse({ ...valid, username: '   ' }).success).toBe(false);
     expect(appCredentialCreateSchema.safeParse({ ...valid, password: '' }).success).toBe(false);
   });
+
+  it('defaults needsAuthCode to false and new fields to absent', () => {
+    const parsed = appCredentialCreateSchema.parse(valid);
+    expect(parsed.needsAuthCode).toBe(false);
+    expect(parsed.branchId).toBeUndefined();
+    expect(parsed.authCode).toBeUndefined();
+    expect(parsed.appUrl).toBeUndefined();
+    expect(parsed.instructionsUrl).toBeUndefined();
+    expect(parsed.instructionsPassword).toBeUndefined();
+  });
+
+  it('rejects non-http(s) URL schemes (javascript:, data:)', () => {
+    expect(appCredentialCreateSchema.safeParse({ ...valid, appUrl: 'javascript:alert(1)' }).success).toBe(false);
+    expect(appCredentialCreateSchema.safeParse({ ...valid, instructionsUrl: 'data:text/html,x' }).success).toBe(false);
+    expect(appCredentialCreateSchema.safeParse({ ...valid, appUrl: 'ftp://example.com/x' }).success).toBe(false);
+    expect(appCredentialCreateSchema.safeParse({ ...valid, appUrl: 'HTTPS://example.com/x' }).success).toBe(true);
+  });
+
+  it('accepts branchId as uuid or null and rejects non-uuid', () => {
+    expect(appCredentialCreateSchema.safeParse({ ...valid, branchId: '22222222-2222-2222-2222-222222222222' }).success).toBe(true);
+    expect(appCredentialCreateSchema.safeParse({ ...valid, branchId: null }).success).toBe(true);
+    expect(appCredentialCreateSchema.safeParse({ ...valid, branchId: 'nope' }).success).toBe(false);
+  });
+
+  it('requires authCode when needsAuthCode is true', () => {
+    expect(appCredentialCreateSchema.safeParse({ ...valid, needsAuthCode: true }).success).toBe(false);
+    expect(appCredentialCreateSchema.safeParse({ ...valid, needsAuthCode: true, authCode: null }).success).toBe(false);
+    expect(appCredentialCreateSchema.safeParse({ ...valid, needsAuthCode: true, authCode: '123456' }).success).toBe(true);
+    expect(appCredentialCreateSchema.safeParse({ ...valid, needsAuthCode: false, authCode: '123456' }).success).toBe(true);
+  });
+
+  it('validates appUrl and instructionsUrl as urls', () => {
+    expect(appCredentialCreateSchema.safeParse({ ...valid, appUrl: 'https://example.com/app' }).success).toBe(true);
+    expect(appCredentialCreateSchema.safeParse({ ...valid, appUrl: 'not a url' }).success).toBe(false);
+    expect(appCredentialCreateSchema.safeParse({ ...valid, instructionsUrl: 'https://docs.example.com' }).success).toBe(true);
+    expect(appCredentialCreateSchema.safeParse({ ...valid, instructionsUrl: 'nope' }).success).toBe(false);
+    expect(appCredentialCreateSchema.safeParse({ ...valid, appUrl: null, instructionsUrl: null }).success).toBe(true);
+  });
+
+  it('accepts instructionsPassword and rejects empty string', () => {
+    expect(appCredentialCreateSchema.safeParse({ ...valid, instructionsPassword: 'doc-pass' }).success).toBe(true);
+    expect(appCredentialCreateSchema.safeParse({ ...valid, instructionsPassword: '' }).success).toBe(false);
+    expect(appCredentialCreateSchema.safeParse({ ...valid, instructionsPassword: null }).success).toBe(true);
+  });
 });
 
 describe('appCredentialUpdateSchema', () => {
@@ -45,5 +89,21 @@ describe('appCredentialUpdateSchema', () => {
 
   it('rejects empty provided fields', () => {
     expect(appCredentialUpdateSchema.safeParse({ name: '' }).success).toBe(false);
+  });
+
+  it('accepts new fields including null to clear', () => {
+    expect(appCredentialUpdateSchema.safeParse({ branchId: null }).success).toBe(true);
+    expect(appCredentialUpdateSchema.safeParse({ branchId: '22222222-2222-2222-2222-222222222222' }).success).toBe(true);
+    expect(appCredentialUpdateSchema.safeParse({ needsAuthCode: true }).success).toBe(true);
+    expect(appCredentialUpdateSchema.safeParse({ authCode: null }).success).toBe(true);
+    expect(appCredentialUpdateSchema.safeParse({ appUrl: 'https://example.com', instructionsUrl: null }).success).toBe(true);
+    expect(appCredentialUpdateSchema.safeParse({ instructionsPassword: 'x' }).success).toBe(true);
+  });
+
+  it('rejects invalid urls and empty secrets on update', () => {
+    expect(appCredentialUpdateSchema.safeParse({ appUrl: 'nope' }).success).toBe(false);
+    expect(appCredentialUpdateSchema.safeParse({ instructionsUrl: 'nope' }).success).toBe(false);
+    expect(appCredentialUpdateSchema.safeParse({ authCode: '' }).success).toBe(false);
+    expect(appCredentialUpdateSchema.safeParse({ instructionsPassword: '' }).success).toBe(false);
   });
 });

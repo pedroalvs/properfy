@@ -1,7 +1,8 @@
-import type { AuthContext, AppointmentApp, AppointmentCustomField } from '@properfy/shared';
+import type { AuthContext, AppointmentApp, AppointmentCustomField, PropertyType } from '@properfy/shared';
 import { normalizeCustomFields } from '@properfy/shared';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../appointment/domain/appointment.repository';
 import type { IAppCredentialRepository } from '../../../app-credential/domain/app-credential.repository';
+import { toAppointmentApp } from '../../../app-credential/application/appointment-app.mapper';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { IInspectionExecutionRepository } from '../../domain/inspection-execution.repository';
 import type { IInspectionAssetRepository } from '../../domain/inspection-asset.repository';
@@ -86,6 +87,14 @@ export interface AppointmentDetailOutput {
   suburb: string;
   propertyLatitude: number | null;
   propertyLongitude: number | null;
+  propertyAddressLine2: string | null;
+  propertyType: PropertyType | null;
+  propertyPrivateAreaM2: number | null;
+  propertyTotalAreaM2: number | null;
+  propertyFurnished: boolean | null;
+  propertyLinenProvided: boolean | null;
+  // Rent amount intentionally omitted from the property block above — commercial
+  // information not for inspectors.
   rentalTenantConfirmationStatus: string;
   rentalTenantConfirmation: string;
   keyRequired: boolean;
@@ -103,7 +112,6 @@ export interface AppointmentDetailOutput {
     rentalTenantName: string;
     primaryEmail: string | null;
     primaryPhone: string | null;
-    secondaryPhone: string | null;
   } | null;
   restrictions: Array<{
     isHome: boolean;
@@ -215,12 +223,7 @@ export class GetAppointmentDetailUseCase {
 
     // App credentials linked to this appointment (live reference — current values).
     const apps: AppointmentApp[] = this.appCredentialRepo
-      ? (await this.appCredentialRepo.findByAppointmentId(appointment.id)).map((a) => ({
-          id: a.id,
-          name: a.name,
-          username: a.username,
-          password: a.password,
-        }))
+      ? (await this.appCredentialRepo.findByAppointmentId(appointment.id)).map(toAppointmentApp)
       : [];
 
     const codePrefix = result.tenantAppointmentCodePrefix ?? 'INS';
@@ -242,13 +245,19 @@ export class GetAppointmentDetailUseCase {
       suburb: result.propertySuburb ?? '',
       propertyLatitude: result.propertyLatitude ?? null,
       propertyLongitude: result.propertyLongitude ?? null,
+      propertyAddressLine2: result.propertyAddressLine2 ?? null,
+      propertyType: result.propertyType ?? null,
+      propertyPrivateAreaM2: result.propertyPrivateAreaM2 ?? null,
+      propertyTotalAreaM2: result.propertyTotalAreaM2 ?? null,
+      propertyFurnished: result.propertyFurnished ?? null,
+      propertyLinenProvided: result.propertyLinenProvided ?? null,
       rentalTenantConfirmationStatus: appointment.rentalTenantConfirmationStatus,
       rentalTenantConfirmation: appointment.rentalTenantConfirmationStatus,
       keyRequired: appointment.keyRequired,
       meetingLocation: appointment.meetingLocation,
       keyLocation: appointment.keyLocation,
-      rentalTenantName: contact?.rentalTenantName ?? '',
-      rentalTenantPhone: contact?.primaryPhone ?? null,
+      rentalTenantName: contact?.effectiveName ?? '',
+      rentalTenantPhone: contact?.effectivePhone ?? null,
       rentalTenantEmail: contact?.effectiveEmail ?? null,
       notes: appointment.notes,
       observation: appointment.observation,
@@ -259,7 +268,6 @@ export class GetAppointmentDetailUseCase {
             rentalTenantName: contact.effectiveName,
             primaryEmail: contact.effectiveEmail,
             primaryPhone: contact.effectivePhone,
-            secondaryPhone: contact.secondaryPhone,
           }
         : null,
       restrictions: restrictions.map((r) => ({

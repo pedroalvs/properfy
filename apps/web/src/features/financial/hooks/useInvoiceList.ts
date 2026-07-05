@@ -14,8 +14,11 @@ export interface UseInvoiceListReturn {
   pagination: DataTablePagination;
 }
 
-export function useInvoiceList(): UseInvoiceListReturn {
-  const [filters, setFilters] = useState<InvoiceFiltersState>(DEFAULT_INVOICE_FILTERS);
+export function useInvoiceList(initialFilters?: Partial<InvoiceFiltersState>): UseInvoiceListReturn {
+  const [filters, setFilters] = useState<InvoiceFiltersState>({
+    ...DEFAULT_INVOICE_FILTERS,
+    ...initialFilters,
+  });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 

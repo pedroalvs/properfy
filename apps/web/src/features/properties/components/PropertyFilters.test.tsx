@@ -24,7 +24,7 @@ describe('PropertyFilters', () => {
     expect(screen.getByLabelText('Branch')).toBeInTheDocument();
   });
 
-  it('type select shows "All" plus 4 type labels', async () => {
+  it('type select shows "All" plus 5 type labels', async () => {
     const user = userEvent.setup();
     render(
       <PropertyFilters
@@ -36,7 +36,8 @@ describe('PropertyFilters', () => {
     await user.click(screen.getByLabelText('Type'));
     const listbox = screen.getByRole('listbox', { name: 'Type' });
     expect(listbox).toHaveTextContent('All');
-    expect(screen.getByText('Residential')).toBeInTheDocument();
+    expect(screen.getByText('Apartment')).toBeInTheDocument();
+    expect(screen.getByText('House')).toBeInTheDocument();
     expect(screen.getByText('Commercial')).toBeInTheDocument();
     expect(screen.getByText('Industrial')).toBeInTheDocument();
     expect(screen.getByText('Rural')).toBeInTheDocument();

@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost, useListQuery, useDetailQuery } from '@/hooks/useApiQuery';
 import type { ApiError } from '@/lib/api-error';
 
@@ -80,8 +80,12 @@ export function usePreviewInvoice(period: AvailablePeriod | null) {
 }
 
 export function useRequestInvoice() {
+  const queryClient = useQueryClient();
   return useMutation<RequestInvoiceResult, ApiError, { periodStart: string; periodEnd: string }>({
     mutationFn: (body) => apiPost<RequestInvoiceResult>('/v1/inspector/invoices/request', body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['my-invoices'] });
+    },
   });
 }
 
@@ -90,6 +94,9 @@ export function useMyInvoices() {
     ['my-invoices'],
     '/v1/billing/invoices',
     { pageSize: '50', sortBy: 'createdAt', sortOrder: 'desc' },
+    // Invoice volume is low and changes rarely; avoid refetching on every
+    // navigation/focus (invalidated explicitly after a request is submitted).
+    { staleTime: 5 * 60_000, refetchOnWindowFocus: false },
   );
 }
 

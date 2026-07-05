@@ -77,6 +77,22 @@ describe('validateEnv', () => {
     expect(result.CORS_ORIGIN).toBeUndefined();
   });
 
+  it('should require MOBILE_MESSAGE_WEBHOOK_TOKEN (with the other MobileMessage vars) in production', () => {
+    expect(() =>
+      validateEnv({
+        ...validEnv,
+        NODE_ENV: 'production',
+        CORS_ORIGIN: 'https://app.example.com',
+        TOTP_ENCRYPTION_KEY: 'a'.repeat(64),
+        PORTAL_TOKEN_ENC_KEY: 'a'.repeat(64),
+        APP_CREDENTIAL_ENC_KEY: 'a'.repeat(64),
+        MOBILE_MESSAGE_API_KEY: 'mm-key',
+        MOBILE_MESSAGE_PASSWORD: 'mm-pass',
+        MOBILE_MESSAGE_SENDER_ID: 'PROPERFY',
+      }),
+    ).toThrow('MOBILE_MESSAGE_WEBHOOK_TOKEN');
+  });
+
   it('should accept optional provider vars', () => {
     const result = validateEnv({
       ...validEnv,

@@ -47,6 +47,9 @@ const envSchema = z.object({
   MOBILE_MESSAGE_SENDER_ID: z.string().optional(),
   // MOBILE_MESSAGE_PASSWORD is the Basic Auth password paired with MOBILE_MESSAGE_API_KEY as username
   MOBILE_MESSAGE_PASSWORD: z.string().optional(),
+  // Shared secret for the ?token= query param on the delivery-receipt webhook
+  // (MobileMessage does not sign requests). The webhook rejects all requests when unset.
+  MOBILE_MESSAGE_WEBHOOK_TOKEN: z.string().optional(),
 
   // Optional Mapbox
   MAPBOX_ACCESS_TOKEN: z.string().optional(),
@@ -151,8 +154,8 @@ export function validateEnv(source: Record<string, string | undefined> = process
       strictIssues.push('  - Resend: RESEND_API_KEY and RESEND_FROM_EMAIL are required in staging/production');
     }
 
-    if (!result.data.MOBILE_MESSAGE_API_KEY || !result.data.MOBILE_MESSAGE_PASSWORD || !result.data.MOBILE_MESSAGE_SENDER_ID) {
-      strictIssues.push('  - MobileMessage: MOBILE_MESSAGE_API_KEY, MOBILE_MESSAGE_PASSWORD and MOBILE_MESSAGE_SENDER_ID are required in staging/production');
+    if (!result.data.MOBILE_MESSAGE_API_KEY || !result.data.MOBILE_MESSAGE_PASSWORD || !result.data.MOBILE_MESSAGE_SENDER_ID || !result.data.MOBILE_MESSAGE_WEBHOOK_TOKEN) {
+      strictIssues.push('  - MobileMessage: MOBILE_MESSAGE_API_KEY, MOBILE_MESSAGE_PASSWORD, MOBILE_MESSAGE_SENDER_ID and MOBILE_MESSAGE_WEBHOOK_TOKEN are required in staging/production');
     }
 
     if (!result.data.MAPBOX_ACCESS_TOKEN) {

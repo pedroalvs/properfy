@@ -90,3 +90,11 @@ export const requestInvoiceSchema = z.object({
   { message: 'periodEnd must be after periodStart', path: ['periodEnd'] },
 );
 export type RequestInvoiceInput = z.infer<typeof requestInvoiceSchema>;
+
+// ─── Inspector earnings summary ────────────────────────────────────────────
+
+/** Query for the inspector's own earnings summary (totals + monthly series). */
+export const inspectorEarningsSummaryQuerySchema = z.object({
+  months: z.coerce.number().int().min(1).max(24).default(6),
+});
+export type InspectorEarningsSummaryQuery = z.infer<typeof inspectorEarningsSummaryQuerySchema>;

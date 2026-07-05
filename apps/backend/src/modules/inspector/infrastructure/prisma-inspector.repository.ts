@@ -10,7 +10,6 @@ import type {
   InspectorStatus,
   PaymentSettings,
   ServiceTypeEntry,
-  ClientEligibilityEntry,
   AvailabilityTemplate,
   BillingPeriodType,
 } from '@properfy/shared';
@@ -28,10 +27,7 @@ function mapToEntity(row: {
   phone: string | null;
   status: string;
   payment_settings_json: unknown;
-  /** Denormalized cache — NOT authoritative for region assignment. Use inspector_regions join table for all business logic. */
-  regions_json: unknown;
   service_types_json: unknown;
-  client_eligibility_json: unknown;
   blocked_clients_json: unknown;
   full_name: string | null;
   address: unknown;
@@ -60,7 +56,6 @@ function mapToEntity(row: {
     paymentSettingsJson:
       (row.payment_settings_json as PaymentSettings) ?? {},
     serviceTypesJson: (row.service_types_json as ServiceTypeEntry[]) ?? [],
-    clientEligibilityJson: (row.client_eligibility_json as ClientEligibilityEntry[]) ?? [],
     blockedClientsJson: Array.isArray(row.blocked_clients_json) ? (row.blocked_clients_json as string[]) : [],
     fullName: row.full_name ?? null,
     address: row.address as Record<string, unknown> | null,
@@ -142,21 +137,13 @@ export class PrismaInspectorRepository implements IInspectorRepository {
       const where = this.buildWhere(filters);
       const rows = await this.prisma.inspector.findMany({
         where,
-        select: { client_eligibility_json: true, blocked_clients_json: true },
+        select: { blocked_clients_json: true },
       });
       return rows.filter((r) => {
-        // New blocked-clients model: not blocked means eligible
+        // Blocked-clients deny-list: an inspector is eligible unless the
+        // tenant is in its block list.
         const blocked = Array.isArray(r.blocked_clients_json) ? (r.blocked_clients_json as string[]) : [];
-        if (blocked.includes(filters.tenantId!)) return false;
-        // Legacy fallback: check client_eligibility_json during expand phase
-        const eligibility = (r.client_eligibility_json as ClientEligibilityEntry[]) ?? [];
-        if (eligibility.length > 0) {
-          return eligibility.some(
-            (entry) => entry.tenantId === filters.tenantId! && entry.eligible,
-          );
-        }
-        // If no legacy data and not blocked, inspector is eligible
-        return true;
+        return !blocked.includes(filters.tenantId!);
       }).length;
     }
     const where = this.buildWhere(filters);
@@ -173,7 +160,6 @@ export class PrismaInspectorRepository implements IInspectorRepository {
         status: inspector.status as PrismaInspectorStatus,
         payment_settings_json: inspector.paymentSettingsJson as Prisma.InputJsonValue,
         service_types_json: inspector.serviceTypesJson,
-        client_eligibility_json: inspector.clientEligibilityJson,
         blocked_clients_json: inspector.blockedClientsJson,
         full_name: inspector.fullName,
         address: inspector.address as Prisma.InputJsonValue,
@@ -197,7 +183,6 @@ export class PrismaInspectorRepository implements IInspectorRepository {
       status: string;
       paymentSettingsJson: PaymentSettings;
       serviceTypesJson: ServiceTypeEntry[];
-      clientEligibilityJson: ClientEligibilityEntry[];
       blockedClientsJson: string[];
       fullName: string | null;
       address: Record<string, unknown> | null;
@@ -222,8 +207,6 @@ export class PrismaInspectorRepository implements IInspectorRepository {
       updateData['payment_settings_json'] = data.paymentSettingsJson;
     if (data.serviceTypesJson !== undefined)
       updateData['service_types_json'] = data.serviceTypesJson;
-    if (data.clientEligibilityJson !== undefined)
-      updateData['client_eligibility_json'] = data.clientEligibilityJson;
     if (data.blockedClientsJson !== undefined)
       updateData['blocked_clients_json'] = data.blockedClientsJson;
     if (data.fullName !== undefined)

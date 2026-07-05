@@ -72,7 +72,7 @@ describe('QA-006-HIGH-001: bulk-edit branchId round-trip (real DB)', () => {
         tenant_id: tenant.id,
         branch_id: branchA.id,
         property_code: `QA006-${Math.random().toString(36).slice(2, 10)}`,
-        type: 'RESIDENTIAL',
+        type: 'HOUSE',
         street: '10 Test St',
         suburb: 'Testville',
         postcode: '2000',

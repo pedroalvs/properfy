@@ -40,6 +40,7 @@ import type { SendTestNotificationUseCase } from '../application/use-cases/send-
 import type { ListNotificationTemplatesUseCase } from '../application/use-cases/list-notification-templates.use-case';
 import type { CreateNotificationUseCase } from '../application/use-cases/create-notification.use-case';
 import type { PollRetryableNotificationsUseCase } from '../application/use-cases/poll-retryable-notifications.use-case';
+import type { PollSmsDeliveryUseCase } from '../application/use-cases/poll-sms-delivery.use-case';
 import type { DispatchRemindersUseCase } from '../application/use-cases/dispatch-reminders.use-case';
 import type { DispatchEscalationsUseCase } from '../application/use-cases/dispatch-escalations.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
@@ -47,7 +48,9 @@ import type { WebhookSignatureValidator } from '../infrastructure/webhook-signat
 import { timingSafeEqual } from 'node:crypto';
 
 export function isMobileMessageTokenValid(provided: string | undefined, expected: string | undefined): boolean {
-  if (!expected) return true;
+  // Fail closed: with no token configured the webhook accepts nothing, in any
+  // environment — delivery-receipt spoofing must never be possible.
+  if (!expected) return false;
   if (!provided) return false;
   try {
     const a = Buffer.from(provided);
@@ -76,6 +79,7 @@ export interface NotificationRouteContainer {
   listNotificationTemplatesUseCase: ListNotificationTemplatesUseCase;
   createNotificationUseCase: CreateNotificationUseCase;
   pollRetryableNotificationsUseCase: PollRetryableNotificationsUseCase;
+  pollSmsDeliveryUseCase: PollSmsDeliveryUseCase;
   dispatchRemindersUseCase: DispatchRemindersUseCase;
   dispatchEscalationsUseCase: DispatchEscalationsUseCase;
   listConsentsByRecipientUseCase: ListConsentsByRecipientUseCase;
@@ -215,7 +219,8 @@ export async function registerNotificationRoutes(
 
   // POST /v1/webhooks/mobile-message
   // MobileMessage has no webhook signing support (confirmed 2026-04-22 via dashboard).
-  // Token enforcement via ?token= query param when MOBILE_MESSAGE_WEBHOOK_TOKEN is set.
+  // Auth via ?token= query param (MOBILE_MESSAGE_WEBHOOK_TOKEN). Mandatory: with no
+  // token configured the endpoint rejects everything (fail closed).
   app.post(
     '/v1/webhooks/mobile-message',
     { schema: { response: { 200: webhookAckResponseSchema } } },

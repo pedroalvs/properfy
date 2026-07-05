@@ -397,12 +397,10 @@ async function main() {
   await prisma.inspector.upsert({
     where: { id: IDS.inspectorLinked },
     update: {
-      regions_json: ['Sydney', 'Surry Hills', 'North Sydney', 'Inner West'],
       service_types_json: [
         { serviceTypeId: serviceTypeIds.routine, certified: true },
         { serviceTypeId: serviceTypeIds.ingoing, certified: true },
       ],
-      client_eligibility_json: [IDS.tenant, IDS.tenant2],
     },
     create: {
       id: IDS.inspectorLinked,
@@ -411,24 +409,20 @@ async function main() {
       email: 'insp@pedroalvs.com',
       phone: '+61400111222',
       status: 'ACTIVE',
-      regions_json: ['Sydney', 'Surry Hills', 'North Sydney', 'Inner West'],
       service_types_json: [
         { serviceTypeId: serviceTypeIds.routine, certified: true },
         { serviceTypeId: serviceTypeIds.ingoing, certified: true },
       ],
-      client_eligibility_json: [IDS.tenant, IDS.tenant2],
     },
   });
 
   await prisma.inspector.upsert({
     where: { id: IDS.inspectorIndep },
     update: {
-      regions_json: ['Eastern Suburbs', 'South Sydney', 'Surry Hills', 'North Sydney'],
       service_types_json: [
         { serviceTypeId: serviceTypeIds.routine, certified: true },
         { serviceTypeId: serviceTypeIds.outgoing, certified: true },
       ],
-      client_eligibility_json: [IDS.tenant],
     },
     create: {
       id: IDS.inspectorIndep,
@@ -436,25 +430,21 @@ async function main() {
       email: 'carlos.mendez@inspectors.com.au',
       phone: '+61400333444',
       status: 'ACTIVE',
-      regions_json: ['Eastern Suburbs', 'South Sydney', 'Surry Hills', 'North Sydney'],
       service_types_json: [
         { serviceTypeId: serviceTypeIds.routine, certified: true },
         { serviceTypeId: serviceTypeIds.outgoing, certified: true },
       ],
-      client_eligibility_json: [IDS.tenant],
     },
   });
 
   await prisma.inspector.upsert({
     where: { id: IDS.inspectorLinked2 },
     update: {
-      regions_json: ['Melbourne', 'Southbank', 'Richmond'],
       service_types_json: [
         { serviceTypeId: serviceTypeIds.routine, certified: true },
         { serviceTypeId: serviceTypeIds.ingoing, certified: true },
         { serviceTypeId: serviceTypeIds.outgoing, certified: true },
       ],
-      client_eligibility_json: [IDS.tenant2],
     },
     create: {
       id: IDS.inspectorLinked2,
@@ -463,13 +453,11 @@ async function main() {
       email: 'insp2@pedroalvs.com',
       phone: '+61400555666',
       status: 'ACTIVE',
-      regions_json: ['Melbourne', 'Southbank', 'Richmond'],
       service_types_json: [
         { serviceTypeId: serviceTypeIds.routine, certified: true },
         { serviceTypeId: serviceTypeIds.ingoing, certified: true },
         { serviceTypeId: serviceTypeIds.outgoing, certified: true },
       ],
-      client_eligibility_json: [IDS.tenant2],
     },
   });
 
@@ -482,7 +470,6 @@ async function main() {
       email: 'retired@inspectors.com.au',
       phone: '+61400777888',
       status: 'INACTIVE',
-      regions_json: ['Parramatta', 'Western Sydney'],
     },
   });
   console.log('Inspectors: 4 created (2 active linked, 1 active independent, 1 inactive)');
@@ -576,17 +563,17 @@ async function main() {
 
   const properties = [
     // Tenant 1 — geocoded
-    { id: IDS.prop1, tenant_id: IDS.tenant, branch_id: IDS.branchCity, property_code: 'SPS-001', type: 'RESIDENTIAL' as const, street: '12 Harbour St', suburb: 'Sydney', postcode: '2000', state: 'NSW', lat: -33.8688, lng: 151.2093, geocoding_status: 'SUCCESS' as const },
-    { id: IDS.prop2, tenant_id: IDS.tenant, branch_id: IDS.branchCity, property_code: 'SPS-002', type: 'RESIDENTIAL' as const, street: '88 Crown St', suburb: 'Surry Hills', postcode: '2010', state: 'NSW', lat: -33.8838, lng: 151.2122, geocoding_status: 'SUCCESS' as const },
-    { id: IDS.prop3, tenant_id: IDS.tenant, branch_id: IDS.branchNorth, property_code: 'SPS-003', type: 'RESIDENTIAL' as const, street: '5 Blue St', suburb: 'North Sydney', postcode: '2060', state: 'NSW', lat: -33.8389, lng: 151.2074, geocoding_status: 'SUCCESS' as const },
+    { id: IDS.prop1, tenant_id: IDS.tenant, branch_id: IDS.branchCity, property_code: 'SPS-001', type: 'HOUSE' as const, street: '12 Harbour St', suburb: 'Sydney', postcode: '2000', state: 'NSW', lat: -33.8688, lng: 151.2093, geocoding_status: 'SUCCESS' as const },
+    { id: IDS.prop2, tenant_id: IDS.tenant, branch_id: IDS.branchCity, property_code: 'SPS-002', type: 'HOUSE' as const, street: '88 Crown St', suburb: 'Surry Hills', postcode: '2010', state: 'NSW', lat: -33.8838, lng: 151.2122, geocoding_status: 'SUCCESS' as const },
+    { id: IDS.prop3, tenant_id: IDS.tenant, branch_id: IDS.branchNorth, property_code: 'SPS-003', type: 'HOUSE' as const, street: '5 Blue St', suburb: 'North Sydney', postcode: '2060', state: 'NSW', lat: -33.8389, lng: 151.2074, geocoding_status: 'SUCCESS' as const },
     { id: IDS.prop4, tenant_id: IDS.tenant, branch_id: IDS.branchNorth, property_code: 'SPS-004', type: 'COMMERCIAL' as const, street: '200 Pacific Hwy', suburb: 'Crows Nest', postcode: '2065', state: 'NSW', lat: -33.8268, lng: 151.2022, geocoding_status: 'SUCCESS' as const },
-    { id: IDS.prop5, tenant_id: IDS.tenant, branch_id: IDS.branchCity, property_code: 'SPS-005', type: 'RESIDENTIAL' as const, street: '33 Glebe Point Rd', suburb: 'Glebe', postcode: '2037', state: 'NSW', lat: -33.8785, lng: 151.1867, geocoding_status: 'SUCCESS' as const },
+    { id: IDS.prop5, tenant_id: IDS.tenant, branch_id: IDS.branchCity, property_code: 'SPS-005', type: 'HOUSE' as const, street: '33 Glebe Point Rd', suburb: 'Glebe', postcode: '2037', state: 'NSW', lat: -33.8785, lng: 151.1867, geocoding_status: 'SUCCESS' as const },
     // Tenant 1 — no geocoding
-    { id: IDS.prop6, tenant_id: IDS.tenant, branch_id: IDS.branchNorth, property_code: 'SPS-006', type: 'RESIDENTIAL' as const, street: '14 Miller St', suburb: 'Chatswood', postcode: '2067', state: 'NSW', lat: -33.7969, lng: 151.1803, geocoding_status: 'SUCCESS' as const },
+    { id: IDS.prop6, tenant_id: IDS.tenant, branch_id: IDS.branchNorth, property_code: 'SPS-006', type: 'HOUSE' as const, street: '14 Miller St', suburb: 'Chatswood', postcode: '2067', state: 'NSW', lat: -33.7969, lng: 151.1803, geocoding_status: 'SUCCESS' as const },
     { id: IDS.prop7, tenant_id: IDS.tenant, branch_id: IDS.branchCity, property_code: 'SPS-007', type: 'INDUSTRIAL' as const, street: '9 Bourke Rd', suburb: 'Alexandria', postcode: '2015', state: 'NSW', lat: -33.8993, lng: 151.1955, geocoding_status: 'SUCCESS' as const },
     // Tenant 2
-    { id: IDS.prop8, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb, property_code: 'MRE-001', type: 'RESIDENTIAL' as const, street: '12 Swanston St', suburb: 'Melbourne', postcode: '3000', state: 'VIC', lat: -37.8136, lng: 144.9631, geocoding_status: 'SUCCESS' as const },
-    { id: IDS.prop9, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb, property_code: 'MRE-002', type: 'RESIDENTIAL' as const, street: '5 Church St', suburb: 'Richmond', postcode: '3121', state: 'VIC', lat: -37.8183, lng: 144.9971, geocoding_status: 'SUCCESS' as const },
+    { id: IDS.prop8, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb, property_code: 'MRE-001', type: 'HOUSE' as const, street: '12 Swanston St', suburb: 'Melbourne', postcode: '3000', state: 'VIC', lat: -37.8136, lng: 144.9631, geocoding_status: 'SUCCESS' as const },
+    { id: IDS.prop9, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb, property_code: 'MRE-002', type: 'HOUSE' as const, street: '5 Church St', suburb: 'Richmond', postcode: '3121', state: 'VIC', lat: -37.8183, lng: 144.9971, geocoding_status: 'SUCCESS' as const },
     { id: IDS.prop10, tenant_id: IDS.tenant2, branch_id: IDS.branchMelb, property_code: 'MRE-003', type: 'COMMERCIAL' as const, street: '100 St Kilda Rd', suburb: 'Southbank', postcode: '3006', state: 'VIC', lat: -37.8305, lng: 144.9675, geocoding_status: 'SUCCESS' as const },
   ];
 
@@ -838,9 +825,6 @@ async function main() {
         id: ac.id,
         appointment_id: ac.appointment_id,
         contact_id: ac.contact_id,
-        rental_tenant_name: c.display_name,
-        primary_email: c.primary_email,
-        primary_phone: c.primary_phone,
         role: 'RENTAL_TENANT',
         is_primary: true,
         snapshot_name: c.display_name,
@@ -1429,7 +1413,7 @@ async function main() {
       id: IDS.notif2, tenant_id: IDS.tenant, appointment_id: IDS.apptScheduled,
       recipient: '+61400555003', channel: 'SMS' as const,
       template_code: 'TENANT_SMS_ALERT', status: 'SENT' as const,
-      provider_name: 'twilio', provider_message_id: 'SM01ABCDEF',
+      provider_name: 'mobile-message', provider_message_id: 'SM01ABCDEF',
       sent_at: pastDate(2),
       payload_json: { propertyAddress: '5 Blue St, North Sydney', scheduledDate: '2026-03-25', portalUrl: 'https://portal.properfy.com.au/t/abc123' },
     },
@@ -1454,7 +1438,7 @@ async function main() {
       id: IDS.notif5, tenant_id: IDS.tenant, appointment_id: IDS.apptDone2,
       recipient: '+61400555008', channel: 'SMS' as const,
       template_code: 'TENANT_SMS_ALERT', status: 'DELIVERED' as const,
-      provider_name: 'twilio', provider_message_id: 'SM02GHIJKL',
+      provider_name: 'mobile-message', provider_message_id: 'SM02GHIJKL',
       sent_at: pastDate(8), delivered_at: pastDate(8),
       payload_json: { propertyAddress: '5 Blue St, North Sydney', scheduledDate: '2026-03-11' },
     },
