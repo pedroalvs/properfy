@@ -1,21 +1,19 @@
 import { useQuery } from '@tanstack/react-query';
-import type { ReconciliationSummaryResponse } from '@properfy/shared';
+import type { InvoiceSummaryResponse } from '@properfy/shared';
 import { api } from '@/services/api';
 import { ApiError } from '@/lib/api-error';
 import type { MultiCurrencyScopeError } from '../types';
 
-// Re-exported for existing consumers; the canonical definition lives in ../types.
-export type { MultiCurrencyScopeError };
-
-export interface ReconciliationSummaryParams {
-  from: string;
-  to: string;
+export interface InvoiceSummaryParams {
   inspectorId?: string;
-  enabled?: boolean;
+  agencyId?: string;
+  branchId?: string;
+  fromDate?: string;
+  toDate?: string;
 }
 
-export interface UseReconciliationSummaryReturn {
-  summary: ReconciliationSummaryResponse | null;
+export interface UseInvoiceSummaryReturn {
+  summary: InvoiceSummaryResponse | null;
   isLoading: boolean;
   isError: boolean;
   error: ApiError | null;
@@ -31,45 +29,42 @@ interface ApiErrorEnvelope {
   };
 }
 
-export function useReconciliationSummary({
-  from,
-  to,
-  inspectorId,
-  enabled = true,
-}: ReconciliationSummaryParams): UseReconciliationSummaryReturn {
-  const query = useQuery<{ data: ReconciliationSummaryResponse }, ApiError>({
-    queryKey: ['billing', 'reconciliation-summary', { from, to, inspectorId: inspectorId ?? null }],
+export function useInvoiceSummary(params: InvoiceSummaryParams): UseInvoiceSummaryReturn {
+  // Empty-string filters (unset FilterSelect values) are omitted from the request.
+  const queryParams = Object.fromEntries(
+    Object.entries(params).filter(([, value]) => !!value),
+  ) as Record<string, string>;
+
+  const query = useQuery<{ data: InvoiceSummaryResponse }, ApiError>({
+    queryKey: ['billing', 'invoice-summary', queryParams],
     queryFn: async () => {
-      const params = inspectorId ? { from, to, inspectorId } : { from, to };
-      // The `as never` path cast collapses the result type, so re-assert the openapi-fetch shape.
+      // The `as never` path cast (route not yet in the strict generated operation types at all
+      // call sites) collapses the result type, so re-assert the openapi-fetch result shape.
       const { data, error, response } = (await api.GET(
-        '/v1/billing/invoices/reconciliation-summary' as never,
-        { params: { query: params } } as never,
+        '/v1/billing/invoices/summary' as never,
+        { params: { query: queryParams } } as never,
       )) as { data?: unknown; error?: unknown; response?: Response };
       if (error) {
         const envelope = error as ApiErrorEnvelope;
         // The HTTP status lives on the raw Response; the parsed error body only has the envelope.
         const status = response?.status ?? 500;
         const code = envelope.error?.code;
-        const message = envelope.error?.message ?? 'Failed to load reconciliation summary';
+        const message = envelope.error?.message ?? 'Failed to load invoice summary';
         const details = envelope.error?.details;
         const apiError = new ApiError(status, message, code, undefined);
-        // Attach currencies for multi-currency scope handling
         if (code === 'MULTI_CURRENCY_SCOPE' && details?.currencies) {
           (apiError as ApiError & { currencies?: string[] }).currencies = details.currencies;
         }
         throw apiError;
       }
-      return data as { data: ReconciliationSummaryResponse };
+      return data as { data: InvoiceSummaryResponse };
     },
-    enabled: enabled && !!from && !!to,
     retry: false,
   });
 
   let multiCurrencyError: MultiCurrencyScopeError | null = null;
   if (query.error?.code === 'MULTI_CURRENCY_SCOPE') {
-    const currencies =
-      (query.error as ApiError & { currencies?: string[] }).currencies ?? [];
+    const currencies = (query.error as ApiError & { currencies?: string[] }).currencies ?? [];
     multiCurrencyError = {
       code: 'MULTI_CURRENCY_SCOPE',
       message: query.error.message,

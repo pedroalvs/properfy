@@ -18,6 +18,8 @@ export { useInvoiceDetail } from './useInvoiceDetail';
 export type { UseInvoiceDetailReturn } from './useInvoiceDetail';
 export { useInvoiceDownload } from './useInvoiceDownload';
 export type { UseInvoiceDownloadReturn } from './useInvoiceDownload';
+export { useInvoiceSummary } from './useInvoiceSummary';
+export type { UseInvoiceSummaryReturn, InvoiceSummaryParams } from './useInvoiceSummary';
 export { useReconciliationSummary } from './useReconciliationSummary';
 export type {
   UseReconciliationSummaryReturn,

@@ -227,6 +227,7 @@ import { MarkInvoicePaidUseCase } from '../modules/billing/application/use-cases
 import { BatchMarkInvoicesPaidUseCase } from '../modules/billing/application/use-cases/batch-mark-invoices-paid.use-case';
 import { ReverseInvoicePaymentUseCase } from '../modules/billing/application/use-cases/reverse-invoice-payment.use-case';
 import { GetReconciliationSummaryUseCase } from '../modules/billing/application/use-cases/get-reconciliation-summary.use-case';
+import { GetInvoiceSummaryUseCase } from '../modules/billing/application/use-cases/get-invoice-summary.use-case';
 import { VoidFinancialEntryUseCase } from '../modules/billing/application/use-cases/void-financial-entry.use-case';
 import { ApproveDraftInvoiceUseCase } from '../modules/billing/application/use-cases/approve-draft-invoice.use-case';
 import { RejectDraftInvoiceUseCase } from '../modules/billing/application/use-cases/reject-draft-invoice.use-case';
@@ -960,6 +961,7 @@ export function createContainer(logger: Logger): AppContainer {
   const batchMarkInvoicesPaidUseCase = new BatchMarkInvoicesPaidUseCase(inspectorInvoiceRepo, auditService, authorizationService);
   const reverseInvoicePaymentUseCase = new ReverseInvoicePaymentUseCase(inspectorInvoiceRepo, auditService, authorizationService);
   const getReconciliationSummaryUseCase = new GetReconciliationSummaryUseCase(inspectorInvoiceRepo, authorizationService);
+  const getInvoiceSummaryUseCase = new GetInvoiceSummaryUseCase(inspectorInvoiceRepo, authorizationService);
   const voidFinancialEntryUseCase = new VoidFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService);
   const approveDraftInvoiceUseCase = new ApproveDraftInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, authorizationService, billingJobQueue);
   const rejectDraftInvoiceUseCase = new RejectDraftInvoiceUseCase(inspectorInvoiceRepo, auditService, authorizationService);
@@ -1472,6 +1474,7 @@ export function createContainer(logger: Logger): AppContainer {
       batchMarkInvoicesPaidUseCase,
       reverseInvoicePaymentUseCase,
       getReconciliationSummaryUseCase,
+      getInvoiceSummaryUseCase,
       voidFinancialEntryUseCase,
       approveDraftInvoiceUseCase,
       rejectDraftInvoiceUseCase,

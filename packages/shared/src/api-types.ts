@@ -9165,6 +9165,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/inspector/earnings/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            currency: string | null;
+                            totalApproved: number;
+                            nextPayment: number;
+                            monthly: {
+                                month: string;
+                                total: number;
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/financial/entries/summary": {
         parameters: {
             query?: never;
@@ -9686,7 +9729,7 @@ export interface paths {
                     inspectorId?: string;
                     agencyId?: string;
                     branchId?: string;
-                    status?: "pending" | "approved" | "rejected";
+                    status?: "pending" | "approved" | "rejected" | "done";
                     fromDate?: string;
                     toDate?: string;
                     page?: number;
@@ -10025,6 +10068,45 @@ export interface paths {
                     from: string;
                     to: string;
                     inspectorId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/billing/invoices/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    inspectorId?: string;
+                    agencyId?: string;
+                    branchId?: string;
+                    fromDate?: string;
+                    toDate?: string;
                 };
                 header?: never;
                 path?: never;
