@@ -352,7 +352,7 @@ await boss.schedule('notification.reminder', '0 8 * * *', {})
 
 ### SMS/Email
 
-- Providers: Twilio/Zenvia (SMS), Resend (email)
+- Providers: MobileMessage (SMS), Resend (email)
 - Implement via adapter pattern (easy to swap providers)
 - Circuit breaker on external calls
 - Fallback: keep in `pending_retry` → DLQ on exhaustion

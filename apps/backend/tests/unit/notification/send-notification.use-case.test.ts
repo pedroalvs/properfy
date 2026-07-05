@@ -105,6 +105,7 @@ function makeSut() {
   };
   const smsProvider: ISmsProvider = {
     send: vi.fn(),
+    getStatus: vi.fn().mockResolvedValue(null),
   };
   const templateRenderer = new TemplateRendererService();
   const logger = {
@@ -326,8 +327,8 @@ describe('SendNotificationUseCase', () => {
     );
   });
 
-  it('should render template and send SMS via SMS provider', async () => {
-    const notification = makeNotification({ channel: 'SMS', recipient: '+5511999999999' });
+  it('should render template and send SMS via SMS provider with normalized E.164 recipient and send options', async () => {
+    const notification = makeNotification({ channel: 'SMS', recipient: '0412 345 678' });
     const template = makeTemplate({ channel: 'SMS', subject: null, bodyHtml: null });
 
     vi.mocked(notificationRepo.findById).mockResolvedValue(notification);
@@ -337,9 +338,68 @@ describe('SendNotificationUseCase', () => {
     await useCase.execute({ notificationId: 'notif-1' });
 
     expect(smsProvider.send).toHaveBeenCalledWith(
-      '+5511999999999',
+      '+61412345678',
       'Hello John, your inspection is on 2026-03-20',
+      { idempotencyKey: 'notif-1-1', customRef: 'notif-1', enableUnicode: false },
     );
+  });
+
+  it('should fail SMS immediately with INVALID_RECIPIENT_PHONE for an unnormalizable recipient (no retry)', async () => {
+    const notification = makeNotification({ channel: 'SMS', recipient: '+5511999999999' });
+    const template = makeTemplate({ channel: 'SMS', subject: null, bodyHtml: null });
+
+    vi.mocked(notificationRepo.findById).mockResolvedValue(notification);
+    vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(template);
+
+    await useCase.execute({ notificationId: 'notif-1' });
+
+    expect(smsProvider.send).not.toHaveBeenCalled();
+    expect(notificationRepo.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'FAILED',
+        failureReason: 'INVALID_RECIPIENT_PHONE',
+        nextRetryAt: null,
+      }),
+    );
+  });
+
+  it('should enable unicode when the rendered SMS body contains non-GSM-7 characters', async () => {
+    const notification = makeNotification({
+      channel: 'SMS',
+      recipient: '+61412345678',
+      payloadJson: { rentalTenantName: 'João', date: '2026-03-20' },
+    });
+    const template = makeTemplate({ channel: 'SMS', subject: null, bodyHtml: null });
+
+    vi.mocked(notificationRepo.findById).mockResolvedValue(notification);
+    vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(template);
+    vi.mocked(smsProvider.send).mockResolvedValue({ messageId: 'msg-sms-1' });
+
+    await useCase.execute({ notificationId: 'notif-1' });
+
+    expect(smsProvider.send).toHaveBeenCalledWith(
+      '+61412345678',
+      'Hello João, your inspection is on 2026-03-20',
+      expect.objectContaining({ enableUnicode: true }),
+    );
+  });
+
+  it('should truncate SMS bodies above the provider hard limit', async () => {
+    const notification = makeNotification({
+      channel: 'SMS',
+      recipient: '+61412345678',
+      payloadJson: { rentalTenantName: 'x'.repeat(2000), date: '2026-03-20' },
+    });
+    const template = makeTemplate({ channel: 'SMS', subject: null, bodyHtml: null });
+
+    vi.mocked(notificationRepo.findById).mockResolvedValue(notification);
+    vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(template);
+    vi.mocked(smsProvider.send).mockResolvedValue({ messageId: 'msg-sms-1' });
+
+    await useCase.execute({ notificationId: 'notif-1' });
+
+    const [, body] = vi.mocked(smsProvider.send).mock.calls[0]!;
+    expect((body as string).length).toBe(1530);
   });
 
   it('should update notification to SENT on provider success with providerName and providerMessageId', async () => {
@@ -644,7 +704,7 @@ describe('SendNotificationUseCase', () => {
     it('still sends SMS even when agency email sending is disabled', async () => {
       const sut = makeSut();
       vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
-        makeNotification({ channel: 'SMS', recipient: '+5511999999999' }),
+        makeNotification({ channel: 'SMS', recipient: '+61412345678' }),
       );
       vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
         makeTemplate({ channel: 'SMS', bodyText: 'Hi {{rentalTenantName}}' }),

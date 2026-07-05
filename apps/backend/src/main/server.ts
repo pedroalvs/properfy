@@ -103,6 +103,7 @@ async function start() {
       container.processReportJobUseCase,
       container.notification.sendNotificationUseCase,
       container.notification.pollRetryableNotificationsUseCase,
+      container.notification.pollSmsDeliveryUseCase,
       container.notification.dispatchRemindersUseCase,
       container.notification.dispatchEscalationsUseCase,
       container.cleanupSessionsWorker,

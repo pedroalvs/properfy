@@ -84,16 +84,31 @@ describe('POST /v1/webhooks/mobile-message — token enforcement', () => {
     );
   });
 
-  it('returns 200 without token validation when no token is configured (dev mode)', async () => {
+  it('returns 401 when no token is configured (fail closed, all environments)', async () => {
     const devApp = buildMinimalApp(undefined);
     await devApp.ready();
 
-    mockHandleProviderWebhookExecute.mockResolvedValueOnce(undefined);
+    mockHandleProviderWebhookExecute.mockClear();
     const res = await supertest(devApp.server)
       .post('/v1/webhooks/mobile-message')
       .send({ message_id: 'mm-3', status: 'delivered' });
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(401);
+    expect(mockHandleProviderWebhookExecute).not.toHaveBeenCalled();
+    await devApp.close();
+  });
+
+  it('returns 401 even when a token is provided but none is configured', async () => {
+    const devApp = buildMinimalApp(undefined);
+    await devApp.ready();
+
+    mockHandleProviderWebhookExecute.mockClear();
+    const res = await supertest(devApp.server)
+      .post('/v1/webhooks/mobile-message?token=anything')
+      .send({ message_id: 'mm-3', status: 'delivered' });
+
+    expect(res.status).toBe(401);
+    expect(mockHandleProviderWebhookExecute).not.toHaveBeenCalled();
     await devApp.close();
   });
 });
