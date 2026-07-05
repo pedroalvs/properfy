@@ -68,4 +68,27 @@ describe('ProfilePage', () => {
     expect(screen.getAllByText(/managed by your operations team/i).length).toBeGreaterThan(0);
     expect(screen.getByText('Log Out')).toBeInTheDocument();
   });
+
+  it('does not duplicate the phone number outside the header and profile card', () => {
+    mockUseAuth.mockReturnValue({
+      user: {
+        id: 'insp-1',
+        name: 'Inspector Jane',
+        email: 'jane@test.com',
+        role: 'INSP',
+        tenantId: null,
+        status: 'ACTIVE',
+        phone: '+5511999999999',
+        totpEnabled: true,
+        lastLoginAt: '2026-03-24T10:00:00Z',
+        inspectorId: 'insp-entity-1',
+      },
+      logout: vi.fn(),
+    });
+
+    renderWithProviders(<ProfilePage />);
+
+    expect(screen.getAllByText('+5511999999999')).toHaveLength(2);
+    expect(screen.queryByText('My Details')).not.toBeInTheDocument();
+  });
 });

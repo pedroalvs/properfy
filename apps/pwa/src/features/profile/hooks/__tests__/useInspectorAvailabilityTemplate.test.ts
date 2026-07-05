@@ -10,6 +10,12 @@ vi.mock('@/hooks/useApiQuery', () => ({
   apiGet: (...args: unknown[]) => mockApiGet(...args),
 }));
 
+const mockUseAuth = vi.fn();
+
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => mockUseAuth(),
+}));
+
 function makeWrapper() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const Wrapper = ({ children }: { children: React.ReactNode }) =>
@@ -30,6 +36,7 @@ const mockResponse: { data: InspectorAvailabilityResponse } = {
 describe('useInspectorAvailabilityTemplate', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseAuth.mockReturnValue({ user: { id: 'user-1' } });
   });
 
   it('calls the correct endpoint', async () => {
@@ -70,5 +77,17 @@ describe('useInspectorAvailabilityTemplate', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.data).toBeUndefined();
+  });
+
+  it('does not fetch while the user is not loaded', () => {
+    mockUseAuth.mockReturnValue({ user: null });
+    mockApiGet.mockResolvedValue(mockResponse);
+
+    const { result } = renderHook(() => useInspectorAvailabilityTemplate(), {
+      wrapper: makeWrapper(),
+    });
+
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(mockApiGet).not.toHaveBeenCalled();
   });
 });

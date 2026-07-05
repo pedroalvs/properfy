@@ -10,6 +10,10 @@ vi.mock('@/services/api', () => ({
   api: { PUT: (...args: unknown[]) => mockApiPut(...args) },
 }));
 
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({ user: { id: 'user-1' } }),
+}));
+
 const OFF = { am: false, pm: false };
 const ON = { am: true, pm: true };
 
@@ -64,5 +68,32 @@ describe('useUpdateInspectorAvailabilityTemplate', () => {
   it('starts in idle state', () => {
     const { result } = renderHook(() => useUpdateInspectorAvailabilityTemplate(), { wrapper: makeWrapper() });
     expect(result.current.isPending).toBe(false);
+  });
+
+  it('optimistically updates the cached wrapped response shape', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client }, children);
+    const queryKey = ['inspector', 'availability-template', 'user-1'];
+    const initial = {
+      data: {
+        template: { mon: OFF, tue: OFF, wed: OFF, thu: OFF, fri: OFF, sat: OFF, sun: OFF },
+        overrides: { mon: OFF, tue: OFF, wed: OFF, thu: OFF, fri: OFF, sat: OFF, sun: OFF },
+      },
+    };
+    client.setQueryData(queryKey, initial);
+    mockApiPut.mockReturnValue(new Promise(() => {}));
+
+    const { result } = renderHook(() => useUpdateInspectorAvailabilityTemplate(), { wrapper });
+
+    act(() => {
+      result.current.mutate(TEMPLATE);
+    });
+
+    await waitFor(() => {
+      const cached = client.getQueryData<typeof initial>(queryKey);
+      expect(cached?.data.template).toEqual(TEMPLATE);
+    });
+    expect(client.getQueryData<typeof initial>(queryKey)?.data.overrides).toEqual(initial.data.overrides);
   });
 });
