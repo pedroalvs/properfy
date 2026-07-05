@@ -43,6 +43,33 @@ function normalizePwaUser(user: AuthUser): AuthUser {
   return user;
 }
 
+async function fetchFullUser(): Promise<AuthUser | null> {
+  const { data } = await api.GET('/v1/me');
+  if (!data) return null;
+
+  const me = data as typeof data & {
+    status?: string;
+    phone?: string | null;
+    totpEnabled?: boolean;
+    lastLoginAt?: string | null;
+    inspectorId?: string | null;
+    inspectorPhotoUrl?: string | null;
+  };
+  return normalizePwaUser({
+    id: me.id,
+    name: me.name,
+    email: me.email,
+    role: me.role,
+    tenantId: me.tenantId,
+    status: me.status,
+    phone: me.phone,
+    totpEnabled: me.totpEnabled,
+    lastLoginAt: me.lastLoginAt,
+    inspectorId: me.inspectorId ?? null,
+    inspectorPhotoUrl: me.inspectorPhotoUrl ?? null,
+  });
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(authStorage.getAccessToken());
@@ -51,33 +78,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!authStorage.hasTokens()) return;
 
-    api.GET('/v1/me')
-      .then(({ data }) => {
-        if (data) {
-          const me = data as typeof data & {
-            status?: string;
-            phone?: string | null;
-            totpEnabled?: boolean;
-            lastLoginAt?: string | null;
-          };
-          const meExt = me as typeof me & {
-            inspectorId?: string | null;
-            inspectorPhotoUrl?: string | null;
-          };
-          setUser(normalizePwaUser({
-            id: me.id,
-            name: me.name,
-            email: me.email,
-            role: me.role,
-            tenantId: me.tenantId,
-            status: me.status,
-            phone: me.phone,
-            totpEnabled: me.totpEnabled,
-            lastLoginAt: me.lastLoginAt,
-            inspectorId: meExt.inspectorId ?? null,
-            inspectorPhotoUrl: meExt.inspectorPhotoUrl ?? null,
-          }));
-        }
+    fetchFullUser()
+      .then((fullUser) => {
+        if (fullUser) setUser(fullUser);
       })
       .catch(() => {
         authStorage.clearTokens();
@@ -104,6 +107,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authStorage.setTokens(data.accessToken, data.refreshToken);
       setToken(data.accessToken);
       setUser(user);
+      // The login response only carries the minimal user; hydrate the extended
+      // fields (phone, inspectorId, photo, 2FA) without blocking the login.
+      try {
+        const fullUser = await fetchFullUser();
+        if (fullUser) setUser(fullUser);
+      } catch {
+        // Keep the minimal user; profile fields load on next /v1/me success.
+      }
     } catch (roleError) {
       authStorage.clearTokens();
       clearPostLoginRedirect();
@@ -122,30 +133,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshUser = useCallback(async () => {
-    const { data } = await api.GET('/v1/me');
-    if (data) {
-      const me = data as typeof data & {
-        status?: string;
-        phone?: string | null;
-        totpEnabled?: boolean;
-        lastLoginAt?: string | null;
-        inspectorId?: string | null;
-        inspectorPhotoUrl?: string | null;
-      };
-      setUser(normalizePwaUser({
-        id: me.id,
-        name: me.name,
-        email: me.email,
-        role: me.role,
-        tenantId: me.tenantId,
-        status: me.status,
-        phone: me.phone,
-        totpEnabled: me.totpEnabled,
-        lastLoginAt: me.lastLoginAt,
-        inspectorId: me.inspectorId ?? null,
-        inspectorPhotoUrl: me.inspectorPhotoUrl ?? null,
-      }));
-    }
+    const fullUser = await fetchFullUser();
+    if (fullUser) setUser(fullUser);
   }, []);
 
   return (
