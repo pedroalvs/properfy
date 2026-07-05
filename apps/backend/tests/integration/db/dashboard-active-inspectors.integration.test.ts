@@ -124,7 +124,7 @@ describe('Dashboard active-service-groups quick stat (per tenant)', () => {
         tenant_id: tenant.id,
         branch_id: branch.id,
         property_code: `DSG-${suffix}`,
-        type: 'RESIDENTIAL',
+        type: 'HOUSE',
         street: '1 Test St',
         suburb: 'Test',
         postcode: '2000',
