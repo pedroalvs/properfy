@@ -39,7 +39,7 @@ const mockPatch = api.PATCH as ReturnType<typeof vi.fn>;
 
 const VALID_CREATE_DATA: PropertyFormData = {
   propertyCode: 'IMV-100',
-  type: 'RESIDENTIAL',
+  type: 'HOUSE',
   branchId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
   street: '123 Smith Street',
   addressLine2: 'Unit 42',
@@ -47,6 +47,11 @@ const VALID_CREATE_DATA: PropertyFormData = {
   postcode: '3000',
   state: 'VIC',
   country: 'AU',
+  privateAreaM2: '',
+  totalAreaM2: '',
+  furnished: '',
+  linenProvided: '',
+  rentAmount: '',
   notes: '',
   latitude: '',
   longitude: '',

@@ -92,7 +92,7 @@ beforeAll(async () => {
     data: {
       tenant_id: tenantB.id, branch_id: branchB.id,
       property_code: `REVIEW-1-B-${Math.random().toString(36).slice(2, 6)}`,
-      type: 'RESIDENTIAL',
+      type: 'HOUSE',
       street: '1 B St', suburb: 'B', postcode: '3000', state: 'VIC', country: 'AU',
       geocoding_status: 'SUCCESS',
     },

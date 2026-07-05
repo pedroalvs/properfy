@@ -1,4 +1,4 @@
-import { type AuthContext, type AppointmentApp, type AppointmentCustomField, isAppointmentOverdue } from '@properfy/shared';
+import { type AuthContext, type AppointmentApp, type AppointmentCustomField, type PropertyType, isAppointmentOverdue } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../domain/appointment.repository';
@@ -63,6 +63,14 @@ export interface GetAppointmentOutput {
   cancellationReason: string | null;
   latitude: number | null;
   longitude: number | null;
+  /** Property detail attributes (nullable — legacy properties have no values). */
+  propertyType: PropertyType | null;
+  propertyAddressLine2: string | null;
+  propertyPrivateAreaM2: number | null;
+  propertyTotalAreaM2: number | null;
+  propertyFurnished: boolean | null;
+  propertyLinenProvided: boolean | null;
+  propertyRentAmount: number | null;
   /** @deprecated Use contacts[] array. Kept for backward compat — returns the primary contact. */
   contact: {
     id: string;
@@ -145,6 +153,13 @@ function mapToOutput(found: AppointmentWithRelations, apps: AppointmentApp[]): G
     cancellationReason: appointment.reason,
     latitude: found.propertyLatitude ?? null,
     longitude: found.propertyLongitude ?? null,
+    propertyType: found.propertyType ?? null,
+    propertyAddressLine2: found.propertyAddressLine2 ?? null,
+    propertyPrivateAreaM2: found.propertyPrivateAreaM2 ?? null,
+    propertyTotalAreaM2: found.propertyTotalAreaM2 ?? null,
+    propertyFurnished: found.propertyFurnished ?? null,
+    propertyLinenProvided: found.propertyLinenProvided ?? null,
+    propertyRentAmount: found.propertyRentAmount ?? null,
     contact: contact
       ? {
           id: contact.id,

@@ -63,7 +63,7 @@ beforeAll(async () => {
       tenant_id: tenantY.id,
       branch_id: branchY.id,
       property_code: `Y-${Math.random().toString(36).slice(2, 6)}`,
-      type: 'RESIDENTIAL',
+      type: 'HOUSE',
       street: '1 Y St', suburb: 'Y', postcode: '2000', state: 'NSW', country: 'AU',
       geocoding_status: 'SUCCESS',
     },
@@ -108,7 +108,7 @@ beforeAll(async () => {
     data: {
       tenant_id: tenantZ.id, branch_id: branchZ.id,
       property_code: `Z-${Math.random().toString(36).slice(2, 6)}`,
-      type: 'RESIDENTIAL',
+      type: 'HOUSE',
       street: '1 Z St', suburb: 'Z', postcode: '3000', state: 'VIC', country: 'AU',
       geocoding_status: 'SUCCESS',
     },

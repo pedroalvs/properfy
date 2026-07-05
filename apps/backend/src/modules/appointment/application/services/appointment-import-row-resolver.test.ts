@@ -59,7 +59,7 @@ function buildPricingRule(overrides: Partial<ConstructorParameters<typeof Pricin
 function buildProperty(overrides: Partial<ConstructorParameters<typeof PropertyEntity>[0]> = {}) {
   const now = new Date();
   return new PropertyEntity({
-    id: 'prop-1', tenantId: TENANT_ID, branchId: BRANCH_ID, propertyCode: 'PROP-001', type: 'RESIDENTIAL',
+    id: 'prop-1', tenantId: TENANT_ID, branchId: BRANCH_ID, propertyCode: 'PROP-001', type: 'HOUSE',
     street: '3/18 Ocean St', addressLine2: null, suburb: 'Kogarah', postcode: '2217', state: 'NSW', country: 'AU',
     lat: null, lng: null, geocodingStatus: 'PENDING', notes: null, rulesJson: {},
     createdAt: now, updatedAt: now, deletedAt: null,

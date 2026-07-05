@@ -46,7 +46,7 @@ function makeRepos() {
   const propertyRepo = {
     findById: vi.fn().mockResolvedValue(new PropertyEntity({
       id: PROPERTY_B, tenantId: TENANT_B, branchId: BRANCH_B, propertyCode: 'P-1',
-      type: 'RESIDENTIAL', street: '1 St', addressLine2: null, suburb: 'S', postcode: '2000',
+      type: 'HOUSE', street: '1 St', addressLine2: null, suburb: 'S', postcode: '2000',
       state: 'NSW', country: 'AU', lat: null, lng: null, geocodingStatus: 'PENDING',
       notes: null, rulesJson: {}, createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
     })),

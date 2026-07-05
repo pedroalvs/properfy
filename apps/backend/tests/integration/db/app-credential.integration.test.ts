@@ -51,7 +51,7 @@ beforeAll(async () => {
     data: {
       tenant_id: tenantA.id, branch_id: branchA.id,
       property_code: `APPCRED-A-${Math.random().toString(36).slice(2, 6)}`,
-      type: 'RESIDENTIAL', street: '1 A St', suburb: 'A', postcode: '3000', state: 'VIC', country: 'AU',
+      type: 'HOUSE', street: '1 A St', suburb: 'A', postcode: '3000', state: 'VIC', country: 'AU',
       geocoding_status: 'SUCCESS',
     },
   });

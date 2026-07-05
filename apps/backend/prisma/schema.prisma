@@ -38,7 +38,8 @@ enum BranchStatus {
 }
 
 enum PropertyType {
-  RESIDENTIAL
+  APARTMENT
+  HOUSE
   COMMERCIAL
   INDUSTRIAL
   RURAL
@@ -362,6 +363,11 @@ model Property {
   lat              Decimal?        @db.Decimal(10, 7)
   lng              Decimal?        @db.Decimal(10, 7)
   geocoding_status GeocodingStatus @default(PENDING)
+  private_area_m2  Decimal?        @db.Decimal(10, 2)
+  total_area_m2    Decimal?        @db.Decimal(10, 2)
+  furnished        Boolean?
+  linen_provided   Boolean?
+  rent_amount      Decimal?        @db.Decimal(12, 2)
   notes            String?         @db.Text
   rules_json       Json            @default("{}")
   created_at       DateTime        @default(now())

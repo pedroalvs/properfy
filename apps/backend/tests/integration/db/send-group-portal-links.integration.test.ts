@@ -69,7 +69,7 @@ async function seedServiceType(prisma: PrismaClient): Promise<string> {
 async function seedProperty(prisma: PrismaClient, tenantId: string, branchId: string): Promise<string> {
   const p = await prisma.property.create({
     data: {
-      tenant_id: tenantId, branch_id: branchId, property_code: `P-${rand()}`, type: 'RESIDENTIAL',
+      tenant_id: tenantId, branch_id: branchId, property_code: `P-${rand()}`, type: 'HOUSE',
       street: '1 Test St', suburb: 'Sydney', postcode: '2000', state: 'NSW', country: 'AU', geocoding_status: 'SUCCESS',
     },
   });

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { paginationSchema } from './pagination';
 import { propertyAddressSchema, propertyAddressUpdateSchema } from './address';
+import { PropertyType } from '../enums/property';
 
 /**
  * Schema for property inspection rules stored in `rules_json`.
@@ -31,12 +32,23 @@ export const propertyRulesSchema = z
   .passthrough();
 export type PropertyRules = z.infer<typeof propertyRulesSchema>;
 
+/** Canonical PropertyType values, derived from the shared enum (single source of truth). */
+export const PROPERTY_TYPE_VALUES = Object.values(PropertyType) as [
+  PropertyType,
+  ...PropertyType[],
+];
+
 export const createPropertySchema = z
   .object({
     tenantId: z.string().uuid().optional(),
     branchId: z.string().uuid().optional(),
     propertyCode: z.string().min(1).max(50).trim(),
-    type: z.enum(['RESIDENTIAL', 'COMMERCIAL', 'INDUSTRIAL', 'RURAL']),
+    type: z.enum(PROPERTY_TYPE_VALUES),
+    privateAreaM2: z.number().positive().max(99999999.99).optional(),
+    totalAreaM2: z.number().positive().max(99999999.99).optional(),
+    furnished: z.boolean().optional(),
+    linenProvided: z.boolean().optional(),
+    rentAmount: z.number().nonnegative().max(9999999999.99).optional(),
     notes: z.string().max(2000).optional(),
     rulesJson: propertyRulesSchema.optional(),
   })
@@ -46,7 +58,12 @@ export type CreatePropertyInput = z.infer<typeof createPropertySchema>;
 export const updatePropertySchema = z
   .object({
     branchId: z.string().uuid().nullable().optional(),
-    type: z.enum(['RESIDENTIAL', 'COMMERCIAL', 'INDUSTRIAL', 'RURAL']).optional(),
+    type: z.enum(PROPERTY_TYPE_VALUES).optional(),
+    privateAreaM2: z.number().positive().max(99999999.99).nullable().optional(),
+    totalAreaM2: z.number().positive().max(99999999.99).nullable().optional(),
+    furnished: z.boolean().nullable().optional(),
+    linenProvided: z.boolean().nullable().optional(),
+    rentAmount: z.number().nonnegative().max(9999999999.99).nullable().optional(),
     latitude: z.number().min(-90).max(90).nullable().optional(),
     longitude: z.number().min(-180).max(180).nullable().optional(),
     notes: z.string().max(2000).nullable().optional(),
@@ -58,7 +75,7 @@ export type UpdatePropertyInput = z.infer<typeof updatePropertySchema>;
 export const listPropertiesQuerySchema = paginationSchema.extend({
   tenantId: z.string().uuid().optional(),
   branchId: z.string().uuid().optional(),
-  type: z.enum(['RESIDENTIAL', 'COMMERCIAL', 'INDUSTRIAL', 'RURAL']).optional(),
+  type: z.enum(PROPERTY_TYPE_VALUES).optional(),
   search: z.string().max(200).optional(),
   hasCoordinates: z.coerce.boolean().optional(),
   nearLat: z.coerce.number().min(-90).max(90).optional(),

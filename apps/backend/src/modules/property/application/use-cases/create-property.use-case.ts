@@ -33,6 +33,11 @@ export interface CreatePropertyInput {
   postcode: string;
   state: string;
   country: string;
+  privateAreaM2?: number;
+  totalAreaM2?: number;
+  furnished?: boolean;
+  linenProvided?: boolean;
+  rentAmount?: number;
   notes?: string;
   rulesJson?: Record<string, unknown>;
   actor: AuthContext;
@@ -53,6 +58,11 @@ export interface CreatePropertyOutput {
   geocodingStatus: string;
   latitude: number | null;
   longitude: number | null;
+  privateAreaM2: number | null;
+  totalAreaM2: number | null;
+  furnished: boolean | null;
+  linenProvided: boolean | null;
+  rentAmount: number | null;
   notes: string | null;
   rulesJson: Record<string, unknown>;
   createdAt: Date;
@@ -184,6 +194,11 @@ export class CreatePropertyUseCase {
       lat: null,
       lng: null,
       geocodingStatus: 'PENDING',
+      privateAreaM2: input.privateAreaM2 ?? null,
+      totalAreaM2: input.totalAreaM2 ?? null,
+      furnished: input.furnished ?? null,
+      linenProvided: input.linenProvided ?? null,
+      rentAmount: input.rentAmount ?? null,
       notes: input.notes ?? null,
       rulesJson: input.rulesJson ?? {},
       createdAt: now,
@@ -250,6 +265,11 @@ export class CreatePropertyUseCase {
       geocodingStatus: property.geocodingStatus,
       latitude: property.lat,
       longitude: property.lng,
+      privateAreaM2: property.privateAreaM2,
+      totalAreaM2: property.totalAreaM2,
+      furnished: property.furnished,
+      linenProvided: property.linenProvided,
+      rentAmount: property.rentAmount,
       notes: property.notes,
       rulesJson: property.rulesJson,
       createdAt: property.createdAt,

@@ -12,7 +12,7 @@ function makeProperty(overrides: Partial<Property> = {}): Property {
     branchId: 'branch-1',
     branchName: 'Filial Centro',
     propertyCode: 'IMV-001',
-    type: PropertyType.RESIDENTIAL,
+    type: PropertyType.HOUSE,
     street: 'Rua das Flores, 123',
     addressLine2: null,
     suburb: 'Centro',
@@ -20,6 +20,11 @@ function makeProperty(overrides: Partial<Property> = {}): Property {
     state: 'SP',
     country: 'BR',
     geocodingStatus: GeocodingStatus.SUCCESS,
+    privateAreaM2: null,
+    totalAreaM2: null,
+    furnished: null,
+    linenProvided: null,
+    rentAmount: null,
     notes: null,
     createdAt: '2026-03-10T10:00:00Z',
     updatedAt: '2026-03-10T10:00:00Z',
@@ -55,7 +60,8 @@ describe('PropertyTable', () => {
   it('renders em dash for null branchName', () => {
     const prop = makeProperty({ branchId: null, branchName: null });
     render(<PropertyTable data={[prop]} />);
-    expect(screen.getByText('—')).toBeInTheDocument();
+    // One em dash per null column: branchName, totalAreaM2, rentAmount (fixture defaults null).
+    expect(screen.getAllByText('—')).toHaveLength(3);
   });
 
   it('shows loading state', () => {

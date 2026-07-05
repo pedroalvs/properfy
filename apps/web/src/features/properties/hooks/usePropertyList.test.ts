@@ -31,7 +31,7 @@ import { createRouterQueryWrapper } from '@/test-utils/test-wrappers';
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_PROPERTIES = [
-  { id: 'prop-01', propertyCode: 'IMV-001', type: 'RESIDENTIAL', street: 'Rua das Flores, 123' },
+  { id: 'prop-01', propertyCode: 'IMV-001', type: 'HOUSE', street: 'Rua das Flores, 123' },
   { id: 'prop-02', propertyCode: 'IMV-002', type: 'COMMERCIAL', street: 'Av. Paulista, 1000' },
 ];
 

@@ -37,7 +37,7 @@ const validInspectorId = 'e1b2c3d4-e5f6-7890-abcd-ef1234567890';
 
 const validInlineProperty = {
   propertyCode: 'PROP-001',
-  type: 'RESIDENTIAL' as const,
+  type: 'HOUSE' as const,
   street: '123 Main St',
   suburb: 'Sydney',
   postcode: '2000',

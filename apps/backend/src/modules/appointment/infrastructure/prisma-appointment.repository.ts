@@ -130,7 +130,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       include: {
         contacts: true,
         restrictions: true,
-        property: { select: { property_code: true, street: true, suburb: true, state: true, postcode: true, lat: true, lng: true } },
+        property: { select: { property_code: true, type: true, street: true, address_line_2: true, suburb: true, state: true, postcode: true, lat: true, lng: true, private_area_m2: true, total_area_m2: true, furnished: true, linen_provided: true, rent_amount: true } },
         tenant: { select: { name: true, appointment_code_prefix: true } },
         branch: { select: { name: true } },
         service_type: { select: { name: true, flow_type: true } },
@@ -177,6 +177,16 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       propertySuburb: row.property?.suburb ?? '',
       propertyLatitude: row.property?.lat ? Number(row.property.lat) : null,
       propertyLongitude: row.property?.lng ? Number(row.property.lng) : null,
+      propertyType: row.property?.type ?? null,
+      propertyAddressLine2: row.property?.address_line_2 ?? null,
+      propertyPrivateAreaM2:
+        row.property?.private_area_m2 != null ? Number(row.property.private_area_m2) : null,
+      propertyTotalAreaM2:
+        row.property?.total_area_m2 != null ? Number(row.property.total_area_m2) : null,
+      propertyFurnished: row.property?.furnished ?? null,
+      propertyLinenProvided: row.property?.linen_provided ?? null,
+      propertyRentAmount:
+        row.property?.rent_amount != null ? Number(row.property.rent_amount) : null,
       branchName: row.branch?.name ?? '',
       serviceTypeName: row.service_type?.name ?? '',
       inspectorName: row.inspector?.name ?? null,

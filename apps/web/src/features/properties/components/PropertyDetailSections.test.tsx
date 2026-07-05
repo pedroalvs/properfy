@@ -11,7 +11,7 @@ function makeProperty(overrides: Partial<PropertyDetail> = {}): PropertyDetail {
     branchId: 'branch-1',
     branchName: 'Filial Centro',
     propertyCode: 'IMV-001',
-    type: PropertyType.RESIDENTIAL,
+    type: PropertyType.HOUSE,
     street: 'Rua das Flores, 123',
     addressLine2: 'Apto 42',
     suburb: 'Centro',
@@ -19,6 +19,11 @@ function makeProperty(overrides: Partial<PropertyDetail> = {}): PropertyDetail {
     state: 'SP',
     country: 'BR',
     geocodingStatus: GeocodingStatus.SUCCESS,
+    privateAreaM2: null,
+    totalAreaM2: null,
+    furnished: null,
+    linenProvided: null,
+    rentAmount: null,
     notes: 'Test note',
     latitude: -23.5505,
     longitude: -46.6333,
@@ -37,10 +42,30 @@ describe('PropertyDetailSections', () => {
     expect(screen.getByText('Record')).toBeInTheDocument();
   });
 
+  it('renders detail fields when present', () => {
+    render(
+      <PropertyDetailSections
+        property={makeProperty({
+          privateAreaM2: 85.5,
+          totalAreaM2: 120,
+          furnished: true,
+          linenProvided: false,
+          rentAmount: 2500,
+        })}
+      />,
+    );
+    expect(screen.getByText('Details')).toBeInTheDocument();
+    expect(screen.getByText('85.5 m²')).toBeInTheDocument();
+    expect(screen.getByText('120 m²')).toBeInTheDocument();
+    expect(screen.getByText('Yes')).toBeInTheDocument();
+    expect(screen.getByText('No')).toBeInTheDocument();
+    expect(screen.getByText('$2,500.00')).toBeInTheDocument();
+  });
+
   it('renders property code and type chip', () => {
     render(<PropertyDetailSections property={makeProperty()} />);
     expect(screen.getByText('IMV-001')).toBeInTheDocument();
-    expect(screen.getByText('Residential')).toBeInTheDocument();
+    expect(screen.getByText('House')).toBeInTheDocument();
   });
 
   it('renders address fields', () => {

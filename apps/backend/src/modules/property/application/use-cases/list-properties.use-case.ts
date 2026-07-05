@@ -38,6 +38,11 @@ export interface ListPropertiesOutput {
     latitude: number | null;
     longitude: number | null;
     geocodingStatus: string;
+    privateAreaM2: number | null;
+    totalAreaM2: number | null;
+    furnished: boolean | null;
+    linenProvided: boolean | null;
+    rentAmount: number | null;
     notes: string | null;
     createdAt: Date;
     updatedAt: Date;
@@ -100,6 +105,11 @@ export class ListPropertiesUseCase {
         latitude: item.property.lat,
         longitude: item.property.lng,
         geocodingStatus: item.property.geocodingStatus,
+        privateAreaM2: item.property.privateAreaM2,
+        totalAreaM2: item.property.totalAreaM2,
+        furnished: item.property.furnished,
+        linenProvided: item.property.linenProvided,
+        rentAmount: item.property.rentAmount,
         notes: item.property.notes,
         createdAt: item.property.createdAt,
         updatedAt: item.property.updatedAt,

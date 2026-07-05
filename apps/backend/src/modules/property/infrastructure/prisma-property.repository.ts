@@ -53,6 +53,11 @@ function mapToEntity(row: {
   lat: unknown;
   lng: unknown;
   geocoding_status: string;
+  private_area_m2?: unknown;
+  total_area_m2?: unknown;
+  furnished?: boolean | null;
+  linen_provided?: boolean | null;
+  rent_amount?: unknown;
   notes: string | null;
   rules_json: unknown;
   created_at: Date;
@@ -74,6 +79,11 @@ function mapToEntity(row: {
     lat: row.lat ? Number(row.lat) : null,
     lng: row.lng ? Number(row.lng) : null,
     geocodingStatus: row.geocoding_status as GeocodingStatus,
+    privateAreaM2: row.private_area_m2 != null ? Number(row.private_area_m2) : null,
+    totalAreaM2: row.total_area_m2 != null ? Number(row.total_area_m2) : null,
+    furnished: row.furnished ?? null,
+    linenProvided: row.linen_provided ?? null,
+    rentAmount: row.rent_amount != null ? Number(row.rent_amount) : null,
     notes: row.notes,
     rulesJson: (row.rules_json as Record<string, unknown>) ?? {},
     createdAt: row.created_at,
@@ -226,6 +236,11 @@ export class PrismaPropertyRepository implements IPropertyRepository {
           lat: property.lat,
           lng: property.lng,
           geocoding_status: property.geocodingStatus as PrismaGeocodingStatus,
+          private_area_m2: property.privateAreaM2,
+          total_area_m2: property.totalAreaM2,
+          furnished: property.furnished,
+          linen_provided: property.linenProvided,
+          rent_amount: property.rentAmount,
           notes: property.notes,
           rules_json: property.rulesJson as Prisma.InputJsonValue,
         },
@@ -253,6 +268,11 @@ export class PrismaPropertyRepository implements IPropertyRepository {
       lat: number | null;
       lng: number | null;
       geocodingStatus: string;
+      privateAreaM2: number | null;
+      totalAreaM2: number | null;
+      furnished: boolean | null;
+      linenProvided: boolean | null;
+      rentAmount: number | null;
       notes: string | null;
       rulesJson: Record<string, unknown>;
       deletedAt: Date | null;
@@ -274,6 +294,11 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     if (data.lng !== undefined) updateData['lng'] = data.lng;
     if (data.geocodingStatus !== undefined)
       updateData['geocoding_status'] = data.geocodingStatus;
+    if (data.privateAreaM2 !== undefined) updateData['private_area_m2'] = data.privateAreaM2;
+    if (data.totalAreaM2 !== undefined) updateData['total_area_m2'] = data.totalAreaM2;
+    if (data.furnished !== undefined) updateData['furnished'] = data.furnished;
+    if (data.linenProvided !== undefined) updateData['linen_provided'] = data.linenProvided;
+    if (data.rentAmount !== undefined) updateData['rent_amount'] = data.rentAmount;
     if (data.notes !== undefined) updateData['notes'] = data.notes;
     if (data.rulesJson !== undefined)
       updateData['rules_json'] = data.rulesJson;
@@ -418,7 +443,9 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     const sql = `
       SELECT p.id, p.tenant_id, p.branch_id, p.property_code, p.type,
              p.street, p.address_line_2, p.suburb, p.postcode, p.state, p.country,
-             p.lat, p.lng, p.geocoding_status, p.notes, p.rules_json,
+             p.lat, p.lng, p.geocoding_status,
+             p.private_area_m2, p.total_area_m2, p.furnished, p.linen_provided, p.rent_amount,
+             p.notes, p.rules_json,
              p.created_at, p.updated_at, p.deleted_at
       FROM properties p
       WHERE ${clause}
@@ -451,7 +478,9 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     const sql = `
       SELECT p.id, p.tenant_id, p.branch_id, p.property_code, p.type,
              p.street, p.address_line_2, p.suburb, p.postcode, p.state, p.country,
-             p.lat, p.lng, p.geocoding_status, p.notes, p.rules_json,
+             p.lat, p.lng, p.geocoding_status,
+             p.private_area_m2, p.total_area_m2, p.furnished, p.linen_provided, p.rent_amount,
+             p.notes, p.rules_json,
              p.created_at, p.updated_at, p.deleted_at,
              b.name AS branch_name
       FROM properties p

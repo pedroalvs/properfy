@@ -2288,7 +2288,7 @@ export interface paths {
                     sortOrder?: "asc" | "desc";
                     tenantId?: string;
                     branchId?: string;
-                    type?: "RESIDENTIAL" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
+                    type?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
                     search?: string;
                     hasCoordinates?: boolean;
                     nearLat?: number;
@@ -2327,6 +2327,11 @@ export interface paths {
                                 latitude?: number | null;
                                 longitude?: number | null;
                                 geocodingStatus: string;
+                                privateAreaM2?: number | null;
+                                totalAreaM2?: number | null;
+                                furnished?: boolean | null;
+                                linenProvided?: boolean | null;
+                                rentAmount?: number | null;
                                 notes: string | null;
                                 rulesJson?: {
                                     keyRequired?: boolean;
@@ -2370,7 +2375,12 @@ export interface paths {
                         branchId?: string;
                         propertyCode: string;
                         /** @enum {string} */
-                        type: "RESIDENTIAL" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
+                        type: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
+                        privateAreaM2?: number;
+                        totalAreaM2?: number;
+                        furnished?: boolean;
+                        linenProvided?: boolean;
+                        rentAmount?: number;
                         notes?: string;
                         rulesJson?: {
                             keyRequired?: boolean;
@@ -2420,6 +2430,11 @@ export interface paths {
                                 latitude?: number | null;
                                 longitude?: number | null;
                                 geocodingStatus: string;
+                                privateAreaM2?: number | null;
+                                totalAreaM2?: number | null;
+                                furnished?: boolean | null;
+                                linenProvided?: boolean | null;
+                                rentAmount?: number | null;
                                 notes: string | null;
                                 rulesJson?: {
                                     keyRequired?: boolean;
@@ -2490,6 +2505,11 @@ export interface paths {
                                 latitude?: number | null;
                                 longitude?: number | null;
                                 geocodingStatus: string;
+                                privateAreaM2?: number | null;
+                                totalAreaM2?: number | null;
+                                furnished?: boolean | null;
+                                linenProvided?: boolean | null;
+                                rentAmount?: number | null;
                                 notes: string | null;
                                 rulesJson?: {
                                     keyRequired?: boolean;
@@ -2551,7 +2571,12 @@ export interface paths {
                         /** Format: uuid */
                         branchId?: string | null;
                         /** @enum {string} */
-                        type?: "RESIDENTIAL" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
+                        type?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
+                        privateAreaM2?: number | null;
+                        totalAreaM2?: number | null;
+                        furnished?: boolean | null;
+                        linenProvided?: boolean | null;
+                        rentAmount?: number | null;
                         latitude?: number | null;
                         longitude?: number | null;
                         notes?: string | null;
@@ -2602,6 +2627,11 @@ export interface paths {
                                 latitude?: number | null;
                                 longitude?: number | null;
                                 geocodingStatus: string;
+                                privateAreaM2?: number | null;
+                                totalAreaM2?: number | null;
+                                furnished?: boolean | null;
+                                linenProvided?: boolean | null;
+                                rentAmount?: number | null;
                                 notes: string | null;
                                 rulesJson?: {
                                     keyRequired?: boolean;
@@ -4702,6 +4732,14 @@ export interface paths {
                                 cancellationReason?: string | null;
                                 latitude?: number | null;
                                 longitude?: number | null;
+                                /** @enum {string|null} */
+                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
+                                propertyAddressLine2?: string | null;
+                                propertyPrivateAreaM2?: number | null;
+                                propertyTotalAreaM2?: number | null;
+                                propertyFurnished?: boolean | null;
+                                propertyLinenProvided?: boolean | null;
+                                propertyRentAmount?: number | null;
                                 contact?: unknown;
                                 contacts?: unknown[];
                                 apps?: {
@@ -4751,7 +4789,7 @@ export interface paths {
                         property?: {
                             propertyCode: string;
                             /** @enum {string} */
-                            type: "RESIDENTIAL" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
+                            type: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
                             street: string;
                             addressLine2?: string;
                             suburb: string;
@@ -4892,6 +4930,14 @@ export interface paths {
                                 cancellationReason?: string | null;
                                 latitude?: number | null;
                                 longitude?: number | null;
+                                /** @enum {string|null} */
+                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
+                                propertyAddressLine2?: string | null;
+                                propertyPrivateAreaM2?: number | null;
+                                propertyTotalAreaM2?: number | null;
+                                propertyFurnished?: boolean | null;
+                                propertyLinenProvided?: boolean | null;
+                                propertyRentAmount?: number | null;
                                 contact?: unknown;
                                 contacts?: unknown[];
                                 apps?: {
@@ -5006,6 +5052,14 @@ export interface paths {
                                 cancellationReason?: string | null;
                                 latitude?: number | null;
                                 longitude?: number | null;
+                                /** @enum {string|null} */
+                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
+                                propertyAddressLine2?: string | null;
+                                propertyPrivateAreaM2?: number | null;
+                                propertyTotalAreaM2?: number | null;
+                                propertyFurnished?: boolean | null;
+                                propertyLinenProvided?: boolean | null;
+                                propertyRentAmount?: number | null;
                                 contact?: unknown;
                                 contacts?: unknown[];
                                 apps?: {
@@ -5195,6 +5249,14 @@ export interface paths {
                                 cancellationReason?: string | null;
                                 latitude?: number | null;
                                 longitude?: number | null;
+                                /** @enum {string|null} */
+                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
+                                propertyAddressLine2?: string | null;
+                                propertyPrivateAreaM2?: number | null;
+                                propertyTotalAreaM2?: number | null;
+                                propertyFurnished?: boolean | null;
+                                propertyLinenProvided?: boolean | null;
+                                propertyRentAmount?: number | null;
                                 contact?: unknown;
                                 contacts?: unknown[];
                                 apps?: {
@@ -8427,6 +8489,13 @@ export interface paths {
                                 suburb: string;
                                 propertyLatitude: number | null;
                                 propertyLongitude: number | null;
+                                propertyAddressLine2?: string | null;
+                                /** @enum {string|null} */
+                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
+                                propertyPrivateAreaM2?: number | null;
+                                propertyTotalAreaM2?: number | null;
+                                propertyFurnished?: boolean | null;
+                                propertyLinenProvided?: boolean | null;
                                 rentalTenantConfirmationStatus: string;
                                 rentalTenantConfirmation: string;
                                 keyRequired: boolean;

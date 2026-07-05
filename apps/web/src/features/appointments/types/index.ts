@@ -1,5 +1,6 @@
 import type {
   AppointmentStatus,
+  PropertyType,
   RentalTenantConfirmationStatus,
   AppointmentContactRole,
   ContactType,
@@ -88,6 +89,14 @@ export interface AppointmentDetail extends Omit<Appointment, 'code'> {
   rejectionReasonCode?: string | null;
   reason?: string | null;
   contacts?: AppointmentContactEntry[];
+  /** Property detail attributes (nullable — legacy properties have no values). */
+  propertyType?: PropertyType | null;
+  propertyAddressLine2?: string | null;
+  propertyPrivateAreaM2?: number | null;
+  propertyTotalAreaM2?: number | null;
+  propertyFurnished?: boolean | null;
+  propertyLinenProvided?: boolean | null;
+  propertyRentAmount?: number | null;
   /** Operator-defined custom fields (label/value pairs, max 4). */
   customFields?: AppointmentCustomField[];
   /** App credentials linked to this appointment (live reference). */

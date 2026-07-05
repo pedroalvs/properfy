@@ -150,7 +150,7 @@ describe('AppointmentImportCommitWorker', () => {
     expect(deps.propertyRepo.save).toHaveBeenCalledTimes(1);
     const savedProperty = deps.propertyRepo.save.mock.calls[0]![0];
     expect(savedProperty.street).toBe('9 New St');
-    expect(savedProperty.type).toBe('RESIDENTIAL');
+    expect(savedProperty.type).toBe('HOUSE');
     expect(savedProperty.geocodingStatus).toBe('PENDING');
     expect(deps.jobQueue.enqueue).toHaveBeenCalledWith('property.geocode', { propertyId: savedProperty.id });
 

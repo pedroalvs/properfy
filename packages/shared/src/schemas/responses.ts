@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { HHMM_REGEX } from './appointment';
-import { propertyRulesSchema } from './property';
+import { propertyRulesSchema, PROPERTY_TYPE_VALUES } from './property';
 import { bonusRuleSchema } from './pricing-rule';
 import { appointmentAppSchema } from './app-credential';
 import { AppointmentStatus, ServiceTypeFlowType } from '../enums';
@@ -138,6 +138,11 @@ export const propertyResponseSchema = z.object({
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
   geocodingStatus: z.string(),
+  privateAreaM2: z.number().nullable().optional(),
+  totalAreaM2: z.number().nullable().optional(),
+  furnished: z.boolean().nullable().optional(),
+  linenProvided: z.boolean().nullable().optional(),
+  rentAmount: z.number().nullable().optional(),
   notes: z.string().nullable(),
   rulesJson: propertyRulesSchema.optional(),
   createdAt: dateStr(),
@@ -274,6 +279,14 @@ export const appointmentResponseSchema = z.object({
   // Geographic coordinates propagated from the appointment's property (for map views)
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
+  // Property detail attributes (detail endpoint; nullable — legacy properties have no values)
+  propertyType: z.enum(PROPERTY_TYPE_VALUES).nullable().optional(),
+  propertyAddressLine2: z.string().nullable().optional(),
+  propertyPrivateAreaM2: z.number().nullable().optional(),
+  propertyTotalAreaM2: z.number().nullable().optional(),
+  propertyFurnished: z.boolean().nullable().optional(),
+  propertyLinenProvided: z.boolean().nullable().optional(),
+  propertyRentAmount: z.number().nullable().optional(),
   contact: z.unknown().nullable().optional(),
   contacts: z.array(z.unknown()).optional(),
   /** App credentials linked to this appointment (live reference). */
@@ -305,6 +318,14 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
   suburb: z.string(),
   propertyLatitude: z.number().nullable(),
   propertyLongitude: z.number().nullable(),
+  // Property detail attributes useful in the field (rent amount intentionally
+  // NOT exposed to inspectors — commercial information)
+  propertyAddressLine2: z.string().nullable().optional(),
+  propertyType: z.enum(PROPERTY_TYPE_VALUES).nullable().optional(),
+  propertyPrivateAreaM2: z.number().nullable().optional(),
+  propertyTotalAreaM2: z.number().nullable().optional(),
+  propertyFurnished: z.boolean().nullable().optional(),
+  propertyLinenProvided: z.boolean().nullable().optional(),
   rentalTenantConfirmationStatus: z.string(),
   rentalTenantConfirmation: z.string(),
   keyRequired: z.boolean(),

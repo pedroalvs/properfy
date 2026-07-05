@@ -1,4 +1,4 @@
-import type { AuthContext, AppointmentApp, AppointmentCustomField } from '@properfy/shared';
+import type { AuthContext, AppointmentApp, AppointmentCustomField, PropertyType } from '@properfy/shared';
 import { normalizeCustomFields } from '@properfy/shared';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../appointment/domain/appointment.repository';
 import type { IAppCredentialRepository } from '../../../app-credential/domain/app-credential.repository';
@@ -87,6 +87,14 @@ export interface AppointmentDetailOutput {
   suburb: string;
   propertyLatitude: number | null;
   propertyLongitude: number | null;
+  propertyAddressLine2: string | null;
+  propertyType: PropertyType | null;
+  propertyPrivateAreaM2: number | null;
+  propertyTotalAreaM2: number | null;
+  propertyFurnished: boolean | null;
+  propertyLinenProvided: boolean | null;
+  // Rent amount intentionally omitted from the property block above — commercial
+  // information not for inspectors.
   rentalTenantConfirmationStatus: string;
   rentalTenantConfirmation: string;
   keyRequired: boolean;
@@ -237,6 +245,12 @@ export class GetAppointmentDetailUseCase {
       suburb: result.propertySuburb ?? '',
       propertyLatitude: result.propertyLatitude ?? null,
       propertyLongitude: result.propertyLongitude ?? null,
+      propertyAddressLine2: result.propertyAddressLine2 ?? null,
+      propertyType: result.propertyType ?? null,
+      propertyPrivateAreaM2: result.propertyPrivateAreaM2 ?? null,
+      propertyTotalAreaM2: result.propertyTotalAreaM2 ?? null,
+      propertyFurnished: result.propertyFurnished ?? null,
+      propertyLinenProvided: result.propertyLinenProvided ?? null,
       rentalTenantConfirmationStatus: appointment.rentalTenantConfirmationStatus,
       rentalTenantConfirmation: appointment.rentalTenantConfirmationStatus,
       keyRequired: appointment.keyRequired,

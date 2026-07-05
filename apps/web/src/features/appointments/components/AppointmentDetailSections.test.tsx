@@ -58,6 +58,25 @@ describe('AppointmentDetailSections', () => {
     expect(screen.getByText('123 Flower Street')).toBeInTheDocument();
   });
 
+  it('renders property section with detail attributes when present', () => {
+    render(
+      <AppointmentDetailSections
+        appointment={makeAppointment({
+          propertyType: 'APARTMENT',
+          propertyPrivateAreaM2: 72,
+          propertyTotalAreaM2: 90,
+          propertyFurnished: true,
+          propertyRentAmount: 3200,
+        })}
+      />,
+    );
+    expect(screen.getByText('Property')).toBeInTheDocument();
+    expect(screen.getByText('Apartment')).toBeInTheDocument();
+    expect(screen.getByText('72 m²')).toBeInTheDocument();
+    expect(screen.getByText('90 m²')).toBeInTheDocument();
+    expect(screen.getByText('$3,200.00')).toBeInTheDocument();
+  });
+
   it('renders contact name, phone, email', () => {
     render(<AppointmentDetailSections appointment={makeAppointment()} />);
     expect(screen.getByText('John Silva')).toBeInTheDocument();

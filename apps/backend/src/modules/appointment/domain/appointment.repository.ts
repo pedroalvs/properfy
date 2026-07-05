@@ -1,5 +1,6 @@
 import type {
   AppointmentCustomField,
+  PropertyType,
   CancellationReasonCode,
   RejectionReasonCode,
   ServiceTypeFlowType,
@@ -61,6 +62,13 @@ export interface AppointmentWithRelations {
   propertySuburb?: string;
   propertyLatitude?: number | null;
   propertyLongitude?: number | null;
+  propertyType?: PropertyType | null;
+  propertyAddressLine2?: string | null;
+  propertyPrivateAreaM2?: number | null;
+  propertyTotalAreaM2?: number | null;
+  propertyFurnished?: boolean | null;
+  propertyLinenProvided?: boolean | null;
+  propertyRentAmount?: number | null;
   branchName?: string;
   serviceTypeName?: string;
   inspectorName?: string | null;

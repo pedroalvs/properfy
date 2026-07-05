@@ -51,7 +51,7 @@ describe('appointment customFields round-trip (real DB)', () => {
         tenant_id: tenant.id,
         branch_id: branch.id,
         property_code: `CF-${rand()}`,
-        type: 'RESIDENTIAL',
+        type: 'HOUSE',
         street: '10 Test St',
         suburb: 'Testville',
         postcode: '2000',
