@@ -72,7 +72,7 @@ async function seedTenant(prisma: PrismaClient, name: string): Promise<TenantFix
       tenant_id: tenant.id,
       branch_id: branch.id,
       property_code: `SGF-${suffix}`,
-      type: 'RESIDENTIAL',
+      type: 'HOUSE',
       street: '1 Test St',
       suburb: 'Test',
       postcode: '2000',

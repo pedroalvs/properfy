@@ -49,7 +49,7 @@ const MOCK_PROPERTIES = [
     suburb: 'Bondi',
     state: 'NSW',
     postcode: '2026',
-    type: 'RESIDENTIAL',
+    type: 'HOUSE',
     latitude: -33.89,
     longitude: 151.27,
     branchName: 'Central',

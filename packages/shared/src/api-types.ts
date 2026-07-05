@@ -2288,7 +2288,7 @@ export interface paths {
                     sortOrder?: "asc" | "desc";
                     tenantId?: string;
                     branchId?: string;
-                    type?: "RESIDENTIAL" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
+                    type?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
                     search?: string;
                     hasCoordinates?: boolean;
                     nearLat?: number;
@@ -2327,6 +2327,11 @@ export interface paths {
                                 latitude?: number | null;
                                 longitude?: number | null;
                                 geocodingStatus: string;
+                                privateAreaM2?: number | null;
+                                totalAreaM2?: number | null;
+                                furnished?: boolean | null;
+                                linenProvided?: boolean | null;
+                                rentAmount?: number | null;
                                 notes: string | null;
                                 rulesJson?: {
                                     keyRequired?: boolean;
@@ -2370,7 +2375,12 @@ export interface paths {
                         branchId?: string;
                         propertyCode: string;
                         /** @enum {string} */
-                        type: "RESIDENTIAL" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
+                        type: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
+                        privateAreaM2?: number;
+                        totalAreaM2?: number;
+                        furnished?: boolean;
+                        linenProvided?: boolean;
+                        rentAmount?: number;
                         notes?: string;
                         rulesJson?: {
                             keyRequired?: boolean;
@@ -2420,6 +2430,11 @@ export interface paths {
                                 latitude?: number | null;
                                 longitude?: number | null;
                                 geocodingStatus: string;
+                                privateAreaM2?: number | null;
+                                totalAreaM2?: number | null;
+                                furnished?: boolean | null;
+                                linenProvided?: boolean | null;
+                                rentAmount?: number | null;
                                 notes: string | null;
                                 rulesJson?: {
                                     keyRequired?: boolean;
@@ -2490,6 +2505,11 @@ export interface paths {
                                 latitude?: number | null;
                                 longitude?: number | null;
                                 geocodingStatus: string;
+                                privateAreaM2?: number | null;
+                                totalAreaM2?: number | null;
+                                furnished?: boolean | null;
+                                linenProvided?: boolean | null;
+                                rentAmount?: number | null;
                                 notes: string | null;
                                 rulesJson?: {
                                     keyRequired?: boolean;
@@ -2551,7 +2571,12 @@ export interface paths {
                         /** Format: uuid */
                         branchId?: string | null;
                         /** @enum {string} */
-                        type?: "RESIDENTIAL" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
+                        type?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
+                        privateAreaM2?: number | null;
+                        totalAreaM2?: number | null;
+                        furnished?: boolean | null;
+                        linenProvided?: boolean | null;
+                        rentAmount?: number | null;
                         latitude?: number | null;
                         longitude?: number | null;
                         notes?: string | null;
@@ -2602,6 +2627,11 @@ export interface paths {
                                 latitude?: number | null;
                                 longitude?: number | null;
                                 geocodingStatus: string;
+                                privateAreaM2?: number | null;
+                                totalAreaM2?: number | null;
+                                furnished?: boolean | null;
+                                linenProvided?: boolean | null;
+                                rentAmount?: number | null;
                                 notes: string | null;
                                 rulesJson?: {
                                     keyRequired?: boolean;
@@ -3250,7 +3280,6 @@ export interface paths {
                                 paymentSettingsJson?: unknown;
                                 regionIds?: string[];
                                 serviceTypesJson?: unknown;
-                                clientEligibilityJson?: unknown;
                                 blockedClients?: string[];
                                 fullName?: string | null;
                                 address?: unknown;
@@ -3315,12 +3344,6 @@ export interface paths {
                             certified?: boolean;
                         }[];
                         /** @default [] */
-                        clientEligibility?: {
-                            /** Format: uuid */
-                            tenantId: string;
-                            eligible: boolean;
-                        }[];
-                        /** @default [] */
                         blockedClients?: string[];
                         fullName?: string;
                         address?: {
@@ -3356,7 +3379,6 @@ export interface paths {
                                 paymentSettingsJson?: unknown;
                                 regionIds?: string[];
                                 serviceTypesJson?: unknown;
-                                clientEligibilityJson?: unknown;
                                 blockedClients?: string[];
                                 fullName?: string | null;
                                 address?: unknown;
@@ -3418,7 +3440,6 @@ export interface paths {
                                 paymentSettingsJson?: unknown;
                                 regionIds?: string[];
                                 serviceTypesJson?: unknown;
-                                clientEligibilityJson?: unknown;
                                 blockedClients?: string[];
                                 fullName?: string | null;
                                 address?: unknown;
@@ -3480,11 +3501,6 @@ export interface paths {
                             /** @default false */
                             certified?: boolean;
                         }[];
-                        clientEligibility?: {
-                            /** Format: uuid */
-                            tenantId: string;
-                            eligible: boolean;
-                        }[];
                         blockedClients?: string[];
                         fullName?: string | null;
                         address?: {
@@ -3520,7 +3536,6 @@ export interface paths {
                                 paymentSettingsJson?: unknown;
                                 regionIds?: string[];
                                 serviceTypesJson?: unknown;
-                                clientEligibilityJson?: unknown;
                                 blockedClients?: string[];
                                 fullName?: string | null;
                                 address?: unknown;
@@ -4717,6 +4732,14 @@ export interface paths {
                                 cancellationReason?: string | null;
                                 latitude?: number | null;
                                 longitude?: number | null;
+                                /** @enum {string|null} */
+                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
+                                propertyAddressLine2?: string | null;
+                                propertyPrivateAreaM2?: number | null;
+                                propertyTotalAreaM2?: number | null;
+                                propertyFurnished?: boolean | null;
+                                propertyLinenProvided?: boolean | null;
+                                propertyRentAmount?: number | null;
                                 contact?: unknown;
                                 contacts?: unknown[];
                                 apps?: {
@@ -4725,6 +4748,11 @@ export interface paths {
                                     name: string;
                                     username: string;
                                     password: string;
+                                    needsAuthCode: boolean;
+                                    authCode: string | null;
+                                    appUrl: string | null;
+                                    instructionsUrl: string | null;
+                                    instructionsPassword: string | null;
                                 }[];
                                 restrictions?: unknown[];
                                 property?: unknown;
@@ -4761,7 +4789,7 @@ export interface paths {
                         property?: {
                             propertyCode: string;
                             /** @enum {string} */
-                            type: "RESIDENTIAL" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
+                            type: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
                             street: string;
                             addressLine2?: string;
                             suburb: string;
@@ -4781,10 +4809,7 @@ export interface paths {
                             rentalTenantName: string;
                             /** Format: email */
                             primaryEmail?: string;
-                            /** Format: email */
-                            secondaryEmail?: string;
                             primaryPhone?: string;
-                            secondaryPhone?: string;
                         };
                         contacts?: ({
                             /** Format: uuid */
@@ -4905,6 +4930,14 @@ export interface paths {
                                 cancellationReason?: string | null;
                                 latitude?: number | null;
                                 longitude?: number | null;
+                                /** @enum {string|null} */
+                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
+                                propertyAddressLine2?: string | null;
+                                propertyPrivateAreaM2?: number | null;
+                                propertyTotalAreaM2?: number | null;
+                                propertyFurnished?: boolean | null;
+                                propertyLinenProvided?: boolean | null;
+                                propertyRentAmount?: number | null;
                                 contact?: unknown;
                                 contacts?: unknown[];
                                 apps?: {
@@ -4913,6 +4946,11 @@ export interface paths {
                                     name: string;
                                     username: string;
                                     password: string;
+                                    needsAuthCode: boolean;
+                                    authCode: string | null;
+                                    appUrl: string | null;
+                                    instructionsUrl: string | null;
+                                    instructionsPassword: string | null;
                                 }[];
                                 restrictions?: unknown[];
                                 property?: unknown;
@@ -5014,6 +5052,14 @@ export interface paths {
                                 cancellationReason?: string | null;
                                 latitude?: number | null;
                                 longitude?: number | null;
+                                /** @enum {string|null} */
+                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
+                                propertyAddressLine2?: string | null;
+                                propertyPrivateAreaM2?: number | null;
+                                propertyTotalAreaM2?: number | null;
+                                propertyFurnished?: boolean | null;
+                                propertyLinenProvided?: boolean | null;
+                                propertyRentAmount?: number | null;
                                 contact?: unknown;
                                 contacts?: unknown[];
                                 apps?: {
@@ -5022,6 +5068,11 @@ export interface paths {
                                     name: string;
                                     username: string;
                                     password: string;
+                                    needsAuthCode: boolean;
+                                    authCode: string | null;
+                                    appUrl: string | null;
+                                    instructionsUrl: string | null;
+                                    instructionsPassword: string | null;
                                 }[];
                                 restrictions?: unknown[];
                                 property?: unknown;
@@ -5083,10 +5134,7 @@ export interface paths {
                             rentalTenantName: string;
                             /** Format: email */
                             primaryEmail?: string;
-                            /** Format: email */
-                            secondaryEmail?: string;
                             primaryPhone?: string;
-                            secondaryPhone?: string;
                         };
                         contacts?: ({
                             /** Format: uuid */
@@ -5201,6 +5249,14 @@ export interface paths {
                                 cancellationReason?: string | null;
                                 latitude?: number | null;
                                 longitude?: number | null;
+                                /** @enum {string|null} */
+                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
+                                propertyAddressLine2?: string | null;
+                                propertyPrivateAreaM2?: number | null;
+                                propertyTotalAreaM2?: number | null;
+                                propertyFurnished?: boolean | null;
+                                propertyLinenProvided?: boolean | null;
+                                propertyRentAmount?: number | null;
                                 contact?: unknown;
                                 contacts?: unknown[];
                                 apps?: {
@@ -5209,6 +5265,11 @@ export interface paths {
                                     name: string;
                                     username: string;
                                     password: string;
+                                    needsAuthCode: boolean;
+                                    authCode: string | null;
+                                    appUrl: string | null;
+                                    instructionsUrl: string | null;
+                                    instructionsPassword: string | null;
                                 }[];
                                 restrictions?: unknown[];
                                 property?: unknown;
@@ -7904,10 +7965,7 @@ export interface paths {
                     "application/json": {
                         /** Format: email */
                         primaryEmail?: string;
-                        /** Format: email */
-                        secondaryEmail?: string | null;
                         primaryPhone?: string;
-                        secondaryPhone?: string | null;
                     };
                 };
             };
@@ -8431,6 +8489,13 @@ export interface paths {
                                 suburb: string;
                                 propertyLatitude: number | null;
                                 propertyLongitude: number | null;
+                                propertyAddressLine2?: string | null;
+                                /** @enum {string|null} */
+                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
+                                propertyPrivateAreaM2?: number | null;
+                                propertyTotalAreaM2?: number | null;
+                                propertyFurnished?: boolean | null;
+                                propertyLinenProvided?: boolean | null;
                                 rentalTenantConfirmationStatus: string;
                                 rentalTenantConfirmation: string;
                                 keyRequired: boolean;
@@ -8450,7 +8515,6 @@ export interface paths {
                                     rentalTenantName: string;
                                     primaryEmail: string | null;
                                     primaryPhone: string | null;
-                                    secondaryPhone: string | null;
                                 } | null;
                                 restrictions: {
                                     isHome: boolean;
@@ -8487,6 +8551,11 @@ export interface paths {
                                     name: string;
                                     username: string;
                                     password: string;
+                                    needsAuthCode: boolean;
+                                    authCode: string | null;
+                                    appUrl: string | null;
+                                    instructionsUrl: string | null;
+                                    instructionsPassword: string | null;
                                 }[];
                                 agencyName?: string | null;
                                 payoutAmount?: number | null;
@@ -9165,6 +9234,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/inspector/earnings/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            currency: string | null;
+                            totalApproved: number;
+                            nextPayment: number;
+                            monthly: {
+                                month: string;
+                                total: number;
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/financial/entries/summary": {
         parameters: {
             query?: never;
@@ -9686,7 +9798,7 @@ export interface paths {
                     inspectorId?: string;
                     agencyId?: string;
                     branchId?: string;
-                    status?: "pending" | "approved" | "rejected";
+                    status?: "pending" | "approved" | "rejected" | "done";
                     fromDate?: string;
                     toDate?: string;
                     page?: number;
@@ -10025,6 +10137,45 @@ export interface paths {
                     from: string;
                     to: string;
                     inspectorId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/billing/invoices/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    inspectorId?: string;
+                    agencyId?: string;
+                    branchId?: string;
+                    fromDate?: string;
+                    toDate?: string;
                 };
                 header?: never;
                 path?: never;
@@ -11909,6 +12060,7 @@ export interface paths {
                 query?: {
                     search?: string;
                     tenantId?: string;
+                    branchId?: string;
                     isActive?: "true" | "false";
                     page?: number;
                     pageSize?: number;
@@ -11933,15 +12085,23 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 tenantId: string;
+                                /** Format: uuid */
+                                branchId: string | null;
                                 name: string;
                                 username: string;
                                 password: string;
+                                needsAuthCode: boolean;
+                                authCode: string | null;
+                                appUrl: string | null;
+                                instructionsUrl: string | null;
+                                instructionsPassword: string | null;
                                 isActive: boolean;
                                 /** Format: date-time */
                                 createdAt: string;
                                 /** Format: date-time */
                                 updatedAt: string;
                                 tenantName: string | null;
+                                branchName: string | null;
                             }[];
                             pagination: {
                                 page: number;
@@ -11967,9 +12127,19 @@ export interface paths {
                     "application/json": {
                         /** Format: uuid */
                         tenantId: string;
+                        /** Format: uuid */
+                        branchId?: string | null;
                         name: string;
                         username: string;
                         password: string;
+                        /** @default false */
+                        needsAuthCode?: boolean;
+                        authCode?: string | null;
+                        /** Format: uri */
+                        appUrl?: string | null;
+                        /** Format: uri */
+                        instructionsUrl?: string | null;
+                        instructionsPassword?: string | null;
                     };
                 };
             };
@@ -11986,9 +12156,16 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 tenantId: string;
+                                /** Format: uuid */
+                                branchId: string | null;
                                 name: string;
                                 username: string;
                                 password: string;
+                                needsAuthCode: boolean;
+                                authCode: string | null;
+                                appUrl: string | null;
+                                instructionsUrl: string | null;
+                                instructionsPassword: string | null;
                                 isActive: boolean;
                                 /** Format: date-time */
                                 createdAt: string;
@@ -12036,9 +12213,16 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 tenantId: string;
+                                /** Format: uuid */
+                                branchId: string | null;
                                 name: string;
                                 username: string;
                                 password: string;
+                                needsAuthCode: boolean;
+                                authCode: string | null;
+                                appUrl: string | null;
+                                instructionsUrl: string | null;
+                                instructionsPassword: string | null;
                                 isActive: boolean;
                                 /** Format: date-time */
                                 createdAt: string;
@@ -12067,9 +12251,18 @@ export interface paths {
             requestBody?: {
                 content: {
                     "application/json": {
+                        /** Format: uuid */
+                        branchId?: string | null;
                         name?: string;
                         username?: string;
                         password?: string;
+                        needsAuthCode?: boolean;
+                        authCode?: string | null;
+                        /** Format: uri */
+                        appUrl?: string | null;
+                        /** Format: uri */
+                        instructionsUrl?: string | null;
+                        instructionsPassword?: string | null;
                         isActive?: boolean;
                     };
                 };
@@ -12087,9 +12280,16 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 tenantId: string;
+                                /** Format: uuid */
+                                branchId: string | null;
                                 name: string;
                                 username: string;
                                 password: string;
+                                needsAuthCode: boolean;
+                                authCode: string | null;
+                                appUrl: string | null;
+                                instructionsUrl: string | null;
+                                instructionsPassword: string | null;
                                 isActive: boolean;
                                 /** Format: date-time */
                                 createdAt: string;
@@ -12135,9 +12335,16 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 tenantId: string;
+                                /** Format: uuid */
+                                branchId: string | null;
                                 name: string;
                                 username: string;
                                 password: string;
+                                needsAuthCode: boolean;
+                                authCode: string | null;
+                                appUrl: string | null;
+                                instructionsUrl: string | null;
+                                instructionsPassword: string | null;
                                 isActive: boolean;
                                 /** Format: date-time */
                                 createdAt: string;

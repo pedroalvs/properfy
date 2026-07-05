@@ -3,7 +3,6 @@ import type {
   AuthContext,
   PaymentSettings,
   ServiceTypeEntry,
-  ClientEligibilityEntry,
 } from '@properfy/shared';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
@@ -22,7 +21,6 @@ export interface CreateInspectorInput {
   regions?: string[];
   regionIds?: string[];
   serviceTypes?: ServiceTypeEntry[];
-  clientEligibility?: ClientEligibilityEntry[];
   actor: AuthContext;
 }
 
@@ -36,7 +34,6 @@ export interface CreateInspectorOutput {
   paymentSettingsJson: PaymentSettings;
   regionIds: string[];
   serviceTypesJson: ServiceTypeEntry[];
-  clientEligibilityJson: ClientEligibilityEntry[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,7 +48,7 @@ export class CreateInspectorUseCase {
   ) {}
 
   async execute(input: CreateInspectorInput): Promise<CreateInspectorOutput> {
-    const { name, email, phone, paymentSettings, regionIds, serviceTypes, clientEligibility, actor } = input;
+    const { name, email, phone, paymentSettings, regionIds, serviceTypes, actor } = input;
 
     this.authorizationService!.assertRoles(actor, ['AM', 'OP'], {
       action: 'inspector.create',
@@ -102,7 +99,6 @@ export class CreateInspectorUseCase {
       status: 'ACTIVE',
       paymentSettingsJson: paymentSettings ?? {},
       serviceTypesJson: serviceTypes ?? [],
-      clientEligibilityJson: clientEligibility ?? [],
       blockedClientsJson: (input as any).blockedClients ?? [],
       fullName: (input as any).fullName ?? null,
       address: (input as any).address ?? null,
@@ -144,7 +140,6 @@ export class CreateInspectorUseCase {
         paymentSettingsJson: inspector.paymentSettingsJson,
         regionIds: regionIds ?? [],
         serviceTypesJson: inspector.serviceTypesJson,
-        clientEligibilityJson: inspector.clientEligibilityJson,
       },
     });
 
@@ -158,7 +153,6 @@ export class CreateInspectorUseCase {
       paymentSettingsJson: inspector.paymentSettingsJson,
       regionIds: regionIds ?? [],
       serviceTypesJson: inspector.serviceTypesJson,
-      clientEligibilityJson: inspector.clientEligibilityJson,
       createdAt: inspector.createdAt,
       updatedAt: inspector.updatedAt,
     };

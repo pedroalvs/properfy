@@ -3,15 +3,22 @@ import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilte
 import { usePermissions } from '@/hooks/usePermissions';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { Button } from '@/components/ui/Button';
+import { TabsNav } from '@/components/layout/TabsNav';
 import { InvoiceFilters } from '../components/InvoiceFilters';
 import { InvoiceTable } from '../components/InvoiceTable';
 import { InvoiceDetailDrawer } from '../components/InvoiceDetailDrawer';
 import { MarkInvoicePaidModal } from '../components/MarkInvoicePaidModal';
-import { ReconciliationSummary } from '../components/ReconciliationSummary';
+import { InvoiceSummaryIndicators } from '../components/InvoiceSummaryIndicators';
 import { useInvoiceList } from '../hooks/useInvoiceList';
 import { useInvoiceDownload } from '../hooks/useInvoiceDownload';
-import { useReconciliationSummary } from '../hooks/useReconciliationSummary';
+import { useInvoiceSummary } from '../hooks/useInvoiceSummary';
 import type { Invoice } from '../types';
+
+// Pending = PENDING_REVIEW; Done = everything else (CLOSED, PAID, VOID).
+const INVOICE_TABS = [
+  { id: 'pending', label: 'Pending' },
+  { id: 'done', label: 'Done' },
+];
 
 export function InvoicesPage() {
   const { hasRole } = usePermissions();
@@ -26,7 +33,10 @@ export function InvoicesPage() {
     filters,
     setFilters,
     pagination,
-  } = useInvoiceList();
+  } = useInvoiceList({ status: 'pending' });
+
+  // Tabs own the status filter: Pending (PENDING_REVIEW) | Done (CLOSED, PAID, VOID).
+  const activeTab = filters.status === 'done' ? 'done' : 'pending';
 
   // Inspector Property Invoices are global — filters (agency/branch/inspector) are content/owner
   // filters, not an agency gate. AM/OP see all invoices immediately.
@@ -50,14 +60,17 @@ export function InvoicesPage() {
 
   const { download } = useInvoiceDownload();
 
+  // Indicators are scoped by the non-status filters so they stay consistent with both tabs.
   const {
-    summary: reconciliationSummary,
+    summary,
     isLoading: summaryLoading,
     multiCurrencyError,
-  } = useReconciliationSummary({
-    from: filters.periodStart,
-    to: filters.periodEnd,
-    inspectorId: filters.inspectorId || undefined,
+  } = useInvoiceSummary({
+    inspectorId: filters.inspectorId,
+    agencyId: filters.agencyId,
+    branchId: filters.branchId,
+    fromDate: filters.periodStart,
+    toDate: filters.periodEnd,
   });
 
   const inspectorLabelById = Object.fromEntries(inspectorOptions.map((o) => [o.value, o.label]));
@@ -128,6 +141,15 @@ export function InvoicesPage() {
     setSelectedIds(new Set());
   }, []);
 
+  const handleTabChange = useCallback(
+    (tabId: string) => {
+      setFilters({ ...filters, status: tabId });
+      // Row selection is page-scoped; switching tabs changes the underlying list.
+      setSelectedIds(new Set());
+    },
+    [filters, setFilters],
+  );
+
   return (
     <>
       <ListFilterTableTemplate title="Invoices">
@@ -137,12 +159,16 @@ export function InvoicesPage() {
           inspectorOptions={inspectorOptions}
           agencyOptions={agencyOptions}
           branchOptions={branchOptions}
+          hideStatus
         />
-        <ReconciliationSummary
-          summary={reconciliationSummary}
+        <InvoiceSummaryIndicators
+          summary={summary}
           isLoading={summaryLoading}
           multiCurrencyError={multiCurrencyError}
         />
+        <div className="mb-4">
+          <TabsNav tabs={INVOICE_TABS} activeTab={activeTab} onChange={handleTabChange} />
+        </div>
         <InvoiceTable
           data={data}
           loading={isLoading}

@@ -28,7 +28,7 @@ function makeProperty(overrides: Partial<ConstructorParameters<typeof PropertyEn
     tenantId: 'tenant-1',
     branchId: 'branch-1',
     propertyCode: 'PROP-001',
-    type: 'RESIDENTIAL',
+    type: 'HOUSE',
     street: '123 Main St',
     addressLine2: null,
     suburb: 'Sydney',

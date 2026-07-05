@@ -102,15 +102,11 @@ export class BulkEditAppointmentsUseCase {
             failed.push({ id: appointmentId, code: 'INSPECTOR_INACTIVE', message: `Inspector ${inspectorId} is not active` });
             continue;
           }
-          // Check eligibility using current client_eligibility_json field
-          // (008 FR-006a proposes rename to blocked_clients_json — not yet implemented)
-          const eligibility = (inspector as any).clientEligibilityJson as Array<{ tenantId: string }> | undefined;
-          if (eligibility && eligibility.length > 0) {
-            const isEligible = eligibility.some((e: { tenantId: string }) => e.tenantId === appointment.tenantId);
-            if (!isEligible) {
-              failed.push({ id: appointmentId, code: 'INSPECTOR_NOT_ELIGIBLE', message: `Inspector not eligible for tenant ${appointment.tenantId}` });
-              continue;
-            }
+          // Eligibility uses the blocked-clients deny-list: an inspector is
+          // eligible for a tenant unless that tenant is in its block list.
+          if (!inspector.isEligibleForTenant(appointment.tenantId)) {
+            failed.push({ id: appointmentId, code: 'INSPECTOR_NOT_ELIGIBLE', message: `Inspector not eligible for tenant ${appointment.tenantId}` });
+            continue;
           }
           before['inspectorId'] = appointment.inspectorId;
           after['inspectorId'] = inspectorId;
@@ -236,11 +232,6 @@ export class BulkEditAppointmentsUseCase {
             snapshotName: pmContact.displayName,
             snapshotEmail: pmContact.primaryEmail,
             snapshotPhone: pmContact.primaryPhone,
-            rentalTenantName: pmContact.displayName,
-            primaryEmail: pmContact.primaryEmail,
-            secondaryEmail: null,
-            primaryPhone: pmContact.primaryPhone,
-            secondaryPhone: null,
             createdAt: new Date(),
             updatedAt: new Date(),
           });

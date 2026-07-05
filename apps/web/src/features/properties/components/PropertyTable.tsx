@@ -1,5 +1,6 @@
 import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
+import { formatRent } from '@/lib/format-property';
 import { PropertyTypeChip } from './PropertyTypeChip';
 import type { Property } from '../types';
 
@@ -49,6 +50,20 @@ export function PropertyTable({
       label: 'State',
       width: '100px',
       sortable: true,
+    },
+    {
+      key: 'totalAreaM2',
+      label: 'Area (m²)',
+      width: '110px',
+      sortable: true,
+      render: (row) => <>{row.totalAreaM2 != null ? row.totalAreaM2 : '—'}</>,
+    },
+    {
+      key: 'rentAmount',
+      label: 'Rent',
+      width: '110px',
+      sortable: true,
+      render: (row) => <>{formatRent(row.rentAmount) ?? '—'}</>,
     },
     {
       key: 'branchName',

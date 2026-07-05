@@ -46,6 +46,18 @@ export interface ReconciliationAggregateRow {
   count: number;
 }
 
+export interface StatusAggregateFilters {
+  inspectorId?: string;
+  /** Content filter: invoices whose snapshot has ≥1 line for this agency (tenant). */
+  agencyId?: string;
+  /** Content filter: invoices whose snapshot has ≥1 line for this branch. */
+  branchId?: string;
+  /** Inclusive period_start lower bound. */
+  from?: Date;
+  /** Inclusive period_start upper bound. */
+  to?: Date;
+}
+
 export interface IInspectorInvoiceRepository {
   findById(id: string): Promise<InspectorInvoiceEntity | null>;
   findByInspectorAndPeriod(inspectorId: string, periodStart: Date, periodEnd: Date): Promise<InspectorInvoiceEntity | null>;
@@ -89,4 +101,10 @@ export interface IInspectorInvoiceRepository {
    * The use case layer is responsible for detecting multi-currency scope and summing per status.
    */
   getReconciliationAggregates(filters: ReconciliationAggregateFilters): Promise<ReconciliationAggregateRow[]>;
+  /**
+   * Returns aggregate rows grouped by (status, currency) across ALL statuses, with every filter
+   * optional. Filter semantics mirror findAll (agency/branch are snapshot content filters,
+   * from/to range on period_start). Used by the Invoices page summary indicators.
+   */
+  getStatusAggregates(filters: StatusAggregateFilters): Promise<ReconciliationAggregateRow[]>;
 }

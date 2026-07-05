@@ -15,7 +15,6 @@ function makeInspector(overrides: Partial<ConstructorParameters<typeof Inspector
     status: 'ACTIVE',
     paymentSettingsJson: {},
     serviceTypesJson: [],
-    clientEligibilityJson: [],
     blockedClientsJson: [],
     fullName: null,
     address: null,

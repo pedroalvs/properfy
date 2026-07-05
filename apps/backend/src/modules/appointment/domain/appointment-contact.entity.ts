@@ -3,19 +3,14 @@ import type { AppointmentContactRole } from '@properfy/shared';
 export interface AppointmentContactProps {
   id: string;
   appointmentId: string;
-  // Junction fields (new — feature 021)
+  // Junction fields (feature 021)
   contactId: string | null;
   role: AppointmentContactRole;
   isPrimary: boolean;
-  snapshotName: string | null;
+  // Snapshot of the contact at link time (the authoritative contact data)
+  snapshotName: string;
   snapshotEmail: string | null;
   snapshotPhone: string | null;
-  // Legacy fields (kept during expand phase — read-only, will be dropped in a future migration)
-  rentalTenantName: string;
-  primaryEmail: string | null;
-  secondaryEmail: string | null;
-  primaryPhone: string | null;
-  secondaryPhone: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,19 +18,12 @@ export interface AppointmentContactProps {
 export class AppointmentContactEntity {
   readonly id: string;
   readonly appointmentId: string;
-  // Junction fields
   readonly contactId: string | null;
   readonly role: AppointmentContactRole;
   readonly isPrimary: boolean;
-  readonly snapshotName: string | null;
+  readonly snapshotName: string;
   readonly snapshotEmail: string | null;
   readonly snapshotPhone: string | null;
-  // Legacy fields
-  readonly rentalTenantName: string;
-  readonly primaryEmail: string | null;
-  readonly secondaryEmail: string | null;
-  readonly primaryPhone: string | null;
-  readonly secondaryPhone: string | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 
@@ -48,27 +36,22 @@ export class AppointmentContactEntity {
     this.snapshotName = props.snapshotName;
     this.snapshotEmail = props.snapshotEmail;
     this.snapshotPhone = props.snapshotPhone;
-    this.rentalTenantName = props.rentalTenantName;
-    this.primaryEmail = props.primaryEmail;
-    this.secondaryEmail = props.secondaryEmail;
-    this.primaryPhone = props.primaryPhone;
-    this.secondaryPhone = props.secondaryPhone;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
   }
 
-  /** Resolve the effective display name: snapshot if available, legacy fallback */
+  /** Effective display name — the contact snapshot. */
   get effectiveName(): string {
-    return this.snapshotName ?? this.rentalTenantName;
+    return this.snapshotName;
   }
 
-  /** Resolve the effective email: snapshot if available, legacy fallback */
+  /** Effective email — the contact snapshot. */
   get effectiveEmail(): string | null {
-    return this.snapshotEmail ?? this.primaryEmail;
+    return this.snapshotEmail;
   }
 
-  /** Resolve the effective phone: snapshot if available, legacy fallback */
+  /** Effective phone — the contact snapshot. */
   get effectivePhone(): string | null {
-    return this.snapshotPhone ?? this.primaryPhone;
+    return this.snapshotPhone;
   }
 }

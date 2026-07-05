@@ -31,15 +31,24 @@ export interface AppCredentialRouteContainer {
 
 const idParam = z.object({ id: z.string().uuid() });
 
-const listQuerySchema = z.object({
-  search: z.string().optional(),
-  tenantId: z.string().uuid().optional(),
-  isActive: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(20),
-  sortBy: z.enum(['name', 'username', 'createdAt']).default('name'),
-  sortOrder: z.enum(['asc', 'desc']).default('asc'),
-});
+const listQuerySchema = z
+  .object({
+    search: z.string().optional(),
+    tenantId: z.string().uuid().optional(),
+    /** Branch-scoped credentials for this branch plus agency-wide ones. */
+    branchId: z.string().uuid().optional(),
+    isActive: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(20),
+    sortBy: z.enum(['name', 'username', 'createdAt']).default('name'),
+    sortOrder: z.enum(['asc', 'desc']).default('asc'),
+  })
+  .refine((query) => !query.branchId || !!query.tenantId, {
+    // The branch filter includes agency-wide rows (branch_id IS NULL); without
+    // a tenant scope that would return every tenant's agency-wide credentials.
+    path: ['branchId'],
+    message: 'branchId requires tenantId',
+  });
 
 // App credentials are an operational, AM/OP-only registry (CLAUDE.md §6).
 const ALLOWED_ROLES = ['AM', 'OP'] as const;
@@ -80,9 +89,15 @@ export async function registerAppCredentialRoutes(
 
       const credential = await container.createAppCredentialUseCase.execute({
         tenantId: parsed.data.tenantId,
+        branchId: parsed.data.branchId ?? null,
         name: parsed.data.name,
         username: parsed.data.username,
         password: parsed.data.password,
+        needsAuthCode: parsed.data.needsAuthCode,
+        authCode: parsed.data.authCode ?? null,
+        appUrl: parsed.data.appUrl ?? null,
+        instructionsUrl: parsed.data.instructionsUrl ?? null,
+        instructionsPassword: parsed.data.instructionsPassword ?? null,
         actorId: auth.userId,
         actorTenantId: auth.tenantId ?? null,
       });
@@ -173,6 +188,7 @@ export async function registerAppCredentialRoutes(
       const query = request.query as z.infer<typeof listQuerySchema>;
       const result = await container.listAppCredentialsUseCase.execute({
         tenantId: query.tenantId ?? null,
+        branchId: query.branchId ?? null,
         isActive: query.isActive,
         search: query.search,
         page: query.page,
@@ -209,12 +225,20 @@ export async function registerAppCredentialRoutes(
 }
 
 function formatCredential(c: AppCredentialEntity): AppCredentialResponse {
+  // Always emit every field — the Fastify zod serializer rejects responses
+  // missing required (even nullable) schema fields.
   return {
     id: c.id,
     tenantId: c.tenantId,
+    branchId: c.branchId ?? null,
     name: c.name,
     username: c.username,
     password: c.password,
+    needsAuthCode: c.needsAuthCode,
+    authCode: c.authCode ?? null,
+    appUrl: c.appUrl ?? null,
+    instructionsUrl: c.instructionsUrl ?? null,
+    instructionsPassword: c.instructionsPassword ?? null,
     isActive: c.isActive,
     createdAt: c.createdAt.toISOString(),
     updatedAt: c.updatedAt.toISOString(),
@@ -224,6 +248,7 @@ function formatCredential(c: AppCredentialEntity): AppCredentialResponse {
 function formatListItem(row: AppCredentialListRow): AppCredentialListItem {
   return {
     ...formatCredential(row.credential),
-    tenantName: row.tenantName,
+    tenantName: row.tenantName ?? null,
+    branchName: row.branchName ?? null,
   };
 }

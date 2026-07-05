@@ -201,7 +201,6 @@ export async function seedInspector(
       name,
       email: user.email,
       status: 'ACTIVE',
-      client_eligibility_json: {},
     },
   });
 

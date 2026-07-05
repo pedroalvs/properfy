@@ -22,6 +22,19 @@ describe('InvoiceFilters', () => {
     expect(screen.getByLabelText('Period - end')).toBeInTheDocument();
   });
 
+  it('hides the status select when hideStatus is set', () => {
+    render(
+      <InvoiceFilters
+        filters={DEFAULT_INVOICE_FILTERS}
+        onFiltersChange={onFiltersChange}
+        hideStatus
+      />,
+    );
+
+    expect(screen.queryByLabelText('Status')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Inspector')).toBeInTheDocument();
+  });
+
   it('calls onFiltersChange when inspector changes', async () => {
     const user = userEvent.setup();
     render(

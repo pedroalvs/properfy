@@ -1,8 +1,11 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TopBar } from '@/components/shell/TopBar';
 import { formatDate } from '@/lib/format-date';
-import { useInspectorEarnings, type PayoutEntry } from '../hooks/useInspectorEarnings';
+import {
+  useInspectorEarningsSummary,
+  useInspectorPayoutHistory,
+} from '../hooks/useInspectorEarnings';
 import { EarningsChart, type ChartBar } from '../components/EarningsChart';
 
 type Segment = 'earnings' | 'history';
@@ -23,48 +26,66 @@ function StatusChip({ status }: { status: string }) {
   return <span className={`rounded px-2 py-0.5 text-xs font-semibold ${s.cls}`}>{s.label}</span>;
 }
 
-/** Build a last-N-months series of approved earnings for the chart. */
-function buildMonthlySeries(entries: PayoutEntry[], months: number): ChartBar[] {
-  const now = new Date();
-  const buckets: ChartBar[] = [];
-  const totals = new Map<string, number>();
-  for (const e of entries) {
-    if (e.status !== 'APPROVED') continue;
-    const d = new Date(e.effectiveAt);
-    const key = `${d.getFullYear()}-${d.getMonth()}`;
-    totals.set(key, (totals.get(key) ?? 0) + e.amount);
-  }
-  for (let i = months - 1; i >= 0; i -= 1) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const key = `${d.getFullYear()}-${d.getMonth()}`;
-    buckets.push({ label: d.toLocaleDateString('en-AU', { month: 'short' }), value: totals.get(key) ?? 0 });
-  }
-  return buckets;
+/** Shared error card for a segment: icon + message + retry. */
+function SegmentError({ message, fallback, onRetry }: { message?: string; fallback: string; onRetry: () => void }) {
+  return (
+    <div className="rounded-[24px] bg-white p-6 text-center shadow-sm">
+      <i className="mdi mdi-cash-multiple text-[48px] text-text-muted" aria-hidden="true" />
+      <p className="mt-4 text-sm text-text-secondary">{message || fallback}</p>
+      <button type="button" onClick={onRetry} className="mt-3 text-sm font-semibold text-primary">
+        Retry
+      </button>
+    </div>
+  );
+}
+
+/** Convert a YYYY-MM key from the summary into a short month label (e.g. "Jul"). */
+function monthLabel(month: string): string {
+  const [year = 0, m = 1] = month.split('-').map(Number);
+  return new Date(year, m - 1, 1).toLocaleDateString('en-AU', { month: 'short' });
 }
 
 export function EarningsPage() {
   const navigate = useNavigate();
-  const { entries, currency, totalApproved, nextPayment, isLoading, error } = useInspectorEarnings();
-
   const [segment, setSegment] = useState<Segment>('earnings');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
 
-  const filtered = useMemo(() => {
-    return entries.filter((e) => {
-      const day = e.effectiveAt.slice(0, 10);
-      if (fromDate && day < fromDate) return false;
-      if (toDate && day > toDate) return false;
-      return true;
-    });
-  }, [entries, fromDate, toDate]);
+  const summary = useInspectorEarningsSummary();
+  const history = useInspectorPayoutHistory({
+    fromDate: fromDate || undefined,
+    toDate: toDate || undefined,
+  });
 
-  const monthlyBars = useMemo(() => buildMonthlySeries(filtered, 6), [filtered]);
+  const monthlyBars = useMemo<ChartBar[]>(
+    () => (summary.data?.monthly ?? []).map((m) => ({ label: monthLabel(m.month), value: m.total })),
+    [summary.data],
+  );
+
+  const entries = useMemo(
+    () => history.data?.pages.flatMap((p) => p.data) ?? [],
+    [history.data],
+  );
 
   const clearRange = useCallback(() => {
     setFromDate('');
     setToDate('');
   }, []);
+
+  // Infinite scroll: fetch the next page when the sentinel enters the viewport.
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = history;
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (segment !== 'history' || !el || !hasNextPage || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver((observed) => {
+      if (observed.some((e) => e.isIntersecting)) void fetchNextPage();
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [segment, hasNextPage, fetchNextPage, entries.length]);
+
+  const currency = summary.data?.currency ?? 'AUD';
 
   const dateFilter = (
     <div className="flex items-end gap-2 rounded-[20px] bg-white px-4 py-3 shadow-sm">
@@ -120,38 +141,35 @@ export function EarningsPage() {
           ))}
         </div>
 
-        {isLoading && (
-          <div className="flex flex-col gap-3">
+        {segment === 'earnings' && summary.isLoading && (
+          <div className="flex flex-col gap-3" data-testid="earnings-skeleton">
             <div className="h-24 animate-pulse rounded-lg bg-gray-200" />
             <div className="h-32 animate-pulse rounded-lg bg-gray-200" />
           </div>
         )}
 
-        {error && (
-          <div className="rounded-[24px] bg-white p-6 text-center shadow-sm">
-            <i className="mdi mdi-cash-multiple text-[48px] text-text-muted" aria-hidden="true" />
-            <p className="mt-4 text-sm text-text-secondary">
-              {error.message || 'Unable to load earnings at this time. Please try again later.'}
-            </p>
-          </div>
+        {segment === 'earnings' && summary.error && (
+          <SegmentError
+            message={summary.error.message}
+            fallback="Unable to load earnings at this time. Please try again later."
+            onRetry={() => summary.refetch()}
+          />
         )}
 
-        {!isLoading && !error && segment === 'earnings' && (
+        {segment === 'earnings' && !summary.isLoading && !summary.error && summary.data && (
           <>
             <section className="grid grid-cols-2 gap-3">
               <div className="rounded-[20px] bg-white px-4 py-4 shadow-sm" data-testid="next-payment-card">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Next payment</p>
-                <p className="mt-2 text-xl font-bold text-text-primary">{formatCurrency(nextPayment, currency)}</p>
-                <p className="mt-0.5 text-[11px] text-text-secondary">Approved, awaiting payout</p>
+                <p className="mt-2 text-xl font-bold text-text-primary">{formatCurrency(summary.data.nextPayment, currency)}</p>
+                <p className="mt-0.5 text-[11px] text-text-secondary">Pending, awaiting approval</p>
               </div>
               <div className="rounded-[20px] bg-[linear-gradient(135deg,_rgba(22,163,74,0.96),_rgba(34,197,94,0.78))] px-4 py-4 text-white shadow-sm" data-testid="total-earnings-card">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-white/70">Total with Properfy</p>
-                <p className="mt-2 text-xl font-bold">{formatCurrency(totalApproved, currency)}</p>
+                <p className="mt-2 text-xl font-bold">{formatCurrency(summary.data.totalApproved, currency)}</p>
                 <p className="mt-0.5 text-[11px] text-white/80">All-time approved</p>
               </div>
             </section>
-
-            {dateFilter}
 
             <div className="flex flex-col gap-2">
               <h2 className="text-sm font-semibold text-text-secondary">Earnings over time</h2>
@@ -192,18 +210,37 @@ export function EarningsPage() {
           </>
         )}
 
-        {!isLoading && !error && segment === 'history' && (
+        {segment === 'history' && (
           <>
             {dateFilter}
-            {filtered.length === 0 ? (
+
+            {history.isLoading && (
+              <div className="flex flex-col gap-3" data-testid="history-skeleton">
+                <div className="h-16 animate-pulse rounded-lg bg-gray-200" />
+                <div className="h-16 animate-pulse rounded-lg bg-gray-200" />
+                <div className="h-16 animate-pulse rounded-lg bg-gray-200" />
+              </div>
+            )}
+
+            {history.error && entries.length === 0 && (
+              <SegmentError
+                message={history.error.message}
+                fallback="Unable to load payment history. Please try again later."
+                onRetry={() => history.refetch()}
+              />
+            )}
+
+            {!history.isLoading && !history.error && entries.length === 0 && (
               <div className="rounded-[24px] bg-white p-6 text-center shadow-sm">
                 <i className="mdi mdi-cash-multiple text-[48px] text-text-muted" aria-hidden="true" />
                 <p className="mt-4 text-sm text-text-secondary">No payouts for this period.</p>
               </div>
-            ) : (
+            )}
+
+            {!history.isLoading && entries.length > 0 && (
               <div className="flex flex-col gap-2">
                 <h2 className="text-sm font-semibold text-text-secondary">Payment history</h2>
-                {filtered.map((entry) => (
+                {entries.map((entry) => (
                   <div key={entry.id} className="flex items-center justify-between rounded-[20px] bg-white px-4 py-3 shadow-sm">
                     <div>
                       <p className="text-sm font-medium text-text-primary">{formatCurrency(entry.amount, entry.currency)}</p>
@@ -212,6 +249,32 @@ export function EarningsPage() {
                     <StatusChip status={entry.status} />
                   </div>
                 ))}
+
+                <div ref={sentinelRef} aria-hidden="true" />
+                {isFetchingNextPage && (
+                  <div className="h-16 animate-pulse rounded-lg bg-gray-200" data-testid="history-loading-more" />
+                )}
+                {history.isFetchNextPageError && !isFetchingNextPage && (
+                  <div
+                    className="flex items-center justify-between rounded-[20px] bg-white px-4 py-3 shadow-sm"
+                    data-testid="history-load-more-error"
+                  >
+                    <p className="text-xs text-text-secondary">Couldn't load more payouts.</p>
+                    <button type="button" onClick={() => fetchNextPage()} className="text-sm font-semibold text-primary">
+                      Retry
+                    </button>
+                  </div>
+                )}
+                {hasNextPage && !isFetchingNextPage && !history.isFetchNextPageError && (
+                  <button
+                    type="button"
+                    onClick={() => fetchNextPage()}
+                    className="rounded-[20px] bg-white px-4 py-3 text-sm font-semibold text-primary shadow-sm"
+                    data-testid="history-load-more"
+                  >
+                    Load more
+                  </button>
+                )}
               </div>
             )}
           </>

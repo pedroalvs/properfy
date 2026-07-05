@@ -80,7 +80,7 @@ describe('ImportPropertyWorker', () => {
 
   it('should write a batch audit record after successful import', async () => {
     const csv = makeCsvBuffer([
-      'P001,RESIDENTIAL,123 Main St,,Sydney,2000,NSW,AU,',
+      'P001,HOUSE,123 Main St,,Sydney,2000,NSW,AU,',
       'P002,COMMERCIAL,456 High St,,Melbourne,3000,VIC,AU,',
     ]);
     vi.mocked(storageService.download).mockResolvedValue(csv);
@@ -106,8 +106,8 @@ describe('ImportPropertyWorker', () => {
 
   it('should include correct counts in batch audit for partial success', async () => {
     const csv = makeCsvBuffer([
-      'P001,RESIDENTIAL,123 Main St,,Sydney,2000,NSW,AU,',
-      ',RESIDENTIAL,456 High St,,Melbourne,3000,VIC,AU,', // missing propertyCode
+      'P001,HOUSE,123 Main St,,Sydney,2000,NSW,AU,',
+      ',HOUSE,456 High St,,Melbourne,3000,VIC,AU,', // missing propertyCode
       'P003,COMMERCIAL,789 Low St,,Brisbane,4000,QLD,AU,',
     ]);
     vi.mocked(storageService.download).mockResolvedValue(csv);
@@ -125,7 +125,7 @@ describe('ImportPropertyWorker', () => {
 
   it('should write batch audit even when all rows fail validation', async () => {
     const csv = makeCsvBuffer([
-      ',RESIDENTIAL,123 Main St,,Sydney,2000,NSW,AU,', // missing propertyCode
+      ',HOUSE,123 Main St,,Sydney,2000,NSW,AU,', // missing propertyCode
       'P002,INVALID_TYPE,456 High St,,Melbourne,3000,VIC,AU,', // invalid type
     ]);
     vi.mocked(storageService.download).mockResolvedValue(csv);
@@ -150,7 +150,7 @@ describe('ImportPropertyWorker', () => {
     vi.mocked(importRepo.findById).mockResolvedValue(record);
 
     const csv = makeCsvBuffer([
-      'P001,RESIDENTIAL,123 Main St,,Sydney,2000,NSW,AU,',
+      'P001,HOUSE,123 Main St,,Sydney,2000,NSW,AU,',
     ]);
     vi.mocked(storageService.download).mockResolvedValue(csv);
 
@@ -181,7 +181,7 @@ describe('ImportPropertyWorker', () => {
 
   it('should track property IDs from successfully created rows', async () => {
     const csv = makeCsvBuffer([
-      'P001,RESIDENTIAL,123 Main St,,Sydney,2000,NSW,AU,',
+      'P001,HOUSE,123 Main St,,Sydney,2000,NSW,AU,',
     ]);
     vi.mocked(storageService.download).mockResolvedValue(csv);
 

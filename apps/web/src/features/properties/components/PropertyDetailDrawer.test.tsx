@@ -54,7 +54,7 @@ vi.mock('../hooks/usePropertyDetail', () => ({
     if (id === 'loading') return { property: null, isLoading: true, isError: false, refetch: vi.fn() };
     return {
       property: {
-        id: 'prop-01', propertyCode: 'IMV-001', type: 'RESIDENTIAL', branchName: 'Filial Centro',
+        id: 'prop-01', propertyCode: 'IMV-001', type: 'HOUSE', branchName: 'Filial Centro',
         tenantId: 'tenant-1', branchId: 'branch-1',
         street: 'Rua das Flores, 123', addressLine2: null, suburb: 'Centro', postcode: '01001-000', state: 'SP',
         country: 'BR', latitude: -23.5, longitude: -46.6, geocodingStatus: 'SUCCESS',
@@ -123,7 +123,7 @@ describe('PropertyDetailDrawer', () => {
 
   it('shows property type chip in header', () => {
     renderDrawer({ propertyId: 'prop-01', open: true });
-    const matches = screen.getAllByText('Residential');
+    const matches = screen.getAllByText('House');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 

@@ -1,8 +1,9 @@
-import { type AuthContext, type AppointmentApp, type AppointmentCustomField, isAppointmentOverdue } from '@properfy/shared';
+import { type AuthContext, type AppointmentApp, type AppointmentCustomField, type PropertyType, isAppointmentOverdue } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../domain/appointment.repository';
 import type { IAppCredentialRepository } from '../../../app-credential/domain/app-credential.repository';
+import { toAppointmentApp } from '../../../app-credential/application/appointment-app.mapper';
 import {
   AppointmentNotFoundError,
   AppointmentAccessDeniedError,
@@ -62,14 +63,20 @@ export interface GetAppointmentOutput {
   cancellationReason: string | null;
   latitude: number | null;
   longitude: number | null;
+  /** Property detail attributes (nullable — legacy properties have no values). */
+  propertyType: PropertyType | null;
+  propertyAddressLine2: string | null;
+  propertyPrivateAreaM2: number | null;
+  propertyTotalAreaM2: number | null;
+  propertyFurnished: boolean | null;
+  propertyLinenProvided: boolean | null;
+  propertyRentAmount: number | null;
   /** @deprecated Use contacts[] array. Kept for backward compat — returns the primary contact. */
   contact: {
     id: string;
     rentalTenantName: string;
     primaryEmail: string | null;
-    secondaryEmail: string | null;
     primaryPhone: string | null;
-    secondaryPhone: string | null;
   } | null;
   /** Enriched contacts array (feature 021 junction + snapshot). Primary first, then insertion order. */
   contacts: Array<{
@@ -146,14 +153,19 @@ function mapToOutput(found: AppointmentWithRelations, apps: AppointmentApp[]): G
     cancellationReason: appointment.reason,
     latitude: found.propertyLatitude ?? null,
     longitude: found.propertyLongitude ?? null,
+    propertyType: found.propertyType ?? null,
+    propertyAddressLine2: found.propertyAddressLine2 ?? null,
+    propertyPrivateAreaM2: found.propertyPrivateAreaM2 ?? null,
+    propertyTotalAreaM2: found.propertyTotalAreaM2 ?? null,
+    propertyFurnished: found.propertyFurnished ?? null,
+    propertyLinenProvided: found.propertyLinenProvided ?? null,
+    propertyRentAmount: found.propertyRentAmount ?? null,
     contact: contact
       ? {
           id: contact.id,
           rentalTenantName: contact.effectiveName,
           primaryEmail: contact.effectiveEmail,
-          secondaryEmail: contact.secondaryEmail,
           primaryPhone: contact.effectivePhone,
-          secondaryPhone: contact.secondaryPhone,
         }
       : null,
     contacts: (found.contacts ?? (contact ? [contact] : [])).map((c) => ({
@@ -225,12 +237,7 @@ export class GetAppointmentUseCase {
     }
 
     const apps: AppointmentApp[] = this.appCredentialRepo
-      ? (await this.appCredentialRepo.findByAppointmentId(found.appointment.id)).map((a) => ({
-          id: a.id,
-          name: a.name,
-          username: a.username,
-          password: a.password,
-        }))
+      ? (await this.appCredentialRepo.findByAppointmentId(found.appointment.id)).map(toAppointmentApp)
       : [];
 
     return mapToOutput(found, apps);

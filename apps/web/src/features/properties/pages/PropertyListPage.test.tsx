@@ -43,7 +43,7 @@ import { PropertyListPage } from './PropertyListPage';
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_PROPERTIES = [
-  { id: 'prop-01', propertyCode: 'IMV-001', type: 'RESIDENTIAL', street: 'Rua das Flores, 123', suburb: 'Centro', state: 'SP' },
+  { id: 'prop-01', propertyCode: 'IMV-001', type: 'HOUSE', street: 'Rua das Flores, 123', suburb: 'Centro', state: 'SP' },
   { id: 'prop-02', propertyCode: 'IMV-002', type: 'COMMERCIAL', street: 'Av. Paulista, 1000', suburb: 'Bela Vista', state: 'SP' },
 ];
 

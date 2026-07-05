@@ -1,18 +1,12 @@
 import { useState } from 'react';
-
-interface AppCredential {
-  id: string;
-  name: string;
-  username: string;
-  password: string;
-}
+import type { AppointmentApp } from '@properfy/shared';
 
 interface AppsSectionProps {
-  apps: AppCredential[] | undefined;
+  apps: AppointmentApp[] | undefined;
 }
 
-/** Tap-to-copy row for a single credential field (username / password). */
-function CredentialRow({ label, value }: { label: string; value: string }) {
+/** Tap-to-copy row for a single credential field (username / password / auth code). */
+function CredentialRow({ label, value, testId }: { label: string; value: string; testId?: string }) {
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -31,6 +25,7 @@ function CredentialRow({ label, value }: { label: string; value: string }) {
       onClick={copy}
       className="flex min-h-touch w-full items-center justify-between gap-3 px-4 py-2.5 text-left"
       aria-label={`Copy ${label}`}
+      data-testid={testId}
     >
       <span className="flex flex-col">
         <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">{label}</span>
@@ -39,6 +34,26 @@ function CredentialRow({ label, value }: { label: string; value: string }) {
       <i className={`mdi ${copied ? 'mdi-check text-success' : 'mdi-content-copy text-text-muted'} text-base`} aria-hidden="true" />
     </button>
   );
+}
+
+/** External link action (open app / instructions), styled as a full-width tap row. */
+function LinkRow({ label, url, testId }: { label: string; url: string; testId?: string }) {
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      className="flex min-h-touch w-full items-center justify-between gap-3 px-4 py-2.5 text-left"
+      data-testid={testId}
+    >
+      <span className="text-sm font-semibold text-primary">{label}</span>
+      <i className="mdi mdi-open-in-new text-base text-primary" aria-hidden="true" />
+    </a>
+  );
+}
+
+function hasValue(value: string | null | undefined): value is string {
+  return value != null && value.trim() !== '';
 }
 
 /**
@@ -66,8 +81,24 @@ export function AppsSection({ apps }: AppsSectionProps) {
           >
             <p className="px-4 pt-2 text-sm font-semibold text-text-primary">{app.name}</p>
             <div className="divide-y divide-black/[0.04]">
-              <CredentialRow label="Username" value={app.username} />
-              <CredentialRow label="Password" value={app.password} />
+              <CredentialRow label="Username" value={app.username} testId="apps-section-username" />
+              <CredentialRow label="Password" value={app.password} testId="apps-section-password" />
+              {app.needsAuthCode && hasValue(app.authCode) && (
+                <CredentialRow label="Auth code" value={app.authCode} testId="apps-section-auth-code" />
+              )}
+              {hasValue(app.instructionsPassword) && (
+                <CredentialRow
+                  label="Instructions password"
+                  value={app.instructionsPassword}
+                  testId="apps-section-instructions-password"
+                />
+              )}
+              {hasValue(app.appUrl) && (
+                <LinkRow label="Open app" url={app.appUrl} testId="apps-section-open-app" />
+              )}
+              {hasValue(app.instructionsUrl) && (
+                <LinkRow label="Instructions" url={app.instructionsUrl} testId="apps-section-instructions" />
+              )}
             </div>
           </li>
         ))}

@@ -18,6 +18,11 @@ export interface PropertyProps {
   lat: number | null;
   lng: number | null;
   geocodingStatus: GeocodingStatus;
+  privateAreaM2?: number | null;
+  totalAreaM2?: number | null;
+  furnished?: boolean | null;
+  linenProvided?: boolean | null;
+  rentAmount?: number | null;
   notes: string | null;
   rulesJson: PropertyRules;
   createdAt: Date;
@@ -39,6 +44,11 @@ export class PropertyEntity extends BaseEntity {
   lat: number | null;
   lng: number | null;
   geocodingStatus: GeocodingStatus;
+  readonly privateAreaM2: number | null;
+  readonly totalAreaM2: number | null;
+  readonly furnished: boolean | null;
+  readonly linenProvided: boolean | null;
+  readonly rentAmount: number | null;
   readonly notes: string | null;
   readonly rulesJson: Record<string, unknown>;
   readonly deletedAt: Date | null;
@@ -58,6 +68,11 @@ export class PropertyEntity extends BaseEntity {
     this.lat = props.lat;
     this.lng = props.lng;
     this.geocodingStatus = props.geocodingStatus;
+    this.privateAreaM2 = props.privateAreaM2 ?? null;
+    this.totalAreaM2 = props.totalAreaM2 ?? null;
+    this.furnished = props.furnished ?? null;
+    this.linenProvided = props.linenProvided ?? null;
+    this.rentAmount = props.rentAmount ?? null;
     this.notes = props.notes;
     this.rulesJson = props.rulesJson;
     this.deletedAt = props.deletedAt;

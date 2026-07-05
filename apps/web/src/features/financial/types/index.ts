@@ -93,11 +93,18 @@ export interface InvoiceDetail extends Invoice {
   notes: string | null;
 }
 
+/** Surfaced when a billing summary scope spans more than one currency (400 MULTI_CURRENCY_SCOPE). */
+export interface MultiCurrencyScopeError {
+  code: 'MULTI_CURRENCY_SCOPE';
+  message: string;
+  currencies: string[];
+}
+
 export interface InvoiceFiltersState {
   inspectorId: string;
   agencyId: string;
   branchId: string;
-  status: string; // 3-bucket: '' | 'pending' | 'approved' | 'rejected'
+  status: string; // '' | 'pending' | 'approved' | 'rejected' | 'done' (done = CLOSED+PAID+VOID)
   periodStart: string;
   periodEnd: string;
 }

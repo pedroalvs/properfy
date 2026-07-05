@@ -61,7 +61,7 @@ async function seedAppointmentNoActiveCycle(prisma: PrismaClient) {
     data: {
       tenant_id: tenant.id, branch_id: branch.id,
       property_code: `C2-${Math.random().toString(36).slice(2)}`,
-      type: 'RESIDENTIAL', street: '1 Test St', suburb: 'Test',
+      type: 'HOUSE', street: '1 Test St', suburb: 'Test',
       postcode: '2000', state: 'NSW', country: 'AU', geocoding_status: 'SUCCESS',
     },
   });

@@ -24,7 +24,6 @@ export function useInspectorDetail(id: string | null): UseInspectorDetailReturn 
       ...raw,
       regionIds,
       serviceTypes: Array.isArray(raw.serviceTypesJson) ? raw.serviceTypesJson : [],
-      clientEligibility: Array.isArray(raw.clientEligibilityJson) ? raw.clientEligibilityJson : [],
       regionsCount: regionIds.length,
       serviceTypesCount: Array.isArray(raw.serviceTypesJson) ? raw.serviceTypesJson.length : 0,
       fullName: raw.fullName ?? null,

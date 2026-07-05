@@ -4,6 +4,7 @@ import { BooleanIcon } from '@/components/ui/BooleanIcon';
 import { AppointmentStatus } from '@properfy/shared';
 import { RENTAL_TENANT_CONFIRMATION_STATUS_MAP } from '@/lib/status-colors';
 import { formatDate, formatDateTime } from '@/lib/format-date';
+import { formatArea, formatPropertyType, formatRent } from '@/lib/format-property';
 import type { AppointmentDetail } from '../types';
 
 interface AppointmentDetailSectionsProps {
@@ -32,7 +33,6 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
       )}
       <FormSection title="Inspection Details">
         <DetailRow label="Service Type" value={appointment.serviceTypeName} />
-        <DetailRow label="Address" value={appointment.propertyAddress} />
         <DetailRow label="Branch" value={appointment.branchName} />
         <DetailRow label="Scheduled Date" value={formatDate(appointment.scheduledDate)} />
         <DetailRow label="Time Slot" value={`${appointment.timeSlotStart} - ${appointment.timeSlotEnd}`} />
@@ -45,6 +45,31 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
             ) : null
           }
         />
+      </FormSection>
+
+      <FormSection title="Property">
+        <DetailRow label="Address" value={appointment.propertyAddress} />
+        <DetailRow label="Address Line 2" value={appointment.propertyAddressLine2} />
+        <DetailRow label="Type" value={formatPropertyType(appointment.propertyType)} />
+        <DetailRow label="Private Area" value={formatArea(appointment.propertyPrivateAreaM2)} />
+        <DetailRow label="Total Area" value={formatArea(appointment.propertyTotalAreaM2)} />
+        <DetailRow
+          label="Furnished"
+          value={
+            appointment.propertyFurnished != null ? (
+              <BooleanIcon value={appointment.propertyFurnished} />
+            ) : null
+          }
+        />
+        <DetailRow
+          label="Linen Provided"
+          value={
+            appointment.propertyLinenProvided != null ? (
+              <BooleanIcon value={appointment.propertyLinenProvided} />
+            ) : null
+          }
+        />
+        <DetailRow label="Rent Amount" value={formatRent(appointment.propertyRentAmount)} />
       </FormSection>
 
       <FormSection title="Contact">

@@ -105,7 +105,6 @@ export async function registerInspectorRoutes(
         regions: parsed.data.regions,
         regionIds: parsed.data.regionIds,
         serviceTypes: parsed.data.serviceTypes,
-        clientEligibility: parsed.data.clientEligibility,
         actor: request.authContext!,
       });
       return reply.status(201).send(success(result));
@@ -179,7 +178,6 @@ export async function registerInspectorRoutes(
           regions: parsed.data.regions,
           regionIds: parsed.data.regionIds,
           serviceTypes: parsed.data.serviceTypes,
-          clientEligibility: parsed.data.clientEligibility,
         },
         actor: request.authContext!,
       });

@@ -1,7 +1,6 @@
 import type {
   InspectorStatus,
   ServiceTypeEntry,
-  ClientEligibilityEntry,
 } from '@properfy/shared';
 
 export interface Inspector {
@@ -19,7 +18,6 @@ export interface Inspector {
 export interface InspectorDetail extends Inspector {
   regionIds: string[];
   serviceTypes: ServiceTypeEntry[];
-  clientEligibility: ClientEligibilityEntry[];
   fullName?: string | null;
   abn?: string | null;
   dateOfBirth?: string | null;
@@ -39,7 +37,6 @@ export interface InspectorFormData {
   status: string;
   regionIds: string[];
   serviceTypes: string;
-  clientEligibility: string[];
   fullName: string;
   abn: string;
   dateOfBirth: string;
@@ -59,7 +56,6 @@ export const EMPTY_INSPECTOR_FORM: InspectorFormData = {
   status: '',
   regionIds: [],
   serviceTypes: '',
-  clientEligibility: [],
   fullName: '',
   abn: '',
   dateOfBirth: '',

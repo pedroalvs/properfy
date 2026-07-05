@@ -385,19 +385,16 @@ export class UpdateAppointmentUseCase {
           id: crypto.randomUUID(), appointmentId, contactId: cId,
           role: entry.role as AppointmentContactRole, isPrimary: entry.isPrimary,
           snapshotName: sName, snapshotEmail: sEmail, snapshotPhone: sPhone,
-          rentalTenantName: sName, primaryEmail: sEmail, secondaryEmail: null,
-          primaryPhone: sPhone, secondaryPhone: null, createdAt: now, updatedAt: now,
+          createdAt: now, updatedAt: now,
         }));
       }
     } else if (data.contact !== undefined) {
       // Legacy path: single contact upsert (backward compat)
       if (found.contact) {
-        await this.appointmentRepo.updateContact(appointmentId, {
-          rentalTenantName: data.contact.rentalTenantName,
-          primaryEmail: data.contact.primaryEmail ?? null,
-          secondaryEmail: data.contact.secondaryEmail ?? null,
-          primaryPhone: data.contact.primaryPhone ?? null,
-          secondaryPhone: data.contact.secondaryPhone ?? null,
+        await this.appointmentRepo.updateContactSnapshot(appointmentId, found.contact.id, {
+          snapshotName: data.contact.rentalTenantName,
+          snapshotEmail: data.contact.primaryEmail ?? null,
+          snapshotPhone: data.contact.primaryPhone ?? null,
         });
       } else {
         const now = this.clock.now();
@@ -406,9 +403,6 @@ export class UpdateAppointmentUseCase {
           role: 'RENTAL_TENANT' as AppointmentContactRole, isPrimary: true,
           snapshotName: data.contact.rentalTenantName, snapshotEmail: data.contact.primaryEmail ?? null,
           snapshotPhone: data.contact.primaryPhone ?? null,
-          rentalTenantName: data.contact.rentalTenantName, primaryEmail: data.contact.primaryEmail ?? null,
-          secondaryEmail: data.contact.secondaryEmail ?? null,
-          primaryPhone: data.contact.primaryPhone ?? null, secondaryPhone: data.contact.secondaryPhone ?? null,
           createdAt: now, updatedAt: now,
         });
         await this.appointmentRepo.saveContact(contact);
@@ -430,6 +424,14 @@ export class UpdateAppointmentUseCase {
           }
           if (!cred.isActive) {
             throw new ValidationError('APPOINTMENT_APP_CREDENTIAL_INACTIVE', `App credential ${id} is not active`);
+          }
+          // Branch-scoped credentials only attach to appointments of that
+          // branch; agency-wide (branchId null) attach anywhere in the tenant.
+          if (cred.branchId !== null && cred.branchId !== appointment.branchId) {
+            throw new ValidationError(
+              'APPOINTMENT_APP_CREDENTIAL_BRANCH_MISMATCH',
+              `App credential ${id} belongs to another branch`,
+            );
           }
         }
       }

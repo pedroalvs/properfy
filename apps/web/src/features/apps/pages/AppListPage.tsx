@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
 import { usePermissions } from '@/hooks/usePermissions';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
+import { useFormOptions } from '@/hooks/useFormOptions';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { FormField } from '@/components/forms/FormField';
 import { SelectInput } from '@/components/forms/SelectInput';
@@ -24,7 +25,13 @@ export function AppListPage() {
   const canMutate = hasRole('AM', 'OP');
 
   const [selectedTenantId, setSelectedTenantId] = useState('');
+  const [selectedBranchId, setSelectedBranchId] = useState('');
   const effectiveTenantId = selectedTenantId || undefined;
+
+  const handleTenantChange = useCallback((tenantId: string) => {
+    setSelectedTenantId(tenantId);
+    setSelectedBranchId('');
+  }, []);
 
   const { data: tenantsResp } = usePaginatedQuery<{ id: string; name: string }>(
     ['tenants', 'app-list'],
@@ -36,8 +43,16 @@ export function AppListPage() {
     [tenantsResp],
   );
 
+  const { options: branchOptions } = useFormOptions<{ id: string; name: string }>(
+    ['branches', 'app-list', selectedTenantId],
+    '/v1/branches',
+    (item) => ({ value: item.id, label: item.name }),
+    { ...(selectedTenantId ? { tenantId: selectedTenantId } : {}), status: 'ACTIVE' },
+    { enabled: !!selectedTenantId },
+  );
+
   const { data, isLoading, isError, errorMessage, refetch, filters, setFilters, pagination } =
-    useAppList(effectiveTenantId);
+    useAppList(effectiveTenantId, selectedBranchId || undefined);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editApp, setEditApp] = useState<AppCredentialRow | null>(null);
@@ -81,14 +96,24 @@ export function AppListPage() {
           onClick: () => { setEditApp(null); setFormOpen(true); },
         } : undefined}
       >
-        <div className="px-0 pb-2">
+        <div className="grid grid-cols-1 gap-4 px-0 pb-2 sm:grid-cols-2">
           <FormField label="Agency">
             <SelectInput
               value={selectedTenantId}
-              onChange={setSelectedTenantId}
+              onChange={handleTenantChange}
               options={tenantOptions}
               placeholder="Filter by agency (optional)"
               aria-label="Agency"
+            />
+          </FormField>
+          <FormField label="Branch">
+            <SelectInput
+              value={selectedBranchId}
+              onChange={setSelectedBranchId}
+              options={branchOptions}
+              placeholder={selectedTenantId ? 'All branches' : 'Select an agency first'}
+              disabled={!selectedTenantId}
+              aria-label="Branch"
             />
           </FormField>
         </div>

@@ -18,7 +18,6 @@ function makeInspector(overrides: Partial<ConstructorParameters<typeof Inspector
     status: 'ACTIVE',
     paymentSettingsJson: {},
     serviceTypesJson: [{ serviceTypeId: 'svc-type-1', certified: false }],
-    clientEligibilityJson: [{ tenantId: 'tenant-1', eligible: true }],
     blockedClientsJson: [],
     fullName: null,
     address: null,
@@ -203,9 +202,8 @@ describe('GetMarketplaceOffersUseCase', () => {
       actor: makeActor(),
     });
 
-    // Use case now forwards inspector.blockedClientsJson (denylist) — not the
-    // legacy clientEligibilityJson allowlist — so it agrees with the AcceptOfferUseCase
-    // tenant-eligibility check.
+    // Use case forwards inspector.blockedClientsJson (denylist) so it agrees
+    // with the AcceptOfferUseCase tenant-eligibility check.
     expect(serviceGroupRepo.findPublishedForInspector).toHaveBeenCalledWith(
       'inspector-1',
       ['svc-type-1', 'svc-type-2'],
@@ -223,9 +221,6 @@ describe('GetMarketplaceOffersUseCase', () => {
     const inspector = makeInspector({
       serviceTypesJson: [{ serviceTypeId: 'svc-type-1', certified: false }],
       blockedClientsJson: [],
-      // legacy clientEligibilityJson should be ignored — we deliberately set
-      // a non-empty allowlist to prove the use case no longer reads it.
-      clientEligibilityJson: [{ tenantId: 'tenant-1', eligible: true }],
     });
     vi.mocked(inspectorRepo.findById).mockResolvedValue(inspector);
     vi.mocked(serviceGroupRepo.findPublishedForInspector).mockResolvedValue([]);

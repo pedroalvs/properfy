@@ -14,6 +14,11 @@ export interface Property {
   state: string;
   country: string;
   geocodingStatus: GeocodingStatus;
+  privateAreaM2: number | null;
+  totalAreaM2: number | null;
+  furnished: boolean | null;
+  linenProvided: boolean | null;
+  rentAmount: number | null;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
@@ -46,6 +51,11 @@ export interface PropertyFormData {
   postcode: string;
   state: string;
   country: string;
+  privateAreaM2: string;
+  totalAreaM2: string;
+  furnished: '' | 'true' | 'false';
+  linenProvided: '' | 'true' | 'false';
+  rentAmount: string;
   notes: string;
   latitude: string;
   longitude: string;
@@ -63,6 +73,11 @@ export const EMPTY_PROPERTY_FORM: PropertyFormData = {
   postcode: '',
   state: '',
   country: 'AU',
+  privateAreaM2: '',
+  totalAreaM2: '',
+  furnished: '',
+  linenProvided: '',
+  rentAmount: '',
   notes: '',
   latitude: '',
   longitude: '',

@@ -24,6 +24,11 @@ export interface UpdatePropertyInput {
     country?: string;
     latitude?: number | null;
     longitude?: number | null;
+    privateAreaM2?: number | null;
+    totalAreaM2?: number | null;
+    furnished?: boolean | null;
+    linenProvided?: boolean | null;
+    rentAmount?: number | null;
     notes?: string | null;
     rulesJson?: Record<string, unknown> | null;
   };
@@ -45,6 +50,11 @@ export interface UpdatePropertyOutput {
   geocodingStatus: string;
   latitude: number | null;
   longitude: number | null;
+  privateAreaM2: number | null;
+  totalAreaM2: number | null;
+  furnished: boolean | null;
+  linenProvided: boolean | null;
+  rentAmount: number | null;
   notes: string | null;
   rulesJson: Record<string, unknown>;
   createdAt: Date;
@@ -120,6 +130,11 @@ export class UpdatePropertyUseCase {
     if (data.postcode !== undefined) updateData.postcode = data.postcode;
     if (data.state !== undefined) updateData.state = data.state;
     if (data.country !== undefined) updateData.country = data.country;
+    if (data.privateAreaM2 !== undefined) updateData.privateAreaM2 = data.privateAreaM2;
+    if (data.totalAreaM2 !== undefined) updateData.totalAreaM2 = data.totalAreaM2;
+    if (data.furnished !== undefined) updateData.furnished = data.furnished;
+    if (data.linenProvided !== undefined) updateData.linenProvided = data.linenProvided;
+    if (data.rentAmount !== undefined) updateData.rentAmount = data.rentAmount;
     if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.rulesJson !== undefined) updateData.rulesJson = data.rulesJson;
 
@@ -235,6 +250,13 @@ export class UpdatePropertyUseCase {
         (updateData.geocodingStatus as string) ?? property.geocodingStatus,
       latitude: data.latitude !== undefined ? (data.latitude ?? null) : (property.lat ?? null),
       longitude: data.longitude !== undefined ? (data.longitude ?? null) : (property.lng ?? null),
+      privateAreaM2:
+        data.privateAreaM2 !== undefined ? data.privateAreaM2 : property.privateAreaM2,
+      totalAreaM2: data.totalAreaM2 !== undefined ? data.totalAreaM2 : property.totalAreaM2,
+      furnished: data.furnished !== undefined ? data.furnished : property.furnished,
+      linenProvided:
+        data.linenProvided !== undefined ? data.linenProvided : property.linenProvided,
+      rentAmount: data.rentAmount !== undefined ? data.rentAmount : property.rentAmount,
       notes: data.notes !== undefined ? data.notes ?? null : property.notes,
       rulesJson:
         (updateData.rulesJson as Record<string, unknown>) ?? property.rulesJson,

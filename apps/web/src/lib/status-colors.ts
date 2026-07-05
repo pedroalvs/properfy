@@ -52,10 +52,11 @@ export const CONTACT_TYPE_MAP: Record<ContactType, StatusStyle> = {
 };
 
 export const PROPERTY_TYPE_MAP: Record<PropertyType, StatusStyle> = {
-  [PropertyType.RESIDENTIAL]: { bg: 'var(--color-type-residential)', text: 'var(--color-text-primary)', label: 'Residential' },
-  [PropertyType.COMMERCIAL]:  { bg: 'var(--color-type-commercial)',  text: 'var(--color-text-primary)', label: 'Commercial' },
-  [PropertyType.INDUSTRIAL]:  { bg: 'var(--color-type-industrial)',  text: 'var(--color-text-primary)', label: 'Industrial' },
-  [PropertyType.RURAL]:       { bg: 'var(--color-type-rural)',       text: 'var(--color-text-primary)', label: 'Rural' },
+  [PropertyType.APARTMENT]:  { bg: 'var(--color-type-residential)', text: 'var(--color-text-primary)', label: 'Apartment' },
+  [PropertyType.HOUSE]:      { bg: 'var(--color-type-residential)', text: 'var(--color-text-primary)', label: 'House' },
+  [PropertyType.COMMERCIAL]: { bg: 'var(--color-type-commercial)',  text: 'var(--color-text-primary)', label: 'Commercial' },
+  [PropertyType.INDUSTRIAL]: { bg: 'var(--color-type-industrial)',  text: 'var(--color-text-primary)', label: 'Industrial' },
+  [PropertyType.RURAL]:      { bg: 'var(--color-type-rural)',       text: 'var(--color-text-primary)', label: 'Rural' },
 };
 
 export const INSPECTOR_STATUS_MAP: Record<InspectorStatus, StatusStyle> = {

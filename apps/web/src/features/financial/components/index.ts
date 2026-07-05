@@ -17,3 +17,4 @@ export { MarkInvoicePaidModal } from './MarkInvoicePaidModal';
 export { ReversePaymentModal } from './ReversePaymentModal';
 export { RejectDraftModal } from './RejectDraftModal';
 export { ReconciliationSummary } from './ReconciliationSummary';
+export { InvoiceSummaryIndicators } from './InvoiceSummaryIndicators';

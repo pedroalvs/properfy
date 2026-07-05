@@ -229,7 +229,7 @@ export class AppointmentImportCommitWorker {
       tenantId,
       branchId: null,
       propertyCode: `IMP-${crypto.randomUUID().replace(/-/g, '').slice(0, 10).toUpperCase()}`,
-      type: 'RESIDENTIAL',
+      type: 'HOUSE',
       street: addr.street,
       addressLine2: addr.addressLine2,
       suburb: addr.suburb,

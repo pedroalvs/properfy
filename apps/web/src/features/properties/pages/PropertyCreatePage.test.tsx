@@ -208,7 +208,7 @@ describe('PropertyCreatePage', () => {
 
     fireEvent.change(screen.getByLabelText('Property Code'), { target: { value: 'PROP-1' } });
     fireEvent.click(screen.getByLabelText('Type'));
-    fireEvent.click(screen.getByText('Residential'));
+    fireEvent.click(screen.getByText('House'));
     fireEvent.change(screen.getByLabelText('Street'), { target: { value: '1 Test St' } });
     fireEvent.change(screen.getByLabelText('Suburb'), { target: { value: 'Sydney' } });
     fireEvent.change(screen.getByLabelText('Postcode'), { target: { value: '2000' } });

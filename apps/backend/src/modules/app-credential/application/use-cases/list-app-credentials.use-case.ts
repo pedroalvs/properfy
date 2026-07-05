@@ -5,6 +5,8 @@ import type {
 
 export interface ListAppCredentialsInput {
   tenantId?: string | null;
+  /** Matches credentials scoped to this branch OR agency-wide (branch_id IS NULL). */
+  branchId?: string | null;
   isActive?: boolean;
   search?: string;
   page: number;
@@ -26,6 +28,7 @@ export class ListAppCredentialsUseCase {
   async execute(input: ListAppCredentialsInput): Promise<ListAppCredentialsOutput> {
     const filters = {
       tenantId: input.tenantId ?? undefined,
+      branchId: input.branchId ?? undefined,
       isActive: input.isActive,
       search: input.search,
     };

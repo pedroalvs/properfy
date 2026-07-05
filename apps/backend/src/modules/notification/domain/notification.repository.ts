@@ -30,6 +30,11 @@ export interface INotificationRepository {
    * self-heals them (mirrors the geocoding self-heal pattern).
    */
   findStuckPending(cutoff: Date, limit?: number): Promise<NotificationEntity[]>;
+  /**
+   * SENT SMS rows with a providerMessageId whose sent_at falls in [from, to] —
+   * candidates for delivery-status reconciliation against the provider.
+   */
+  findSmsAwaitingDeliveryReceipt(from: Date, to: Date, limit?: number): Promise<NotificationEntity[]>;
   save(notification: NotificationEntity): Promise<void>;
   update(notification: NotificationEntity): Promise<void>;
   existsByAppointmentAndTemplate(appointmentId: string, templateCode: string): Promise<boolean>;

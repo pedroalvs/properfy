@@ -57,7 +57,7 @@ async function seedAppointmentWithActiveCycle(prisma: PrismaClient) {
     data: {
       tenant_id: tenant.id, branch_id: branch.id,
       property_code: `C1-${Math.random().toString(36).slice(2)}`,
-      type: 'RESIDENTIAL', street: '1 Test St', suburb: 'Test',
+      type: 'HOUSE', street: '1 Test St', suburb: 'Test',
       postcode: '2000', state: 'NSW', country: 'AU', geocoding_status: 'SUCCESS',
     },
   });
@@ -155,7 +155,7 @@ describe('C1 — confirmation-cycle atomicity (real DB)', () => {
       data: {
         tenant_id: tenant.id, branch_id: branch.id,
         property_code: `NOP-${Math.random().toString(36).slice(2)}`,
-        type: 'RESIDENTIAL', street: '1 St', suburb: 'Sub',
+        type: 'HOUSE', street: '1 St', suburb: 'Sub',
         postcode: '2000', state: 'NSW', country: 'AU', geocoding_status: 'SUCCESS',
       },
     });

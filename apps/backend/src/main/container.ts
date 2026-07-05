@@ -227,6 +227,7 @@ import { MarkInvoicePaidUseCase } from '../modules/billing/application/use-cases
 import { BatchMarkInvoicesPaidUseCase } from '../modules/billing/application/use-cases/batch-mark-invoices-paid.use-case';
 import { ReverseInvoicePaymentUseCase } from '../modules/billing/application/use-cases/reverse-invoice-payment.use-case';
 import { GetReconciliationSummaryUseCase } from '../modules/billing/application/use-cases/get-reconciliation-summary.use-case';
+import { GetInvoiceSummaryUseCase } from '../modules/billing/application/use-cases/get-invoice-summary.use-case';
 import { VoidFinancialEntryUseCase } from '../modules/billing/application/use-cases/void-financial-entry.use-case';
 import { ApproveDraftInvoiceUseCase } from '../modules/billing/application/use-cases/approve-draft-invoice.use-case';
 import { RejectDraftInvoiceUseCase } from '../modules/billing/application/use-cases/reject-draft-invoice.use-case';
@@ -269,6 +270,7 @@ import { SendTestNotificationUseCase } from '../modules/notification/application
 import { ListNotificationTemplatesUseCase } from '../modules/notification/application/use-cases/list-notification-templates.use-case';
 import { CreateNotificationUseCase } from '../modules/notification/application/use-cases/create-notification.use-case';
 import { PollRetryableNotificationsUseCase } from '../modules/notification/application/use-cases/poll-retryable-notifications.use-case';
+import { PollSmsDeliveryUseCase } from '../modules/notification/application/use-cases/poll-sms-delivery.use-case';
 import { DispatchRemindersUseCase } from '../modules/notification/application/use-cases/dispatch-reminders.use-case';
 import { DispatchEscalationsUseCase } from '../modules/notification/application/use-cases/dispatch-escalations.use-case';
 import { ListConsentsByRecipientUseCase } from '../modules/notification/application/use-cases/list-consents-by-recipient.use-case';
@@ -371,6 +373,7 @@ import { FindAddableGroupsForAppointmentsUseCase } from '../modules/service-grou
 import { GetGroupPortalLinkPlanUseCase } from '../modules/service-group/application/use-cases/get-group-portal-link-plan.use-case';
 import { SendGroupPortalLinksUseCase } from '../modules/service-group/application/use-cases/send-group-portal-links.use-case';
 import { GetAvailablePeriodsUseCase } from '../modules/billing/application/use-cases/get-available-periods.use-case';
+import { GetInspectorEarningsSummaryUseCase } from '../modules/billing/application/use-cases/get-inspector-earnings-summary.use-case';
 import { PreviewInvoiceUseCase } from '../modules/billing/application/use-cases/preview-invoice.use-case';
 import { RequestInvoiceUseCase } from '../modules/billing/application/use-cases/request-invoice.use-case';
 import { ReopenForRescheduleUseCase } from '../modules/appointment/application/use-cases/reopen-for-reschedule.use-case';
@@ -593,8 +596,8 @@ export function createContainer(logger: Logger): AppContainer {
     prisma,
     new Aes256GcmService(appCredentialEncKey),
   );
-  const createAppCredentialUseCase = new CreateAppCredentialUseCase(appCredentialRepo, auditService);
-  const updateAppCredentialUseCase = new UpdateAppCredentialUseCase(appCredentialRepo, auditService);
+  const createAppCredentialUseCase = new CreateAppCredentialUseCase(appCredentialRepo, auditService, branchRepo);
+  const updateAppCredentialUseCase = new UpdateAppCredentialUseCase(appCredentialRepo, auditService, branchRepo);
   const getAppCredentialUseCase = new GetAppCredentialUseCase(appCredentialRepo);
   const listAppCredentialsUseCase = new ListAppCredentialsUseCase(appCredentialRepo);
 
@@ -815,6 +818,7 @@ export function createContainer(logger: Logger): AppContainer {
     inspectionExecutionRepo, inspectionAssetRepo, storageService, appointmentRepo, authorizationService,
   );
   const getAvailablePeriodsUseCase = new GetAvailablePeriodsUseCase(inspectorRepo);
+  const getInspectorEarningsSummaryUseCase = new GetInspectorEarningsSummaryUseCase(financialEntryRepo);
   const previewInvoiceUseCase = new PreviewInvoiceUseCase(inspectorRepo, financialEntryRepo);
   const requestInvoiceUseCase = new RequestInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, inspectorRepo, auditService);
   const confirmAssetUploadUseCase = new ConfirmAssetUploadUseCase(
@@ -958,6 +962,7 @@ export function createContainer(logger: Logger): AppContainer {
   const batchMarkInvoicesPaidUseCase = new BatchMarkInvoicesPaidUseCase(inspectorInvoiceRepo, auditService, authorizationService);
   const reverseInvoicePaymentUseCase = new ReverseInvoicePaymentUseCase(inspectorInvoiceRepo, auditService, authorizationService);
   const getReconciliationSummaryUseCase = new GetReconciliationSummaryUseCase(inspectorInvoiceRepo, authorizationService);
+  const getInvoiceSummaryUseCase = new GetInvoiceSummaryUseCase(inspectorInvoiceRepo, authorizationService);
   const voidFinancialEntryUseCase = new VoidFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService);
   const approveDraftInvoiceUseCase = new ApproveDraftInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, authorizationService, billingJobQueue);
   const rejectDraftInvoiceUseCase = new RejectDraftInvoiceUseCase(inspectorInvoiceRepo, auditService, authorizationService);
@@ -1045,7 +1050,7 @@ export function createContainer(logger: Logger): AppContainer {
     emailAssetsPublicUrlBase: env.EMAIL_ASSETS_PUBLIC_URL_BASE,
   });
   const retryNotificationUseCase = new RetryNotificationUseCase(notificationRepo, auditService, authorizationService);
-  const handleProviderWebhookUseCase = new HandleProviderWebhookUseCase(notificationRepo);
+  const handleProviderWebhookUseCase = new HandleProviderWebhookUseCase(notificationRepo, logger);
   const webhookSignatureValidator = createWebhookSignatureValidator({
     resendWebhookSecret: env.RESEND_WEBHOOK_SECRET,
   });
@@ -1093,6 +1098,7 @@ export function createContainer(logger: Logger): AppContainer {
   );
   // createNotificationUseCase and notificationJobQueue created above (before appointments)
   const pollRetryableNotificationsUseCase = new PollRetryableNotificationsUseCase(notificationRepo, notificationJobQueue, logger);
+  const pollSmsDeliveryUseCase = new PollSmsDeliveryUseCase(notificationRepo, smsProvider, logger);
   const dispatchRemindersUseCase = new DispatchRemindersUseCase(
     appointmentRepo, tenantRepo, notificationRepo,
     buildNotificationPayload, appointmentCodeFormatter,
@@ -1446,6 +1452,7 @@ export function createContainer(logger: Logger): AppContainer {
       confirmAssetUploadUseCase,
       getMarketplaceOffersUseCase,
       getAvailablePeriodsUseCase,
+      getInspectorEarningsSummaryUseCase,
       previewInvoiceUseCase,
       requestInvoiceUseCase,
       listAppointmentAssetsUseCase,
@@ -1469,6 +1476,7 @@ export function createContainer(logger: Logger): AppContainer {
       batchMarkInvoicesPaidUseCase,
       reverseInvoicePaymentUseCase,
       getReconciliationSummaryUseCase,
+      getInvoiceSummaryUseCase,
       voidFinancialEntryUseCase,
       approveDraftInvoiceUseCase,
       rejectDraftInvoiceUseCase,
@@ -1503,6 +1511,7 @@ export function createContainer(logger: Logger): AppContainer {
       listNotificationTemplatesUseCase,
       createNotificationUseCase,
       pollRetryableNotificationsUseCase,
+      pollSmsDeliveryUseCase,
       dispatchRemindersUseCase,
       dispatchEscalationsUseCase,
       listConsentsByRecipientUseCase,
@@ -1510,7 +1519,7 @@ export function createContainer(logger: Logger): AppContainer {
       jwtService,
       tenantRepo,
       webhookSignatureValidator,
-      mobileMessageWebhookToken: process.env['MOBILE_MESSAGE_WEBHOOK_TOKEN'],
+      mobileMessageWebhookToken: env.MOBILE_MESSAGE_WEBHOOK_TOKEN,
     },
     dashboard: {
       getDashboardStatsUseCase,

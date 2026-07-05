@@ -114,9 +114,7 @@ export class GetPortalDataUseCase {
         ? {
             rentalTenantName: contact.effectiveName,
             primaryEmail: contact.effectiveEmail,
-            secondaryEmail: contact.secondaryEmail,
             primaryPhone: contact.effectivePhone,
-            secondaryPhone: contact.secondaryPhone,
           }
         : null,
       restrictions: restrictions[0]

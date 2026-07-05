@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { paginationSchema } from './pagination';
 import { contactSchema, appointmentContactsArraySchema } from './contact';
+import { PROPERTY_TYPE_VALUES } from './property';
 import { restrictionSchema } from './restriction';
 import { AppointmentStatus, RentalTenantConfirmationStatus } from '../enums/appointment';
 import { CancellationReasonCode, RejectionReasonCode } from '../enums/reason-codes';
@@ -8,7 +9,7 @@ import { CancellationReasonCode, RejectionReasonCode } from '../enums/reason-cod
 // Inline property for creation (matches createPropertySchema subset)
 const inlinePropertySchema = z.object({
   propertyCode: z.string().min(1).max(50).trim(),
-  type: z.enum(['RESIDENTIAL', 'COMMERCIAL', 'INDUSTRIAL', 'RURAL']),
+  type: z.enum(PROPERTY_TYPE_VALUES),
   street: z.string().min(1).max(300).trim(),
   addressLine2: z.string().max(200).trim().optional(),
   suburb: z.string().min(1).max(100).trim(),

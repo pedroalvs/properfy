@@ -23,7 +23,7 @@ function makeProperty(
     tenantId: 'tenant-1',
     branchId: null,
     propertyCode: 'PROP-001',
-    type: 'RESIDENTIAL',
+    type: 'HOUSE',
     street: '123 Main St',
     addressLine2: null,
     suburb: 'Sydney',
@@ -102,7 +102,7 @@ describe('CreatePropertyUseCase', () => {
     const result = await useCase.execute({
       tenantId: 'tenant-1',
       propertyCode: 'PROP-001',
-      type: 'RESIDENTIAL',
+      type: 'HOUSE',
       street: '123 Main St',
       suburb: 'Sydney',
       postcode: '2000',
@@ -119,6 +119,61 @@ describe('CreatePropertyUseCase', () => {
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'property.created' }),
     );
+  });
+
+  it('should persist and return the new optional detail fields', async () => {
+    vi.mocked(propertyRepo.findByPropertyCode).mockResolvedValue(null);
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      propertyCode: 'PROP-002',
+      type: 'APARTMENT',
+      street: '9 Beach Rd',
+      suburb: 'Manly',
+      postcode: '2095',
+      state: 'NSW',
+      country: 'AU',
+      privateAreaM2: 72.5,
+      totalAreaM2: 90,
+      furnished: true,
+      linenProvided: false,
+      rentAmount: 3200,
+      actor: makeActor(),
+    });
+
+    expect(result.privateAreaM2).toBe(72.5);
+    expect(result.totalAreaM2).toBe(90);
+    expect(result.furnished).toBe(true);
+    expect(result.linenProvided).toBe(false);
+    expect(result.rentAmount).toBe(3200);
+    const saved = vi.mocked(propertyRepo.save).mock.calls[0][0];
+    expect(saved.privateAreaM2).toBe(72.5);
+    expect(saved.totalAreaM2).toBe(90);
+    expect(saved.furnished).toBe(true);
+    expect(saved.linenProvided).toBe(false);
+    expect(saved.rentAmount).toBe(3200);
+  });
+
+  it('should default new detail fields to null when omitted', async () => {
+    vi.mocked(propertyRepo.findByPropertyCode).mockResolvedValue(null);
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      propertyCode: 'PROP-003',
+      type: 'HOUSE',
+      street: '1 Elm St',
+      suburb: 'Sydney',
+      postcode: '2000',
+      state: 'NSW',
+      country: 'AU',
+      actor: makeActor(),
+    });
+
+    expect(result.privateAreaM2).toBeNull();
+    expect(result.totalAreaM2).toBeNull();
+    expect(result.furnished).toBeNull();
+    expect(result.linenProvided).toBeNull();
+    expect(result.rentAmount).toBeNull();
   });
 
   it('should create property using actor.tenantId for CL_ADMIN', async () => {
@@ -146,7 +201,7 @@ describe('CreatePropertyUseCase', () => {
     const result = await useCase.execute({
       tenantId: 'tenant-1',
       propertyCode: 'PROP-OP',
-      type: 'RESIDENTIAL',
+      type: 'HOUSE',
       street: '123 Main St',
       suburb: 'Sydney',
       postcode: '2000',
@@ -163,7 +218,7 @@ describe('CreatePropertyUseCase', () => {
     await expect(
       useCase.execute({
         propertyCode: 'PROP-OP-2',
-        type: 'RESIDENTIAL',
+        type: 'HOUSE',
         street: '123 Main St',
         suburb: 'Sydney',
         postcode: '2000',
@@ -178,7 +233,7 @@ describe('CreatePropertyUseCase', () => {
     await expect(
       useCase.execute({
         propertyCode: 'PROP-003',
-        type: 'RESIDENTIAL',
+        type: 'HOUSE',
         street: '789 Inspector Rd',
         suburb: 'Brisbane',
         postcode: '4000',
@@ -198,7 +253,7 @@ describe('CreatePropertyUseCase', () => {
       useCase.execute({
         tenantId: 'tenant-1',
         propertyCode: 'PROP-001',
-        type: 'RESIDENTIAL',
+        type: 'HOUSE',
         street: '123 Main St',
         suburb: 'Sydney',
         postcode: '2000',
@@ -217,7 +272,7 @@ describe('CreatePropertyUseCase', () => {
       useCase.execute({
         tenantId: 'tenant-1',
         propertyCode: 'PROP-002',
-        type: 'RESIDENTIAL',
+        type: 'HOUSE',
         street: '123 Main St',
         suburb: 'Sydney',
         postcode: '2000',
@@ -238,7 +293,7 @@ describe('CreatePropertyUseCase', () => {
         tenantId: 'tenant-1',
         branchId: 'invalid-branch',
         propertyCode: 'PROP-004',
-        type: 'RESIDENTIAL',
+        type: 'HOUSE',
         street: '123 Main St',
         suburb: 'Sydney',
         postcode: '2000',
@@ -253,7 +308,7 @@ describe('CreatePropertyUseCase', () => {
     await expect(
       useCase.execute({
         propertyCode: 'PROP-005',
-        type: 'RESIDENTIAL',
+        type: 'HOUSE',
         street: '123 Main St',
         suburb: 'Sydney',
         postcode: '2000',
@@ -270,7 +325,7 @@ describe('CreatePropertyUseCase', () => {
     const result = await useCase.execute({
       tenantId: 'tenant-1',
       propertyCode: 'PROP-GEO',
-      type: 'RESIDENTIAL',
+      type: 'HOUSE',
       street: '123 Main St',
       suburb: 'Sydney',
       postcode: '2000',
@@ -298,7 +353,7 @@ describe('CreatePropertyUseCase', () => {
     const result = await useCaseWithLogger.execute({
       tenantId: 'tenant-1',
       propertyCode: 'PROP-GEO-FAIL',
-      type: 'RESIDENTIAL',
+      type: 'HOUSE',
       street: '1 Fail St',
       suburb: 'Sydney',
       postcode: '2000',
@@ -341,7 +396,7 @@ describe('CreatePropertyUseCase', () => {
     const baseInput = {
       tenantId: 'tenant-1',
       propertyCode: 'PROP-SYNC',
-      type: 'RESIDENTIAL' as const,
+      type: 'HOUSE' as const,
       street: '1 Sync St',
       suburb: 'Sydney',
       postcode: '2000',
@@ -437,7 +492,7 @@ describe('CreatePropertyUseCase', () => {
       tenantId: 'tenant-1',
       branchId: 'branch-1',
       propertyCode: 'PROP-006',
-      type: 'RESIDENTIAL',
+      type: 'HOUSE',
       street: '123 Main St',
       suburb: 'Sydney',
       postcode: '2000',

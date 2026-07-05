@@ -5,10 +5,36 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import type { PropertyFormData, PropertyFormErrors } from '../types';
 
+function parseBoolField(value: '' | 'true' | 'false'): boolean | undefined {
+  return value === '' ? undefined : value === 'true';
+}
+
+function parseNumberField(value: string): number | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const parsed = Number(trimmed);
+  return Number.isNaN(parsed) ? undefined : parsed;
+}
+
 /** Map form data to the shape expected by the shared Zod schema. */
 function toSchemaPayload(data: PropertyFormData, mode: 'create' | 'edit', tenantId?: string | null) {
   if (mode === 'create') {
     return {
+      ...(parseNumberField(data.privateAreaM2) !== undefined
+        ? { privateAreaM2: parseNumberField(data.privateAreaM2) }
+        : {}),
+      ...(parseNumberField(data.totalAreaM2) !== undefined
+        ? { totalAreaM2: parseNumberField(data.totalAreaM2) }
+        : {}),
+      ...(parseBoolField(data.furnished) !== undefined
+        ? { furnished: parseBoolField(data.furnished) }
+        : {}),
+      ...(parseBoolField(data.linenProvided) !== undefined
+        ? { linenProvided: parseBoolField(data.linenProvided) }
+        : {}),
+      ...(parseNumberField(data.rentAmount) !== undefined
+        ? { rentAmount: parseNumberField(data.rentAmount) }
+        : {}),
       propertyCode: data.propertyCode.trim() || undefined,
       type: data.type || undefined,
       street: data.street.trim() || undefined,
@@ -33,6 +59,12 @@ function toSchemaPayload(data: PropertyFormData, mode: 'create' | 'edit', tenant
     ...(data.state ? { state: data.state } : {}),
     ...(data.country.trim() ? { country: data.country.trim() } : {}),
     branchId: data.branchId || null,
+    // Edit sends explicit null so clearing a value actually clears it.
+    privateAreaM2: parseNumberField(data.privateAreaM2) ?? null,
+    totalAreaM2: parseNumberField(data.totalAreaM2) ?? null,
+    furnished: parseBoolField(data.furnished) ?? null,
+    linenProvided: parseBoolField(data.linenProvided) ?? null,
+    rentAmount: parseNumberField(data.rentAmount) ?? null,
     notes: data.notes.trim() || null,
   };
 

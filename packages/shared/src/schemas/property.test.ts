@@ -214,7 +214,7 @@ describe('propertyAddressUpdateSchema', () => {
 describe('createPropertySchema', () => {
   const validInput = {
     propertyCode: 'PROP-001',
-    type: 'RESIDENTIAL' as const,
+    type: 'HOUSE' as const,
     street: '123 Main St',
     suburb: 'Bondi',
     postcode: '2026',
@@ -270,6 +270,31 @@ describe('createPropertySchema', () => {
     const { state: _state, ...rest } = validInput;
     const result = createPropertySchema.safeParse(rest);
     expect(result.success).toBe(false);
+  });
+
+  it('should accept new optional detail fields', () => {
+    const result = createPropertySchema.safeParse({
+      ...validInput,
+      privateAreaM2: 85.5,
+      totalAreaM2: 120,
+      furnished: true,
+      linenProvided: false,
+      rentAmount: 2500.0,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept APARTMENT type and reject legacy RESIDENTIAL', () => {
+    expect(createPropertySchema.safeParse({ ...validInput, type: 'APARTMENT' }).success).toBe(true);
+    expect(createPropertySchema.safeParse({ ...validInput, type: 'RESIDENTIAL' }).success).toBe(
+      false,
+    );
+  });
+
+  it('should reject non-positive areas and negative rent', () => {
+    expect(createPropertySchema.safeParse({ ...validInput, privateAreaM2: 0 }).success).toBe(false);
+    expect(createPropertySchema.safeParse({ ...validInput, totalAreaM2: -5 }).success).toBe(false);
+    expect(createPropertySchema.safeParse({ ...validInput, rentAmount: -1 }).success).toBe(false);
   });
 
   it('should reject propertyCode exceeding 50 characters', () => {

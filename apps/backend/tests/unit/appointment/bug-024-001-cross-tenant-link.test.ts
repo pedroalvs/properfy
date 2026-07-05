@@ -57,7 +57,7 @@ function makeBranch(tenantId: string, branchId: string): BranchEntity {
 function makeProperty(tenantId: string, branchId: string, propertyId: string): PropertyEntity {
   return new PropertyEntity({
     id: propertyId, tenantId, branchId, propertyCode: 'PROP-1',
-    type: 'RESIDENTIAL', street: '1 St', addressLine2: null, suburb: 'S',
+    type: 'HOUSE', street: '1 St', addressLine2: null, suburb: 'S',
     postcode: '2000', state: 'NSW', country: 'AU',
     lat: null, lng: null, geocodingStatus: 'PENDING', notes: null, rulesJson: {},
     createdAt: new Date(), updatedAt: new Date(), deletedAt: null,

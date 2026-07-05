@@ -85,7 +85,12 @@ describe('GroupDetailBottomSheet', () => {
     render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
     expect(screen.getByText('Bondi NSW')).toBeInTheDocument();
     expect(screen.getByText('Manly NSW')).toBeInTheDocument();
-    expect(screen.getByText('Group #2042')).toBeInTheDocument();
+  });
+
+  it('does not render the group code badge in the header', () => {
+    mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    expect(screen.queryByText(/Group #/)).toBeNull();
   });
 
   it('shows each appointment\'s agency (groups may span agencies)', () => {
@@ -136,6 +141,13 @@ describe('GroupDetailBottomSheet', () => {
     render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
     const times = screen.getAllByTestId('appointment-time').map((el) => el.textContent);
     expect(times).toEqual(['08:00–09:00', '11:30–12:30']);
+  });
+
+  it('renders the group date formatted, not the raw ISO string', () => {
+    mockUseDetail.mockReturnValue({ data: { ...mockDetail, scheduledDate: '2026-07-10T00:00:00.000Z' }, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    expect(screen.getByText('10/07/2026')).toBeInTheDocument();
+    expect(screen.queryByText(/00:00:00/)).toBeNull();
   });
 
   it('renders group-level service type and time window', () => {

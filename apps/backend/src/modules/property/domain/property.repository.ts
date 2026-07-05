@@ -90,6 +90,11 @@ export interface IPropertyRepository {
       lat: number | null;
       lng: number | null;
       geocodingStatus: string;
+      privateAreaM2: number | null;
+      totalAreaM2: number | null;
+      furnished: boolean | null;
+      linenProvided: boolean | null;
+      rentAmount: number | null;
       notes: string | null;
       rulesJson: Record<string, unknown>;
       deletedAt: Date | null;
