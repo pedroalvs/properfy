@@ -1,5 +1,6 @@
 import type { INotificationRepository } from '../../domain/notification.repository';
 import type { NotificationStatus } from '@properfy/shared';
+import type { Logger } from '../../../../shared/infrastructure/logger';
 
 export interface HandleProviderWebhookInput {
   provider: string;
@@ -17,7 +18,10 @@ const STATUS_PRIORITY: Record<string, number> = {
 };
 
 export class HandleProviderWebhookUseCase {
-  constructor(private readonly notificationRepo: INotificationRepository) {}
+  constructor(
+    private readonly notificationRepo: INotificationRepository,
+    private readonly logger?: Logger,
+  ) {}
 
   async execute(input: HandleProviderWebhookInput): Promise<void> {
     const notification = await this.notificationRepo.findByProviderMessageId(
@@ -25,7 +29,12 @@ export class HandleProviderWebhookUseCase {
     );
 
     if (!notification) {
-      // Unknown notifications are silently ignored
+      // Ack (200) so the provider does not retry, but leave a trace: a burst of
+      // unmatched receipts means lost correlation, not noise.
+      this.logger?.warn(
+        { provider: input.provider, providerMessageId: input.providerMessageId, event: input.event },
+        'notification.webhook_unmatched: no notification for providerMessageId',
+      );
       return;
     }
 

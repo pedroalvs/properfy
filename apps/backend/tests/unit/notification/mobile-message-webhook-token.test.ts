@@ -2,10 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { isMobileMessageTokenValid } from '../../../src/modules/notification/interfaces/notification.routes';
 
 describe('isMobileMessageTokenValid', () => {
-  it('allows any request when no token is configured (dev mode)', () => {
-    expect(isMobileMessageTokenValid(undefined, undefined)).toBe(true);
-    expect(isMobileMessageTokenValid('any-token', undefined)).toBe(true);
-    expect(isMobileMessageTokenValid(undefined, '')).toBe(true);
+  it('rejects every request when no token is configured (no bypass in any environment)', () => {
+    expect(isMobileMessageTokenValid(undefined, undefined)).toBe(false);
+    expect(isMobileMessageTokenValid('any-token', undefined)).toBe(false);
+    expect(isMobileMessageTokenValid(undefined, '')).toBe(false);
+    expect(isMobileMessageTokenValid('any-token', '')).toBe(false);
   });
 
   it('rejects when token is configured but not provided in request', () => {

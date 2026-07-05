@@ -1,0 +1,12 @@
+-- Supports the notification.sms-delivery-poll reconciliation query
+-- (WHERE channel = 'SMS' AND status = 'SENT' AND sent_at BETWEEN ...)
+--
+-- Note: CREATE INDEX CONCURRENTLY is NOT possible here — Prisma Migrate wraps
+-- each migration in a transaction (verified: E25001 on prisma 5.22) and
+-- CONCURRENTLY cannot run inside one. The plain CREATE INDEX briefly blocks
+-- writes to notifications, which is acceptable: the table is small and this
+-- runs in the Fly release_command phase, before the new version takes traffic.
+-- If notifications ever grows to millions of rows, create future indexes
+-- manually with CONCURRENTLY and mark the migration applied via
+-- `prisma migrate resolve`.
+CREATE INDEX "notifications_channel_status_sent_at_idx" ON "notifications"("channel", "status", "sent_at");

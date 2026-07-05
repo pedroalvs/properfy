@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import type { NotificationClass } from '@properfy/shared';
+import { toE164Au, type NotificationClass } from '@properfy/shared';
+import { prepareSmsBody } from '../../domain/sms-content';
 import type { INotificationRepository } from '../../domain/notification.repository';
 import type { INotificationTemplateRepository } from '../../domain/notification-template.repository';
 import type { INotificationConsentRepository } from '../../domain/notification-consent.repository';
@@ -20,6 +21,11 @@ import {
 } from '../../domain/notification.errors';
 import { MAX_RETRY_COUNT, RETRY_DELAYS, JITTER_FACTOR } from '../../domain/notification.constants';
 import { renderEmailBody } from '../render-email-body';
+
+/** Phone numbers are PII: log at most the last 4 digits. */
+function maskRecipient(recipient: string): string {
+  return `***${recipient.slice(-4)}`;
+}
 
 export interface SendNotificationInput {
   notificationId: string;
@@ -233,6 +239,26 @@ export class SendNotificationUseCase {
       }
     }
 
+    // Deterministic pre-flight: an unnormalizable phone number will fail on every
+    // attempt, so fail fast without burning retries or a provider call.
+    let smsRecipient: string | null = null;
+    if (notification.channel === 'SMS') {
+      smsRecipient = toE164Au(notification.recipient);
+      if (!smsRecipient) {
+        notification.status = 'FAILED';
+        notification.failedAt = new Date();
+        notification.failureReason = 'INVALID_RECIPIENT_PHONE';
+        notification.nextRetryAt = null;
+        notification.updatedAt = new Date();
+        await this.notificationRepo.update(notification);
+        this.logger.error(
+          { notificationId: notification.id, recipientMasked: maskRecipient(notification.recipient) },
+          'notification.invalid_recipient_phone: marked FAILED, will not retry',
+        );
+        return;
+      }
+    }
+
     // GAP-004: Validate template variables (warn but don't fail)
     const variables: Record<string, string> = { ...notification.payloadJson };
 
@@ -277,6 +303,22 @@ export class SendNotificationUseCase {
       await this.emailAssetRepo.markEverSent(resolvedAssetIds);
     }
 
+    // Deterministic pre-flight: an empty rendered SMS body would waste a provider
+    // call/credit on every attempt (mirrors the test-send guard), so fail fast.
+    if (notification.channel === 'SMS' && renderedBodyText.trim().length === 0) {
+      notification.status = 'FAILED';
+      notification.failedAt = new Date();
+      notification.failureReason = 'EMPTY_SMS_BODY';
+      notification.nextRetryAt = null;
+      notification.updatedAt = new Date();
+      await this.notificationRepo.update(notification);
+      this.logger.error(
+        { notificationId: notification.id, templateCode: notification.templateCode },
+        'notification.empty_sms_body: marked FAILED, will not retry',
+      );
+      return;
+    }
+
     // GAP-009: Create attempt record at the start
     const attemptNumber = notification.retryCount + 1;
     const attempt = new NotificationAttemptEntity({
@@ -303,7 +345,18 @@ export class SendNotificationUseCase {
         messageId = result.messageId;
         notification.providerName = 'resend';
       } else {
-        const result = await this.smsProvider.send(notification.recipient, renderedBodyText);
+        const prepared = prepareSmsBody(renderedBodyText);
+        if (prepared.truncated) {
+          this.logger.warn(
+            { notificationId: notification.id, originalLength: renderedBodyText.length },
+            'notification.sms_body_truncated: rendered body exceeded the provider limit',
+          );
+        }
+        const result = await this.smsProvider.send(smsRecipient ?? notification.recipient, prepared.body, {
+          idempotencyKey: `${notification.id}-${attemptNumber}`,
+          customRef: notification.id,
+          enableUnicode: prepared.unicode,
+        });
         messageId = result.messageId;
         notification.providerName = 'mobile-message';
       }

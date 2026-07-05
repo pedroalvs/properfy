@@ -1291,6 +1291,7 @@ model Notification {
   @@index([template_code])
   @@index([provider_message_id])
   @@index([next_retry_at])
+  @@index([channel, status, sent_at])
   @@map("notifications")
 }
 

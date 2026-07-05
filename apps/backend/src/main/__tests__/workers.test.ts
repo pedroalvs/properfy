@@ -53,6 +53,7 @@ async function callRegisterWorkers(logger: ReturnType<typeof makeLogger>) {
     makeWorkerMock() as any,   // processReportJobUseCase
     makeWorkerMock() as any,   // sendNotificationUseCase
     makeWorkerMock() as any,   // pollRetryableNotificationsUseCase
+    { execute: vi.fn().mockResolvedValue({ delivered: 0, failed: 0, unchanged: 0, errors: 0 }) } as any, // pollSmsDeliveryUseCase
     makeWorkerMock() as any,   // dispatchRemindersUseCase
     makeWorkerMock() as any,   // dispatchEscalationsUseCase
     makeWorkerMock() as any,   // cleanupSessionsWorker

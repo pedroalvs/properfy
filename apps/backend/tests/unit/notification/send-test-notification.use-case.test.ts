@@ -261,7 +261,15 @@ describe('SendTestNotificationUseCase', () => {
     vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(makeSmsTemplate());
     vi.mocked(templateRenderer.render).mockReset().mockReturnValue('Hi John Smith, inspection on 2026-04-15');
     await useCase.execute({ templateCode: 'INSPECTION_NOTICE_SMS', channel: 'SMS', recipient: '+61412345678', actor: makeActor() });
-    expect(smsProvider.send).toHaveBeenCalledWith('+61412345678', 'Hi John Smith, inspection on 2026-04-15');
+    expect(smsProvider.send).toHaveBeenCalledWith(
+      '+61412345678',
+      'Hi John Smith, inspection on 2026-04-15',
+      expect.objectContaining({
+        customRef: 'test-INSPECTION_NOTICE_SMS',
+        enableUnicode: false,
+        idempotencyKey: expect.stringMatching(/^test-/),
+      }),
+    );
   });
 
   it('SMS path does not call emailProvider.send', async () => {

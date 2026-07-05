@@ -52,6 +52,8 @@ describe('registerWorkers', () => {
   const mockProcessReportJobUseCase = { execute: mockReportExecute } as any;
   const mockSendNotificationUseCase = { execute: mockNotificationExecute } as any;
   const mockPollRetryableNotificationsUseCase = { execute: mockPollRetryExecute } as any;
+  const mockPollSmsDeliveryExecute = vi.fn().mockResolvedValue({ delivered: 0, failed: 0, unchanged: 0, errors: 0 });
+  const mockPollSmsDeliveryUseCase = { execute: mockPollSmsDeliveryExecute } as any;
   const mockDispatchRemindersUseCase = { execute: mockDispatchRemindersExecute } as any;
   const mockDispatchEscalationsUseCase = { execute: mockDispatchEscalationsExecute } as any;
   const mockCleanupSessionsWorker = { execute: mockCleanupSessionsExecute } as any;
@@ -88,6 +90,7 @@ describe('registerWorkers', () => {
       mockProcessReportJobUseCase,
       mockSendNotificationUseCase,
       mockPollRetryableNotificationsUseCase,
+      mockPollSmsDeliveryUseCase,
       mockDispatchRemindersUseCase,
       mockDispatchEscalationsUseCase,
       mockCleanupSessionsWorker,
@@ -116,10 +119,11 @@ describe('registerWorkers', () => {
   it('registers all workers and schedules', async () => {
     await callRegister();
 
-    expect(mockWork).toHaveBeenCalledTimes(21);
+    expect(mockWork).toHaveBeenCalledTimes(22);
     expect(mockWork).toHaveBeenCalledWith('report.generate', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.send', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.retry-poll', expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('notification.sms-delivery-poll', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.dispatch-reminders', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.dispatch-escalations', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('auth.cleanup-sessions', expect.any(Function));
@@ -138,8 +142,9 @@ describe('registerWorkers', () => {
     expect(mockWork).toHaveBeenCalledWith('audit.retention', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('appointment.reject-unconfirmed', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('system.dlq-monitor', expect.any(Function));
-    expect(mockSchedule).toHaveBeenCalledTimes(15);
+    expect(mockSchedule).toHaveBeenCalledTimes(16);
     expect(mockSchedule).toHaveBeenCalledWith('notification.retry-poll', '*/5 * * * *', {});
+    expect(mockSchedule).toHaveBeenCalledWith('notification.sms-delivery-poll', '*/10 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('notification.dispatch-reminders', '0 8 * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('notification.dispatch-escalations', '0 8 * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('auth.cleanup-sessions', '0 2 * * *', {});

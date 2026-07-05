@@ -9,13 +9,39 @@
 | `RESEND_API_KEY` | Resend API key |
 | `RESEND_FROM_EMAIL` | Sender email address (e.g., `noreply@properfy.com.br`) |
 
-### Twilio (SMS)
+### MobileMessage (SMS)
 
 | Variable | Description |
 |---|---|
-| `TWILIO_ACCOUNT_SID` | Twilio account SID |
-| `TWILIO_AUTH_TOKEN` | Twilio auth token |
-| `TWILIO_PHONE_NUMBER` | Sender phone number |
+| `MOBILE_MESSAGE_API_KEY` | API username (HTTP Basic auth) |
+| `MOBILE_MESSAGE_PASSWORD` | API password (HTTP Basic auth) |
+| `MOBILE_MESSAGE_SENDER_ID` | Registered Sender ID |
+| `MOBILE_MESSAGE_WEBHOOK_TOKEN` | Shared secret for the delivery webhook `?token=` query param |
+
+All four are required in staging/production (startup fails without them). API docs: <https://mobilemessage.com.au/api-documentation>.
+
+**Send behavior** (`MobileMessageSmsProvider`):
+
+- `POST /v1/messages` with a 10s timeout, wrapped in a circuit breaker (5 failures / 60s reset).
+- `Idempotency-Key: <notificationId>-<attemptNumber>` — provider-side retries never duplicate sends.
+- `custom_ref = notificationId` — provider records correlate back to `notifications.id`.
+- Recipient is normalized to E.164 (`+61...`) at send time; unnormalizable numbers fail immediately with `INVALID_RECIPIENT_PHONE` (no retries).
+- Bodies are truncated at the provider hard limit (1,530 GSM-7 chars / 670 UCS-2); `enable_unicode` is set automatically for non-GSM-7 content.
+- A 2xx response without a `message_id`, or a per-message `status: "error"`, throws — a fake provider id is never persisted.
+
+**Delivery status** (two complementary paths):
+
+1. **Webhook** `POST /v1/webhooks/mobile-message?token=<MOBILE_MESSAGE_WEBHOOK_TOKEN>`. MobileMessage does not sign requests, so the token is mandatory — with no token configured the endpoint returns 401 for everything. Unmatched `message_id`s are logged as `notification.webhook_unmatched`.
+2. **Reconciliation poll** `notification.sms-delivery-poll` (every 10 minutes): sweeps `SENT` SMS rows 10 minutes–72 hours old and queries `GET /v1/messages?message_id=` for the authoritative status (`delivered` → `DELIVERED`, `failed`/`cancelled` → `FAILED`). Rows older than 72h stay `SENT`.
+
+```sql
+-- SMS stuck in SENT beyond the reconciliation window (investigate at the provider)
+SELECT id, recipient, provider_message_id, sent_at
+FROM notifications
+WHERE channel = 'SMS' AND status = 'SENT'
+  AND sent_at < NOW() - INTERVAL '72 hours'
+ORDER BY sent_at DESC LIMIT 20;
+```
 
 ### Zenvia (WhatsApp)
 

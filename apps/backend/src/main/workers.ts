@@ -5,6 +5,7 @@ import { runWithRequestContext } from '../shared/infrastructure/request-context'
 import type { ProcessReportJobUseCase } from '../modules/report/application/use-cases/process-report-job.use-case';
 import type { SendNotificationUseCase } from '../modules/notification/application/use-cases/send-notification.use-case';
 import type { PollRetryableNotificationsUseCase } from '../modules/notification/application/use-cases/poll-retryable-notifications.use-case';
+import type { PollSmsDeliveryUseCase } from '../modules/notification/application/use-cases/poll-sms-delivery.use-case';
 import type { DispatchRemindersUseCase } from '../modules/notification/application/use-cases/dispatch-reminders.use-case';
 import type { DispatchEscalationsUseCase } from '../modules/notification/application/use-cases/dispatch-escalations.use-case';
 import type { CleanupSessionsWorker } from '../modules/auth/infrastructure/workers/cleanup-sessions.worker';
@@ -49,6 +50,7 @@ export async function registerWorkers(
   processReportJobUseCase: ProcessReportJobUseCase,
   sendNotificationUseCase: SendNotificationUseCase,
   pollRetryableNotificationsUseCase: PollRetryableNotificationsUseCase,
+  pollSmsDeliveryUseCase: PollSmsDeliveryUseCase,
   dispatchRemindersUseCase: DispatchRemindersUseCase,
   dispatchEscalationsUseCase: DispatchEscalationsUseCase,
   cleanupSessionsWorker: CleanupSessionsWorker,
@@ -103,6 +105,19 @@ export async function registerWorkers(
         stuckFailedCount: result.stuckFailedCount,
       },
       'Retry poll completed',
+    );
+  }));
+
+  // Delivery-receipt reconciliation: the MobileMessage webhook is best-effort, so
+  // this cron sweeps SENT SMS rows (10min–72h old) and polls the provider for the
+  // authoritative status (GET /v1/messages).
+  await boss.schedule('notification.sms-delivery-poll', '*/10 * * * *', {});
+  await boss.work('notification.sms-delivery-poll', withJobMetrics('notification.sms-delivery-poll', async (job) => {
+    logger.info({ jobId: job.id }, 'Processing notification.sms-delivery-poll job');
+    const result = await pollSmsDeliveryUseCase.execute(new Date());
+    logger.info(
+      { jobId: job.id, delivered: result.delivered, failed: result.failed, unchanged: result.unchanged, errors: result.errors },
+      'SMS delivery poll completed',
     );
   }));
 

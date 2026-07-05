@@ -270,6 +270,7 @@ import { SendTestNotificationUseCase } from '../modules/notification/application
 import { ListNotificationTemplatesUseCase } from '../modules/notification/application/use-cases/list-notification-templates.use-case';
 import { CreateNotificationUseCase } from '../modules/notification/application/use-cases/create-notification.use-case';
 import { PollRetryableNotificationsUseCase } from '../modules/notification/application/use-cases/poll-retryable-notifications.use-case';
+import { PollSmsDeliveryUseCase } from '../modules/notification/application/use-cases/poll-sms-delivery.use-case';
 import { DispatchRemindersUseCase } from '../modules/notification/application/use-cases/dispatch-reminders.use-case';
 import { DispatchEscalationsUseCase } from '../modules/notification/application/use-cases/dispatch-escalations.use-case';
 import { ListConsentsByRecipientUseCase } from '../modules/notification/application/use-cases/list-consents-by-recipient.use-case';
@@ -1049,7 +1050,7 @@ export function createContainer(logger: Logger): AppContainer {
     emailAssetsPublicUrlBase: env.EMAIL_ASSETS_PUBLIC_URL_BASE,
   });
   const retryNotificationUseCase = new RetryNotificationUseCase(notificationRepo, auditService, authorizationService);
-  const handleProviderWebhookUseCase = new HandleProviderWebhookUseCase(notificationRepo);
+  const handleProviderWebhookUseCase = new HandleProviderWebhookUseCase(notificationRepo, logger);
   const webhookSignatureValidator = createWebhookSignatureValidator({
     resendWebhookSecret: env.RESEND_WEBHOOK_SECRET,
   });
@@ -1097,6 +1098,7 @@ export function createContainer(logger: Logger): AppContainer {
   );
   // createNotificationUseCase and notificationJobQueue created above (before appointments)
   const pollRetryableNotificationsUseCase = new PollRetryableNotificationsUseCase(notificationRepo, notificationJobQueue, logger);
+  const pollSmsDeliveryUseCase = new PollSmsDeliveryUseCase(notificationRepo, smsProvider, logger);
   const dispatchRemindersUseCase = new DispatchRemindersUseCase(
     appointmentRepo, tenantRepo, notificationRepo,
     buildNotificationPayload, appointmentCodeFormatter,
@@ -1509,6 +1511,7 @@ export function createContainer(logger: Logger): AppContainer {
       listNotificationTemplatesUseCase,
       createNotificationUseCase,
       pollRetryableNotificationsUseCase,
+      pollSmsDeliveryUseCase,
       dispatchRemindersUseCase,
       dispatchEscalationsUseCase,
       listConsentsByRecipientUseCase,
@@ -1516,7 +1519,7 @@ export function createContainer(logger: Logger): AppContainer {
       jwtService,
       tenantRepo,
       webhookSignatureValidator,
-      mobileMessageWebhookToken: process.env['MOBILE_MESSAGE_WEBHOOK_TOKEN'],
+      mobileMessageWebhookToken: env.MOBILE_MESSAGE_WEBHOOK_TOKEN,
     },
     dashboard: {
       getDashboardStatsUseCase,

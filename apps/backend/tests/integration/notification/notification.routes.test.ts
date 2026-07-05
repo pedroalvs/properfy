@@ -47,6 +47,7 @@ vi.mock('../../../src/main/container', () => ({
         validateResend: vi.fn().mockReturnValue(true),
         validateMobileMessage: vi.fn().mockReturnValue(true),
       },
+      mobileMessageWebhookToken: 'test-webhook-token',
     },
   }),
 }));
@@ -193,11 +194,11 @@ describe('POST /v1/webhooks/resend', () => {
 });
 
 describe('POST /v1/webhooks/mobile-message', () => {
-  it('should return 200 and call handleProviderWebhookUseCase (no auth required)', async () => {
+  it('should return 200 and call handleProviderWebhookUseCase with a valid token', async () => {
     mockHandleProviderWebhookExecute.mockResolvedValueOnce(undefined);
 
     const res = await supertest(app.server)
-      .post('/v1/webhooks/mobile-message')
+      .post('/v1/webhooks/mobile-message?token=test-webhook-token')
       .send({ message_id: 'mm-msg-1', status: 'delivered' });
 
     expect(res.status).toBe(200);
