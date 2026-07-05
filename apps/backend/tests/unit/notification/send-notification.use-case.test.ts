@@ -363,6 +363,34 @@ describe('SendNotificationUseCase', () => {
     );
   });
 
+  it('should fail SMS immediately with EMPTY_SMS_BODY when the rendered body is empty (no retry, no provider call)', async () => {
+    const notification = makeNotification({
+      channel: 'SMS',
+      recipient: '+61412345678',
+      payloadJson: {},
+    });
+    const template = makeTemplate({
+      channel: 'SMS',
+      subject: null,
+      bodyHtml: null,
+      bodyText: '{{missingVariable}}',
+    });
+
+    vi.mocked(notificationRepo.findById).mockResolvedValue(notification);
+    vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(template);
+
+    await useCase.execute({ notificationId: 'notif-1' });
+
+    expect(smsProvider.send).not.toHaveBeenCalled();
+    expect(notificationRepo.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'FAILED',
+        failureReason: 'EMPTY_SMS_BODY',
+        nextRetryAt: null,
+      }),
+    );
+  });
+
   it('should enable unicode when the rendered SMS body contains non-GSM-7 characters', async () => {
     const notification = makeNotification({
       channel: 'SMS',

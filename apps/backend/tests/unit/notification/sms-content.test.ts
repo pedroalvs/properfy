@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   isGsm7,
+  gsm7SeptetLength,
   prepareSmsBody,
   SMS_MAX_CHARS_GSM7,
   SMS_MAX_CHARS_UCS2,
@@ -47,5 +48,34 @@ describe('prepareSmsBody', () => {
     expect(result.body.length).toBe(SMS_MAX_CHARS_UCS2);
     expect(result.truncated).toBe(true);
     expect(result.unicode).toBe(true);
+  });
+
+  it('counts GSM-7 extension characters as 2 septets', () => {
+    expect(gsm7SeptetLength('abc')).toBe(3);
+    expect(gsm7SeptetLength('{}')).toBe(4);
+    expect(gsm7SeptetLength('a€b')).toBe(4);
+  });
+
+  it('truncates extension-heavy GSM-7 bodies earlier than plain ASCII of the same length', () => {
+    // 800 braces = 1600 septets > 1530 even though .length is only 800
+    const heavy = '{'.repeat(800);
+    const result = prepareSmsBody(heavy);
+    expect(result.unicode).toBe(false);
+    expect(result.truncated).toBe(true);
+    expect(result.body.length).toBe(SMS_MAX_CHARS_GSM7 / 2);
+    expect(gsm7SeptetLength(result.body)).toBeLessThanOrEqual(SMS_MAX_CHARS_GSM7);
+
+    const plain = 'a'.repeat(800);
+    expect(prepareSmsBody(plain).truncated).toBe(false);
+  });
+
+  it('never splits a surrogate pair when truncating UCS-2 bodies', () => {
+    // 669 chars + emoji: slice(0, 670) would cut the emoji in half
+    const text = 'a'.repeat(SMS_MAX_CHARS_UCS2 - 1) + '😀'.repeat(10);
+    const result = prepareSmsBody(text);
+    expect(result.truncated).toBe(true);
+    expect(result.body.length).toBe(SMS_MAX_CHARS_UCS2 - 1);
+    const lastCode = result.body.charCodeAt(result.body.length - 1);
+    expect(lastCode >= 0xd800 && lastCode <= 0xdbff).toBe(false);
   });
 });

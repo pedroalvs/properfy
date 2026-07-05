@@ -22,6 +22,11 @@ import {
 import { MAX_RETRY_COUNT, RETRY_DELAYS, JITTER_FACTOR } from '../../domain/notification.constants';
 import { renderEmailBody } from '../render-email-body';
 
+/** Phone numbers are PII: log at most the last 4 digits. */
+function maskRecipient(recipient: string): string {
+  return `***${recipient.slice(-4)}`;
+}
+
 export interface SendNotificationInput {
   notificationId: string;
 }
@@ -247,7 +252,7 @@ export class SendNotificationUseCase {
         notification.updatedAt = new Date();
         await this.notificationRepo.update(notification);
         this.logger.error(
-          { notificationId: notification.id, recipient: notification.recipient },
+          { notificationId: notification.id, recipientMasked: maskRecipient(notification.recipient) },
           'notification.invalid_recipient_phone: marked FAILED, will not retry',
         );
         return;
@@ -296,6 +301,22 @@ export class SendNotificationUseCase {
     // Feature 030: mark resolved assets as ever_sent
     if (resolvedAssetIds.length > 0 && this.emailAssetRepo) {
       await this.emailAssetRepo.markEverSent(resolvedAssetIds);
+    }
+
+    // Deterministic pre-flight: an empty rendered SMS body would waste a provider
+    // call/credit on every attempt (mirrors the test-send guard), so fail fast.
+    if (notification.channel === 'SMS' && renderedBodyText.trim().length === 0) {
+      notification.status = 'FAILED';
+      notification.failedAt = new Date();
+      notification.failureReason = 'EMPTY_SMS_BODY';
+      notification.nextRetryAt = null;
+      notification.updatedAt = new Date();
+      await this.notificationRepo.update(notification);
+      this.logger.error(
+        { notificationId: notification.id, templateCode: notification.templateCode },
+        'notification.empty_sms_body: marked FAILED, will not retry',
+      );
+      return;
     }
 
     // GAP-009: Create attempt record at the start
