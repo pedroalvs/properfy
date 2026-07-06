@@ -32,7 +32,7 @@ describe('OfferMapPins', () => {
     );
 
     const markers = screen.getAllByTestId('map-marker');
-    expect(markers[0]?.getAttribute('data-color')).toBe('#2196F3');
+    expect(markers[0]?.getAttribute('data-color')).toBe('var(--color-primary)');
   });
 
   it('calls onPinClick when a marker is clicked', () => {

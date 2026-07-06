@@ -23,7 +23,6 @@ const FAR_FUTURE_DATE = futureDateStr(150);
 function makeGroupProps(overrides: Partial<ServiceGroupProps> = {}): ServiceGroupProps {
   return {
     id: 'group-1',
-    tenantId: 'tenant-1',
     serviceTypeId: 'svc-type-1',
     status: 'DRAFT',
     groupSize: 5,
@@ -48,7 +47,7 @@ function makeGroupWithAppointments(
   overrides: Partial<ServiceGroupProps> = {},
 ): ServiceGroupWithAppointments {
   // Single-agency group fixture: one appointment so the group's primaryTenantId
-  // resolves to 'tenant-1' (drives the per-agency priority-hours lookup).
+  // resolves to 'tenant-1'.
   const appointments = [
     { id: 'appt-1', status: 'AWAITING_INSPECTOR', serviceTypeId: 'svc-type-1', tenantId: 'tenant-1', propertyId: 'property-1', serviceGroupId: 'group-1' },
   ];
@@ -80,13 +79,12 @@ function makeRepo(): IServiceGroupRepository {
     update: vi.fn(),
     acceptOptimistic: vi.fn(),
     findPublishedForInspector: vi.fn(),
-      findPublishedOfferDetail: vi.fn(),
+    findPublishedOfferDetail: vi.fn(),
     countPublishedForInspector: vi.fn(),
     linkAppointments: vi.fn(),
     unlinkAppointments: vi.fn(),
     revertScheduledAppointments: vi.fn(),
     scheduleAppointments: vi.fn(),
-    findExpiredPublished: vi.fn(),
   };
 }
 

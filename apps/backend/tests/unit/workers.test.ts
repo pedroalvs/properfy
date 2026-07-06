@@ -116,7 +116,7 @@ describe('registerWorkers', () => {
   it('registers all workers and schedules', async () => {
     await callRegister();
 
-    expect(mockWork).toHaveBeenCalledTimes(22);
+    expect(mockWork).toHaveBeenCalledTimes(21);
     expect(mockWork).toHaveBeenCalledWith('report.generate', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.send', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.retry-poll', expect.any(Function));
@@ -135,11 +135,10 @@ describe('registerWorkers', () => {
     expect(mockWork).toHaveBeenCalledWith('rental-tenant-portal.expire-tokens', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('inspection-execution.mark-assets-expired', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('inspection-execution.notify-not-started', expect.any(Function));
-    expect(mockWork).toHaveBeenCalledWith('service_group.expire-priority', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('audit.retention', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('appointment.reject-unconfirmed', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('system.dlq-monitor', expect.any(Function));
-    expect(mockSchedule).toHaveBeenCalledTimes(16);
+    expect(mockSchedule).toHaveBeenCalledTimes(15);
     expect(mockSchedule).toHaveBeenCalledWith('notification.retry-poll', '*/5 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('notification.sms-delivery-poll', '*/10 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('notification.dispatch-reminders', '0 8 * * *', {});
@@ -151,7 +150,6 @@ describe('registerWorkers', () => {
     expect(mockSchedule).toHaveBeenCalledWith('rental-tenant-portal.expire-tokens', '*/15 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('inspection-execution.mark-assets-expired', '*/5 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('inspection-execution.notify-not-started', '0 * * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('service_group.expire-priority', '0 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('audit.retention', '30 3 * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('appointment.reject-unconfirmed', '0 9 * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('appointment.import.sweep-abandoned', '0 * * * *', {});

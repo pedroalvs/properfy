@@ -15,7 +15,6 @@ export function OfferMapPins({ appointments, selectedId, onPinClick }: OfferMapP
           key={apt.id}
           longitude={apt.longitude}
           latitude={apt.latitude}
-          color="#2196F3"
           label={apt.code}
           active={apt.id === selectedId}
           onClick={() => onPinClick(apt.id)}
