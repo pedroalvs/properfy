@@ -12,11 +12,8 @@ import { AppointmentNotFoundError } from '../../../src/modules/appointment/domai
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import {
   AppointmentInvalidStatusError,
-  PriorityDateTooCloseError,
   ServiceRegionInactiveError,
 } from '../../../src/modules/service-group/domain/service-group.errors';
-import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
-import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { ServiceRegionEntity } from '../../../src/modules/service-region/domain/service-region.entity';
 import type { ServiceGroupTimeSyncLogger } from '../../../src/modules/service-group/application/sync-appointment-time-slot-to-group';
 
@@ -117,8 +114,7 @@ function createMockRegionRepo(regionEntity?: ServiceRegionEntity | null): IServi
   };
 }
 
-// Future date far enough for PRIORITY_24H. Use a relative helper — a hardcoded
-// literal drifts into the past and breaks the schedule guard (see date-fixtures).
+// Relative future date so the schedule guard never drifts against the real clock.
 const farFutureDate = futureDateStr(60);
 
 describe('CreateServiceGroupUseCase', () => {
@@ -168,7 +164,6 @@ describe('CreateServiceGroupUseCase', () => {
       authorizationService,
       serviceRegionRepo,
       undefined,
-      undefined,
       logger,
     );
   });
@@ -190,7 +185,6 @@ describe('CreateServiceGroupUseCase', () => {
       serviceTypeId: 'svc-type-1',
       scheduledDate: farFutureDate,
       timeWindow: '09:00-12:00',
-      priorityMode: 'STANDARD',
       serviceRegionId: REGION_ID,
       actor: makeActor(),
     });
@@ -212,7 +206,6 @@ describe('CreateServiceGroupUseCase', () => {
       serviceTypeId: 'svc-type-1',
       scheduledDate: farFutureDate,
       timeWindow: '09:00-12:00',
-      priorityMode: 'STANDARD',
       serviceRegionId: REGION_ID,
       actor: makeActor(),
     });
@@ -222,8 +215,6 @@ describe('CreateServiceGroupUseCase', () => {
     expect(result.groupSize).toBe(5);
     expect(result.tenantId).toBe('tenant-1');
     expect(result.serviceTypeId).toBe('svc-type-1');
-    expect(result.priorityMode).toBe('STANDARD');
-    expect(result.priorityExpiresAt).toBeNull();
     expect(result.serviceRegionId).toBe(REGION_ID);
     // Cross-tenant: the region is looked up by id only (tenant arg null), so a
     // region owned by another agency can be attached.
@@ -248,7 +239,6 @@ describe('CreateServiceGroupUseCase', () => {
       serviceTypeId: 'svc-type-1',
       scheduledDate: farFutureDate,
       timeWindow: '09:00-12:00',
-      priorityMode: 'STANDARD',
       serviceRegionId: REGION_ID,
       actor: makeActor(),
     });
@@ -277,7 +267,6 @@ describe('CreateServiceGroupUseCase', () => {
       serviceTypeId: 'svc-type-1',
       scheduledDate: farFutureDate,
       timeWindow: '09:00-12:00',
-      priorityMode: 'STANDARD',
       serviceRegionId: REGION_ID,
       actor: makeActor(),
     });
@@ -303,7 +292,6 @@ describe('CreateServiceGroupUseCase', () => {
       serviceTypeId: 'svc-type-1',
       scheduledDate: farFutureDate,
       timeWindow: '09:00-12:00',
-      priorityMode: 'STANDARD',
       serviceRegionId: REGION_ID,
       actor: makeActor(),
     });
@@ -330,7 +318,6 @@ describe('CreateServiceGroupUseCase', () => {
       serviceTypeId: 'svc-type-1',
       scheduledDate: farFutureDate,
       timeWindow: '09:00-12:00',
-      priorityMode: 'STANDARD',
       serviceRegionId: REGION_ID,
       actor: makeActor(),
     });
@@ -377,7 +364,6 @@ describe('CreateServiceGroupUseCase', () => {
         serviceTypeId: 'svc-type-1',
         scheduledDate: farFutureDate,
         timeWindow: '09:00-12:00',
-        priorityMode: 'STANDARD',
         serviceRegionId: 'nonexistent-region-id',
         actor: makeActor(),
       }),
@@ -404,7 +390,6 @@ describe('CreateServiceGroupUseCase', () => {
         serviceTypeId: 'svc-type-1',
         scheduledDate: farFutureDate,
         timeWindow: '09:00-12:00',
-        priorityMode: 'STANDARD',
         serviceRegionId: REGION_ID,
         actor: makeActor(),
       }),
@@ -418,7 +403,6 @@ describe('CreateServiceGroupUseCase', () => {
         serviceTypeId: 'svc-type-1',
         scheduledDate: farFutureDate,
         timeWindow: '09:00-12:00',
-        priorityMode: 'STANDARD',
         serviceRegionId: REGION_ID,
         actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
       }),
@@ -432,7 +416,6 @@ describe('CreateServiceGroupUseCase', () => {
         serviceTypeId: 'svc-type-1',
         scheduledDate: farFutureDate,
         timeWindow: '09:00-12:00',
-        priorityMode: 'STANDARD',
         serviceRegionId: REGION_ID,
         actor: makeActor({ role: 'INSP', tenantId: 'tenant-1' }),
       }),
@@ -451,7 +434,6 @@ describe('CreateServiceGroupUseCase', () => {
         serviceTypeId: 'svc-type-1',
         scheduledDate: farFutureDate,
         timeWindow: '09:00-12:00',
-        priorityMode: 'STANDARD',
         serviceRegionId: REGION_ID,
         actor: makeActor(),
       }),
@@ -475,7 +457,6 @@ describe('CreateServiceGroupUseCase', () => {
         serviceTypeId: 'svc-type-1',
         scheduledDate: farFutureDate,
         timeWindow: '09:00-12:00',
-        priorityMode: 'STANDARD',
         serviceRegionId: REGION_ID,
         actor: makeActor(),
       }),
@@ -498,7 +479,6 @@ describe('CreateServiceGroupUseCase', () => {
       serviceTypeId: 'svc-type-1',
       scheduledDate: farFutureDate,
       timeWindow: '09:00-12:00',
-      priorityMode: 'STANDARD',
       actor: makeActor(),
     });
 
@@ -524,7 +504,6 @@ describe('CreateServiceGroupUseCase', () => {
         serviceTypeId: 'svc-type-1',
         scheduledDate: farFutureDate,
         timeWindow: '09:00-12:00',
-        priorityMode: 'STANDARD',
         serviceRegionId: REGION_ID,
         actor: makeActor(),
       }),
@@ -544,7 +523,6 @@ describe('CreateServiceGroupUseCase', () => {
       serviceTypeId: 'svc-type-1',
       scheduledDate: farFutureDate,
       timeWindow: '09:00-12:00',
-      priorityMode: 'STANDARD',
       serviceRegionId: REGION_ID,
       actor: makeActor(),
     });
@@ -566,69 +544,12 @@ describe('CreateServiceGroupUseCase', () => {
       serviceTypeId: 'svc-type-1',
       scheduledDate: farFutureDate,
       timeWindow: '09:00-12:00',
-      priorityMode: 'STANDARD',
       serviceRegionId: REGION_ID,
       actor: makeActor(),
     });
 
     expect(result.id).toBeDefined();
     expect(result.groupSize).toBe(31);
-  });
-
-  it('should throw PriorityDateTooCloseError for PRIORITY_24H with close date', async () => {
-    // Pin time to 06:00 UTC so +12h lands on the same day at 18:00 UTC.
-    // The time window 09:00-12:00 has not yet started at 06:00, so validateNewSchedule
-    // passes and the PRIORITY_24H check fires as expected.
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-07-15T06:00:00.000Z'));
-
-    const appointmentIds = makeAppointmentIds(5);
-    for (let i = 0; i < 5; i++) {
-      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-        makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
-      );
-    }
-
-    const tooCloseDate = new Date(Date.now() + 12 * 60 * 60 * 1000); // 2026-07-15T18:00Z → dateStr = '2026-07-15'
-    const dateStr = tooCloseDate.toISOString().split('T')[0];
-
-    await expect(
-      useCase.execute({
-        appointmentIds,
-        serviceTypeId: 'svc-type-1',
-        scheduledDate: dateStr,
-        timeWindow: '09:00-12:00',
-        priorityMode: 'PRIORITY_24H',
-        serviceRegionId: REGION_ID,
-        actor: makeActor(),
-      }),
-    ).rejects.toThrow(PriorityDateTooCloseError);
-
-    vi.useRealTimers();
-  });
-
-  it('should set priorityExpiresAt for PRIORITY_24H with valid date', async () => {
-    const appointmentIds = makeAppointmentIds(5);
-    for (let i = 0; i < 5; i++) {
-      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-        makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
-      );
-    }
-
-    const result = await useCase.execute({
-      appointmentIds,
-      serviceTypeId: 'svc-type-1',
-      scheduledDate: farFutureDate,
-      timeWindow: '09:00-12:00',
-      priorityMode: 'PRIORITY_24H',
-      serviceRegionId: REGION_ID,
-      actor: makeActor(),
-    });
-
-    expect(result.priorityExpiresAt).not.toBeNull();
-    expect(result.priorityMode).toBe('PRIORITY_24H');
-    const expectedExpiry = new Date(new Date(farFutureDate).getTime() - 24 * 60 * 60 * 1000);
-    expect(result.priorityExpiresAt!.getTime()).toBe(expectedExpiry.getTime());
   });
 
   it('should allow OP role to create group', async () => {
@@ -644,7 +565,6 @@ describe('CreateServiceGroupUseCase', () => {
       serviceTypeId: 'svc-type-1',
       scheduledDate: farFutureDate,
       timeWindow: '09:00-12:00',
-      priorityMode: 'STANDARD',
       serviceRegionId: REGION_ID,
       actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
     });
@@ -666,7 +586,6 @@ describe('CreateServiceGroupUseCase', () => {
       serviceTypeId: 'svc-type-1',
       scheduledDate: farFutureDate,
       timeWindow: '09:00-12:00',
-      priorityMode: 'STANDARD',
       actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
     });
 
@@ -683,194 +602,12 @@ describe('CreateServiceGroupUseCase', () => {
       serviceTypeId: 'svc-type-1',
       scheduledDate: farFutureDate,
       timeWindow: '09:00-12:00',
-      priorityMode: 'STANDARD',
       serviceRegionId: REGION_ID,
       actor: makeActor(),
     });
 
     expect(result.id).toBeDefined();
     expect(result.groupSize).toBe(1);
-  });
-
-  describe('GAP-011: configurable priority offer hours', () => {
-    let tenantRepo: ITenantRepository;
-
-    function makeTenantEntity(settingsJson: Record<string, unknown> = {}): TenantEntity {
-      return new TenantEntity({
-        id: 'tenant-1',
-        name: 'Test Tenant',
-        legalName: 'Test Tenant Pty Ltd',
-        status: 'ACTIVE',
-        timezone: 'Australia/Sydney',
-        currency: 'AUD',
-        settingsJson,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        deletedAt: null,
-      });
-    }
-
-    beforeEach(() => {
-      tenantRepo = {
-        findById: vi.fn().mockResolvedValue(makeTenantEntity({ priorityOfferHours: 24 })),
-        findByLegalName: vi.fn(),
-        findAll: vi.fn(),
-        count: vi.fn(),
-        save: vi.fn(),
-        update: vi.fn(),
-      };
-    });
-
-    it('should use tenant priorityOfferHours=48 for priority expiry calculation', async () => {
-      vi.mocked(tenantRepo.findById).mockResolvedValue(
-        makeTenantEntity({ priorityOfferHours: 48 }),
-      );
-
-      const useCaseWithTenant = new CreateServiceGroupUseCase(
-        serviceGroupRepo, appointmentRepo, auditService, new AuthorizationService(auditService), serviceRegionRepo, tenantRepo,
-      );
-
-      const appointmentIds = makeAppointmentIds(5);
-      for (let i = 0; i < 5; i++) {
-        vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-          makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
-        );
-      }
-
-      // Relative future date (not a hardcoded calendar date) so the test never drifts
-      // within priorityOfferHours of the real clock and trips PRIORITY_DATE_TOO_CLOSE.
-      const scheduledDate = farFutureDate;
-      const result = await useCaseWithTenant.execute({
-        appointmentIds,
-        serviceTypeId: 'svc-type-1',
-        scheduledDate,
-        timeWindow: '09:00-12:00',
-        priorityMode: 'PRIORITY_24H',
-        serviceRegionId: REGION_ID,
-        actor: makeActor(),
-      });
-
-      expect(result.priorityExpiresAt).not.toBeNull();
-      const expectedExpiry = new Date(new Date(scheduledDate).getTime() - 48 * 60 * 60 * 1000);
-      expect(result.priorityExpiresAt!.getTime()).toBe(expectedExpiry.getTime());
-    });
-
-    it('should fall back to 24h when tenant has no priorityOfferHours setting', async () => {
-      vi.mocked(tenantRepo.findById).mockResolvedValue(
-        makeTenantEntity({}),
-      );
-
-      const useCaseWithTenant = new CreateServiceGroupUseCase(
-        serviceGroupRepo, appointmentRepo, auditService, new AuthorizationService(auditService), serviceRegionRepo, tenantRepo,
-      );
-
-      const appointmentIds = makeAppointmentIds(5);
-      for (let i = 0; i < 5; i++) {
-        vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-          makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
-        );
-      }
-
-      const result = await useCaseWithTenant.execute({
-        appointmentIds,
-        serviceTypeId: 'svc-type-1',
-        scheduledDate: farFutureDate,
-        timeWindow: '09:00-12:00',
-        priorityMode: 'PRIORITY_24H',
-        serviceRegionId: REGION_ID,
-        actor: makeActor(),
-      });
-
-      expect(result.priorityExpiresAt).not.toBeNull();
-      const expectedExpiry = new Date(new Date(farFutureDate).getTime() - 24 * 60 * 60 * 1000);
-      expect(result.priorityExpiresAt!.getTime()).toBe(expectedExpiry.getTime());
-    });
-
-    it('should fall back to 24h when no tenant repo is provided', async () => {
-      const appointmentIds = makeAppointmentIds(5);
-      for (let i = 0; i < 5; i++) {
-        vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-          makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
-        );
-      }
-
-      const result = await useCase.execute({
-        appointmentIds,
-        serviceTypeId: 'svc-type-1',
-        scheduledDate: farFutureDate,
-        timeWindow: '09:00-12:00',
-        priorityMode: 'PRIORITY_24H',
-        serviceRegionId: REGION_ID,
-        actor: makeActor(),
-      });
-
-      expect(result.priorityExpiresAt).not.toBeNull();
-      const expectedExpiry = new Date(new Date(farFutureDate).getTime() - 24 * 60 * 60 * 1000);
-      expect(result.priorityExpiresAt!.getTime()).toBe(expectedExpiry.getTime());
-    });
-
-    it('should ignore priorityOfferHours for STANDARD mode', async () => {
-      vi.mocked(tenantRepo.findById).mockResolvedValue(
-        makeTenantEntity({ priorityOfferHours: 48 }),
-      );
-
-      const useCaseWithTenant = new CreateServiceGroupUseCase(
-        serviceGroupRepo, appointmentRepo, auditService, new AuthorizationService(auditService), serviceRegionRepo, tenantRepo,
-      );
-
-      const appointmentIds = makeAppointmentIds(5);
-      for (let i = 0; i < 5; i++) {
-        vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-          makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
-        );
-      }
-
-      const result = await useCaseWithTenant.execute({
-        appointmentIds,
-        serviceTypeId: 'svc-type-1',
-        scheduledDate: farFutureDate,
-        timeWindow: '09:00-12:00',
-        priorityMode: 'STANDARD',
-        serviceRegionId: REGION_ID,
-        actor: makeActor(),
-      });
-
-      expect(result.priorityExpiresAt).toBeNull();
-      expect(tenantRepo.findById).not.toHaveBeenCalled();
-    });
-
-    it('should reject PRIORITY_24H when scheduled date is less than configured hours away', async () => {
-      vi.mocked(tenantRepo.findById).mockResolvedValue(
-        makeTenantEntity({ priorityOfferHours: 48 }),
-      );
-
-      const useCaseWithTenant = new CreateServiceGroupUseCase(
-        serviceGroupRepo, appointmentRepo, auditService, new AuthorizationService(auditService), serviceRegionRepo, tenantRepo,
-      );
-
-      const appointmentIds = makeAppointmentIds(5);
-      for (let i = 0; i < 5; i++) {
-        vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-          makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
-        );
-      }
-
-      // 30h from now — enough for 24h but not for 48h
-      const tooCloseDate = new Date(Date.now() + 30 * 60 * 60 * 1000);
-      const dateStr = tooCloseDate.toISOString().split('T')[0];
-
-      await expect(
-        useCaseWithTenant.execute({
-          appointmentIds,
-          serviceTypeId: 'svc-type-1',
-          scheduledDate: dateStr,
-          timeWindow: '09:00-12:00',
-          priorityMode: 'PRIORITY_24H',
-          serviceRegionId: REGION_ID,
-          actor: makeActor(),
-        }),
-      ).rejects.toThrow(PriorityDateTooCloseError);
-    });
   });
 
   it('should call audit log on success', async () => {
@@ -886,7 +623,6 @@ describe('CreateServiceGroupUseCase', () => {
       serviceTypeId: 'svc-type-1',
       scheduledDate: farFutureDate,
       timeWindow: '09:00-12:00',
-      priorityMode: 'STANDARD',
       serviceRegionId: REGION_ID,
       actor: makeActor({ userId: 'actor-am' }),
     });

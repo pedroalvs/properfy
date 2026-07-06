@@ -34,10 +34,6 @@ export function OfferDetailPanel({ offer, detail, detailLoading, onAccept, isAcc
     );
   }
 
-  const isPriority = offer.priorityMode === 'PRIORITY_24H';
-  const badgeBg = isPriority ? 'bg-[#FFF3E0] text-[#E65100]' : 'bg-[#E3F2FD] text-[#1565C0]';
-  const badgeLabel = isPriority ? '24h Priority' : 'Standard';
-
   return (
     <div className="border-t border-gray-200 p-4" data-testid="offer-detail-panel">
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -45,9 +41,6 @@ export function OfferDetailPanel({ offer, detail, detailLoading, onAccept, isAcc
           {offer.serviceTypeName}
           {offer.code ? <span className="ml-2 font-mono text-sm font-normal text-text-muted">#{offer.code}</span> : null}
         </h3>
-        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${badgeBg}`}>
-          {badgeLabel}
-        </span>
       </div>
 
       <div className="mb-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
@@ -67,7 +60,6 @@ export function OfferDetailPanel({ offer, detail, detailLoading, onAccept, isAcc
 
       <div className="mb-4 rounded bg-[#FAFAFA] p-3 text-sm text-text-primary">
         <p><span className="text-text-muted">Time window:</span> {offer.timeWindow}</p>
-        <p><span className="text-text-muted">Priority expires:</span> {offer.priorityExpiresAt ? formatDate(offer.priorityExpiresAt) : 'Standard availability'}</p>
         <p><span className="text-text-muted">Suburbs:</span> {offer.suburbs.length > 0 ? offer.suburbs.join(', ') : 'Not informed'}</p>
       </div>
 

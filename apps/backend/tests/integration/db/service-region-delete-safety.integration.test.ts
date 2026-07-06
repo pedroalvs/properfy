@@ -169,7 +169,6 @@ describe('T184 — delete safety', () => {
         group_size: 3,
         scheduled_date: new Date('2026-06-01'),
         time_window: '08:00-12:00',
-        priority_mode: 'STANDARD',
         created_by_user_id: userId,
       },
     });

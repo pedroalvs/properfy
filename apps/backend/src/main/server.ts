@@ -118,7 +118,6 @@ async function start() {
       container.expireTokensWorker,
       container.expireAssetsWorker,
       container.notifyStuckInspectionsWorker,
-      container.expirePriorityWorker,
       container.auditRetentionWorker,
       container.rejectUnconfirmedWorker,
       app.log,

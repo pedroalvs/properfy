@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
-import { PRIORITY_MODE_MAP } from '@/lib/status-colors';
 import { formatDate, formatDateTime } from '@/lib/format-date';
 import { AppointmentStatusChip } from '@/features/appointments/components/AppointmentStatusChip';
 import { ServiceGroupStatusChip } from './ServiceGroupStatusChip';
@@ -14,7 +13,6 @@ interface ServiceGroupDetailSectionsProps {
 
 export function ServiceGroupDetailSections({ serviceGroup }: ServiceGroupDetailSectionsProps) {
   const navigate = useNavigate();
-  const priorityStyle = serviceGroup.priorityMode ? PRIORITY_MODE_MAP[serviceGroup.priorityMode] : null;
   const appointments = serviceGroup.appointments ?? [];
 
   return (
@@ -34,19 +32,6 @@ export function ServiceGroupDetailSections({ serviceGroup }: ServiceGroupDetailS
         />
         <DetailRow label="Region" value={serviceGroup.regionName} />
         <DetailRow label="Status" value={<ServiceGroupStatusChip status={serviceGroup.status} />} />
-        <DetailRow
-          label="Priority"
-          value={
-            priorityStyle ? (
-              <span
-                className="inline-block rounded px-2 py-0.5 text-xs font-semibold leading-5"
-                style={{ backgroundColor: priorityStyle.bg, color: priorityStyle.text }}
-              >
-                {priorityStyle.label}
-              </span>
-            ) : null
-          }
-        />
       </FormSection>
 
       <FormSection title="Inspector">

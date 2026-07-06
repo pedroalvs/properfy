@@ -54,8 +54,6 @@ const mockOfferDetail = {
   groupSize: 2,
   scheduledDate: new Date('2026-06-01'),
   timeWindow: '08:00-13:00',
-  priorityMode: 'STANDARD',
-  priorityExpiresAt: null,
   suburbs: ['Bondi', 'Manly'],
   payoutEstimate: 300,
   appointmentCount: 2,

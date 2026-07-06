@@ -13,7 +13,6 @@ describe('OfferMapPins', () => {
     render(
       <OfferMapPins
         appointments={MOCK_APPOINTMENTS}
-        priorityMode="STANDARD"
         selectedId={null}
         onPinClick={vi.fn()}
       />,
@@ -23,32 +22,17 @@ describe('OfferMapPins', () => {
     expect(markers).toHaveLength(2);
   });
 
-  it('uses blue color for standard priority', () => {
+  it('uses the default marker color', () => {
     render(
       <OfferMapPins
         appointments={MOCK_APPOINTMENTS}
-        priorityMode="STANDARD"
         selectedId={null}
         onPinClick={vi.fn()}
       />,
     );
 
     const markers = screen.getAllByTestId('map-marker');
-    expect(markers[0]?.getAttribute('data-color')).toBe('#2196F3');
-  });
-
-  it('uses orange color for 24h priority', () => {
-    render(
-      <OfferMapPins
-        appointments={MOCK_APPOINTMENTS}
-        priorityMode="PRIORITY_24H"
-        selectedId={null}
-        onPinClick={vi.fn()}
-      />,
-    );
-
-    const markers = screen.getAllByTestId('map-marker');
-    expect(markers[0]?.getAttribute('data-color')).toBe('#FF9800');
+    expect(markers[0]?.getAttribute('data-color')).toBe('var(--color-primary)');
   });
 
   it('calls onPinClick when a marker is clicked', () => {
@@ -56,7 +40,6 @@ describe('OfferMapPins', () => {
     render(
       <OfferMapPins
         appointments={MOCK_APPOINTMENTS}
-        priorityMode="STANDARD"
         selectedId={null}
         onPinClick={onPinClick}
       />,
@@ -71,7 +54,6 @@ describe('OfferMapPins', () => {
     render(
       <OfferMapPins
         appointments={[]}
-        priorityMode="STANDARD"
         selectedId={null}
         onPinClick={vi.fn()}
       />,

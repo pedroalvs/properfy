@@ -110,7 +110,6 @@ vi.mock('../../../../main/container', () => ({
     notifyStuckInspectionsWorker: { execute: vi.fn() },
     geocodeRetryWorker: { execute: vi.fn() },
     keyExpiryCheckWorker: { execute: vi.fn() },
-    expirePriorityWorker: { execute: vi.fn() },
     auditRetentionWorker: { execute: vi.fn() },
   }),
 }));

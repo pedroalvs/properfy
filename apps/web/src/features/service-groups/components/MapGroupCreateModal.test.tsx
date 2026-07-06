@@ -54,14 +54,6 @@ vi.mock('./TimeWindowPicker', () => ({
   ),
 }));
 
-vi.mock('./PriorityModeSelect', () => ({
-  PriorityModeSelect: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
-    <select data-testid="priority-mode" value={value} onChange={(e) => onChange(e.target.value)}>
-      <option value="STANDARD">Standard</option>
-    </select>
-  ),
-}));
-
 beforeEach(() => {
   mockShowSuccess.mockReset();
   mockShowError.mockReset();

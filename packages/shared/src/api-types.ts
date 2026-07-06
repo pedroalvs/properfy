@@ -6124,7 +6124,6 @@ export interface paths {
                     serviceTypeId?: string;
                     scheduledDateFrom?: string;
                     scheduledDateTo?: string;
-                    priorityMode?: "STANDARD" | "PRIORITY_24H";
                     includeAppointments?: boolean | "true" | "false";
                     search?: string;
                     branchId?: string;
@@ -6165,8 +6164,6 @@ export interface paths {
                                 timeWindow: string;
                                 regionName?: string | null;
                                 description?: string | null;
-                                priorityMode: string;
-                                priorityExpiresAt: (string) | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
                                 /** Format: uuid */
@@ -6211,11 +6208,6 @@ export interface paths {
                         /** Format: uuid */
                         serviceRegionId?: string | null;
                         description?: string;
-                        /**
-                         * @default STANDARD
-                         * @enum {string}
-                         */
-                        priorityMode?: "STANDARD" | "PRIORITY_24H";
                         actorTimezone?: string;
                     };
                 };
@@ -6250,8 +6242,6 @@ export interface paths {
                                 timeWindow: string;
                                 regionName?: string | null;
                                 description?: string | null;
-                                priorityMode: string;
-                                priorityExpiresAt: (string) | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
                                 /** Format: uuid */
@@ -6324,8 +6314,6 @@ export interface paths {
                                 timeWindow: string;
                                 regionName?: string | null;
                                 description?: string | null;
-                                priorityMode: string;
-                                priorityExpiresAt: (string) | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
                                 /** Format: uuid */
@@ -6367,8 +6355,6 @@ export interface paths {
                         description?: string;
                         scheduledDate?: string;
                         timeWindow?: string;
-                        /** @enum {string} */
-                        priorityMode?: "STANDARD" | "PRIORITY_24H";
                         actorTimezone?: string;
                     };
                 };
@@ -6403,8 +6389,6 @@ export interface paths {
                                 timeWindow: string;
                                 regionName?: string | null;
                                 description?: string | null;
-                                priorityMode: string;
-                                priorityExpiresAt: (string) | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
                                 /** Format: uuid */
@@ -6475,8 +6459,6 @@ export interface paths {
                                 timeWindow: string;
                                 regionName?: string | null;
                                 description?: string | null;
-                                priorityMode: string;
-                                priorityExpiresAt: (string) | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
                                 /** Format: uuid */
@@ -6558,8 +6540,6 @@ export interface paths {
                                 timeWindow: string;
                                 regionName?: string | null;
                                 description?: string | null;
-                                priorityMode: string;
-                                priorityExpiresAt: (string) | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
                                 /** Format: uuid */
@@ -7048,8 +7028,6 @@ export interface paths {
                                 groupSize: number;
                                 scheduledDate: string;
                                 timeWindow: string;
-                                priorityMode: string;
-                                priorityExpiresAt: (string) | null;
                                 suburbs: string[];
                                 payoutEstimate: number | null;
                                 appointmentCount: number;
@@ -7112,8 +7090,6 @@ export interface paths {
                                 groupSize: number;
                                 scheduledDate: string;
                                 timeWindow: string;
-                                priorityMode: string;
-                                priorityExpiresAt: (string) | null;
                                 suburbs: string[];
                                 payoutEstimate: number | null;
                                 appointmentCount: number;
@@ -8988,8 +8964,6 @@ export interface paths {
                                 groupSize: number;
                                 scheduledDate: string;
                                 timeWindow: string;
-                                priorityMode: string;
-                                priorityExpiresAt: (string) | null;
                                 suburbs: string[];
                                 payoutEstimate: number | null;
                                 appointmentCount: number;

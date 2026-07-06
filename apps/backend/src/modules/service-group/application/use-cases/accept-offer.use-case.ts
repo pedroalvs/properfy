@@ -15,7 +15,6 @@ import {
   InspectorIneligibleError,
   InspectorServiceTypeIneligibleError,
   InspectorInactiveError,
-  PriorityExpiredError,
   AppointmentsNotAwaitingInspectorError,
 } from '../../domain/service-group.errors';
 
@@ -93,10 +92,6 @@ export class AcceptOfferUseCase {
     // is true, which would otherwise grant access to an empty group.
     if (tenantIds.length === 0 || !tenantIds.every((t) => inspector.isEligibleForTenant(t))) {
       throw new InspectorIneligibleError();
-    }
-
-    if (group.isPriorityExpired()) {
-      throw new PriorityExpiredError();
     }
 
     const now = new Date();

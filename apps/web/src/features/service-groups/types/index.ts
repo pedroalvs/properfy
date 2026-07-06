@@ -1,4 +1,4 @@
-import type { ServiceGroupStatus, PriorityMode, Agency } from '@properfy/shared';
+import type { ServiceGroupStatus, Agency } from '@properfy/shared';
 
 // Re-exported so feature-local imports keep a single path; shape lives in @properfy/shared.
 export type { Agency } from '@properfy/shared';
@@ -17,7 +17,6 @@ export interface ServiceGroup {
   inspectorId: string | null;
   inspectorName: string | null;
   status: ServiceGroupStatus;
-  priorityMode: PriorityMode;
   appointmentsCount: number;
   createdAt: string;
   updatedAt: string;
@@ -44,4 +43,3 @@ export interface ServiceGroupFiltersState {
 export const DEFAULT_FILTERS: ServiceGroupFiltersState = {
   status: '',
 };
-

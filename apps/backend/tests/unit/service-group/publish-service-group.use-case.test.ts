@@ -12,7 +12,6 @@ import {
   ServiceGroupNotFoundError,
   ServiceGroupInvalidStatusError,
   AppointmentInvalidStatusError,
-  PriorityExpiredError,
   ServiceRegionRequiredError,
   ServiceRegionInactiveError,
 } from '../../../src/modules/service-group/domain/service-group.errors';
@@ -31,8 +30,6 @@ function makeGroup(
     confirmedCount: 0,
     scheduledDate: new Date('2026-06-01'),
     timeWindow: '09:00-12:00',
-    priorityMode: 'STANDARD',
-    priorityExpiresAt: null,
     assignedInspectorId: null,
     serviceRegionId: 'region-1',
     publishedAt: null,
@@ -221,23 +218,6 @@ describe('PublishServiceGroupUseCase', () => {
         actor: makeActor(),
       }),
     ).rejects.toThrow(AppointmentInvalidStatusError);
-  });
-
-  it('should reject when priority has expired', async () => {
-    const expiredDate = new Date(Date.now() - 60 * 60 * 1000); // 1 hour ago
-    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
-      makeGroupWithAppointments({
-        priorityMode: 'PRIORITY_24H',
-        priorityExpiresAt: expiredDate,
-      }),
-    );
-
-    await expect(
-      useCase.execute({
-        groupId: 'group-1',
-        actor: makeActor(),
-      }),
-    ).rejects.toThrow(PriorityExpiredError);
   });
 
   it('should call audit log with correct before/after', async () => {

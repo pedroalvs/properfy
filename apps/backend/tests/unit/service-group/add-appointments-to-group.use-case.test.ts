@@ -84,8 +84,6 @@ function makeGroupWithAppointments(
     name: null,
     regionName: null,
     description: null,
-    priorityMode: 'STANDARD',
-    priorityExpiresAt: null,
     assignedInspectorId: null,
     serviceRegionId: null,
     publishedAt: null,

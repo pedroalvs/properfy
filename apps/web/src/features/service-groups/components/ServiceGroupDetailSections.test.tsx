@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { ServiceGroupStatus, PriorityMode } from '@properfy/shared';
+import { ServiceGroupStatus } from '@properfy/shared';
 import { ServiceGroupDetailSections } from './ServiceGroupDetailSections';
 import type { ServiceGroupDetail, ServiceGroupAppointment } from '../types';
 
@@ -32,7 +32,6 @@ function makeServiceGroup(overrides: Partial<ServiceGroupDetail> = {}): ServiceG
     inspectorId: 'insp-01',
     inspectorName: 'Carlos Silva',
     status: ServiceGroupStatus.PUBLISHED,
-    priorityMode: PriorityMode.STANDARD,
     appointmentsCount: 3,
     appointments: [
       makeAppointment({ id: 'apt-01', appointmentNumber: 1001 }),
@@ -68,10 +67,9 @@ describe('ServiceGroupDetailSections', () => {
     expect(screen.getByText('São Paulo - Sul')).toBeInTheDocument();
   });
 
-  it('shows status chip and priority mode chip', () => {
+  it('shows status chip', () => {
     renderWithRouter(<ServiceGroupDetailSections serviceGroup={makeServiceGroup()} />);
     expect(screen.getByText('Awaiting Inspector')).toBeInTheDocument();
-    expect(screen.getByText('Standard')).toBeInTheDocument();
   });
 
   it('shows inspector name, em-dash when null', () => {

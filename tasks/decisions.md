@@ -1,5 +1,11 @@
 # Architecture Decisions
 
+## 2026-07-06 - Service groups no longer have priority mode
+
+1. `priority mode` foi removido integralmente do produto e da API; service groups agora usam um único comportamento padrão, sem `priorityMode` nem `priorityExpiresAt`.
+2. O backend deixa de calcular janelas de expiração, validar `PRIORITY_24H` ou filtrar/listar grupos por prioridade.
+3. O banco passa a remover `service_groups.priority_mode`, `service_groups.priority_expires_at` e o enum PostgreSQL `PriorityMode`, aceitando a perda destrutiva desses dados históricos.
+
 ## 2026-07-03 - PWA schedule uses fixed monthly screen payload
 
 1. PWA schedule load uses `GET /v1/inspector/schedule/month` instead of one request per day.

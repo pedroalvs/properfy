@@ -81,10 +81,6 @@ vi.mock('../hooks/useEligibleAppointments', () => ({
 }));
 
 vi.mock('@/lib/status-colors', () => ({
-  PRIORITY_MODE_MAP: {
-    STANDARD: { bg: '#eee', text: '#000', label: 'Standard' },
-    PRIORITY_24H: { bg: '#ff0', text: '#000', label: '24h Priority' },
-  },
   APPOINTMENT_STATUS_MAP: {
     AWAITING_INSPECTOR: { bg: '#FFE0B2', text: '#000', label: 'Awaiting Inspector' },
     DRAFT: { bg: '#E1BEE7', text: '#000', label: 'Draft' },
@@ -229,7 +225,7 @@ describe('ServiceGroupCreatePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(screen.getByLabelText('Scheduled Date')).toBeInTheDocument();
     expect(screen.getAllByText('Time Window').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('Priority Mode')).toBeInTheDocument();
+    expect(screen.queryByText('Priority Mode')).not.toBeInTheDocument();
     expect(screen.getByText('Group Summary')).toBeInTheDocument();
   });
 
@@ -294,7 +290,6 @@ describe('ServiceGroupCreatePage', () => {
           serviceTypeId: '11111111-1111-4111-8111-111111111111',
           scheduledDate: futureDate,
           timeWindow: '08:00-17:00',
-          priorityMode: 'STANDARD',
           serviceRegionId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
           // Cycle 6 added the actor's resolved timezone to every group write
           // so the backend can validate "today" in the operator's calendar.

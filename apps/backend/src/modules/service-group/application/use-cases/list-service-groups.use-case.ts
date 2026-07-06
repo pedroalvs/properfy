@@ -14,7 +14,6 @@ export interface ListServiceGroupsInput {
     serviceTypeId?: string;
     scheduledDateFrom?: string;
     scheduledDateTo?: string;
-    priorityMode?: string;
     /** When true, output items include `appointments[]` with property
      *  coordinates + inspector name. Used by the map page. */
     includeAppointments?: boolean;
@@ -52,8 +51,6 @@ export interface ServiceGroupSummary {
   timeWindow: string;
   regionName: string | null;
   description: string | null;
-  priorityMode: string;
-  priorityExpiresAt: Date | null;
   assignedInspectorId: string | null;
   assignedInspectorName: string | null;
   publishedAt: Date | null;
@@ -124,8 +121,6 @@ export class ListServiceGroupsUseCase {
           timeWindow: g.timeWindow,
           regionName: g.regionName,
           description: g.description,
-          priorityMode: g.priorityMode,
-          priorityExpiresAt: g.priorityExpiresAt,
           assignedInspectorId: g.assignedInspectorId,
           assignedInspectorName,
           publishedAt: g.publishedAt,

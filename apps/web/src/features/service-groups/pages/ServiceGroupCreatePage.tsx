@@ -20,7 +20,6 @@ import { api } from '@/services/api';
 import { EligibleAppointmentsTable } from '../components/EligibleAppointmentsTable';
 import { SelectionCounter } from '../components/SelectionCounter';
 import { TimeWindowPicker } from '../components/TimeWindowPicker';
-import { PriorityModeSelect } from '../components/PriorityModeSelect';
 import { GroupSummaryCard } from '../components/GroupSummaryCard';
 import { useEligibleAppointments } from '../hooks/useEligibleAppointments';
 
@@ -53,7 +52,6 @@ export function ServiceGroupCreatePage() {
   const [scheduledDate, setScheduledDate] = useState('');
   const [startTime, setStartTime] = useState('08:00');
   const [endTime, setEndTime] = useState('17:00');
-  const [priorityMode, setPriorityMode] = useState('STANDARD');
   const [serviceRegionId, setServiceRegionId] = useState('');
   const [description, setDescription] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -73,7 +71,6 @@ export function ServiceGroupCreatePage() {
     timeWindow: `${startTime}-${endTime}`,
     serviceRegionId: serviceRegionId || undefined,
     ...(description ? { description } : {}),
-    priorityMode,
     actorTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   };
   const parsedCreatePayload = createServiceGroupSchema.safeParse(createPayload);
@@ -300,16 +297,11 @@ export function ServiceGroupCreatePage() {
               />
             </FormSection>
 
-            <FormSection title="Priority">
-              <PriorityModeSelect value={priorityMode} onChange={setPriorityMode} />
-            </FormSection>
-
             <GroupSummaryCard
               appointmentCount={selectedIds.length}
               serviceType={selectedServiceType?.label ?? ''}
               scheduledDate={scheduledDate}
               timeWindow={timeWindow}
-              priorityMode={priorityMode}
             />
 
             <div className="mt-4">

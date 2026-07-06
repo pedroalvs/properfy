@@ -46,7 +46,6 @@ export class RepublishServiceGroupUseCase {
       status: 'DRAFT',
       assignedInspectorId: null,
       assignedAt: null,
-      priorityExpiresAt: null,
       publishedAt: null,
     });
 
@@ -60,12 +59,10 @@ export class RepublishServiceGroupUseCase {
       before: {
         status: 'CANCELLED',
         assignedInspectorId: group.assignedInspectorId,
-        priorityExpiresAt: group.priorityExpiresAt,
       },
       after: {
         status: 'DRAFT',
         assignedInspectorId: null,
-        priorityExpiresAt: null,
       },
       ...(reason ? { reason } : {}),
     });

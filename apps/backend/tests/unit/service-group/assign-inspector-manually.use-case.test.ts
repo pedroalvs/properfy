@@ -30,8 +30,6 @@ function makeGroup(overrides: Partial<ConstructorParameters<typeof ServiceGroupE
     confirmedCount: 0,
     scheduledDate: new Date('2026-04-01'),
     timeWindow: '08:00-12:00',
-    priorityMode: 'STANDARD',
-    priorityExpiresAt: null,
     assignedInspectorId: null,
     publishedAt: new Date(),
     assignedAt: null,

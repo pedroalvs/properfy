@@ -307,7 +307,6 @@ import { PdfKitInvoicePdfGenerator } from '../modules/billing/infrastructure/pdf
 import { ExpireTokensWorker } from '../modules/rental-tenant-portal/infrastructure/workers/expire-tokens.worker';
 import { ExpireAssetsWorker } from '../modules/inspector-execution/infrastructure/workers/expire-assets.worker';
 import { NotifyStuckInspectionsWorker } from '../modules/inspector-execution/infrastructure/workers/notify-stuck.worker';
-import { ExpirePriorityWorker } from '../modules/service-group/infrastructure/workers/expire-priority.worker';
 import { AuditRetentionWorker } from '../modules/audit/infrastructure/workers/audit-retention.worker';
 
 // Dashboard module
@@ -431,7 +430,6 @@ export interface AppContainer {
   expireTokensWorker: ExpireTokensWorker;
   expireAssetsWorker: ExpireAssetsWorker;
   notifyStuckInspectionsWorker: NotifyStuckInspectionsWorker;
-  expirePriorityWorker: ExpirePriorityWorker;
   auditRetentionWorker: AuditRetentionWorker;
   rejectUnconfirmedWorker: RejectUnconfirmedWorker;
 }
@@ -872,7 +870,7 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Service group repositories and use cases
   const serviceGroupRepo = new PrismaServiceGroupRepository(prisma);
-  const createServiceGroupUseCase = new CreateServiceGroupUseCase(serviceGroupRepo, appointmentRepo, auditService, authorizationService, serviceRegionRepo, tenantRepo, undefined, logger);
+  const createServiceGroupUseCase = new CreateServiceGroupUseCase(serviceGroupRepo, appointmentRepo, auditService, authorizationService, serviceRegionRepo, undefined, logger);
   const getServiceGroupUseCase = new GetServiceGroupUseCase(serviceGroupRepo, authorizationService);
   const listServiceGroupsUseCase = new ListServiceGroupsUseCase(serviceGroupRepo, authorizationService);
   const publishServiceGroupUseCase = new PublishServiceGroupUseCase(serviceGroupRepo, auditService, serviceRegionRepo, authorizationService, domainEventBus);
@@ -882,7 +880,7 @@ export function createContainer(logger: Logger): AppContainer {
   const getMarketplaceOfferDetailUseCase = new GetMarketplaceOfferDetailUseCase(serviceGroupRepo, inspectorRepo, authorizationService);
   const cancelServiceGroupUseCase = new CancelServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, domainEventBus);
   const rejectServiceGroupUseCase = new RejectServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, domainEventBus);
-  const updateServiceGroupUseCase = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, tenantRepo);
+  const updateServiceGroupUseCase = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService);
   const republishServiceGroupUseCase = new RepublishServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService);
 
   const getAvailableGroupsUseCase = new GetAvailableGroupsUseCase(appointmentRepo, serviceGroupRepo);
@@ -1182,7 +1180,6 @@ export function createContainer(logger: Logger): AppContainer {
   const notifyStuckInspectionsWorker = new NotifyStuckInspectionsWorker(
     inspectionExecutionRepo, appointmentRepo, notificationRepo, createNotificationUseCase, logger,
   );
-  const expirePriorityWorker = new ExpirePriorityWorker(serviceGroupRepo, auditService, logger);
   const auditRetentionWorker = new AuditRetentionWorker(
     prisma,
     auditLogRepo,
@@ -1566,7 +1563,6 @@ export function createContainer(logger: Logger): AppContainer {
     expireTokensWorker,
     expireAssetsWorker,
     notifyStuckInspectionsWorker,
-    expirePriorityWorker,
     auditRetentionWorker,
     rejectUnconfirmedWorker,
   };
