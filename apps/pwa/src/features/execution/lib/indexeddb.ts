@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { ExecutionState, AssetUploadState } from '../types';
+import type { ExecutionState } from '../types';
 
 interface QueuedAction {
   id: string;
@@ -12,11 +12,6 @@ interface QueuedAction {
   lastError: string | null;
 }
 
-interface PendingAssetRecord extends AssetUploadState {
-  appointmentId: string;
-  blob?: Blob;
-}
-
 interface ProperfyPwaDB extends DBSchema {
   'execution-states': {
     key: string;
@@ -25,10 +20,6 @@ interface ProperfyPwaDB extends DBSchema {
   'queued-actions': {
     key: string;
     value: QueuedAction;
-  };
-  'pending-assets': {
-    key: string;
-    value: PendingAssetRecord;
   };
 }
 
@@ -43,9 +34,6 @@ function getDB(): Promise<IDBPDatabase<ProperfyPwaDB>> {
         }
         if (!db.objectStoreNames.contains('queued-actions')) {
           db.createObjectStore('queued-actions');
-        }
-        if (!db.objectStoreNames.contains('pending-assets')) {
-          db.createObjectStore('pending-assets');
         }
       },
     });
@@ -88,19 +76,4 @@ export async function updateQueuedAction(action: QueuedAction): Promise<void> {
   await db.put('queued-actions', action, action.id);
 }
 
-export async function savePendingAsset(asset: PendingAssetRecord): Promise<void> {
-  const db = await getDB();
-  await db.put('pending-assets', asset, asset.localId);
-}
-
-export async function getPendingAssets(): Promise<PendingAssetRecord[]> {
-  const db = await getDB();
-  return db.getAll('pending-assets');
-}
-
-export async function removePendingAsset(localId: string): Promise<void> {
-  const db = await getDB();
-  await db.delete('pending-assets', localId);
-}
-
-export type { QueuedAction, PendingAssetRecord };
+export type { QueuedAction };

@@ -47,7 +47,6 @@ describe('registerWorkers', () => {
   const mockPropertyImportExecute = vi.fn().mockResolvedValue(undefined);
   const mockGenerateInvoiceFileExecute = vi.fn().mockResolvedValue(undefined);
   const mockExpireTokensExecute = vi.fn().mockResolvedValue({ expiredCount: 0 });
-  const mockExpireAssetsExecute = vi.fn().mockResolvedValue({ expiredCount: 0 });
   const mockNotifyStuckExecute = vi.fn().mockResolvedValue({ notifiedCount: 0 });
   const mockProcessReportJobUseCase = { execute: mockReportExecute } as any;
   const mockSendNotificationUseCase = { execute: mockNotificationExecute } as any;
@@ -65,7 +64,6 @@ describe('registerWorkers', () => {
   const mockPropertyImportWorker = { execute: mockPropertyImportExecute } as any;
   const mockGenerateInvoiceFileWorker = { execute: mockGenerateInvoiceFileExecute } as any;
   const mockExpireTokensWorker = { execute: mockExpireTokensExecute } as any;
-  const mockExpireAssetsWorker = { execute: mockExpireAssetsExecute } as any;
   const mockNotifyStuckWorker = { execute: mockNotifyStuckExecute } as any;
   const mockKeyExpiryCheckExecute = vi.fn().mockResolvedValue({ daysRemaining: null, level: 'none' });
   const mockKeyExpiryCheckWorker = { execute: mockKeyExpiryCheckExecute } as any;
@@ -101,7 +99,6 @@ describe('registerWorkers', () => {
       mockSweepAbandonedAppointmentImportsWorker,
       mockGenerateInvoiceFileWorker,
       mockExpireTokensWorker,
-      mockExpireAssetsWorker,
       mockNotifyStuckWorker,
       mockAuditRetentionWorker,
       mockRejectUnconfirmedWorker,
@@ -133,7 +130,6 @@ describe('registerWorkers', () => {
     expect(mockWork).toHaveBeenCalledWith('property.import', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('billing.generate-invoice-file', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('rental-tenant-portal.expire-tokens', expect.any(Function));
-    expect(mockWork).toHaveBeenCalledWith('inspection-execution.mark-assets-expired', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('inspection-execution.notify-not-started', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('audit.retention', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('appointment.reject-unconfirmed', expect.any(Function));
@@ -148,7 +144,6 @@ describe('registerWorkers', () => {
     expect(mockSchedule).toHaveBeenCalledWith('report.expire-files', '0 3 * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('property.geocode-retry', '*/15 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('rental-tenant-portal.expire-tokens', '*/15 * * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('inspection-execution.mark-assets-expired', '*/5 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('inspection-execution.notify-not-started', '0 * * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('audit.retention', '30 3 * * *', {});
     expect(mockSchedule).toHaveBeenCalledWith('appointment.reject-unconfirmed', '0 9 * * *', {});

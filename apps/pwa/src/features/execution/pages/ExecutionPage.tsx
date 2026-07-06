@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { TopBar } from '@/components/shell/TopBar';
 import { LoadingState } from '@/components/feedback/LoadingState';
@@ -10,12 +10,10 @@ import { SubmittingPanel } from '../components/SubmittingPanel';
 import { DonePanel } from '../components/DonePanel';
 import { ErrorPanel } from '../components/ErrorPanel';
 import { LeaveWarningModal } from '../components/LeaveWarningModal';
-import { FailedUploadsModal } from '../components/FailedUploadsModal';
 import { useLocalExecutionState } from '../hooks/useLocalExecutionState';
 import { useAutoSave } from '../hooks/useAutoSave';
 import { useStartInspection } from '../hooks/useStartInspection';
 import { useFinishInspection } from '../hooks/useFinishInspection';
-import { useAssetUpload } from '../hooks/useAssetUpload';
 import { useInspectorAppointment } from '@/features/schedule/hooks/useInspectorAppointment';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { canTransition } from '../lib/execution-state-machine';
@@ -30,10 +28,8 @@ export function ExecutionPage() {
   const { state, updateState, clearState, isRestored } = useLocalExecutionState(appointmentId);
   const startMutation = useStartInspection();
   const finishMutation = useFinishInspection();
-  const { assets, addAsset, removeAsset, retryFailed, completedAssets } = useAssetUpload(appointmentId);
   const { showInfo, showError } = useSnackbar();
   useAutoSave(state);
-  const [showFailedModal, setShowFailedModal] = useState(false);
   const resumeBannerShown = useRef(false);
 
   useEffect(() => {
@@ -101,9 +97,6 @@ export function ExecutionPage() {
     }));
   };
 
-  const uploadingCount = assets.filter((a) => a.status === 'uploading' || a.status === 'pending').length;
-  const hasUploadsInProgress = uploadingCount > 0;
-
   const requiredItems = state.checklistTemplate.filter((item) => item.required);
   const requiredRemaining = requiredItems.filter(
     (item) => !state.checklistResponses.some((r) => r.itemId === item.id && r.value !== null),
@@ -111,25 +104,9 @@ export function ExecutionPage() {
 
   const isChecklistComplete = requiredRemaining === 0;
 
-  const failedAssets = assets.filter((a) => a.status === 'error');
-
   const handleProceedToFinish = () => {
     if (!canTransition(state.phase, 'FINISHING')) return;
-    if (failedAssets.length > 0) {
-      setShowFailedModal(true);
-      return;
-    }
     updateState({ phase: 'FINISHING' });
-  };
-
-  const handleSkipFailedPhotos = () => {
-    setShowFailedModal(false);
-    updateState({ phase: 'FINISHING' });
-  };
-
-  const handleRetryFailedPhotos = () => {
-    setShowFailedModal(false);
-    retryFailed();
   };
 
   const handleSubmit = async (location: CapturedLocation) => {
@@ -142,7 +119,6 @@ export function ExecutionPage() {
         location,
         checklist: state.checklistResponses,
         notes: state.notes,
-        assets: completedAssets,
       });
       const queuedOffline = result.data.status === 'QUEUED';
       updateState({
@@ -188,14 +164,10 @@ export function ExecutionPage() {
           checklistTemplate={state.checklistTemplate}
           checklistResponses={state.checklistResponses}
           onChecklistChange={handleChecklistChange}
-          assets={assets}
-          onAddPhoto={addAsset}
-          onDeleteAsset={removeAsset}
           notes={state.notes}
           onNotesChange={(notes) => updateState({ notes })}
           onFinish={handleProceedToFinish}
-          isComplete={isChecklistComplete && !hasUploadsInProgress}
-          uploadingCount={uploadingCount}
+          isComplete={isChecklistComplete}
           requiredRemaining={requiredRemaining}
         />
       )}
@@ -203,7 +175,6 @@ export function ExecutionPage() {
       {state.phase === 'FINISHING' && (
         <FinishingPanel
           checklistCount={state.checklistResponses.length}
-          assetCount={assets.length}
           notes={state.notes}
           onSubmit={handleSubmit}
           isSubmitting={finishMutation.isPending}
@@ -230,14 +201,6 @@ export function ExecutionPage() {
           message={state.errorMessage ?? 'An error occurred'}
           onRetry={handleRetry}
           onSaveExit={handleSaveExit}
-        />
-      )}
-
-      {showFailedModal && (
-        <FailedUploadsModal
-          failedCount={failedAssets.length}
-          onSkip={handleSkipFailedPhotos}
-          onRetry={handleRetryFailedPhotos}
         />
       )}
 

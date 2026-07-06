@@ -8521,15 +8521,6 @@ export interface paths {
                                     /** @enum {string} */
                                     status: "IN_PROGRESS" | "FINISHED";
                                 } | null;
-                                assets: {
-                                    /** Format: uuid */
-                                    id: string;
-                                    storageKey: string;
-                                    mimeType: string;
-                                    sizeBytes: number | null;
-                                    kind: string;
-                                    status: string;
-                                }[];
                                 /** @default [] */
                                 apps: {
                                     /** Format: uuid */
@@ -8688,12 +8679,6 @@ export interface paths {
                             [key: string]: unknown;
                         };
                         notes?: string;
-                        /** @default [] */
-                        assets?: {
-                            /** Format: uuid */
-                            assetId: string;
-                            storageKey: string;
-                        }[];
                     };
                 };
             };
@@ -8812,124 +8797,6 @@ export interface paths {
         };
         trace?: never;
     };
-    "/v1/inspector/appointments/{appointmentId}/assets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    appointmentId: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        kind: "PHOTO";
-                        mimeType: string;
-                        fileName: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description Default Response */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                /** Format: uuid */
-                                appointmentId: string;
-                                /** Format: uuid */
-                                inspectionExecutionId: string;
-                                storageKey: string;
-                                mimeType: string;
-                                sizeBytes: number | null;
-                                kind: string;
-                                status: string;
-                                uploadedBy: string;
-                                uploadUrl?: string;
-                                createdAt: string;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/inspector/appointments/{appointmentId}/assets/{assetId}/confirm": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    appointmentId: string;
-                    assetId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                /** Format: uuid */
-                                appointmentId: string;
-                                /** Format: uuid */
-                                inspectionExecutionId: string;
-                                storageKey: string;
-                                mimeType: string;
-                                sizeBytes: number | null;
-                                kind: string;
-                                status: string;
-                                uploadedBy: string;
-                                uploadUrl?: string;
-                                createdAt: string;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        trace?: never;
-    };
     "/v1/inspector/offers": {
         parameters: {
             query?: never;
@@ -8982,98 +8849,6 @@ export interface paths {
                                 total: number;
                                 totalPages: number;
                             };
-                        };
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/appointments/{appointmentId}/assets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    appointmentId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                storageKey: string;
-                                mimeType: string;
-                                sizeBytes: number | null;
-                                kind: string;
-                                status: string;
-                                originalFilename: string | null;
-                                createdAt: string;
-                            }[];
-                        };
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/appointments/{appointmentId}/assets/{assetId}/download": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    appointmentId: string;
-                    assetId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** Format: uri */
-                            downloadUrl: string;
-                            fileName: string | null;
-                            mimeType: string;
                         };
                     };
                 };

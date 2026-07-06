@@ -19,7 +19,6 @@ function makeState(overrides: Partial<ExecutionState> = {}): ExecutionState {
     checklistTemplate: [],
     checklistResponses: [],
     notes: '',
-    assets: [],
     startedAt: null,
     errorMessage: null,
     lastSavedAt: null,

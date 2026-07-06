@@ -4,7 +4,6 @@ import {
   inspectorScheduleQuerySchema,
   startInspectionSchema,
   finishInspectionSchema,
-  requestAssetUploadSchema,
   inspectorEarningsSummaryQuerySchema,
 } from './inspection-execution';
 
@@ -70,25 +69,16 @@ describe('finishInspectionSchema', () => {
       longitude: -46.6333,
       checklistJson: { item1: true, item2: false },
       notes: 'Inspection completed successfully',
-      assets: [
-        {
-          assetId: '550e8400-e29b-41d4-a716-446655440000',
-          storageKey: 'uploads/photo1.jpg',
-        },
-      ],
     });
     expect(result.success).toBe(true);
   });
 
-  it('should accept minimal input with lat/lng only and default assets to empty array', () => {
+  it('should accept minimal input with lat/lng only', () => {
     const result = finishInspectionSchema.safeParse({
       latitude: -23.5505,
       longitude: -46.6333,
     });
     expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.assets).toEqual([]);
-    }
   });
 
   it('should reject notes longer than 5000 characters', () => {
@@ -96,44 +86,6 @@ describe('finishInspectionSchema', () => {
       latitude: -23.5505,
       longitude: -46.6333,
       notes: 'a'.repeat(5001),
-    });
-    expect(result.success).toBe(false);
-  });
-});
-
-describe('requestAssetUploadSchema', () => {
-  it('should accept valid input', () => {
-    const result = requestAssetUploadSchema.safeParse({
-      kind: 'PHOTO',
-      mimeType: 'image/jpeg',
-      fileName: 'photo1.jpg',
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('should reject invalid kind', () => {
-    const result = requestAssetUploadSchema.safeParse({
-      kind: 'VIDEO',
-      mimeType: 'video/mp4',
-      fileName: 'video1.mp4',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('should reject empty fileName', () => {
-    const result = requestAssetUploadSchema.safeParse({
-      kind: 'DOCUMENT',
-      mimeType: 'application/pdf',
-      fileName: '',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('should reject empty mimeType', () => {
-    const result = requestAssetUploadSchema.safeParse({
-      kind: 'SIGNATURE',
-      mimeType: '',
-      fileName: 'signature.png',
     });
     expect(result.success).toBe(false);
   });

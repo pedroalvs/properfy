@@ -30,18 +30,6 @@ export class ExecutionNotStartedError extends NotFoundError {
   }
 }
 
-export class ExecutionAssetUploadPendingError extends DomainError {
-  constructor() {
-    super('EXECUTION_ASSET_UPLOAD_PENDING', 'Referenced asset not yet confirmed as uploaded', 422);
-  }
-}
-
-export class ExecutionInsufficientAssetsError extends DomainError {
-  constructor() {
-    super('EXECUTION_INSUFFICIENT_ASSETS', 'Minimum required assets not met', 422);
-  }
-}
-
 export class IdempotencyKeyMissingError extends DomainError {
   constructor() {
     super('IDEMPOTENCY_KEY_MISSING', 'Idempotency-Key header is required', 400);

@@ -2,8 +2,6 @@ import type { AuthContext } from '@properfy/shared';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IAuditLogRepository } from '../../../audit/domain/audit-log.repository';
 import type { IInspectionExecutionRepository } from '../../../inspector-execution/domain/inspection-execution.repository';
-import type { IInspectionAssetRepository } from '../../../inspector-execution/domain/inspection-asset.repository';
-import type { IServiceTypeReader } from '../../../inspector-execution/domain/service-type-reader';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import {
@@ -39,10 +37,8 @@ export class PerformCrossCheckUseCase {
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditLogRepo: IAuditLogRepository,
     private readonly executionRepo: IInspectionExecutionRepository,
-    private readonly assetRepo: IInspectionAssetRepository,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
-    private readonly serviceTypeReader?: IServiceTypeReader,
     private readonly onDoneHandler?: OnDoneHandler,
   ) {}
 
@@ -103,26 +99,6 @@ export class PerformCrossCheckUseCase {
 
     const execution = await this.executionRepo.findByAppointmentId(input.appointmentId);
     if (!execution || !execution.isFinished()) {
-      throw new AppointmentDoneCrossCheckEvidenceIncompleteError();
-    }
-
-    const uploadedAssets = await this.assetRepo.findUploadedByExecutionId(execution.id);
-    let minPhotos = 1;
-    let requiresSignature = false;
-    if (this.serviceTypeReader && appointment.serviceTypeId) {
-      const serviceType = await this.serviceTypeReader.findById(appointment.serviceTypeId);
-      const checklist = (serviceType as Record<string, unknown> | null)?.checklistTemplate as
-        | { minPhotos?: number; requiresSignature?: boolean }
-        | undefined;
-      if (checklist) {
-        minPhotos = typeof checklist.minPhotos === 'number' ? checklist.minPhotos : 1;
-        requiresSignature = checklist.requiresSignature === true;
-      }
-    }
-
-    const photos = uploadedAssets.filter((asset) => asset.kind === 'PHOTO');
-    const hasSignature = uploadedAssets.some((asset) => asset.kind === 'SIGNATURE');
-    if (photos.length < minPhotos || (requiresSignature && !hasSignature)) {
       throw new AppointmentDoneCrossCheckEvidenceIncompleteError();
     }
 

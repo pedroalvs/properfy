@@ -2,46 +2,35 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { ProgressBar } from './ProgressBar';
 import { ChecklistItem } from './ChecklistItem';
-import { AssetThumbnail } from './AssetThumbnail';
-import { PhotoCapture } from './PhotoCapture';
-import type { ChecklistTemplateItem, ChecklistResponse, AssetUploadState } from '../types';
+import type { ChecklistTemplateItem, ChecklistResponse } from '../types';
 
 interface InProgressPanelProps {
   checklistTemplate: ChecklistTemplateItem[];
   checklistResponses: ChecklistResponse[];
   onChecklistChange: (response: ChecklistResponse) => void;
-  assets: AssetUploadState[];
-  onAddPhoto: (file: File) => void;
-  onDeleteAsset: (localId: string) => void;
   notes: string;
   onNotesChange: (notes: string) => void;
   onFinish: () => void;
   isComplete: boolean;
-  uploadingCount?: number;
   requiredRemaining?: number;
 }
 
-type TabKey = 'checklist' | 'photos' | 'notes';
+type TabKey = 'checklist' | 'notes';
 
 export function InProgressPanel({
   checklistTemplate,
   checklistResponses,
   onChecklistChange,
-  assets,
-  onAddPhoto,
-  onDeleteAsset,
   notes,
   onNotesChange,
   onFinish,
   isComplete,
-  uploadingCount = 0,
   requiredRemaining = 0,
 }: InProgressPanelProps) {
   const [activeTab, setActiveTab] = useState<TabKey>('checklist');
 
   const tabs: { key: TabKey; label: string; icon: string }[] = [
     { key: 'checklist', label: 'Checklist', icon: 'mdi-clipboard-check-outline' },
-    { key: 'photos', label: 'Photos', icon: 'mdi-camera' },
     { key: 'notes', label: 'Notes', icon: 'mdi-text-box-outline' },
   ];
 
@@ -54,7 +43,6 @@ export function InProgressPanel({
   const checklistProgress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   function getFinishButtonLabel(): string {
-    if (uploadingCount > 0) return `Uploading photos... ${uploadingCount} remaining`;
     if (requiredRemaining > 0) return `${requiredRemaining} required items remaining`;
     return 'Proceed to Finish';
   }
@@ -108,21 +96,6 @@ export function InProgressPanel({
                 </div>
               </div>
             ))}
-          </div>
-        )}
-
-        {activeTab === 'photos' && (
-          <div className="flex flex-col gap-4">
-            <PhotoCapture onCapture={onAddPhoto} count={assets.length} />
-            <div className="flex flex-wrap gap-2">
-              {assets.map((asset) => (
-                <AssetThumbnail
-                  key={asset.localId}
-                  asset={asset}
-                  onDelete={() => onDeleteAsset(asset.localId)}
-                />
-              ))}
-            </div>
           </div>
         )}
 

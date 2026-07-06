@@ -10,7 +10,6 @@ import { AuthorizationService } from '../../../src/shared/domain/authorization.s
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuditLogEntity } from '../../../src/modules/audit/domain/audit-log.entity';
 import { InspectionExecutionEntity } from '../../../src/modules/inspector-execution/domain/inspection-execution.entity';
-import { InspectionAssetEntity } from '../../../src/modules/inspector-execution/domain/inspection-asset.entity';
 
 function makeAppointment(overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {}) {
   return new AppointmentEntity({
@@ -68,23 +67,6 @@ function makeExecution(overrides: Partial<ConstructorParameters<typeof Inspectio
   });
 }
 
-function makeAsset(overrides: Partial<ConstructorParameters<typeof InspectionAssetEntity>[0]> = {}) {
-  return new InspectionAssetEntity({
-    id: 'asset-1',
-    appointmentId: 'appt-1',
-    inspectionExecutionId: 'exec-1',
-    storageKey: 'inspections/tenant-1/appt-1/asset-1.jpg',
-    mimeType: 'image/jpeg',
-    sizeBytes: 1024,
-    kind: 'PHOTO',
-    status: 'UPLOADED',
-    uploadedBy: 'insp-1',
-    uploadExpiresAt: null,
-    createdAt: new Date('2026-04-15T09:10:00Z'),
-    ...overrides,
-  });
-}
-
 function makeDoneAudit(actorId: string) {
   return new AuditLogEntity({
     id: 'audit-1',
@@ -131,21 +113,8 @@ const executionRepo = {
   findStuckExecutions: vi.fn(),
 };
 
-const assetRepo = {
-  findById: vi.fn(),
-  findByExecutionId: vi.fn(),
-  findUploadedByExecutionId: vi.fn(),
-  save: vi.fn(),
-  update: vi.fn(),
-  expirePendingAssets: vi.fn(),
-};
-
 const auditService = {
   log: vi.fn(),
-};
-
-const serviceTypeReader = {
-  findById: vi.fn(),
 };
 
 const onDoneHandler = {
@@ -159,10 +128,8 @@ function makeSut() {
     appointmentRepo as never,
     auditLogRepo as never,
     executionRepo as never,
-    assetRepo as never,
     auditService as never,
     authorizationService,
-    serviceTypeReader as never,
     onDoneHandler,
   );
 }
@@ -177,8 +144,6 @@ describe('PerformCrossCheckUseCase', () => {
     });
     auditLogRepo.findAll.mockResolvedValue([makeDoneAudit('done-by-1')]);
     executionRepo.findByAppointmentId.mockResolvedValue(makeExecution());
-    assetRepo.findUploadedByExecutionId.mockResolvedValue([makeAsset()]);
-    serviceTypeReader.findById.mockResolvedValue(null);
     appointmentRepo.update.mockResolvedValue(undefined);
   });
 

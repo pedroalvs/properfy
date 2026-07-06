@@ -368,14 +368,6 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
     geolocationDistanceMeters: z.number().nullable(),
     status: z.enum(['IN_PROGRESS', 'FINISHED']),
   }).nullable(),
-  assets: z.array(z.object({
-    id: z.string().uuid(),
-    storageKey: z.string(),
-    mimeType: z.string(),
-    sizeBytes: z.number().nullable(),
-    kind: z.string(),
-    status: z.string(),
-  })),
   /** App credentials linked to this appointment (live reference). */
   apps: z.array(appointmentAppSchema).default([]),
   agencyName: z.string().nullable().optional(),
@@ -666,20 +658,6 @@ export const inspectionExecutionResponseSchema = z.object({
   notes: z.string().nullable(),
   createdAt: dateStr(),
   updatedAt: dateStr(),
-});
-
-export const inspectionAssetResponseSchema = z.object({
-  id: z.string().uuid(),
-  appointmentId: z.string().uuid(),
-  inspectionExecutionId: z.string().uuid(),
-  storageKey: z.string(),
-  mimeType: z.string(),
-  sizeBytes: z.number().nullable(),
-  kind: z.string(),
-  status: z.string(),
-  uploadedBy: z.string(),
-  uploadUrl: z.string().optional(),
-  createdAt: dateStr(),
 });
 
 // ─── Financial Entry ───────────────────────────────────────────────────────
@@ -985,7 +963,6 @@ export type NotificationResponse = z.infer<typeof notificationResponseSchema>;
 export type NotificationTemplateResponse = z.infer<typeof notificationTemplateResponseSchema>;
 export type ReportResponse = z.infer<typeof reportResponseSchema>;
 export type InspectionExecutionResponse = z.infer<typeof inspectionExecutionResponseSchema>;
-export type InspectionAssetResponse = z.infer<typeof inspectionAssetResponseSchema>;
 export type DashboardStatsResponse = z.infer<typeof dashboardStatsResponseSchema>;
 export type InspectorDayCount = z.infer<typeof inspectorDayCountSchema>;
 export type InspectorBreakdowns = z.infer<typeof inspectorBreakdownsSchema>;

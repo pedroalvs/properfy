@@ -18,7 +18,6 @@ import type { AppointmentImportCommitWorker } from '../modules/appointment/infra
 import type { SweepAbandonedAppointmentImportsWorker } from '../modules/appointment/infrastructure/workers/sweep-abandoned-appointment-imports.worker';
 import type { GenerateInvoiceFileWorker } from '../modules/billing/infrastructure/workers/generate-invoice-file.worker';
 import type { ExpireTokensWorker } from '../modules/rental-tenant-portal/infrastructure/workers/expire-tokens.worker';
-import type { ExpireAssetsWorker } from '../modules/inspector-execution/infrastructure/workers/expire-assets.worker';
 import type { NotifyStuckInspectionsWorker } from '../modules/inspector-execution/infrastructure/workers/notify-stuck.worker';
 import type { AuditRetentionWorker } from '../modules/audit/infrastructure/workers/audit-retention.worker';
 import type { RejectUnconfirmedWorker } from '../modules/appointment/infrastructure/workers/reject-unconfirmed.worker';
@@ -62,7 +61,6 @@ export async function registerWorkers(
   sweepAbandonedAppointmentImportsWorker: SweepAbandonedAppointmentImportsWorker,
   generateInvoiceFileWorker: GenerateInvoiceFileWorker,
   expireTokensWorker: ExpireTokensWorker,
-  expireAssetsWorker: ExpireAssetsWorker,
   notifyStuckInspectionsWorker: NotifyStuckInspectionsWorker,
   auditRetentionWorker: AuditRetentionWorker,
   rejectUnconfirmedWorker: RejectUnconfirmedWorker,
@@ -204,13 +202,6 @@ export async function registerWorkers(
     logger.info({ jobId: job.id, expiredCount: result.expiredCount }, 'Token expiry completed');
   }));
 
-  await boss.schedule('inspection-execution.mark-assets-expired', '*/5 * * * *', {});
-  await boss.work('inspection-execution.mark-assets-expired', withJobMetrics('inspection-execution.mark-assets-expired', async (job) => {
-    logger.info({ jobId: job.id }, 'Processing inspection-execution.mark-assets-expired job');
-    const result = await expireAssetsWorker.execute();
-    logger.info({ jobId: job.id, expiredCount: result.expiredCount }, 'Asset expiry completed');
-  }));
-
   await boss.schedule('inspection-execution.notify-not-started', '0 * * * *', {});
   await boss.work('inspection-execution.notify-not-started', withJobMetrics('inspection-execution.notify-not-started', async (job) => {
     logger.info({ jobId: job.id }, 'Processing inspection-execution.notify-not-started job');
@@ -262,7 +253,7 @@ export async function registerWorkers(
     logger.info({ jobId: job.id, alertedQueues: result.alertedQueues }, 'DLQ monitor completed');
   }));
 
-  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.sms-delivery-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, property.import, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.mark-assets-expired, inspection-execution.notify-not-started, audit.retention, appointment.reject-unconfirmed, system.dlq-monitor');
+  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.sms-delivery-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, property.import, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.notify-not-started, audit.retention, appointment.reject-unconfirmed, system.dlq-monitor');
 
   // On startup: re-enqueue geocoding for all PENDING/FAILED properties that have no coordinates
   const pendingProperties = await prisma.property.findMany({
