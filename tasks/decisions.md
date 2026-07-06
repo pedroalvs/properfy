@@ -6,6 +6,18 @@
 2. O backend deixa de calcular janelas de expiração, validar `PRIORITY_24H` ou filtrar/listar grupos por prioridade.
 3. O banco passa a remover `service_groups.priority_mode`, `service_groups.priority_expires_at` e o enum PostgreSQL `PriorityMode`, aceitando a perda destrutiva desses dados históricos.
 
+## 2026-07-03 - Web router exits stale appointment screens on sidebar navigation
+
+1. `RouterProvider` no longer opts into `v7_startTransition`, because that path could preserve the old `appointments/*` screen while the URL already changed.
+2. Lazy route recovery now logs the original import failure and performs a hard navigation to the current URL once, instead of `window.location.reload()`.
+3. The one-shot `chunk_reload` guard remains in `sessionStorage`; after a prior reload, the app clears the guard and retries the import exactly once.
+
+## 2026-07-03 - Appointment import progress uses stalled polling, not fixed timeout
+
+1. The web import progress screen no longer stops polling after a fixed number of attempts.
+2. Polling now tracks whether `successCount + errorCount` is advancing; healthy progress keeps the fast 3s cadence.
+3. If progress stalls for a sustained window, the UI shows the "taking longer than expected" warning only once and downgrades to a slower cadence instead of treating the import as failed.
+
 ## 2026-07-03 - PWA schedule uses fixed monthly screen payload
 
 1. PWA schedule load uses `GET /v1/inspector/schedule/month` instead of one request per day.
