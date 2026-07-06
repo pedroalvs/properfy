@@ -25,6 +25,7 @@ export interface CreateAvailabilitySlotOutput {
   regionJson: Record<string, unknown> | null;
   capacity: number;
   status: string;
+  isOperatorOverride: boolean;
   createdAt: Date;
 }
 
@@ -107,6 +108,7 @@ export class CreateAvailabilitySlotUseCase {
       regionJson: slot.regionJson,
       capacity: slot.capacity,
       status: slot.status,
+      isOperatorOverride: slot.isOperatorOverride,
       createdAt: slot.createdAt,
     };
   }

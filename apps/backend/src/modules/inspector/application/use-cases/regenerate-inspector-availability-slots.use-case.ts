@@ -1,5 +1,6 @@
 import type { AvailabilityTemplate } from '@properfy/shared';
 import type { IAvailabilitySlotRepository } from '../../domain/availability-slot.repository';
+import { startOfTomorrowUtc, addDaysUtc, eachDayInRangeUtc } from './availability-horizon';
 
 const AM_START = '08:00';
 const AM_END = '13:00';
@@ -63,8 +64,8 @@ export class RegenerateInspectorAvailabilitySlotsUseCase {
   async execute(input: RegenerateInput): Promise<RegenerateOutput> {
     const { inspectorId, template } = input;
 
-    const horizonStart = startOfTomorrow();
-    const horizonEnd = addDays(horizonStart, HORIZON_WEEKS * 7 - 1);
+    const horizonStart = startOfTomorrowUtc();
+    const horizonEnd = addDaysUtc(horizonStart, HORIZON_WEEKS * 7 - 1);
 
     const existingSlots = await this.slotRepo.findSlotsForRegeneration(
       inspectorId,
@@ -82,10 +83,10 @@ export class RegenerateInspectorAvailabilitySlotsUseCase {
     let slotsDeleted = 0;
     let slotsPreserved = 0;
 
-    const days = eachDayInRange(horizonStart, horizonEnd);
+    const days = eachDayInRangeUtc(horizonStart, horizonEnd);
 
     for (const date of days) {
-      const dayKey = DAY_INDEX_MAP[date.getDay()];
+      const dayKey = DAY_INDEX_MAP[date.getUTCDay()];
       if (!dayKey) continue;
 
       const dateStr = date.toISOString().slice(0, 10);
@@ -149,29 +150,6 @@ export class RegenerateInspectorAvailabilitySlotsUseCase {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function startOfTomorrow(): Date {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function addDays(date: Date, days: number): Date {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
-function eachDayInRange(from: Date, to: Date): Date[] {
-  const days: Date[] = [];
-  const cur = new Date(from);
-  while (cur <= to) {
-    days.push(new Date(cur));
-    cur.setDate(cur.getDate() + 1);
-  }
-  return days;
-}
 
 function toKey(date: Date, startTime: string): string {
   return `${date.toISOString().slice(0, 10)}:${startTime}`;

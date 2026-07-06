@@ -8302,6 +8302,9 @@
                           "status": {
                             "type": "string"
                           },
+                          "isOperatorOverride": {
+                            "type": "boolean"
+                          },
                           "createdAt": {
                             "anyOf": [
                               {
@@ -8470,6 +8473,9 @@
                         "status": {
                           "type": "string"
                         },
+                        "isOperatorOverride": {
+                          "type": "boolean"
+                        },
                         "createdAt": {
                           "anyOf": [
                             {
@@ -8622,6 +8628,9 @@
                         },
                         "status": {
                           "type": "string"
+                        },
+                        "isOperatorOverride": {
+                          "type": "boolean"
                         },
                         "createdAt": {
                           "anyOf": [
@@ -8777,6 +8786,9 @@
                         },
                         "status": {
                           "type": "string"
+                        },
+                        "isOperatorOverride": {
+                          "type": "boolean"
                         },
                         "createdAt": {
                           "anyOf": [
@@ -8959,6 +8971,9 @@
                           },
                           "status": {
                             "type": "string"
+                          },
+                          "isOperatorOverride": {
+                            "type": "boolean"
                           },
                           "createdAt": {
                             "anyOf": [
@@ -9147,6 +9162,9 @@
                         },
                         "status": {
                           "type": "string"
+                        },
+                        "isOperatorOverride": {
+                          "type": "boolean"
                         },
                         "createdAt": {
                           "anyOf": [

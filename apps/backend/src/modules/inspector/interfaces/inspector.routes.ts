@@ -207,15 +207,16 @@ export async function registerInspectorRoutes(
       const { page, pageSize, sortBy, sortOrder, inspectorId: queryInspectorId, ...filters } = parsed.data;
       const actor = request.authContext!;
 
+      // Inspectors are not tenant-scoped, so slot listing is internal-only:
+      // AM/OP may query any inspector, INSP only themselves. Client-tenant
+      // roles (CL_ADMIN/CL_USER) must not enumerate inspector schedules.
       let resolvedInspectorId: string | undefined;
       if (actor.role === 'INSP') {
         resolvedInspectorId = actor.inspectorId ?? undefined;
-      } else if (actor.role === 'AM') {
-        // Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13): inspectors
-        // are not tenant-scoped, so cross-inspector listing is AM-only.
+      } else if (actor.role === 'AM' || actor.role === 'OP') {
         resolvedInspectorId = queryInspectorId; // undefined = list all
-      } else if (actor.role === 'OP' || actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
-        resolvedInspectorId = queryInspectorId;
+      } else {
+        throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
       }
 
       const result = await container.listAvailabilitySlotsUseCase.execute({
@@ -236,6 +237,7 @@ export async function registerInspectorRoutes(
         capacity: s.capacity,
         bookedCount: 0,
         status: s.status,
+        isOperatorOverride: s.isOperatorOverride,
         createdAt: s.createdAt,
         updatedAt: s.updatedAt,
       }));
@@ -299,6 +301,7 @@ export async function registerInspectorRoutes(
         capacity: result.capacity,
         bookedCount: 0,
         status: result.status,
+        isOperatorOverride: result.isOperatorOverride,
         createdAt: result.createdAt,
         updatedAt: result.createdAt,
       }));
@@ -368,6 +371,7 @@ export async function registerInspectorRoutes(
         capacity: result.capacity,
         bookedCount: 0,
         status: result.status,
+        isOperatorOverride: result.isOperatorOverride,
         createdAt: result.createdAt,
         updatedAt: result.updatedAt,
       }));
@@ -412,6 +416,7 @@ export async function registerInspectorRoutes(
         capacity: result.capacity,
         bookedCount: 0,
         status: result.status,
+        isOperatorOverride: result.isOperatorOverride,
         createdAt: result.createdAt,
         updatedAt: result.createdAt,
       }));
