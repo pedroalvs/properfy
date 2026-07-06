@@ -27,15 +27,17 @@ vi.mock('@/lib/api-error', () => ({
 }));
 
 import { api } from '@/services/api';
+import { useAuth } from '@/hooks/useAuth';
 import { CreateAdjustmentModal } from './CreateAdjustmentModal';
 
 const mockPost = api.POST as ReturnType<typeof vi.fn>;
+const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 vi.mock('@/hooks/useAuth', () => ({
-  useAuth: () => ({
-    user: { tenantId: 'tenant-1' },
-  }),
+  useAuth: vi.fn(),
 }));
+
+const mockUseAuth = useAuth as ReturnType<typeof vi.fn>;
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -59,6 +61,37 @@ describe('CreateAdjustmentModal', () => {
     onCreated.mockClear();
     mockPost.mockReset();
     mockPost.mockResolvedValue({ data: { data: { id: 'new-adj' } } });
+    mockGet.mockReset();
+    mockGet.mockImplementation((path: string) => {
+      if (path === '/v1/tenants/tenant-1') {
+        return Promise.resolve({
+          data: {
+            data: {
+              id: 'tenant-1',
+              name: 'Acme Realty',
+              legalName: 'Acme Realty Pty Ltd',
+              status: 'ACTIVE',
+              timezone: 'Australia/Sydney',
+              currency: 'AUD',
+              branchCount: 0,
+              createdAt: '2026-01-01T00:00:00Z',
+              updatedAt: '2026-01-01T00:00:00Z',
+            },
+          },
+        });
+      }
+      return Promise.resolve({
+        data: {
+          data: [
+            { id: 'tenant-1', name: 'Acme Realty' },
+            { id: 'tenant-2', name: 'Beta Homes' },
+          ],
+          pagination: { page: 1, pageSize: 100, total: 2, totalPages: 1 },
+        },
+      });
+    });
+    mockUseAuth.mockReset();
+    mockUseAuth.mockReturnValue({ user: { tenantId: 'tenant-1' } });
   });
 
   it('renders nothing when closed', () => {
@@ -79,7 +112,7 @@ describe('CreateAdjustmentModal', () => {
       </Wrapper>,
     );
     expect(screen.getByText('Create Adjustment')).toBeInTheDocument();
-    expect(screen.getByLabelText('Agency ID')).toBeInTheDocument();
+    expect(screen.getByLabelText('Agency')).toBeInTheDocument();
     expect(screen.getByLabelText('Amount')).toBeInTheDocument();
     expect(screen.getByLabelText('Description')).toBeInTheDocument();
     expect(screen.getByLabelText('Reason')).toBeInTheDocument();
@@ -128,7 +161,7 @@ describe('CreateAdjustmentModal', () => {
     fireEvent.click(screen.getByText('Create'));
 
     await waitFor(() => {
-      expect(mockPost).toHaveBeenCalledWith(
+  expect(mockPost).toHaveBeenCalledWith(
         '/v1/financial/entries/adjust',
         expect.objectContaining({
           body: expect.objectContaining({
@@ -141,5 +174,99 @@ describe('CreateAdjustmentModal', () => {
       );
     });
     expect(onCreated).toHaveBeenCalled();
+  });
+
+  it('shows the resolved agency name in the locked select', async () => {
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <CreateAdjustmentModal open={true} onClose={onClose} onCreated={onCreated} />
+      </Wrapper>,
+    );
+
+    const agencyField = screen.getByLabelText('Agency');
+    expect(agencyField).toBeDisabled();
+    await waitFor(() => {
+      expect(agencyField).toHaveTextContent('Acme Realty');
+    });
+  });
+
+  it('lets a cross-agency operator pick an agency from the dropdown', async () => {
+    mockUseAuth.mockReturnValue({ user: { tenantId: undefined } });
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <CreateAdjustmentModal open={true} onClose={onClose} onCreated={onCreated} />
+      </Wrapper>,
+    );
+
+    const agencyField = screen.getByLabelText('Agency');
+    expect(agencyField).not.toBeDisabled();
+
+    fireEvent.click(agencyField);
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'Beta Homes' })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('option', { name: 'Beta Homes' }));
+
+    expect(agencyField).toHaveTextContent('Beta Homes');
+
+    fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '50' } });
+    fireEvent.change(screen.getByLabelText('Effective Date'), { target: { value: '2026-03-23' } });
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Cross-agency credit' } });
+    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Support request' } });
+    fireEvent.click(screen.getByText('Create'));
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith(
+        '/v1/financial/entries/adjust',
+        expect.objectContaining({
+          body: expect.objectContaining({ tenantId: 'tenant-2' }),
+        }),
+      );
+    });
+  });
+
+  it('resolves the locked agency name even when it is outside the first paginated page', async () => {
+    // Simulate a tenants list where the session's own agency didn't make the
+    // capped first page (e.g. it sorts past position 100).
+    mockGet.mockImplementation((path: string) => {
+      if (path === '/v1/tenants/tenant-1') {
+        return Promise.resolve({
+          data: {
+            data: {
+              id: 'tenant-1',
+              name: 'Acme Realty',
+              legalName: 'Acme Realty Pty Ltd',
+              status: 'ACTIVE',
+              timezone: 'Australia/Sydney',
+              currency: 'AUD',
+              branchCount: 0,
+              createdAt: '2026-01-01T00:00:00Z',
+              updatedAt: '2026-01-01T00:00:00Z',
+            },
+          },
+        });
+      }
+      return Promise.resolve({
+        data: {
+          data: [{ id: 'tenant-2', name: 'Beta Homes' }],
+          pagination: { page: 1, pageSize: 100, total: 101, totalPages: 2 },
+        },
+      });
+    });
+
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <CreateAdjustmentModal open={true} onClose={onClose} onCreated={onCreated} />
+      </Wrapper>,
+    );
+
+    const agencyField = screen.getByLabelText('Agency');
+    expect(agencyField).toBeDisabled();
+    await waitFor(() => {
+      expect(agencyField).toHaveTextContent('Acme Realty');
+    });
   });
 });

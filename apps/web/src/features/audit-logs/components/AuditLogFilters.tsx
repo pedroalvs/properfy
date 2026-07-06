@@ -2,6 +2,8 @@ import { FilterBar } from '@/components/filters/FilterBar';
 import { FilterInput } from '@/components/filters/FilterInput';
 import { FilterSelect, type FilterSelectOption } from '@/components/filters/FilterSelect';
 import { FilterDateRange } from '@/components/filters/FilterDateRange';
+import { useAuth } from '@/hooks/useAuth';
+import { useFormOptions } from '@/hooks/useFormOptions';
 import type { AuditLogFiltersState } from '../types';
 
 const ENTITY_TYPE_OPTIONS: FilterSelectOption[] = [
@@ -36,13 +38,25 @@ interface AuditLogFiltersProps {
 }
 
 export function AuditLogFilters({ filters, onFiltersChange }: AuditLogFiltersProps) {
+  const { user } = useAuth();
+  const isGlobalRole = user?.role === 'AM' || user?.role === 'OP';
+
+  const { options: actorUserOptions } = useFormOptions<{ id: string; name: string }>(
+    ['audit-log-actors', isGlobalRole ? 'internal' : user?.tenantId],
+    isGlobalRole ? '/v1/users' : `/v1/tenants/${user?.tenantId}/users`,
+    (item) => ({ value: item.id, label: item.name }),
+    undefined,
+    { enabled: isGlobalRole || !!user?.tenantId },
+  );
+  const actorOptions: FilterSelectOption[] = [{ label: 'All', value: '' }, ...actorUserOptions];
+
   return (
     <FilterBar>
-      <FilterInput
-        label="Actor ID"
-        placeholder="Filter by actor UUID"
+      <FilterSelect
+        label="Actor"
         value={filters.actorId}
         onChange={(actorId) => onFiltersChange({ ...filters, actorId })}
+        options={actorOptions}
       />
       <FilterSelect
         label="Entity Type"

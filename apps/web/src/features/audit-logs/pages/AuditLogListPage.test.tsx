@@ -70,7 +70,7 @@ describe('AuditLogListPage', () => {
 
   it('renders filter bar', () => {
     renderPage();
-    expect(screen.getByLabelText('Actor ID')).toBeInTheDocument();
+    expect(screen.getByLabelText('Actor')).toBeInTheDocument();
     expect(screen.getByLabelText('Entity Type')).toBeInTheDocument();
     expect(screen.getByLabelText('Entity ID')).toBeInTheDocument();
     expect(screen.getByLabelText('Action')).toBeInTheDocument();
