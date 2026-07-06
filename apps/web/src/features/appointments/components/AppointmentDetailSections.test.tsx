@@ -77,6 +77,16 @@ describe('AppointmentDetailSections', () => {
     expect(screen.getByText('$3,200.00')).toBeInTheDocument();
   });
 
+  it('renders a link to the related property using its id', () => {
+    render(
+      <AppointmentDetailSections appointment={makeAppointment({ propertyId: 'prop-42' })} />,
+    );
+    const link = screen.getByTestId('appointment-property-link');
+    expect(link).toHaveAttribute('href', '/properties/prop-42');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
   it('renders contact name, phone, email', () => {
     render(<AppointmentDetailSections appointment={makeAppointment()} />);
     expect(screen.getByText('John Silva')).toBeInTheDocument();
