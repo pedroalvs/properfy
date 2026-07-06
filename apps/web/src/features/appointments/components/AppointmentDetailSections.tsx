@@ -70,6 +70,16 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
           }
         />
         <DetailRow label="Rent Amount" value={formatRent(appointment.propertyRentAmount)} />
+        <a
+          href={`/properties/${appointment.propertyId}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex w-fit items-center gap-1 text-sm font-semibold text-primary hover:underline"
+          data-testid="appointment-property-link"
+        >
+          <i className="mdi mdi-open-in-new text-base" aria-hidden="true" />
+          View property
+        </a>
       </FormSection>
 
       <FormSection title="Contact">
