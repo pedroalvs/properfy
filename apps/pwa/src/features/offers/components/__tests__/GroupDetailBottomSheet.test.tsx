@@ -260,6 +260,16 @@ describe('GroupDetailBottomSheet', () => {
     expect(btn).toHaveTextContent('Accepting…');
   });
 
+  it('does not dismiss via backdrop, close button or Escape while accepting', async () => {
+    mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    const user = userEvent.setup();
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} onAccept={vi.fn()} accepting />);
+    await user.click(screen.getByTestId('detail-backdrop'));
+    await user.click(screen.getByTestId('detail-close'));
+    await user.keyboard('{Escape}');
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it('moves focus into the sheet on open and restores it on unmount', () => {
     mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
     const trigger = document.createElement('button');

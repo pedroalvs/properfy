@@ -20,6 +20,8 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept, accepting }
   const sheetRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const acceptingRef = useRef(accepting);
+  acceptingRef.current = accepting;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -28,7 +30,7 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept, accepting }
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onCloseRef.current();
+      if (event.key === 'Escape' && !acceptingRef.current) onCloseRef.current();
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => {
@@ -39,6 +41,10 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept, accepting }
   }, [isOpen]);
 
   if (!isOpen) return null;
+
+  const handleDismiss = () => {
+    if (!accepting) onClose();
+  };
 
   const handleAccept = () => {
     if (!isOnline) {
@@ -52,7 +58,7 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept, accepting }
     <div
       className="fixed inset-0 z-[200] flex items-end justify-center bg-black/50"
       data-testid="detail-backdrop"
-      onClick={onClose}
+      onClick={handleDismiss}
     >
       <div
         ref={sheetRef}
@@ -74,8 +80,9 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept, accepting }
           <h2 id="group-detail-title" className="text-base font-bold text-secondary">Inspection details</h2>
           <button
             data-testid="detail-close"
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-text-secondary hover:bg-gray-100"
+            onClick={handleDismiss}
+            disabled={accepting}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-text-secondary hover:bg-gray-100 disabled:opacity-40"
             aria-label="Close"
           >
             ✕
