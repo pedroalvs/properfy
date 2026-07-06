@@ -18,8 +18,12 @@ vi.mock('../hooks/useAddAppointmentsToGroup', () => ({
 }));
 
 const appointments = [
-  { id: 'appt-1', code: 'A-1' },
-  { id: 'appt-2', code: 'A-2' },
+  { id: 'appt-1', code: 'A-1', scheduledDate: '2026-08-05' },
+  { id: 'appt-2', code: 'A-2', scheduledDate: '2026-08-01' },
+] as unknown as AppointmentMapItem[];
+
+const sameDayAppointments = [
+  { id: 'appt-1', code: 'A-1', scheduledDate: '2026-08-01' },
 ] as unknown as AppointmentMapItem[];
 
 const group = {
@@ -57,6 +61,16 @@ describe('MapAddToGroupSubModal', () => {
 
     const banner = await screen.findByTestId('map-add-to-group-date-sync-banner');
     expect(banner.textContent).toContain("moved to the group's date (01/08/2026)");
+  });
+
+  it('hides the date-sync banner when all appointments already share the group date', async () => {
+    render(<MapAddToGroupSubModal open onClose={() => {}} appointments={sameDayAppointments} />);
+    await waitFor(() => expect(screen.getByLabelText('Service group')).toBeInTheDocument());
+    fireEvent.click(screen.getByLabelText('Service group'));
+    fireEvent.click(screen.getByText('Group 7 · 01/08/2026 · 09:00-12:00 (3 appts)'));
+
+    await waitFor(() => expect(mockEligibility).toHaveBeenCalled());
+    expect(screen.queryByTestId('map-add-to-group-date-sync-banner')).not.toBeInTheDocument();
   });
 
   it('shows the mixed banner mentioning service type only', async () => {

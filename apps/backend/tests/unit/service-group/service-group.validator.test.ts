@@ -197,10 +197,8 @@ describe('ServiceGroupValidator.canAddToGroup (026 §FR-510)', () => {
   });
 
   it('accepts an appointment on a different day — the date is synced to the group on join', () => {
-    expect(ServiceGroupValidator.canAddToGroup(
-      { ...baseAppointment, scheduledDate: new Date('2026-06-02T00:00:00Z') },
-      baseGroup,
-    )).toEqual({ ok: true });
+    const appointmentOnAnotherDay = { ...baseAppointment, scheduledDate: new Date('2026-06-02T00:00:00Z') };
+    expect(ServiceGroupValidator.canAddToGroup(appointmentOnAnotherDay, baseGroup)).toEqual({ ok: true });
   });
 
   it('accepts a same-day appointment with a different time slot because eligibility ignores time and commit normalizes it', () => {

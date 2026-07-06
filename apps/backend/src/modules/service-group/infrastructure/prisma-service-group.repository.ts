@@ -942,13 +942,15 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       LEFT JOIN service_types st ON st.id = sg.service_type_id
       WHERE sg.service_type_id = ${params.serviceTypeId}
         AND sg.status IN ('DRAFT', 'PUBLISHED')
+        AND sg.scheduled_date >= CURRENT_DATE
       GROUP BY sg.id, sg.group_number, sg.status, sg.scheduled_date, sg.time_window, sg.service_type_id, st.name
       ORDER BY sg.created_at ASC
     `;
 
-    // Groups of the right service type with spare capacity. Date and time
-    // window are intentionally not filters — appointments are re-scheduled
-    // to the group's date on join.
+    // Groups of the right service type with spare capacity. The appointment's
+    // own date and time window are intentionally not filters — appointments
+    // are re-scheduled to the group's date on join — but past-dated groups
+    // are excluded so the sync can never move an appointment into the past.
     return rows
       .filter((row) => {
         const currentSize = Number(row.appt_count);

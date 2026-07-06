@@ -173,6 +173,9 @@ export function MapAddToGroupSubModal({
         {selectedGroupId && groupsState.phase === 'ready' && (() => {
           const selectedGroup = groupsState.groups.find((g) => g.id === selectedGroupId);
           if (!selectedGroup) return null;
+          const groupDay = selectedGroup.scheduledDate.slice(0, 10);
+          const hasDateMismatch = appointments.some((a) => a.scheduledDate.slice(0, 10) !== groupDay);
+          if (!hasDateMismatch) return null;
           return (
             <div className="rounded border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800" data-testid="map-add-to-group-date-sync-banner">
               Appointments scheduled on a different date will be moved to the group&apos;s date ({formatGroupDate(selectedGroup.scheduledDate)}).
