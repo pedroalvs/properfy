@@ -7,6 +7,16 @@ vi.mock('../../hooks/useMarketplaceOfferDetail', () => ({
   useMarketplaceOfferDetail: vi.fn(),
 }));
 
+const mockUseIsOnline = vi.fn();
+vi.mock('@/hooks/useIsOnline', () => ({
+  useIsOnline: () => mockUseIsOnline(),
+}));
+
+const mockShowError = vi.fn();
+vi.mock('@/hooks/useSnackbar', () => ({
+  useSnackbar: () => ({ showError: mockShowError, showSuccess: vi.fn(), showInfo: vi.fn() }),
+}));
+
 import { useMarketplaceOfferDetail } from '../../hooks/useMarketplaceOfferDetail';
 
 const mockUseDetail = vi.mocked(useMarketplaceOfferDetail);
@@ -64,7 +74,10 @@ describe('GroupDetailBottomSheet', () => {
 
   beforeEach(() => {
     onClose.mockClear();
-    mockUseDetail.mockReturnValue({ data: undefined, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    mockShowError.mockClear();
+    mockUseIsOnline.mockReset();
+    mockUseIsOnline.mockReturnValue(true);
+    mockUseDetail.mockReturnValue({ data: undefined, isLoading: false, isError: false, refetch: vi.fn() } as unknown as ReturnType<typeof useMarketplaceOfferDetail>);
   });
 
   it('renders nothing when groupId is null', () => {
@@ -177,5 +190,82 @@ describe('GroupDetailBottomSheet', () => {
     render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} onAccept={onAccept} />);
     await user.click(screen.getByTestId('accept-group-btn'));
     expect(onAccept).toHaveBeenCalledOnce();
+  });
+
+  it('caps the sheet height and makes the body the scroll container', () => {
+    mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    expect(screen.getByTestId('group-detail-sheet').className).toContain('max-h-[85dvh]');
+    const body = screen.getByTestId('detail-body');
+    expect(body.className).toContain('flex-1');
+    expect(body.className).toContain('min-h-0');
+    expect(body.className).toContain('overflow-y-auto');
+  });
+
+  it('renders a backdrop and closes when it is clicked', async () => {
+    mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    const user = userEvent.setup();
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    await user.click(screen.getByTestId('detail-backdrop'));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('does not close when the sheet itself is clicked', async () => {
+    mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    const user = userEvent.setup();
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    await user.click(screen.getByTestId('group-detail-sheet'));
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('exposes dialog semantics labelled by the heading', () => {
+    mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    const dialog = screen.getByRole('dialog', { name: 'Inspection details' });
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+  });
+
+  it('closes on Escape key', async () => {
+    mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    const user = userEvent.setup();
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    await user.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('locks body scroll while open and restores it on unmount', () => {
+    mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    const { unmount } = render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    expect(document.body.style.overflow).toBe('hidden');
+    unmount();
+    expect(document.body.style.overflow).toBe('');
+  });
+
+  it('blocks accept with a snackbar error while offline', async () => {
+    mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    mockUseIsOnline.mockReturnValue(false);
+    const onAccept = vi.fn();
+    const user = userEvent.setup();
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} onAccept={onAccept} />);
+    await user.click(screen.getByTestId('accept-group-btn'));
+    expect(mockShowError).toHaveBeenCalledWith('You need to be connected to accept offers');
+    expect(onAccept).not.toHaveBeenCalled();
+  });
+
+  it('disables the Accept button while accepting', () => {
+    mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} onAccept={vi.fn()} accepting />);
+    const btn = screen.getByTestId('accept-group-btn');
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveTextContent('Accepting…');
+  });
+
+  it('renders a retry button in the error state that refetches', async () => {
+    const refetch = vi.fn();
+    mockUseDetail.mockReturnValue({ data: undefined, isLoading: false, isError: true, refetch } as unknown as ReturnType<typeof useMarketplaceOfferDetail>);
+    const user = userEvent.setup();
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    await user.click(screen.getByTestId('detail-retry'));
+    expect(refetch).toHaveBeenCalledOnce();
   });
 });

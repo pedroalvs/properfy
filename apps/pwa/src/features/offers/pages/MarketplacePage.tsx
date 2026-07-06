@@ -24,7 +24,7 @@ function formatTimeAgo(timestamp: number): string {
 export function MarketplacePage() {
   const isOnline = useIsOnline();
   const { data, isLoading, isError, error, refetch, dataUpdatedAt } = useMarketplaceOffers();
-  const { accept } = useAcceptOffer();
+  const { accept, getState } = useAcceptOffer();
   const [detailGroupId, setDetailGroupId] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'map'>('list');
   const offers = data?.data ?? [];
@@ -85,7 +85,15 @@ export function MarketplacePage() {
       <GroupDetailBottomSheet
         groupId={detailGroupId}
         onClose={() => setDetailGroupId(null)}
-        onAccept={detailGroupId ? () => { accept(detailGroupId); setDetailGroupId(null); } : undefined}
+        accepting={detailGroupId ? getState(detailGroupId) === 'ACCEPTING' : false}
+        onAccept={
+          detailGroupId
+            ? async () => {
+                await accept(detailGroupId);
+                setDetailGroupId(null);
+              }
+            : undefined
+        }
       />
     </div>
   );
