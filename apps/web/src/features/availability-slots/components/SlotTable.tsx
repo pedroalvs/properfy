@@ -62,7 +62,16 @@ export function SlotTable({
       label: 'Status',
       width: '120px',
       sortable: true,
-      render: (row) => <SlotStatusChip status={row.status} />,
+      render: (row) => (
+        <span className="inline-flex items-center gap-1.5">
+          <SlotStatusChip status={row.status} />
+          {row.isOperatorOverride && (
+            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-bold text-amber-700 border border-amber-300">
+              Override
+            </span>
+          )}
+        </span>
+      ),
     },
     {
       key: 'actions',

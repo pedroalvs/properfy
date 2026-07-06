@@ -3604,6 +3604,7 @@ export interface paths {
                                 capacity: number;
                                 bookedCount?: number;
                                 status: string;
+                                isOperatorOverride?: boolean;
                                 createdAt: string;
                                 updatedAt: string;
                             }[];
@@ -3666,6 +3667,7 @@ export interface paths {
                                 capacity: number;
                                 bookedCount?: number;
                                 status: string;
+                                isOperatorOverride?: boolean;
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -3741,6 +3743,7 @@ export interface paths {
                                 capacity: number;
                                 bookedCount?: number;
                                 status: string;
+                                isOperatorOverride?: boolean;
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -3798,6 +3801,7 @@ export interface paths {
                                 capacity: number;
                                 bookedCount?: number;
                                 status: string;
+                                isOperatorOverride?: boolean;
                                 createdAt: string;
                                 updatedAt: string;
                             }[];
@@ -3862,6 +3866,7 @@ export interface paths {
                                 capacity: number;
                                 bookedCount?: number;
                                 status: string;
+                                isOperatorOverride?: boolean;
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -3938,6 +3943,7 @@ export interface paths {
                                 capacity: number;
                                 bookedCount?: number;
                                 status: string;
+                                isOperatorOverride?: boolean;
                                 createdAt: string;
                                 updatedAt: string;
                             };

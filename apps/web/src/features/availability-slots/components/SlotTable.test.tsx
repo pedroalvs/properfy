@@ -29,6 +29,7 @@ const MOCK_SLOTS: AvailabilitySlot[] = [
     capacity: 2,
     bookedCount: 2,
     status: 'BOOKED',
+    isOperatorOverride: true,
     createdAt: '2026-03-17T11:00:00Z',
   },
 ];
@@ -64,6 +65,11 @@ describe('SlotTable', () => {
     render(<SlotTable data={MOCK_SLOTS} />);
     expect(screen.getByText('08:00 - 12:00')).toBeInTheDocument();
     expect(screen.getByText('13:00 - 17:00')).toBeInTheDocument();
+  });
+
+  it('shows an Override badge only for operator-override slots', () => {
+    render(<SlotTable data={MOCK_SLOTS} />);
+    expect(screen.getAllByText('Override')).toHaveLength(1);
   });
 
   it('shows loading state', () => {

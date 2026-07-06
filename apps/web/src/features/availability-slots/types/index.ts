@@ -9,6 +9,8 @@ export interface AvailabilitySlot {
   capacity: number;
   bookedCount: number;
   status: string;
+  /** True when the slot was created/managed by an operator (survives template regeneration). */
+  isOperatorOverride?: boolean;
   createdAt: string;
 }
 

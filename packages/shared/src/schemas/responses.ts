@@ -219,6 +219,8 @@ export const availabilitySlotResponseSchema = z.object({
   capacity: z.number(),
   bookedCount: z.number().optional(),
   status: z.string(),
+  /** True when the slot was created/managed by an operator (immutable to inspectors). */
+  isOperatorOverride: z.boolean().optional(),
   createdAt: dateStr(),
   updatedAt: dateStr(),
 });
