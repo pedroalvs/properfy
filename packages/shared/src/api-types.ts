@@ -9339,6 +9339,7 @@ export interface paths {
                     status?: "PENDING" | "APPROVED" | "CANCELLED" | "VOIDED";
                     inspectorId?: string;
                     tenantId?: string;
+                    appointmentId?: string;
                     fromDate?: string;
                     toDate?: string;
                     page?: number;
