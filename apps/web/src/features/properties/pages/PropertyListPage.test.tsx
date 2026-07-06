@@ -198,6 +198,14 @@ describe('PropertyListPage', () => {
       renderPage();
       expect(screen.getByLabelText('Agency')).toBeInTheDocument();
     });
+
+    it('renders an Agency column showing each property\'s owning agency', async () => {
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByText('Acme Realty')).toBeInTheDocument();
+        expect(screen.getByText('Beta Estates')).toBeInTheDocument();
+      });
+    });
   });
 
   describe('CL_ADMIN role', () => {
