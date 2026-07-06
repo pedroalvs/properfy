@@ -11,6 +11,7 @@ interface PropertyTableProps {
   onRetryError?: () => void;
   pagination?: DataTablePagination;
   onView?: (property: Property) => void;
+  showAgency?: boolean;
 }
 
 export function PropertyTable({
@@ -20,6 +21,7 @@ export function PropertyTable({
   onRetryError,
   pagination,
   onView,
+  showAgency,
 }: PropertyTableProps) {
   const columns: DataTableColumn<Property>[] = [
     {
@@ -65,6 +67,13 @@ export function PropertyTable({
       sortable: true,
       render: (row) => <>{formatRent(row.rentAmount) ?? '—'}</>,
     },
+    ...(showAgency ? [{
+      key: 'tenantName',
+      label: 'Agency',
+      width: '160px',
+      sortable: true,
+      render: (row) => <>{row.tenantName ?? '—'}</>,
+    } satisfies DataTableColumn<Property>] : []),
     {
       key: 'branchName',
       label: 'Branch',

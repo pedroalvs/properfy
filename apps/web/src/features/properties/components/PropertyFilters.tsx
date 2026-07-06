@@ -16,15 +16,29 @@ interface PropertyFiltersProps {
   filters: PropertyFiltersState;
   onFiltersChange: (filters: PropertyFiltersState) => void;
   branchOptions: FilterSelectOption[];
+  agencyOptions?: FilterSelectOption[];
+  agencyValue?: string;
+  onAgencyChange?: (agencyId: string) => void;
 }
 
 export function PropertyFilters({
   filters,
   onFiltersChange,
   branchOptions,
+  agencyOptions,
+  agencyValue,
+  onAgencyChange,
 }: PropertyFiltersProps) {
   return (
     <FilterBar>
+      {agencyOptions && onAgencyChange && (
+        <FilterSelect
+          label="Agency"
+          value={agencyValue ?? ''}
+          onChange={onAgencyChange}
+          options={agencyOptions}
+        />
+      )}
       <FilterInput
         label="Search"
         placeholder="Code, address, suburb..."

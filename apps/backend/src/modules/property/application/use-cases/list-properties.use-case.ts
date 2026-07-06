@@ -27,6 +27,7 @@ export interface ListPropertiesOutput {
     tenantId: string;
     branchId: string | null;
     branchName: string | null;
+    tenantName: string | null;
     propertyCode: string;
     type: string;
     street: string;
@@ -58,13 +59,24 @@ export class ListPropertiesUseCase {
   async execute(input: ListPropertiesInput): Promise<ListPropertiesOutput> {
     const { filters, pagination, actor } = input;
 
-    // Resolve tenantId — only AM is cross-tenant per Sprint 1 W-4-IMPL
-    // (CORRECTION-001 close-it, 2026-04-13).
+    // Resolve tenantId — AM and OP are both cross-tenant (their JWT carries
+    // tenantId: null, and filters.tenantId narrows). CL roles are pinned to
+    // their JWT tenantId. Mirrors the appointment use case's fix for the same
+    // bug class (Bug C-B2): coercing a null actor.tenantId via `!` for OP
+    // silently dropped the tenant filter and returned the full cross-tenant set.
+    //
+    // CL roles fail closed on a missing tenantId rather than falling back to
+    // an unscoped query: a CL JWT without a tenantId indicates an auth bug,
+    // and an unscoped fallback would turn that bug into a cross-tenant leak
+    // (CLAUDE.md §7: "no business query without tenant scope").
     let tenantId: string | undefined;
-    if (actor.role === 'AM') {
+    if (actor.role === 'AM' || actor.role === 'OP') {
       tenantId = filters.tenantId;
-    } else if (actor.role === 'OP' || actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
-      tenantId = actor.tenantId!;
+    } else if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
+      if (!actor.tenantId) {
+        throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
+      }
+      tenantId = actor.tenantId;
     } else {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
@@ -94,6 +106,7 @@ export class ListPropertiesUseCase {
         tenantId: item.property.tenantId,
         branchId: item.property.branchId,
         branchName: item.branchName,
+        tenantName: item.tenantName,
         propertyCode: item.property.propertyCode,
         type: item.property.type,
         street: item.property.street,

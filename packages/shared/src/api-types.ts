@@ -2316,6 +2316,7 @@ export interface paths {
                                 /** Format: uuid */
                                 branchId: string | null;
                                 branchName?: string | null;
+                                tenantName?: string | null;
                                 propertyCode: string;
                                 type: string;
                                 street: string;
@@ -2419,6 +2420,7 @@ export interface paths {
                                 /** Format: uuid */
                                 branchId: string | null;
                                 branchName?: string | null;
+                                tenantName?: string | null;
                                 propertyCode: string;
                                 type: string;
                                 street: string;
@@ -2494,6 +2496,7 @@ export interface paths {
                                 /** Format: uuid */
                                 branchId: string | null;
                                 branchName?: string | null;
+                                tenantName?: string | null;
                                 propertyCode: string;
                                 type: string;
                                 street: string;
@@ -2616,6 +2619,7 @@ export interface paths {
                                 /** Format: uuid */
                                 branchId: string | null;
                                 branchName?: string | null;
+                                tenantName?: string | null;
                                 propertyCode: string;
                                 type: string;
                                 street: string;

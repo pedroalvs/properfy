@@ -4834,6 +4834,10 @@
                           "type": "string",
                           "nullable": true
                         },
+                        "tenantName": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "propertyCode": {
                           "type": "string"
                         },
@@ -5136,6 +5140,10 @@
                             "type": "string",
                             "nullable": true
                           },
+                          "tenantName": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "propertyCode": {
                             "type": "string"
                           },
@@ -5347,6 +5355,10 @@
                           "nullable": true
                         },
                         "branchName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "tenantName": {
                           "type": "string",
                           "nullable": true
                         },
@@ -5669,6 +5681,10 @@
                           "nullable": true
                         },
                         "branchName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "tenantName": {
                           "type": "string",
                           "nullable": true
                         },
