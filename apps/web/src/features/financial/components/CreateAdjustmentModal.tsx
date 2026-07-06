@@ -9,6 +9,7 @@ import { Textarea } from '@/components/forms/Textarea';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useAuth } from '@/hooks/useAuth';
 import { useFormOptions } from '@/hooks/useFormOptions';
+import { useTenantAdminDetail } from '@/features/tenants/hooks/useTenantAdminDetail';
 import { useCreateAdjustment } from '../hooks/useCreateAdjustment';
 import { TextInput } from '@/components/forms/TextInput';
 import { SelectInput } from '@/components/forms/SelectInput';
@@ -81,6 +82,13 @@ export function CreateAdjustmentModal({ open, onClose, onCreated }: CreateAdjust
     '/v1/tenants',
     (item) => ({ value: item.id, label: item.name }),
   );
+  // The tenants list is capped at one page (100), so a locked agency outside
+  // that page would otherwise show no label. Resolve it directly by id.
+  const { tenant: lockedTenant } = useTenantAdminDetail(user?.tenantId ?? null);
+  const resolvedTenantId = form.tenantId || user?.tenantId || '';
+  const agencySelectOptions = agencyOptions.some((o) => o.value === resolvedTenantId) || !lockedTenant
+    ? agencyOptions
+    : [...agencyOptions, { value: lockedTenant.id, label: lockedTenant.name }];
 
   const updateField = useCallback(<K extends keyof AdjustmentFormData>(field: K, value: AdjustmentFormData[K]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -93,7 +101,7 @@ export function CreateAdjustmentModal({ open, onClose, onCreated }: CreateAdjust
   const handleSubmit = useCallback(async () => {
     const submission = {
       ...form,
-      tenantId: form.tenantId || user?.tenantId || '',
+      tenantId: resolvedTenantId,
     };
     const validationErrors = validate(submission);
     if (Object.keys(validationErrors).length > 0) {
@@ -116,15 +124,13 @@ export function CreateAdjustmentModal({ open, onClose, onCreated }: CreateAdjust
     } catch {
       showError('Failed to create adjustment');
     }
-  }, [form, mutateAsync, onCreated, showError, showSuccess, user?.tenantId]);
+  }, [form, mutateAsync, onCreated, resolvedTenantId, showError, showSuccess, user?.tenantId]);
 
   const handleClose = useCallback(() => {
     setForm({ ...EMPTY_FORM, tenantId: user?.tenantId ?? '' });
     setErrors({});
     onClose();
   }, [onClose, user?.tenantId]);
-
-  const resolvedTenantId = form.tenantId || user?.tenantId || '';
 
   return (
     <Dialog
@@ -152,7 +158,7 @@ export function CreateAdjustmentModal({ open, onClose, onCreated }: CreateAdjust
           <SelectInput
             value={resolvedTenantId}
             onChange={(v) => updateField('tenantId', v)}
-            options={agencyOptions}
+            options={agencySelectOptions}
             disabled={Boolean(user?.tenantId)}
             placeholder="Select an agency"
             aria-label="Agency"

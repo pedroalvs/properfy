@@ -62,14 +62,33 @@ describe('CreateAdjustmentModal', () => {
     mockPost.mockReset();
     mockPost.mockResolvedValue({ data: { data: { id: 'new-adj' } } });
     mockGet.mockReset();
-    mockGet.mockResolvedValue({
-      data: {
-        data: [
-          { id: 'tenant-1', name: 'Acme Realty' },
-          { id: 'tenant-2', name: 'Beta Homes' },
-        ],
-        pagination: { page: 1, pageSize: 100, total: 2, totalPages: 1 },
-      },
+    mockGet.mockImplementation((path: string) => {
+      if (path === '/v1/tenants/tenant-1') {
+        return Promise.resolve({
+          data: {
+            data: {
+              id: 'tenant-1',
+              name: 'Acme Realty',
+              legalName: 'Acme Realty Pty Ltd',
+              status: 'ACTIVE',
+              timezone: 'Australia/Sydney',
+              currency: 'AUD',
+              branchCount: 0,
+              createdAt: '2026-01-01T00:00:00Z',
+              updatedAt: '2026-01-01T00:00:00Z',
+            },
+          },
+        });
+      }
+      return Promise.resolve({
+        data: {
+          data: [
+            { id: 'tenant-1', name: 'Acme Realty' },
+            { id: 'tenant-2', name: 'Beta Homes' },
+          ],
+          pagination: { page: 1, pageSize: 100, total: 2, totalPages: 1 },
+        },
+      });
     });
     mockUseAuth.mockReset();
     mockUseAuth.mockReturnValue({ user: { tenantId: 'tenant-1' } });
@@ -205,6 +224,49 @@ describe('CreateAdjustmentModal', () => {
           body: expect.objectContaining({ tenantId: 'tenant-2' }),
         }),
       );
+    });
+  });
+
+  it('resolves the locked agency name even when it is outside the first paginated page', async () => {
+    // Simulate a tenants list where the session's own agency didn't make the
+    // capped first page (e.g. it sorts past position 100).
+    mockGet.mockImplementation((path: string) => {
+      if (path === '/v1/tenants/tenant-1') {
+        return Promise.resolve({
+          data: {
+            data: {
+              id: 'tenant-1',
+              name: 'Acme Realty',
+              legalName: 'Acme Realty Pty Ltd',
+              status: 'ACTIVE',
+              timezone: 'Australia/Sydney',
+              currency: 'AUD',
+              branchCount: 0,
+              createdAt: '2026-01-01T00:00:00Z',
+              updatedAt: '2026-01-01T00:00:00Z',
+            },
+          },
+        });
+      }
+      return Promise.resolve({
+        data: {
+          data: [{ id: 'tenant-2', name: 'Beta Homes' }],
+          pagination: { page: 1, pageSize: 100, total: 101, totalPages: 2 },
+        },
+      });
+    });
+
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <CreateAdjustmentModal open={true} onClose={onClose} onCreated={onCreated} />
+      </Wrapper>,
+    );
+
+    const agencyField = screen.getByLabelText('Agency');
+    expect(agencyField).toBeDisabled();
+    await waitFor(() => {
+      expect(agencyField).toHaveTextContent('Acme Realty');
     });
   });
 });
