@@ -562,7 +562,6 @@ model Appointment {
   portal_tokens     RentalTenantPortalToken[]
   portal_activities RentalTenantPortalActivity[]
   execution         InspectionExecution?
-  inspection_assets InspectionAsset[]
   financial_entries FinancialEntry[]
   notifications     Notification[]
 
@@ -957,12 +956,6 @@ enum RentalTenantPortalAction {
   GROUP_JOIN
 }
 
-enum InspectionAssetKind {
-  PHOTO
-  DOCUMENT
-  SIGNATURE
-}
-
 enum FinancialEntryType {
   TENANT_DEBIT
   INSPECTOR_PAYOUT
@@ -988,12 +981,6 @@ enum BillingPeriodType {
   WEEKLY
   FORTNIGHTLY
   MONTHLY
-}
-
-enum InspectionAssetStatus {
-  PENDING
-  UPLOADED
-  UPLOAD_FAILED
 }
 
 enum NotificationAttemptStatus {
@@ -1125,37 +1112,12 @@ model InspectionExecution {
   created_at                  DateTime  @default(now())
   updated_at                  DateTime  @updatedAt
 
-  appointment Appointment       @relation(fields: [appointment_id], references: [id])
-  inspector   Inspector         @relation(fields: [inspector_id], references: [id])
-  assets      InspectionAsset[]
+  appointment Appointment @relation(fields: [appointment_id], references: [id])
+  inspector   Inspector   @relation(fields: [inspector_id], references: [id])
 
   @@index([inspector_id])
   @@index([started_at])
   @@map("inspection_executions")
-}
-
-model InspectionAsset {
-  id                      String                @id @default(uuid())
-  appointment_id          String
-  inspection_execution_id String
-  storage_key             String                @unique
-  mime_type               String
-  size_bytes              Int?
-  kind                    InspectionAssetKind
-  status                  InspectionAssetStatus @default(PENDING)
-  uploaded_by             String
-  upload_expires_at       DateTime?
-  original_filename       String?               @db.VarChar(255)
-  created_at              DateTime              @default(now())
-
-  appointment Appointment         @relation(fields: [appointment_id], references: [id])
-  execution   InspectionExecution @relation(fields: [inspection_execution_id], references: [id])
-
-  @@index([appointment_id])
-  @@index([inspection_execution_id])
-  @@index([status])
-  @@index([uploaded_by])
-  @@map("inspection_assets")
 }
 
 model IdempotencyKey {

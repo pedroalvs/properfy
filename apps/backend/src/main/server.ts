@@ -116,7 +116,6 @@ async function start() {
       container.sweepAbandonedAppointmentImportsWorker,
       container.generateInvoiceFileWorker,
       container.expireTokensWorker,
-      container.expireAssetsWorker,
       container.notifyStuckInspectionsWorker,
       container.auditRetentionWorker,
       container.rejectUnconfirmedWorker,

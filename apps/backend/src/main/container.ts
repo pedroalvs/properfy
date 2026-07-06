@@ -191,7 +191,6 @@ import type { RentalTenantPortalRouteContainer } from '../modules/rental-tenant-
 
 // Inspector execution module
 import { PrismaInspectionExecutionRepository } from '../modules/inspector-execution/infrastructure/prisma-inspection-execution.repository';
-import { PrismaInspectionAssetRepository } from '../modules/inspector-execution/infrastructure/prisma-inspection-asset.repository';
 import { PrismaIdempotencyService } from '../modules/inspector-execution/infrastructure/prisma-idempotency.service';
 import { StubStorageService } from '../modules/inspector-execution/infrastructure/stub-storage.service';
 import { SupabaseStorageService } from '../modules/inspector-execution/infrastructure/supabase-storage.service';
@@ -201,12 +200,8 @@ import { GetInspectorScheduleUseCase } from '../modules/inspector-execution/appl
 import { GetAppointmentDetailUseCase } from '../modules/inspector-execution/application/use-cases/get-appointment-detail.use-case';
 import { StartInspectionUseCase } from '../modules/inspector-execution/application/use-cases/start-inspection.use-case';
 import { FinishInspectionUseCase } from '../modules/inspector-execution/application/use-cases/finish-inspection.use-case';
-import { RequestAssetUploadUseCase } from '../modules/inspector-execution/application/use-cases/request-asset-upload.use-case';
-import { ConfirmAssetUploadUseCase } from '../modules/inspector-execution/application/use-cases/confirm-asset-upload.use-case';
 import { SaveExecutionProgressUseCase } from '../modules/inspector-execution/application/use-cases/save-execution-progress.use-case';
 import { ReopenExecutionUseCase } from '../modules/inspector-execution/application/use-cases/reopen-execution.use-case';
-import { ListAppointmentAssetsUseCase } from '../modules/inspector-execution/application/use-cases/list-appointment-assets.use-case';
-import { GetAppointmentAssetDownloadUrlUseCase } from '../modules/inspector-execution/application/use-cases/get-appointment-asset-download-url.use-case';
 import type { InspectorExecutionRouteContainer } from '../modules/inspector-execution/interfaces/inspector-execution.routes';
 
 // Billing module
@@ -305,7 +300,6 @@ import { ExpireFilesWorker } from '../modules/report/infrastructure/workers/expi
 import { GenerateInvoiceFileWorker } from '../modules/billing/infrastructure/workers/generate-invoice-file.worker';
 import { PdfKitInvoicePdfGenerator } from '../modules/billing/infrastructure/pdfkit-invoice-pdf.generator';
 import { ExpireTokensWorker } from '../modules/rental-tenant-portal/infrastructure/workers/expire-tokens.worker';
-import { ExpireAssetsWorker } from '../modules/inspector-execution/infrastructure/workers/expire-assets.worker';
 import { NotifyStuckInspectionsWorker } from '../modules/inspector-execution/infrastructure/workers/notify-stuck.worker';
 import { AuditRetentionWorker } from '../modules/audit/infrastructure/workers/audit-retention.worker';
 
@@ -428,7 +422,6 @@ export interface AppContainer {
   sweepAbandonedAppointmentImportsWorker: SweepAbandonedAppointmentImportsWorker;
   generateInvoiceFileWorker: GenerateInvoiceFileWorker;
   expireTokensWorker: ExpireTokensWorker;
-  expireAssetsWorker: ExpireAssetsWorker;
   notifyStuckInspectionsWorker: NotifyStuckInspectionsWorker;
   auditRetentionWorker: AuditRetentionWorker;
   rejectUnconfirmedWorker: RejectUnconfirmedWorker;
@@ -772,17 +765,14 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Inspector execution repositories and services
   const inspectionExecutionRepo = new PrismaInspectionExecutionRepository(prisma);
-  const inspectionAssetRepo = new PrismaInspectionAssetRepository(prisma);
   const serviceTypeReaderForExec = new PrismaServiceTypeReader(prisma);
   const tenantSettingsReader = new PrismaTenantSettingsReader(prisma);
   const performCrossCheckUseCase = new PerformCrossCheckUseCase(
     appointmentRepo,
     auditLogRepo,
     inspectionExecutionRepo,
-    inspectionAssetRepo,
     auditService,
     authorizationService,
-    serviceTypeReaderForExec,
     createFinancialEntriesOnDoneUseCase,
   );
   const reportUnavailabilityUseCase = new ReportUnavailabilityUseCase(
@@ -803,36 +793,24 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentRepo, inspectionExecutionRepo, authorizationService,
   );
   const getAppointmentDetailUseCase = new GetAppointmentDetailUseCase(
-    appointmentRepo, inspectionExecutionRepo, inspectionAssetRepo, serviceTypeReaderForExec, authorizationService, tenantRepo, appCredentialRepo,
+    appointmentRepo, inspectionExecutionRepo, serviceTypeReaderForExec, authorizationService, tenantRepo, appCredentialRepo,
   );
   const startInspectionUseCase = new StartInspectionUseCase(
     appointmentRepo, inspectionExecutionRepo, idempotencyService, auditService, tenantSettingsReader, authorizationService,
   );
   const finishInspectionUseCase = new FinishInspectionUseCase(
-    inspectionExecutionRepo, inspectionAssetRepo, idempotencyService,
-    executeStatusTransitionUseCase, appointmentRepo, auditService, serviceTypeReaderForExec, authorizationService,
-  );
-  const requestAssetUploadUseCase = new RequestAssetUploadUseCase(
-    inspectionExecutionRepo, inspectionAssetRepo, storageService, appointmentRepo, authorizationService,
+    inspectionExecutionRepo, idempotencyService,
+    executeStatusTransitionUseCase, appointmentRepo, auditService, authorizationService,
   );
   const getAvailablePeriodsUseCase = new GetAvailablePeriodsUseCase(inspectorRepo);
   const getInspectorEarningsSummaryUseCase = new GetInspectorEarningsSummaryUseCase(financialEntryRepo);
   const previewInvoiceUseCase = new PreviewInvoiceUseCase(inspectorRepo, financialEntryRepo);
   const requestInvoiceUseCase = new RequestInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, inspectorRepo, auditService);
-  const confirmAssetUploadUseCase = new ConfirmAssetUploadUseCase(
-    inspectionAssetRepo, storageService, authorizationService,
-  );
   const saveExecutionProgressUseCase = new SaveExecutionProgressUseCase(
     inspectionExecutionRepo, authorizationService,
   );
   const reopenExecutionUseCase = new ReopenExecutionUseCase(
     inspectionExecutionRepo, appointmentRepo, auditService, authorizationService,
-  );
-  const listAppointmentAssetsUseCase = new ListAppointmentAssetsUseCase(
-    inspectionAssetRepo, appointmentRepo, authorizationService,
-  );
-  const getAppointmentAssetDownloadUrlUseCase = new GetAppointmentAssetDownloadUrlUseCase(
-    inspectionAssetRepo, storageService, authorizationService,
   );
 
   // Audit use cases
@@ -1176,7 +1154,6 @@ export function createContainer(logger: Logger): AppContainer {
     inspectorInvoiceRepo, invoicePdfGenerator, reportStorageService, logger,
   );
   const expireTokensWorker = new ExpireTokensWorker(rentalTenantPortalTokenRepo, logger);
-  const expireAssetsWorker = new ExpireAssetsWorker(inspectionAssetRepo, storageService, logger);
   const notifyStuckInspectionsWorker = new NotifyStuckInspectionsWorker(
     inspectionExecutionRepo, appointmentRepo, notificationRepo, createNotificationUseCase, logger,
   );
@@ -1445,15 +1422,11 @@ export function createContainer(logger: Logger): AppContainer {
       finishInspectionUseCase,
       saveExecutionProgressUseCase,
       reopenExecutionUseCase,
-      requestAssetUploadUseCase,
-      confirmAssetUploadUseCase,
       getMarketplaceOffersUseCase,
       getAvailablePeriodsUseCase,
       getInspectorEarningsSummaryUseCase,
       previewInvoiceUseCase,
       requestInvoiceUseCase,
-      listAppointmentAssetsUseCase,
-      getAppointmentAssetDownloadUrlUseCase,
       jwtService,
       tenantRepo,
     },
@@ -1561,7 +1534,6 @@ export function createContainer(logger: Logger): AppContainer {
     sweepAbandonedAppointmentImportsWorker,
     generateInvoiceFileWorker,
     expireTokensWorker,
-    expireAssetsWorker,
     notifyStuckInspectionsWorker,
     auditRetentionWorker,
     rejectUnconfirmedWorker,

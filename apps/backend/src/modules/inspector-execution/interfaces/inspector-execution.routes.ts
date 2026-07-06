@@ -7,12 +7,10 @@ import {
   finishInspectionSchema,
   reopenExecutionSchema,
   saveExecutionProgressSchema,
-  requestAssetUploadSchema,
   inspectorScheduleResponseSchema,
   inspectorScheduleItemSchema,
   inspectorScheduleMonthResponseSchema,
   inspectionExecutionResponseSchema,
-  inspectionAssetResponseSchema,
   inspectorAppointmentDetailResponseSchema,
   successResponseSchema,
   listMarketplaceOffersQuerySchema,
@@ -27,8 +25,6 @@ import type { GetInspectorScheduleUseCase } from '../application/use-cases/get-i
 import type { GetAppointmentDetailUseCase } from '../application/use-cases/get-appointment-detail.use-case';
 import type { StartInspectionUseCase } from '../application/use-cases/start-inspection.use-case';
 import type { FinishInspectionUseCase } from '../application/use-cases/finish-inspection.use-case';
-import type { RequestAssetUploadUseCase } from '../application/use-cases/request-asset-upload.use-case';
-import type { ConfirmAssetUploadUseCase } from '../application/use-cases/confirm-asset-upload.use-case';
 import type { SaveExecutionProgressUseCase } from '../application/use-cases/save-execution-progress.use-case';
 import type { ReopenExecutionUseCase } from '../application/use-cases/reopen-execution.use-case';
 import type { GetMarketplaceOffersUseCase } from '../../service-group/application/use-cases/get-marketplace-offers.use-case';
@@ -36,8 +32,6 @@ import type { GetAvailablePeriodsUseCase } from '../../billing/application/use-c
 import type { GetInspectorEarningsSummaryUseCase } from '../../billing/application/use-cases/get-inspector-earnings-summary.use-case';
 import type { PreviewInvoiceUseCase } from '../../billing/application/use-cases/preview-invoice.use-case';
 import type { RequestInvoiceUseCase } from '../../billing/application/use-cases/request-invoice.use-case';
-import type { ListAppointmentAssetsUseCase } from '../application/use-cases/list-appointment-assets.use-case';
-import type { GetAppointmentAssetDownloadUrlUseCase } from '../application/use-cases/get-appointment-asset-download-url.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 import {
   availablePeriodsQuerySchema,
@@ -57,21 +51,16 @@ export interface InspectorExecutionRouteContainer {
   finishInspectionUseCase: FinishInspectionUseCase;
   saveExecutionProgressUseCase: SaveExecutionProgressUseCase;
   reopenExecutionUseCase: ReopenExecutionUseCase;
-  requestAssetUploadUseCase: RequestAssetUploadUseCase;
-  confirmAssetUploadUseCase: ConfirmAssetUploadUseCase;
   getMarketplaceOffersUseCase: GetMarketplaceOffersUseCase;
   getAvailablePeriodsUseCase: GetAvailablePeriodsUseCase;
   getInspectorEarningsSummaryUseCase: GetInspectorEarningsSummaryUseCase;
   previewInvoiceUseCase: PreviewInvoiceUseCase;
   requestInvoiceUseCase: RequestInvoiceUseCase;
-  listAppointmentAssetsUseCase: ListAppointmentAssetsUseCase;
-  getAppointmentAssetDownloadUrlUseCase: GetAppointmentAssetDownloadUrlUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
 
 const appointmentIdParam = z.object({ appointmentId: z.string().uuid() });
-const assetIdParam = z.object({ appointmentId: z.string().uuid(), assetId: z.string().uuid() });
 
 export async function registerInspectorExecutionRoutes(
   app: FastifyInstance,
@@ -254,46 +243,6 @@ export async function registerInspectorExecutionRoutes(
     },
   );
 
-  // POST /v1/inspector/appointments/:appointmentId/assets
-  app.post(
-    '/v1/inspector/appointments/:appointmentId/assets',
-    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }), body: requestAssetUploadSchema, response: { 201: successResponseSchema(inspectionAssetResponseSchema) } } },
-    async (request, reply) => {
-      const params = appointmentIdParam.safeParse(request.params);
-      if (!params.success) {
-        throw new ValidationError('Invalid appointment ID', params.error.errors);
-      }
-      const parsed = requestAssetUploadSchema.safeParse(request.body);
-      if (!parsed.success) {
-        throw new ValidationError('Request payload is invalid', parsed.error.errors);
-      }
-      const result = await container.requestAssetUploadUseCase.execute({
-        appointmentId: params.data.appointmentId,
-        ...parsed.data,
-        actor: request.authContext!,
-      });
-      return reply.status(201).send(success(result));
-    },
-  );
-
-  // PATCH /v1/inspector/appointments/:appointmentId/assets/:assetId/confirm
-  app.patch(
-    '/v1/inspector/appointments/:appointmentId/assets/:assetId/confirm',
-    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid(), assetId: z.string().uuid() }), response: { 200: successResponseSchema(inspectionAssetResponseSchema) } } },
-    async (request, reply) => {
-      const params = assetIdParam.safeParse(request.params);
-      if (!params.success) {
-        throw new ValidationError('Invalid parameters', params.error.errors);
-      }
-      const result = await container.confirmAssetUploadUseCase.execute({
-        appointmentId: params.data.appointmentId,
-        assetId: params.data.assetId,
-        actor: request.authContext!,
-      });
-      return reply.status(200).send(success(result));
-    },
-  );
-
   // GET /v1/inspector/offers — paginated 200
   app.get(
     '/v1/inspector/offers',
@@ -316,70 +265,6 @@ export async function registerInspectorExecutionRoutes(
         actor: request.authContext!,
       });
       return reply.status(200).send(paginated(result.data, result.total, page, pageSize));
-    },
-  );
-
-  // GET /v1/appointments/:appointmentId/assets — AM/OP only (evidence view)
-  app.get(
-    '/v1/appointments/:appointmentId/assets',
-    {
-      preHandler: authenticate,
-      schema: {
-        params: appointmentIdParam,
-        response: {
-          200: z.object({
-            data: z.array(
-              z.object({
-                id: z.string().uuid(),
-                storageKey: z.string(),
-                mimeType: z.string(),
-                sizeBytes: z.number().nullable(),
-                kind: z.string(),
-                status: z.string(),
-                originalFilename: z.string().nullable(),
-                createdAt: z.string(),
-              }),
-            ),
-          }),
-        },
-      },
-    },
-    async (request, reply) => {
-      const params = appointmentIdParam.safeParse(request.params);
-      if (!params.success) throw new ValidationError('Invalid appointment ID', params.error.errors);
-      const result = await container.listAppointmentAssetsUseCase.execute(
-        params.data.appointmentId,
-        request.authContext!,
-      );
-      return reply.status(200).send({ data: result });
-    },
-  );
-
-  // GET /v1/appointments/:appointmentId/assets/:assetId/download — AM/OP only
-  app.get(
-    '/v1/appointments/:appointmentId/assets/:assetId/download',
-    {
-      preHandler: authenticate,
-      schema: {
-        params: assetIdParam,
-        response: {
-          200: z.object({
-            downloadUrl: z.string().url(),
-            fileName: z.string().nullable(),
-            mimeType: z.string(),
-          }),
-        },
-      },
-    },
-    async (request, reply) => {
-      const params = assetIdParam.safeParse(request.params);
-      if (!params.success) throw new ValidationError('Invalid params', params.error.errors);
-      const result = await container.getAppointmentAssetDownloadUrlUseCase.execute(
-        params.data.appointmentId,
-        params.data.assetId,
-        request.authContext!,
-      );
-      return reply.status(200).send(result);
     },
   );
 

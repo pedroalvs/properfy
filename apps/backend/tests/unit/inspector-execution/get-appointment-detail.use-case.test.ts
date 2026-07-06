@@ -5,13 +5,11 @@ import type {
   AppointmentWithRelations,
 } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { IInspectionExecutionRepository } from '../../../src/modules/inspector-execution/domain/inspection-execution.repository';
-import type { IInspectionAssetRepository } from '../../../src/modules/inspector-execution/domain/inspection-asset.repository';
 import type { IServiceTypeReader } from '../../../src/modules/inspector-execution/domain/service-type-reader';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { AppointmentContactEntity } from '../../../src/modules/appointment/domain/appointment-contact.entity';
 import { AppointmentRestrictionEntity } from '../../../src/modules/appointment/domain/appointment-restriction.entity';
 import { InspectionExecutionEntity } from '../../../src/modules/inspector-execution/domain/inspection-execution.entity';
-import { InspectionAssetEntity } from '../../../src/modules/inspector-execution/domain/inspection-asset.entity';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import {
@@ -144,25 +142,6 @@ function makeExecution(
   });
 }
 
-function makeAsset(
-  overrides: Partial<ConstructorParameters<typeof InspectionAssetEntity>[0]> = {},
-): InspectionAssetEntity {
-  return new InspectionAssetEntity({
-    id: 'asset-1',
-    appointmentId: 'appt-1',
-    inspectionExecutionId: 'exec-1',
-    storageKey: 'inspections/appt-1/photo-1.jpg',
-    mimeType: 'image/jpeg',
-    sizeBytes: 1024000,
-    kind: 'PHOTO',
-    status: 'UPLOADED',
-    uploadedBy: 'insp-1',
-    uploadExpiresAt: null,
-    createdAt: new Date(),
-    ...overrides,
-  });
-}
-
 const inspActor: AuthContext = {
   userId: 'insp-1',
   tenantId: null,
@@ -174,7 +153,6 @@ const inspActor: AuthContext = {
 describe('GetAppointmentDetailUseCase', () => {
   let appointmentRepo: IAppointmentRepository;
   let executionRepo: IInspectionExecutionRepository;
-  let assetRepo: IInspectionAssetRepository;
   let serviceTypeReader: IServiceTypeReader;
   let tenantRepo: ITenantRepository;
   let useCase: GetAppointmentDetailUseCase;
@@ -195,14 +173,6 @@ describe('GetAppointmentDetailUseCase', () => {
     executionRepo = {
       findByAppointmentId: vi.fn().mockResolvedValue(null),
       findByAppointmentIds: vi.fn(),
-      save: vi.fn(),
-      update: vi.fn(),
-    };
-
-    assetRepo = {
-      findById: vi.fn(),
-      findByExecutionId: vi.fn().mockResolvedValue([]),
-      findUploadedByExecutionId: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
     };
@@ -230,18 +200,16 @@ describe('GetAppointmentDetailUseCase', () => {
     useCase = new GetAppointmentDetailUseCase(
       appointmentRepo,
       executionRepo,
-      assetRepo,
       serviceTypeReader,
       authorizationService,
       tenantRepo,
     );
   });
 
-  it('should return full appointment detail with contact, restrictions, execution, and assets', async () => {
+  it('should return full appointment detail with contact, restrictions, and execution', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
     const execution = makeExecution();
     vi.mocked(executionRepo.findByAppointmentId).mockResolvedValue(execution);
-    vi.mocked(assetRepo.findByExecutionId).mockResolvedValue([makeAsset()]);
 
     const result = await useCase.execute({ appointmentId: 'appt-1', actor: inspActor });
 
@@ -266,11 +234,6 @@ describe('GetAppointmentDetailUseCase', () => {
     expect(result.execution!.id).toBe('exec-1');
     expect(result.execution!.status).toBe('IN_PROGRESS');
     expect(result.execution!.startLatitude).toBe(-33.8688);
-
-    expect(result.assets).toHaveLength(1);
-    expect(result.assets[0].storageKey).toBe('inspections/appt-1/photo-1.jpg');
-    expect(result.assets[0].kind).toBe('PHOTO');
-    expect(result.assets[0].status).toBe('UPLOADED');
   });
 
   it('should return detail without execution when inspection not started', async () => {
@@ -282,7 +245,6 @@ describe('GetAppointmentDetailUseCase', () => {
     const result = await useCase.execute({ appointmentId: 'appt-1', actor: inspActor });
 
     expect(result.execution).toBeNull();
-    expect(result.assets).toHaveLength(0);
   });
 
   it('should throw ExecutionAppointmentNotFoundError when appointment not found', async () => {
@@ -399,7 +361,6 @@ describe('GetAppointmentDetailUseCase', () => {
     vi.mocked(executionRepo.findByAppointmentId).mockResolvedValue(
       makeExecution({ finishedAt: new Date('2026-03-21T11:00:00Z') }),
     );
-    vi.mocked(assetRepo.findByExecutionId).mockResolvedValue([]);
 
     const result = await useCase.execute({ appointmentId: 'appt-1', actor: inspActor });
 

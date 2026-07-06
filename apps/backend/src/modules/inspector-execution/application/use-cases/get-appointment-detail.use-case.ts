@@ -5,7 +5,6 @@ import type { IAppCredentialRepository } from '../../../app-credential/domain/ap
 import { toAppointmentApp } from '../../../app-credential/application/appointment-app.mapper';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { IInspectionExecutionRepository } from '../../domain/inspection-execution.repository';
-import type { IInspectionAssetRepository } from '../../domain/inspection-asset.repository';
 import type { IServiceTypeReader } from '../../domain/service-type-reader';
 import { T1VisibilityService } from '../../domain/t1-visibility.service';
 import { ForbiddenError } from '../../../../shared/domain/errors';
@@ -131,14 +130,6 @@ export interface AppointmentDetailOutput {
     geolocationDistanceMeters: number | null;
     status: 'IN_PROGRESS' | 'FINISHED';
   } | null;
-  assets: Array<{
-    id: string;
-    storageKey: string;
-    mimeType: string;
-    sizeBytes: number | null;
-    kind: string;
-    status: string;
-  }>;
   jobDetails: JobDetails | null;
   /** App credentials linked to this appointment (live reference). */
   apps: AppointmentApp[];
@@ -150,7 +141,6 @@ export class GetAppointmentDetailUseCase {
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly executionRepo: IInspectionExecutionRepository,
-    private readonly assetRepo: IInspectionAssetRepository,
     private readonly serviceTypeReader: IServiceTypeReader,
     private readonly authorizationService: AuthorizationService,
     private readonly tenantRepo: ITenantRepository,
@@ -204,9 +194,8 @@ export class GetAppointmentDetailUseCase {
       }
     }
 
-    // Load execution and assets
+    // Load execution
     const execution = await this.executionRepo.findByAppointmentId(appointmentId);
-    const assets = execution ? await this.assetRepo.findByExecutionId(execution.id) : [];
 
     const scheduledDate =
       appointment.scheduledDate instanceof Date
@@ -290,14 +279,6 @@ export class GetAppointmentDetailUseCase {
             status: execution.getStatus() as 'IN_PROGRESS' | 'FINISHED',
           }
         : null,
-      assets: assets.map((a) => ({
-        id: a.id,
-        storageKey: a.storageKey,
-        mimeType: a.mimeType,
-        sizeBytes: a.sizeBytes,
-        kind: a.kind,
-        status: a.status,
-      })),
       jobDetails,
       apps,
     };
