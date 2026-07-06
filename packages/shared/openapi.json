@@ -16199,7 +16199,6 @@
                                   "ALREADY_GROUPED",
                                   "INVALID_TENANT",
                                   "INVALID_SERVICE_TYPE",
-                                  "INVALID_DATE",
                                   "GROUP_IN_TERMINAL_STATE",
                                   "GROUP_CAPACITY_EXCEEDED",
                                   "NOT_FOUND",

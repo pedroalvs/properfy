@@ -117,6 +117,9 @@ export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGro
                 className="w-full rounded border border-border-subtle bg-white px-3 py-2 text-sm text-text-primary outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 aria-label="Scheduled date"
               />
+              <p className="mt-1 text-xs text-text-muted">
+                Changing the date re-schedules all appointments in this group to the new date.
+              </p>
             </FormField>
 
             <FormField label="Time Window">

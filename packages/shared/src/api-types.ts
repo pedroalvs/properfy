@@ -6754,7 +6754,7 @@ export interface paths {
                                     /** Format: uuid */
                                     appointmentId: string;
                                     /** @enum {string} */
-                                    status: "OK" | "INVALID_STATUS" | "ALREADY_GROUPED" | "INVALID_TENANT" | "INVALID_SERVICE_TYPE" | "INVALID_DATE" | "GROUP_IN_TERMINAL_STATE" | "GROUP_CAPACITY_EXCEEDED" | "NOT_FOUND" | "ERROR";
+                                    status: "OK" | "INVALID_STATUS" | "ALREADY_GROUPED" | "INVALID_TENANT" | "INVALID_SERVICE_TYPE" | "GROUP_IN_TERMINAL_STATE" | "GROUP_CAPACITY_EXCEEDED" | "NOT_FOUND" | "ERROR";
                                     error?: {
                                         code: string;
                                         message: string;

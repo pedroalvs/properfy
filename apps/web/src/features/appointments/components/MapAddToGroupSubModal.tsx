@@ -7,6 +7,11 @@ import { useAddAppointmentsToGroup } from '../hooks/useAddAppointmentsToGroup';
 import { AppointmentCodePill } from './AppointmentCodePill';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 import type { AddableGroupSummary } from '@properfy/shared';
+import { formatDate } from '@/lib/format-date';
+
+function formatGroupDate(scheduledDate: string): string {
+  return formatDate(scheduledDate.slice(0, 10));
+}
 
 interface MapAddToGroupSubModalProps {
   open: boolean;
@@ -89,7 +94,9 @@ export function MapAddToGroupSubModal({
     ? groupsState.groups.map((g) => ({
         value: g.id,
         // Include code + time window + count so similar groups stay distinguishable.
-        label: `Group ${g.code} · ${g.timeWindow} (${g.currentSize} appts)`,
+        // Include date + time window + count so the operator sees where the
+        // appointments will be re-scheduled to.
+        label: `Group ${g.code} · ${formatGroupDate(g.scheduledDate)} · ${g.timeWindow} (${g.currentSize} appts)`,
       }))
     : [];
 
@@ -137,7 +144,7 @@ export function MapAddToGroupSubModal({
         )}
         {groupsState.phase === 'ready' && groupsState.reason === 'MIXED_APPOINTMENT_PROPERTIES' && (
           <div className="rounded border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800" data-testid="map-add-to-group-mixed-banner">
-            Selected appointments don&apos;t share service type or date — refine your selection to appointments of the same service type and date.
+            Selected appointments don&apos;t share the same service type — refine your selection to appointments of one service type.
           </div>
         )}
         {groupsState.phase === 'ready' && groupsState.reason === 'INVALID_APPOINTMENT_STATUS' && (
@@ -162,6 +169,16 @@ export function MapAddToGroupSubModal({
             aria-label="Service group"
           />
         )}
+
+        {selectedGroupId && groupsState.phase === 'ready' && (() => {
+          const selectedGroup = groupsState.groups.find((g) => g.id === selectedGroupId);
+          if (!selectedGroup) return null;
+          return (
+            <div className="rounded border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800" data-testid="map-add-to-group-date-sync-banner">
+              Appointments scheduled on a different date will be moved to the group&apos;s date ({formatGroupDate(selectedGroup.scheduledDate)}).
+            </div>
+          );
+        })()}
 
         {selectedGroupId && eligibility.phase === 'loading' && (
           <p className="text-xs text-text-muted">Checking eligibility…</p>

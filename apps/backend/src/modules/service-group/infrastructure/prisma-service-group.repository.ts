@@ -903,7 +903,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
 
   async findAddableForAppointments(params: {
     serviceTypeId: string;
-    scheduledDate: Date;
     batchSize: number;
   }): Promise<Array<{
     id: string;
@@ -916,7 +915,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     serviceTypeName: string | null;
   }>> {
     const capacity = 30;
-    const dateStr = params.scheduledDate.toISOString().slice(0, 10);
 
     // Use $queryRaw to get appointment count and service type name in one round-trip.
     type Row = {
@@ -943,14 +941,14 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       LEFT JOIN appointments a ON a.service_group_id = sg.id AND a.deleted_at IS NULL
       LEFT JOIN service_types st ON st.id = sg.service_type_id
       WHERE sg.service_type_id = ${params.serviceTypeId}
-        AND sg.scheduled_date::date = ${dateStr}::date
         AND sg.status IN ('DRAFT', 'PUBLISHED')
       GROUP BY sg.id, sg.group_number, sg.status, sg.scheduled_date, sg.time_window, sg.service_type_id, st.name
       ORDER BY sg.created_at ASC
     `;
 
-    // Same-day groups of the right service type with spare capacity. The time
-    // window is intentionally not a filter — date-only grouping.
+    // Groups of the right service type with spare capacity. Date and time
+    // window are intentionally not filters — appointments are re-scheduled
+    // to the group's date on join.
     return rows
       .filter((row) => {
         const currentSize = Number(row.appt_count);

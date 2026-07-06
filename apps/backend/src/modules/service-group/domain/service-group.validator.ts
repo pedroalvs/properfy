@@ -17,12 +17,13 @@ export interface AppointmentForValidation {
 /**
  * 026 §FR-510 — predicate variant of the validator used by the
  * add-to-group flow. Same invariants as the throw-style `validate` for
- * the in-list rules, plus group-level rules (date / capacity /
+ * the in-list rules, plus group-level rules (capacity /
  * group-not-terminal).
  *
- * Only the scheduled DATE must match the group — the time window is
- * ignored, so appointments of the same day but different time slots can
- * be grouped together.
+ * The scheduled date is NOT a criterion: appointments joining a group
+ * are re-scheduled to the group's date (see
+ * `sync-appointment-time-slot-to-group.ts`), and the time window is
+ * likewise adjusted, so neither blocks the add.
  *
  * Returns `{ ok }` for use cases that surface per-item statuses in a
  * mixed-result envelope (eligibility check, bulk add) — exceptions
@@ -36,7 +37,6 @@ export type AddToGroupReason =
   | 'INVALID_STATUS'
   | 'ALREADY_GROUPED'
   | 'INVALID_SERVICE_TYPE'
-  | 'INVALID_DATE'
   | 'GROUP_IN_TERMINAL_STATE'
   | 'GROUP_CAPACITY_EXCEEDED';
 
@@ -47,27 +47,18 @@ export type AddToGroupValidation =
 export interface GroupForValidation {
   status: ServiceGroupStatus;
   serviceTypeId: string;
-  scheduledDate: Date;
   /** Used for the capacity check; passed in because callers may want to
    *  pre-add appointments hypothetically (eligibility preview). */
   currentSize: number;
 }
 
-export interface AppointmentForAddValidation extends AppointmentForValidation {
-  scheduledDate: Date;
-}
+export type AppointmentForAddValidation = AppointmentForValidation;
 
 /**
  * Group statuses that still accept new members. ACCEPTED locks the
  * group (inspector committed); CANCELLED/REJECTED are terminal.
  */
 const ADDABLE_GROUP_STATUSES = new Set<ServiceGroupStatus>(['DRAFT', 'PUBLISHED']);
-
-function sameDay(a: Date, b: Date): boolean {
-  return a.getUTCFullYear() === b.getUTCFullYear()
-    && a.getUTCMonth() === b.getUTCMonth()
-    && a.getUTCDate() === b.getUTCDate();
-}
 
 /**
  * Maximum number of appointments an existing group can hold. Enforced only when
@@ -127,10 +118,8 @@ export class ServiceGroupValidator {
     if (appointment.serviceGroupId !== null) {
       return { ok: false, reasonCode: 'ALREADY_GROUPED' };
     }
-    // Date must match; the time window is intentionally not checked.
-    if (!sameDay(appointment.scheduledDate, group.scheduledDate)) {
-      return { ok: false, reasonCode: 'INVALID_DATE' };
-    }
+    // Date and time window are intentionally not checked — the appointment's
+    // schedule is synced to the group's on join.
     return { ok: true };
   }
 

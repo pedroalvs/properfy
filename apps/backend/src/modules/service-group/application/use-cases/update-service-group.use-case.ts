@@ -10,6 +10,9 @@ import {
   ServiceGroupTimeInPastError,
 } from '../../domain/service-group.errors';
 import { validateEditedSchedule } from '@properfy/shared';
+import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
+import { getServiceGroupDateAdjustment } from '../../domain/service-group-date-sync';
+import type { ServiceGroupTimeSyncLogger } from '../sync-appointment-time-slot-to-group';
 
 /** Fields that can only be updated when the group is in DRAFT status. */
 const DRAFT_ONLY_FIELDS = [
@@ -54,6 +57,8 @@ export class UpdateServiceGroupUseCase {
     private readonly serviceGroupRepo: IServiceGroupRepository,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
+    private readonly appointmentRepo: IAppointmentRepository,
+    private readonly logger: ServiceGroupTimeSyncLogger = { error: () => undefined },
   ) {}
 
   async execute(input: UpdateServiceGroupInput): Promise<UpdateServiceGroupOutput> {
@@ -114,6 +119,36 @@ export class UpdateServiceGroupUseCase {
     }
 
     await this.serviceGroupRepo.update(groupId, updateData);
+
+    // Members follow the group's date: when the (DRAFT-only) scheduledDate
+    // changes, re-schedule every linked appointment to the new date.
+    // Best-effort per member — the group update is already committed.
+    if (updateData.scheduledDate !== undefined) {
+      for (const appt of result.appointments) {
+        const adjustment = getServiceGroupDateAdjustment(appt.scheduledDate, updateData.scheduledDate);
+        if (!adjustment) continue;
+        try {
+          await this.appointmentRepo.update(appt.id, appt.tenantId, { scheduledDate: adjustment.scheduledDate });
+          this.auditService.log({
+            action: 'appointment.updated',
+            actorType: 'SYSTEM',
+            actorId: actor.userId,
+            entityType: 'Appointment',
+            entityId: appt.id,
+            tenantId: appt.tenantId,
+            before: adjustment.before,
+            after: { scheduledDate: adjustment.scheduledDate },
+            reason: 'Service group date changed',
+            metadata: { groupId, automaticDateSync: true },
+          });
+        } catch (err) {
+          this.logger.error(
+            { err, appointmentId: appt.id, tenantId: appt.tenantId, groupId },
+            'appointment schedule sync to group failed',
+          );
+        }
+      }
+    }
 
     this.auditService.log({
       action: 'service_group.updated',

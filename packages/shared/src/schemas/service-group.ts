@@ -107,9 +107,10 @@ export type EligibilityCheckRequest = z.infer<typeof eligibilityCheckRequestSche
  * add call re-validates each appointment because group state may have
  * changed between preview and add. `reasonCode` strings follow the
  * `ServiceGroupValidator` set: INVALID_STATUS / INVALID_TENANT /
- * INVALID_SERVICE_TYPE / INVALID_DATE / ALREADY_GROUPED /
- * GROUP_CAPACITY_EXCEEDED / GROUP_IN_TERMINAL_STATE. The time window is
- * not validated — only the date must match.
+ * INVALID_SERVICE_TYPE / ALREADY_GROUPED /
+ * GROUP_CAPACITY_EXCEEDED / GROUP_IN_TERMINAL_STATE. Date and time
+ * window are not validated — appointments are re-scheduled to the
+ * group's date/window on join.
  */
 export const eligibilityCheckResponseSchema = z.object({
   eligibleAppointmentIds: z.array(z.string().uuid()),

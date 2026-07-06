@@ -318,7 +318,7 @@ export async function registerServiceGroupRoutes(
     appointmentId: z.string().uuid(),
     status: z.enum([
       'OK', 'INVALID_STATUS', 'ALREADY_GROUPED', 'INVALID_TENANT',
-      'INVALID_SERVICE_TYPE', 'INVALID_DATE',
+      'INVALID_SERVICE_TYPE',
       'GROUP_IN_TERMINAL_STATE', 'GROUP_CAPACITY_EXCEEDED',
       'NOT_FOUND', 'ERROR',
     ]),
