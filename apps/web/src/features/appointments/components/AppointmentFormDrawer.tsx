@@ -616,8 +616,8 @@ export function AppointmentFormDrawer({
                     {isInServiceGroup && (
                       <div className="md:col-span-2" id="appointment-schedule-group-note">
                         <InfoBanner>
-                          This appointment belongs to a service group — its date and time are
-                          managed by the group. Reschedule the group from the map view instead.
+                          This appointment belongs to a service group — its date is managed by
+                          the group. You can still adjust the time slot within the group's window.
                         </InfoBanner>
                       </div>
                     )}
@@ -653,7 +653,6 @@ export function AppointmentFormDrawer({
                         endTime={form.timeSlotEnd}
                         onStartChange={(v) => updateField('timeSlotStart', v)}
                         onEndChange={(v) => updateField('timeSlotEnd', v)}
-                        disabled={isInServiceGroup}
                         minStartTime={
                           form.scheduledDate === todayLocalDateString()
                             ? Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date())
