@@ -89,8 +89,9 @@ export function MarketplacePage() {
         onAccept={
           detailGroupId
             ? async () => {
-                await accept(detailGroupId);
-                setDetailGroupId(null);
+                const outcome = await accept(detailGroupId);
+                // Keep the sheet open on retryable failure so the user can try again
+                if (outcome !== 'ERROR') setDetailGroupId(null);
               }
             : undefined
         }

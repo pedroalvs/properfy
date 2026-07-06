@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { formatCurrency } from '@/lib/format-currency';
 import { formatDate } from '@/lib/format-date';
 import { useIsOnline } from '@/hooks/useIsOnline';
@@ -17,20 +17,26 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept, accepting }
   const isOnline = useIsOnline();
   const { showError } = useSnackbar();
   const isOpen = groupId !== null;
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!isOpen) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    sheetRef.current?.focus();
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') onCloseRef.current();
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener('keydown', handleKeyDown);
+      previouslyFocused?.focus();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -49,7 +55,9 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept, accepting }
       onClick={onClose}
     >
       <div
-        className="flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-3xl bg-white shadow-2xl"
+        ref={sheetRef}
+        tabIndex={-1}
+        className="flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-3xl bg-white shadow-2xl outline-none"
         data-testid="group-detail-sheet"
         role="dialog"
         aria-modal="true"

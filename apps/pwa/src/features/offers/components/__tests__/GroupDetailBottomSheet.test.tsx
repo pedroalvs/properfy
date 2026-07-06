@@ -260,6 +260,18 @@ describe('GroupDetailBottomSheet', () => {
     expect(btn).toHaveTextContent('Accepting…');
   });
 
+  it('moves focus into the sheet on open and restores it on unmount', () => {
+    mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    const trigger = document.createElement('button');
+    document.body.appendChild(trigger);
+    trigger.focus();
+    const { unmount } = render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    expect(screen.getByTestId('group-detail-sheet')).toHaveFocus();
+    unmount();
+    expect(trigger).toHaveFocus();
+    trigger.remove();
+  });
+
   it('renders a retry button in the error state that refetches', async () => {
     const refetch = vi.fn();
     mockUseDetail.mockReturnValue({ data: undefined, isLoading: false, isError: true, refetch } as unknown as ReturnType<typeof useMarketplaceOfferDetail>);

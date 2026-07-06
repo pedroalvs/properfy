@@ -152,8 +152,8 @@ describe('MarketplacePage', () => {
       refetch: vi.fn(),
       dataUpdatedAt: Date.now(),
     });
-    let resolveAccept!: () => void;
-    mockAccept.mockImplementation(() => new Promise<void>((resolve) => { resolveAccept = resolve; }));
+    let resolveAccept!: (state: string) => void;
+    mockAccept.mockImplementation(() => new Promise<string>((resolve) => { resolveAccept = resolve; }));
     mockGetState.mockReturnValue('ACCEPTING');
     const user = userEvent.setup();
 
@@ -168,7 +168,41 @@ describe('MarketplacePage', () => {
     // Sheet stays open until accept resolves
     expect(screen.getByTestId('detail-sheet')).toBeInTheDocument();
 
-    resolveAccept();
+    resolveAccept('ACCEPTED');
     await waitFor(() => expect(screen.queryByTestId('detail-sheet')).not.toBeInTheDocument());
+  });
+
+  it('keeps the detail sheet open when accept resolves with a retryable failure', async () => {
+    mockUseIsOnline.mockReturnValue(true);
+    mockUseMarketplaceOffers.mockReturnValue({
+      data: {
+        data: [
+          {
+            groupId: 'grp-1',
+            tenantName: 'Agency',
+            serviceTypeName: 'Routine Inspection',
+            groupSize: 1,
+            scheduledDate: '2026-03-26',
+            timeWindow: '09:00-11:00',
+            priorityMode: 'STANDARD',
+            priorityExpiresAt: null,
+            suburbs: ['Brunswick'],
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+      dataUpdatedAt: Date.now(),
+    });
+    mockAccept.mockResolvedValue('ERROR');
+    const user = userEvent.setup();
+
+    renderWithProviders(<MarketplacePage />);
+    await user.click(screen.getByTestId('view-detail'));
+    await user.click(screen.getByTestId('sheet-accept'));
+
+    expect(mockAccept).toHaveBeenCalledWith('grp-1');
+    await waitFor(() => expect(screen.getByTestId('detail-sheet')).toBeInTheDocument());
   });
 });

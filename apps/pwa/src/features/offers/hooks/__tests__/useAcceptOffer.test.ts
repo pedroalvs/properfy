@@ -112,6 +112,29 @@ describe('useAcceptOffer', () => {
     vi.useRealTimers();
   });
 
+  it('resolves with the final state — ACCEPTED on success, ERROR on retryable failure', async () => {
+    vi.mocked(apiPost).mockResolvedValueOnce({ data: {} });
+    const { result } = renderHook(() => useAcceptOffer());
+
+    let outcome: string | undefined;
+    await act(async () => {
+      outcome = await result.current.accept('group-1');
+    });
+    expect(outcome).toBe('ACCEPTED');
+
+    vi.mocked(apiPost).mockRejectedValueOnce(new Error('Network error'));
+    await act(async () => {
+      outcome = await result.current.accept('group-2');
+    });
+    expect(outcome).toBe('ERROR');
+
+    vi.mocked(apiPost).mockRejectedValueOnce(new ApiError(409, 'Already taken'));
+    await act(async () => {
+      outcome = await result.current.accept('group-3');
+    });
+    expect(outcome).toBe('CONFLICT');
+  });
+
   it('does NOT auto-reset to IDLE when error is CONFLICT (409)', async () => {
     vi.useFakeTimers();
     vi.mocked(apiPost).mockRejectedValueOnce(
