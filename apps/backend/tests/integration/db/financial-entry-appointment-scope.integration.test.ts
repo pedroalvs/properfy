@@ -30,9 +30,10 @@ import type { AuthContext } from '@properfy/shared';
 import { setupDbHarness, teardownDbHarness, type DbHarness } from './harness';
 import { ListFinancialEntriesUseCase } from '../../../src/modules/billing/application/use-cases/list-financial-entries.use-case';
 import { PrismaFinancialEntryRepository } from '../../../src/modules/billing/infrastructure/prisma-financial-entry.repository';
+import type { AuditService } from '../../../src/shared/infrastructure/audit';
 
 function silentAuditService() {
-  return { log: () => {} } as unknown as import('../../../src/shared/infrastructure/audit').AuditService;
+  return { log: () => {} } as unknown as AuditService;
 }
 
 function amActor(): AuthContext {
@@ -47,6 +48,10 @@ function clAdminActor(tenantId: string): AuthContext {
   return { userId: 'cl-admin-actor', tenantId, role: 'CL_ADMIN', branchId: null, inspectorId: null };
 }
 
+function inspActor(tenantId: string, inspectorId: string): AuthContext {
+  return { userId: 'insp-actor', tenantId, role: 'INSP', branchId: null, inspectorId };
+}
+
 interface AppointmentLedgerFixture {
   tenantId: string;
   appointmentId: string;
@@ -57,6 +62,7 @@ interface AppointmentLedgerFixture {
 describe('Appointment-scoped financial ledger (real DB)', () => {
   let harness: DbHarness | undefined;
   let tenantId: string;
+  let inspectorId: string;
   let fixtureA: AppointmentLedgerFixture;
   let fixtureB: AppointmentLedgerFixture;
 
@@ -117,6 +123,7 @@ describe('Appointment-scoped financial ledger (real DB)', () => {
         status: 'ACTIVE',
       },
     });
+    inspectorId = inspector.id;
 
     async function seedAppointmentWithLedger(label: string): Promise<AppointmentLedgerFixture> {
       const appointment = await prisma.appointment.create({
@@ -253,5 +260,19 @@ describe('Appointment-scoped financial ledger (real DB)', () => {
     expect(ids).toContain(fixtureA.tenantDebitId);
     expect(ids).not.toContain(fixtureA.inspectorPayoutId);
     expect(ids).not.toContain(fixtureB.tenantDebitId);
+  });
+
+  it('INSP with appointmentId=A sees only their own A payout (forced inspectorId/entryType scope preserved)', async () => {
+    const useCase = makeUseCase();
+    const result = await useCase.execute({
+      ...defaultInput,
+      appointmentId: fixtureA.appointmentId,
+      actor: inspActor(tenantId, inspectorId),
+    });
+
+    const ids = result.data.map((e) => e.id);
+    expect(ids).toEqual([fixtureA.inspectorPayoutId]);
+    expect(ids).not.toContain(fixtureA.tenantDebitId);
+    expect(ids).not.toContain(fixtureB.inspectorPayoutId);
   });
 });
