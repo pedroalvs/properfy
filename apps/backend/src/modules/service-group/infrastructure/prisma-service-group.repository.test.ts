@@ -10,8 +10,6 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
         group_size: 3,
         scheduled_date: new Date('2026-05-01'),
         time_window: '08:00-12:00',
-        priority_mode: 'STANDARD',
-        priority_expires_at: null,
         service_type: { name: 'Routine' },
         appointments: [
           {

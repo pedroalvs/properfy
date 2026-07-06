@@ -127,6 +127,7 @@ export const propertyResponseSchema = z.object({
   tenantId: z.string().uuid(),
   branchId: z.string().uuid().nullable(),
   branchName: z.string().nullable().optional(),
+  tenantName: z.string().nullable().optional(),
   propertyCode: z.string(),
   type: z.string(),
   street: z.string(),
@@ -219,6 +220,8 @@ export const availabilitySlotResponseSchema = z.object({
   capacity: z.number(),
   bookedCount: z.number().optional(),
   status: z.string(),
+  /** True when the slot was created/managed by an operator (immutable to inspectors). */
+  isOperatorOverride: z.boolean().optional(),
   createdAt: dateStr(),
   updatedAt: dateStr(),
 });
@@ -365,14 +368,6 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
     geolocationDistanceMeters: z.number().nullable(),
     status: z.enum(['IN_PROGRESS', 'FINISHED']),
   }).nullable(),
-  assets: z.array(z.object({
-    id: z.string().uuid(),
-    storageKey: z.string(),
-    mimeType: z.string(),
-    sizeBytes: z.number().nullable(),
-    kind: z.string(),
-    status: z.string(),
-  })),
   /** App credentials linked to this appointment (live reference). */
   apps: z.array(appointmentAppSchema).default([]),
   agencyName: z.string().nullable().optional(),
@@ -441,8 +436,6 @@ export const serviceGroupResponseSchema = z.object({
   timeWindow: z.string(),
   regionName: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
-  priorityMode: z.string(),
-  priorityExpiresAt: dateStrNullable(),
   assignedInspectorId: z.string().uuid().nullable(),
   serviceRegionId: z.string().uuid().nullable().optional(),
   publishedAt: dateStrNullable(),
@@ -470,8 +463,6 @@ export const marketplaceOfferResponseSchema = z.object({
   groupSize: z.number(),
   scheduledDate: dateStr(),
   timeWindow: z.string(),
-  priorityMode: z.string(),
-  priorityExpiresAt: dateStrNullable(),
   suburbs: z.array(z.string()),
   payoutEstimate: z.number().nullable(),
   appointmentCount: z.number(),
@@ -667,20 +658,6 @@ export const inspectionExecutionResponseSchema = z.object({
   notes: z.string().nullable(),
   createdAt: dateStr(),
   updatedAt: dateStr(),
-});
-
-export const inspectionAssetResponseSchema = z.object({
-  id: z.string().uuid(),
-  appointmentId: z.string().uuid(),
-  inspectionExecutionId: z.string().uuid(),
-  storageKey: z.string(),
-  mimeType: z.string(),
-  sizeBytes: z.number().nullable(),
-  kind: z.string(),
-  status: z.string(),
-  uploadedBy: z.string(),
-  uploadUrl: z.string().optional(),
-  createdAt: dateStr(),
 });
 
 // ─── Financial Entry ───────────────────────────────────────────────────────
@@ -986,7 +963,6 @@ export type NotificationResponse = z.infer<typeof notificationResponseSchema>;
 export type NotificationTemplateResponse = z.infer<typeof notificationTemplateResponseSchema>;
 export type ReportResponse = z.infer<typeof reportResponseSchema>;
 export type InspectionExecutionResponse = z.infer<typeof inspectionExecutionResponseSchema>;
-export type InspectionAssetResponse = z.infer<typeof inspectionAssetResponseSchema>;
 export type DashboardStatsResponse = z.infer<typeof dashboardStatsResponseSchema>;
 export type InspectorDayCount = z.infer<typeof inspectorDayCountSchema>;
 export type InspectorBreakdowns = z.infer<typeof inspectorBreakdownsSchema>;

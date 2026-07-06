@@ -60,7 +60,7 @@ export function useAcceptOffer() {
   );
 
   const accept = useCallback(
-    async (groupId: string) => {
+    async (groupId: string): Promise<OfferAcceptState> => {
       clearResetTimer(groupId);
       setState(groupId, 'ACCEPTING');
 
@@ -76,28 +76,30 @@ export function useAcceptOffer() {
         showSuccess('You accepted the group!');
         queryClient.invalidateQueries({ queryKey: ['marketplace', 'offers'] });
         queryClient.invalidateQueries({ queryKey: ['inspector', 'schedule'] });
+        return 'ACCEPTED';
       } catch (err) {
         if (err instanceof ApiError) {
           if (err.status === 409) {
             setState(groupId, 'CONFLICT');
             showInfo('Another inspector accepted first');
-            return;
+            return 'CONFLICT';
           }
           if (err.status === 410 || err.status === 404) {
             setState(groupId, 'GONE');
             showInfo('Offer no longer available');
-            return;
+            return 'GONE';
           }
           if (err.code === 'AVAILABILITY_SLOT_NOT_MATCHED') {
             setState(groupId, 'ERROR');
             showError('No availability slot for this time window — update your availability in Profile');
             scheduleReset(groupId);
-            return;
+            return 'ERROR';
           }
         }
         setState(groupId, 'ERROR');
         showError('Failed to accept — try again');
         scheduleReset(groupId);
+        return 'ERROR';
       }
     },
     [setState, clearResetTimer, scheduleReset, queryClient],

@@ -13,9 +13,6 @@ describe('InProgressPanel', () => {
     checklistTemplate: template,
     checklistResponses: [],
     onChecklistChange: vi.fn(),
-    assets: [],
-    onAddPhoto: vi.fn(),
-    onDeleteAsset: vi.fn(),
     notes: '',
     onNotesChange: vi.fn(),
     onFinish: vi.fn(),
@@ -25,7 +22,6 @@ describe('InProgressPanel', () => {
   it('renders tabs', () => {
     render(<InProgressPanel {...defaultProps} />);
     expect(screen.getByTestId('tab-checklist')).toBeInTheDocument();
-    expect(screen.getByTestId('tab-photos')).toBeInTheDocument();
     expect(screen.getByTestId('tab-notes')).toBeInTheDocument();
   });
 
@@ -76,15 +72,6 @@ describe('InProgressPanel', () => {
       />,
     );
     expect(screen.getByText('1 of 2 checklist items completed')).toBeInTheDocument();
-  });
-
-  it('shows uploading count in finish button when uploads pending', () => {
-    render(
-      <InProgressPanel {...defaultProps} isComplete={false} uploadingCount={3} />,
-    );
-    expect(screen.getByTestId('proceed-to-finish-button')).toHaveTextContent(
-      'Uploading photos... 3 remaining',
-    );
   });
 
   it('shows required remaining in finish button when checklist incomplete', () => {

@@ -212,6 +212,54 @@ describe('GET /v1/inspectors/:inspectorId/availability-slots', () => {
   });
 });
 
+describe('GET /v1/availability-slots (flat) role restriction', () => {
+  const listResult = { data: [fullSlot], total: 1, page: 1, pageSize: 20 };
+
+  // Earlier 400-validation tests can leave an unconsumed jwtVerify `Once` in the
+  // queue (schema validation runs before the auth preHandler), so reset instead
+  // of relying on queue position.
+  beforeEach(() => { mockJwtVerify.mockReset(); });
+
+  it.each(['CL_ADMIN', 'CL_USER'] as const)('should return 403 for %s', async (role) => {
+    mockJwtVerify.mockResolvedValue({ userId: 'u-1', tenantId: 'ten-1', role, branchId: null, inspectorId: null });
+
+    const res = await supertest(app.server)
+      .get(`/v1/availability-slots?inspectorId=${INSPECTOR_ID}`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(403);
+    expect(mockListAvailabilitySlotsExecute).not.toHaveBeenCalled();
+  });
+
+  it('should return 200 for OP with arbitrary inspectorId', async () => {
+    mockJwtVerify.mockResolvedValue({ userId: 'op-1', tenantId: null, role: 'OP', branchId: null, inspectorId: null });
+    mockListAvailabilitySlotsExecute.mockResolvedValueOnce(listResult);
+
+    const res = await supertest(app.server)
+      .get(`/v1/availability-slots?inspectorId=${INSPECTOR_ID}`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(mockListAvailabilitySlotsExecute).toHaveBeenCalledWith(
+      expect.objectContaining({ inspectorId: INSPECTOR_ID }),
+    );
+  });
+
+  it('should force INSP to their own inspectorId, ignoring the query param', async () => {
+    mockJwtVerify.mockResolvedValue({ userId: 'insp-user', tenantId: null, role: 'INSP', branchId: null, inspectorId: INSPECTOR_ID });
+    mockListAvailabilitySlotsExecute.mockResolvedValueOnce(listResult);
+
+    const res = await supertest(app.server)
+      .get('/v1/availability-slots?inspectorId=99eebc99-9c0b-4ef8-bb6d-6bb9bd380a99')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(mockListAvailabilitySlotsExecute).toHaveBeenCalledWith(
+      expect.objectContaining({ inspectorId: INSPECTOR_ID }),
+    );
+  });
+});
+
 describe('PATCH /v1/inspectors/:inspectorId/availability-slots/:slotId', () => {
   it('should return 200 on successful update', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);

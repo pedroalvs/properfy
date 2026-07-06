@@ -14,6 +14,7 @@ export interface GetPropertyOutput {
   tenantId: string;
   branchId: string | null;
   branchName: string | null;
+  tenantName: string | null;
   propertyCode: string;
   type: string;
   street: string;
@@ -74,6 +75,7 @@ export class GetPropertyUseCase {
       tenantId: found.property.tenantId,
       branchId: found.property.branchId,
       branchName: found.branchName,
+      tenantName: found.tenantName,
       propertyCode: found.property.propertyCode,
       type: found.property.type,
       street: found.property.street,

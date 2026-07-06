@@ -5,6 +5,7 @@ export interface Property {
   tenantId: string;
   branchId: string | null;
   branchName: string | null;
+  tenantName: string | null;
   propertyCode: string;
   type: PropertyType;
   street: string;

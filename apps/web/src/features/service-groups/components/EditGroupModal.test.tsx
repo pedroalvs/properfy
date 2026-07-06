@@ -29,7 +29,6 @@ const mockServiceGroup = {
   inspectorId: null,
   inspectorName: null,
   status: 'DRAFT' as const,
-  priorityMode: 'STANDARD' as const,
   appointmentsCount: 3,
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
@@ -183,7 +182,7 @@ describe('EditGroupModal', () => {
     expect(screen.getByLabelText('Scheduled date')).toBeInTheDocument();
     expect(screen.getByLabelText('Start time')).toBeInTheDocument();
     expect(screen.getByLabelText('End time')).toBeInTheDocument();
-    expect(screen.getByText('Priority Mode')).toBeInTheDocument();
+    expect(screen.queryByText('Priority Mode')).not.toBeInTheDocument();
   });
 
   it('hides draft-only fields when status is not DRAFT', () => {

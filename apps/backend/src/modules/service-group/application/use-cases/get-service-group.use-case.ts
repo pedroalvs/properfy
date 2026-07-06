@@ -24,8 +24,6 @@ export interface GetServiceGroupOutput {
   serviceRegionId: string | null;
   regionName: string | null;
   description: string | null;
-  priorityMode: string;
-  priorityExpiresAt: Date | null;
   assignedInspectorId: string | null;
   assignedInspectorName: string | null;
   publishedAt: Date | null;
@@ -78,8 +76,6 @@ export class GetServiceGroupUseCase {
       serviceRegionId: group.serviceRegionId,
       regionName: group.regionName,
       description: group.description,
-      priorityMode: group.priorityMode,
-      priorityExpiresAt: group.priorityExpiresAt,
       assignedInspectorId: group.assignedInspectorId,
       assignedInspectorName: assignedInspectorName ?? null,
       publishedAt: group.publishedAt,

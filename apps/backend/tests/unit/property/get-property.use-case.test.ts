@@ -11,8 +11,9 @@ import type { PropertyWithBranch } from '../../../src/modules/property/domain/pr
 function makePropertyWithBranch(
   overrides: Partial<ConstructorParameters<typeof PropertyEntity>[0]> = {},
   branchName: string | null = null,
+  tenantName: string | null = null,
 ): PropertyWithBranch {
-  return { property: makeProperty(overrides), branchName };
+  return { property: makeProperty(overrides), branchName, tenantName };
 }
 
 function makeProperty(
@@ -72,7 +73,9 @@ describe('GetPropertyUseCase', () => {
   });
 
   it('should return property for AM', async () => {
-    vi.mocked(propertyRepo.findByIdWithBranch).mockResolvedValue(makePropertyWithBranch({}, 'Main Branch'));
+    vi.mocked(propertyRepo.findByIdWithBranch).mockResolvedValue(
+      makePropertyWithBranch({}, 'Main Branch', 'Acme Realty'),
+    );
 
     const result = await useCase.execute({
       propertyId: 'prop-1',
@@ -84,6 +87,7 @@ describe('GetPropertyUseCase', () => {
     expect(result.propertyCode).toBe('PROP-001');
     expect(result.tenantId).toBe('tenant-1');
     expect(result.branchName).toBe('Main Branch');
+    expect(result.tenantName).toBe('Acme Realty');
   });
 
   it('should return property for CL_ADMIN with matching tenantId', async () => {

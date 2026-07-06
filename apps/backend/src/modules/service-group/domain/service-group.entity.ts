@@ -1,5 +1,5 @@
 import { BaseEntity } from '../../../shared/domain/entity';
-import type { ServiceGroupStatus, PriorityMode } from '@properfy/shared';
+import type { ServiceGroupStatus } from '@properfy/shared';
 
 export interface ServiceGroupProps {
   id: string;
@@ -15,8 +15,6 @@ export interface ServiceGroupProps {
   timeWindow: string;
   regionName: string | null;
   description: string | null;
-  priorityMode: PriorityMode;
-  priorityExpiresAt: Date | null;
   assignedInspectorId: string | null;
   serviceRegionId: string | null;
   publishedAt: Date | null;
@@ -38,8 +36,6 @@ export class ServiceGroupEntity extends BaseEntity {
   readonly timeWindow: string;
   regionName: string | null;
   description: string | null;
-  readonly priorityMode: PriorityMode;
-  priorityExpiresAt: Date | null;
   assignedInspectorId: string | null;
   serviceRegionId: string | null;
   publishedAt: Date | null;
@@ -58,8 +54,6 @@ export class ServiceGroupEntity extends BaseEntity {
     this.timeWindow = props.timeWindow;
     this.regionName = props.regionName ?? null;
     this.description = props.description ?? null;
-    this.priorityMode = props.priorityMode;
-    this.priorityExpiresAt = props.priorityExpiresAt;
     this.assignedInspectorId = props.assignedInspectorId;
     this.serviceRegionId = props.serviceRegionId;
     this.publishedAt = props.publishedAt;
@@ -89,12 +83,5 @@ export class ServiceGroupEntity extends BaseEntity {
 
   canBeRepublished(): boolean {
     return this.status === 'CANCELLED';
-  }
-
-  isPriorityExpired(now: Date = new Date()): boolean {
-    if (this.priorityMode !== 'PRIORITY_24H' || !this.priorityExpiresAt) {
-      return false;
-    }
-    return this.priorityExpiresAt <= now;
   }
 }

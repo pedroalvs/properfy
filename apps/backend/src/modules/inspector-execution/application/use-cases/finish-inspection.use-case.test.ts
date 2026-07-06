@@ -14,7 +14,6 @@ const INSP_ACTOR = {
 
 function buildUseCase(overrides: {
   executionRepo?: Record<string, unknown>;
-  assetRepo?: Record<string, unknown>;
   appointmentRepo?: Record<string, unknown>;
 } = {}) {
   const executionRepo = overrides.executionRepo ?? {
@@ -27,12 +26,6 @@ function buildUseCase(overrides: {
     }),
     update: vi.fn(),
   };
-  const assetRepo = overrides.assetRepo ?? {
-    findUploadedByExecutionId: vi.fn().mockResolvedValue([
-      { kind: 'PHOTO', isUploaded: () => true },
-    ]),
-    findById: vi.fn(),
-  };
   const appointmentRepo = overrides.appointmentRepo ?? {
     findById: vi.fn().mockResolvedValue({
       appointment: { tenantId: 'tenant-1', serviceTypeId: null },
@@ -42,12 +35,10 @@ function buildUseCase(overrides: {
   const auditService = { log: vi.fn() } as never;
   return new FinishInspectionUseCase(
     executionRepo as never,
-    assetRepo as never,
     { get: vi.fn().mockResolvedValue(null), set: vi.fn() } as never,
     { execute: vi.fn().mockResolvedValue({ status: 'DONE' }) } as never,
     appointmentRepo as never,
     auditService,
-    undefined,
     new AuthorizationService(auditService),
   );
 }
@@ -67,12 +58,10 @@ describe('FinishInspectionUseCase', () => {
     const auditService = { log: vi.fn() } as never;
     const useCase = new FinishInspectionUseCase(
       executionRepo as never,
-      { findUploadedByExecutionId: vi.fn() } as never,
       { get: vi.fn().mockResolvedValue(null), set: vi.fn() } as never,
       { execute: vi.fn() } as never,
       { findById: vi.fn().mockResolvedValue({ appointment: { tenantId: 'tenant-1' } }) } as never,
       auditService,
-      undefined,
       new AuthorizationService(auditService),
     );
 

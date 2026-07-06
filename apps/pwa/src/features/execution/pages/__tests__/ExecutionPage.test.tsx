@@ -37,16 +37,6 @@ vi.mock('../../hooks/useFinishInspection', () => ({
   useFinishInspection: vi.fn(),
 }));
 
-vi.mock('../../hooks/useAssetUpload', () => ({
-  useAssetUpload: () => ({
-    assets: [],
-    addAsset: vi.fn(),
-    removeAsset: vi.fn(),
-    retryFailed: vi.fn(),
-    completedAssets: [],
-  }),
-}));
-
 vi.mock('../../components/PreStartPanel', () => ({
   PreStartPanel: ({ onStart }: { onStart: (location: { latitude: number; longitude: number; capturedAt: string }) => void }) => (
     <button
@@ -158,7 +148,6 @@ describe('ExecutionPage', () => {
         checklistTemplate: [],
         checklistResponses: [],
         notes: '',
-        assets: [],
         startedAt: null,
         errorMessage: null,
         lastSavedAt: null,
@@ -199,7 +188,6 @@ describe('ExecutionPage', () => {
         checklistTemplate: [],
         checklistResponses: [],
         notes: '',
-        assets: [],
         startedAt: null,
         errorMessage: null,
         lastSavedAt: null,
@@ -251,7 +239,6 @@ describe('ExecutionPage', () => {
         checklistTemplate: [],
         checklistResponses: [],
         notes: 'All good',
-        assets: [],
         startedAt: '2026-03-24T09:00:00.000Z',
         errorMessage: null,
         lastSavedAt: null,

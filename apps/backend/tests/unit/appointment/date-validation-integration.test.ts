@@ -170,7 +170,6 @@ describe('CreateServiceGroupUseCase — TZ-aware date validation', () => {
       linkAppointments: vi.fn().mockResolvedValue(undefined),
     } as unknown as IServiceGroupRepository;
     const serviceRegionRepo = { findById: vi.fn() };
-    const tenantRepo = { findById: vi.fn().mockResolvedValue({ tenant: { id: 'tenant-1' } }) };
     const auditService = { log: vi.fn() };
     const authService = makeAuthService();
 
@@ -181,7 +180,6 @@ describe('CreateServiceGroupUseCase — TZ-aware date validation', () => {
       auditService as any,
       authService,
       serviceRegionRepo as any,
-      tenantRepo as any,
     );
   }
 
@@ -190,7 +188,8 @@ describe('CreateServiceGroupUseCase — TZ-aware date validation', () => {
     await expect(uc.execute({
       appointmentIds: ['a-1'], serviceTypeId: 'svc-1',
       scheduledDate: PAST, timeWindow: '09:00-17:00',
-      priorityMode: 'STANDARD', actorTimezone: TZ, actor: actorOp,
+      actorTimezone: TZ,
+      actor: actorOp,
     })).rejects.toThrow(ServiceGroupDateInPastError);
   });
 
@@ -199,7 +198,8 @@ describe('CreateServiceGroupUseCase — TZ-aware date validation', () => {
     await expect(uc.execute({
       appointmentIds: ['a-1'], serviceTypeId: 'svc-1',
       scheduledDate: TODAY, timeWindow: '09:00-10:00',
-      priorityMode: 'STANDARD', actorTimezone: TZ, actor: actorOp,
+      actorTimezone: TZ,
+      actor: actorOp,
     })).rejects.toThrow(ServiceGroupTimeInPastError);
   });
 });

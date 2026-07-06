@@ -5,7 +5,6 @@ import type { CapturedLocation } from '../types';
 
 interface FinishingPanelProps {
   checklistCount: number;
-  assetCount: number;
   notes: string;
   onSubmit: (location: CapturedLocation) => void;
   isSubmitting: boolean;
@@ -15,7 +14,6 @@ interface FinishingPanelProps {
 
 export function FinishingPanel({
   checklistCount,
-  assetCount,
   notes,
   onSubmit,
   isSubmitting,
@@ -34,10 +32,6 @@ export function FinishingPanel({
           <div className="flex justify-between">
             <span>Checklist items</span>
             <span className="font-semibold">{checklistCount}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Photos</span>
-            <span className="font-semibold">{assetCount}</span>
           </div>
           <div className="flex justify-between">
             <span>Notes</span>

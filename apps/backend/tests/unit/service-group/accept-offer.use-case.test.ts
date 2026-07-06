@@ -16,7 +16,6 @@ import {
   InspectorIneligibleError,
   InspectorServiceTypeIneligibleError,
   InspectorInactiveError,
-  PriorityExpiredError,
 } from '../../../src/modules/service-group/domain/service-group.errors';
 import type { IAvailabilitySlotRepository } from '../../../src/modules/inspector/domain/availability-slot.repository';
 
@@ -31,8 +30,6 @@ function makeGroup(overrides: Partial<ConstructorParameters<typeof ServiceGroupE
     confirmedCount: 0,
     scheduledDate: new Date('2026-04-01'),
     timeWindow: '08:00-12:00',
-    priorityMode: 'STANDARD',
-    priorityExpiresAt: null,
     assignedInspectorId: null,
     publishedAt: new Date(),
     assignedAt: null,
@@ -380,25 +377,6 @@ describe('AcceptOfferUseCase', () => {
     ).rejects.toThrow(InspectorIneligibleError);
   });
 
-  it('should throw PriorityExpiredError for expired PRIORITY_24H', async () => {
-    const expiredDate = new Date('2026-03-14T00:00:00Z');
-    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
-    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
-      makeGroupWithAppointments({
-        priorityMode: 'PRIORITY_24H',
-        priorityExpiresAt: expiredDate,
-      }),
-    );
-
-    await expect(
-      useCase.execute({
-        groupId: 'group-1',
-        inspectorId: 'inspector-1',
-        actor: makeActor(),
-      }),
-    ).rejects.toThrow(PriorityExpiredError);
-  });
-
   it('should throw GroupAlreadyAcceptedError when acceptOptimistic returns 0 (race condition)', async () => {
     vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
     vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
@@ -495,4 +473,3 @@ describe('AcceptOfferUseCase', () => {
   });
 
 });
-

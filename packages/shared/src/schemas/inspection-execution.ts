@@ -31,10 +31,6 @@ export const finishInspectionSchema = z.object({
   longitude: z.number().min(-180).max(180),
   checklistJson: z.record(z.unknown()).optional(),
   notes: z.string().max(5000).optional(),
-  assets: z.array(z.object({
-    assetId: z.string().uuid(),
-    storageKey: z.string().min(1),
-  })).optional().default([]),
 });
 
 export type FinishInspectionInput = z.infer<typeof finishInspectionSchema>;
@@ -44,15 +40,6 @@ export const reopenExecutionSchema = z.object({
 });
 
 export type ReopenExecutionInput = z.infer<typeof reopenExecutionSchema>;
-
-export const requestAssetUploadSchema = z.object({
-  // DOCUMENT/SIGNATURE are reserved in the DB enum but not yet supported in the execution flow
-  kind: z.literal('PHOTO'),
-  mimeType: z.string().min(1),
-  fileName: z.string().min(1).max(255),
-});
-
-export type RequestAssetUploadInput = z.infer<typeof requestAssetUploadSchema>;
 
 export const saveExecutionProgressSchema = z.object({
   checklistJson: z.record(z.unknown()).optional(),

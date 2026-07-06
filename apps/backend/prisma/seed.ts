@@ -850,8 +850,7 @@ async function main() {
       scheduled_date: futureDate(10),
       time_window: '09:00-17:00',
       region_name: 'Sydney CBD',
-      description: 'Routine inspections for Sydney CBD properties, standard priority.',
-      priority_mode: 'STANDARD',
+      description: 'Routine inspections for Sydney CBD properties.',
       published_at: new Date(),
       created_by_user_id: IDS.userOP,
     },
@@ -871,7 +870,6 @@ async function main() {
       time_window: '08:00-16:00',
       region_name: 'North Shore',
       description: 'Ingoing inspections for new tenants moving in.',
-      priority_mode: 'STANDARD',
       created_by_user_id: IDS.userOP,
     },
   });
@@ -890,8 +888,6 @@ async function main() {
       time_window: '09:00-17:00',
       region_name: 'Inner West',
       description: 'Accepted routine inspections for Inner West area.',
-      priority_mode: 'PRIORITY_24H',
-      priority_expires_at: futureDate(1),
       assigned_inspector_id: IDS.inspectorIndep,
       published_at: pastDate(2),
       assigned_at: pastDate(1),
@@ -913,7 +909,6 @@ async function main() {
       time_window: '09:00-17:00',
       region_name: 'Eastern Suburbs',
       description: 'Cancelled due to inspector unavailability.',
-      priority_mode: 'STANDARD',
       published_at: pastDate(5),
       created_by_user_id: IDS.userOP,
     },
@@ -934,7 +929,6 @@ async function main() {
       time_window: '09:00-17:00',
       region_name: 'Melbourne CBD',
       description: 'Routine inspections for Melbourne CBD properties.',
-      priority_mode: 'STANDARD',
       published_at: new Date(),
       created_by_user_id: IDS.userOP,
     },
@@ -954,8 +948,6 @@ async function main() {
       time_window: '08:00-16:00',
       region_name: 'Richmond',
       description: 'Accepted routine inspections for Richmond area.',
-      priority_mode: 'PRIORITY_24H',
-      priority_expires_at: futureDate(2),
       assigned_inspector_id: IDS.inspectorLinked2,
       published_at: pastDate(3),
       assigned_at: pastDate(1),
@@ -963,7 +955,7 @@ async function main() {
     },
   });
 
-  console.log('Service groups: 6 created (4 tenant1 + 2 tenant2, all statuses + priority modes)');
+  console.log('Service groups: 6 created (4 tenant1 + 2 tenant2, all statuses)');
 
   // Link appointments to service groups
   await prisma.appointment.update({ where: { id: IDS.apptAwaiting }, data: { service_group_id: IDS.serviceGroup } });

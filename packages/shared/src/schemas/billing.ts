@@ -5,6 +5,7 @@ export const listFinancialEntriesQuerySchema = z.object({
   status: z.enum(['PENDING', 'APPROVED', 'CANCELLED', 'VOIDED']).optional(),
   inspectorId: z.string().uuid().optional(),
   tenantId: z.string().uuid().optional(),
+  appointmentId: z.string().uuid().optional(),
   fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD').optional(),
   toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD').optional(),
   page: z.coerce.number().int().min(1).default(1),

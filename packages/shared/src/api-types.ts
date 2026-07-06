@@ -2316,6 +2316,7 @@ export interface paths {
                                 /** Format: uuid */
                                 branchId: string | null;
                                 branchName?: string | null;
+                                tenantName?: string | null;
                                 propertyCode: string;
                                 type: string;
                                 street: string;
@@ -2419,6 +2420,7 @@ export interface paths {
                                 /** Format: uuid */
                                 branchId: string | null;
                                 branchName?: string | null;
+                                tenantName?: string | null;
                                 propertyCode: string;
                                 type: string;
                                 street: string;
@@ -2494,6 +2496,7 @@ export interface paths {
                                 /** Format: uuid */
                                 branchId: string | null;
                                 branchName?: string | null;
+                                tenantName?: string | null;
                                 propertyCode: string;
                                 type: string;
                                 street: string;
@@ -2616,6 +2619,7 @@ export interface paths {
                                 /** Format: uuid */
                                 branchId: string | null;
                                 branchName?: string | null;
+                                tenantName?: string | null;
                                 propertyCode: string;
                                 type: string;
                                 street: string;
@@ -3604,6 +3608,7 @@ export interface paths {
                                 capacity: number;
                                 bookedCount?: number;
                                 status: string;
+                                isOperatorOverride?: boolean;
                                 createdAt: string;
                                 updatedAt: string;
                             }[];
@@ -3666,6 +3671,7 @@ export interface paths {
                                 capacity: number;
                                 bookedCount?: number;
                                 status: string;
+                                isOperatorOverride?: boolean;
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -3741,6 +3747,7 @@ export interface paths {
                                 capacity: number;
                                 bookedCount?: number;
                                 status: string;
+                                isOperatorOverride?: boolean;
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -3798,6 +3805,7 @@ export interface paths {
                                 capacity: number;
                                 bookedCount?: number;
                                 status: string;
+                                isOperatorOverride?: boolean;
                                 createdAt: string;
                                 updatedAt: string;
                             }[];
@@ -3862,6 +3870,7 @@ export interface paths {
                                 capacity: number;
                                 bookedCount?: number;
                                 status: string;
+                                isOperatorOverride?: boolean;
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -3938,6 +3947,7 @@ export interface paths {
                                 capacity: number;
                                 bookedCount?: number;
                                 status: string;
+                                isOperatorOverride?: boolean;
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -6118,7 +6128,6 @@ export interface paths {
                     serviceTypeId?: string;
                     scheduledDateFrom?: string;
                     scheduledDateTo?: string;
-                    priorityMode?: "STANDARD" | "PRIORITY_24H";
                     includeAppointments?: boolean | "true" | "false";
                     search?: string;
                     branchId?: string;
@@ -6159,8 +6168,6 @@ export interface paths {
                                 timeWindow: string;
                                 regionName?: string | null;
                                 description?: string | null;
-                                priorityMode: string;
-                                priorityExpiresAt: (string) | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
                                 /** Format: uuid */
@@ -6205,11 +6212,6 @@ export interface paths {
                         /** Format: uuid */
                         serviceRegionId?: string | null;
                         description?: string;
-                        /**
-                         * @default STANDARD
-                         * @enum {string}
-                         */
-                        priorityMode?: "STANDARD" | "PRIORITY_24H";
                         actorTimezone?: string;
                     };
                 };
@@ -6244,8 +6246,6 @@ export interface paths {
                                 timeWindow: string;
                                 regionName?: string | null;
                                 description?: string | null;
-                                priorityMode: string;
-                                priorityExpiresAt: (string) | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
                                 /** Format: uuid */
@@ -6318,8 +6318,6 @@ export interface paths {
                                 timeWindow: string;
                                 regionName?: string | null;
                                 description?: string | null;
-                                priorityMode: string;
-                                priorityExpiresAt: (string) | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
                                 /** Format: uuid */
@@ -6361,8 +6359,6 @@ export interface paths {
                         description?: string;
                         scheduledDate?: string;
                         timeWindow?: string;
-                        /** @enum {string} */
-                        priorityMode?: "STANDARD" | "PRIORITY_24H";
                         actorTimezone?: string;
                     };
                 };
@@ -6397,8 +6393,6 @@ export interface paths {
                                 timeWindow: string;
                                 regionName?: string | null;
                                 description?: string | null;
-                                priorityMode: string;
-                                priorityExpiresAt: (string) | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
                                 /** Format: uuid */
@@ -6469,8 +6463,6 @@ export interface paths {
                                 timeWindow: string;
                                 regionName?: string | null;
                                 description?: string | null;
-                                priorityMode: string;
-                                priorityExpiresAt: (string) | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
                                 /** Format: uuid */
@@ -6552,8 +6544,6 @@ export interface paths {
                                 timeWindow: string;
                                 regionName?: string | null;
                                 description?: string | null;
-                                priorityMode: string;
-                                priorityExpiresAt: (string) | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
                                 /** Format: uuid */
@@ -7042,8 +7032,6 @@ export interface paths {
                                 groupSize: number;
                                 scheduledDate: string;
                                 timeWindow: string;
-                                priorityMode: string;
-                                priorityExpiresAt: (string) | null;
                                 suburbs: string[];
                                 payoutEstimate: number | null;
                                 appointmentCount: number;
@@ -7106,8 +7094,6 @@ export interface paths {
                                 groupSize: number;
                                 scheduledDate: string;
                                 timeWindow: string;
-                                priorityMode: string;
-                                priorityExpiresAt: (string) | null;
                                 suburbs: string[];
                                 payoutEstimate: number | null;
                                 appointmentCount: number;
@@ -8535,15 +8521,6 @@ export interface paths {
                                     /** @enum {string} */
                                     status: "IN_PROGRESS" | "FINISHED";
                                 } | null;
-                                assets: {
-                                    /** Format: uuid */
-                                    id: string;
-                                    storageKey: string;
-                                    mimeType: string;
-                                    sizeBytes: number | null;
-                                    kind: string;
-                                    status: string;
-                                }[];
                                 /** @default [] */
                                 apps: {
                                     /** Format: uuid */
@@ -8702,12 +8679,6 @@ export interface paths {
                             [key: string]: unknown;
                         };
                         notes?: string;
-                        /** @default [] */
-                        assets?: {
-                            /** Format: uuid */
-                            assetId: string;
-                            storageKey: string;
-                        }[];
                     };
                 };
             };
@@ -8826,124 +8797,6 @@ export interface paths {
         };
         trace?: never;
     };
-    "/v1/inspector/appointments/{appointmentId}/assets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    appointmentId: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        kind: "PHOTO";
-                        mimeType: string;
-                        fileName: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description Default Response */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                /** Format: uuid */
-                                appointmentId: string;
-                                /** Format: uuid */
-                                inspectionExecutionId: string;
-                                storageKey: string;
-                                mimeType: string;
-                                sizeBytes: number | null;
-                                kind: string;
-                                status: string;
-                                uploadedBy: string;
-                                uploadUrl?: string;
-                                createdAt: string;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/inspector/appointments/{appointmentId}/assets/{assetId}/confirm": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    appointmentId: string;
-                    assetId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                /** Format: uuid */
-                                appointmentId: string;
-                                /** Format: uuid */
-                                inspectionExecutionId: string;
-                                storageKey: string;
-                                mimeType: string;
-                                sizeBytes: number | null;
-                                kind: string;
-                                status: string;
-                                uploadedBy: string;
-                                uploadUrl?: string;
-                                createdAt: string;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        trace?: never;
-    };
     "/v1/inspector/offers": {
         parameters: {
             query?: never;
@@ -8982,8 +8835,6 @@ export interface paths {
                                 groupSize: number;
                                 scheduledDate: string;
                                 timeWindow: string;
-                                priorityMode: string;
-                                priorityExpiresAt: (string) | null;
                                 suburbs: string[];
                                 payoutEstimate: number | null;
                                 appointmentCount: number;
@@ -8998,98 +8849,6 @@ export interface paths {
                                 total: number;
                                 totalPages: number;
                             };
-                        };
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/appointments/{appointmentId}/assets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    appointmentId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                storageKey: string;
-                                mimeType: string;
-                                sizeBytes: number | null;
-                                kind: string;
-                                status: string;
-                                originalFilename: string | null;
-                                createdAt: string;
-                            }[];
-                        };
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/appointments/{appointmentId}/assets/{assetId}/download": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    appointmentId: string;
-                    assetId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** Format: uri */
-                            downloadUrl: string;
-                            fileName: string | null;
-                            mimeType: string;
                         };
                     };
                 };
@@ -9339,6 +9098,7 @@ export interface paths {
                     status?: "PENDING" | "APPROVED" | "CANCELLED" | "VOIDED";
                     inspectorId?: string;
                     tenantId?: string;
+                    appointmentId?: string;
                     fromDate?: string;
                     toDate?: string;
                     page?: number;

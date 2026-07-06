@@ -78,8 +78,6 @@ const draftOutput = {
   name: 'Updated name',
   regionName: null,
   description: null,
-  priorityMode: 'STANDARD',
-  priorityExpiresAt: null,
   assignedInspectorId: null,
   serviceRegionId: null,
   publishedAt: null,

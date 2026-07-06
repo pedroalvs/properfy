@@ -28,20 +28,6 @@ export interface ChecklistResponse {
   value: boolean | string | number | null;
 }
 
-export type AssetUploadStatus = 'pending' | 'uploading' | 'done' | 'error';
-
-export interface AssetUploadState {
-  localId: string;
-  assetId: string | null;
-  filename: string;
-  contentType: string;
-  blobUrl: string;
-  status: AssetUploadStatus;
-  progress: number;
-  uploadUrl: string | null;
-  storageKey: string | null;
-}
-
 export interface ExecutionState {
   appointmentId: string;
   phase: ExecutionPhase;
@@ -51,7 +37,6 @@ export interface ExecutionState {
   checklistTemplate: ChecklistTemplateItem[];
   checklistResponses: ChecklistResponse[];
   notes: string;
-  assets: AssetUploadState[];
   startedAt: string | null;
   errorMessage: string | null;
   lastSavedAt: string | null;

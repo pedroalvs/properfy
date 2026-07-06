@@ -19,6 +19,7 @@ export interface ListFinancialEntriesInput {
   status?: string;
   inspectorId?: string;
   tenantId?: string;
+  appointmentId?: string;
   fromDate?: string;
   toDate?: string;
   page: number;
@@ -136,6 +137,11 @@ export class ListFinancialEntriesUseCase {
     } else {
       throw new ForbiddenError('FORBIDDEN', 'Not authorized to list financial entries');
     }
+
+    // Additive filter, applied after role-scoping above — never a bypass.
+    // AM/OP see the appointment's full ledger; agencies/inspectors keep
+    // their existing entry-type and tenant/inspector restrictions.
+    if (input.appointmentId) filters.appointmentId = input.appointmentId;
 
     if (input.fromDate) filters.fromDate = input.fromDate;
     if (input.toDate) filters.toDate = input.toDate;

@@ -25,8 +25,6 @@ function makeGroup(
     confirmedCount: 0,
     scheduledDate: new Date('2026-06-01'),
     timeWindow: '09:00-12:00',
-    priorityMode: 'STANDARD',
-    priorityExpiresAt: null,
     assignedInspectorId: null,
     publishedAt: null,
     assignedAt: null,
@@ -109,7 +107,6 @@ describe('RepublishServiceGroupUseCase', () => {
       status: 'DRAFT',
       assignedInspectorId: null,
       assignedAt: null,
-      priorityExpiresAt: null,
       publishedAt: null,
     });
   });
@@ -134,7 +131,7 @@ describe('RepublishServiceGroupUseCase', () => {
         entityId: 'group-1',
         tenantId: 'tenant-1',
         before: expect.objectContaining({ status: 'CANCELLED' }),
-        after: expect.objectContaining({ status: 'DRAFT', assignedInspectorId: null, priorityExpiresAt: null }),
+        after: expect.objectContaining({ status: 'DRAFT', assignedInspectorId: null,}),
         reason: 'Client wants to retry',
       }),
     );
@@ -257,13 +254,11 @@ describe('RepublishServiceGroupUseCase', () => {
     expect(result.status).toBe('DRAFT');
   });
 
-  it('should clear assignedInspectorId and priorityExpiresAt', async () => {
-    const expiresAt = new Date('2026-05-30');
+  it('should clear assignedInspectorId and publication fields', async () => {
     vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
       makeGroupWithAppointments({
         status: 'CANCELLED',
         assignedInspectorId: 'insp-42',
-        priorityExpiresAt: expiresAt,
       }),
     );
 
@@ -274,7 +269,6 @@ describe('RepublishServiceGroupUseCase', () => {
 
     expect(serviceGroupRepo.update).toHaveBeenCalledWith('group-1', expect.objectContaining({
       assignedInspectorId: null,
-      priorityExpiresAt: null,
       publishedAt: null,
       assignedAt: null,
     }));

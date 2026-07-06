@@ -10,16 +10,9 @@ interface OfferCardProps {
 }
 
 export function OfferCard({ offer, selected, onClick, onAccept }: OfferCardProps) {
-  const isPriority = offer.priorityMode === 'PRIORITY_24H';
-
   const borderColor = selected
     ? 'border-secondary'
-    : isPriority
-      ? 'border-[#FF9800]'
-      : 'border-primary';
-
-  const badgeBg = isPriority ? 'bg-[#FFF3E0] text-[#E65100]' : 'bg-[#E3F2FD] text-[#1565C0]';
-  const badgeLabel = isPriority ? '24h Priority' : 'Standard';
+    : 'border-primary';
 
   return (
     <div
@@ -46,9 +39,6 @@ export function OfferCard({ offer, selected, onClick, onAccept }: OfferCardProps
           </h3>
           <p className="text-xs text-text-secondary">{offer.tenantName}</p>
         </div>
-        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${badgeBg}`} data-testid="priority-badge">
-          {badgeLabel}
-        </span>
       </div>
 
       <div className="mb-3 grid grid-cols-2 gap-2 text-xs">

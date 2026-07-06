@@ -134,8 +134,18 @@ export class AppointmentInServiceGroupError extends DomainError {
   constructor() {
     super(
       'APPOINTMENT_IN_SERVICE_GROUP',
-      'Date/time of an appointment in a service group is managed by the group; reschedule the group instead',
+      'Date of an appointment in a service group is managed by the group; reschedule the group instead',
       409,
+    );
+  }
+}
+
+export class AppointmentTimeSlotOutsideGroupWindowError extends DomainError {
+  constructor() {
+    super(
+      'APPOINTMENT_TIME_SLOT_OUTSIDE_GROUP_WINDOW',
+      "New time slot must fall within the service group's time window",
+      422,
     );
   }
 }

@@ -5,14 +5,12 @@ import type { AuthorizationService } from '../../../../shared/domain/authorizati
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { IServiceRegionRepository } from '../../../service-region/domain/service-region.repository';
-import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import { ServiceGroupEntity } from '../../domain/service-group.entity';
 import { ServiceGroupValidator } from '../../domain/service-group.validator';
 import { AppointmentNotFoundError } from '../../../appointment/domain/appointment.errors';
-import { PriorityDateTooCloseError, ServiceRegionInactiveError, ServiceGroupDateInPastError, ServiceGroupTimeInPastError } from '../../domain/service-group.errors';
+import { ServiceRegionInactiveError, ServiceGroupDateInPastError, ServiceGroupTimeInPastError } from '../../domain/service-group.errors';
 import { validateNewSchedule } from '@properfy/shared';
 import { NotFoundError } from '../../../../shared/domain/errors';
-import type { PriorityMode } from '@properfy/shared';
 import { SystemClock, type Clock } from '../../../../shared/domain/clock';
 import { trySyncAppointmentTimeSlotToGroup, type ServiceGroupTimeSyncLogger } from '../sync-appointment-time-slot-to-group';
 
@@ -23,7 +21,6 @@ export interface CreateServiceGroupInput {
   timeWindow: string; // HH:mm-HH:mm
   serviceRegionId?: string | null;
   description?: string;
-  priorityMode: PriorityMode;
   actorTimezone?: string;
   actor: AuthContext;
 }
@@ -42,8 +39,6 @@ export interface CreateServiceGroupOutput {
   timeWindow: string;
   regionName: string | null;
   description: string | null;
-  priorityMode: string;
-  priorityExpiresAt: Date | null;
   assignedInspectorId: string | null;
   serviceRegionId: string | null;
   publishedAt: Date | null;
@@ -60,7 +55,6 @@ export class CreateServiceGroupUseCase {
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
     private readonly serviceRegionRepo: IServiceRegionRepository,
-    private readonly tenantRepo?: ITenantRepository,
     private readonly clock: Clock = new SystemClock(),
     private readonly logger: ServiceGroupTimeSyncLogger = { error: () => undefined },
   ) {}
@@ -111,30 +105,7 @@ export class CreateServiceGroupUseCase {
     // 3. Validate via domain validator (status / service type / not-already-grouped)
     ServiceGroupValidator.validate(appointments, input.serviceTypeId);
 
-    // 4. Calculate priority expiry
-    let priorityExpiresAt: Date | null = null;
-    if (input.priorityMode === 'PRIORITY_24H') {
-      // Read configurable priority hours from the agency's settings (single-agency
-      // groups only); mixed-agency groups fall back to the platform default of 24h.
-      let priorityOfferHours = 24;
-      if (this.tenantRepo && primaryTenantId) {
-        const tenant = await this.tenantRepo.findById(primaryTenantId);
-        if (tenant?.settingsJson && typeof tenant.settingsJson.priorityOfferHours === 'number') {
-          priorityOfferHours = tenant.settingsJson.priorityOfferHours;
-        }
-      }
-
-      const scheduledDate = new Date(input.scheduledDate);
-      priorityExpiresAt = new Date(scheduledDate.getTime() - priorityOfferHours * 60 * 60 * 1000);
-
-      // Validate scheduled date is at least priorityOfferHours from now
-      const now = this.clock.now();
-      if (scheduledDate.getTime() - now.getTime() < priorityOfferHours * 60 * 60 * 1000) {
-        throw new PriorityDateTooCloseError();
-      }
-    }
-
-    // 5. Resolve service region — optional at create, required at publish for
+    // 4. Resolve service region — optional at create, required at publish for
     //    single-agency groups (spec 005 FR-007). A mixed-agency group cannot
     //    carry a single group-level region; it relies on per-appointment region
     //    matching in the marketplace. Region ownership is cross-tenant
@@ -157,7 +128,7 @@ export class CreateServiceGroupUseCase {
       regionName = region.name;
     }
 
-    // 6. Create entity
+    // 5. Create entity
     const now = this.clock.now();
     const groupId = crypto.randomUUID();
 
@@ -172,8 +143,6 @@ export class CreateServiceGroupUseCase {
       timeWindow: input.timeWindow,
       regionName,
       description: input.description ?? null,
-      priorityMode: input.priorityMode,
-      priorityExpiresAt,
       assignedInspectorId: null,
       serviceRegionId,
       publishedAt: null,
@@ -236,7 +205,6 @@ export class CreateServiceGroupUseCase {
         groupSize: input.appointmentIds.length,
         serviceTypeId: input.serviceTypeId,
         scheduledDate: input.scheduledDate,
-        priorityMode: input.priorityMode,
       },
     });
 
@@ -254,8 +222,6 @@ export class CreateServiceGroupUseCase {
       timeWindow: group.timeWindow,
       regionName: group.regionName,
       description: group.description,
-      priorityMode: group.priorityMode,
-      priorityExpiresAt: group.priorityExpiresAt,
       assignedInspectorId: group.assignedInspectorId,
       serviceRegionId: group.serviceRegionId,
       publishedAt: group.publishedAt,

@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import type { ServiceGroupStatus as PrismaServiceGroupStatus, PriorityMode as PrismaPriorityMode } from '@prisma/client';
+import type { ServiceGroupStatus as PrismaServiceGroupStatus } from '@prisma/client';
 import { ServiceGroupEntity } from '../domain/service-group.entity';
 import type {
   IServiceGroupRepository,
@@ -13,7 +13,7 @@ import type {
   MarketplaceOfferDetail,
   PortalEligibleSlot,
 } from '../domain/service-group.repository';
-import type { ServiceGroupStatus, PriorityMode } from '@properfy/shared';
+import type { ServiceGroupStatus } from '@properfy/shared';
 import { resolveCentroid } from '../../../shared/infrastructure/suburb-centroid-resolver';
 
 /**
@@ -68,8 +68,6 @@ function mapToEntity(row: any): ServiceGroupEntity {
     timeWindow: row.time_window,
     regionName: row.region_name ?? null,
     description: row.description ?? null,
-    priorityMode: row.priority_mode as PriorityMode,
-    priorityExpiresAt: row.priority_expires_at,
     assignedInspectorId: row.assigned_inspector_id,
     serviceRegionId: row.service_region_id,
     publishedAt: row.published_at,
@@ -313,8 +311,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         time_window: group.timeWindow,
         region_name: group.regionName,
         description: group.description,
-        priority_mode: group.priorityMode as PrismaPriorityMode,
-        priority_expires_at: group.priorityExpiresAt,
         assigned_inspector_id: group.assignedInspectorId,
         service_region_id: group.serviceRegionId,
         published_at: group.publishedAt,
@@ -336,13 +332,11 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       assignedInspectorId: string | null;
       publishedAt: Date | null;
       assignedAt: Date | null;
-      priorityExpiresAt: Date | null;
       regionName: string | null;
       description: string | null;
       serviceRegionId: string | null;
       scheduledDate: Date;
       timeWindow: string;
-      priorityMode: string;
     }>,
   ): Promise<void> {
     const updateData: Record<string, unknown> = {};
@@ -357,14 +351,11 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       updateData['published_at'] = data.publishedAt;
     if (data.assignedAt !== undefined)
       updateData['assigned_at'] = data.assignedAt;
-    if (data.priorityExpiresAt !== undefined)
-      updateData['priority_expires_at'] = data.priorityExpiresAt;
     if (data.regionName !== undefined) updateData['region_name'] = data.regionName;
     if (data.description !== undefined) updateData['description'] = data.description;
     if (data.serviceRegionId !== undefined) updateData['service_region_id'] = data.serviceRegionId;
     if (data.scheduledDate !== undefined) updateData['scheduled_date'] = data.scheduledDate;
     if (data.timeWindow !== undefined) updateData['time_window'] = data.timeWindow;
-    if (data.priorityMode !== undefined) updateData['priority_mode'] = data.priorityMode;
 
     await this.prisma.serviceGroup.update({
       where: { id },
@@ -456,8 +447,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         groupSize: row.group_size,
         scheduledDate: row.scheduled_date,
         timeWindow: row.time_window,
-        priorityMode: row.priority_mode,
-        priorityExpiresAt: row.priority_expires_at,
         suburbs,
         payoutEstimate,
         appointmentCount: appts.length,
@@ -499,7 +488,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
             AND ga.deleted_at IS NULL
             AND ga.tenant_id = ANY(${inspectorBlockedClients}::text[])
         )
-        AND (sg.priority_expires_at IS NULL OR sg.priority_expires_at > NOW())
     `;
 
     return Number(rows[0]?.count ?? 0);
@@ -541,7 +529,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
             AND ga.deleted_at IS NULL
             AND ga.tenant_id = ANY(${inspectorBlockedClients}::text[])
         )
-        AND (sg.priority_expires_at IS NULL OR sg.priority_expires_at > NOW())
     `;
 
     if (eligibleRows.length === 0) return null;
@@ -619,8 +606,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       groupSize: row.group_size,
       scheduledDate: row.scheduled_date,
       timeWindow: row.time_window,
-      priorityMode: row.priority_mode,
-      priorityExpiresAt: row.priority_expires_at,
       suburbs,
       payoutEstimate,
       appointmentCount: appts.length,
@@ -690,7 +675,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
             AND ga.deleted_at IS NULL
             AND ga.tenant_id = ANY(${inspectorBlockedClients}::text[])
         )
-        AND (sg.priority_expires_at IS NULL OR sg.priority_expires_at > NOW())
       GROUP BY sg.id, sg.scheduled_date
       ORDER BY sg.scheduled_date ASC, sg.id ASC
       LIMIT ${limit}
@@ -748,22 +732,11 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     return result.count;
   }
 
-  async findExpiredPublished(): Promise<ServiceGroupEntity[]> {
-    const rows = await this.prisma.serviceGroup.findMany({
-      where: {
-        status: 'PUBLISHED',
-        priority_expires_at: { lt: new Date() },
-      },
-    });
-    return rows.map((row: any) => mapToEntity(row));
-  }
-
   private buildWhere(filters: ServiceGroupFilters) {
     const where: Record<string, unknown> = {};
     if (filters.status && filters.status.length > 0) where['status'] = { in: filters.status };
     if (filters.serviceTypeId)
       where['service_type_id'] = filters.serviceTypeId;
-    if (filters.priorityMode) where['priority_mode'] = filters.priorityMode;
     if (filters.scheduledDateFrom || filters.scheduledDateTo) {
       const dateFilter: Record<string, unknown> = {};
       if (filters.scheduledDateFrom)

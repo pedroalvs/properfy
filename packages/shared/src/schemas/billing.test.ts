@@ -49,6 +49,20 @@ describe('listFinancialEntriesQuerySchema', () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it('should accept a valid appointmentId', () => {
+    const result = listFinancialEntriesQuerySchema.safeParse({
+      appointmentId: '550e8400-e29b-41d4-a716-446655440000',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject a non-uuid appointmentId', () => {
+    const result = listFinancialEntriesQuerySchema.safeParse({
+      appointmentId: 'not-a-uuid',
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('createManualAdjustmentSchema', () => {

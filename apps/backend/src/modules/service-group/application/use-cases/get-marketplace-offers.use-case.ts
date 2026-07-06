@@ -20,8 +20,6 @@ export interface MarketplaceOfferOutput {
   groupSize: number;
   scheduledDate: Date;
   timeWindow: string;
-  priorityMode: string;
-  priorityExpiresAt: Date | null;
   suburbs: string[];
   payoutEstimate: number | null;
   appointmentCount: number;
@@ -83,8 +81,6 @@ export class GetMarketplaceOffersUseCase {
         groupSize: offer.groupSize,
         scheduledDate: offer.scheduledDate,
         timeWindow: offer.timeWindow,
-        priorityMode: offer.priorityMode,
-        priorityExpiresAt: offer.priorityExpiresAt,
         suburbs: offer.suburbs,
         payoutEstimate: offer.payoutEstimate,
         appointmentCount: offer.appointmentCount,
