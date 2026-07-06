@@ -91,3 +91,21 @@ export const listPropertiesQuerySchema = paginationSchema.extend({
   }
 });
 export type ListPropertiesQueryInput = z.infer<typeof listPropertiesQuerySchema>;
+
+/**
+ * Query for the property summary endpoint. Deliberately has no `type`
+ * filter — per-type counts must ignore the list's type filter.
+ */
+export const propertySummaryQuerySchema = z.object({
+  tenantId: z.string().uuid().optional(),
+  branchId: z.string().uuid().optional(),
+  search: z.string().max(200).optional(),
+});
+export type PropertySummaryQuery = z.infer<typeof propertySummaryQuerySchema>;
+
+export const propertySummaryResponseSchema = z.object({
+  totalCount: z.number().int().nonnegative(),
+  houseCount: z.number().int().nonnegative(),
+  apartmentCount: z.number().int().nonnegative(),
+});
+export type PropertySummaryResponse = z.infer<typeof propertySummaryResponseSchema>;

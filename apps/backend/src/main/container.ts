@@ -70,6 +70,7 @@ import { PrismaPropertyRepository } from '../modules/property/infrastructure/pri
 import { CreatePropertyUseCase } from '../modules/property/application/use-cases/create-property.use-case';
 import { GetPropertyUseCase } from '../modules/property/application/use-cases/get-property.use-case';
 import { ListPropertiesUseCase } from '../modules/property/application/use-cases/list-properties.use-case';
+import { GetPropertySummaryUseCase } from '../modules/property/application/use-cases/get-property-summary.use-case';
 import { UpdatePropertyUseCase } from '../modules/property/application/use-cases/update-property.use-case';
 import { DeletePropertyUseCase } from '../modules/property/application/use-cases/delete-property.use-case';
 import { GeocodePropertyUseCase } from '../modules/property/application/use-cases/geocode-property.use-case';
@@ -543,6 +544,7 @@ export function createContainer(logger: Logger): AppContainer {
   const createPropertyUseCase = new CreatePropertyUseCase(propertyRepo, branchRepo, auditService, tenantRepo, authorizationService, logger, geocodingService);
   const getPropertyUseCase = new GetPropertyUseCase(propertyRepo);
   const listPropertiesUseCase = new ListPropertiesUseCase(propertyRepo);
+  const getPropertySummaryUseCase = new GetPropertySummaryUseCase(propertyRepo);
   const updatePropertyUseCase = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService);
   const deletePropertyUseCase = new DeletePropertyUseCase(propertyRepo, appointmentChecker, auditService);
   const geocodePropertyUseCase = new GeocodePropertyUseCase(propertyRepo, authorizationService);
@@ -1277,6 +1279,7 @@ export function createContainer(logger: Logger): AppContainer {
       createPropertyUseCase,
       getPropertyUseCase,
       listPropertiesUseCase,
+      getPropertySummaryUseCase,
       updatePropertyUseCase,
       deletePropertyUseCase,
       geocodePropertyUseCase,

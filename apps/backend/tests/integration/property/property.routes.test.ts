@@ -7,6 +7,7 @@ import { createMockContainer } from '../../helpers/mock-container';
 const mockCreatePropertyExecute = vi.fn();
 const mockGetPropertyExecute = vi.fn();
 const mockListPropertiesExecute = vi.fn();
+const mockGetPropertySummaryExecute = vi.fn();
 const mockUpdatePropertyExecute = vi.fn();
 const mockDeletePropertyExecute = vi.fn();
 const mockSearchAddressesExecute = vi.fn();
@@ -23,6 +24,7 @@ vi.mock('../../../src/main/container', () => ({
       createPropertyUseCase: { execute: mockCreatePropertyExecute },
       getPropertyUseCase: { execute: mockGetPropertyExecute },
       listPropertiesUseCase: { execute: mockListPropertiesExecute },
+      getPropertySummaryUseCase: { execute: mockGetPropertySummaryExecute },
       updatePropertyUseCase: { execute: mockUpdatePropertyExecute },
       deletePropertyUseCase: { execute: mockDeletePropertyExecute },
       geocodePropertyUseCase: { execute: vi.fn() },
@@ -291,5 +293,45 @@ describe('DELETE /v1/properties/:propertyId', () => {
       .set('Authorization', 'Bearer valid-token');
 
     expect(res.status).toBe(204);
+  });
+});
+
+describe('GET /v1/properties/summary', () => {
+  it('should return 200 with counts', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockGetPropertySummaryExecute.mockResolvedValueOnce({
+      totalCount: 12,
+      houseCount: 4,
+      apartmentCount: 6,
+    });
+
+    const res = await supertest(app.server)
+      .get(`/v1/properties/summary?tenantId=${TENANT_ID}&search=Main`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ totalCount: 12, houseCount: 4, apartmentCount: 6 });
+    expect(mockGetPropertySummaryExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filters: expect.objectContaining({ tenantId: TENANT_ID, search: 'Main' }),
+      }),
+    );
+  });
+
+  it('should return 400 for a non-uuid tenantId', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .get('/v1/properties/summary?tenantId=not-a-uuid')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(mockGetPropertySummaryExecute).not.toHaveBeenCalled();
+  });
+
+  it('should return 401 without a token', async () => {
+    const res = await supertest(app.server).get('/v1/properties/summary');
+    expect(res.status).toBe(401);
   });
 });

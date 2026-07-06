@@ -220,6 +220,16 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     return this.prisma.property.count({ where });
   }
 
+  async countByType(filters: Omit<PropertyFilters, 'type'>): Promise<Record<string, number>> {
+    const where = this.buildWhere(filters);
+    const rows = await this.prisma.property.groupBy({
+      by: ['type'],
+      where,
+      _count: { _all: true },
+    });
+    return Object.fromEntries(rows.map((row) => [row.type, row._count._all]));
+  }
+
   async save(property: PropertyEntity): Promise<void> {
     try {
       await this.prisma.property.create({

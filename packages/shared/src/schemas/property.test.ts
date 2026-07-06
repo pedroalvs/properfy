@@ -4,6 +4,8 @@ import {
   updatePropertySchema,
   listPropertiesQuerySchema,
   propertyRulesSchema,
+  propertySummaryQuerySchema,
+  propertySummaryResponseSchema,
 } from './property';
 import type { PropertyRules } from './property';
 import {
@@ -440,5 +442,64 @@ describe('listPropertiesQuerySchema', () => {
       nearRadiusKm: '10',
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe('propertySummaryQuerySchema', () => {
+  it('should accept an empty query', () => {
+    const result = propertySummaryQuerySchema.safeParse({});
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept tenantId, branchId and search', () => {
+    const result = propertySummaryQuerySchema.safeParse({
+      tenantId: '11111111-1111-4111-8111-111111111111',
+      branchId: '22222222-2222-4222-8222-222222222222',
+      search: 'Main St',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject a non-uuid tenantId', () => {
+    expect(propertySummaryQuerySchema.safeParse({ tenantId: 'abc' }).success).toBe(false);
+  });
+
+  it('should reject a non-uuid branchId', () => {
+    expect(propertySummaryQuerySchema.safeParse({ branchId: 'abc' }).success).toBe(false);
+  });
+
+  it('should reject search longer than 200 chars', () => {
+    expect(propertySummaryQuerySchema.safeParse({ search: 'x'.repeat(201) }).success).toBe(false);
+  });
+
+  it('should not accept a type filter (stripped as unknown key)', () => {
+    const result = propertySummaryQuerySchema.safeParse({ type: 'HOUSE' });
+    expect(result.success).toBe(true);
+    expect(result.success && 'type' in result.data).toBe(false);
+  });
+});
+
+describe('propertySummaryResponseSchema', () => {
+  it('should accept valid counts', () => {
+    const result = propertySummaryResponseSchema.safeParse({
+      totalCount: 10,
+      houseCount: 4,
+      apartmentCount: 6,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject negative counts', () => {
+    expect(
+      propertySummaryResponseSchema.safeParse({ totalCount: -1, houseCount: 0, apartmentCount: 0 })
+        .success,
+    ).toBe(false);
+  });
+
+  it('should reject non-integer counts', () => {
+    expect(
+      propertySummaryResponseSchema.safeParse({ totalCount: 1.5, houseCount: 0, apartmentCount: 0 })
+        .success,
+    ).toBe(false);
   });
 });

@@ -65,6 +65,12 @@ export interface IPropertyRepository {
   ): Promise<PropertyEntity[]>;
   findAllWithBranch(filters: PropertyFilters, pagination: PaginationParams): Promise<PropertyWithBranch[]>;
   count(filters: PropertyFilters): Promise<number>;
+  /**
+   * Count non-deleted properties grouped by type. `type` is excluded from the
+   * filters on purpose — callers (the summary endpoint) need per-type counts
+   * that ignore any type filter applied to the list.
+   */
+  countByType(filters: Omit<PropertyFilters, 'type'>): Promise<Record<string, number>>;
   /** Find properties with FAILED geocoding status that were last updated before the given date. */
   findFailedGeocoding(updatedBefore: Date): Promise<Array<{ id: string; tenantId: string }>>;
   /**

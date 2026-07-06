@@ -95,6 +95,7 @@ export function createMockContainer(
       createPropertyUseCase: { execute: vi.fn() },
       getPropertyUseCase: { execute: vi.fn() },
       listPropertiesUseCase: { execute: vi.fn() },
+      getPropertySummaryUseCase: { execute: vi.fn() },
       updatePropertyUseCase: { execute: vi.fn() },
       deletePropertyUseCase: { execute: vi.fn() },
       geocodePropertyUseCase: { execute: vi.fn() },
