@@ -69,8 +69,6 @@ describe('registerWorkers', () => {
   const mockNotifyStuckWorker = { execute: mockNotifyStuckExecute } as any;
   const mockKeyExpiryCheckExecute = vi.fn().mockResolvedValue({ daysRemaining: null, level: 'none' });
   const mockKeyExpiryCheckWorker = { execute: mockKeyExpiryCheckExecute } as any;
-  const mockExpirePriorityExecute = vi.fn().mockResolvedValue({ expiredCount: 0 });
-  const mockExpirePriorityWorker = { execute: mockExpirePriorityExecute } as any;
   const mockAuditRetentionExecute = vi.fn().mockResolvedValue({ deletedCount: 0, preservedCount: 0 });
   const mockAuditRetentionWorker = { execute: mockAuditRetentionExecute } as any;
   const mockRejectUnconfirmedExecute = vi.fn().mockResolvedValue({ rejectedCount: 0, groupsClosedCount: 0, groupsUpdatedCount: 0 });
@@ -105,7 +103,6 @@ describe('registerWorkers', () => {
       mockExpireTokensWorker,
       mockExpireAssetsWorker,
       mockNotifyStuckWorker,
-      mockExpirePriorityWorker,
       mockAuditRetentionWorker,
       mockRejectUnconfirmedWorker,
       mockLogger,

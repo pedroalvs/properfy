@@ -88,22 +88,6 @@ export class AppointmentsNotAwaitingInspectorError extends DomainError {
   }
 }
 
-export class PriorityDateTooCloseError extends DomainError {
-  constructor() {
-    super(
-      'PRIORITY_DATE_TOO_CLOSE',
-      'PRIORITY_24H requires scheduled date at least 24h from now',
-      422,
-    );
-  }
-}
-
-export class PriorityExpiredError extends DomainError {
-  constructor() {
-    super('PRIORITY_EXPIRED', 'PRIORITY_24H window has expired', 422);
-  }
-}
-
 export class InvalidTimeWindowFormatError extends DomainError {
   constructor() {
     super('INVALID_TIME_WINDOW_FORMAT', 'Time window must match format HH:mm-HH:mm', 422);
@@ -138,7 +122,7 @@ export class ServiceGroupNotDraftError extends DomainError {
   constructor() {
     super(
       'SERVICE_GROUP_NOT_DRAFT',
-      'Draft-only fields (scheduledDate, timeWindow, priorityMode) can only be updated when the service group is in DRAFT status',
+      'Draft-only fields (scheduledDate and timeWindow) can only be updated when the service group is in DRAFT status',
       422,
     );
   }

@@ -20,8 +20,6 @@ function makeGroup(
     confirmedCount: 0,
     scheduledDate: new Date('2026-06-01'),
     timeWindow: '09:00-12:00',
-    priorityMode: 'STANDARD',
-    priorityExpiresAt: null,
     assignedInspectorId: null,
     publishedAt: null,
     assignedAt: null,
@@ -152,7 +150,6 @@ describe('ListServiceGroupsUseCase', () => {
         tenantId: 'tenant-1',
         status: 'PUBLISHED',
         serviceTypeId: 'svc-1',
-        priorityMode: 'PRIORITY_24H',
       },
       pagination: defaultPagination,
       actor: makeActor({ role: 'AM' }),
@@ -163,7 +160,6 @@ describe('ListServiceGroupsUseCase', () => {
         tenantId: 'tenant-1',
         status: 'PUBLISHED',
         serviceTypeId: 'svc-1',
-        priorityMode: 'PRIORITY_24H',
       }),
       defaultPagination,
     );
@@ -194,8 +190,6 @@ describe('ListServiceGroupsUseCase', () => {
           confirmedCount: 1,
           assignedInspectorId: 'insp-1',
           publishedAt,
-          priorityMode: 'PRIORITY_24H',
-          priorityExpiresAt: new Date('2026-05-31'),
         }),
         assignedInspectorName: 'Carlos Silva',
       },
@@ -216,8 +210,6 @@ describe('ListServiceGroupsUseCase', () => {
     expect(group.assignedInspectorId).toBe('insp-1');
     expect(group.assignedInspectorName).toBe('Carlos Silva');
     expect(group.publishedAt).toEqual(publishedAt);
-    expect(group.priorityMode).toBe('PRIORITY_24H');
-    expect(group.priorityExpiresAt).toEqual(new Date('2026-05-31'));
   });
 
   // Map page integration: when includeAppointments=true, appointments are

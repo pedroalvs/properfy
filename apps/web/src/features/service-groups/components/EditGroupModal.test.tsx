@@ -29,7 +29,6 @@ const mockServiceGroup = {
   inspectorId: null,
   inspectorName: null,
   status: 'DRAFT' as const,
-  priorityMode: 'STANDARD' as const,
   appointmentsCount: 3,
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',

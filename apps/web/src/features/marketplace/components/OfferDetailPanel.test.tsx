@@ -9,11 +9,9 @@ const MOCK_OFFER: MarketplaceOffer = {
   code: '1057',
   tenantName: 'Sydney CBD',
   serviceTypeName: 'Routine Inspection',
-  priorityMode: 'STANDARD',
   groupSize: 2,
   scheduledDate: '2026-03-20',
   timeWindow: '09:00-12:00',
-  priorityExpiresAt: '2026-04-01T00:00:00Z',
   suburbs: ['Sydney CBD', 'Surry Hills'],
 };
 
@@ -42,8 +40,6 @@ const MOCK_DETAIL_MIXED: MarketplaceOfferDetail = {
   groupSize: 2,
   scheduledDate: '2026-03-20',
   timeWindow: '09:00-12:00',
-  priorityMode: 'STANDARD',
-  priorityExpiresAt: '2026-04-01T00:00:00Z',
   suburbs: ['Sydney CBD', 'Surry Hills'],
   payoutEstimate: 300,
   appointmentCount: 2,

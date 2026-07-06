@@ -20,7 +20,6 @@ import type { GenerateInvoiceFileWorker } from '../modules/billing/infrastructur
 import type { ExpireTokensWorker } from '../modules/rental-tenant-portal/infrastructure/workers/expire-tokens.worker';
 import type { ExpireAssetsWorker } from '../modules/inspector-execution/infrastructure/workers/expire-assets.worker';
 import type { NotifyStuckInspectionsWorker } from '../modules/inspector-execution/infrastructure/workers/notify-stuck.worker';
-import type { ExpirePriorityWorker } from '../modules/service-group/infrastructure/workers/expire-priority.worker';
 import type { AuditRetentionWorker } from '../modules/audit/infrastructure/workers/audit-retention.worker';
 import type { RejectUnconfirmedWorker } from '../modules/appointment/infrastructure/workers/reject-unconfirmed.worker';
 import type { Logger } from '../shared/infrastructure/logger';
@@ -65,7 +64,6 @@ export async function registerWorkers(
   expireTokensWorker: ExpireTokensWorker,
   expireAssetsWorker: ExpireAssetsWorker,
   notifyStuckInspectionsWorker: NotifyStuckInspectionsWorker,
-  expirePriorityWorker: ExpirePriorityWorker,
   auditRetentionWorker: AuditRetentionWorker,
   rejectUnconfirmedWorker: RejectUnconfirmedWorker,
   logger: Logger,
@@ -220,13 +218,6 @@ export async function registerWorkers(
     logger.info({ jobId: job.id, notifiedCount: result.notifiedCount }, 'Stuck inspection alerts completed');
   }));
 
-  await boss.schedule('service_group.expire-priority', '0 * * * *', {});
-  await boss.work('service_group.expire-priority', withJobMetrics('service_group.expire-priority', async (job) => {
-    logger.info({ jobId: job.id }, 'Processing service_group.expire-priority job');
-    const result = await expirePriorityWorker.execute();
-    logger.info({ jobId: job.id, expiredCount: result.expiredCount }, 'Priority expiry sweep completed');
-  }));
-
   // Audit log retention — daily at 03:30 UTC (off-peak)
   await boss.schedule('audit.retention', '30 3 * * *', {});
   await boss.work('audit.retention', withJobMetrics('audit.retention', async (job) => {
@@ -271,7 +262,7 @@ export async function registerWorkers(
     logger.info({ jobId: job.id, alertedQueues: result.alertedQueues }, 'DLQ monitor completed');
   }));
 
-  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.sms-delivery-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, property.import, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.mark-assets-expired, inspection-execution.notify-not-started, service_group.expire-priority, audit.retention, appointment.reject-unconfirmed, system.dlq-monitor');
+  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.sms-delivery-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, property.import, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.mark-assets-expired, inspection-execution.notify-not-started, audit.retention, appointment.reject-unconfirmed, system.dlq-monitor');
 
   // On startup: re-enqueue geocoding for all PENDING/FAILED properties that have no coordinates
   const pendingProperties = await prisma.property.findMany({

@@ -29,29 +29,11 @@ describe('createServiceGroupSchema', () => {
     serviceTypeId: validUuid,
     scheduledDate: '2026-04-15',
     timeWindow: '08:00-12:00',
-    priorityMode: 'STANDARD' as const,
     serviceRegionId: validUuid,
   };
 
   it('should accept valid input', () => {
     const result = createServiceGroupSchema.safeParse(validInput);
-    expect(result.success).toBe(true);
-  });
-
-  it('should default priorityMode to STANDARD', () => {
-    const { priorityMode: _priorityMode, ...rest } = validInput;
-    const result = createServiceGroupSchema.safeParse(rest);
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.priorityMode).toBe('STANDARD');
-    }
-  });
-
-  it('should accept PRIORITY_24H as priorityMode', () => {
-    const result = createServiceGroupSchema.safeParse({
-      ...validInput,
-      priorityMode: 'PRIORITY_24H',
-    });
     expect(result.success).toBe(true);
   });
 
@@ -195,7 +177,6 @@ describe('listServiceGroupsQuerySchema', () => {
       serviceTypeId: validUuid,
       scheduledDateFrom: '2026-01-01',
       scheduledDateTo: '2026-12-31',
-      priorityMode: 'PRIORITY_24H',
       page: 2,
       pageSize: 10,
     });

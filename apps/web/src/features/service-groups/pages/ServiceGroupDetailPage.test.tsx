@@ -48,10 +48,6 @@ vi.mock('@/lib/status-colors', () => ({
     ACCEPTED: { bg: '#C8E6C9', text: '#000', label: 'Accepted' },
     CANCELLED: { bg: '#FFCDD2', text: '#000', label: 'Canceled' },
   },
-  PRIORITY_MODE_MAP: {
-    STANDARD: { bg: '#eee', text: '#000', label: 'Standard' },
-    PRIORITY_24H: { bg: '#ff0', text: '#000', label: '24h Priority' },
-  },
   APPOINTMENT_STATUS_MAP: {
     DRAFT: { bg: '#E1BEE7', text: '#000', label: 'Draft' },
     AWAITING_INSPECTOR: { bg: '#FFE0B2', text: '#000', label: 'Awaiting Inspector' },
@@ -81,7 +77,6 @@ vi.mock('../hooks/useServiceGroupDetail', () => ({
         regionName: 'Region A',
         inspectorId: null,
         inspectorName: null,
-        priorityMode: 'STANDARD',
         appointmentsCount: 10,
         appointments: [
           { id: 'apt-pub-01', appointmentNumber: 2001, status: 'DRAFT', scheduledDate: '2026-03-10', propertyAddress: '10 Pub St', propertyCode: 'VST-001' },
@@ -103,7 +98,6 @@ vi.mock('../hooks/useServiceGroupDetail', () => ({
         regionName: 'Region B',
         inspectorId: 'insp-1',
         inspectorName: 'Carlos Silva',
-        priorityMode: 'PRIORITY_24H',
         appointmentsCount: 8,
         appointments: [
           { id: 'apt-acc-01', appointmentNumber: 3001, status: 'SCHEDULED', scheduledDate: '2026-03-15', propertyAddress: '20 Acc Ave', propertyCode: 'VST-005' },
@@ -125,7 +119,6 @@ vi.mock('../hooks/useServiceGroupDetail', () => ({
         regionName: 'Region C',
         inspectorId: null,
         inspectorName: null,
-        priorityMode: 'STANDARD',
         appointmentsCount: 5,
         appointments: [],
         description: null,
@@ -146,7 +139,6 @@ vi.mock('../hooks/useServiceGroupDetail', () => ({
         regionName: 'São Paulo',
         inspectorId: null,
         inspectorName: null,
-        priorityMode: 'STANDARD',
         appointmentsCount: 12,
         appointments: [
           { id: 'apt-01', appointmentNumber: 1001, status: 'AWAITING_INSPECTOR', scheduledDate: '2026-03-10', propertyAddress: '123 Main St', propertyCode: 'VST-001' },

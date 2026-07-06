@@ -1,4 +1,4 @@
-import type { AuthContext, PriorityMode } from '@properfy/shared';
+import type { AuthContext } from '@properfy/shared';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
@@ -6,19 +6,15 @@ import {
   ServiceGroupNotFoundError,
   ServiceGroupNotDraftError,
   ServiceGroupInvalidStatusError,
-  PriorityDateTooCloseError,
   ServiceGroupDateInPastError,
   ServiceGroupTimeInPastError,
 } from '../../domain/service-group.errors';
 import { validateEditedSchedule } from '@properfy/shared';
-import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
-import { SystemClock, type Clock } from '../../../../shared/domain/clock';
 
 /** Fields that can only be updated when the group is in DRAFT status. */
 const DRAFT_ONLY_FIELDS = [
   'scheduledDate',
   'timeWindow',
-  'priorityMode',
 ] as const;
 
 export interface UpdateServiceGroupInput {
@@ -28,7 +24,6 @@ export interface UpdateServiceGroupInput {
   serviceRegionId?: string | null;
   scheduledDate?: string;
   timeWindow?: string;
-  priorityMode?: PriorityMode;
   actorTimezone?: string;
   actor: AuthContext;
 }
@@ -45,8 +40,6 @@ export interface UpdateServiceGroupOutput {
   timeWindow: string;
   regionName: string | null;
   description: string | null;
-  priorityMode: string;
-  priorityExpiresAt: Date | null;
   assignedInspectorId: string | null;
   serviceRegionId: string | null;
   publishedAt: Date | null;
@@ -61,8 +54,6 @@ export class UpdateServiceGroupUseCase {
     private readonly serviceGroupRepo: IServiceGroupRepository,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
-    private readonly tenantRepo?: ITenantRepository,
-    private readonly clock: Clock = new SystemClock(),
   ) {}
 
   async execute(input: UpdateServiceGroupInput): Promise<UpdateServiceGroupOutput> {
@@ -121,42 +112,6 @@ export class UpdateServiceGroupUseCase {
     if (input.timeWindow !== undefined) {
       updateData.timeWindow = input.timeWindow;
     }
-    if (input.priorityMode !== undefined) {
-      updateData.priorityMode = input.priorityMode;
-    }
-
-    // Recalculate priorityExpiresAt when priorityMode changes
-    if (input.priorityMode !== undefined) {
-      if (input.priorityMode === 'PRIORITY_24H') {
-        const priorityOfferHours = await this.resolvePriorityOfferHours(primaryTenantId);
-        const scheduledDateStr = input.scheduledDate ?? group.scheduledDate.toISOString().slice(0, 10);
-        const scheduledDate = new Date(scheduledDateStr);
-        const priorityExpiresAt = new Date(scheduledDate.getTime() - priorityOfferHours * 60 * 60 * 1000);
-
-        // Validate scheduled date is at least priorityOfferHours from now
-        const now = this.clock.now();
-        if (priorityExpiresAt <= now) {
-          throw new PriorityDateTooCloseError();
-        }
-
-        updateData.priorityExpiresAt = priorityExpiresAt;
-      } else {
-        // STANDARD mode: clear priority expiry
-        updateData.priorityExpiresAt = null;
-      }
-    } else if (input.scheduledDate !== undefined && group.priorityMode === 'PRIORITY_24H') {
-      // scheduledDate changed but priorityMode stays PRIORITY_24H: recalculate
-      const priorityOfferHours = await this.resolvePriorityOfferHours(primaryTenantId);
-      const scheduledDate = new Date(input.scheduledDate);
-      const priorityExpiresAt = new Date(scheduledDate.getTime() - priorityOfferHours * 60 * 60 * 1000);
-
-      const now = this.clock.now();
-      if (priorityExpiresAt <= now) {
-        throw new PriorityDateTooCloseError();
-      }
-
-      updateData.priorityExpiresAt = priorityExpiresAt;
-    }
 
     await this.serviceGroupRepo.update(groupId, updateData);
 
@@ -186,8 +141,6 @@ export class UpdateServiceGroupUseCase {
       timeWindow: g.timeWindow,
       regionName: g.regionName,
       description: g.description,
-      priorityMode: g.priorityMode,
-      priorityExpiresAt: g.priorityExpiresAt,
       assignedInspectorId: g.assignedInspectorId,
       serviceRegionId: g.serviceRegionId,
       publishedAt: g.publishedAt,
@@ -196,16 +149,5 @@ export class UpdateServiceGroupUseCase {
       createdAt: g.createdAt,
       updatedAt: g.updatedAt,
     };
-  }
-
-  private async resolvePriorityOfferHours(tenantId: string | null): Promise<number> {
-    const DEFAULT_PRIORITY_HOURS = 24;
-    // Mixed-agency groups have no single agency config → platform default.
-    if (!this.tenantRepo || !tenantId) return DEFAULT_PRIORITY_HOURS;
-    const tenant = await this.tenantRepo.findById(tenantId);
-    if (tenant?.settingsJson && typeof tenant.settingsJson.priorityOfferHours === 'number') {
-      return tenant.settingsJson.priorityOfferHours;
-    }
-    return DEFAULT_PRIORITY_HOURS;
   }
 }

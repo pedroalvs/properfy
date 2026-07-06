@@ -18,8 +18,6 @@ function makeGroup(
     confirmedCount: 0,
     scheduledDate: new Date('2026-06-01'),
     timeWindow: '09:00-12:00',
-    priorityMode: 'PRIORITY_24H',
-    priorityExpiresAt: new Date('2026-04-01T00:00:00Z'),
     assignedInspectorId: null,
     publishedAt: new Date('2026-03-31T00:00:00Z'),
     assignedAt: null,

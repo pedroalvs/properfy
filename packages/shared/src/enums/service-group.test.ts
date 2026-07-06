@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ServiceGroupStatus, PriorityMode } from './service-group';
+import { ServiceGroupStatus } from './service-group';
 
 describe('ServiceGroupStatus', () => {
   it('should have DRAFT, PUBLISHED, ACCEPTED, REJECTED, CANCELLED values', () => {
@@ -20,20 +20,5 @@ describe('ServiceGroupStatus', () => {
 
   it('should not have COMPLETED status', () => {
     expect('COMPLETED' in ServiceGroupStatus).toBe(false);
-  });
-});
-
-describe('PriorityMode', () => {
-  it('should have STANDARD, PRIORITY_24H values', () => {
-    expect(PriorityMode.STANDARD).toBe('STANDARD');
-    expect(PriorityMode.PRIORITY_24H).toBe('PRIORITY_24H');
-  });
-
-  it('should have exactly 2 modes', () => {
-    expect(Object.keys(PriorityMode)).toHaveLength(2);
-  });
-
-  it('should not have URGENT mode', () => {
-    expect('URGENT' in PriorityMode).toBe(false);
   });
 });

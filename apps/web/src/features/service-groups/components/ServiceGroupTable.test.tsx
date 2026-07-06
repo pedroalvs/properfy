@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ServiceGroupStatus, PriorityMode } from '@properfy/shared';
+import { ServiceGroupStatus } from '@properfy/shared';
 import { ServiceGroupTable } from './ServiceGroupTable';
 import type { ServiceGroup } from '../types';
 
@@ -14,7 +14,6 @@ function makeServiceGroup(overrides: Partial<ServiceGroup> = {}): ServiceGroup {
     inspectorId: 'insp-1',
     inspectorName: 'Carlos Silva',
     status: ServiceGroupStatus.PUBLISHED,
-    priorityMode: PriorityMode.STANDARD,
     appointmentsCount: 5,
     createdAt: '2026-01-10T10:00:00Z',
     updatedAt: '2026-01-10T10:00:00Z',
@@ -29,7 +28,6 @@ describe('ServiceGroupTable', () => {
     expect(screen.getByText('Region')).toBeInTheDocument();
     expect(screen.getByText('Inspector')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
-    expect(screen.getByText('Priority')).toBeInTheDocument();
     expect(screen.getByText('Appointments')).toBeInTheDocument();
   });
 
@@ -44,12 +42,6 @@ describe('ServiceGroupTable', () => {
     const sg = makeServiceGroup({ status: ServiceGroupStatus.ACCEPTED });
     render(<ServiceGroupTable data={[sg]} />);
     expect(screen.getByText('Accepted')).toBeInTheDocument();
-  });
-
-  it('renders priority mode chip', () => {
-    const sg = makeServiceGroup({ priorityMode: PriorityMode.PRIORITY_24H });
-    render(<ServiceGroupTable data={[sg]} />);
-    expect(screen.getByText('24h Priority')).toBeInTheDocument();
   });
 
   it('renders em dash for null regionName', () => {

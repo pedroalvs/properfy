@@ -1,6 +1,5 @@
 import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
-import { PRIORITY_MODE_MAP } from '@/lib/status-colors';
 import { ServiceGroupStatusChip } from './ServiceGroupStatusChip';
 import type { Agency, ServiceGroup } from '../types';
 
@@ -65,22 +64,6 @@ export function ServiceGroupTable({
       width: '130px',
       sortable: true,
       render: (row) => <ServiceGroupStatusChip status={row.status} />,
-    },
-    {
-      key: 'priorityMode',
-      label: 'Priority',
-      width: '140px',
-      render: (row) => {
-        const style = PRIORITY_MODE_MAP[row.priorityMode];
-        return (
-          <span
-            className="inline-block rounded px-2 py-0.5 text-xs font-semibold leading-5"
-            style={{ backgroundColor: style.bg, color: style.text }}
-          >
-            {style.label}
-          </span>
-        );
-      },
     },
     {
       key: 'appointmentsCount',

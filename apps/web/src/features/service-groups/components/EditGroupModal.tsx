@@ -4,7 +4,6 @@ import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/forms/Textarea';
 import { FormField } from '@/components/forms/FormField';
-import { PriorityModeSelect } from './PriorityModeSelect';
 import { TimeWindowPicker } from './TimeWindowPicker';
 import { RegionSelector } from './RegionSelector';
 import { useUpdateServiceGroup } from '../hooks/useUpdateServiceGroup';
@@ -24,7 +23,6 @@ export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGro
   const [scheduledDate, setScheduledDate] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
-  const [priorityMode, setPriorityMode] = useState('STANDARD');
 
   const { update, isUpdating } = useUpdateServiceGroup(serviceGroup.id, () => {
     onSaved();
@@ -38,7 +36,6 @@ export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGro
       setScheduledDate('');
       setStartTime('');
       setEndTime('');
-      setPriorityMode(serviceGroup.priorityMode ?? 'STANDARD');
     }
   }, [open, serviceGroup]);
 
@@ -61,10 +58,6 @@ export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGro
 
     if (startTime && endTime) {
       data.timeWindow = `${startTime}-${endTime}`;
-    }
-
-    if (priorityMode) {
-      data.priorityMode = priorityMode as 'STANDARD' | 'PRIORITY_24H';
     }
 
     data.actorTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -135,8 +128,6 @@ export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGro
                 minStartTime={scheduledDate === todayLocalDateString() ? currentTimeInTzHHmm(Intl.DateTimeFormat().resolvedOptions().timeZone) : undefined}
               />
             </FormField>
-
-            <PriorityModeSelect value={priorityMode} onChange={setPriorityMode} />
           </>
         )}
       </div>

@@ -43,8 +43,8 @@ import { ServiceGroupListPage } from './ServiceGroupListPage';
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_SERVICE_GROUPS = [
-  { id: 'sg-01', regionName: 'São Paulo - ABC', status: 'PUBLISHED', inspectorName: 'Carlos Silva', priorityMode: 'STANDARD' },
-  { id: 'sg-02', regionName: 'Rio de Janeiro - Barra', status: 'DRAFT', inspectorName: 'Fernanda Lima', priorityMode: 'PRIORITY_24H' },
+  { id: 'sg-01', regionName: 'São Paulo - ABC', status: 'PUBLISHED', inspectorName: 'Carlos Silva',},
+  { id: 'sg-02', regionName: 'Rio de Janeiro - Barra', status: 'DRAFT', inspectorName: 'Fernanda Lima',},
 ];
 
 function createWrapper() {

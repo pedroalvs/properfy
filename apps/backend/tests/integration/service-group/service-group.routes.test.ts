@@ -63,8 +63,6 @@ const fullServiceGroup = {
   confirmedCount: 0,
   scheduledDate: '2026-04-01',
   timeWindow: '08:00-12:00',
-  priorityMode: 'STANDARD',
-  priorityExpiresAt: null,
   assignedInspectorId: null,
   publishedAt: null,
   assignedAt: null,
@@ -122,7 +120,6 @@ describe('POST /v1/service-groups', () => {
     expect(res.body.data.groupSize).toBe(5);
     expect(mockCreateServiceGroupExecute).toHaveBeenCalledWith({
       ...validPayload,
-      priorityMode: 'STANDARD',
       actor: amContext,
     });
   });

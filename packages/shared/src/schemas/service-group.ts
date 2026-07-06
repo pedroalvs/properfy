@@ -17,7 +17,6 @@ export const createServiceGroupSchema = z.object({
   timeWindow: z.string().regex(timeWindowRegex),
   serviceRegionId: z.string().uuid().nullable().optional(),
   description: z.string().max(5000).optional(),
-  priorityMode: z.enum(['STANDARD', 'PRIORITY_24H']).default('STANDARD'),
   actorTimezone: z.string().optional(),
 });
 export type CreateServiceGroupInput = z.infer<typeof createServiceGroupSchema>;
@@ -28,7 +27,6 @@ export const updateServiceGroupSchema = z.object({
   // Draft-only fields; temporal validation is TZ-aware and performed in the use case.
   scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   timeWindow: z.string().regex(timeWindowRegex).optional(),
-  priorityMode: z.enum(['STANDARD', 'PRIORITY_24H']).optional(),
   actorTimezone: z.string().optional(),
 });
 export type UpdateServiceGroupInput = z.infer<typeof updateServiceGroupSchema>;
@@ -73,7 +71,6 @@ export const listServiceGroupsQuerySchema = paginationSchema.extend({
   serviceTypeId: z.string().uuid().optional(),
   scheduledDateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   scheduledDateTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  priorityMode: z.enum(['STANDARD', 'PRIORITY_24H']).optional(),
   // Map view requires appointments + property coordinates per group.
   includeAppointments: z
     .union([z.boolean(), z.literal('true'), z.literal('false')])

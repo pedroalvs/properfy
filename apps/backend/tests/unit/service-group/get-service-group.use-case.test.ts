@@ -22,8 +22,6 @@ function makeGroup(
     confirmedCount: 0,
     scheduledDate: new Date('2026-06-01'),
     timeWindow: '09:00-12:00',
-    priorityMode: 'STANDARD',
-    priorityExpiresAt: null,
     assignedInspectorId: null,
     publishedAt: null,
     assignedAt: null,

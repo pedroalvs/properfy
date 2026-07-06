@@ -7,7 +7,6 @@ export { EligibleAppointmentsTable } from './EligibleAppointmentsTable';
 export type { EligibleAppointment } from './EligibleAppointmentsTable';
 export { SelectionCounter } from './SelectionCounter';
 export { TimeWindowPicker } from './TimeWindowPicker';
-export { PriorityModeSelect } from './PriorityModeSelect';
 export { GroupSummaryCard } from './GroupSummaryCard';
 export { ManualAssignModal } from './ManualAssignModal';
 export { CancelGroupModal } from './CancelGroupModal';

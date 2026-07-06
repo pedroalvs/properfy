@@ -52,8 +52,6 @@ function makeGroup(serviceTypeId: string, createdByUserId: string): ServiceGroup
     name: null,
     regionName: null,
     description: null,
-    priorityMode: 'STANDARD',
-    priorityExpiresAt: null,
     assignedInspectorId: null,
     serviceRegionId: null,
     publishedAt: null,

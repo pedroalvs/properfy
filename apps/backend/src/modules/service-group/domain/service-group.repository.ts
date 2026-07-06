@@ -6,7 +6,6 @@ export interface ServiceGroupFilters {
   serviceTypeId?: string;
   scheduledDateFrom?: string;
   scheduledDateTo?: string;
-  priorityMode?: string;
   /** Text search on group description. */
   search?: string;
   /** Filter by branch ID of linked appointments. */
@@ -80,8 +79,6 @@ export interface MarketplaceOffer {
   groupSize: number;
   scheduledDate: Date;
   timeWindow: string;
-  priorityMode: string;
-  priorityExpiresAt: Date | null;
   suburbs: string[];
   payoutEstimate: number | null;
   appointmentCount: number;
@@ -181,13 +178,11 @@ export interface IServiceGroupRepository {
       assignedInspectorId: string | null;
       publishedAt: Date | null;
       assignedAt: Date | null;
-      priorityExpiresAt: Date | null;
       regionName: string | null;
       description: string | null;
       serviceRegionId: string | null;
       scheduledDate: Date;
       timeWindow: string;
-      priorityMode: string;
     }>,
   ): Promise<void>;
   /** Optimistic lock: updates status from PUBLISHED to ACCEPTED atomically. Returns count of updated rows (0 means race lost). */
@@ -226,8 +221,6 @@ export interface IServiceGroupRepository {
   revertScheduledAppointments(groupId: string): Promise<number>;
   /** Atomically transition all group's appointments to SCHEDULED with inspector */
   scheduleAppointments(groupId: string, inspectorId: string): Promise<number>;
-  /** Find PUBLISHED groups whose priority window has expired */
-  findExpiredPublished(): Promise<ServiceGroupEntity[]>;
   /**
    * Find member appointment slots in ACCEPTED service groups eligible for a tenant to join via the portal.
    * Criteria: same tenant + same service type, confirmed_count < 10, scheduled_date >= today+1,

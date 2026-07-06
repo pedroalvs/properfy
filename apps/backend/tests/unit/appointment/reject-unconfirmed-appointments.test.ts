@@ -60,8 +60,6 @@ function makeServiceGroup(
     name: null,
     regionName: null,
     description: null,
-    priorityMode: 'STANDARD',
-    priorityExpiresAt: null,
     assignedInspectorId: 'inspector-1',
     serviceRegionId: 'region-1',
     publishedAt: new Date(),

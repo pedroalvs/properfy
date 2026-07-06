@@ -9,7 +9,6 @@ import { Textarea } from '@/components/forms/Textarea';
 import { Button } from '@/components/ui/Button';
 import { RegionSelector } from './RegionSelector';
 import { TimeWindowPicker } from './TimeWindowPicker';
-import { PriorityModeSelect } from './PriorityModeSelect';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { api } from '@/services/api';
@@ -47,7 +46,6 @@ export function MapGroupCreateModal({
   const [endTime, setEndTime] = useState('17:00');
   const [serviceRegionId, setServiceRegionId] = useState('');
   const [serviceTypeId, setServiceTypeId] = useState(inferredServiceTypeId);
-  const [priorityMode, setPriorityMode] = useState('STANDARD');
 
   // Sync serviceTypeId if the modal is kept mounted and reopened with different appointments.
   useEffect(() => {
@@ -76,7 +74,6 @@ export function MapGroupCreateModal({
       scheduledDate,
       timeWindow,
       ...(serviceRegionId && !isMixedAgency ? { serviceRegionId } : {}),
-      priorityMode,
       ...(description ? { description } : {}),
       actorTimezone: browserTz,
     };
@@ -109,7 +106,7 @@ export function MapGroupCreateModal({
     }
   }, [
     selectedAppointmentIds, serviceTypeId, scheduledDate, startTime, endTime,
-    serviceRegionId, isMixedAgency, priorityMode, description,
+    serviceRegionId, isMixedAgency, description,
     showSuccess, showError, queryClient, onSuccess,
   ]);
 
@@ -182,10 +179,6 @@ export function MapGroupCreateModal({
               tenantId={tenantId}
             />
           )}
-        </FormField>
-
-        <FormField label="Priority">
-          <PriorityModeSelect value={priorityMode} onChange={setPriorityMode} />
         </FormField>
 
         <FormField label="Description">

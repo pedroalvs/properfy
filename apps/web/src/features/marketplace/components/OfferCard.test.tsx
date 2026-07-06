@@ -9,19 +9,10 @@ const MOCK_OFFER: MarketplaceOffer = {
   code: '1057',
   tenantName: 'Sydney CBD',
   serviceTypeName: 'Routine Inspection',
-  priorityMode: 'STANDARD',
   groupSize: 3,
   scheduledDate: '2026-03-20',
   timeWindow: '09:00-12:00',
-  priorityExpiresAt: '2026-04-01T00:00:00Z',
   suburbs: ['Sydney CBD'],
-};
-
-const MOCK_PRIORITY_OFFER: MarketplaceOffer = {
-  ...MOCK_OFFER,
-  groupId: 'grp-02',
-  tenantName: 'Melbourne Inner',
-  priorityMode: 'PRIORITY_24H',
 };
 
 describe('OfferCard', () => {
@@ -35,16 +26,10 @@ describe('OfferCard', () => {
     expect(screen.getByText('#1057')).toBeInTheDocument();
   });
 
-  it('shows standard priority badge', () => {
+  it('does not render a priority badge', () => {
     render(<OfferCard offer={MOCK_OFFER} selected={false} onClick={vi.fn()} onAccept={vi.fn()} />);
 
-    expect(screen.getByTestId('priority-badge')).toHaveTextContent('Standard');
-  });
-
-  it('shows 24h priority badge', () => {
-    render(<OfferCard offer={MOCK_PRIORITY_OFFER} selected={false} onClick={vi.fn()} onAccept={vi.fn()} />);
-
-    expect(screen.getByTestId('priority-badge')).toHaveTextContent('24h Priority');
+    expect(screen.queryByTestId('priority-badge')).not.toBeInTheDocument();
   });
 
   it('calls onClick when card is clicked', () => {

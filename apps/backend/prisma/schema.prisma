@@ -156,11 +156,6 @@ enum ServiceGroupStatus {
   REJECTED
 }
 
-enum PriorityMode {
-  STANDARD
-  PRIORITY_24H
-}
-
 enum AuditActorType {
   USER
   SYSTEM
@@ -617,8 +612,6 @@ model ServiceGroup {
   time_window           String                     @db.VarChar(11)
   region_name           String?                    @db.VarChar(255)
   description           String?                    @db.Text
-  priority_mode         PriorityMode               @default(STANDARD)
-  priority_expires_at   DateTime?
   assigned_inspector_id String?
   service_region_id     String?
   published_at          DateTime?

@@ -2,13 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { GroupSummaryCard } from './GroupSummaryCard';
 
-vi.mock('@/lib/status-colors', () => ({
-  PRIORITY_MODE_MAP: {
-    STANDARD: { bg: '#eee', text: '#000', label: 'Standard' },
-    PRIORITY_24H: { bg: '#ff0', text: '#000', label: '24h Priority' },
-  },
-}));
-
 describe('GroupSummaryCard', () => {
   it('renders appointment count', () => {
     render(
@@ -17,7 +10,6 @@ describe('GroupSummaryCard', () => {
         serviceType="Inspection"
         scheduledDate="2026-04-10"
         timeWindow="08:00 - 17:00"
-        priorityMode="STANDARD"
       />,
     );
     expect(screen.getByText('12')).toBeInTheDocument();
@@ -30,7 +22,6 @@ describe('GroupSummaryCard', () => {
         serviceType="Full Inspection"
         scheduledDate="2026-04-10"
         timeWindow="08:00 - 17:00"
-        priorityMode="STANDARD"
       />,
     );
     expect(screen.getByText('Full Inspection')).toBeInTheDocument();
@@ -43,23 +34,9 @@ describe('GroupSummaryCard', () => {
         serviceType="Inspection"
         scheduledDate="2026-04-10"
         timeWindow="09:00 - 18:00"
-        priorityMode="STANDARD"
       />,
     );
     expect(screen.getByText('09:00 - 18:00')).toBeInTheDocument();
-  });
-
-  it('renders priority mode chip', () => {
-    render(
-      <GroupSummaryCard
-        appointmentCount={5}
-        serviceType="Inspection"
-        scheduledDate="2026-04-10"
-        timeWindow="08:00 - 17:00"
-        priorityMode="PRIORITY_24H"
-      />,
-    );
-    expect(screen.getByText('24h Priority')).toBeInTheDocument();
   });
 
   it('shows title', () => {
@@ -69,7 +46,6 @@ describe('GroupSummaryCard', () => {
         serviceType=""
         scheduledDate=""
         timeWindow=""
-        priorityMode="STANDARD"
       />,
     );
     expect(screen.getByText('Group Summary')).toBeInTheDocument();
@@ -82,7 +58,6 @@ describe('GroupSummaryCard', () => {
         serviceType=""
         scheduledDate=""
         timeWindow=""
-        priorityMode="STANDARD"
       />,
     );
     const dashes = screen.getAllByText('—');
@@ -96,7 +71,6 @@ describe('GroupSummaryCard', () => {
         serviceType="Inspection"
         scheduledDate="2026-04-10"
         timeWindow="08:00 - 17:00"
-        priorityMode="STANDARD"
       />,
     );
     expect(screen.getByText('2026-04-10')).toBeInTheDocument();
@@ -109,7 +83,6 @@ describe('GroupSummaryCard', () => {
         serviceType="Inspection"
         scheduledDate="2026-04-10"
         timeWindow="08:00 - 17:00"
-        priorityMode="STANDARD"
       />,
     );
     const grid = container.querySelector('.grid.grid-cols-1.sm\\:grid-cols-2');

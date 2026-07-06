@@ -190,7 +190,6 @@ describe('CreateServiceGroupUseCase — TZ-aware date validation', () => {
     await expect(uc.execute({
       appointmentIds: ['a-1'], serviceTypeId: 'svc-1',
       scheduledDate: PAST, timeWindow: '09:00-17:00',
-      priorityMode: 'STANDARD', actorTimezone: TZ, actor: actorOp,
     })).rejects.toThrow(ServiceGroupDateInPastError);
   });
 
@@ -199,7 +198,6 @@ describe('CreateServiceGroupUseCase — TZ-aware date validation', () => {
     await expect(uc.execute({
       appointmentIds: ['a-1'], serviceTypeId: 'svc-1',
       scheduledDate: TODAY, timeWindow: '09:00-10:00',
-      priorityMode: 'STANDARD', actorTimezone: TZ, actor: actorOp,
     })).rejects.toThrow(ServiceGroupTimeInPastError);
   });
 });

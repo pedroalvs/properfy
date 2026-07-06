@@ -342,7 +342,6 @@ export function createMockContainer(
     notifyStuckInspectionsWorker: { execute: vi.fn() } as AppContainer['notifyStuckInspectionsWorker'],
     geocodeRetryWorker: { execute: vi.fn() } as AppContainer['geocodeRetryWorker'],
     keyExpiryCheckWorker: { execute: vi.fn() } as AppContainer['keyExpiryCheckWorker'],
-    expirePriorityWorker: { execute: vi.fn() } as AppContainer['expirePriorityWorker'],
     auditRetentionWorker: { execute: vi.fn() } as AppContainer['auditRetentionWorker'],
     rejectUnconfirmedWorker: { execute: vi.fn() } as AppContainer['rejectUnconfirmedWorker'],
   };

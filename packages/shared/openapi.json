@@ -14496,14 +14496,6 @@
                     "type": "string",
                     "maxLength": 5000
                   },
-                  "priorityMode": {
-                    "type": "string",
-                    "enum": [
-                      "STANDARD",
-                      "PRIORITY_24H"
-                    ],
-                    "default": "STANDARD"
-                  },
                   "actorTimezone": {
                     "type": "string"
                   }
@@ -14604,21 +14596,6 @@
                           "type": "string",
                           "nullable": true
                         },
-                        "priorityMode": {
-                          "type": "string"
-                        },
-                        "priorityExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
                         "assignedInspectorId": {
                           "type": "string",
                           "format": "uuid",
@@ -14700,8 +14677,6 @@
                         "confirmedCount",
                         "scheduledDate",
                         "timeWindow",
-                        "priorityMode",
-                        "priorityExpiresAt",
                         "assignedInspectorId",
                         "publishedAt",
                         "createdAt"
@@ -14816,18 +14791,6 @@
             },
             "in": "query",
             "name": "scheduledDateTo",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "STANDARD",
-                "PRIORITY_24H"
-              ]
-            },
-            "in": "query",
-            "name": "priorityMode",
             "required": false
           },
           {
@@ -14968,21 +14931,6 @@
                             "type": "string",
                             "nullable": true
                           },
-                          "priorityMode": {
-                            "type": "string"
-                          },
-                          "priorityExpiresAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ],
-                            "nullable": true
-                          },
                           "assignedInspectorId": {
                             "type": "string",
                             "format": "uuid",
@@ -15064,8 +15012,6 @@
                           "confirmedCount",
                           "scheduledDate",
                           "timeWindow",
-                          "priorityMode",
-                          "priorityExpiresAt",
                           "assignedInspectorId",
                           "publishedAt",
                           "createdAt"
@@ -15207,21 +15153,6 @@
                           "type": "string",
                           "nullable": true
                         },
-                        "priorityMode": {
-                          "type": "string"
-                        },
-                        "priorityExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
                         "assignedInspectorId": {
                           "type": "string",
                           "format": "uuid",
@@ -15303,8 +15234,6 @@
                         "confirmedCount",
                         "scheduledDate",
                         "timeWindow",
-                        "priorityMode",
-                        "priorityExpiresAt",
                         "assignedInspectorId",
                         "publishedAt",
                         "createdAt"
@@ -15345,13 +15274,6 @@
                   "timeWindow": {
                     "type": "string",
                     "pattern": "^\\d{2}:\\d{2}-\\d{2}:\\d{2}$"
-                  },
-                  "priorityMode": {
-                    "type": "string",
-                    "enum": [
-                      "STANDARD",
-                      "PRIORITY_24H"
-                    ]
                   },
                   "actorTimezone": {
                     "type": "string"
@@ -15457,21 +15379,6 @@
                           "type": "string",
                           "nullable": true
                         },
-                        "priorityMode": {
-                          "type": "string"
-                        },
-                        "priorityExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
                         "assignedInspectorId": {
                           "type": "string",
                           "format": "uuid",
@@ -15553,8 +15460,6 @@
                         "confirmedCount",
                         "scheduledDate",
                         "timeWindow",
-                        "priorityMode",
-                        "priorityExpiresAt",
                         "assignedInspectorId",
                         "publishedAt",
                         "createdAt"
@@ -15670,21 +15575,6 @@
                           "type": "string",
                           "nullable": true
                         },
-                        "priorityMode": {
-                          "type": "string"
-                        },
-                        "priorityExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
                         "assignedInspectorId": {
                           "type": "string",
                           "format": "uuid",
@@ -15766,8 +15656,6 @@
                         "confirmedCount",
                         "scheduledDate",
                         "timeWindow",
-                        "priorityMode",
-                        "priorityExpiresAt",
                         "assignedInspectorId",
                         "publishedAt",
                         "createdAt"
@@ -15903,21 +15791,6 @@
                           "type": "string",
                           "nullable": true
                         },
-                        "priorityMode": {
-                          "type": "string"
-                        },
-                        "priorityExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
                         "assignedInspectorId": {
                           "type": "string",
                           "format": "uuid",
@@ -15999,8 +15872,6 @@
                         "confirmedCount",
                         "scheduledDate",
                         "timeWindow",
-                        "priorityMode",
-                        "priorityExpiresAt",
                         "assignedInspectorId",
                         "publishedAt",
                         "createdAt"
@@ -16857,21 +16728,6 @@
                           "timeWindow": {
                             "type": "string"
                           },
-                          "priorityMode": {
-                            "type": "string"
-                          },
-                          "priorityExpiresAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ],
-                            "nullable": true
-                          },
                           "suburbs": {
                             "type": "array",
                             "items": {
@@ -16912,8 +16768,6 @@
                           "groupSize",
                           "scheduledDate",
                           "timeWindow",
-                          "priorityMode",
-                          "priorityExpiresAt",
                           "suburbs",
                           "payoutEstimate",
                           "appointmentCount",
@@ -17015,21 +16869,6 @@
                         },
                         "timeWindow": {
                           "type": "string"
-                        },
-                        "priorityMode": {
-                          "type": "string"
-                        },
-                        "priorityExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
                         },
                         "suburbs": {
                           "type": "array",
@@ -17140,8 +16979,6 @@
                         "groupSize",
                         "scheduledDate",
                         "timeWindow",
-                        "priorityMode",
-                        "priorityExpiresAt",
                         "suburbs",
                         "payoutEstimate",
                         "appointmentCount",
@@ -20701,21 +20538,6 @@
                           "timeWindow": {
                             "type": "string"
                           },
-                          "priorityMode": {
-                            "type": "string"
-                          },
-                          "priorityExpiresAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ],
-                            "nullable": true
-                          },
                           "suburbs": {
                             "type": "array",
                             "items": {
@@ -20756,8 +20578,6 @@
                           "groupSize",
                           "scheduledDate",
                           "timeWindow",
-                          "priorityMode",
-                          "priorityExpiresAt",
                           "suburbs",
                           "payoutEstimate",
                           "appointmentCount",

@@ -9,8 +9,6 @@ export interface MarketplaceOffer {
   groupSize: number;
   scheduledDate: string;
   timeWindow: string;
-  priorityMode: string;
-  priorityExpiresAt: string | null;
   suburbs: string[];
 }
 

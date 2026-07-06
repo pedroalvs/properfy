@@ -111,7 +111,6 @@ async function seedAcceptedGroup(
       confirmed_count: params.confirmedCount ?? 3,
       scheduled_date: GROUP_DATE,
       time_window: '08:00-17:00',
-      priority_mode: 'STANDARD',
       assigned_inspector_id: params.inspectorId,
       assigned_at: new Date(),
       created_by_user_id: params.createdByUserId,

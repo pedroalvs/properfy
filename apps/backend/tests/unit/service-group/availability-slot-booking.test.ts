@@ -29,8 +29,6 @@ function makeGroup(overrides: Partial<ConstructorParameters<typeof ServiceGroupE
     name: null,
     regionName: null,
     description: null,
-    priorityMode: 'STANDARD',
-    priorityExpiresAt: null,
     assignedInspectorId: null,
     publishedAt: new Date(),
     assignedAt: null,
