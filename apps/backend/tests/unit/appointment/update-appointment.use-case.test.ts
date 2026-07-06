@@ -996,6 +996,62 @@ describe('UpdateAppointmentUseCase', () => {
         }),
       ).rejects.toThrow(AppointmentInServiceGroupError);
     });
+
+    // Both cases below intentionally fail OPEN: the window check only runs when
+    // `serviceGroupRepo` is wired AND resolves a group. Documented here so a
+    // future change to either condition doesn't silently start (or stop)
+    // enforcing the window without a test noticing.
+    it('fails open (no window check) when serviceGroupRepo is not wired', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({
+          status: 'AWAITING_INSPECTOR',
+          serviceGroupId: 'group-1',
+          scheduledDate: new Date('2099-04-01'),
+          timeSlotStart: '09:00',
+          timeSlotEnd: '10:00',
+        }),
+      );
+
+      const result = await useCase.execute({
+        appointmentId: 'appt-1',
+        data: { timeSlotStart: '13:00', timeSlotEnd: '14:00' },
+        actor: makeActor(),
+      });
+
+      expect(result.id).toBe('appt-1');
+      expect(appointmentRepo.update).toHaveBeenCalledWith(
+        'appt-1',
+        'tenant-1',
+        expect.objectContaining({ timeSlotStart: '13:00', timeSlotEnd: '14:00' }),
+      );
+    });
+
+    it('fails open (no window check) when serviceGroupRepo.findById returns null', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({
+          status: 'AWAITING_INSPECTOR',
+          serviceGroupId: 'group-1',
+          scheduledDate: new Date('2099-04-01'),
+          timeSlotStart: '09:00',
+          timeSlotEnd: '10:00',
+        }),
+      );
+      const serviceGroupRepo = { findById: vi.fn().mockResolvedValue(null) };
+
+      const result = await makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+        appointmentId: 'appt-1',
+        data: { timeSlotStart: '13:00', timeSlotEnd: '14:00' },
+        actor: makeActor(),
+      });
+
+      expect(result.id).toBe('appt-1');
+      expect(serviceGroupRepo.findById).toHaveBeenCalledWith('group-1', null);
+      expect(appointmentRepo.update).toHaveBeenCalledWith(
+        'appt-1',
+        'tenant-1',
+        expect.objectContaining({ timeSlotStart: '13:00', timeSlotEnd: '14:00' }),
+      );
+    });
   });
 
   // Regression: Bug B-1 (QA round 2026-04-18).
