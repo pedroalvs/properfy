@@ -140,6 +140,26 @@ describe('ListPropertiesUseCase', () => {
     );
   });
 
+  it('should fail closed (AUTH_FORBIDDEN) for CL_ADMIN/CL_USER with no tenantId on the actor', async () => {
+    await expect(
+      useCase.execute({
+        filters: {},
+        pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
+        actor: makeActor({ role: 'CL_USER', tenantId: null }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+
+    await expect(
+      useCase.execute({
+        filters: {},
+        pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
+        actor: makeActor({ role: 'CL_ADMIN', tenantId: null }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+
+    expect(propertyRepo.findAllWithBranch).not.toHaveBeenCalled();
+  });
+
   it('should pass through tenantName from repository for the Agency column', async () => {
     vi.mocked(propertyRepo.findAllWithBranch).mockResolvedValue([
       makePropertyWithBranch({}, 'Sydney CBD', 'Acme Realty'),
