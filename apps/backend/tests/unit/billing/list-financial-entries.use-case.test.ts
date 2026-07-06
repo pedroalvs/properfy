@@ -401,6 +401,42 @@ describe('ListFinancialEntriesUseCase', () => {
     expect(auditService.log).not.toHaveBeenCalled();
   });
 
+  it('should pass appointmentId filter through for AM', async () => {
+    vi.mocked(entryRepo.findAllEnriched).mockResolvedValue([]);
+    vi.mocked(entryRepo.count).mockResolvedValue(0);
+
+    await useCase.execute({
+      ...defaultInput,
+      appointmentId: 'appt-1',
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(entryRepo.findAllEnriched).toHaveBeenCalledWith(
+      expect.objectContaining({ appointmentId: 'appt-1' }),
+      expect.any(Object),
+    );
+  });
+
+  it('should combine appointmentId with the tenant scope for CL_ADMIN (no bypass)', async () => {
+    vi.mocked(entryRepo.findAllEnriched).mockResolvedValue([]);
+    vi.mocked(entryRepo.count).mockResolvedValue(0);
+
+    await useCase.execute({
+      ...defaultInput,
+      appointmentId: 'appt-1',
+      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    });
+
+    expect(entryRepo.findAllEnriched).toHaveBeenCalledWith(
+      expect.objectContaining({
+        appointmentId: 'appt-1',
+        tenantId: 'tenant-1',
+        entryTypeIn: ['TENANT_DEBIT', 'REFUND', 'MANUAL_ADJUSTMENT'],
+      }),
+      expect.any(Object),
+    );
+  });
+
   it('should not audit log when AM lists without tenant filter', async () => {
     vi.mocked(entryRepo.findAllEnriched).mockResolvedValue([]);
     vi.mocked(entryRepo.count).mockResolvedValue(0);
