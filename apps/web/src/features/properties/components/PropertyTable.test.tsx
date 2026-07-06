@@ -11,6 +11,7 @@ function makeProperty(overrides: Partial<Property> = {}): Property {
     tenantId: 'tenant-1',
     branchId: 'branch-1',
     branchName: 'Filial Centro',
+    tenantName: null,
     propertyCode: 'IMV-001',
     type: PropertyType.HOUSE,
     street: 'Rua das Flores, 123',

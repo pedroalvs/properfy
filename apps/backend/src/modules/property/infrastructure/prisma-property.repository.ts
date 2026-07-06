@@ -121,10 +121,14 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     if (tenantId) where['tenant_id'] = tenantId;
     const row = await this.prisma.property.findFirst({
       where,
-      include: { branch: { select: { name: true } } },
+      include: { branch: { select: { name: true } }, tenant: { select: { name: true } } },
     });
     if (!row) return null;
-    return { property: mapToEntity(row), branchName: row.branch?.name ?? null };
+    return {
+      property: mapToEntity(row),
+      branchName: row.branch?.name ?? null,
+      tenantName: row.tenant?.name ?? null,
+    };
   }
 
   async findByPropertyCode(
@@ -199,11 +203,12 @@ export class PrismaPropertyRepository implements IPropertyRepository {
       skip: (pagination.page - 1) * pagination.pageSize,
       take: pagination.pageSize,
       orderBy: { [toSnakeCase(pagination.sortBy ?? 'created_at')]: pagination.sortOrder },
-      include: { branch: { select: { name: true } } },
+      include: { branch: { select: { name: true } }, tenant: { select: { name: true } } },
     });
     return rows.map((row) => ({
       property: mapToEntity(row),
       branchName: row.branch?.name ?? null,
+      tenantName: row.tenant?.name ?? null,
     }));
   }
 
@@ -482,9 +487,11 @@ export class PrismaPropertyRepository implements IPropertyRepository {
              p.private_area_m2, p.total_area_m2, p.furnished, p.linen_provided, p.rent_amount,
              p.notes, p.rules_json,
              p.created_at, p.updated_at, p.deleted_at,
-             b.name AS branch_name
+             b.name AS branch_name,
+             t.name AS tenant_name
       FROM properties p
       LEFT JOIN branches b ON b.id = p.branch_id
+      JOIN tenants t ON t.id = p.tenant_id
       WHERE ${clause}
       ORDER BY p.${sortCol} ${sortDir}
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
@@ -497,11 +504,13 @@ export class PrismaPropertyRepository implements IPropertyRepository {
       geocoding_status: string; notes: string | null; rules_json: unknown;
       created_at: Date; updated_at: Date; deleted_at: Date | null;
       branch_name: string | null;
+      tenant_name: string | null;
     }> = await this.prisma.$queryRawUnsafe(sql, ...params);
 
     return rows.map((row) => ({
       property: mapToEntity(row),
       branchName: row.branch_name ?? null,
+      tenantName: row.tenant_name ?? null,
     }));
   }
 

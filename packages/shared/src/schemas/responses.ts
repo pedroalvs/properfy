@@ -127,6 +127,7 @@ export const propertyResponseSchema = z.object({
   tenantId: z.string().uuid(),
   branchId: z.string().uuid().nullable(),
   branchName: z.string().nullable().optional(),
+  tenantName: z.string().nullable().optional(),
   propertyCode: z.string(),
   type: z.string(),
   street: z.string(),

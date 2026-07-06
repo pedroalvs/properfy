@@ -3,6 +3,7 @@ import type { PropertyEntity } from './property.entity';
 export interface PropertyWithBranch {
   property: PropertyEntity;
   branchName: string | null;
+  tenantName: string | null;
 }
 
 export interface NearLocationFilter {
