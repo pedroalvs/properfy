@@ -27,15 +27,17 @@ vi.mock('@/lib/api-error', () => ({
 }));
 
 import { api } from '@/services/api';
+import { useAuth } from '@/hooks/useAuth';
 import { CreateAdjustmentModal } from './CreateAdjustmentModal';
 
 const mockPost = api.POST as ReturnType<typeof vi.fn>;
+const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 vi.mock('@/hooks/useAuth', () => ({
-  useAuth: () => ({
-    user: { tenantId: 'tenant-1' },
-  }),
+  useAuth: vi.fn(),
 }));
+
+const mockUseAuth = useAuth as ReturnType<typeof vi.fn>;
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -59,6 +61,18 @@ describe('CreateAdjustmentModal', () => {
     onCreated.mockClear();
     mockPost.mockReset();
     mockPost.mockResolvedValue({ data: { data: { id: 'new-adj' } } });
+    mockGet.mockReset();
+    mockGet.mockResolvedValue({
+      data: {
+        data: [
+          { id: 'tenant-1', name: 'Acme Realty' },
+          { id: 'tenant-2', name: 'Beta Homes' },
+        ],
+        pagination: { page: 1, pageSize: 100, total: 2, totalPages: 1 },
+      },
+    });
+    mockUseAuth.mockReset();
+    mockUseAuth.mockReturnValue({ user: { tenantId: 'tenant-1' } });
   });
 
   it('renders nothing when closed', () => {
@@ -79,7 +93,7 @@ describe('CreateAdjustmentModal', () => {
       </Wrapper>,
     );
     expect(screen.getByText('Create Adjustment')).toBeInTheDocument();
-    expect(screen.getByLabelText('Agency ID')).toBeInTheDocument();
+    expect(screen.getByLabelText('Agency')).toBeInTheDocument();
     expect(screen.getByLabelText('Amount')).toBeInTheDocument();
     expect(screen.getByLabelText('Description')).toBeInTheDocument();
     expect(screen.getByLabelText('Reason')).toBeInTheDocument();
@@ -128,7 +142,7 @@ describe('CreateAdjustmentModal', () => {
     fireEvent.click(screen.getByText('Create'));
 
     await waitFor(() => {
-      expect(mockPost).toHaveBeenCalledWith(
+  expect(mockPost).toHaveBeenCalledWith(
         '/v1/financial/entries/adjust',
         expect.objectContaining({
           body: expect.objectContaining({
@@ -141,5 +155,56 @@ describe('CreateAdjustmentModal', () => {
       );
     });
     expect(onCreated).toHaveBeenCalled();
+  });
+
+  it('shows the resolved agency name in the locked select', async () => {
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <CreateAdjustmentModal open={true} onClose={onClose} onCreated={onCreated} />
+      </Wrapper>,
+    );
+
+    const agencyField = screen.getByLabelText('Agency');
+    expect(agencyField).toBeDisabled();
+    await waitFor(() => {
+      expect(agencyField).toHaveTextContent('Acme Realty');
+    });
+  });
+
+  it('lets a cross-agency operator pick an agency from the dropdown', async () => {
+    mockUseAuth.mockReturnValue({ user: { tenantId: undefined } });
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <CreateAdjustmentModal open={true} onClose={onClose} onCreated={onCreated} />
+      </Wrapper>,
+    );
+
+    const agencyField = screen.getByLabelText('Agency');
+    expect(agencyField).not.toBeDisabled();
+
+    fireEvent.click(agencyField);
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'Beta Homes' })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('option', { name: 'Beta Homes' }));
+
+    expect(agencyField).toHaveTextContent('Beta Homes');
+
+    fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '50' } });
+    fireEvent.change(screen.getByLabelText('Effective Date'), { target: { value: '2026-03-23' } });
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Cross-agency credit' } });
+    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Support request' } });
+    fireEvent.click(screen.getByText('Create'));
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith(
+        '/v1/financial/entries/adjust',
+        expect.objectContaining({
+          body: expect.objectContaining({ tenantId: 'tenant-2' }),
+        }),
+      );
+    });
   });
 });

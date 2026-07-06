@@ -8,8 +8,10 @@ import { DateInput } from '@/components/forms/DateInput';
 import { Textarea } from '@/components/forms/Textarea';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useAuth } from '@/hooks/useAuth';
+import { useFormOptions } from '@/hooks/useFormOptions';
 import { useCreateAdjustment } from '../hooks/useCreateAdjustment';
 import { TextInput } from '@/components/forms/TextInput';
+import { SelectInput } from '@/components/forms/SelectInput';
 
 interface CreateAdjustmentModalProps {
   open: boolean;
@@ -74,6 +76,11 @@ export function CreateAdjustmentModal({ open, onClose, onCreated }: CreateAdjust
   const [errors, setErrors] = useState<AdjustmentFormErrors>({});
   const { mutateAsync, isPending } = useCreateAdjustment();
   const { showSuccess, showError } = useSnackbar();
+  const { options: agencyOptions } = useFormOptions<{ id: string; name: string }>(
+    ['tenants', 'form-options'],
+    '/v1/tenants',
+    (item) => ({ value: item.id, label: item.name }),
+  );
 
   const updateField = useCallback(<K extends keyof AdjustmentFormData>(field: K, value: AdjustmentFormData[K]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -137,16 +144,18 @@ export function CreateAdjustmentModal({ open, onClose, onCreated }: CreateAdjust
     >
       <div className="flex flex-col gap-4">
         <FormField
-          label="Agency ID"
+          label="Agency"
           required
           error={errors.tenantId}
           hint={user?.tenantId ? 'Using the agency from your current session.' : 'Required for cross-agency manual adjustments.'}
         >
-          <TextInput
+          <SelectInput
             value={resolvedTenantId}
             onChange={(v) => updateField('tenantId', v)}
+            options={agencyOptions}
             disabled={Boolean(user?.tenantId)}
-            aria-label="Agency ID"
+            placeholder="Select an agency"
+            aria-label="Agency"
           />
         </FormField>
         <FormField label="Amount" required error={errors.amount}>
