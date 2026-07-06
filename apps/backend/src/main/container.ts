@@ -719,10 +719,14 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Schedule edits in any non-terminal status: rotates the confirmation cycle,
   // revokes stale portal tokens and (for SCHEDULED) notifies the rental tenant.
+  // `serviceGroupRepo` here validates a grouped appointment's new time slot
+  // against the group's time window (the full instance is re-created below
+  // for the service-group module's own use cases).
   const updateAppointmentUseCase = new UpdateAppointmentUseCase(
     appointmentRepo, auditService, authorizationService, tenantRepo, contactRepo,
     undefined, appCredentialRepo,
     confirmationCycleService, rentalTenantPortalTokenRepo, notifyOnAdminRescheduleHandler,
+    new PrismaServiceGroupRepository(prisma),
   );
 
   const executeStatusTransitionUseCase = new ExecuteStatusTransitionUseCase(

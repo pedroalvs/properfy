@@ -16,8 +16,11 @@ import {
   AppointmentDateInPastError,
   AppointmentTimeInPastError,
   AppointmentInServiceGroupError,
+  AppointmentTimeSlotOutsideGroupWindowError,
 } from '../../domain/appointment.errors';
 import type { IRentalTenantPortalTokenRepository } from '../../../rental-tenant-portal/domain/rental-tenant-portal-token.repository';
+import type { IServiceGroupRepository } from '../../../service-group/domain/service-group.repository';
+import { getServiceGroupTimeSlotAdjustment } from '../../../service-group/domain/service-group-time-slot-sync';
 import type { ConfirmationCycleService } from '../services/confirmation-cycle.service';
 import { validateEditedSchedule } from '@properfy/shared';
 import type { RestrictionSource } from '@properfy/shared';
@@ -136,6 +139,8 @@ export class UpdateAppointmentUseCase {
     private readonly portalTokenRepo?: IRentalTenantPortalTokenRepository,
     /** Optional. When wired, a date/time change on a SCHEDULED appointment notifies the rental tenant. */
     private readonly onAdminRescheduleHandler?: OnAdminRescheduleHandler,
+    /** Optional. When wired, validates a grouped appointment's new time slot against its group's time window. */
+    private readonly serviceGroupRepo?: IServiceGroupRepository,
   ) {}
 
   async execute(input: UpdateAppointmentInput): Promise<UpdateAppointmentOutput> {
@@ -182,11 +187,29 @@ export class UpdateAppointmentUseCase {
       (data.timeSlotEnd !== undefined && data.timeSlotEnd !== appointment.timeSlotEnd);
     const scheduleChanged = dateChanged || timeChangedReal;
 
-    // Appointments in a service group have their time window managed by the
-    // group (automatic time-slot sync) — individual date/time edits would
-    // break group coherence. Reschedule the whole group via the map/bulk flow.
-    if (scheduleChanged && appointment.serviceGroupId) {
+    // Appointments in a service group must share the group's calendar day
+    // (enforced at add-time) — an individual date change would break that
+    // invariant, so it stays blocked. Reschedule the whole group instead.
+    if (dateChanged && appointment.serviceGroupId) {
       throw new AppointmentInServiceGroupError();
+    }
+
+    // A time-slot-only edit is allowed as long as the new slot still fits
+    // inside the group's shared time window (same containment rule used
+    // when appointments are added to a group).
+    if (timeChangedReal && appointment.serviceGroupId && this.serviceGroupRepo) {
+      const groupResult = await this.serviceGroupRepo.findById(appointment.serviceGroupId, null);
+      if (groupResult) {
+        const newTimeSlotStart = data.timeSlotStart ?? appointment.timeSlotStart;
+        const newTimeSlotEnd = data.timeSlotEnd ?? appointment.timeSlotEnd;
+        const adjustment = getServiceGroupTimeSlotAdjustment(
+          { timeSlotStart: newTimeSlotStart, timeSlotEnd: newTimeSlotEnd },
+          groupResult.group.timeWindow,
+        );
+        if (adjustment) {
+          throw new AppointmentTimeSlotOutsideGroupWindowError();
+        }
+      }
     }
 
     // Capture before state for audit
