@@ -80,8 +80,7 @@ async function seedGroup(prisma: PrismaClient, serviceTypeId: string, createdByU
   const g = await prisma.serviceGroup.create({
     data: {
       service_type_id: serviceTypeId, status: 'PUBLISHED', group_size: 5,
-      scheduled_date: SCHEDULED_DATE, time_window: '08:00-12:00', priority_mode: 'STANDARD',
-      published_at: new Date(), created_by_user_id: createdByUserId,
+      scheduled_date: SCHEDULED_DATE, time_window: '08:00-12:00', published_at: new Date(), created_by_user_id: createdByUserId,
     },
   });
   return g.id;

@@ -464,8 +464,6 @@ class InMemoryServiceGroupRepo implements IServiceGroupRepository {
           groupSize: group.groupSize,
           scheduledDate: group.scheduledDate,
           timeWindow: group.timeWindow,
-          priorityMode: group.priorityMode,
-          priorityExpiresAt: group.priorityExpiresAt,
           suburbs,
         };
       });
@@ -737,7 +735,6 @@ describe('FASE 1 integrated proof', () => {
       serviceTypeId: SERVICE_TYPE_ID,
       scheduledDate: today,
       timeWindow: '08:00-12:00',
-      priorityMode: 'STANDARD',
       serviceRegionId: 'region-1',
       actor: opActor,
     });

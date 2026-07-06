@@ -147,7 +147,6 @@ async function seedPublishedGroup(
       group_size: groupSize,
       scheduled_date: FUTURE_DATE,
       time_window: '08:00-12:00',
-      priority_mode: 'STANDARD',
       published_at: new Date(),
       created_by_user_id: createdByUserId,
     },

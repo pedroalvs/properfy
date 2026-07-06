@@ -10,7 +10,6 @@ import {
   ServiceGroupNotFoundError,
   ServiceGroupInvalidStatusError,
   AppointmentInvalidStatusError,
-  PriorityExpiredError,
   ServiceRegionRequiredError,
   ServiceRegionInactiveError,
 } from '../../domain/service-group.errors';
@@ -32,8 +31,6 @@ export interface PublishServiceGroupOutput {
   timeWindow: string;
   regionName: string | null;
   description: string | null;
-  priorityMode: string;
-  priorityExpiresAt: Date | null;
   assignedInspectorId: string | null;
   serviceRegionId: string | null;
   publishedAt: Date | null;
@@ -98,11 +95,6 @@ export class PublishServiceGroupUseCase {
       }
     }
 
-    // Check priority expiry
-    if (group.isPriorityExpired()) {
-      throw new PriorityExpiredError();
-    }
-
     const now = new Date();
     const newOfferedCount = group.offeredCount + 1;
 
@@ -151,8 +143,6 @@ function mapGroupToOutput(group: ServiceGroupEntity, primaryTenantId: string | n
     timeWindow: group.timeWindow,
     regionName: group.regionName,
     description: group.description,
-    priorityMode: group.priorityMode,
-    priorityExpiresAt: group.priorityExpiresAt,
     assignedInspectorId: group.assignedInspectorId,
     serviceRegionId: group.serviceRegionId,
     publishedAt: group.publishedAt,

@@ -10,7 +10,6 @@ const DEFAULT_STATE: Omit<ExecutionState, 'appointmentId'> = {
   checklistTemplate: [],
   checklistResponses: [],
   notes: '',
-  assets: [],
   startedAt: null,
   errorMessage: null,
   lastSavedAt: null,

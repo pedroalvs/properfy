@@ -1,13 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { FinishInspectionUseCase } from '../../../src/modules/inspector-execution/application/use-cases/finish-inspection.use-case';
 import { InspectionExecutionEntity } from '../../../src/modules/inspector-execution/domain/inspection-execution.entity';
-import { InspectionAssetEntity } from '../../../src/modules/inspector-execution/domain/inspection-asset.entity';
 import {
   ExecutionAppointmentNotFoundError,
   ExecutionNotStartedError,
   ExecutionAlreadyFinishedError,
-  ExecutionInsufficientAssetsError,
-  ExecutionAssetUploadPendingError,
+  ExecutionEmptyChecklistError,
 } from '../../../src/modules/inspector-execution/domain/inspection-execution.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
@@ -15,14 +13,6 @@ import { AuthorizationService } from '../../../src/shared/domain/authorization.s
 const executionRepo = {
   findByAppointmentId: vi.fn(),
   findByAppointmentIds: vi.fn(),
-  save: vi.fn(),
-  update: vi.fn(),
-};
-
-const assetRepo = {
-  findById: vi.fn(),
-  findByExecutionId: vi.fn(),
-  findUploadedByExecutionId: vi.fn(),
   save: vi.fn(),
   update: vi.fn(),
 };
@@ -41,9 +31,6 @@ const appointmentRepo = {
 };
 
 const auditService = { log: vi.fn() };
-const serviceTypeReader = {
-  findById: vi.fn(),
-};
 
 const inspActor = {
   userId: 'insp-1',
@@ -74,33 +61,14 @@ function makeExecution(overrides = {}) {
   });
 }
 
-function makeUploadedAsset(overrides = {}) {
-  return new InspectionAssetEntity({
-    id: 'asset-1',
-    appointmentId: 'appt-1',
-    inspectionExecutionId: 'exec-1',
-    storageKey: 'inspections/tenant-1/appt-1/asset-1.jpg',
-    mimeType: 'image/jpeg',
-    sizeBytes: 1024,
-    kind: 'PHOTO',
-    status: 'UPLOADED',
-    uploadedBy: 'insp-1',
-    uploadExpiresAt: null,
-    createdAt: new Date(),
-    ...overrides,
-  });
-}
-
 function makeSut() {
   const authorizationService = new AuthorizationService(auditService as any);
   return new FinishInspectionUseCase(
     executionRepo,
-    assetRepo,
     idempotencyService,
     executeStatusTransition as any,
     appointmentRepo as any,
     auditService as any,
-    serviceTypeReader as any,
     authorizationService,
   );
 }
@@ -118,7 +86,7 @@ describe('FinishInspectionUseCase', () => {
       reason: null,
       inspectorId: 'insp-1',
       doneMarkedByUserId: null,
-    doneCheckedByUserId: null,
+      doneCheckedByUserId: null,
       doneCheckedAt: null,
       updatedAt: new Date(),
     });
@@ -128,13 +96,11 @@ describe('FinishInspectionUseCase', () => {
         serviceTypeId: 'stype-1',
       },
     });
-    serviceTypeReader.findById.mockResolvedValue(null);
   });
 
   it('should set finishedAt and trigger SCHEDULED->DONE transition', async () => {
     const sut = makeSut();
     executionRepo.findByAppointmentId.mockResolvedValue(makeExecution());
-    assetRepo.findUploadedByExecutionId.mockResolvedValue([makeUploadedAsset()]);
 
     const result = await sut.execute({
       appointmentId: 'appt-1',
@@ -147,7 +113,6 @@ describe('FinishInspectionUseCase', () => {
     expect(result.appointmentStatus).toBe('DONE');
     expect(result.finishedAt).toBeDefined();
     expect(result.executionId).toBe('exec-1');
-    expect(result.assetsCount).toBe(1);
 
     expect(executionRepo.update).toHaveBeenCalledWith(
       'exec-1',
@@ -172,7 +137,6 @@ describe('FinishInspectionUseCase', () => {
       startedAt: '2026-03-21T09:00:00.000Z',
       finishedAt: '2026-03-21T10:00:00.000Z',
       appointmentStatus: 'DONE',
-      assetsCount: 2,
     };
     idempotencyService.get.mockResolvedValue(cachedOutput);
 
@@ -236,94 +200,24 @@ describe('FinishInspectionUseCase', () => {
       }),
     ).rejects.toThrow(ExecutionAppointmentNotFoundError);
 
-    expect(assetRepo.findUploadedByExecutionId).not.toHaveBeenCalled();
     expect(executeStatusTransition.execute).not.toHaveBeenCalled();
     expect(auditService.log).not.toHaveBeenCalled();
   });
 
-  it('should throw ExecutionInsufficientAssetsError when no PHOTO asset uploaded', async () => {
+  it('should throw ExecutionEmptyChecklistError when checklist is provided but empty', async () => {
     const sut = makeSut();
     executionRepo.findByAppointmentId.mockResolvedValue(makeExecution());
-    // Only a DOCUMENT asset, no PHOTO
-    assetRepo.findUploadedByExecutionId.mockResolvedValue([
-      makeUploadedAsset({ kind: 'DOCUMENT', id: 'asset-doc' }),
-    ]);
 
     await expect(
       sut.execute({
         appointmentId: 'appt-1',
         latitude: -33.900,
         longitude: 151.300,
+        checklistJson: {},
         idempotencyKey: 'key-4',
         actor: inspActor,
       }),
-    ).rejects.toThrow(ExecutionInsufficientAssetsError);
-  });
-
-  it('should enforce signature requirement from the appointment service type', async () => {
-    const sut = makeSut();
-    executionRepo.findByAppointmentId.mockResolvedValue(makeExecution());
-    assetRepo.findUploadedByExecutionId.mockResolvedValue([makeUploadedAsset()]);
-    serviceTypeReader.findById.mockResolvedValue({
-      checklistTemplate: {
-        minPhotos: 1,
-        requiresSignature: true,
-      },
-    });
-
-    await expect(
-      sut.execute({
-        appointmentId: 'appt-1',
-        latitude: -33.900,
-        longitude: 151.300,
-        idempotencyKey: 'key-signature',
-        actor: inspActor,
-      }),
-    ).rejects.toThrow(ExecutionInsufficientAssetsError);
-  });
-
-  it('should throw ExecutionAssetUploadPendingError when referenced asset is PENDING', async () => {
-    const sut = makeSut();
-    executionRepo.findByAppointmentId.mockResolvedValue(makeExecution());
-    assetRepo.findUploadedByExecutionId.mockResolvedValue([makeUploadedAsset()]);
-
-    const pendingAsset = makeUploadedAsset({ id: 'asset-pending', status: 'PENDING' });
-    assetRepo.findById.mockResolvedValue(pendingAsset);
-
-    await expect(
-      sut.execute({
-        appointmentId: 'appt-1',
-        latitude: -33.900,
-        longitude: 151.300,
-        assets: [{ assetId: 'asset-pending', storageKey: 'some-key' }],
-        idempotencyKey: 'key-5',
-        actor: inspActor,
-      }),
-    ).rejects.toThrow(ExecutionAssetUploadPendingError);
-  });
-
-  it('should throw ExecutionAssetUploadPendingError when referenced asset not found in execution', async () => {
-    const sut = makeSut();
-    executionRepo.findByAppointmentId.mockResolvedValue(makeExecution());
-    assetRepo.findUploadedByExecutionId.mockResolvedValue([makeUploadedAsset()]);
-
-    // Asset belongs to a different execution
-    const otherAsset = makeUploadedAsset({
-      id: 'asset-other',
-      inspectionExecutionId: 'exec-other',
-    });
-    assetRepo.findById.mockResolvedValue(otherAsset);
-
-    await expect(
-      sut.execute({
-        appointmentId: 'appt-1',
-        latitude: -33.900,
-        longitude: 151.300,
-        assets: [{ assetId: 'asset-other', storageKey: 'some-key' }],
-        idempotencyKey: 'key-6',
-        actor: inspActor,
-      }),
-    ).rejects.toThrow(ExecutionAssetUploadPendingError);
+    ).rejects.toThrow(ExecutionEmptyChecklistError);
   });
 
   it('should throw ForbiddenError when actor is not INSP', async () => {
@@ -343,7 +237,6 @@ describe('FinishInspectionUseCase', () => {
   it('should call executeStatusTransition with DONE target and INSP actor', async () => {
     const sut = makeSut();
     executionRepo.findByAppointmentId.mockResolvedValue(makeExecution());
-    assetRepo.findUploadedByExecutionId.mockResolvedValue([makeUploadedAsset()]);
 
     await sut.execute({
       appointmentId: 'appt-1',
@@ -364,7 +257,6 @@ describe('FinishInspectionUseCase', () => {
   it('should call audit log after finishing execution', async () => {
     const sut = makeSut();
     executionRepo.findByAppointmentId.mockResolvedValue(makeExecution());
-    assetRepo.findUploadedByExecutionId.mockResolvedValue([makeUploadedAsset()]);
 
     await sut.execute({
       appointmentId: 'appt-1',
@@ -398,7 +290,6 @@ describe('FinishInspectionUseCase', () => {
   it('should store idempotency result after finishing', async () => {
     const sut = makeSut();
     executionRepo.findByAppointmentId.mockResolvedValue(makeExecution());
-    assetRepo.findUploadedByExecutionId.mockResolvedValue([makeUploadedAsset()]);
 
     const result = await sut.execute({
       appointmentId: 'appt-1',

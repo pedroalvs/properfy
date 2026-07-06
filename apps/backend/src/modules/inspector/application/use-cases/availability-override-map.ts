@@ -1,5 +1,6 @@
 import type { AvailabilityOverrideMap } from '@properfy/shared';
 import type { IAvailabilitySlotRepository } from '../../domain/availability-slot.repository';
+import { startOfTomorrowUtc, addDaysUtc } from './availability-horizon';
 
 const HORIZON_WEEKS = 8;
 const AM_START = '08:00';
@@ -23,8 +24,8 @@ export async function deriveOverrideMap(
   inspectorId: string,
   slotRepo: Pick<IAvailabilitySlotRepository, 'findSlotsForRegeneration'>,
 ): Promise<AvailabilityOverrideMap> {
-  const from = startOfTomorrow();
-  const to = addDays(from, HORIZON_WEEKS * 7 - 1);
+  const from = startOfTomorrowUtc();
+  const to = addDaysUtc(from, HORIZON_WEEKS * 7 - 1);
 
   const slots = await slotRepo.findSlotsForRegeneration(inspectorId, from, to);
 
@@ -38,7 +39,7 @@ export async function deriveOverrideMap(
     if (!slot.isOperatorOverride) continue;
     if (slot.capacity === 0) continue;
 
-    const dayKey = DAY_INDEX_MAP[slot.date.getDay()];
+    const dayKey = DAY_INDEX_MAP[slot.date.getUTCDay()];
     if (!dayKey) continue;
 
     if (overlapsWindow(slot.startTime, slot.endTime, AM_START, AM_END)) {
@@ -55,17 +56,4 @@ export async function deriveOverrideMap(
 /** Returns true when [slotStart, slotEnd) and [winStart, winEnd) overlap. */
 function overlapsWindow(slotStart: string, slotEnd: string, winStart: string, winEnd: string): boolean {
   return slotStart < winEnd && slotEnd > winStart;
-}
-
-function startOfTomorrow(): Date {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function addDays(date: Date, days: number): Date {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
 }

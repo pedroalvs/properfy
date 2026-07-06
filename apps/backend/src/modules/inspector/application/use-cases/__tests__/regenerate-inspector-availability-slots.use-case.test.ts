@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RegenerateInspectorAvailabilitySlotsUseCase } from '../regenerate-inspector-availability-slots.use-case';
 import type { AvailabilityTemplate } from '@properfy/shared';
+import { startOfTomorrowUtc } from '../availability-horizon';
 
 // ---------------------------------------------------------------------------
 // Stub repo
@@ -31,11 +32,10 @@ const _AM = '08:00-13:00';
 const _PM = '13:00-18:00';
 const INSP_ID = 'insp-1';
 
-/** Monday of a specific week in the 8-week horizon */
+/** Monday (UTC-midnight) of a specific week in the 8-week horizon */
 function nextMonday(): Date {
-  const d = new Date();
-  d.setDate(d.getDate() + ((1 + 7 - d.getDay()) % 7 || 7));
-  d.setHours(0, 0, 0, 0);
+  const d = startOfTomorrowUtc();
+  d.setUTCDate(d.getUTCDate() + ((1 + 7 - d.getUTCDay()) % 7));
   return d;
 }
 

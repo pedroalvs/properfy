@@ -56,7 +56,7 @@ vi.mock('../hooks/useServiceGroupDetail', () => ({
     return {
       serviceGroup: {
         id: 'sg-01', groupNumber: 12, code: '12', regionName: 'São Paulo - Zona Sul',
-        status: 'PUBLISHED', priorityMode: 'STANDARD', inspectorName: 'Carlos Silva',
+        status: 'PUBLISHED', inspectorName: 'Carlos Silva',
         inspectorId: 'insp-01', tenantId: 'tenant-1',
         appointmentsCount: 3,
         appointments: [

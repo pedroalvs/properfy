@@ -37,14 +37,28 @@ vi.mock('@/lib/auth-storage', () => ({
   },
 }));
 
+vi.mock('@/hooks/useAuth', () => ({
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useAuth: vi.fn(() => ({
+    user: null,
+    token: null,
+    isAuthenticated: false,
+    isLoading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+  })),
+}));
+
 import { api } from '@/services/api';
+import { useAuth } from '@/hooks/useAuth';
 import { PropertyListPage } from './PropertyListPage';
 
+const mockUseAuth = useAuth as ReturnType<typeof vi.fn>;
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_PROPERTIES = [
-  { id: 'prop-01', propertyCode: 'IMV-001', type: 'HOUSE', street: 'Rua das Flores, 123', suburb: 'Centro', state: 'SP' },
-  { id: 'prop-02', propertyCode: 'IMV-002', type: 'COMMERCIAL', street: 'Av. Paulista, 1000', suburb: 'Bela Vista', state: 'SP' },
+  { id: 'prop-01', propertyCode: 'IMV-001', type: 'HOUSE', street: 'Rua das Flores, 123', suburb: 'Centro', state: 'SP', tenantName: 'Acme Realty' },
+  { id: 'prop-02', propertyCode: 'IMV-002', type: 'COMMERCIAL', street: 'Av. Paulista, 1000', suburb: 'Bela Vista', state: 'SP', tenantName: 'Beta Estates' },
 ];
 
 function createWrapper() {
@@ -70,6 +84,14 @@ beforeEach(() => {
     data: MOCK_PROPERTIES,
     pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
   } });
+  mockUseAuth.mockReturnValue({
+    user: null,
+    token: null,
+    isAuthenticated: false,
+    isLoading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+  });
 });
 
 function renderPage() {
@@ -111,5 +133,100 @@ describe('PropertyListPage', () => {
   it('shows loading state initially', () => {
     renderPage();
     expect(screen.getByText('Code')).toBeInTheDocument();
+  });
+
+  describe('AM role', () => {
+    beforeEach(() => {
+      mockUseAuth.mockReturnValue({
+        user: { id: 'u1', name: 'Admin', email: 'am@test.com', role: 'AM', tenantId: null },
+        token: 'token',
+        isAuthenticated: true,
+        isLoading: false,
+        login: vi.fn(),
+        logout: vi.fn(),
+      });
+    });
+
+    it('shows properties immediately without requiring an agency to be selected', async () => {
+      renderPage();
+      expect(screen.queryByText('Select an agency to view properties.')).not.toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('IMV-001')).toBeInTheDocument();
+      });
+    });
+
+    it('does not disable New Property / Map View actions', () => {
+      renderPage();
+      expect(screen.getByText('Map View').closest('button')).not.toBeDisabled();
+    });
+
+    it('renders an Agency filter', () => {
+      renderPage();
+      expect(screen.getByLabelText('Agency')).toBeInTheDocument();
+    });
+
+    it('renders an Agency column showing each property\'s owning agency', async () => {
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByText('Acme Realty')).toBeInTheDocument();
+        expect(screen.getByText('Beta Estates')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('OP role', () => {
+    beforeEach(() => {
+      mockUseAuth.mockReturnValue({
+        user: { id: 'u2', name: 'Operator', email: 'op@test.com', role: 'OP', tenantId: null },
+        token: 'token',
+        isAuthenticated: true,
+        isLoading: false,
+        login: vi.fn(),
+        logout: vi.fn(),
+      });
+    });
+
+    it('shows properties immediately without requiring an agency to be selected', async () => {
+      renderPage();
+      expect(screen.queryByText('Select an agency to view properties.')).not.toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('IMV-001')).toBeInTheDocument();
+      });
+    });
+
+    it('renders an Agency filter', () => {
+      renderPage();
+      expect(screen.getByLabelText('Agency')).toBeInTheDocument();
+    });
+
+    it('renders an Agency column showing each property\'s owning agency', async () => {
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByText('Acme Realty')).toBeInTheDocument();
+        expect(screen.getByText('Beta Estates')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('CL_ADMIN role', () => {
+    beforeEach(() => {
+      mockUseAuth.mockReturnValue({
+        user: { id: 'u3', name: 'Client', email: 'cl@test.com', role: 'CL_ADMIN', tenantId: 'tenant-1' },
+        token: 'token',
+        isAuthenticated: true,
+        isLoading: false,
+        login: vi.fn(),
+        logout: vi.fn(),
+      });
+    });
+
+    it('does not render an Agency filter or column', async () => {
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByText('IMV-001')).toBeInTheDocument();
+      });
+      expect(screen.queryByLabelText('Agency')).not.toBeInTheDocument();
+      expect(screen.queryByText('Acme Realty')).not.toBeInTheDocument();
+    });
   });
 });

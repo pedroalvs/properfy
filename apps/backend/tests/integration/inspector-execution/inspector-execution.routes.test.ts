@@ -9,8 +9,6 @@ const mockGetInspectorScheduleMonthExecute = vi.fn();
 const mockGetAppointmentDetailExecute = vi.fn();
 const mockStartInspectionExecute = vi.fn();
 const mockFinishInspectionExecute = vi.fn();
-const mockRequestAssetUploadExecute = vi.fn();
-const mockConfirmAssetUploadExecute = vi.fn();
 const mockJwtVerify = vi.fn();
 const mockAuditLog = vi.fn();
 
@@ -39,8 +37,6 @@ vi.mock('../../../src/main/container', () => ({
       finishInspectionUseCase: { execute: mockFinishInspectionExecute },
       saveExecutionProgressUseCase: { execute: vi.fn() },
       reopenExecutionUseCase: { execute: vi.fn() },
-      requestAssetUploadUseCase: { execute: mockRequestAssetUploadExecute },
-      confirmAssetUploadUseCase: { execute: mockConfirmAssetUploadExecute },
       jwtService: { verify: mockJwtVerify },
     },
     billing: { jwtService: { verify: mockJwtVerify } },
@@ -50,7 +46,6 @@ vi.mock('../../../src/main/container', () => ({
 }));
 
 const APPOINTMENT_ID = 'e4eebc99-9c0b-4ef8-bb6d-6bb9bd380a55';
-const ASSET_ID = 'a1eebc99-9c0b-4ef8-bb6d-6bb9bd380a77';
 
 const inspContext = { userId: 'insp-1', tenantId: 'tenant-1', role: 'INSP', branchId: null, inspectorId: 'insp-1' };
 
@@ -194,7 +189,6 @@ describe('GET /v1/inspector/appointments/:appointmentId', () => {
       contact: null,
       restrictions: [],
       execution: null,
-      assets: [],
     };
     mockGetAppointmentDetailExecute.mockResolvedValueOnce(detailResult);
 
@@ -329,70 +323,3 @@ describe('POST /v1/inspector/appointments/:appointmentId/finish', () => {
   });
 });
 
-describe('POST /v1/inspector/appointments/:appointmentId/assets', () => {
-  it('should return 201 with presigned URL', async () => {
-    mockJwtVerify.mockResolvedValueOnce(inspContext);
-    const uploadResult = {
-      id: ASSET_ID,
-      appointmentId: APPOINTMENT_ID,
-      inspectionExecutionId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a99',
-      storageKey: 'inspections/tenant-1/appt-1/asset-1.jpg',
-      mimeType: 'image/jpeg',
-      sizeBytes: null,
-      kind: 'PHOTO',
-      status: 'PENDING_UPLOAD',
-      uploadedBy: 'insp-1',
-      uploadUrl: 'https://stub-storage/inspection-assets/upload?key=some-key',
-      createdAt: '2026-03-16T10:00:00.000Z',
-    };
-    mockRequestAssetUploadExecute.mockResolvedValueOnce(uploadResult);
-
-    const res = await supertest(app.server)
-      .post(`/v1/inspector/appointments/${APPOINTMENT_ID}/assets`)
-      .set('Authorization', 'Bearer valid-token')
-      .send({ kind: 'PHOTO', mimeType: 'image/jpeg', fileName: 'photo.jpg' });
-
-    expect(res.status).toBe(201);
-    expect(res.body.data.id).toBe(ASSET_ID);
-    expect(res.body.data).toHaveProperty('uploadUrl');
-  });
-
-  it('should return 400 with invalid body (missing kind)', async () => {
-    mockJwtVerify.mockResolvedValueOnce(inspContext);
-
-    const res = await supertest(app.server)
-      .post(`/v1/inspector/appointments/${APPOINTMENT_ID}/assets`)
-      .set('Authorization', 'Bearer valid-token')
-      .send({ mimeType: 'image/jpeg', fileName: 'photo.jpg' });
-
-    expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe('VALIDATION_ERROR');
-  });
-});
-
-describe('PATCH /v1/inspector/appointments/:appointmentId/assets/:assetId/confirm', () => {
-  it('should return 200 with confirmed status', async () => {
-    mockJwtVerify.mockResolvedValueOnce(inspContext);
-    const confirmResult = {
-      id: ASSET_ID,
-      appointmentId: APPOINTMENT_ID,
-      inspectionExecutionId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a99',
-      storageKey: 'inspections/tenant-1/appt-1/asset-1.jpg',
-      mimeType: 'image/jpeg',
-      sizeBytes: 1024,
-      kind: 'PHOTO',
-      status: 'UPLOADED',
-      uploadedBy: 'insp-1',
-      createdAt: '2026-03-16T10:00:00.000Z',
-    };
-    mockConfirmAssetUploadExecute.mockResolvedValueOnce(confirmResult);
-
-    const res = await supertest(app.server)
-      .patch(`/v1/inspector/appointments/${APPOINTMENT_ID}/assets/${ASSET_ID}/confirm`)
-      .set('Authorization', 'Bearer valid-token');
-
-    expect(res.status).toBe(200);
-    expect(res.body.data.id).toBe(ASSET_ID);
-    expect(res.body.data.status).toBe('UPLOADED');
-  });
-});

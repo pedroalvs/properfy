@@ -100,9 +100,20 @@ const MOCK_APPOINTMENT = {
   restrictions: [{ id: 'res-1', isHome: true, unavailableDaysJson: null, unavailableHoursJson: null, notes: 'Ring bell', source: 'OPERATOR' }],
 };
 
+// Same appointment, but belonging to a service group — used to verify the
+// date field stays disabled while the time-slot fields remain editable.
+const MOCK_APPOINTMENT_GROUPED = {
+  ...MOCK_APPOINTMENT,
+  id: 'apt-grouped',
+  serviceGroupId: 'sg-01',
+};
+
 vi.mock('../hooks/useAppointmentDetail', () => ({
   useAppointmentDetail: (id: string | null) => {
     if (!id) return { appointment: null, isLoading: false, isError: false, refetch: vi.fn() };
+    if (id === 'apt-grouped') {
+      return { appointment: MOCK_APPOINTMENT_GROUPED, isLoading: false, isError: false, refetch: vi.fn() };
+    }
     return { appointment: MOCK_APPOINTMENT, isLoading: false, isError: false, refetch: vi.fn() };
   },
 }));
@@ -212,6 +223,16 @@ describe('AppointmentFormDrawer', () => {
     // Pre-populated from the loaded appointment's start/end.
     expect(start.value).toBe('09:00');
     expect(end.value).toBe('12:00');
+  });
+
+  it('grouped appointment: date field disabled, time-slot fields remain editable', () => {
+    renderDrawer({ appointmentId: 'apt-grouped' });
+    const date = screen.getByLabelText('Scheduled Date') as HTMLInputElement;
+    const start = screen.getByLabelText('Start time') as HTMLInputElement;
+    const end = screen.getByLabelText('End time') as HTMLInputElement;
+    expect(date).toBeDisabled();
+    expect(start).not.toBeDisabled();
+    expect(end).not.toBeDisabled();
   });
 
   it('shows inspector assignment section for awaiting inspector appointments', () => {

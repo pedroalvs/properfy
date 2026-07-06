@@ -53,8 +53,6 @@ const marketplaceOffer = {
   groupSize: 5,
   scheduledDate: '2026-04-01',
   timeWindow: '08:00-12:00',
-  priorityMode: 'STANDARD',
-  priorityExpiresAt: null,
   suburbs: ['Surry Hills', 'Redfern'],
   payoutEstimate: null,
   appointmentCount: 5,

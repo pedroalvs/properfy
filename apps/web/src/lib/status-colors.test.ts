@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, PriorityMode, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, RentalTenantConfirmationStatus, ReportType, ReportStatus, ServiceTypeFlowType, ServiceTypeStatus, AvailabilitySlotStatus } from '@properfy/shared';
-import { APPOINTMENT_STATUS_MAP, getStatusStyle, PROPERTY_TYPE_MAP, INSPECTOR_STATUS_MAP, SERVICE_GROUP_STATUS_MAP, PRIORITY_MODE_MAP, USER_ROLE_MAP, USER_STATUS_MAP, FINANCIAL_ENTRY_TYPE_MAP, FINANCIAL_ENTRY_STATUS_MAP, RENTAL_TENANT_CONFIRMATION_STATUS_MAP, REPORT_TYPE_MAP, REPORT_STATUS_MAP, FLOW_TYPE_MAP, SERVICE_TYPE_STATUS_MAP, SLOT_STATUS_MAP } from './status-colors';
+import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, RentalTenantConfirmationStatus, ReportType, ReportStatus, ServiceTypeFlowType, ServiceTypeStatus, AvailabilitySlotStatus } from '@properfy/shared';
+import { APPOINTMENT_STATUS_MAP, getStatusStyle, PROPERTY_TYPE_MAP, INSPECTOR_STATUS_MAP, SERVICE_GROUP_STATUS_MAP, USER_ROLE_MAP, USER_STATUS_MAP, FINANCIAL_ENTRY_TYPE_MAP, FINANCIAL_ENTRY_STATUS_MAP, RENTAL_TENANT_CONFIRMATION_STATUS_MAP, REPORT_TYPE_MAP, REPORT_STATUS_MAP, FLOW_TYPE_MAP, SERVICE_TYPE_STATUS_MAP, SLOT_STATUS_MAP } from './status-colors';
 
 describe('APPOINTMENT_STATUS_MAP', () => {
   const allStatuses: AppointmentStatus[] = [
@@ -128,32 +128,6 @@ describe('SERVICE_GROUP_STATUS_MAP', () => {
     expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.ACCEPTED].label).toBe('Accepted');
     expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.CANCELLED].label).toBe('Canceled');
     expect(SERVICE_GROUP_STATUS_MAP[ServiceGroupStatus.REJECTED].label).toBe('Rejected');
-  });
-});
-
-describe('PRIORITY_MODE_MAP', () => {
-  const allModes: PriorityMode[] = [
-    PriorityMode.STANDARD,
-    PriorityMode.PRIORITY_24H,
-  ];
-
-  it('maps both priority modes', () => {
-    expect(Object.keys(PRIORITY_MODE_MAP)).toHaveLength(2);
-    for (const mode of allModes) {
-      expect(PRIORITY_MODE_MAP[mode]).toBeDefined();
-    }
-  });
-
-  it.each(allModes)('mode %s has bg, text, and label', (mode) => {
-    const style = PRIORITY_MODE_MAP[mode];
-    expect(style.bg).toBeTruthy();
-    expect(style.text).toBeTruthy();
-    expect(style.label).toBeTruthy();
-  });
-
-  it('returns correct labels', () => {
-    expect(PRIORITY_MODE_MAP[PriorityMode.STANDARD].label).toBe('Standard');
-    expect(PRIORITY_MODE_MAP[PriorityMode.PRIORITY_24H].label).toBe('24h Priority');
   });
 });
 

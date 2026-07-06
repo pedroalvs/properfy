@@ -30,6 +30,7 @@ export interface UpdateAvailabilitySlotOutput {
   regionJson: Record<string, unknown> | null;
   capacity: number;
   status: string;
+  isOperatorOverride: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -57,6 +58,12 @@ export class UpdateAvailabilitySlotUseCase {
     const slot = await this.slotRepo.findById(slotId, inspectorId);
     if (!slot) {
       throw new AvailabilitySlotNotFoundError();
+    }
+
+    // Operator-override slots are immutable to inspectors (027 merge rule 2 applies
+    // to direct edits as well): only OP/AM may modify them.
+    if (actor.role === 'INSP' && slot.isOperatorOverride) {
+      throw new ForbiddenError('FORBIDDEN', 'Operator override slots can only be modified by operators');
     }
 
     // If time changes, check for overlaps (exclude self)
@@ -119,6 +126,7 @@ export class UpdateAvailabilitySlotUseCase {
       regionJson: after.regionJson,
       capacity: after.capacity,
       status: after.status,
+      isOperatorOverride: slot.isOperatorOverride,
       createdAt: slot.createdAt,
       updatedAt: new Date(),
     };

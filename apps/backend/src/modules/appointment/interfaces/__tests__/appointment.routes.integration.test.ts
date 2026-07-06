@@ -106,11 +106,9 @@ vi.mock('../../../../main/container', () => ({
     appointmentImportWorker: { execute: vi.fn() },
     generateInvoiceFileWorker: { execute: vi.fn() },
     expireTokensWorker: { execute: vi.fn() },
-    expireAssetsWorker: { execute: vi.fn() },
     notifyStuckInspectionsWorker: { execute: vi.fn() },
     geocodeRetryWorker: { execute: vi.fn() },
     keyExpiryCheckWorker: { execute: vi.fn() },
-    expirePriorityWorker: { execute: vi.fn() },
     auditRetentionWorker: { execute: vi.fn() },
   }),
 }));

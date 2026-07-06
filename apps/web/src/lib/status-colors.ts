@@ -1,4 +1,4 @@
-import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, PriorityMode, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, RentalTenantConfirmationStatus, ReportType, ReportStatus, GeocodingStatus, ServiceTypeFlowType, ServiceTypeStatus, AvailabilitySlotStatus, ContactType, type InspectorInvoiceStatus } from '@properfy/shared';
+import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, RentalTenantConfirmationStatus, ReportType, ReportStatus, GeocodingStatus, ServiceTypeFlowType, ServiceTypeStatus, AvailabilitySlotStatus, ContactType, type InspectorInvoiceStatus } from '@properfy/shared';
 
 export interface StatusStyle {
   bg: string;
@@ -70,11 +70,6 @@ export const SERVICE_GROUP_STATUS_MAP: Record<ServiceGroupStatus, StatusStyle> =
   [ServiceGroupStatus.ACCEPTED]:  { bg: 'var(--color-sg-accepted)',  text: 'var(--color-text-primary)', label: 'Accepted' },
   [ServiceGroupStatus.CANCELLED]: { bg: 'var(--color-sg-cancelled)', text: 'var(--color-text-primary)', label: 'Canceled' },
   [ServiceGroupStatus.REJECTED]:  { bg: 'var(--color-sg-cancelled)', text: 'var(--color-text-primary)', label: 'Rejected' },
-};
-
-export const PRIORITY_MODE_MAP: Record<PriorityMode, StatusStyle> = {
-  [PriorityMode.STANDARD]:     { bg: 'var(--color-priority-standard)', text: 'var(--color-text-primary)', label: 'Standard' },
-  [PriorityMode.PRIORITY_24H]: { bg: 'var(--color-priority-24h)',      text: 'var(--color-text-primary)', label: '24h Priority' },
 };
 
 export const USER_ROLE_MAP: Record<UserRole, StatusStyle> = {

@@ -12,7 +12,6 @@ interface FinishInput {
   location: CapturedLocation;
   checklist: ChecklistResponse[];
   notes: string;
-  assets: Array<{ assetId: string; storageKey: string }>;
 }
 
 interface FinishResponse {
@@ -25,7 +24,7 @@ export function useFinishInspection() {
   const isOnline = useIsOnline();
 
   return useMutation<{ data: FinishResponse }, ApiError, FinishInput>({
-    mutationFn: async ({ appointmentId, location, checklist, notes, assets }) => {
+    mutationFn: async ({ appointmentId, location, checklist, notes }) => {
       const idempotencyKey = getOrCreateIdempotencyKey(`finish-${appointmentId}`);
 
       const checklistJson = Object.fromEntries(
@@ -37,7 +36,6 @@ export function useFinishInspection() {
         longitude: location.longitude,
         checklistJson,
         notes,
-        assets,
       };
 
       if (!isOnline) {

@@ -11,6 +11,7 @@ import {
   AppointmentPastDateError,
   AppointmentDateInPastError,
   AppointmentInServiceGroupError,
+  AppointmentTimeSlotOutsideGroupWindowError,
 } from '../../../src/modules/appointment/domain/appointment.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
@@ -902,6 +903,154 @@ describe('UpdateAppointmentUseCase', () => {
       });
 
       expect(result.id).toBe('appt-1');
+    });
+  });
+
+  describe('time-slot edits on a grouped appointment', () => {
+    function makeUseCaseWithGroupRepo(serviceGroupRepo: { findById: ReturnType<typeof vi.fn> }) {
+      return new UpdateAppointmentUseCase(
+        appointmentRepo,
+        auditService,
+        new AuthorizationService(auditService),
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        serviceGroupRepo as never,
+      );
+    }
+
+    function makeGroupResult(timeWindow: string) {
+      return {
+        group: { timeWindow },
+        assignedInspectorName: null,
+        tenantIds: ['tenant-1'],
+        primaryTenantId: 'tenant-1',
+        agencies: [],
+        appointments: [],
+      };
+    }
+
+    it('allows a time-slot change that still fits inside the group time window', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({
+          status: 'AWAITING_INSPECTOR',
+          serviceGroupId: 'group-1',
+          scheduledDate: new Date('2099-04-01'),
+          timeSlotStart: '09:00',
+          timeSlotEnd: '10:00',
+        }),
+      );
+      const serviceGroupRepo = { findById: vi.fn().mockResolvedValue(makeGroupResult('08:00-12:00')) };
+
+      const result = await makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+        appointmentId: 'appt-1',
+        data: { timeSlotStart: '09:30', timeSlotEnd: '11:00' },
+        actor: makeActor(),
+      });
+
+      expect(result.id).toBe('appt-1');
+      expect(appointmentRepo.update).toHaveBeenCalledWith(
+        'appt-1',
+        'tenant-1',
+        expect.objectContaining({ timeSlotStart: '09:30', timeSlotEnd: '11:00' }),
+      );
+    });
+
+    it('rejects a time-slot change that falls outside the group time window', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({
+          status: 'AWAITING_INSPECTOR',
+          serviceGroupId: 'group-1',
+          scheduledDate: new Date('2099-04-01'),
+          timeSlotStart: '09:00',
+          timeSlotEnd: '10:00',
+        }),
+      );
+      const serviceGroupRepo = { findById: vi.fn().mockResolvedValue(makeGroupResult('08:00-12:00')) };
+
+      await expect(
+        makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+          appointmentId: 'appt-1',
+          data: { timeSlotStart: '13:00', timeSlotEnd: '14:00' },
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow(AppointmentTimeSlotOutsideGroupWindowError);
+      expect(appointmentRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('still rejects a date change on a grouped appointment even with serviceGroupRepo wired', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ status: 'AWAITING_INSPECTOR', serviceGroupId: 'group-1' }),
+      );
+      const serviceGroupRepo = { findById: vi.fn().mockResolvedValue(makeGroupResult('08:00-12:00')) };
+
+      await expect(
+        makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+          appointmentId: 'appt-1',
+          data: { scheduledDate: '2099-04-10' },
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow(AppointmentInServiceGroupError);
+    });
+
+    // Both cases below intentionally fail OPEN: the window check only runs when
+    // `serviceGroupRepo` is wired AND resolves a group. Documented here so a
+    // future change to either condition doesn't silently start (or stop)
+    // enforcing the window without a test noticing.
+    it('fails open (no window check) when serviceGroupRepo is not wired', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({
+          status: 'AWAITING_INSPECTOR',
+          serviceGroupId: 'group-1',
+          scheduledDate: new Date('2099-04-01'),
+          timeSlotStart: '09:00',
+          timeSlotEnd: '10:00',
+        }),
+      );
+
+      const result = await useCase.execute({
+        appointmentId: 'appt-1',
+        data: { timeSlotStart: '13:00', timeSlotEnd: '14:00' },
+        actor: makeActor(),
+      });
+
+      expect(result.id).toBe('appt-1');
+      expect(appointmentRepo.update).toHaveBeenCalledWith(
+        'appt-1',
+        'tenant-1',
+        expect.objectContaining({ timeSlotStart: '13:00', timeSlotEnd: '14:00' }),
+      );
+    });
+
+    it('fails open (no window check) when serviceGroupRepo.findById returns null', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({
+          status: 'AWAITING_INSPECTOR',
+          serviceGroupId: 'group-1',
+          scheduledDate: new Date('2099-04-01'),
+          timeSlotStart: '09:00',
+          timeSlotEnd: '10:00',
+        }),
+      );
+      const serviceGroupRepo = { findById: vi.fn().mockResolvedValue(null) };
+
+      const result = await makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+        appointmentId: 'appt-1',
+        data: { timeSlotStart: '13:00', timeSlotEnd: '14:00' },
+        actor: makeActor(),
+      });
+
+      expect(result.id).toBe('appt-1');
+      expect(serviceGroupRepo.findById).toHaveBeenCalledWith('group-1', null);
+      expect(appointmentRepo.update).toHaveBeenCalledWith(
+        'appt-1',
+        'tenant-1',
+        expect.objectContaining({ timeSlotStart: '13:00', timeSlotEnd: '14:00' }),
+      );
     });
   });
 

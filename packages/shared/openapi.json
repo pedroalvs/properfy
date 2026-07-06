@@ -4834,6 +4834,10 @@
                           "type": "string",
                           "nullable": true
                         },
+                        "tenantName": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "propertyCode": {
                           "type": "string"
                         },
@@ -5136,6 +5140,10 @@
                             "type": "string",
                             "nullable": true
                           },
+                          "tenantName": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "propertyCode": {
                             "type": "string"
                           },
@@ -5347,6 +5355,10 @@
                           "nullable": true
                         },
                         "branchName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "tenantName": {
                           "type": "string",
                           "nullable": true
                         },
@@ -5669,6 +5681,10 @@
                           "nullable": true
                         },
                         "branchName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "tenantName": {
                           "type": "string",
                           "nullable": true
                         },
@@ -8302,6 +8318,9 @@
                           "status": {
                             "type": "string"
                           },
+                          "isOperatorOverride": {
+                            "type": "boolean"
+                          },
                           "createdAt": {
                             "anyOf": [
                               {
@@ -8470,6 +8489,9 @@
                         "status": {
                           "type": "string"
                         },
+                        "isOperatorOverride": {
+                          "type": "boolean"
+                        },
                         "createdAt": {
                           "anyOf": [
                             {
@@ -8622,6 +8644,9 @@
                         },
                         "status": {
                           "type": "string"
+                        },
+                        "isOperatorOverride": {
+                          "type": "boolean"
                         },
                         "createdAt": {
                           "anyOf": [
@@ -8777,6 +8802,9 @@
                         },
                         "status": {
                           "type": "string"
+                        },
+                        "isOperatorOverride": {
+                          "type": "boolean"
                         },
                         "createdAt": {
                           "anyOf": [
@@ -8959,6 +8987,9 @@
                           },
                           "status": {
                             "type": "string"
+                          },
+                          "isOperatorOverride": {
+                            "type": "boolean"
                           },
                           "createdAt": {
                             "anyOf": [
@@ -9147,6 +9178,9 @@
                         },
                         "status": {
                           "type": "string"
+                        },
+                        "isOperatorOverride": {
+                          "type": "boolean"
                         },
                         "createdAt": {
                           "anyOf": [
@@ -14496,14 +14530,6 @@
                     "type": "string",
                     "maxLength": 5000
                   },
-                  "priorityMode": {
-                    "type": "string",
-                    "enum": [
-                      "STANDARD",
-                      "PRIORITY_24H"
-                    ],
-                    "default": "STANDARD"
-                  },
                   "actorTimezone": {
                     "type": "string"
                   }
@@ -14604,21 +14630,6 @@
                           "type": "string",
                           "nullable": true
                         },
-                        "priorityMode": {
-                          "type": "string"
-                        },
-                        "priorityExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
                         "assignedInspectorId": {
                           "type": "string",
                           "format": "uuid",
@@ -14700,8 +14711,6 @@
                         "confirmedCount",
                         "scheduledDate",
                         "timeWindow",
-                        "priorityMode",
-                        "priorityExpiresAt",
                         "assignedInspectorId",
                         "publishedAt",
                         "createdAt"
@@ -14816,18 +14825,6 @@
             },
             "in": "query",
             "name": "scheduledDateTo",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "STANDARD",
-                "PRIORITY_24H"
-              ]
-            },
-            "in": "query",
-            "name": "priorityMode",
             "required": false
           },
           {
@@ -14968,21 +14965,6 @@
                             "type": "string",
                             "nullable": true
                           },
-                          "priorityMode": {
-                            "type": "string"
-                          },
-                          "priorityExpiresAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ],
-                            "nullable": true
-                          },
                           "assignedInspectorId": {
                             "type": "string",
                             "format": "uuid",
@@ -15064,8 +15046,6 @@
                           "confirmedCount",
                           "scheduledDate",
                           "timeWindow",
-                          "priorityMode",
-                          "priorityExpiresAt",
                           "assignedInspectorId",
                           "publishedAt",
                           "createdAt"
@@ -15207,21 +15187,6 @@
                           "type": "string",
                           "nullable": true
                         },
-                        "priorityMode": {
-                          "type": "string"
-                        },
-                        "priorityExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
                         "assignedInspectorId": {
                           "type": "string",
                           "format": "uuid",
@@ -15303,8 +15268,6 @@
                         "confirmedCount",
                         "scheduledDate",
                         "timeWindow",
-                        "priorityMode",
-                        "priorityExpiresAt",
                         "assignedInspectorId",
                         "publishedAt",
                         "createdAt"
@@ -15345,13 +15308,6 @@
                   "timeWindow": {
                     "type": "string",
                     "pattern": "^\\d{2}:\\d{2}-\\d{2}:\\d{2}$"
-                  },
-                  "priorityMode": {
-                    "type": "string",
-                    "enum": [
-                      "STANDARD",
-                      "PRIORITY_24H"
-                    ]
                   },
                   "actorTimezone": {
                     "type": "string"
@@ -15457,21 +15413,6 @@
                           "type": "string",
                           "nullable": true
                         },
-                        "priorityMode": {
-                          "type": "string"
-                        },
-                        "priorityExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
                         "assignedInspectorId": {
                           "type": "string",
                           "format": "uuid",
@@ -15553,8 +15494,6 @@
                         "confirmedCount",
                         "scheduledDate",
                         "timeWindow",
-                        "priorityMode",
-                        "priorityExpiresAt",
                         "assignedInspectorId",
                         "publishedAt",
                         "createdAt"
@@ -15670,21 +15609,6 @@
                           "type": "string",
                           "nullable": true
                         },
-                        "priorityMode": {
-                          "type": "string"
-                        },
-                        "priorityExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
                         "assignedInspectorId": {
                           "type": "string",
                           "format": "uuid",
@@ -15766,8 +15690,6 @@
                         "confirmedCount",
                         "scheduledDate",
                         "timeWindow",
-                        "priorityMode",
-                        "priorityExpiresAt",
                         "assignedInspectorId",
                         "publishedAt",
                         "createdAt"
@@ -15903,21 +15825,6 @@
                           "type": "string",
                           "nullable": true
                         },
-                        "priorityMode": {
-                          "type": "string"
-                        },
-                        "priorityExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
                         "assignedInspectorId": {
                           "type": "string",
                           "format": "uuid",
@@ -15999,8 +15906,6 @@
                         "confirmedCount",
                         "scheduledDate",
                         "timeWindow",
-                        "priorityMode",
-                        "priorityExpiresAt",
                         "assignedInspectorId",
                         "publishedAt",
                         "createdAt"
@@ -16857,21 +16762,6 @@
                           "timeWindow": {
                             "type": "string"
                           },
-                          "priorityMode": {
-                            "type": "string"
-                          },
-                          "priorityExpiresAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ],
-                            "nullable": true
-                          },
                           "suburbs": {
                             "type": "array",
                             "items": {
@@ -16912,8 +16802,6 @@
                           "groupSize",
                           "scheduledDate",
                           "timeWindow",
-                          "priorityMode",
-                          "priorityExpiresAt",
                           "suburbs",
                           "payoutEstimate",
                           "appointmentCount",
@@ -17015,21 +16903,6 @@
                         },
                         "timeWindow": {
                           "type": "string"
-                        },
-                        "priorityMode": {
-                          "type": "string"
-                        },
-                        "priorityExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
                         },
                         "suburbs": {
                           "type": "array",
@@ -17140,8 +17013,6 @@
                         "groupSize",
                         "scheduledDate",
                         "timeWindow",
-                        "priorityMode",
-                        "priorityExpiresAt",
                         "suburbs",
                         "payoutEstimate",
                         "appointmentCount",
@@ -19626,43 +19497,6 @@
                           "additionalProperties": false,
                           "nullable": true
                         },
-                        "assets": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "string",
-                                "format": "uuid"
-                              },
-                              "storageKey": {
-                                "type": "string"
-                              },
-                              "mimeType": {
-                                "type": "string"
-                              },
-                              "sizeBytes": {
-                                "type": "number",
-                                "nullable": true
-                              },
-                              "kind": {
-                                "type": "string"
-                              },
-                              "status": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "storageKey",
-                              "mimeType",
-                              "sizeBytes",
-                              "kind",
-                              "status"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
                         "apps": {
                           "type": "array",
                           "items": {
@@ -19915,8 +19749,7 @@
                         "restrictionsSummary",
                         "contact",
                         "restrictions",
-                        "execution",
-                        "assets"
+                        "execution"
                       ],
                       "additionalProperties": false
                     }
@@ -20133,28 +19966,6 @@
                   "notes": {
                     "type": "string",
                     "maxLength": 5000
-                  },
-                  "assets": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "assetId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "storageKey": {
-                          "type": "string",
-                          "minLength": 1
-                        }
-                      },
-                      "required": [
-                        "assetId",
-                        "storageKey"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "default": []
                   }
                 },
                 "required": [
@@ -20375,240 +20186,6 @@
         }
       }
     },
-    "/v1/inspector/appointments/{appointmentId}/assets": {
-      "post": {
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "kind": {
-                    "type": "string",
-                    "enum": [
-                      "PHOTO"
-                    ]
-                  },
-                  "mimeType": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "fileName": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 255
-                  }
-                },
-                "required": [
-                  "kind",
-                  "mimeType",
-                  "fileName"
-                ],
-                "additionalProperties": false
-              }
-            }
-          },
-          "required": true
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "name": "appointmentId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "appointmentId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "inspectionExecutionId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "storageKey": {
-                          "type": "string"
-                        },
-                        "mimeType": {
-                          "type": "string"
-                        },
-                        "sizeBytes": {
-                          "type": "number",
-                          "nullable": true
-                        },
-                        "kind": {
-                          "type": "string"
-                        },
-                        "status": {
-                          "type": "string"
-                        },
-                        "uploadedBy": {
-                          "type": "string"
-                        },
-                        "uploadUrl": {
-                          "type": "string"
-                        },
-                        "createdAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "appointmentId",
-                        "inspectionExecutionId",
-                        "storageKey",
-                        "mimeType",
-                        "sizeBytes",
-                        "kind",
-                        "status",
-                        "uploadedBy",
-                        "createdAt"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/inspector/appointments/{appointmentId}/assets/{assetId}/confirm": {
-      "patch": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "name": "appointmentId",
-            "required": true
-          },
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "name": "assetId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "appointmentId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "inspectionExecutionId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "storageKey": {
-                          "type": "string"
-                        },
-                        "mimeType": {
-                          "type": "string"
-                        },
-                        "sizeBytes": {
-                          "type": "number",
-                          "nullable": true
-                        },
-                        "kind": {
-                          "type": "string"
-                        },
-                        "status": {
-                          "type": "string"
-                        },
-                        "uploadedBy": {
-                          "type": "string"
-                        },
-                        "uploadUrl": {
-                          "type": "string"
-                        },
-                        "createdAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "appointmentId",
-                        "inspectionExecutionId",
-                        "storageKey",
-                        "mimeType",
-                        "sizeBytes",
-                        "kind",
-                        "status",
-                        "uploadedBy",
-                        "createdAt"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/inspector/offers": {
       "get": {
         "parameters": [
@@ -20701,21 +20278,6 @@
                           "timeWindow": {
                             "type": "string"
                           },
-                          "priorityMode": {
-                            "type": "string"
-                          },
-                          "priorityExpiresAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ],
-                            "nullable": true
-                          },
                           "suburbs": {
                             "type": "array",
                             "items": {
@@ -20756,8 +20318,6 @@
                           "groupSize",
                           "scheduledDate",
                           "timeWindow",
-                          "priorityMode",
-                          "priorityExpiresAt",
                           "suburbs",
                           "payoutEstimate",
                           "appointmentCount",
@@ -20794,140 +20354,6 @@
                   "required": [
                     "data",
                     "pagination"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/appointments/{appointmentId}/assets": {
-      "get": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "name": "appointmentId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "storageKey": {
-                            "type": "string"
-                          },
-                          "mimeType": {
-                            "type": "string"
-                          },
-                          "sizeBytes": {
-                            "type": "number",
-                            "nullable": true
-                          },
-                          "kind": {
-                            "type": "string"
-                          },
-                          "status": {
-                            "type": "string"
-                          },
-                          "originalFilename": {
-                            "type": "string",
-                            "nullable": true
-                          },
-                          "createdAt": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "storageKey",
-                          "mimeType",
-                          "sizeBytes",
-                          "kind",
-                          "status",
-                          "originalFilename",
-                          "createdAt"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/appointments/{appointmentId}/assets/{assetId}/download": {
-      "get": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "name": "appointmentId",
-            "required": true
-          },
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "name": "assetId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "downloadUrl": {
-                      "type": "string",
-                      "format": "uri"
-                    },
-                    "fileName": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "mimeType": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "downloadUrl",
-                    "fileName",
-                    "mimeType"
                   ],
                   "additionalProperties": false
                 }
@@ -21279,6 +20705,15 @@
             },
             "in": "query",
             "name": "tenantId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "appointmentId",
             "required": false
           },
           {

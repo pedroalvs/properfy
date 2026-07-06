@@ -270,8 +270,9 @@ export function AppointmentFormDrawer({
   }, []);
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialData);
-  // Date/time of a grouped appointment is managed by the service group (automatic
-  // time-slot sync) — the backend rejects individual schedule edits with 409.
+  // The date of a grouped appointment is managed by the service group and cannot
+  // be edited individually (409). The time slot can still be edited as long as it
+  // stays within the group's shared time window (422 otherwise).
   const isInServiceGroup = isEditMode && !!appointment?.serviceGroupId;
   const scheduleChanged =
     isEditMode &&
@@ -458,6 +459,8 @@ export function AppointmentFormDrawer({
       if (!result.success) {
         const errorMessage = result.error === 'APPOINTMENT_CONTACT_NOT_FOUND'
           ? 'One or more contacts belong to a different agency and cannot be linked to this appointment.'
+          : result.errorCode === 'APPOINTMENT_TIME_SLOT_OUTSIDE_GROUP_WINDOW'
+          ? "This time slot falls outside the service group's time window. Choose a time within the group's window instead."
           : (result.error ?? 'Failed to save');
         showError(errorMessage);
         return;
@@ -616,8 +619,8 @@ export function AppointmentFormDrawer({
                     {isInServiceGroup && (
                       <div className="md:col-span-2" id="appointment-schedule-group-note">
                         <InfoBanner>
-                          This appointment belongs to a service group — its date and time are
-                          managed by the group. Reschedule the group from the map view instead.
+                          This appointment belongs to a service group — its date is managed by
+                          the group. You can still adjust the time slot within the group's window.
                         </InfoBanner>
                       </div>
                     )}
@@ -653,7 +656,6 @@ export function AppointmentFormDrawer({
                         endTime={form.timeSlotEnd}
                         onStartChange={(v) => updateField('timeSlotStart', v)}
                         onEndChange={(v) => updateField('timeSlotEnd', v)}
-                        disabled={isInServiceGroup}
                         minStartTime={
                           form.scheduledDate === todayLocalDateString()
                             ? Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date())

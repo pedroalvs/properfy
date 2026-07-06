@@ -8,8 +8,9 @@ import { ForbiddenError } from '../../../src/shared/domain/errors';
 function makePropertyWithBranch(
   overrides: Partial<ConstructorParameters<typeof PropertyEntity>[0]> = {},
   branchName: string | null = null,
+  tenantName: string | null = null,
 ): PropertyWithBranch {
-  return { property: makeProperty(overrides), branchName };
+  return { property: makeProperty(overrides), branchName, tenantName };
 }
 
 function makeProperty(
@@ -89,6 +90,89 @@ describe('ListPropertiesUseCase', () => {
       expect.objectContaining({ tenantId: 'tenant-1' }),
       expect.objectContaining({ page: 1, pageSize: 10 }),
     );
+  });
+
+  it('should honor filters.tenantId for OP (cross-tenant, narrows when provided)', async () => {
+    vi.mocked(propertyRepo.findAllWithBranch).mockResolvedValue([makePropertyWithBranch()]);
+    vi.mocked(propertyRepo.count).mockResolvedValue(1);
+
+    await useCase.execute({
+      filters: { tenantId: 'tenant-1' },
+      pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
+      actor: makeActor({ role: 'OP', tenantId: null }),
+    });
+
+    expect(propertyRepo.findAllWithBranch).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      expect.any(Object),
+    );
+  });
+
+  it('should return all properties for OP without tenantId (cross-tenant)', async () => {
+    vi.mocked(propertyRepo.findAllWithBranch).mockResolvedValue([makePropertyWithBranch()]);
+    vi.mocked(propertyRepo.count).mockResolvedValue(1);
+
+    await useCase.execute({
+      filters: {},
+      pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
+      actor: makeActor({ role: 'OP', tenantId: null }),
+    });
+
+    expect(propertyRepo.findAllWithBranch).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: undefined }),
+      expect.any(Object),
+    );
+  });
+
+  it('should ignore filters.tenantId for CL_USER and pin to actor.tenantId', async () => {
+    vi.mocked(propertyRepo.findAllWithBranch).mockResolvedValue([makePropertyWithBranch()]);
+    vi.mocked(propertyRepo.count).mockResolvedValue(1);
+
+    await useCase.execute({
+      filters: { tenantId: 'someone-elses-tenant' },
+      pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
+      actor: makeActor({ role: 'CL_USER', tenantId: 'own-tenant' }),
+    });
+
+    expect(propertyRepo.findAllWithBranch).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'own-tenant' }),
+      expect.any(Object),
+    );
+  });
+
+  it('should fail closed (AUTH_FORBIDDEN) for CL_ADMIN/CL_USER with no tenantId on the actor', async () => {
+    await expect(
+      useCase.execute({
+        filters: {},
+        pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
+        actor: makeActor({ role: 'CL_USER', tenantId: null }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+
+    await expect(
+      useCase.execute({
+        filters: {},
+        pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
+        actor: makeActor({ role: 'CL_ADMIN', tenantId: null }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+
+    expect(propertyRepo.findAllWithBranch).not.toHaveBeenCalled();
+  });
+
+  it('should pass through tenantName from repository for the Agency column', async () => {
+    vi.mocked(propertyRepo.findAllWithBranch).mockResolvedValue([
+      makePropertyWithBranch({}, 'Sydney CBD', 'Acme Realty'),
+    ]);
+    vi.mocked(propertyRepo.count).mockResolvedValue(1);
+
+    const result = await useCase.execute({
+      filters: {},
+      pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
+      actor: makeActor(),
+    });
+
+    expect(result.data[0].tenantName).toBe('Acme Realty');
   });
 
   it('should use actor.tenantId for CL_ADMIN', async () => {

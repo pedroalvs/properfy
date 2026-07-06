@@ -61,8 +61,6 @@ function makeGroup(overrides: Partial<ConstructorParameters<typeof ServiceGroupE
     name: null,
     regionName: null,
     description: null,
-    priorityMode: 'STANDARD',
-    priorityExpiresAt: null,
     assignedInspectorId: 'insp-1',
     serviceRegionId: null,
     publishedAt: null,

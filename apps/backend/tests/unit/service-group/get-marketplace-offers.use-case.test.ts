@@ -43,8 +43,6 @@ function makeMarketplaceOffer(overrides: Partial<MarketplaceOffer> = {}): Market
     groupSize: 5,
     scheduledDate: new Date('2026-04-01'),
     timeWindow: '08:00-12:00',
-    priorityMode: 'STANDARD',
-    priorityExpiresAt: null,
     suburbs: ['Sydney', 'Bondi'],
     payoutEstimate: null,
     appointmentCount: 5,
