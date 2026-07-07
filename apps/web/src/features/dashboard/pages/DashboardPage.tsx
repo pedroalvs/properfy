@@ -3,6 +3,7 @@ import { LoadingState } from '@/components/feedback/LoadingState';
 import { useNavigate } from 'react-router-dom';
 import { useDashboardStats } from '../hooks';
 import { DashboardSummaryCards, RecentAppointmentsList, PendingActionsCard, StatCard, InspectorBreakdownSection } from '../components';
+import { IntegrationWarnings } from '../components/IntegrationWarnings';
 
 function computeTomorrowLabel(): string {
   const tomorrow = new Date();
@@ -19,6 +20,8 @@ export function DashboardPage() {
   return (
     <div>
       <PageHeader title="Dashboard" />
+
+      <IntegrationWarnings />
 
       {isLoading || !stats ? (
         <LoadingState rows={8} />

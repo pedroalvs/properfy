@@ -87,7 +87,8 @@ export interface NotificationRouteContainer {
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
   webhookSignatureValidator: WebhookSignatureValidator;
-  mobileMessageWebhookToken?: string;
+  /** Resolves the current webhook shared secret (database config → env fallback). */
+  getMobileMessageWebhookToken?: () => Promise<string | undefined>;
 }
 
 const SMS_PER_MINUTE_LIMIT = 3;
@@ -226,7 +227,8 @@ export async function registerNotificationRoutes(
     { schema: { response: { 200: webhookAckResponseSchema } } },
     async (request, reply) => {
       const providedToken = (request.query as Record<string, string | undefined>)['token'];
-      if (!isMobileMessageTokenValid(providedToken, container.mobileMessageWebhookToken)) {
+      const expectedToken = await container.getMobileMessageWebhookToken?.();
+      if (!isMobileMessageTokenValid(providedToken, expectedToken)) {
         return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Invalid or missing webhook token' } });
       }
 

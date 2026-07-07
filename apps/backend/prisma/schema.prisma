@@ -1507,3 +1507,32 @@ model TemplateImageBinding {
   @@index([asset_id])
   @@map("template_image_bindings")
 }
+
+model IntegrationSetting {
+  id               String   @id @default(uuid())
+  provider         String   @unique @db.VarChar(50)
+  encrypted_config String
+  enabled          Boolean  @default(true)
+  updated_by_id    String?
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  @@map("integration_settings")
+}
+
+model ApiKey {
+  id            String    @id @default(uuid())
+  name          String    @db.VarChar(200)
+  key_hash      String    @unique @db.VarChar(64)
+  prefix        String    @db.VarChar(20)
+  role          String    @db.VarChar(10)
+  scopes        String[]  @default([])
+  expires_at    DateTime?
+  revoked_at    DateTime?
+  last_used_at  DateTime?
+  created_by_id String
+  created_at    DateTime  @default(now())
+
+  @@index([revoked_at])
+  @@map("api_keys")
+}

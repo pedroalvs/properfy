@@ -53,6 +53,7 @@ const ReportListPage = Loadable(lazyRetry(() => import('@/features/reports/pages
 const DashboardPage = Loadable(lazyRetry(() => import('@/features/dashboard/pages/DashboardPage').then(m => ({ default: m.DashboardPage }))));
 const PortalPage = Loadable(lazyRetry(() => import('@/features/rental-tenant-portal/pages/PortalPage').then(m => ({ default: m.PortalPage }))));
 const ServiceTypeListPage = Loadable(lazyRetry(() => import('@/features/service-types/pages/ServiceTypeListPage').then(m => ({ default: m.ServiceTypeListPage }))));
+const IntegrationsPage = Loadable(lazyRetry(() => import('@/features/integrations/pages/IntegrationsPage').then(m => ({ default: m.IntegrationsPage }))));
 const PricingRuleListPage = Loadable(lazyRetry(() => import('@/features/pricing-rules/pages/PricingRuleListPage').then(m => ({ default: m.PricingRuleListPage }))));
 const AccountSettingsPage = Loadable(lazyRetry(() => import('@/features/settings/pages/AccountSettingsPage').then(m => ({ default: m.AccountSettingsPage }))));
 const SecuritySettingsPage = Loadable(lazyRetry(() => import('@/features/settings/pages/SecuritySettingsPage').then(m => ({ default: m.SecuritySettingsPage }))));
@@ -355,6 +356,14 @@ export const router = createBrowserRouter([
             element: (
               <AuthGuard roles={[UserRole.AM]}>
                 <ServiceTypeListPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            path: 'integrations',
+            element: (
+              <AuthGuard roles={[UserRole.AM]}>
+                <IntegrationsPage />
               </AuthGuard>
             ),
           },
