@@ -1,9 +1,26 @@
 import { ServiceTypeFlowType, RentalTenantConfirmationStatus } from '@properfy/shared';
 import type {
+  AppointmentRestrictionDetail,
   InspectorAppointment,
   InspectorAppointmentDetailResponse,
   InspectorScheduleMonthItem,
 } from '../types';
+
+/** Backend restriction JSON fields are `unknown` — keep only string entries. */
+function toStringArray(raw: unknown): string[] {
+  return Array.isArray(raw) ? raw.filter((v): v is string => typeof v === 'string') : [];
+}
+
+function mapRestrictionDetails(
+  restrictions: InspectorAppointmentDetailResponse['data']['restrictions'],
+): AppointmentRestrictionDetail[] {
+  return (restrictions ?? []).map((r) => ({
+    isHome: r.isHome,
+    unavailableDays: toStringArray(r.unavailableDaysJson),
+    unavailableHours: toStringArray(r.unavailableHoursJson),
+    notes: r.notes,
+  }));
+}
 
 function normalizeFlowType(flowType: string | null | undefined): ServiceTypeFlowType {
   if (flowType === ServiceTypeFlowType.INGOING || flowType === ServiceTypeFlowType.OUTGOING) {
@@ -46,6 +63,7 @@ export function mapInspectorAppointmentDetail(
     keyRequired: detail.keyRequired,
     meetingLocation: detail.meetingLocation,
     restrictions: detail.restrictionsSummary,
+    restrictionDetails: mapRestrictionDetails(detail.restrictions),
     propertyLatitude: detail.propertyLatitude,
     propertyLongitude: detail.propertyLongitude,
     propertyAddressLine2: detail.propertyAddressLine2 ?? null,

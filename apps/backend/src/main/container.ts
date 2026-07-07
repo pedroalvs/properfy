@@ -195,6 +195,7 @@ import { PrismaIdempotencyService } from '../modules/inspector-execution/infrast
 import { StubStorageService } from '../modules/inspector-execution/infrastructure/stub-storage.service';
 import { SupabaseStorageService } from '../modules/inspector-execution/infrastructure/supabase-storage.service';
 import { PrismaServiceTypeReader } from '../modules/inspector-execution/infrastructure/prisma-service-type-reader';
+import { PrismaContactReader } from '../modules/inspector-execution/infrastructure/prisma-contact-reader';
 import { PrismaTenantSettingsReader } from '../modules/inspector-execution/infrastructure/prisma-tenant-settings-reader';
 import { GetInspectorScheduleUseCase } from '../modules/inspector-execution/application/use-cases/get-inspector-schedule.use-case';
 import { GetAppointmentDetailUseCase } from '../modules/inspector-execution/application/use-cases/get-appointment-detail.use-case';
@@ -770,6 +771,7 @@ export function createContainer(logger: Logger): AppContainer {
   // Inspector execution repositories and services
   const inspectionExecutionRepo = new PrismaInspectionExecutionRepository(prisma);
   const serviceTypeReaderForExec = new PrismaServiceTypeReader(prisma);
+  const contactReaderForExec = new PrismaContactReader(prisma);
   const tenantSettingsReader = new PrismaTenantSettingsReader(prisma);
   const performCrossCheckUseCase = new PerformCrossCheckUseCase(
     appointmentRepo,
@@ -798,6 +800,7 @@ export function createContainer(logger: Logger): AppContainer {
   );
   const getAppointmentDetailUseCase = new GetAppointmentDetailUseCase(
     appointmentRepo, inspectionExecutionRepo, serviceTypeReaderForExec, authorizationService, tenantRepo, appCredentialRepo,
+    contactReaderForExec,
   );
   const startInspectionUseCase = new StartInspectionUseCase(
     appointmentRepo, inspectionExecutionRepo, idempotencyService, auditService, tenantSettingsReader, authorizationService,

@@ -534,6 +534,101 @@ describe('inspectorAppointmentDetailResponseSchema — customFields', () => {
   });
 });
 
+describe('inspectorAppointmentDetailResponseSchema — jobDetails.tenantContacts enrichment', () => {
+  const validBase = {
+    id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    status: 'SCHEDULED',
+    scheduledDate: '2027-06-15',
+    timeSlotStart: '09:00',
+    timeSlotEnd: '11:00',
+    serviceTypeId: 'b1ffcd00-0a1c-4ef9-cc7e-7cc0ce491b22',
+    serviceTypeName: 'Routine Inspection',
+    flowType: 'ROUTINE',
+    propertyId: 'c2ddfe22-2b3c-4ef9-cc7e-7cc0ce491b33',
+    propertyAddress: '123 Main St',
+    suburb: 'Brunswick',
+    propertyLatitude: null,
+    propertyLongitude: null,
+    rentalTenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmation: 'PENDING',
+    keyRequired: false,
+    meetingLocation: null,
+    keyLocation: null,
+    rentalTenantName: 'John Tenant',
+    rentalTenantPhone: null,
+    rentalTenantEmail: null,
+    notes: null,
+    observation: null,
+    restrictionsSummary: null,
+    contact: null,
+    restrictions: [],
+    execution: null,
+    assets: [],
+    apps: [],
+  };
+
+  const jobDetailsBase = {
+    agency: { id: 't1', name: 'Agency One' },
+    keys: { keyRequired: false, keyLocation: null },
+    propertyManager: null,
+    payment: { payoutAmount: 80, currency: 'AUD' },
+  };
+
+  it('accepts legacy tenantContacts entries without the enrichment fields', () => {
+    const result = inspectorAppointmentDetailResponseSchema.safeParse({
+      ...validBase,
+      jobDetails: {
+        ...jobDetailsBase,
+        tenantContacts: [
+          { name: 'John Tenant', email: null, phone: '0400000000', role: 'RENTAL_TENANT', isPrimary: true },
+        ],
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts enriched entries with type, company and additionalChannels', () => {
+    const result = inspectorAppointmentDetailResponseSchema.safeParse({
+      ...validBase,
+      jobDetails: {
+        ...jobDetailsBase,
+        tenantContacts: [
+          {
+            name: 'Jane Rep',
+            email: 'jane@x.com',
+            phone: null,
+            role: 'RENTAL_TENANT_REPRESENTATIVE',
+            isPrimary: false,
+            type: 'INDIVIDUAL',
+            company: 'Acme Realty',
+            additionalChannels: [
+              { channel: 'PHONE', value: '0411111111', label: 'Work' },
+              { channel: 'EMAIL', value: 'alt@x.com' },
+            ],
+          },
+        ],
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects malformed additionalChannels entries', () => {
+    const result = inspectorAppointmentDetailResponseSchema.safeParse({
+      ...validBase,
+      jobDetails: {
+        ...jobDetailsBase,
+        tenantContacts: [
+          {
+            name: 'Jane', email: null, phone: null, role: 'OTHER', isPrimary: true,
+            additionalChannels: [{ channel: 1, value: false }],
+          },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
 describe('inspectorEarningsSummaryResponseSchema', () => {
   const valid = {
     currency: 'AUD',

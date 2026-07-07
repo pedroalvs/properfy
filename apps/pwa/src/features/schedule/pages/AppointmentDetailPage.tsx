@@ -6,7 +6,8 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { RentalTenantConfirmationBanner } from '../components/RentalTenantConfirmationBanner';
 import { PropertyAddressSection } from '../components/PropertyAddressSection';
-import { TenantContactSection } from '../components/TenantContactSection';
+import { ContactsSection } from '../components/ContactsSection';
+import { RestrictionsSection } from '../components/RestrictionsSection';
 import { AppsSection } from '../components/AppsSection';
 import { KeyDetailsSection } from '../components/KeyDetailsSection';
 import { JobDetailsSection } from '../components/JobDetailsSection';
@@ -126,24 +127,36 @@ export function AppointmentDetailPage() {
         {/* Tenant confirmation status */}
         <RentalTenantConfirmationBanner status={apt.rentalTenantConfirmation} />
 
-        {/* Tenant contact */}
-        <TenantContactSection
-          name={apt.rentalTenantName}
-          phone={apt.rentalTenantPhone}
-          email={apt.rentalTenantEmail}
+        {/* All appointment contacts (roles, primary badge, extra channels).
+            Falls back to the flat single-tenant fields on legacy/cached payloads. */}
+        <ContactsSection
+          contacts={
+            jobDetails?.tenantContacts?.length
+              ? jobDetails.tenantContacts
+              : [{
+                  name: apt.rentalTenantName,
+                  phone: apt.rentalTenantPhone,
+                  email: apt.rentalTenantEmail,
+                  role: 'RENTAL_TENANT',
+                  isPrimary: true,
+                }]
+          }
         />
 
         {/* Linked apps (credentials the inspector needs on site) */}
         <AppsSection apps={apt.apps} />
 
-        {/* On-site details (meeting location + restrictions, no key duplication) */}
-        {(apt.meetingLocation || apt.restrictions) && (
+        {/* On-site details (meeting location; restrictions get their own section below) */}
+        {apt.meetingLocation && (
           <KeyDetailsSection
             keyRequired={false}
             meetingLocation={apt.meetingLocation}
-            restrictions={apt.restrictions}
+            restrictions={null}
           />
         )}
+
+        {/* Scheduling restrictions — structured when available, summary otherwise */}
+        <RestrictionsSection restrictions={apt.restrictionDetails ?? []} summary={apt.restrictions} />
 
         {/* Notes */}
         {apt.notes && (

@@ -382,6 +382,17 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
       phone: z.string().nullable(),
       role: z.string(),
       isPrimary: z.boolean(),
+      // Live-registry enrichment (021 contacts). Optional: inline contacts
+      // (no contactId) and legacy payloads carry none of these. Kept
+      // permissive (plain strings) so registry data never trips the
+      // fastify serializer.
+      type: z.string().nullable().optional(),
+      company: z.string().nullable().optional(),
+      additionalChannels: z.array(z.object({
+        channel: z.string(),
+        value: z.string(),
+        label: z.string().nullable().optional(),
+      })).optional(),
     })),
     keys: z.object({
       keyRequired: z.boolean(),
