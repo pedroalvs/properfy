@@ -26,10 +26,11 @@ import { UpdateServiceGroupUseCase } from '../../../src/modules/service-group/ap
 import { PrismaServiceGroupRepository } from '../../../src/modules/service-group/infrastructure/prisma-service-group.repository';
 import { PrismaAppointmentRepository } from '../../../src/modules/appointment/infrastructure/prisma-appointment.repository';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
+import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import { futureDateStr } from '../../helpers/date-fixtures';
 
-function silentAuditService() {
-  return { log: () => {} } as unknown as import('../../../src/shared/infrastructure/audit').AuditService;
+function silentAuditService(): AuditService {
+  return { log: () => {} } as unknown as AuditService;
 }
 
 function amActor(userId: string): AuthContext {
@@ -184,15 +185,20 @@ describe('service group date sync (real DB)', () => {
   });
 
   it('update with a mismatched tenant_id is a no-op (tenant boundary)', async () => {
+    // Self-contained baseline: a fresh ungrouped appointment, independent of
+    // whatever the reschedule test above did to the group members.
+    const baselineDate = futureDateStr(60);
+    const boundaryApptId = await seedAppointment(prisma, tenantA, serviceTypeId, baselineDate, null);
+
     const repo = new PrismaAppointmentRepository(prisma);
     // Tenant B's id against tenant A's appointment: the WHERE must not match.
-    await repo.update(apptAId, tenantB.tenantId, { scheduledDate: new Date(futureDateStr(90)) });
+    await repo.update(boundaryApptId, tenantB.tenantId, { scheduledDate: new Date(futureDateStr(90)) });
 
     const row = await prisma.appointment.findUnique({
-      where: { id: apptAId },
+      where: { id: boundaryApptId },
       select: { scheduled_date: true },
     });
-    expect(row!.scheduled_date.toISOString().slice(0, 10)).toBe(NEW_GROUP_DATE);
+    expect(row!.scheduled_date.toISOString().slice(0, 10)).toBe(baselineDate);
   });
 
   it('findAddableForAppointments excludes past-dated groups and ignores appointment dates', async () => {
