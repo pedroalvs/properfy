@@ -1,4 +1,7 @@
+import { useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
+
+import { SidebarTooltip } from './SidebarTooltip';
 
 interface SidebarItemProps {
   icon: string;
@@ -9,10 +12,16 @@ interface SidebarItemProps {
 }
 
 export function SidebarItem({ icon, label, to, mobile = false, onNavigate }: SidebarItemProps) {
+  const linkRef = useRef<HTMLAnchorElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
+
   return (
     <NavLink
+      ref={linkRef}
       to={to}
       onClick={() => onNavigate?.()}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       className={({ isActive }) =>
         mobile
           ? `flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${
@@ -46,7 +55,11 @@ export function SidebarItem({ icon, label, to, mobile = false, onNavigate }: Sid
                   }`
             }`}
           />
-          {mobile && <span className="truncate">{label}</span>}
+          {mobile ? (
+            <span className="truncate">{label}</span>
+          ) : (
+            <SidebarTooltip label={label} anchor={linkRef.current} visible={isHovered} />
+          )}
         </>
       )}
     </NavLink>
