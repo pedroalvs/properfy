@@ -19605,6 +19605,37 @@
                                   },
                                   "isPrimary": {
                                     "type": "boolean"
+                                  },
+                                  "type": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "company": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "additionalChannels": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "channel": {
+                                          "type": "string"
+                                        },
+                                        "value": {
+                                          "type": "string"
+                                        },
+                                        "label": {
+                                          "type": "string",
+                                          "nullable": true
+                                        }
+                                      },
+                                      "required": [
+                                        "channel",
+                                        "value"
+                                      ],
+                                      "additionalProperties": false
+                                    }
                                   }
                                 },
                                 "required": [

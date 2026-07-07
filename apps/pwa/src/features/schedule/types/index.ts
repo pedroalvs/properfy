@@ -3,6 +3,8 @@ import type {
   AppointmentApp,
   AppointmentCustomField,
   AppointmentStatus,
+  InspectorContactChannel,
+  InspectorTenantContact,
   PropertyType,
   RentalTenantConfirmationStatus,
   ServiceTypeFlowType,
@@ -29,6 +31,8 @@ export interface InspectorAppointment {
   keyRequired: boolean;
   meetingLocation: string | null;
   restrictions: string | null;
+  /** Structured restrictions (detail endpoint only; empty elsewhere). */
+  restrictionDetails?: AppointmentRestrictionDetail[];
   propertyLatitude: number | null;
   propertyLongitude: number | null;
   /** Property detail attributes (nullable — legacy properties have no values). */
@@ -59,12 +63,16 @@ export type InspectorScheduleMonthDay = z.infer<typeof inspectorScheduleMonthDay
 export type InspectorScheduleMonthItem = z.infer<typeof inspectorScheduleMonthItemSchema>;
 export type InspectorScheduleMonthResponse = z.infer<typeof inspectorScheduleMonthResponseSchema>;
 
-export interface JobDetailsTenantContact {
-  name: string;
-  email: string | null;
-  phone: string | null;
-  role: string;
-  isPrimary: boolean;
+/** Shared contract types (single source of truth in packages/shared). */
+export type ContactChannel = InspectorContactChannel;
+export type JobDetailsTenantContact = InspectorTenantContact;
+
+/** Structured scheduling restriction (rendered by RestrictionsSection). */
+export interface AppointmentRestrictionDetail {
+  isHome: boolean;
+  unavailableDays: string[];
+  unavailableHours: string[];
+  notes: string | null;
 }
 
 export interface JobDetails {
@@ -118,6 +126,12 @@ export interface InspectorAppointmentDetailResponse {
     notes: string | null;
     observation: string | null;
     customFields?: AppointmentCustomField[];
+    restrictions?: Array<{
+      isHome: boolean;
+      unavailableDaysJson: unknown;
+      unavailableHoursJson: unknown;
+      notes: string | null;
+    }>;
     isOverdue?: boolean;
     agencyName?: string;
     apps?: AppointmentApp[];
