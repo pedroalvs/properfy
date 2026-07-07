@@ -97,15 +97,22 @@ describe('status/detail response schemas', () => {
     ).toBe(false);
   });
 
-  it('validates the list wrappers and test result', () => {
-    const status = { provider: 'resend', configured: true, source: 'database', enabled: true };
-    expect(integrationStatusListSchema.safeParse({ integrations: [status] }).success).toBe(true);
+  const statusRow = { provider: 'resend', configured: true, source: 'database', enabled: true };
+
+  it('validates a status list and rejects malformed entries', () => {
+    expect(integrationStatusListSchema.safeParse({ integrations: [statusRow] }).success).toBe(true);
     expect(integrationStatusListSchema.safeParse({ integrations: [{}] }).success).toBe(false);
+  });
+
+  it('validates a detail list', () => {
     expect(
       integrationListSchema.safeParse({
-        integrations: [{ ...status, maskedConfig: { apiKey: null }, updatedAt: null }],
+        integrations: [{ ...statusRow, maskedConfig: { apiKey: null }, updatedAt: null }],
       }).success,
     ).toBe(true);
+  });
+
+  it('validates the connection test result shape', () => {
     expect(integrationTestResultSchema.parse({ ok: true, message: 'ok' }).ok).toBe(true);
     expect(integrationTestResultSchema.safeParse({ ok: 'yes', message: 'ok' }).success).toBe(false);
   });
