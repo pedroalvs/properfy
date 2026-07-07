@@ -31,7 +31,10 @@ function rethrowPropertyConflict(error: unknown): never {
     if (Array.isArray(target) && target.includes('normalized_address_key')) {
       throw new PropertyAddressConflictError();
     }
-    if (Array.isArray(target) && target.includes('property_code')) {
+    if (
+      Array.isArray(target) &&
+      (target.includes('property_code') || target.includes('property_number'))
+    ) {
       throw new PropertyCodeConflictError();
     }
   }
@@ -43,7 +46,9 @@ function mapToEntity(row: {
   tenant_id: string;
   branch_id: string | null;
   property_code: string;
+  property_number?: number | null;
   type: string;
+  apartment_number?: string | null;
   street: string;
   address_line_2: string | null;
   suburb: string;
@@ -69,7 +74,9 @@ function mapToEntity(row: {
     tenantId: row.tenant_id,
     branchId: row.branch_id,
     propertyCode: row.property_code,
+    propertyNumber: row.property_number ?? null,
     type: row.type as PropertyType,
+    apartmentNumber: row.apartment_number ?? null,
     street: row.street,
     addressLine2: row.address_line_2,
     suburb: row.suburb,
@@ -232,6 +239,16 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     return Object.fromEntries(rows.map((row) => [row.type, row._count._all]));
   }
 
+  async nextPropertyNumber(tenantId: string): Promise<number> {
+    // No deleted_at filter on purpose: numbers behind soft-deleted rows must
+    // never be reissued, or a future code would collide with a historical one.
+    const result = await this.prisma.property.aggregate({
+      where: { tenant_id: tenantId },
+      _max: { property_number: true },
+    });
+    return (result._max.property_number ?? 0) + 1;
+  }
+
   async save(property: PropertyEntity): Promise<void> {
     try {
       await this.prisma.property.create({
@@ -240,7 +257,9 @@ export class PrismaPropertyRepository implements IPropertyRepository {
           tenant_id: property.tenantId,
           branch_id: property.branchId,
           property_code: property.propertyCode,
+          property_number: property.propertyNumber,
           type: property.type as PrismaPropertyType,
+          apartment_number: property.apartmentNumber,
           street: property.street,
           address_line_2: property.addressLine2,
           suburb: property.suburb,
@@ -276,6 +295,7 @@ export class PrismaPropertyRepository implements IPropertyRepository {
       branchId: string | null;
       propertyCode: string;
       type: string;
+      apartmentNumber: string | null;
       street: string;
       addressLine2: string | null;
       suburb: string;
@@ -300,6 +320,8 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     if (data.propertyCode !== undefined)
       updateData['property_code'] = data.propertyCode;
     if (data.type !== undefined) updateData['type'] = data.type;
+    if (data.apartmentNumber !== undefined)
+      updateData['apartment_number'] = data.apartmentNumber;
     if (data.street !== undefined) updateData['street'] = data.street;
     if (data.addressLine2 !== undefined)
       updateData['address_line_2'] = data.addressLine2;
@@ -458,7 +480,7 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     params.push(pagination.pageSize, offset);
 
     const sql = `
-      SELECT p.id, p.tenant_id, p.branch_id, p.property_code, p.type,
+      SELECT p.id, p.tenant_id, p.branch_id, p.property_code, p.property_number, p.type, p.apartment_number,
              p.street, p.address_line_2, p.suburb, p.postcode, p.state, p.country,
              p.lat, p.lng, p.geocoding_status,
              p.private_area_m2, p.total_area_m2, p.furnished, p.linen_provided, p.rent_amount,
@@ -493,7 +515,7 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     params.push(pagination.pageSize, offset);
 
     const sql = `
-      SELECT p.id, p.tenant_id, p.branch_id, p.property_code, p.type,
+      SELECT p.id, p.tenant_id, p.branch_id, p.property_code, p.property_number, p.type, p.apartment_number,
              p.street, p.address_line_2, p.suburb, p.postcode, p.state, p.country,
              p.lat, p.lng, p.geocoding_status,
              p.private_area_m2, p.total_area_m2, p.furnished, p.linen_provided, p.rent_amount,

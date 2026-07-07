@@ -84,7 +84,6 @@ export function PropertyListPage() {
           onClick: () => navigate('/properties/new', { state: effectiveTenantId ? { tenantId: effectiveTenantId } : undefined }),
         } : undefined}
         secondaryActions={[
-          { label: 'Import', icon: 'mdi-upload', onClick: () => navigate('/properties/import') },
           {
             label: 'Map View',
             icon: 'mdi-map-outline',

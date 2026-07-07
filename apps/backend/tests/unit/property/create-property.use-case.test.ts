@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CreatePropertyUseCase } from '../../../src/modules/property/application/use-cases/create-property.use-case';
 import type { IPropertyRepository } from '../../../src/modules/property/domain/property.repository';
 import type { IBranchRepository } from '../../../src/modules/tenant/domain/branch.repository';
+import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
+import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { PropertyEntity } from '../../../src/modules/property/domain/property.entity';
@@ -76,6 +78,7 @@ describe('CreatePropertyUseCase', () => {
   beforeEach(() => {
     propertyRepo = {
       findById: vi.fn(),
+      nextPropertyNumber: vi.fn().mockResolvedValue(1),
       findByPropertyCode: vi.fn(),
       findByNormalizedAddress: vi.fn(),
       findManyByNormalizedAddressKeys: vi.fn(),
@@ -101,7 +104,6 @@ describe('CreatePropertyUseCase', () => {
 
     const result = await useCase.execute({
       tenantId: 'tenant-1',
-      propertyCode: 'PROP-001',
       type: 'HOUSE',
       street: '123 Main St',
       suburb: 'Sydney',
@@ -112,7 +114,7 @@ describe('CreatePropertyUseCase', () => {
     });
 
     expect(result.geocodingStatus).toBe('PENDING');
-    expect(result.propertyCode).toBe('PROP-001');
+    expect(result.propertyCode).toBe('PROP-0001');
     expect(result.tenantId).toBe('tenant-1');
     expect(result.id).toBeDefined();
     expect(propertyRepo.save).toHaveBeenCalled();
@@ -126,7 +128,6 @@ describe('CreatePropertyUseCase', () => {
 
     const result = await useCase.execute({
       tenantId: 'tenant-1',
-      propertyCode: 'PROP-002',
       type: 'APARTMENT',
       street: '9 Beach Rd',
       suburb: 'Manly',
@@ -159,7 +160,6 @@ describe('CreatePropertyUseCase', () => {
 
     const result = await useCase.execute({
       tenantId: 'tenant-1',
-      propertyCode: 'PROP-003',
       type: 'HOUSE',
       street: '1 Elm St',
       suburb: 'Sydney',
@@ -180,8 +180,7 @@ describe('CreatePropertyUseCase', () => {
     vi.mocked(propertyRepo.findByPropertyCode).mockResolvedValue(null);
 
     const result = await useCase.execute({
-      propertyCode: 'PROP-002',
-      type: 'COMMERCIAL',
+      type: 'APARTMENT',
       street: '456 Business Ave',
       suburb: 'Melbourne',
       postcode: '3000',
@@ -191,7 +190,7 @@ describe('CreatePropertyUseCase', () => {
     });
 
     expect(result.tenantId).toBe('tenant-2');
-    expect(result.type).toBe('COMMERCIAL');
+    expect(result.type).toBe('APARTMENT');
     expect(propertyRepo.save).toHaveBeenCalled();
   });
 
@@ -200,7 +199,6 @@ describe('CreatePropertyUseCase', () => {
 
     const result = await useCase.execute({
       tenantId: 'tenant-1',
-      propertyCode: 'PROP-OP',
       type: 'HOUSE',
       street: '123 Main St',
       suburb: 'Sydney',
@@ -217,8 +215,7 @@ describe('CreatePropertyUseCase', () => {
   it('should throw VALIDATION_ERROR when OP omits tenantId', async () => {
     await expect(
       useCase.execute({
-        propertyCode: 'PROP-OP-2',
-        type: 'HOUSE',
+          type: 'HOUSE',
         street: '123 Main St',
         suburb: 'Sydney',
         postcode: '2000',
@@ -232,8 +229,7 @@ describe('CreatePropertyUseCase', () => {
   it('should reject INSP role', async () => {
     await expect(
       useCase.execute({
-        propertyCode: 'PROP-003',
-        type: 'HOUSE',
+          type: 'HOUSE',
         street: '789 Inspector Rd',
         suburb: 'Brisbane',
         postcode: '4000',
@@ -244,24 +240,88 @@ describe('CreatePropertyUseCase', () => {
     ).rejects.toThrow(ForbiddenError);
   });
 
-  it('should throw PROPERTY_CODE_CONFLICT when code exists', async () => {
-    vi.mocked(propertyRepo.findByPropertyCode).mockResolvedValue(
-      makeProperty(),
-    );
+  const baseCreateInput = {
+    tenantId: 'tenant-1',
+    type: 'HOUSE' as const,
+    street: '123 Main St',
+    suburb: 'Sydney',
+    postcode: '2000',
+    state: 'NSW',
+    country: 'AU',
+  };
+
+  it('generates the code from the per-tenant sequential number', async () => {
+    vi.mocked(propertyRepo.nextPropertyNumber).mockResolvedValue(42);
+
+    const result = await useCase.execute({ ...baseCreateInput, actor: makeActor() });
+
+    expect(propertyRepo.nextPropertyNumber).toHaveBeenCalledWith('tenant-1');
+    expect(result.propertyCode).toBe('PROP-0042');
+    const saved = vi.mocked(propertyRepo.save).mock.calls[0][0];
+    expect(saved.propertyNumber).toBe(42);
+    expect(saved.propertyCode).toBe('PROP-0042');
+  });
+
+  it('prefixes the generated code with the tenant appointment code prefix', async () => {
+    const tenantRepo = {
+      findById: vi.fn().mockResolvedValue(
+        new TenantEntity({
+          id: 'tenant-1',
+          name: 'Test Agency',
+          legalName: 'Test Agency Pty Ltd',
+          status: 'ACTIVE',
+          timezone: 'Australia/Sydney',
+          currency: 'AUD',
+          settingsJson: {},
+          appointmentCodePrefix: 'ABC',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          deletedAt: null,
+        }),
+      ),
+    } as unknown as ITenantRepository;
+    vi.mocked(propertyRepo.nextPropertyNumber).mockResolvedValue(7);
+    const uc = new CreatePropertyUseCase(propertyRepo, branchRepo, auditService, tenantRepo);
+
+    const result = await uc.execute({ ...baseCreateInput, actor: makeActor() });
+
+    expect(result.propertyCode).toBe('ABC-PROP-0007');
+  });
+
+  it('persists and returns the optional apartmentNumber', async () => {
+    const result = await useCase.execute({
+      ...baseCreateInput,
+      type: 'APARTMENT',
+      apartmentNumber: 'Apt 12B',
+      actor: makeActor(),
+    });
+
+    expect(result.apartmentNumber).toBe('Apt 12B');
+    const saved = vi.mocked(propertyRepo.save).mock.calls[0][0];
+    expect(saved.apartmentNumber).toBe('Apt 12B');
+  });
+
+  it('retries with a fresh number when a concurrent create wins the same code', async () => {
+    vi.mocked(propertyRepo.nextPropertyNumber)
+      .mockResolvedValueOnce(5)
+      .mockResolvedValueOnce(6);
+    vi.mocked(propertyRepo.save)
+      .mockRejectedValueOnce(new PropertyCodeConflictError())
+      .mockResolvedValueOnce(undefined);
+
+    const result = await useCase.execute({ ...baseCreateInput, actor: makeActor() });
+
+    expect(propertyRepo.save).toHaveBeenCalledTimes(2);
+    expect(result.propertyCode).toBe('PROP-0006');
+  });
+
+  it('throws PROPERTY_CODE_CONFLICT after exhausting generation retries', async () => {
+    vi.mocked(propertyRepo.save).mockRejectedValue(new PropertyCodeConflictError());
 
     await expect(
-      useCase.execute({
-        tenantId: 'tenant-1',
-        propertyCode: 'PROP-001',
-        type: 'HOUSE',
-        street: '123 Main St',
-        suburb: 'Sydney',
-        postcode: '2000',
-        state: 'NSW',
-        country: 'AU',
-        actor: makeActor(),
-      }),
+      useCase.execute({ ...baseCreateInput, actor: makeActor() }),
     ).rejects.toThrow(PropertyCodeConflictError);
+    expect(propertyRepo.save).toHaveBeenCalledTimes(3);
   });
 
   it('should throw PROPERTY_ADDRESS_CONFLICT when an active property with the same address exists (not a 500)', async () => {
@@ -271,8 +331,7 @@ describe('CreatePropertyUseCase', () => {
     await expect(
       useCase.execute({
         tenantId: 'tenant-1',
-        propertyCode: 'PROP-002',
-        type: 'HOUSE',
+          type: 'HOUSE',
         street: '123 Main St',
         suburb: 'Sydney',
         postcode: '2000',
@@ -292,8 +351,7 @@ describe('CreatePropertyUseCase', () => {
       useCase.execute({
         tenantId: 'tenant-1',
         branchId: 'invalid-branch',
-        propertyCode: 'PROP-004',
-        type: 'HOUSE',
+          type: 'HOUSE',
         street: '123 Main St',
         suburb: 'Sydney',
         postcode: '2000',
@@ -307,8 +365,7 @@ describe('CreatePropertyUseCase', () => {
   it('should throw VALIDATION_ERROR when AM/OP does not provide tenantId', async () => {
     await expect(
       useCase.execute({
-        propertyCode: 'PROP-005',
-        type: 'HOUSE',
+          type: 'HOUSE',
         street: '123 Main St',
         suburb: 'Sydney',
         postcode: '2000',
@@ -324,7 +381,6 @@ describe('CreatePropertyUseCase', () => {
 
     const result = await useCase.execute({
       tenantId: 'tenant-1',
-      propertyCode: 'PROP-GEO',
       type: 'HOUSE',
       street: '123 Main St',
       suburb: 'Sydney',
@@ -352,7 +408,6 @@ describe('CreatePropertyUseCase', () => {
 
     const result = await useCaseWithLogger.execute({
       tenantId: 'tenant-1',
-      propertyCode: 'PROP-GEO-FAIL',
       type: 'HOUSE',
       street: '1 Fail St',
       suburb: 'Sydney',
@@ -395,7 +450,6 @@ describe('CreatePropertyUseCase', () => {
 
     const baseInput = {
       tenantId: 'tenant-1',
-      propertyCode: 'PROP-SYNC',
       type: 'HOUSE' as const,
       street: '1 Sync St',
       suburb: 'Sydney',
@@ -491,7 +545,6 @@ describe('CreatePropertyUseCase', () => {
     const result = await useCase.execute({
       tenantId: 'tenant-1',
       branchId: 'branch-1',
-      propertyCode: 'PROP-006',
       type: 'HOUSE',
       street: '123 Main St',
       suburb: 'Sydney',

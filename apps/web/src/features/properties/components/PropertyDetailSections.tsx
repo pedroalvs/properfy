@@ -17,6 +17,9 @@ export function PropertyDetailSections({ property }: PropertyDetailSectionsProps
       <FormSection title="Identification">
         <DetailRow label="Code" value={property.propertyCode} />
         <DetailRow label="Type" value={<PropertyTypeChip type={property.type} />} />
+        {property.type === 'APARTMENT' && (
+          <DetailRow label="Apartment" value={property.apartmentNumber} />
+        )}
         <DetailRow label="Branch" value={property.branchName} />
       </FormSection>
 

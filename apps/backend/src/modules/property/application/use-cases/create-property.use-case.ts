@@ -11,6 +11,7 @@ import type { IBranchRepository } from '../../../tenant/domain/branch.repository
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IGeocodingService } from '../../domain/geocoding.service';
 import { PropertyEntity } from '../../domain/property.entity';
+import { PropertyCodeFormatter } from '../../domain/property-code.formatter';
 import { PropertyCodeConflictError, PropertyAddressConflictError, TenantInactiveError, BranchInactiveError } from '../../domain/property.errors';
 import { BranchNotFoundError, TenantNotFoundError } from '../../../tenant/domain/tenant.errors';
 import { sendJob } from '../../../../shared/infrastructure/queue';
@@ -22,11 +23,19 @@ import { sendJob } from '../../../../shared/infrastructure/queue';
  */
 const DEFAULT_SYNC_GEOCODE_TIMEOUT_MS = 4000;
 
+/**
+ * Attempts for the generate-number + insert cycle. `nextPropertyNumber` is
+ * MAX+1 and therefore racy under concurrent creates — the per-tenant unique
+ * index turns the loser into a PropertyCodeConflictError, which we retry with
+ * a freshly read number.
+ */
+const MAX_CODE_GENERATION_ATTEMPTS = 3;
+
 export interface CreatePropertyInput {
   tenantId?: string;
   branchId?: string;
-  propertyCode: string;
   type: PropertyType;
+  apartmentNumber?: string;
   street: string;
   addressLine2?: string;
   suburb: string;
@@ -49,6 +58,7 @@ export interface CreatePropertyOutput {
   branchId: string | null;
   propertyCode: string;
   type: string;
+  apartmentNumber: string | null;
   street: string;
   addressLine2: string | null;
   suburb: string;
@@ -130,7 +140,8 @@ export class CreatePropertyUseCase {
       this.authorizationService.assertClUserPermission(actor, 'create_properties');
     }
 
-    // Validate tenant is ACTIVE
+    // Validate tenant is ACTIVE; its code prefix feeds the generated property code.
+    let codePrefix: string | null = null;
     if (this.tenantRepo) {
       const tenant = await this.tenantRepo.findById(tenantId);
       if (!tenant) {
@@ -139,6 +150,7 @@ export class CreatePropertyUseCase {
       if (!tenant.isActive()) {
         throw new TenantInactiveError();
       }
+      codePrefix = tenant.appointmentCodePrefix ?? null;
     }
 
     // Validate branch if provided
@@ -150,15 +162,6 @@ export class CreatePropertyUseCase {
       if (!branch.isActive()) {
         throw new BranchInactiveError();
       }
-    }
-
-    // Check propertyCode uniqueness within tenant
-    const existing = await this.propertyRepo.findByPropertyCode(
-      input.propertyCode,
-      tenantId,
-    );
-    if (existing) {
-      throw new PropertyCodeConflictError();
     }
 
     // Check address uniqueness within tenant (backed by the
@@ -179,47 +182,77 @@ export class CreatePropertyUseCase {
     const now = new Date();
     const id = crypto.randomUUID();
 
-    const property = new PropertyEntity({
-      id,
-      tenantId,
-      branchId: input.branchId ?? null,
-      propertyCode: input.propertyCode,
-      type: input.type,
-      street: input.street,
-      addressLine2: input.addressLine2 ?? null,
-      suburb: input.suburb,
-      postcode: input.postcode,
-      state: input.state,
-      country: input.country,
-      lat: null,
-      lng: null,
-      geocodingStatus: 'PENDING',
-      privateAreaM2: input.privateAreaM2 ?? null,
-      totalAreaM2: input.totalAreaM2 ?? null,
-      furnished: input.furnished ?? null,
-      linenProvided: input.linenProvided ?? null,
-      rentAmount: input.rentAmount ?? null,
-      notes: input.notes ?? null,
-      rulesJson: input.rulesJson ?? {},
-      createdAt: now,
-      updatedAt: now,
-      deletedAt: null,
-    });
+    const buildProperty = (propertyNumber: number): PropertyEntity =>
+      new PropertyEntity({
+        id,
+        tenantId,
+        branchId: input.branchId ?? null,
+        propertyCode: PropertyCodeFormatter.formatParts(propertyNumber, codePrefix),
+        propertyNumber,
+        type: input.type,
+        apartmentNumber: input.apartmentNumber ?? null,
+        street: input.street,
+        addressLine2: input.addressLine2 ?? null,
+        suburb: input.suburb,
+        postcode: input.postcode,
+        state: input.state,
+        country: input.country,
+        lat: null,
+        lng: null,
+        geocodingStatus: 'PENDING',
+        privateAreaM2: input.privateAreaM2 ?? null,
+        totalAreaM2: input.totalAreaM2 ?? null,
+        furnished: input.furnished ?? null,
+        linenProvided: input.linenProvided ?? null,
+        rentAmount: input.rentAmount ?? null,
+        notes: input.notes ?? null,
+        rulesJson: input.rulesJson ?? {},
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      });
 
-    // Geocode synchronously so the property has coordinates the instant creation
-    // returns (no dependency on the async queue in the happy path). On timeout or
-    // transient error we keep PENDING and let the async worker finish it.
+    // Geocode synchronously (once — the address never changes across code-retry
+    // attempts) so the property has coordinates the instant creation returns.
+    // On timeout or transient error we keep PENDING and let the async worker
+    // finish it. `undefined` = keep PENDING; null/coords = terminal outcome.
+    let geocodeOutcome: { lat: number; lng: number } | null | undefined;
     if (this.geocodingService) {
       try {
-        const result = await this.geocodeWithinTimeout(property.fullAddress);
-        property.applyGeocodingResult(result);
+        geocodeOutcome = await this.geocodeWithinTimeout(buildProperty(0).fullAddress);
       } catch (err) {
         this.logger?.warn({ propertyId: id, err }, 'property.sync_geocode_failed_falling_back');
         // property stays PENDING — async fallback below
       }
     }
 
-    await this.propertyRepo.save(property);
+    // Generate the per-tenant sequential code and insert, retrying when a
+    // concurrent create wins the same number (unique-index race).
+    let property: PropertyEntity | undefined;
+    for (let attempt = 1; attempt <= MAX_CODE_GENERATION_ATTEMPTS; attempt++) {
+      const nextNumber = await this.propertyRepo.nextPropertyNumber(tenantId);
+      const candidate = buildProperty(nextNumber);
+      if (geocodeOutcome !== undefined) {
+        candidate.applyGeocodingResult(geocodeOutcome);
+      }
+      try {
+        await this.propertyRepo.save(candidate);
+        property = candidate;
+        break;
+      } catch (err) {
+        if (err instanceof PropertyCodeConflictError && attempt < MAX_CODE_GENERATION_ATTEMPTS) {
+          this.logger?.warn(
+            { tenantId, propertyNumber: nextNumber, attempt },
+            'property.code_generation_conflict_retrying',
+          );
+          continue;
+        }
+        throw err;
+      }
+    }
+    if (!property) {
+      throw new PropertyCodeConflictError();
+    }
 
     // Only enqueue the async geocode when the sync attempt did not resolve a
     // status (PENDING). SUCCESS/FAILED are terminal here and need no job.
@@ -256,6 +289,7 @@ export class CreatePropertyUseCase {
       branchId: property.branchId,
       propertyCode: property.propertyCode,
       type: property.type,
+      apartmentNumber: property.apartmentNumber,
       street: property.street,
       addressLine2: property.addressLine2,
       suburb: property.suburb,

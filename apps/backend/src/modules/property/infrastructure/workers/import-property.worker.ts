@@ -9,7 +9,7 @@ import type { Logger } from '../../../../shared/infrastructure/logger';
 import type { IJobQueue } from '../../../../shared/domain/job-queue';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 
-const VALID_PROPERTY_TYPES = ['APARTMENT', 'HOUSE', 'COMMERCIAL', 'INDUSTRIAL', 'RURAL'];
+const VALID_PROPERTY_TYPES = ['APARTMENT', 'HOUSE'];
 
 interface ImportRow {
   propertyCode?: string;
