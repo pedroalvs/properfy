@@ -26,14 +26,14 @@ export interface FindAddableGroupsOutput {
  * dropdown never shows groups the operator cannot use.
  *
  * Pre-conditions checked here (before querying groups):
- *  - All appointments share the same serviceTypeId and scheduledDate (the
- *    canAddToGroup invariants). The time window is NOT a criterion — same-day
- *    appointments of different time slots can be grouped. Tenant is NOT
- *    required to match — groups are tenant-agnostic. If mixed → early return
- *    with reason = 'MIXED_APPOINTMENT_PROPERTIES'.
+ *  - All appointments share the same serviceTypeId (the canAddToGroup
+ *    invariant). Date and time window are NOT criteria — appointments are
+ *    re-scheduled to the group's date/window on join. Tenant is NOT
+ *    required to match — groups are tenant-agnostic. If mixed service
+ *    types → early return with reason = 'MIXED_APPOINTMENT_PROPERTIES'.
  *
  * Group filters applied by the repository query:
- *  - Same serviceType, same scheduledDate (time window is not a filter)
+ *  - Same serviceType (date and time window are not filters)
  *  - Status ∈ {DRAFT, PUBLISHED}
  *  - currentSize + |appointmentIds| ≤ capacity (default 30)
  */
@@ -60,14 +60,10 @@ export class FindAddableGroupsForAppointmentsUseCase {
 
     const first = valid[0]!;
 
-    // Pre-condition: all appointments must share serviceTypeId and scheduledDate.
-    // The time slot may differ (it is not a grouping criterion). Tenant may differ
-    // too — groups are tenant-agnostic.
-    const isMixed = valid.some(
-      (a) =>
-        a.serviceTypeId !== first.serviceTypeId ||
-        a.scheduledDate?.toISOString().slice(0, 10) !== first.scheduledDate?.toISOString().slice(0, 10),
-    );
+    // Pre-condition: all appointments must share serviceTypeId. Date and time
+    // slot may differ (appointments are re-scheduled to the group's date on
+    // join). Tenant may differ too — groups are tenant-agnostic.
+    const isMixed = valid.some((a) => a.serviceTypeId !== first.serviceTypeId);
     if (isMixed) return { groups: [], reason: 'MIXED_APPOINTMENT_PROPERTIES' };
 
     // Pre-condition: all appointments must be in a groupable status.
@@ -78,7 +74,6 @@ export class FindAddableGroupsForAppointmentsUseCase {
 
     const groups = await this.groupRepo.findAddableForAppointments({
       serviceTypeId: first.serviceTypeId,
-      scheduledDate: first.scheduledDate,
       batchSize: input.appointmentIds.length,
     });
 

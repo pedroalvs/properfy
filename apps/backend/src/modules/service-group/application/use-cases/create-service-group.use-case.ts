@@ -12,7 +12,7 @@ import { ServiceRegionInactiveError, ServiceGroupDateInPastError, ServiceGroupTi
 import { validateNewSchedule } from '@properfy/shared';
 import { NotFoundError } from '../../../../shared/domain/errors';
 import { SystemClock, type Clock } from '../../../../shared/domain/clock';
-import { trySyncAppointmentTimeSlotToGroup, type ServiceGroupTimeSyncLogger } from '../sync-appointment-time-slot-to-group';
+import { trySyncAppointmentScheduleToGroup, type ServiceGroupTimeSyncLogger } from '../sync-appointment-time-slot-to-group';
 
 export interface CreateServiceGroupInput {
   appointmentIds: string[];
@@ -93,6 +93,7 @@ export class CreateServiceGroupUseCase {
         serviceTypeId: appt.serviceTypeId,
         tenantId: appt.tenantId,
         serviceGroupId: appt.serviceGroupId,
+        scheduledDate: appt.scheduledDate,
         timeSlotStart: appt.timeSlotStart,
         timeSlotEnd: appt.timeSlotEnd,
       });
@@ -159,11 +160,12 @@ export class CreateServiceGroupUseCase {
     await this.serviceGroupRepo.linkAppointments(input.appointmentIds, groupId);
 
     for (const appt of appointments) {
-      await trySyncAppointmentTimeSlotToGroup({
+      await trySyncAppointmentScheduleToGroup({
         appointmentRepo: this.appointmentRepo,
         auditService: this.auditService,
         appointment: appt,
         groupTimeWindow: input.timeWindow,
+        groupScheduledDate: group.scheduledDate,
         groupId,
         actor,
         logger: this.logger,
