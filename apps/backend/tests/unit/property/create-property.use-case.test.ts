@@ -288,6 +288,19 @@ describe('CreatePropertyUseCase', () => {
     expect(result.propertyCode).toBe('ABC-PROP-0007');
   });
 
+  it('nulls apartmentNumber server-side when type is not APARTMENT', async () => {
+    const result = await useCase.execute({
+      ...baseCreateInput,
+      type: 'HOUSE',
+      apartmentNumber: 'Apt 9',
+      actor: makeActor(),
+    });
+
+    expect(result.apartmentNumber).toBeNull();
+    const saved = vi.mocked(propertyRepo.save).mock.calls[0][0];
+    expect(saved.apartmentNumber).toBeNull();
+  });
+
   it('persists and returns the optional apartmentNumber', async () => {
     const result = await useCase.execute({
       ...baseCreateInput,

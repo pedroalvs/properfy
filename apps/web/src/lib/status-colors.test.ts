@@ -64,7 +64,8 @@ describe('PROPERTY_TYPE_MAP', () => {
 
   it('returns correct labels', () => {
     expect(PROPERTY_TYPE_MAP[PropertyType.HOUSE].label).toBe('House');
-    });
+    expect(PROPERTY_TYPE_MAP[PropertyType.APARTMENT].label).toBe('Apartment');
+  });
 });
 
 describe('INSPECTOR_STATUS_MAP', () => {

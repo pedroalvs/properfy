@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { UserRole } from '@properfy/shared';
+import { UserRole, PropertyType } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
@@ -16,16 +16,11 @@ import { useFormOptions } from '@/hooks/useFormOptions';
 import { useAuth } from '@/hooks/useAuth';
 import { useGoBack } from '@/hooks/useGoBack';
 import { usePropertySave } from '../hooks/usePropertySave';
-import { PROPERTY_TYPE_OPTIONS, STATE_OPTIONS } from '../constants/form-options';
+import { PROPERTY_TYPE_OPTIONS, STATE_OPTIONS, YES_NO_OPTIONS } from '../constants/form-options';
 import type { PropertyFormData, PropertyFormErrors } from '../types';
 import { EMPTY_PROPERTY_FORM } from '../types';
 import type { AddressLookupSuggestion } from '@/lib/address';
 import { buildAddressLabel } from '@/lib/address';
-
-const YES_NO_OPTIONS = [
-  { label: 'Yes', value: 'true' },
-  { label: 'No', value: 'false' },
-];
 
 export function PropertyCreatePage() {
   const navigate = useNavigate();
@@ -219,7 +214,7 @@ export function PropertyCreatePage() {
                   aria-label="Type"
                 />
               </FormField>
-              {form.type === 'APARTMENT' && (
+              {form.type === PropertyType.APARTMENT && (
                 <FormField label="Apartment" error={errors.apartmentNumber}>
                   <TextInput
                     value={form.apartmentNumber}

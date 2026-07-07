@@ -190,7 +190,10 @@ export class CreatePropertyUseCase {
         propertyCode: PropertyCodeFormatter.formatParts(propertyNumber, codePrefix),
         propertyNumber,
         type: input.type,
-        apartmentNumber: input.apartmentNumber ?? null,
+        // Only meaningful for apartments — normalized here so a direct API
+        // caller cannot persist apartment data on a HOUSE record.
+        apartmentNumber:
+          input.type === 'APARTMENT' ? input.apartmentNumber ?? null : null,
         street: input.street,
         addressLine2: input.addressLine2 ?? null,
         suburb: input.suburb,

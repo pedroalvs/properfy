@@ -5,6 +5,7 @@ import { formatArea, formatRent, formatYesNo } from '@/lib/format-property';
 import { PropertyTypeChip } from './PropertyTypeChip';
 import { GeocodingStatusBadge } from './GeocodingStatusBadge';
 import type { PropertyDetail } from '../types';
+import { PropertyType } from '@properfy/shared';
 
 interface PropertyDetailSectionsProps {
   property: PropertyDetail;
@@ -17,7 +18,7 @@ export function PropertyDetailSections({ property }: PropertyDetailSectionsProps
       <FormSection title="Identification">
         <DetailRow label="Code" value={property.propertyCode} />
         <DetailRow label="Type" value={<PropertyTypeChip type={property.type} />} />
-        {property.type === 'APARTMENT' && (
+        {property.type === PropertyType.APARTMENT && (
           <DetailRow label="Apartment" value={property.apartmentNumber} />
         )}
         <DetailRow label="Branch" value={property.branchName} />

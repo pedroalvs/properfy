@@ -15,16 +15,12 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { usePropertyDetail } from '../hooks/usePropertyDetail';
 import { usePropertySave } from '../hooks/usePropertySave';
-import { PROPERTY_TYPE_OPTIONS, STATE_OPTIONS } from '../constants/form-options';
+import { PROPERTY_TYPE_OPTIONS, STATE_OPTIONS, YES_NO_OPTIONS } from '../constants/form-options';
 import type { PropertyFormData, PropertyFormErrors } from '../types';
 import { EMPTY_PROPERTY_FORM } from '../types';
 import type { AddressLookupSuggestion } from '@/lib/address';
 import { buildAddressLabel } from '@/lib/address';
-
-const YES_NO_OPTIONS = [
-  { label: 'Yes', value: 'true' },
-  { label: 'No', value: 'false' },
-];
+import { PropertyType } from '@properfy/shared';
 
 interface PropertyFormDrawerProps {
   open: boolean;
@@ -228,7 +224,7 @@ export function PropertyFormDrawer({
                         aria-label="Type"
                       />
                     </FormField>
-                    {form.type === 'APARTMENT' && (
+                    {form.type === PropertyType.APARTMENT && (
                       <FormField label="Apartment" error={errors.apartmentNumber}>
                         <TextInput
                           value={form.apartmentNumber}

@@ -362,6 +362,59 @@ describe('UpdatePropertyUseCase', () => {
     expect(branchRepo.findById).not.toHaveBeenCalled();
   });
 
+  it('updates apartmentNumber when property is APARTMENT', async () => {
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty({ type: 'APARTMENT' }));
+
+    const result = await useCase.execute({
+      propertyId: 'prop-1',
+      data: { apartmentNumber: 'Apt 5C' },
+      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    });
+
+    expect(result.apartmentNumber).toBe('Apt 5C');
+    expect(propertyRepo.update).toHaveBeenCalledWith(
+      'prop-1',
+      'tenant-1',
+      expect.objectContaining({ apartmentNumber: 'Apt 5C' }),
+    );
+  });
+
+  it('force-nulls apartmentNumber when the effective type is not APARTMENT', async () => {
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty({ type: 'HOUSE' }));
+
+    const result = await useCase.execute({
+      propertyId: 'prop-1',
+      data: { apartmentNumber: 'Apt 5C' },
+      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    });
+
+    expect(result.apartmentNumber).toBeNull();
+    expect(propertyRepo.update).toHaveBeenCalledWith(
+      'prop-1',
+      'tenant-1',
+      expect.objectContaining({ apartmentNumber: null }),
+    );
+  });
+
+  it('clears apartmentNumber when type changes from APARTMENT to HOUSE', async () => {
+    vi.mocked(propertyRepo.findById).mockResolvedValue(
+      makeProperty({ type: 'APARTMENT', apartmentNumber: 'Apt 5C' }),
+    );
+
+    const result = await useCase.execute({
+      propertyId: 'prop-1',
+      data: { type: 'HOUSE' },
+      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    });
+
+    expect(result.apartmentNumber).toBeNull();
+    expect(propertyRepo.update).toHaveBeenCalledWith(
+      'prop-1',
+      'tenant-1',
+      expect.objectContaining({ type: 'HOUSE', apartmentNumber: null }),
+    );
+  });
+
   // GAP-002: Manual coordinate unlock
   describe('manual coordinate unlock', () => {
     it('should reset MANUAL property to PENDING and enqueue geocode job when both coords cleared', async () => {

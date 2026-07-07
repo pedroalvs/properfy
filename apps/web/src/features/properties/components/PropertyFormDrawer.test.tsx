@@ -3,7 +3,9 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
-vi.mock('@properfy/shared', () => ({}));
+vi.mock('@properfy/shared', () => ({
+  PropertyType: { APARTMENT: 'APARTMENT', HOUSE: 'HOUSE' },
+}));
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } }));
 vi.mock('@/services/api', () => ({
   api: {

@@ -125,7 +125,16 @@ export class UpdatePropertyUseCase {
     const updateData: Record<string, unknown> = {};
     if (data.branchId !== undefined) updateData.branchId = data.branchId;
     if (data.type !== undefined) updateData.type = data.type;
-    if (data.apartmentNumber !== undefined) updateData.apartmentNumber = data.apartmentNumber;
+    // apartmentNumber is only meaningful for apartments: force-null it when the
+    // effective type is not APARTMENT, regardless of what the caller sent.
+    const effectiveType = data.type ?? property.type;
+    if (effectiveType !== 'APARTMENT') {
+      if (data.apartmentNumber !== undefined || data.type !== undefined) {
+        updateData.apartmentNumber = null;
+      }
+    } else if (data.apartmentNumber !== undefined) {
+      updateData.apartmentNumber = data.apartmentNumber;
+    }
     if (data.street !== undefined) updateData.street = data.street;
     if (data.addressLine2 !== undefined)
       updateData.addressLine2 = data.addressLine2;
@@ -241,8 +250,8 @@ export class UpdatePropertyUseCase {
       propertyCode: property.propertyCode,
       type: (updateData.type as string) ?? property.type,
       apartmentNumber:
-        data.apartmentNumber !== undefined
-          ? data.apartmentNumber
+        updateData.apartmentNumber !== undefined
+          ? (updateData.apartmentNumber as string | null)
           : property.apartmentNumber,
       street: (updateData.street as string) ?? property.street,
       addressLine2:

@@ -5,6 +5,11 @@ export const PROPERTY_TYPE_OPTIONS: SelectOption[] = [
   { label: 'House', value: 'HOUSE' },
 ];
 
+export const YES_NO_OPTIONS: SelectOption[] = [
+  { label: 'Yes', value: 'true' },
+  { label: 'No', value: 'false' },
+];
+
 export const STATE_OPTIONS: SelectOption[] = [
   { value: 'ACT', label: 'Australian Capital Territory' },
   { value: 'NSW', label: 'New South Wales' },
