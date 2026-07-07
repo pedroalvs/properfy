@@ -22,6 +22,8 @@ export function SidebarItem({ icon, label, to, mobile = false, onNavigate }: Sid
       onClick={() => onNavigate?.()}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onFocus={() => setIsHovered(true)}
+      onBlur={() => setIsHovered(false)}
       className={({ isActive }) =>
         mobile
           ? `flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${
