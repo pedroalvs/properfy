@@ -47,7 +47,7 @@ vi.mock('../../../src/main/container', () => ({
         validateResend: vi.fn().mockReturnValue(true),
         validateMobileMessage: vi.fn().mockReturnValue(true),
       },
-      mobileMessageWebhookToken: 'test-webhook-token',
+      getMobileMessageWebhookToken: async () => 'test-webhook-token',
     },
   }),
 }));

@@ -150,16 +150,18 @@ export function validateEnv(source: Record<string, string | undefined> = process
       strictIssues.push('  - Supabase S3: SUPABASE_S3_ENDPOINT, SUPABASE_S3_ACCESS_KEY_ID and SUPABASE_S3_SECRET_ACCESS_KEY are required in staging/production');
     }
 
+    // Resend, MobileMessage and Mapbox are no longer boot requirements: their
+    // credentials are managed by AM via the Integrations Hub (database config,
+    // env vars as fallback). When neither is configured the platform degrades
+    // to stub providers and the dashboard surfaces a warning per integration.
     if (!result.data.RESEND_API_KEY || !result.data.RESEND_FROM_EMAIL) {
-      strictIssues.push('  - Resend: RESEND_API_KEY and RESEND_FROM_EMAIL are required in staging/production');
+      console.warn('[env] Resend not configured via env; email sending relies on Integrations Hub settings (stub provider until configured)');
     }
-
     if (!result.data.MOBILE_MESSAGE_API_KEY || !result.data.MOBILE_MESSAGE_PASSWORD || !result.data.MOBILE_MESSAGE_SENDER_ID || !result.data.MOBILE_MESSAGE_WEBHOOK_TOKEN) {
-      strictIssues.push('  - MobileMessage: MOBILE_MESSAGE_API_KEY, MOBILE_MESSAGE_PASSWORD, MOBILE_MESSAGE_SENDER_ID and MOBILE_MESSAGE_WEBHOOK_TOKEN are required in staging/production');
+      console.warn('[env] MobileMessage not fully configured via env; SMS sending relies on Integrations Hub settings (stub provider until configured)');
     }
-
     if (!result.data.MAPBOX_ACCESS_TOKEN) {
-      strictIssues.push('  - MAPBOX_ACCESS_TOKEN: Required in staging/production');
+      console.warn('[env] MAPBOX_ACCESS_TOKEN not set; geocoding relies on Integrations Hub settings (stub service until configured)');
     }
 
     for (const [key, value] of [
