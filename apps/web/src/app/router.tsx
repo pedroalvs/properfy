@@ -1,23 +1,53 @@
 import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 
+const CHUNK_RELOAD_KEY = 'chunk_reload';
+
+interface StorageLike {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
+
+interface LocationLike {
+  href: string;
+  assign(url: string): void;
+}
+
+interface LoggerLike {
+  error(message: string, ...args: unknown[]): void;
+}
+
 /**
- * Retry a dynamic import once, then force-reload the page.
- * Handles stale chunk hashes after a new deployment.
+ * Handles stale chunk hashes after a new deployment: on the first import
+ * failure it reloads the intended URL once; after that reload it retries the
+ * import and lets a second failure surface to the route error boundary. The
+ * guard is cleared on success so each deployment gets its own reload attempt.
  */
+export async function retryLazyImportOnce<T>(
+  importFn: () => Promise<T>,
+  storage: StorageLike = window.sessionStorage,
+  location: LocationLike = window.location,
+  logger: LoggerLike = console,
+): Promise<T> {
+  try {
+    const module = await importFn();
+    storage.removeItem(CHUNK_RELOAD_KEY);
+    return module;
+  } catch (error) {
+    logger.error('Lazy route import failed', error);
+    if (!storage.getItem(CHUNK_RELOAD_KEY)) {
+      storage.setItem(CHUNK_RELOAD_KEY, '1');
+      location.assign(location.href); // reload the intended URL, bypassing the failed chunk
+      return new Promise<T>(() => {}); // never resolves — page is reloading
+    }
+    storage.removeItem(CHUNK_RELOAD_KEY);
+    return importFn(); // second attempt after reload; failure reaches the error boundary
+  }
+}
+
 function lazyRetry(importFn: () => Promise<any>) {
-  return lazy(() =>
-    importFn().catch(() => {
-      const reloaded = sessionStorage.getItem('chunk_reload');
-      if (!reloaded) {
-        sessionStorage.setItem('chunk_reload', '1');
-        window.location.reload();
-        return new Promise(() => {}); // never resolves — page is reloading
-      }
-      sessionStorage.removeItem('chunk_reload');
-      return importFn(); // second attempt after reload
-    }),
-  );
+  return lazy(() => retryLazyImportOnce(importFn));
 }
 
 const Loadable = (Component: any) => (props: any) => (
