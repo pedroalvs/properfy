@@ -31,6 +31,13 @@ export class HttpIntegrationConnectionTester implements IIntegrationConnectionTe
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     if (response.ok) return { ok: true, message: 'Resend API key is valid' };
+    // A sending_access-scoped key cannot list domains: Resend answers with a
+    // "restricted_api_key" error. That still proves the key authenticates, so
+    // report it as valid rather than failing send-only production keys.
+    const body = await response.text();
+    if (body.includes('restricted_api_key')) {
+      return { ok: true, message: 'Resend API key is valid (send-only scope)' };
+    }
     return { ok: false, message: `Resend rejected the credentials (HTTP ${response.status})` };
   }
 

@@ -4,8 +4,11 @@ import {
   IntegrationProvider,
   integrationConfigSchemas,
   integrationDetailSchema,
+  integrationListSchema,
   integrationProviderSchema,
+  integrationStatusListSchema,
   integrationStatusSchema,
+  integrationTestResultSchema,
   integrationUpsertSchema,
   mapboxConfigSchema,
   mobileMessageConfigSchema,
@@ -92,6 +95,19 @@ describe('status/detail response schemas', () => {
         enabled: true,
       }).success,
     ).toBe(false);
+  });
+
+  it('validates the list wrappers and test result', () => {
+    const status = { provider: 'resend', configured: true, source: 'database', enabled: true };
+    expect(integrationStatusListSchema.safeParse({ integrations: [status] }).success).toBe(true);
+    expect(integrationStatusListSchema.safeParse({ integrations: [{}] }).success).toBe(false);
+    expect(
+      integrationListSchema.safeParse({
+        integrations: [{ ...status, maskedConfig: { apiKey: null }, updatedAt: null }],
+      }).success,
+    ).toBe(true);
+    expect(integrationTestResultSchema.parse({ ok: true, message: 'ok' }).ok).toBe(true);
+    expect(integrationTestResultSchema.safeParse({ ok: 'yes', message: 'ok' }).success).toBe(false);
   });
 
   it('validates a detail row with masked config', () => {

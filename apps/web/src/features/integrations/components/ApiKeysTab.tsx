@@ -10,7 +10,7 @@ import { DateInput } from '@/components/forms/DateInput';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
-import { SecretValue } from '@/features/apps/components/SecretValue';
+import { SecretValue } from '@/components/ui/SecretValue';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useApiKeys, useCreateApiKey, useRevokeApiKey } from '../hooks/useApiKeys';
 
@@ -60,7 +60,8 @@ export function ApiKeysTab() {
       const created = await createKey.mutateAsync({
         name: name.trim(),
         role,
-        expiresAt: expiresAt ? new Date(`${expiresAt}T23:59:59.999Z`).toISOString() : null,
+        // Local end-of-day, so the expiry lands on the day the operator picked.
+        expiresAt: expiresAt ? new Date(`${expiresAt}T23:59:59.999`).toISOString() : null,
       });
       setCreateOpen(false);
       resetCreateForm();
@@ -131,7 +132,11 @@ export function ApiKeysTab() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       {!key.revokedAt && (
-                        <Button variant="outlined" onClick={() => setRevokeTarget(key)}>
+                        <Button
+                          variant="outlined"
+                          aria-label={`Revoke ${key.name}`}
+                          onClick={() => setRevokeTarget(key)}
+                        >
                           Revoke
                         </Button>
                       )}

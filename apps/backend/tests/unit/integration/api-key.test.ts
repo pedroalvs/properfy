@@ -169,6 +169,21 @@ describe('createApiKeyAuthMiddleware', () => {
     await expect(
       middleware(makeRequest({ 'x-api-key': created.key }), {} as any),
     ).rejects.toBeInstanceOf(UnauthorizedError);
+
+    // expired (not revoked) key
+    const expiredRepo = makeRepo();
+    const expired = await new CreateApiKeyUseCase(expiredRepo, auditService).execute({
+      name: 'expired',
+      role: 'OP',
+      expiresAt: '2020-01-01T00:00:00.000Z',
+      actorId: 'am-1',
+    });
+    await expect(
+      createApiKeyAuthMiddleware(expiredRepo, jwtAuth)(
+        makeRequest({ 'x-api-key': expired.key }),
+        {} as any,
+      ),
+    ).rejects.toBeInstanceOf(UnauthorizedError);
     expect(jwtAuth).not.toHaveBeenCalled();
   });
 

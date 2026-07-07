@@ -6,6 +6,7 @@ import type {
 } from '@properfy/shared';
 
 import { api } from '@/services/api';
+import { INTEGRATIONS_STATUS_QUERY_KEY } from './useIntegrationsStatus';
 
 export const INTEGRATIONS_QUERY_KEY = ['integrations'] as const;
 
@@ -37,7 +38,7 @@ export function useUpsertIntegration() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: INTEGRATIONS_QUERY_KEY });
-      void queryClient.invalidateQueries({ queryKey: ['integrations-status'] });
+      void queryClient.invalidateQueries({ queryKey: INTEGRATIONS_STATUS_QUERY_KEY });
     },
   });
 }
@@ -53,7 +54,7 @@ export function useDeleteIntegration() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: INTEGRATIONS_QUERY_KEY });
-      void queryClient.invalidateQueries({ queryKey: ['integrations-status'] });
+      void queryClient.invalidateQueries({ queryKey: INTEGRATIONS_STATUS_QUERY_KEY });
     },
   });
 }

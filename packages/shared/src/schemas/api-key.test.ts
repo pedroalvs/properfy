@@ -4,6 +4,7 @@ import {
   API_KEY_PLAINTEXT_PREFIX,
   apiKeyCreateSchema,
   apiKeyCreatedSchema,
+  apiKeyListSchema,
   apiKeyResponseSchema,
 } from './api-key';
 
@@ -25,6 +26,10 @@ describe('apiKeyCreateSchema', () => {
   it('rejects blank names and non-machine roles', () => {
     expect(apiKeyCreateSchema.safeParse({ name: '  ' }).success).toBe(false);
     expect(apiKeyCreateSchema.safeParse({ name: 'x', role: 'INSP' }).success).toBe(false);
+  });
+
+  it('rejects a malformed expiresAt', () => {
+    expect(apiKeyCreateSchema.safeParse({ name: 'x', expiresAt: 'not-a-date' }).success).toBe(false);
   });
 });
 
@@ -51,5 +56,10 @@ describe('apiKeyCreatedSchema', () => {
     const parsed = apiKeyResponseSchema.parse(base);
     expect(parsed).not.toHaveProperty('key');
     expect(parsed).not.toHaveProperty('keyHash');
+  });
+
+  it('apiKeyListSchema wraps an array of response entries', () => {
+    expect(apiKeyListSchema.parse({ apiKeys: [base] }).apiKeys).toHaveLength(1);
+    expect(apiKeyListSchema.safeParse({ apiKeys: [{ id: 'nope' }] }).success).toBe(false);
   });
 });

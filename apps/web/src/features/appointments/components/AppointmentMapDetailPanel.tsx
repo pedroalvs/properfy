@@ -6,7 +6,7 @@ import type { AppointmentStatus } from '@properfy/shared';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { AppointmentCodePill } from './AppointmentCodePill';
-import { SecretValue } from '../../apps/components/SecretValue';
+import { SecretValue } from '@/components/ui/SecretValue';
 import { ConfirmationChannelIcons } from './ConfirmationChannelIcons';
 
 interface AppointmentMapDetailPanelProps {

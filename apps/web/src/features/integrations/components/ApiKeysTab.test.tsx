@@ -66,11 +66,9 @@ describe('ApiKeysTab', () => {
     mockRevokeMutateAsync.mockResolvedValue({ ...activeKey, revokedAt: '2026-07-07T01:00:00.000Z' });
     render(<ApiKeysTab />);
 
-    await user.click(screen.getByRole('button', { name: 'Revoke' }));
+    await user.click(screen.getByRole('button', { name: 'Revoke n8n' }));
     expect(await screen.findByText('Revoke API key')).toBeInTheDocument();
-    // The row and dialog buttons share the label — confirm via the dialog's button.
-    const revokeButtons = screen.getAllByRole('button', { name: /^Revoke$/ });
-    await user.click(revokeButtons[revokeButtons.length - 1]!);
+    await user.click(screen.getByRole('button', { name: 'Revoke' }));
     expect(mockRevokeMutateAsync).toHaveBeenCalledWith(activeKey.id);
   });
 });

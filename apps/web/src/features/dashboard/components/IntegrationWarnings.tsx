@@ -3,12 +3,7 @@ import type { IntegrationStatus } from '@properfy/shared';
 
 import { InfoBanner } from '@/components/feedback/InfoBanner';
 import { useIntegrationsStatus } from '@/features/integrations/hooks/useIntegrationsStatus';
-
-const CAPABILITY_BY_PROVIDER: Record<string, { name: string; capability: string }> = {
-  resend: { name: 'Resend', capability: 'Email sending' },
-  mobile_message: { name: 'MobileMessage', capability: 'SMS sending' },
-  mapbox: { name: 'Mapbox', capability: 'Address geocoding' },
-};
+import { PROVIDER_META } from '@/features/integrations/providerMeta';
 
 /**
  * AM-only dashboard warnings: one banner per unconfigured outbound
@@ -24,11 +19,11 @@ export function IntegrationWarnings() {
   return (
     <div className="mb-4 space-y-2">
       {missing.map((row) => {
-        const meta = CAPABILITY_BY_PROVIDER[row.provider];
+        const meta = PROVIDER_META.find((entry) => entry.provider === row.provider);
         if (!meta) return null;
         return (
           <InfoBanner key={row.provider} variant="warning">
-            {meta.capability} is disabled — {meta.name} is not configured.{' '}
+            {meta.affectedCapability} is disabled — {meta.label} is not configured.{' '}
             <Link to="/integrations" className="font-medium underline">
               Configure in Integrations
             </Link>

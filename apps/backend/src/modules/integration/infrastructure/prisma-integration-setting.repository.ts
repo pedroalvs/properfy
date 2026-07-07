@@ -39,7 +39,18 @@ export class PrismaIntegrationSettingRepository implements IIntegrationSettingRe
 
   async list(): Promise<IntegrationSetting[]> {
     const rows = await this.prisma.integrationSetting.findMany({ orderBy: { provider: 'asc' } });
-    return rows.map((row) => this.mapRow(row));
+    // One corrupted row (decrypt/JSON failure) must not take the whole hub
+    // screen down — skip it and let the resolver report that provider as
+    // unconfigured. get() failures are already isolated by the resolver.
+    const settings: IntegrationSetting[] = [];
+    for (const row of rows) {
+      try {
+        settings.push(this.mapRow(row));
+      } catch {
+        // skip unreadable row
+      }
+    }
+    return settings;
   }
 
   async upsert(
@@ -58,6 +69,7 @@ export class PrismaIntegrationSettingRepository implements IIntegrationSettingRe
   }
 
   async delete(provider: IntegrationProvider): Promise<void> {
+    // deleteMany on purpose: idempotent delete (no P2025 when the row is gone).
     await this.prisma.integrationSetting.deleteMany({ where: { provider } });
   }
 }
