@@ -227,8 +227,68 @@ describe('AddAppointmentsToGroupUseCase', () => {
         tenantId: 'tenant-1',
         groupId: 'group-1',
       }),
-      'appointment time-slot sync to group failed',
+      'appointment schedule sync to group failed',
     );
+  });
+
+  it('replaces the appointment date with the group date when they differ', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+      makeAppointmentWithRelations({
+        id: 'appt-1',
+        scheduledDate: new Date('2026-08-05T00:00:00.000Z'),
+        timeSlotStart: '09:30',
+        timeSlotEnd: '10:30',
+      }),
+    );
+
+    const result = await useCase.execute({
+      groupId: 'group-1',
+      appointmentIds: ['appt-1'],
+      actor: makeActor(),
+    });
+
+    expect(result.results).toEqual([{ appointmentId: 'appt-1', status: 'OK' }]);
+    expect(groupRepo.linkAppointments).toHaveBeenCalledWith(['appt-1'], 'group-1');
+    expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
+      scheduledDate: new Date('2026-08-01T00:00:00.000Z'),
+    });
+    expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'appointment.updated',
+      entityId: 'appt-1',
+      before: { scheduledDate: new Date('2026-08-05T00:00:00.000Z') },
+      after: { scheduledDate: new Date('2026-08-01T00:00:00.000Z') },
+      reason: 'Added to service group',
+      metadata: expect.objectContaining({ groupId: 'group-1', automaticDateSync: true }),
+    }));
+  });
+
+  it('syncs date and time slot in a single update when both differ from the group', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+      makeAppointmentWithRelations({
+        id: 'appt-1',
+        scheduledDate: new Date('2026-08-05T00:00:00.000Z'),
+        timeSlotStart: '13:00',
+        timeSlotEnd: '14:00',
+      }),
+    );
+
+    const result = await useCase.execute({
+      groupId: 'group-1',
+      appointmentIds: ['appt-1'],
+      actor: makeActor(),
+    });
+
+    expect(result.results).toEqual([{ appointmentId: 'appt-1', status: 'OK' }]);
+    expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
+      scheduledDate: new Date('2026-08-01T00:00:00.000Z'),
+      timeSlotStart: '09:00',
+      timeSlotEnd: '12:00',
+    });
+    expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'appointment.updated',
+      entityId: 'appt-1',
+      metadata: expect.objectContaining({ automaticTimeSlotSync: true, automaticDateSync: true }),
+    }));
   });
 
   it('does not update time for an ineligible appointment', async () => {

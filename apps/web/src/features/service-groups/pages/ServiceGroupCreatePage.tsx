@@ -282,6 +282,9 @@ export function ServiceGroupCreatePage() {
                   aria-label="Scheduled Date"
                 />
               </FormField>
+              <p className="mt-1 text-xs text-text-muted">
+                Appointments scheduled on a different date will be moved to this date when the group is created.
+              </p>
             </FormSection>
 
             <FormSection title="Time Window">

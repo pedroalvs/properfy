@@ -39,9 +39,8 @@ vi.mock('../../components/PropertyAddressSection', () => ({
   PropertyAddressSection: ({ address }: { address: string }) => <div>{address}</div>,
 }));
 
-vi.mock('../../components/TenantContactSection', () => ({
-  TenantContactSection: () => <div>Tenant contact</div>,
-}));
+// ContactsSection and RestrictionsSection are rendered for real (covered here
+// via role labels/badges assertions and by their own component tests).
 
 vi.mock('../../components/KeyDetailsSection', () => ({
   KeyDetailsSection: () => <div>Key details</div>,
@@ -202,5 +201,68 @@ describe('AppointmentDetailPage', () => {
     renderPage();
 
     expect(screen.queryByText('Custom Fields')).not.toBeInTheDocument();
+  });
+
+  it('renders all jobDetails tenant contacts with roles in the Contacts section', () => {
+    mockUseInspectorAppointment.mockReturnValue({
+      data: appointmentData,
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+      jobDetails: {
+        agency: { id: 't1', name: 'Alpha Realty' },
+        tenantContacts: [
+          {
+            name: 'John Tenant', email: 'john@x.com', phone: '+61400000000',
+            role: 'RENTAL_TENANT', isPrimary: true,
+            additionalChannels: [{ channel: 'PHONE', value: '+61411111111', label: 'Work' }],
+          },
+          { name: 'Helen Keeper', email: null, phone: '+61422222222', role: 'HOUSEKEEPER', isPrimary: false, company: 'CleanCo' },
+        ],
+        keys: { keyRequired: false, keyLocation: null },
+        propertyManager: null,
+        payment: { payoutAmount: 80, currency: 'AUD' },
+      },
+    });
+
+    renderPage();
+
+    expect(screen.getAllByTestId('contact-item')).toHaveLength(2);
+    expect(screen.getByText('Helen Keeper')).toBeInTheDocument();
+    expect(screen.getByText('Housekeeper')).toBeInTheDocument();
+    expect(screen.getByText('CleanCo')).toBeInTheDocument();
+    expect(screen.getByTestId('contact-primary-badge')).toBeInTheDocument();
+    expect(screen.getByTestId('contact-extra-channel-0-0')).toHaveAttribute('href', 'tel:+61411111111');
+  });
+
+  it('falls back to the single flat tenant contact when jobDetails is absent', () => {
+    renderPage();
+
+    expect(screen.getAllByTestId('contact-item')).toHaveLength(1);
+    expect(screen.getByText('John Tenant')).toBeInTheDocument();
+    expect(screen.getByText('Tenant')).toBeInTheDocument();
+  });
+
+  it('renders structured restrictions in their own section', () => {
+    mockUseInspectorAppointment.mockReturnValue({
+      data: {
+        data: {
+          ...appointmentData.data,
+          restrictions: 'Dog in backyard',
+          restrictionDetails: [
+            { isHome: true, unavailableDays: ['Monday'], unavailableHours: [], notes: 'Dog in backyard' },
+          ],
+        },
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    renderPage();
+
+    expect(screen.getByTestId('restrictions-section')).toBeInTheDocument();
+    expect(screen.getByText('Tenant will be home')).toBeInTheDocument();
+    expect(screen.getByText(/Monday/)).toBeInTheDocument();
   });
 });

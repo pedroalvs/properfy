@@ -6,6 +6,7 @@ import type {
 } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { IInspectionExecutionRepository } from '../../../src/modules/inspector-execution/domain/inspection-execution.repository';
 import type { IServiceTypeReader } from '../../../src/modules/inspector-execution/domain/service-type-reader';
+import type { IContactReader, ContactRegistryInfo } from '../../../src/modules/inspector-execution/domain/contact-reader';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { AppointmentContactEntity } from '../../../src/modules/appointment/domain/appointment-contact.entity';
 import { AppointmentRestrictionEntity } from '../../../src/modules/appointment/domain/appointment-restriction.entity';
@@ -381,6 +382,155 @@ describe('GetAppointmentDetailUseCase', () => {
 
     expect(result.contact).toBeNull();
     expect(result.restrictions).toHaveLength(0);
+  });
+
+  describe('jobDetails.tenantContacts registry enrichment (021 contacts)', () => {
+    const registryRow = (overrides: Partial<ContactRegistryInfo> = {}): ContactRegistryInfo => ({
+      id: 'reg-1',
+      type: 'INDIVIDUAL',
+      company: 'Acme Corp',
+      additionalChannels: [
+        { channel: 'PHONE', value: '+61411111111', label: 'Work' },
+        { channel: 'EMAIL', value: 'alt@example.com' },
+      ],
+      ...overrides,
+    });
+
+    function makeUseCaseWithReader(reader: IContactReader): GetAppointmentDetailUseCase {
+      const authorizationService = new AuthorizationService({ log: vi.fn() } as never);
+      return new GetAppointmentDetailUseCase(
+        appointmentRepo,
+        executionRepo,
+        serviceTypeReader,
+        authorizationService,
+        tenantRepo,
+        undefined,
+        reader,
+      );
+    }
+
+    it('enriches linked contacts with type, company and additionalChannels from the registry', async () => {
+      const linked = makeContact({ contactId: 'reg-1' });
+      vi.mocked(appointmentRepo.findById).mockResolvedValue({
+        appointment: makeAppointmentEntity(),
+        contact: linked,
+        contacts: [linked],
+        restrictions: [],
+      });
+      const reader: IContactReader = { findByIds: vi.fn().mockResolvedValue([registryRow()]) };
+
+      const result = await makeUseCaseWithReader(reader).execute({ appointmentId: 'appt-1', actor: inspActor });
+
+      expect(reader.findByIds).toHaveBeenCalledTimes(1);
+      expect(reader.findByIds).toHaveBeenCalledWith(['reg-1']);
+      const entry = result.jobDetails!.tenantContacts[0];
+      expect(entry.name).toBe('John Smith'); // snapshot stays authoritative
+      expect(entry.type).toBe('INDIVIDUAL');
+      expect(entry.company).toBe('Acme Corp');
+      expect(entry.additionalChannels).toEqual([
+        { channel: 'PHONE', value: '+61411111111', label: 'Work' },
+        { channel: 'EMAIL', value: 'alt@example.com' },
+      ]);
+    });
+
+    it('returns null/empty enrichment for inline contacts (no contactId) without calling the reader', async () => {
+      const inline = makeContact({ contactId: null });
+      vi.mocked(appointmentRepo.findById).mockResolvedValue({
+        appointment: makeAppointmentEntity(),
+        contact: inline,
+        contacts: [inline],
+        restrictions: [],
+      });
+      const reader: IContactReader = { findByIds: vi.fn().mockResolvedValue([]) };
+
+      const result = await makeUseCaseWithReader(reader).execute({ appointmentId: 'appt-1', actor: inspActor });
+
+      expect(reader.findByIds).not.toHaveBeenCalled();
+      const entry = result.jobDetails!.tenantContacts[0];
+      expect(entry.type).toBeNull();
+      expect(entry.company).toBeNull();
+      expect(entry.additionalChannels).toEqual([]);
+    });
+
+    it('returns null/empty enrichment when the registry row is missing', async () => {
+      const linked = makeContact({ contactId: 'reg-gone' });
+      vi.mocked(appointmentRepo.findById).mockResolvedValue({
+        appointment: makeAppointmentEntity(),
+        contact: linked,
+        contacts: [linked],
+        restrictions: [],
+      });
+      const reader: IContactReader = { findByIds: vi.fn().mockResolvedValue([]) };
+
+      const result = await makeUseCaseWithReader(reader).execute({ appointmentId: 'appt-1', actor: inspActor });
+
+      const entry = result.jobDetails!.tenantContacts[0];
+      expect(entry.type).toBeNull();
+      expect(entry.company).toBeNull();
+      expect(entry.additionalChannels).toEqual([]);
+    });
+
+    it('populates propertyManager.company from the registry and keeps BROKER excluded', async () => {
+      const primary = makeContact({ contactId: 'reg-1' });
+      const pm = makeContact({
+        id: 'contact-2', contactId: 'reg-pm', role: 'PROPERTY_MANAGER', isPrimary: false,
+        snapshotName: 'Paula PM', snapshotEmail: 'pm@x.com', snapshotPhone: null,
+      });
+      const broker = makeContact({
+        id: 'contact-3', contactId: 'reg-br', role: 'BROKER', isPrimary: false, snapshotName: 'Bob Broker',
+      });
+      vi.mocked(appointmentRepo.findById).mockResolvedValue({
+        appointment: makeAppointmentEntity(),
+        contact: primary,
+        contacts: [primary, pm, broker],
+        restrictions: [],
+      });
+      const reader: IContactReader = {
+        findByIds: vi.fn().mockResolvedValue([
+          registryRow(),
+          registryRow({ id: 'reg-pm', type: 'COMPANY', company: 'PM Group', additionalChannels: [] }),
+        ]),
+      };
+
+      const result = await makeUseCaseWithReader(reader).execute({ appointmentId: 'appt-1', actor: inspActor });
+
+      expect(reader.findByIds).toHaveBeenCalledWith(['reg-1', 'reg-pm']);
+      expect(result.jobDetails!.tenantContacts).toHaveLength(1);
+      expect(result.jobDetails!.tenantContacts.some((c) => c.name === 'Bob Broker')).toBe(false);
+      expect(result.jobDetails!.propertyManager).toEqual({
+        name: 'Paula PM', email: 'pm@x.com', phone: null, company: 'PM Group',
+      });
+    });
+
+    it('falls back to snapshot-only output when the registry lookup fails', async () => {
+      const linked = makeContact({ contactId: 'reg-1' });
+      vi.mocked(appointmentRepo.findById).mockResolvedValue({
+        appointment: makeAppointmentEntity(),
+        contact: linked,
+        contacts: [linked],
+        restrictions: [],
+      });
+      const reader: IContactReader = { findByIds: vi.fn().mockRejectedValue(new Error('registry down')) };
+
+      const result = await makeUseCaseWithReader(reader).execute({ appointmentId: 'appt-1', actor: inspActor });
+
+      const entry = result.jobDetails!.tenantContacts[0];
+      expect(entry.name).toBe('John Smith');
+      expect(entry.type).toBeUndefined();
+      expect(entry.company).toBeUndefined();
+      expect(entry.additionalChannels).toBeUndefined();
+    });
+
+    it('keeps legacy output shape when no contact reader is injected', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+
+      const result = await useCase.execute({ appointmentId: 'appt-1', actor: inspActor });
+
+      const entry = result.jobDetails!.tenantContacts[0];
+      expect(entry.type).toBeUndefined();
+      expect(entry.company).toBeUndefined();
+      expect(entry.additionalChannels).toBeUndefined();
+    });
   });
 
   describe('customFields (read-only for inspector)', () => {

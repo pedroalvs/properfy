@@ -97,14 +97,18 @@ describe('FindAddableGroupsForAppointmentsUseCase', () => {
     );
   });
 
-  it('returns MIXED_APPOINTMENT_PROPERTIES when appointments have different dates', async () => {
+  it('does NOT flag MIXED when appointments have different dates (dates are synced to the group on join)', async () => {
     (appointmentRepo.findById as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce(makeApptResult({ scheduledDate: new Date('2026-07-01T00:00:00.000Z') }))
       .mockResolvedValueOnce(makeApptResult({ scheduledDate: new Date('2026-07-02T00:00:00.000Z') }));
+    const fakeGroups = [{ id: 'g-1', name: 'G', status: 'DRAFT', scheduledDate: new Date(), timeWindow: '09:00-17:00', currentSize: 2, serviceTypeName: 'Routine' }];
+    (groupRepo.findAddableForAppointments as ReturnType<typeof vi.fn>).mockResolvedValue(fakeGroups);
 
     const result = await useCase.execute({ appointmentIds: ['appt-1', 'appt-2'], actor: makeAuth('OP') });
-    expect(result.reason).toBe('MIXED_APPOINTMENT_PROPERTIES');
-    expect(groupRepo.findAddableForAppointments).not.toHaveBeenCalled();
+    expect(result.reason).toBeUndefined();
+    expect(result.groups).toEqual(fakeGroups);
+    // The repo is queried by service type only (no date filter).
+    expect(groupRepo.findAddableForAppointments).toHaveBeenCalledWith({ serviceTypeId: 'svc-1', batchSize: 2 });
   });
 
   it('allows appointments from different agencies (groups are tenant-agnostic)', async () => {

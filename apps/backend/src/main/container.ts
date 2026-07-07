@@ -70,6 +70,7 @@ import { PrismaPropertyRepository } from '../modules/property/infrastructure/pri
 import { CreatePropertyUseCase } from '../modules/property/application/use-cases/create-property.use-case';
 import { GetPropertyUseCase } from '../modules/property/application/use-cases/get-property.use-case';
 import { ListPropertiesUseCase } from '../modules/property/application/use-cases/list-properties.use-case';
+import { GetPropertySummaryUseCase } from '../modules/property/application/use-cases/get-property-summary.use-case';
 import { UpdatePropertyUseCase } from '../modules/property/application/use-cases/update-property.use-case';
 import { DeletePropertyUseCase } from '../modules/property/application/use-cases/delete-property.use-case';
 import { GeocodePropertyUseCase } from '../modules/property/application/use-cases/geocode-property.use-case';
@@ -77,11 +78,7 @@ import { SearchAddressesUseCase } from '../modules/property/application/use-case
 import { ImportPropertiesUseCase } from '../modules/property/application/use-cases/import-properties.use-case';
 import { GetPropertyImportStatusUseCase } from '../modules/property/application/use-cases/get-property-import-status.use-case';
 import { ExportImportErrorsUseCase } from '../modules/property/application/use-cases/export-import-errors.use-case';
-import { MapboxAddressLookupService } from '../modules/property/infrastructure/mapbox-address-lookup.service';
-import { MapboxGeocodingService } from '../modules/property/infrastructure/mapbox-geocoding.service';
 import { CachedAddressLookupService } from '../modules/property/infrastructure/cached-address-lookup.service';
-import { StubAddressLookupService } from '../modules/property/infrastructure/stub-address-lookup.service';
-import { StubGeocodingService } from '../modules/property/infrastructure/stub-geocoding.service';
 import { PrismaPropertyImportRepository } from '../modules/property/infrastructure/prisma-property-import.repository';
 import { GeocodeWorker } from '../modules/property/infrastructure/workers/geocode.worker';
 import { GeocodeRetryWorker } from '../modules/property/infrastructure/workers/geocode-retry.worker';
@@ -195,6 +192,7 @@ import { PrismaIdempotencyService } from '../modules/inspector-execution/infrast
 import { StubStorageService } from '../modules/inspector-execution/infrastructure/stub-storage.service';
 import { SupabaseStorageService } from '../modules/inspector-execution/infrastructure/supabase-storage.service';
 import { PrismaServiceTypeReader } from '../modules/inspector-execution/infrastructure/prisma-service-type-reader';
+import { PrismaContactReader } from '../modules/inspector-execution/infrastructure/prisma-contact-reader';
 import { PrismaTenantSettingsReader } from '../modules/inspector-execution/infrastructure/prisma-tenant-settings-reader';
 import { GetInspectorScheduleUseCase } from '../modules/inspector-execution/application/use-cases/get-inspector-schedule.use-case';
 import { GetAppointmentDetailUseCase } from '../modules/inspector-execution/application/use-cases/get-appointment-detail.use-case';
@@ -249,10 +247,6 @@ import { PrismaNotificationRepository } from '../modules/notification/infrastruc
 import { PrismaNotificationTemplateRepository } from '../modules/notification/infrastructure/prisma-notification-template.repository';
 import { PrismaNotificationAttemptRepository } from '../modules/notification/infrastructure/prisma-notification-attempt.repository';
 import { PrismaNotificationConsentRepository } from '../modules/notification/infrastructure/prisma-notification-consent.repository';
-import { StubEmailProvider } from '../modules/notification/infrastructure/stub-email.provider';
-import { ResendEmailProvider } from '../modules/notification/infrastructure/resend-email.provider';
-import { StubSmsProvider } from '../modules/notification/infrastructure/stub-sms.provider';
-import { MobileMessageSmsProvider } from '../modules/notification/infrastructure/mobile-message-sms.provider';
 import { TemplateRendererService } from '../modules/notification/domain/template-renderer.service';
 import { SendNotificationUseCase } from '../modules/notification/application/use-cases/send-notification.use-case';
 import { RetryNotificationUseCase } from '../modules/notification/application/use-cases/retry-notification.use-case';
@@ -336,6 +330,16 @@ import { UpdateAppCredentialUseCase } from '../modules/app-credential/applicatio
 import { GetAppCredentialUseCase } from '../modules/app-credential/application/use-cases/get-app-credential.use-case';
 import { ListAppCredentialsUseCase } from '../modules/app-credential/application/use-cases/list-app-credentials.use-case';
 import type { AppCredentialRouteContainer } from '../modules/app-credential/interfaces/http/app-credential.routes';
+import type { IntegrationRouteContainer } from '../modules/integration/interfaces/http/integration.routes';
+import { ListIntegrationsUseCase } from '../modules/integration/application/use-cases/list-integrations.use-case';
+import { UpsertIntegrationSettingUseCase } from '../modules/integration/application/use-cases/upsert-integration-setting.use-case';
+import { DeleteIntegrationSettingUseCase } from '../modules/integration/application/use-cases/delete-integration-setting.use-case';
+import { TestIntegrationConnectionUseCase } from '../modules/integration/application/use-cases/test-integration-connection.use-case';
+import { HttpIntegrationConnectionTester } from '../modules/integration/infrastructure/integration-connection-tester';
+import { PrismaApiKeyRepository } from '../modules/integration/infrastructure/prisma-api-key.repository';
+import { CreateApiKeyUseCase } from '../modules/integration/application/use-cases/create-api-key.use-case';
+import { ListApiKeysUseCase } from '../modules/integration/application/use-cases/list-api-keys.use-case';
+import { RevokeApiKeyUseCase } from '../modules/integration/application/use-cases/revoke-api-key.use-case';
 
 // Appointment module
 import { PrismaAppointmentRepository } from '../modules/appointment/infrastructure/prisma-appointment.repository';
@@ -380,6 +384,14 @@ import { GetPortalLinkUseCase } from '../modules/rental-tenant-portal/applicatio
 import { PrismaConfirmationCycleRepository } from '../modules/appointment/infrastructure/prisma-confirmation-cycle.repository';
 import { ConfirmationCycleService } from '../modules/appointment/application/services/confirmation-cycle.service';
 import { Aes256GcmService } from '../shared/infrastructure/crypto/aes-256-gcm.service';
+import { PrismaIntegrationSettingRepository } from '../modules/integration/infrastructure/prisma-integration-setting.repository';
+import { IntegrationConfigResolver } from '../modules/integration/infrastructure/integration-config-resolver';
+import {
+  DynamicAddressLookupService,
+  DynamicEmailProvider,
+  DynamicGeocodingService,
+  DynamicSmsProvider,
+} from '../modules/integration/infrastructure/dynamic-providers';
 import { AesTokenEncrypterAdapter } from '../modules/rental-tenant-portal/infrastructure/aes-token-encrypter.adapter';
 import type { AppointmentRouteContainer } from '../modules/appointment/interfaces/appointment.routes';
 
@@ -411,6 +423,7 @@ export interface AppContainer {
   serviceRegion: ServiceRegionRouteContainer;
   contact: ContactRouteContainer;
   appCredential: AppCredentialRouteContainer;
+  integration: IntegrationRouteContainer;
   geocodeWorker: GeocodeWorker;
   geocodeRetryWorker: GeocodeRetryWorker;
   propertyImportWorker: ImportPropertyWorker;
@@ -533,22 +546,47 @@ export function createContainer(logger: Logger): AppContainer {
   const unlockUserUseCase = new UnlockUserUseCase(userManagementRepo, auditService, authorizationService);
   const resetUserPasswordUseCase = new ResetUserPasswordUseCase(userManagementRepo, auditService, passwordHistoryRepo, authorizationService);
 
+  // Outbound integration credentials (Resend / MobileMessage / Mapbox) managed
+  // by AM via the Integrations Hub. Database config overrides env vars; when
+  // neither is present the dynamic providers degrade to the existing stubs.
+  // Encrypted at rest with the same key-per-purpose scheme as app credentials.
+  const integrationEncKey =
+    env.APP_CREDENTIAL_ENC_KEY ?? '0000000000000000000000000000000000000000000000000000000000000000';
+  const integrationSettingRepo = new PrismaIntegrationSettingRepository(
+    prisma,
+    new Aes256GcmService(integrationEncKey),
+  );
+  const apiKeyRepo = new PrismaApiKeyRepository(prisma);
+  const compactConfig = (obj: Record<string, string | undefined>): Record<string, string> =>
+    Object.fromEntries(Object.entries(obj).filter(([, value]) => !!value)) as Record<string, string>;
+  const integrationConfigResolver = new IntegrationConfigResolver(
+    integrationSettingRepo,
+    {
+      resend: compactConfig({ apiKey: env.RESEND_API_KEY, fromEmail: env.RESEND_FROM_EMAIL }),
+      mobile_message: compactConfig({
+        apiKey: env.MOBILE_MESSAGE_API_KEY,
+        password: env.MOBILE_MESSAGE_PASSWORD,
+        senderId: env.MOBILE_MESSAGE_SENDER_ID,
+        webhookToken: env.MOBILE_MESSAGE_WEBHOOK_TOKEN,
+      }),
+      mapbox: compactConfig({ accessToken: env.MAPBOX_ACCESS_TOKEN }),
+    },
+    logger,
+  );
+
   // Property repositories and use cases
   const propertyRepo = new PrismaPropertyRepository(prisma);
-  const geocodingService = env.MAPBOX_ACCESS_TOKEN
-    ? new MapboxGeocodingService(env.MAPBOX_ACCESS_TOKEN)
-    : new StubGeocodingService();
+  const geocodingService = new DynamicGeocodingService(integrationConfigResolver);
   // Geocode synchronously at creation time so a new property has coordinates the
   // instant the request returns (the async worker remains the fallback).
   const createPropertyUseCase = new CreatePropertyUseCase(propertyRepo, branchRepo, auditService, tenantRepo, authorizationService, logger, geocodingService);
   const getPropertyUseCase = new GetPropertyUseCase(propertyRepo);
   const listPropertiesUseCase = new ListPropertiesUseCase(propertyRepo);
+  const getPropertySummaryUseCase = new GetPropertySummaryUseCase(propertyRepo);
   const updatePropertyUseCase = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService);
   const deletePropertyUseCase = new DeletePropertyUseCase(propertyRepo, appointmentChecker, auditService);
   const geocodePropertyUseCase = new GeocodePropertyUseCase(propertyRepo, authorizationService);
-  const rawAddressLookupService = env.MAPBOX_ACCESS_TOKEN
-    ? new MapboxAddressLookupService(env.MAPBOX_ACCESS_TOKEN)
-    : new StubAddressLookupService();
+  const rawAddressLookupService = new DynamicAddressLookupService(integrationConfigResolver);
   const addressLookupService = new CachedAddressLookupService(rawAddressLookupService);
   const searchAddressesUseCase = new SearchAddressesUseCase(addressLookupService);
   const geocodeWorker = new GeocodeWorker(propertyRepo, geocodingService, auditService, logger);
@@ -770,6 +808,7 @@ export function createContainer(logger: Logger): AppContainer {
   // Inspector execution repositories and services
   const inspectionExecutionRepo = new PrismaInspectionExecutionRepository(prisma);
   const serviceTypeReaderForExec = new PrismaServiceTypeReader(prisma);
+  const contactReaderForExec = new PrismaContactReader(prisma);
   const tenantSettingsReader = new PrismaTenantSettingsReader(prisma);
   const performCrossCheckUseCase = new PerformCrossCheckUseCase(
     appointmentRepo,
@@ -798,6 +837,7 @@ export function createContainer(logger: Logger): AppContainer {
   );
   const getAppointmentDetailUseCase = new GetAppointmentDetailUseCase(
     appointmentRepo, inspectionExecutionRepo, serviceTypeReaderForExec, authorizationService, tenantRepo, appCredentialRepo,
+    contactReaderForExec, logger,
   );
   const startInspectionUseCase = new StartInspectionUseCase(
     appointmentRepo, inspectionExecutionRepo, idempotencyService, auditService, tenantSettingsReader, authorizationService,
@@ -862,7 +902,7 @@ export function createContainer(logger: Logger): AppContainer {
   const getMarketplaceOfferDetailUseCase = new GetMarketplaceOfferDetailUseCase(serviceGroupRepo, inspectorRepo, authorizationService);
   const cancelServiceGroupUseCase = new CancelServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, domainEventBus);
   const rejectServiceGroupUseCase = new RejectServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, domainEventBus);
-  const updateServiceGroupUseCase = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService);
+  const updateServiceGroupUseCase = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, appointmentRepo, logger);
   const republishServiceGroupUseCase = new RepublishServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService);
 
   const getAvailableGroupsUseCase = new GetAvailableGroupsUseCase(appointmentRepo, serviceGroupRepo);
@@ -971,13 +1011,8 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Notification providers and services (notificationRepo + notificationTemplateRepo created above)
   const notificationAttemptRepo = new PrismaNotificationAttemptRepository(prisma);
-  const emailProvider = env.RESEND_API_KEY && env.RESEND_FROM_EMAIL
-    ? new ResendEmailProvider(env.RESEND_API_KEY, env.RESEND_FROM_EMAIL)
-    : new StubEmailProvider();
-
-  const smsProvider = env.MOBILE_MESSAGE_API_KEY && env.MOBILE_MESSAGE_PASSWORD && env.MOBILE_MESSAGE_SENDER_ID
-    ? new MobileMessageSmsProvider(env.MOBILE_MESSAGE_API_KEY, env.MOBILE_MESSAGE_PASSWORD, env.MOBILE_MESSAGE_SENDER_ID)
-    : new StubSmsProvider();
+  const emailProvider = new DynamicEmailProvider(integrationConfigResolver);
+  const smsProvider = new DynamicSmsProvider(integrationConfigResolver);
   const templateRenderer = new TemplateRendererService();
   const htmlSanitizer = new SanitizeHtmlService();
   const htmlToText = new HtmlToTextService();
@@ -1277,6 +1312,7 @@ export function createContainer(logger: Logger): AppContainer {
       createPropertyUseCase,
       getPropertyUseCase,
       listPropertiesUseCase,
+      getPropertySummaryUseCase,
       updatePropertyUseCase,
       deletePropertyUseCase,
       geocodePropertyUseCase,
@@ -1493,7 +1529,9 @@ export function createContainer(logger: Logger): AppContainer {
       jwtService,
       tenantRepo,
       webhookSignatureValidator,
-      mobileMessageWebhookToken: env.MOBILE_MESSAGE_WEBHOOK_TOKEN,
+      getMobileMessageWebhookToken: async () =>
+        (await integrationConfigResolver.getConfig('mobile_message'))?.config['webhookToken']
+        ?? env.MOBILE_MESSAGE_WEBHOOK_TOKEN,
     },
     dashboard: {
       getDashboardStatsUseCase,
@@ -1524,6 +1562,18 @@ export function createContainer(logger: Logger): AppContainer {
       updateAppCredentialUseCase,
       getAppCredentialUseCase,
       listAppCredentialsUseCase,
+      jwtService,
+      tenantRepo,
+    },
+    integration: {
+      listIntegrationsUseCase: new ListIntegrationsUseCase(integrationSettingRepo, integrationConfigResolver),
+      upsertIntegrationSettingUseCase: new UpsertIntegrationSettingUseCase(integrationSettingRepo, integrationConfigResolver, auditService),
+      deleteIntegrationSettingUseCase: new DeleteIntegrationSettingUseCase(integrationSettingRepo, integrationConfigResolver, auditService),
+      testIntegrationConnectionUseCase: new TestIntegrationConnectionUseCase(integrationConfigResolver, new HttpIntegrationConnectionTester()),
+      integrationConfigResolver,
+      createApiKeyUseCase: new CreateApiKeyUseCase(apiKeyRepo, auditService),
+      listApiKeysUseCase: new ListApiKeysUseCase(apiKeyRepo),
+      revokeApiKeyUseCase: new RevokeApiKeyUseCase(apiKeyRepo, auditService),
       jwtService,
       tenantRepo,
     },

@@ -2463,6 +2463,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/properties/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    tenantId?: string;
+                    branchId?: string;
+                    search?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                totalCount: number;
+                                houseCount: number;
+                                apartmentCount: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/properties/{propertyId}": {
         parameters: {
             query?: never;
@@ -6754,7 +6799,7 @@ export interface paths {
                                     /** Format: uuid */
                                     appointmentId: string;
                                     /** @enum {string} */
-                                    status: "OK" | "INVALID_STATUS" | "ALREADY_GROUPED" | "INVALID_TENANT" | "INVALID_SERVICE_TYPE" | "INVALID_DATE" | "GROUP_IN_TERMINAL_STATE" | "GROUP_CAPACITY_EXCEEDED" | "NOT_FOUND" | "ERROR";
+                                    status: "OK" | "INVALID_STATUS" | "ALREADY_GROUPED" | "INVALID_TENANT" | "INVALID_SERVICE_TYPE" | "GROUP_IN_TERMINAL_STATE" | "GROUP_CAPACITY_EXCEEDED" | "NOT_FOUND" | "ERROR";
                                     error?: {
                                         code: string;
                                         message: string;
@@ -8549,6 +8594,13 @@ export interface paths {
                                         phone: string | null;
                                         role: string;
                                         isPrimary: boolean;
+                                        type?: string | null;
+                                        company?: string | null;
+                                        additionalChannels?: {
+                                            channel: string;
+                                            value: string;
+                                            label?: string | null;
+                                        }[];
                                     }[];
                                     keys: {
                                         keyRequired: boolean;
@@ -12110,6 +12162,388 @@ export interface paths {
                                 createdAt: string;
                                 /** Format: date-time */
                                 updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                integrations: {
+                                    /** @enum {string} */
+                                    provider: "resend" | "mobile_message" | "mapbox";
+                                    configured: boolean;
+                                    /** @enum {string} */
+                                    source: "database" | "env" | "none";
+                                    enabled: boolean;
+                                    maskedConfig: {
+                                        [key: string]: string | null;
+                                    };
+                                    /** Format: date-time */
+                                    updatedAt: string | null;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integrations/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                integrations: {
+                                    /** @enum {string} */
+                                    provider: "resend" | "mobile_message" | "mapbox";
+                                    configured: boolean;
+                                    /** @enum {string} */
+                                    source: "database" | "env" | "none";
+                                    enabled: boolean;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integrations/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    provider: "resend" | "mobile_message" | "mapbox";
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        config: {
+                            [key: string]: unknown;
+                        };
+                        enabled?: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** @enum {string} */
+                                provider: "resend" | "mobile_message" | "mapbox";
+                                configured: boolean;
+                                /** @enum {string} */
+                                source: "database" | "env" | "none";
+                                enabled: boolean;
+                                maskedConfig: {
+                                    [key: string]: string | null;
+                                };
+                                /** Format: date-time */
+                                updatedAt: string | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    provider: "resend" | "mobile_message" | "mapbox";
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                deleted: boolean;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integrations/{provider}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    provider: "resend" | "mobile_message" | "mapbox";
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                ok: boolean;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/api-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                apiKeys: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                    prefix: string;
+                                    /** @enum {string} */
+                                    role: "AM" | "OP";
+                                    /** Format: date-time */
+                                    expiresAt: string | null;
+                                    /** Format: date-time */
+                                    revokedAt: string | null;
+                                    /** Format: date-time */
+                                    lastUsedAt: string | null;
+                                    /** Format: date-time */
+                                    createdAt: string;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        name: string;
+                        /**
+                         * @default OP
+                         * @enum {string}
+                         */
+                        role?: "AM" | "OP";
+                        /** Format: date-time */
+                        expiresAt?: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                name: string;
+                                prefix: string;
+                                /** @enum {string} */
+                                role: "AM" | "OP";
+                                /** Format: date-time */
+                                expiresAt: string | null;
+                                /** Format: date-time */
+                                revokedAt: string | null;
+                                /** Format: date-time */
+                                lastUsedAt: string | null;
+                                /** Format: date-time */
+                                createdAt: string;
+                                key: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/api-keys/{id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                name: string;
+                                prefix: string;
+                                /** @enum {string} */
+                                role: "AM" | "OP";
+                                /** Format: date-time */
+                                expiresAt: string | null;
+                                /** Format: date-time */
+                                revokedAt: string | null;
+                                /** Format: date-time */
+                                lastUsedAt: string | null;
+                                /** Format: date-time */
+                                createdAt: string;
                             };
                         };
                     };

@@ -6,9 +6,11 @@ import { toAppointmentApp } from '../../../app-credential/application/appointmen
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { IInspectionExecutionRepository } from '../../domain/inspection-execution.repository';
 import type { IServiceTypeReader } from '../../domain/service-type-reader';
+import type { IContactReader, ContactRegistryInfo, ContactRegistryChannel } from '../../domain/contact-reader';
 import { T1VisibilityService } from '../../domain/t1-visibility.service';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
+import type { Logger } from '../../../../shared/infrastructure/logger';
 import {
   ExecutionAppointmentNotFoundError,
   ExecutionT1BlockedError,
@@ -30,6 +32,11 @@ export interface JobDetailsTenantContact {
   phone: string | null;
   role: string;
   isPrimary: boolean;
+  // Live-registry enrichment (021). Absent when no contact reader is wired;
+  // null/empty for inline contacts (no contactId) or missing registry rows.
+  type?: string | null;
+  company?: string | null;
+  additionalChannels?: ContactRegistryChannel[];
 }
 
 export interface JobDetailsKeys {
@@ -145,6 +152,8 @@ export class GetAppointmentDetailUseCase {
     private readonly authorizationService: AuthorizationService,
     private readonly tenantRepo: ITenantRepository,
     private readonly appCredentialRepo?: IAppCredentialRepository,
+    private readonly contactReader?: IContactReader,
+    private readonly logger?: Logger,
   ) {}
 
   async execute(input: GetAppointmentDetailInput): Promise<AppointmentDetailOutput> {
@@ -299,6 +308,41 @@ export class GetAppointmentDetailUseCase {
       name: tenant.name,
     };
 
+    // Live-registry enrichment (021): batch-load registry rows for linked
+    // contacts. Snapshot stays authoritative for name/email/phone; the
+    // registry only contributes type/company/additionalChannels.
+    let registryById: Map<string, ContactRegistryInfo> | null = null;
+    if (this.contactReader) {
+      const linkedIds = [...new Set(
+        contacts
+          .filter((c) => c.role !== 'BROKER') // BROKER never surfaces to the inspector
+          .map((c) => c.contactId)
+          .filter((id): id is string => id != null),
+      )];
+      try {
+        const rows = linkedIds.length > 0 ? await this.contactReader.findByIds(linkedIds) : [];
+        registryById = new Map(rows.map((row) => [row.id, row]));
+      } catch (error) {
+        // Best-effort enrichment: a registry-lookup failure must never break
+        // the detail response — fall back to snapshot-only (legacy shape).
+        this.logger?.warn(
+          { err: error, appointmentId: appointment.id },
+          'Contact registry lookup failed; serving snapshot-only contacts',
+        );
+        registryById = null;
+      }
+    }
+
+    const enrichment = (contactId: string | null): Pick<JobDetailsTenantContact, 'type' | 'company' | 'additionalChannels'> | null => {
+      if (!registryById) return null;
+      const row = contactId ? registryById.get(contactId) : undefined;
+      return {
+        type: row?.type ?? null,
+        company: row?.company ?? null,
+        additionalChannels: row?.additionalChannels ?? [],
+      };
+    };
+
     // 2. Tenant contacts — exclude PROPERTY_MANAGER and BROKER roles, primary first
     const tenantContacts: JobDetailsTenantContact[] = contacts
       .filter((c) => c.role !== 'PROPERTY_MANAGER' && c.role !== 'BROKER')
@@ -308,6 +352,7 @@ export class GetAppointmentDetailUseCase {
         phone: c.effectivePhone,
         role: c.role,
         isPrimary: c.isPrimary,
+        ...(enrichment(c.contactId) ?? {}),
       }));
 
     // 3. Keys
@@ -325,15 +370,14 @@ export class GetAppointmentDetailUseCase {
           }
         : undefined;
 
-    // 5. Property manager — find the PM contact, use effective (snapshot-preferred) fields.
-    // TODO: Full live-registry JOIN is a future enhancement when the repo returns the contact relation.
+    // 5. Property manager — snapshot fields, with company from the live registry.
     const pmContact = contacts.find((c) => c.role === 'PROPERTY_MANAGER');
     const propertyManager: JobDetailsPropertyManager | null = pmContact
       ? {
           name: pmContact.effectiveName,
           email: pmContact.effectiveEmail,
           phone: pmContact.effectivePhone,
-          company: null,
+          company: (pmContact.contactId ? registryById?.get(pmContact.contactId)?.company : null) ?? null,
         }
       : null;
 

@@ -58,7 +58,7 @@ function hasValue(value: string | null | undefined): value is string {
 
 /**
  * App credentials the inspector needs on site (e.g. listing-platform logins).
- * Mirrors `TenantContactSection`'s card styling. Values are shown in plaintext
+ * Mirrors the contacts card styling. Values are shown in plaintext
  * (live reference) with tap-to-copy for fast on-site entry.
  */
 export function AppsSection({ apps }: AppsSectionProps) {

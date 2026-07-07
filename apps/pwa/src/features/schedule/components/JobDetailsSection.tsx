@@ -14,7 +14,6 @@ function formatCurrency(amount: number, currency = 'AUD'): string {
 export function JobDetailsSection({ jobDetails }: JobDetailsSectionProps) {
   const {
     agency,
-    tenantContacts,
     keys,
     keyLocation,
     propertyManager,
@@ -32,46 +31,7 @@ export function JobDetailsSection({ jobDetails }: JobDetailsSectionProps) {
         </section>
       )}
 
-      {/* Tenant Contacts */}
-      {tenantContacts.length > 0 && (
-        <section
-          className="overflow-hidden rounded-[20px] border border-black/[0.06] bg-white shadow-[0_8px_24px_rgba(15,23,42,0.07)]"
-          data-testid="job-tenant-contacts"
-        >
-          <div className="px-4 pt-4 pb-3">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Tenant Contacts</p>
-            <div className="mt-2 flex flex-col gap-3">
-              {tenantContacts.map((contact, index) => (
-                <div key={index} className="flex flex-col gap-1">
-                  <p className="text-sm font-semibold text-text-primary">{contact.name}</p>
-                  <div className="flex flex-wrap items-center gap-3 text-xs">
-                    {contact.email && (
-                      <a
-                        href={`mailto:${contact.email}`}
-                        className="inline-flex items-center gap-1 text-primary"
-                        data-testid={`tenant-contact-email-${index}`}
-                      >
-                        <i className="mdi mdi-email-outline text-sm" aria-hidden="true" />
-                        {contact.email}
-                      </a>
-                    )}
-                    {contact.phone && (
-                      <a
-                        href={`tel:${contact.phone}`}
-                        className="inline-flex items-center gap-1 text-success"
-                        data-testid={`tenant-contact-phone-${index}`}
-                      >
-                        <i className="mdi mdi-phone text-sm" aria-hidden="true" />
-                        {contact.phone}
-                      </a>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+      {/* Tenant contacts render in the page-level ContactsSection (no duplication here). */}
 
       {/* Keys */}
       {keys.keyRequired && (

@@ -1,7 +1,7 @@
 import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import { AppStatusBadge } from './AppStatusBadge';
-import { SecretValue } from './SecretValue';
+import { SecretValue } from '@/components/ui/SecretValue';
 import type { AppCredentialRow } from '../types';
 
 interface AppTableProps {

@@ -8,6 +8,8 @@ import { PropertyTable } from '../components/PropertyTable';
 import { PropertyDetailDrawer } from '../components/PropertyDetailDrawer';
 import { PropertyFormDrawer } from '../components/PropertyFormDrawer';
 import { usePropertyList } from '../hooks/usePropertyList';
+import { usePropertySummary } from '../hooks/usePropertySummary';
+import { PropertySummaryIndicators } from '../components/PropertySummaryIndicators';
 
 export function PropertyListPage() {
   const navigate = useNavigate();
@@ -38,6 +40,14 @@ export function PropertyListPage() {
     setFilters,
     pagination,
   } = usePropertyList(effectiveTenantId);
+
+  // Summary follows the page filters except the type filter — per-type counts
+  // must stay stable when the list is narrowed to a single type.
+  const summaryQuery = usePropertySummary({
+    tenantId: effectiveTenantId || undefined,
+    branchId: filters.branchId || undefined,
+    search: filters.search || undefined,
+  });
 
   const agencyOptions = useMemo(
     () => [
@@ -84,6 +94,11 @@ export function PropertyListPage() {
           },
         ]}
       >
+        <PropertySummaryIndicators
+          summary={summaryQuery.summary}
+          isLoading={summaryQuery.isLoading}
+          isError={summaryQuery.isError}
+        />
         <PropertyFilters
           filters={filters}
           onFiltersChange={setFilters}

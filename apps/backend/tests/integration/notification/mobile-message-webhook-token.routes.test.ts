@@ -33,7 +33,7 @@ function buildMinimalApp(token: string | undefined): FastifyInstance {
     jwtService: { verify: vi.fn(), signAccessToken: vi.fn() } as any,
     tenantRepo: { findById: vi.fn().mockResolvedValue({ isActive: () => true }) },
     webhookSignatureValidator: { validateResend: vi.fn().mockReturnValue(true) },
-    mobileMessageWebhookToken: token,
+    getMobileMessageWebhookToken: async () => token,
   });
   return app;
 }
