@@ -48,7 +48,6 @@ export function PropertyListPage() {
     branchId: filters.branchId || undefined,
     search: filters.search || undefined,
   });
-
   const agencyOptions = useMemo(
     () => [
       { label: 'All agencies', value: '' },

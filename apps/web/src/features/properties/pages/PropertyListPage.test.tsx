@@ -163,7 +163,6 @@ describe('PropertyListPage', () => {
       }
     });
   });
-
   describe('AM role', () => {
     beforeEach(() => {
       mockUseAuth.mockReturnValue({
