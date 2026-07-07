@@ -8443,8 +8443,9 @@ export interface paths {
                         } | {
                             data: {
                                 id: string;
-                                appointmentCode?: string;
-                                status: string;
+                                appointmentCode: string;
+                                /** @enum {string} */
+                                status: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
                                 scheduledDate: string;
                                 timeSlotStart: string;
                                 timeSlotEnd: string;
@@ -8458,6 +8459,12 @@ export interface paths {
                                 /** @enum {string} */
                                 executionStatus: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED";
                                 agencyName?: string | null;
+                                propertyAddress: string;
+                                suburb: string;
+                                serviceTypeName: string;
+                                /** @enum {string} */
+                                flowType: "ROUTINE" | "INGOING" | "OUTGOING";
+                                isOverdue?: boolean;
                             }[];
                             pagination: {
                                 page: number;

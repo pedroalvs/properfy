@@ -46,7 +46,7 @@ export interface GetInspectorScheduleOutput {
 }
 
 export interface GetInspectorScheduleRangeOutput {
-  data: ScheduleAppointmentItem[];
+  data: ScheduleMonthAppointmentItem[];
   total: number;
   page: number;
   pageSize: number;
@@ -184,7 +184,7 @@ export class GetInspectorScheduleUseCase {
       : [];
     const executionMap = new Map(executions.map((e) => [e.appointmentId, e]));
 
-    const data = rows.map((item) => this.toScheduleItem(item, executionMap));
+    const data = rows.map((item) => this.toMonthItem(item, executionMap, false));
 
     return { data, total, page, pageSize };
   }

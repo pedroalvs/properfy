@@ -53,6 +53,10 @@ const doneAppointment = {
   meetingLocation: null,
   executionStatus: 'FINISHED',
   agencyName: 'Test Agency',
+  propertyAddress: '1 Test St',
+  suburb: 'Suburb',
+  serviceTypeName: 'Routine Inspection',
+  flowType: 'ROUTINE',
 };
 
 let app: FastifyInstance;
@@ -85,6 +89,12 @@ describe('GET /v1/inspector/schedule — range mode (history)', () => {
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
     expect(res.body.data[0].status).toBe('DONE');
+    expect(res.body.data[0]).toMatchObject({
+      propertyAddress: '1 Test St',
+      suburb: 'Suburb',
+      serviceTypeName: 'Routine Inspection',
+      flowType: 'ROUTINE',
+    });
     expect(res.body.pagination).toBeDefined();
     expect(res.body.pagination.total).toBe(1);
   });
