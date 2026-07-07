@@ -502,6 +502,25 @@ describe('GetAppointmentDetailUseCase', () => {
       });
     });
 
+    it('falls back to snapshot-only output when the registry lookup fails', async () => {
+      const linked = makeContact({ contactId: 'reg-1' });
+      vi.mocked(appointmentRepo.findById).mockResolvedValue({
+        appointment: makeAppointmentEntity(),
+        contact: linked,
+        contacts: [linked],
+        restrictions: [],
+      });
+      const reader: IContactReader = { findByIds: vi.fn().mockRejectedValue(new Error('registry down')) };
+
+      const result = await makeUseCaseWithReader(reader).execute({ appointmentId: 'appt-1', actor: inspActor });
+
+      const entry = result.jobDetails!.tenantContacts[0];
+      expect(entry.name).toBe('John Smith');
+      expect(entry.type).toBeUndefined();
+      expect(entry.company).toBeUndefined();
+      expect(entry.additionalChannels).toBeUndefined();
+    });
+
     it('keeps legacy output shape when no contact reader is injected', async () => {
       vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
 

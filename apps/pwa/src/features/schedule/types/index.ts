@@ -3,6 +3,8 @@ import type {
   AppointmentApp,
   AppointmentCustomField,
   AppointmentStatus,
+  InspectorContactChannel,
+  InspectorTenantContact,
   PropertyType,
   RentalTenantConfirmationStatus,
   ServiceTypeFlowType,
@@ -61,23 +63,9 @@ export type InspectorScheduleMonthDay = z.infer<typeof inspectorScheduleMonthDay
 export type InspectorScheduleMonthItem = z.infer<typeof inspectorScheduleMonthItemSchema>;
 export type InspectorScheduleMonthResponse = z.infer<typeof inspectorScheduleMonthResponseSchema>;
 
-export interface ContactChannel {
-  channel: string;
-  value: string;
-  label?: string | null;
-}
-
-export interface JobDetailsTenantContact {
-  name: string;
-  email: string | null;
-  phone: string | null;
-  role: string;
-  isPrimary: boolean;
-  /** Live-registry enrichment (021 contacts); absent on legacy payloads. */
-  type?: string | null;
-  company?: string | null;
-  additionalChannels?: ContactChannel[];
-}
+/** Shared contract types (single source of truth in packages/shared). */
+export type ContactChannel = InspectorContactChannel;
+export type JobDetailsTenantContact = InspectorTenantContact;
 
 /** Structured scheduling restriction (rendered by RestrictionsSection). */
 export interface AppointmentRestrictionDetail {

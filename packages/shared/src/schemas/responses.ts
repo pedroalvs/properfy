@@ -306,6 +306,31 @@ export const forceManualConfirmationResponseSchema = z.object({
   rentalTenantConfirmationStatus: z.string(),
 });
 
+/** Additional channel on an inspector-detail contact (live-registry data). */
+export const inspectorContactChannelSchema = z.object({
+  channel: z.string(),
+  value: z.string(),
+  label: z.string().nullable().optional(),
+});
+export type InspectorContactChannel = z.infer<typeof inspectorContactChannelSchema>;
+
+/** Contact entry under jobDetails.tenantContacts (snapshot + registry enrichment). */
+export const inspectorTenantContactSchema = z.object({
+  name: z.string(),
+  email: z.string().nullable(),
+  phone: z.string().nullable(),
+  role: z.string(),
+  isPrimary: z.boolean(),
+  // Live-registry enrichment (021 contacts). Optional: inline contacts
+  // (no contactId) and legacy payloads carry none of these. Kept
+  // permissive (plain strings) so registry data never trips the
+  // fastify serializer.
+  type: z.string().nullable().optional(),
+  company: z.string().nullable().optional(),
+  additionalChannels: z.array(inspectorContactChannelSchema).optional(),
+});
+export type InspectorTenantContact = z.infer<typeof inspectorTenantContactSchema>;
+
 export const inspectorAppointmentDetailResponseSchema = z.object({
   id: z.string().uuid(),
   status: z.string(),
@@ -376,24 +401,7 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
   appointmentCode: z.string().optional(),
   jobDetails: z.object({
     agency: z.object({ id: z.string(), name: z.string() }),
-    tenantContacts: z.array(z.object({
-      name: z.string(),
-      email: z.string().nullable(),
-      phone: z.string().nullable(),
-      role: z.string(),
-      isPrimary: z.boolean(),
-      // Live-registry enrichment (021 contacts). Optional: inline contacts
-      // (no contactId) and legacy payloads carry none of these. Kept
-      // permissive (plain strings) so registry data never trips the
-      // fastify serializer.
-      type: z.string().nullable().optional(),
-      company: z.string().nullable().optional(),
-      additionalChannels: z.array(z.object({
-        channel: z.string(),
-        value: z.string(),
-        label: z.string().nullable().optional(),
-      })).optional(),
-    })),
+    tenantContacts: z.array(inspectorTenantContactSchema),
     keys: z.object({
       keyRequired: z.boolean(),
       keyLocation: z.string().nullable(),

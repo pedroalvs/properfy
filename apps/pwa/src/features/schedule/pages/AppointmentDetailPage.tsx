@@ -133,13 +133,15 @@ export function AppointmentDetailPage() {
           contacts={
             jobDetails?.tenantContacts?.length
               ? jobDetails.tenantContacts
-              : [{
-                  name: apt.rentalTenantName,
-                  phone: apt.rentalTenantPhone,
-                  email: apt.rentalTenantEmail,
-                  role: 'RENTAL_TENANT',
-                  isPrimary: true,
-                }]
+              : apt.rentalTenantName.trim()
+                ? [{
+                    name: apt.rentalTenantName,
+                    phone: apt.rentalTenantPhone,
+                    email: apt.rentalTenantEmail,
+                    role: 'RENTAL_TENANT',
+                    isPrimary: true,
+                  }]
+                : []
           }
         />
 

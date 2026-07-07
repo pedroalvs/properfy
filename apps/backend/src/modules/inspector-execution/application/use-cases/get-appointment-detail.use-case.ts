@@ -317,8 +317,14 @@ export class GetAppointmentDetailUseCase {
           .map((c) => c.contactId)
           .filter((id): id is string => id != null),
       )];
-      const rows = linkedIds.length > 0 ? await this.contactReader.findByIds(linkedIds) : [];
-      registryById = new Map(rows.map((row) => [row.id, row]));
+      try {
+        const rows = linkedIds.length > 0 ? await this.contactReader.findByIds(linkedIds) : [];
+        registryById = new Map(rows.map((row) => [row.id, row]));
+      } catch {
+        // Best-effort enrichment: a registry-lookup failure must never break
+        // the detail response — fall back to snapshot-only (legacy shape).
+        registryById = null;
+      }
     }
 
     const enrichment = (contactId: string | null): Pick<JobDetailsTenantContact, 'type' | 'company' | 'additionalChannels'> | null => {
