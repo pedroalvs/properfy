@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { retryLazyImportOnce } from './router';
+import { retryLazyImportOnce } from './retry-lazy-import';
 
 describe('retryLazyImportOnce', () => {
   const sessionStorageLike = {
@@ -9,7 +9,7 @@ describe('retryLazyImportOnce', () => {
   };
   const locationLike = {
     href: 'http://localhost:5173/appointments/apt-01',
-    assign: vi.fn((_: string) => {}),
+    replace: vi.fn((_: string) => {}),
   };
   const logger = {
     error: vi.fn((_: unknown, ...__: unknown[]) => {}),
@@ -18,14 +18,14 @@ describe('retryLazyImportOnce', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sessionStorageLike.getItem.mockReturnValue(null);
-    locationLike.assign.mockImplementation(() => {});
+    locationLike.replace.mockImplementation(() => {});
   });
 
   it('reloads the current URL once after the first lazy import failure', async () => {
     const importFn = vi.fn(async () => {
       throw new Error('Loading chunk 123 failed');
     });
-    locationLike.assign.mockImplementation(() => {
+    locationLike.replace.mockImplementation(() => {
       throw new Error('reload-triggered');
     });
 
@@ -35,7 +35,7 @@ describe('retryLazyImportOnce', () => {
 
     expect(importFn).toHaveBeenCalledTimes(1);
     expect(sessionStorageLike.setItem).toHaveBeenCalledWith('chunk_reload', '1');
-    expect(locationLike.assign).toHaveBeenCalledWith('http://localhost:5173/appointments/apt-01');
+    expect(locationLike.replace).toHaveBeenCalledWith('http://localhost:5173/appointments/apt-01');
     expect(logger.error).toHaveBeenCalledWith('Lazy route import failed', expect.any(Error));
   });
 
@@ -52,7 +52,7 @@ describe('retryLazyImportOnce', () => {
 
     expect(importFn).toHaveBeenCalledTimes(2);
     expect(sessionStorageLike.removeItem).toHaveBeenCalledWith('chunk_reload');
-    expect(locationLike.assign).not.toHaveBeenCalled();
+    expect(locationLike.replace).not.toHaveBeenCalled();
   });
 
   it('clears the retry guard on a successful import so a later failure can reload again', async () => {
@@ -63,6 +63,20 @@ describe('retryLazyImportOnce', () => {
 
     expect(importFn).toHaveBeenCalledTimes(1);
     expect(sessionStorageLike.removeItem).toHaveBeenCalledWith('chunk_reload');
-    expect(locationLike.assign).not.toHaveBeenCalled();
+    expect(locationLike.replace).not.toHaveBeenCalled();
+  });
+
+  it('propagates the error without another reload when the post-reload retry also fails', async () => {
+    sessionStorageLike.getItem.mockReturnValue('1');
+
+    const importFn = vi.fn().mockRejectedValue(new Error('Loading chunk 123 failed'));
+
+    await expect(
+      retryLazyImportOnce(importFn, sessionStorageLike, locationLike, logger),
+    ).rejects.toThrow('Loading chunk 123 failed');
+
+    expect(importFn).toHaveBeenCalledTimes(2);
+    expect(sessionStorageLike.removeItem).toHaveBeenCalledWith('chunk_reload');
+    expect(locationLike.replace).not.toHaveBeenCalled();
   });
 });
