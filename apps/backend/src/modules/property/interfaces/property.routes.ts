@@ -6,6 +6,8 @@ import {
   createPropertySchema,
   updatePropertySchema,
   listPropertiesQuerySchema,
+  propertySummaryQuerySchema,
+  propertySummaryResponseSchema,
   propertyResponseSchema,
   successResponseSchema,
   paginatedResponseSchema,
@@ -16,6 +18,7 @@ import { success, paginated } from '../../../shared/interfaces/response';
 import type { CreatePropertyUseCase } from '../application/use-cases/create-property.use-case';
 import type { GetPropertyUseCase } from '../application/use-cases/get-property.use-case';
 import type { ListPropertiesUseCase } from '../application/use-cases/list-properties.use-case';
+import type { GetPropertySummaryUseCase } from '../application/use-cases/get-property-summary.use-case';
 import type { UpdatePropertyUseCase } from '../application/use-cases/update-property.use-case';
 import type { DeletePropertyUseCase } from '../application/use-cases/delete-property.use-case';
 import type { GeocodePropertyUseCase } from '../application/use-cases/geocode-property.use-case';
@@ -31,6 +34,7 @@ export interface PropertyRouteContainer {
   createPropertyUseCase: CreatePropertyUseCase;
   getPropertyUseCase: GetPropertyUseCase;
   listPropertiesUseCase: ListPropertiesUseCase;
+  getPropertySummaryUseCase: GetPropertySummaryUseCase;
   updatePropertyUseCase: UpdatePropertyUseCase;
   deletePropertyUseCase: DeletePropertyUseCase;
   geocodePropertyUseCase: GeocodePropertyUseCase;
@@ -131,6 +135,25 @@ export async function registerPropertyRoutes(
       return reply
         .status(200)
         .send(paginated(result.data, result.total, page, pageSize));
+    },
+  );
+
+  // GET /v1/properties/summary — counts by type, ignoring any type filter
+  app.get(
+    '/v1/properties/summary',
+    { preHandler: authenticate, schema: { querystring: propertySummaryQuerySchema, response: { 200: successResponseSchema(propertySummaryResponseSchema) } } },
+    async (request, reply) => {
+      const parsed = propertySummaryQuerySchema.safeParse(request.query);
+      if (!parsed.success)
+        throw new ValidationError(
+          'Invalid query parameters',
+          parsed.error.errors,
+        );
+      const result = await container.getPropertySummaryUseCase.execute({
+        filters: parsed.data,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
     },
   );
 
