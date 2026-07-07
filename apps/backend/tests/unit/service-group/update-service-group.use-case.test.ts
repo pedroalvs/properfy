@@ -49,7 +49,7 @@ function makeGroupWithAppointments(
   // Single-agency group fixture: one appointment so the group's primaryTenantId
   // resolves to 'tenant-1'.
   const appointments = [
-    { id: 'appt-1', status: 'AWAITING_INSPECTOR', serviceTypeId: 'svc-type-1', tenantId: 'tenant-1', propertyId: 'property-1', serviceGroupId: 'group-1' },
+    { id: 'appt-1', status: 'AWAITING_INSPECTOR', serviceTypeId: 'svc-type-1', tenantId: 'tenant-1', propertyId: 'property-1', serviceGroupId: 'group-1', scheduledDate: new Date('2026-06-01') },
   ];
   return {
     group: new ServiceGroupEntity(makeGroupProps(overrides)),
@@ -90,14 +90,22 @@ function makeRepo(): IServiceGroupRepository {
 
 describe('UpdateServiceGroupUseCase', () => {
   let serviceGroupRepo: IServiceGroupRepository;
+  let appointmentRepo: { update: ReturnType<typeof vi.fn> };
   let auditService: AuditService;
   let useCase: UpdateServiceGroupUseCase;
 
   beforeEach(() => {
     serviceGroupRepo = makeRepo();
+    appointmentRepo = { update: vi.fn() };
     auditService = { log: vi.fn() } as unknown as AuditService;
     const authorizationService = new AuthorizationService(auditService);
-    useCase = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService);
+    useCase = new UpdateServiceGroupUseCase(
+      serviceGroupRepo,
+      auditService,
+      authorizationService,
+      appointmentRepo as any,
+      { error: vi.fn() },
+    );
   });
 
   it('should update description in any status', async () => {
@@ -160,6 +168,64 @@ describe('UpdateServiceGroupUseCase', () => {
     });
   });
 
+  it('re-schedules member appointments to the new group date', async () => {
+    const groupData = makeGroupWithAppointments({ status: 'DRAFT' });
+    vi.mocked(serviceGroupRepo.findById)
+      .mockResolvedValueOnce(groupData)
+      .mockResolvedValueOnce(groupData);
+
+    await useCase.execute({
+      groupId: 'group-1',
+      scheduledDate: FUTURE_DATE,
+      actor: makeActor(),
+    });
+
+    expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
+      scheduledDate: new Date(FUTURE_DATE),
+    });
+    expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'appointment.updated',
+      entityId: 'appt-1',
+      before: { scheduledDate: new Date('2026-06-01') },
+      after: { scheduledDate: new Date(FUTURE_DATE) },
+      reason: 'Service group date changed',
+      metadata: expect.objectContaining({ groupId: 'group-1', automaticDateSync: true }),
+    }));
+  });
+
+  it('does not touch members when scheduledDate is not part of the update', async () => {
+    const groupData = makeGroupWithAppointments({ status: 'DRAFT' });
+    vi.mocked(serviceGroupRepo.findById)
+      .mockResolvedValueOnce(groupData)
+      .mockResolvedValueOnce(groupData);
+
+    await useCase.execute({
+      groupId: 'group-1',
+      description: 'New description',
+      actor: makeActor(),
+    });
+
+    expect(appointmentRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('keeps the group update when a member date sync fails (best-effort)', async () => {
+    const groupData = makeGroupWithAppointments({ status: 'DRAFT' });
+    vi.mocked(serviceGroupRepo.findById)
+      .mockResolvedValueOnce(groupData)
+      .mockResolvedValueOnce(groupData);
+    appointmentRepo.update.mockRejectedValueOnce(new Error('db down'));
+
+    const result = await useCase.execute({
+      groupId: 'group-1',
+      scheduledDate: FUTURE_DATE,
+      actor: makeActor(),
+    });
+
+    expect(result.id).toBe('group-1');
+    expect(serviceGroupRepo.update).toHaveBeenCalledWith('group-1', {
+      scheduledDate: new Date(FUTURE_DATE),
+    });
+  });
   it('should throw ServiceGroupNotDraftError when updating scheduledDate on a PUBLISHED group', async () => {
     const groupData = makeGroupWithAppointments({ status: 'PUBLISHED' });
     vi.mocked(serviceGroupRepo.findById).mockResolvedValueOnce(groupData);

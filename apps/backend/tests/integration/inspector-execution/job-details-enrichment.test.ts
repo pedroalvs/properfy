@@ -160,6 +160,51 @@ describe('GET /v1/inspector/appointments/:appointmentId — job details enrichme
     expect(res.body.data.jobDetails.propertyManager).toBeNull();
   });
 
+  it('should serialize registry-enriched tenantContacts (type, company, additionalChannels)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(inspContext);
+    const withEnrichedContacts = {
+      ...baseDetail,
+      jobDetails: {
+        agency: { id: 'tenant-1', name: 'Alpha Realty' },
+        tenantContacts: [
+          {
+            name: 'John Smith', email: 'john@example.com', phone: '+61400000000',
+            role: 'RENTAL_TENANT', isPrimary: true,
+            type: 'INDIVIDUAL', company: null,
+            additionalChannels: [
+              { channel: 'PHONE', value: '+61411111111', label: 'Work' },
+              { channel: 'EMAIL', value: 'alt@example.com' },
+            ],
+          },
+          {
+            name: 'Helen Keeper', email: null, phone: '+61422222222',
+            role: 'HOUSEKEEPER', isPrimary: false,
+            type: 'COMPANY', company: 'CleanCo', additionalChannels: [],
+          },
+        ],
+        keys: { keyRequired: false, keyLocation: null },
+        propertyManager: { name: 'Paula PM', email: 'pm@x.com', phone: null, company: 'PM Group' },
+        payment: { payoutAmount: 8500, currency: 'AUD' },
+      },
+    };
+    mockGetAppointmentDetailExecute.mockResolvedValueOnce(withEnrichedContacts);
+
+    const res = await supertest(app.server)
+      .get(`/v1/inspector/appointments/${APPOINTMENT_ID}`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    const contacts = res.body.data.jobDetails.tenantContacts;
+    expect(contacts).toHaveLength(2);
+    expect(contacts[0].type).toBe('INDIVIDUAL');
+    expect(contacts[0].additionalChannels).toEqual([
+      { channel: 'PHONE', value: '+61411111111', label: 'Work' },
+      { channel: 'EMAIL', value: 'alt@example.com' },
+    ]);
+    expect(contacts[1].company).toBe('CleanCo');
+    expect(res.body.data.jobDetails.propertyManager.company).toBe('PM Group');
+  });
+
   it('should return snapshot-based tenant contact fields', async () => {
     mockJwtVerify.mockResolvedValueOnce(inspContext);
     const withSnapshot = {

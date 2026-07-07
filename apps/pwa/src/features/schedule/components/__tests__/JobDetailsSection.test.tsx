@@ -51,11 +51,10 @@ describe('JobDetailsSection', () => {
     expect(screen.getByText(/\$8,500\.00/)).toBeInTheDocument();
   });
 
-  it('renders tenant contact with name and email link', () => {
+  it('does not render tenant contacts (they live in the page-level ContactsSection)', () => {
     render(<JobDetailsSection jobDetails={baseJobDetails} />);
-    expect(screen.getByTestId('job-tenant-contacts')).toBeInTheDocument();
-    expect(screen.getByText('John Smith')).toBeInTheDocument();
-    expect(screen.getByTestId('tenant-contact-email-0')).toHaveAttribute('href', 'mailto:john@example.com');
+    expect(screen.queryByTestId('job-tenant-contacts')).not.toBeInTheDocument();
+    expect(screen.queryByText('John Smith')).not.toBeInTheDocument();
   });
 
   it('shows inspection app link when present', () => {

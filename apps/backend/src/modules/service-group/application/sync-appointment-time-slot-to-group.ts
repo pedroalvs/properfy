@@ -3,34 +3,60 @@ import type { AuditService } from '../../../shared/infrastructure/audit';
 import type { Logger } from '../../../shared/infrastructure/logger';
 import type { IAppointmentRepository } from '../../appointment/domain/appointment.repository';
 import { getServiceGroupTimeSlotAdjustment, type AppointmentTimeSlot } from '../domain/service-group-time-slot-sync';
+import { getServiceGroupDateAdjustment } from '../domain/service-group-date-sync';
 
 export type ServiceGroupTimeSyncLogger = Pick<Logger, 'error'>;
 
-export interface AppointmentForServiceGroupTimeSync extends AppointmentTimeSlot {
+export interface AppointmentForServiceGroupScheduleSync extends AppointmentTimeSlot {
   id: string;
   tenantId: string;
+  scheduledDate: Date;
 }
 
-export interface SyncAppointmentTimeSlotToGroupInput {
+export interface SyncAppointmentScheduleToGroupInput {
   appointmentRepo: IAppointmentRepository;
   auditService: AuditService;
-  appointment: AppointmentForServiceGroupTimeSync;
+  appointment: AppointmentForServiceGroupScheduleSync;
   groupTimeWindow: string;
+  groupScheduledDate: Date;
   groupId: string;
   actor: AuthContext;
   logger: ServiceGroupTimeSyncLogger;
+  /** Audit reason; defaults to the add/create wording. */
+  reason?: string;
 }
 
-export async function syncAppointmentTimeSlotToGroup(input: SyncAppointmentTimeSlotToGroupInput): Promise<void> {
-  const adjustment = getServiceGroupTimeSlotAdjustment(input.appointment, input.groupTimeWindow);
-  if (!adjustment) {
+/**
+ * Appointments always follow their group's schedule: the scheduled date is
+ * replaced by the group's date when it differs, and the time slot is clamped
+ * into the group's time window. Both land in a single update + audit entry.
+ */
+export async function syncAppointmentScheduleToGroup(input: SyncAppointmentScheduleToGroupInput): Promise<void> {
+  const timeAdjustment = getServiceGroupTimeSlotAdjustment(input.appointment, input.groupTimeWindow);
+  const dateAdjustment = getServiceGroupDateAdjustment(input.appointment.scheduledDate, input.groupScheduledDate);
+  if (!timeAdjustment && !dateAdjustment) {
     return;
   }
 
-  await input.appointmentRepo.update(input.appointment.id, input.appointment.tenantId, {
-    timeSlotStart: adjustment.timeSlotStart,
-    timeSlotEnd: adjustment.timeSlotEnd,
-  });
+  const before: Record<string, unknown> = {};
+  const after: Record<string, unknown> = {};
+  const update: { timeSlotStart?: string; timeSlotEnd?: string; scheduledDate?: Date } = {};
+
+  if (timeAdjustment) {
+    update.timeSlotStart = timeAdjustment.timeSlotStart;
+    update.timeSlotEnd = timeAdjustment.timeSlotEnd;
+    before.timeSlotStart = timeAdjustment.before.timeSlotStart;
+    before.timeSlotEnd = timeAdjustment.before.timeSlotEnd;
+    after.timeSlotStart = timeAdjustment.timeSlotStart;
+    after.timeSlotEnd = timeAdjustment.timeSlotEnd;
+  }
+  if (dateAdjustment) {
+    update.scheduledDate = dateAdjustment.scheduledDate;
+    before.scheduledDate = dateAdjustment.before.scheduledDate;
+    after.scheduledDate = dateAdjustment.scheduledDate;
+  }
+
+  await input.appointmentRepo.update(input.appointment.id, input.appointment.tenantId, update);
   input.auditService.log({
     action: 'appointment.updated',
     actorType: 'SYSTEM',
@@ -38,21 +64,22 @@ export async function syncAppointmentTimeSlotToGroup(input: SyncAppointmentTimeS
     entityType: 'Appointment',
     entityId: input.appointment.id,
     tenantId: input.appointment.tenantId,
-    before: adjustment.before,
-    after: {
-      timeSlotStart: adjustment.timeSlotStart,
-      timeSlotEnd: adjustment.timeSlotEnd,
+    before,
+    after,
+    reason: input.reason ?? 'Added to service group',
+    metadata: {
+      groupId: input.groupId,
+      ...(timeAdjustment ? { automaticTimeSlotSync: true } : {}),
+      ...(dateAdjustment ? { automaticDateSync: true } : {}),
     },
-    reason: 'Added to service group',
-    metadata: { groupId: input.groupId, automaticTimeSlotSync: true },
   });
 }
 
-export async function trySyncAppointmentTimeSlotToGroup(input: SyncAppointmentTimeSlotToGroupInput): Promise<void> {
+export async function trySyncAppointmentScheduleToGroup(input: SyncAppointmentScheduleToGroupInput): Promise<void> {
   try {
-    await syncAppointmentTimeSlotToGroup(input);
+    await syncAppointmentScheduleToGroup(input);
   } catch (err) {
-    // The group/link write may already be committed. Time sync is best-effort
+    // The group/link write may already be committed. Schedule sync is best-effort
     // and must not make the caller report a false failure for a linked item.
     input.logger.error(
       {
@@ -61,7 +88,7 @@ export async function trySyncAppointmentTimeSlotToGroup(input: SyncAppointmentTi
         tenantId: input.appointment.tenantId,
         groupId: input.groupId,
       },
-      'appointment time-slot sync to group failed',
+      'appointment schedule sync to group failed',
     );
   }
 }

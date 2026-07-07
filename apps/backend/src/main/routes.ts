@@ -23,6 +23,7 @@ import { registerDashboardRoutes } from '../modules/dashboard/interfaces/dashboa
 import { registerServiceRegionRoutes } from '../modules/service-region/interfaces/service-region.routes';
 import { registerContactRoutes } from '../modules/contact/interfaces/http/contact.routes';
 import { registerAppCredentialRoutes } from '../modules/app-credential/interfaces/http/app-credential.routes';
+import { registerIntegrationRoutes } from '../modules/integration/interfaces/http/integration.routes';
 
 export async function registerRoutes(
   app: FastifyInstance,
@@ -108,4 +109,5 @@ export async function registerRoutes(
   await registerServiceRegionRoutes(app, container.serviceRegion);
   await registerContactRoutes(app, container.contact);
   await registerAppCredentialRoutes(app, container.appCredential);
+  await registerIntegrationRoutes(app, container.integration);
 }

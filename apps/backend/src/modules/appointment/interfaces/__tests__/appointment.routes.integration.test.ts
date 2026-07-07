@@ -93,7 +93,7 @@ vi.mock('../../../../main/container', () => ({
       jwtService: { verify: mockJwtVerify },
       tenantRepo: { findById: vi.fn().mockResolvedValue({ isActive: () => true }) },
       webhookSignatureValidator: { validateResend: vi.fn().mockReturnValue(true) },
-      mobileMessageWebhookToken: undefined,
+      getMobileMessageWebhookToken: undefined,
     },
     dashboard: { getDashboardStatsUseCase: { execute: vi.fn() }, jwtService: { verify: mockJwtVerify }, tenantRepo: { findById: vi.fn().mockResolvedValue({ isActive: () => true }) } },
     appointmentTimeSlot: { jwtService: { verify: mockJwtVerify }, tenantRepo: { findById: vi.fn().mockResolvedValue({ isActive: () => true }) } },

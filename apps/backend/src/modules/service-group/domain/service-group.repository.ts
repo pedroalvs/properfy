@@ -242,12 +242,12 @@ export interface IServiceGroupRepository {
   }): Promise<boolean>;
   /**
    * 026 B1 — find DRAFT/PUBLISHED groups that can absorb a batch of appointments.
-   * Groups are tenant-agnostic, so addability is service-type/date/status/
-   * capacity only (no tenant scoping, and the time window is not a filter).
+   * Groups are tenant-agnostic, so addability is service-type/status/capacity
+   * only (no tenant scoping; date and time window are not filters —
+   * appointments are re-scheduled to the group's date on join).
    */
   findAddableForAppointments(params: {
     serviceTypeId: string;
-    scheduledDate: Date;
     batchSize: number;
   }): Promise<Array<{
     id: string;

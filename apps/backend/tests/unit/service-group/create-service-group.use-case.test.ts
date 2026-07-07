@@ -44,7 +44,8 @@ function makeAppointmentEntity(
     serviceTypeId: 'svc-type-1',
     inspectorId: null,
     status: 'AWAITING_INSPECTOR',
-    scheduledDate: new Date('2026-04-01'),
+    // Matches the group's farFutureDate so time-slot tests don't trigger the date sync.
+    scheduledDate: new Date(farFutureDate),
     timeSlotStart: '09:00', timeSlotEnd: '10:00',
     keyRequired: false,
     meetingLocation: null,
@@ -257,6 +258,34 @@ describe('CreateServiceGroupUseCase', () => {
     }));
   });
 
+  it('replaces the appointment date with the group date when they differ', async () => {
+    const otherDate = futureDateStr(90);
+    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+      makeAppointmentWithRelations({ id: 'appt-1', scheduledDate: new Date(otherDate), timeSlotStart: '09:30', timeSlotEnd: '10:30' }),
+    );
+
+    await useCase.execute({
+      appointmentIds: ['appt-1'],
+      serviceTypeId: 'svc-type-1',
+      scheduledDate: farFutureDate,
+      timeWindow: '09:00-12:00',
+      serviceRegionId: REGION_ID,
+      actor: makeActor(),
+    });
+
+    expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
+      scheduledDate: new Date(farFutureDate),
+    });
+    expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'appointment.updated',
+      entityId: 'appt-1',
+      before: { scheduledDate: new Date(otherDate) },
+      after: { scheduledDate: new Date(farFutureDate) },
+      reason: 'Added to service group',
+      metadata: expect.objectContaining({ automaticDateSync: true, groupId: expect.any(String) }),
+    }));
+  });
+
   it('does not update appointment time when it is fully inside the group time window', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
       makeAppointmentWithRelations({ id: 'appt-1', timeSlotStart: '09:30', timeSlotEnd: '10:30' }),
@@ -340,7 +369,7 @@ describe('CreateServiceGroupUseCase', () => {
         tenantId: 'tenant-1',
         groupId: expect.any(String),
       }),
-      'appointment time-slot sync to group failed',
+      'appointment schedule sync to group failed',
     );
   });
 

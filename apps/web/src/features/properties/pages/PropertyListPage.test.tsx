@@ -56,6 +56,8 @@ import { PropertyListPage } from './PropertyListPage';
 const mockUseAuth = useAuth as ReturnType<typeof vi.fn>;
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
+const MOCK_SUMMARY = { totalCount: 12, houseCount: 4, apartmentCount: 6 };
+
 const MOCK_PROPERTIES = [
   { id: 'prop-01', propertyCode: 'IMV-001', type: 'HOUSE', street: 'Rua das Flores, 123', suburb: 'Centro', state: 'SP', tenantName: 'Acme Realty' },
   { id: 'prop-02', propertyCode: 'IMV-002', type: 'COMMERCIAL', street: 'Av. Paulista, 1000', suburb: 'Bela Vista', state: 'SP', tenantName: 'Beta Estates' },
@@ -80,10 +82,15 @@ function createWrapper() {
 
 beforeEach(() => {
   mockGet.mockReset();
-  mockGet.mockResolvedValue({ data: {
-    data: MOCK_PROPERTIES,
-    pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
-  } });
+  mockGet.mockImplementation(async (path: string) => {
+    if (path === '/v1/properties/summary') {
+      return { data: { data: MOCK_SUMMARY } };
+    }
+    return { data: {
+      data: MOCK_PROPERTIES,
+      pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
+    } };
+  });
   mockUseAuth.mockReturnValue({
     user: null,
     token: null,
@@ -135,6 +142,27 @@ describe('PropertyListPage', () => {
     expect(screen.getByText('Code')).toBeInTheDocument();
   });
 
+  it('renders the summary blocks with total, house and apartment counts', async () => {
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByTestId('property-summary')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Total Properties')).toBeInTheDocument();
+    expect(screen.getByText('12')).toBeInTheDocument();
+    expect(screen.getByText('Houses')).toBeInTheDocument();
+    expect(screen.getByText('Apartments')).toBeInTheDocument();
+  });
+
+  it('never sends the type filter to the summary endpoint', async () => {
+    renderPage();
+    await waitFor(() => {
+      const summaryCalls = mockGet.mock.calls.filter(([path]) => path === '/v1/properties/summary');
+      expect(summaryCalls.length).toBeGreaterThanOrEqual(1);
+      for (const [, opts] of summaryCalls) {
+        expect(opts.params.query).not.toHaveProperty('type');
+      }
+    });
+  });
   describe('AM role', () => {
     beforeEach(() => {
       mockUseAuth.mockReturnValue({

@@ -62,6 +62,7 @@ const NAV_ITEMS: NavItem[] = [
       { icon: 'mdi-map-marker-radius-outline', label: 'Service Regions', to: '/service-regions' },
       { icon: 'mdi-currency-usd', label: 'Pricing Rules', to: '/pricing-rules' },
       { icon: 'mdi-email-outline', label: 'Notification Templates', to: '/notification-templates' },
+      { icon: 'mdi-connection', label: 'Integrations', to: '/integrations', roles: [UserRole.AM] },
     ],
   },
   // CL_ADMIN audit access shipped with feature 020 (011#GAP-002).

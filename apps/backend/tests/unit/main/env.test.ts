@@ -77,7 +77,26 @@ describe('validateEnv', () => {
     expect(result.CORS_ORIGIN).toBeUndefined();
   });
 
-  it('should require MOBILE_MESSAGE_WEBHOOK_TOKEN (with the other MobileMessage vars) in production', () => {
+  it('should NOT require Resend/MobileMessage/Mapbox vars in production (managed via Integrations Hub)', () => {
+    const result = validateEnv({
+      ...validEnv,
+      NODE_ENV: 'production',
+      CORS_ORIGIN: 'https://app.example.com',
+      TOTP_ENCRYPTION_KEY: 'a'.repeat(64),
+      PORTAL_TOKEN_ENC_KEY: 'a'.repeat(64),
+      APP_CREDENTIAL_ENC_KEY: 'a'.repeat(64),
+      ENABLE_JOB_QUEUE: 'true',
+      SUPABASE_S3_ENDPOINT: 'https://storage.example.com',
+      SUPABASE_S3_ACCESS_KEY_ID: 'access-key',
+      SUPABASE_S3_SECRET_ACCESS_KEY: 'secret-key',
+      TENANT_PORTAL_BASE_URL: 'https://portal.example.com',
+    });
+    expect(result.RESEND_API_KEY).toBeUndefined();
+    expect(result.MOBILE_MESSAGE_API_KEY).toBeUndefined();
+    expect(result.MAPBOX_ACCESS_TOKEN).toBeUndefined();
+  });
+
+  it('should still require Supabase S3 in production', () => {
     expect(() =>
       validateEnv({
         ...validEnv,
@@ -86,11 +105,10 @@ describe('validateEnv', () => {
         TOTP_ENCRYPTION_KEY: 'a'.repeat(64),
         PORTAL_TOKEN_ENC_KEY: 'a'.repeat(64),
         APP_CREDENTIAL_ENC_KEY: 'a'.repeat(64),
-        MOBILE_MESSAGE_API_KEY: 'mm-key',
-        MOBILE_MESSAGE_PASSWORD: 'mm-pass',
-        MOBILE_MESSAGE_SENDER_ID: 'PROPERFY',
+        ENABLE_JOB_QUEUE: 'true',
+        TENANT_PORTAL_BASE_URL: 'https://portal.example.com',
       }),
-    ).toThrow('MOBILE_MESSAGE_WEBHOOK_TOKEN');
+    ).toThrow('Supabase S3');
   });
 
   it('should accept optional provider vars', () => {

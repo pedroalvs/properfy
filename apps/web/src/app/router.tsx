@@ -1,23 +1,14 @@
 import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, type ComponentType } from 'react';
+import { retryLazyImportOnce } from '@properfy/shared';
 
 /**
- * Retry a dynamic import once, then force-reload the page.
- * Handles stale chunk hashes after a new deployment.
+ * Handles stale chunk hashes after a new deployment: reloads the intended URL
+ * once on the first import failure, then lets a repeated failure surface to
+ * the route error boundary. See retryLazyImportOnce in @properfy/shared.
  */
-function lazyRetry(importFn: () => Promise<any>) {
-  return lazy(() =>
-    importFn().catch(() => {
-      const reloaded = sessionStorage.getItem('chunk_reload');
-      if (!reloaded) {
-        sessionStorage.setItem('chunk_reload', '1');
-        window.location.reload();
-        return new Promise(() => {}); // never resolves — page is reloading
-      }
-      sessionStorage.removeItem('chunk_reload');
-      return importFn(); // second attempt after reload
-    }),
-  );
+function lazyRetry<T extends { default: ComponentType<any> }>(importFn: () => Promise<T>) {
+  return lazy(() => retryLazyImportOnce(importFn, window.sessionStorage, window.location, console));
 }
 
 const Loadable = (Component: any) => (props: any) => (
@@ -53,6 +44,7 @@ const ReportListPage = Loadable(lazyRetry(() => import('@/features/reports/pages
 const DashboardPage = Loadable(lazyRetry(() => import('@/features/dashboard/pages/DashboardPage').then(m => ({ default: m.DashboardPage }))));
 const PortalPage = Loadable(lazyRetry(() => import('@/features/rental-tenant-portal/pages/PortalPage').then(m => ({ default: m.PortalPage }))));
 const ServiceTypeListPage = Loadable(lazyRetry(() => import('@/features/service-types/pages/ServiceTypeListPage').then(m => ({ default: m.ServiceTypeListPage }))));
+const IntegrationsPage = Loadable(lazyRetry(() => import('@/features/integrations/pages/IntegrationsPage').then(m => ({ default: m.IntegrationsPage }))));
 const PricingRuleListPage = Loadable(lazyRetry(() => import('@/features/pricing-rules/pages/PricingRuleListPage').then(m => ({ default: m.PricingRuleListPage }))));
 const AccountSettingsPage = Loadable(lazyRetry(() => import('@/features/settings/pages/AccountSettingsPage').then(m => ({ default: m.AccountSettingsPage }))));
 const SecuritySettingsPage = Loadable(lazyRetry(() => import('@/features/settings/pages/SecuritySettingsPage').then(m => ({ default: m.SecuritySettingsPage }))));
@@ -355,6 +347,14 @@ export const router = createBrowserRouter([
             element: (
               <AuthGuard roles={[UserRole.AM]}>
                 <ServiceTypeListPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            path: 'integrations',
+            element: (
+              <AuthGuard roles={[UserRole.AM]}>
+                <IntegrationsPage />
               </AuthGuard>
             ),
           },

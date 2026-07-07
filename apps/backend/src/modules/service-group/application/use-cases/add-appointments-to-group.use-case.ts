@@ -5,7 +5,7 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { NotFoundError } from '../../../../shared/domain/errors';
 import { ServiceGroupValidator, type AddToGroupReason } from '../../domain/service-group.validator';
-import { trySyncAppointmentTimeSlotToGroup, type ServiceGroupTimeSyncLogger } from '../sync-appointment-time-slot-to-group';
+import { trySyncAppointmentScheduleToGroup, type ServiceGroupTimeSyncLogger } from '../sync-appointment-time-slot-to-group';
 
 export type AddToGroupResultStatus = 'OK' | AddToGroupReason | 'NOT_FOUND' | 'ERROR';
 
@@ -88,12 +88,10 @@ export class AddAppointmentsToGroupUseCase {
           serviceTypeId: appointment.serviceTypeId,
           tenantId: appointment.tenantId,
           serviceGroupId: appointment.serviceGroupId,
-          scheduledDate: appointment.scheduledDate,
         },
         {
           status: group.status,
           serviceTypeId: group.serviceTypeId,
-          scheduledDate: group.scheduledDate,
           currentSize,
         },
       );
@@ -110,11 +108,12 @@ export class AddAppointmentsToGroupUseCase {
         await this.groupRepo.linkAppointments([apptId], input.groupId);
         currentSize += 1;
 
-        await trySyncAppointmentTimeSlotToGroup({
+        await trySyncAppointmentScheduleToGroup({
           appointmentRepo: this.appointmentRepo,
           auditService: this.auditService,
           appointment,
           groupTimeWindow: group.timeWindow,
+          groupScheduledDate: group.scheduledDate,
           groupId: input.groupId,
           actor: input.actor,
           logger: this.logger,
@@ -182,7 +181,6 @@ function reasonMessage(code: AddToGroupReason): string {
     case 'INVALID_STATUS': return 'Appointment must be in DRAFT or AWAITING_INSPECTOR status';
     case 'ALREADY_GROUPED': return 'Appointment is already linked to another service group';
     case 'INVALID_SERVICE_TYPE': return 'Appointment service type does not match the group';
-    case 'INVALID_DATE': return 'Appointment scheduled date does not match the group';
     case 'GROUP_IN_TERMINAL_STATE': return 'Group is in a terminal state and cannot accept new appointments';
     case 'GROUP_CAPACITY_EXCEEDED': return 'Group has reached its capacity of 30 appointments';
   }
