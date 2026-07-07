@@ -10,6 +10,7 @@ import type { IContactReader, ContactRegistryInfo, ContactRegistryChannel } from
 import { T1VisibilityService } from '../../domain/t1-visibility.service';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
+import type { Logger } from '../../../../shared/infrastructure/logger';
 import {
   ExecutionAppointmentNotFoundError,
   ExecutionT1BlockedError,
@@ -152,6 +153,7 @@ export class GetAppointmentDetailUseCase {
     private readonly tenantRepo: ITenantRepository,
     private readonly appCredentialRepo?: IAppCredentialRepository,
     private readonly contactReader?: IContactReader,
+    private readonly logger?: Logger,
   ) {}
 
   async execute(input: GetAppointmentDetailInput): Promise<AppointmentDetailOutput> {
@@ -320,9 +322,13 @@ export class GetAppointmentDetailUseCase {
       try {
         const rows = linkedIds.length > 0 ? await this.contactReader.findByIds(linkedIds) : [];
         registryById = new Map(rows.map((row) => [row.id, row]));
-      } catch {
+      } catch (error) {
         // Best-effort enrichment: a registry-lookup failure must never break
         // the detail response — fall back to snapshot-only (legacy shape).
+        this.logger?.warn(
+          { err: error, appointmentId: appointment.id },
+          'Contact registry lookup failed; serving snapshot-only contacts',
+        );
         registryById = null;
       }
     }
