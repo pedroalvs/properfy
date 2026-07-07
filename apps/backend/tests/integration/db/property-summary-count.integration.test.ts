@@ -83,6 +83,14 @@ describe('Property summary: countByType (real DB)', () => {
     expect(counts).toEqual({ HOUSE: 1, APARTMENT: 2, COMMERCIAL: 1 });
   });
 
+  it('aggregates across tenants when tenantId is omitted (AM/OP cross-tenant path)', async () => {
+    const counts = await repo().countByType({});
+
+    // Tenant A: 1 HOUSE + 2 APARTMENT + 1 COMMERCIAL; tenant B: 1 HOUSE.
+    // The soft-deleted HOUSE stays excluded even without a tenant scope.
+    expect(counts).toEqual({ HOUSE: 2, APARTMENT: 2, COMMERCIAL: 1 });
+  });
+
   it('does not leak rows from another tenant', async () => {
     if (!fixtureB) throw new Error('fixtures not initialized');
 

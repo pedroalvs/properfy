@@ -47,6 +47,9 @@ export function PropertySummaryIndicators({
       <div
         className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4"
         data-testid="property-summary-loading"
+        role="status"
+        aria-live="polite"
+        aria-label="Loading property summary"
       >
         {CARDS.map((card) => (
           <div
