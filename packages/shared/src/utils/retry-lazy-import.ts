@@ -62,7 +62,9 @@ export async function retryLazyImportOnce<T>(
     return module;
   } catch (error) {
     logger.error('Lazy route import failed', error);
-    if (!safeGetItem(storage, CHUNK_RELOAD_KEY) && safeSetItem(storage, CHUNK_RELOAD_KEY, '1')) {
+    const alreadyReloaded = safeGetItem(storage, CHUNK_RELOAD_KEY) !== null;
+    const guardPersisted = !alreadyReloaded && safeSetItem(storage, CHUNK_RELOAD_KEY, '1');
+    if (guardPersisted) {
       location.replace(location.href); // reload the intended URL, bypassing the failed chunk
       return new Promise<T>(() => {}); // never resolves — page is reloading
     }

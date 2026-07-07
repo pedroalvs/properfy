@@ -100,6 +100,24 @@ describe('retryLazyImportOnce', () => {
     expect(locationLike.replace).not.toHaveBeenCalled();
   });
 
+  it('skips the reload and falls back to a single retry when only persisting the guard fails', async () => {
+    sessionStorageLike.setItem.mockImplementation(() => {
+      throw new Error('sessionStorage quota exceeded');
+    });
+
+    const module = { default: () => null };
+    const importFn = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Loading chunk 123 failed'))
+      .mockResolvedValueOnce(module);
+
+    await expect(retryLazyImportOnce(importFn, sessionStorageLike, locationLike, logger)).resolves.toBe(module);
+
+    expect(importFn).toHaveBeenCalledTimes(2);
+    expect(locationLike.replace).not.toHaveBeenCalled();
+    expect(sessionStorageLike.removeItem).toHaveBeenCalledWith('chunk_reload');
+  });
+
   it('propagates the original import error when storage throws and the retry also fails', async () => {
     const storageError = () => {
       throw new Error('sessionStorage is not available');
