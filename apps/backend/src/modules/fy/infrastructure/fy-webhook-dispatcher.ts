@@ -5,13 +5,6 @@ import type { IntegrationConfigResolver } from '../../integration/infrastructure
 
 const REQUEST_TIMEOUT_MS = 10_000;
 
-export class FyWebhookNotConfiguredError extends Error {
-  constructor() {
-    super('FY_WEBHOOK integration is not configured');
-    this.name = 'FyWebhookNotConfiguredError';
-  }
-}
-
 /**
  * POSTs Fy events to the configured n8n endpoint. Throwing on failure is the
  * retry mechanism — the pg-boss worker re-runs the job with backoff.

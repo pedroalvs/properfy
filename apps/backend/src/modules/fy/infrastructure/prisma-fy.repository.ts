@@ -151,7 +151,7 @@ export class PrismaFyRepository implements IFyRepository {
 
   async findGroupAcceptanceInfo(groupId: string): Promise<FyGroupAcceptanceRow[]> {
     const rows = await this.prisma.appointment.findMany({
-      where: { service_group_id: groupId, inspector_id: { not: null } },
+      where: { service_group_id: groupId, inspector_id: { not: null }, deleted_at: null },
       select: {
         id: true,
         appointment_number: true,

@@ -1,4 +1,4 @@
-import type { FyWebhookEvent } from '@properfy/shared';
+import type { FyAppointmentStatus, FyWebhookEvent } from '@properfy/shared';
 import { IntegrationProvider } from '@properfy/shared';
 
 import type { DomainEvent, DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
@@ -49,19 +49,27 @@ export class FyWebhookSubscriber {
 
       const rows = await this.fyRepo.findGroupAcceptanceInfo(groupId);
       for (const row of rows) {
-        const payload: FyWebhookEvent = {
-          event: 'inspector.accepted',
-          timestamp: event.occurredAt.toISOString(),
-          data: {
-            appointmentId: row.appointmentId,
-            appointmentCode: formatAppointmentCode(
-              row.appointmentCodePrefix,
-              row.appointmentNumber,
-            ),
-            inspector: { id: row.inspectorId, name: row.inspectorName },
-          },
-        };
-        await this.enqueue(payload, `fy-accepted:${groupId}:${row.appointmentId}`);
+        // Per-row isolation: one bad row must not starve the rest of the group.
+        try {
+          const payload: FyWebhookEvent = {
+            event: 'inspector.accepted',
+            timestamp: event.occurredAt.toISOString(),
+            data: {
+              appointmentId: row.appointmentId,
+              appointmentCode: formatAppointmentCode(
+                row.appointmentCodePrefix,
+                row.appointmentNumber,
+              ),
+              inspector: { id: row.inspectorId, name: row.inspectorName },
+            },
+          };
+          await this.enqueue(payload, `fy-accepted:${groupId}:${row.appointmentId}`);
+        } catch (err) {
+          this.logger?.warn(
+            { err, appointmentId: row.appointmentId },
+            'Failed to enqueue fy inspector.accepted webhook',
+          );
+        }
       }
     } catch (err) {
       this.logger?.warn({ err }, 'Failed to enqueue fy inspector.accepted webhooks');
@@ -73,15 +81,15 @@ export class FyWebhookSubscriber {
       if (!(await this.isConfigured())) return;
       const { appointmentId, fromStatus, toStatus } = event.payload as {
         appointmentId: string;
-        fromStatus: string;
-        toStatus: string;
+        fromStatus: FyAppointmentStatus;
+        toStatus: FyAppointmentStatus;
       };
 
-      const payload = {
+      const payload: FyWebhookEvent = {
         event: 'appointment.status_changed',
         timestamp: event.occurredAt.toISOString(),
         data: { appointmentId, fromStatus, toStatus },
-      } as FyWebhookEvent;
+      };
       await this.enqueue(
         payload,
         `fy-status:${appointmentId}:${fromStatus}->${toStatus}:${event.occurredAt.getTime()}`,

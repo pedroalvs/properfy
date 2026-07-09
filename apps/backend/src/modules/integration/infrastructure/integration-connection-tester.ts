@@ -70,7 +70,8 @@ export class HttpIntegrationConnectionTester implements IIntegrationConnectionTe
         method: 'HEAD',
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
-      return { ok: true, message: `Fy webhook endpoint is reachable (HTTP ${response.status})` };
+      const health = response.status >= 500 ? ' but returned a server error' : '';
+      return { ok: true, message: `Fy webhook endpoint is reachable${health} (HTTP ${response.status})` };
     } catch {
       return { ok: false, message: 'Fy webhook endpoint is unreachable' };
     }

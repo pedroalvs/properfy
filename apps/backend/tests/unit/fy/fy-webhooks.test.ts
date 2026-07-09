@@ -57,6 +57,12 @@ describe('FyWebhookSubscriber', () => {
       },
     });
     expect(options).toMatchObject({ retryLimit: 5, retryBackoff: true, singletonKey: 'fy-accepted:g1:a1' });
+
+    const [, payload2, options2] = jobQueue.enqueue.mock.calls[1]!;
+    expect(payload2).toMatchObject({
+      data: { appointmentId: 'a2', appointmentCode: 'INS-0002' },
+    });
+    expect(options2).toMatchObject({ singletonKey: 'fy-accepted:g1:a2' });
   });
 
   it('enqueues appointment.status_changed on transitions', async () => {
@@ -84,6 +90,45 @@ describe('FyWebhookSubscriber', () => {
     });
     expect(jobQueue.enqueue).not.toHaveBeenCalled();
     expect(fyRepo.findGroupAcceptanceInfo).not.toHaveBeenCalled();
+  });
+
+  it('never throws into the event bus when the group lookup fails', async () => {
+    const bus = new DomainEventBus();
+    const jobQueue = { enqueue: vi.fn(async () => {}) };
+    const fyRepo = { findGroupAcceptanceInfo: vi.fn(async () => { throw new Error('db down'); }) };
+    const logger = { warn: vi.fn() };
+    new FyWebhookSubscriber(makeResolver(), fyRepo as any, jobQueue as any, logger).register(bus);
+
+    await expect(
+      bus.emit({ type: SERVICE_GROUP_EVENTS.ACCEPTED, payload: { groupId: 'g1' }, occurredAt }),
+    ).resolves.not.toThrow();
+    expect(logger.warn).toHaveBeenCalled();
+    expect(jobQueue.enqueue).not.toHaveBeenCalled();
+  });
+
+  it('one failing row does not starve the rest of the group fan-out', async () => {
+    const bus = new DomainEventBus();
+    const jobQueue = {
+      enqueue: vi
+        .fn(async () => {})
+        .mockRejectedValueOnce(new Error('queue hiccup')),
+    };
+    const fyRepo = {
+      findGroupAcceptanceInfo: vi.fn(async () => [
+        { appointmentId: 'a1', appointmentNumber: 1, appointmentCodePrefix: 'INS', inspectorId: 'i1', inspectorName: 'Kez' },
+        { appointmentId: 'a2', appointmentNumber: 2, appointmentCodePrefix: null, inspectorId: 'i1', inspectorName: 'Kez' },
+      ]),
+    };
+    const logger = { warn: vi.fn() };
+    new FyWebhookSubscriber(makeResolver(), fyRepo as any, jobQueue as any, logger).register(bus);
+
+    await bus.emit({ type: SERVICE_GROUP_EVENTS.ACCEPTED, payload: { groupId: 'g1' }, occurredAt });
+
+    expect(jobQueue.enqueue).toHaveBeenCalledTimes(2);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ appointmentId: 'a1' }),
+      expect.any(String),
+    );
   });
 
   it('never throws into the event bus when enqueue fails', async () => {
