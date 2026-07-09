@@ -81,7 +81,7 @@ describe('ImportPropertyWorker', () => {
   it('should write a batch audit record after successful import', async () => {
     const csv = makeCsvBuffer([
       'P001,HOUSE,123 Main St,,Sydney,2000,NSW,AU,',
-      'P002,COMMERCIAL,456 High St,,Melbourne,3000,VIC,AU,',
+      'P002,APARTMENT,456 High St,,Melbourne,3000,VIC,AU,',
     ]);
     vi.mocked(storageService.download).mockResolvedValue(csv);
 
@@ -108,7 +108,7 @@ describe('ImportPropertyWorker', () => {
     const csv = makeCsvBuffer([
       'P001,HOUSE,123 Main St,,Sydney,2000,NSW,AU,',
       ',HOUSE,456 High St,,Melbourne,3000,VIC,AU,', // missing propertyCode
-      'P003,COMMERCIAL,789 Low St,,Brisbane,4000,QLD,AU,',
+      'P003,APARTMENT,789 Low St,,Brisbane,4000,QLD,AU,',
     ]);
     vi.mocked(storageService.download).mockResolvedValue(csv);
 

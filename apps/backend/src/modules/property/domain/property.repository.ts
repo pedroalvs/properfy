@@ -84,6 +84,13 @@ export interface IPropertyRepository {
   findStalePendingGeocoding(updatedBefore: Date): Promise<Array<{ id: string; tenantId: string }>>;
   /** Count properties currently in FAILED geocoding status. */
   countFailedGeocoding(): Promise<number>;
+  /**
+   * Next per-tenant sequential property number: MAX(property_number) + 1,
+   * INCLUDING soft-deleted rows so a reused number can never collide with a
+   * historical code. Racy by nature — callers must retry on the
+   * `[tenant_id, property_number]` unique violation.
+   */
+  nextPropertyNumber(tenantId: string): Promise<number>;
   save(property: PropertyEntity): Promise<void>;
   update(
     id: string,
@@ -92,6 +99,7 @@ export interface IPropertyRepository {
       branchId: string | null;
       propertyCode: string;
       type: string;
+      apartmentNumber: string | null;
       street: string;
       addressLine2: string | null;
       suburb: string;

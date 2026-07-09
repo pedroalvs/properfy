@@ -1,9 +1,6 @@
 export const PropertyType = {
   APARTMENT: 'APARTMENT',
   HOUSE: 'HOUSE',
-  COMMERCIAL: 'COMMERCIAL',
-  INDUSTRIAL: 'INDUSTRIAL',
-  RURAL: 'RURAL',
 } as const;
 export type PropertyType = (typeof PropertyType)[keyof typeof PropertyType];
 
@@ -11,9 +8,6 @@ export type PropertyType = (typeof PropertyType)[keyof typeof PropertyType];
 export const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
   APARTMENT: 'Apartment',
   HOUSE: 'House',
-  COMMERCIAL: 'Commercial',
-  INDUSTRIAL: 'Industrial',
-  RURAL: 'Rural',
 };
 
 export const GeocodingStatus = {

@@ -42,8 +42,8 @@ export const createPropertySchema = z
   .object({
     tenantId: z.string().uuid().optional(),
     branchId: z.string().uuid().optional(),
-    propertyCode: z.string().min(1).max(50).trim(),
     type: z.enum(PROPERTY_TYPE_VALUES),
+    apartmentNumber: z.string().max(50).trim().optional(),
     privateAreaM2: z.number().positive().max(99999999.99).optional(),
     totalAreaM2: z.number().positive().max(99999999.99).optional(),
     furnished: z.boolean().optional(),
@@ -59,6 +59,7 @@ export const updatePropertySchema = z
   .object({
     branchId: z.string().uuid().nullable().optional(),
     type: z.enum(PROPERTY_TYPE_VALUES).optional(),
+    apartmentNumber: z.string().max(50).trim().nullable().optional(),
     privateAreaM2: z.number().positive().max(99999999.99).nullable().optional(),
     totalAreaM2: z.number().positive().max(99999999.99).nullable().optional(),
     furnished: z.boolean().nullable().optional(),

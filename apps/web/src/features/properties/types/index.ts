@@ -8,6 +8,7 @@ export interface Property {
   tenantName: string | null;
   propertyCode: string;
   type: PropertyType;
+  apartmentNumber: string | null;
   street: string;
   addressLine2: string | null;
   suburb: string;
@@ -43,8 +44,8 @@ export const DEFAULT_FILTERS: PropertyFiltersState = {
 };
 
 export interface PropertyFormData {
-  propertyCode: string;
   type: string;
+  apartmentNumber: string;
   branchId: string;
   street: string;
   addressLine2: string;
@@ -65,8 +66,8 @@ export interface PropertyFormData {
 export type PropertyFormErrors = Partial<Record<keyof PropertyFormData, string>>;
 
 export const EMPTY_PROPERTY_FORM: PropertyFormData = {
-  propertyCode: '',
   type: '',
+  apartmentNumber: '',
   branchId: '',
   street: '',
   addressLine2: '',

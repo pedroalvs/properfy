@@ -4686,20 +4686,16 @@
                     "type": "string",
                     "format": "uuid"
                   },
-                  "propertyCode": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 50
-                  },
                   "type": {
                     "type": "string",
                     "enum": [
                       "APARTMENT",
-                      "HOUSE",
-                      "COMMERCIAL",
-                      "INDUSTRIAL",
-                      "RURAL"
+                      "HOUSE"
                     ]
+                  },
+                  "apartmentNumber": {
+                    "type": "string",
+                    "maxLength": 50
                   },
                   "privateAreaM2": {
                     "type": "number",
@@ -4793,7 +4789,6 @@
                   }
                 },
                 "required": [
-                  "propertyCode",
                   "type",
                   "street",
                   "suburb",
@@ -4843,6 +4838,10 @@
                         },
                         "type": {
                           "type": "string"
+                        },
+                        "apartmentNumber": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "street": {
                           "type": "string"
@@ -5051,10 +5050,7 @@
               "type": "string",
               "enum": [
                 "APARTMENT",
-                "HOUSE",
-                "COMMERCIAL",
-                "INDUSTRIAL",
-                "RURAL"
+                "HOUSE"
               ]
             },
             "in": "query",
@@ -5149,6 +5145,10 @@
                           },
                           "type": {
                             "type": "string"
+                          },
+                          "apartmentNumber": {
+                            "type": "string",
+                            "nullable": true
                           },
                           "street": {
                             "type": "string"
@@ -5442,6 +5442,10 @@
                         "type": {
                           "type": "string"
                         },
+                        "apartmentNumber": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "street": {
                           "type": "string"
                         },
@@ -5598,11 +5602,13 @@
                     "type": "string",
                     "enum": [
                       "APARTMENT",
-                      "HOUSE",
-                      "COMMERCIAL",
-                      "INDUSTRIAL",
-                      "RURAL"
+                      "HOUSE"
                     ]
+                  },
+                  "apartmentNumber": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "nullable": true
                   },
                   "privateAreaM2": {
                     "type": "number",
@@ -5767,6 +5773,10 @@
                         },
                         "type": {
                           "type": "string"
+                        },
+                        "apartmentNumber": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "street": {
                           "type": "string"
@@ -10734,20 +10744,16 @@
                   "property": {
                     "type": "object",
                     "properties": {
-                      "propertyCode": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 50
-                      },
                       "type": {
                         "type": "string",
                         "enum": [
                           "APARTMENT",
-                          "HOUSE",
-                          "COMMERCIAL",
-                          "INDUSTRIAL",
-                          "RURAL"
+                          "HOUSE"
                         ]
+                      },
+                      "apartmentNumber": {
+                        "type": "string",
+                        "maxLength": 50
                       },
                       "street": {
                         "type": "string",
@@ -10785,7 +10791,6 @@
                       }
                     },
                     "required": [
-                      "propertyCode",
                       "type",
                       "street",
                       "suburb",
@@ -11304,10 +11309,7 @@
                           "type": "string",
                           "enum": [
                             "APARTMENT",
-                            "HOUSE",
-                            "COMMERCIAL",
-                            "INDUSTRIAL",
-                            "RURAL"
+                            "HOUSE"
                           ],
                           "nullable": true
                         },
@@ -11887,10 +11889,7 @@
                             "type": "string",
                             "enum": [
                               "APARTMENT",
-                              "HOUSE",
-                              "COMMERCIAL",
-                              "INDUSTRIAL",
-                              "RURAL"
+                              "HOUSE"
                             ],
                             "nullable": true
                           },
@@ -12277,10 +12276,7 @@
                           "type": "string",
                           "enum": [
                             "APARTMENT",
-                            "HOUSE",
-                            "COMMERCIAL",
-                            "INDUSTRIAL",
-                            "RURAL"
+                            "HOUSE"
                           ],
                           "nullable": true
                         },
@@ -12930,10 +12926,7 @@
                           "type": "string",
                           "enum": [
                             "APARTMENT",
-                            "HOUSE",
-                            "COMMERCIAL",
-                            "INDUSTRIAL",
-                            "RURAL"
+                            "HOUSE"
                           ],
                           "nullable": true
                         },
@@ -19389,10 +19382,7 @@
                           "type": "string",
                           "enum": [
                             "APARTMENT",
-                            "HOUSE",
-                            "COMMERCIAL",
-                            "INDUSTRIAL",
-                            "RURAL"
+                            "HOUSE"
                           ],
                           "nullable": true
                         },

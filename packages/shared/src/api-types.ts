@@ -2288,7 +2288,7 @@ export interface paths {
                     sortOrder?: "asc" | "desc";
                     tenantId?: string;
                     branchId?: string;
-                    type?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
+                    type?: "APARTMENT" | "HOUSE";
                     search?: string;
                     hasCoordinates?: boolean;
                     nearLat?: number;
@@ -2319,6 +2319,7 @@ export interface paths {
                                 tenantName?: string | null;
                                 propertyCode: string;
                                 type: string;
+                                apartmentNumber?: string | null;
                                 street: string;
                                 addressLine2: string | null;
                                 suburb: string;
@@ -2374,9 +2375,9 @@ export interface paths {
                         tenantId?: string;
                         /** Format: uuid */
                         branchId?: string;
-                        propertyCode: string;
                         /** @enum {string} */
-                        type: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
+                        type: "APARTMENT" | "HOUSE";
+                        apartmentNumber?: string;
                         privateAreaM2?: number;
                         totalAreaM2?: number;
                         furnished?: boolean;
@@ -2423,6 +2424,7 @@ export interface paths {
                                 tenantName?: string | null;
                                 propertyCode: string;
                                 type: string;
+                                apartmentNumber?: string | null;
                                 street: string;
                                 addressLine2: string | null;
                                 suburb: string;
@@ -2544,6 +2546,7 @@ export interface paths {
                                 tenantName?: string | null;
                                 propertyCode: string;
                                 type: string;
+                                apartmentNumber?: string | null;
                                 street: string;
                                 addressLine2: string | null;
                                 suburb: string;
@@ -2619,7 +2622,8 @@ export interface paths {
                         /** Format: uuid */
                         branchId?: string | null;
                         /** @enum {string} */
-                        type?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
+                        type?: "APARTMENT" | "HOUSE";
+                        apartmentNumber?: string | null;
                         privateAreaM2?: number | null;
                         totalAreaM2?: number | null;
                         furnished?: boolean | null;
@@ -2667,6 +2671,7 @@ export interface paths {
                                 tenantName?: string | null;
                                 propertyCode: string;
                                 type: string;
+                                apartmentNumber?: string | null;
                                 street: string;
                                 addressLine2: string | null;
                                 suburb: string;
@@ -4788,7 +4793,7 @@ export interface paths {
                                 latitude?: number | null;
                                 longitude?: number | null;
                                 /** @enum {string|null} */
-                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
+                                propertyType?: "APARTMENT" | "HOUSE" | null;
                                 propertyAddressLine2?: string | null;
                                 propertyPrivateAreaM2?: number | null;
                                 propertyTotalAreaM2?: number | null;
@@ -4842,9 +4847,9 @@ export interface paths {
                         /** Format: uuid */
                         propertyId?: string;
                         property?: {
-                            propertyCode: string;
                             /** @enum {string} */
-                            type: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
+                            type: "APARTMENT" | "HOUSE";
+                            apartmentNumber?: string;
                             street: string;
                             addressLine2?: string;
                             suburb: string;
@@ -4986,7 +4991,7 @@ export interface paths {
                                 latitude?: number | null;
                                 longitude?: number | null;
                                 /** @enum {string|null} */
-                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
+                                propertyType?: "APARTMENT" | "HOUSE" | null;
                                 propertyAddressLine2?: string | null;
                                 propertyPrivateAreaM2?: number | null;
                                 propertyTotalAreaM2?: number | null;
@@ -5108,7 +5113,7 @@ export interface paths {
                                 latitude?: number | null;
                                 longitude?: number | null;
                                 /** @enum {string|null} */
-                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
+                                propertyType?: "APARTMENT" | "HOUSE" | null;
                                 propertyAddressLine2?: string | null;
                                 propertyPrivateAreaM2?: number | null;
                                 propertyTotalAreaM2?: number | null;
@@ -5305,7 +5310,7 @@ export interface paths {
                                 latitude?: number | null;
                                 longitude?: number | null;
                                 /** @enum {string|null} */
-                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
+                                propertyType?: "APARTMENT" | "HOUSE" | null;
                                 propertyAddressLine2?: string | null;
                                 propertyPrivateAreaM2?: number | null;
                                 propertyTotalAreaM2?: number | null;
@@ -8522,7 +8527,7 @@ export interface paths {
                                 propertyLongitude: number | null;
                                 propertyAddressLine2?: string | null;
                                 /** @enum {string|null} */
-                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
+                                propertyType?: "APARTMENT" | "HOUSE" | null;
                                 propertyPrivateAreaM2?: number | null;
                                 propertyTotalAreaM2?: number | null;
                                 propertyFurnished?: boolean | null;

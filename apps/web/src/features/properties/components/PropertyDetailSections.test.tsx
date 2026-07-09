@@ -12,6 +12,7 @@ function makeProperty(overrides: Partial<PropertyDetail> = {}): PropertyDetail {
     branchName: 'Filial Centro',
     tenantName: null,
     propertyCode: 'IMV-001',
+    apartmentNumber: null,
     type: PropertyType.HOUSE,
     street: 'Rua das Flores, 123',
     addressLine2: 'Apto 42',

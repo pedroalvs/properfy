@@ -215,7 +215,6 @@ describe('propertyAddressUpdateSchema', () => {
 
 describe('createPropertySchema', () => {
   const validInput = {
-    propertyCode: 'PROP-001',
     type: 'HOUSE' as const,
     street: '123 Main St',
     suburb: 'Bondi',
@@ -244,9 +243,32 @@ describe('createPropertySchema', () => {
     }
   });
 
-  it('should reject missing propertyCode', () => {
-    const { propertyCode: _propertyCode, ...rest } = validInput;
-    const result = createPropertySchema.safeParse(rest);
+  it('should strip a client-supplied propertyCode (code is server-generated)', () => {
+    const result = createPropertySchema.safeParse({
+      ...validInput,
+      propertyCode: 'PROP-001',
+    });
+    expect(result.success).toBe(true);
+    expect(result.success && 'propertyCode' in result.data).toBe(false);
+  });
+
+  it('should accept an optional apartmentNumber and trim it', () => {
+    const result = createPropertySchema.safeParse({
+      ...validInput,
+      type: 'APARTMENT',
+      apartmentNumber: '  Apt 12B  ',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.apartmentNumber).toBe('Apt 12B');
+    }
+  });
+
+  it('should reject apartmentNumber exceeding 50 characters', () => {
+    const result = createPropertySchema.safeParse({
+      ...validInput,
+      apartmentNumber: 'a'.repeat(51),
+    });
     expect(result.success).toBe(false);
   });
 
@@ -286,25 +308,24 @@ describe('createPropertySchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should accept APARTMENT type and reject legacy RESIDENTIAL', () => {
+  it('should accept APARTMENT type and reject removed/legacy types', () => {
     expect(createPropertySchema.safeParse({ ...validInput, type: 'APARTMENT' }).success).toBe(true);
     expect(createPropertySchema.safeParse({ ...validInput, type: 'RESIDENTIAL' }).success).toBe(
       false,
     );
+    expect(createPropertySchema.safeParse({ ...validInput, type: 'COMMERCIAL' }).success).toBe(
+      false,
+    );
+    expect(createPropertySchema.safeParse({ ...validInput, type: 'INDUSTRIAL' }).success).toBe(
+      false,
+    );
+    expect(createPropertySchema.safeParse({ ...validInput, type: 'RURAL' }).success).toBe(false);
   });
 
   it('should reject non-positive areas and negative rent', () => {
     expect(createPropertySchema.safeParse({ ...validInput, privateAreaM2: 0 }).success).toBe(false);
     expect(createPropertySchema.safeParse({ ...validInput, totalAreaM2: -5 }).success).toBe(false);
     expect(createPropertySchema.safeParse({ ...validInput, rentAmount: -1 }).success).toBe(false);
-  });
-
-  it('should reject propertyCode exceeding 50 characters', () => {
-    const result = createPropertySchema.safeParse({
-      ...validInput,
-      propertyCode: 'a'.repeat(51),
-    });
-    expect(result.success).toBe(false);
   });
 
   it('should default country to AU', () => {
@@ -330,6 +351,7 @@ describe('updatePropertySchema', () => {
   it('should accept nullable fields', () => {
     const result = updatePropertySchema.safeParse({
       addressLine2: null,
+      apartmentNumber: null,
       notes: null,
       rulesJson: null,
       branchId: null,
@@ -369,7 +391,7 @@ describe('listPropertiesQuerySchema', () => {
     const result = listPropertiesQuerySchema.safeParse({
       tenantId: '550e8400-e29b-41d4-a716-446655440000',
       branchId: '550e8400-e29b-41d4-a716-446655440001',
-      type: 'COMMERCIAL',
+      type: 'HOUSE',
       search: 'bondi',
       page: 2,
       pageSize: 10,

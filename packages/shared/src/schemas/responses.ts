@@ -130,6 +130,7 @@ export const propertyResponseSchema = z.object({
   tenantName: z.string().nullable().optional(),
   propertyCode: z.string(),
   type: z.string(),
+  apartmentNumber: z.string().nullable().optional(),
   street: z.string(),
   addressLine2: z.string().nullable(),
   suburb: z.string(),

@@ -15,16 +15,12 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { usePropertyDetail } from '../hooks/usePropertyDetail';
 import { usePropertySave } from '../hooks/usePropertySave';
-import { PROPERTY_TYPE_OPTIONS, STATE_OPTIONS } from '../constants/form-options';
+import { PROPERTY_TYPE_OPTIONS, STATE_OPTIONS, YES_NO_OPTIONS } from '../constants/form-options';
 import type { PropertyFormData, PropertyFormErrors } from '../types';
 import { EMPTY_PROPERTY_FORM } from '../types';
 import type { AddressLookupSuggestion } from '@/lib/address';
 import { buildAddressLabel } from '@/lib/address';
-
-const YES_NO_OPTIONS = [
-  { label: 'Yes', value: 'true' },
-  { label: 'No', value: 'false' },
-];
+import { PropertyType } from '@properfy/shared';
 
 interface PropertyFormDrawerProps {
   open: boolean;
@@ -68,8 +64,8 @@ export function PropertyFormDrawer({
   useEffect(() => {
     if (isEditMode && property) {
       const data: PropertyFormData = {
-        propertyCode: property.propertyCode,
         type: property.type,
+        apartmentNumber: property.apartmentNumber ?? '',
         branchId: property.branchId ?? '',
         street: property.street,
         addressLine2: property.addressLine2 ?? '',
@@ -209,14 +205,16 @@ export function PropertyFormDrawer({
               <div className="flex-1 overflow-y-auto px-6 py-4">
                 <div className="flex flex-col gap-6">
                   <FormSection title="Identification" columns={2}>
-                    <FormField label="Property Code" required error={errors.propertyCode}>
-                      <TextInput
-                        value={form.propertyCode}
-                        onChange={(v) => updateField('propertyCode', v)}
-                        disabled={isEditMode}
-                        aria-label="Property Code"
-                      />
-                    </FormField>
+                    {isEditMode && (
+                      <FormField label="Property Code" hint="Generated automatically.">
+                        <TextInput
+                          value={property?.propertyCode ?? ''}
+                          onChange={() => {}}
+                          disabled
+                          aria-label="Property Code"
+                        />
+                      </FormField>
+                    )}
                     <FormField label="Type" required error={errors.type}>
                       <SelectInput
                         value={form.type}
@@ -226,6 +224,16 @@ export function PropertyFormDrawer({
                         aria-label="Type"
                       />
                     </FormField>
+                    {form.type === PropertyType.APARTMENT && (
+                      <FormField label="Apartment" error={errors.apartmentNumber}>
+                        <TextInput
+                          value={form.apartmentNumber}
+                          onChange={(v) => updateField('apartmentNumber', v)}
+                          placeholder="e.g. Apt 12B"
+                          aria-label="Apartment"
+                        />
+                      </FormField>
+                    )}
                     <FormField label="Branch" error={errors.branchId}>
                       <SelectInput
                         value={form.branchId}

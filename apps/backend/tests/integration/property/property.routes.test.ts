@@ -172,14 +172,13 @@ describe('POST /v1/properties', () => {
     expect(res.body.data.propertyCode).toBe('PROP-001');
   });
 
-  it('should return 400 with invalid payload (missing propertyCode)', async () => {
+  it('should return 400 with invalid payload (missing type)', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
     const res = await supertest(app.server)
       .post('/v1/properties')
       .set('Authorization', 'Bearer valid-token')
       .send({
-        type: 'HOUSE',
         street: '123 Main St',
         suburb: 'Sydney',
         postcode: '2000',
