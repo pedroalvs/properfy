@@ -50,6 +50,7 @@ export function createApiKeyAuthMiddleware(
       role: key.role as UserRole,
       branchId: null,
       inspectorId: null,
+      scopes: key.scopes,
     };
     request.authContext = ctx;
   };
