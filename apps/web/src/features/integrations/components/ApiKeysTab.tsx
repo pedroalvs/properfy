@@ -60,6 +60,8 @@ export function ApiKeysTab() {
       const created = await createKey.mutateAsync({
         name: name.trim(),
         role,
+        // Scoped-key creation ships with the Fy Agent screen; plain keys carry no scopes.
+        scopes: [],
         // Local end-of-day, so the expiry lands on the day the operator picked.
         expiresAt: expiresAt ? new Date(`${expiresAt}T23:59:59.999`).toISOString() : null,
       });

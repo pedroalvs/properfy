@@ -72,6 +72,24 @@ describe('CreateApiKeyUseCase', () => {
     expect(created).not.toHaveProperty('keyHash');
   });
 
+  it('persists requested scopes and defaults to none', async () => {
+    const repo = makeRepo();
+    const useCase = new CreateApiKeyUseCase(repo, auditService);
+
+    const scoped = await useCase.execute({
+      name: 'fy',
+      role: 'OP',
+      expiresAt: null,
+      scopes: ['bot:fy'],
+      actorId: 'am-1',
+    });
+    expect(scoped.scopes).toEqual(['bot:fy']);
+    expect(repo.rows.get(scoped.id)?.scopes).toEqual(['bot:fy']);
+
+    const unscoped = await useCase.execute({ name: 'n8n', role: 'OP', expiresAt: null, actorId: 'am-1' });
+    expect(unscoped.scopes).toEqual([]);
+  });
+
   it('generates unique keys', async () => {
     const repo = makeRepo();
     const useCase = new CreateApiKeyUseCase(repo, auditService);
@@ -153,6 +171,23 @@ describe('createApiKeyAuthMiddleware', () => {
     });
     expect(jwtAuth).not.toHaveBeenCalled();
     expect(repo.touchLastUsed).toHaveBeenCalled();
+  });
+
+  it('carries the key scopes into the auth context', async () => {
+    const repo = makeRepo();
+    const created = await new CreateApiKeyUseCase(repo, auditService).execute({
+      name: 'fy',
+      role: 'OP',
+      expiresAt: null,
+      scopes: ['bot:fy'],
+      actorId: 'am-1',
+    });
+
+    const middleware = createApiKeyAuthMiddleware(repo, jwtAuth);
+    const request = makeRequest({ 'x-api-key': created.key });
+    await middleware(request, {} as any);
+
+    expect(request.authContext.scopes).toEqual(['bot:fy']);
   });
 
   it('rejects unknown, revoked and expired keys with 401 (no JWT fallback)', async () => {

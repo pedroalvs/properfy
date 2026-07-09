@@ -174,6 +174,7 @@ export async function registerIntegrationRoutes(
       const created = await container.createApiKeyUseCase.execute({
         name: body.name,
         role: body.role,
+        scopes: body.scopes,
         expiresAt: body.expiresAt ?? null,
         actorId: auth.userId,
       });

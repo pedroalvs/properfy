@@ -341,6 +341,19 @@ import { CreateApiKeyUseCase } from '../modules/integration/application/use-case
 import { ListApiKeysUseCase } from '../modules/integration/application/use-cases/list-api-keys.use-case';
 import { RevokeApiKeyUseCase } from '../modules/integration/application/use-cases/revoke-api-key.use-case';
 
+// Fy agent module (external WhatsApp bot API)
+import type { FyRouteContainer } from '../modules/fy/interfaces/fy.routes';
+import { PrismaFyRepository } from '../modules/fy/infrastructure/prisma-fy.repository';
+import { FindFyAppointmentsByPhoneUseCase } from '../modules/fy/application/use-cases/find-fy-appointments-by-phone.use-case';
+import { GetFyAppointmentUseCase } from '../modules/fy/application/use-cases/get-fy-appointment.use-case';
+import { GetFyAgencyUseCase } from '../modules/fy/application/use-cases/get-fy-agency.use-case';
+import { GetFyAvailableDatesUseCase } from '../modules/fy/application/use-cases/get-fy-available-dates.use-case';
+import { AddFyAppointmentNoteUseCase } from '../modules/fy/application/use-cases/add-fy-appointment-note.use-case';
+import { UpdateFyAppointmentContactUseCase } from '../modules/fy/application/use-cases/update-fy-appointment-contact.use-case';
+import { ResendFyNoticeUseCase } from '../modules/fy/application/use-cases/resend-fy-notice.use-case';
+import { createApiKeyAuthMiddleware } from '../shared/interfaces/api-key-auth-middleware';
+import { createAuthMiddleware } from '../shared/interfaces/auth-middleware';
+
 // Appointment module
 import { PrismaAppointmentRepository } from '../modules/appointment/infrastructure/prisma-appointment.repository';
 import { CreateAppointmentUseCase } from '../modules/appointment/application/use-cases/create-appointment.use-case';
@@ -424,6 +437,7 @@ export interface AppContainer {
   contact: ContactRouteContainer;
   appCredential: AppCredentialRouteContainer;
   integration: IntegrationRouteContainer;
+  fy: FyRouteContainer;
   geocodeWorker: GeocodeWorker;
   geocodeRetryWorker: GeocodeRetryWorker;
   propertyImportWorker: ImportPropertyWorker;
@@ -1577,6 +1591,34 @@ export function createContainer(logger: Logger): AppContainer {
       jwtService,
       tenantRepo,
     },
+    fy: (() => {
+      const fyRepo = new PrismaFyRepository(prisma);
+      // Composite auth: X-API-Key decides when present; otherwise JWT (whose
+      // principals then fail the bot:fy scope gate — the Fy API is machine-only).
+      const jwtAuthenticate = createAuthMiddleware(
+        (token) => jwtService.verify(token),
+        async (tenantId) => {
+          const tenant = await tenantRepo.findById(tenantId);
+          return tenant?.isActive() ?? false;
+        },
+      );
+      return {
+        apiKeyAuthenticate: createApiKeyAuthMiddleware(apiKeyRepo, jwtAuthenticate),
+        findFyAppointmentsByPhoneUseCase: new FindFyAppointmentsByPhoneUseCase(fyRepo),
+        getFyAppointmentUseCase: new GetFyAppointmentUseCase(
+          appointmentRepo,
+          rentalTenantPortalTokenRepo,
+          portalTokenEncrypter ?? null,
+          env.TENANT_PORTAL_BASE_URL,
+          fyRepo,
+        ),
+        getFyAgencyUseCase: new GetFyAgencyUseCase(fyRepo),
+        getFyAvailableDatesUseCase: new GetFyAvailableDatesUseCase(appointmentRepo, serviceGroupRepo),
+        addFyAppointmentNoteUseCase: new AddFyAppointmentNoteUseCase(fyRepo, auditService),
+        updateFyAppointmentContactUseCase: new UpdateFyAppointmentContactUseCase(appointmentRepo, contactRepo, auditService),
+        resendFyNoticeUseCase: new ResendFyNoticeUseCase(generatePortalTokenUseCase, idempotencyService),
+      };
+    })(),
     cleanupSessionsWorker,
     keyExpiryCheckWorker,
     expireFilesWorker,

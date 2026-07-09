@@ -54,6 +54,7 @@ const apiKeyRow = {
   name: 'n8n',
   prefix: 'pfy_ab12cd34',
   role: 'OP',
+  scopes: [],
   expiresAt: null,
   revokedAt: null,
   lastUsedAt: null,
@@ -188,8 +189,28 @@ describe('/v1/api-keys', () => {
       .expect(201);
     expect(res.body.data.key).toBe('pfy_plaintextsecret');
     expect(mockCreateKey).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'n8n', role: 'OP', actorId: 'am-1' }),
+      expect.objectContaining({ name: 'n8n', role: 'OP', scopes: [], actorId: 'am-1' }),
     );
+  });
+
+  it('accepts scopes on create and passes them through', async () => {
+    mockJwtVerify.mockResolvedValue(amContext);
+    mockCreateKey.mockResolvedValue({ ...apiKeyRow, scopes: ['bot:fy'], key: 'pfy_plaintextsecret' });
+    await supertest(app.server)
+      .post('/v1/api-keys')
+      .set('Authorization', 'Bearer t')
+      .send({ name: 'fy', scopes: ['bot:fy'] })
+      .expect(201);
+    expect(mockCreateKey).toHaveBeenCalledWith(expect.objectContaining({ scopes: ['bot:fy'] }));
+  });
+
+  it('rejects unknown scopes with 400', async () => {
+    mockJwtVerify.mockResolvedValue(amContext);
+    await supertest(app.server)
+      .post('/v1/api-keys')
+      .set('Authorization', 'Bearer t')
+      .send({ name: 'fy', scopes: ['bot:unknown'] })
+      .expect(400);
   });
 
   it('list returns rows without any key material', async () => {
