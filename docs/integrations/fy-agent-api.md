@@ -58,7 +58,7 @@ Errors use:
 
 | HTTP | Codes you will see |
 |---|---|
-| 400 | `VALIDATION_ERROR`, `INVALID_PHONE` |
+| 400 | `VALIDATION_ERROR` (details include the offending field, e.g. an invalid `phone`) |
 | 401 | `AUTH_UNAUTHORIZED` |
 | 403 | `AUTH_FORBIDDEN_SCOPE` |
 | 404 | `NO_ACTIVE_APPOINTMENTS`, `APPOINTMENT_NOT_FOUND`, `AGENCY_NOT_FOUND` |
