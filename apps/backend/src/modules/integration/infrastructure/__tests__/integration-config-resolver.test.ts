@@ -128,6 +128,7 @@ describe('IntegrationConfigResolver', () => {
       { provider: 'resend', configured: true, source: 'database', enabled: true },
       { provider: 'mobile_message', configured: false, source: 'none', enabled: true },
       { provider: 'mapbox', configured: true, source: 'env', enabled: true },
+      { provider: 'fy_webhook', configured: false, source: 'none', enabled: true },
     ]);
   });
 });

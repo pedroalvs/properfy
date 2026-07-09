@@ -71,6 +71,7 @@ describe('registerWorkers', () => {
   const mockAuditRetentionWorker = { execute: mockAuditRetentionExecute } as any;
   const mockRejectUnconfirmedExecute = vi.fn().mockResolvedValue({ rejectedCount: 0, groupsClosedCount: 0, groupsUpdatedCount: 0 });
   const mockRejectUnconfirmedWorker = { execute: mockRejectUnconfirmedExecute } as any;
+  const mockFyWebhookDispatcher = { deliver: vi.fn().mockResolvedValue(undefined) } as any;
   const mockLogger = {
     info: vi.fn(),
     error: vi.fn(),
@@ -102,6 +103,7 @@ describe('registerWorkers', () => {
       mockNotifyStuckWorker,
       mockAuditRetentionWorker,
       mockRejectUnconfirmedWorker,
+      mockFyWebhookDispatcher,
       mockLogger,
     );
   }
@@ -113,7 +115,8 @@ describe('registerWorkers', () => {
   it('registers all workers and schedules', async () => {
     await callRegister();
 
-    expect(mockWork).toHaveBeenCalledTimes(20);
+    expect(mockWork).toHaveBeenCalledTimes(21);
+    expect(mockWork).toHaveBeenCalledWith('fy.webhook.deliver', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('report.generate', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.send', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.retry-poll', expect.any(Function));

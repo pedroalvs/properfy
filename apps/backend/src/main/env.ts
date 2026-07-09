@@ -35,6 +35,9 @@ const envSchema = z.object({
 
   // Optional webhook signature secrets (skip validation when absent — dev mode)
   RESEND_WEBHOOK_SECRET: z.string().optional(),
+  // Fy agent outbound webhooks (env fallback; DB config via Integrations Hub wins)
+  FY_WEBHOOK_URL: z.string().optional(),
+  FY_WEBHOOK_SECRET: z.string().optional(),
 
   // Email assets (image library)
   EMAIL_ASSETS_BUCKET: z.string().default('email-assets'),

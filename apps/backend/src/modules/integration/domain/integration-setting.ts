@@ -42,6 +42,7 @@ export const REQUIRED_CONFIG_KEYS: Record<IntegrationProvider, string[]> = {
   resend: ['apiKey', 'fromEmail'],
   mobile_message: ['apiKey', 'password', 'senderId'],
   mapbox: ['accessToken'],
+  fy_webhook: ['url', 'secret'],
 };
 
 /** Keys whose values are secrets — masked in responses, write-only in updates. */
@@ -49,4 +50,5 @@ export const SECRET_CONFIG_KEYS: Record<IntegrationProvider, string[]> = {
   resend: ['apiKey'],
   mobile_message: ['apiKey', 'password', 'webhookToken'],
   mapbox: ['accessToken'],
+  fy_webhook: ['secret'],
 };

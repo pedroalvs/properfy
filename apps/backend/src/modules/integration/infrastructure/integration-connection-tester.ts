@@ -22,6 +22,8 @@ export class HttpIntegrationConnectionTester implements IIntegrationConnectionTe
         return this.testMobileMessage(config);
       case 'mapbox':
         return this.testMapbox(config);
+      case 'fy_webhook':
+        return this.testFyWebhook(config);
     }
   }
 
@@ -57,6 +59,21 @@ export class HttpIntegrationConnectionTester implements IIntegrationConnectionTe
       return { ok: true, message: 'MobileMessage credentials are valid' };
     }
     return { ok: false, message: `MobileMessage returned an unexpected status (HTTP ${response.status})` };
+  }
+
+  private async testFyWebhook(config: IntegrationConfig): Promise<IntegrationTestResult> {
+    // Reachability only — never POST a fabricated event into the live n8n
+    // workflow. Any HTTP answer proves the endpoint exists; only network
+    // failures count as unreachable.
+    try {
+      const response = await fetch(config['url'] ?? '', {
+        method: 'HEAD',
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+      return { ok: true, message: `Fy webhook endpoint is reachable (HTTP ${response.status})` };
+    } catch {
+      return { ok: false, message: 'Fy webhook endpoint is unreachable' };
+    }
   }
 
   private async testMapbox(config: IntegrationConfig): Promise<IntegrationTestResult> {

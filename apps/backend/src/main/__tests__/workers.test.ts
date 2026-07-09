@@ -69,6 +69,7 @@ async function callRegisterWorkers(logger: ReturnType<typeof makeLogger>) {
     makeWorkerMock() as any,   // notifyStuckInspectionsWorker
     makeWorkerMock() as any,   // auditRetentionWorker
     makeWorkerMock() as any,   // rejectUnconfirmedWorker
+    { deliver: vi.fn().mockResolvedValue(undefined) } as any, // fyWebhookDispatcher
     logger as any,
   );
 }

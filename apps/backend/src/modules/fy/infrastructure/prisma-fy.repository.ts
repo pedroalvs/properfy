@@ -1,6 +1,11 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
 
-import type { FyAgency, FyContactMatch, IFyRepository } from '../domain/fy.repository';
+import type {
+  FyAgency,
+  FyContactMatch,
+  FyGroupAcceptanceRow,
+  IFyRepository,
+} from '../domain/fy.repository';
 
 interface PhoneMatchRow {
   id: string;
@@ -142,6 +147,26 @@ export class PrismaFyRepository implements IFyRepository {
     `;
     const tenantId = rows[0]?.tenant_id;
     return tenantId ? { tenantId } : null;
+  }
+
+  async findGroupAcceptanceInfo(groupId: string): Promise<FyGroupAcceptanceRow[]> {
+    const rows = await this.prisma.appointment.findMany({
+      where: { service_group_id: groupId, inspector_id: { not: null } },
+      select: {
+        id: true,
+        appointment_number: true,
+        inspector_id: true,
+        inspector: { select: { name: true } },
+        tenant: { select: { appointment_code_prefix: true } },
+      },
+    });
+    return rows.map((row) => ({
+      appointmentId: row.id,
+      appointmentNumber: row.appointment_number,
+      appointmentCodePrefix: row.tenant?.appointment_code_prefix ?? null,
+      inspectorId: row.inspector_id!,
+      inspectorName: row.inspector?.name ?? '',
+    }));
   }
 }
 
