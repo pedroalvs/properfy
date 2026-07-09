@@ -38,7 +38,7 @@ export function SchedulePage() {
   const days = useMemo(() => data?.days.map((day) => day.date) ?? [today], [data?.days, today]);
   const dayAppointments = useScheduleDay(data?.appointments, selectedDate);
   const [historyPeriod, setHistoryPeriod] = useState<HistoryPeriod>('24m');
-  const history = useScheduleHistory(historyPeriod);
+  const history = useScheduleHistory(historyPeriod, tab === 'history');
 
   // Infinite scroll: fetch the next history page when the sentinel enters the viewport.
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = history;

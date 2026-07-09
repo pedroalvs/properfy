@@ -34,7 +34,7 @@ vi.mock('../../hooks/useScheduleMonth', () => ({
 const mockFetchNextPage = vi.fn();
 const mockUseScheduleHistory = vi.fn();
 vi.mock('../../hooks/useScheduleHistory', () => ({
-  useScheduleHistory: (period: string) => mockUseScheduleHistory(period),
+  useScheduleHistory: (period: string, enabled: boolean) => mockUseScheduleHistory(period, enabled),
 }));
 
 const historyItem: HistoryItem = {
@@ -90,10 +90,47 @@ describe('SchedulePage — History tab', () => {
 
   it('defaults to the 24m period and switches on filter tap', () => {
     openHistoryTab();
-    expect(mockUseScheduleHistory).toHaveBeenLastCalledWith('24m');
+    expect(mockUseScheduleHistory).toHaveBeenLastCalledWith('24m', true);
 
     fireEvent.click(screen.getByRole('tab', { name: '30d' }));
-    expect(mockUseScheduleHistory).toHaveBeenLastCalledWith('30d');
+    expect(mockUseScheduleHistory).toHaveBeenLastCalledWith('30d', true);
+  });
+
+  it('keeps the history query disabled until the History tab is opened', () => {
+    render(<SchedulePage />);
+    expect(mockUseScheduleHistory).toHaveBeenLastCalledWith('24m', false);
+
+    fireEvent.click(screen.getByRole('tab', { name: /history/i }));
+    expect(mockUseScheduleHistory).toHaveBeenLastCalledWith('24m', true);
+  });
+
+  it('auto-fetches the next page when the sentinel intersects', () => {
+    const observed: Element[] = [];
+    let intersectionCallback: IntersectionObserverCallback = () => {};
+    class FakeIntersectionObserver {
+      constructor(callback: IntersectionObserverCallback) {
+        intersectionCallback = callback;
+      }
+      observe(el: Element) {
+        observed.push(el);
+      }
+      disconnect() {}
+      unobserve() {}
+    }
+    vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver);
+    try {
+      mockUseScheduleHistory.mockReturnValue(makeHistoryResult({ hasNextPage: true }));
+      openHistoryTab();
+
+      expect(observed).toHaveLength(1);
+      intersectionCallback(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      );
+      expect(mockFetchNextPage).toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('shows Load more when another page exists and fetches it on tap', () => {

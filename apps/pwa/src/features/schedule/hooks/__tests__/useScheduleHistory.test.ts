@@ -115,6 +115,17 @@ describe('useScheduleHistory', () => {
     expect(diffDays).toBe(30);
   });
 
+  it('does not fetch while disabled', async () => {
+    mockApiGet.mockResolvedValue(makeResponse(1, 1));
+    const { result } = renderHook(() => useScheduleHistory('24m', false), {
+      wrapper: makeWrapper(),
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(mockApiGet).not.toHaveBeenCalled();
+    expect(result.current.items).toHaveLength(0);
+  });
+
   it('returns loading state initially', () => {
     mockApiGet.mockReturnValue(new Promise(() => {}));
     const { result } = renderHook(() => useScheduleHistory('24m'), {

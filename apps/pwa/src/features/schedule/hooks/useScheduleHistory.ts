@@ -60,8 +60,10 @@ const PAGE_SIZE = 50;
  * Paginated DONE-appointment history for the Schedule History tab.
  * Pages are appended via infinite scroll; the period narrows the server-side
  * date range. keepPreviousData avoids a content flash on period change.
+ * Pass enabled=false while the History tab is not active to avoid fetching
+ * two years of history on page mount.
  */
-export function useScheduleHistory(period: HistoryPeriod = '24m') {
+export function useScheduleHistory(period: HistoryPeriod = '24m', enabled = true) {
   const { from, to } = buildDateRange(period);
   const query = useInfiniteQuery<RawPaginatedResponse, Error>({
     queryKey: ['inspector', 'schedule', 'history', { from, to }],
@@ -76,6 +78,7 @@ export function useScheduleHistory(period: HistoryPeriod = '24m') {
     initialPageParam: 1,
     getNextPageParam: (last) =>
       last.pagination.page < last.pagination.totalPages ? last.pagination.page + 1 : undefined,
+    enabled,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     placeholderData: keepPreviousData,
