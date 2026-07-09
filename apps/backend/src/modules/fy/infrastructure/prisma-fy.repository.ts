@@ -63,9 +63,9 @@ export class PrismaFyRepository implements IFyRepository {
       AND (
         a.status::text IN (${Prisma.join(params.statuses)})
         OR (
-          ${params.doneWithinHours} > 0
+          ${params.doneWithinHours}::int > 0
           AND a.status = 'DONE'
-          AND a.updated_at > NOW() - make_interval(hours => ${params.doneWithinHours})
+          AND a.updated_at > NOW() - make_interval(hours => ${params.doneWithinHours}::int)
         )
       )
       ORDER BY a.scheduled_date ASC
