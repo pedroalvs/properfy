@@ -28,6 +28,12 @@ describe('apiKeyCreateSchema', () => {
     expect(apiKeyCreateSchema.safeParse({ name: 'x', role: 'INSP' }).success).toBe(false);
   });
 
+  it('defaults scopes to empty and rejects unknown scopes', () => {
+    expect(apiKeyCreateSchema.parse({ name: 'n8n' }).scopes).toEqual([]);
+    expect(apiKeyCreateSchema.parse({ name: 'fy', scopes: ['bot:fy'] }).scopes).toEqual(['bot:fy']);
+    expect(apiKeyCreateSchema.safeParse({ name: 'x', scopes: ['bot:other'] }).success).toBe(false);
+  });
+
   it('rejects a malformed expiresAt', () => {
     expect(apiKeyCreateSchema.safeParse({ name: 'x', expiresAt: 'not-a-date' }).success).toBe(false);
   });
@@ -39,6 +45,7 @@ describe('apiKeyCreatedSchema', () => {
     name: 'n8n',
     prefix: 'pfy_ab12cd34',
     role: 'OP',
+    scopes: [],
     expiresAt: null,
     revokedAt: null,
     lastUsedAt: null,
