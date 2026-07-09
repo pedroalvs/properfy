@@ -1,25 +1,16 @@
 import { useState } from 'react';
-import type { ApiKeyCreated, ApiKeyResponse, ApiKeyRole } from '@properfy/shared';
+import type { ApiKeyResponse } from '@properfy/shared';
 
 import { Button } from '@/components/ui';
-import { Dialog } from '@/components/ui/Dialog';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { TextInput } from '@/components/forms/TextInput';
-import { SelectInput } from '@/components/forms/SelectInput';
-import { DateInput } from '@/components/forms/DateInput';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
-import { SecretValue } from '@/components/ui/SecretValue';
 import { useSnackbar } from '@/hooks/useSnackbar';
-import { useApiKeys, useCreateApiKey, useRevokeApiKey } from '../hooks/useApiKeys';
+import { useApiKeys, useRevokeApiKey } from '../hooks/useApiKeys';
+import { CreateApiKeyDialog } from './CreateApiKeyDialog';
 
-const ROLE_OPTIONS = [
-  { value: 'OP', label: 'Operator (OP)' },
-  { value: 'AM', label: 'Admin Master (AM)' },
-];
-
-function keyStatus(key: ApiKeyResponse): { label: string; className: string } {
+export function keyStatus(key: ApiKeyResponse): { label: string; className: string } {
   if (key.revokedAt) return { label: 'Revoked', className: 'bg-error/10 text-error' };
   if (key.expiresAt && new Date(key.expiresAt) <= new Date()) {
     return { label: 'Expired', className: 'bg-warning/10 text-warning' };
@@ -39,39 +30,10 @@ function formatDate(value: string | null): string {
 export function ApiKeysTab() {
   const { showError } = useSnackbar();
   const { data: keys, isLoading } = useApiKeys();
-  const createKey = useCreateApiKey();
   const revokeKey = useRevokeApiKey();
 
   const [createOpen, setCreateOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [role, setRole] = useState<ApiKeyRole>('OP');
-  const [expiresAt, setExpiresAt] = useState('');
-  const [createdKey, setCreatedKey] = useState<ApiKeyCreated | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<ApiKeyResponse | null>(null);
-
-  const resetCreateForm = () => {
-    setName('');
-    setRole('OP');
-    setExpiresAt('');
-  };
-
-  const handleCreate = async () => {
-    try {
-      const created = await createKey.mutateAsync({
-        name: name.trim(),
-        role,
-        // Scoped-key creation ships with the Fy Agent screen; plain keys carry no scopes.
-        scopes: [],
-        // Local end-of-day, so the expiry lands on the day the operator picked.
-        expiresAt: expiresAt ? new Date(`${expiresAt}T23:59:59.999`).toISOString() : null,
-      });
-      setCreateOpen(false);
-      resetCreateForm();
-      setCreatedKey(created);
-    } catch (error) {
-      showError(error instanceof Error ? error.message : 'Failed to create the API key');
-    }
-  };
 
   const handleRevoke = async () => {
     if (!revokeTarget) return;
@@ -90,7 +52,8 @@ export function ApiKeysTab() {
       <InfoBanner>
         API keys let external systems (e.g. n8n automations) call the Properfy API using the{' '}
         <code className="font-mono text-xs">X-API-Key</code> header. Each key acts with the role it
-        was created with.
+        was created with; scoped keys are restricted to their machine surface (e.g.{' '}
+        <code className="font-mono text-xs">bot:fy</code>).
       </InfoBanner>
 
       <div className="flex justify-end">
@@ -111,6 +74,7 @@ export function ApiKeysTab() {
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Key prefix</th>
                 <th className="px-4 py-3 font-medium">Role</th>
+                <th className="px-4 py-3 font-medium">Scopes</th>
                 <th className="px-4 py-3 font-medium">Expires</th>
                 <th className="px-4 py-3 font-medium">Last used</th>
                 <th className="px-4 py-3 font-medium">Status</th>
@@ -125,6 +89,20 @@ export function ApiKeysTab() {
                     <td className="px-4 py-3">{key.name}</td>
                     <td className="px-4 py-3 font-mono text-xs">{key.prefix}…</td>
                     <td className="px-4 py-3">{key.role}</td>
+                    <td className="px-4 py-3">
+                      {key.scopes.length === 0 ? (
+                        <span className="text-text-secondary">—</span>
+                      ) : (
+                        key.scopes.map((scope) => (
+                          <span
+                            key={scope}
+                            className="mr-1 rounded-full bg-primary/10 px-2.5 py-1 font-mono text-xs text-primary"
+                          >
+                            {scope}
+                          </span>
+                        ))
+                      )}
+                    </td>
                     <td className="px-4 py-3">{formatDate(key.expiresAt)}</td>
                     <td className="px-4 py-3">{formatDate(key.lastUsedAt)}</td>
                     <td className="px-4 py-3">
@@ -151,64 +129,7 @@ export function ApiKeysTab() {
         </div>
       )}
 
-      <Dialog
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        title="New API key"
-        actions={
-          <>
-            <Button variant="secondary" onClick={() => setCreateOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreate} loading={createKey.isPending} disabled={!name.trim()}>
-              Create
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-3">
-          <label className="block text-sm">
-            <span className="mb-1 block text-xs font-medium text-text-secondary">Name</span>
-            <TextInput value={name} onChange={setName} placeholder="e.g. n8n automation" aria-label="API key name" />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block text-xs font-medium text-text-secondary">Role</span>
-            <SelectInput
-              value={role}
-              onChange={(value) => setRole(value as ApiKeyRole)}
-              options={ROLE_OPTIONS}
-              aria-label="API key role"
-            />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block text-xs font-medium text-text-secondary">
-              Expiry date (optional)
-            </span>
-            <DateInput value={expiresAt} onChange={setExpiresAt} aria-label="API key expiry date" />
-          </label>
-        </div>
-      </Dialog>
-
-      <Dialog
-        open={createdKey !== null}
-        onClose={() => setCreatedKey(null)}
-        title="API key created"
-        actions={<Button onClick={() => setCreatedKey(null)}>Done</Button>}
-      >
-        {createdKey && (
-          <div className="space-y-3">
-            <p className="text-sm">
-              Copy the key now — <strong>it will not be shown again</strong>.
-            </p>
-            <div className="rounded bg-black/5 px-3 py-2">
-              <SecretValue value={createdKey.key} maskable label="API key" />
-            </div>
-            <p className="text-xs text-muted">
-              Send it in the <code className="font-mono">X-API-Key</code> header on every request.
-            </p>
-          </div>
-        )}
-      </Dialog>
+      <CreateApiKeyDialog open={createOpen} onClose={() => setCreateOpen(false)} />
 
       <ConfirmDialog
         open={revokeTarget !== null}

@@ -40,6 +40,16 @@ export const PROVIDER_META: ProviderMeta[] = [
     ],
   },
   {
+    provider: IntegrationProvider.FY_WEBHOOK,
+    label: 'Fy Agent Webhook',
+    icon: 'mdi-robot-outline',
+    affectedCapability: 'Fy proactive WhatsApp messages',
+    fields: [
+      { key: 'url', label: 'Webhook URL', secret: false, placeholder: 'https://n8n.example.com/webhook/fy' },
+      { key: 'secret', label: 'Shared Secret', secret: true },
+    ],
+  },
+  {
     provider: IntegrationProvider.MAPBOX,
     label: 'Mapbox',
     icon: 'mdi-map-marker-outline',
