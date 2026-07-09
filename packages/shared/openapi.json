@@ -27674,6 +27674,17 @@
                     ],
                     "default": "OP"
                   },
+                  "scopes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "bot:fy"
+                      ]
+                    },
+                    "maxItems": 10,
+                    "default": []
+                  },
                   "expiresAt": {
                     "type": "string",
                     "format": "date-time",
@@ -27717,6 +27728,12 @@
                             "OP"
                           ]
                         },
+                        "scopes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
                         "expiresAt": {
                           "type": "string",
                           "format": "date-time",
@@ -27746,6 +27763,7 @@
                         "name",
                         "prefix",
                         "role",
+                        "scopes",
                         "expiresAt",
                         "revokedAt",
                         "lastUsedAt",
@@ -27799,6 +27817,12 @@
                                   "OP"
                                 ]
                               },
+                              "scopes": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
                               "expiresAt": {
                                 "type": "string",
                                 "format": "date-time",
@@ -27824,6 +27848,7 @@
                               "name",
                               "prefix",
                               "role",
+                              "scopes",
                               "expiresAt",
                               "revokedAt",
                               "lastUsedAt",
@@ -27891,6 +27916,12 @@
                             "OP"
                           ]
                         },
+                        "scopes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
                         "expiresAt": {
                           "type": "string",
                           "format": "date-time",
@@ -27916,10 +27947,799 @@
                         "name",
                         "prefix",
                         "role",
+                        "scopes",
                         "expiresAt",
                         "revokedAt",
                         "lastUsedAt",
                         "createdAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/integrations/fy/appointments/by-contact-phone": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "query",
+            "name": "phone",
+            "required": true
+          },
+          {
+            "schema": {
+              "allOf": [
+                {
+                  "anyOf": [
+                    {
+                      "not": {}
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "anyOf": [
+                    {
+                      "not": {}
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "allOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "DRAFT",
+                              "AWAITING_INSPECTOR",
+                              "SCHEDULED",
+                              "DONE",
+                              "CANCELLED",
+                              "REJECTED"
+                            ]
+                          }
+                        ]
+                      },
+                      "minItems": 1
+                    }
+                  ]
+                }
+              ]
+            },
+            "in": "query",
+            "name": "statusIn",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "contact": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "email": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "phone": {
+                              "type": "string",
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "email",
+                            "phone"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "appointments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "code": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "DRAFT",
+                                  "AWAITING_INSPECTOR",
+                                  "SCHEDULED",
+                                  "DONE",
+                                  "CANCELLED",
+                                  "REJECTED"
+                                ]
+                              },
+                              "serviceType": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "name"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "scheduledDate": {
+                                "type": "string"
+                              },
+                              "timeSlotStart": {
+                                "type": "string"
+                              },
+                              "timeSlotEnd": {
+                                "type": "string"
+                              },
+                              "propertyAddress": {
+                                "type": "string"
+                              },
+                              "agency": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "name"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "code",
+                              "status",
+                              "serviceType",
+                              "scheduledDate",
+                              "timeSlotStart",
+                              "timeSlotEnd",
+                              "propertyAddress",
+                              "agency"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "contact",
+                        "appointments"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/integrations/fy/appointments/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "DRAFT",
+                            "AWAITING_INSPECTOR",
+                            "SCHEDULED",
+                            "DONE",
+                            "CANCELLED",
+                            "REJECTED"
+                          ]
+                        },
+                        "serviceType": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "scheduledDate": {
+                          "type": "string"
+                        },
+                        "timeSlotStart": {
+                          "type": "string"
+                        },
+                        "timeSlotEnd": {
+                          "type": "string"
+                        },
+                        "propertyAddress": {
+                          "type": "string"
+                        },
+                        "agency": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "timezone": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name",
+                            "timezone"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "keyRequired": {
+                          "type": "boolean"
+                        },
+                        "meetingLocation": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "keyLocation": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "inspector": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        },
+                        "contact": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "email": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "phone": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "confirmed": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "email",
+                            "phone",
+                            "confirmed"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "rentalTenantNote": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "confirmationLink": {
+                          "type": "object",
+                          "properties": {
+                            "url": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "expiresAt": {
+                              "type": "string",
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "url",
+                            "expiresAt"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "code",
+                        "status",
+                        "serviceType",
+                        "scheduledDate",
+                        "timeSlotStart",
+                        "timeSlotEnd",
+                        "propertyAddress",
+                        "agency",
+                        "keyRequired",
+                        "meetingLocation",
+                        "keyLocation",
+                        "inspector",
+                        "contact",
+                        "notes",
+                        "rentalTenantNote",
+                        "confirmationLink"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/integrations/fy/agencies/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "timezone": {
+                          "type": "string"
+                        },
+                        "branches": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "email": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "address": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "email",
+                              "address"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "timezone",
+                        "branches"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/integrations/fy/appointments/{id}/available-dates": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "default": 5
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "availableDates": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "date": {
+                                "type": "string"
+                              },
+                              "timeSlots": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "start": {
+                                      "type": "string"
+                                    },
+                                    "end": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "start",
+                                    "end"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "date",
+                              "timeSlots"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "availableDates"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/integrations/fy/appointments/{id}/notes": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "content": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "content"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "content": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "content",
+                        "createdAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/integrations/fy/appointments/{id}/contact": {
+      "patch": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254,
+                    "nullable": true
+                  },
+                  "phone": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "contact": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "email": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "phone": {
+                              "type": "string",
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "email",
+                            "phone"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "contact"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/integrations/fy/appointments/{id}/resend-notice": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "QUEUED"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "status"
                       ],
                       "additionalProperties": false
                     }
