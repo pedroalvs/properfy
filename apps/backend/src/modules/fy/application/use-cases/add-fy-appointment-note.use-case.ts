@@ -36,7 +36,7 @@ export class AddFyAppointmentNoteUseCase {
       actorId: input.actor.userId,
       entityType: 'appointment',
       entityId: input.appointmentId,
-      tenantId: null,
+      tenantId: appended.tenantId,
       after: { content: input.content },
     });
 

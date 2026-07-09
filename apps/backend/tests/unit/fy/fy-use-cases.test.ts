@@ -295,7 +295,7 @@ describe('GetFyAvailableDatesUseCase', () => {
 
 describe('AddFyAppointmentNoteUseCase', () => {
   it('appends a timestamped Fy line and audits', async () => {
-    const fyRepo = { appendAppointmentNote: vi.fn(async () => true) } as any;
+    const fyRepo = { appendAppointmentNote: vi.fn(async () => ({ tenantId: 't1' })) } as any;
     const useCase = new AddFyAppointmentNoteUseCase(fyRepo, auditService);
 
     const result = await useCase.execute({
@@ -308,12 +308,12 @@ describe('AddFyAppointmentNoteUseCase', () => {
     expect(line).toMatch(/^\[Fy \d{4}-\d{2}-\d{2}T.*\] Call 30 min before arrival$/);
     expect(result.content).toBe('Call 30 min before arrival');
     expect(auditService.log).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'fy.note_added', actorId: 'api-key:k-1' }),
+      expect.objectContaining({ action: 'fy.note_added', actorId: 'api-key:k-1', tenantId: 't1' }),
     );
   });
 
   it('404 when the appointment does not exist', async () => {
-    const fyRepo = { appendAppointmentNote: vi.fn(async () => false) } as any;
+    const fyRepo = { appendAppointmentNote: vi.fn(async () => null) } as any;
     await expect(
       new AddFyAppointmentNoteUseCase(fyRepo, auditService).execute({
         appointmentId: 'x',
@@ -325,22 +325,47 @@ describe('AddFyAppointmentNoteUseCase', () => {
 });
 
 describe('ResendFyNoticeUseCase', () => {
-  it('returns QUEUED when dispatched', async () => {
+  function makeIdempotency(cached: unknown = null) {
+    return { get: vi.fn(async () => cached), getWithHash: vi.fn(), set: vi.fn(async () => {}) } as any;
+  }
+
+  it('returns QUEUED when dispatched and stores the idempotency record', async () => {
     const generate = { execute: vi.fn(async () => ({ dispatched: true })) } as any;
-    const result = await new ResendFyNoticeUseCase(generate).execute({
+    const idempotency = makeIdempotency();
+    const result = await new ResendFyNoticeUseCase(generate, idempotency).execute({
       appointmentId: 'a1',
       actor,
     });
     expect(result).toEqual({ status: 'QUEUED' });
     expect(generate.execute).toHaveBeenCalledWith({ appointmentId: 'a1', actor });
+    expect(idempotency.set).toHaveBeenCalledWith(
+      expect.stringMatching(/^fy_resend:a1:\d{4}-\d{2}-\d{2}$/),
+      'fy-resend-notice',
+      { status: 'QUEUED' },
+      24,
+    );
   });
 
-  it('409 when there is no primary contact', async () => {
+  it('replays the cached result without re-minting on same-day retries', async () => {
+    const generate = { execute: vi.fn() } as any;
+    const idempotency = makeIdempotency({ status: 'QUEUED' });
+    const result = await new ResendFyNoticeUseCase(generate, idempotency).execute({
+      appointmentId: 'a1',
+      actor,
+    });
+    expect(result).toEqual({ status: 'QUEUED' });
+    expect(generate.execute).not.toHaveBeenCalled();
+    expect(idempotency.set).not.toHaveBeenCalled();
+  });
+
+  it('409 when there is no primary contact (no idempotency record stored)', async () => {
     const generate = {
       execute: vi.fn(async () => ({ dispatched: false, reason: 'NO_PRIMARY_CONTACT' })),
     } as any;
+    const idempotency = makeIdempotency();
     await expect(
-      new ResendFyNoticeUseCase(generate).execute({ appointmentId: 'a1', actor }),
+      new ResendFyNoticeUseCase(generate, idempotency).execute({ appointmentId: 'a1', actor }),
     ).rejects.toBeInstanceOf(ConflictError);
+    expect(idempotency.set).not.toHaveBeenCalled();
   });
 });

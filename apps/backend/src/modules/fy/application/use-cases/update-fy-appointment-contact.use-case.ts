@@ -2,7 +2,7 @@ import type { AuthContext, FyContactUpdated } from '@properfy/shared';
 import { toE164Au } from '@properfy/shared';
 
 import type { AuditService } from '../../../../shared/infrastructure/audit';
-import { NotFoundError } from '../../../../shared/domain/errors';
+import { NotFoundError, ValidationError } from '../../../../shared/domain/errors';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import { AppointmentNotFoundError } from '../../../appointment/domain/appointment.errors';
 import type { IContactRepository } from '../../../contact/domain/contact.repository';
@@ -41,6 +41,11 @@ export class UpdateFyAppointmentContactUseCase {
 
     const phone =
       input.phone === undefined || input.phone === null ? input.phone : toE164Au(input.phone);
+    // The route schema already refines this, but a failed normalisation must
+    // never silently clear the stored phone (defence in depth).
+    if (input.phone != null && phone === null) {
+      throw new ValidationError('phone must be a valid AU number');
+    }
 
     const before = {
       name: contact.effectiveName,

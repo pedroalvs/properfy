@@ -1616,7 +1616,7 @@ export function createContainer(logger: Logger): AppContainer {
         getFyAvailableDatesUseCase: new GetFyAvailableDatesUseCase(appointmentRepo, serviceGroupRepo),
         addFyAppointmentNoteUseCase: new AddFyAppointmentNoteUseCase(fyRepo, auditService),
         updateFyAppointmentContactUseCase: new UpdateFyAppointmentContactUseCase(appointmentRepo, contactRepo, auditService),
-        resendFyNoticeUseCase: new ResendFyNoticeUseCase(generatePortalTokenUseCase),
+        resendFyNoticeUseCase: new ResendFyNoticeUseCase(generatePortalTokenUseCase, idempotencyService),
       };
     })(),
     cleanupSessionsWorker,

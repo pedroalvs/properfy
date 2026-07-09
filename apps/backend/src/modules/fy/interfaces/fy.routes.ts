@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import {
@@ -66,7 +67,8 @@ export async function registerFyRoutes(
     keyGenerator: (request: FastifyRequest) => {
       const header = request.headers[API_KEY_HEADER];
       const key = Array.isArray(header) ? header[0] : header;
-      return key ?? request.ip;
+      // Hash so the plaintext secret never becomes a limiter bucket key.
+      return key ? createHash('sha256').update(key).digest('hex') : request.ip;
     },
   };
 

@@ -52,11 +52,12 @@ export class PrismaFyRepository implements IFyRepository {
         COALESCE(ac.snapshot_phone, c.primary_phone) AS snapshot_phone
       FROM appointment_contacts ac
       JOIN appointments a ON a.id = ac.appointment_id
-      JOIN tenants t ON t.id = a.tenant_id
+      JOIN tenants t ON t.id = a.tenant_id AND t.deleted_at IS NULL
       JOIN service_types st ON st.id = a.service_type_id
       JOIN properties p ON p.id = a.property_id
       LEFT JOIN contacts c ON c.id = ac.contact_id
-      WHERE (
+      WHERE a.deleted_at IS NULL
+      AND (
         regexp_replace(COALESCE(ac.snapshot_phone, ''), '[^0-9]', '', 'g') IN (${Prisma.join(params.phoneDigitVariants)})
         OR regexp_replace(COALESCE(c.primary_phone, ''), '[^0-9]', '', 'g') IN (${Prisma.join(params.phoneDigitVariants)})
       )
@@ -126,15 +127,21 @@ export class PrismaFyRepository implements IFyRepository {
     };
   }
 
-  async appendAppointmentNote(appointmentId: string, line: string): Promise<boolean> {
-    // Single-statement concat avoids a read-modify-write race.
-    const affected = await this.prisma.$executeRaw`
+  async appendAppointmentNote(
+    appointmentId: string,
+    line: string,
+  ): Promise<{ tenantId: string } | null> {
+    // Single-statement concat avoids a read-modify-write race; RETURNING
+    // surfaces the tenant for audit without a second query.
+    const rows = await this.prisma.$queryRaw<Array<{ tenant_id: string }>>`
       UPDATE appointments
       SET notes = CASE WHEN notes IS NULL OR notes = '' THEN ${line} ELSE notes || E'\n' || ${line} END,
           updated_at = NOW()
-      WHERE id = ${appointmentId}
+      WHERE id = ${appointmentId} AND deleted_at IS NULL
+      RETURNING tenant_id
     `;
-    return affected > 0;
+    const tenantId = rows[0]?.tenant_id;
+    return tenantId ? { tenantId } : null;
   }
 }
 

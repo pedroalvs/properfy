@@ -40,7 +40,7 @@ export class FindFyAppointmentsByPhoneUseCase {
   async execute(input: FindFyAppointmentsByPhoneInput): Promise<FyAppointmentsByPhone> {
     const e164 = toE164Au(input.phone);
     if (!e164) {
-      throw new ValidationError('INVALID_PHONE', 'phone must be a valid AU number');
+      throw new ValidationError('phone must be a valid AU number');
     }
 
     const statuses = input.statusIn ?? DEFAULT_STATUSES;

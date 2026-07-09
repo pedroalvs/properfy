@@ -40,8 +40,12 @@ export interface IFyRepository {
     doneWithinHours: number;
   }): Promise<FyContactMatch | null>;
   findAgencyById(id: string): Promise<FyAgency | null>;
-  /** Append to the appointment operational notes column. Returns false when the appointment does not exist. */
-  appendAppointmentNote(appointmentId: string, line: string): Promise<boolean>;
+  /**
+   * Append to the appointment operational notes column. Returns the
+   * appointment's tenantId (for auditing), or null when the appointment does
+   * not exist or is soft-deleted.
+   */
+  appendAppointmentNote(appointmentId: string, line: string): Promise<{ tenantId: string } | null>;
 }
 
 export function formatAppointmentCode(prefix: string | null, appointmentNumber: number): string {
