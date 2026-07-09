@@ -236,6 +236,39 @@ describe('GetInspectorScheduleUseCase', () => {
     expect(result.appointments[0].executionStatus).toBe('FINISHED');
   });
 
+  it('should return enriched card fields in range mode (history)', async () => {
+    const doneAppt = makeAppointment({
+      id: 'appt-done',
+      status: 'DONE',
+      scheduledDate: new Date('2026-05-10T00:00:00Z'),
+    });
+    vi.mocked(appointmentRepo.findAll).mockResolvedValue([doneAppt]);
+    vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+    vi.mocked(executionRepo.findByAppointmentIds).mockResolvedValue([
+      makeExecution({ appointmentId: 'appt-done', finishedAt: new Date('2026-05-10T11:00:00Z') }),
+    ]);
+
+    const result = await useCase.execute({
+      from: '2024-07-01',
+      to: '2026-07-01',
+      status: 'DONE',
+      actor: inspActor,
+    });
+
+    expect('data' in result).toBe(true);
+    const range = result as { data: unknown[]; total: number; page: number; pageSize: number };
+    expect(range.total).toBe(1);
+    expect(range.data[0]).toMatchObject({
+      id: 'appt-done',
+      propertyAddress: '1 Test St, Suburb NSW 2000',
+      suburb: 'Suburb',
+      serviceTypeName: 'Routine Inspection',
+      flowType: ServiceTypeFlowType.ROUTINE,
+      agencyName: 'Test Agency',
+      executionStatus: 'FINISHED',
+    });
+  });
+
   it('should return a one-month schedule payload with days and overdue appointments', async () => {
     vi.useFakeTimers({ now: new Date('2026-03-21T10:00:00Z') });
     const todayAppt = makeAppointment({

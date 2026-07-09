@@ -19196,7 +19196,15 @@
                                 "type": "string"
                               },
                               "status": {
-                                "type": "string"
+                                "type": "string",
+                                "enum": [
+                                  "DRAFT",
+                                  "AWAITING_INSPECTOR",
+                                  "SCHEDULED",
+                                  "DONE",
+                                  "CANCELLED",
+                                  "REJECTED"
+                                ]
                               },
                               "scheduledDate": {
                                 "anyOf": [
@@ -19246,10 +19254,31 @@
                               "agencyName": {
                                 "type": "string",
                                 "nullable": true
+                              },
+                              "propertyAddress": {
+                                "type": "string"
+                              },
+                              "suburb": {
+                                "type": "string"
+                              },
+                              "serviceTypeName": {
+                                "type": "string"
+                              },
+                              "flowType": {
+                                "type": "string",
+                                "enum": [
+                                  "ROUTINE",
+                                  "INGOING",
+                                  "OUTGOING"
+                                ]
+                              },
+                              "isOverdue": {
+                                "type": "boolean"
                               }
                             },
                             "required": [
                               "id",
+                              "appointmentCode",
                               "status",
                               "scheduledDate",
                               "timeSlotStart",
@@ -19259,7 +19288,11 @@
                               "rentalTenantConfirmationStatus",
                               "keyRequired",
                               "meetingLocation",
-                              "executionStatus"
+                              "executionStatus",
+                              "propertyAddress",
+                              "suburb",
+                              "serviceTypeName",
+                              "flowType"
                             ],
                             "additionalProperties": false
                           }
