@@ -27318,7 +27318,8 @@
                                 "enum": [
                                   "resend",
                                   "mobile_message",
-                                  "mapbox"
+                                  "mapbox",
+                                  "fy_webhook"
                                 ]
                               },
                               "configured": {
@@ -27400,7 +27401,8 @@
                                 "enum": [
                                   "resend",
                                   "mobile_message",
-                                  "mapbox"
+                                  "mapbox",
+                                  "fy_webhook"
                                 ]
                               },
                               "configured": {
@@ -27477,7 +27479,8 @@
               "enum": [
                 "resend",
                 "mobile_message",
-                "mapbox"
+                "mapbox",
+                "fy_webhook"
               ]
             },
             "in": "path",
@@ -27501,7 +27504,8 @@
                           "enum": [
                             "resend",
                             "mobile_message",
-                            "mapbox"
+                            "mapbox",
+                            "fy_webhook"
                           ]
                         },
                         "configured": {
@@ -27560,7 +27564,8 @@
               "enum": [
                 "resend",
                 "mobile_message",
-                "mapbox"
+                "mapbox",
+                "fy_webhook"
               ]
             },
             "in": "path",
@@ -27609,7 +27614,8 @@
               "enum": [
                 "resend",
                 "mobile_message",
-                "mapbox"
+                "mapbox",
+                "fy_webhook"
               ]
             },
             "in": "path",
