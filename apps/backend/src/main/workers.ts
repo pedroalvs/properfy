@@ -1,4 +1,7 @@
 import type { AuthContext } from '@properfy/shared';
+import { fyWebhookEventSchema } from '@properfy/shared';
+import type { FyWebhookDispatcher } from '../modules/fy/infrastructure/fy-webhook-dispatcher';
+import { FY_WEBHOOK_JOB } from '../modules/fy/application/webhooks/fy-webhook-subscriber';
 import { getQueue, resolvePgBossSchema, assertQueueDbConsistency } from '../shared/infrastructure/queue';
 import { metrics } from '../shared/infrastructure/metrics';
 import { runWithRequestContext } from '../shared/infrastructure/request-context';
@@ -64,6 +67,7 @@ export async function registerWorkers(
   notifyStuckInspectionsWorker: NotifyStuckInspectionsWorker,
   auditRetentionWorker: AuditRetentionWorker,
   rejectUnconfirmedWorker: RejectUnconfirmedWorker,
+  fyWebhookDispatcher: FyWebhookDispatcher,
   logger: Logger,
 ): Promise<void> {
   // Guard against the misconfiguration where this process consumes jobs from one
@@ -71,6 +75,12 @@ export async function registerWorkers(
   assertQueueDbConsistency(logger);
 
   const boss = await getQueue();
+
+  await boss.work(FY_WEBHOOK_JOB, withJobMetrics(FY_WEBHOOK_JOB, async (job) => {
+    const event = fyWebhookEventSchema.parse(job.data);
+    logger.info({ event: event.event, jobId: job.id }, 'Delivering fy webhook');
+    await fyWebhookDispatcher.deliver(event);
+  }));
 
   await boss.work('report.generate', withJobMetrics('report.generate', async (job) => {
     const { reportId } = job.data as { reportId: string };

@@ -46,13 +46,10 @@ describe('PROPERTY_TYPE_MAP', () => {
   const allTypes: PropertyType[] = [
     PropertyType.APARTMENT,
     PropertyType.HOUSE,
-    PropertyType.COMMERCIAL,
-    PropertyType.INDUSTRIAL,
-    PropertyType.RURAL,
   ];
 
-  it('maps all 5 property types', () => {
-    expect(Object.keys(PROPERTY_TYPE_MAP)).toHaveLength(5);
+  it('maps all property types', () => {
+    expect(Object.keys(PROPERTY_TYPE_MAP)).toHaveLength(2);
     for (const type of allTypes) {
       expect(PROPERTY_TYPE_MAP[type]).toBeDefined();
     }
@@ -67,9 +64,7 @@ describe('PROPERTY_TYPE_MAP', () => {
 
   it('returns correct labels', () => {
     expect(PROPERTY_TYPE_MAP[PropertyType.HOUSE].label).toBe('House');
-    expect(PROPERTY_TYPE_MAP[PropertyType.COMMERCIAL].label).toBe('Commercial');
-    expect(PROPERTY_TYPE_MAP[PropertyType.INDUSTRIAL].label).toBe('Industrial');
-    expect(PROPERTY_TYPE_MAP[PropertyType.RURAL].label).toBe('Rural');
+    expect(PROPERTY_TYPE_MAP[PropertyType.APARTMENT].label).toBe('Apartment');
   });
 });
 

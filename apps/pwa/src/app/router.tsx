@@ -1,65 +1,75 @@
 import { lazy, Suspense, type ComponentType } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { retryLazyImportOnce } from '@properfy/shared';
 import { PwaLayout } from '@/components/shell/PwaLayout';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ProtectedRoute } from './ProtectedRoute';
 import { InspectorAuthGuard } from './InspectorAuthGuard';
 
-const LoginPage = lazy(() =>
+/**
+ * Handles stale chunk hashes after a new deployment: reloads the intended URL
+ * once on the first import failure, then lets a repeated failure surface to
+ * the error boundary. See retryLazyImportOnce in @properfy/shared.
+ */
+function lazyRetry<T extends { default: ComponentType<any> }>(importFn: () => Promise<T>) {
+  return lazy(() => retryLazyImportOnce(importFn, window.sessionStorage, window.location, console));
+}
+
+const LoginPage = lazyRetry(() =>
   import('@/features/auth/pages/LoginPage').then((module) => ({ default: module.LoginPage })),
 );
-const AccessDeniedPage = lazy(() =>
+const AccessDeniedPage = lazyRetry(() =>
   import('@/features/auth/pages/AccessDeniedPage').then((module) => ({ default: module.AccessDeniedPage })),
 );
-const DeactivatedPage = lazy(() =>
+const DeactivatedPage = lazyRetry(() =>
   import('@/features/auth/pages/DeactivatedPage').then((module) => ({ default: module.DeactivatedPage })),
 );
-const SchedulePage = lazy(() =>
+const SchedulePage = lazyRetry(() =>
   import('@/features/schedule/pages/SchedulePage').then((module) => ({
     default: module.SchedulePage,
   })),
 );
-const AppointmentDetailPage = lazy(() =>
+const AppointmentDetailPage = lazyRetry(() =>
   import('@/features/schedule/pages/AppointmentDetailPage').then((module) => ({
     default: module.AppointmentDetailPage,
   })),
 );
-const ExecutionPage = lazy(() =>
+const ExecutionPage = lazyRetry(() =>
   import('@/features/execution/pages/ExecutionPage').then((module) => ({
     default: module.ExecutionPage,
   })),
 );
-const MarketplacePage = lazy(() =>
+const MarketplacePage = lazyRetry(() =>
   import('@/features/offers/pages/MarketplacePage').then((module) => ({
     default: module.MarketplacePage,
   })),
 );
-const ProfilePage = lazy(() =>
+const ProfilePage = lazyRetry(() =>
   import('@/features/profile/pages/ProfilePage').then((module) => ({
     default: module.ProfilePage,
   })),
 );
-const ProfileEditPage = lazy(() =>
+const ProfileEditPage = lazyRetry(() =>
   import('@/features/profile/pages/ProfileEditPage').then((module) => ({
     default: module.ProfileEditPage,
   })),
 );
-const EarningsPage = lazy(() =>
+const EarningsPage = lazyRetry(() =>
   import('@/features/earnings/pages/EarningsPage').then((module) => ({
     default: module.EarningsPage,
   })),
 );
-const RequestInvoiceScreen = lazy(() =>
+const RequestInvoiceScreen = lazyRetry(() =>
   import('@/features/earnings/components/RequestInvoiceScreen').then((module) => ({
     default: module.RequestInvoiceScreen,
   })),
 );
-const InvoiceListScreen = lazy(() =>
+const InvoiceListScreen = lazyRetry(() =>
   import('@/features/earnings/pages/InvoiceListScreen').then((module) => ({
     default: module.InvoiceListScreen,
   })),
 );
-const InvoiceDetailScreen = lazy(() =>
+const InvoiceDetailScreen = lazyRetry(() =>
   import('@/features/earnings/pages/InvoiceDetailScreen').then((module) => ({
     default: module.InvoiceDetailScreen,
   })),

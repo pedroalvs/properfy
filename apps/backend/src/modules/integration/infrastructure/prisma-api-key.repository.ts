@@ -43,6 +43,7 @@ export class PrismaApiKeyRepository implements IApiKeyRepository {
         key_hash: data.keyHash,
         prefix: data.prefix,
         role: data.role,
+        scopes: data.scopes,
         expires_at: data.expiresAt,
         created_by_id: data.createdById,
       },

@@ -46,8 +46,8 @@ export interface CreateAppointmentInput {
   branchId: string;
   propertyId?: string;
   property?: {
-    propertyCode: string;
     type: PropertyType;
+    apartmentNumber?: string;
     street: string;
     addressLine2?: string;
     suburb: string;
@@ -243,8 +243,8 @@ export class CreateAppointmentUseCase {
       const createdProperty = await this.createPropertyUseCase.execute({
         tenantId,
         branchId: input.branchId,
-        propertyCode: input.property.propertyCode,
         type: input.property.type,
+        apartmentNumber: input.property.apartmentNumber,
         street: input.property.street,
         addressLine2: input.property.addressLine2,
         suburb: input.property.suburb,

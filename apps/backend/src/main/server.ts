@@ -119,6 +119,7 @@ async function start() {
       container.notifyStuckInspectionsWorker,
       container.auditRetentionWorker,
       container.rejectUnconfirmedWorker,
+      container.fyWebhookDispatcher,
       app.log,
     );
   }

@@ -123,6 +123,11 @@ describe('PropertyListPage', () => {
     expect(screen.getByText('Map View')).toBeInTheDocument();
   });
 
+  it('does not render an Import button', () => {
+    renderPage();
+    expect(screen.queryByText('Import')).not.toBeInTheDocument();
+  });
+
   it('renders filter bar with search and type controls', () => {
     renderPage();
     expect(screen.getByLabelText('Search')).toBeInTheDocument();
@@ -163,7 +168,6 @@ describe('PropertyListPage', () => {
       }
     });
   });
-
   describe('AM role', () => {
     beforeEach(() => {
       mockUseAuth.mockReturnValue({

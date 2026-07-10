@@ -30,6 +30,7 @@ export interface ListPropertiesOutput {
     tenantName: string | null;
     propertyCode: string;
     type: string;
+    apartmentNumber: string | null;
     street: string;
     addressLine2: string | null;
     suburb: string;
@@ -89,6 +90,7 @@ export class ListPropertiesUseCase {
         tenantName: item.tenantName,
         propertyCode: item.property.propertyCode,
         type: item.property.type,
+        apartmentNumber: item.property.apartmentNumber,
         street: item.property.street,
         addressLine2: item.property.addressLine2,
         suburb: item.property.suburb,

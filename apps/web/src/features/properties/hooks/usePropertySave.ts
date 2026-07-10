@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { createPropertySchema, updatePropertySchema } from '@properfy/shared';
+import { createPropertySchema, updatePropertySchema, PropertyType } from '@properfy/shared';
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
@@ -35,8 +35,10 @@ function toSchemaPayload(data: PropertyFormData, mode: 'create' | 'edit', tenant
       ...(parseNumberField(data.rentAmount) !== undefined
         ? { rentAmount: parseNumberField(data.rentAmount) }
         : {}),
-      propertyCode: data.propertyCode.trim() || undefined,
       type: data.type || undefined,
+      ...(data.type === PropertyType.APARTMENT && data.apartmentNumber.trim()
+        ? { apartmentNumber: data.apartmentNumber.trim() }
+        : {}),
       street: data.street.trim() || undefined,
       ...(data.addressLine2.trim() ? { addressLine2: data.addressLine2.trim() } : {}),
       suburb: data.suburb.trim() || undefined,
@@ -50,8 +52,10 @@ function toSchemaPayload(data: PropertyFormData, mode: 'create' | 'edit', tenant
   }
 
   const payload: Record<string, unknown> = {
-    ...(data.propertyCode.trim() ? { propertyCode: data.propertyCode.trim() } : {}),
     ...(data.type ? { type: data.type } : {}),
+    // Only meaningful for apartments; clearing (or switching to HOUSE) nulls it.
+    apartmentNumber:
+      data.type === PropertyType.APARTMENT ? data.apartmentNumber.trim() || null : null,
     ...(data.street.trim() ? { street: data.street.trim() } : {}),
     addressLine2: data.addressLine2.trim() || null,
     ...(data.suburb.trim() ? { suburb: data.suburb.trim() } : {}),

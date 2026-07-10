@@ -6,9 +6,6 @@ import { PropertyTypeChip } from './PropertyTypeChip';
 const TYPE_LABELS: Record<PropertyType, string> = {
   APARTMENT: 'Apartment',
   HOUSE: 'House',
-  COMMERCIAL: 'Commercial',
-  INDUSTRIAL: 'Industrial',
-  RURAL: 'Rural',
 };
 
 describe('PropertyTypeChip', () => {

@@ -23,17 +23,11 @@ const TYPE_OPTIONS = [
   { label: 'All Types', value: '' },
   { label: 'Apartment', value: 'APARTMENT' },
   { label: 'House', value: 'HOUSE' },
-  { label: 'Commercial', value: 'COMMERCIAL' },
-  { label: 'Industrial', value: 'INDUSTRIAL' },
-  { label: 'Rural', value: 'RURAL' },
 ];
 
 const TYPE_COLORS: Record<string, string> = {
   APARTMENT: '#2196F3',
   HOUSE: '#00BCD4',
-  COMMERCIAL: '#FF9800',
-  INDUSTRIAL: '#795548',
-  RURAL: '#4CAF50',
 };
 
 export function PropertyMapPage() {

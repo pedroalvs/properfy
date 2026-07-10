@@ -226,7 +226,6 @@ describe('UpdateServiceGroupUseCase', () => {
       scheduledDate: new Date(FUTURE_DATE),
     });
   });
-
   it('should throw ServiceGroupNotDraftError when updating scheduledDate on a PUBLISHED group', async () => {
     const groupData = makeGroupWithAppointments({ status: 'PUBLISHED' });
     vi.mocked(serviceGroupRepo.findById).mockResolvedValueOnce(groupData);

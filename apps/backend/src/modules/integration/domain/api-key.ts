@@ -24,6 +24,7 @@ export interface CreateApiKeyData {
   keyHash: string;
   prefix: string;
   role: ApiKeyRole;
+  scopes: string[];
   expiresAt: Date | null;
   createdById: string;
 }
