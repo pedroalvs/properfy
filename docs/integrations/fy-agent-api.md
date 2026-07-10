@@ -61,7 +61,7 @@ Errors use:
 | 400 | `VALIDATION_ERROR` (details include the offending field, e.g. an invalid `phone`) |
 | 401 | `AUTH_UNAUTHORIZED` |
 | 403 | `AUTH_FORBIDDEN_SCOPE` |
-| 404 | `NO_ACTIVE_APPOINTMENTS`, `APPOINTMENT_NOT_FOUND`, `AGENCY_NOT_FOUND` |
+| 404 | `NO_ACTIVE_APPOINTMENTS`, `APPOINTMENT_NOT_FOUND`, `AGENCY_NOT_FOUND`, `CONTACT_NOT_FOUND` |
 | 409 | `VIOLATES_NOTICE_PERIOD`, `NO_PRIMARY_CONTACT`, `INVALID_APPOINTMENT_STATUS` |
 | 429 | `RATE_LIMIT_EXCEEDED` |
 
@@ -233,7 +233,7 @@ Correct the tenant's contact details on the appointment. Send only what changes:
 { "contact": { "name": "John A. Smith", "email": "john.smith@example.com", "phone": "+61412345678" } }
 ```
 
-`409 NO_PRIMARY_CONTACT`-style `404 CONTACT_NOT_FOUND` when the appointment has no primary contact.
+`404 CONTACT_NOT_FOUND` when the appointment has no primary contact to update.
 
 ### 7. `POST /appointments/{id}/resend-notice`
 

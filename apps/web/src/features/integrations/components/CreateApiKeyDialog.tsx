@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ApiKeyCreated, ApiKeyRole, ApiKeyScope } from '@properfy/shared';
 
 import { Button } from '@/components/ui';
@@ -53,6 +53,12 @@ export function CreateApiKeyDialog({
     setExpiresAt('');
     setFyScope(false);
   };
+
+  // Fresh form on every open — cancelled input must not leak into the next create.
+  useEffect(() => {
+    if (open) reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const handleCreate = async () => {
     try {
