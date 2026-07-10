@@ -255,7 +255,7 @@ Still escalate to a human for guarantee, per the FAQ 12 flow.
 
 ## Webhooks (Properfy → Fy)
 
-Properfy POSTs events to the n8n URL configured in the Properfy Integrations Hub ("Fy Agent" tab).
+Properfy POSTs events to the n8n URL configured in the Properfy Integrations Hub ("Integrations" tab, `Fy Agent Webhook` provider).
 
 - **Headers:** `X-Webhook-Secret: <shared secret>` (validate it!), `X-Fy-Event: <event name>`, `Content-Type: application/json`.
 - **Delivery:** respond `2xx` quickly. Non-2xx (or timeout >10s) is retried **5 times with exponential backoff**; after that the event is dropped into the failed-jobs queue for operator attention.

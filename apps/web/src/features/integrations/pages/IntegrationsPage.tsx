@@ -8,12 +8,10 @@ import { useIntegrations } from '../hooks/useIntegrations';
 import { PROVIDER_META } from '../providerMeta';
 import { IntegrationCard } from '../components/IntegrationCard';
 import { ApiKeysTab } from '../components/ApiKeysTab';
-import { FyAgentTab } from '../components/FyAgentTab';
 
 const TABS = [
   { id: 'integrations', label: 'Integrations' },
   { id: 'api-keys', label: 'API Keys' },
-  { id: 'fy-agent', label: 'Fy Agent' },
 ];
 
 /**
@@ -38,7 +36,7 @@ export function IntegrationsPage() {
           )}
           {integrations && (
             <div className="space-y-4">
-              {PROVIDER_META.filter((meta) => meta.provider !== 'fy_webhook').map((meta) => {
+              {PROVIDER_META.map((meta) => {
                 const detail = integrations.find((row) => row.provider === meta.provider);
                 return detail ? (
                   <IntegrationCard key={meta.provider} meta={meta} detail={detail} />
@@ -50,8 +48,6 @@ export function IntegrationsPage() {
       )}
 
       {activeTab === 'api-keys' && <ApiKeysTab />}
-
-      {activeTab === 'fy-agent' && <FyAgentTab />}
     </div>
   );
 }
