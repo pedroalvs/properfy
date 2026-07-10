@@ -5,6 +5,7 @@ import {
   fyAvailableDatesQuerySchema,
   fyContactUpdateSchema,
   fyPhoneQuerySchema,
+  fyWebhookEventSchema,
 } from './fy';
 
 describe('fyPhoneQuerySchema', () => {
@@ -65,5 +66,51 @@ describe('fyContactUpdateSchema', () => {
   it('allows explicit nulls to clear email/phone', () => {
     expect(fyContactUpdateSchema.safeParse({ email: null }).success).toBe(true);
     expect(fyContactUpdateSchema.safeParse({ phone: null }).success).toBe(true);
+  });
+});
+
+describe('fyWebhookEventSchema', () => {
+  const base = { timestamp: '2026-07-09T10:00:00.000+11:00' };
+
+  it('parses inspector.accepted', () => {
+    const parsed = fyWebhookEventSchema.parse({
+      ...base,
+      event: 'inspector.accepted',
+      data: {
+        appointmentId: 'a0000000-0000-4000-8000-000000000001',
+        appointmentCode: 'INS-0042',
+        inspector: { id: 'b0000000-0000-4000-8000-000000000001', name: 'Kez' },
+      },
+    });
+    expect(parsed.event).toBe('inspector.accepted');
+  });
+
+  it('parses appointment.status_changed and rejects unknown statuses', () => {
+    const data = {
+      appointmentId: 'a0000000-0000-4000-8000-000000000001',
+      fromStatus: 'SCHEDULED',
+      toStatus: 'DONE',
+    };
+    expect(
+      fyWebhookEventSchema.parse({ ...base, event: 'appointment.status_changed', data }).event,
+    ).toBe('appointment.status_changed');
+    expect(
+      fyWebhookEventSchema.safeParse({
+        ...base,
+        event: 'appointment.status_changed',
+        data: { ...data, toStatus: 'OPEN' },
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rejects unknown events and mismatched data shapes', () => {
+    expect(fyWebhookEventSchema.safeParse({ ...base, event: 'nope', data: {} }).success).toBe(false);
+    expect(
+      fyWebhookEventSchema.safeParse({
+        ...base,
+        event: 'inspector.accepted',
+        data: { appointmentId: 'not-a-uuid', appointmentCode: 'X', inspector: { id: 'x', name: '' } },
+      }).success,
+    ).toBe(false);
   });
 });

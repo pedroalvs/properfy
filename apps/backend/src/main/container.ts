@@ -351,6 +351,8 @@ import { GetFyAvailableDatesUseCase } from '../modules/fy/application/use-cases/
 import { AddFyAppointmentNoteUseCase } from '../modules/fy/application/use-cases/add-fy-appointment-note.use-case';
 import { UpdateFyAppointmentContactUseCase } from '../modules/fy/application/use-cases/update-fy-appointment-contact.use-case';
 import { ResendFyNoticeUseCase } from '../modules/fy/application/use-cases/resend-fy-notice.use-case';
+import { FyWebhookDispatcher } from '../modules/fy/infrastructure/fy-webhook-dispatcher';
+import { FyWebhookSubscriber } from '../modules/fy/application/webhooks/fy-webhook-subscriber';
 import { createApiKeyAuthMiddleware } from '../shared/interfaces/api-key-auth-middleware';
 import { createAuthMiddleware } from '../shared/interfaces/auth-middleware';
 
@@ -438,6 +440,7 @@ export interface AppContainer {
   appCredential: AppCredentialRouteContainer;
   integration: IntegrationRouteContainer;
   fy: FyRouteContainer;
+  fyWebhookDispatcher: FyWebhookDispatcher;
   geocodeWorker: GeocodeWorker;
   geocodeRetryWorker: GeocodeRetryWorker;
   propertyImportWorker: ImportPropertyWorker;
@@ -584,6 +587,7 @@ export function createContainer(logger: Logger): AppContainer {
         webhookToken: env.MOBILE_MESSAGE_WEBHOOK_TOKEN,
       }),
       mapbox: compactConfig({ accessToken: env.MAPBOX_ACCESS_TOKEN }),
+      fy_webhook: compactConfig({ url: env.FY_WEBHOOK_URL, secret: env.FY_WEBHOOK_SECRET }),
     },
     logger,
   );
@@ -1181,9 +1185,14 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Appointment import — preview/commit split (depends on reportStorageService and job queue)
   const appointmentImportRepo = new PrismaAppointmentImportRepository(prisma);
+  const fyRepo = new PrismaFyRepository(prisma);
   const importJobQueue = env.ENABLE_JOB_QUEUE === 'true'
     ? new PgBossJobQueue()
     : new StubJobQueue();
+  // Fy outbound webhooks: subscriber enqueues, worker delivers with retry.
+  const fyWebhookDispatcher = new FyWebhookDispatcher(integrationConfigResolver);
+  new FyWebhookSubscriber(integrationConfigResolver, fyRepo, importJobQueue, logger).register(domainEventBus);
+
   const appointmentImportRowResolver = new AppointmentImportRowResolver(
     propertyRepo, serviceTypeRepo, pricingRuleRepo, contactRepo,
   );
@@ -1592,7 +1601,6 @@ export function createContainer(logger: Logger): AppContainer {
       tenantRepo,
     },
     fy: (() => {
-      const fyRepo = new PrismaFyRepository(prisma);
       // Composite auth: X-API-Key decides when present; otherwise JWT (whose
       // principals then fail the bot:fy scope gate — the Fy API is machine-only).
       const jwtAuthenticate = createAuthMiddleware(
@@ -1619,6 +1627,7 @@ export function createContainer(logger: Logger): AppContainer {
         resendFyNoticeUseCase: new ResendFyNoticeUseCase(generatePortalTokenUseCase, idempotencyService),
       };
     })(),
+    fyWebhookDispatcher,
     cleanupSessionsWorker,
     keyExpiryCheckWorker,
     expireFilesWorker,

@@ -46,6 +46,16 @@ export interface IFyRepository {
    * not exist or is soft-deleted.
    */
   appendAppointmentNote(appointmentId: string, line: string): Promise<{ tenantId: string } | null>;
+  /** Appointments of an accepted service group with their assigned inspector — webhook fan-out input. */
+  findGroupAcceptanceInfo(groupId: string): Promise<FyGroupAcceptanceRow[]>;
+}
+
+export interface FyGroupAcceptanceRow {
+  appointmentId: string;
+  appointmentNumber: number;
+  appointmentCodePrefix: string | null;
+  inspectorId: string;
+  inspectorName: string;
 }
 
 export function formatAppointmentCode(prefix: string | null, appointmentNumber: number): string {

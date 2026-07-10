@@ -10,6 +10,7 @@ export const IntegrationProvider = {
   RESEND: 'resend',
   MOBILE_MESSAGE: 'mobile_message',
   MAPBOX: 'mapbox',
+  FY_WEBHOOK: 'fy_webhook',
 } as const;
 export type IntegrationProvider =
   (typeof IntegrationProvider)[keyof typeof IntegrationProvider];
@@ -18,6 +19,7 @@ export const integrationProviderSchema = z.enum([
   IntegrationProvider.RESEND,
   IntegrationProvider.MOBILE_MESSAGE,
   IntegrationProvider.MAPBOX,
+  IntegrationProvider.FY_WEBHOOK,
 ]);
 
 const secretSchema = z.string().trim().min(1).max(500);
@@ -45,10 +47,18 @@ export const mapboxConfigSchema = z.object({
 });
 export type MapboxConfigInput = z.infer<typeof mapboxConfigSchema>;
 
+/** Fy agent outbound webhooks — n8n endpoint + shared X-Webhook-Secret. */
+export const fyWebhookConfigSchema = z.object({
+  url: z.string().trim().url().max(500).optional(),
+  secret: secretSchema.optional(),
+});
+export type FyWebhookConfigInput = z.infer<typeof fyWebhookConfigSchema>;
+
 export const integrationConfigSchemas = {
   [IntegrationProvider.RESEND]: resendConfigSchema,
   [IntegrationProvider.MOBILE_MESSAGE]: mobileMessageConfigSchema,
   [IntegrationProvider.MAPBOX]: mapboxConfigSchema,
+  [IntegrationProvider.FY_WEBHOOK]: fyWebhookConfigSchema,
 } as const;
 
 export const integrationUpsertSchema = z.object({

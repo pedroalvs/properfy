@@ -153,3 +153,35 @@ export const fyResendNoticeSchema = z.object({
   status: z.literal('QUEUED'),
 });
 export type FyResendNotice = z.infer<typeof fyResendNoticeSchema>;
+
+// --- Outbound webhooks (Properfy → Fy/n8n) ---
+// Delivered as POST with headers `X-Webhook-Secret` (shared secret) and
+// `X-Fy-Event` (event name). Non-2xx responses are retried with backoff.
+
+export const fyInspectorAcceptedEventSchema = z.object({
+  event: z.literal('inspector.accepted'),
+  timestamp: z.string().datetime({ offset: true }),
+  data: z.object({
+    appointmentId: z.string().uuid(),
+    appointmentCode: z.string(),
+    inspector: z.object({ id: z.string().uuid(), name: z.string() }),
+  }),
+});
+export type FyInspectorAcceptedEvent = z.infer<typeof fyInspectorAcceptedEventSchema>;
+
+export const fyStatusChangedEventSchema = z.object({
+  event: z.literal('appointment.status_changed'),
+  timestamp: z.string().datetime({ offset: true }),
+  data: z.object({
+    appointmentId: z.string().uuid(),
+    fromStatus: fyAppointmentStatusSchema,
+    toStatus: fyAppointmentStatusSchema,
+  }),
+});
+export type FyStatusChangedEvent = z.infer<typeof fyStatusChangedEventSchema>;
+
+export const fyWebhookEventSchema = z.discriminatedUnion('event', [
+  fyInspectorAcceptedEventSchema,
+  fyStatusChangedEventSchema,
+]);
+export type FyWebhookEvent = z.infer<typeof fyWebhookEventSchema>;
