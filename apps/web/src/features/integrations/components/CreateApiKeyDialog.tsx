@@ -20,35 +20,27 @@ export const FY_SCOPE: ApiKeyScope = 'bot:fy';
 interface CreateApiKeyDialogProps {
   open: boolean;
   onClose: () => void;
-  /** Locks the key to these scopes and hides the scope picker (e.g. Fy Agent tab). */
-  presetScopes?: ApiKeyScope[];
-  defaultName?: string;
 }
 
 /**
- * Shared create flow: form dialog followed by the show-once plaintext dialog.
+ * Create flow: form dialog followed by the show-once plaintext dialog.
  * Scopes restrict a key to a dedicated machine surface (e.g. `bot:fy` → the
  * Fy agent API); a key without scopes is a general machine principal.
  */
-export function CreateApiKeyDialog({
-  open,
-  onClose,
-  presetScopes,
-  defaultName = '',
-}: CreateApiKeyDialogProps) {
+export function CreateApiKeyDialog({ open, onClose }: CreateApiKeyDialogProps) {
   const { showError } = useSnackbar();
   const createKey = useCreateApiKey();
 
-  const [name, setName] = useState(defaultName);
+  const [name, setName] = useState('');
   const [role, setRole] = useState<ApiKeyRole>('OP');
   const [expiresAt, setExpiresAt] = useState('');
   const [fyScope, setFyScope] = useState(false);
   const [createdKey, setCreatedKey] = useState<ApiKeyCreated | null>(null);
 
-  const scopes: ApiKeyScope[] = presetScopes ?? (fyScope ? [FY_SCOPE] : []);
+  const scopes: ApiKeyScope[] = fyScope ? [FY_SCOPE] : [];
 
   const reset = () => {
-    setName(defaultName);
+    setName('');
     setRole('OP');
     setExpiresAt('');
     setFyScope(false);
@@ -82,7 +74,7 @@ export function CreateApiKeyDialog({
       <Dialog
         open={open}
         onClose={onClose}
-        title={presetScopes ? 'New Fy API key' : 'New API key'}
+        title="New API key"
         actions={
           <>
             <Button variant="secondary" onClick={onClose}>
@@ -100,7 +92,7 @@ export function CreateApiKeyDialog({
             <TextInput
               value={name}
               onChange={setName}
-              placeholder={presetScopes ? 'e.g. Fy agent (AutoLabs)' : 'e.g. n8n automation'}
+              placeholder="e.g. n8n automation"
               aria-label="API key name"
             />
           </label>
@@ -113,24 +105,17 @@ export function CreateApiKeyDialog({
               aria-label="API key role"
             />
           </label>
-          {presetScopes ? (
-            <p className="text-xs text-text-secondary">
-              Scope: <code className="font-mono">{presetScopes.join(', ')}</code> — this key can only
-              call the Fy agent API.
-            </p>
-          ) : (
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={fyScope}
-                onChange={(event) => setFyScope(event.target.checked)}
-                aria-label="Fy Agent scope"
-              />
-              <span>
-                Fy Agent scope (<code className="font-mono text-xs">bot:fy</code>)
-              </span>
-            </label>
-          )}
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={fyScope}
+              onChange={(event) => setFyScope(event.target.checked)}
+              aria-label="Fy Agent scope"
+            />
+            <span>
+              Fy Agent scope (<code className="font-mono text-xs">bot:fy</code>)
+            </span>
+          </label>
           <label className="block text-sm">
             <span className="mb-1 block text-xs font-medium text-text-secondary">
               Expiry date (optional)
