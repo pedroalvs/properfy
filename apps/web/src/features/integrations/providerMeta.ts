@@ -14,6 +14,8 @@ export interface ProviderMeta {
   /** What stops working while this integration is unconfigured. */
   affectedCapability: string;
   fields: ProviderFieldMeta[];
+  /** Optional warning shown on the card, e.g. to disambiguate from a related but separate integration. */
+  note?: string;
 }
 
 export const PROVIDER_META: ProviderMeta[] = [
@@ -55,5 +57,6 @@ export const PROVIDER_META: ProviderMeta[] = [
     icon: 'mdi-map-marker-outline',
     affectedCapability: 'Address geocoding',
     fields: [{ key: 'accessToken', label: 'Access Token', secret: true, placeholder: 'pk. / sk. token' }],
+    note: 'This token is used by the backend for address geocoding only — it does not affect the maps shown in the app. To change the map tiles token, contact support.',
   },
 ];
