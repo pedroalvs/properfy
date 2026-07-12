@@ -361,6 +361,7 @@ await boss.schedule('notification.reminder', '0 8 * * *', {})
 
 - Provider: Mapbox
 - Fallback: mark `pending_geocode` for manual correction
+- `MAPBOX_ACCESS_TOKEN` is called server-to-server: it must have **no browser URL restriction**. It is a distinct credential from the frontend's `VITE_MAPBOX_TOKEN` (which is legitimately URL-restricted). A URL-restricted token used here fails every call with 403, since Mapbox's restriction checks the `Referer` header, which server-side requests never send.
 
 ### Storage
 

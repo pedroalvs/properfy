@@ -72,8 +72,12 @@ fly secrets set TWILIO_PHONE_NUMBER="+1234567890"
 fly secrets set WHATSAPP_API_KEY="xxxxx"
 fly secrets set WHATSAPP_API_URL="https://api.zenvia.com/v2"
 
-# Geocoding (Mapbox)
-fly secrets set MAPBOX_ACCESS_TOKEN="pk.xxxxx"
+# Geocoding (Mapbox) — this token is called server-to-server, so it must NOT
+# have a browser URL restriction configured on the Mapbox dashboard (that
+# restriction checks the HTTP Referer, which server-side calls never send,
+# causing every geocoding request to fail with 403). Use a dedicated token
+# with no URL restriction, distinct from the frontend's VITE_MAPBOX_TOKEN.
+fly secrets set MAPBOX_ACCESS_TOKEN="sk.xxxxx"
 
 # Enable background job processing (pg-boss)
 fly secrets set ENABLE_JOB_QUEUE="true"
