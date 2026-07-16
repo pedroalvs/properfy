@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserRole, todayLocalDateString, isTimeStartInPastForDate } from '@properfy/shared';
+import { UserRole, PLATFORM_TIMEZONE, todayInTzDateString, currentTimeInTzHHmm, isTimeStartInPastForDate } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
@@ -158,11 +158,12 @@ export function AppointmentCreatePage() {
     const validationErrors = validate(form, 'create');
 
     // Past-time guard (applies to ALL roles, incl. AM/OP — native input `min`
-    // is only a hint and does not block this button-submit path).
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    // is only a hint and does not block this button-submit path). Sydney-only
+    // platform: validate in the platform timezone to match the backend.
+    const tz = PLATFORM_TIMEZONE;
     if (
       form.timeSlotStart &&
-      form.scheduledDate === todayLocalDateString() &&
+      form.scheduledDate === todayInTzDateString(tz) &&
       isTimeStartInPastForDate(form.timeSlotStart, form.scheduledDate, tz)
     ) {
       validationErrors.timeSlotStart = validationErrors.timeSlotStart ?? 'Start time is in the past';
@@ -292,7 +293,7 @@ export function AppointmentCreatePage() {
               <DateInput
                 value={form.scheduledDate}
                 onChange={(v) => updateField('scheduledDate', v)}
-                min={todayLocalDateString()}
+                min={todayInTzDateString(PLATFORM_TIMEZONE)}
                 error={!!errors.scheduledDate}
                 aria-label="Scheduled Date"
               />
@@ -304,8 +305,8 @@ export function AppointmentCreatePage() {
                 onStartChange={(v) => updateField('timeSlotStart', v)}
                 onEndChange={(v) => updateField('timeSlotEnd', v)}
                 minStartTime={
-                  form.scheduledDate === todayLocalDateString()
-                    ? Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date())
+                  form.scheduledDate === todayInTzDateString(PLATFORM_TIMEZONE)
+                    ? currentTimeInTzHHmm(PLATFORM_TIMEZONE)
                     : undefined
                 }
                 error={!!errors.timeSlotStart || !!errors.timeSlotEnd}

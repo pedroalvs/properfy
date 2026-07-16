@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { createServiceGroupSchema, UserRole, todayLocalDateString, currentTimeInTzHHmm } from '@properfy/shared';
+import { createServiceGroupSchema, UserRole, todayLocalDateString, currentTimeInTzHHmm, todayInTzDateString, PLATFORM_TIMEZONE } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
@@ -71,7 +71,6 @@ export function ServiceGroupCreatePage() {
     timeWindow: `${startTime}-${endTime}`,
     serviceRegionId: serviceRegionId || undefined,
     ...(description ? { description } : {}),
-    actorTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   };
   const parsedCreatePayload = createServiceGroupSchema.safeParse(createPayload);
 
@@ -294,8 +293,8 @@ export function ServiceGroupCreatePage() {
                 onStartTimeChange={setStartTime}
                 onEndTimeChange={setEndTime}
                 minStartTime={(() => {
-                  const today = todayLocalDateString();
-                  return scheduledDate === today ? currentTimeInTzHHmm(Intl.DateTimeFormat().resolvedOptions().timeZone) : undefined;
+                  const today = todayInTzDateString(PLATFORM_TIMEZONE);
+                  return scheduledDate === today ? currentTimeInTzHHmm(PLATFORM_TIMEZONE) : undefined;
                 })()}
               />
             </FormSection>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { PLATFORM_TIMEZONE, endOfCivilDayInTz } from '@properfy/shared';
 import type { ApiKeyCreated, ApiKeyRole, ApiKeyScope } from '@properfy/shared';
 
 import { Button } from '@/components/ui';
@@ -58,8 +59,8 @@ export function CreateApiKeyDialog({ open, onClose }: CreateApiKeyDialogProps) {
         name: name.trim(),
         role,
         scopes,
-        // Local end-of-day, so the expiry lands on the day the operator picked.
-        expiresAt: expiresAt ? new Date(`${expiresAt}T23:59:59.999`).toISOString() : null,
+        // Sydney end-of-day, regardless of where the operator is located.
+        expiresAt: expiresAt ? endOfCivilDayInTz(expiresAt, PLATFORM_TIMEZONE).toISOString() : null,
       });
       reset();
       onClose();

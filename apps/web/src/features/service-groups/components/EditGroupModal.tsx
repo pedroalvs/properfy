@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { todayLocalDateString, currentTimeInTzHHmm } from '@properfy/shared';
+import { todayLocalDateString, currentTimeInTzHHmm, todayInTzDateString, PLATFORM_TIMEZONE } from '@properfy/shared';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/forms/Textarea';
@@ -60,7 +60,6 @@ export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGro
       data.timeWindow = `${startTime}-${endTime}`;
     }
 
-    data.actorTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     update(data);
   };
 
@@ -128,7 +127,7 @@ export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGro
                 endTime={endTime}
                 onStartTimeChange={setStartTime}
                 onEndTimeChange={setEndTime}
-                minStartTime={scheduledDate === todayLocalDateString() ? currentTimeInTzHHmm(Intl.DateTimeFormat().resolvedOptions().timeZone) : undefined}
+                minStartTime={scheduledDate === todayInTzDateString(PLATFORM_TIMEZONE) ? currentTimeInTzHHmm(PLATFORM_TIMEZONE) : undefined}
               />
             </FormField>
           </>

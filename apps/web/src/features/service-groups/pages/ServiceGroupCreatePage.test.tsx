@@ -293,7 +293,6 @@ describe('ServiceGroupCreatePage', () => {
           serviceRegionId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
           // Cycle 6 added the actor's resolved timezone to every group write
           // so the backend can validate "today" in the operator's calendar.
-          actorTimezone: expect.any(String),
         },
       });
     });

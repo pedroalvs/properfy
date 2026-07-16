@@ -141,7 +141,6 @@ describe('useAppointmentSave', () => {
           primaryEmail: VALID_CREATE_DATA.contactEmail,
           primaryPhone: VALID_CREATE_DATA.contactPhone,
         },
-        actorTimezone: expect.any(String),
       },
     });
   });
@@ -173,7 +172,6 @@ describe('useAppointmentSave', () => {
         },
         customFields: [],
         appCredentialIds: [],
-        actorTimezone: expect.any(String),
       },
     });
   });
