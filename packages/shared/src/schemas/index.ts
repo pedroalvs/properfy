@@ -28,3 +28,4 @@ export * from './property-import';
 export * from './service-region';
 export * from './inspector-availability';
 export * from './fy';
+export * from './phone';
