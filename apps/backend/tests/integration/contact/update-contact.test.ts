@@ -159,3 +159,34 @@ describe('PATCH /v1/contacts/:contactId — update-contact', () => {
     expect(mockUpdateContactExecute).not.toHaveBeenCalled();
   });
 });
+
+describe('PATCH /v1/contacts/:contactId — AU phone validation and E.164 normalization', () => {
+  it('normalizes masked local primaryPhone to E.164 before reaching the use case', async () => {
+    mockJwtVerify.mockResolvedValue(clAdminContext);
+    mockUpdateContactExecute.mockResolvedValue(makeContact({ primaryPhone: '+61412345678' }));
+
+    const res = await supertest(app.server)
+      .patch(`/v1/contacts/${CONTACT_ID}`)
+      .set('Authorization', 'Bearer token')
+      .send({ primaryPhone: '0412 345 678' });
+
+    expect(res.status).toBe(200);
+    expect(mockUpdateContactExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ primaryPhone: '+61412345678' }),
+      }),
+    );
+  });
+
+  it('rejects invalid primaryPhone with 400 (legacy values must be corrected on edit)', async () => {
+    mockJwtVerify.mockResolvedValue(clAdminContext);
+
+    const res = await supertest(app.server)
+      .patch(`/v1/contacts/${CONTACT_ID}`)
+      .set('Authorization', 'Bearer token')
+      .send({ primaryPhone: '12345' });
+
+    expect(res.status).toBe(400);
+    expect(mockUpdateContactExecute).not.toHaveBeenCalled();
+  });
+});
