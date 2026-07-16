@@ -1,11 +1,29 @@
 import { useEffect, useRef, useState } from 'react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { env } from '@/config/env';
+import { computeBounds, isSinglePointBounds } from '@/lib/map-bounds';
 import type { MarketplaceOffer } from '../types';
+
+export interface ExpandedGroupAppointment {
+  /** Marker identity only — never rendered in the UI. */
+  id: string;
+  street: string;
+  suburb: string;
+  timeSlotStart: string;
+  timeSlotEnd: string;
+  coordinates: { lat: number; lng: number } | null;
+}
+
+export interface ExpandedGroup {
+  groupId: string;
+  appointments: ExpandedGroupAppointment[];
+}
 
 interface OffersMapViewProps {
   offers: MarketplaceOffer[];
   onSelectOffer: (groupId: string) => void;
+  /** When set, the map shows only this group's appointment pins (drill-down mode). */
+  expandedGroup?: ExpandedGroup | null;
 }
 
 const AU_CENTRE: [number, number] = [133.7751, -25.2744];
@@ -19,40 +37,60 @@ function computeCenter(offers: MarketplaceOffer[]): [number, number] {
   return [lng, lat];
 }
 
+const PIN_BASE_STYLE = [
+  'width:36px',
+  'height:36px',
+  'border-radius:50%',
+  'box-shadow:0 2px 10px rgba(0,0,0,0.35)',
+  'display:flex',
+  'align-items:center',
+  'justify-content:center',
+  'cursor:pointer',
+  'font-size:13px',
+  'font-weight:700',
+  'font-family:inherit',
+  'user-select:none',
+];
+
+// NOTE: never set `style.transform` on the marker element (e.g. hover scale
+// effects) — mapbox-gl positions Markers via an inline translate() transform
+// on this same element, so overwriting it snaps the pin to the map origin.
 function makeMarkerEl(count: number): HTMLDivElement {
   const el = document.createElement('div');
   el.setAttribute('data-testid', 'map-pin');
   el.style.cssText = [
-    'width:36px',
-    'height:36px',
+    ...PIN_BASE_STYLE,
     `background-color:${PRIMARY_COLOR}`,
-    'border-radius:50%',
     'border:2.5px solid white',
-    'box-shadow:0 2px 10px rgba(0,0,0,0.35)',
-    'display:flex',
-    'align-items:center',
-    'justify-content:center',
-    'cursor:pointer',
-    'font-size:13px',
-    'font-weight:700',
     'color:white',
-    'font-family:inherit',
-    'user-select:none',
-    'transition:transform 0.15s ease',
   ].join(';');
   el.textContent = String(count);
-  el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.15)'; });
-  el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)'; });
   return el;
 }
 
-export function OffersMapView({ offers, onSelectOffer }: OffersMapViewProps) {
+/** Appointment pin inside an expanded group — labeled with a 1-based position, not an id/code. */
+function makeAppointmentMarkerEl(index: number): HTMLDivElement {
+  const el = document.createElement('div');
+  el.setAttribute('data-testid', 'map-appointment-pin');
+  el.style.cssText = [
+    ...PIN_BASE_STYLE,
+    'background-color:white',
+    `border:2.5px solid ${PRIMARY_COLOR}`,
+    `color:${PRIMARY_COLOR}`,
+  ].join(';');
+  el.textContent = String(index + 1);
+  return el;
+}
+
+export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: OffersMapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
   const mapLoadedRef = useRef(false);
+  const prevExpandedIdRef = useRef<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
 
   // Initialize the map once (or on retry).
   useEffect(() => {
@@ -86,7 +124,7 @@ export function OffersMapView({ offers, onSelectOffer }: OffersMapViewProps) {
       map.on('load', () => {
         if (cancelled) return;
         mapLoadedRef.current = true;
-        placeMarkers(map, mapboxgl, offers, onSelectOffer);
+        renderMode(map, mapboxgl);
       });
 
       map.on('error', () => {
@@ -103,26 +141,46 @@ export function OffersMapView({ offers, onSelectOffer }: OffersMapViewProps) {
       mapLoadedRef.current = false;
       mapRef.current?.remove();
       mapRef.current = null;
+      prevExpandedIdRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [retryKey]);
 
-  // Update markers when offers change after map is already loaded.
+  // Re-render pins when offers change or the drill-down mode toggles. The
+  // dependency on expandedGroup keeps the periodic offers refetch from
+  // clobbering the expanded pin set.
   useEffect(() => {
     if (!mapRef.current || !mapLoadedRef.current) return;
     import('mapbox-gl').then(({ default: mapboxgl }) => {
-      placeMarkers(mapRef.current, mapboxgl, offers, onSelectOffer);
+      if (!mapRef.current || !mapLoadedRef.current) return;
+      renderMode(mapRef.current, mapboxgl);
     });
-  }, [offers, onSelectOffer]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offers, onSelectOffer, expandedGroup]);
 
-  function placeMarkers(
+  // Close the info chip whenever the drill-down target changes or is cleared.
+  useEffect(() => {
+    setSelectedAppointmentId(null);
+  }, [expandedGroup?.groupId]);
+
+  function renderMode(map: any, mapboxgl: any) {
+    markersRef.current.forEach((m) => m.remove());
+    markersRef.current = [];
+
+    if (expandedGroup) {
+      placeAppointmentMarkers(map, mapboxgl, expandedGroup);
+    } else {
+      placeOfferMarkers(map, mapboxgl, offers, onSelectOffer);
+    }
+    moveCameraOnModeChange(map);
+  }
+
+  function placeOfferMarkers(
     map: any,
     mapboxgl: any,
     currentOffers: MarketplaceOffer[],
     onSelect: (id: string) => void,
   ) {
-    markersRef.current.forEach((m) => m.remove());
-    markersRef.current = [];
-
     for (const offer of currentOffers) {
       if (!offer.centroid) continue;
       const el = makeMarkerEl(offer.appointmentCount);
@@ -133,6 +191,46 @@ export function OffersMapView({ offers, onSelectOffer }: OffersMapViewProps) {
         .setLngLat([offer.centroid.lng, offer.centroid.lat])
         .addTo(map);
       markersRef.current.push(marker);
+    }
+  }
+
+  function placeAppointmentMarkers(map: any, mapboxgl: any, group: ExpandedGroup) {
+    group.appointments.forEach((appointment, index) => {
+      if (!appointment.coordinates) return;
+      const el = makeAppointmentMarkerEl(index);
+      el.addEventListener('click', (event) => {
+        event.stopPropagation();
+        setSelectedAppointmentId((prev) => (prev === appointment.id ? null : appointment.id));
+      });
+
+      const marker = new mapboxgl.Marker({ element: el })
+        .setLngLat([appointment.coordinates.lng, appointment.coordinates.lat])
+        .addTo(map);
+      markersRef.current.push(marker);
+    });
+  }
+
+  /** fitBounds/flyTo only when entering or leaving the drill-down, not on every refetch. */
+  function moveCameraOnModeChange(map: any) {
+    const currentId = expandedGroup?.groupId ?? null;
+    if (prevExpandedIdRef.current === currentId) return;
+    prevExpandedIdRef.current = currentId;
+
+    const points = expandedGroup
+      ? expandedGroup.appointments.map((a) => ({
+          latitude: a.coordinates?.lat ?? null,
+          longitude: a.coordinates?.lng ?? null,
+        }))
+      : offers.map((o) => ({ latitude: o.centroid?.lat ?? null, longitude: o.centroid?.lng ?? null }));
+    const singlePointZoom = expandedGroup ? 15 : 12;
+
+    const bounds = computeBounds(points);
+    if (!bounds) return;
+    if (isSinglePointBounds(bounds)) {
+      const [[lng, lat]] = bounds as [[number, number], [number, number]];
+      map.flyTo({ center: [lng, lat], zoom: singlePointZoom, duration: 700 });
+    } else {
+      map.fitBounds(bounds, { padding: 48, maxZoom: singlePointZoom, duration: 700 });
     }
   }
 
@@ -153,7 +251,15 @@ export function OffersMapView({ offers, onSelectOffer }: OffersMapViewProps) {
     );
   }
 
-  const hasAnyPin = offers.some((o) => o.centroid !== null);
+  const hasAnyOfferPin = offers.some((o) => o.centroid !== null);
+  const expandedHasPin = expandedGroup
+    ? expandedGroup.appointments.some((a) => a.coordinates !== null)
+    : false;
+  const showNoPinsOverlay = expandedGroup ? !expandedHasPin : !hasAnyOfferPin;
+  const selectedAppointment =
+    expandedGroup && selectedAppointmentId
+      ? expandedGroup.appointments.find((a) => a.id === selectedAppointmentId) ?? null
+      : null;
 
   return (
     <div className="relative">
@@ -162,12 +268,38 @@ export function OffersMapView({ offers, onSelectOffer }: OffersMapViewProps) {
         data-testid="map-container"
         className="h-[60vh] w-full overflow-hidden rounded-2xl"
       />
-      {!hasAnyPin && (
+      {showNoPinsOverlay && (
         <div
           data-testid="map-no-pins"
           className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/20"
         >
-          <p className="text-sm font-medium text-white">No offers with location data</p>
+          <p className="text-sm font-medium text-white">
+            {expandedGroup ? 'No location data for this group' : 'No offers with location data'}
+          </p>
+        </div>
+      )}
+      {selectedAppointment && (
+        <div
+          data-testid="map-appointment-chip"
+          className="absolute inset-x-3 bottom-3 flex items-start justify-between gap-2 rounded-2xl bg-white/95 px-4 py-3 shadow-lg backdrop-blur-sm"
+        >
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-text-primary">
+              {selectedAppointment.street || 'Address unavailable'}
+            </p>
+            <p className="truncate text-xs text-text-secondary">{selectedAppointment.suburb}</p>
+            <p className="mt-0.5 text-xs font-semibold text-primary">
+              {selectedAppointment.timeSlotStart}–{selectedAppointment.timeSlotEnd}
+            </p>
+          </div>
+          <button
+            data-testid="map-appointment-chip-close"
+            aria-label="Close appointment info"
+            onClick={() => setSelectedAppointmentId(null)}
+            className="min-h-touch min-w-touch -mr-2 -mt-1 inline-flex items-center justify-center rounded-full text-[rgba(0,0,0,0.54)] active:bg-black/10"
+          >
+            <i className="mdi mdi-close text-lg" aria-hidden="true" />
+          </button>
         </div>
       )}
     </div>

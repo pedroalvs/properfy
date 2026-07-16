@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { TopBar } from '@/components/shell/TopBar';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -7,10 +7,13 @@ import { OfferFeed } from '../components/OfferFeed';
 import { OfflineMarketplaceBanner } from '../components/OfflineMarketplaceBanner';
 import { GroupDetailBottomSheet } from '../components/GroupDetailBottomSheet';
 import { OffersViewToggle } from '../components/OffersViewToggle';
-import { OffersMapView } from '../components/OffersMapView';
+import { OffersMapView, type ExpandedGroup } from '../components/OffersMapView';
+import { MapGroupActionBar } from '../components/MapGroupActionBar';
 import { useMarketplaceOffers } from '../hooks/useMarketplaceOffers';
+import { useMarketplaceOfferDetail } from '../hooks/useMarketplaceOfferDetail';
 import { useAcceptOffer } from '../hooks/useAcceptOffer';
 import { useIsOnline } from '@/hooks/useIsOnline';
+import { useSnackbar } from '@/hooks/useSnackbar';
 
 function formatTimeAgo(timestamp: number): string {
   const seconds = Math.round((Date.now() - timestamp) / 1000);
@@ -25,11 +28,57 @@ export function MarketplacePage() {
   const isOnline = useIsOnline();
   const { data, isLoading, isError, error, refetch, dataUpdatedAt } = useMarketplaceOffers();
   const { accept, getState } = useAcceptOffer();
+  const { showError, showInfo } = useSnackbar();
   const [detailGroupId, setDetailGroupId] = useState<string | null>(null);
+  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'map'>('list');
   const offers = data?.data ?? [];
   const hasCachedOffers = offers.length > 0;
   const shouldShowFeed = !isLoading && (!isError || hasCachedOffers);
+
+  const expandedDetail = useMarketplaceOfferDetail(expandedGroupId);
+  const expandedOffer = expandedGroupId
+    ? offers.find((offer) => offer.groupId === expandedGroupId) ?? null
+    : null;
+
+  const expandedGroup = useMemo<ExpandedGroup | null>(() => {
+    if (!expandedGroupId || !expandedDetail.data) return null;
+    return {
+      groupId: expandedGroupId,
+      appointments: expandedDetail.data.appointments.map((appointment) => ({
+        id: appointment.id,
+        street: appointment.street,
+        suburb: appointment.suburb,
+        timeSlotStart: appointment.timeSlotStart,
+        timeSlotEnd: appointment.timeSlotEnd,
+        coordinates: appointment.coordinates,
+      })),
+    };
+  }, [expandedGroupId, expandedDetail.data]);
+
+  // Drill-down needs the detail fetch; without it there are no pins to show.
+  useEffect(() => {
+    if (!expandedGroupId || !expandedDetail.isError) return;
+    showError('Failed to load group inspections');
+    setExpandedGroupId(null);
+  }, [expandedGroupId, expandedDetail.isError, showError]);
+
+  // The expanded group can vanish from the periodically refetched offers list
+  // (accepted by another inspector or unpublished) — reset instead of showing
+  // pins for an offer that no longer exists.
+  useEffect(() => {
+    if (!expandedGroupId || isLoading || isError || !data) return;
+    if (!offers.some((offer) => offer.groupId === expandedGroupId)) {
+      showInfo('This group is no longer available');
+      setExpandedGroupId(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expandedGroupId, data, isLoading, isError, showInfo]);
+
+  const handleViewChange = (nextView: 'list' | 'map') => {
+    if (nextView === 'list') setExpandedGroupId(null);
+    setView(nextView);
+  };
 
   return (
     <div className="w-full" data-testid="marketplace-page">
@@ -47,7 +96,7 @@ export function MarketplacePage() {
         </section>
       </div>
 
-      <OffersViewToggle value={view} onChange={setView} />
+      <OffersViewToggle value={view} onChange={handleViewChange} />
 
       {!isOnline && <OfflineMarketplaceBanner />}
 
@@ -66,8 +115,23 @@ export function MarketplacePage() {
       )}
 
       {view === 'map' && (
-        <div className="px-page-x py-2">
-          <OffersMapView offers={offers} onSelectOffer={setDetailGroupId} />
+        <div className="flex flex-col gap-2 px-page-x py-2">
+          {expandedGroupId && (
+            <MapGroupActionBar
+              groupCode={expandedOffer?.code ?? expandedDetail.data?.code ?? ''}
+              appointmentCount={
+                expandedDetail.data?.appointmentCount ?? expandedOffer?.appointmentCount ?? 0
+              }
+              loading={expandedDetail.isLoading}
+              onReset={() => setExpandedGroupId(null)}
+              onAccept={() => setDetailGroupId(expandedGroupId)}
+            />
+          )}
+          <OffersMapView
+            offers={offers}
+            onSelectOffer={setExpandedGroupId}
+            expandedGroup={expandedGroup}
+          />
         </div>
       )}
 
@@ -91,7 +155,10 @@ export function MarketplacePage() {
             ? async () => {
                 const outcome = await accept(detailGroupId);
                 // Keep the sheet open on retryable failure so the user can try again
-                if (outcome !== 'ERROR') setDetailGroupId(null);
+                if (outcome !== 'ERROR') {
+                  setDetailGroupId(null);
+                  setExpandedGroupId(null);
+                }
               }
             : undefined
         }
