@@ -18,9 +18,17 @@ export function isAppointmentOverdue(
 ): boolean {
   if (!OVERDUE_ELIGIBLE_STATUSES.includes(status)) return false;
 
+  // Strings carry a civil date by contract (YYYY-MM-DD prefix). Date objects are
+  // resolved to their Sydney civil date — identical for @db.Date values (pinned to
+  // UTC midnight) and correct for real instants near the Sydney midnight boundary.
   const scheduledStr = typeof scheduledDate === 'string'
     ? scheduledDate.split('T')[0]!
-    : scheduledDate.toISOString().split('T')[0]!;
+    : new Intl.DateTimeFormat('en-CA', {
+        timeZone: PLATFORM_TIMEZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(scheduledDate);
   const todayStr = todayInTzDateString(PLATFORM_TIMEZONE);
 
   return scheduledStr < todayStr;

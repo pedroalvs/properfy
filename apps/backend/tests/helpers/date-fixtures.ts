@@ -24,28 +24,30 @@
  * will never drift into the future.
  */
 
-/** `YYYY-MM-DD` string N days ahead of the current UTC date (default 30). */
+import { PLATFORM_TIMEZONE, todayInTzDateString } from '@properfy/shared';
+
+/** UTC-midnight Date for today's SYDNEY civil date — the anchor every fixture offsets from. */
+function sydneyTodayUtcMidnight(): Date {
+  return new Date(`${todayInTzDateString(PLATFORM_TIMEZONE)}T00:00:00.000Z`);
+}
+
+/** `YYYY-MM-DD` string N days ahead of today's Sydney civil date (default 30). */
 export function futureDateStr(daysAhead = 30): string {
-  const d = new Date();
+  const d = sydneyTodayUtcMidnight();
   d.setUTCDate(d.getUTCDate() + daysAhead);
   return d.toISOString().split('T')[0]!;
 }
 
-/** `YYYY-MM-DD` string N days before the current UTC date (default 30). */
+/** `YYYY-MM-DD` string N days before today's Sydney civil date (default 30). */
 export function pastDateStr(daysAgo = 30): string {
-  const d = new Date();
+  const d = sydneyTodayUtcMidnight();
   d.setUTCDate(d.getUTCDate() - daysAgo);
   return d.toISOString().split('T')[0]!;
 }
 
-/** `YYYY-MM-DD` string for today in UTC. */
-export function todayUTCStr(): string {
-  return new Date().toISOString().split('T')[0]!;
-}
-
-/** Full ISO datetime N days ahead, e.g. for appointment scheduled timestamps. */
+/** Full ISO datetime N days ahead of the Sydney civil today, e.g. for appointment scheduled timestamps. */
 export function futureIsoDateTime(daysAhead = 30, hour = 10, minute = 0): string {
-  const d = new Date();
+  const d = sydneyTodayUtcMidnight();
   d.setUTCDate(d.getUTCDate() + daysAhead);
   d.setUTCHours(hour, minute, 0, 0);
   return d.toISOString();

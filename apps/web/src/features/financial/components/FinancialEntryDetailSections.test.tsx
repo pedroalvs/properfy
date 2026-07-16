@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { PLATFORM_TIMEZONE } from '@properfy/shared';
 import { render, screen } from '@testing-library/react';
 import { FinancialEntryType, FinancialEntryStatus } from '@properfy/shared';
 import { FinancialEntryDetailSections } from './FinancialEntryDetailSections';
@@ -94,7 +95,7 @@ describe('FinancialEntryDetailSections', () => {
   it('renders createdAt and updatedAt', () => {
     render(<FinancialEntryDetailSections entry={baseEntry} />);
     // formatDateTime renders in the platform timezone (Sydney), not the runner's local zone.
-    const created = new Date('2026-03-15T10:00:00Z').toLocaleString('en-AU', { timeZone: 'Australia/Sydney' });
+    const created = new Date('2026-03-15T10:00:00Z').toLocaleString('en-AU', { timeZone: PLATFORM_TIMEZONE });
     const matches = screen.getAllByText(created);
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });

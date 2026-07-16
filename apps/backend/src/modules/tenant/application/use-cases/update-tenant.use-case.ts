@@ -53,7 +53,6 @@ export interface UpdateTenantInput {
   data: {
     name?: string;
     legalName?: string;
-    timezone?: string;
     currency?: string;
     appointmentCodePrefix?: string;
     settings?: Record<string, unknown>;
@@ -105,7 +104,7 @@ export class UpdateTenantUseCase {
         }
       }
       // Keep the top-level appointmentCodePrefix (CL_ADMIN/OP may set it); other
-      // top-level fields (legalName, timezone, currency) remain AM-only.
+      // top-level fields (legalName, currency) remain AM-only; timezone is frozen platform-wide.
       data = {
         name: data.name,
         appointmentCodePrefix: data.appointmentCodePrefix,

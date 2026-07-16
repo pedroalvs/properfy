@@ -41,6 +41,12 @@ describe('zonedWallTimeToUtc', () => {
       '2026-07-16T09:00:00.000Z',
     );
   });
+
+  it('rejects malformed inputs and normalized-but-invalid civil dates', () => {
+    expect(() => zonedWallTimeToUtc('2026-2-30', '09:00', 'UTC')).toThrow(RangeError);
+    expect(() => zonedWallTimeToUtc('2026-07-16', '9:00', 'UTC')).toThrow(RangeError);
+    expect(() => zonedWallTimeToUtc('2026-02-30', '09:00', 'UTC')).toThrow(RangeError);
+  });
 });
 
 describe('endOfCivilDayInTz', () => {

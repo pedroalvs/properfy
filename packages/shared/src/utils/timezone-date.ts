@@ -41,7 +41,15 @@ function offsetMinutesAtInstant(instant: Date, timezone: string): number {
  * deterministically via the probe offset.
  */
 export function zonedWallTimeToUtc(dateStr: string, timeStr: string, timezone: string): Date {
-  const wallMs = new Date(`${dateStr}T${timeStr}:00.000Z`).getTime();
+  const wallTime = `${dateStr}T${timeStr}`;
+  if (!/^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])T(?:[01]\d|2[0-3]):[0-5]\d$/.test(wallTime)) {
+    throw new RangeError('Expected a valid YYYY-MM-DD date and HH:mm wall time');
+  }
+  const wallMs = new Date(`${wallTime}:00.000Z`).getTime();
+  // Round-trip guard: rejects normalized-but-invalid civil dates like 2026-02-30.
+  if (new Date(wallMs).toISOString().slice(0, 16) !== wallTime) {
+    throw new RangeError('Expected a valid calendar date');
+  }
   if (timezone === 'UTC') return new Date(wallMs);
   const guess = offsetMinutesAtInstant(new Date(wallMs), timezone);
   const refined = offsetMinutesAtInstant(new Date(wallMs - guess * 60_000), timezone);

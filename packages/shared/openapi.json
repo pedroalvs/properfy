@@ -686,12 +686,6 @@
                     "minLength": 1,
                     "maxLength": 200
                   },
-                  "timezone": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 60,
-                    "default": "Australia/Sydney"
-                  },
                   "currency": {
                     "type": "string",
                     "minLength": 3,
@@ -1363,11 +1357,6 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 200
-                  },
-                  "timezone": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 60
                   },
                   "currency": {
                     "type": "string",

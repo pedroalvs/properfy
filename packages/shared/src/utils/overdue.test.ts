@@ -63,5 +63,11 @@ describe('isAppointmentOverdue', () => {
       vi.setSystemTime(new Date('2026-07-15T13:00:00Z'));
       expect(isAppointmentOverdue('SCHEDULED', '2026-07-15')).toBe(false);
     });
+
+    it('resolves Date instants to their Sydney civil date', () => {
+      // Both instants are 2026-07-16 in Sydney — same civil day, not overdue.
+      vi.setSystemTime(new Date('2026-07-15T15:00:00Z'));
+      expect(isAppointmentOverdue('SCHEDULED', new Date('2026-07-15T14:30:00Z'))).toBe(false);
+    });
   });
 });

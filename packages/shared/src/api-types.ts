@@ -687,8 +687,6 @@ export interface paths {
                     "application/json": {
                         name: string;
                         legalName: string;
-                        /** @default Australia/Sydney */
-                        timezone?: string;
                         /** @default AUD */
                         currency?: string;
                         appointmentCodePrefix: string;
@@ -879,7 +877,6 @@ export interface paths {
                     "application/json": {
                         name?: string;
                         legalName?: string;
-                        timezone?: string;
                         currency?: string;
                         appointmentCodePrefix?: string;
                         settings?: {

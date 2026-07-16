@@ -15,7 +15,6 @@ import { TENANT_EVENTS } from '../../../../shared/application/events/domain-even
 export interface CreateTenantInput {
   name: string;
   legalName: string;
-  timezone: string;
   currency: string;
   appointmentCodePrefix: string;
   settings?: Record<string, unknown>;
