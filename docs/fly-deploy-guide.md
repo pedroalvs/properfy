@@ -77,6 +77,11 @@ fly secrets set WHATSAPP_API_URL="https://api.zenvia.com/v2"
 # restriction checks the HTTP Referer, which server-side calls never send,
 # causing every geocoding request to fail with 403). Use a dedicated token
 # with no URL restriction, distinct from the frontend's VITE_MAPBOX_TOKEN.
+#
+# NOTE: the Integrations Hub (Settings → Integrations, Mapbox card) stores a
+# database-backed credential that takes priority over this Fly secret when
+# present. If a token was ever saved there, update or remove it too —
+# otherwise the app keeps using the stored value regardless of this secret.
 fly secrets set MAPBOX_ACCESS_TOKEN="sk.xxxxx"
 
 # Enable background job processing (pg-boss)
