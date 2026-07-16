@@ -1,28 +1,4 @@
 /**
- * Returns the current local date as YYYY-MM-DD string.
- * Uses the runtime's local timezone — intended for frontend (browser) use only.
- */
-export function todayLocalDateString(): string {
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const dd = String(now.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-/**
- * Returns the current UTC date as YYYY-MM-DD string.
- * Deterministic regardless of server timezone — intended for backend use.
- */
-export function todayUTCDateString(): string {
-  const now = new Date();
-  const yyyy = now.getUTCFullYear();
-  const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(now.getUTCDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-/**
  * Returns today's date as YYYY-MM-DD in the given IANA timezone.
  * Uses Intl.DateTimeFormat for deterministic TZ-aware output on both
  * browser (uses system clock + tz) and Node.js.
@@ -50,16 +26,4 @@ export function isTimeStartInPastForDate(slotOrWindow: string, referenceDate: st
   const start = slotOrWindow.split('-')[0];
   if (!start) return false;
   return start < currentTimeInTzHHmm(tz);
-}
-
-/**
- * Extracts the date portion (YYYY-MM-DD) from a Date object or ISO string,
- * using local timezone.
- */
-export function toLocalDateString(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
 }

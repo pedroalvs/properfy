@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { todayLocalDateString, currentTimeInTzHHmm, todayInTzDateString, PLATFORM_TIMEZONE } from '@properfy/shared';
+import { currentTimeInTzHHmm, todayInTzDateString, PLATFORM_TIMEZONE } from '@properfy/shared';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/forms/Textarea';
@@ -112,7 +112,7 @@ export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGro
                 onChange={(e) => setScheduledDate(e.target.value)}
                 onClick={(e) => e.currentTarget.showPicker?.()}
                 // Edit-conditional: always enforce min when editing (service groups start fresh).
-                min={todayLocalDateString()}
+                min={todayInTzDateString(PLATFORM_TIMEZONE)}
                 className="w-full rounded border border-border-subtle bg-white px-3 py-2 text-sm text-text-primary outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 aria-label="Scheduled date"
               />

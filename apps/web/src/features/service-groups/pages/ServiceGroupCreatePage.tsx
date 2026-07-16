@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { createServiceGroupSchema, UserRole, todayLocalDateString, currentTimeInTzHHmm, todayInTzDateString, PLATFORM_TIMEZONE } from '@properfy/shared';
+import { createServiceGroupSchema, UserRole, currentTimeInTzHHmm, todayInTzDateString, PLATFORM_TIMEZONE } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
@@ -277,7 +277,7 @@ export function ServiceGroupCreatePage() {
                 <DateInput
                   value={scheduledDate}
                   onChange={setScheduledDate}
-                  min={todayLocalDateString()}
+                  min={todayInTzDateString(PLATFORM_TIMEZONE)}
                   aria-label="Scheduled Date"
                 />
               </FormField>

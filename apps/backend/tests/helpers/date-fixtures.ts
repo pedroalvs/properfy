@@ -17,7 +17,7 @@
  * (2026-04-15, 2026-04-20, 2026-04-21) caused by exactly this pattern.
  *
  * Rule of thumb: any test that feeds a date into a use case which
- * compares it to `new Date()` / `todayUTCDateString()` MUST use one of
+ * compares it to `new Date()` / the Sydney civil today MUST use one of
  * the helpers below instead of a literal.
  *
  * A literal like `'2020-01-01'` is fine for "always past" tests — it
