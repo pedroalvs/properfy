@@ -17052,6 +17052,26 @@
                               "timeSlotEnd": {
                                 "type": "string",
                                 "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "street": {
+                                "type": "string"
+                              },
+                              "coordinates": {
+                                "type": "object",
+                                "properties": {
+                                  "lat": {
+                                    "type": "number"
+                                  },
+                                  "lng": {
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "lat",
+                                  "lng"
+                                ],
+                                "additionalProperties": false,
+                                "nullable": true
                               }
                             },
                             "required": [
@@ -17064,7 +17084,9 @@
                               "payoutAmount",
                               "tenantName",
                               "timeSlotStart",
-                              "timeSlotEnd"
+                              "timeSlotEnd",
+                              "street",
+                              "coordinates"
                             ],
                             "additionalProperties": false
                           }

@@ -93,6 +93,10 @@ export interface MarketplaceOfferDetail extends MarketplaceOffer {
     id: string;
     appointmentNumber: number;
     suburb: string;
+    /** Property street line (rua/avenida); '' when the property is missing. */
+    street: string;
+    /** Property lat/lng for the PWA map drill-down; null while geocoding is pending/failed. */
+    coordinates: { lat: number; lng: number } | null;
     keyRequired: boolean;
     notes: string | null;
     payoutAmount: number | null;

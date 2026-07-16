@@ -548,7 +548,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
             time_slot_end: true,
             tenant_id: true,
             tenant: { select: { name: true, appointment_code_prefix: true } },
-            property: { select: { suburb: true, state: true, street: true } },
+            property: { select: { suburb: true, state: true, street: true, lat: true, lng: true } },
           },
         },
       },
@@ -623,6 +623,11 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
           appointmentCode: `${prefixFor(a)}-${padded}`,
           appointmentNumber: a.appointment_number,
           suburb,
+          street: p?.street ?? '',
+          coordinates:
+            p?.lat != null && p?.lng != null
+              ? { lat: Number(p.lat), lng: Number(p.lng) }
+              : null,
           keyRequired: a.key_required === true,
           notes: a.notes ?? null,
           payoutAmount: payoutVal,
