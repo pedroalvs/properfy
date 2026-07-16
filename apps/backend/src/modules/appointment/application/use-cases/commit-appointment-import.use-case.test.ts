@@ -88,10 +88,10 @@ describe('CommitAppointmentImportUseCase', () => {
     const deps = buildDeps();
     deps.importRepo.findById.mockResolvedValue(buildRecord());
     const uc = buildUseCase(deps);
-    const result = await uc.execute({ importId: 'import-1', skipInvalidRows: false, actorTimezone: 'Australia/Sydney', actor: AM });
+    const result = await uc.execute({ importId: 'import-1', skipInvalidRows: false, actor: AM });
     expect(result).toEqual({ importId: 'import-1', status: 'PROCESSING' });
     expect(deps.jobQueue.enqueue).toHaveBeenCalledWith('appointment.import.commit', {
-      importId: 'import-1', actorTimezone: 'Australia/Sydney', actor: AM,
+      importId: 'import-1', actor: AM,
     }, { singletonKey: 'import-1' });
   });
 

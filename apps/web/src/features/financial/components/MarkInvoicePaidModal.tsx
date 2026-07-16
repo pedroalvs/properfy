@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { PLATFORM_TIMEZONE, zonedWallTimeToUtc } from '@properfy/shared';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/forms/FormField';
@@ -40,20 +41,29 @@ interface BatchResponseData {
 }
 
 /**
- * Produce a `YYYY-MM-DDTHH:mm` string in the user's LOCAL timezone for
- * `<input type="datetime-local">`. Using `toISOString().slice(0, 16)` here
- * was wrong — that's UTC, but datetime-local interprets its value as local
- * time, so on submission `new Date(value).toISOString()` would add the local
- * offset (e.g. +3h in Brazil), pushing paidAt into the future and tripping
- * the server's 1-hour future-grace check. Bug B-7 (QA 2026-04-19).
+ * Produce a `YYYY-MM-DDTHH:mm` string of the CURRENT SYDNEY WALL TIME for
+ * `<input type="datetime-local">`. The platform is Sydney-only: the value the
+ * operator sees and edits is Sydney wall time, and on submit it is converted
+ * back to UTC via `zonedWallTimeToUtc` — so the round-trip is offset-safe
+ * regardless of the operator's location. (Supersedes Bug B-7, which was about
+ * the earlier UTC-vs-local mismatch.)
  */
 function defaultPaidAt(): string {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return (
-    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}` +
-    `T${pad(now.getHours())}:${pad(now.getMinutes())}`
-  );
+  // en-CA formats as YYYY-MM-DD; combined with hour12:false this yields the
+  // exact `YYYY-MM-DDTHH:mm` shape datetime-local expects.
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: PLATFORM_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date());
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  // Intl may render midnight as "24:00" with hour12: false — normalize to "00".
+  const hour = get('hour') === '24' ? '00' : get('hour');
+  return `${get('year')}-${get('month')}-${get('day')}T${hour}:${get('minute')}`;
 }
 
 function friendlyError(status: number | undefined, code: string | undefined): string {
@@ -121,7 +131,9 @@ export function MarkInvoicePaidModal({
 
     setIsSubmitting(true);
     try {
-      const paidAtIso = new Date(form.paidAt).toISOString();
+      // The datetime-local value is Sydney wall time — convert to UTC explicitly.
+      const [paidDate, paidTime] = form.paidAt.split('T') as [string, string];
+      const paidAtIso = zonedWallTimeToUtc(paidDate, paidTime, PLATFORM_TIMEZONE).toISOString();
       const reference = form.paymentReference.trim();
       const body: { paidAt: string; paymentReference?: string } = { paidAt: paidAtIso };
       if (reference) body.paymentReference = reference;

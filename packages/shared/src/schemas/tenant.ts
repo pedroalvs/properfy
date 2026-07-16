@@ -124,7 +124,6 @@ export const appointmentCodePrefixSchema = z
 export const createTenantSchema = z.object({
   name: z.string().min(1).max(200).trim(),
   legalName: z.string().min(1).max(200).trim(),
-  timezone: z.string().min(1).max(60).default('Australia/Sydney'),
   currency: z.string().length(3).default('AUD'),
   // Required: every agency must have a unique appointment-code prefix.
   appointmentCodePrefix: appointmentCodePrefixSchema,
@@ -136,7 +135,6 @@ export type CreateTenantInput = z.infer<typeof createTenantSchema>;
 export const updateTenantSchema = z.object({
   name: z.string().min(1).max(200).trim().optional(),
   legalName: z.string().min(1).max(200).trim().optional(),
-  timezone: z.string().min(1).max(60).optional(),
   currency: z.string().length(3).optional(),
   appointmentCodePrefix: appointmentCodePrefixSchema.optional(),
   settings: tenantSettingsSchema.partial().optional(),

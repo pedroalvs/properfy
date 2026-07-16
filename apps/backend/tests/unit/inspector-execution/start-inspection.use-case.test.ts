@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { PLATFORM_TIMEZONE, zonedWallTimeToUtc } from '@properfy/shared';
 import { StartInspectionUseCase } from '../../../src/modules/inspector-execution/application/use-cases/start-inspection.use-case';
 import { InspectionExecutionEntity } from '../../../src/modules/inspector-execution/domain/inspection-execution.entity';
 import {
@@ -107,8 +108,9 @@ function makeSut() {
 describe('StartInspectionUseCase', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Set fake time within the default appointment time window (09:00-11:00 on 2026-03-21)
-    vi.useFakeTimers({ now: new Date('2026-03-21T10:00:00Z') });
+    // Set fake time within the default appointment time window
+    // (09:00-11:00 Sydney wall time on 2026-03-21)
+    vi.useFakeTimers({ now: zonedWallTimeToUtc('2026-03-21', '10:00', PLATFORM_TIMEZONE) });
     idempotencyService.get.mockResolvedValue(null);
     executionRepo.findByAppointmentId.mockResolvedValue(null);
     executionRepo.save.mockResolvedValue(undefined);
@@ -374,9 +376,9 @@ describe('StartInspectionUseCase', () => {
 
   it('should throw ExecutionTimeWindowError when starting too early', async () => {
     const sut = makeSut();
-    // Appointment at 09:00-11:00 on 2026-03-21, window opens at 08:30
-    // Set time to 08:00 (before window)
-    vi.setSystemTime(new Date('2026-03-21T08:00:00Z'));
+    // Appointment at 09:00-11:00 Sydney on 2026-03-21, window opens at 08:30 Sydney
+    // Set time to 08:00 Sydney (before window)
+    vi.setSystemTime(zonedWallTimeToUtc('2026-03-21', '08:00', PLATFORM_TIMEZONE));
 
     appointmentRepo.findById.mockResolvedValue(makeAppointmentWithRelations());
 
@@ -393,9 +395,9 @@ describe('StartInspectionUseCase', () => {
 
   it('should throw ExecutionTimeWindowError when starting too late', async () => {
     const sut = makeSut();
-    // Appointment at 09:00-11:00 on 2026-03-21, window closes at 13:00
-    // Set time to 14:00 (after window)
-    vi.setSystemTime(new Date('2026-03-21T14:00:00Z'));
+    // Appointment at 09:00-11:00 Sydney on 2026-03-21, window closes at 11:30 Sydney
+    // Set time to 14:00 Sydney (after window)
+    vi.setSystemTime(zonedWallTimeToUtc('2026-03-21', '14:00', PLATFORM_TIMEZONE));
 
     appointmentRepo.findById.mockResolvedValue(makeAppointmentWithRelations());
 
@@ -412,8 +414,8 @@ describe('StartInspectionUseCase', () => {
 
   it('should allow starting within the time window', async () => {
     const sut = makeSut();
-    // Appointment at 09:00-11:00 on 2026-03-21, set time to 09:30 (within window)
-    vi.setSystemTime(new Date('2026-03-21T09:30:00Z'));
+    // Appointment at 09:00-11:00 Sydney on 2026-03-21, set time to 09:30 Sydney (within window)
+    vi.setSystemTime(zonedWallTimeToUtc('2026-03-21', '09:30', PLATFORM_TIMEZONE));
 
     appointmentRepo.findById.mockResolvedValue(makeAppointmentWithRelations());
 

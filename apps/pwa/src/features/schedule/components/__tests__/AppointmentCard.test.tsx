@@ -62,8 +62,7 @@ describe('AppointmentCard', () => {
   });
 
   it('shows T-1 warning for unconfirmed routine today', () => {
-    const today = new Date();
-    const todayDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const todayDate = '2026-07-16';
     const apt: InspectorAppointment = {
       ...baseAppointment,
       scheduledDate: todayDate,
@@ -71,26 +70,24 @@ describe('AppointmentCard', () => {
       rentalTenantConfirmation: RentalTenantConfirmationStatus.PENDING,
       flowType: ServiceTypeFlowType.ROUTINE,
     };
-    renderWithProviders(<AppointmentCard appointment={apt} />);
+    renderWithProviders(<AppointmentCard appointment={apt} today={todayDate} />);
     expect(screen.getByTestId('t1-warning')).toBeInTheDocument();
   });
 
   it('does not show T-1 warning for confirmed routine', () => {
-    const today = new Date();
-    const todayDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const todayDate = '2026-07-16';
     const apt: InspectorAppointment = {
       ...baseAppointment,
       scheduledDate: todayDate,
       timeSlotStart: '09:00',
       rentalTenantConfirmation: RentalTenantConfirmationStatus.CONFIRMED,
     };
-    renderWithProviders(<AppointmentCard appointment={apt} />);
+    renderWithProviders(<AppointmentCard appointment={apt} today={todayDate} />);
     expect(screen.queryByTestId('t1-warning')).not.toBeInTheDocument();
   });
 
   it('does not show T-1 warning for non-routine', () => {
-    const today = new Date();
-    const todayDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const todayDate = '2026-07-16';
     const apt: InspectorAppointment = {
       ...baseAppointment,
       scheduledDate: todayDate,
@@ -98,7 +95,7 @@ describe('AppointmentCard', () => {
       rentalTenantConfirmation: RentalTenantConfirmationStatus.PENDING,
       flowType: ServiceTypeFlowType.INGOING,
     };
-    renderWithProviders(<AppointmentCard appointment={apt} />);
+    renderWithProviders(<AppointmentCard appointment={apt} today={todayDate} />);
     expect(screen.queryByTestId('t1-warning')).not.toBeInTheDocument();
   });
 

@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { todayLocalDateString } from '@properfy/shared';
+import { todayInTzDateString, PLATFORM_TIMEZONE } from '@properfy/shared';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { SelectInput } from '@/components/forms/SelectInput';
@@ -321,7 +321,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
               value={values.scheduledDate ?? ''}
               onChange={(e) => setFieldValue('scheduledDate', e.target.value)}
               onClick={(e) => e.currentTarget.showPicker?.()}
-              min={todayLocalDateString()}
+              min={todayInTzDateString(PLATFORM_TIMEZONE)}
               className="w-full rounded border border-border-subtle bg-card-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-primary"
             />
           </FieldRow>

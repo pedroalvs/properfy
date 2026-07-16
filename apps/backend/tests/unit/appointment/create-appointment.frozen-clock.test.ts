@@ -14,6 +14,7 @@ import { PropertyEntity } from '../../../src/modules/property/domain/property.en
 import { ServiceTypeEntity } from '../../../src/modules/service-type/domain/service-type.entity';
 import { PricingRuleEntity } from '../../../src/modules/pricing-rule/domain/pricing-rule.entity';
 import { AppointmentDateInPastError, AppointmentTimeInPastError } from '../../../src/modules/appointment/domain/appointment.errors';
+import { PLATFORM_TIMEZONE, zonedWallTimeToUtc } from '@properfy/shared';
 
 /**
  * Deterministic past-date edge cases. Cycle 6 refactor: validation now uses
@@ -140,9 +141,9 @@ describe('CreateAppointmentUseCase — frozen clock boundary (CL_ADMIN)', () => 
     inspectorId: null,
   };
 
-  it('accepts scheduledDate equal to the frozen "today" UTC', async () => {
-    // Freeze at 07:00 UTC so the baseInput timeSlot 09:00-10:00 is in the future.
-    vi.useFakeTimers({ now: new Date('2026-06-15T07:00:00Z') });
+  it('accepts scheduledDate equal to the frozen "today" in Sydney', async () => {
+    // Freeze at 07:00 Sydney so the baseInput timeSlot 09:00-10:00 is in the future.
+    vi.useFakeTimers({ now: zonedWallTimeToUtc('2026-06-15', '07:00', PLATFORM_TIMEZONE) });
     const uc = buildUseCase();
 
     const result = await uc.execute({
@@ -167,11 +168,12 @@ describe('CreateAppointmentUseCase — frozen clock boundary (CL_ADMIN)', () => 
     ).rejects.toBeInstanceOf(AppointmentDateInPastError);
   });
 
-  it('rejects when the UTC day has just rolled over to the next date', async () => {
-    // 00:00:05 UTC on June 16 — todayInTzDateString('UTC') resolves to "2026-06-16".
+  it('rejects when the Sydney day has just rolled over to the next date', async () => {
+    // 2026-06-15T14:00:05Z = 00:00:05 on June 16 in Sydney (AEST +10), so
+    // "today" is already "2026-06-16" there even though UTC is still June 15.
     // Input "2026-06-15" is strictly less and must be rejected even though
-    // only five seconds ago it was still "today".
-    vi.useFakeTimers({ now: new Date('2026-06-16T00:00:05Z') });
+    // only five seconds ago it was still "today" in Sydney.
+    vi.useFakeTimers({ now: new Date('2026-06-15T14:00:05Z') });
     const uc = buildUseCase();
 
     await expect(
@@ -189,8 +191,8 @@ describe('CreateAppointmentUseCase — frozen clock boundary (CL_ADMIN)', () => 
   // narrow: it bypasses ONLY the time-in-past outcome, never the date check.
   describe('skipTimeInPastCheck', () => {
     it('without the flag, rejects a today-dated slot whose start time has already passed', async () => {
-      // Frozen at 14:00 UTC; baseInput's 09:00 start is in the past for "today".
-      vi.useFakeTimers({ now: new Date('2026-06-15T14:00:00Z') });
+      // Frozen at 14:00 Sydney; baseInput's 09:00 start is in the past for Sydney "today".
+      vi.useFakeTimers({ now: zonedWallTimeToUtc('2026-06-15', '14:00', PLATFORM_TIMEZONE) });
       const uc = buildUseCase();
 
       await expect(
@@ -199,7 +201,7 @@ describe('CreateAppointmentUseCase — frozen clock boundary (CL_ADMIN)', () => 
     });
 
     it('with the flag set, accepts a today-dated slot whose start time has already passed', async () => {
-      vi.useFakeTimers({ now: new Date('2026-06-15T14:00:00Z') });
+      vi.useFakeTimers({ now: zonedWallTimeToUtc('2026-06-15', '14:00', PLATFORM_TIMEZONE) });
       const uc = buildUseCase();
 
       const result = await uc.execute({
@@ -209,7 +211,7 @@ describe('CreateAppointmentUseCase — frozen clock boundary (CL_ADMIN)', () => 
     });
 
     it('with the flag set, STILL rejects a genuinely past date (narrow — never bypasses DATE_IN_PAST)', async () => {
-      vi.useFakeTimers({ now: new Date('2026-06-15T14:00:00Z') });
+      vi.useFakeTimers({ now: zonedWallTimeToUtc('2026-06-15', '14:00', PLATFORM_TIMEZONE) });
       const uc = buildUseCase();
 
       await expect(

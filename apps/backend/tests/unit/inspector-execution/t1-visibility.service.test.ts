@@ -4,11 +4,11 @@ import { T1VisibilityService } from '../../../src/modules/inspector-execution/do
 describe('T1VisibilityService', () => {
   const service = new T1VisibilityService();
 
-  // Helper: today is March 15, scheduledDate is March 16 (tomorrow = T-1)
-  const today = new Date('2026-03-15T12:00:00Z');
-  const tomorrow = new Date('2026-03-16T09:00:00Z');
-  const dayAfterTomorrow = new Date('2026-03-17T09:00:00Z');
-  const todayDate = new Date('2026-03-15T09:00:00Z');
+  // Helper: today (Sydney civil date) is March 15, scheduledDate is March 16 (tomorrow = T-1)
+  const today = '2026-03-15';
+  const tomorrow = new Date('2026-03-16T00:00:00Z');
+  const dayAfterTomorrow = new Date('2026-03-17T00:00:00Z');
+  const todayDate = new Date('2026-03-15T00:00:00Z');
 
   describe('INGOING appointments', () => {
     it('should always be visible when SCHEDULED', () => {

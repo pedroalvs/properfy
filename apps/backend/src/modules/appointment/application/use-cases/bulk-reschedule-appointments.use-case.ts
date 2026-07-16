@@ -13,7 +13,6 @@ export interface BulkRescheduleAppointmentsInput {
   newTimeSlotStart?: string;
   newTimeSlotEnd?: string;
   actor: AuthContext;
-  actorTimezone?: string;
 }
 
 export interface BulkRescheduleAppointmentsOutput {
@@ -37,7 +36,7 @@ export class BulkRescheduleAppointmentsUseCase {
   ) {}
 
   async execute(input: BulkRescheduleAppointmentsInput): Promise<BulkRescheduleAppointmentsOutput> {
-    const dayKey = dayKeyInTz(this.clock(), input.actorTimezone);
+    const dayKey = dayKeyInTz(this.clock());
     const results: BulkActionResultItem[] = [];
 
     // Normalise to YYYY-MM-DD. UpdateAppointmentUseCase parses with `new Date(value)`
@@ -66,7 +65,6 @@ export class BulkRescheduleAppointmentsUseCase {
               ? { timeSlotStart: input.newTimeSlotStart, timeSlotEnd: input.newTimeSlotEnd }
               : {}),
           },
-          actorTimezone: input.actorTimezone,
           actor: input.actor,
         });
         const result: BulkActionResultItem = { appointmentId, status: 'OK' };

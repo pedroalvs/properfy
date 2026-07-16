@@ -1,7 +1,7 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
-import { useScheduleHistory } from '../useScheduleHistory';
+import { useScheduleHistory, buildDateRange } from '../useScheduleHistory';
 
 const mockApiGet = vi.fn();
 
@@ -144,5 +144,25 @@ describe('useScheduleHistory', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.items).toHaveLength(0);
+  });
+});
+
+describe('buildDateRange', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('clamps month subtraction to the target month last day (leap-year Feb 29)', () => {
+    // Sydney civil today = 2028-02-29 (leap year): 2028-02-28T15:00Z = 2028-02-29 02:00 AEDT.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2028-02-28T15:00:00Z'));
+    // 12 months back from Feb 29 2028 → Feb 2027 has 28 days → clamp to 2027-02-28.
+    expect(buildDateRange('12m')).toEqual({ from: '2027-02-28', to: '2028-02-29' });
+  });
+
+  it('subtracts calendar days for day-based periods', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-15T02:00:00Z')); // Sydney today = 2026-07-15
+    expect(buildDateRange('30d')).toEqual({ from: '2026-06-15', to: '2026-07-15' });
   });
 });

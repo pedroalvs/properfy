@@ -1,4 +1,5 @@
 import type { FyAppointmentDetail } from '@properfy/shared';
+import { PLATFORM_TIMEZONE } from '@properfy/shared';
 
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import { AppointmentNotFoundError } from '../../../appointment/domain/appointment.errors';
@@ -51,7 +52,7 @@ export class GetFyAppointmentUseCase {
       agency: {
         id: appointment.tenantId,
         name: agency?.name ?? result.tenantName ?? '',
-        timezone: agency?.timezone ?? 'Australia/Sydney',
+        timezone: PLATFORM_TIMEZONE,
       },
       contact: contact
         ? {

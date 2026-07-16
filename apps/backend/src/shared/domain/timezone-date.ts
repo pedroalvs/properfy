@@ -7,8 +7,8 @@
  * Intl.DateTimeFormat.
  */
 
-/** The platform timezone used to evaluate whether an invoice period is "closed" (cross-tenant). */
-export const PLATFORM_TIMEZONE = 'Australia/Sydney';
+/** The platform timezone every business rule is anchored to (re-exported from shared). */
+export { PLATFORM_TIMEZONE } from '@properfy/shared';
 
 /**
  * Parse a YYYY-MM-DD date string as the start of that day (00:00:00) in the given IANA timezone,

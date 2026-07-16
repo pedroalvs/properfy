@@ -1,14 +1,12 @@
 import { useMemo, useState } from 'react';
 import { TimeRangeInput } from '@/components/forms/TimeRangeInput';
-import { todayLocalDateString, isTimeStartInPastForDate } from '@properfy/shared';
+import { PLATFORM_TIMEZONE, todayInTzDateString, currentTimeInTzHHmm, isTimeStartInPastForDate } from '@properfy/shared';
 import { useBulkReopenForReschedule } from '../hooks/useBulkReopenForReschedule';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 
 interface MapBulkRescheduleFormProps {
   /** Rows the operator ticked in the bulk modal — drives the same-group precheck. */
   checkedAppointments: AppointmentMapItem[];
-  /** Browser timezone forwarded for per-day idempotency bucketing. */
-  actorTimezone?: string;
   onCancel: () => void;
   /** Result envelope is the same shape as 025 bulk actions; the modal renders the summary. */
   onComplete: (results: Array<{ appointmentId: string; status: string; error?: { code: string; message: string } }>) => void;
@@ -30,7 +28,6 @@ interface MapBulkRescheduleFormProps {
  */
 export function MapBulkRescheduleForm({
   checkedAppointments,
-  actorTimezone,
   onCancel: _onCancel,
   onComplete,
 }: MapBulkRescheduleFormProps) {
@@ -40,12 +37,10 @@ export function MapBulkRescheduleForm({
   const [reason, setReason] = useState('');
   const [timeError, setTimeError] = useState<string | null>(null);
 
-  const today = todayLocalDateString();
-  const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  // Sydney-only platform: "today" and the past-time hint follow the platform timezone.
+  const today = todayInTzDateString(PLATFORM_TIMEZONE);
   // UX hint: when rescheduling to today, discourage picking a past start time.
-  const minStartTime = newDate === today
-    ? Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date())
-    : undefined;
+  const minStartTime = newDate === today ? currentTimeInTzHHmm(PLATFORM_TIMEZONE) : undefined;
 
   // Same-group precheck — disable submit when the selection spans
   // groups or contains a non-grouped item.
@@ -68,7 +63,7 @@ export function MapBulkRescheduleForm({
         e.preventDefault();
         if (!canSubmit) return;
         // Past-time guard (all roles) — native input min is only a hint.
-        if (newDate === today && isTimeStartInPastForDate(newTimeSlotStart, newDate, browserTz)) {
+        if (newDate === today && isTimeStartInPastForDate(newTimeSlotStart, newDate, PLATFORM_TIMEZONE)) {
           setTimeError('Start time is in the past');
           return;
         }
@@ -80,7 +75,6 @@ export function MapBulkRescheduleForm({
           newTimeSlotStart,
           newTimeSlotEnd,
           ...(trimmedReason.length >= 3 ? { reason: trimmedReason } : {}),
-          ...(actorTimezone ? { actorTimezone } : {}),
         });
         onComplete(res.data.results);
       }}

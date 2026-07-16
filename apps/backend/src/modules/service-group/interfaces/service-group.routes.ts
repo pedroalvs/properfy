@@ -483,7 +483,6 @@ export async function registerServiceGroupRoutes(
       const result = await container.sendGroupPortalLinksUseCase.execute({
         groupId: params.data.groupId,
         actor: auth,
-        actorTimezone: parsed.data.actorTimezone,
       });
       return reply.status(200).send(success(result));
     },

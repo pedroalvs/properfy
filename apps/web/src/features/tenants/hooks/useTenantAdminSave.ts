@@ -11,7 +11,6 @@ const PREFIX_CONFLICT_MESSAGE = 'This prefix is already in use by another agency
 const REQUIRED_FIELDS: (keyof TenantAdminFormData)[] = [
   'name',
   'legalName',
-  'timezone',
   'currency',
 ];
 

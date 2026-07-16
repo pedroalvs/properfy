@@ -20,7 +20,6 @@ export interface SendGroupPortalLinksInput {
   groupId: string;
   actor: AuthContext;
   /** IANA timezone for per-day idempotency bucketing. See bulk-resend-reminder. */
-  actorTimezone?: string;
 }
 
 export interface SendGroupPortalLinksOutput {
@@ -77,7 +76,7 @@ export class SendGroupPortalLinksUseCase {
     // OP acts only on their own tenant's appointments; AM is cross-tenant.
     const inScope = input.actor.role === 'AM' ? rows : rows.filter((r) => r.tenantId === input.actor.tenantId);
 
-    const dayKey = dayKeyInTz(this.clock(), input.actorTimezone);
+    const dayKey = dayKeyInTz(this.clock());
     const results: SendGroupPortalLinksResultItem[] = [];
 
     for (const row of inScope) {

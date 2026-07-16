@@ -52,11 +52,9 @@ import { GetPortalLinkResponse } from '@properfy/shared';
 const importIdParam = z.object({ importId: z.string().uuid() });
 const previewImportMultipartFieldsSchema = z.object({
   branchId: z.string().uuid({ message: 'branchId must be a valid UUID' }),
-  actorTimezone: z.string().min(1).optional(),
 });
 const commitAppointmentImportSchema = z.object({
   skipInvalidRows: z.boolean(),
-  actorTimezone: z.string().optional(),
 });
 
 export interface AppointmentRouteContainer {
@@ -237,7 +235,6 @@ export async function registerAppointmentRoutes(
       const result = await container.updateAppointmentUseCase.execute({
         appointmentId: params.data.appointmentId,
         data: parsed.data,
-        actorTimezone: parsed.data.actorTimezone,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
@@ -381,7 +378,6 @@ export async function registerAppointmentRoutes(
       const result = await container.bulkResendReminderUseCase.execute({
         appointmentIds: parsed.data.appointmentIds,
         actor: auth,
-        actorTimezone: parsed.data.actorTimezone,
       });
       return reply.status(200).send(success(result));
     },
@@ -412,7 +408,6 @@ export async function registerAppointmentRoutes(
         appointmentIds: parsed.data.appointmentIds,
         reason: parsed.data.reason,
         actor: auth,
-        actorTimezone: parsed.data.actorTimezone,
       });
       return reply.status(200).send(success(result));
     },
@@ -446,7 +441,6 @@ export async function registerAppointmentRoutes(
           ? { newTimeSlotStart: parsed.data.newTimeSlotStart, newTimeSlotEnd: parsed.data.newTimeSlotEnd }
           : {}),
         actor: auth,
-        actorTimezone: parsed.data.actorTimezone,
       });
       return reply.status(200).send(success(result));
     },
@@ -478,7 +472,6 @@ export async function registerAppointmentRoutes(
         targetStatus: parsed.data.targetStatus,
         reason: parsed.data.reason,
         actor: auth,
-        actorTimezone: parsed.data.actorTimezone,
       });
       return reply.status(200).send(success(result));
     },
@@ -508,7 +501,6 @@ export async function registerAppointmentRoutes(
         appointmentIds: parsed.data.appointmentIds,
         inspectorId: parsed.data.inspectorId,
         actor: auth,
-        actorTimezone: parsed.data.actorTimezone,
       });
       return reply.status(200).send(success(result));
     },
@@ -545,7 +537,6 @@ export async function registerAppointmentRoutes(
         newTimeSlotEnd: parsed.data.newTimeSlotEnd,
         ...(parsed.data.reason ? { reason: parsed.data.reason } : {}),
         actor: auth,
-        ...(parsed.data.actorTimezone ? { actorTimezone: parsed.data.actorTimezone } : {}),
       });
       return reply.status(200).send(success(result));
     },
@@ -574,7 +565,6 @@ export async function registerAppointmentRoutes(
       let fileBuffer: Buffer | undefined;
       let filename: string | undefined;
       let branchId: string | undefined;
-      let actorTimezone: string | undefined;
 
       for await (const part of request.parts()) {
         if (part.type === 'file') {
@@ -582,15 +572,13 @@ export async function registerAppointmentRoutes(
           filename = part.filename;
         } else if (part.fieldname === 'branchId') {
           branchId = String(part.value);
-        } else if (part.fieldname === 'actorTimezone') {
-          actorTimezone = String(part.value);
         }
       }
 
       if (!fileBuffer || !filename) {
         throw new ValidationError('File upload is required');
       }
-      const parsedFields = previewImportMultipartFieldsSchema.safeParse({ branchId, actorTimezone });
+      const parsedFields = previewImportMultipartFieldsSchema.safeParse({ branchId });
       if (!parsedFields.success) {
         throw new ValidationError('Invalid multipart fields', parsedFields.error.errors);
       }
@@ -599,7 +587,6 @@ export async function registerAppointmentRoutes(
         fileBuffer,
         filename,
         branchId: parsedFields.data.branchId,
-        actorTimezone: parsedFields.data.actorTimezone,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
@@ -633,7 +620,6 @@ export async function registerAppointmentRoutes(
       const result = await container.commitAppointmentImportUseCase.execute({
         importId: params.data.importId,
         skipInvalidRows: parsed.data.skipInvalidRows,
-        actorTimezone: parsed.data.actorTimezone,
         idempotencyKey,
         actor: request.authContext!,
       });
@@ -709,7 +695,6 @@ export async function registerAppointmentRoutes(
         ids: parsed.data.ids,
         changes: parsed.data.changes,
         options: parsed.data.options,
-        actorTimezone: parsed.data.actorTimezone,
         actor: auth,
         requestId: (request as any).requestId,
       });

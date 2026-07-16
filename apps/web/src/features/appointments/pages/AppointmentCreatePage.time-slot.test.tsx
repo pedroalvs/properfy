@@ -79,10 +79,11 @@ function selectOption(label: string, optionText: string) {
 describe('AppointmentCreatePage past-time guard', () => {
   beforeEach(() => {
     mockSave.mockReset();
-    // Pin the clock at midday so "today" and "now" are deterministic and a
-    // 09:00 start is unambiguously in the past for today's date.
+    // Pin the clock at midday SYDNEY time (02:00Z = 12:00 AEST) so "today" and
+    // "now" are deterministic in the platform timezone and a 09:00 start is
+    // unambiguously in the past for today's date.
     vi.useFakeTimers();
-    vi.setSystemTime(new Date('2030-06-15T12:00:00'));
+    vi.setSystemTime(new Date('2030-06-15T02:00:00Z'));
   });
 
   afterEach(() => {

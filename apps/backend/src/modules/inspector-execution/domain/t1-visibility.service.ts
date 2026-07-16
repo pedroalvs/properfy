@@ -13,8 +13,8 @@ export class T1VisibilityService {
    * @param flowType - Service type flow type (ROUTINE, INGOING, OUTGOING)
    * @param rentalTenantConfirmationStatus - Current tenant confirmation status
    * @param keyRequired - Whether key access is available
-   * @param scheduledDate - The appointment's scheduled date
-   * @param today - Current date (for T-1 comparison)
+   * @param scheduledDate - The appointment's scheduled date (civil date pinned to UTC midnight)
+   * @param todayCivil - Today's civil date (YYYY-MM-DD) in the platform timezone (Sydney)
    * @returns true if the appointment is visible for the inspector
    */
   isVisibleForInspector(
@@ -22,7 +22,7 @@ export class T1VisibilityService {
     rentalTenantConfirmationStatus: string,
     keyRequired: boolean,
     scheduledDate: Date,
-    today: Date,
+    todayCivil: string,
   ): boolean {
     // Non-routine appointments are always visible when SCHEDULED
     if (flowType === 'INGOING' || flowType === 'OUTGOING') {
@@ -41,31 +41,19 @@ export class T1VisibilityService {
       return false;
     }
 
-    const isToday = this.isSameDay(today, scheduledDate);
-    const isTomorrow = this.isNextDay(today, scheduledDate);
+    const diffDays = this.diffInDays(todayCivil, scheduledDate);
 
-    if (isToday || isTomorrow) {
+    if (diffDays === 0 || diffDays === 1) {
       return false;
     }
 
     return true;
   }
 
-  private isNextDay(today: Date, target: Date): boolean {
-    const diffDays = this.diffInDays(today, target);
-    return diffDays === 1;
-  }
-
-  private isSameDay(today: Date, target: Date): boolean {
-    const diffDays = this.diffInDays(today, target);
-    return diffDays === 0;
-  }
-
-  private diffInDays(today: Date, target: Date): number {
-    // Compare dates only (no time component)
-    const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const targetDate = new Date(target.getFullYear(), target.getMonth(), target.getDate());
-    const diffMs = targetDate.getTime() - todayDate.getTime();
+  private diffInDays(todayCivil: string, target: Date): number {
+    // Civil-date string comparison — independent of server timezone and DST.
+    const targetCivil = target.toISOString().slice(0, 10);
+    const diffMs = Date.parse(`${targetCivil}T00:00:00Z`) - Date.parse(`${todayCivil}T00:00:00Z`);
     return diffMs / (1000 * 60 * 60 * 24);
   }
 }

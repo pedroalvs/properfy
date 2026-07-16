@@ -156,15 +156,12 @@ describe('PreviewAppointmentImportUseCase', () => {
       expect(typeof result.importId).toBe('string');
     });
 
-    it('passes actorTimezone through to the resolver, defaulting to UTC', async () => {
+    it('resolves rows in the platform timezone (Sydney)', async () => {
       const deps = buildDeps();
       deps.branchRepo.findById.mockResolvedValue(buildBranch());
       const uc = buildUseCase(deps);
 
       await uc.execute({ fileBuffer: CSV_BUFFER, filename: 'x.csv', branchId: 'branch-1', actor: AM });
-      expect(deps.resolver.resolve).toHaveBeenCalledWith(expect.any(Array), expect.objectContaining({ tz: 'UTC' }));
-
-      await uc.execute({ fileBuffer: CSV_BUFFER, filename: 'x.csv', branchId: 'branch-1', actorTimezone: 'Australia/Sydney', actor: AM });
       expect(deps.resolver.resolve).toHaveBeenCalledWith(expect.any(Array), expect.objectContaining({ tz: 'Australia/Sydney' }));
     });
 

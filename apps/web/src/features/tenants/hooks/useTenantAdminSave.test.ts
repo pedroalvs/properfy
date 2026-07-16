@@ -36,7 +36,6 @@ const mockPatch = api.PATCH as ReturnType<typeof vi.fn>;
 const VALID_DATA: TenantAdminFormData = {
   name: 'Imob Alpha',
   legalName: 'Alpha LTDA',
-  timezone: 'America/Sao_Paulo',
   currency: 'AUD',
   appointmentCodePrefix: 'INS',
   notes: '',
@@ -57,7 +56,6 @@ describe('useTenantAdminSave', () => {
     const errors = result.current.validate(EMPTY_TENANT_ADMIN_FORM);
     expect(errors.name).toBeDefined();
     expect(errors.legalName).toBeDefined();
-    expect(errors.timezone).toBeDefined();
     expect(errors.currency).toBeDefined();
   });
 
@@ -170,7 +168,6 @@ describe('useTenantAdminSave', () => {
       body: {
         name: 'Imob Alpha',
         legalName: 'Alpha LTDA',
-        timezone: 'America/Sao_Paulo',
         currency: 'AUD',
         appointmentCodePrefix: 'INS',
         settings: { emailSendingEnabled: true },

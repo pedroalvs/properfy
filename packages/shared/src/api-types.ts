@@ -687,8 +687,6 @@ export interface paths {
                     "application/json": {
                         name: string;
                         legalName: string;
-                        /** @default Australia/Sydney */
-                        timezone?: string;
                         /** @default AUD */
                         currency?: string;
                         appointmentCodePrefix: string;
@@ -879,7 +877,6 @@ export interface paths {
                     "application/json": {
                         name?: string;
                         legalName?: string;
-                        timezone?: string;
                         currency?: string;
                         appointmentCodePrefix?: string;
                         settings?: {
@@ -4920,7 +4917,6 @@ export interface paths {
                             label: string;
                             value: string;
                         }[];
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -5239,7 +5235,6 @@ export interface paths {
                             label: string;
                             value: string;
                         }[] | null;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -5583,7 +5578,6 @@ export interface paths {
                 content: {
                     "application/json": {
                         appointmentIds: string[];
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -5639,7 +5633,6 @@ export interface paths {
                     "application/json": {
                         appointmentIds: string[];
                         reason: string;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -5697,7 +5690,6 @@ export interface paths {
                         newDate: string;
                         newTimeSlotStart?: string;
                         newTimeSlotEnd?: string;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -5755,7 +5747,6 @@ export interface paths {
                         /** @enum {string} */
                         targetStatus: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
                         reason?: string;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -5812,7 +5803,6 @@ export interface paths {
                         appointmentIds: string[];
                         /** Format: uuid */
                         inspectorId: string;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -5871,7 +5861,6 @@ export interface paths {
                         newTimeSlotStart: string;
                         newTimeSlotEnd: string;
                         reason?: string;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -6036,7 +6025,6 @@ export interface paths {
                 content: {
                     "application/json": {
                         skipInvalidRows: boolean;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -6262,7 +6250,6 @@ export interface paths {
                         /** Format: uuid */
                         serviceRegionId?: string | null;
                         description?: string;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -6409,7 +6396,6 @@ export interface paths {
                         description?: string;
                         scheduledDate?: string;
                         timeWindow?: string;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -7008,9 +6994,7 @@ export interface paths {
             };
             requestBody?: {
                 content: {
-                    "application/json": {
-                        actorTimezone?: string;
-                    };
+                    "application/json": Record<string, never>;
                 };
             };
             responses: {

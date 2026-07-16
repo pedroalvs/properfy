@@ -101,8 +101,7 @@ export function AppointmentImportPage() {
   const runPreview = useCallback(async () => {
     if (!selectedFile || !branchId) return;
     setPreviewFailed(false);
-    const actorTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const result = await preview(selectedFile, branchId, actorTimezone);
+    const result = await preview(selectedFile, branchId);
     // Advance to the Preview step either way — a failure renders its
     // inline ErrorState there (with retry), instead of leaving the user
     // stuck on Upload with only a transient snackbar as feedback.
@@ -122,8 +121,7 @@ export function AppointmentImportPage() {
     async (skipInvalidRows: boolean) => {
       if (!previewResult) return;
       setShowValidOnlyConfirm(false);
-      const actorTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const ok = await commit(previewResult.importId, { skipInvalidRows, actorTimezone });
+      const ok = await commit(previewResult.importId, { skipInvalidRows });
       if (ok) setCurrentStep(3);
     },
     [previewResult, commit],

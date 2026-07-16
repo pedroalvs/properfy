@@ -10,7 +10,6 @@ export interface BulkAssignInspectorInput {
   appointmentIds: string[];
   inspectorId: string;
   actor: AuthContext;
-  actorTimezone?: string;
 }
 
 export interface BulkAssignInspectorOutput {
@@ -39,7 +38,7 @@ export class BulkAssignInspectorUseCase {
   ) {}
 
   async execute(input: BulkAssignInspectorInput): Promise<BulkAssignInspectorOutput> {
-    const dayKey = dayKeyInTz(this.clock(), input.actorTimezone);
+    const dayKey = dayKeyInTz(this.clock());
     const results: BulkActionResultItem[] = [];
 
     for (const appointmentId of input.appointmentIds) {

@@ -686,12 +686,6 @@
                     "minLength": 1,
                     "maxLength": 200
                   },
-                  "timezone": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 60,
-                    "default": "Australia/Sydney"
-                  },
                   "currency": {
                     "type": "string",
                     "minLength": 3,
@@ -1363,11 +1357,6 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 200
-                  },
-                  "timezone": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 60
                   },
                   "currency": {
                     "type": "string",
@@ -11074,9 +11063,6 @@
                       "additionalProperties": false
                     },
                     "maxItems": 4
-                  },
-                  "actorTimezone": {
-                    "type": "string"
                   }
                 },
                 "required": [
@@ -12688,9 +12674,6 @@
                     },
                     "maxItems": 4,
                     "nullable": true
-                  },
-                  "actorTimezone": {
-                    "type": "string"
                   }
                 },
                 "additionalProperties": false
@@ -13454,9 +13437,6 @@
                     },
                     "minItems": 1,
                     "maxItems": 100
-                  },
-                  "actorTimezone": {
-                    "type": "string"
                   }
                 },
                 "required": [
@@ -13560,9 +13540,6 @@
                     "type": "string",
                     "minLength": 3,
                     "maxLength": 500
-                  },
-                  "actorTimezone": {
-                    "type": "string"
                   }
                 },
                 "required": [
@@ -13684,9 +13661,6 @@
                   "newTimeSlotEnd": {
                     "type": "string",
                     "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
-                  },
-                  "actorTimezone": {
-                    "type": "string"
                   }
                 },
                 "required": [
@@ -13804,9 +13778,6 @@
                     "type": "string",
                     "minLength": 3,
                     "maxLength": 500
-                  },
-                  "actorTimezone": {
-                    "type": "string"
                   }
                 },
                 "required": [
@@ -13912,9 +13883,6 @@
                   "inspectorId": {
                     "type": "string",
                     "format": "uuid"
-                  },
-                  "actorTimezone": {
-                    "type": "string"
                   }
                 },
                 "required": [
@@ -14041,9 +14009,6 @@
                     "type": "string",
                     "minLength": 3,
                     "maxLength": 500
-                  },
-                  "actorTimezone": {
-                    "type": "string"
                   }
                 },
                 "required": [
@@ -14479,9 +14444,6 @@
                 "properties": {
                   "skipInvalidRows": {
                     "type": "boolean"
-                  },
-                  "actorTimezone": {
-                    "type": "string"
                   }
                 },
                 "required": [
@@ -14596,9 +14558,6 @@
                   "description": {
                     "type": "string",
                     "maxLength": 5000
-                  },
-                  "actorTimezone": {
-                    "type": "string"
                   }
                 },
                 "required": [
@@ -15375,9 +15334,6 @@
                   "timeWindow": {
                     "type": "string",
                     "pattern": "^\\d{2}:\\d{2}-\\d{2}:\\d{2}$"
-                  },
-                  "actorTimezone": {
-                    "type": "string"
                   }
                 },
                 "additionalProperties": false
@@ -16641,11 +16597,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": {
-                  "actorTimezone": {
-                    "type": "string"
-                  }
-                },
+                "properties": {},
                 "additionalProperties": false
               }
             }

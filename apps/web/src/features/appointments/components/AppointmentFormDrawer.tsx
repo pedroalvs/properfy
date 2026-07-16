@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AppointmentStatus, AppointmentContactRole, ContactType, ContactChannelType, todayLocalDateString, isTimeStartInPastForDate, validateEditedSchedule, CUSTOM_FIELD_LABEL_MAX, CUSTOM_FIELD_VALUE_MAX } from '@properfy/shared';
+import { AppointmentStatus, AppointmentContactRole, ContactType, ContactChannelType, PLATFORM_TIMEZONE, todayInTzDateString, currentTimeInTzHHmm, isTimeStartInPastForDate, validateEditedSchedule, CUSTOM_FIELD_LABEL_MAX, CUSTOM_FIELD_VALUE_MAX } from '@properfy/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
@@ -423,8 +423,9 @@ export function AppointmentFormDrawer({
     // Past-time guard (applies to ALL roles, incl. AM/OP — native input `min`
     // is only a hint and does not block the button-submit path). On edit we use
     // `validateEditedSchedule` so an untouched legacy past appointment is NOT
-    // blocked; only a changed date/time is re-validated.
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    // blocked; only a changed date/time is re-validated. Sydney-only platform:
+    // validate in the platform timezone so the UI matches the backend.
+    const tz = PLATFORM_TIMEZONE;
     if (isEditMode && appointment) {
       const result = validateEditedSchedule({
         existingDate: (appointment.scheduledDate ?? '').split('T')[0] ?? '',
@@ -440,7 +441,7 @@ export function AppointmentFormDrawer({
       }
     } else if (
       form.timeSlotStart &&
-      form.scheduledDate === todayLocalDateString() &&
+      form.scheduledDate === todayInTzDateString(tz) &&
       isTimeStartInPastForDate(form.timeSlotStart, form.scheduledDate, tz)
     ) {
       validationErrors.timeSlotStart = validationErrors.timeSlotStart ?? 'Start time is in the past';
@@ -640,7 +641,7 @@ export function AppointmentFormDrawer({
                         // Edit-conditional: allow keeping a legacy past date when editing;
                         // create flow always enforces min=today.
                         min={(() => {
-                          const today = todayLocalDateString();
+                          const today = todayInTzDateString(PLATFORM_TIMEZONE);
                           if (!isEditMode) return today;
                           const existing = (appointment?.scheduledDate ?? '').split('T')[0] ?? '';
                           return existing < today ? undefined : today;
@@ -657,8 +658,8 @@ export function AppointmentFormDrawer({
                         onStartChange={(v) => updateField('timeSlotStart', v)}
                         onEndChange={(v) => updateField('timeSlotEnd', v)}
                         minStartTime={
-                          form.scheduledDate === todayLocalDateString()
-                            ? Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date())
+                          form.scheduledDate === todayInTzDateString(PLATFORM_TIMEZONE)
+                            ? currentTimeInTzHHmm(PLATFORM_TIMEZONE)
                             : undefined
                         }
                         error={!!errors.timeSlotStart || !!errors.timeSlotEnd}

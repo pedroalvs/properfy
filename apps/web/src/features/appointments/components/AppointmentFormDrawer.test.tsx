@@ -13,7 +13,9 @@ vi.mock('@properfy/shared', () => ({
   // when picking the registry-row type and adding additional channels.
   ContactType: { TENANT: 'RENTAL_TENANT', PROPERTY_MANAGER: 'PROPERTY_MANAGER', HOUSEKEEPER: 'HOUSEKEEPER', BROKER: 'BROKER', OTHER: 'OTHER' },
   ContactChannelType: { EMAIL: 'EMAIL', PHONE: 'PHONE' },
-  todayLocalDateString: () => '2026-03-29',
+  PLATFORM_TIMEZONE: 'Australia/Sydney',
+  todayInTzDateString: () => '2026-03-29',
+  currentTimeInTzHHmm: () => '08:00',
   isTimeStartInPastForDate: () => false,
   validateEditedSchedule: () => ({ ok: true }),
   CUSTOM_FIELD_LABEL_MAX: 50,

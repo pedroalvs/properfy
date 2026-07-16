@@ -113,7 +113,6 @@ export const createAppointmentSchema = z.object({
   notes: z.string().max(2000).optional(),
   observation: observationCreateField,
   customFields: appointmentCustomFieldsSchema.optional(),
-  actorTimezone: z.string().optional(),
 }).refine(
   (data) => !!data.propertyId !== !!data.property,
   { message: 'Must provide either propertyId or property (inline), but not both', path: ['propertyId'] },
@@ -148,7 +147,6 @@ export const updateAppointmentSchema = z.object({
   appCredentialIds: z.array(z.string().uuid()).max(50).optional(),
   restriction: restrictionSchema.optional(),
   customFields: appointmentCustomFieldsSchema.nullable().optional(),
-  actorTimezone: z.string().optional(),
 }).refine(
   (data) => {
     const hasLegacy = data.contact !== undefined;
@@ -277,7 +275,6 @@ export const bulkEditAppointmentSchema = z.object({
     { message: 'At least one field must be provided in changes' },
   ),
   options: bulkEditOptionsSchema,
-  actorTimezone: z.string().optional(),
 });
 export type BulkEditAppointmentInput = z.infer<typeof bulkEditAppointmentSchema>;
 
@@ -321,7 +318,6 @@ export const bulkResendReminderRequestSchema = z.object({
    * to off-by-one bucket boundaries. Frontend sends the value of
    * `Intl.DateTimeFormat().resolvedOptions().timeZone`.
    */
-  actorTimezone: z.string().optional(),
 });
 export type BulkResendReminderRequest = z.infer<typeof bulkResendReminderRequestSchema>;
 
@@ -367,7 +363,6 @@ export const bulkCancelRequestSchema = z.object({
   appointmentIds: z.array(z.string().uuid()).min(1).max(100),
   reason: z.string().min(3).max(500),
   /** IANA timezone for per-day idempotency bucketing (see bulk_resend_reminder). */
-  actorTimezone: z.string().optional(),
 });
 export type BulkCancelRequest = z.infer<typeof bulkCancelRequestSchema>;
 
@@ -381,7 +376,6 @@ export const bulkRescheduleRequestSchema = z.object({
   newDate: z.union([z.string().datetime(), z.string().date()]),
   newTimeSlotStart: z.string().regex(timeRegex, TIME_FORMAT_MESSAGE).optional(),
   newTimeSlotEnd: z.string().regex(timeRegex, TIME_FORMAT_MESSAGE).optional(),
-  actorTimezone: z.string().optional(),
 }).refine(
   (data) => (data.newTimeSlotStart === undefined) === (data.newTimeSlotEnd === undefined),
   { message: 'Both newTimeSlotStart and newTimeSlotEnd are required together', path: ['newTimeSlotEnd'] },
@@ -400,7 +394,6 @@ export const bulkStatusTransitionRequestSchema = z.object({
   appointmentIds: z.array(z.string().uuid()).min(1).max(100),
   targetStatus: z.nativeEnum(AppointmentStatus),
   reason: z.string().min(3).max(500).optional(),
-  actorTimezone: z.string().optional(),
 });
 export type BulkStatusTransitionRequest = z.infer<typeof bulkStatusTransitionRequestSchema>;
 
@@ -411,7 +404,6 @@ export type BulkStatusTransitionRequest = z.infer<typeof bulkStatusTransitionReq
 export const bulkAssignInspectorRequestSchema = z.object({
   appointmentIds: z.array(z.string().uuid()).min(1).max(100),
   inspectorId: z.string().uuid(),
-  actorTimezone: z.string().optional(),
 });
 export type BulkAssignInspectorRequest = z.infer<typeof bulkAssignInspectorRequestSchema>;
 
@@ -437,7 +429,6 @@ export const bulkReopenForRescheduleRequestSchema = z.object({
   newTimeSlotStart: z.string().regex(timeRegex, TIME_FORMAT_MESSAGE),
   newTimeSlotEnd: z.string().regex(timeRegex, TIME_FORMAT_MESSAGE),
   reason: z.string().min(3).max(500).optional(),
-  actorTimezone: z.string().optional(),
 }).refine(
   (data) => data.newTimeSlotStart < data.newTimeSlotEnd,
   { message: TIME_RANGE_MESSAGE, path: ['newTimeSlotEnd'] },

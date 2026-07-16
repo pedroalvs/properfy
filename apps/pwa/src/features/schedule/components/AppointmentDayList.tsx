@@ -4,9 +4,11 @@ import type { InspectorAppointment } from '../types';
 
 interface AppointmentDayListProps {
   appointments: InspectorAppointment[];
+  /** Sydney civil date (YYYY-MM-DD) from the schedule payload. */
+  today?: string;
 }
 
-export function AppointmentDayList({ appointments }: AppointmentDayListProps) {
+export function AppointmentDayList({ appointments, today }: AppointmentDayListProps) {
   if (appointments.length === 0) {
     return (
       <EmptyState
@@ -20,7 +22,7 @@ export function AppointmentDayList({ appointments }: AppointmentDayListProps) {
   return (
     <div className="flex flex-col gap-3 px-page-x" data-testid="appointment-day-list">
       {appointments.map((apt) => (
-        <AppointmentCard key={apt.id} appointment={apt} />
+        <AppointmentCard key={apt.id} appointment={apt} today={today} />
       ))}
     </div>
   );

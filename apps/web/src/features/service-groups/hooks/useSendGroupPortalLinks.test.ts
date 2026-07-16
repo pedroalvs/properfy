@@ -50,7 +50,7 @@ describe('useSendGroupPortalLinks', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useSendGroupPortalLinks(null), { wrapper });
 
-    act(() => result.current.send('Australia/Sydney'));
+    act(() => result.current.send());
 
     expect(mockPost).not.toHaveBeenCalled();
   });
@@ -75,7 +75,7 @@ describe('useSendGroupPortalLinks', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useSendGroupPortalLinks('sg-01', onSuccess), { wrapper });
 
-    act(() => result.current.send('Australia/Sydney'));
+    act(() => result.current.send());
 
     await waitFor(() => {
       // 2 sent (SENT + DATE_CHANGED_RESENT), 2 skipped (ALREADY_CONFIRMED + NOT_SENDABLE),

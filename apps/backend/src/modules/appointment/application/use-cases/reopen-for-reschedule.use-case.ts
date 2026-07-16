@@ -7,7 +7,7 @@ import type { IRentalTenantPortalTokenRepository } from '../../../rental-tenant-
 import type { ConfirmationCycleService } from '../services/confirmation-cycle.service';
 import { DomainError } from '../../../../shared/domain/errors';
 import { AppointmentNotFoundError, AppointmentDateInPastError, AppointmentTimeInPastError } from '../../domain/appointment.errors';
-import { validateEditedSchedule } from '@properfy/shared';
+import { validateEditedSchedule, PLATFORM_TIMEZONE } from '@properfy/shared';
 
 export class AppointmentNotScheduledError extends DomainError {
   constructor(currentStatus: string) {
@@ -25,7 +25,6 @@ export interface ReopenForRescheduleInput {
   newTimeSlotStart: string; // HH:mm
   newTimeSlotEnd: string; // HH:mm
   reason?: string;
-  actorTimezone?: string;
   actor: AuthContext;
 }
 
@@ -96,7 +95,7 @@ export class ReopenForRescheduleUseCase {
     }
 
     // 3b. TZ-aware past-date/time validation for the new schedule (R7: falls back to UTC).
-    const tz = input.actorTimezone ?? 'UTC';
+    const tz = PLATFORM_TIMEZONE;
     const existingDateStr = appointment.scheduledDate.toISOString().slice(0, 10);
     const scheduleCheck = validateEditedSchedule({
       existingDate: existingDateStr,

@@ -116,7 +116,8 @@ export interface VisibleForInspectorParams {
   inspectorId: string;
   fromDate: string;
   toDate: string;
-  today: Date;
+  /** Today's civil date (YYYY-MM-DD) in the platform timezone (Sydney). */
+  todayCivil: string;
 }
 
 export interface IAppointmentRepository {
@@ -132,7 +133,7 @@ export interface IAppointmentRepository {
    * Checks whether a single appointment is visible to the inspector under the T-1 rule.
    * Uses the same centralized T-1 logic as findVisibleForInspector.
    */
-  isAppointmentVisibleForInspector(appointmentId: string, today: Date): Promise<boolean>;
+  isAppointmentVisibleForInspector(appointmentId: string, todayCivil: string): Promise<boolean>;
   count(filters: AppointmentFilters): Promise<number>;
   save(appointment: AppointmentEntity): Promise<void>;
   update(

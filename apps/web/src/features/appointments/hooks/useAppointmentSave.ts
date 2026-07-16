@@ -85,7 +85,6 @@ function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
   const contacts = buildContactsPayload(data);
   const contact = buildLegacyContact(data);
   const customFields = buildCustomFieldsPayload(data);
-  const actorTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const restriction = data.hasRestriction
     ? {
@@ -112,7 +111,6 @@ function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
       ...(data.notes.trim() ? { notes: data.notes.trim() } : {}),
       ...(data.observation.trim() ? { observation: data.observation.trim() } : {}),
       ...(customFields.length > 0 ? { customFields } : {}),
-      actorTimezone,
     };
   }
 
@@ -133,7 +131,6 @@ function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
     // hydrates them from the appointment, mirroring appCredentialIds).
     customFields,
     ...(data.restrictionTouched ? { restriction } : {}),
-    actorTimezone,
   };
 }
 

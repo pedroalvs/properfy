@@ -1,4 +1,5 @@
 import type { PrismaClient, Prisma, AppointmentStatus } from '@prisma/client';
+import { civilDateInTimezone, nextCivilDay, parseDateInTimezone, PLATFORM_TIMEZONE } from '../../../shared/domain/timezone-date';
 import type { IReportDataReader, ReportDataFilters } from '../domain/report-data-reader';
 
 /**
@@ -142,7 +143,7 @@ export class PrismaReportDataReader implements IReportDataReader {
   async getFinancialRows(filters: ReportDataFilters): Promise<Record<string, unknown>[]> {
     const where: Prisma.FinancialEntryWhereInput = {
       status: 'APPROVED',
-      effective_at: this.dateRange(filters),
+      effective_at: this.sydneyTimestampRange(filters),
     };
     if (filters.tenantId) where.tenant_id = filters.tenantId;
     // Branch/suburb are appointment-scoped: applied via the (nullable) appointment relation,
@@ -189,7 +190,7 @@ export class PrismaReportDataReader implements IReportDataReader {
       totalRevenue += revenue;
       totalExpense += expense;
       return {
-        entryDate: e.effective_at ? e.effective_at.toISOString().split('T')[0] : '',
+        entryDate: e.effective_at ? civilDateInTimezone(e.effective_at, PLATFORM_TIMEZONE) : '',
         agency: e.tenant?.name ?? '',
         entryType: e.entry_type,
         appointmentNumber: e.appointment?.appointment_number ?? '',
@@ -209,32 +210,47 @@ export class PrismaReportDataReader implements IReportDataReader {
     return rows;
   }
 
-  /** Inclusive [fromDate 00:00, toDate+1 00:00) UTC range — correct for both Date and DateTime columns. */
-  private dateRange(filters: ReportDataFilters): { gte: Date; lt: Date } {
+  /**
+   * Inclusive [fromDate 00:00, toDate+1 00:00) UTC range — ONLY for @db.Date civil-date
+   * columns (scheduled_date), which are pinned to UTC midnight.
+   */
+  private civilDateRange(filters: ReportDataFilters): { gte: Date; lt: Date } {
     const gte = new Date(`${filters.fromDate}T00:00:00.000Z`);
     const lt = new Date(`${filters.toDate}T00:00:00.000Z`);
     lt.setUTCDate(lt.getUTCDate() + 1);
     return { gte, lt };
   }
 
+  /**
+   * Inclusive [fromDate 00:00 Sydney, toDate+1 00:00 Sydney) instant range — for real
+   * timestamp columns (created_at, done_checked_at, effective_at). Sydney day boundaries
+   * keep evening events on the operator's calendar day.
+   */
+  private sydneyTimestampRange(filters: ReportDataFilters): { gte: Date; lt: Date } {
+    return {
+      gte: parseDateInTimezone(filters.fromDate, PLATFORM_TIMEZONE),
+      lt: parseDateInTimezone(nextCivilDay(filters.toDate), PLATFORM_TIMEZONE),
+    };
+  }
+
   private buildAppointmentWhere(
     filters: ReportDataFilters,
     opts: { applyStatus: boolean },
   ): Prisma.AppointmentWhereInput {
-    const range = this.dateRange(filters);
     const where: Prisma.AppointmentWhereInput = { deleted_at: null };
 
-    // Axis selects the real domain column the Period ranges on.
+    // Axis selects the real domain column the Period ranges on. Timestamp axes use
+    // Sydney day boundaries; the scheduled axis filters the @db.Date column directly.
     switch (filters.dateAxis) {
       case 'CREATED':
-        where.created_at = range;
+        where.created_at = this.sydneyTimestampRange(filters);
         break;
       case 'COMPLETED':
-        where.done_checked_at = range; // nullable → excludes not-yet-completed rows
+        where.done_checked_at = this.sydneyTimestampRange(filters); // nullable → excludes not-yet-completed rows
         break;
       case 'SCHEDULED':
       default:
-        where.scheduled_date = range;
+        where.scheduled_date = this.civilDateRange(filters);
         break;
     }
 
