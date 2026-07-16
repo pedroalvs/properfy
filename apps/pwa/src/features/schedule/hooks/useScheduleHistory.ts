@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useInfiniteQuery, keepPreviousData } from '@tanstack/react-query';
 import { apiGet } from '@/hooks/useApiQuery';
 import type { ServiceTypeFlowType } from '@properfy/shared';
-import { toLocalISODate } from '../lib/time-slot';
+import { PLATFORM_TIMEZONE, todayInTzDateString } from '@properfy/shared';
 
 export type HistoryPeriod = '30d' | '90d' | '12m' | '24m';
 
@@ -32,25 +32,26 @@ interface RawPaginatedResponse {
 }
 
 function buildDateRange(period: HistoryPeriod): { from: string; to: string } {
-  const to = new Date();
-  const from = new Date(to);
+  // Range is anchored to the Sydney civil day, independent of the device timezone.
+  const today = todayInTzDateString(PLATFORM_TIMEZONE);
+  const from = new Date(`${today}T00:00:00.000Z`);
   switch (period) {
     case '30d':
-      from.setDate(from.getDate() - 30);
+      from.setUTCDate(from.getUTCDate() - 30);
       break;
     case '90d':
-      from.setDate(from.getDate() - 90);
+      from.setUTCDate(from.getUTCDate() - 90);
       break;
     case '12m':
-      from.setMonth(from.getMonth() - 12);
+      from.setUTCMonth(from.getUTCMonth() - 12);
       break;
     case '24m':
-      from.setMonth(from.getMonth() - 24);
+      from.setUTCMonth(from.getUTCMonth() - 24);
       break;
   }
   return {
-    from: toLocalISODate(from),
-    to: toLocalISODate(to),
+    from: from.toISOString().slice(0, 10),
+    to: today,
   };
 }
 

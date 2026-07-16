@@ -2,7 +2,7 @@ import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { OfferCard } from '../OfferCard';
 import type { MarketplaceOffer } from '../../types';
-import { toLocalISODate } from '@/lib/format-date';
+import { PLATFORM_TIMEZONE, todayInTzDateString } from '@properfy/shared';
 
 const baseOffer: MarketplaceOffer = {
   groupId: 'group-1',
@@ -75,9 +75,9 @@ describe('OfferCard', () => {
     expect(screen.queryByTestId('offer-state-label')).not.toBeInTheDocument();
   });
 
-  it('shows day badge when date is today', () => {
+  it('shows day badge when date is Sydney today', () => {
     vi.useRealTimers();
-    const today = toLocalISODate(new Date());
+    const today = todayInTzDateString(PLATFORM_TIMEZONE);
     const todayOffer = { ...baseOffer, scheduledDate: today };
     render(<OfferCard offer={todayOffer} state="IDLE" onAccept={onAccept} />);
     expect(screen.getByTestId('day-badge')).toHaveTextContent('TODAY');

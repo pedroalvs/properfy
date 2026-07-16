@@ -16,25 +16,26 @@ import { useInstallPrompt } from '@/app/useInstallPrompt';
 import { useScheduleMonth } from '../hooks/useScheduleMonth';
 import { useScheduleDay } from '../hooks/useScheduleDay';
 import { useScheduleHistory, type HistoryPeriod } from '../hooks/useScheduleHistory';
-import { isScheduleRisk, toLocalISODate, formatScheduleDate } from '../lib/time-slot';
+import { PLATFORM_TIMEZONE, todayInTzDateString } from '@properfy/shared';
+import { isScheduleRisk, formatScheduleDate } from '../lib/time-slot';
 
 type Tab = 'upcoming' | 'history';
 
 export function SchedulePage() {
   const [searchParams] = useSearchParams();
-  const localToday = useMemo(() => toLocalISODate(new Date()), []);
+  const sydneyToday = useMemo(() => todayInTzDateString(PLATFORM_TIMEZONE), []);
   const initialDate = useMemo(() => {
     const param = searchParams.get('date');
     if (param) return param;
-    return localToday;
-  }, [searchParams, localToday]);
+    return sydneyToday;
+  }, [searchParams, sydneyToday]);
   const [selectedDate, setSelectedDate] = useState(initialDate);
 
   const [tab, setTab] = useState<Tab>('upcoming');
   const { isIosSafariEligible, canInstall } = useInstallPrompt();
 
   const { data, isLoading, isError, error, refetch } = useScheduleMonth();
-  const today = data?.today ?? localToday;
+  const today = data?.today ?? sydneyToday;
   const days = useMemo(() => data?.days.map((day) => day.date) ?? [today], [data?.days, today]);
   const dayAppointments = useScheduleDay(data?.appointments, selectedDate);
   const [historyPeriod, setHistoryPeriod] = useState<HistoryPeriod>('24m');
@@ -181,7 +182,7 @@ export function SchedulePage() {
                     </p>
                     <div className="flex flex-col gap-2">
                       {stuckAppointments.map((apt) => (
-                        <AppointmentCard key={apt.id} appointment={apt} />
+                        <AppointmentCard key={apt.id} appointment={apt} today={today} />
                       ))}
                     </div>
                   </div>
@@ -189,7 +190,7 @@ export function SchedulePage() {
               )}
 
               {!isLoading && !isError && (
-                <AppointmentDayList appointments={dayAppointments} />
+                <AppointmentDayList appointments={dayAppointments} today={today} />
               )}
             </div>
           </PullToRefresh>

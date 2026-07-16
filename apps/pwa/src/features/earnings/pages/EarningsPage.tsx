@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TopBar } from '@/components/shell/TopBar';
-import { formatDate } from '@/lib/format-date';
+import { formatSydneyDateTime } from '@/lib/format-date';
 import {
   useInspectorEarningsSummary,
   useInspectorPayoutHistory,
@@ -244,7 +244,7 @@ export function EarningsPage() {
                   <div key={entry.id} className="flex items-center justify-between rounded-[20px] bg-white px-4 py-3 shadow-sm">
                     <div>
                       <p className="text-sm font-medium text-text-primary">{formatCurrency(entry.amount, entry.currency)}</p>
-                      <p className="text-xs text-text-muted">{formatDate(entry.effectiveAt)}</p>
+                      <p className="text-xs text-text-muted">{formatSydneyDateTime(entry.effectiveAt)}</p>
                     </div>
                     <StatusChip status={entry.status} />
                   </div>
