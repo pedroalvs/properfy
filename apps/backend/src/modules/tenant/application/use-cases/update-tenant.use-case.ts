@@ -179,7 +179,7 @@ export class UpdateTenantUseCase {
     const updateData: Record<string, unknown> = {};
     if (data.name !== undefined) updateData.name = data.name;
     if (data.legalName !== undefined) updateData.legalName = data.legalName;
-    if (data.timezone !== undefined) updateData.timezone = data.timezone;
+    // timezone is frozen to the platform timezone (Sydney-only); updates are ignored.
     if (data.currency !== undefined) updateData.currency = data.currency;
     if (normalizedAppointmentCodePrefix !== undefined)
       updateData.appointmentCodePrefix = normalizedAppointmentCodePrefix;

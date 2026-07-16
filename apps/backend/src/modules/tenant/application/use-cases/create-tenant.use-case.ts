@@ -1,5 +1,5 @@
 import type { AuthContext } from '@properfy/shared';
-import { appointmentCodePrefixSchema } from '@properfy/shared';
+import { appointmentCodePrefixSchema, PLATFORM_TIMEZONE } from '@properfy/shared';
 import { ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
@@ -44,7 +44,9 @@ export class CreateTenantUseCase {
   ) {}
 
   async execute(input: CreateTenantInput): Promise<CreateTenantOutput> {
-    const { name, legalName, timezone, currency, settings, actor } = input;
+    const { name, legalName, currency, settings, actor } = input;
+    // Platform is Sydney-only: the timezone field is frozen regardless of input.
+    const timezone = PLATFORM_TIMEZONE;
     // Validate AND normalize here (not only in the shared route schema) so
     // non-route callers get a deterministic validation error and can't bypass
     // the "3-4 alphanumeric, uppercased, globally unique" contract.
