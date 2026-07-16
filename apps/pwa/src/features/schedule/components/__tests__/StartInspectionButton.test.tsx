@@ -1,5 +1,4 @@
-import { screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { screen, fireEvent } from '@testing-library/react';
 import { PLATFORM_TIMEZONE } from '@properfy/shared';
 import { StartInspectionButton } from '../StartInspectionButton';
 import { renderWithProviders } from '@/test-utils';
@@ -107,9 +106,10 @@ describe('StartInspectionButton', () => {
     expect(screen.getByTestId('start-inspection-sublabel')).toHaveTextContent('Inspection window has passed');
   });
 
-  it('navigates to execution on click within the window', async () => {
-    const user = userEvent.setup();
-    const now = new Date();
+  it('navigates to execution on click within the window', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(SYDNEY_2026_03_25_10_00);
+    const now = SYDNEY_2026_03_25_10_00;
 
     renderWithProviders(
       <StartInspectionButton
@@ -119,7 +119,7 @@ describe('StartInspectionButton', () => {
       />,
     );
 
-    await user.click(screen.getByTestId('start-inspection-button'));
+    fireEvent.click(screen.getByTestId('start-inspection-button'));
     expect(mockNavigate).toHaveBeenCalledWith('/execution/apt-1');
   });
 

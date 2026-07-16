@@ -31,7 +31,16 @@ interface RawPaginatedResponse {
   pagination: { total: number; page: number; pageSize: number; totalPages: number };
 }
 
-function buildDateRange(period: HistoryPeriod): { from: string; to: string } {
+/** Subtract months keeping the day clamped to the target month's last day (no setUTCMonth overflow). */
+function minusMonthsClamped(date: Date, months: number): void {
+  const day = date.getUTCDate();
+  date.setUTCDate(1);
+  date.setUTCMonth(date.getUTCMonth() - months);
+  const lastDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+  date.setUTCDate(Math.min(day, lastDay));
+}
+
+export function buildDateRange(period: HistoryPeriod): { from: string; to: string } {
   // Range is anchored to the Sydney civil day, independent of the device timezone.
   const today = todayInTzDateString(PLATFORM_TIMEZONE);
   const from = new Date(`${today}T00:00:00.000Z`);
@@ -43,10 +52,10 @@ function buildDateRange(period: HistoryPeriod): { from: string; to: string } {
       from.setUTCDate(from.getUTCDate() - 90);
       break;
     case '12m':
-      from.setUTCMonth(from.getUTCMonth() - 12);
+      minusMonthsClamped(from, 12);
       break;
     case '24m':
-      from.setUTCMonth(from.getUTCMonth() - 24);
+      minusMonthsClamped(from, 24);
       break;
   }
   return {

@@ -2,7 +2,6 @@ import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { OfferCard } from '../OfferCard';
 import type { MarketplaceOffer } from '../../types';
-import { PLATFORM_TIMEZONE, todayInTzDateString } from '@properfy/shared';
 
 const baseOffer: MarketplaceOffer = {
   groupId: 'group-1',
@@ -75,12 +74,21 @@ describe('OfferCard', () => {
     expect(screen.queryByTestId('offer-state-label')).not.toBeInTheDocument();
   });
 
-  it('shows day badge when date is Sydney today', () => {
-    vi.useRealTimers();
-    const today = todayInTzDateString(PLATFORM_TIMEZONE);
-    const todayOffer = { ...baseOffer, scheduledDate: today };
-    render(<OfferCard offer={todayOffer} state="IDLE" onAccept={onAccept} />);
+  it('shows TODAY badge for the Sydney civil date, frozen at a boundary instant', () => {
+    // 2026-07-15T15:00Z = 2026-07-16 01:00 in Sydney — the Sydney day has rolled over.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-15T15:00:00Z'));
+    render(<OfferCard offer={{ ...baseOffer, scheduledDate: '2026-07-16' }} state="IDLE" onAccept={onAccept} />);
     expect(screen.getByTestId('day-badge')).toHaveTextContent('TODAY');
+    vi.useRealTimers();
+  });
+
+  it('shows TOMORROW badge for the next Sydney civil date', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-15T15:00:00Z')); // Sydney today = 2026-07-16
+    render(<OfferCard offer={{ ...baseOffer, scheduledDate: '2026-07-17' }} state="IDLE" onAccept={onAccept} />);
+    expect(screen.getByTestId('day-badge')).toHaveTextContent('TOMORROW');
+    vi.useRealTimers();
   });
 
   it('shows "1 inspection" singular', () => {
