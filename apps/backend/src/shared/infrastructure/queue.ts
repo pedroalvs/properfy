@@ -1,4 +1,5 @@
 import PgBoss from 'pg-boss';
+import { PLATFORM_TIMEZONE } from '@properfy/shared';
 import { getRequestId } from './request-context';
 
 let bossPromise: Promise<PgBoss> | null = null;
@@ -152,5 +153,6 @@ export async function scheduleJob(
   data?: object,
 ): Promise<void> {
   const q = await getQueue();
-  await q.schedule(name, cron, data ?? {});
+  // Cron expressions are Sydney wall-clock times platform-wide.
+  await q.schedule(name, cron, data ?? {}, { tz: PLATFORM_TIMEZONE });
 }
