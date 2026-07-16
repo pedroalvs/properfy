@@ -2,15 +2,44 @@ import { z } from 'zod';
 import { ContactType } from '../enums/contact-type';
 import { ContactChannelType } from '../enums/contact-channel-type';
 import { AppointmentContactRole } from '../enums/appointment-contact-role';
+import { toE164Au } from '../constants/phone';
+import { auPhoneSchema } from './phone';
 
 // --- Additional channel entry ---
 
+// Loose shape: used by response schemas so legacy rows (pre-validation data)
+// still serialize. Input schemas use additionalChannelInputSchema below.
 export const additionalChannelSchema = z.object({
   channel: z.nativeEnum(ContactChannelType),
   value: z.string().min(1).max(254),
   label: z.string().max(100).optional(),
 });
 export type AdditionalChannel = z.infer<typeof additionalChannelSchema>;
+
+// Strict input variant: validates value per channel type and normalizes
+// PHONE values to E.164 (+61...).
+export const additionalChannelInputSchema = additionalChannelSchema
+  .superRefine((c, ctx) => {
+    if (c.channel === ContactChannelType.EMAIL && !z.string().email().safeParse(c.value).success) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['value'],
+        message: 'Must be a valid email address',
+      });
+    }
+    if (c.channel === ContactChannelType.PHONE && toE164Au(c.value) === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['value'],
+        message: 'Must be a valid Australian phone number',
+      });
+    }
+  })
+  .transform((c) =>
+    c.channel === ContactChannelType.PHONE && toE164Au(c.value) !== null
+      ? { ...c, value: toE164Au(c.value) as string }
+      : c,
+  );
 
 // --- Contact registry (create) ---
 
@@ -25,8 +54,8 @@ export const contactRegistrySchema = z
     displayName: z.string().min(1).max(200),
     company: z.string().min(1).max(200).optional().nullable(),
     primaryEmail: z.string().email().max(254).optional().nullable(),
-    primaryPhone: z.string().min(1).max(30).optional().nullable(),
-    additionalChannels: z.array(additionalChannelSchema).max(10).default([]),
+    primaryPhone: auPhoneSchema.optional().nullable(),
+    additionalChannels: z.array(additionalChannelInputSchema).max(10).default([]),
     notes: z.string().optional().nullable(),
   })
   .refine(
@@ -64,8 +93,8 @@ export const contactRegistryUpdateSchema = z
     displayName: z.string().min(1).max(200).optional(),
     company: z.string().min(1).max(200).optional().nullable(),
     primaryEmail: z.string().email().max(254).optional().nullable(),
-    primaryPhone: z.string().min(1).max(30).optional().nullable(),
-    additionalChannels: z.array(additionalChannelSchema).max(10).optional(),
+    primaryPhone: auPhoneSchema.optional().nullable(),
+    additionalChannels: z.array(additionalChannelInputSchema).max(10).optional(),
     notes: z.string().optional().nullable(),
     isActive: z.boolean().optional(),
   });
@@ -87,8 +116,8 @@ const inlineLink = z.object({
     displayName: z.string().min(1).max(200),
     company: z.string().min(1).max(200).optional().nullable(),
     primaryEmail: z.string().email().max(254).optional().nullable(),
-    primaryPhone: z.string().min(1).max(30).optional().nullable(),
-    additionalChannels: z.array(additionalChannelSchema).max(10).default([]),
+    primaryPhone: auPhoneSchema.optional().nullable(),
+    additionalChannels: z.array(additionalChannelInputSchema).max(10).default([]),
     notes: z.string().optional().nullable(),
   }),
   role: z.nativeEnum(AppointmentContactRole),
@@ -194,6 +223,6 @@ export type ContactPropertyAggregateResponse = z.infer<typeof contactPropertyAgg
 export const contactSchema = z.object({
   rentalTenantName: z.string().min(1).max(200),
   primaryEmail: z.string().email().max(254).optional(),
-  primaryPhone: z.string().max(30).optional(),
+  primaryPhone: auPhoneSchema.optional(),
 });
 export type ContactInput = z.infer<typeof contactSchema>;

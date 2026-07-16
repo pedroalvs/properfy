@@ -4,6 +4,7 @@ import {
   updateUserSchema,
   resetUserPasswordSchema,
   listUsersQuerySchema,
+  inviteUserSchema,
 } from './user';
 
 describe('createUserSchema', () => {
@@ -195,5 +196,41 @@ describe('resetUserPasswordSchema', () => {
       newPassword: 'weak',
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe('AU phone validation on user schemas', () => {
+  it('createUserSchema normalizes local phone to E.164', () => {
+    const result = createUserSchema.parse({
+      name: 'User',
+      email: 'user@example.com',
+      password: 'Str0ng!Pass',
+      role: 'OP',
+      phone: '0412 345 678',
+    });
+    expect(result.phone).toBe('+61412345678');
+  });
+
+  it('createUserSchema rejects invalid phone', () => {
+    expect(
+      createUserSchema.safeParse({
+        name: 'User',
+        email: 'user@example.com',
+        password: 'Str0ng!Pass',
+        role: 'OP',
+        phone: '555',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('updateUserSchema and inviteUserSchema validate phone', () => {
+    expect(updateUserSchema.parse({ phone: '+61 412 345 678' }).phone).toBe('+61412345678');
+    expect(updateUserSchema.safeParse({ phone: 'abc' }).success).toBe(false);
+    expect(
+      inviteUserSchema.parse({ name: 'I', email: 'i@example.com', role: 'CL_USER', phone: '0412345678' }).phone,
+    ).toBe('+61412345678');
+    expect(
+      inviteUserSchema.safeParse({ name: 'I', email: 'i@example.com', role: 'CL_USER', phone: '12' }).success,
+    ).toBe(false);
   });
 });

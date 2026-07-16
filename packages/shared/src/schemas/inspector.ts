@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { auPhoneSchema } from './phone';
 import { paginationSchema } from './pagination';
 
 // --- Typed JSON field schemas ---
@@ -29,7 +30,7 @@ export type ServiceTypeEntry = z.infer<typeof serviceTypeEntrySchema>;
 export const createInspectorSchema = z.object({
   name: z.string().min(1).max(200).trim(),
   email: z.string().email().max(254),
-  phone: z.string().max(20).optional(),
+  phone: auPhoneSchema.optional(),
   paymentSettings: paymentSettingsSchema.default({}),
   regions: z.array(z.string()).default([]),
   regionIds: z.array(z.string().uuid()).default([]),
@@ -51,7 +52,7 @@ export type CreateInspectorInput = z.infer<typeof createInspectorSchema>;
 export const updateInspectorSchema = z.object({
   name: z.string().min(1).max(200).trim().optional(),
   email: z.string().email().max(254).optional(),
-  phone: z.string().max(20).nullable().optional(),
+  phone: auPhoneSchema.nullable().optional(),
   status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
   paymentSettings: paymentSettingsSchema.optional(),
   regions: z.array(z.string()).optional(),
@@ -115,7 +116,7 @@ export type ListAvailabilitySlotsQueryInput = z.infer<typeof listAvailabilitySlo
 // --- Inspector self-update (INSP role, PATCH /v1/inspectors/me) ---
 
 export const inspectorSelfUpdateSchema = z.object({
-  phone: z.string().regex(/^\+[1-9]\d{6,14}$/, 'Phone must be in E.164 format').nullable().optional(),
+  phone: auPhoneSchema.nullable().optional(),
   fullName: z.string().max(300).nullable().optional(),
   paymentSettings: paymentSettingsSchema.optional(),
 });
