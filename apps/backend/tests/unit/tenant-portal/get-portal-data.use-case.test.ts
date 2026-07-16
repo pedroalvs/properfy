@@ -231,7 +231,7 @@ describe('GetPortalDataUseCase', () => {
     expect(result.token).toEqual({ status: 'ACTIVE', isReadOnly: false, isExpired: false, canRequestNewLink: false, expiresAt: '2026-04-01T00:00:00.000Z' });
     expect(result.appointment.id).toBe('appt-1');
     expect(result.appointment.status).toBe('DRAFT');
-    expect(result.appointment.scheduledDate).toEqual(new Date('2026-04-01'));
+    expect(result.appointment.scheduledDate).toBe('2026-04-01');
     expect(result.appointment.timeSlotStart).toBe('09:00');
     expect(result.appointment.timeSlotEnd).toBe('10:00');
     expect(result.appointment.rentalTenantConfirmationStatus).toBe('PENDING');

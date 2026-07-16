@@ -18,7 +18,8 @@ export interface MarketplaceOfferOutput {
   tenantName: string;
   serviceTypeName: string;
   groupSize: number;
-  scheduledDate: Date;
+  /** Civil date YYYY-MM-DD (no time/zone identity). */
+  scheduledDate: string;
   timeWindow: string;
   suburbs: string[];
   payoutEstimate: number | null;
@@ -79,7 +80,7 @@ export class GetMarketplaceOffersUseCase {
         tenantName: offer.tenantName,
         serviceTypeName: offer.serviceTypeName,
         groupSize: offer.groupSize,
-        scheduledDate: offer.scheduledDate,
+        scheduledDate: offer.scheduledDate.toISOString().slice(0, 10),
         timeWindow: offer.timeWindow,
         suburbs: offer.suburbs,
         payoutEstimate: offer.payoutEstimate,
