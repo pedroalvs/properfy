@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { PLATFORM_TIMEZONE } from '@properfy/shared';
 import type { AuthContext, ResolvedImportRow } from '@properfy/shared';
 import type { IAppointmentImportRepository } from '../../domain/appointment-import.repository';
 import type { IReportStorageService } from '../../../report/domain/report-storage.service';
@@ -21,7 +22,6 @@ interface ImportRowResult {
 
 export interface AppointmentImportCommitJobData {
   importId: string;
-  actorTimezone?: string;
   actor: AuthContext;
 }
 
@@ -47,7 +47,7 @@ export class AppointmentImportCommitWorker {
 
   async execute(data: AppointmentImportCommitJobData): Promise<void> {
     const { importId, actor } = data;
-    const tz = data.actorTimezone?.trim() || 'UTC';
+    const tz = PLATFORM_TIMEZONE;
 
     const importRecord = await this.importRepo.findById(importId, null);
     if (!importRecord) {
@@ -186,7 +186,6 @@ export class AppointmentImportCommitWorker {
         keyRequired: false,
         notes: row.notes ?? undefined,
         idempotencyKey: `import:${importId}:row:${row.rowNumber}`,
-        actorTimezone: tz,
         skipTimeInPastCheck: true,
         actor,
       });

@@ -183,11 +183,11 @@ export async function registerWorkers(
   }));
 
   await boss.work('appointment.import.commit', withJobMetrics('appointment.import.commit', async (job) => {
-    const { importId, actorTimezone, actor } = job.data as {
-      importId: string; actorTimezone?: string; actor: AuthContext;
+    const { importId, actor } = job.data as {
+      importId: string; actor: AuthContext;
     };
     logger.info({ importId, jobId: job.id }, 'Processing appointment.import.commit job');
-    await appointmentImportCommitWorker.execute({ importId, actorTimezone, actor });
+    await appointmentImportCommitWorker.execute({ importId, actor });
   }));
 
   // Sweep abandoned appointment-import previews (never committed) — hourly

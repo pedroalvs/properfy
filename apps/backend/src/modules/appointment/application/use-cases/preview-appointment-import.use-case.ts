@@ -1,4 +1,5 @@
 import type { AuthContext } from '@properfy/shared';
+import { PLATFORM_TIMEZONE } from '@properfy/shared';
 import type { AppointmentImportPreviewResponse } from '@properfy/shared';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { ValidationError, ForbiddenError } from '../../../../shared/domain/errors';
@@ -22,7 +23,6 @@ export interface PreviewAppointmentImportInput {
   fileBuffer: Buffer;
   filename: string;
   branchId: string;
-  actorTimezone?: string;
   actor: AuthContext;
 }
 
@@ -91,7 +91,7 @@ export class PreviewAppointmentImportUseCase {
       : 'text/csv';
     await this.storageService.upload(fileKey, fileBuffer, contentType);
 
-    const tz = input.actorTimezone?.trim() || 'UTC';
+    const tz = PLATFORM_TIMEZONE;
     const { rows, summary } = await this.resolver.resolve(rawRows, { tenantId, branchId, tz });
 
     const now = new Date();

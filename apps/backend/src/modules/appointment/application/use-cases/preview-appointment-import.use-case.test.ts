@@ -162,9 +162,6 @@ describe('PreviewAppointmentImportUseCase', () => {
       const uc = buildUseCase(deps);
 
       await uc.execute({ fileBuffer: CSV_BUFFER, filename: 'x.csv', branchId: 'branch-1', actor: AM });
-      expect(deps.resolver.resolve).toHaveBeenCalledWith(expect.any(Array), expect.objectContaining({ tz: 'UTC' }));
-
-      await uc.execute({ fileBuffer: CSV_BUFFER, filename: 'x.csv', branchId: 'branch-1', actorTimezone: 'Australia/Sydney', actor: AM });
       expect(deps.resolver.resolve).toHaveBeenCalledWith(expect.any(Array), expect.objectContaining({ tz: 'Australia/Sydney' }));
     });
 

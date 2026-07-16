@@ -6,9 +6,9 @@
  *          envelope (was bare `{ results }` pre-fix; the frontend's
  *          `useCreateMutation` reads `response.data.results` and threw on
  *          `undefined`).
- * Issue 3: `actorTimezone` flows from request body to use case so the
- *          per-day idempotency key honours the operator's local "today"
- *          instead of the server timezone.
+ * Sydney-only platform: `actorTimezone` was removed from the request
+ * schema. A legacy client still sending it must get a 2xx (the non-strict
+ * Zod schema strips it) and the use case must be called WITHOUT the field.
  *
  * The use case itself is mocked here — the timezone math is exercised in
  * `tests/unit/appointment/bulk-resend-reminder.use-case.test.ts`. This
@@ -59,7 +59,7 @@ beforeEach(() => {
   mockBulkResendExecute.mockReset();
 });
 
-describe('POST /v1/appointments/bulk-resend-reminder — envelope + timezone wire (Issues 2 + 3)', () => {
+describe('POST /v1/appointments/bulk-resend-reminder — envelope + Sydney-only wire', () => {
   it('returns the canonical { data: { results } } envelope (Issue 2)', async () => {
     mockJwtVerify.mockResolvedValue(amContext);
     mockBulkResendExecute.mockResolvedValue({
@@ -83,27 +83,28 @@ describe('POST /v1/appointments/bulk-resend-reminder — envelope + timezone wir
     expect(res.body.data.results[0]).toEqual({ appointmentId: APPT_ID_1, status: 'SENT' });
   });
 
-  it('forwards actorTimezone from the request body to the use case (Issue 3)', async () => {
+  it('strips a legacy actorTimezone field and calls the use case without it', async () => {
     mockJwtVerify.mockResolvedValue(amContext);
     mockBulkResendExecute.mockResolvedValue({ results: [] });
 
-    await supertest(app.server)
+    const res = await supertest(app.server)
       .post('/v1/appointments/bulk-resend-reminder')
       .set('Authorization', 'Bearer token')
       .send({
         appointmentIds: [APPT_ID_1],
-        actorTimezone: 'Australia/Sydney',
+        actorTimezone: 'Australia/Sydney', // legacy field — must be ignored, not rejected
       });
 
+    expect(res.status).toBe(200);
     expect(mockBulkResendExecute).toHaveBeenCalledWith(
       expect.objectContaining({
         appointmentIds: [APPT_ID_1],
-        actorTimezone: 'Australia/Sydney',
       }),
     );
+    expect(mockBulkResendExecute.mock.calls[0]![0]).not.toHaveProperty('actorTimezone');
   });
 
-  it('omits actorTimezone when the body does not include it (server-fallback path)', async () => {
+  it('calls the use case without actorTimezone when the body omits it too', async () => {
     mockJwtVerify.mockResolvedValue(opContext);
     mockBulkResendExecute.mockResolvedValue({ results: [] });
 
@@ -113,7 +114,7 @@ describe('POST /v1/appointments/bulk-resend-reminder — envelope + timezone wir
       .send({ appointmentIds: [APPT_ID_1] });
 
     const call = mockBulkResendExecute.mock.calls[0]![0];
-    expect(call.actorTimezone).toBeUndefined();
+    expect(call).not.toHaveProperty('actorTimezone');
   });
 
   it('rejects CL_ADMIN with 403 (AM/OP only)', async () => {

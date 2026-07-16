@@ -84,7 +84,7 @@ describe('SendGroupPortalLinksUseCase', () => {
   it('sends a PENDING appointment and records idempotency', async () => {
     m.groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([row({ id: 'a1' })]);
 
-    const out = await m.useCase.execute({ groupId: 'group-1', actor: makeActor(), actorTimezone: 'Australia/Sydney' });
+    const out = await m.useCase.execute({ groupId: 'group-1', actor: makeActor() });
 
     expect(out.results).toEqual([{ appointmentId: 'a1', status: 'SENT' }]);
     expect(m.generatePortalToken.execute).toHaveBeenCalledWith({ appointmentId: 'a1', actor: expect.any(Object) });
@@ -156,7 +156,7 @@ describe('SendGroupPortalLinksUseCase', () => {
       row({ id: 'stale', rentalTenantConfirmationStatus: 'CONFIRMED', scheduledDate: DATE_B, timeSlot: SLOT, activeCycle: { scheduledDate: DATE_A, timeSlot: SLOT, status: 'CONFIRMED' } }),
     ]);
 
-    const out = await m.useCase.execute({ groupId: 'group-1', actor: makeActor(), actorTimezone: 'Australia/Sydney' });
+    const out = await m.useCase.execute({ groupId: 'group-1', actor: makeActor() });
 
     expect(out.results).toEqual([{ appointmentId: 'stale', status: 'DATE_CHANGED_RESENT' }]);
     // Cache READ must be bypassed for the date-changed branch.
@@ -208,14 +208,26 @@ describe('SendGroupPortalLinksUseCase', () => {
     expect(m.generatePortalToken.execute).toHaveBeenCalledWith({ appointmentId: 'mine', actor: expect.any(Object) });
   });
 
-  it('uses the actor timezone for the per-day idempotency key', async () => {
+  it('anchors the per-day idempotency key to the Sydney civil date', async () => {
     m.groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([row({ id: 'a1' })]);
 
-    // 2026-06-30T02:00Z is 2026-06-29 22:00 in New York → day key 2026-06-29.
-    await m.useCase.execute({ groupId: 'group-1', actor: makeActor(), actorTimezone: 'America/New_York' });
+    // 2026-06-30T15:00Z is 2026-07-01 01:00 in Sydney (AEST +10) → day key
+    // rolls to 2026-07-01 while UTC is still on 2026-06-30.
+    const lateNow = new Date('2026-06-30T15:00:00.000Z');
+    const useCase = new SendGroupPortalLinksUseCase(
+      m.groupRepo as unknown as IServiceGroupRepository,
+      m.generatePortalToken,
+      m.cycleService,
+      m.idempotency,
+      m.auditService,
+      new AuthorizationService(m.auditService),
+      () => lateNow,
+    );
+
+    await useCase.execute({ groupId: 'group-1', actor: makeActor() });
 
     expect(m.idempotency.set).toHaveBeenCalledWith(
-      'bulk_resend:a1:2026-06-29',
+      'bulk_resend:a1:2026-07-01',
       'bulk_resend_reminder',
       expect.any(Object),
       36,

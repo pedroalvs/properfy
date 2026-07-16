@@ -14,7 +14,6 @@ export interface BulkReopenForRescheduleInput {
   newTimeSlotEnd: string;
   reason?: string;
   actor: AuthContext;
-  actorTimezone?: string;
 }
 
 export interface BulkReopenForRescheduleOutput {
@@ -92,7 +91,7 @@ export class BulkReopenForRescheduleUseCase {
       };
     }
 
-    const dayKey = dayKeyInTz(this.clock(), input.actorTimezone);
+    const dayKey = dayKeyInTz(this.clock());
     const results: BulkActionResultItem[] = [];
 
     for (const apptId of input.appointmentIds) {
@@ -141,7 +140,6 @@ export class BulkReopenForRescheduleUseCase {
           newTimeSlotStart: input.newTimeSlotStart,
           newTimeSlotEnd: input.newTimeSlotEnd,
           ...(input.reason ? { reason: input.reason } : {}),
-          actorTimezone: input.actorTimezone,
           actor: input.actor,
         });
         const result: BulkActionResultItem = { appointmentId: apptId, status: 'OK' };
