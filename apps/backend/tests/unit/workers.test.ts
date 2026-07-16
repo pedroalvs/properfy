@@ -137,21 +137,23 @@ describe('registerWorkers', () => {
     expect(mockWork).toHaveBeenCalledWith('audit.retention', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('appointment.reject-unconfirmed', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('system.dlq-monitor', expect.any(Function));
+    // All recurring jobs are anchored to the platform timezone (Sydney).
+    const sydneyTz = { tz: 'Australia/Sydney' };
     expect(mockSchedule).toHaveBeenCalledTimes(14);
-    expect(mockSchedule).toHaveBeenCalledWith('notification.retry-poll', '*/5 * * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('notification.sms-delivery-poll', '*/10 * * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('notification.dispatch-reminders', '0 8 * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('notification.dispatch-escalations', '0 8 * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('auth.cleanup-sessions', '0 2 * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('auth.check-key-expiry', '0 3 * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('report.expire-files', '0 3 * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('property.geocode-retry', '*/15 * * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('rental-tenant-portal.expire-tokens', '*/15 * * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('inspection-execution.notify-not-started', '0 * * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('audit.retention', '30 3 * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('appointment.reject-unconfirmed', '0 9 * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('appointment.import.sweep-abandoned', '0 * * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('system.dlq-monitor', '*/5 * * * *', {});
+    expect(mockSchedule).toHaveBeenCalledWith('notification.retry-poll', '*/5 * * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('notification.sms-delivery-poll', '*/10 * * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('notification.dispatch-reminders', '0 18 * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('notification.dispatch-escalations', '0 18 * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('auth.cleanup-sessions', '0 2 * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('auth.check-key-expiry', '0 3 * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('report.expire-files', '0 3 * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('property.geocode-retry', '*/15 * * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('rental-tenant-portal.expire-tokens', '*/15 * * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('inspection-execution.notify-not-started', '0 * * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('audit.retention', '30 3 * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('appointment.reject-unconfirmed', '0 19 * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('appointment.import.sweep-abandoned', '0 * * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('system.dlq-monitor', '*/5 * * * *', {}, sydneyTz);
   });
 
   it('report.generate handler calls processReportJobUseCase.execute with correct reportId', async () => {

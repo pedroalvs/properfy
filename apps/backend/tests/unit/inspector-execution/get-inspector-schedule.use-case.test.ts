@@ -176,6 +176,8 @@ describe('GetInspectorScheduleUseCase', () => {
 
   it('should delegate T-1 filtering to findVisibleForInspector (centralized)', async () => {
     // findVisibleForInspector returns pre-filtered results — the use case trusts them
+    // Freeze the clock at 10:00 Sydney on 2026-03-21 so todayCivil is deterministic
+    vi.useFakeTimers({ now: new Date('2026-03-20T23:00:00Z') }); // 2026-03-21 10:00 AEDT
     vi.mocked(appointmentRepo.findVisibleForInspector).mockResolvedValue([]);
 
     await useCase.execute({ date: '2026-03-21', actor: inspActor });
@@ -185,9 +187,11 @@ describe('GetInspectorScheduleUseCase', () => {
         inspectorId: 'insp-1',
         fromDate: '2026-03-21',
         toDate: '2026-03-21',
-        today: expect.any(Date),
+        todayCivil: '2026-03-21',
       }),
     );
+
+    vi.useRealTimers();
   });
 
   it('should use today date when no date param provided', async () => {

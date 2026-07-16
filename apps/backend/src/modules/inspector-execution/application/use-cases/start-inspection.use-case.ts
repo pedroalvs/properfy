@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { civilDateInTimezone, PLATFORM_TIMEZONE } from '../../../../shared/domain/timezone-date';
 import type { AuthContext } from '@properfy/shared';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { IInspectionExecutionRepository } from '../../domain/inspection-execution.repository';
@@ -91,10 +92,10 @@ export class StartInspectionUseCase {
     }
 
     // 4. Apply T-1 rule (centralized in repository)
-    const today = new Date();
+    const todayCivil = civilDateInTimezone(new Date(), PLATFORM_TIMEZONE);
     const isVisible = await this.appointmentRepo.isAppointmentVisibleForInspector(
       appointmentId,
-      today,
+      todayCivil,
     );
     if (!isVisible) throw new ExecutionT1BlockedError();
 

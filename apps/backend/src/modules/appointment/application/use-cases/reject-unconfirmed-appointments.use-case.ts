@@ -1,4 +1,5 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
+import { civilDateInTimezone, PLATFORM_TIMEZONE } from '../../../../shared/domain/timezone-date';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IServiceGroupRepository } from '../../../service-group/domain/service-group.repository';
 import type { ConfirmationCycleService } from '../services/confirmation-cycle.service';
@@ -29,13 +30,10 @@ export class RejectUnconfirmedAppointmentsUseCase {
   ) {}
 
   async execute(): Promise<RejectUnconfirmedAppointmentsOutput> {
-    // Calculate tomorrow's date (UTC)
+    // Tomorrow as a Sydney civil date; the repo expects UTC midnight of that civil date.
     const now = new Date();
-    const tomorrow = new Date(Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate() + 1,
-    ));
+    const tomorrow = new Date(`${civilDateInTimezone(now, PLATFORM_TIMEZONE)}T00:00:00.000Z`);
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 
     // Find appointments scheduled for tomorrow that are unconfirmed and in active status
     const appointments = await this.appointmentRepo.findUnconfirmedForDate(tomorrow);
