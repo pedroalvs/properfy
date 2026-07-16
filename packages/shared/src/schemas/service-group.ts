@@ -17,7 +17,6 @@ export const createServiceGroupSchema = z.object({
   timeWindow: z.string().regex(timeWindowRegex),
   serviceRegionId: z.string().uuid().nullable().optional(),
   description: z.string().max(5000).optional(),
-  actorTimezone: z.string().optional(),
 });
 export type CreateServiceGroupInput = z.infer<typeof createServiceGroupSchema>;
 
@@ -27,7 +26,6 @@ export const updateServiceGroupSchema = z.object({
   // Draft-only fields; temporal validation is TZ-aware and performed in the use case.
   scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   timeWindow: z.string().regex(timeWindowRegex).optional(),
-  actorTimezone: z.string().optional(),
 });
 export type UpdateServiceGroupInput = z.infer<typeof updateServiceGroupSchema>;
 
@@ -194,7 +192,6 @@ export const sendGroupPortalLinksRequestSchema = z.object({
    * idempotency bucket — same contract as bulkResendReminderRequestSchema.
    * Frontend sends `Intl.DateTimeFormat().resolvedOptions().timeZone`.
    */
-  actorTimezone: z.string().optional(),
 });
 export type SendGroupPortalLinksRequest = z.infer<typeof sendGroupPortalLinksRequestSchema>;
 
