@@ -72,7 +72,7 @@ apps/web/
 │   │   ├── filters/            # FilterBar, FilterInput, FilterSelect, FilterAutocomplete, FilterDateRange, FilterBoolean
 │   │   ├── feedback/           # Snackbar, EmptyState, ErrorState, LoadingState, InfoBanner
 │   │   ├── layout/             # PageHeader, PageSectionHeader, templates
-│   │   └── map/                # MapScreenLayout, MapFiltersPanel, MapFloatingAction
+│   │   └── map/                # MapScreenLayout, MapContainer, MapMarker, MapFloatingAction
 │   ├── features/
 │   │   ├── auth/
 │   │   ├── dashboard/
@@ -307,7 +307,7 @@ Follow this order strictly – do not start with final pages:
 4. **Phase 3:** FilterBar, FilterInput, FilterSelect, FilterAutocomplete, FilterDateRange, FilterBoolean
 5. **Phase 4:** DataTable, RowActions, EntityListCard, TableSwitch, EmptyState, ErrorState, LoadingState
 6. **Phase 5:** PageHeader, TabsNav, page templates (list+filters, tabs+content, grouped list)
-7. **Phase 6:** MapScreenLayout, MapFiltersPanel, MapFloatingAction, FloatingTotalBar
+7. **Phase 6:** MapScreenLayout, MapFloatingAction, FloatingTotalBar
 8. **Phase 7:** Domain components (AppointmentStatusChip, AppointmentFilters, GroupOfferCard, etc.)
 9. **Phase 8:** Feature pages by module
 
