@@ -11,6 +11,7 @@ import {
   inspectorScheduleMonthResponseSchema,
   appointmentResponseSchema,
   inspectorEarningsSummaryResponseSchema,
+  marketplaceOfferDetailAppointmentSchema,
 } from './responses';
 
 describe('appointmentResponseSchema — appointmentCode / code', () => {
@@ -681,6 +682,67 @@ describe('inspectorEarningsSummaryResponseSchema', () => {
     const result = inspectorEarningsSummaryResponseSchema.safeParse({
       ...valid,
       monthly: [{ month: '2026-06', total: '500' }],
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('marketplaceOfferDetailAppointmentSchema — coordinates / street', () => {
+  const validBase = {
+    id: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee201',
+    appointmentCode: 'INS-1001',
+    appointmentNumber: 1001,
+    suburb: 'Bondi NSW',
+    keyRequired: false,
+    notes: null,
+    payoutAmount: 150,
+    tenantName: 'Acme Realty',
+    timeSlotStart: '08:00',
+    timeSlotEnd: '09:00',
+    street: '123 Ocean St',
+    coordinates: { lat: -33.8908, lng: 151.2743 },
+  };
+
+  it('accepts coordinates as {lat,lng} and retains them', () => {
+    const result = marketplaceOfferDetailAppointmentSchema.safeParse(validBase);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.coordinates).toEqual({ lat: -33.8908, lng: 151.2743 });
+      expect(result.data.street).toBe('123 Ocean St');
+    }
+  });
+
+  it('accepts coordinates null (geocoding pending/failed)', () => {
+    const result = marketplaceOfferDetailAppointmentSchema.safeParse({
+      ...validBase,
+      coordinates: null,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.coordinates).toBeNull();
+  });
+
+  it('accepts an empty street (property missing)', () => {
+    const result = marketplaceOfferDetailAppointmentSchema.safeParse({
+      ...validBase,
+      street: '',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a missing coordinates field', () => {
+    const { coordinates: _coordinates, ...rest } = validBase;
+    expect(marketplaceOfferDetailAppointmentSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it('rejects a missing street field', () => {
+    const { street: _street, ...rest } = validBase;
+    expect(marketplaceOfferDetailAppointmentSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it('rejects non-numeric coordinates', () => {
+    const result = marketplaceOfferDetailAppointmentSchema.safeParse({
+      ...validBase,
+      coordinates: { lat: '-33.89', lng: 151.27 },
     });
     expect(result.success).toBe(false);
   });

@@ -21,6 +21,8 @@ function makeDetailAppointment(overrides: Partial<MarketplaceOfferDetail['appoin
     appointmentCode: 'INS-0001',
     appointmentNumber: 1,
     suburb: 'Sydney CBD',
+    street: '1 George St',
+    coordinates: null,
     keyRequired: false,
     notes: null,
     payoutAmount: 150,

@@ -538,6 +538,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       include: {
         service_type: { select: { name: true } },
         appointments: {
+          where: { deleted_at: null },
           select: {
             id: true,
             appointment_number: true,
@@ -548,7 +549,9 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
             time_slot_end: true,
             tenant_id: true,
             tenant: { select: { name: true, appointment_code_prefix: true } },
-            property: { select: { suburb: true, state: true, street: true } },
+            property: {
+              select: { deleted_at: true, suburb: true, state: true, street: true, lat: true, lng: true },
+            },
           },
         },
       },
@@ -623,6 +626,12 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
           appointmentCode: `${prefixFor(a)}-${padded}`,
           appointmentNumber: a.appointment_number,
           suburb,
+          // Never expose location data from a soft-deleted property.
+          street: p?.deleted_at == null ? (p?.street ?? '') : '',
+          coordinates:
+            p?.deleted_at == null && p?.lat != null && p?.lng != null
+              ? { lat: Number(p.lat), lng: Number(p.lng) }
+              : null,
           keyRequired: a.key_required === true,
           notes: a.notes ?? null,
           payoutAmount: payoutVal,

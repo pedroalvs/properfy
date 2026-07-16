@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GetMarketplaceOfferDetailUseCase } from '../../../src/modules/service-group/application/use-cases/get-marketplace-offer-detail.use-case';
 import type { IServiceGroupRepository, MarketplaceOfferDetail } from '../../../src/modules/service-group/domain/service-group.repository';
 import type { IInspectorRepository } from '../../../src/modules/inspector/domain/inspector.repository';
-import type { AuthContext } from '@properfy/shared';
+import { marketplaceOfferDetailAppointmentSchema, type AuthContext } from '@properfy/shared';
 import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
 import { ForbiddenError, NotFoundError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
@@ -37,6 +37,8 @@ function makeInspector(overrides: Partial<ConstructorParameters<typeof Inspector
 function makeOfferDetail(overrides: Partial<MarketplaceOfferDetail> = {}): MarketplaceOfferDetail {
   return {
     groupId: 'group-1',
+    groupNumber: 2042,
+    code: '2042',
     tenantId: 'tenant-1',
     tenantName: 'Acme Realty',
     serviceTypeName: 'Routine Inspection',
@@ -46,27 +48,36 @@ function makeOfferDetail(overrides: Partial<MarketplaceOfferDetail> = {}): Marke
     suburbs: ['Sydney', 'Bondi'],
     payoutEstimate: 250,
     appointmentCount: 5,
+    centroid: { lat: -33.87, lng: 151.21 },
     addresses: ['10 Main St, Sydney', '20 Beach Rd, Bondi'],
     keyRequired: true,
     notes: 'Ring the doorbell',
     appointments: [
       {
-        id: 'appt-1',
+        id: '00000000-0000-0000-0000-00000000a001',
+        appointmentCode: 'INS-1001',
         appointmentNumber: 1001,
-        address: '10 Main St, Sydney',
+        suburb: 'Sydney NSW',
+        street: '10 Main St',
+        coordinates: { lat: -33.8688, lng: 151.2093 },
         keyRequired: true,
         notes: 'Ring the doorbell',
         payoutAmount: 50,
+        tenantName: 'Acme Realty',
         timeSlotStart: '08:00',
         timeSlotEnd: '09:00',
       },
       {
-        id: 'appt-2',
+        id: '00000000-0000-0000-0000-00000000a002',
+        appointmentCode: 'INS-1002',
         appointmentNumber: 1002,
-        address: '20 Beach Rd, Bondi',
+        suburb: 'Bondi NSW',
+        street: '20 Beach Rd',
+        coordinates: null,
         keyRequired: false,
         notes: null,
         payoutAmount: 50,
+        tenantName: 'Acme Realty',
         timeSlotStart: '10:00',
         timeSlotEnd: '11:00',
       },
@@ -151,6 +162,19 @@ describe('GetMarketplaceOfferDetailUseCase', () => {
     expect(result.appointments[1].timeSlotStart).toBe('10:00');
     expect(result.appointments[1].timeSlotEnd).toBe('11:00');
     expect(result.payoutEstimate).toBe(250);
+
+    // Per-appointment geo/address fields consumed by the PWA map drill-down.
+    expect(result.appointments[0].coordinates).toEqual({ lat: -33.8688, lng: 151.2093 });
+    expect(result.appointments[1].coordinates).toBeNull();
+    expect(result.appointments[0].street).toBe('10 Main St');
+    expect(result.appointments[1].street).toBe('20 Beach Rd');
+
+    // Serializer guard (PR #59 lesson): every appointment in the use-case
+    // output must satisfy the shared response schema, or Fastify's response
+    // serializer throws a post-commit 500 in production.
+    for (const appt of result.appointments) {
+      expect(marketplaceOfferDetailAppointmentSchema.safeParse(appt).success).toBe(true);
+    }
 
     // Use case now forwards inspector.blockedClientsJson (denylist) — matches
     // AcceptOfferUseCase tenant eligibility. Default inspector has empty blocklist.
