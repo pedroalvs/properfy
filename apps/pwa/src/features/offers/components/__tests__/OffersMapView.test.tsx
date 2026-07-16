@@ -9,6 +9,7 @@ const spies = vi.hoisted(() => ({
   fitBounds: vi.fn(),
   flyTo: vi.fn(),
   markerElements: [] as HTMLElement[],
+  markerCoords: [] as Array<[number, number]>,
 }));
 
 vi.mock('mapbox-gl', () => {
@@ -27,7 +28,8 @@ vi.mock('mapbox-gl', () => {
     constructor(opts: { element: HTMLElement }) {
       this.el = opts.element;
     }
-    setLngLat() {
+    setLngLat(coords: [number, number]) {
+      spies.markerCoords.push(coords);
       return this;
     }
     addTo() {
@@ -105,6 +107,7 @@ beforeEach(() => {
   spies.fitBounds.mockClear();
   spies.flyTo.mockClear();
   spies.markerElements.length = 0;
+  spies.markerCoords.length = 0;
   document.body.replaceChildren();
 });
 
@@ -159,12 +162,36 @@ describe('OffersMapView — expanded group (drill-down)', () => {
     await waitForPins('map-appointment-pin', 2);
 
     expect(screen.queryAllByTestId('map-pin')).toHaveLength(0);
+    // Markers are placed at each appointment's [lng, lat] (mapbox order).
+    expect(spies.markerCoords).toEqual([
+      [151.2093, -33.8688],
+      [151.2743, -33.8908],
+    ]);
     await waitFor(() => {
       expect(spies.fitBounds).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({ maxZoom: 15 }),
       );
     });
+  });
+
+  it('skips appointments with non-finite or out-of-range coordinates', async () => {
+    render(
+      <OffersMapView
+        offers={[makeOffer()]}
+        onSelectOffer={vi.fn()}
+        expandedGroup={{
+          groupId: 'group-1',
+          appointments: [
+            EXPANDED.appointments[0],
+            { ...EXPANDED.appointments[1], coordinates: { lat: Number.NaN, lng: 151.27 } },
+            { ...EXPANDED.appointments[2], coordinates: { lat: 999, lng: 151.24 } },
+          ],
+        }}
+      />,
+    );
+    await waitForPins('map-appointment-pin', 1);
+    expect(spies.markerCoords).toEqual([[151.2093, -33.8688]]);
   });
 
   it('flies to zoom 15 when the group has a single located appointment', async () => {

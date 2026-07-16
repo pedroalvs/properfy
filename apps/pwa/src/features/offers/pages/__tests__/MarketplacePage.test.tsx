@@ -318,6 +318,15 @@ describe('MarketplacePage — map group drill-down', () => {
   }
 
   beforeEach(() => {
+    mockUseMarketplaceOffers.mockReset();
+    mockAccept.mockReset();
+    mockGetState.mockReset();
+    mockGetState.mockReturnValue('IDLE');
+    mockUseOfferDetail.mockReset();
+    mockUseOfferDetail.mockReturnValue({ data: undefined, isLoading: false, isError: false });
+    mockShowInfo.mockReset();
+    mockShowError.mockReset();
+    mockUseIsOnline.mockReset();
     mockUseIsOnline.mockReturnValue(true);
   });
 

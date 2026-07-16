@@ -87,9 +87,10 @@ async function getBranchId(prisma: PrismaClient, tenantId: string): Promise<stri
 }
 
 /**
- * Property inside the Sydney polygon. `withLatLng` controls whether the plain
- * lat/lng display columns are populated (the PostGIS `coordinates` column is
- * always set so the region spatial join matches either way).
+ * Property inside the Sydney polygon. `withLatLng: true` seeds a fully
+ * geocoded property; `false` seeds a genuinely pending one (geocoding_status
+ * PENDING, no lat/lng, no PostGIS point). The group stays eligible through
+ * its geocoded sibling, so the spatial join still matches.
  */
 async function seedPropertyInsideSydney(
   prisma: PrismaClient,
@@ -97,8 +98,31 @@ async function seedPropertyInsideSydney(
   branchId: string,
   opts: { street: string; withLatLng: boolean },
 ): Promise<string> {
-  const lat = opts.withLatLng ? POINT_INSIDE_SYDNEY.lat : null;
-  const lng = opts.withLatLng ? POINT_INSIDE_SYDNEY.lng : null;
+  if (!opts.withLatLng) {
+    const rows = await prisma.$queryRaw<{ id: string }[]>`
+      INSERT INTO properties (id, tenant_id, branch_id, property_code, type, street, suburb, postcode, state, country, geocoding_status, lat, lng, coordinates, created_at, updated_at)
+      VALUES (
+        gen_random_uuid(),
+        ${tenantId},
+        ${branchId},
+        ${'P-' + rand()},
+        'HOUSE',
+        ${opts.street},
+        'Sydney',
+        '2000',
+        'NSW',
+        'AU',
+        'PENDING',
+        NULL,
+        NULL,
+        NULL,
+        NOW(),
+        NOW()
+      )
+      RETURNING id
+    `;
+    return rows[0].id;
+  }
   const rows = await prisma.$queryRaw<{ id: string }[]>`
     INSERT INTO properties (id, tenant_id, branch_id, property_code, type, street, suburb, postcode, state, country, geocoding_status, lat, lng, coordinates, created_at, updated_at)
     VALUES (
@@ -113,8 +137,8 @@ async function seedPropertyInsideSydney(
       'NSW',
       'AU',
       'SUCCESS',
-      ${lat},
-      ${lng},
+      ${POINT_INSIDE_SYDNEY.lat},
+      ${POINT_INSIDE_SYDNEY.lng},
       ST_SetSRID(ST_MakePoint(${POINT_INSIDE_SYDNEY.lng}, ${POINT_INSIDE_SYDNEY.lat}), 4326),
       NOW(),
       NOW()
@@ -203,17 +227,30 @@ describe('marketplace offer detail — per-appointment coordinates and street', 
       street: '20 Beach Rd',
       withLatLng: false,
     });
+    const removedProperty = await seedPropertyInsideSydney(harness.prisma, tenantId, branchId, {
+      street: '99 Gone St',
+      withLatLng: true,
+    });
     await seedAwaitingAppointment(harness.prisma, {
       tenantId, branchId, propertyId: geocodedProperty, serviceTypeId, createdByUserId: userId, groupId,
     });
     await seedAwaitingAppointment(harness.prisma, {
       tenantId, branchId, propertyId: pendingProperty, serviceTypeId, createdByUserId: userId, groupId,
     });
+    // Soft-deleted appointment — must never leak its location into the offer detail.
+    await seedAwaitingAppointment(harness.prisma, {
+      tenantId, branchId, propertyId: removedProperty, serviceTypeId, createdByUserId: userId, groupId,
+    });
+    await harness.prisma.appointment.updateMany({
+      where: { property_id: removedProperty },
+      data: { deleted_at: new Date() },
+    });
 
     const detail = await repo.findPublishedOfferDetail(groupId, inspectorId, [serviceTypeId], []);
 
     expect(detail).not.toBeNull();
     expect(detail!.appointments).toHaveLength(2);
+    expect(detail!.appointments.map((a) => a.street)).not.toContain('99 Gone St');
 
     const geocoded = detail!.appointments.find((a) => a.street === '10 Main St');
     const pending = detail!.appointments.find((a) => a.street === '20 Beach Rd');

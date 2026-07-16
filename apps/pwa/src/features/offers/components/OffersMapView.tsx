@@ -40,6 +40,7 @@ function computeCenter(offers: MarketplaceOffer[]): [number, number] {
 const PIN_BASE_STYLE = [
   'width:36px',
   'height:36px',
+  'padding:0',
   'border-radius:50%',
   'box-shadow:0 2px 10px rgba(0,0,0,0.35)',
   'display:flex',
@@ -55,9 +56,11 @@ const PIN_BASE_STYLE = [
 // NOTE: never set `style.transform` on the marker element (e.g. hover scale
 // effects) — mapbox-gl positions Markers via an inline translate() transform
 // on this same element, so overwriting it snaps the pin to the map origin.
-function makeMarkerEl(count: number): HTMLDivElement {
-  const el = document.createElement('div');
+function makeMarkerEl(count: number): HTMLButtonElement {
+  const el = document.createElement('button');
+  el.type = 'button';
   el.setAttribute('data-testid', 'map-pin');
+  el.setAttribute('aria-label', `Group with ${count} ${count === 1 ? 'inspection' : 'inspections'}`);
   el.style.cssText = [
     ...PIN_BASE_STYLE,
     `background-color:${PRIMARY_COLOR}`,
@@ -69,9 +72,11 @@ function makeMarkerEl(count: number): HTMLDivElement {
 }
 
 /** Appointment pin inside an expanded group — labeled with a 1-based position, not an id/code. */
-function makeAppointmentMarkerEl(index: number): HTMLDivElement {
-  const el = document.createElement('div');
+function makeAppointmentMarkerEl(index: number): HTMLButtonElement {
+  const el = document.createElement('button');
+  el.type = 'button';
   el.setAttribute('data-testid', 'map-appointment-pin');
+  el.setAttribute('aria-label', `Inspection ${index + 1} details`);
   el.style.cssText = [
     ...PIN_BASE_STYLE,
     'background-color:white',
@@ -80,6 +85,17 @@ function makeAppointmentMarkerEl(index: number): HTMLDivElement {
   ].join(';');
   el.textContent = String(index + 1);
   return el;
+}
+
+/** Same validity rule as computeBounds — finite values within geographic ranges. */
+function isValidCoordinate(coordinates: { lat: number; lng: number } | null): coordinates is {
+  lat: number;
+  lng: number;
+} {
+  if (!coordinates) return false;
+  const { lat, lng } = coordinates;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+  return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
 }
 
 export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: OffersMapViewProps) {
@@ -196,7 +212,7 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
 
   function placeAppointmentMarkers(map: any, mapboxgl: any, group: ExpandedGroup) {
     group.appointments.forEach((appointment, index) => {
-      if (!appointment.coordinates) return;
+      if (!isValidCoordinate(appointment.coordinates)) return;
       const el = makeAppointmentMarkerEl(index);
       el.addEventListener('click', (event) => {
         event.stopPropagation();
@@ -253,7 +269,7 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
 
   const hasAnyOfferPin = offers.some((o) => o.centroid !== null);
   const expandedHasPin = expandedGroup
-    ? expandedGroup.appointments.some((a) => a.coordinates !== null)
+    ? expandedGroup.appointments.some((a) => isValidCoordinate(a.coordinates))
     : false;
   const showNoPinsOverlay = expandedGroup ? !expandedHasPin : !hasAnyOfferPin;
   const selectedAppointment =
