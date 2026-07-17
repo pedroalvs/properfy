@@ -75,6 +75,17 @@ describe('MapBulkRescheduleForm — free start/end time range', () => {
     });
   });
 
+  it('blocks submission when same-group appointments have different scheduled dates', () => {
+    renderForm([
+      makeAppointment(),
+      makeAppointment({ id: 'appt-2', code: 'INS-0002', scheduledDate: '2027-06-16' }),
+    ]);
+    expect(screen.getByTestId('map-bulk-reschedule-scope-banner')).toHaveTextContent(
+      'Selected appointments have different dates',
+    );
+    expect(screen.getByTestId('map-bulk-reschedule-apply')).toBeDisabled();
+  });
+
   it('normalizes an ISO datetime scheduledDate to date-only before submitting', async () => {
     renderForm([makeAppointment({ scheduledDate: '2027-06-15T00:00:00.000Z' })]);
     fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '13:00' } });

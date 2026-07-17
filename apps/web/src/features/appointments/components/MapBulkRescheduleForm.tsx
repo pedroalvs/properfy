@@ -55,6 +55,12 @@ export function MapBulkRescheduleForm({
     if (groupIds.size > 1 || groupIds.has(null)) {
       return { ok: false, reason: 'Bulk reschedule limited to appointments within the same group in this cycle' };
     }
+    // Appointments in a group share the group date; a mixed-date selection
+    // means stale map data — refuse rather than pick one date arbitrarily.
+    const dates = new Set(checkedAppointments.map((a) => (a.scheduledDate ?? '').split('T')[0]));
+    if (dates.size > 1) {
+      return { ok: false, reason: 'Selected appointments have different dates — refresh the map and try again' };
+    }
     return { ok: true };
   }, [checkedAppointments]);
 
