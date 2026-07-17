@@ -6,6 +6,7 @@ import { PhoneInput } from '@/components/forms/PhoneInput';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useUpdateContact } from '../hooks/usePortalData';
 import type { PortalContact, UpdateContactInput } from '../types';
+import { formatAuPhone } from '@/lib/phone-mask';
 
 interface ContactFormProps {
   contact: PortalContact | null;
@@ -18,7 +19,7 @@ export function ContactForm({ contact, token, isReadOnly }: ContactFormProps) {
   const updateMutation = useUpdateContact(token);
 
   const [primaryEmail, setPrimaryEmail] = useState(contact?.primaryEmail ?? '');
-  const [primaryPhone, setPrimaryPhone] = useState(contact?.primaryPhone ?? '');
+  const [primaryPhone, setPrimaryPhone] = useState(formatAuPhone(contact?.primaryPhone ?? ''));
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {

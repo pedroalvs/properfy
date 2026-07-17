@@ -3,8 +3,8 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
-vi.mock('@properfy/shared', () => ({
-  contactSchema: { shape: { primaryEmail: { safeParse: () => ({ success: true }) } } },
+vi.mock('@properfy/shared', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
 }));
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } }));
 vi.mock('@/services/api', () => ({

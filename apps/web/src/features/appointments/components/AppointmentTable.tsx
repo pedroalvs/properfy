@@ -5,6 +5,7 @@ import { formatDate } from '@/lib/format-date';
 import { AppointmentStatusChip } from './AppointmentStatusChip';
 import { RentalTenantConfirmationChip } from './RentalTenantConfirmationChip';
 import type { Appointment } from '../types';
+import { formatAuPhone } from '@/lib/phone-mask';
 interface AppointmentTableProps {
   data: Appointment[];
   loading?: boolean;
@@ -107,7 +108,7 @@ export function AppointmentTable({
         <div className="flex flex-col gap-0.5">
           <span>{row.contactName}</span>
           {row.contactPhone && (
-            <span className="text-xs text-text-muted">{row.contactPhone}</span>
+            <span className="text-xs text-text-muted">{row.contactPhone ? formatAuPhone(row.contactPhone) : row.contactPhone}</span>
           )}
         </div>
       ),

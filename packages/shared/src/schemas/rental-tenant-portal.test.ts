@@ -159,9 +159,20 @@ describe('updateContactPortalSchema', () => {
   it('should accept all fields', () => {
     const result = updateContactPortalSchema.safeParse({
       primaryEmail: 'tenant@example.com',
-      primaryPhone: '11999887766',
+      primaryPhone: '0412 345 678',
     });
     expect(result.success).toBe(true);
+  });
+
+  it('should normalize AU phone to E.164', () => {
+    expect(updateContactPortalSchema.parse({ primaryPhone: '0412 345 678' }).primaryPhone).toBe(
+      '+61412345678',
+    );
+  });
+
+  it('should reject non-AU phone numbers', () => {
+    expect(updateContactPortalSchema.safeParse({ primaryPhone: '11999887766' }).success).toBe(false);
+    expect(updateContactPortalSchema.safeParse({ primaryPhone: '+15551234567' }).success).toBe(false);
   });
 
   it('should reject empty object (at least one field required)', () => {

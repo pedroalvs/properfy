@@ -11,6 +11,9 @@ import { FormActions } from '@/components/forms/FormActions';
 import { TextInput } from '@/components/forms/TextInput';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { Textarea } from '@/components/forms/Textarea';
+import { EmailInput } from '@/components/forms/EmailInput';
+import { PhoneInput } from '@/components/forms/PhoneInput';
+import { formatAuPhone } from '@/lib/phone-mask';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useContactDetail } from '../hooks/useContactDetail';
 import { useContactSave } from '../hooks/useContactSave';
@@ -83,11 +86,11 @@ export function ContactFormDrawer({
         displayName: contact.displayName,
         company: contact.company ?? '',
         primaryEmail: contact.primaryEmail ?? '',
-        primaryPhone: contact.primaryPhone ?? '',
+        primaryPhone: formatAuPhone(contact.primaryPhone ?? ''),
         notes: contact.notes ?? '',
         additionalChannels: contact.additionalChannels.map((c) => ({
           channel: c.channel,
-          value: c.value,
+          value: c.channel === 'PHONE' ? formatAuPhone(c.value) : c.value,
           label: c.label ?? '',
         })),
       };
@@ -131,6 +134,16 @@ export function ContactFormDrawer({
       ...prev,
       additionalChannels: prev.additionalChannels.filter((_, i) => i !== index),
     }));
+    setErrors((prev) => {
+      if (!prev.additionalChannelErrors) return prev;
+      const remapped: Record<number, string> = {};
+      for (const [key, message] of Object.entries(prev.additionalChannelErrors)) {
+        const i = Number(key);
+        if (i === index) continue;
+        remapped[i > index ? i - 1 : i] = message;
+      }
+      return { ...prev, additionalChannelErrors: remapped };
+    });
   }, []);
 
   const updateChannel = useCallback(
@@ -139,6 +152,14 @@ export function ContactFormDrawer({
         ...prev,
         additionalChannels: prev.additionalChannels.map((c, i) => (i === index ? { ...c, ...patch } : c)),
       }));
+      setErrors((prev) => {
+        if (prev.additionalChannelErrors?.[index]) {
+          const rowErrors = { ...prev.additionalChannelErrors };
+          delete rowErrors[index];
+          return { ...prev, additionalChannelErrors: rowErrors };
+        }
+        return prev;
+      });
     },
     [],
   );
@@ -218,17 +239,18 @@ export function ContactFormDrawer({
 
                   <FormSection title="Primary channels" columns={2}>
                     <FormField label="Primary email" error={errors.primaryEmail}>
-                      <TextInput
-                        type="email"
+                      <EmailInput
                         value={form.primaryEmail}
                         onChange={(v) => updateField('primaryEmail', v)}
+                        error={!!errors.primaryEmail}
                         aria-label="Primary email"
                       />
                     </FormField>
                     <FormField label="Primary phone" error={errors.primaryPhone}>
-                      <TextInput
+                      <PhoneInput
                         value={form.primaryPhone}
                         onChange={(v) => updateField('primaryPhone', v)}
+                        error={!!errors.primaryPhone}
                         aria-label="Primary phone"
                       />
                     </FormField>
@@ -255,12 +277,22 @@ export function ContactFormDrawer({
                             </FormField>
                           </div>
                           <div className="flex-1">
-                            <FormField label="Value">
-                              <TextInput
-                                value={c.value}
-                                onChange={(v) => updateChannel(idx, { value: v })}
-                                aria-label={`Channel ${idx + 1} value`}
-                              />
+                            <FormField label="Value" error={errors.additionalChannelErrors?.[idx]}>
+                              {c.channel === 'PHONE' ? (
+                                <PhoneInput
+                                  value={c.value}
+                                  onChange={(v) => updateChannel(idx, { value: v })}
+                                  error={!!errors.additionalChannelErrors?.[idx]}
+                                  aria-label={`Channel ${idx + 1} value`}
+                                />
+                              ) : (
+                                <EmailInput
+                                  value={c.value}
+                                  onChange={(v) => updateChannel(idx, { value: v })}
+                                  error={!!errors.additionalChannelErrors?.[idx]}
+                                  aria-label={`Channel ${idx + 1} value`}
+                                />
+                              )}
                             </FormField>
                           </div>
                           <div className="flex-1">

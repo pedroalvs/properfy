@@ -228,3 +228,88 @@ describe('POST /v1/contacts — create-contact', () => {
     );
   });
 });
+
+describe('POST /v1/contacts — AU phone validation and E.164 normalization', () => {
+  it('normalizes masked local primaryPhone to E.164 before reaching the use case', async () => {
+    mockJwtVerify.mockResolvedValue(clAdminContext);
+    mockCreateContactExecute.mockResolvedValue(makeContact({ primaryPhone: '+61412345678' }));
+
+    const res = await supertest(app.server)
+      .post('/v1/contacts')
+      .set('Authorization', 'Bearer token')
+      .send({ type: 'RENTAL_TENANT', displayName: 'Phone Case', primaryPhone: '0412 345 678' });
+
+    expect(res.status).toBe(201);
+    expect(mockCreateContactExecute).toHaveBeenCalledWith(
+      expect.objectContaining({ primaryPhone: '+61412345678' }),
+    );
+  });
+
+  it('normalizes additional PHONE channel values to E.164', async () => {
+    mockJwtVerify.mockResolvedValue(clAdminContext);
+    mockCreateContactExecute.mockResolvedValue(makeContact());
+
+    const res = await supertest(app.server)
+      .post('/v1/contacts')
+      .set('Authorization', 'Bearer token')
+      .send({
+        type: 'RENTAL_TENANT',
+        displayName: 'Channel Case',
+        primaryEmail: 'main@example.com',
+        additionalChannels: [{ channel: 'PHONE', value: '0498 765 432', label: 'Work' }],
+      });
+
+    expect(res.status).toBe(201);
+    expect(mockCreateContactExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        additionalChannels: [{ channel: 'PHONE', value: '+61498765432', label: 'Work' }],
+      }),
+    );
+  });
+
+  it('rejects invalid primaryPhone with 400', async () => {
+    mockJwtVerify.mockResolvedValue(clAdminContext);
+
+    const res = await supertest(app.server)
+      .post('/v1/contacts')
+      .set('Authorization', 'Bearer token')
+      .send({ type: 'RENTAL_TENANT', displayName: 'Bad Phone', primaryPhone: '12345' });
+
+    expect(res.status).toBe(400);
+    expect(mockCreateContactExecute).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid EMAIL additional channel with 400', async () => {
+    mockJwtVerify.mockResolvedValue(clAdminContext);
+
+    const res = await supertest(app.server)
+      .post('/v1/contacts')
+      .set('Authorization', 'Bearer token')
+      .send({
+        type: 'RENTAL_TENANT',
+        displayName: 'Bad Channel',
+        primaryEmail: 'main@example.com',
+        additionalChannels: [{ channel: 'EMAIL', value: 'not-an-email' }],
+      });
+
+    expect(res.status).toBe(400);
+    expect(mockCreateContactExecute).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid PHONE additional channel with 400', async () => {
+    mockJwtVerify.mockResolvedValue(clAdminContext);
+
+    const res = await supertest(app.server)
+      .post('/v1/contacts')
+      .set('Authorization', 'Bearer token')
+      .send({
+        type: 'RENTAL_TENANT',
+        displayName: 'Bad Channel',
+        primaryEmail: 'main@example.com',
+        additionalChannels: [{ channel: 'PHONE', value: '555-CALL-ME' }],
+      });
+
+    expect(res.status).toBe(400);
+    expect(mockCreateContactExecute).not.toHaveBeenCalled();
+  });
+});

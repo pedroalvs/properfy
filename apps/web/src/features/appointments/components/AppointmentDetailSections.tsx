@@ -6,6 +6,7 @@ import { RENTAL_TENANT_CONFIRMATION_STATUS_MAP } from '@/lib/status-colors';
 import { formatDate, formatDateTime } from '@/lib/format-date';
 import { formatArea, formatPropertyType, formatRent } from '@/lib/format-property';
 import type { AppointmentDetail } from '../types';
+import { formatAuPhone } from '@/lib/phone-mask';
 
 interface AppointmentDetailSectionsProps {
   appointment: AppointmentDetail;
@@ -84,7 +85,7 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
 
       <FormSection title="Contact">
         <DetailRow label="Name" value={appointment.contactName} />
-        <DetailRow label="Phone" value={appointment.contactPhone} />
+        <DetailRow label="Phone" value={appointment.contactPhone ? formatAuPhone(appointment.contactPhone) : appointment.contactPhone} />
         <DetailRow label="Email" value={appointment.contactEmail} />
       </FormSection>
 

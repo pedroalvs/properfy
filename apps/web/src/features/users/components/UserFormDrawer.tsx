@@ -23,6 +23,7 @@ import {
 } from '../constants/form-options';
 import type { UserFormData, UserFormErrors, UserScope } from '../types';
 import { EMPTY_USER_FORM } from '../types';
+import { formatAuPhone } from '@/lib/phone-mask';
 
 interface UserFormDrawerProps {
   open: boolean;
@@ -69,7 +70,7 @@ export function UserFormDrawer({
       const data: UserFormData = {
         name: user.name,
         email: user.email,
-        phone: user.phone ?? '',
+        phone: formatAuPhone(user.phone ?? ''),
         role: user.role,
         status: user.status,
         branchId: user.branchId ?? '',

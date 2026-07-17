@@ -3,6 +3,7 @@ import { RowActions } from '@/components/data/RowActions';
 import { ContactTypeChip } from './ContactTypeChip';
 import { ContactStatusBadge } from './ContactStatusBadge';
 import type { ContactListItem } from '../types';
+import { formatAuPhone } from '@/lib/phone-mask';
 
 interface ContactTableProps {
   data: ContactListItem[];
@@ -51,7 +52,7 @@ export function ContactTable({
       key: 'primaryPhone',
       label: 'Phone',
       width: '160px',
-      render: (row) => <>{row.primaryPhone ?? '—'}</>,
+      render: (row) => <>{row.primaryPhone ? formatAuPhone(row.primaryPhone) : '—'}</>,
     },
     {
       key: 'propertyCount',

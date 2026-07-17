@@ -50,7 +50,7 @@ const VALID_CREATE_DATA: AppointmentFormData = {
   timeSlotStart: '09:00',
   timeSlotEnd: '12:00',
   contactName: 'João Silva',
-  contactPhone: '11999999999',
+  contactPhone: '0412 345 678',
   contactEmail: 'joao@email.com',
   contacts: [],
   customFields: [],

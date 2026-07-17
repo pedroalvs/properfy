@@ -30,6 +30,7 @@ import { AppCredentialMultiSelect } from './AppCredentialMultiSelect';
 import type { AppointmentFormData, AppointmentFormErrors, ContactFormEntry } from '../types';
 import { EMPTY_FORM_DATA, createEmptyContact, createEmptyCustomField, MAX_CUSTOM_FIELDS } from '../types';
 import type { ContactSearchResult } from '../hooks/useContactSearch';
+import { formatAuPhone } from '@/lib/phone-mask';
 
 const CONTACT_ROLE_OPTIONS = [
   { value: AppointmentContactRole.RENTAL_TENANT, label: 'Tenant' },
@@ -147,7 +148,7 @@ export function AppointmentFormDrawer({
               contactId: c.contactId ?? undefined,
               name: c.snapshotName ?? '',
               email: c.snapshotEmail ?? '',
-              phone: c.snapshotPhone ?? '',
+              phone: formatAuPhone(c.snapshotPhone ?? ''),
               role: c.role ?? ('RENTAL_TENANT' as AppointmentContactRole),
               isPrimary: c.isPrimary ?? false,
             }))
@@ -156,7 +157,7 @@ export function AppointmentFormDrawer({
                 key: crypto.randomUUID(),
                 name: appointment.contactName ?? '',
                 email: appointment.contactEmail ?? '',
-                phone: appointment.contactPhone ?? '',
+                phone: formatAuPhone(appointment.contactPhone ?? ''),
                 role: 'RENTAL_TENANT' as AppointmentContactRole,
                 isPrimary: true,
               },
@@ -170,7 +171,7 @@ export function AppointmentFormDrawer({
         timeSlotStart: appointment.timeSlotStart,
         timeSlotEnd: appointment.timeSlotEnd,
         contactName: appointment.contactName,
-        contactPhone: appointment.contactPhone ?? '',
+        contactPhone: formatAuPhone(appointment.contactPhone ?? ''),
         contactEmail: appointment.contactEmail ?? '',
         contacts,
         customFields: (appointment.customFields ?? []).map((f) => ({
@@ -359,7 +360,7 @@ export function AppointmentFormDrawer({
                 contactId: contact.id,
                 name: contact.displayName,
                 email: contact.primaryEmail ?? '',
-                phone: contact.primaryPhone ?? '',
+                phone: formatAuPhone(contact.primaryPhone ?? ''),
               }
             : c,
         ),

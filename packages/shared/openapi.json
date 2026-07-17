@@ -2853,7 +2853,7 @@
                   },
                   "phone": {
                     "type": "string",
-                    "maxLength": 20
+                    "maxLength": 30
                   }
                 },
                 "required": [
@@ -3259,7 +3259,7 @@
                   },
                   "phone": {
                     "type": "string",
-                    "maxLength": 20
+                    "maxLength": 30
                   }
                 },
                 "required": [
@@ -3623,7 +3623,7 @@
                   },
                   "phone": {
                     "type": "string",
-                    "maxLength": 20
+                    "maxLength": 30
                   }
                 },
                 "required": [
@@ -3891,7 +3891,7 @@
                   },
                   "phone": {
                     "type": "string",
-                    "maxLength": 20
+                    "maxLength": 30
                   },
                   "branchId": {
                     "type": "string",
@@ -4168,7 +4168,7 @@
                   },
                   "phone": {
                     "type": "string",
-                    "maxLength": 20
+                    "maxLength": 30
                   },
                   "branchId": {
                     "type": "string",
@@ -7592,7 +7592,7 @@
                   },
                   "phone": {
                     "type": "string",
-                    "maxLength": 20
+                    "maxLength": 30
                   },
                   "paymentSettings": {
                     "type": "object",
@@ -8303,7 +8303,7 @@
                   },
                   "phone": {
                     "type": "string",
-                    "maxLength": 20,
+                    "maxLength": 30,
                     "nullable": true
                   },
                   "status": {
@@ -9732,7 +9732,7 @@
                 "properties": {
                   "phone": {
                     "type": "string",
-                    "pattern": "^\\+[1-9]\\d{6,14}$",
+                    "maxLength": 30,
                     "nullable": true
                   },
                   "fullName": {
@@ -11232,7 +11232,6 @@
                                 },
                                 "primaryPhone": {
                                   "type": "string",
-                                  "minLength": 1,
                                   "maxLength": 30,
                                   "nullable": true
                                 },
@@ -12862,7 +12861,6 @@
                                 },
                                 "primaryPhone": {
                                   "type": "string",
-                                  "minLength": 1,
                                   "maxLength": 30,
                                   "nullable": true
                                 },
@@ -18486,8 +18484,7 @@
                   },
                   "primaryPhone": {
                     "type": "string",
-                    "minLength": 8,
-                    "maxLength": 20
+                    "maxLength": 30
                   }
                 },
                 "additionalProperties": false
@@ -25821,7 +25818,6 @@
                   },
                   "primaryPhone": {
                     "type": "string",
-                    "minLength": 1,
                     "maxLength": 30,
                     "nullable": true
                   },
@@ -26282,7 +26278,6 @@
                   },
                   "primaryPhone": {
                     "type": "string",
-                    "minLength": 1,
                     "maxLength": 30,
                     "nullable": true
                   },

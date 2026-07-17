@@ -78,7 +78,17 @@ function zodErrorsToFormErrors(issues: { path: (string | number)[]; message: str
   const errors: ContactFormErrors = {};
   for (const issue of issues) {
     const top = issue.path[0];
-    const key = (typeof top === 'string' ? top : 'additionalChannels') as keyof ContactFormErrors;
+    // Per-row channel errors: path ['additionalChannels', index, 'value'|...]
+    if (top === 'additionalChannels' && typeof issue.path[1] === 'number') {
+      const index = issue.path[1];
+      const rowErrors = errors.additionalChannelErrors ?? {};
+      if (!rowErrors[index]) {
+        rowErrors[index] = isRequiredError(issue) ? 'Required field' : issue.message;
+        errors.additionalChannelErrors = rowErrors;
+      }
+      continue;
+    }
+    const key = (typeof top === 'string' ? top : 'additionalChannels') as keyof Omit<ContactFormErrors, 'additionalChannelErrors'>;
     if (key && !errors[key]) {
       errors[key] = isRequiredError(issue) ? 'Required field' : issue.message;
     }
@@ -117,6 +127,20 @@ export function useContactSave(): UseContactSaveReturn {
     const errors: ContactFormErrors = {};
     if (!result.success) {
       Object.assign(errors, zodErrorsToFormErrors(result.error.issues));
+      // buildAdditionalChannels drops empty rows before parsing, so zod issue
+      // indexes refer to the filtered payload — remap them to form row indexes.
+      if (errors.additionalChannelErrors) {
+        const formIndexes = data.additionalChannels
+          .map((c, i) => ({ c, i }))
+          .filter(({ c }) => c.channel && c.value.trim() !== '')
+          .map(({ i }) => i);
+        const remapped: Record<number, string> = {};
+        for (const [payloadIndex, message] of Object.entries(errors.additionalChannelErrors)) {
+          const formIndex = formIndexes[Number(payloadIndex)];
+          if (formIndex !== undefined) remapped[formIndex] = message;
+        }
+        errors.additionalChannelErrors = remapped;
+      }
     }
     return errors;
   }, []);
