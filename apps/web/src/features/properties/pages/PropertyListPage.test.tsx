@@ -120,7 +120,7 @@ describe('PropertyListPage', () => {
 
   it('does not render a Map View button', () => {
     renderPage();
-    expect(screen.queryByText('Map View')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Map View' })).not.toBeInTheDocument();
   });
 
   it('does not render an Import button', () => {
@@ -190,8 +190,9 @@ describe('PropertyListPage', () => {
 
     it('does not disable the New Property action', () => {
       renderPage();
-      const [newPropertyButton] = screen.getAllByText('New Property');
-      expect(newPropertyButton?.closest('button')).not.toBeDisabled();
+      for (const button of screen.getAllByRole('button', { name: 'New Property' })) {
+        expect(button).not.toBeDisabled();
+      }
     });
 
     it('renders an Agency filter', () => {
