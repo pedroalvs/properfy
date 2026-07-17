@@ -2,35 +2,131 @@ import { useState, useCallback, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import type { PropertyImportPreviewResponse } from '@properfy/shared';
 
-export interface PropertyImportError {
-  row: number;
-  field?: string;
-  message: string;
+const FAST_POLL_INTERVAL_MS = 3000;
+const SLOW_POLL_INTERVAL_MS = 10000;
+const MAX_STALLED_POLL_ATTEMPTS = 20;
+
+export interface ImportRowResultEntry {
+  rowNumber: number;
+  status: 'created' | 'reused' | 'error';
+  propertyId?: string;
+  message?: string;
 }
 
-export interface PropertyImportStatus {
+export interface ImportStatus {
   id: string;
-  status: 'PROCESSING' | 'COMPLETED' | 'FAILED';
-  progress: number;
+  status: 'PREVIEW' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  totalRows: number;
   successCount: number;
   errorCount: number;
-  errors: PropertyImportError[];
+  results: ImportRowResultEntry[];
+}
+
+interface BackendImportStatusResponse {
+  id: string;
+  status: string;
+  totalRows: number;
+  successCount: number;
+  errorCount: number;
+  resultsJson: unknown;
+}
+
+function normalizeResults(resultsJson: unknown): ImportRowResultEntry[] {
+  if (!Array.isArray(resultsJson)) return [];
+
+  return resultsJson.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object') return [];
+    const e = entry as Record<string, unknown>;
+    if (
+      typeof e['rowNumber'] !== 'number' ||
+      (e['status'] !== 'created' && e['status'] !== 'reused' && e['status'] !== 'error')
+    ) {
+      return [];
+    }
+    return [{
+      rowNumber: e['rowNumber'],
+      status: e['status'] as 'created' | 'reused' | 'error',
+      propertyId: typeof e['propertyId'] === 'string' ? e['propertyId'] : undefined,
+      message: typeof e['message'] === 'string' ? e['message'] : undefined,
+    }];
+  });
+}
+
+function normalizeStatus(data: BackendImportStatusResponse): ImportStatus {
+  const status: ImportStatus['status'] =
+    data.status === 'PREVIEW' || data.status === 'COMPLETED' || data.status === 'FAILED'
+      ? data.status
+      : 'PROCESSING';
+
+  return {
+    id: data.id,
+    status,
+    totalRows: data.totalRows,
+    successCount: data.successCount,
+    errorCount: data.errorCount,
+    results: normalizeResults(data.resultsJson),
+  };
 }
 
 export interface UsePropertyImportReturn {
-  upload: (file: File) => void;
-  isUploading: boolean;
-  importStatus: PropertyImportStatus | null;
+  /** tenantId is required for AM/OP (cross-tenant) and omitted for CL_ADMIN. */
+  preview: (file: File, tenantId?: string) => Promise<PropertyImportPreviewResponse | null>;
+  isPreviewing: boolean;
+  commit: (importId: string, opts: { skipInvalidRows: boolean }) => Promise<boolean>;
+  isCommitting: boolean;
+  importStatus: ImportStatus | null;
   isPolling: boolean;
 }
 
+/** Server-driven preview→commit flow for the property importer, mirroring
+ * `useAppointmentImport` (same polling backoff, same idempotency scheme). */
 export function usePropertyImport(): UsePropertyImportReturn {
   const { showError } = useSnackbar();
-  const [isUploading, setIsUploading] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [isCommitting, setIsCommitting] = useState(false);
   const [importId, setImportId] = useState<string | null>(null);
-  const [initialStatus, setInitialStatus] = useState<PropertyImportStatus | null>(null);
-  const pollingEnabledRef = useRef(false);
+  const [pollingEnabled, setPollingEnabled] = useState(false);
+  const [pollIntervalMs, setPollIntervalMs] = useState<number | false>(false);
+  const stalledPollAttemptsRef = useRef(0);
+  const processedRowsRef = useRef(0);
+  const warnedAboutSlowImportRef = useRef(false);
+
+  const handlePolledStatus = useCallback((status: ImportStatus) => {
+    if (!pollingEnabled) {
+      return;
+    }
+
+    if (status.status === 'COMPLETED' || status.status === 'FAILED') {
+      setPollingEnabled(false);
+      stalledPollAttemptsRef.current = 0;
+      processedRowsRef.current = 0;
+      warnedAboutSlowImportRef.current = false;
+      setPollIntervalMs(false);
+      return;
+    }
+
+    const processedRows = status.successCount + status.errorCount;
+    if (processedRows > processedRowsRef.current) {
+      processedRowsRef.current = processedRows;
+      stalledPollAttemptsRef.current = 0;
+      setPollIntervalMs((current) => (current === FAST_POLL_INTERVAL_MS ? current : FAST_POLL_INTERVAL_MS));
+      return;
+    }
+
+    stalledPollAttemptsRef.current += 1;
+    if (stalledPollAttemptsRef.current >= MAX_STALLED_POLL_ATTEMPTS) {
+      if (!warnedAboutSlowImportRef.current) {
+        warnedAboutSlowImportRef.current = true;
+        showError('Import is taking longer than expected. Check back later.');
+      }
+      setPollIntervalMs((current) => (current === SLOW_POLL_INTERVAL_MS ? current : SLOW_POLL_INTERVAL_MS));
+      return;
+    }
+
+    setPollIntervalMs((current) => (current === FAST_POLL_INTERVAL_MS ? current : FAST_POLL_INTERVAL_MS));
+  }, [pollingEnabled, showError]);
 
   const pollQuery = useQuery({
     queryKey: ['property-import-status', importId],
@@ -40,85 +136,94 @@ export function usePropertyImport(): UsePropertyImportReturn {
         params: { path: { importId } } as any,
       });
       if (error) throw error;
-      const raw = (data as { data: Record<string, unknown> }).data;
-      const errorsJson = (raw.errorsJson ?? []) as { row: number; field?: string; message: string }[];
-      const totalRows = (raw.totalRows as number) ?? 0;
-      const successCount = (raw.successCount as number) ?? 0;
-      const progress = totalRows > 0 ? Math.round(((successCount + (raw.errorCount as number ?? 0)) / totalRows) * 100) : 0;
-      return {
-        id: raw.id as string,
-        status: raw.status as PropertyImportStatus['status'],
-        progress,
-        successCount,
-        errorCount: (raw.errorCount as number) ?? 0,
-        errors: errorsJson,
-      };
+      const normalized = normalizeStatus((data as { data: BackendImportStatusResponse }).data);
+      handlePolledStatus(normalized);
+      return normalized;
     },
-    enabled: !!importId && pollingEnabledRef.current,
+    enabled: !!importId && pollingEnabled,
     refetchInterval: (query) => {
       const status = query.state.data?.status;
       if (status === 'COMPLETED' || status === 'FAILED') {
-        pollingEnabledRef.current = false;
         return false;
       }
-      return 3000;
+      return pollIntervalMs;
     },
   });
 
-  const importStatus = pollQuery.data ?? initialStatus;
-
-  const upload = useCallback(
-    async (file: File) => {
-      setIsUploading(true);
-      setInitialStatus(null);
-      setImportId(null);
-      pollingEnabledRef.current = false;
-
+  const preview = useCallback(
+    async (file: File, tenantId?: string): Promise<PropertyImportPreviewResponse | null> => {
+      setIsPreviewing(true);
       try {
         const formData = new FormData();
+        // tenantId (when present) appended BEFORE the file — the backend
+        // reads all multipart parts regardless of order, but this keeps
+        // client and server conventions aligned per the documented contract.
+        if (tenantId) formData.append('tenantId', tenantId);
         formData.append('file', file);
 
-        const idempotencyKey = crypto.randomUUID();
-
-        const { data, error } = await api.POST('/v1/properties/import' as any, {
+        const { data, error } = await api.POST('/v1/properties/import/preview' as any, {
           body: formData as any,
-          headers: {
-            'Idempotency-Key': idempotencyKey,
-          },
           bodySerializer: (body: any) => body,
         } as any);
 
         if (error) {
-          showError('Failed to upload file for import');
-          return;
+          showError('Failed to preview the import file');
+          return null;
         }
 
-        const responseData = data as { data: { id: string } };
-        const newImportId = responseData.data.id;
-        const status: PropertyImportStatus = {
-          id: newImportId,
-          status: 'PROCESSING',
-          progress: 0,
-          successCount: 0,
-          errorCount: 0,
-          errors: [],
-        };
-        setInitialStatus(status);
-        setImportId(newImportId);
-        pollingEnabledRef.current = true;
+        return (data as { data: PropertyImportPreviewResponse }).data;
       } catch {
-        showError('Failed to upload file for import');
+        showError('Failed to preview the import file');
+        return null;
       } finally {
-        setIsUploading(false);
+        setIsPreviewing(false);
+      }
+    },
+    [showError],
+  );
+
+  const commit = useCallback(
+    async (id: string, opts: { skipInvalidRows: boolean }): Promise<boolean> => {
+      setIsCommitting(true);
+      try {
+        // Derived from the importId, not randomUUID() — a retry of the same
+        // logical commit must reuse the same key so the backend recognizes
+        // it as a replay instead of a second attempt.
+        const idempotencyKey = `property-import-commit:${id}`;
+        const { error } = await api.POST('/v1/properties/import/{importId}/commit' as any, {
+          params: { path: { importId: id } } as any,
+          body: { skipInvalidRows: opts.skipInvalidRows },
+          headers: { 'Idempotency-Key': idempotencyKey },
+        } as any);
+
+        if (error) {
+          showError('Failed to start the import');
+          return false;
+        }
+
+        stalledPollAttemptsRef.current = 0;
+        processedRowsRef.current = 0;
+        warnedAboutSlowImportRef.current = false;
+        setPollIntervalMs(FAST_POLL_INTERVAL_MS);
+        setImportId(id);
+        setPollingEnabled(true);
+        return true;
+      } catch {
+        showError('Failed to start the import');
+        return false;
+      } finally {
+        setIsCommitting(false);
       }
     },
     [showError],
   );
 
   return {
-    upload,
-    isUploading,
-    importStatus,
+    preview,
+    isPreviewing,
+    commit,
+    isCommitting,
+    importStatus: pollQuery.data ?? null,
     isPolling: pollQuery.isFetching,
   };
 }
