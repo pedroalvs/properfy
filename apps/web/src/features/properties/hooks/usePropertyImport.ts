@@ -132,11 +132,11 @@ export function usePropertyImport(): UsePropertyImportReturn {
     queryKey: ['property-import-status', importId],
     queryFn: async () => {
       if (!importId) return null;
-      const { data, error } = await api.GET('/v1/properties/import/{importId}' as any, {
-        params: { path: { importId } } as any,
+      const { data, error } = await api.GET('/v1/properties/import/{importId}', {
+        params: { path: { importId } },
       });
       if (error) throw error;
-      const normalized = normalizeStatus((data as { data: BackendImportStatusResponse }).data);
+      const normalized = normalizeStatus((data as unknown as { data: BackendImportStatusResponse }).data);
       handlePolledStatus(normalized);
       return normalized;
     },
@@ -161,10 +161,13 @@ export function usePropertyImport(): UsePropertyImportReturn {
         if (tenantId) formData.append('tenantId', tenantId);
         formData.append('file', file);
 
-        const { data, error } = await api.POST('/v1/properties/import/preview' as any, {
-          body: formData as any,
-          bodySerializer: (body: any) => body,
-        } as any);
+        // Multipart still needs the body cast: openapi-fetch types the body
+        // from the spec's JSON shape, while the wire format is FormData
+        // passed through an identity serializer.
+        const { data, error } = await api.POST('/v1/properties/import/preview', {
+          body: formData as never,
+          bodySerializer: (body: unknown) => body as BodyInit,
+        });
 
         if (error) {
           showError('Failed to preview the import file');
@@ -190,11 +193,11 @@ export function usePropertyImport(): UsePropertyImportReturn {
         // logical commit must reuse the same key so the backend recognizes
         // it as a replay instead of a second attempt.
         const idempotencyKey = `property-import-commit:${id}`;
-        const { error } = await api.POST('/v1/properties/import/{importId}/commit' as any, {
-          params: { path: { importId: id } } as any,
+        const { error } = await api.POST('/v1/properties/import/{importId}/commit', {
+          params: { path: { importId: id } },
           body: { skipInvalidRows: opts.skipInvalidRows },
           headers: { 'Idempotency-Key': idempotencyKey },
-        } as any);
+        });
 
         if (error) {
           showError('Failed to start the import');

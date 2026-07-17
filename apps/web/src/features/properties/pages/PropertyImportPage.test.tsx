@@ -177,6 +177,26 @@ describe('PropertyImportPage', () => {
     await waitFor(() => expect(screen.getByText('Next')).not.toBeDisabled());
   });
 
+  it('sends the selected agency as the tenantId multipart field for AM', async () => {
+    mockGet.mockImplementation((path: string) => {
+      if (path === '/v1/tenants') return list([{ id: 'tenant-1', name: 'Agency One' }]);
+      return list([]);
+    });
+    mockPost.mockResolvedValue({ data: { data: PREVIEW_RESPONSE } });
+    renderPage();
+
+    fireEvent.click(screen.getByLabelText('Agency'));
+    fireEvent.click(await screen.findByText('Agency One'));
+    const file = new File(['data'], 'props.csv', { type: 'text/csv' });
+    fireEvent.change(screen.getByTestId('file-input'), { target: { files: [file] } });
+    await waitFor(() => expect(screen.getByText('Next')).not.toBeDisabled());
+    fireEvent.click(screen.getByText('Next'));
+
+    await waitFor(() => expect(mockPost).toHaveBeenCalledTimes(1));
+    const formData = mockPost.mock.calls[0]![1].body as FormData;
+    expect(formData.get('tenantId')).toBe('tenant-1');
+  });
+
   it('previews the file server-side and shows resolved rows with the geocode badge', async () => {
     setRole('CL_ADMIN', 'tenant-1');
     mockPost.mockResolvedValue({ data: { data: PREVIEW_RESPONSE } });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { PropertyImportPreview } from './PropertyImportPreview';
 import type { ResolvedPropertyImportRow, ImportSummary } from '@properfy/shared';
 
@@ -99,6 +99,33 @@ describe('PropertyImportPreview', () => {
     });
     render(<PropertyImportPreview rows={[row]} summary={SUMMARY} />);
     expect(screen.getByText(/same as row 2/i)).toBeInTheDocument();
+  });
+
+  it('paginates rows beyond the page size', () => {
+    const rows = Array.from({ length: 25 }, (_, i) => buildRow({
+      rowNumber: i + 2,
+      propertyCode: `PROP-${i + 2}`,
+      property: { ...buildRow().property!, propertyCode: `PROP-${i + 2}`, street: `${i + 2} Main St` },
+    }));
+    render(<PropertyImportPreview rows={rows} summary={{ totalRows: 25, importable: 25, withWarnings: 0, withErrors: 0 }} />);
+
+    expect(screen.queryByTestId('preview-row-26')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    expect(screen.getByText('Rows 21–25 of 25')).toBeInTheDocument();
+    expect(screen.getByTestId('preview-row-26')).toBeInTheDocument();
+  });
+
+  it('clamps to a valid page when rows shrinks below the current page (re-preview with fewer rows)', () => {
+    const manyRows = Array.from({ length: 25 }, (_, i) => buildRow({ rowNumber: i + 2 }));
+    const { rerender } = render(
+      <PropertyImportPreview rows={manyRows} summary={{ totalRows: 25, importable: 25, withWarnings: 0, withErrors: 0 }} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /next/i })); // now on page 2 (rows 21-25)
+
+    const fewRows = [buildRow({ rowNumber: 2 })];
+    rerender(<PropertyImportPreview rows={fewRows} summary={{ totalRows: 1, importable: 1, withWarnings: 0, withErrors: 0 }} />);
+
+    expect(screen.getByTestId('preview-row-2')).toBeInTheDocument();
   });
 
   it('shows error rows as not importable with their issues', () => {

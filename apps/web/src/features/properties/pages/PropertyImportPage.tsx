@@ -243,7 +243,7 @@ export function PropertyImportPage() {
             {previewResult.summary.withErrors > 0 && (
               <div className="rounded-md bg-red-50 p-3" role="alert">
                 <p className="text-sm text-[var(--color-error)]">
-                  {previewResult.summary.withErrors} row(s) have errors and will be skipped unless you choose to import the valid rows only.
+                  {previewResult.summary.withErrors} row(s) have errors and cannot be imported. You can continue with the valid rows only.
                 </p>
               </div>
             )}
