@@ -26,6 +26,13 @@ function buildDeps() {
     storageService: { upload: vi.fn(), download: vi.fn(), generatePresignedGetUrl: vi.fn(), deleteObject: vi.fn() },
     branchRepo: { findById: vi.fn() },
     resolver: { resolve: vi.fn().mockResolvedValue({ rows: [], summary: { totalRows: 0, importable: 0, withWarnings: 0, withErrors: 0 } }) },
+    geocodeVerifier: {
+      verifyMany: vi.fn().mockImplementation(async (addresses: Map<string, string>) => {
+        const out = new Map();
+        for (const key of addresses.keys()) out.set(key, { status: 'found', lat: -33.8, lng: 151.2 });
+        return out;
+      }),
+    },
     authorizationService: new AuthorizationService(auditService as any),
   };
 }
@@ -36,8 +43,31 @@ function buildUseCase(deps: ReturnType<typeof buildDeps>) {
     deps.storageService as any,
     deps.branchRepo as any,
     deps.resolver as any,
+    deps.geocodeVerifier as any,
     deps.authorizationService,
   );
+}
+
+function buildNewPropertyRow() {
+  return {
+    rowNumber: 2,
+    severity: 'ready' as const,
+    importable: true,
+    property: {
+      resolution: 'new' as const,
+      propertyId: null,
+      propertyCode: null,
+      street: '9 New St',
+      addressLine2: null,
+      suburb: 'Carlton',
+      state: 'NSW',
+      postcode: '2218',
+      country: 'AU',
+      duplicateOfRow: null as number | null,
+      geocode: null,
+    },
+    issues: [] as Array<{ field: string; code: string; severity: 'warning' | 'error'; message: string }>,
+  };
 }
 
 const CSV_BUFFER = Buffer.from('Type,Street\nRoutine Inspection,1 Main St\n');
@@ -163,6 +193,111 @@ describe('PreviewAppointmentImportUseCase', () => {
 
       await uc.execute({ fileBuffer: CSV_BUFFER, filename: 'x.csv', branchId: 'branch-1', actor: AM });
       expect(deps.resolver.resolve).toHaveBeenCalledWith(expect.any(Array), expect.objectContaining({ tz: 'Australia/Sydney' }));
+    });
+
+    it('geocode-verifies new-property rows and stores the verification in previewJson', async () => {
+      const deps = buildDeps();
+      deps.branchRepo.findById.mockResolvedValue(buildBranch());
+      deps.resolver.resolve.mockResolvedValue({
+        rows: [buildNewPropertyRow()],
+        summary: { totalRows: 1, importable: 1, withWarnings: 0, withErrors: 0 },
+      });
+      const uc = buildUseCase(deps);
+
+      const result = await uc.execute({ fileBuffer: CSV_BUFFER, filename: 'x.csv', branchId: 'branch-1', actor: AM });
+
+      expect(deps.geocodeVerifier.verifyMany).toHaveBeenCalledTimes(1);
+      expect(result.rows[0]!.property!.geocode).toEqual({ status: 'found', lat: -33.8, lng: 151.2 });
+      const savedEntity = deps.importRepo.save.mock.calls[0]![0];
+      expect(savedEntity.previewJson.rows[0].property.geocode).toEqual({ status: 'found', lat: -33.8, lng: 151.2 });
+    });
+
+    it('turns a not_found verification into an ADDRESS_NOT_FOUND warning and recomputes the summary', async () => {
+      const deps = buildDeps();
+      deps.branchRepo.findById.mockResolvedValue(buildBranch());
+      deps.resolver.resolve.mockResolvedValue({
+        rows: [buildNewPropertyRow()],
+        summary: { totalRows: 1, importable: 1, withWarnings: 0, withErrors: 0 },
+      });
+      deps.geocodeVerifier.verifyMany.mockImplementation(async (addresses: Map<string, string>) => {
+        const out = new Map();
+        for (const key of addresses.keys()) out.set(key, { status: 'not_found', lat: null, lng: null });
+        return out;
+      });
+      const uc = buildUseCase(deps);
+
+      const result = await uc.execute({ fileBuffer: CSV_BUFFER, filename: 'x.csv', branchId: 'branch-1', actor: AM });
+
+      expect(result.rows[0]!.issues).toEqual([
+        expect.objectContaining({ code: 'ADDRESS_NOT_FOUND', severity: 'warning' }),
+      ]);
+      expect(result.rows[0]!.severity).toBe('warning');
+      expect(result.rows[0]!.importable).toBe(true);
+      expect(result.summary.withWarnings).toBe(1);
+    });
+
+    it('turns an unverified verification into an ADDRESS_NOT_VERIFIED warning and recomputes the summary', async () => {
+      const deps = buildDeps();
+      deps.branchRepo.findById.mockResolvedValue(buildBranch());
+      deps.resolver.resolve.mockResolvedValue({
+        rows: [buildNewPropertyRow()],
+        summary: { totalRows: 1, importable: 1, withWarnings: 0, withErrors: 0 },
+      });
+      deps.geocodeVerifier.verifyMany.mockImplementation(async (addresses: Map<string, string>) => {
+        const out = new Map();
+        for (const key of addresses.keys()) out.set(key, { status: 'unverified', lat: null, lng: null });
+        return out;
+      });
+      const uc = buildUseCase(deps);
+
+      const result = await uc.execute({ fileBuffer: CSV_BUFFER, filename: 'x.csv', branchId: 'branch-1', actor: AM });
+
+      expect(result.rows[0]!.property!.geocode).toEqual({ status: 'unverified', lat: null, lng: null });
+      expect(result.rows[0]!.issues).toEqual([
+        expect.objectContaining({ code: 'ADDRESS_NOT_VERIFIED', severity: 'warning' }),
+      ]);
+      expect(result.rows[0]!.severity).toBe('warning');
+      expect(result.rows[0]!.importable).toBe(true);
+      expect(result.summary.withWarnings).toBe(1);
+    });
+
+    it('sends each unique new address to the verifier once — duplicateOfRow rows inherit the first row verification', async () => {
+      const deps = buildDeps();
+      deps.branchRepo.findById.mockResolvedValue(buildBranch());
+      const firstRow = buildNewPropertyRow();
+      const duplicateRow = buildNewPropertyRow();
+      duplicateRow.rowNumber = 3;
+      duplicateRow.property = { ...duplicateRow.property, duplicateOfRow: 2 };
+      deps.resolver.resolve.mockResolvedValue({
+        rows: [firstRow, duplicateRow],
+        summary: { totalRows: 2, importable: 2, withWarnings: 0, withErrors: 0 },
+      });
+      const uc = buildUseCase(deps);
+
+      const result = await uc.execute({ fileBuffer: CSV_BUFFER, filename: 'x.csv', branchId: 'branch-1', actor: AM });
+
+      expect(deps.geocodeVerifier.verifyMany).toHaveBeenCalledTimes(1);
+      const sent = deps.geocodeVerifier.verifyMany.mock.calls[0]![0] as Map<string, string>;
+      expect(sent.size).toBe(1);
+      // Both rows carry the shared verification, so commit can reuse it via
+      // the normalized-address key regardless of which row it reads.
+      expect(result.rows[0]!.property!.geocode).toEqual({ status: 'found', lat: -33.8, lng: 151.2 });
+      expect(result.rows[1]!.property!.geocode).toEqual({ status: 'found', lat: -33.8, lng: 151.2 });
+    });
+
+    it('never geocodes existing-property rows', async () => {
+      const deps = buildDeps();
+      deps.branchRepo.findById.mockResolvedValue(buildBranch());
+      const existingRow = buildNewPropertyRow();
+      existingRow.property = { ...existingRow.property, resolution: 'existing' as never, propertyId: 'prop-1' as never, propertyCode: 'PROP-001' as never };
+      deps.resolver.resolve.mockResolvedValue({
+        rows: [existingRow],
+        summary: { totalRows: 1, importable: 1, withWarnings: 0, withErrors: 0 },
+      });
+      const uc = buildUseCase(deps);
+
+      await uc.execute({ fileBuffer: CSV_BUFFER, filename: 'x.csv', branchId: 'branch-1', actor: AM });
+      expect(deps.geocodeVerifier.verifyMany).not.toHaveBeenCalled();
     });
 
     it('rejects a file with more rows than the preview cap, without uploading it', async () => {

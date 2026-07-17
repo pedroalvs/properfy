@@ -8,6 +8,11 @@ import { AppointmentImportEntity } from '../../domain/appointment-import.entity'
 import type { IReportStorageService } from '../../../report/domain/report-storage.service';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
 import type { AppointmentImportRowResolver } from '../services/appointment-import-row-resolver';
+import {
+  applyGeocodeVerification,
+  computeImportSummary,
+  type IImportGeocodeVerifier,
+} from '../../../property/application/services/apply-geocode-verification';
 import { parseAppointmentImportFile } from '../../infrastructure/appointment-import-parser';
 import {
   AppointmentBranchNotFoundError,
@@ -40,6 +45,7 @@ export class PreviewAppointmentImportUseCase {
     private readonly storageService: IReportStorageService,
     private readonly branchRepo: IBranchRepository,
     private readonly resolver: AppointmentImportRowResolver,
+    private readonly geocodeVerifier: IImportGeocodeVerifier,
     private readonly authorizationService: AuthorizationService,
   ) {}
 
@@ -92,7 +98,13 @@ export class PreviewAppointmentImportUseCase {
     await this.storageService.upload(fileKey, fileBuffer, contentType);
 
     const tz = PLATFORM_TIMEZONE;
-    const { rows, summary } = await this.resolver.resolve(rawRows, { tenantId, branchId, tz });
+    const { rows } = await this.resolver.resolve(rawRows, { tenantId, branchId, tz });
+    // Geocode-verify unique new-property addresses AFTER resolution (the
+    // resolver stays pure DB lookups, so the commit worker's re-resolve never
+    // re-geocodes — commit reads the verification back from previewJson) and
+    // recompute the summary with the new warnings.
+    await applyGeocodeVerification(rows, this.geocodeVerifier);
+    const summary = computeImportSummary(rows);
 
     const now = new Date();
     const entity = new AppointmentImportEntity({
