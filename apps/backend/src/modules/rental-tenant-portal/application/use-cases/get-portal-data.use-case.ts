@@ -12,6 +12,7 @@ export interface GetPortalDataInput {
   tokenId: string;
   appointmentId: string;
   isReadOnly: boolean;
+  isPastConfirmCutoff: boolean;
   tokenStatus: string;
   expiresAt: string;
   ipAddress: string | null;
@@ -76,6 +77,7 @@ export class GetPortalDataUseCase {
       token: {
         status: input.tokenStatus,
         isReadOnly: input.isReadOnly,
+        isPastConfirmCutoff: input.isPastConfirmCutoff,
         isExpired,
         canRequestNewLink: isExpired,
         expiresAt: input.expiresAt,

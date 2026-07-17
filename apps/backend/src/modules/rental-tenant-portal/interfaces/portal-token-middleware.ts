@@ -10,6 +10,7 @@ export interface PortalContext {
   tokenId: string;
   appointmentId: string;
   isReadOnly: boolean;
+  isPastConfirmCutoff: boolean;
   isUsed: boolean;
   tokenStatus: string;
   expiresAt: string; // ISO 8601
@@ -68,6 +69,7 @@ export function createPortalTokenMiddleware(
       tokenId: tokenEntity.id,
       appointmentId: tokenEntity.appointmentId,
       isReadOnly,
+      isPastConfirmCutoff: tokenEntity.isPastConfirmCutoff(now),
       isUsed: tokenEntity.isUsed(),
       tokenStatus: tokenEntity.status,
       expiresAt: tokenEntity.expiresAt.toISOString(),

@@ -147,4 +147,40 @@ describe('InspectionConfirmationForm', () => {
       expect(screen.getByRole('button', { name: /no/i })).toBeDisabled();
     });
   });
+
+  describe('confirmDisabled (past confirm cutoff)', () => {
+    it('should disable only the Yes button and pre-select No', () => {
+      renderForm({ confirmDisabled: true });
+      expect(screen.getByRole('button', { name: /yes/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /no/i })).not.toBeDisabled();
+      // No is pre-selected: the amber banner and the picker are already visible
+      expect(screen.getByText(/add a comment/i)).toBeTruthy();
+      expect(screen.getByText('Mon')).toBeTruthy();
+    });
+
+    it('should submit unavailability with note and slots while confirmDisabled', async () => {
+      const { onUnavailable, onConfirm } = renderForm({ confirmDisabled: true });
+      fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Cannot attend' } });
+      fireEvent.click(screen.getByText('Mon'));
+      fireEvent.click(screen.getByRole('button', { name: /submit/i }));
+      await waitFor(() =>
+        expect(onUnavailable).toHaveBeenCalledWith({
+          rentalTenantNote: 'Cannot attend',
+          availableSlotsJson: [SLOT],
+        }),
+      );
+      expect(onConfirm).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('submission failure', () => {
+    it('should NOT show the confirmed card when onConfirm rejects', async () => {
+      const onConfirm = vi.fn().mockRejectedValue(new Error('blocked'));
+      renderForm({ onConfirm });
+      fireEvent.click(screen.getByRole('button', { name: /yes/i }));
+      fireEvent.click(screen.getByRole('button', { name: /submit/i }));
+      await waitFor(() => expect(onConfirm).toHaveBeenCalled());
+      expect(screen.queryByText(/attendance confirmed/i)).toBeNull();
+    });
+  });
 });

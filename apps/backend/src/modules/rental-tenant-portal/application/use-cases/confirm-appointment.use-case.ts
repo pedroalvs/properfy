@@ -18,6 +18,7 @@ export interface ConfirmAppointmentInput {
   tokenId: string;
   appointmentId: string;
   isReadOnly: boolean;
+  isPastConfirmCutoff: boolean;
   isUsed: boolean;
   restrictions?: {
     isHome: boolean;
@@ -63,7 +64,13 @@ export class ConfirmAppointmentUseCase {
 
     const { appointment } = result;
 
-    // 3. Idempotent: already confirmed — return success without recording activity
+    // 3. Block for inactive appointment statuses FIRST — a cancelled appointment must
+    // never confirm, not even through the idempotent path below (residual CONFIRMED).
+    if (INACTIVE_STATUSES.includes(appointment.status as (typeof INACTIVE_STATUSES)[number])) {
+      throw new PortalAppointmentInactiveError();
+    }
+
+    // 4. Idempotent: already confirmed — return success without recording activity
     if (appointment.rentalTenantConfirmationStatus === 'CONFIRMED') {
       return {
         rentalTenantConfirmationStatus: 'CONFIRMED' as const,
@@ -71,9 +78,10 @@ export class ConfirmAppointmentUseCase {
       };
     }
 
-    // 4. Block for inactive appointment statuses
-    if (INACTIVE_STATUSES.includes(appointment.status as (typeof INACTIVE_STATUSES)[number])) {
-      throw new PortalAppointmentInactiveError();
+    // 4b. Confirmation window closed (T-1 cutoff). The token itself is still valid —
+    // unavailability/reschedule/group-change remain available past the cutoff.
+    if (input.isPastConfirmCutoff) {
+      throw new PortalActionBlockedError();
     }
 
     // 5. Snapshot previous values

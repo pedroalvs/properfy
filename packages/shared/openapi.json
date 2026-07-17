@@ -17644,6 +17644,9 @@
                         "isReadOnly": {
                           "type": "boolean"
                         },
+                        "isPastConfirmCutoff": {
+                          "type": "boolean"
+                        },
                         "isExpired": {
                           "type": "boolean"
                         },
@@ -18438,6 +18441,29 @@
     },
     "/v1/appointments/{appointmentId}/portal-token": {
       "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "not": {}
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "notify": {
+                        "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "nullable": true
+                  }
+                ]
+              }
+            }
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -18481,7 +18507,8 @@
                           "type": "string",
                           "enum": [
                             "NO_PRIMARY_CONTACT",
-                            "DISPATCH_FAILED"
+                            "DISPATCH_FAILED",
+                            "NOTIFY_DISABLED"
                           ]
                         }
                       },
