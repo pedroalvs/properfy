@@ -62,6 +62,8 @@ async function callRegisterWorkers(logger: ReturnType<typeof makeLogger>) {
     makeWorkerMock() as any,   // geocodeWorker
     makeWorkerMock() as any,   // geocodeRetryWorker
     makeWorkerMock() as any,   // propertyImportWorker
+    makeWorkerMock() as any,   // propertyImportCommitWorker
+    { execute: vi.fn().mockResolvedValue({ sweptCount: 0 }) } as any, // sweepAbandonedPropertyImportsWorker
     makeWorkerMock() as any,   // appointmentImportCommitWorker
     makeWorkerMock() as any,   // sweepAbandonedAppointmentImportsWorker
     makeWorkerMock() as any,   // generateInvoiceFileWorker
@@ -92,6 +94,7 @@ describe('registerWorkers — cron schedules anchored to Australia/Sydney', () =
     ['report.expire-files', '0 3 * * *'],
     ['property.geocode-retry', '*/15 * * * *'],
     ['appointment.import.sweep-abandoned', '0 * * * *'],
+    ['property.import.sweep-abandoned', '0 * * * *'],
     ['rental-tenant-portal.expire-tokens', '*/15 * * * *'],
     ['inspection-execution.notify-not-started', '0 * * * *'],
     ['audit.retention', '30 3 * * *'],

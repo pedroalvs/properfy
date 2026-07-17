@@ -3,9 +3,11 @@ import { z } from 'zod';
 import {
   addressSuggestionQuerySchema,
   addressSuggestionSchema,
+  commitPropertyImportSchema,
   createPropertySchema,
   updatePropertySchema,
   listPropertiesQuerySchema,
+  propertyImportPreviewResponseSchema,
   propertySummaryQuerySchema,
   propertySummaryResponseSchema,
   propertyResponseSchema,
@@ -24,6 +26,8 @@ import type { DeletePropertyUseCase } from '../application/use-cases/delete-prop
 import type { GeocodePropertyUseCase } from '../application/use-cases/geocode-property.use-case';
 import type { SearchAddressesUseCase } from '../application/use-cases/search-addresses.use-case';
 import type { ImportPropertiesUseCase } from '../application/use-cases/import-properties.use-case';
+import type { PreviewPropertyImportUseCase } from '../application/use-cases/preview-property-import.use-case';
+import type { CommitPropertyImportUseCase } from '../application/use-cases/commit-property-import.use-case';
 import type { GetPropertyImportStatusUseCase } from '../application/use-cases/get-property-import-status.use-case';
 import type { ExportImportErrorsUseCase } from '../application/use-cases/export-import-errors.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
@@ -40,6 +44,8 @@ export interface PropertyRouteContainer {
   geocodePropertyUseCase: GeocodePropertyUseCase;
   searchAddressesUseCase: SearchAddressesUseCase;
   importPropertiesUseCase: ImportPropertiesUseCase;
+  previewPropertyImportUseCase: PreviewPropertyImportUseCase;
+  commitPropertyImportUseCase: CommitPropertyImportUseCase;
   getPropertyImportStatusUseCase: GetPropertyImportStatusUseCase;
   exportImportErrorsUseCase: ExportImportErrorsUseCase;
   jwtService: JwtService;
@@ -269,6 +275,89 @@ export async function registerPropertyRoutes(
       const result = await container.importPropertiesUseCase.execute({
         fileBuffer,
         filename: data.filename,
+        idempotencyKey,
+        actor: request.authContext!,
+      });
+      return reply.status(202).send(success(result));
+    },
+  );
+
+  // POST /v1/properties/import/preview — 200 (multipart: optional tenantId field + file)
+  app.post(
+    '/v1/properties/import/preview',
+    {
+      preHandler: authenticate,
+      config: {
+        rateLimit: {
+          max: 5,
+          timeWindow: '1 minute',
+        },
+      },
+      schema: {
+        response: { 200: successResponseSchema(propertyImportPreviewResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      // Manual part-by-part iteration (not request.file(), which only reads
+      // the first file part) so the tenantId form field is available
+      // alongside the file regardless of field order in the multipart body.
+      let fileBuffer: Buffer | undefined;
+      let filename: string | undefined;
+      let tenantId: string | undefined;
+
+      for await (const part of request.parts()) {
+        if (part.type === 'file') {
+          fileBuffer = await part.toBuffer();
+          filename = part.filename;
+        } else if (part.fieldname === 'tenantId') {
+          tenantId = String(part.value);
+        }
+      }
+
+      if (!fileBuffer || !filename) {
+        throw new ValidationError('File upload is required');
+      }
+      if (tenantId !== undefined && !z.string().uuid().safeParse(tenantId).success) {
+        throw new ValidationError('Invalid multipart fields: tenantId must be a UUID');
+      }
+
+      const result = await container.previewPropertyImportUseCase.execute({
+        fileBuffer,
+        filename,
+        ...(tenantId !== undefined ? { tenantId } : {}),
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/properties/import/:importId/commit — 202
+  app.post(
+    '/v1/properties/import/:importId/commit',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: importIdParam,
+        body: commitPropertyImportSchema,
+      },
+    },
+    async (request, reply) => {
+      const params = importIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid import ID', params.error.errors);
+      }
+      const idempotencyKey = request.headers['idempotency-key'] as string | undefined;
+      if (!idempotencyKey) {
+        throw new ValidationError('Idempotency-Key header is required for commit');
+      }
+      const parsed = commitPropertyImportSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+
+      const result = await container.commitPropertyImportUseCase.execute({
+        importId: params.data.importId,
+        skipInvalidRows: parsed.data.skipInvalidRows,
         idempotencyKey,
         actor: request.authContext!,
       });

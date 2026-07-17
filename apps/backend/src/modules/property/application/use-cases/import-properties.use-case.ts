@@ -79,6 +79,8 @@ export class ImportPropertiesUseCase {
       successCount: 0,
       errorCount: 0,
       errorsJson: null,
+      previewJson: null,
+      resultsJson: null,
       createdByUserId: actor.userId,
       createdAt: new Date(),
       updatedAt: new Date(),

@@ -28,6 +28,7 @@ function buildRow(overrides: Partial<ResolvedImportRow> = {}): ResolvedImportRow
       postcode: '2217',
       country: 'AU',
       duplicateOfRow: null,
+      geocode: null,
     },
     contact: {
       resolution: 'new',
@@ -84,7 +85,7 @@ describe('AppointmentImportPreview', () => {
   it('shows a New badge for a new property and Existing for an existing one', () => {
     const newRow = buildRow({
       rowNumber: 2,
-      property: { resolution: 'new', propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null, suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: null },
+      property: { resolution: 'new', propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null, suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: null, geocode: null },
     });
     render(<AppointmentImportPreview rows={[newRow]} summary={SUMMARY} />);
     expect(screen.getByText(/New property/i)).toBeInTheDocument();
@@ -94,7 +95,7 @@ describe('AppointmentImportPreview', () => {
   it('shows "same as row X" for an intra-batch duplicate new property', () => {
     const row = buildRow({
       rowNumber: 3,
-      property: { resolution: 'new', propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null, suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: 2 },
+      property: { resolution: 'new', propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null, suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: 2, geocode: null },
     });
     render(<AppointmentImportPreview rows={[row]} summary={SUMMARY} />);
     expect(screen.getByText(/same as row 2/i)).toBeInTheDocument();

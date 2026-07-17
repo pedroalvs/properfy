@@ -112,6 +112,8 @@ async function start() {
       container.geocodeWorker,
       container.geocodeRetryWorker,
       container.propertyImportWorker,
+      container.propertyImportCommitWorker,
+      container.sweepAbandonedPropertyImportsWorker,
       container.appointmentImportCommitWorker,
       container.sweepAbandonedAppointmentImportsWorker,
       container.generateInvoiceFileWorker,

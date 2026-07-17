@@ -2773,6 +2773,133 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/properties/import/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                importId: string;
+                                /** Format: uuid */
+                                tenantId: string;
+                                summary: {
+                                    totalRows: number;
+                                    importable: number;
+                                    withWarnings: number;
+                                    withErrors: number;
+                                };
+                                rows: {
+                                    rowNumber: number;
+                                    /** @enum {string} */
+                                    severity: "ready" | "warning" | "error";
+                                    importable: boolean;
+                                    propertyCode: string | null;
+                                    type: string | null;
+                                    notes: string | null;
+                                    property: {
+                                        /** @enum {string} */
+                                        resolution: "existing" | "new";
+                                        /** Format: uuid */
+                                        propertyId: string | null;
+                                        propertyCode: string | null;
+                                        street: string;
+                                        addressLine2: string | null;
+                                        suburb: string;
+                                        state: string;
+                                        postcode: string;
+                                        country: string;
+                                        duplicateOfRow: number | null;
+                                        /** @default null */
+                                        geocode: {
+                                            /** @enum {string} */
+                                            status: "found" | "not_found" | "unverified";
+                                            lat: number | null;
+                                            lng: number | null;
+                                        } | null;
+                                    } | null;
+                                    issues: {
+                                        field: string;
+                                        code: string;
+                                        /** @enum {string} */
+                                        severity: "warning" | "error";
+                                        message: string;
+                                    }[];
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/properties/import/{importId}/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    importId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @default false */
+                        skipInvalidRows?: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/properties/import/{importId}": {
         parameters: {
             query?: never;
@@ -5961,6 +6088,13 @@ export interface paths {
                                         postcode: string;
                                         country: string;
                                         duplicateOfRow: number | null;
+                                        /** @default null */
+                                        geocode: {
+                                            /** @enum {string} */
+                                            status: "found" | "not_found" | "unverified";
+                                            lat: number | null;
+                                            lng: number | null;
+                                        } | null;
                                     } | null;
                                     contact: {
                                         /** @enum {string} */
@@ -7150,6 +7284,11 @@ export interface paths {
                                     tenantName: string;
                                     timeSlotStart: string;
                                     timeSlotEnd: string;
+                                    street: string;
+                                    coordinates: {
+                                        lat: number;
+                                        lng: number;
+                                    } | null;
                                 }[];
                             };
                         };
