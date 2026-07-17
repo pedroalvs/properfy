@@ -176,6 +176,57 @@ describe('AppointmentImportCommitWorker', () => {
     expect(deps.createAppointmentUseCase.execute.mock.calls[1]![0].propertyId).toBe(savedPropertyId);
   });
 
+  it('reuses a found geocode from previewJson: SUCCESS with coordinates, NO async geocode job', async () => {
+    const deps = buildDeps();
+    const newAddr = { resolution: 'new' as const, propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null, suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: null };
+    deps.importRepo.findById.mockResolvedValue(buildRecord({
+      previewJson: { summary: {}, rows: [{ property: { ...newAddr, geocode: { status: 'found', lat: -33.97, lng: 151.12 } } }] },
+    }));
+    deps.resolver.resolve.mockResolvedValue({ rows: [readyRow({ property: newAddr })] });
+    const worker = buildWorker(deps);
+
+    await worker.execute({ importId: 'import-1', actor: ACTOR });
+
+    const savedProperty = deps.propertyRepo.save.mock.calls[0]![0];
+    expect(savedProperty.geocodingStatus).toBe('SUCCESS');
+    expect(savedProperty.lat).toBe(-33.97);
+    expect(savedProperty.lng).toBe(151.12);
+    expect(deps.jobQueue.enqueue).not.toHaveBeenCalledWith('property.geocode', expect.anything());
+  });
+
+  it('persists a not_found geocode as FAILED without enqueueing a geocode job', async () => {
+    const deps = buildDeps();
+    const newAddr = { resolution: 'new' as const, propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null, suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: null };
+    deps.importRepo.findById.mockResolvedValue(buildRecord({
+      previewJson: { summary: {}, rows: [{ property: { ...newAddr, geocode: { status: 'not_found', lat: null, lng: null } } }] },
+    }));
+    deps.resolver.resolve.mockResolvedValue({ rows: [readyRow({ property: newAddr })] });
+    const worker = buildWorker(deps);
+
+    await worker.execute({ importId: 'import-1', actor: ACTOR });
+
+    const savedProperty = deps.propertyRepo.save.mock.calls[0]![0];
+    expect(savedProperty.geocodingStatus).toBe('FAILED');
+    expect(savedProperty.lat).toBeNull();
+    expect(deps.jobQueue.enqueue).not.toHaveBeenCalledWith('property.geocode', expect.anything());
+  });
+
+  it('falls back to PENDING + async job when the preview verification was unverified', async () => {
+    const deps = buildDeps();
+    const newAddr = { resolution: 'new' as const, propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null, suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: null };
+    deps.importRepo.findById.mockResolvedValue(buildRecord({
+      previewJson: { summary: {}, rows: [{ property: { ...newAddr, geocode: { status: 'unverified', lat: null, lng: null } } }] },
+    }));
+    deps.resolver.resolve.mockResolvedValue({ rows: [readyRow({ property: newAddr })] });
+    const worker = buildWorker(deps);
+
+    await worker.execute({ importId: 'import-1', actor: ACTOR });
+
+    const savedProperty = deps.propertyRepo.save.mock.calls[0]![0];
+    expect(savedProperty.geocodingStatus).toBe('PENDING');
+    expect(deps.jobQueue.enqueue).toHaveBeenCalledWith('property.geocode', { propertyId: savedProperty.id });
+  });
+
   it('falls back to findByNormalizedAddress on a genuine concurrent-duplicate-address conflict', async () => {
     const deps = buildDeps();
     deps.importRepo.findById.mockResolvedValue(buildRecord());

@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { PLATFORM_TIMEZONE } from '@properfy/shared';
-import type { AuthContext, ResolvedImportRow } from '@properfy/shared';
+import type { AuthContext, GeocodeVerification, ResolvedImportRow } from '@properfy/shared';
 import type { IAppointmentImportRepository } from '../../domain/appointment-import.repository';
 import type { IReportStorageService } from '../../../report/domain/report-storage.service';
 import type { IPropertyRepository } from '../../../property/domain/property.repository';
@@ -75,6 +75,13 @@ export class AppointmentImportCommitWorker {
       : [];
     const priorByRow = new Map(priorResults.map((r) => [r.rowNumber, r]));
 
+    // Geocode verifications cached by the preview, keyed by normalized
+    // address — a fact about the address string, safe to carry across the
+    // preview/commit gap even though rows are re-resolved fresh below.
+    const geocodeCache = this.buildGeocodeCache(
+      importRecord.previewJson as { rows?: Array<{ property?: ResolvedImportRow['property'] }> } | null,
+    );
+
     try {
       const fileBuffer = await this.storageService.download(importRecord.fileKey);
       const ext = importRecord.originalFilename.toLowerCase().endsWith('.csv') ? 'csv' : 'xlsx';
@@ -91,7 +98,7 @@ export class AppointmentImportCommitWorker {
 
       for (const row of rows) {
         const prior = priorByRow.get(row.rowNumber);
-        const result = prior ?? await this.processRow(row, importRecord.tenantId, importRecord.branchId, importId, actor, tz, createdPropertyIds);
+        const result = prior ?? await this.processRow(row, importRecord.tenantId, importRecord.branchId, importId, actor, tz, createdPropertyIds, geocodeCache);
         results.push(result);
         // successCount/errorCount/totalRows are updated on every row, not
         // just at the end — the frontend's progress bar derives
@@ -149,6 +156,7 @@ export class AppointmentImportCommitWorker {
     actor: AuthContext,
     tz: string,
     createdPropertyIds: Map<string, string>,
+    geocodeCache: Map<string, GeocodeVerification>,
   ): Promise<ImportRowResult> {
     if (!row.importable) {
       const message = row.issues.filter((i) => i.severity === 'error').map((i) => i.message).join('; ') || 'Row is not importable';
@@ -156,7 +164,7 @@ export class AppointmentImportCommitWorker {
     }
 
     try {
-      const propertyId = await this.resolveOrCreateProperty(row, tenantId, createdPropertyIds);
+      const propertyId = await this.resolveOrCreateProperty(row, tenantId, createdPropertyIds, geocodeCache);
 
       // A contact is not required to import (CONTACT_INCOMPLETE is a
       // warning, not an error) — `contacts` defaults to `[]` in
@@ -196,16 +204,35 @@ export class AppointmentImportCommitWorker {
     }
   }
 
+  /** Geocode verifications from the preview, keyed by normalized address. */
+  private buildGeocodeCache(
+    preview: { rows?: Array<{ property?: ResolvedImportRow['property'] }> } | null,
+  ): Map<string, GeocodeVerification> {
+    const cache = new Map<string, GeocodeVerification>();
+    for (const row of preview?.rows ?? []) {
+      const plan = row.property;
+      if (!plan || plan.resolution !== 'new' || !plan.geocode) continue;
+      cache.set(buildNormalizedAddressKey({
+        street: plan.street, addressLine2: plan.addressLine2, suburb: plan.suburb, state: plan.state, postcode: plan.postcode,
+      }), plan.geocode);
+    }
+    return cache;
+  }
+
   /** Resolves the row's property to a concrete id — reusing an existing
    * match, or creating one directly via the repository (bypassing
-   * `CreatePropertyUseCase`'s synchronous ~4s Mapbox geocode; an async
-   * `property.geocode` job is enqueued instead, mirroring the property
-   * importer). Tracks intra-batch creation so two rows sharing a new
-   * address create exactly one property. */
+   * `CreatePropertyUseCase`'s synchronous ~4s Mapbox geocode). The preview's
+   * geocode verification is reused so an address is never geocoded twice:
+   * `found` persists SUCCESS with coordinates (no job), `not_found` persists
+   * FAILED (no job — the geocode-retry sweep is the safety net), and only
+   * `unverified`/missing falls back to PENDING + the async `property.geocode`
+   * job. Tracks intra-batch creation so two rows sharing a new address
+   * create exactly one property. */
   private async resolveOrCreateProperty(
     row: ResolvedImportRow,
     tenantId: string,
     createdPropertyIds: Map<string, string>,
+    geocodeCache: Map<string, GeocodeVerification>,
   ): Promise<string> {
     const plan = row.property!;
     if (plan.resolution === 'existing') {
@@ -222,6 +249,10 @@ export class AppointmentImportCommitWorker {
     const alreadyCreated = createdPropertyIds.get(key);
     if (alreadyCreated) return alreadyCreated;
 
+    const verification = geocodeCache.get(key) ?? null;
+    const found = verification?.status === 'found' && verification.lat !== null && verification.lng !== null;
+    const geocodingStatus = found ? 'SUCCESS' : verification?.status === 'not_found' ? 'FAILED' : 'PENDING';
+
     const now = new Date();
     const property = new PropertyEntity({
       id: crypto.randomUUID(),
@@ -235,9 +266,9 @@ export class AppointmentImportCommitWorker {
       postcode: addr.postcode,
       state: addr.state,
       country: plan.country,
-      lat: null,
-      lng: null,
-      geocodingStatus: 'PENDING',
+      lat: found ? verification!.lat : null,
+      lng: found ? verification!.lng : null,
+      geocodingStatus,
       notes: null,
       rulesJson: {},
       createdAt: now,
@@ -247,7 +278,9 @@ export class AppointmentImportCommitWorker {
 
     try {
       await this.propertyRepo.save(property);
-      await this.jobQueue.enqueue('property.geocode', { propertyId: property.id });
+      if (property.geocodingStatus === 'PENDING') {
+        await this.jobQueue.enqueue('property.geocode', { propertyId: property.id });
+      }
       createdPropertyIds.set(key, property.id);
       return property.id;
     } catch (err) {

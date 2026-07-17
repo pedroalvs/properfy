@@ -1204,8 +1204,10 @@ export function createContainer(logger: Logger): AppContainer {
   const appointmentImportRowResolver = new AppointmentImportRowResolver(
     propertyRepo, serviceTypeRepo, pricingRuleRepo, contactRepo,
   );
+  const appointmentImportGeocodeVerifier = new ImportGeocodeVerifier(geocodingService);
   const previewAppointmentImportUseCase = new PreviewAppointmentImportUseCase(
-    appointmentImportRepo, reportStorageService, branchRepo, appointmentImportRowResolver, authorizationService,
+    appointmentImportRepo, reportStorageService, branchRepo, appointmentImportRowResolver,
+    appointmentImportGeocodeVerifier, authorizationService,
   );
   const commitAppointmentImportUseCase = new CommitAppointmentImportUseCase(
     appointmentImportRepo, importJobQueue, authorizationService, idempotencyService,
