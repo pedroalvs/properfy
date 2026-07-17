@@ -36,4 +36,34 @@ describe('PLATFORM_TEMPLATES seed data', () => {
 
     expect(entry.notificationClass).toBe('TRANSACTIONAL');
   });
+
+  it('includes an EMAIL template for PASSWORD_RESET', () => {
+    const entry = PLATFORM_TEMPLATES.find(
+      (t) => t.code === 'PASSWORD_RESET' && t.channel === 'EMAIL',
+    );
+
+    expect(entry).toBeDefined();
+    expect(entry!.subject).toBeTruthy();
+    expect(entry!.body).toBeTruthy();
+  });
+
+  it('PASSWORD_RESET only uses variables provided by the request-password-reset use case', () => {
+    const entry = PLATFORM_TEMPLATES.find(
+      (t) => t.code === 'PASSWORD_RESET' && t.channel === 'EMAIL',
+    )!;
+
+    const used = extractVariables(`${entry.subject ?? ''} ${entry.body}`);
+    expect(used).toContain('resetLink');
+    for (const variable of used) {
+      expect(['userName', 'resetLink']).toContain(variable);
+    }
+  });
+
+  it('PASSWORD_RESET is TRANSACTIONAL so a security email can never be consent-blocked', () => {
+    const entry = PLATFORM_TEMPLATES.find(
+      (t) => t.code === 'PASSWORD_RESET' && t.channel === 'EMAIL',
+    )!;
+
+    expect(entry.notificationClass).toBe('TRANSACTIONAL');
+  });
 });
