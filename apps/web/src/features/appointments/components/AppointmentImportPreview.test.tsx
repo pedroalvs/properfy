@@ -161,6 +161,40 @@ describe('AppointmentImportPreview', () => {
     expect(screen.getByText('Rows 21–25 of 25')).toBeInTheDocument();
   });
 
+  it('renders a Success geocode badge for a found verification on a new property', () => {
+    const row = buildRow({
+      property: {
+        resolution: 'new', propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null,
+        suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: null,
+        geocode: { status: 'found', lat: -33.9, lng: 151.1 },
+      },
+    });
+    render(<AppointmentImportPreview rows={[row]} summary={SUMMARY} />);
+    expect(screen.getByText('Success')).toBeInTheDocument();
+  });
+
+  it('renders a Failed geocode badge and the ADDRESS_NOT_FOUND warning for a not_found verification', () => {
+    const row = buildRow({
+      severity: 'warning',
+      property: {
+        resolution: 'new', propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null,
+        suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: null,
+        geocode: { status: 'not_found', lat: null, lng: null },
+      },
+      issues: [{ field: 'property', code: 'ADDRESS_NOT_FOUND', severity: 'warning', message: 'Address was not found by geocoding — the property will be created but flagged for manual location' }],
+    });
+    render(<AppointmentImportPreview rows={[row]} summary={SUMMARY} />);
+    expect(screen.getByText('Failed')).toBeInTheDocument();
+    expect(screen.getByText(/not found by geocoding/)).toBeInTheDocument();
+  });
+
+  it('renders no geocode badge for existing properties (geocode null)', () => {
+    render(<AppointmentImportPreview rows={[buildRow()]} summary={SUMMARY} />);
+    expect(screen.queryByText('Success')).not.toBeInTheDocument();
+    expect(screen.queryByText('Failed')).not.toBeInTheDocument();
+    expect(screen.queryByText('Pending')).not.toBeInTheDocument();
+  });
+
   it('clamps to a valid page when rows shrinks below the current page (re-preview with fewer rows)', () => {
     const manyRows = Array.from({ length: 25 }, (_, i) => buildRow({ rowNumber: i + 2 }));
     const { rerender } = render(

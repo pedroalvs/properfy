@@ -1,25 +1,24 @@
 import { useState, useMemo } from 'react';
-import type { ResolvedImportRow, ImportSummary } from '@properfy/shared';
+import type { ResolvedPropertyImportRow, ImportSummary } from '@properfy/shared';
 import { StatusChip } from '@/components/ui/StatusChip';
-import { DetailRow } from '@/components/data/DetailRow';
 import { Button } from '@/components/ui/Button';
 import { geocodeVerificationToStatus } from '@/lib/geocode-verification';
-import { GeocodingStatusBadge } from '@/features/properties/components/GeocodingStatusBadge';
+import { GeocodingStatusBadge } from './GeocodingStatusBadge';
 
 const PAGE_SIZE = 20;
 
-const SEVERITY_STYLE: Record<ResolvedImportRow['severity'], { label: string; bg: string; text: string }> = {
+const SEVERITY_STYLE: Record<ResolvedPropertyImportRow['severity'], { label: string; bg: string; text: string }> = {
   ready: { label: 'Ready', bg: 'var(--color-success)', text: '#fff' },
   warning: { label: 'Warning', bg: 'var(--color-warning)', text: '#fff' },
   error: { label: 'Error', bg: 'var(--color-error)', text: '#fff' },
 };
 
-interface AppointmentImportPreviewProps {
-  rows: ResolvedImportRow[];
+interface PropertyImportPreviewProps {
+  rows: ResolvedPropertyImportRow[];
   summary: ImportSummary;
 }
 
-function PropertyBadge({ property }: { property: ResolvedImportRow['property'] }) {
+function PropertyBadge({ property }: { property: ResolvedPropertyImportRow['property'] }) {
   if (!property) return <span className="text-xs text-text-muted">&mdash;</span>;
 
   const addressLabel = [property.street, property.addressLine2, property.suburb, property.state, property.postcode]
@@ -46,30 +45,7 @@ function PropertyBadge({ property }: { property: ResolvedImportRow['property'] }
   );
 }
 
-function ContactBadge({ contact }: { contact: ResolvedImportRow['contact'] }) {
-  if (!contact) return <span className="text-xs text-text-muted">&mdash;</span>;
-
-  return (
-    <div className="space-y-1">
-      <StatusChip
-        label={contact.resolution === 'existing' ? 'Existing contact' : 'New contact'}
-        bg={contact.resolution === 'existing' ? 'var(--color-info)' : 'var(--color-accent)'}
-        text="#fff"
-      />
-      <p className="text-xs text-text-secondary">{contact.displayName}</p>
-      <p className="text-xs text-text-muted">
-        {[contact.primaryEmail, contact.primaryPhone].filter(Boolean).join(' · ')}
-      </p>
-      {contact.additionalChannels.length > 0 && (
-        <p className="text-xs text-text-muted">
-          +{contact.additionalChannels.length} more: {contact.additionalChannels.map((c) => c.value).join(', ')}
-        </p>
-      )}
-    </div>
-  );
-}
-
-export function AppointmentImportPreview({ rows, summary }: AppointmentImportPreviewProps) {
+export function PropertyImportPreview({ rows, summary }: PropertyImportPreviewProps) {
   const [page, setPage] = useState(0);
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   // Clamped rather than reset via an effect: if `rows` shrinks (e.g. the
@@ -120,30 +96,15 @@ export function AppointmentImportPreview({ rows, summary }: AppointmentImportPre
                   {!row.importable && <span className="text-xs font-semibold text-[var(--color-error)]">Not importable</span>}
                 </div>
                 <div className="text-xs text-text-secondary">
-                  {row.serviceTypeName ?? '—'} &middot; {row.scheduledDate}
-                  {row.scheduledDateDefaulted && <span className="ml-1 italic text-text-muted">(defaulted)</span>}
-                  {' '}&middot; {row.timeSlotStart}–{row.timeSlotEnd}
-                  {row.timeDefaulted && <span className="ml-1 italic text-text-muted">(defaulted)</span>}
+                  {row.propertyCode ?? '—'} &middot; {row.type ?? '—'}
                 </div>
               </div>
 
-              <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="mt-3">
                 <PropertyBadge property={row.property} />
-                <ContactBadge contact={row.contact} />
               </div>
 
-              {row.customFields.length > 0 && (
-                <div className="mt-3 border-t border-gray-200 pt-2">
-                  {row.customFields.map((field, idx) => (
-                    <DetailRow key={idx} label={field.label} value={field.value} />
-                  ))}
-                </div>
-              )}
-              {row.customFieldsTruncated && (
-                <p className="mt-1 text-xs italic text-text-muted">
-                  More than 4 custom-field columns found; only the first 4 were imported.
-                </p>
-              )}
+              {row.notes && <p className="mt-2 text-xs text-text-muted">{row.notes}</p>}
 
               {row.issues.length > 0 && (
                 <ul className="mt-3 space-y-1 border-t border-gray-200 pt-2">
