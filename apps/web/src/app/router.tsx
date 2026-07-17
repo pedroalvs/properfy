@@ -191,6 +191,12 @@ export const router = createBrowserRouter([
             ),
           },
           {
+            // Legacy bookmark: the property map was removed; without this the
+            // URL would fall through to properties/:id with id="map".
+            path: 'properties/map',
+            element: <Navigate to="/properties" replace />,
+          },
+          {
             path: 'properties/:id',
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
