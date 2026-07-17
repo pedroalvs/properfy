@@ -79,6 +79,12 @@ const envSchema = z.object({
   // (e.g., https://app.properfy.com).
   TENANT_PORTAL_BASE_URL: z.string().default('http://localhost:5173'),
 
+  // Web SPA base URL used to build password-reset links for non-inspector users.
+  WEB_APP_BASE_URL: z.string().default('http://localhost:5173'),
+
+  // PWA base URL used to build password-reset links for inspectors (INSP role).
+  PWA_BASE_URL: z.string().default('http://localhost:5174'),
+
   // Optional direct DB URL (migrations)
   DIRECT_URL: z.string().optional(),
 
@@ -169,6 +175,8 @@ export function validateEnv(source: Record<string, string | undefined> = process
 
     for (const [key, value] of [
       ['TENANT_PORTAL_BASE_URL', result.data.TENANT_PORTAL_BASE_URL],
+      ['WEB_APP_BASE_URL', result.data.WEB_APP_BASE_URL],
+      ['PWA_BASE_URL', result.data.PWA_BASE_URL],
     ] as [string, string][]) {
       let parsed: URL;
       try {

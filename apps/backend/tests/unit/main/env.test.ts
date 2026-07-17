@@ -90,6 +90,8 @@ describe('validateEnv', () => {
       SUPABASE_S3_ACCESS_KEY_ID: 'access-key',
       SUPABASE_S3_SECRET_ACCESS_KEY: 'secret-key',
       TENANT_PORTAL_BASE_URL: 'https://portal.example.com',
+      WEB_APP_BASE_URL: 'https://app.example.com',
+      PWA_BASE_URL: 'https://pwa.example.com',
     });
     expect(result.RESEND_API_KEY).toBeUndefined();
     expect(result.MOBILE_MESSAGE_API_KEY).toBeUndefined();
@@ -109,6 +111,52 @@ describe('validateEnv', () => {
         TENANT_PORTAL_BASE_URL: 'https://portal.example.com',
       }),
     ).toThrow('Supabase S3');
+  });
+
+  it('should default WEB_APP_BASE_URL and PWA_BASE_URL to localhost in dev', () => {
+    const result = validateEnv(validEnv);
+    expect(result.WEB_APP_BASE_URL).toBe('http://localhost:5173');
+    expect(result.PWA_BASE_URL).toBe('http://localhost:5174');
+  });
+
+  it('should reject non-HTTPS WEB_APP_BASE_URL and PWA_BASE_URL in production', () => {
+    expect(() =>
+      validateEnv({
+        ...validEnv,
+        NODE_ENV: 'production',
+        CORS_ORIGIN: 'https://app.example.com',
+        TOTP_ENCRYPTION_KEY: 'a'.repeat(64),
+        PORTAL_TOKEN_ENC_KEY: 'a'.repeat(64),
+        APP_CREDENTIAL_ENC_KEY: 'a'.repeat(64),
+        ENABLE_JOB_QUEUE: 'true',
+        SUPABASE_S3_ENDPOINT: 'https://storage.example.com',
+        SUPABASE_S3_ACCESS_KEY_ID: 'access-key',
+        SUPABASE_S3_SECRET_ACCESS_KEY: 'secret-key',
+        TENANT_PORTAL_BASE_URL: 'https://portal.example.com',
+        WEB_APP_BASE_URL: 'http://localhost:5173',
+        PWA_BASE_URL: 'http://localhost:5174',
+      }),
+    ).toThrow('WEB_APP_BASE_URL');
+  });
+
+  it('should accept HTTPS app base URLs in production', () => {
+    const result = validateEnv({
+      ...validEnv,
+      NODE_ENV: 'production',
+      CORS_ORIGIN: 'https://app.example.com',
+      TOTP_ENCRYPTION_KEY: 'a'.repeat(64),
+      PORTAL_TOKEN_ENC_KEY: 'a'.repeat(64),
+      APP_CREDENTIAL_ENC_KEY: 'a'.repeat(64),
+      ENABLE_JOB_QUEUE: 'true',
+      SUPABASE_S3_ENDPOINT: 'https://storage.example.com',
+      SUPABASE_S3_ACCESS_KEY_ID: 'access-key',
+      SUPABASE_S3_SECRET_ACCESS_KEY: 'secret-key',
+      TENANT_PORTAL_BASE_URL: 'https://portal.example.com',
+      WEB_APP_BASE_URL: 'https://app.example.com',
+      PWA_BASE_URL: 'https://pwa.example.com',
+    });
+    expect(result.WEB_APP_BASE_URL).toBe('https://app.example.com');
+    expect(result.PWA_BASE_URL).toBe('https://pwa.example.com');
   });
 
   it('should accept optional provider vars', () => {
