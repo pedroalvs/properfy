@@ -230,6 +230,7 @@ export class AppointmentImportRowResolver {
         propertyCode: existing.propertyCode,
         street, addressLine2, suburb, state, postcode, country,
         duplicateOfRow: null,
+        geocode: null,
       };
     }
 
@@ -242,6 +243,7 @@ export class AppointmentImportRowResolver {
       propertyCode: null,
       street, addressLine2, suburb, state, postcode, country,
       duplicateOfRow: firstRow ?? null,
+      geocode: null,
     };
   }
 

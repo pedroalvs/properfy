@@ -1378,6 +1378,14 @@ model AppointmentImport {
 model PropertyImport {
   id                 String   @id @default(uuid())
   tenant_id          String
+  // Property-import preview/commit split, mirroring AppointmentImport:
+  // `status` gains a PREVIEW value (plain VarChar, no enum migration);
+  // `preview_json` caches the full resolver output shown to the operator
+  // (including per-address geocode verification reused at commit);
+  // `results_json` is written incrementally per row by the commit worker so
+  // a crash/retry mid-batch resumes rather than duplicating properties (the
+  // resolver is always re-run fresh at commit — `preview_json` is a display
+  // + geocode cache, never authoritative for existing/new decisions).
   status             String   @default("PENDING") @db.VarChar(20)
   file_key           String   @db.VarChar(500)
   original_filename  String   @db.VarChar(255)
@@ -1385,6 +1393,8 @@ model PropertyImport {
   success_count      Int      @default(0)
   error_count        Int      @default(0)
   errors_json        Json?
+  preview_json       Json?
+  results_json       Json?
   created_by_user_id String
   created_at         DateTime @default(now())
   updated_at         DateTime @updatedAt

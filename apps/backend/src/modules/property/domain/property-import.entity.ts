@@ -8,6 +8,8 @@ export interface PropertyImportProps {
   successCount: number;
   errorCount: number;
   errorsJson: unknown[] | null;
+  previewJson: unknown | null;
+  resultsJson: unknown | null;
   createdByUserId: string;
   createdAt: Date;
   updatedAt: Date;
@@ -23,6 +25,8 @@ export class PropertyImportEntity {
   successCount: number;
   errorCount: number;
   errorsJson: unknown[] | null;
+  previewJson: unknown | null;
+  resultsJson: unknown | null;
   readonly createdByUserId: string;
   readonly createdAt: Date;
   updatedAt: Date;
@@ -37,6 +41,8 @@ export class PropertyImportEntity {
     this.successCount = props.successCount;
     this.errorCount = props.errorCount;
     this.errorsJson = props.errorsJson;
+    this.previewJson = props.previewJson;
+    this.resultsJson = props.resultsJson;
     this.createdByUserId = props.createdByUserId;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;

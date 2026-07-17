@@ -17,6 +17,8 @@ export interface GetPropertyImportStatusOutput {
   successCount: number;
   errorCount: number;
   errorsJson: unknown[] | null;
+  previewJson: unknown | null;
+  resultsJson: unknown | null;
   createdByUserId: string;
   createdAt: Date;
   updatedAt: Date;
@@ -53,6 +55,8 @@ export class GetPropertyImportStatusUseCase {
       successCount: importRecord.successCount,
       errorCount: importRecord.errorCount,
       errorsJson: importRecord.errorsJson,
+      previewJson: importRecord.previewJson,
+      resultsJson: importRecord.resultsJson,
       createdByUserId: importRecord.createdByUserId,
       createdAt: importRecord.createdAt,
       updatedAt: importRecord.updatedAt,
