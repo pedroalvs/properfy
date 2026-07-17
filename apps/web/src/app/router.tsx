@@ -188,6 +188,13 @@ export const router = createBrowserRouter([
             element: <Navigate to="/properties" replace />,
           },
           {
+            // Legacy bookmark: the standalone property import was removed;
+            // without this the URL would fall through to properties/:id
+            // with id="import".
+            path: 'properties/import',
+            element: <Navigate to="/properties" replace />,
+          },
+          {
             path: 'properties/:id',
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
