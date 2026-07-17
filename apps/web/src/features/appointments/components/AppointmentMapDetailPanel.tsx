@@ -300,7 +300,7 @@ function renderSectionContent(key: SectionKey, ctx: SectionCtx): ReactNode {
           {detail.contacts!.map((c) => (
             <li key={c.id ?? c.contactId ?? c.snapshotName}>
               <span className="text-text-muted">{c.role}:</span> {c.snapshotName}
-              {c.snapshotPhone && ` · ${c.snapshotPhone}`}
+              {c.snapshotPhone && ` · ${formatAuPhone(c.snapshotPhone)}`}
             </li>
           ))}
         </ul>

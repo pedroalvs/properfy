@@ -37,19 +37,18 @@ export function PhoneInput({
         ? `+${stripped.slice(1).slice(0, max)}`
         : stripped.slice(0, max);
       onChange(applyPhoneMask(digits));
-      if (localError) setLocalError(false);
     },
-    [onChange, localError],
+    [onChange],
   );
 
   const handleBlur = useCallback(() => {
     setLocalError(value.trim() !== '' && toE164Au(value) === null);
   }, [value]);
 
-  // Clear the blur error when the value is reset programmatically
-  // (e.g. a dialog clearing its form on close).
+  // Local validation applies only to the value it was computed for — clear it
+  // on any controlled-value replacement (typing, form reset, external update).
   useEffect(() => {
-    if (!value.trim()) setLocalError(false);
+    setLocalError(false);
   }, [value]);
 
   const hasError = error || localError;

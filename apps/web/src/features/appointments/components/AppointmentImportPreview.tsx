@@ -63,7 +63,7 @@ function ContactBadge({ contact }: { contact: ResolvedImportRow['contact'] }) {
       </p>
       {contact.additionalChannels.length > 0 && (
         <p className="text-xs text-text-muted">
-          +{contact.additionalChannels.length} more: {contact.additionalChannels.map((c) => c.value).join(', ')}
+          +{contact.additionalChannels.length} more: {contact.additionalChannels.map((c) => (c.channel === 'PHONE' ? formatAuPhone(c.value) : c.value)).join(', ')}
         </p>
       )}
     </div>

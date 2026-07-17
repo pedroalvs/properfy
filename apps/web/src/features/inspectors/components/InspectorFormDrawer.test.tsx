@@ -5,7 +5,6 @@ import { SnackbarProvider } from '@/hooks/useSnackbar';
 
 vi.mock('@properfy/shared', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  contactSchema: { shape: { primaryEmail: { safeParse: () => ({ success: true }) } } },
 }));
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } }));
 vi.mock('@/services/api', () => ({

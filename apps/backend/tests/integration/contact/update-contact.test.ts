@@ -190,3 +190,65 @@ describe('PATCH /v1/contacts/:contactId — AU phone validation and E.164 normal
     expect(mockUpdateContactExecute).not.toHaveBeenCalled();
   });
 });
+
+describe('PATCH /v1/contacts/:contactId — additional channel validation and normalization', () => {
+  it('normalizes additional PHONE channel values to E.164 before reaching the use case', async () => {
+    mockJwtVerify.mockResolvedValue(clAdminContext);
+    mockUpdateContactExecute.mockResolvedValue(makeContact());
+
+    const res = await supertest(app.server)
+      .patch(`/v1/contacts/${CONTACT_ID}`)
+      .set('Authorization', 'Bearer token')
+      .send({ additionalChannels: [{ channel: 'PHONE', value: '0498 765 432', label: 'Work' }] });
+
+    expect(res.status).toBe(200);
+    expect(mockUpdateContactExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          additionalChannels: [{ channel: 'PHONE', value: '+61498765432', label: 'Work' }],
+        }),
+      }),
+    );
+  });
+
+  it('rejects an invalid EMAIL additional channel with 400', async () => {
+    mockJwtVerify.mockResolvedValue(clAdminContext);
+
+    const res = await supertest(app.server)
+      .patch(`/v1/contacts/${CONTACT_ID}`)
+      .set('Authorization', 'Bearer token')
+      .send({ additionalChannels: [{ channel: 'EMAIL', value: 'not-an-email' }] });
+
+    expect(res.status).toBe(400);
+    expect(mockUpdateContactExecute).not.toHaveBeenCalled();
+  });
+
+  it('rejects an invalid PHONE additional channel with 400', async () => {
+    mockJwtVerify.mockResolvedValue(clAdminContext);
+
+    const res = await supertest(app.server)
+      .patch(`/v1/contacts/${CONTACT_ID}`)
+      .set('Authorization', 'Bearer token')
+      .send({ additionalChannels: [{ channel: 'PHONE', value: '555-CALL-ME' }] });
+
+    expect(res.status).toBe(400);
+    expect(mockUpdateContactExecute).not.toHaveBeenCalled();
+  });
+
+  it('rejects duplicate channels across formats after normalization with 400', async () => {
+    mockJwtVerify.mockResolvedValue(clAdminContext);
+
+    const res = await supertest(app.server)
+      .patch(`/v1/contacts/${CONTACT_ID}`)
+      .set('Authorization', 'Bearer token')
+      .send({
+        additionalChannels: [
+          { channel: 'PHONE', value: '0412 345 678' },
+          { channel: 'PHONE', value: '+61412345678' },
+        ],
+      });
+
+    expect(res.status).toBe(400);
+    expect(mockUpdateContactExecute).not.toHaveBeenCalled();
+  });
+});

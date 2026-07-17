@@ -75,9 +75,31 @@ describe('PhoneInput', () => {
     expect(screen.queryByText('Enter a valid Australian phone number')).not.toBeInTheDocument();
   });
 
-  it('suppresses the local message when an external error is passed', () => {
+  it('suppresses the local message when an external error is passed', async () => {
+    const user = userEvent.setup();
     const onChange = vi.fn();
     render(<PhoneInput value="123" onChange={onChange} error aria-label="Phone" />);
+    await user.click(screen.getByLabelText('Phone'));
+    await user.tab();
+    expect(screen.queryByText('Enter a valid Australian phone number')).not.toBeInTheDocument();
+  });
+
+  it('clears the blur error when the parent replaces the value with a valid one', async () => {
+    const user = userEvent.setup();
+    function ParentReplace() {
+      const [value, setValue] = useState('123');
+      return (
+        <div>
+          <PhoneInput value={value} onChange={setValue} aria-label="Phone" />
+          <button onClick={() => setValue('0412 345 678')}>Fill valid</button>
+        </div>
+      );
+    }
+    render(<ParentReplace />);
+    await user.click(screen.getByLabelText('Phone'));
+    await user.tab();
+    expect(screen.getByText('Enter a valid Australian phone number')).toBeInTheDocument();
+    await user.click(screen.getByText('Fill valid'));
     expect(screen.queryByText('Enter a valid Australian phone number')).not.toBeInTheDocument();
   });
 });

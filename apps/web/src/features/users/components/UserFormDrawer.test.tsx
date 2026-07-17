@@ -5,7 +5,6 @@ import { SnackbarProvider } from '@/hooks/useSnackbar';
 
 vi.mock('@properfy/shared', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  contactSchema: { shape: { primaryEmail: { safeParse: () => ({ success: true }) } } },
 }));
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } }));
 vi.mock('@/services/api', () => ({
@@ -111,6 +110,14 @@ describe('UserFormDrawer', () => {
     expect(screen.getByLabelText('Name')).toHaveValue('Maria Test');
     expect(screen.getByLabelText('Email')).toHaveValue('maria@test.com');
     expect(screen.getByLabelText('Phone')).toHaveValue('11777777777');
+  });
+
+  it('shows an inline AU phone error when an invalid phone is blurred', () => {
+    renderDrawer();
+    const phone = screen.getByLabelText('Phone');
+    fireEvent.change(phone, { target: { value: '123' } });
+    fireEvent.blur(phone);
+    expect(screen.getByText('Enter a valid Australian phone number')).toBeInTheDocument();
   });
 
   it('shows validation errors and prevents save when validation fails', () => {

@@ -134,6 +134,16 @@ export function ContactFormDrawer({
       ...prev,
       additionalChannels: prev.additionalChannels.filter((_, i) => i !== index),
     }));
+    setErrors((prev) => {
+      if (!prev.additionalChannelErrors) return prev;
+      const remapped: Record<number, string> = {};
+      for (const [key, message] of Object.entries(prev.additionalChannelErrors)) {
+        const i = Number(key);
+        if (i === index) continue;
+        remapped[i > index ? i - 1 : i] = message;
+      }
+      return { ...prev, additionalChannelErrors: remapped };
+    });
   }, []);
 
   const updateChannel = useCallback(
