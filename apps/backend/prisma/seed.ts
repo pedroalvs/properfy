@@ -178,8 +178,6 @@ const IDS = {
   // Imports
   apptImport1: stableSeedUuid('apptImport1'),
   apptImport2: stableSeedUuid('apptImport2'),
-  propImport1: stableSeedUuid('propImport1'),
-  propImport2: stableSeedUuid('propImport2'),
   // Service regions (polygon-based)
   regionSydneyCbd: stableSeedUuid('region-sydney-cbd'),
   regionNorthShore: stableSeedUuid('region-north-shore'),
@@ -1742,41 +1740,6 @@ async function main() {
     },
   });
   console.log('Appointment imports: 2 created (COMPLETED, FAILED)');
-
-  // ─── PROPERTY IMPORTS ─────────────────────────────────────────────────────
-
-  await prisma.propertyImport.upsert({
-    where: { id: IDS.propImport1 },
-    update: {},
-    create: {
-      id: IDS.propImport1,
-      tenant_id: IDS.tenant,
-      status: 'COMPLETED',
-      file_key: 'imports/properties/2026-03-01-initial-properties.xlsx',
-      original_filename: 'initial-property-list.xlsx',
-      total_rows: 7,
-      success_count: 7,
-      error_count: 0,
-      created_by_user_id: IDS.userOP,
-    },
-  });
-
-  await prisma.propertyImport.upsert({
-    where: { id: IDS.propImport2 },
-    update: {},
-    create: {
-      id: IDS.propImport2,
-      tenant_id: IDS.tenant2,
-      status: 'PROCESSING',
-      file_key: 'imports/properties/tenant2-2026-03-18.xlsx',
-      original_filename: 'melbourne-properties.xlsx',
-      total_rows: 20,
-      success_count: 12,
-      error_count: 0,
-      created_by_user_id: IDS.userCLAdmin2,
-    },
-  });
-  console.log('Property imports: 2 created (COMPLETED, PROCESSING)');
 
   console.log('\n✓ Seeding complete!');
   console.log('─'.repeat(60));

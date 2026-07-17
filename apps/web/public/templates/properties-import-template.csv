@@ -1,3 +1,0 @@
-propertyCode,type,street,addressLine2,suburb,postcode,state,country,notes
-PROP-001,House,123 Example Street,,Suburb Name,2000,NSW,Australia,Sample row 1
-PROP-002,Apartment,456 Business Ave,Unit 10,Another Suburb,3000,VIC,Australia,Sample row 2

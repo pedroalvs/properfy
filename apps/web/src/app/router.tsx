@@ -26,7 +26,6 @@ const AppointmentImportPage = Loadable(lazyRetry(() => import('@/features/appoin
 const PropertyListPage = Loadable(lazyRetry(() => import('@/features/properties/pages/PropertyListPage').then(m => ({ default: m.PropertyListPage }))));
 const PropertyCreatePage = Loadable(lazyRetry(() => import('@/features/properties/pages/PropertyCreatePage').then(m => ({ default: m.PropertyCreatePage }))));
 const PropertyDetailPage = Loadable(lazyRetry(() => import('@/features/properties/pages/PropertyDetailPage').then(m => ({ default: m.PropertyDetailPage }))));
-const PropertyImportPage = Loadable(lazyRetry(() => import('@/features/properties/pages/PropertyImportPage').then(m => ({ default: m.PropertyImportPage }))));
 const ContactListPage = Loadable(lazyRetry(() => import('@/features/contacts/pages/ContactListPage').then(m => ({ default: m.ContactListPage }))));
 const ContactDetailPage = Loadable(lazyRetry(() => import('@/features/contacts/pages/ContactDetailPage').then(m => ({ default: m.ContactDetailPage }))));
 const AppListPage = Loadable(lazyRetry(() => import('@/features/apps/pages/AppListPage').then(m => ({ default: m.AppListPage }))));
@@ -179,14 +178,6 @@ export const router = createBrowserRouter([
               // /properties/:id. The backend rejects a flag-less CL_USER on submit.
               <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
                 <PropertyCreatePage />
-              </AuthGuard>
-            ),
-          },
-          {
-            path: 'properties/import',
-            element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
-                <PropertyImportPage />
               </AuthGuard>
             ),
           },
