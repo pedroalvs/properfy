@@ -31,7 +31,7 @@ export function ContactDetailSections({ contact }: ContactDetailSectionsProps) {
             <DetailRow
               key={`${c.channel}-${c.value}-${idx}`}
               label={`${c.channel === 'EMAIL' ? 'Email' : 'Phone'}${c.label ? ` (${c.label})` : ''}`}
-              value={c.value}
+              value={c.channel === 'PHONE' ? formatAuPhone(c.value) : c.value}
             />
           ))}
         </FormSection>
