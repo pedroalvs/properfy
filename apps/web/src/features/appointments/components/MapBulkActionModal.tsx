@@ -43,7 +43,6 @@ interface MapBulkActionModalProps {
   open: boolean;
   onClose: () => void;
   /** Browser timezone — forwarded for per-day idempotency bucketing. */
-  actorTimezone?: string;
   /** Acting role + CL_USER flags used to gate the bulk-action dropdown options. */
   actorRole: UserRole;
   clUserFlags?: { cancel_appointments?: boolean; reject_appointments?: boolean; reschedule_appointments?: boolean };
@@ -120,7 +119,6 @@ export function MapBulkActionModal({
   appointments,
   open,
   onClose,
-  actorTimezone,
   actorRole,
   clUserFlags,
   onAddToGroup,
@@ -481,7 +479,6 @@ export function MapBulkActionModal({
             const res = await cancelMutation.mutateAsync({
               appointmentIds: Array.from(checkedIds),
               reason,
-              ...(actorTimezone ? { actorTimezone } : {}),
             });
             handleActionComplete(res.data.results);
           }}
@@ -491,7 +488,6 @@ export function MapBulkActionModal({
       {activeAction === 'reschedule' && !results && (
         <MapBulkRescheduleForm
           checkedAppointments={checkedAppointments}
-          {...(actorTimezone ? { actorTimezone } : {})}
           onCancel={() => setActiveAction(null)}
           onComplete={handleActionComplete}
         />
@@ -509,7 +505,6 @@ export function MapBulkActionModal({
               appointmentIds: Array.from(checkedIds),
               targetStatus,
               ...(reason ? { reason } : {}),
-              ...(actorTimezone ? { actorTimezone } : {}),
             });
             handleActionComplete(res.data.results);
           }}
@@ -523,7 +518,6 @@ export function MapBulkActionModal({
           onSubmit={async () => {
             const res = await resendMutation.mutateAsync({
               appointmentIds: Array.from(checkedIds),
-              ...(actorTimezone ? { actorTimezone } : {}),
             });
             // bulk-resend uses a different per-item status set (SENT / NO_PRIMARY_CONTACT / ...)
             // but the result shape is compatible enough for the summary.

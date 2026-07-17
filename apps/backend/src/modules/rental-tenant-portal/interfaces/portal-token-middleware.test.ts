@@ -67,6 +67,49 @@ describe('portal-token-middleware', () => {
     expect(request.portalContext.isReadOnly).toBe(true);
   });
 
+  it('should expose isPastConfirmCutoff=true for a valid token past its confirm cutoff', async () => {
+    const token = makeToken('ACTIVE', new Date(Date.now() + 86400000));
+    (token as any).confirmCutoffAt = new Date(Date.now() - 1000);
+    const tokenRepo = {
+      findByTokenHash: vi.fn().mockResolvedValue(token),
+      updateStatus: vi.fn(),
+    };
+    const middleware = createPortalTokenMiddleware(tokenRepo as any, (r) => r);
+    const request = { params: { token: 'raw-token' }, portalContext: undefined } as any;
+
+    await middleware(request, {} as any);
+    expect(request.portalContext.isPastConfirmCutoff).toBe(true);
+    expect(request.portalContext.isReadOnly).toBe(false);
+  });
+
+  it('should expose isPastConfirmCutoff=false before the cutoff', async () => {
+    const token = makeToken('ACTIVE', new Date(Date.now() + 86400000));
+    (token as any).confirmCutoffAt = new Date(Date.now() + 3600000);
+    const tokenRepo = {
+      findByTokenHash: vi.fn().mockResolvedValue(token),
+      updateStatus: vi.fn(),
+    };
+    const middleware = createPortalTokenMiddleware(tokenRepo as any, (r) => r);
+    const request = { params: { token: 'raw-token' }, portalContext: undefined } as any;
+
+    await middleware(request, {} as any);
+    expect(request.portalContext.isPastConfirmCutoff).toBe(false);
+  });
+
+  it('should fall back to expiresAt for legacy tokens without confirmCutoffAt (expired → past cutoff)', async () => {
+    const legacy = makeToken('ACTIVE', new Date(Date.now() - 1000));
+    const tokenRepo = {
+      findByTokenHash: vi.fn().mockResolvedValue(legacy),
+      updateStatus: vi.fn(),
+    };
+    const middleware = createPortalTokenMiddleware(tokenRepo as any, (r) => r);
+    const request = { params: { token: 'raw-token' }, portalContext: undefined } as any;
+
+    await middleware(request, {} as any);
+    expect(request.portalContext.isPastConfirmCutoff).toBe(true);
+    expect(request.portalContext.isReadOnly).toBe(true);
+  });
+
   it('should throw PortalTokenInvalidError when token not found', async () => {
     const tokenRepo = { findByTokenHash: vi.fn().mockResolvedValue(null), updateStatus: vi.fn() };
     const middleware = createPortalTokenMiddleware(tokenRepo as any, (r) => r);

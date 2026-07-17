@@ -1,3 +1,5 @@
+import { PLATFORM_TIMEZONE } from '@properfy/shared';
+
 const LOCALE = 'en-AU';
 
 export function formatDate(iso: string): string {
@@ -7,7 +9,8 @@ export function formatDate(iso: string): string {
 }
 
 export function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString(LOCALE);
+  // Platform is Sydney-only: timestamps always render in Sydney wall time.
+  return new Date(iso).toLocaleString(LOCALE, { timeZone: PLATFORM_TIMEZONE });
 }
 
 export function toLocalISODate(date: Date): string {

@@ -42,6 +42,7 @@ const VALID_BODY = {
   newDate: '2027-08-01',
   newTimeSlotStart: '09:00', newTimeSlotEnd: '10:00',
   reason: 'Tenant requested',
+  // Legacy field removed from the schema — kept here to prove it is stripped, not rejected.
   actorTimezone: 'Australia/Sydney',
 };
 
@@ -145,23 +146,24 @@ describe('POST /v1/appointments/bulk-reopen-for-reschedule', () => {
     expect(windowFail?.error?.code).toBe('INVALID_DATE_WINDOW');
   });
 
-  it('forwards actorTimezone and reason to the use case', async () => {
+  it('forwards reason and strips a legacy actorTimezone field (Sydney-only platform)', async () => {
     mockJwtVerify.mockResolvedValue(opContext);
     mockExecute.mockResolvedValue({ results: [] });
 
-    await supertest(app.server)
+    const res = await supertest(app.server)
       .post('/v1/appointments/bulk-reopen-for-reschedule')
       .set('Authorization', 'Bearer token')
       .send(VALID_BODY);
 
+    expect(res.status).toBe(200);
     expect(mockExecute).toHaveBeenCalledWith(
       expect.objectContaining({
         newDate: '2027-08-01',
         newTimeSlotStart: '09:00', newTimeSlotEnd: '10:00',
         reason: 'Tenant requested',
-        actorTimezone: 'Australia/Sydney',
       }),
     );
+    expect(mockExecute.mock.calls[0]![0]).not.toHaveProperty('actorTimezone');
   });
 
   it('rejects missing appointmentIds with 400', async () => {

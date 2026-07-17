@@ -21,6 +21,7 @@ vi.mock('@/hooks/useSnackbar', () => ({
 }));
 
 const resendMeta = PROVIDER_META.find((meta) => meta.provider === 'resend')!;
+const mapboxMeta = PROVIDER_META.find((meta) => meta.provider === 'mapbox')!;
 
 function makeDetail(overrides: Partial<IntegrationDetail> = {}): IntegrationDetail {
   return {
@@ -92,5 +93,20 @@ describe('IntegrationCard', () => {
     const removeButtons = screen.getAllByRole('button', { name: /^Remove$/ });
     await user.click(removeButtons[removeButtons.length - 1]!);
     expect(mockDeleteMutateAsync).toHaveBeenCalledWith('resend');
+  });
+
+  it('shows the Mapbox note clarifying it configures backend geocoding, not the frontend maps', () => {
+    render(
+      <IntegrationCard
+        meta={mapboxMeta}
+        detail={makeDetail({ provider: 'mapbox', maskedConfig: { accessToken: '••••abcd' } })}
+      />,
+    );
+    expect(screen.getByText(/does not affect the maps shown in the app/)).toBeInTheDocument();
+  });
+
+  it('does not show a note for providers without one', () => {
+    render(<IntegrationCard meta={resendMeta} detail={makeDetail()} />);
+    expect(screen.queryByText(/does not affect the maps shown in the app/)).not.toBeInTheDocument();
   });
 });

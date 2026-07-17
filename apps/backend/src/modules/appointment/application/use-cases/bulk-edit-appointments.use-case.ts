@@ -1,5 +1,5 @@
 import type { AuthContext, AppointmentContactRole } from '@properfy/shared';
-import { validateEditedSchedule } from '@properfy/shared';
+import { validateEditedSchedule, PLATFORM_TIMEZONE } from '@properfy/shared';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IContactRepository } from '../../../contact/domain/contact.repository';
@@ -36,7 +36,6 @@ export interface BulkEditInput {
   ids: string[];
   changes: Record<string, unknown>;
   options?: BulkEditOptions;
-  actorTimezone?: string;
   actor: AuthContext;
   requestId?: string;
 }
@@ -139,7 +138,7 @@ export class BulkEditAppointmentsUseCase {
 
         // Per-row TZ-aware past-date/time validation (R7: falls back to UTC).
         if (changes.scheduledDate !== undefined || timeChanged) {
-          const tz = input.actorTimezone ?? 'UTC';
+          const tz = PLATFORM_TIMEZONE;
           const existingDateStr = appointment.scheduledDate.toISOString().slice(0, 10);
           const scheduleCheck = validateEditedSchedule({
             existingDate: existingDateStr,

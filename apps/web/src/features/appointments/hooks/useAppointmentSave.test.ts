@@ -34,7 +34,7 @@ const mockPost = api.POST as ReturnType<typeof vi.fn>;
 const mockPatch = api.PATCH as ReturnType<typeof vi.fn>;
 
 // Both `createAppointmentSchema` and `updateAppointmentSchema` refine against
-// `todayLocalDateString()` and reject past dates. A hard-coded future literal
+// today's date and reject past dates. A hard-coded future literal
 // turns into a time bomb once the real clock crosses it. Compute dynamically.
 const FUTURE_SCHEDULED_DATE = (() => {
   const d = new Date();
@@ -50,7 +50,7 @@ const VALID_CREATE_DATA: AppointmentFormData = {
   timeSlotStart: '09:00',
   timeSlotEnd: '12:00',
   contactName: 'João Silva',
-  contactPhone: '11999999999',
+  contactPhone: '0412 345 678',
   contactEmail: 'joao@email.com',
   contacts: [],
   customFields: [],
@@ -141,7 +141,6 @@ describe('useAppointmentSave', () => {
           primaryEmail: VALID_CREATE_DATA.contactEmail,
           primaryPhone: VALID_CREATE_DATA.contactPhone,
         },
-        actorTimezone: expect.any(String),
       },
     });
   });
@@ -173,7 +172,6 @@ describe('useAppointmentSave', () => {
         },
         customFields: [],
         appCredentialIds: [],
-        actorTimezone: expect.any(String),
       },
     });
   });

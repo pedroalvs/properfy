@@ -6,6 +6,8 @@ export type { AvailableGroup } from '@properfy/shared';
 export interface PortalTokenInfo {
   status: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
   isReadOnly: boolean;
+  /** Confirmation window closed (T-1 cutoff) while the token is still valid. */
+  isPastConfirmCutoff?: boolean;
 }
 
 export interface PortalAppointment {

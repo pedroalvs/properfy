@@ -63,8 +63,6 @@ beforeEach(() => {
 async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText('Name'), 'Test Agency');
   await user.type(screen.getByLabelText('Legal Name'), 'Test Agency LLC');
-  await user.click(screen.getByRole('button', { name: 'Timezone' }));
-  await user.click(screen.getByRole('option', { name: 'Australia/Sydney (AEST)' }));
   await user.click(screen.getByRole('button', { name: 'Currency' }));
   await user.click(screen.getByRole('option', { name: 'AUD - Australian Dollar' }));
   await user.type(screen.getByLabelText('Appointment code prefix'), 'TST');
@@ -106,7 +104,7 @@ describe('TenantFormDrawer', () => {
     expect(screen.getByText('New Agency')).toBeInTheDocument();
   });
 
-  it('renders form fields for name, legal name, timezone, currency, notes', () => {
+  it('renders form fields for name, legal name, currency, notes (timezone is fixed to Sydney)', () => {
     const Wrapper = createWrapper();
     render(
       <Wrapper>
@@ -115,7 +113,7 @@ describe('TenantFormDrawer', () => {
     );
     expect(screen.getByLabelText('Name')).toBeInTheDocument();
     expect(screen.getByLabelText('Legal Name')).toBeInTheDocument();
-    expect(screen.getByLabelText('Timezone')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Timezone')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Currency')).toBeInTheDocument();
     expect(screen.getByLabelText('Appointment code prefix')).toBeInTheDocument();
     expect(screen.getByLabelText('Notes')).toBeInTheDocument();

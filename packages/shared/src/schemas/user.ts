@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { auPhoneSchema } from './phone';
 import { paginationSchema } from './pagination';
 
 // Create user — password rules same as changePasswordSchema in auth.ts
@@ -15,14 +16,14 @@ export const createUserSchema = z.object({
     .regex(/[^A-Za-z0-9]/, 'Must contain special character'),
   role: z.enum(['AM', 'OP', 'CL_ADMIN', 'CL_USER', 'INSP']),
   branchId: z.string().uuid().optional(),
-  phone: z.string().max(20).optional(),
+  phone: auPhoneSchema.optional(),
 });
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 
 // Update user (partial, role change restrictions enforced in use case)
 export const updateUserSchema = z.object({
   name: z.string().min(1).max(200).trim().optional(),
-  phone: z.string().max(20).optional(),
+  phone: auPhoneSchema.optional(),
   branchId: z.string().uuid().nullable().optional(),
   role: z.enum(['AM', 'OP', 'CL_ADMIN', 'CL_USER', 'INSP']).optional(),
 });
@@ -46,7 +47,7 @@ export const inviteUserSchema = z.object({
   email: z.string().email().max(254).transform((v) => v.toLowerCase().trim()),
   role: z.enum(['CL_ADMIN', 'CL_USER']),
   branchId: z.string().uuid().optional(),
-  phone: z.string().max(20).optional(),
+  phone: auPhoneSchema.optional(),
 });
 export type InviteUserInput = z.infer<typeof inviteUserSchema>;
 

@@ -1,17 +1,19 @@
 import { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AppointmentStatus } from '@properfy/shared';
+import { AppointmentStatus, PLATFORM_TIMEZONE, todayInTzDateString } from '@properfy/shared';
 import { RentalTenantConfirmationBadge } from './RentalTenantConfirmationBadge';
 import { FLOW_TYPE_MAP } from '@/lib/status-colors';
 import type { InspectorAppointment } from '../types';
-import { formatTimeWindow, getTodayLocalISODate, isScheduleRisk } from '../lib/time-slot';
+import { formatTimeWindow, isScheduleRisk } from '../lib/time-slot';
 
 interface AppointmentCardProps {
   appointment: InspectorAppointment;
+  /** Sydney civil date (YYYY-MM-DD) from the schedule payload; computed locally when absent. */
+  today?: string;
 }
 
-function isT1Warning(appointment: InspectorAppointment): boolean {
-  return isScheduleRisk(appointment) && appointment.scheduledDate === getTodayLocalISODate();
+function isT1Warning(appointment: InspectorAppointment, today: string): boolean {
+  return isScheduleRisk(appointment) && appointment.scheduledDate === today;
 }
 
 function getStatusAccent(status: AppointmentStatus): string {
@@ -28,9 +30,9 @@ function getStatusAccent(status: AppointmentStatus): string {
   }
 }
 
-export const AppointmentCard = memo(function AppointmentCard({ appointment }: AppointmentCardProps) {
+export const AppointmentCard = memo(function AppointmentCard({ appointment, today }: AppointmentCardProps) {
   const navigate = useNavigate();
-  const showT1Warning = isT1Warning(appointment);
+  const showT1Warning = isT1Warning(appointment, today ?? todayInTzDateString(PLATFORM_TIMEZONE));
   const flowStyle = FLOW_TYPE_MAP[appointment.flowType];
   const accentClass = getStatusAccent(appointment.status);
   const isDone = appointment.status === AppointmentStatus.DONE;

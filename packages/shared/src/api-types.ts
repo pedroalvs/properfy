@@ -687,8 +687,6 @@ export interface paths {
                     "application/json": {
                         name: string;
                         legalName: string;
-                        /** @default Australia/Sydney */
-                        timezone?: string;
                         /** @default AUD */
                         currency?: string;
                         appointmentCodePrefix: string;
@@ -879,7 +877,6 @@ export interface paths {
                     "application/json": {
                         name?: string;
                         legalName?: string;
-                        timezone?: string;
                         currency?: string;
                         appointmentCodePrefix?: string;
                         settings?: {
@@ -2760,6 +2757,147 @@ export interface paths {
                 cookie?: never;
             };
             requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/properties/import/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                importId: string;
+                                /** Format: uuid */
+                                tenantId: string;
+                                summary: {
+                                    totalRows: number;
+                                    importable: number;
+                                    withWarnings: number;
+                                    withErrors: number;
+                                };
+                                rows: {
+                                    rowNumber: number;
+                                    /** @enum {string} */
+                                    severity: "ready" | "warning" | "error";
+                                    importable: boolean;
+                                    propertyCode: string | null;
+                                    type: string | null;
+                                    notes: string | null;
+                                    property: {
+                                        /** @enum {string} */
+                                        resolution: "existing" | "new";
+                                        /** Format: uuid */
+                                        propertyId: string | null;
+                                        propertyCode: string | null;
+                                        street: string;
+                                        addressLine2: string | null;
+                                        suburb: string;
+                                        state: string;
+                                        postcode: string;
+                                        country: string;
+                                        duplicateOfRow: number | null;
+                                        /** @default null */
+                                        geocode: ({
+                                            /** @enum {string} */
+                                            status: "found";
+                                            lat: number;
+                                            lng: number;
+                                        } | {
+                                            /** @enum {string} */
+                                            status: "not_found";
+                                            /** @enum {unknown|null} */
+                                            lat: "null" | null;
+                                            /** @enum {unknown|null} */
+                                            lng: "null" | null;
+                                        } | {
+                                            /** @enum {string} */
+                                            status: "unverified";
+                                            /** @enum {unknown|null} */
+                                            lat: "null" | null;
+                                            /** @enum {unknown|null} */
+                                            lng: "null" | null;
+                                        }) | null;
+                                    } | null;
+                                    issues: {
+                                        field: string;
+                                        code: string;
+                                        /** @enum {string} */
+                                        severity: "warning" | "error";
+                                        message: string;
+                                    }[];
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/properties/import/{importId}/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    importId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @default false */
+                        skipInvalidRows?: boolean;
+                    };
+                };
+            };
             responses: {
                 /** @description Default Response */
                 200: {
@@ -4920,7 +5058,6 @@ export interface paths {
                             label: string;
                             value: string;
                         }[];
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -5239,7 +5376,6 @@ export interface paths {
                             label: string;
                             value: string;
                         }[] | null;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -5583,7 +5719,6 @@ export interface paths {
                 content: {
                     "application/json": {
                         appointmentIds: string[];
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -5639,7 +5774,6 @@ export interface paths {
                     "application/json": {
                         appointmentIds: string[];
                         reason: string;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -5697,7 +5831,6 @@ export interface paths {
                         newDate: string;
                         newTimeSlotStart?: string;
                         newTimeSlotEnd?: string;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -5755,7 +5888,6 @@ export interface paths {
                         /** @enum {string} */
                         targetStatus: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
                         reason?: string;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -5812,7 +5944,6 @@ export interface paths {
                         appointmentIds: string[];
                         /** Format: uuid */
                         inspectorId: string;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -5871,7 +6002,6 @@ export interface paths {
                         newTimeSlotStart: string;
                         newTimeSlotEnd: string;
                         reason?: string;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -5972,6 +6102,27 @@ export interface paths {
                                         postcode: string;
                                         country: string;
                                         duplicateOfRow: number | null;
+                                        /** @default null */
+                                        geocode: ({
+                                            /** @enum {string} */
+                                            status: "found";
+                                            lat: number;
+                                            lng: number;
+                                        } | {
+                                            /** @enum {string} */
+                                            status: "not_found";
+                                            /** @enum {unknown|null} */
+                                            lat: "null" | null;
+                                            /** @enum {unknown|null} */
+                                            lng: "null" | null;
+                                        } | {
+                                            /** @enum {string} */
+                                            status: "unverified";
+                                            /** @enum {unknown|null} */
+                                            lat: "null" | null;
+                                            /** @enum {unknown|null} */
+                                            lng: "null" | null;
+                                        }) | null;
                                     } | null;
                                     contact: {
                                         /** @enum {string} */
@@ -6036,7 +6187,6 @@ export interface paths {
                 content: {
                     "application/json": {
                         skipInvalidRows: boolean;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -6262,7 +6412,6 @@ export interface paths {
                         /** Format: uuid */
                         serviceRegionId?: string | null;
                         description?: string;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -6409,7 +6558,6 @@ export interface paths {
                         description?: string;
                         scheduledDate?: string;
                         timeWindow?: string;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -7008,9 +7156,7 @@ export interface paths {
             };
             requestBody?: {
                 content: {
-                    "application/json": {
-                        actorTimezone?: string;
-                    };
+                    "application/json": Record<string, never>;
                 };
             };
             responses: {
@@ -7166,6 +7312,11 @@ export interface paths {
                                     tenantName: string;
                                     timeSlotStart: string;
                                     timeSlotEnd: string;
+                                    street: string;
+                                    coordinates: {
+                                        lat: number;
+                                        lng: number;
+                                    } | null;
                                 }[];
                             };
                         };

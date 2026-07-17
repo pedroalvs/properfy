@@ -502,6 +502,11 @@ export const marketplaceOfferDetailAppointmentSchema = z.object({
   // Appointment's own slot (bare HH:mm) — preferred over the group timeWindow in the UI.
   timeSlotStart: z.string().regex(HHMM_REGEX),
   timeSlotEnd: z.string().regex(HHMM_REGEX),
+  // Property street line (rua/avenida); '' when the property is missing.
+  street: z.string(),
+  // Property lat/lng for the PWA map group drill-down; null while geocoding is
+  // pending/failed (the map skips those pins).
+  coordinates: centroidSchema,
 });
 
 export const marketplaceOfferDetailResponseSchema = marketplaceOfferResponseSchema.extend({
@@ -556,6 +561,9 @@ export const portalDataResponseSchema = z.object({
   token: z.object({
     status: z.string(),
     isReadOnly: z.boolean(),
+    // Confirmation window closed (T-1 cutoff) while the token is still valid.
+    // Optional for legacy payload fixtures; the API always returns it.
+    isPastConfirmCutoff: z.boolean().optional(),
     isExpired: z.boolean(),
     canRequestNewLink: z.boolean(),
     expiresAt: dateStr(),
@@ -587,13 +595,27 @@ export const portalDataResponseSchema = z.object({
  * `DISPATCH_FAILED` — the token was minted but every attempted notification
  * (EMAIL/SMS) failed to be created/enqueued; the UI must not claim the email
  * was sent.
+ *
+ * `NOTIFY_DISABLED` — the caller requested generate-only (`notify: false`);
+ * the token was minted and nothing was sent, by design.
  */
 export const portalTokenResponseSchema = z.object({
   token: z.string(),
   expiresAt: dateStr(),
   dispatched: z.boolean().optional(),
-  reason: z.enum(['NO_PRIMARY_CONTACT', 'DISPATCH_FAILED']).optional(),
+  reason: z.enum(['NO_PRIMARY_CONTACT', 'DISPATCH_FAILED', 'NOTIFY_DISABLED']).optional(),
 });
+
+/**
+ * Request body of `POST /v1/appointments/:appointmentId/portal-token`.
+ * Nullish: a bodyless POST reaches Fastify as `null` and must stay valid —
+ * body validation runs before auth, so a strict schema would turn 401s into 400s.
+ */
+export const generatePortalTokenBodySchema = z
+  .object({
+    notify: z.boolean().optional(),
+  })
+  .nullish();
 
 export const portalActivityItemSchema = z.object({
   id: z.string().uuid(),

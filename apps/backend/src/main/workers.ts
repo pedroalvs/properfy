@@ -1,5 +1,5 @@
 import type { AuthContext } from '@properfy/shared';
-import { fyWebhookEventSchema } from '@properfy/shared';
+import { fyWebhookEventSchema, PLATFORM_TIMEZONE } from '@properfy/shared';
 import type { FyWebhookDispatcher } from '../modules/fy/infrastructure/fy-webhook-dispatcher';
 import { FY_WEBHOOK_JOB } from '../modules/fy/application/webhooks/fy-webhook-subscriber';
 import { getQueue, resolvePgBossSchema, assertQueueDbConsistency } from '../shared/infrastructure/queue';
@@ -19,6 +19,8 @@ import type { GeocodeRetryWorker } from '../modules/property/infrastructure/work
 import type { ImportPropertyWorker } from '../modules/property/infrastructure/workers/import-property.worker';
 import type { AppointmentImportCommitWorker } from '../modules/appointment/infrastructure/workers/appointment-import-commit.worker';
 import type { SweepAbandonedAppointmentImportsWorker } from '../modules/appointment/infrastructure/workers/sweep-abandoned-appointment-imports.worker';
+import type { PropertyImportCommitWorker } from '../modules/property/infrastructure/workers/property-import-commit.worker';
+import type { SweepAbandonedPropertyImportsWorker } from '../modules/property/infrastructure/workers/sweep-abandoned-property-imports.worker';
 import type { GenerateInvoiceFileWorker } from '../modules/billing/infrastructure/workers/generate-invoice-file.worker';
 import type { ExpireTokensWorker } from '../modules/rental-tenant-portal/infrastructure/workers/expire-tokens.worker';
 import type { NotifyStuckInspectionsWorker } from '../modules/inspector-execution/infrastructure/workers/notify-stuck.worker';
@@ -47,6 +49,11 @@ function withJobMetrics<T extends { id: string; data: Record<string, unknown> }>
   };
 }
 
+// All cron schedules fire on Sydney wall-clock time (DST-aware). Note: auth.cleanup-sessions
+// at 02:00 lands on the skipped hour once a year on DST start; pg-boss fires at the next valid
+// tick, which is acceptable for cleanup.
+const SYDNEY_TZ = { tz: PLATFORM_TIMEZONE };
+
 export async function registerWorkers(
   processReportJobUseCase: ProcessReportJobUseCase,
   sendNotificationUseCase: SendNotificationUseCase,
@@ -60,6 +67,8 @@ export async function registerWorkers(
   geocodeWorker: GeocodeWorker,
   geocodeRetryWorker: GeocodeRetryWorker,
   propertyImportWorker: ImportPropertyWorker,
+  propertyImportCommitWorker: PropertyImportCommitWorker,
+  sweepAbandonedPropertyImportsWorker: SweepAbandonedPropertyImportsWorker,
   appointmentImportCommitWorker: AppointmentImportCommitWorker,
   sweepAbandonedAppointmentImportsWorker: SweepAbandonedAppointmentImportsWorker,
   generateInvoiceFileWorker: GenerateInvoiceFileWorker,
@@ -99,7 +108,7 @@ export async function registerWorkers(
   // SendNotificationUseCase sets notification.nextRetryAt in the DB on transient failure;
   // this cron (every 5 min) polls for due rows and re-enqueues them as notification.send jobs.
   // There is NO competing self-reschedule mechanism — this cron is authoritative.
-  await boss.schedule('notification.retry-poll', '*/5 * * * *', {});
+  await boss.schedule('notification.retry-poll', '*/5 * * * *', {}, SYDNEY_TZ);
   await boss.work('notification.retry-poll', withJobMetrics('notification.retry-poll', async (job) => {
     logger.info({ jobId: job.id }, 'Processing notification.retry-poll job');
     const result = await pollRetryableNotificationsUseCase.execute();
@@ -117,7 +126,7 @@ export async function registerWorkers(
   // Delivery-receipt reconciliation: the MobileMessage webhook is best-effort, so
   // this cron sweeps SENT SMS rows (10min–72h old) and polls the provider for the
   // authoritative status (GET /v1/messages).
-  await boss.schedule('notification.sms-delivery-poll', '*/10 * * * *', {});
+  await boss.schedule('notification.sms-delivery-poll', '*/10 * * * *', {}, SYDNEY_TZ);
   await boss.work('notification.sms-delivery-poll', withJobMetrics('notification.sms-delivery-poll', async (job) => {
     logger.info({ jobId: job.id }, 'Processing notification.sms-delivery-poll job');
     const result = await pollSmsDeliveryUseCase.execute(new Date());
@@ -127,35 +136,35 @@ export async function registerWorkers(
     );
   }));
 
-  await boss.schedule('notification.dispatch-reminders', '0 8 * * *', {});
+  await boss.schedule('notification.dispatch-reminders', '0 18 * * *', {}, SYDNEY_TZ);
   await boss.work('notification.dispatch-reminders', withJobMetrics('notification.dispatch-reminders', async (job) => {
     logger.info({ jobId: job.id }, 'Processing notification.dispatch-reminders job');
     const result = await dispatchRemindersUseCase.execute(new Date());
     logger.info({ jobId: job.id, dispatched: result.dispatched, skipped: result.skipped }, 'Dispatch reminders completed');
   }));
 
-  await boss.schedule('notification.dispatch-escalations', '0 8 * * *', {});
+  await boss.schedule('notification.dispatch-escalations', '0 18 * * *', {}, SYDNEY_TZ);
   await boss.work('notification.dispatch-escalations', withJobMetrics('notification.dispatch-escalations', async (job) => {
     logger.info({ jobId: job.id }, 'Processing notification.dispatch-escalations job');
     const result = await dispatchEscalationsUseCase.execute(new Date());
     logger.info({ jobId: job.id, pmEscalations: result.pmEscalations, smsAlerts: result.smsAlerts, skipped: result.skipped }, 'Dispatch escalations completed');
   }));
 
-  await boss.schedule('auth.cleanup-sessions', '0 2 * * *', {});
+  await boss.schedule('auth.cleanup-sessions', '0 2 * * *', {}, SYDNEY_TZ);
   await boss.work('auth.cleanup-sessions', withJobMetrics('auth.cleanup-sessions', async (job) => {
     logger.info({ jobId: job.id }, 'Processing auth.cleanup-sessions job');
     const result = await cleanupSessionsWorker.execute();
     logger.info({ jobId: job.id, deletedCount: result.deletedCount }, 'Session cleanup completed');
   }));
 
-  await boss.schedule('auth.check-key-expiry', '0 3 * * *', {});
+  await boss.schedule('auth.check-key-expiry', '0 3 * * *', {}, SYDNEY_TZ);
   await boss.work('auth.check-key-expiry', withJobMetrics('auth.check-key-expiry', async (job) => {
     logger.info({ jobId: job.id }, 'Processing auth.check-key-expiry job');
     const result = keyExpiryCheckWorker.execute();
     logger.info({ jobId: job.id, daysRemaining: result.daysRemaining, level: result.level }, 'Key expiry check completed');
   }));
 
-  await boss.schedule('report.expire-files', '0 3 * * *', {});
+  await boss.schedule('report.expire-files', '0 3 * * *', {}, SYDNEY_TZ);
   await boss.work('report.expire-files', withJobMetrics('report.expire-files', async (job) => {
     logger.info({ jobId: job.id }, 'Processing report.expire-files job');
     const result = await expireFilesWorker.execute();
@@ -170,7 +179,7 @@ export async function registerWorkers(
 
   // Every 15 min: re-enqueues FAILED (24h cool-off) AND self-heals stale PENDING properties
   // whose enqueue was lost. The frequent cadence keeps a lost-enqueue property's wait bounded.
-  await boss.schedule('property.geocode-retry', '*/15 * * * *', {});
+  await boss.schedule('property.geocode-retry', '*/15 * * * *', {}, SYDNEY_TZ);
   await boss.work('property.geocode-retry', withJobMetrics('property.geocode-retry', async (job) => {
     logger.info({ jobId: job.id }, 'Processing property.geocode-retry job');
     const result = await geocodeRetryWorker.execute();
@@ -178,15 +187,15 @@ export async function registerWorkers(
   }));
 
   await boss.work('appointment.import.commit', withJobMetrics('appointment.import.commit', async (job) => {
-    const { importId, actorTimezone, actor } = job.data as {
-      importId: string; actorTimezone?: string; actor: AuthContext;
+    const { importId, actor } = job.data as {
+      importId: string; actor: AuthContext;
     };
     logger.info({ importId, jobId: job.id }, 'Processing appointment.import.commit job');
-    await appointmentImportCommitWorker.execute({ importId, actorTimezone, actor });
+    await appointmentImportCommitWorker.execute({ importId, actor });
   }));
 
   // Sweep abandoned appointment-import previews (never committed) — hourly
-  await boss.schedule('appointment.import.sweep-abandoned', '0 * * * *', {});
+  await boss.schedule('appointment.import.sweep-abandoned', '0 * * * *', {}, SYDNEY_TZ);
   await boss.work('appointment.import.sweep-abandoned', withJobMetrics('appointment.import.sweep-abandoned', async (job) => {
     logger.info({ jobId: job.id }, 'Processing appointment.import.sweep-abandoned job');
     const result = await sweepAbandonedAppointmentImportsWorker.execute();
@@ -199,28 +208,44 @@ export async function registerWorkers(
     await propertyImportWorker.execute({ importId });
   }));
 
+  await boss.work('property.import.commit', withJobMetrics('property.import.commit', async (job) => {
+    const { importId, actor } = job.data as {
+      importId: string; actor: AuthContext;
+    };
+    logger.info({ importId, jobId: job.id }, 'Processing property.import.commit job');
+    await propertyImportCommitWorker.execute({ importId, actor });
+  }));
+
+  // Sweep abandoned property-import previews (never committed) — hourly
+  await boss.schedule('property.import.sweep-abandoned', '0 * * * *', {}, SYDNEY_TZ);
+  await boss.work('property.import.sweep-abandoned', withJobMetrics('property.import.sweep-abandoned', async (job) => {
+    logger.info({ jobId: job.id }, 'Processing property.import.sweep-abandoned job');
+    const result = await sweepAbandonedPropertyImportsWorker.execute();
+    logger.info({ jobId: job.id, sweptCount: result.sweptCount }, 'Abandoned property-import sweep completed');
+  }));
+
   await boss.work('billing.generate-invoice-file', withJobMetrics('billing.generate-invoice-file', async (job) => {
     const { invoiceId } = job.data as { invoiceId: string };
     logger.info({ invoiceId, jobId: job.id }, 'Processing billing.generate-invoice-file job');
     await generateInvoiceFileWorker.execute({ invoiceId });
   }));
 
-  await boss.schedule('rental-tenant-portal.expire-tokens', '*/15 * * * *', {});
+  await boss.schedule('rental-tenant-portal.expire-tokens', '*/15 * * * *', {}, SYDNEY_TZ);
   await boss.work('rental-tenant-portal.expire-tokens', withJobMetrics('rental-tenant-portal.expire-tokens', async (job) => {
     logger.info({ jobId: job.id }, 'Processing rental-tenant-portal.expire-tokens job');
     const result = await expireTokensWorker.execute();
     logger.info({ jobId: job.id, expiredCount: result.expiredCount }, 'Token expiry completed');
   }));
 
-  await boss.schedule('inspection-execution.notify-not-started', '0 * * * *', {});
+  await boss.schedule('inspection-execution.notify-not-started', '0 * * * *', {}, SYDNEY_TZ);
   await boss.work('inspection-execution.notify-not-started', withJobMetrics('inspection-execution.notify-not-started', async (job) => {
     logger.info({ jobId: job.id }, 'Processing inspection-execution.notify-not-started job');
     const result = await notifyStuckInspectionsWorker.execute();
     logger.info({ jobId: job.id, notifiedCount: result.notifiedCount }, 'Stuck inspection alerts completed');
   }));
 
-  // Audit log retention — daily at 03:30 UTC (off-peak)
-  await boss.schedule('audit.retention', '30 3 * * *', {});
+  // Audit log retention — daily at 03:30 Sydney (off-peak)
+  await boss.schedule('audit.retention', '30 3 * * *', {}, SYDNEY_TZ);
   await boss.work('audit.retention', withJobMetrics('audit.retention', async (job) => {
     logger.info({ jobId: job.id }, 'Processing audit.retention job');
     const result = await auditRetentionWorker.execute();
@@ -238,8 +263,8 @@ export async function registerWorkers(
     );
   }));
 
-  // Reject unconfirmed appointments — daily at 09:00 UTC (19:00 AEST)
-  await boss.schedule('appointment.reject-unconfirmed', '0 9 * * *', {});
+  // Reject unconfirmed appointments — daily at 19:00 Sydney
+  await boss.schedule('appointment.reject-unconfirmed', '0 19 * * *', {}, SYDNEY_TZ);
   await boss.work('appointment.reject-unconfirmed', withJobMetrics('appointment.reject-unconfirmed', async (job) => {
     logger.info({ jobId: job.id }, 'Processing appointment.reject-unconfirmed job');
     const result = await rejectUnconfirmedWorker.execute();
@@ -256,14 +281,14 @@ export async function registerWorkers(
 
   // DLQ monitor — alert on accumulated failed jobs
   const dlqMonitor = new DlqMonitor(prisma, logger, { threshold: 10, schema: resolvePgBossSchema() });
-  await boss.schedule('system.dlq-monitor', '*/5 * * * *', {});
+  await boss.schedule('system.dlq-monitor', '*/5 * * * *', {}, SYDNEY_TZ);
   await boss.work('system.dlq-monitor', withJobMetrics('system.dlq-monitor', async (job) => {
     logger.info({ jobId: job.id }, 'Processing system.dlq-monitor job');
     const result = await dlqMonitor.execute();
     logger.info({ jobId: job.id, alertedQueues: result.alertedQueues }, 'DLQ monitor completed');
   }));
 
-  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.sms-delivery-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, property.import, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.notify-not-started, audit.retention, appointment.reject-unconfirmed, system.dlq-monitor');
+  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.sms-delivery-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, property.import, property.import.commit, property.import.sweep-abandoned, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.notify-not-started, audit.retention, appointment.reject-unconfirmed, system.dlq-monitor');
 
   // On startup: re-enqueue geocoding for all PENDING/FAILED properties that have no coordinates
   const pendingProperties = await prisma.property.findMany({

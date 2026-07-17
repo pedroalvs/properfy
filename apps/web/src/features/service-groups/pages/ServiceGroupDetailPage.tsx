@@ -46,7 +46,7 @@ export function ServiceGroupDetailPage() {
   const [portalLinkOpen, setPortalLinkOpen] = useState(false);
 
   const handleSendPortalLinks = useCallback(() => {
-    sendPortalLinks(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    sendPortalLinks();
     setPortalLinkOpen(false);
   }, [sendPortalLinks]);
 

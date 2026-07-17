@@ -311,6 +311,8 @@ fly secrets set \
   --app properfy-api-staging
 ```
 
+**Note:** `MAPBOX_ACCESS_TOKEN` is called server-to-server and must be a token with no browser URL restriction — a URL-restricted token (like the one used for `VITE_MAPBOX_TOKEN` below) fails with 403 on every server-side call, since Mapbox's URL restriction checks the HTTP `Referer`, which server requests never send.
+
 **Important:** `DIRECT_URL` is required for migrations. It bypasses PgBouncer (uses port 5432 instead of 6543). Without it, `prisma migrate deploy` may fail due to PgBouncer's transaction pooling mode.
 
 ### 7.3 Deployment

@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { formatDateTime } from '@/lib/format-date';
 import { ChangePasswordForm } from '../components/ChangePasswordForm';
 import { USER_ROLE_MAP } from '@/lib/status-colors';
+import { formatAuPhone } from '@/lib/phone-mask';
 
 export function AccountSettingsPage() {
   const { user } = useAuth();
@@ -31,7 +32,7 @@ export function AccountSettingsPage() {
             </div>
             <div>
               <p className="text-xs text-text-muted">Phone</p>
-              <p className="text-sm font-medium">{user?.phone ?? '—'}</p>
+              <p className="text-sm font-medium">{user?.phone ? formatAuPhone(user.phone) : '—'}</p>
             </div>
             <div>
               <p className="text-xs text-text-muted">Last Login</p>

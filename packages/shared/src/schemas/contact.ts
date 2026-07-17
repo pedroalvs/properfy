@@ -2,15 +2,73 @@ import { z } from 'zod';
 import { ContactType } from '../enums/contact-type';
 import { ContactChannelType } from '../enums/contact-channel-type';
 import { AppointmentContactRole } from '../enums/appointment-contact-role';
+import { toE164Au } from '../constants/phone';
+import { auPhoneSchema } from './phone';
 
 // --- Additional channel entry ---
 
+// Loose shape: used by response schemas so legacy rows (pre-validation data)
+// still serialize. Input schemas use additionalChannelInputSchema below.
 export const additionalChannelSchema = z.object({
   channel: z.nativeEnum(ContactChannelType),
   value: z.string().min(1).max(254),
   label: z.string().max(100).optional(),
 });
 export type AdditionalChannel = z.infer<typeof additionalChannelSchema>;
+
+// Strict input variant: validates value per channel type and normalizes
+// PHONE values to E.164 (+61...).
+export const additionalChannelInputSchema = additionalChannelSchema
+  .superRefine((c, ctx) => {
+    if (c.channel === ContactChannelType.EMAIL && !z.string().email().safeParse(c.value).success) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['value'],
+        message: 'Must be a valid email address',
+      });
+    }
+    if (c.channel === ContactChannelType.PHONE && toE164Au(c.value) === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['value'],
+        message: 'Must be a valid Australian phone number',
+      });
+    }
+  })
+  .transform((c) =>
+    c.channel === ContactChannelType.PHONE && toE164Au(c.value) !== null
+      ? { ...c, value: toE164Au(c.value) as string }
+      : c,
+  );
+
+// Shared post-normalization channel invariants (values are E.164/email by the
+// time refines run, so duplicates are caught across input formats).
+
+interface ChannelInvariantInput {
+  primaryEmail?: string | null;
+  primaryPhone?: string | null;
+  additionalChannels?: AdditionalChannel[];
+}
+
+function noPrimaryChannelDuplicates(data: ChannelInvariantInput): boolean {
+  const channels = data.additionalChannels ?? [];
+  if (data.primaryEmail && channels.some((c) => c.channel === 'EMAIL' && c.value === data.primaryEmail)) {
+    return false;
+  }
+  if (data.primaryPhone && channels.some((c) => c.channel === 'PHONE' && c.value === data.primaryPhone)) {
+    return false;
+  }
+  return true;
+}
+
+function noIntraArrayDuplicates(data: ChannelInvariantInput): boolean {
+  const channels = data.additionalChannels ?? [];
+  const keys = channels.map((c) => `${c.channel}:${c.value}`);
+  return new Set(keys).size === keys.length;
+}
+
+const PRIMARY_CHANNEL_DUPLICATE_MESSAGE = 'Additional channels must not duplicate primary email or phone';
+const INTRA_ARRAY_DUPLICATE_MESSAGE = 'Duplicate entries in additional channels';
 
 // --- Contact registry (create) ---
 
@@ -25,35 +83,22 @@ export const contactRegistrySchema = z
     displayName: z.string().min(1).max(200),
     company: z.string().min(1).max(200).optional().nullable(),
     primaryEmail: z.string().email().max(254).optional().nullable(),
-    primaryPhone: z.string().min(1).max(30).optional().nullable(),
-    additionalChannels: z.array(additionalChannelSchema).max(10).default([]),
+    primaryPhone: auPhoneSchema.optional().nullable(),
+    additionalChannels: z.array(additionalChannelInputSchema).max(10).default([]),
     notes: z.string().optional().nullable(),
   })
   .refine(
     (data) => data.primaryEmail != null || data.primaryPhone != null,
     { message: 'At least one of primaryEmail or primaryPhone is required', path: ['primaryEmail'] },
   )
-  .refine(
-    (data) => {
-      const channels = data.additionalChannels;
-      if (data.primaryEmail) {
-        if (channels.some((c) => c.channel === 'EMAIL' && c.value === data.primaryEmail)) return false;
-      }
-      if (data.primaryPhone) {
-        if (channels.some((c) => c.channel === 'PHONE' && c.value === data.primaryPhone)) return false;
-      }
-      return true;
-    },
-    { message: 'Additional channels must not duplicate primary email or phone', path: ['additionalChannels'] },
-  )
-  .refine(
-    (data) => {
-      const channels = data.additionalChannels;
-      const keys = channels.map((c) => `${c.channel}:${c.value}`);
-      return new Set(keys).size === keys.length;
-    },
-    { message: 'Duplicate entries in additional channels', path: ['additionalChannels'] },
-  );
+  .refine(noPrimaryChannelDuplicates, {
+    message: PRIMARY_CHANNEL_DUPLICATE_MESSAGE,
+    path: ['additionalChannels'],
+  })
+  .refine(noIntraArrayDuplicates, {
+    message: INTRA_ARRAY_DUPLICATE_MESSAGE,
+    path: ['additionalChannels'],
+  });
 export type ContactRegistryInput = z.infer<typeof contactRegistrySchema>;
 
 // --- Contact registry (update / patch) ---
@@ -64,10 +109,20 @@ export const contactRegistryUpdateSchema = z
     displayName: z.string().min(1).max(200).optional(),
     company: z.string().min(1).max(200).optional().nullable(),
     primaryEmail: z.string().email().max(254).optional().nullable(),
-    primaryPhone: z.string().min(1).max(30).optional().nullable(),
-    additionalChannels: z.array(additionalChannelSchema).max(10).optional(),
+    primaryPhone: auPhoneSchema.optional().nullable(),
+    additionalChannels: z.array(additionalChannelInputSchema).max(10).optional(),
     notes: z.string().optional().nullable(),
     isActive: z.boolean().optional(),
+  })
+  // PATCH is partial: the primary-vs-channel check only sees primary values
+  // sent in the same payload; the use case still validates against stored state.
+  .refine(noPrimaryChannelDuplicates, {
+    message: PRIMARY_CHANNEL_DUPLICATE_MESSAGE,
+    path: ['additionalChannels'],
+  })
+  .refine(noIntraArrayDuplicates, {
+    message: INTRA_ARRAY_DUPLICATE_MESSAGE,
+    path: ['additionalChannels'],
   });
 export type ContactRegistryUpdateInput = z.infer<typeof contactRegistryUpdateSchema>;
 
@@ -82,15 +137,24 @@ const contactIdLink = z.object({
 
 const inlineLink = z.object({
   contactId: z.undefined().optional(),
-  inline: z.object({
-    type: z.nativeEnum(ContactType),
-    displayName: z.string().min(1).max(200),
-    company: z.string().min(1).max(200).optional().nullable(),
-    primaryEmail: z.string().email().max(254).optional().nullable(),
-    primaryPhone: z.string().min(1).max(30).optional().nullable(),
-    additionalChannels: z.array(additionalChannelSchema).max(10).default([]),
-    notes: z.string().optional().nullable(),
-  }),
+  inline: z
+    .object({
+      type: z.nativeEnum(ContactType),
+      displayName: z.string().min(1).max(200),
+      company: z.string().min(1).max(200).optional().nullable(),
+      primaryEmail: z.string().email().max(254).optional().nullable(),
+      primaryPhone: auPhoneSchema.optional().nullable(),
+      additionalChannels: z.array(additionalChannelInputSchema).max(10).default([]),
+      notes: z.string().optional().nullable(),
+    })
+    .refine(noPrimaryChannelDuplicates, {
+      message: PRIMARY_CHANNEL_DUPLICATE_MESSAGE,
+      path: ['additionalChannels'],
+    })
+    .refine(noIntraArrayDuplicates, {
+      message: INTRA_ARRAY_DUPLICATE_MESSAGE,
+      path: ['additionalChannels'],
+    }),
   role: z.nativeEnum(AppointmentContactRole),
   isPrimary: z.boolean(),
 });
@@ -194,6 +258,6 @@ export type ContactPropertyAggregateResponse = z.infer<typeof contactPropertyAgg
 export const contactSchema = z.object({
   rentalTenantName: z.string().min(1).max(200),
   primaryEmail: z.string().email().max(254).optional(),
-  primaryPhone: z.string().max(30).optional(),
+  primaryPhone: auPhoneSchema.optional(),
 });
 export type ContactInput = z.infer<typeof contactSchema>;

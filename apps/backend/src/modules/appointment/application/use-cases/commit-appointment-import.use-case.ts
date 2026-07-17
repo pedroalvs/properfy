@@ -10,7 +10,6 @@ export interface CommitAppointmentImportInput {
   /** Confirms the operator saw the preview's errors and wants to import only
    * the valid rows anyway. When false, any error row blocks commit entirely. */
   skipInvalidRows: boolean;
-  actorTimezone?: string;
   idempotencyKey?: string;
   actor: AuthContext;
 }
@@ -82,7 +81,6 @@ export class CommitAppointmentImportUseCase {
     // concurrent commit calls for the same import can't both get enqueued.
     await this.jobQueue.enqueue('appointment.import.commit', {
       importId,
-      actorTimezone: input.actorTimezone,
       actor,
     }, { singletonKey: importId });
 

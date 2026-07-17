@@ -28,6 +28,7 @@ import {
   AppointmentDateInPastError,
 } from '../../../src/modules/appointment/domain/appointment.errors';
 import { futureDateStr } from '../../helpers/date-fixtures';
+import { PLATFORM_TIMEZONE, zonedWallTimeToUtc } from '@properfy/shared';
 
 function makeBranch(overrides: Partial<ConstructorParameters<typeof BranchEntity>[0]> = {}): BranchEntity {
   return new BranchEntity({
@@ -595,8 +596,8 @@ describe('CreateAppointmentUseCase', () => {
     });
 
     it('should accept today for CL_ADMIN', async () => {
-      // Freeze before baseInput timeSlot (09:00) so the slot is not yet past.
-      vi.useFakeTimers({ now: new Date('2027-01-15T07:00:00Z') });
+      // Freeze before baseInput timeSlot (09:00 Sydney) so the slot is not yet past.
+      vi.useFakeTimers({ now: zonedWallTimeToUtc('2027-01-15', '07:00', PLATFORM_TIMEZONE) });
       vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
       vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
       vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
@@ -604,7 +605,7 @@ describe('CreateAppointmentUseCase', () => {
 
       const result = await useCase.execute({
         ...baseInput,
-        scheduledDate: '2027-01-15', // matches frozen date
+        scheduledDate: '2027-01-15', // matches frozen Sydney civil date
         actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
       });
 

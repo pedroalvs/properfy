@@ -71,9 +71,9 @@ function normalizeStatus(data: BackendImportStatusResponse): ImportStatus {
 }
 
 export interface UseAppointmentImportReturn {
-  preview: (file: File, branchId: string, actorTimezone?: string) => Promise<AppointmentImportPreviewResponse | null>;
+  preview: (file: File, branchId: string) => Promise<AppointmentImportPreviewResponse | null>;
   isPreviewing: boolean;
-  commit: (importId: string, opts: { skipInvalidRows: boolean; actorTimezone?: string }) => Promise<boolean>;
+  commit: (importId: string, opts: { skipInvalidRows: boolean }) => Promise<boolean>;
   isCommitting: boolean;
   importStatus: ImportStatus | null;
   isPolling: boolean;
@@ -148,15 +148,14 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
   });
 
   const preview = useCallback(
-    async (file: File, branchId: string, actorTimezone?: string): Promise<AppointmentImportPreviewResponse | null> => {
+    async (file: File, branchId: string): Promise<AppointmentImportPreviewResponse | null> => {
       setIsPreviewing(true);
       try {
         const formData = new FormData();
-        // branchId (and actorTimezone) appended BEFORE the file — the backend
+        // branchId appended BEFORE the file — the backend
         // reads all multipart parts regardless of order, but this keeps
         // client and server conventions aligned per the documented contract.
         formData.append('branchId', branchId);
-        if (actorTimezone) formData.append('actorTimezone', actorTimezone);
         formData.append('file', file);
 
         const { data, error } = await api.POST('/v1/appointments/import/preview' as any, {
@@ -181,7 +180,7 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
   );
 
   const commit = useCallback(
-    async (id: string, opts: { skipInvalidRows: boolean; actorTimezone?: string }): Promise<boolean> => {
+    async (id: string, opts: { skipInvalidRows: boolean }): Promise<boolean> => {
       setIsCommitting(true);
       try {
         // Derived from the importId, not randomUUID() — a retry of the same
@@ -191,7 +190,7 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
         const idempotencyKey = `appointment-import-commit:${id}`;
         const { error } = await api.POST('/v1/appointments/import/{importId}/commit' as any, {
           params: { path: { importId: id } } as any,
-          body: { skipInvalidRows: opts.skipInvalidRows, actorTimezone: opts.actorTimezone },
+          body: { skipInvalidRows: opts.skipInvalidRows },
           headers: { 'Idempotency-Key': idempotencyKey },
         } as any);
 

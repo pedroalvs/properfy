@@ -6,7 +6,6 @@ export interface UpdateServiceGroupData {
   description?: string;
   scheduledDate?: string;
   timeWindow?: string;
-  actorTimezone?: string;
 }
 
 export interface UseUpdateServiceGroupReturn {

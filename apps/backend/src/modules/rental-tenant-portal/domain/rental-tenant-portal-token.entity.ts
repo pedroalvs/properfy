@@ -6,6 +6,7 @@ export interface RentalTenantPortalTokenProps {
   appointmentId: string;
   tokenHash: string;
   expiresAt: Date;
+  confirmCutoffAt?: Date | null;
   status: RentalTenantPortalTokenStatus;
   usedAt: Date | null;
   lastAccessedAt: Date | null;
@@ -19,6 +20,7 @@ export class RentalTenantPortalTokenEntity extends BaseEntity {
   readonly appointmentId: string;
   readonly tokenHash: string;
   readonly expiresAt: Date;
+  readonly confirmCutoffAt: Date | null;
   status: RentalTenantPortalTokenStatus;
   usedAt: Date | null;
   lastAccessedAt: Date | null;
@@ -30,6 +32,7 @@ export class RentalTenantPortalTokenEntity extends BaseEntity {
     this.appointmentId = props.appointmentId;
     this.tokenHash = props.tokenHash;
     this.expiresAt = props.expiresAt;
+    this.confirmCutoffAt = props.confirmCutoffAt ?? null;
     this.status = props.status;
     this.usedAt = props.usedAt;
     this.lastAccessedAt = props.lastAccessedAt;
@@ -39,6 +42,11 @@ export class RentalTenantPortalTokenEntity extends BaseEntity {
 
   isExpired(now: Date): boolean {
     return now > this.expiresAt;
+  }
+
+  // Legacy rows (minted before confirm_cutoff_at existed) used expires_at as the cutoff.
+  isPastConfirmCutoff(now: Date): boolean {
+    return now > (this.confirmCutoffAt ?? this.expiresAt);
   }
 
   isRevoked(): boolean {

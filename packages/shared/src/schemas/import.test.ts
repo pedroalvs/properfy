@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { importStatusResponseSchema } from './import';
+import { geocodeVerificationSchema, importStatusResponseSchema } from './import';
 
 describe('importStatusResponseSchema', () => {
   it('accepts valid import status response', () => {
@@ -38,5 +38,32 @@ describe('importStatusResponseSchema', () => {
       errorCount: 0,
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe('geocodeVerificationSchema', () => {
+  it('accepts found with coordinates', () => {
+    const result = geocodeVerificationSchema.safeParse({ status: 'found', lat: -33.86, lng: 151.2 });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts not_found and unverified with null coordinates', () => {
+    expect(geocodeVerificationSchema.safeParse({ status: 'not_found', lat: null, lng: null }).success).toBe(true);
+    expect(geocodeVerificationSchema.safeParse({ status: 'unverified', lat: null, lng: null }).success).toBe(true);
+  });
+
+  it('rejects unknown status values', () => {
+    const result = geocodeVerificationSchema.safeParse({ status: 'pending', lat: null, lng: null });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects found without coordinates', () => {
+    expect(geocodeVerificationSchema.safeParse({ status: 'found', lat: null, lng: null }).success).toBe(false);
+    expect(geocodeVerificationSchema.safeParse({ status: 'found', lat: -33.8, lng: null }).success).toBe(false);
+  });
+
+  it('rejects not_found/unverified carrying coordinates', () => {
+    expect(geocodeVerificationSchema.safeParse({ status: 'not_found', lat: -33.8, lng: 151.2 }).success).toBe(false);
+    expect(geocodeVerificationSchema.safeParse({ status: 'unverified', lat: -33.8, lng: 151.2 }).success).toBe(false);
   });
 });

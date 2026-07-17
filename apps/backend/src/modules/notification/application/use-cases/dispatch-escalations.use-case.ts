@@ -1,4 +1,5 @@
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
+import { civilDateInTimezone, PLATFORM_TIMEZONE } from '../../../../shared/domain/timezone-date';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { INotificationRepository } from '../../domain/notification.repository';
@@ -32,9 +33,9 @@ export class DispatchEscalationsUseCase {
     let smsAlerts = 0;
     let skipped = 0;
 
-    const targetDate = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + ESCALATION_OFFSET_DAYS),
-    );
+    // "Today" is the Sydney civil date; the repo expects UTC midnight of that civil date.
+    const targetDate = new Date(`${civilDateInTimezone(now, PLATFORM_TIMEZONE)}T00:00:00.000Z`);
+    targetDate.setUTCDate(targetDate.getUTCDate() + ESCALATION_OFFSET_DAYS);
     const appointments = await this.appointmentRepo.findScheduledOnDate(targetDate);
 
     for (const { appointment, contact } of appointments) {

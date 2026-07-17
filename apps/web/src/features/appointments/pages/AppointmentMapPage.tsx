@@ -249,9 +249,6 @@ export function AppointmentMapPage() {
   const lassoRef = useRef<MapLassoSelectHandle | null>(null);
   // Browser timezone — forwarded so the per-day idempotency bucket honours
   // the operator's local "today" instead of the server clock.
-  const actorTimezone = useMemo(() => {
-    try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return undefined; }
-  }, []);
 
   // Appointment data — fetched when mode is 'appointments'
   const appointmentParams: ListParams = useMemo(() => ({
@@ -1108,7 +1105,6 @@ export function AppointmentMapPage() {
         appointments={selectedAppointmentsForPanel}
         open={(lassoState === 'review' || lassoState === 'applying') && mode === 'appointments'}
         onClose={handleBulkModalClose}
-        actorTimezone={actorTimezone}
         actorRole={actorRole}
         clUserFlags={clUserFlags}
         onAddToGroup={handleOpenAddToGroup}
@@ -1156,7 +1152,6 @@ export function AppointmentMapPage() {
         resizeStorageKey="appointments-map.group-modal.width"
         showGroupCreationActions={false}
         onClose={() => { setSelectedGroupItem(null); setSelectedItem(null); }}
-        actorTimezone={actorTimezone}
         actorRole={actorRole}
         clUserFlags={clUserFlags}
         onResize={setGroupModalWidth}

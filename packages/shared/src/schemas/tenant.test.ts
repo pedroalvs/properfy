@@ -23,8 +23,9 @@ describe('createTenantSchema', () => {
     const result = createTenantSchema.safeParse(validInput);
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.timezone).toBe('Australia/Sydney');
       expect(result.data.currency).toBe('AUD');
+      // timezone is no longer part of the contract — the platform is Sydney-only.
+      expect('timezone' in result.data).toBe(false);
     }
   });
 
@@ -65,7 +66,7 @@ describe('createTenantSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('should accept valid input with all fields', () => {
+  it('should accept valid input with all fields, stripping the removed timezone field', () => {
     const result = createTenantSchema.safeParse({
       ...validInput,
       timezone: 'America/Sao_Paulo',
@@ -73,6 +74,7 @@ describe('createTenantSchema', () => {
       settings: { billingPeriod: 'WEEKLY' },
     });
     expect(result.success).toBe(true);
+    expect(result.success && 'timezone' in result.data).toBe(false);
   });
 
   it('should reject missing name', () => {

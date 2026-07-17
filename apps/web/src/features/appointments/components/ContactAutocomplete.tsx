@@ -7,6 +7,7 @@ import {
   formOptionActive,
 } from '@/components/forms/form-styles';
 import { useContactSearch, type ContactSearchResult } from '../hooks/useContactSearch';
+import { formatAuPhone } from '@/lib/phone-mask';
 
 interface ContactAutocompleteProps {
   value: string;
@@ -137,7 +138,7 @@ export function ContactAutocomplete({
                   <span className="text-xs text-text-muted">
                     {formatContactType(contact.type)}
                     {contact.primaryEmail && ` \u00B7 ${contact.primaryEmail}`}
-                    {contact.primaryPhone && ` \u00B7 ${contact.primaryPhone}`}
+                    {contact.primaryPhone && ` \u00B7 ${formatAuPhone(contact.primaryPhone)}`}
                   </span>
                 </div>
               </li>

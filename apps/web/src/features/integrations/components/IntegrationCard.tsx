@@ -4,6 +4,7 @@ import type { IntegrationDetail, IntegrationTestResult } from '@properfy/shared'
 import { Button } from '@/components/ui';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { TextInput } from '@/components/forms/TextInput';
+import { InfoBanner } from '@/components/feedback/InfoBanner';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import type { ProviderMeta } from '../providerMeta';
 import {
@@ -100,6 +101,12 @@ export function IntegrationCard({ meta, detail }: IntegrationCardProps) {
           {badge.label}
         </span>
       </div>
+
+      {meta.note && (
+        <InfoBanner variant="warning" className="mt-4">
+          {meta.note}
+        </InfoBanner>
+      )}
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {meta.fields.map((field) => {

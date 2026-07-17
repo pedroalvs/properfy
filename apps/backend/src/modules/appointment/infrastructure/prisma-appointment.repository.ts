@@ -424,6 +424,8 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
 
   // Cross-tenant: background job processes all tenants for reminders/escalation
   async findScheduledOnDate(date: Date): Promise<AppointmentWithRelations[]> {
+    // scheduled_date is a @db.Date pinned to UTC midnight; callers must pass
+    // UTC midnight of the *Sydney* civil date they are targeting.
     const startOfDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
     const endOfDay = new Date(startOfDay.getTime() + 86_400_000);
 
@@ -571,7 +573,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
   // contact read path.
 
   async findVisibleForInspector(params: VisibleForInspectorParams): Promise<AppointmentListItem[]> {
-    const { inspectorId, fromDate, toDate, today } = params;
+    const { inspectorId, fromDate, toDate, todayCivil } = params;
 
     const items = await this.findAll(
       { inspectorId, status: ['SCHEDULED'], fromDate, toDate },
@@ -596,12 +598,12 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         item.appointment.rentalTenantConfirmationStatus,
         item.appointment.keyRequired,
         item.appointment.scheduledDate,
-        today,
+        todayCivil,
       );
     });
   }
 
-  async isAppointmentVisibleForInspector(appointmentId: string, today: Date): Promise<boolean> {
+  async isAppointmentVisibleForInspector(appointmentId: string, todayCivil: string): Promise<boolean> {
     const row = await this.prisma.appointment.findFirst({
       where: { id: appointmentId, deleted_at: null },
       include: {
@@ -619,7 +621,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       entity.rentalTenantConfirmationStatus,
       entity.keyRequired,
       entity.scheduledDate,
-      today,
+      todayCivil,
     );
   }
 
@@ -644,6 +646,8 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
   }
 
   async findUnconfirmedForDate(date: Date): Promise<AppointmentEntity[]> {
+    // scheduled_date is a @db.Date pinned to UTC midnight; callers must pass
+    // UTC midnight of the *Sydney* civil date they are targeting.
     const startOfDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
     const endOfDay = new Date(startOfDay.getTime() + 86_400_000);
 

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { PLATFORM_TIMEZONE, zonedWallTimeToUtc } from '@properfy/shared';
 import { GetInspectorEarningsSummaryUseCase } from '../../../src/modules/billing/application/use-cases/get-inspector-earnings-summary.use-case';
 import { FakeClock } from '../../helpers/fake-clock';
 
@@ -38,10 +39,11 @@ describe('GetInspectorEarningsSummaryUseCase', () => {
     const uc = new GetInspectorEarningsSummaryUseCase(repo, new FakeClock(NOW));
     await uc.execute({ inspectorId: 'insp-1', months: 6 });
 
-    // 6-month window ending July 2026 starts 2026-02-01 (UTC month boundaries).
+    // 6-month window ending July 2026 (Sydney calendar) starts at Sydney
+    // midnight of 2026-02-01, not UTC midnight.
     expect(repo.getInspectorEarningsSummary).toHaveBeenCalledWith(
       'insp-1',
-      new Date(Date.UTC(2026, 1, 1)),
+      zonedWallTimeToUtc('2026-02-01', '00:00', PLATFORM_TIMEZONE),
     );
   });
 

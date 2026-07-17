@@ -310,13 +310,13 @@ describe('AppointmentImportPage', () => {
       expect.objectContaining({ body: expect.objectContaining({ skipInvalidRows: false }) }),
     ));
 
-    // The operator's real IANA timezone must reach both calls — otherwise
-    // date-defaulting and the past-date check run in UTC on the backend.
+    // Sydney-only platform: no client timezone travels with either call —
+    // date-defaulting and the past-date check run in Australia/Sydney server-side.
     const previewCall = mockPost.mock.calls.find((c) => c[0] === '/v1/appointments/import/preview')!;
     const previewFormData = previewCall[1].body;
-    expect(previewFormData.get('actorTimezone')).toBeTruthy();
+    expect(previewFormData.get('actorTimezone')).toBeNull();
     const commitCall = mockPost.mock.calls.find((c) => c[0] === '/v1/appointments/import/{importId}/commit')!;
-    expect(commitCall[1].body.actorTimezone).toBeTruthy();
+    expect(commitCall[1].body.actorTimezone).toBeUndefined();
   });
 
   it('asks to import valid rows only when the preview has errors, then commits with skipInvalidRows', async () => {

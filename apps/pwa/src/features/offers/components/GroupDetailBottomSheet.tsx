@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { formatCurrency } from '@/lib/format-currency';
-import { formatDate } from '@/lib/format-date';
+import { formatCivilDate } from '@/lib/format-date';
 import { useIsOnline } from '@/hooks/useIsOnline';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useMarketplaceOfferDetail } from '../hooks/useMarketplaceOfferDetail';
@@ -122,7 +122,7 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept, accepting }
               <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-gray-100 pb-3">
                 <span className="text-sm font-semibold text-text-primary">{data.serviceTypeName}</span>
                 <span className="text-sm text-text-secondary">{data.timeWindow}</span>
-                <span className="text-xs text-text-muted">{formatDate(data.scheduledDate)}</span>
+                <span className="text-xs text-text-muted">{formatCivilDate(data.scheduledDate)}</span>
               </div>
 
               <ul className="divide-y divide-gray-100">

@@ -1,4 +1,5 @@
 import type { IRentalTenantPortalTokenRepository } from '../../domain/rental-tenant-portal-token.repository';
+import { PLATFORM_TIMEZONE } from '@properfy/shared';
 import type { IRentalTenantPortalActivityRepository } from '../../domain/rental-tenant-portal-activity.repository';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { IPropertyRepository } from '../../../property/domain/property.repository';
@@ -11,6 +12,7 @@ export interface GetPortalDataInput {
   tokenId: string;
   appointmentId: string;
   isReadOnly: boolean;
+  isPastConfirmCutoff: boolean;
   tokenStatus: string;
   expiresAt: string;
   ipAddress: string | null;
@@ -75,6 +77,7 @@ export class GetPortalDataUseCase {
       token: {
         status: input.tokenStatus,
         isReadOnly: input.isReadOnly,
+        isPastConfirmCutoff: input.isPastConfirmCutoff,
         isExpired,
         canRequestNewLink: isExpired,
         expiresAt: input.expiresAt,
@@ -82,7 +85,7 @@ export class GetPortalDataUseCase {
       appointment: {
         id: appointment.id,
         status: appointment.status,
-        scheduledDate: appointment.scheduledDate,
+        scheduledDate: appointment.scheduledDate.toISOString().slice(0, 10),
         timeSlotStart: appointment.timeSlotStart,
         timeSlotEnd: appointment.timeSlotEnd,
         rentalTenantConfirmationStatus: appointment.rentalTenantConfirmationStatus,
@@ -130,7 +133,7 @@ export class GetPortalDataUseCase {
       rescheduleAllowed: serviceType?.flowType === 'ROUTINE',
       tenant: {
         name: tenant?.name ?? null,
-        timezone: tenant?.timezone ?? 'Australia/Sydney',
+        timezone: PLATFORM_TIMEZONE,
       },
     };
   }

@@ -4,8 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider, useSnackbar } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
 
-vi.mock('@properfy/shared', () => ({
-  contactSchema: { shape: { primaryEmail: { safeParse: () => ({ success: true }) } } },
+vi.mock('@properfy/shared', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
   AppointmentStatus: { DRAFT: 'DRAFT', SCHEDULED: 'SCHEDULED', AWAITING_INSPECTOR: 'AWAITING_INSPECTOR', DONE: 'DONE', CANCELLED: 'CANCELLED', REJECTED: 'REJECTED' },
   AppointmentContactRole: { TENANT: 'RENTAL_TENANT', TENANT_REPRESENTATIVE: 'TENANT_REPRESENTATIVE', HOUSEKEEPER: 'HOUSEKEEPER', PROPERTY_MANAGER: 'PROPERTY_MANAGER', BROKER: 'BROKER', OTHER: 'OTHER' },
   RentalTenantConfirmationStatus: { PENDING: 'PENDING', CONFIRMED: 'CONFIRMED', UNAVAILABLE: 'UNAVAILABLE', NO_RESPONSE: 'NO_RESPONSE' },
@@ -13,7 +13,9 @@ vi.mock('@properfy/shared', () => ({
   // when picking the registry-row type and adding additional channels.
   ContactType: { TENANT: 'RENTAL_TENANT', PROPERTY_MANAGER: 'PROPERTY_MANAGER', HOUSEKEEPER: 'HOUSEKEEPER', BROKER: 'BROKER', OTHER: 'OTHER' },
   ContactChannelType: { EMAIL: 'EMAIL', PHONE: 'PHONE' },
-  todayLocalDateString: () => '2026-03-29',
+  PLATFORM_TIMEZONE: 'Australia/Sydney',
+  todayInTzDateString: () => '2026-03-29',
+  currentTimeInTzHHmm: () => '08:00',
   isTimeStartInPastForDate: () => false,
   validateEditedSchedule: () => ({ ok: true }),
   CUSTOM_FIELD_LABEL_MAX: 50,
@@ -194,6 +196,14 @@ describe('AppointmentFormDrawer', () => {
     expect(screen.getByLabelText('Contact 1 Display name')).toHaveValue('John Doe');
     expect(screen.getByLabelText('Contact 1 Phone')).toHaveValue('11999999999');
     expect(screen.getByLabelText('Contact 1 Email')).toHaveValue('john@test.com');
+  });
+
+  it('shows an inline AU phone error when an invalid contact phone is blurred', () => {
+    renderDrawer({ appointmentId: 'apt-01' });
+    const phone = screen.getByLabelText('Contact 1 Phone');
+    fireEvent.change(phone, { target: { value: '123' } });
+    fireEvent.blur(phone);
+    expect(screen.getByText('Enter a valid Australian phone number')).toBeInTheDocument();
   });
 
   it('shows validation errors and prevents save when validation fails', () => {

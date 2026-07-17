@@ -1,4 +1,5 @@
 import { type AuthContext, type AppointmentContactRole, type AppointmentCustomField } from '@properfy/shared';
+import { PLATFORM_TIMEZONE } from '@properfy/shared';
 import { NotFoundError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
@@ -84,7 +85,6 @@ export interface UpdateAppointmentInput {
       source: RestrictionSource;
     } | null;
   };
-  actorTimezone?: string;
   actor: AuthContext;
 }
 
@@ -229,7 +229,7 @@ export class UpdateAppointmentUseCase {
     // TZ-aware past-date/time validation for date or time changes. Falls back to UTC (R7).
     // `validateEditedSchedule` accepts a bare HH:mm start (it splits on '-', a no-op here).
     if (data.scheduledDate !== undefined || timeChanged) {
-      const tz = input.actorTimezone ?? 'UTC';
+      const tz = PLATFORM_TIMEZONE;
       const existingDateStr = appointment.scheduledDate.toISOString().slice(0, 10);
       const scheduleCheck = validateEditedSchedule({
         existingDate: existingDateStr,

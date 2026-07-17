@@ -25,6 +25,11 @@ export interface GeneratePortalTokenInput {
    * bypass the operator-facing status gate; HTTP routes must never set it.
    */
   allowAnyStatus?: boolean;
+  /**
+   * When false, mint the token without dispatching any notification —
+   * the operator copies the link manually. Defaults to true.
+   */
+  notify?: boolean;
 }
 
 const ALLOWED_ROLES = ['AM', 'OP'] as const;
@@ -109,6 +114,30 @@ export class GeneratePortalTokenUseCase {
         expiresAt: expiresAt.toISOString(),
       },
     });
+
+    // Generate-only: the operator asked for a copyable link with no tenant
+    // notification. Skip dispatch before any contact checks — the recipient
+    // is irrelevant when nothing is sent.
+    if (input.notify === false) {
+      this.auditService.log({
+        action: 'rental_tenant_portal.dispatch_skipped',
+        actorType: 'USER',
+        actorId: input.actor.userId,
+        entityType: 'appointment',
+        entityId: appointment.id,
+        tenantId: appointment.tenantId,
+        metadata: {
+          appointmentId: input.appointmentId,
+          reason: 'NOTIFY_DISABLED',
+        },
+      });
+      return {
+        token: rawToken,
+        expiresAt,
+        dispatched: false as const,
+        reason: 'NOTIFY_DISABLED' as const,
+      };
+    }
 
     // 023 §FR-221 — primary-only dispatch. Without an `isPrimary === true`
     // contact, the portal link has no canonical recipient. We still mint the

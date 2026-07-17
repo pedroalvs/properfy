@@ -1,4 +1,5 @@
 import type { BulkActionResultItem, BulkActionResultStatus } from '@properfy/shared';
+import { PLATFORM_TIMEZONE } from '@properfy/shared';
 import { ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
 import {
   AppointmentAccessDeniedError,
@@ -13,24 +14,17 @@ import {
 } from '../../domain/appointment.errors';
 
 /**
- * YYYY-MM-DD day key in the actor's IANA timezone for per-day idempotency
+ * YYYY-MM-DD day key in the platform timezone (Sydney) for per-day idempotency
  * bucketing. Matches `bulk-resend-reminder.use-case.ts` (023 §FR-243) so all
  * bulk operations share the same key convention.
  */
-export function dayKeyInTz(now: Date, timeZone?: string): string {
-  try {
-    return new Intl.DateTimeFormat('en-CA', {
-      timeZone: timeZone ?? undefined,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(now);
-  } catch {
-    const yyyy = now.getUTCFullYear();
-    const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
-    const dd = String(now.getUTCDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-  }
+export function dayKeyInTz(now: Date): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: PLATFORM_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now);
 }
 
 /**

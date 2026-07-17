@@ -9,6 +9,7 @@ import type { IServiceTypeReader } from '../../domain/service-type-reader';
 import type { IContactReader, ContactRegistryInfo, ContactRegistryChannel } from '../../domain/contact-reader';
 import { T1VisibilityService } from '../../domain/t1-visibility.service';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import { civilDateInTimezone, PLATFORM_TIMEZONE } from '../../../../shared/domain/timezone-date';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import {
@@ -190,13 +191,13 @@ export class GetAppointmentDetailUseCase {
     if (appointment.status === 'SCHEDULED') {
       const st = await this.serviceTypeReader.findById(appointment.serviceTypeId);
       const flowType = st?.flowType ?? 'ROUTINE';
-      const today = new Date();
+      const todayCivil = civilDateInTimezone(new Date(), PLATFORM_TIMEZONE);
       const isVisible = this.t1Service.isVisibleForInspector(
         flowType,
         appointment.rentalTenantConfirmationStatus,
         appointment.keyRequired,
         appointment.scheduledDate,
-        today,
+        todayCivil,
       );
       if (!isVisible) {
         throw new ExecutionT1BlockedError();

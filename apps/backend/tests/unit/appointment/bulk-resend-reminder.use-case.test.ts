@@ -1,13 +1,12 @@
 /**
- * BulkResendReminderUseCase — covers the timezone-aware idempotency key
- * (023 §FR-243) and the per-item status mapping. Specifically guards the
- * code-review fix (Issue 3) that threads `actorTimezone` end-to-end so
- * the per-day bucket honours the operator's local "today" instead of the
- * server timezone.
+ * BulkResendReminderUseCase — covers the per-day idempotency key
+ * (023 §FR-243) and the per-item status mapping. The platform is
+ * Sydney-only: the day key comes from the shared Sydney-anchored
+ * `dayKeyInTz` helper (`bulk-action-shared.ts`).
  *
- * The behavioural surface tested here is the IDEMPOTENCY KEY shape, not
- * the underlying SQL — the idempotency service and portal-token use case
- * are mocked. The integration test for the route + envelope lives at
+ * The behavioural surface tested here is the IDEMPOTENCY KEY, not the
+ * underlying SQL — the idempotency service and portal-token use case are
+ * mocked. The integration test for the route + envelope lives at
  * `tests/integration/appointment/bulk-resend-reminder.routes.test.ts`.
  */
 
@@ -17,7 +16,6 @@ import type { GeneratePortalTokenUseCase } from '../../../src/modules/rental-ten
 import type { IIdempotencyService } from '../../../src/shared/domain/idempotency.service';
 
 const APPT_ID_1 = 'aaaaaaaa-0000-4000-8000-000000000001';
-const APPT_ID_2 = 'aaaaaaaa-0000-4000-8000-000000000002';
 
 function makeMocks() {
   const generatePortalToken = {
@@ -32,90 +30,44 @@ function makeMocks() {
 
 const actor = { userId: 'u1', tenantId: null, role: 'AM' as const, branchId: null, inspectorId: null };
 
-describe('BulkResendReminderUseCase — timezone-aware day key (Issue 3)', () => {
+describe('BulkResendReminderUseCase — per-day idempotency key', () => {
   let mocks: ReturnType<typeof makeMocks>;
 
   beforeEach(() => {
     mocks = makeMocks();
   });
 
-  it('uses the actor timezone to compute the day key — Sydney crosses to next day before UTC', async () => {
-    // 2026-04-15 13:00 UTC = 2026-04-15 23:00 Sydney → still day 15 in Sydney.
-    // 2026-04-15 14:30 UTC = 2026-04-16 00:30 Sydney → already day 16 in Sydney.
-    const t1330UtcSameDayInSydney = new Date('2026-04-15T13:00:00Z');
-    const t1430UtcNextDayInSydney = new Date('2026-04-15T14:30:00Z');
-    const useCaseT1 = new BulkResendReminderUseCase(
+  it('derives the day key from the Sydney civil date (same instant → same key)', async () => {
+    const instant = new Date('2026-04-15T12:00:00Z'); // 22:00 AEST — still 2026-04-15 in Sydney
+    const useCase = new BulkResendReminderUseCase(
       mocks.generatePortalToken,
       mocks.idempotency,
-      () => t1330UtcSameDayInSydney,
-    );
-    const useCaseT2 = new BulkResendReminderUseCase(
-      mocks.generatePortalToken,
-      mocks.idempotency,
-      () => t1430UtcNextDayInSydney,
+      () => instant,
     );
 
-    await useCaseT1.execute({ appointmentIds: [APPT_ID_1], actor, actorTimezone: 'Australia/Sydney' });
-    await useCaseT2.execute({ appointmentIds: [APPT_ID_1], actor, actorTimezone: 'Australia/Sydney' });
+    await useCase.execute({ appointmentIds: [APPT_ID_1], actor });
+    await useCase.execute({ appointmentIds: [APPT_ID_1], actor });
 
     const calls = (mocks.idempotency.getWithHash as ReturnType<typeof vi.fn>).mock.calls.map(
       ([key]) => key as string,
     );
     expect(calls[0]).toBe(`bulk_resend:${APPT_ID_1}:2026-04-15`);
-    expect(calls[1]).toBe(`bulk_resend:${APPT_ID_1}:2026-04-16`);
+    // Two requests at the same instant share the same per-day bucket.
+    expect(calls[1]).toBe(calls[0]);
   });
 
-  it('honours the actor timezone for an East-Asia operator independent of the server clock', async () => {
-    // Server clock at 2026-04-15 01:00 UTC == 2026-04-15 11:00 Sydney
-    //                                       == 2026-04-14 21:00 New York.
-    // Same wall-clock instant produces different day keys per actor TZ.
-    const sameInstant = new Date('2026-04-15T01:00:00Z');
+  it('rolls the day bucket at Sydney midnight, before UTC midnight', async () => {
+    // 15:00Z on the 15th = 01:00 AEST on the 16th — Sydney has already rolled over.
     const useCase = new BulkResendReminderUseCase(
       mocks.generatePortalToken,
       mocks.idempotency,
-      () => sameInstant,
-    );
-
-    await useCase.execute({ appointmentIds: [APPT_ID_1], actor, actorTimezone: 'Australia/Sydney' });
-    await useCase.execute({ appointmentIds: [APPT_ID_2], actor, actorTimezone: 'America/New_York' });
-
-    const calls = (mocks.idempotency.getWithHash as ReturnType<typeof vi.fn>).mock.calls.map(
-      ([key]) => key as string,
-    );
-    expect(calls[0]).toBe(`bulk_resend:${APPT_ID_1}:2026-04-15`);
-    expect(calls[1]).toBe(`bulk_resend:${APPT_ID_2}:2026-04-14`);
-  });
-
-  it('falls back to the server TZ silently when actorTimezone is omitted', async () => {
-    const useCase = new BulkResendReminderUseCase(
-      mocks.generatePortalToken,
-      mocks.idempotency,
-      () => new Date('2026-04-15T12:00:00Z'),
+      () => new Date('2026-04-15T15:00:00Z'),
     );
 
     await useCase.execute({ appointmentIds: [APPT_ID_1], actor });
 
-    // Must produce SOME well-formed YYYY-MM-DD; we don't pin the exact
-    // value since it depends on the test environment's TZ.
     const [key] = (mocks.idempotency.getWithHash as ReturnType<typeof vi.fn>).mock.calls[0]!;
-    expect(key).toMatch(/^bulk_resend:[\da-f-]{36}:\d{4}-\d{2}-\d{2}$/);
-  });
-
-  it('an invalid timezone string falls back to UTC instead of throwing', async () => {
-    const useCase = new BulkResendReminderUseCase(
-      mocks.generatePortalToken,
-      mocks.idempotency,
-      () => new Date('2026-04-15T12:00:00Z'),
-    );
-
-    await useCase.execute({
-      appointmentIds: [APPT_ID_1],
-      actor,
-      actorTimezone: 'Definitely/NotAZone',
-    });
-
-    const [key] = (mocks.idempotency.getWithHash as ReturnType<typeof vi.fn>).mock.calls[0]!;
-    expect(key).toBe(`bulk_resend:${APPT_ID_1}:2026-04-15`);
+    expect(key).toBe(`bulk_resend:${APPT_ID_1}:2026-04-16`);
   });
 
   it('marks a same-day retry as IDEMPOTENT_REPLAY without re-dispatching', async () => {
@@ -132,7 +84,6 @@ describe('BulkResendReminderUseCase — timezone-aware day key (Issue 3)', () =>
     const out = await useCase.execute({
       appointmentIds: [APPT_ID_1],
       actor,
-      actorTimezone: 'Australia/Sydney',
     });
 
     expect(out.results).toEqual([{ appointmentId: APPT_ID_1, status: 'IDEMPOTENT_REPLAY' }]);

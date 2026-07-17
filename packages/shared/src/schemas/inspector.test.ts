@@ -8,6 +8,7 @@ import {
   createAvailabilitySlotSchema,
   updateAvailabilitySlotSchema,
   listAvailabilitySlotsQuerySchema,
+  inspectorSelfUpdateSchema,
 } from './inspector';
 
 describe('paymentSettingsSchema', () => {
@@ -320,5 +321,34 @@ describe('listAvailabilitySlotsQuerySchema', () => {
       expect(result.data.pageSize).toBe(20);
       expect(result.data.sortOrder).toBe('desc');
     }
+  });
+});
+
+describe('AU phone validation on inspector schemas', () => {
+  it('createInspectorSchema normalizes local phone to E.164', () => {
+    const result = createInspectorSchema.parse({
+      name: 'Insp',
+      email: 'insp@example.com',
+      phone: '0412 345 678',
+    });
+    expect(result.phone).toBe('+61412345678');
+  });
+
+  it('createInspectorSchema rejects invalid phone', () => {
+    expect(
+      createInspectorSchema.safeParse({ name: 'Insp', email: 'insp@example.com', phone: '123' }).success,
+    ).toBe(false);
+  });
+
+  it('updateInspectorSchema normalizes and still accepts null', () => {
+    expect(updateInspectorSchema.parse({ phone: '0412345678' }).phone).toBe('+61412345678');
+    expect(updateInspectorSchema.safeParse({ phone: null }).success).toBe(true);
+    expect(updateInspectorSchema.safeParse({ phone: 'bogus' }).success).toBe(false);
+  });
+
+  it('inspectorSelfUpdateSchema requires AU number (rejects non-AU E.164)', () => {
+    expect(inspectorSelfUpdateSchema.safeParse({ phone: '+15551234567' }).success).toBe(false);
+    expect(inspectorSelfUpdateSchema.parse({ phone: '0412 345 678' }).phone).toBe('+61412345678');
+    expect(inspectorSelfUpdateSchema.safeParse({ phone: null }).success).toBe(true);
   });
 });

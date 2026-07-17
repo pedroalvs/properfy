@@ -412,6 +412,61 @@ describe('PortalPage', () => {
     expect(screen.getByRole('button', { name: 'Join this time slot' })).toBeInTheDocument();
   });
 
+  describe('past confirm cutoff regime (valid token)', () => {
+    const PAST_CUTOFF_DATA = {
+      ...MOCK_PORTAL_DATA,
+      token: { status: 'ACTIVE', isReadOnly: false, isPastConfirmCutoff: true },
+    };
+
+    it('shows the cutoff banner and locks only the Yes option', async () => {
+      mockGet.mockResolvedValue({ data: PAST_CUTOFF_DATA });
+      renderPortal();
+      await screen.findByText(/confirmation deadline has passed/i);
+      expect(screen.getByRole('button', { name: /yes/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /no/i })).not.toBeDisabled();
+    });
+
+    it('keeps "Change time" and "Propose new date" available past the cutoff', async () => {
+      mockGet.mockResolvedValue({ data: PAST_CUTOFF_DATA });
+      renderPortal();
+      await screen.findByText(/confirmation deadline has passed/i);
+      expect(screen.getByRole('button', { name: /change time/i })).toBeTruthy();
+      expect(screen.getByRole('button', { name: /propose new date/i })).toBeTruthy();
+    });
+
+    it('keeps the fully restricted regime when the token is truly expired', async () => {
+      mockGet.mockResolvedValue({
+        data: {
+          ...MOCK_PORTAL_DATA,
+          token: { status: 'EXPIRED', isReadOnly: true, isPastConfirmCutoff: true },
+        },
+      });
+      renderPortal();
+      await screen.findByText(/restricted mode/i);
+      expect(screen.queryByRole('button', { name: /change time/i })).toBeNull();
+    });
+  });
+
+  describe('confirm race with a just-cancelled appointment', () => {
+    it('refetches and shows the cancelled view when confirm returns PORTAL_APPOINTMENT_INACTIVE', async () => {
+      mockGet.mockResolvedValueOnce({ data: MOCK_PORTAL_DATA });
+      mockPost.mockResolvedValue({
+        error: { error: { code: 'PORTAL_APPOINTMENT_INACTIVE', message: 'Appointment is no longer active' } },
+        response: { status: 409 },
+      });
+      mockGet.mockResolvedValue({
+        data: { ...MOCK_PORTAL_DATA, appointment: { ...MOCK_PORTAL_DATA.appointment, status: 'CANCELLED' } },
+      });
+      renderPortal();
+      const user = userEvent.setup();
+      await screen.findByRole('button', { name: /yes/i });
+      await user.click(screen.getByRole('button', { name: /yes/i }));
+      await user.click(screen.getByRole('button', { name: /submit/i }));
+      await screen.findByText(/cancelled/i);
+      expect(screen.queryByText(/attendance confirmed/i)).toBeNull();
+    });
+  });
+
   it('shows generic error state for unknown API errors', async () => {
     mockGet.mockResolvedValue({ data: undefined, error: new ApiError(500, 'Server error') });
     renderPortal();

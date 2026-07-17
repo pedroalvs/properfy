@@ -10,6 +10,7 @@ import {
   reportUnavailabilityPortalResponseSchema,
   portalDataResponseSchema,
   portalTokenResponseSchema,
+  generatePortalTokenBodySchema,
   portalActivitiesResponseSchema,
   availableGroupsResponseSchema,
   joinGroupRequestSchema,
@@ -85,6 +86,7 @@ export async function registerRentalTenantPortalRoutes(
         tokenId: ctx.tokenId,
         appointmentId: ctx.appointmentId,
         isReadOnly: ctx.isReadOnly,
+        isPastConfirmCutoff: ctx.isPastConfirmCutoff,
         tokenStatus: ctx.tokenStatus,
         expiresAt: ctx.expiresAt,
         ipAddress,
@@ -115,6 +117,7 @@ export async function registerRentalTenantPortalRoutes(
         tokenId: ctx.tokenId,
         appointmentId: ctx.appointmentId,
         isReadOnly: ctx.isReadOnly,
+        isPastConfirmCutoff: ctx.isPastConfirmCutoff,
         isUsed: ctx.isUsed,
         restrictions: parsed.data.restrictions
           ? {
@@ -229,6 +232,7 @@ export async function registerRentalTenantPortalRoutes(
         tokenId: ctx.tokenId,
         appointmentId: ctx.appointmentId,
         isReadOnly: ctx.isReadOnly,
+        isPastConfirmCutoff: ctx.isPastConfirmCutoff,
         isUsed: ctx.isUsed,
         restrictions: parsed.data.restrictions
           ? {
@@ -302,16 +306,21 @@ export async function registerRentalTenantPortalRoutes(
   // POST /v1/appointments/:appointmentId/portal-token
   app.post(
     '/v1/appointments/:appointmentId/portal-token',
-    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }), response: { 201: successResponseSchema(portalTokenResponseSchema) } } },
+    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }), body: generatePortalTokenBodySchema, response: { 201: successResponseSchema(portalTokenResponseSchema) } } },
     async (request, reply) => {
       const params = appointmentIdParam.safeParse(request.params);
       if (!params.success) {
         throw new ValidationError('Invalid appointment ID', params.error.errors);
       }
+      const body = generatePortalTokenBodySchema.safeParse(request.body);
+      if (!body.success) {
+        throw new ValidationError('Request payload is invalid', body.error.errors);
+      }
 
       const result = await container.generatePortalTokenUseCase.execute({
         appointmentId: params.data.appointmentId,
         actor: request.authContext!,
+        notify: body.data?.notify,
       });
       return reply.status(201).send(success(result));
     },

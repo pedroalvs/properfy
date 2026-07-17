@@ -1,5 +1,6 @@
 export { isAppointmentOverdue } from './overdue';
-export { todayLocalDateString, todayUTCDateString, toLocalDateString, todayInTzDateString, currentTimeInTzHHmm, isTimeStartInPastForDate } from './local-date';
+export { todayInTzDateString, currentTimeInTzHHmm, isTimeStartInPastForDate } from './local-date';
+export { zonedWallTimeToUtc, endOfCivilDayInTz } from './timezone-date';
 export { validateNewSchedule, validateEditedSchedule, type DateValidationResult } from './edit-date-validation';
 export { formatInvoiceNumber, INVOICE_NUMBER_PREFIX } from './format-invoice-number';
 export {

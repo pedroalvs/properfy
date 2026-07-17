@@ -1,4 +1,5 @@
 import type { AvailableGroup } from '@properfy/shared';
+import { formatDate } from '@/lib/format-date';
 
 interface AvailableGroupsListProps {
   groups: AvailableGroup[];
@@ -92,7 +93,7 @@ export function AvailableGroupsList({
               <span>·</span>
               <span>{group.inspectorName}</span>
               <span>·</span>
-              <span>{group.scheduledDate}</span>
+              <span>{formatDate(group.scheduledDate)}</span>
             </div>
           </button>
         );

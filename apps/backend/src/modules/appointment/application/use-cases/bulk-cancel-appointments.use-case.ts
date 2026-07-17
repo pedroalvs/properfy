@@ -10,7 +10,6 @@ export interface BulkCancelAppointmentsInput {
   appointmentIds: string[];
   reason: string;
   actor: AuthContext;
-  actorTimezone?: string;
 }
 
 export interface BulkCancelAppointmentsOutput {
@@ -38,7 +37,7 @@ export class BulkCancelAppointmentsUseCase {
   ) {}
 
   async execute(input: BulkCancelAppointmentsInput): Promise<BulkCancelAppointmentsOutput> {
-    const dayKey = dayKeyInTz(this.clock(), input.actorTimezone);
+    const dayKey = dayKeyInTz(this.clock());
     const results: BulkActionResultItem[] = [];
 
     for (const appointmentId of input.appointmentIds) {

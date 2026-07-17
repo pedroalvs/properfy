@@ -20,6 +20,7 @@ export interface ReportUnavailabilityInput {
   tokenId: string;
   appointmentId: string;
   isReadOnly: boolean;
+  isPastConfirmCutoff: boolean;
   isUsed: boolean;
   restrictions?: {
     isHome: boolean;
@@ -162,7 +163,7 @@ export class ReportUnavailabilityUseCase {
       after: { rentalTenantConfirmationStatus: 'UNAVAILABLE' },
       metadata: {
         origin: 'tenant_portal',
-        urgentMode: input.isReadOnly,
+        urgentMode: input.isPastConfirmCutoff,
       },
       ipAddress: input.ipAddress ?? undefined,
     });
@@ -191,7 +192,7 @@ export class ReportUnavailabilityUseCase {
 
     return {
       rentalTenantConfirmationStatus: 'UNAVAILABLE' as const,
-      urgentMode: input.isReadOnly,
+      urgentMode: input.isPastConfirmCutoff,
     };
   }
 }

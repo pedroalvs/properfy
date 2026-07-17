@@ -4,6 +4,7 @@ import { formatDate, formatDateTime, toLocalISODate } from '@/lib/format-date';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { useInspectorDocumentDownload } from '../hooks/useInspectorDocumentDownload';
 import type { InspectorDetail } from '../types';
+import { formatAuPhone } from '@/lib/phone-mask';
 
 interface InspectorDetailSectionsProps {
   inspector: InspectorDetail;
@@ -81,7 +82,7 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
         <DetailRow label="Name" value={inspector.name} />
         <DetailRow label="Full Name" value={inspector.fullName} />
         <DetailRow label="Email" value={inspector.email} />
-        <DetailRow label="Phone" value={inspector.phone} />
+        <DetailRow label="Phone" value={inspector.phone ? formatAuPhone(inspector.phone) : inspector.phone} />
         <DetailRow label="ABN" value={inspector.abn} />
         <DetailRow label="Date of Birth" value={inspector.dateOfBirth ? formatDate(inspector.dateOfBirth) : null} />
       </FormSection>

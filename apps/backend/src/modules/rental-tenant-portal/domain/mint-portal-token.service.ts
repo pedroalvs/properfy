@@ -40,12 +40,16 @@ export class MintPortalTokenService {
     const cutoffHour = typeof settings.portalCutoffHour === 'number' ? settings.portalCutoffHour : 19;
     const cutoffDaysBefore =
       typeof settings.portalCutoffDaysBefore === 'number' ? settings.portalCutoffDaysBefore : 1;
-    const expiresAt = this.tokenService.computeExpiresAt(
+    const confirmCutoffAt = this.tokenService.computeExpiresAt(
       scheduledDateStr,
       tenant.timezone,
       cutoffHour,
       cutoffDaysBefore,
     );
+    // Token stays valid until the end of the scheduled day so a link generated after
+    // the cutoff is never born expired; the cutoff only gates the confirm action.
+    const endOfScheduledDay = this.tokenService.computeExpiresAt(scheduledDateStr, tenant.timezone, 24, 0);
+    const expiresAt = endOfScheduledDay > confirmCutoffAt ? endOfScheduledDay : confirmCutoffAt;
 
     const now = new Date();
     const tokenId = crypto.randomUUID();
@@ -54,6 +58,7 @@ export class MintPortalTokenService {
       appointmentId: appointment.id,
       tokenHash,
       expiresAt,
+      confirmCutoffAt,
       status: 'ACTIVE',
       usedAt: null,
       lastAccessedAt: null,

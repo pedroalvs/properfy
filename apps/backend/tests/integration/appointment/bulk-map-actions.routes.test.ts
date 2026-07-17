@@ -85,26 +85,27 @@ describe('POST /v1/appointments/bulk-cancel', () => {
     expect(res.body.data.results[0]).toEqual({ appointmentId: APPT_ID_1, status: 'OK' });
   });
 
-  it('forwards reason and actorTimezone to the use case', async () => {
+  it('forwards reason and strips a legacy actorTimezone field (Sydney-only platform)', async () => {
     mockJwtVerify.mockResolvedValue(opContext);
     mockBulkCancelExecute.mockResolvedValue({ results: [] });
 
-    await supertest(app.server)
+    const res = await supertest(app.server)
       .post('/v1/appointments/bulk-cancel')
       .set('Authorization', 'Bearer token')
       .send({
         appointmentIds: [APPT_ID_1],
         reason: 'Operator cancelled',
-        actorTimezone: 'Australia/Sydney',
+        actorTimezone: 'Australia/Sydney', // legacy field — must be ignored, not rejected
       });
 
+    expect(res.status).toBe(200);
     expect(mockBulkCancelExecute).toHaveBeenCalledWith(
       expect.objectContaining({
         appointmentIds: [APPT_ID_1],
         reason: 'Operator cancelled',
-        actorTimezone: 'Australia/Sydney',
       }),
     );
+    expect(mockBulkCancelExecute.mock.calls[0]![0]).not.toHaveProperty('actorTimezone');
   });
 
   it('allows CL_ADMIN (CL_USER gating is enforced inside the underlying use case)', async () => {

@@ -3,6 +3,7 @@ import { UpdateAppointmentUseCase } from '../../../src/modules/appointment/appli
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
+import { PLATFORM_TIMEZONE, zonedWallTimeToUtc } from '@properfy/shared';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { AppointmentContactEntity } from '../../../src/modules/appointment/domain/appointment-contact.entity';
 import {
@@ -606,12 +607,12 @@ describe('UpdateAppointmentUseCase', () => {
     });
 
     it('should accept today for CL_ADMIN', async () => {
-      // Freeze time before the existing appointment's time slot (09:00) so
-      // the slot-in-past check does not fire when rescheduling to today.
-      vi.useFakeTimers({ now: new Date('2026-06-15T07:00:00Z') });
+      // Freeze time before the existing appointment's time slot (09:00 Sydney)
+      // so the slot-in-past check does not fire when rescheduling to today.
+      vi.useFakeTimers({ now: zonedWallTimeToUtc('2026-06-15', '07:00', PLATFORM_TIMEZONE) });
       vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
 
-      const today = '2026-06-15'; // matches frozen date
+      const today = '2026-06-15'; // matches frozen Sydney civil date
       const result = await useCase.execute({
         appointmentId: 'appt-1',
         data: { scheduledDate: today },

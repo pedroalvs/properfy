@@ -11,7 +11,6 @@ export interface BulkStatusTransitionInput {
   targetStatus: AppointmentStatus;
   reason?: string;
   actor: AuthContext;
-  actorTimezone?: string;
 }
 
 export interface BulkStatusTransitionOutput {
@@ -36,7 +35,7 @@ export class BulkStatusTransitionUseCase {
   ) {}
 
   async execute(input: BulkStatusTransitionInput): Promise<BulkStatusTransitionOutput> {
-    const dayKey = dayKeyInTz(this.clock(), input.actorTimezone);
+    const dayKey = dayKeyInTz(this.clock());
     const results: BulkActionResultItem[] = [];
 
     for (const appointmentId of input.appointmentIds) {

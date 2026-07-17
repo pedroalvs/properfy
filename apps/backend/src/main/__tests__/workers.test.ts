@@ -62,6 +62,8 @@ async function callRegisterWorkers(logger: ReturnType<typeof makeLogger>) {
     makeWorkerMock() as any,   // geocodeWorker
     makeWorkerMock() as any,   // geocodeRetryWorker
     makeWorkerMock() as any,   // propertyImportWorker
+    makeWorkerMock() as any,   // propertyImportCommitWorker
+    { execute: vi.fn().mockResolvedValue({ sweptCount: 0 }) } as any, // sweepAbandonedPropertyImportsWorker
     makeWorkerMock() as any,   // appointmentImportCommitWorker
     makeWorkerMock() as any,   // sweepAbandonedAppointmentImportsWorker
     makeWorkerMock() as any,   // generateInvoiceFileWorker
@@ -73,6 +75,42 @@ async function callRegisterWorkers(logger: ReturnType<typeof makeLogger>) {
     logger as any,
   );
 }
+
+describe('registerWorkers — cron schedules anchored to Australia/Sydney', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockBoss.work.mockResolvedValue(undefined);
+    mockBoss.schedule.mockResolvedValue(undefined);
+    mockBoss.send.mockResolvedValue(undefined);
+  });
+
+  const EXPECTED_SCHEDULES: Array<[name: string, cron: string]> = [
+    ['notification.retry-poll', '*/5 * * * *'],
+    ['notification.sms-delivery-poll', '*/10 * * * *'],
+    ['notification.dispatch-reminders', '0 18 * * *'],
+    ['notification.dispatch-escalations', '0 18 * * *'],
+    ['auth.cleanup-sessions', '0 2 * * *'],
+    ['auth.check-key-expiry', '0 3 * * *'],
+    ['report.expire-files', '0 3 * * *'],
+    ['property.geocode-retry', '*/15 * * * *'],
+    ['appointment.import.sweep-abandoned', '0 * * * *'],
+    ['property.import.sweep-abandoned', '0 * * * *'],
+    ['rental-tenant-portal.expire-tokens', '*/15 * * * *'],
+    ['inspection-execution.notify-not-started', '0 * * * *'],
+    ['audit.retention', '30 3 * * *'],
+    ['appointment.reject-unconfirmed', '0 19 * * *'],
+    ['system.dlq-monitor', '*/5 * * * *'],
+  ];
+
+  it('schedules every cron with the expected expression and tz Australia/Sydney', async () => {
+    await callRegisterWorkers(makeLogger());
+
+    expect(mockBoss.schedule).toHaveBeenCalledTimes(EXPECTED_SCHEDULES.length);
+    for (const [name, cron] of EXPECTED_SCHEDULES) {
+      expect(mockBoss.schedule).toHaveBeenCalledWith(name, cron, {}, { tz: 'Australia/Sydney' });
+    }
+  });
+});
 
 describe('registerWorkers — notification.send liveness log', () => {
   beforeEach(() => {

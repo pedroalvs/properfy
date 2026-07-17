@@ -1,4 +1,5 @@
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
+import { civilDateInTimezone, PLATFORM_TIMEZONE } from '../../../../shared/domain/timezone-date';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { INotificationRepository } from '../../domain/notification.repository';
 import type { BuildNotificationPayloadService } from '../../domain/build-notification-payload.service';
@@ -33,10 +34,11 @@ export class DispatchRemindersUseCase {
     let dispatched = 0;
     let skipped = 0;
 
+    // "Today" is the Sydney civil date; the repo expects UTC midnight of that civil date.
+    const todayCivil = civilDateInTimezone(now, PLATFORM_TIMEZONE);
     for (const [offsetDays, templateCode] of REMINDER_WINDOWS) {
-      const targetDate = new Date(
-        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + offsetDays),
-      );
+      const targetDate = new Date(`${todayCivil}T00:00:00.000Z`);
+      targetDate.setUTCDate(targetDate.getUTCDate() + offsetDays);
       const appointments = await this.appointmentRepo.findScheduledOnDate(targetDate);
 
       for (const { appointment, contact } of appointments) {

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { auPhoneSchema } from './phone';
 import { HHMM_REGEX } from './appointment';
 
 // Token URL param validation
@@ -131,7 +132,7 @@ export type RescheduleRequestPortalResponse = z.infer<typeof rescheduleRequestPo
 export const updateContactPortalSchema = z
   .object({
     primaryEmail: z.string().email().optional(),
-    primaryPhone: z.string().min(8).max(20).optional(),
+    primaryPhone: auPhoneSchema.optional(),
   })
   .refine((data) => Object.values(data).some((v) => v !== undefined), {
     message: 'At least one contact field must be provided',

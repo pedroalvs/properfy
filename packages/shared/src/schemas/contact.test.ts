@@ -396,3 +396,185 @@ describe('contactSchema (legacy)', () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe('AU phone validation + E.164 normalization (registry schemas)', () => {
+  const base = {
+    type: 'RENTAL_TENANT',
+    displayName: 'Phone Case',
+  };
+
+  it('contactRegistrySchema transforms local primaryPhone to E.164', () => {
+    const result = contactRegistrySchema.parse({ ...base, primaryPhone: '0412 345 678' });
+    expect(result.primaryPhone).toBe('+61412345678');
+  });
+
+  it('contactRegistrySchema rejects invalid primaryPhone', () => {
+    expect(contactRegistrySchema.safeParse({ ...base, primaryPhone: '12345' }).success).toBe(false);
+  });
+
+  it('contactRegistryUpdateSchema transforms and validates primaryPhone', () => {
+    expect(contactRegistryUpdateSchema.parse({ primaryPhone: '0412345678' }).primaryPhone).toBe('+61412345678');
+    expect(contactRegistryUpdateSchema.safeParse({ primaryPhone: 'not-a-phone' }).success).toBe(false);
+  });
+
+  it('legacy contactSchema validates primaryPhone as AU', () => {
+    expect(contactSchema.parse({ rentalTenantName: 'X', primaryPhone: '0412 345 678' }).primaryPhone).toBe('+61412345678');
+    expect(contactSchema.safeParse({ rentalTenantName: 'X', primaryPhone: '999' }).success).toBe(false);
+  });
+
+  it('null/undefined primaryPhone still accepted where optional', () => {
+    expect(contactRegistrySchema.safeParse({ ...base, primaryEmail: 'a@b.co', primaryPhone: null }).success).toBe(true);
+    expect(contactRegistryUpdateSchema.safeParse({ displayName: 'Y' }).success).toBe(true);
+  });
+});
+
+describe('additional channel per-type validation', () => {
+  const base = {
+    type: 'RENTAL_TENANT',
+    displayName: 'Channel Case',
+    primaryEmail: 'main@example.com',
+  };
+
+  it('accepts valid EMAIL channel value', () => {
+    const result = contactRegistrySchema.safeParse({
+      ...base,
+      additionalChannels: [{ channel: 'EMAIL', value: 'extra@example.com' }],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects invalid EMAIL channel value', () => {
+    const result = contactRegistrySchema.safeParse({
+      ...base,
+      additionalChannels: [{ channel: 'EMAIL', value: 'not-an-email' }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts valid PHONE channel value and transforms to E.164', () => {
+    const result = contactRegistrySchema.parse({
+      ...base,
+      additionalChannels: [{ channel: 'PHONE', value: '0412 345 678' }],
+    });
+    expect(result.additionalChannels[0]?.value).toBe('+61412345678');
+  });
+
+  it('rejects invalid PHONE channel value', () => {
+    const result = contactRegistrySchema.safeParse({
+      ...base,
+      additionalChannels: [{ channel: 'PHONE', value: '12345' }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('reports the error at the channel value path', () => {
+    const result = contactRegistrySchema.safeParse({
+      ...base,
+      additionalChannels: [
+        { channel: 'EMAIL', value: 'ok@example.com' },
+        { channel: 'PHONE', value: 'bad' },
+      ],
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find((i) => i.path.join('.') === 'additionalChannels.1.value');
+      expect(issue).toBeDefined();
+    }
+  });
+
+  it('detects duplicates across input formats after normalization', () => {
+    const result = contactRegistrySchema.safeParse({
+      type: 'RENTAL_TENANT',
+      displayName: 'Dup Case',
+      primaryPhone: '+61412345678',
+      additionalChannels: [{ channel: 'PHONE', value: '0412 345 678' }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('applies per-type validation on inline appointment contacts', () => {
+    const result = appointmentContactsArraySchema.safeParse([
+      {
+        inline: {
+          type: 'RENTAL_TENANT',
+          displayName: 'Inline',
+          primaryPhone: 'invalid',
+        },
+        role: 'RENTAL_TENANT',
+        isPrimary: true,
+      },
+    ]);
+    expect(result.success).toBe(false);
+  });
+
+  it('inline appointment contact phone is normalized to E.164', () => {
+    const result = appointmentContactsArraySchema.parse([
+      {
+        inline: {
+          type: 'RENTAL_TENANT',
+          displayName: 'Inline',
+          primaryPhone: '0412 345 678',
+        },
+        role: 'RENTAL_TENANT',
+        isPrimary: true,
+      },
+    ]);
+    const first = result[0] as { inline?: { primaryPhone?: string | null } };
+    expect(first.inline?.primaryPhone).toBe('+61412345678');
+  });
+});
+
+describe('post-normalization duplicate invariants (update + inline)', () => {
+  it('contactRegistryUpdateSchema rejects intra-array duplicates across formats', () => {
+    const result = contactRegistryUpdateSchema.safeParse({
+      additionalChannels: [
+        { channel: 'PHONE', value: '0412 345 678' },
+        { channel: 'PHONE', value: '+61412345678' },
+      ],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('contactRegistryUpdateSchema rejects channel duplicating a primary sent in the same payload', () => {
+    const result = contactRegistryUpdateSchema.safeParse({
+      primaryPhone: '+61412345678',
+      additionalChannels: [{ channel: 'PHONE', value: '0412 345 678' }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('inline appointment contact rejects intra-array duplicates', () => {
+    const result = appointmentContactsArraySchema.safeParse([
+      {
+        inline: {
+          type: 'RENTAL_TENANT',
+          displayName: 'Inline Dup',
+          primaryEmail: 'inline@example.com',
+          additionalChannels: [
+            { channel: 'PHONE', value: '0412 345 678' },
+            { channel: 'PHONE', value: '+61 412 345 678' },
+          ],
+        },
+        role: 'RENTAL_TENANT',
+        isPrimary: true,
+      },
+    ]);
+    expect(result.success).toBe(false);
+  });
+
+  it('inline appointment contact rejects channel duplicating its primary', () => {
+    const result = appointmentContactsArraySchema.safeParse([
+      {
+        inline: {
+          type: 'RENTAL_TENANT',
+          displayName: 'Inline Dup',
+          primaryPhone: '0412 345 678',
+          additionalChannels: [{ channel: 'PHONE', value: '+61412345678' }],
+        },
+        role: 'RENTAL_TENANT',
+        isPrimary: true,
+      },
+    ]);
+    expect(result.success).toBe(false);
+  });
+});

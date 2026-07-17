@@ -118,9 +118,9 @@ describe('PropertyListPage', () => {
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders Map View button', () => {
+  it('does not render a Map View button', () => {
     renderPage();
-    expect(screen.getByText('Map View')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Map View' })).not.toBeInTheDocument();
   });
 
   it('does not render an Import button', () => {
@@ -188,9 +188,11 @@ describe('PropertyListPage', () => {
       });
     });
 
-    it('does not disable New Property / Map View actions', () => {
+    it('does not disable the New Property action', () => {
       renderPage();
-      expect(screen.getByText('Map View').closest('button')).not.toBeDisabled();
+      for (const button of screen.getAllByRole('button', { name: 'New Property' })) {
+        expect(button).not.toBeDisabled();
+      }
     });
 
     it('renders an Agency filter', () => {

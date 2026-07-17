@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/Button';
-import { formatDate } from '@/lib/format-date';
+import { formatCivilDate } from '@/lib/format-date';
 import { formatCurrency } from '@/lib/format-currency';
 import type { MarketplaceOffer, OfferAcceptState } from '../types';
 
@@ -35,7 +35,7 @@ export function AcceptOfferModal({ offer, state, onConfirm, onCancel }: AcceptOf
           <div className="mt-4 space-y-2.5 text-sm">
             <Row label="Service" value={offer.serviceTypeName} />
             <Row label="Agency" value={offer.tenantName} />
-            <Row label="Date" value={formatDate(offer.scheduledDate)} />
+            <Row label="Date" value={formatCivilDate(offer.scheduledDate)} />
             <Row label="Time window" value={formatTimeWindow(offer.timeWindow)} />
             <Row
               label="Inspections"

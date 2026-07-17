@@ -28,19 +28,21 @@ import {
 const APPT_ID = 'aaaaaaaa-0000-4000-8000-000000000001';
 
 describe('dayKeyInTz', () => {
-  it('produces a YYYY-MM-DD string for a UTC instant in Sydney TZ', () => {
-    expect(dayKeyInTz(new Date('2026-04-15T13:00:00Z'), 'Australia/Sydney')).toBe('2026-04-15');
-    expect(dayKeyInTz(new Date('2026-04-15T14:30:00Z'), 'Australia/Sydney')).toBe('2026-04-16');
+  it('produces the Sydney civil YYYY-MM-DD key for a UTC instant', () => {
+    // 2026-04-15 is AEST (UTC+10): 13:00Z → 23:00 Sydney (same day), 14:30Z → 00:30 next day
+    expect(dayKeyInTz(new Date('2026-04-15T13:00:00Z'))).toBe('2026-04-15');
+    expect(dayKeyInTz(new Date('2026-04-15T14:30:00Z'))).toBe('2026-04-16');
   });
 
-  it('returns different keys for the same instant across timezones', () => {
-    const instant = new Date('2026-04-15T01:00:00Z');
-    expect(dayKeyInTz(instant, 'Australia/Sydney')).toBe('2026-04-15');
-    expect(dayKeyInTz(instant, 'America/New_York')).toBe('2026-04-14');
+  it('rolls the key to the Sydney next day before UTC does', () => {
+    // 15:00Z on the 15th is still the 15th in UTC but already 01:00 on the 16th in Sydney
+    expect(dayKeyInTz(new Date('2026-07-15T15:00:00Z'))).toBe('2026-07-16');
   });
 
-  it('falls back to UTC silently on invalid timezone', () => {
-    expect(dayKeyInTz(new Date('2026-04-15T12:00:00Z'), 'Not/AZone')).toBe('2026-04-15');
+  it('keys by Sydney daylight-saving offset (+11) during AEDT', () => {
+    // 2026-01-15 is AEDT (UTC+11): 13:30Z → 00:30 next day in Sydney
+    expect(dayKeyInTz(new Date('2026-01-15T13:30:00Z'))).toBe('2026-01-16');
+    expect(dayKeyInTz(new Date('2026-01-15T12:30:00Z'))).toBe('2026-01-15');
   });
 });
 

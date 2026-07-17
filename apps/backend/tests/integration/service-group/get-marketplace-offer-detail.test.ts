@@ -67,6 +67,8 @@ const mockOfferDetail = {
       appointmentCode: 'INS-1001',
       appointmentNumber: 1001,
       suburb: 'Bondi NSW',
+      street: '123 Ocean St',
+      coordinates: { lat: -33.8908, lng: 151.2743 },
       keyRequired: false,
       notes: null,
       payoutAmount: 150,
@@ -79,6 +81,8 @@ const mockOfferDetail = {
       appointmentCode: 'INS-1002',
       appointmentNumber: 1002,
       suburb: 'Manly NSW',
+      street: '45 Beach Rd',
+      coordinates: null,
       keyRequired: false,
       notes: null,
       payoutAmount: 150,
@@ -122,6 +126,21 @@ describe('GET /v1/marketplace/offers/:groupId (detail — suburb rename)', () =>
     expect(first).not.toHaveProperty('address');
     expect(first['timeSlotStart']).toBe('08:00');
     expect(first['timeSlotEnd']).toBe('09:00');
+  });
+
+  it('should serialize per-appointment street and coordinates (PWA map drill-down)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(inspContext);
+    mockGetMarketplaceOfferDetailExecute.mockResolvedValueOnce(mockOfferDetail);
+
+    const res = await supertest(app.server)
+      .get(`/v1/marketplace/offers/${GROUP_ID}`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    const appointments = res.body.data?.appointments as Array<Record<string, unknown>>;
+    expect(appointments[0]['street']).toBe('123 Ocean St');
+    expect(appointments[0]['coordinates']).toEqual({ lat: -33.8908, lng: 151.2743 });
+    expect(appointments[1]['coordinates']).toBeNull();
   });
 
   it('should include centroid field (null when not resolved)', async () => {

@@ -76,17 +76,18 @@ describe('UpdateTenantUseCase', () => {
 
     expect(result.name).toBe('Updated Name');
     expect(result.legalName).toBe('Updated Legal Name');
-    expect(result.timezone).toBe('America/Sao_Paulo');
+    // timezone is frozen (Sydney-only platform): the sent value is ignored.
+    expect(result.timezone).toBe('Australia/Sydney');
     expect(result.currency).toBe('BRL');
     expect(tenantRepo.update).toHaveBeenCalledWith(
       'tenant-1',
       expect.objectContaining({
         name: 'Updated Name',
         legalName: 'Updated Legal Name',
-        timezone: 'America/Sao_Paulo',
         currency: 'BRL',
       }),
     );
+    expect(vi.mocked(tenantRepo.update).mock.calls[0]![1]).not.toHaveProperty('timezone');
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'tenant.updated' }),
     );
