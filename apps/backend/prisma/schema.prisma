@@ -1030,6 +1030,7 @@ model RentalTenantPortalToken {
   appointment_id        String
   token_hash            String                  @unique
   expires_at            DateTime
+  confirm_cutoff_at     DateTime?
   status                RentalTenantPortalTokenStatus @default(ACTIVE)
   used_at               DateTime?
   last_accessed_at      DateTime?

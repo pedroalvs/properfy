@@ -51,6 +51,7 @@ function makeInput(overrides: Partial<ReportUnavailabilityInput> = {}): ReportUn
     tokenId: 'token-1',
     appointmentId: 'appt-1',
     isReadOnly: false,
+    isPastConfirmCutoff: false,
     isUsed: false,
     ipAddress: '127.0.0.1',
     userAgent: 'TestAgent/1.0',
@@ -127,7 +128,7 @@ describe('ReportUnavailabilityUseCase', () => {
   });
 
   it('allows urgent unavailable reports after cutoff while the inspection has not started', async () => {
-    await expect(useCase.execute(makeInput({ isReadOnly: true }))).resolves.toEqual({
+    await expect(useCase.execute(makeInput({ isPastConfirmCutoff: true }))).resolves.toEqual({
       rentalTenantConfirmationStatus: 'UNAVAILABLE',
       urgentMode: true,
     });
