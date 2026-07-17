@@ -8,6 +8,7 @@ import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { AppointmentCodePill } from './AppointmentCodePill';
 import { SecretValue } from '@/components/ui/SecretValue';
 import { ConfirmationChannelIcons } from './ConfirmationChannelIcons';
+import { formatAuPhone } from '@/lib/phone-mask';
 
 interface AppointmentMapDetailPanelProps {
   /** Marker that triggered the panel. Source of CLIENT / PROPERTIES (no fetch needed). */
@@ -290,7 +291,7 @@ function renderSectionContent(key: SectionKey, ctx: SectionCtx): ReactNode {
         return (
           <p>
             <span className="text-text-muted">Primary:</span>{' '}
-            {detail.contactName} {detail.contactPhone ? `· ${detail.contactPhone}` : ''}
+            {detail.contactName} {detail.contactPhone ? `· ${formatAuPhone(detail.contactPhone)}` : ''}
           </p>
         );
       }

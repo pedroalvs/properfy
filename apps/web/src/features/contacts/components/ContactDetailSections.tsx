@@ -4,6 +4,7 @@ import { formatDateTime } from '@/lib/format-date';
 import { ContactTypeChip } from './ContactTypeChip';
 import { ContactStatusBadge } from './ContactStatusBadge';
 import type { ContactDetail } from '../types';
+import { formatAuPhone } from '@/lib/phone-mask';
 
 interface ContactDetailSectionsProps {
   contact: ContactDetail;
@@ -21,7 +22,7 @@ export function ContactDetailSections({ contact }: ContactDetailSectionsProps) {
 
       <FormSection title="Primary channels">
         <DetailRow label="Email" value={contact.primaryEmail} />
-        <DetailRow label="Phone" value={contact.primaryPhone} />
+        <DetailRow label="Phone" value={contact.primaryPhone ? formatAuPhone(contact.primaryPhone) : contact.primaryPhone} />
       </FormSection>
 
       {contact.additionalChannels.length > 0 && (

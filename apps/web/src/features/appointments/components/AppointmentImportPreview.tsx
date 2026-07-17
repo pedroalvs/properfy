@@ -5,6 +5,7 @@ import { DetailRow } from '@/components/data/DetailRow';
 import { Button } from '@/components/ui/Button';
 import { geocodeVerificationToStatus } from '@/lib/geocode-verification';
 import { GeocodingStatusBadge } from '@/features/properties/components/GeocodingStatusBadge';
+import { formatAuPhone } from '@/lib/phone-mask';
 
 const PAGE_SIZE = 20;
 
@@ -58,7 +59,7 @@ function ContactBadge({ contact }: { contact: ResolvedImportRow['contact'] }) {
       />
       <p className="text-xs text-text-secondary">{contact.displayName}</p>
       <p className="text-xs text-text-muted">
-        {[contact.primaryEmail, contact.primaryPhone].filter(Boolean).join(' · ')}
+        {[contact.primaryEmail, contact.primaryPhone ? formatAuPhone(contact.primaryPhone) : null].filter(Boolean).join(' · ')}
       </p>
       {contact.additionalChannels.length > 0 && (
         <p className="text-xs text-text-muted">

@@ -115,7 +115,10 @@ export interface ContactFormData {
   notes: string;
 }
 
-export type ContactFormErrors = Partial<Record<keyof ContactFormData | 'additionalChannels', string>>;
+export type ContactFormErrors = Partial<Record<keyof ContactFormData | 'additionalChannels', string>> & {
+  /** Per-row errors for additional channels, keyed by row index. */
+  additionalChannelErrors?: Record<number, string>;
+};
 
 export const EMPTY_CONTACT_FORM: ContactFormData = {
   type: '',

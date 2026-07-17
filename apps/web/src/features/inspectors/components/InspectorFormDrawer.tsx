@@ -23,6 +23,7 @@ import { DocumentUploadField } from './DocumentUploadField';
 import { INSPECTOR_STATUS_OPTIONS } from '../constants/form-options';
 import type { InspectorFormData, InspectorFormErrors } from '../types';
 import { EMPTY_INSPECTOR_FORM } from '../types';
+import { formatAuPhone } from '@/lib/phone-mask';
 
 interface InspectorFormDrawerProps {
   open: boolean;
@@ -75,7 +76,7 @@ export function InspectorFormDrawer({
       const data: InspectorFormData = {
         name: inspector.name,
         email: inspector.email,
-        phone: inspector.phone ?? '',
+        phone: formatAuPhone(inspector.phone ?? ''),
         status: inspector.status,
         regionIds: inspector.regionIds ?? [],
         serviceTypes: (inspector.serviceTypes ?? []).map((s) => s.serviceTypeId).join(','),

@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import { applyPhoneMask, stripNonDigits, maxPhoneDigits } from '@/lib/phone-mask';
+import { useCallback, useEffect, useState } from 'react';
+import { applyPhoneMask, stripNonDigits, maxPhoneDigits, toE164Au } from '@/lib/phone-mask';
 import {
   formInput,
   formInputContainer,
@@ -26,6 +26,8 @@ export function PhoneInput({
   id,
   'aria-label': ariaLabel,
 }: PhoneInputProps) {
+  const [localError, setLocalError] = useState(false);
+
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const raw = e.target.value;
@@ -35,28 +37,47 @@ export function PhoneInput({
         ? `+${stripped.slice(1).slice(0, max)}`
         : stripped.slice(0, max);
       onChange(applyPhoneMask(digits));
+      if (localError) setLocalError(false);
     },
-    [onChange],
+    [onChange, localError],
   );
+
+  const handleBlur = useCallback(() => {
+    setLocalError(value.trim() !== '' && toE164Au(value) === null);
+  }, [value]);
+
+  // Clear the blur error when the value is reset programmatically
+  // (e.g. a dialog clearing its form on close).
+  useEffect(() => {
+    if (!value.trim()) setLocalError(false);
+  }, [value]);
+
+  const hasError = error || localError;
 
   const containerClass = disabled
     ? formInputContainerDisabled
-    : error
+    : hasError
       ? formInputContainerError
       : formInputContainer;
 
   return (
-    <div className={containerClass}>
-      <input
-        type="tel"
-        id={id}
-        className={formInput}
-        value={value}
-        onChange={handleChange}
-        placeholder={placeholder}
-        disabled={disabled}
-        aria-label={ariaLabel}
-      />
+    <div>
+      <div className={containerClass}>
+        <input
+          type="tel"
+          id={id}
+          className={formInput}
+          value={value}
+          onChange={handleChange}
+          onBlur={handleBlur}
+          placeholder={placeholder}
+          disabled={disabled}
+          aria-label={ariaLabel}
+        />
+      </div>
+      {localError && !error && (
+        <p className="mt-1 text-xs text-error">Enter a valid Australian phone number</p>
+      )}
     </div>
   );
 }

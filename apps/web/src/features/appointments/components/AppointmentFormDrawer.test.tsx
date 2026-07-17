@@ -4,7 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider, useSnackbar } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
 
-vi.mock('@properfy/shared', () => ({
+vi.mock('@properfy/shared', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
   contactSchema: { shape: { primaryEmail: { safeParse: () => ({ success: true }) } } },
   AppointmentStatus: { DRAFT: 'DRAFT', SCHEDULED: 'SCHEDULED', AWAITING_INSPECTOR: 'AWAITING_INSPECTOR', DONE: 'DONE', CANCELLED: 'CANCELLED', REJECTED: 'REJECTED' },
   AppointmentContactRole: { TENANT: 'RENTAL_TENANT', TENANT_REPRESENTATIVE: 'TENANT_REPRESENTATIVE', HOUSEKEEPER: 'HOUSEKEEPER', PROPERTY_MANAGER: 'PROPERTY_MANAGER', BROKER: 'BROKER', OTHER: 'OTHER' },

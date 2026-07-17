@@ -2,6 +2,7 @@ import { DataTable, type DataTableColumn, type DataTablePagination } from '@/com
 import { RowActions } from '@/components/data/RowActions';
 import { InspectorStatusChip } from './InspectorStatusChip';
 import type { Inspector } from '../types';
+import { formatAuPhone } from '@/lib/phone-mask';
 
 interface InspectorTableProps {
   data: Inspector[];
@@ -36,7 +37,7 @@ export function InspectorTable({
       key: 'phone',
       label: 'Phone',
       width: '140px',
-      render: (row) => <>{row.phone ?? '—'}</>,
+      render: (row) => <>{row.phone ? formatAuPhone(row.phone) : '—'}</>,
     },
     {
       key: 'status',
