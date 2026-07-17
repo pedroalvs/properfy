@@ -16,8 +16,11 @@ interface MapBulkRescheduleFormProps {
  * 026 §FR-540..545 — Bulk reschedule form for the map flow.
  *
  * Key Regras invariants enforced here:
- *  - Time window is a free start/end time range (`newTimeSlotStart` /
- *    `newTimeSlotEnd`), entered via the shared `TimeRangeInput`.
+ *  - Only the time window changes: a free start/end time range
+ *    (`newTimeSlotStart` / `newTimeSlotEnd`) entered via the shared
+ *    `TimeRangeInput`. The date is NOT editable here — appointments
+ *    follow the group date, so `newDate` is derived from the selection's
+ *    current `scheduledDate`.
  *  - Same-group only. The submit button is disabled when the selection
  *    spans groups or contains non-grouped items; the tooltip explains
  *    the limitation. Backend ALSO returns INVALID_SCOPE in that case
@@ -31,16 +34,18 @@ export function MapBulkRescheduleForm({
   onCancel: _onCancel,
   onComplete,
 }: MapBulkRescheduleFormProps) {
-  const [newDate, setNewDate] = useState('');
   const [newTimeSlotStart, setNewTimeSlotStart] = useState('');
   const [newTimeSlotEnd, setNewTimeSlotEnd] = useState('');
   const [reason, setReason] = useState('');
   const [timeError, setTimeError] = useState<string | null>(null);
 
+  // Date is kept from the selection (same-group ⇒ same group date); date-only normalization.
+  const targetDate = (checkedAppointments[0]?.scheduledDate ?? '').split('T')[0] ?? '';
+
   // Sydney-only platform: "today" and the past-time hint follow the platform timezone.
   const today = todayInTzDateString(PLATFORM_TIMEZONE);
-  // UX hint: when rescheduling to today, discourage picking a past start time.
-  const minStartTime = newDate === today ? currentTimeInTzHHmm(PLATFORM_TIMEZONE) : undefined;
+  // UX hint: when the group date is today, discourage picking a past start time.
+  const minStartTime = targetDate === today ? currentTimeInTzHHmm(PLATFORM_TIMEZONE) : undefined;
 
   // Same-group precheck — disable submit when the selection spans
   // groups or contains a non-grouped item.
@@ -55,7 +60,7 @@ export function MapBulkRescheduleForm({
 
   const mutation = useBulkReopenForReschedule();
   const timeRangeOrdered = newTimeSlotStart.length > 0 && newTimeSlotEnd.length > 0 && newTimeSlotStart < newTimeSlotEnd;
-  const canSubmit = sameGroupCheck.ok && newDate.length === 10 && timeRangeOrdered && !mutation.isPending;
+  const canSubmit = sameGroupCheck.ok && targetDate.length === 10 && timeRangeOrdered && !mutation.isPending;
 
   return (
     <form
@@ -63,7 +68,7 @@ export function MapBulkRescheduleForm({
         e.preventDefault();
         if (!canSubmit) return;
         // Past-time guard (all roles) — native input min is only a hint.
-        if (newDate === today && isTimeStartInPastForDate(newTimeSlotStart, newDate, PLATFORM_TIMEZONE)) {
+        if (targetDate === today && isTimeStartInPastForDate(newTimeSlotStart, targetDate, PLATFORM_TIMEZONE)) {
           setTimeError('Start time is in the past');
           return;
         }
@@ -71,7 +76,7 @@ export function MapBulkRescheduleForm({
         const trimmedReason = reason.trim();
         const res = await mutation.mutateAsync({
           appointmentIds: checkedAppointments.map((a) => a.id),
-          newDate,
+          newDate: targetDate,
           newTimeSlotStart,
           newTimeSlotEnd,
           ...(trimmedReason.length >= 3 ? { reason: trimmedReason } : {}),
@@ -89,21 +94,6 @@ export function MapBulkRescheduleForm({
           {sameGroupCheck.reason}
         </div>
       )}
-
-      <label className="block text-sm font-medium text-text-primary">
-        New date
-        <input
-          type="date"
-          value={newDate}
-          onChange={(e) => setNewDate(e.target.value)}
-          onClick={(e) => e.currentTarget.showPicker?.()}
-          required
-          min={today}
-          disabled={!sameGroupCheck.ok}
-          className="mt-1 block w-full rounded border border-border-subtle p-2 text-sm disabled:bg-gray-50"
-          data-testid="map-bulk-reschedule-date"
-        />
-      </label>
 
       <label className="block text-sm font-medium text-text-primary">
         New time slot
