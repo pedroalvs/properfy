@@ -66,6 +66,7 @@ describe('RequestPasswordResetUseCase', () => {
       passwordResetTokenRepo,
       createNotificationUseCase,
       auditService,
+      { webAppBaseUrl: 'https://app.example.com', pwaBaseUrl: 'https://pwa.example.com' },
     );
   });
 
@@ -140,7 +141,8 @@ describe('RequestPasswordResetUseCase', () => {
 
     const savedToken = vi.mocked(passwordResetTokenRepo.save).mock.calls[0][0];
     const notificationCall = vi.mocked(createNotificationUseCase.execute).mock.calls[0][0];
-    const rawToken = notificationCall.payloadJson.resetToken;
+    const resetLink = new URL(notificationCall.payloadJson.resetLink);
+    const rawToken = resetLink.searchParams.get('token')!;
 
     // The stored hash must be the SHA-256 of the raw token sent in the notification
     const expectedHash = createHash('sha256').update(rawToken).digest('hex');
@@ -148,6 +150,46 @@ describe('RequestPasswordResetUseCase', () => {
 
     // The raw token must NOT be the same as the stored hash
     expect(savedToken.tokenHash).not.toBe(rawToken);
+  });
+
+  it('should build a web-app reset link for non-inspector users', async () => {
+    vi.mocked(userRepo.findByEmail).mockResolvedValue(makeUser({ role: 'CL_ADMIN' }));
+
+    await useCase.execute({ email: 'test@example.com' });
+
+    const { payloadJson } = vi.mocked(createNotificationUseCase.execute).mock.calls[0][0];
+    expect(payloadJson.resetLink).toMatch(
+      /^https:\/\/app\.example\.com\/reset-password\?token=[0-9a-f]{64}$/,
+    );
+    expect(payloadJson.userName).toBe('Test User');
+    expect(payloadJson).not.toHaveProperty('resetToken');
+  });
+
+  it('should build a PWA reset link for inspectors (INSP role)', async () => {
+    vi.mocked(userRepo.findByEmail).mockResolvedValue(makeUser({ role: 'INSP' }));
+
+    await useCase.execute({ email: 'test@example.com' });
+
+    const { payloadJson } = vi.mocked(createNotificationUseCase.execute).mock.calls[0][0];
+    expect(payloadJson.resetLink).toMatch(
+      /^https:\/\/pwa\.example\.com\/reset-password\?token=[0-9a-f]{64}$/,
+    );
+  });
+
+  it('should normalize base URLs with a trailing slash', async () => {
+    const slashUseCase = new RequestPasswordResetUseCase(
+      userRepo,
+      passwordResetTokenRepo,
+      createNotificationUseCase,
+      auditService,
+      { webAppBaseUrl: 'https://app.example.com/', pwaBaseUrl: 'https://pwa.example.com/' },
+    );
+    vi.mocked(userRepo.findByEmail).mockResolvedValue(makeUser());
+
+    await slashUseCase.execute({ email: 'test@example.com' });
+
+    const { payloadJson } = vi.mocked(createNotificationUseCase.execute).mock.calls[0][0];
+    expect(payloadJson.resetLink).toMatch(/^https:\/\/app\.example\.com\/reset-password\?token=/);
   });
 
   it('should use "platform" as tenantId when user has no tenantId', async () => {

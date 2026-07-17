@@ -681,7 +681,10 @@ export function createContainer(logger: Logger): AppContainer {
   );
 
   // Password reset use cases (depend on createNotificationUseCase)
-  const requestPasswordResetUseCase = new RequestPasswordResetUseCase(userRepo, passwordResetTokenRepo, createNotificationUseCase, auditService);
+  const requestPasswordResetUseCase = new RequestPasswordResetUseCase(userRepo, passwordResetTokenRepo, createNotificationUseCase, auditService, {
+    webAppBaseUrl: env.WEB_APP_BASE_URL,
+    pwaBaseUrl: env.PWA_BASE_URL,
+  });
   const consumePasswordResetUseCase = new ConsumePasswordResetUseCase(passwordResetTokenRepo, userRepo, sessionRepo, auditService, passwordHistoryRepo);
   const acceptInviteUseCase = new AcceptInviteUseCase(passwordResetTokenRepo, userRepo, auditService);
 

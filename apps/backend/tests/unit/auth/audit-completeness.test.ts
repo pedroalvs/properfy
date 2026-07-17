@@ -305,6 +305,7 @@ describe('Audit completeness: every identity write-path emits exactly one audit 
         makePasswordResetTokenRepo(),
         makeCreateNotificationUseCase(),
         auditService,
+        { webAppBaseUrl: 'https://app.example.com', pwaBaseUrl: 'https://pwa.example.com' },
       );
 
       await useCase.execute({ email: 'test@example.com' });
