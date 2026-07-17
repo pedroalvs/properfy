@@ -5,6 +5,7 @@ import { ValidationError } from '../../../../shared/domain/errors';
 import { TenantInactiveError } from '../../domain/property.errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { PropertyImportRowResolver } from '../services/property-import-row-resolver';
+import type { IImportGeocodeVerifier } from '../services/apply-geocode-verification';
 
 const TENANT_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 
@@ -45,7 +46,7 @@ describe('PreviewPropertyImportUseCase', () => {
   let storageService: { upload: ReturnType<typeof vi.fn> };
   let tenantRepo: { findById: ReturnType<typeof vi.fn> };
   let resolver: { resolve: ReturnType<typeof vi.fn> };
-  let verifier: { verifyMany: ReturnType<typeof vi.fn> } & import('../services/apply-geocode-verification').IImportGeocodeVerifier;
+  let verifier: { verifyMany: ReturnType<typeof vi.fn> } & IImportGeocodeVerifier;
   let authorizationService: AuthorizationService;
 
   beforeEach(() => {
