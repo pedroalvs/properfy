@@ -56,4 +56,14 @@ describe('geocodeVerificationSchema', () => {
     const result = geocodeVerificationSchema.safeParse({ status: 'pending', lat: null, lng: null });
     expect(result.success).toBe(false);
   });
+
+  it('rejects found without coordinates', () => {
+    expect(geocodeVerificationSchema.safeParse({ status: 'found', lat: null, lng: null }).success).toBe(false);
+    expect(geocodeVerificationSchema.safeParse({ status: 'found', lat: -33.8, lng: null }).success).toBe(false);
+  });
+
+  it('rejects not_found/unverified carrying coordinates', () => {
+    expect(geocodeVerificationSchema.safeParse({ status: 'not_found', lat: -33.8, lng: 151.2 }).success).toBe(false);
+    expect(geocodeVerificationSchema.safeParse({ status: 'unverified', lat: -33.8, lng: 151.2 }).success).toBe(false);
+  });
 });

@@ -49,11 +49,11 @@ export type ImportRowIssue = z.infer<typeof importRowIssueSchema>;
  * returned no match (property will be created as FAILED); `unverified` means
  * the check was skipped or timed out (falls back to the async geocode job).
  */
-export const geocodeVerificationSchema = z.object({
-  status: z.enum(['found', 'not_found', 'unverified']),
-  lat: z.number().nullable(),
-  lng: z.number().nullable(),
-});
+export const geocodeVerificationSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('found'), lat: z.number(), lng: z.number() }),
+  z.object({ status: z.literal('not_found'), lat: z.null(), lng: z.null() }),
+  z.object({ status: z.literal('unverified'), lat: z.null(), lng: z.null() }),
+]);
 export type GeocodeVerification = z.infer<typeof geocodeVerificationSchema>;
 
 /**

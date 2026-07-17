@@ -51,7 +51,11 @@ async function parseXlsx(buffer: Buffer): Promise<RawPropertyImportRow[]> {
     const record: Record<string, unknown> = {};
     row.eachCell((cell, colNumber) => {
       const header = headers[colNumber - 1];
-      if (header) record[header] = cell.value;
+      // `cell.text` is the DISPLAYED value — it keeps leading zeros on
+      // text-formatted postcodes and flattens rich-text/formula cells to
+      // their visible result, so XLSX rows match what the spreadsheet shows
+      // (and what the CSV path would produce).
+      if (header) record[header] = cell.text ?? cell.value;
     });
     rows.push(buildRow(record));
   });

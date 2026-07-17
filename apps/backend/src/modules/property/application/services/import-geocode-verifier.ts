@@ -57,11 +57,15 @@ export class ImportGeocodeVerifier {
       while (next < queue.length) {
         const [key, address] = queue[next]!;
         next += 1;
-        if (Date.now() >= deadline) {
+        // Each lookup's race window is also capped by the remaining overall
+        // budget, so a lookup dispatched near the deadline can't overrun the
+        // batch by a full per-address timeout.
+        const remainingMs = deadline - Date.now();
+        if (remainingMs <= 0) {
           result.set(key, UNVERIFIED);
           continue;
         }
-        result.set(key, await this.verifyOne(address));
+        result.set(key, await this.verifyOne(address, Math.min(this.opts.perAddressTimeoutMs, remainingMs)));
       }
     };
 
@@ -73,12 +77,12 @@ export class ImportGeocodeVerifier {
     return result;
   }
 
-  private async verifyOne(address: string): Promise<GeocodeVerification> {
+  private async verifyOne(address: string, timeoutMs: number): Promise<GeocodeVerification> {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_, reject) => {
       timer = setTimeout(
         () => reject(new Error('geocode verification timed out')),
-        this.opts.perAddressTimeoutMs,
+        timeoutMs,
       );
     });
     const lookup = this.geocoding.geocode(address);

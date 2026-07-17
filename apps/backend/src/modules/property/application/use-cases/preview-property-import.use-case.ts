@@ -92,32 +92,40 @@ export class PreviewPropertyImportUseCase {
       : 'text/csv';
     await this.storageService.upload(fileKey, fileBuffer, contentType);
 
-    const { rows } = await this.resolver.resolve(rawRows, { tenantId });
-    // Geocode-verify unique new addresses AFTER resolution (the resolver
-    // stays pure DB lookups, so the commit worker's re-resolve never
-    // re-geocodes) and recompute the summary with the new warnings.
-    await applyGeocodeVerification(rows, this.geocodeVerifier);
-    const summary = computeImportSummary(rows);
+    try {
+      const { rows } = await this.resolver.resolve(rawRows, { tenantId });
+      // Geocode-verify unique new addresses AFTER resolution (the resolver
+      // stays pure DB lookups, so the commit worker's re-resolve never
+      // re-geocodes) and recompute the summary with the new warnings.
+      await applyGeocodeVerification(rows, this.geocodeVerifier);
+      const summary = computeImportSummary(rows);
 
-    const now = new Date();
-    const entity = new PropertyImportEntity({
-      id,
-      tenantId,
-      status: 'PREVIEW',
-      fileKey,
-      originalFilename: filename,
-      totalRows: rows.length,
-      successCount: 0,
-      errorCount: 0,
-      errorsJson: null,
-      previewJson: { summary, rows },
-      resultsJson: null,
-      createdByUserId: actor.userId,
-      createdAt: now,
-      updatedAt: now,
-    });
-    await this.importRepo.save(entity);
+      const now = new Date();
+      const entity = new PropertyImportEntity({
+        id,
+        tenantId,
+        status: 'PREVIEW',
+        fileKey,
+        originalFilename: filename,
+        totalRows: rows.length,
+        successCount: 0,
+        errorCount: 0,
+        errorsJson: null,
+        previewJson: { summary, rows },
+        resultsJson: null,
+        createdByUserId: actor.userId,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await this.importRepo.save(entity);
 
-    return { importId: id, tenantId, summary, rows };
+      return { importId: id, tenantId, summary, rows };
+    } catch (err) {
+      // Until the PREVIEW row is persisted, the abandoned-preview sweeper
+      // can't see this upload — compensate here so a resolver/geocoder/save
+      // failure doesn't leave an orphaned object in storage.
+      await this.storageService.deleteObject(fileKey).catch(() => {});
+      throw err;
+    }
   }
 }

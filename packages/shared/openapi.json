@@ -6092,31 +6092,89 @@
                                     "nullable": true
                                   },
                                   "geocode": {
-                                    "type": "object",
-                                    "properties": {
-                                      "status": {
-                                        "type": "string",
-                                        "enum": [
-                                          "found",
-                                          "not_found",
-                                          "unverified"
-                                        ]
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "status": {
+                                            "type": "string",
+                                            "enum": [
+                                              "found"
+                                            ]
+                                          },
+                                          "lat": {
+                                            "type": "number"
+                                          },
+                                          "lng": {
+                                            "type": "number"
+                                          }
+                                        },
+                                        "required": [
+                                          "status",
+                                          "lat",
+                                          "lng"
+                                        ],
+                                        "additionalProperties": false
                                       },
-                                      "lat": {
-                                        "type": "number",
-                                        "nullable": true
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "status": {
+                                            "type": "string",
+                                            "enum": [
+                                              "not_found"
+                                            ]
+                                          },
+                                          "lat": {
+                                            "enum": [
+                                              "null"
+                                            ],
+                                            "nullable": true
+                                          },
+                                          "lng": {
+                                            "enum": [
+                                              "null"
+                                            ],
+                                            "nullable": true
+                                          }
+                                        },
+                                        "required": [
+                                          "status",
+                                          "lat",
+                                          "lng"
+                                        ],
+                                        "additionalProperties": false
                                       },
-                                      "lng": {
-                                        "type": "number",
-                                        "nullable": true
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "status": {
+                                            "type": "string",
+                                            "enum": [
+                                              "unverified"
+                                            ]
+                                          },
+                                          "lat": {
+                                            "enum": [
+                                              "null"
+                                            ],
+                                            "nullable": true
+                                          },
+                                          "lng": {
+                                            "enum": [
+                                              "null"
+                                            ],
+                                            "nullable": true
+                                          }
+                                        },
+                                        "required": [
+                                          "status",
+                                          "lat",
+                                          "lng"
+                                        ],
+                                        "additionalProperties": false
                                       }
-                                    },
-                                    "required": [
-                                      "status",
-                                      "lat",
-                                      "lng"
                                     ],
-                                    "additionalProperties": false,
                                     "nullable": true,
                                     "default": null
                                   }
@@ -14519,31 +14577,89 @@
                                     "nullable": true
                                   },
                                   "geocode": {
-                                    "type": "object",
-                                    "properties": {
-                                      "status": {
-                                        "type": "string",
-                                        "enum": [
-                                          "found",
-                                          "not_found",
-                                          "unverified"
-                                        ]
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "status": {
+                                            "type": "string",
+                                            "enum": [
+                                              "found"
+                                            ]
+                                          },
+                                          "lat": {
+                                            "type": "number"
+                                          },
+                                          "lng": {
+                                            "type": "number"
+                                          }
+                                        },
+                                        "required": [
+                                          "status",
+                                          "lat",
+                                          "lng"
+                                        ],
+                                        "additionalProperties": false
                                       },
-                                      "lat": {
-                                        "type": "number",
-                                        "nullable": true
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "status": {
+                                            "type": "string",
+                                            "enum": [
+                                              "not_found"
+                                            ]
+                                          },
+                                          "lat": {
+                                            "enum": [
+                                              "null"
+                                            ],
+                                            "nullable": true
+                                          },
+                                          "lng": {
+                                            "enum": [
+                                              "null"
+                                            ],
+                                            "nullable": true
+                                          }
+                                        },
+                                        "required": [
+                                          "status",
+                                          "lat",
+                                          "lng"
+                                        ],
+                                        "additionalProperties": false
                                       },
-                                      "lng": {
-                                        "type": "number",
-                                        "nullable": true
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "status": {
+                                            "type": "string",
+                                            "enum": [
+                                              "unverified"
+                                            ]
+                                          },
+                                          "lat": {
+                                            "enum": [
+                                              "null"
+                                            ],
+                                            "nullable": true
+                                          },
+                                          "lng": {
+                                            "enum": [
+                                              "null"
+                                            ],
+                                            "nullable": true
+                                          }
+                                        },
+                                        "required": [
+                                          "status",
+                                          "lat",
+                                          "lng"
+                                        ],
+                                        "additionalProperties": false
                                       }
-                                    },
-                                    "required": [
-                                      "status",
-                                      "lat",
-                                      "lng"
                                     ],
-                                    "additionalProperties": false,
                                     "nullable": true,
                                     "default": null
                                   }

@@ -43,7 +43,7 @@ function newRow(): ResolvedPropertyImportRow {
 
 describe('PreviewPropertyImportUseCase', () => {
   let importRepo: { save: ReturnType<typeof vi.fn> };
-  let storageService: { upload: ReturnType<typeof vi.fn> };
+  let storageService: { upload: ReturnType<typeof vi.fn>; deleteObject: ReturnType<typeof vi.fn> };
   let tenantRepo: { findById: ReturnType<typeof vi.fn> };
   let resolver: { resolve: ReturnType<typeof vi.fn> };
   let verifier: { verifyMany: ReturnType<typeof vi.fn> } & IImportGeocodeVerifier;
@@ -51,7 +51,7 @@ describe('PreviewPropertyImportUseCase', () => {
 
   beforeEach(() => {
     importRepo = { save: vi.fn().mockResolvedValue(undefined) };
-    storageService = { upload: vi.fn().mockResolvedValue(undefined) };
+    storageService = { upload: vi.fn().mockResolvedValue(undefined), deleteObject: vi.fn().mockResolvedValue(undefined) };
     tenantRepo = { findById: vi.fn().mockResolvedValue({ isActive: () => true }) };
     resolver = {
       resolve: vi.fn().mockResolvedValue({
@@ -143,6 +143,18 @@ describe('PreviewPropertyImportUseCase', () => {
       makeUseCase().execute({ fileBuffer: CSV, filename: 'props.pdf', actor: clAdmin }),
     ).rejects.toThrow(ValidationError);
     expect(storageService.upload).not.toHaveBeenCalled();
+  });
+
+  it('deletes the uploaded file when a post-upload step fails (no orphaned storage object)', async () => {
+    resolver.resolve.mockRejectedValue(new Error('db down'));
+
+    await expect(
+      makeUseCase().execute({ fileBuffer: CSV, filename: 'props.csv', actor: clAdmin }),
+    ).rejects.toThrow('db down');
+
+    const uploadedKey = storageService.upload.mock.calls[0]![0];
+    expect(storageService.deleteObject).toHaveBeenCalledWith(uploadedKey);
+    expect(importRepo.save).not.toHaveBeenCalled();
   });
 
   it('rejects files above the preview row cap', async () => {

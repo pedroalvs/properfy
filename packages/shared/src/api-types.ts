@@ -2831,12 +2831,26 @@ export interface paths {
                                         country: string;
                                         duplicateOfRow: number | null;
                                         /** @default null */
-                                        geocode: {
+                                        geocode: ({
                                             /** @enum {string} */
-                                            status: "found" | "not_found" | "unverified";
-                                            lat: number | null;
-                                            lng: number | null;
-                                        } | null;
+                                            status: "found";
+                                            lat: number;
+                                            lng: number;
+                                        } | {
+                                            /** @enum {string} */
+                                            status: "not_found";
+                                            /** @enum {unknown|null} */
+                                            lat: "null" | null;
+                                            /** @enum {unknown|null} */
+                                            lng: "null" | null;
+                                        } | {
+                                            /** @enum {string} */
+                                            status: "unverified";
+                                            /** @enum {unknown|null} */
+                                            lat: "null" | null;
+                                            /** @enum {unknown|null} */
+                                            lng: "null" | null;
+                                        }) | null;
                                     } | null;
                                     issues: {
                                         field: string;
@@ -6089,12 +6103,26 @@ export interface paths {
                                         country: string;
                                         duplicateOfRow: number | null;
                                         /** @default null */
-                                        geocode: {
+                                        geocode: ({
                                             /** @enum {string} */
-                                            status: "found" | "not_found" | "unverified";
-                                            lat: number | null;
-                                            lng: number | null;
-                                        } | null;
+                                            status: "found";
+                                            lat: number;
+                                            lng: number;
+                                        } | {
+                                            /** @enum {string} */
+                                            status: "not_found";
+                                            /** @enum {unknown|null} */
+                                            lat: "null" | null;
+                                            /** @enum {unknown|null} */
+                                            lng: "null" | null;
+                                        } | {
+                                            /** @enum {string} */
+                                            status: "unverified";
+                                            /** @enum {unknown|null} */
+                                            lat: "null" | null;
+                                            /** @enum {unknown|null} */
+                                            lng: "null" | null;
+                                        }) | null;
                                     } | null;
                                     contact: {
                                         /** @enum {string} */
