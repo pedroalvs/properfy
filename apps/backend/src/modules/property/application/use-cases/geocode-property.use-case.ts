@@ -21,7 +21,7 @@ export class GeocodePropertyUseCase {
     const { propertyId, actor } = input;
 
     this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
-      action: 'property.import',
+      action: 'property.geocode',
       entityType: 'Property',
       entityId: propertyId,
     });

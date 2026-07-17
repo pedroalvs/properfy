@@ -178,18 +178,6 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     return rows.map(mapToEntity);
   }
 
-  async findManyByPropertyCodes(tenantId: string, codes: string[]): Promise<PropertyEntity[]> {
-    if (codes.length === 0) return [];
-    const rows = await this.prisma.property.findMany({
-      where: {
-        tenant_id: tenantId,
-        property_code: { in: codes },
-        deleted_at: null,
-      },
-    });
-    return rows.map(mapToEntity);
-  }
-
   async findAll(
     filters: PropertyFilters,
     pagination: PaginationParams,

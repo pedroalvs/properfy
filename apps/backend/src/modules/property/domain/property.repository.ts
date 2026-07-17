@@ -59,11 +59,6 @@ export interface IPropertyRepository {
    * of rows against existing properties in a single pass.
    */
   findManyByNormalizedAddressKeys(tenantId: string, keys: string[]): Promise<PropertyEntity[]>;
-  /**
-   * Batched counterpart of `findByPropertyCode` — one indexed `IN` query for
-   * many codes, for the property-import row resolver's code-conflict check.
-   */
-  findManyByPropertyCodes(tenantId: string, codes: string[]): Promise<PropertyEntity[]>;
   findAll(
     filters: PropertyFilters,
     pagination: PaginationParams,

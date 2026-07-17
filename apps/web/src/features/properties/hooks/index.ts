@@ -6,5 +6,3 @@ export { usePropertySave } from './usePropertySave';
 export type { UsePropertySaveReturn } from './usePropertySave';
 export { usePropertyAppointments } from './usePropertyAppointments';
 export type { UsePropertyAppointmentsReturn } from './usePropertyAppointments';
-export { usePropertyImport } from './usePropertyImport';
-export type { ImportStatus as PropertyImportStatus, UsePropertyImportReturn } from './usePropertyImport';
