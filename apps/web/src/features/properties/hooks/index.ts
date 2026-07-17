@@ -8,5 +8,3 @@ export { usePropertyAppointments } from './usePropertyAppointments';
 export type { UsePropertyAppointmentsReturn } from './usePropertyAppointments';
 export { usePropertyImport } from './usePropertyImport';
 export type { PropertyImportStatus, UsePropertyImportReturn } from './usePropertyImport';
-export { usePropertyMapData } from './usePropertyMapData';
-export type { UsePropertyMapDataReturn, PropertyMapItem } from './usePropertyMapData';

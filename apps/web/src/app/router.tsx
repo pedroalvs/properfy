@@ -55,7 +55,6 @@ const ConsentLookupPage = Loadable(lazyRetry(() => import('@/features/notificati
 const MarketplacePage = Loadable(lazyRetry(() => import('@/features/marketplace/pages/MarketplacePage').then(m => ({ default: m.MarketplacePage }))));
 const ServiceRegionListPage = Loadable(lazyRetry(() => import('@/features/service-regions/pages/ServiceRegionListPage').then(m => ({ default: m.ServiceRegionListPage }))));
 const AppointmentMapPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentMapPage').then(m => ({ default: m.AppointmentMapPage }))));
-const PropertyMapPage = Loadable(lazyRetry(() => import('@/features/properties/pages/PropertyMapPage').then(m => ({ default: m.PropertyMapPage }))));
 
 import { ProtectedRoute } from './ProtectedRoute';
 import { AuthGuard } from './AuthGuard';
@@ -192,12 +191,10 @@ export const router = createBrowserRouter([
             ),
           },
           {
+            // Legacy bookmark: the property map was removed; without this the
+            // URL would fall through to properties/:id with id="map".
             path: 'properties/map',
-            element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
-                <PropertyMapPage />
-              </AuthGuard>
-            ),
+            element: <Navigate to="/properties" replace />,
           },
           {
             path: 'properties/:id',
