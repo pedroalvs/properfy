@@ -16,15 +16,6 @@ vi.mock('@/services/api', () => ({
     use: vi.fn(),
   },
 }));
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
-}));
-
 const mockFixedRule = {
   id: 'pr-1',
   tenantId: 't-1',

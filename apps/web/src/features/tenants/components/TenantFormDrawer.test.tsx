@@ -19,15 +19,6 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
-}));
-
 vi.mock('@/hooks/usePermissions', () => ({
   usePermissions: vi.fn(() => ({ role: 'AM', hasRole: () => true, canPerform: () => true })),
 }));
