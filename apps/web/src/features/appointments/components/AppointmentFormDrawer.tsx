@@ -459,12 +459,19 @@ export function AppointmentFormDrawer({
     if (shouldSaveAppointment) {
       const result = await save(form, appointmentId ?? undefined);
       if (!result.success) {
-        const errorMessage = result.error === 'APPOINTMENT_CONTACT_NOT_FOUND'
-          ? 'One or more contacts belong to a different agency and cannot be linked to this appointment.'
-          : result.errorCode === 'APPOINTMENT_TIME_SLOT_OUTSIDE_GROUP_WINDOW'
-          ? "This time slot falls outside the service group's time window. Choose a time within the group's window instead."
-          : (result.error ?? 'Failed to save');
-        showError(errorMessage);
+        // Backend VALIDATION_ERROR details land inline on the matching fields;
+        // unmatched details (or non-validation errors) keep the snackbar.
+        if (result.fieldErrors) {
+          setErrors((prev) => ({ ...prev, ...result.fieldErrors }));
+        }
+        if (result.error || !result.fieldErrors) {
+          const errorMessage = result.error === 'APPOINTMENT_CONTACT_NOT_FOUND'
+            ? 'One or more contacts belong to a different agency and cannot be linked to this appointment.'
+            : result.errorCode === 'APPOINTMENT_TIME_SLOT_OUTSIDE_GROUP_WINDOW'
+            ? "This time slot falls outside the service group's time window. Choose a time within the group's window instead."
+            : (result.error ?? 'Failed to save');
+          showError(errorMessage);
+        }
         return;
       }
       savedAppointment = true;

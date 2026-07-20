@@ -497,4 +497,58 @@ describe('useAppointmentSave', () => {
 
     expect(result.current.isSaving).toBe(false);
   });
+
+  it('save maps VALIDATION_ERROR details (dotted Zod paths) to form field errors', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [
+            { field: 'scheduledDate', message: 'Scheduled date cannot be in the past' },
+            { field: 'contact.rentalTenantName', message: 'Contact name is required' },
+          ],
+        },
+      },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_CREATE_DATA);
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.fieldErrors?.scheduledDate).toBe('Scheduled date cannot be in the past');
+    expect(saveResult?.fieldErrors?.contactName).toBe('Contact name is required');
+    expect(saveResult?.errorCode).toBe('VALIDATION_ERROR');
+    // All details matched — no summary error, no snackbar fallback needed.
+    expect(saveResult?.error).toBeUndefined();
+  });
+
+  it('save keeps the summary error when a detail path has no matching form field', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [{ field: 'contacts.0.inline.type', message: 'Invalid contact type' }],
+        },
+      },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_CREATE_DATA);
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.fieldErrors).toBeUndefined();
+    expect(saveResult?.error).toBe('Validation failed');
+  });
 });

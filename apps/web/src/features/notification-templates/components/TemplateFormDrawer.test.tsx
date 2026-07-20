@@ -199,6 +199,27 @@ describe('TemplateFormDrawer', () => {
     expect(screen.getByText('Save')).toBeInTheDocument();
   });
 
+  it('renders backend VALIDATION_ERROR details inline on the matching fields', async () => {
+    mockPut.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [{ field: 'bodyHtml', message: 'Missing required variable: scheduledDate' }],
+        },
+      },
+    });
+
+    const user = userEvent.setup();
+    const { onSaved } = renderDrawer();
+
+    await user.click(screen.getByText('Save'));
+
+    expect(await screen.findByText('Missing required variable: scheduledDate')).toBeInTheDocument();
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
   it('shows active toggle', () => {
     renderDrawer();
     expect(screen.getByLabelText('Template active')).toBeInTheDocument();

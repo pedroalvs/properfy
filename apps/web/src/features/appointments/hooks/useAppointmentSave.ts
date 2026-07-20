@@ -9,6 +9,7 @@ import {
 } from '@properfy/shared';
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
+import { mapServerFieldErrors } from '@/lib/server-field-errors';
 import type { AppointmentFormData, AppointmentFormErrors, ContactFormEntry } from '../types';
 import { MAX_CUSTOM_FIELDS } from '../types';
 
@@ -136,7 +137,7 @@ function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
 
 /** Path-to-field mapping: Zod issue paths use schema field names, but the
  *  form state uses flat field names. */
-const SCHEMA_PATH_TO_FORM_FIELD: Record<string, keyof AppointmentFormData> = {
+const SCHEMA_PATH_TO_FORM_FIELD: Record<string, Exclude<keyof AppointmentFormData, 'contacts' | 'customFields'>> = {
   branchId: 'branchId',
   propertyId: 'propertyId',
   serviceTypeId: 'serviceTypeId',
@@ -173,7 +174,23 @@ export interface SaveResult {
   success: boolean;
   error?: string;
   errorCode?: string;
+  /** Backend VALIDATION_ERROR details mapped to form fields (inline display). */
+  fieldErrors?: AppointmentFormErrors;
   id?: string;
+}
+
+/**
+ * Split a backend save error into inline field errors (details whose dotted
+ * Zod path maps to a form field) plus the summary/`errorCode` metadata.
+ */
+function toFailureResult(error: unknown): SaveResult {
+  const apiErr = error as { error?: { code?: string } };
+  const mapped = mapServerFieldErrors(
+    error,
+    (path) => SCHEMA_PATH_TO_FORM_FIELD[path],
+    'Request failed',
+  );
+  return { success: false, ...mapped, errorCode: apiErr?.error?.code };
 }
 
 export interface UseAppointmentSaveReturn {
@@ -255,19 +272,13 @@ export function useAppointmentSave(): UseAppointmentSaveReturn {
       if (appointmentId) {
         const payload = toSchemaPayload(data, 'edit');
         const { error } = await api.PATCH(`/v1/appointments/${appointmentId}` as any, { body: payload as any });
-        if (error) {
-          const apiErr = error as any;
-          return { success: false, error: apiErr?.error?.message ?? 'Request failed', errorCode: apiErr?.error?.code };
-        }
+        if (error) return toFailureResult(error);
         queryClient.invalidateQueries({ queryKey: ['appointments'] });
         return { success: true, id: appointmentId };
       } else {
         const payload = toSchemaPayload(data, 'create');
         const { data: responseData, error } = await api.POST('/v1/appointments' as any, { body: payload as any });
-        if (error) {
-          const apiErr = error as any;
-          return { success: false, error: apiErr?.error?.message ?? 'Request failed', errorCode: apiErr?.error?.code };
-        }
+        if (error) return toFailureResult(error);
         const createdId = (responseData as any)?.data?.id;
         queryClient.invalidateQueries({ queryKey: ['appointments'] });
         return { success: true, id: createdId };

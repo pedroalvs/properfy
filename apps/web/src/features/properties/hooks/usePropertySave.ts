@@ -3,7 +3,14 @@ import { createPropertySchema, updatePropertySchema, PropertyType } from '@prope
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
+import { identityFieldMapper, mapServerFieldErrors } from '@/lib/server-field-errors';
 import type { PropertyFormData, PropertyFormErrors } from '../types';
+import { EMPTY_PROPERTY_FORM } from '../types';
+
+/** Backend VALIDATION_ERROR detail paths mirror the flat property schema. */
+const serverFieldMapper = identityFieldMapper(
+  Object.keys(EMPTY_PROPERTY_FORM) as (keyof PropertyFormData)[],
+);
 
 function parseBoolField(value: '' | 'true' | 'false'): boolean | undefined {
   return value === '' ? undefined : value === 'true';
@@ -100,6 +107,8 @@ function zodErrorsToFormErrors(issues: { path: (string | number)[]; message: str
 export interface SaveResult {
   success: boolean;
   error?: string;
+  /** Backend VALIDATION_ERROR details mapped to form fields (inline display). */
+  fieldErrors?: PropertyFormErrors;
   id?: string;
 }
 
@@ -140,11 +149,11 @@ export function usePropertySave(): UsePropertySaveReturn {
       if (propertyId) {
         const payload = toSchemaPayload(data, 'edit');
         const { error } = await api.PATCH(`/v1/properties/${propertyId}` as any, { body: payload as any });
-        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        if (error) return { success: false, ...mapServerFieldErrors(error, serverFieldMapper, 'Request failed') };
       } else {
         const payload = toSchemaPayload(data, 'create', tenantIdOverride ?? user?.tenantId);
         const { data: responseData, error } = await api.POST('/v1/properties' as any, { body: payload as any });
-        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        if (error) return { success: false, ...mapServerFieldErrors(error, serverFieldMapper, 'Request failed') };
         newId = (responseData as any)?.data?.id;
       }
       queryClient.invalidateQueries({ queryKey: ['properties'] });

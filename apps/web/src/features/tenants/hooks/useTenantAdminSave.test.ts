@@ -252,4 +252,52 @@ describe('useTenantAdminSave', () => {
 
     expect(result.current.isSaving).toBe(false);
   });
+
+  it('save maps VALIDATION_ERROR details to inline field errors', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [{ field: 'legalName', message: 'Legal name is too long' }],
+        },
+      },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_DATA);
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.fieldErrors?.legalName).toBe('Legal name is too long');
+    expect(saveResult?.error).toBeUndefined();
+  });
+
+  it('save falls back to the summary error when detail paths do not match form fields', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [{ field: 'settings.emailSendingEnabled', message: 'Must be boolean' }],
+        },
+      },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_DATA);
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.fieldErrors).toBeUndefined();
+    expect(saveResult?.error).toBe('Validation failed');
+  });
 });

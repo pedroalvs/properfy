@@ -7,7 +7,21 @@ import {
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
+import { identityFieldMapper, mapServerFieldErrors } from '@/lib/server-field-errors';
 import type { ContactFormData, ContactFormErrors } from '../types';
+
+/**
+ * Backend VALIDATION_ERROR detail paths mirror the flat registry schema
+ * (per-row `additionalChannels.N.*` paths stay unmatched → summary snackbar).
+ */
+const serverFieldMapper = identityFieldMapper<keyof ContactFormData>([
+  'type',
+  'displayName',
+  'company',
+  'primaryEmail',
+  'primaryPhone',
+  'notes',
+]);
 
 function trimToNullableString(v: string): string | null {
   const t = v.trim();
@@ -101,7 +115,21 @@ export interface SaveResult {
   /** API error code, e.g. CONTACT_EMAIL_EXISTS / CONTACT_PHONE_EXISTS / VALIDATION_ERROR. */
   errorCode?: string;
   errorMessage?: string;
+  /** Backend VALIDATION_ERROR details mapped to form fields (inline display). */
+  fieldErrors?: ContactFormErrors;
   id?: string;
+}
+
+/** Normalize an API error into the contact SaveResult failure shape. */
+function toFailureResult(error: unknown): SaveResult {
+  const apiErr = error as { error?: { code?: string } };
+  const mapped = mapServerFieldErrors(error, serverFieldMapper, 'Request failed');
+  return {
+    success: false,
+    errorCode: apiErr?.error?.code ?? 'UNKNOWN_ERROR',
+    errorMessage: mapped.error,
+    fieldErrors: mapped.fieldErrors,
+  };
 }
 
 export interface UseContactSaveReturn {
@@ -156,13 +184,7 @@ export function useContactSave(): UseContactSaveReturn {
       if (contactId) {
         const payload = toUpdatePayload(data);
         const { error } = await api.PATCH(`/v1/contacts/${contactId}` as any, { body: payload as any });
-        if (error) {
-          return {
-            success: false,
-            errorCode: (error as any)?.error?.code ?? 'UNKNOWN_ERROR',
-            errorMessage: (error as any)?.error?.message ?? 'Request failed',
-          };
-        }
+        if (error) return toFailureResult(error);
       } else {
         // 024 §FR-308 — distinguish "AM/OP picked Standalone" (override === null,
         // post tenantId: null) from "fall back to JWT" (override === undefined).
@@ -170,13 +192,7 @@ export function useContactSave(): UseContactSaveReturn {
         const resolvedTenantId = tenantIdOverride !== undefined ? tenantIdOverride : (user?.tenantId ?? null);
         const payload = toCreatePayload(data, resolvedTenantId);
         const { data: responseData, error } = await api.POST('/v1/contacts' as any, { body: payload as any });
-        if (error) {
-          return {
-            success: false,
-            errorCode: (error as any)?.error?.code ?? 'UNKNOWN_ERROR',
-            errorMessage: (error as any)?.error?.message ?? 'Request failed',
-          };
-        }
+        if (error) return toFailureResult(error);
         newId = (responseData as any)?.data?.id;
       }
       queryClient.invalidateQueries({ queryKey: ['contacts'] });

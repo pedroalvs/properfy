@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { appointmentCodePrefixSchema } from '@properfy/shared';
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
+import { identityFieldMapper, mapServerFieldErrors } from '@/lib/server-field-errors';
 import type { TenantAdminFormData, TenantAdminFormErrors } from '../types';
 
 const REQUIRED_FIELD_MESSAGE = 'Required field';
@@ -13,6 +14,14 @@ const REQUIRED_FIELDS: (keyof TenantAdminFormData)[] = [
   'legalName',
   'currency',
 ];
+
+/** Backend VALIDATION_ERROR detail paths that map 1:1 to form fields. */
+const serverFieldMapper = identityFieldMapper<keyof TenantAdminFormData>([
+  'name',
+  'legalName',
+  'currency',
+  'appointmentCodePrefix',
+]);
 
 export interface ValidateOptions {
   /** Prefix is required on create; on edit it may be blank for legacy tenants
@@ -91,7 +100,9 @@ export function useTenantAdminSave(): UseTenantAdminSaveReturn {
         if (errorEnvelope?.error?.code === 'TENANT_PREFIX_CONFLICT') {
           return { success: false, fieldErrors: { appointmentCodePrefix: PREFIX_CONFLICT_MESSAGE } };
         }
-        throw new Error(errorEnvelope?.error?.message ?? 'Request failed');
+        // Map VALIDATION_ERROR details to inline field errors; unmatched
+        // details (or non-validation errors) fall back to the summary error.
+        return { success: false, ...mapServerFieldErrors(error, serverFieldMapper, 'Request failed') };
       }
       queryClient.invalidateQueries({ queryKey: ['tenant-admins'] });
       return { success: true };
