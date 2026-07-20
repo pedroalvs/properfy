@@ -62,6 +62,20 @@ describe('ContactFormDrawer — per-row channel errors', () => {
     expect(screen.getByLabelText('Channel 1 value')).toHaveValue('bad');
   });
 
+  it('renders backend VALIDATION_ERROR details inline on the matching field', async () => {
+    mockValidate.mockReturnValue({});
+    mockSave.mockResolvedValue({
+      success: false,
+      errorCode: 'VALIDATION_ERROR',
+      fieldErrors: { primaryEmail: 'Invalid email address' },
+    });
+    renderDrawer();
+    fireEvent.click(screen.getByText('Create contact'));
+    expect(await screen.findByText('Invalid email address')).toBeInTheDocument();
+    // All details matched a form field — no summary snackbar.
+    expect(mockShowError).not.toHaveBeenCalled();
+  });
+
   it('clears a row error when that channel row is removed', () => {
     mockValidate.mockReturnValue({ additionalChannelErrors: { 0: 'Must be a valid email address' } });
     renderDrawer();

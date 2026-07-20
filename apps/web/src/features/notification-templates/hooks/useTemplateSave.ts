@@ -2,12 +2,21 @@ import { useState, useCallback } from 'react';
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import type { NotificationChannel } from '@properfy/shared';
+import { mapServerFieldErrors } from '@/lib/server-field-errors';
 import { ALLOWED_VARIABLES, IMAGE_PLACEHOLDER_REGEX, type TemplateFormData, type TemplateFormErrors } from '../types';
 
 export interface SaveResult {
   success: boolean;
   error?: string;
-  details?: Array<{ field: string; message: string }>;
+  /** Backend VALIDATION_ERROR details mapped to form fields (inline display). */
+  fieldErrors?: TemplateFormErrors;
+}
+
+/** API payload keys → form field keys (`bodyHtml` is edited as `body`). */
+function templateFieldMapper(path: string): keyof TemplateFormErrors | undefined {
+  if (path === 'subject') return 'subject';
+  if (path === 'bodyHtml' || path === 'body') return 'body';
+  return undefined;
 }
 
 export interface UseTemplateSaveReturn {
@@ -106,10 +115,7 @@ export function useTemplateSave(): UseTemplateSaveReturn {
         },
       );
       if (error) {
-        const errObj = error as { error?: { message?: string; details?: Array<{ field: string; message: string }> } };
-        const message = errObj.error?.message ?? 'Request failed';
-        const details = errObj.error?.details;
-        return { success: false, error: message, details };
+        return { success: false, ...mapServerFieldErrors(error, templateFieldMapper, 'Request failed') };
       }
       setValidationErrors({});
       queryClient.invalidateQueries({ queryKey: ['notification-templates'] });

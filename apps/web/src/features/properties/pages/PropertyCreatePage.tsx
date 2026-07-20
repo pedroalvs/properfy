@@ -148,7 +148,12 @@ export function PropertyCreatePage() {
         navigate('/properties');
       }
     } else {
-      showError(result.error ?? 'Failed to create property');
+      if (result.fieldErrors) {
+        setErrors((prev) => ({ ...prev, ...result.fieldErrors }));
+      }
+      if (result.error || !result.fieldErrors) {
+        showError(result.error ?? 'Failed to create property');
+      }
     }
   }, [effectiveTenantId, form, navigate, requiresTenantSelection, save, showError, showSuccess, validate]);
 

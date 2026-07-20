@@ -6,6 +6,8 @@ import {
   updateAppointmentSchema,
   CUSTOM_FIELD_LABEL_MAX,
   CUSTOM_FIELD_VALUE_MAX,
+  getErrorMessage,
+  getFieldErrors,
 } from '@properfy/shared';
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
@@ -136,7 +138,7 @@ function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
 
 /** Path-to-field mapping: Zod issue paths use schema field names, but the
  *  form state uses flat field names. */
-const SCHEMA_PATH_TO_FORM_FIELD: Record<string, keyof AppointmentFormData> = {
+const SCHEMA_PATH_TO_FORM_FIELD: Record<string, Exclude<keyof AppointmentFormData, 'contacts' | 'customFields'>> = {
   branchId: 'branchId',
   propertyId: 'propertyId',
   serviceTypeId: 'serviceTypeId',
@@ -173,7 +175,103 @@ export interface SaveResult {
   success: boolean;
   error?: string;
   errorCode?: string;
+  /** Backend VALIDATION_ERROR details mapped to form fields (inline display). */
+  fieldErrors?: AppointmentFormErrors;
   id?: string;
+}
+
+/** Inline-contact payload keys (`contacts.N.inline.*`) → `ContactFormEntry` keys
+ *  the form renders. Only rendered fields are listed; anything else falls back
+ *  to the summary snackbar so no message is silently lost. */
+const INLINE_CONTACT_PATH_TO_FIELD: Record<string, keyof ContactFormEntry> = {
+  type: 'contactType',
+  displayName: 'name',
+  primaryEmail: 'email',
+  primaryPhone: 'phone',
+  company: 'company',
+  notes: 'notes',
+};
+
+/**
+ * Split a backend save error into inline field errors plus the summary/
+ * `errorCode` metadata.
+ *
+ * Flat dotted paths map via `SCHEMA_PATH_TO_FORM_FIELD`. Indexed paths map
+ * into the nested per-row error models the form renders:
+ * - `contacts.N.inline.<field>` / `contacts.N.role` → `errors.contacts[N]`
+ *   (the contacts payload is built 1:1 from form rows, so N is the row index);
+ * - `customFields.N.<label|value>` → `errors.customFields[row]`, where the
+ *   payload index N is remapped to the form row index because
+ *   `buildCustomFieldsPayload` drops fully-empty rows.
+ * Any path (or index) that cannot be mapped reliably falls back to the
+ * summary snackbar.
+ */
+function toFailureResult(error: unknown, data: AppointmentFormData): SaveResult {
+  const apiErr = error as { error?: { code?: string } };
+  const details = getFieldErrors(error);
+  const customFieldFormIndexes = data.customFields
+    .map((f, i) => ({ f, i }))
+    .filter(({ f }) => f.label.trim() !== '' || f.value.trim() !== '')
+    .map(({ i }) => i);
+  const fieldErrors: AppointmentFormErrors = {};
+  let unmatched = false;
+
+  const setContactError = (row: number, field: keyof ContactFormEntry, message: string) => {
+    const contacts = fieldErrors.contacts ?? {};
+    const rowErrors = contacts[row] ?? {};
+    if (rowErrors[field] === undefined) rowErrors[field] = message;
+    contacts[row] = rowErrors;
+    fieldErrors.contacts = contacts;
+  };
+
+  for (const [path, message] of Object.entries(details)) {
+    const flat = SCHEMA_PATH_TO_FORM_FIELD[path];
+    if (flat !== undefined) {
+      if (fieldErrors[flat] === undefined) fieldErrors[flat] = message;
+      continue;
+    }
+    const inlineMatch = /^contacts\.(\d+)\.inline\.([^.]+)$/.exec(path);
+    if (inlineMatch) {
+      const row = Number(inlineMatch[1]);
+      const field = INLINE_CONTACT_PATH_TO_FIELD[inlineMatch[2]!];
+      const entry = data.contacts?.[row];
+      // Only map when the row exists and is actually inline (no contactId).
+      if (field !== undefined && entry !== undefined && !entry.contactId) {
+        setContactError(row, field, message);
+        continue;
+      }
+    }
+    const roleMatch = /^contacts\.(\d+)\.role$/.exec(path);
+    if (roleMatch) {
+      const row = Number(roleMatch[1]);
+      if (data.contacts?.[row] !== undefined) {
+        setContactError(row, 'role', message);
+        continue;
+      }
+    }
+    const customFieldMatch = /^customFields\.(\d+)\.(label|value)$/.exec(path);
+    if (customFieldMatch) {
+      const formIndex = customFieldFormIndexes[Number(customFieldMatch[1])];
+      if (formIndex !== undefined) {
+        const customFields = fieldErrors.customFields ?? {};
+        const rowErrors = customFields[formIndex] ?? {};
+        const key = customFieldMatch[2] as 'label' | 'value';
+        if (rowErrors[key] === undefined) rowErrors[key] = message;
+        customFields[formIndex] = rowErrors;
+        fieldErrors.customFields = customFields;
+        continue;
+      }
+    }
+    unmatched = true;
+  }
+
+  const matched = Object.keys(fieldErrors).length > 0;
+  return {
+    success: false,
+    errorCode: apiErr?.error?.code,
+    ...(matched ? { fieldErrors } : {}),
+    ...(!matched || unmatched ? { error: getErrorMessage(error, 'Request failed') } : {}),
+  };
 }
 
 export interface UseAppointmentSaveReturn {
@@ -255,19 +353,13 @@ export function useAppointmentSave(): UseAppointmentSaveReturn {
       if (appointmentId) {
         const payload = toSchemaPayload(data, 'edit');
         const { error } = await api.PATCH(`/v1/appointments/${appointmentId}` as any, { body: payload as any });
-        if (error) {
-          const apiErr = error as any;
-          return { success: false, error: apiErr?.error?.message ?? 'Request failed', errorCode: apiErr?.error?.code };
-        }
+        if (error) return toFailureResult(error, data);
         queryClient.invalidateQueries({ queryKey: ['appointments'] });
         return { success: true, id: appointmentId };
       } else {
         const payload = toSchemaPayload(data, 'create');
         const { data: responseData, error } = await api.POST('/v1/appointments' as any, { body: payload as any });
-        if (error) {
-          const apiErr = error as any;
-          return { success: false, error: apiErr?.error?.message ?? 'Request failed', errorCode: apiErr?.error?.code };
-        }
+        if (error) return toFailureResult(error, data);
         const createdId = (responseData as any)?.data?.id;
         queryClient.invalidateQueries({ queryKey: ['appointments'] });
         return { success: true, id: createdId };

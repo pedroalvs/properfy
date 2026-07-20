@@ -281,6 +281,24 @@ describe('AppointmentFormDrawer', () => {
     expect(onSaved).not.toHaveBeenCalled();
   });
 
+  it('renders backend VALIDATION_ERROR details inline on the matching fields', async () => {
+    mockSave.mockResolvedValue({
+      success: false,
+      errorCode: 'VALIDATION_ERROR',
+      fieldErrors: { scheduledDate: 'Scheduled date cannot be in the past' },
+    });
+
+    const onSaved = vi.fn();
+    renderDrawer({ onSaved });
+
+    fireEvent.click(screen.getByText('Create Appointment'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Scheduled date cannot be in the past')).toBeInTheDocument();
+    });
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
   it('assigns inspector from the edit drawer via appointment transition', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockUseFormOptions.mockImplementation(((_key: any, path: any) => {

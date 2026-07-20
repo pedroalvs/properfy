@@ -228,6 +228,38 @@ describe('TenantFormDrawer – submit behavior', () => {
     );
     expect(onSaved).not.toHaveBeenCalled();
   });
+
+  it('renders backend VALIDATION_ERROR details inline on the matching field', async () => {
+    const user = userEvent.setup();
+    const onSaved = vi.fn();
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [{ field: 'legalName', message: 'Legal name is too long' }],
+        },
+      },
+    });
+
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <TenantFormDrawer open onClose={vi.fn()} onSaved={onSaved} />
+      </Wrapper>,
+    );
+
+    await fillRequiredFields(user);
+    await user.click(screen.getByRole('button', { name: 'Create Agency' }));
+
+    await waitFor(() =>
+      expect(screen.getByText('Legal name is too long')).toBeInTheDocument(),
+    );
+    // Fully mapped details render inline only — no summary snackbar.
+    expect(screen.queryByText('Validation failed')).not.toBeInTheDocument();
+    expect(onSaved).not.toHaveBeenCalled();
+  });
 });
 
 describe('TenantFormDrawer – discard-confirm behavior', () => {

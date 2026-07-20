@@ -120,4 +120,14 @@ describe('PropertyFormDrawer', () => {
     expect(screen.getByText('Required field')).toBeInTheDocument();
     expect(mockSave).not.toHaveBeenCalled();
   });
+
+  it('renders backend VALIDATION_ERROR details inline on the matching field', async () => {
+    mockSave.mockResolvedValue({
+      success: false,
+      fieldErrors: { street: 'Street could not be verified' },
+    });
+    renderDrawer();
+    fireEvent.click(screen.getByText('Create Property'));
+    expect(await screen.findByText('Street could not be verified')).toBeInTheDocument();
+  });
 });

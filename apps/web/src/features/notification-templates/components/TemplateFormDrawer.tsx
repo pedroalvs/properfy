@@ -134,7 +134,12 @@ export function TemplateFormDrawer({
       showSuccess('Template updated successfully');
       onSaved();
     } else {
-      showError(result.error ?? 'Failed to save template');
+      if (result.fieldErrors) {
+        setErrors((prev) => ({ ...prev, ...result.fieldErrors }));
+      }
+      if (result.error || !result.fieldErrors) {
+        showError(result.error ?? 'Failed to save template');
+      }
     }
   }, [template, form, validate, save, showSuccess, showError, onSaved]);
 
