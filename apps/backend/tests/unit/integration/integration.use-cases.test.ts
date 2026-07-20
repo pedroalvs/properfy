@@ -225,3 +225,13 @@ describe('TestIntegrationConnectionUseCase', () => {
     expect(result).toEqual({ ok: false, message: 'timeout' });
   });
 });
+
+describe('integration error codes', () => {
+  it('IntegrationConfigInvalidError carries INTEGRATION_CONFIG_INVALID with status 400 and details', () => {
+    const details = [{ field: 'apiKey', message: 'Required' }];
+    const err = new IntegrationConfigInvalidError(details);
+    expect(err.code).toBe('INTEGRATION_CONFIG_INVALID');
+    expect(err.statusCode).toBe(400);
+    expect(err.details).toBe(details);
+  });
+});

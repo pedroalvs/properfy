@@ -232,3 +232,17 @@ describe('ListAppCredentialsUseCase', () => {
     );
   });
 });
+
+describe('app-credential error codes', () => {
+  it('AppCredentialAuthCodeRequiredError carries APP_CREDENTIAL_AUTH_CODE_REQUIRED with status 400', () => {
+    const err = new AppCredentialAuthCodeRequiredError();
+    expect(err.code).toBe('APP_CREDENTIAL_AUTH_CODE_REQUIRED');
+    expect(err.statusCode).toBe(400);
+  });
+
+  it('AppCredentialBranchInvalidError carries APP_CREDENTIAL_BRANCH_INVALID with status 400', () => {
+    const err = new AppCredentialBranchInvalidError();
+    expect(err.code).toBe('APP_CREDENTIAL_BRANCH_INVALID');
+    expect(err.statusCode).toBe(400);
+  });
+});

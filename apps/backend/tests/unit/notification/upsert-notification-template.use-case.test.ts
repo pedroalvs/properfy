@@ -249,3 +249,15 @@ describe('UpsertNotificationTemplateUseCase', () => {
     });
   });
 });
+
+describe('notification error codes', () => {
+  it('ProtectedTemplateClassificationError carries PROTECTED_TEMPLATE_CLASSIFICATION with status 400', () => {
+    const err = new ProtectedTemplateClassificationError('INSPECTION_CONFIRMED', 'TRANSACTIONAL');
+    expect(err.code).toBe('PROTECTED_TEMPLATE_CLASSIFICATION');
+    expect(err.statusCode).toBe(400);
+    expect(err.details).toEqual({
+      templateCode: 'INSPECTION_CONFIRMED',
+      requiredClass: 'TRANSACTIONAL',
+    });
+  });
+});

@@ -212,3 +212,17 @@ describe('ConfirmInspectorPhotoUploadUseCase', () => {
     );
   });
 });
+
+describe('inspector photo upload error codes', () => {
+  it('InspectorPhotoInvalidKeyError carries INSPECTOR_PHOTO_KEY_INVALID with status 400', () => {
+    const err = new InspectorPhotoInvalidKeyError();
+    expect(err.code).toBe('INSPECTOR_PHOTO_KEY_INVALID');
+    expect(err.statusCode).toBe(400);
+  });
+
+  it('InspectorPhotoObjectNotFoundError carries INSPECTOR_PHOTO_OBJECT_NOT_FOUND with status 400', () => {
+    const err = new InspectorPhotoObjectNotFoundError();
+    expect(err.code).toBe('INSPECTOR_PHOTO_OBJECT_NOT_FOUND');
+    expect(err.statusCode).toBe(400);
+  });
+});
