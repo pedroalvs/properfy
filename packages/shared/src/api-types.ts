@@ -358,7 +358,12 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": {
+                            secret: string;
+                            qrUri: string;
+                        };
+                    };
                 };
             };
         };

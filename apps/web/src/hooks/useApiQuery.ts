@@ -59,22 +59,31 @@ function toStringParams(params?: ListParams): Record<string, string | string[]> 
   return Object.keys(result).length > 0 ? result : undefined;
 }
 
+/** Parse a Retry-After header value (delta-seconds or HTTP-date) into seconds. */
+function parseRetryAfter(header: string | null | undefined): number | undefined {
+  if (header === null || header === undefined || header === '') return undefined;
+  const seconds = Number(header);
+  if (Number.isFinite(seconds)) return seconds >= 0 ? seconds : undefined;
+  const dateMs = Date.parse(header);
+  if (Number.isNaN(dateMs)) return undefined;
+  return Math.max(0, Math.ceil((dateMs - Date.now()) / 1000));
+}
+
 /** Fill `retryAfter` from the Retry-After header when a 429 body lacks it. */
 function withRetryAfter(apiError: ApiError, response: Response | undefined): ApiError {
   if (apiError.status === 429 && apiError.retryAfter === undefined) {
-    const header = response?.headers?.get('Retry-After');
-    const seconds = header === null || header === undefined ? NaN : Number(header);
-    if (Number.isFinite(seconds)) apiError.retryAfter = seconds;
+    const parsed = parseRetryAfter(response?.headers?.get('Retry-After'));
+    if (parsed !== undefined) apiError.retryAfter = parsed;
   }
   return apiError;
 }
 
-async function apiGet<T>(path: string, params?: Record<string, string | string[]>): Promise<T> {
+async function unwrapApiResult<T>(
+  call: () => Promise<{ data?: unknown; error?: unknown; response?: Response }>,
+): Promise<T> {
   let result: { data?: unknown; error?: unknown; response?: Response };
   try {
-    result = await api.GET(path as any, {
-      params: { query: params as any },
-    });
+    result = await call();
   } catch (err) {
     // fetch itself threw (offline, DNS, CORS) — normalize as a network error.
     throw toApiError(err);
@@ -84,32 +93,16 @@ async function apiGet<T>(path: string, params?: Record<string, string | string[]
   return data as unknown as T;
 }
 
+async function apiGet<T>(path: string, params?: Record<string, string | string[]>): Promise<T> {
+  return unwrapApiResult<T>(() => api.GET(path as any, { params: { query: params as any } }));
+}
+
 async function apiPost<T>(path: string, body?: unknown): Promise<T> {
-  let result: { data?: unknown; error?: unknown; response?: Response };
-  try {
-    result = await api.POST(path as any, {
-      body: body as any,
-    });
-  } catch (err) {
-    throw toApiError(err);
-  }
-  const { data, error, response } = result;
-  if (error) throw withRetryAfter(toApiError(error, response?.status), response);
-  return data as unknown as T;
+  return unwrapApiResult<T>(() => api.POST(path as any, { body: body as any }));
 }
 
 async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
-  let result: { data?: unknown; error?: unknown; response?: Response };
-  try {
-    result = await api.PATCH(path as any, {
-      body: body as any,
-    });
-  } catch (err) {
-    throw toApiError(err);
-  }
-  const { data, error, response } = result;
-  if (error) throw withRetryAfter(toApiError(error, response?.status), response);
-  return data as unknown as T;
+  return unwrapApiResult<T>(() => api.PATCH(path as any, { body: body as any }));
 }
 
 // ─── Paginated List Query ──────────────────────────────────────────────────

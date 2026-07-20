@@ -373,7 +373,27 @@
       "post": {
         "responses": {
           "200": {
-            "description": "Default Response"
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "secret": {
+                      "type": "string"
+                    },
+                    "qrUri": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "secret",
+                    "qrUri"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }

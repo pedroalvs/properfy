@@ -17,11 +17,13 @@ export function useTotpSetup(): UseTotpSetupReturn {
     setIsSettingUp(true);
     setError(null);
     try {
-      const { data, error: apiError, response } = await api.POST('/v1/auth/2fa/setup' as any, {});
-      if (apiError) throw toApiError(apiError, response?.status);
-      const payload = (data as any)?.data as TotpSetupData | undefined;
-      if (!payload) throw new ApiError(500, 'Failed to setup 2FA');
-      return payload;
+      const { data, error: apiError, response } = await api.POST('/v1/auth/2fa/setup', {});
+      // The spec declares no error responses for this route, so TS narrows the
+      // error branch to `never`; at runtime openapi-fetch still surfaces the
+      // backend error envelope here.
+      if (apiError) throw toApiError(apiError, (response as Response | undefined)?.status);
+      if (!data) throw new ApiError(500, 'Failed to setup 2FA');
+      return { totpUri: data.qrUri, secret: data.secret };
     } catch (err) {
       const apiErr = toApiError(err);
       setError(getErrorMessage(apiErr, 'Failed to setup 2FA'));

@@ -94,6 +94,56 @@ describe('useApiQuery error normalization', () => {
     expect(error.retryAfter).toBe(30);
   });
 
+  it('parses an HTTP-date Retry-After header into remaining seconds', async () => {
+    const fixedNow = Date.parse('2026-07-20T10:00:00.000Z');
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(fixedNow);
+    try {
+      mockPost.mockResolvedValue({
+        data: undefined,
+        error: { error: { code: 'RATE_LIMITED', message: 'Too many requests' } },
+        response: {
+          status: 429,
+          headers: new Headers({ 'Retry-After': new Date(fixedNow + 90_000).toUTCString() }),
+        },
+      });
+
+      const { result } = renderHook(() => useCreateMutation('/v1/things'), {
+        wrapper: createWrapper(),
+      });
+
+      let thrown: unknown;
+      await result.current.mutateAsync({}).catch((err: unknown) => {
+        thrown = err;
+      });
+
+      expect((thrown as ApiError).retryAfter).toBe(90);
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  it('ignores negative and malformed Retry-After headers', async () => {
+    for (const header of ['-5', 'not-a-date']) {
+      mockPost.mockResolvedValue({
+        data: undefined,
+        error: { error: { code: 'RATE_LIMITED', message: 'Too many requests' } },
+        response: { status: 429, headers: new Headers({ 'Retry-After': header }) },
+      });
+
+      const { result } = renderHook(() => useCreateMutation('/v1/things'), {
+        wrapper: createWrapper(),
+      });
+
+      let thrown: unknown;
+      await result.current.mutateAsync({}).catch((err: unknown) => {
+        thrown = err;
+      });
+
+      expect((thrown as ApiError).status).toBe(429);
+      expect((thrown as ApiError).retryAfter).toBeUndefined();
+    }
+  });
+
   it('keeps a body-provided retryAfter over the header', async () => {
     mockPost.mockResolvedValue({
       data: undefined,

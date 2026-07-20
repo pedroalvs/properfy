@@ -22,7 +22,7 @@ const mockPost = api.POST as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   mockPost.mockReset();
-  mockPost.mockResolvedValue({ data: { data: { totpUri: 'otpauth://totp/Properfy:test@test.com?secret=ABC123', secret: 'ABC123' } } });
+  mockPost.mockResolvedValue({ data: { qrUri: 'otpauth://totp/Properfy:test@test.com?secret=ABC123', secret: 'ABC123' } });
 });
 
 describe('useTotpSetup', () => {
