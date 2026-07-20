@@ -277,7 +277,7 @@ describe('useTenantAdminSave', () => {
     expect(saveResult?.error).toBeUndefined();
   });
 
-  it('save falls back to the summary error when detail paths do not match form fields', async () => {
+  it('save maps the nested settings.emailSendingEnabled detail to the form toggle', async () => {
     mockPost.mockResolvedValueOnce({
       data: undefined,
       error: {
@@ -285,6 +285,30 @@ describe('useTenantAdminSave', () => {
           code: 'VALIDATION_ERROR',
           message: 'Validation failed',
           details: [{ field: 'settings.emailSendingEnabled', message: 'Must be boolean' }],
+        },
+      },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_DATA);
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.fieldErrors?.emailSendingEnabled).toBe('Must be boolean');
+    expect(saveResult?.error).toBeUndefined();
+  });
+
+  it('save falls back to the summary error when detail paths do not match form fields', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [{ field: 'settings.unknownFlag', message: 'Unknown setting' }],
         },
       },
     });

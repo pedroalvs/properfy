@@ -256,6 +256,8 @@ describe('TenantFormDrawer – submit behavior', () => {
     await waitFor(() =>
       expect(screen.getByText('Legal name is too long')).toBeInTheDocument(),
     );
+    // Fully mapped details render inline only — no summary snackbar.
+    expect(screen.queryByText('Validation failed')).not.toBeInTheDocument();
     expect(onSaved).not.toHaveBeenCalled();
   });
 });

@@ -15,13 +15,21 @@ const REQUIRED_FIELDS: (keyof TenantAdminFormData)[] = [
   'currency',
 ];
 
-/** Backend VALIDATION_ERROR detail paths that map 1:1 to form fields. */
-const serverFieldMapper = identityFieldMapper<keyof TenantAdminFormData>([
+const identityMapper = identityFieldMapper<keyof TenantAdminFormData>([
   'name',
   'legalName',
   'currency',
   'appointmentCodePrefix',
 ]);
+
+/**
+ * Backend VALIDATION_ERROR detail paths: scalar fields map 1:1; settings flags
+ * are nested under `settings` in the payload but flat in the form state.
+ */
+function serverFieldMapper(path: string): keyof TenantAdminFormData | undefined {
+  if (path === 'settings.emailSendingEnabled') return 'emailSendingEnabled';
+  return identityMapper(path);
+}
 
 export interface ValidateOptions {
   /** Prefix is required on create; on edit it may be blank for legacy tenants

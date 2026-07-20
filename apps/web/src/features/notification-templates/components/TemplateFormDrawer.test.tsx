@@ -217,6 +217,8 @@ describe('TemplateFormDrawer', () => {
     await user.click(screen.getByText('Save'));
 
     expect(await screen.findByText('Missing required variable: scheduledDate')).toBeInTheDocument();
+    // Fully mapped details render inline only — no summary snackbar.
+    expect(screen.queryByText('Validation failed')).not.toBeInTheDocument();
     expect(onSaved).not.toHaveBeenCalled();
   });
 

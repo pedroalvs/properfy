@@ -16,9 +16,10 @@ vi.mock('@/services/api', () => ({
 }));
 
 import { api } from '@/services/api';
+import { ContactType } from '@properfy/shared';
 import { useAppointmentSave } from './useAppointmentSave';
 import type { AppointmentFormData } from '../types';
-import { EMPTY_FORM_DATA } from '../types';
+import { EMPTY_FORM_DATA, createEmptyContact } from '../types';
 import { createQueryWrapper } from '@/test-utils/test-wrappers';
 
 const mockPost = api.POST as ReturnType<typeof vi.fn>;
@@ -528,14 +529,18 @@ describe('useAppointmentSave', () => {
     expect(saveResult?.error).toBeUndefined();
   });
 
-  it('save keeps the summary error when a detail path has no matching form field', async () => {
+  it('save maps indexed inline-contact detail paths to per-row contact errors', async () => {
     mockPost.mockResolvedValueOnce({
       data: undefined,
       error: {
         error: {
           code: 'VALIDATION_ERROR',
           message: 'Validation failed',
-          details: [{ field: 'contacts.0.inline.type', message: 'Invalid contact type' }],
+          details: [
+            { field: 'contacts.0.inline.type', message: 'Invalid contact type' },
+            { field: 'contacts.0.inline.primaryEmail', message: 'Invalid email address' },
+            { field: 'contacts.1.role', message: 'Invalid role' },
+          ],
         },
       },
     });
@@ -544,7 +549,76 @@ describe('useAppointmentSave', () => {
 
     let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
     await act(async () => {
-      saveResult = await result.current.save(VALID_CREATE_DATA);
+      saveResult = await result.current.save({
+        ...VALID_CREATE_DATA,
+        contacts: [
+          { ...createEmptyContact(), name: 'Jane', contactType: ContactType.RENTAL_TENANT },
+          { ...createEmptyContact(), contactId: 'c-2' },
+        ],
+      });
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.fieldErrors?.contacts?.[0]?.contactType).toBe('Invalid contact type');
+    expect(saveResult?.fieldErrors?.contacts?.[0]?.email).toBe('Invalid email address');
+    expect(saveResult?.fieldErrors?.contacts?.[1]?.role).toBe('Invalid role');
+    // All details matched — no summary error, no snackbar fallback needed.
+    expect(saveResult?.error).toBeUndefined();
+  });
+
+  it('save remaps indexed custom-field detail paths to the form row (empty rows are dropped from the payload)', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [{ field: 'customFields.0.value', message: 'Value is too long' }],
+        },
+      },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save({
+        ...VALID_CREATE_DATA,
+        customFields: [
+          // Fully-empty row is dropped by buildCustomFieldsPayload, so the
+          // backend's payload index 0 refers to form row 1.
+          { key: 'k-empty', label: '', value: '' },
+          { key: 'k-gate', label: 'Gate', value: 'x'.repeat(600) },
+        ],
+      });
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.fieldErrors?.customFields?.[1]?.value).toBe('Value is too long');
+    expect(saveResult?.fieldErrors?.customFields?.[0]).toBeUndefined();
+    expect(saveResult?.error).toBeUndefined();
+  });
+
+  it('save keeps the summary error when an indexed detail path cannot be mapped to a form row', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [{ field: 'contacts.5.inline.type', message: 'Invalid contact type' }],
+        },
+      },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save({
+        ...VALID_CREATE_DATA,
+        contacts: [{ ...createEmptyContact(), name: 'Jane', contactType: ContactType.RENTAL_TENANT }],
+      });
     });
 
     expect(saveResult?.success).toBe(false);
