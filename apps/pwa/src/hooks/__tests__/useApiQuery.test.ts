@@ -89,6 +89,37 @@ describe('useApiQuery error normalization', () => {
     expect(error.retryAfter).toBe(30);
   });
 
+  it('reads an HTTP-date Retry-After header into retryAfter on 429 responses', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-20T10:00:00Z'));
+    try {
+      mockPost.mockResolvedValue({
+        data: undefined,
+        error: { error: { code: 'RATE_LIMITED', message: 'Too many requests' } },
+        response: {
+          status: 429,
+          headers: new Headers({ 'Retry-After': 'Sun, 20 Jul 2026 10:00:30 GMT' }),
+        },
+      });
+
+      const { result } = renderHook(() => useActionMutation('/v1/things'), {
+        wrapper: createWrapper(),
+      });
+
+      let thrown: unknown;
+      await result.current.mutateAsync({}).catch((err: unknown) => {
+        thrown = err;
+      });
+
+      const error = thrown as ApiError;
+      expect(error).toBeInstanceOf(ApiError);
+      expect(error.status).toBe(429);
+      expect(error.retryAfter).toBe(30);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('preserves validation details from the envelope', async () => {
     mockPost.mockResolvedValue({
       data: undefined,

@@ -16,7 +16,8 @@ const MAX_RETRIES = 3;
 // shares the same failed-action list and only one queue run happens at a time.
 let failedSnapshot: QueuedAction[] = [];
 const listeners = new Set<() => void>();
-let isProcessing = false;
+let currentRun: Promise<void> | null = null;
+let rerunRequested = false;
 
 function subscribe(listener: () => void): () => void {
   listeners.add(listener);
@@ -47,82 +48,102 @@ export function useOfflineQueue() {
   const failedActions = useSyncExternalStore(subscribe, getSnapshot);
 
   const processQueue = useCallback(async () => {
-    if (isProcessing) return;
-    isProcessing = true;
-    try {
-      const actions = (await getAllQueuedActions()).sort((a, b) =>
-        a.createdAt.localeCompare(b.createdAt),
-      );
-
-      const actionsByAppointment = new Map<string, typeof actions>();
-      for (const action of actions) {
-        const group = actionsByAppointment.get(action.appointmentId) ?? [];
-        group.push(action);
-        actionsByAppointment.set(action.appointmentId, group);
-      }
-
-      await Promise.allSettled(
-        Array.from(actionsByAppointment.values()).map(async (group) => {
-          for (const action of group) {
-            if (action.status === 'FAILED') continue;
-
-            if (action.retryCount > MAX_RETRIES) {
-              // Exhausted before the status field existed — surface it now.
-              await updateQueuedAction({ ...action, status: 'FAILED' });
-              showError(`A queued inspection sync failed: ${action.lastError ?? 'Unknown error'}`);
-              continue;
-            }
-
-            try {
-              const path =
-                action.type === 'START'
-                  ? `/v1/inspector/appointments/${action.appointmentId}/start`
-                  : `/v1/inspector/appointments/${action.appointmentId}/finish`;
-
-              await apiPost(path, action.payload, {
-                'Idempotency-Key': action.idempotencyKey,
-              });
-
-              await removeQueuedAction(action.id);
-              if (action.type === 'FINISH') {
-                await clearExecutionState(action.appointmentId);
-              }
-            } catch (err) {
-              const lastError = err instanceof Error ? err.message : 'Unknown error';
-              const retryCount = (action.retryCount ?? 0) + 1;
-              const exhausted = retryCount > MAX_RETRIES;
-              await updateQueuedAction({
-                ...action,
-                retryCount,
-                lastError,
-                status: exhausted ? 'FAILED' : 'PENDING',
-              });
-              if (exhausted) {
-                showError(`A queued inspection sync failed: ${lastError}`);
-              }
-              break;
-            }
-          }
-        }),
-      );
-    } catch {
-      // IndexedDB may be unavailable; try again on the next trigger.
-    } finally {
-      isProcessing = false;
-      await refreshFailedSnapshot();
+    if (currentRun) {
+      // A run is already in flight with a possibly stale snapshot — ask it to
+      // do one more pass after it finishes so this trigger is not lost.
+      rerunRequested = true;
+      return currentRun;
     }
+    currentRun = (async () => {
+      try {
+        do {
+          rerunRequested = false;
+          try {
+            const actions = (await getAllQueuedActions()).sort((a, b) =>
+              a.createdAt.localeCompare(b.createdAt),
+            );
+
+            const actionsByAppointment = new Map<string, typeof actions>();
+            for (const action of actions) {
+              const group = actionsByAppointment.get(action.appointmentId) ?? [];
+              group.push(action);
+              actionsByAppointment.set(action.appointmentId, group);
+            }
+
+            await Promise.allSettled(
+              Array.from(actionsByAppointment.values()).map(async (group) => {
+                for (const action of group) {
+                  // Stop the whole chain on a permanent failure: a FINISH must
+                  // never be sent after its START permanently failed.
+                  if (action.status === 'FAILED') break;
+
+                  if (action.retryCount > MAX_RETRIES) {
+                    // Exhausted before the status field existed — surface it now.
+                    await updateQueuedAction({ ...action, status: 'FAILED' });
+                    showError(
+                      `A queued inspection sync failed: ${action.lastError ?? 'Unknown error'}`,
+                    );
+                    break;
+                  }
+
+                  try {
+                    const path =
+                      action.type === 'START'
+                        ? `/v1/inspector/appointments/${action.appointmentId}/start`
+                        : `/v1/inspector/appointments/${action.appointmentId}/finish`;
+
+                    await apiPost(path, action.payload, {
+                      'Idempotency-Key': action.idempotencyKey,
+                    });
+
+                    await removeQueuedAction(action.id);
+                    if (action.type === 'FINISH') {
+                      await clearExecutionState(action.appointmentId);
+                    }
+                  } catch (err) {
+                    const lastError = err instanceof Error ? err.message : 'Unknown error';
+                    const retryCount = (action.retryCount ?? 0) + 1;
+                    const exhausted = retryCount > MAX_RETRIES;
+                    await updateQueuedAction({
+                      ...action,
+                      retryCount,
+                      lastError,
+                      status: exhausted ? 'FAILED' : 'PENDING',
+                    });
+                    if (exhausted) {
+                      showError(`A queued inspection sync failed: ${lastError}`);
+                    }
+                    break;
+                  }
+                }
+              }),
+            );
+          } catch {
+            // IndexedDB may be unavailable; try again on the next trigger.
+          }
+        } while (rerunRequested);
+      } finally {
+        currentRun = null;
+        await refreshFailedSnapshot();
+      }
+    })();
+    return currentRun;
   }, [showError]);
 
   const retryAction = useCallback(
     async (id: string) => {
-      const actions = await getAllQueuedActions();
-      const action = actions.find((a) => a.id === id);
-      if (!action) return;
-      await updateQueuedAction({ ...action, retryCount: 0, lastError: null, status: 'PENDING' });
-      await refreshFailedSnapshot();
-      await processQueue();
+      try {
+        const actions = await getAllQueuedActions();
+        const action = actions.find((a) => a.id === id);
+        if (!action) return;
+        await updateQueuedAction({ ...action, retryCount: 0, lastError: null, status: 'PENDING' });
+        await refreshFailedSnapshot();
+        await processQueue();
+      } catch {
+        showError('Unable to retry this sync right now.');
+      }
     },
-    [processQueue],
+    [processQueue, showError],
   );
 
   useEffect(() => {

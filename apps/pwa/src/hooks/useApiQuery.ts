@@ -12,12 +12,21 @@ export interface SuccessResponse<T> {
   data: T;
 }
 
+/** Parse a Retry-After header value (delay-seconds or HTTP-date) into seconds. */
+function parseRetryAfter(header: string | null | undefined): number | undefined {
+  if (header === null || header === undefined || header === '') return undefined;
+  const seconds = Number(header);
+  if (Number.isFinite(seconds)) return seconds;
+  const dateMs = Date.parse(header);
+  if (Number.isNaN(dateMs)) return undefined;
+  return Math.max(0, Math.ceil((dateMs - Date.now()) / 1000));
+}
+
 /** Fill `retryAfter` from the Retry-After header when a 429 body lacks it. */
 function withRetryAfter(apiError: ApiError, response: Response | undefined): ApiError {
   if (apiError.status === 429 && apiError.retryAfter === undefined) {
-    const header = response?.headers?.get('Retry-After');
-    const seconds = header === null || header === undefined ? NaN : Number(header);
-    if (Number.isFinite(seconds)) apiError.retryAfter = seconds;
+    const parsed = parseRetryAfter(response?.headers?.get('Retry-After'));
+    if (parsed !== undefined) apiError.retryAfter = parsed;
   }
   return apiError;
 }
