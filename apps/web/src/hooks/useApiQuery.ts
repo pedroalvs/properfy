@@ -6,7 +6,7 @@ import {
   type UseMutationOptions,
 } from '@tanstack/react-query';
 import { api } from '@/services/api';
-import { ApiError } from '@/lib/api-error';
+import { toApiError, type ApiError } from '@/lib/api-error';
 import type { paths } from '@properfy/shared';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -59,43 +59,56 @@ function toStringParams(params?: ListParams): Record<string, string | string[]> 
   return Object.keys(result).length > 0 ? result : undefined;
 }
 
-function toApiError(error: unknown): ApiError {
-  if (error instanceof ApiError) return error;
-  if (error && typeof error === 'object') {
-    // Properfy API error envelope: { error: { code, message, details } }
-    const env = error as { error?: { code?: string; message?: string; details?: Array<{ field?: string; message: string }> }; status?: number };
-    if (env.error?.message) {
-      return new ApiError(env.status ?? 422, env.error.message, env.error.code, env.error.details);
-    }
-    // Fallback: plain Error-shaped object
-    if ('message' in error) {
-      return new ApiError((error as { status?: number }).status ?? 500, (error as { message: string }).message);
-    }
+/** Fill `retryAfter` from the Retry-After header when a 429 body lacks it. */
+function withRetryAfter(apiError: ApiError, response: Response | undefined): ApiError {
+  if (apiError.status === 429 && apiError.retryAfter === undefined) {
+    const header = response?.headers?.get('Retry-After');
+    const seconds = header === null || header === undefined ? NaN : Number(header);
+    if (Number.isFinite(seconds)) apiError.retryAfter = seconds;
   }
-  return new ApiError(500, 'Unknown error');
+  return apiError;
 }
 
 async function apiGet<T>(path: string, params?: Record<string, string | string[]>): Promise<T> {
-  const { data, error } = await api.GET(path as any, {
-    params: { query: params as any },
-  });
-  if (error) throw toApiError(error);
+  let result: { data?: unknown; error?: unknown; response?: Response };
+  try {
+    result = await api.GET(path as any, {
+      params: { query: params as any },
+    });
+  } catch (err) {
+    // fetch itself threw (offline, DNS, CORS) — normalize as a network error.
+    throw toApiError(err);
+  }
+  const { data, error, response } = result;
+  if (error) throw withRetryAfter(toApiError(error, response?.status), response);
   return data as unknown as T;
 }
 
 async function apiPost<T>(path: string, body?: unknown): Promise<T> {
-  const { data, error } = await api.POST(path as any, {
-    body: body as any,
-  });
-  if (error) throw toApiError(error);
+  let result: { data?: unknown; error?: unknown; response?: Response };
+  try {
+    result = await api.POST(path as any, {
+      body: body as any,
+    });
+  } catch (err) {
+    throw toApiError(err);
+  }
+  const { data, error, response } = result;
+  if (error) throw withRetryAfter(toApiError(error, response?.status), response);
   return data as unknown as T;
 }
 
 async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
-  const { data, error } = await api.PATCH(path as any, {
-    body: body as any,
-  });
-  if (error) throw toApiError(error);
+  let result: { data?: unknown; error?: unknown; response?: Response };
+  try {
+    result = await api.PATCH(path as any, {
+      body: body as any,
+    });
+  } catch (err) {
+    throw toApiError(err);
+  }
+  const { data, error, response } = result;
+  if (error) throw withRetryAfter(toApiError(error, response?.status), response);
   return data as unknown as T;
 }
 

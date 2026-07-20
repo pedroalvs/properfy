@@ -5,6 +5,7 @@ import { TextInput } from '@/components/forms/TextInput';
 import { Button } from '@/components/ui/Button';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useAuth } from '@/hooks/useAuth';
+import { getErrorMessage } from '@/lib/api-error';
 import { useTotpSetup } from '../hooks/useTotpSetup';
 import { useTotpConfirm } from '../hooks/useTotpConfirm';
 import type { TotpSetupData } from '../types';
@@ -30,13 +31,13 @@ export function TotpSetupCard() {
   }, [totpData?.totpUri]);
 
   const handleSetup = useCallback(async () => {
-    const data = await setupTotp();
-    if (data) {
+    try {
+      const data = await setupTotp();
       setTotpData(data);
       setTotpCode('');
       setCodeError('');
-    } else {
-      showError('Failed to initialize 2FA setup');
+    } catch (err) {
+      showError(getErrorMessage(err, 'Failed to initialize 2FA setup'));
     }
   }, [setupTotp, showError]);
 

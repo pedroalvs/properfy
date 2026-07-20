@@ -6,6 +6,7 @@ import { FormField } from '@/components/forms/FormField';
 import { Textarea } from '@/components/forms/Textarea';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
+import { getErrorMessage, toApiError, type ApiError } from '@/lib/api-error';
 
 interface RejectDraftModalProps {
   open: boolean;
@@ -14,12 +15,12 @@ interface RejectDraftModalProps {
   onSuccess: () => void;
 }
 
-function friendlyError(status: number | undefined, code: string | undefined): string {
+function friendlyError(err: ApiError): string {
+  const { status, code } = err;
   if (status === 403) return 'You do not have permission to reject draft invoices.';
   if (code === 'INVOICE_NOT_PENDING_REVIEW') return 'This invoice is not in pending review status.';
   if (status === 404) return 'Invoice not found.';
-  if (status === 400) return 'Invalid request. Please check the reason and try again.';
-  return 'Failed to reject draft invoice. Please try again.';
+  return getErrorMessage(err, 'Failed to reject draft invoice. Please try again.');
 }
 
 export function RejectDraftModal({
@@ -58,7 +59,7 @@ export function RejectDraftModal({
 
     setIsSubmitting(true);
     try {
-      const { error: apiErr } = await api.POST(
+      const { error: apiErr, response } = await api.POST(
         '/v1/billing/invoices/{invoiceId}/reject-draft' as never,
         {
           params: { path: { invoiceId } },
@@ -67,16 +68,15 @@ export function RejectDraftModal({
         } as never,
       );
       if (apiErr) {
-        const err = apiErr as { status?: number; error?: { code?: string } };
-        showError(friendlyError(err.status, err.error?.code));
+        showError(friendlyError(toApiError(apiErr, (response as Response | undefined)?.status)));
         return;
       }
       showSuccess('Draft invoice rejected');
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       onSuccess();
       onClose();
-    } catch {
-      showError('Failed to reject draft invoice. Please try again.');
+    } catch (err) {
+      showError(friendlyError(toApiError(err)));
     } finally {
       setIsSubmitting(false);
     }

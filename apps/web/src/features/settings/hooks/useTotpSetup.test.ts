@@ -15,15 +15,6 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
-}));
-
 import { api } from '@/services/api';
 import { useTotpSetup } from './useTotpSetup';
 
@@ -46,16 +37,24 @@ describe('useTotpSetup', () => {
     expect(data).toEqual({ totpUri: expect.stringContaining('otpauth://'), secret: 'ABC123' });
   });
 
-  it('returns null on error', async () => {
-    mockPost.mockResolvedValueOnce({ data: undefined, error: { error: { message: 'Server error' } } });
+  it('throws with the backend message on error', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: { error: { message: 'TOTP already enabled' } },
+      response: { status: 409 },
+    });
     const { result } = renderHook(() => useTotpSetup());
 
-    let data: unknown;
+    let thrown: unknown;
     await act(async () => {
-      data = await result.current.setupTotp();
+      try {
+        await result.current.setupTotp();
+      } catch (err) {
+        thrown = err;
+      }
     });
 
-    expect(data).toBeNull();
-    expect(result.current.error).toBe('Server error');
+    expect((thrown as Error).message).toBe('TOTP already enabled');
+    expect(result.current.error).toBe('TOTP already enabled');
   });
 });

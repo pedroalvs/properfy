@@ -12,6 +12,7 @@ export interface UseContactTimelineReturn {
   entries: AuditLog[];
   isLoading: boolean;
   isError: boolean;
+  error: unknown;
   refetch: () => void;
   pagination: DataTablePagination;
 }
@@ -49,6 +50,7 @@ export function useContactTimeline(
     entries: query.data?.data ?? [],
     isLoading: query.isLoading,
     isError: query.isError,
+    error: query.error,
     refetch: query.refetch,
     pagination,
   };

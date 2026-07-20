@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import { getErrorMessage, toApiError } from '@/lib/api-error';
 import type { AppointmentImportPreviewResponse } from '@properfy/shared';
 
 const FAST_POLL_INTERVAL_MS = 3000;
@@ -158,19 +159,19 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
         formData.append('branchId', branchId);
         formData.append('file', file);
 
-        const { data, error } = await api.POST('/v1/appointments/import/preview' as any, {
+        const { data, error, response } = await api.POST('/v1/appointments/import/preview' as any, {
           body: formData as any,
           bodySerializer: (body: any) => body,
         } as any);
 
         if (error) {
-          showError('Failed to preview the import file');
+          showError(getErrorMessage(toApiError(error, response?.status), 'Failed to preview the import file'));
           return null;
         }
 
         return (data as { data: AppointmentImportPreviewResponse }).data;
-      } catch {
-        showError('Failed to preview the import file');
+      } catch (err) {
+        showError(getErrorMessage(err, 'Failed to preview the import file'));
         return null;
       } finally {
         setIsPreviewing(false);
@@ -188,14 +189,14 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
         // actually landed) must reuse the same key so the backend can
         // recognize it as a replay instead of a second attempt.
         const idempotencyKey = `appointment-import-commit:${id}`;
-        const { error } = await api.POST('/v1/appointments/import/{importId}/commit' as any, {
+        const { error, response } = await api.POST('/v1/appointments/import/{importId}/commit' as any, {
           params: { path: { importId: id } } as any,
           body: { skipInvalidRows: opts.skipInvalidRows },
           headers: { 'Idempotency-Key': idempotencyKey },
         } as any);
 
         if (error) {
-          showError('Failed to start the import');
+          showError(getErrorMessage(toApiError(error, response?.status), 'Failed to start the import'));
           return false;
         }
 
@@ -206,8 +207,8 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
         setImportId(id);
         setPollingEnabled(true);
         return true;
-      } catch {
-        showError('Failed to start the import');
+      } catch (err) {
+        showError(getErrorMessage(err, 'Failed to start the import'));
         return false;
       } finally {
         setIsCommitting(false);
