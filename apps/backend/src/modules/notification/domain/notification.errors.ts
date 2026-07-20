@@ -34,6 +34,7 @@ export class ProtectedTemplateClassificationError extends ValidationError {
     super(
       `Template "${templateCode}" is protected and must be classified as ${requiredClass}. It cannot be reclassified.`,
       { templateCode, requiredClass },
+      'PROTECTED_TEMPLATE_CLASSIFICATION',
     );
   }
 }

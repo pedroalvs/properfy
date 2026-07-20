@@ -8,7 +8,7 @@ export class IntegrationSettingNotFoundError extends NotFoundError {
 
 export class IntegrationConfigInvalidError extends ValidationError {
   constructor(details: Array<{ field: string; message: string }>) {
-    super('Integration config is invalid', details);
+    super('Integration config is invalid', details, 'INTEGRATION_CONFIG_INVALID');
   }
 }
 

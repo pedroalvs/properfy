@@ -434,3 +434,16 @@ describe('ListRetentionRunsUseCase', () => {
     await expect(useCase.execute({ page: 1, pageSize: 10, actor: clAdmin })).rejects.toThrow();
   });
 });
+
+describe('audit retention error codes', () => {
+  it('RetentionPeriodTooShortError carries RETENTION_PERIOD_TOO_SHORT with status 400 and keeps code in details', () => {
+    const err = new RetentionPeriodTooShortError('FINANCIAL', 7);
+    expect(err.code).toBe('RETENTION_PERIOD_TOO_SHORT');
+    expect(err.statusCode).toBe(400);
+    expect(err.details).toEqual({
+      categoryName: 'FINANCIAL',
+      minimumYears: 7,
+      code: 'RETENTION_PERIOD_TOO_SHORT',
+    });
+  });
+});

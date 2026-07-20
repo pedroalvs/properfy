@@ -57,24 +57,36 @@ export class AvailabilitySlotNotMatchedError extends DomainError {
 
 export class InspectorPhotoInvalidKeyError extends ValidationError {
   constructor() {
-    super('Invalid inspector photo storage key format');
+    super('Invalid inspector photo storage key format', undefined, 'INSPECTOR_PHOTO_KEY_INVALID');
   }
 }
 
 export class InspectorPhotoObjectNotFoundError extends ValidationError {
   constructor() {
-    super('Inspector photo object not found in storage — upload may have failed or key is incorrect');
+    super(
+      'Inspector photo object not found in storage — upload may have failed or key is incorrect',
+      undefined,
+      'INSPECTOR_PHOTO_OBJECT_NOT_FOUND',
+    );
   }
 }
 
 export class InspectorDocumentInvalidKeyError extends ValidationError {
   constructor() {
-    super('Invalid inspector document storage key format');
+    super(
+      'Invalid inspector document storage key format',
+      undefined,
+      'INSPECTOR_DOCUMENT_KEY_INVALID',
+    );
   }
 }
 
 export class InspectorDocumentObjectNotFoundError extends ValidationError {
   constructor() {
-    super('Inspector document object not found in storage — upload may have failed or key is incorrect');
+    super(
+      'Inspector document object not found in storage — upload may have failed or key is incorrect',
+      undefined,
+      'INSPECTOR_DOCUMENT_OBJECT_NOT_FOUND',
+    );
   }
 }
