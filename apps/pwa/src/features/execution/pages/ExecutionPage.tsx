@@ -9,6 +9,7 @@ import { FinishingPanel } from '../components/FinishingPanel';
 import { SubmittingPanel } from '../components/SubmittingPanel';
 import { DonePanel } from '../components/DonePanel';
 import { ErrorPanel } from '../components/ErrorPanel';
+import { FailedSyncBanner } from '../components/FailedSyncBanner';
 import { LeaveWarningModal } from '../components/LeaveWarningModal';
 import { useLocalExecutionState } from '../hooks/useLocalExecutionState';
 import { useAutoSave } from '../hooks/useAutoSave';
@@ -17,6 +18,7 @@ import { useFinishInspection } from '../hooks/useFinishInspection';
 import { useInspectorAppointment } from '@/features/schedule/hooks/useInspectorAppointment';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { canTransition } from '../lib/execution-state-machine';
+import { getErrorMessage } from '@/lib/api-error';
 import type { CapturedLocation, ChecklistResponse } from '../types';
 
 export function ExecutionPage() {
@@ -24,7 +26,7 @@ export function ExecutionPage() {
   const navigate = useNavigate();
   const appointmentId = appointmentIdParam!;
 
-  const { data: aptData, isLoading: aptLoading, isError: aptError, refetch: refetchAppointment } = useInspectorAppointment(appointmentId);
+  const { data: aptData, isLoading: aptLoading, isError: aptError, error: aptLoadError, refetch: refetchAppointment } = useInspectorAppointment(appointmentId);
   const { state, updateState, clearState, isRestored } = useLocalExecutionState(appointmentId);
   const startMutation = useStartInspection();
   const finishMutation = useFinishInspection();
@@ -60,7 +62,11 @@ export function ExecutionPage() {
         <TopBar title="Inspection" showBack />
         <ErrorState
           message="Unable to load this appointment"
-          detail="This inspection is not available right now. Reload the page or go back to your schedule."
+          detail={
+            aptLoadError
+              ? getErrorMessage(aptLoadError)
+              : 'This inspection is not available right now. Reload the page or go back to your schedule.'
+          }
           onRetry={() => {
             refetchAppointment();
           }}
@@ -148,6 +154,10 @@ export function ExecutionPage() {
   return (
     <div data-testid="execution-page">
       <TopBar title="Inspection" subtitle={topBarSubtitle} showBack />
+
+      <div className="px-page-x pt-2">
+        <FailedSyncBanner />
+      </div>
 
       {state.phase === 'PRE_START' && (
         <PreStartPanel

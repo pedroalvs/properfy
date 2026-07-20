@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import { useOfflineQueue } from '../useOfflineQueue';
 
 const mockApiPost = vi.fn();
@@ -7,9 +7,20 @@ const mockRemoveQueuedAction = vi.fn();
 const mockUpdateQueuedAction = vi.fn();
 const mockClearExecutionState = vi.fn();
 const mockUseIsOnline = vi.fn();
+const mockShowError = vi.fn();
 
 vi.mock('@/hooks/useApiQuery', () => ({
   apiPost: (...args: unknown[]) => mockApiPost(...args),
+}));
+
+vi.mock('@/hooks/useSnackbar', () => ({
+  useSnackbar: () => ({
+    showSuccess: vi.fn(),
+    showError: mockShowError,
+    showInfo: vi.fn(),
+    dismiss: vi.fn(),
+    messages: [],
+  }),
 }));
 
 vi.mock('@/hooks/useIsOnline', () => ({
@@ -31,6 +42,7 @@ describe('useOfflineQueue', () => {
     mockUpdateQueuedAction.mockReset();
     mockClearExecutionState.mockReset();
     mockUseIsOnline.mockReset();
+    mockShowError.mockReset();
   });
 
   it('processes queued actions in createdAt order and clears execution state after FINISH sync', async () => {
@@ -132,5 +144,110 @@ describe('useOfflineQueue', () => {
     );
     expect(mockRemoveQueuedAction).toHaveBeenCalledWith('c');
     expect(mockClearExecutionState).not.toHaveBeenCalled();
+  });
+
+  it('marks an action FAILED and shows a toast when retries are exhausted', async () => {
+    mockUseIsOnline.mockReturnValue(true);
+    mockGetAllQueuedActions.mockResolvedValue([
+      {
+        id: 'a',
+        type: 'START',
+        appointmentId: 'apt-1',
+        payload: { latitude: 1, longitude: 2 },
+        idempotencyKey: 'start-key',
+        createdAt: '2026-03-25T10:00:00.000Z',
+        retryCount: 3,
+        lastError: 'Previous failure',
+        status: 'PENDING',
+      },
+    ]);
+    mockApiPost.mockRejectedValue(new Error('Geofence mismatch'));
+
+    renderHook(() => useOfflineQueue());
+
+    await waitFor(() =>
+      expect(mockUpdateQueuedAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'a',
+          retryCount: 4,
+          lastError: 'Geofence mismatch',
+          status: 'FAILED',
+        }),
+      ),
+    );
+    expect(mockShowError).toHaveBeenCalledWith(
+      'A queued inspection sync failed: Geofence mismatch',
+    );
+  });
+
+  it('promotes legacy exhausted records (no status field) to FAILED without retrying them', async () => {
+    mockUseIsOnline.mockReturnValue(true);
+    mockGetAllQueuedActions.mockResolvedValue([
+      {
+        id: 'a',
+        type: 'START',
+        appointmentId: 'apt-1',
+        payload: { latitude: 1, longitude: 2 },
+        idempotencyKey: 'start-key',
+        createdAt: '2026-03-25T10:00:00.000Z',
+        retryCount: 4,
+        lastError: 'Old failure',
+      },
+    ]);
+
+    renderHook(() => useOfflineQueue());
+
+    await waitFor(() =>
+      expect(mockUpdateQueuedAction).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'a', status: 'FAILED' }),
+      ),
+    );
+    expect(mockApiPost).not.toHaveBeenCalled();
+    expect(mockShowError).toHaveBeenCalledWith('A queued inspection sync failed: Old failure');
+  });
+
+  it('exposes FAILED actions and retryAction resets and reprocesses them', async () => {
+    let store = [
+      {
+        id: 'a',
+        type: 'START' as const,
+        appointmentId: 'apt-1',
+        payload: { latitude: 1, longitude: 2 },
+        idempotencyKey: 'start-key',
+        createdAt: '2026-03-25T10:00:00.000Z',
+        retryCount: 4,
+        lastError: 'Geofence mismatch',
+        status: 'FAILED' as const,
+      },
+    ];
+    mockUseIsOnline.mockReturnValue(true);
+    mockGetAllQueuedActions.mockImplementation(async () => store.map((a) => ({ ...a })));
+    mockUpdateQueuedAction.mockImplementation(async (action: (typeof store)[number]) => {
+      store = store.map((a) => (a.id === action.id ? action : a));
+    });
+    mockRemoveQueuedAction.mockImplementation(async (id: string) => {
+      store = store.filter((a) => a.id !== id);
+    });
+    mockApiPost.mockResolvedValue({ data: { ok: true } });
+
+    const { result } = renderHook(() => useOfflineQueue());
+
+    await waitFor(() => expect(result.current.failedActions).toHaveLength(1));
+    expect(result.current.failedActions[0].lastError).toBe('Geofence mismatch');
+    expect(mockApiPost).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await result.current.retryAction('a');
+    });
+
+    expect(mockUpdateQueuedAction).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'a', retryCount: 0, status: 'PENDING' }),
+    );
+    expect(mockApiPost).toHaveBeenCalledWith(
+      '/v1/inspector/appointments/apt-1/start',
+      { latitude: 1, longitude: 2 },
+      { 'Idempotency-Key': 'start-key' },
+    );
+    await waitFor(() => expect(result.current.failedActions).toHaveLength(0));
   });
 });

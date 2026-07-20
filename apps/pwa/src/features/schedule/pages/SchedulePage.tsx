@@ -8,6 +8,7 @@ import { DaySelectorStrip } from '../components/DaySelectorStrip';
 import { AppointmentDayList } from '../components/AppointmentDayList';
 import { AppointmentCard } from '../components/AppointmentCard';
 import { ScheduleOfflineBanner } from '../components/ScheduleOfflineBanner';
+import { FailedSyncBanner } from '@/features/execution/components/FailedSyncBanner';
 import { ScheduleTabs } from '../components/ScheduleTabs';
 import { ScheduleHistoryList } from '../components/ScheduleHistoryList';
 import { InstallBannerNative } from '../components/InstallBannerNative';
@@ -140,6 +141,10 @@ export function SchedulePage() {
       </div>
 
       {isIosSafariEligible ? <InstallBannerIos /> : canInstall ? <InstallBannerNative /> : null}
+
+      <div className="px-page-x">
+        <FailedSyncBanner />
+      </div>
 
       <ScheduleTabs value={tab} onChange={setTab} />
 

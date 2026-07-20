@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { apiPost } from '@/hooks/useApiQuery';
-import { ApiError } from '@/lib/api-error';
+import { ApiError, getErrorMessage } from '@/lib/api-error';
 import { generateIdempotencyKey } from '@/lib/idempotency';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import type { OfferAcceptState } from '../types';
@@ -97,7 +97,7 @@ export function useAcceptOffer() {
           }
         }
         setState(groupId, 'ERROR');
-        showError('Failed to accept — try again');
+        showError(getErrorMessage(err, 'Failed to accept — try again'));
         scheduleReset(groupId);
         return 'ERROR';
       }

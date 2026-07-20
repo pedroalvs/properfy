@@ -1,6 +1,8 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { ExecutionState } from '../types';
 
+type QueuedActionStatus = 'PENDING' | 'FAILED';
+
 interface QueuedAction {
   id: string;
   type: 'START' | 'FINISH';
@@ -10,6 +12,8 @@ interface QueuedAction {
   createdAt: string;
   retryCount: number;
   lastError: string | null;
+  /** Additive field — records written before it existed are treated as PENDING. */
+  status?: QueuedActionStatus;
 }
 
 interface ProperfyPwaDB extends DBSchema {
@@ -76,4 +80,4 @@ export async function updateQueuedAction(action: QueuedAction): Promise<void> {
   await db.put('queued-actions', action, action.id);
 }
 
-export type { QueuedAction };
+export type { QueuedAction, QueuedActionStatus };

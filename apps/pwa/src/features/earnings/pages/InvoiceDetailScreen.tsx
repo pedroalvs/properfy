@@ -4,10 +4,11 @@ import { TopBar } from '@/components/shell/TopBar';
 import { Button } from '@/components/ui/Button';
 import { useMyInvoiceDetail, downloadInvoice } from '../hooks/useInspectorInvoices';
 import { invoiceStatusBadge, isApproved, formatInvoiceCurrency } from '../lib/invoiceStatus';
+import { getErrorMessage } from '@/lib/api-error';
 
 export function InvoiceDetailScreen() {
   const { invoiceId } = useParams<{ invoiceId: string }>();
-  const { data, isLoading, isError } = useMyInvoiceDetail(invoiceId);
+  const { data, isLoading, isError, error } = useMyInvoiceDetail(invoiceId);
   const invoice = data?.data;
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -33,7 +34,12 @@ export function InvoiceDetailScreen() {
 
       <div className="flex flex-col gap-4 p-4">
         {isLoading && <div className="h-40 animate-pulse rounded-[20px] bg-gray-100" />}
-        {isError && <p className="text-sm text-error" role="alert">Unable to load this invoice.</p>}
+        {isError && (
+          <div role="alert">
+            <p className="text-sm text-error">Unable to load this invoice.</p>
+            <p className="mt-1 text-xs text-text-secondary">{getErrorMessage(error)}</p>
+          </div>
+        )}
 
         {invoice && (
           <>
