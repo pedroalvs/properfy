@@ -9,12 +9,6 @@ vi.mock('@/services/api', () => ({
   api: { GET: vi.fn(), POST: vi.fn(), PATCH: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
 }));
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) { super(message); this.name = 'ApiError'; }
-  },
-}));
-
 import { api } from '@/services/api';
 import { useAuditLogList } from './useAuditLogList';
 import { createQueryWrapper } from '@/test-utils/test-wrappers';

@@ -7,15 +7,6 @@ const mockLogin = vi.fn();
 const mockNavigate = vi.fn();
 const mockUseAuth = vi.fn();
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
-}));
-
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
 }));

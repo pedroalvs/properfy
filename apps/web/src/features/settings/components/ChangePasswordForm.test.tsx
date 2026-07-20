@@ -11,12 +11,6 @@ vi.mock('@/services/api', () => ({
   api: { GET: vi.fn(), POST: vi.fn(), PATCH: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
 }));
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) { super(message); this.name = 'ApiError'; }
-  },
-}));
-
 const showSuccess = vi.fn();
 const showError = vi.fn();
 const logout = vi.fn();
