@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
 import { TabsNav } from '@/components/layout/TabsNav';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import { getErrorMessage } from '@/lib/api-error';
 import { usePermissions } from '@/hooks/usePermissions';
 import { NoPermissionState } from '@/components/feedback/NoPermissionState';
 import { FinancialSummaryBar } from '../components/FinancialSummaryBar';
@@ -60,8 +61,8 @@ export function AgencyFinancialPage() {
   const handleExport = useCallback(async () => {
     try {
       await exportStatement();
-    } catch {
-      showError('Failed to export the financial statement.');
+    } catch (err) {
+      showError(getErrorMessage(err, 'Failed to export the financial statement.'));
     }
   }, [exportStatement, showError]);
 

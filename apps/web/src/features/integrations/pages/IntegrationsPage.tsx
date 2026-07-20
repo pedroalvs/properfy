@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsNav } from '@/components/layout/TabsNav';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
+import { getErrorMessage } from '@/lib/api-error';
 import { useIntegrations } from '../hooks/useIntegrations';
 import { PROVIDER_META } from '../providerMeta';
 import { IntegrationCard } from '../components/IntegrationCard';
@@ -21,7 +22,7 @@ const TABS = [
  */
 export function IntegrationsPage() {
   const [activeTab, setActiveTab] = useState('integrations');
-  const { data: integrations, isLoading, isError, refetch } = useIntegrations();
+  const { data: integrations, isLoading, isError, error, refetch } = useIntegrations();
 
   return (
     <div className="space-y-4">
@@ -32,7 +33,11 @@ export function IntegrationsPage() {
         <>
           {isLoading && <LoadingState />}
           {isError && (
-            <ErrorState message="Failed to load integrations" onRetry={() => void refetch()} />
+            <ErrorState
+              message="Failed to load integrations"
+              detail={getErrorMessage(error)}
+              onRetry={() => void refetch()}
+            />
           )}
           {integrations && (
             <div className="space-y-4">

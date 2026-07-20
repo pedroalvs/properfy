@@ -338,6 +338,7 @@ export function AppointmentMapPage() {
     data: groupApptResponse,
     isFetching: groupApptFetching,
     isError: groupApptError,
+    error: groupApptErrorObj,
     refetch: refetchGroupAppointments,
   } = usePaginatedQuery<AppointmentMapItem>(
     ['appointments-by-group', drilledGroupId],
@@ -1146,6 +1147,7 @@ export function AppointmentMapPage() {
         externalSelectedIds={groupLassoSelectedIds ?? undefined}
         isLoading={groupApptFetching}
         isError={groupApptError}
+        error={groupApptErrorObj}
         onRetry={() => { void refetchGroupAppointments(); }}
         title={selectedGroupItem?.name ?? 'Group appointments'}
         emptyText="This group has no appointments."

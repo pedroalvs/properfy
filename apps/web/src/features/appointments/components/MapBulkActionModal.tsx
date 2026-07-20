@@ -6,6 +6,7 @@ import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
+import { getErrorMessage } from '@/lib/api-error';
 import { formatDate } from '@/lib/format-date';
 import { getValidTransitions, isReasonRequired } from '@properfy/shared';
 import type { AppointmentStatus, UserRole } from '@properfy/shared';
@@ -76,6 +77,8 @@ interface MapBulkActionModalProps {
   isLoading?: boolean;
   /** When true and there are no rows, show a retryable error state instead of the empty-state text. */
   isError?: boolean;
+  /** The load error behind `isError` — surfaced as the error state's detail line. */
+  error?: unknown;
   /** Retry handler for the error state. */
   onRetry?: () => void;
   /**
@@ -133,6 +136,7 @@ export function MapBulkActionModal({
   showGroupCreationActions = true,
   isLoading = false,
   isError = false,
+  error,
   onRetry,
   externalSelectedIds,
 }: MapBulkActionModalProps) {
@@ -436,7 +440,11 @@ export function MapBulkActionModal({
           {appointments.length === 0 ? (
             isError ? (
               <div className="py-6" data-testid="map-modal-error">
-                <ErrorState message="Failed to load appointments." onRetry={onRetry ?? (() => {})} />
+                <ErrorState
+                  message="Failed to load appointments."
+                  detail={error ? getErrorMessage(error) : undefined}
+                  onRetry={onRetry ?? (() => {})}
+                />
               </div>
             ) : isLoading ? (
               <div

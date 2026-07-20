@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { ApiError } from '@/lib/api-error';
+import { ApiError, getErrorMessage } from '@/lib/api-error';
 import { consumePostLoginRedirect } from '@/lib/post-login-redirect';
 
-function getErrorMessage(error: unknown): string {
+function getLoginErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     switch (error.code) {
       case 'AUTH_INVALID_CREDENTIALS':
@@ -24,9 +24,8 @@ function getErrorMessage(error: unknown): string {
     }
     if (error.status === 429) return 'Too many attempts. Please wait and try again.';
     if (error.status >= 500) return 'Server error. Please try again later.';
-    return error.message;
   }
-  return 'An unexpected error occurred. Please try again.';
+  return getErrorMessage(error, 'An unexpected error occurred. Please try again.');
 }
 
 export function LoginPage() {
@@ -63,7 +62,7 @@ export function LoginPage() {
         if (err instanceof ApiError && err.code === 'AUTH_TOTP_REQUIRED') {
           setRequiresTotp(true);
         }
-        setError(getErrorMessage(err));
+        setError(getLoginErrorMessage(err));
       } finally {
         setIsSubmitting(false);
       }

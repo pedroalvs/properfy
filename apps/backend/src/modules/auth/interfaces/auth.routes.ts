@@ -159,7 +159,12 @@ export async function registerAuthRoutes(
   // POST /v1/auth/2fa/setup
   app.post(
     '/v1/auth/2fa/setup',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        response: { 200: z.object({ secret: z.string(), qrUri: z.string() }) },
+      },
+    },
     async (request, reply) => {
       const result = await container.setupTotpUseCase.execute({
         userId: request.authContext!.userId,

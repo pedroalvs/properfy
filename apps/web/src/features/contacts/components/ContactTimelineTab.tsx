@@ -1,6 +1,7 @@
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
+import { getErrorMessage } from '@/lib/api-error';
 import { formatDateTime } from '@/lib/format-date';
 import { useContactTimeline } from '../hooks/useContactTimeline';
 
@@ -25,10 +26,14 @@ interface ContactTimelineTabProps {
 }
 
 export function ContactTimelineTab({ contactId, enabled }: ContactTimelineTabProps) {
-  const { entries, isLoading, isError, refetch } = useContactTimeline(contactId, { enabled });
+  const { entries, isLoading, isError, error, refetch } = useContactTimeline(contactId, { enabled });
 
   if (isLoading) return <LoadingState rows={4} />;
-  if (isError) return <ErrorState message="Failed to load audit log" onRetry={refetch} />;
+  if (isError) {
+    return (
+      <ErrorState message="Failed to load audit log" detail={getErrorMessage(error)} onRetry={refetch} />
+    );
+  }
 
   if (entries.length === 0) {
     return (

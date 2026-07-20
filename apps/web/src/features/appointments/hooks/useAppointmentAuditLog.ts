@@ -22,11 +22,12 @@ export interface UseAppointmentAuditLogReturn {
   entries: AuditLogEntry[];
   isLoading: boolean;
   isError: boolean;
+  error: unknown;
   refetch: () => void;
 }
 
 export function useAppointmentAuditLog(appointmentId: string | null): UseAppointmentAuditLogReturn {
-  const { data: response, isLoading, isError, refetch } = usePaginatedQuery<AuditLogEntry>(
+  const { data: response, isLoading, isError, error, refetch } = usePaginatedQuery<AuditLogEntry>(
     ['audit-logs', 'appointment', appointmentId],
     '/v1/audit-logs',
     {
@@ -41,6 +42,7 @@ export function useAppointmentAuditLog(appointmentId: string | null): UseAppoint
     entries: response?.data ?? [],
     isLoading,
     isError,
+    error,
     refetch,
   };
 }

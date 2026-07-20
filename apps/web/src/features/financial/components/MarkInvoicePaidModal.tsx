@@ -12,6 +12,7 @@ import {
 } from '@/components/forms/form-styles';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
+import { getErrorMessage, toApiError, type ApiError } from '@/lib/api-error';
 
 interface MarkInvoicePaidModalProps {
   open: boolean;
@@ -66,14 +67,14 @@ function defaultPaidAt(): string {
   return `${get('year')}-${get('month')}-${get('day')}T${hour}:${get('minute')}`;
 }
 
-function friendlyError(status: number | undefined, code: string | undefined): string {
+function friendlyError(err: ApiError): string {
+  const { status, code } = err;
   if (status === 403) return 'You do not have permission to mark invoices as paid.';
   if (status === 409 || code === 'INVOICE_ALREADY_PAID') return 'This invoice is already marked as paid.';
   if (code === 'INVOICE_NOT_CLOSED') return 'Only CLOSED invoices can be marked as paid.';
   if (code === 'INVOICE_PAYMENT_DATE_INVALID')
     return 'The payment date is invalid. It cannot be in the future or before the invoice was generated.';
-  if (status === 400) return 'Invalid payment information. Please review the form and try again.';
-  return 'Failed to mark invoice as paid. Please try again.';
+  return getErrorMessage(err, 'Failed to mark invoice as paid. Please try again.');
 }
 
 export function MarkInvoicePaidModal({
@@ -139,7 +140,7 @@ export function MarkInvoicePaidModal({
       if (reference) body.paymentReference = reference;
 
       if (isBatch) {
-        const { data, error } = await api.POST(
+        const { data, error, response } = await api.POST(
           '/v1/billing/invoices/batch-mark-paid' as never,
           {
             body: { invoiceIds, ...body } as never,
@@ -147,8 +148,7 @@ export function MarkInvoicePaidModal({
           } as never,
         );
         if (error) {
-          const err = error as { status?: number; error?: { code?: string } };
-          showError(friendlyError(err.status, err.error?.code));
+          showError(friendlyError(toApiError(error, (response as Response | undefined)?.status)));
           return;
         }
         const result = (data as { data?: BatchResponseData })?.data;
@@ -161,7 +161,7 @@ export function MarkInvoicePaidModal({
         showSuccess(message);
       } else {
         const invoiceId = invoiceIds[0];
-        const { error } = await api.POST(
+        const { error, response } = await api.POST(
           '/v1/billing/invoices/{invoiceId}/mark-paid' as never,
           {
             params: { path: { invoiceId } },
@@ -170,8 +170,7 @@ export function MarkInvoicePaidModal({
           } as never,
         );
         if (error) {
-          const err = error as { status?: number; error?: { code?: string } };
-          showError(friendlyError(err.status, err.error?.code));
+          showError(friendlyError(toApiError(error, (response as Response | undefined)?.status)));
           return;
         }
         showSuccess('Invoice marked as paid');
@@ -181,8 +180,8 @@ export function MarkInvoicePaidModal({
       queryClient.invalidateQueries({ queryKey: ['billing', 'reconciliation-summary'] });
       onSuccess();
       onClose();
-    } catch {
-      showError('Failed to mark invoice as paid. Please try again.');
+    } catch (err) {
+      showError(friendlyError(toApiError(err)));
     } finally {
       setIsSubmitting(false);
     }

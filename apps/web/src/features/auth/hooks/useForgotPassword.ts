@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { env } from '@/config/env';
-import { ApiError } from '@/lib/api-error';
+import { ApiError, getErrorMessage } from '@/lib/api-error';
 
 export interface UseForgotPasswordReturn {
   requestReset: (email: string) => Promise<void>;
@@ -10,13 +10,12 @@ export interface UseForgotPasswordReturn {
   reset: () => void;
 }
 
-function getErrorMessage(error: unknown): string {
+function getForgotPasswordErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status === 429) return 'Too many attempts. Please wait and try again.';
     if (error.status >= 500) return 'Server error. Please try again later.';
-    return error.message;
   }
-  return 'An unexpected error occurred. Please try again.';
+  return getErrorMessage(error, 'An unexpected error occurred. Please try again.');
 }
 
 export function useForgotPassword(): UseForgotPasswordReturn {
@@ -53,7 +52,7 @@ export function useForgotPassword(): UseForgotPasswordReturn {
 
       setIsSuccess(true);
     } catch (err) {
-      setError(getErrorMessage(err));
+      setError(getForgotPasswordErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
