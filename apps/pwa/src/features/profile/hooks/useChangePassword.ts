@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { api } from '@/services/api';
-import { ApiError } from '@/lib/api-error';
+import { toApiError, getErrorMessage } from '@/lib/api-error';
 
 export function useChangePassword() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -12,12 +12,9 @@ export function useChangePassword() {
         body: { currentPassword, newPassword } as any,
       });
       if (error) {
-        const err = error as any;
-        throw new ApiError(
-          response?.status ?? 500,
-          err?.error?.message ?? 'Failed to change password',
-          err?.error?.code,
-        );
+        const apiError = toApiError(error, response?.status);
+        apiError.message = getErrorMessage(apiError, 'Failed to change password');
+        throw apiError;
       }
     } finally {
       setIsSubmitting(false);

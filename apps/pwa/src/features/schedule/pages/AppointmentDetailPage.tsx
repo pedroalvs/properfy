@@ -14,12 +14,13 @@ import { JobDetailsSection } from '../components/JobDetailsSection';
 import { StartInspectionButton } from '../components/StartInspectionButton';
 import { useInspectorAppointment } from '../hooks/useInspectorAppointment';
 import { useLocalExecutionState } from '@/features/execution/hooks/useLocalExecutionState';
+import { getErrorMessage } from '@/lib/api-error';
 import { FLOW_TYPE_MAP } from '@/lib/status-colors';
 import { formatScheduleDate, formatTimeWindow } from '../lib/time-slot';
 
 export function AppointmentDetailPage() {
   const { appointmentId } = useParams<{ appointmentId: string }>();
-  const { data, isLoading, isError, refetch, jobDetails } = useInspectorAppointment(appointmentId!);
+  const { data, isLoading, isError, error, refetch, jobDetails } = useInspectorAppointment(appointmentId!);
   const { state: localExecutionState, isRestored } = useLocalExecutionState(appointmentId!);
 
   if (isLoading) {
@@ -37,7 +38,11 @@ export function AppointmentDetailPage() {
     return (
       <div>
         <TopBar title="Appointment" showBack />
-        <ErrorState message="Failed to load appointment" onRetry={refetch} />
+        <ErrorState
+          message="Failed to load appointment"
+          detail={error ? getErrorMessage(error) : undefined}
+          onRetry={refetch}
+        />
       </div>
     );
   }
