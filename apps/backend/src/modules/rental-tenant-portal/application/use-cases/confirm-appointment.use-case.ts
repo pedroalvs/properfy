@@ -89,7 +89,7 @@ export class ConfirmAppointmentUseCase {
     // conditional write is the real replay guard — the isUsed fast-path above
     // is stale under concurrency, so two racing requests must resolve here.
     if (this.tokenRepo) {
-      const claimed = await this.tokenRepo.tryClaim(input.tokenId);
+      const claimed = await this.tokenRepo.tryClaim(input.tokenId, input.appointmentId);
       if (!claimed) {
         throw new PortalTokenAlreadyUsedError();
       }
@@ -102,7 +102,7 @@ export class ConfirmAppointmentUseCase {
       // never mask the original failure.
       if (this.tokenRepo) {
         try {
-          await this.tokenRepo.releaseClaim(input.tokenId);
+          await this.tokenRepo.releaseClaim(input.tokenId, input.appointmentId);
         } catch {
           // release failure leaves the token consumed — fail-closed
         }

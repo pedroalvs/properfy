@@ -71,18 +71,18 @@ export class PrismaRentalTenantPortalTokenRepository implements IRentalTenantPor
     });
   }
 
-  async tryClaim(id: string): Promise<boolean> {
+  async tryClaim(id: string, appointmentId: string): Promise<boolean> {
     // Conditional write: only one of N concurrent claims matches used_at NULL.
     const result = await this.prisma.rentalTenantPortalToken.updateMany({
-      where: { id, used_at: null },
+      where: { id, appointment_id: appointmentId, used_at: null },
       data: { used_at: new Date() },
     });
     return result.count === 1;
   }
 
-  async releaseClaim(id: string): Promise<void> {
+  async releaseClaim(id: string, appointmentId: string): Promise<void> {
     await this.prisma.rentalTenantPortalToken.updateMany({
-      where: { id },
+      where: { id, appointment_id: appointmentId },
       data: { used_at: null },
     });
   }

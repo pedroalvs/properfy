@@ -121,7 +121,7 @@ export class RescheduleRequestUseCase {
     // 9. Atomically claim the token before the first side effect. The
     // conditional write is the real replay guard — the isUsed fast-path above
     // is stale under concurrency, so two racing requests must resolve here.
-    const claimed = await this.tokenRepo.tryClaim(input.tokenId);
+    const claimed = await this.tokenRepo.tryClaim(input.tokenId, input.appointmentId);
     if (!claimed) {
       throw new PortalTokenAlreadyUsedError();
     }
@@ -132,7 +132,7 @@ export class RescheduleRequestUseCase {
       // Best-effort release so the tenant can retry with the same link;
       // never mask the original failure.
       try {
-        await this.tokenRepo.releaseClaim(input.tokenId);
+        await this.tokenRepo.releaseClaim(input.tokenId, input.appointmentId);
       } catch {
         // release failure leaves the token consumed — fail-closed
       }

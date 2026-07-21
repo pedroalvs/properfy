@@ -373,7 +373,7 @@ describe('GAP-003: Token replay detection', () => {
         userAgent: 'Test/1.0',
       });
 
-      expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1');
+      expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1', 'appt-1');
     });
   });
 
@@ -439,7 +439,7 @@ describe('GAP-003: Token replay detection', () => {
         userAgent: 'Test/1.0',
       });
 
-      expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1');
+      expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1', 'appt-1');
     });
   });
 
@@ -490,7 +490,7 @@ describe('GAP-003: Token replay detection', () => {
         userAgent: 'Test/1.0',
       });
 
-      expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1');
+      expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1', 'appt-1');
     });
   });
 

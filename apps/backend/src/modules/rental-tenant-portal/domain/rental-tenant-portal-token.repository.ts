@@ -21,12 +21,12 @@ export interface IRentalTenantPortalTokenRepository {
    * Returns true when this call won the claim; false when the token was
    * already used — the caller must treat false as "already used" and stop.
    */
-  tryClaim(id: string): Promise<boolean>;
+  tryClaim(id: string, appointmentId: string): Promise<boolean>;
   /**
    * Best-effort rollback of a successful `tryClaim` when the mutation that
    * followed it failed, so the tenant can retry with the same link.
    */
-  releaseClaim(id: string): Promise<void>;
+  releaseClaim(id: string, appointmentId: string): Promise<void>;
   revokeAllForAppointment(appointmentId: string): Promise<void>;
   expireActiveTokens(): Promise<number>;
 }

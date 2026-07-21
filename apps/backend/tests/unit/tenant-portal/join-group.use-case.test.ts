@@ -332,7 +332,7 @@ describe('JoinGroupUseCase', () => {
 
   it('should mark token as used', async () => {
     await useCase.execute(makeInput());
-    expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1');
+    expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1', 'appt-1');
   });
 
   it('should call audit service with ANONYMOUS actor', async () => {

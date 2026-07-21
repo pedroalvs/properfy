@@ -133,7 +133,7 @@ describe('ConfirmAppointmentUseCase atomic token claim', () => {
     const { useCase, tokenRepo, input } = build();
     await useCase.execute(input);
     expect(tokenRepo.tryClaim).toHaveBeenCalledTimes(1);
-    expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1');
+    expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1', 'appt-1');
     expect(tokenRepo.releaseClaim).not.toHaveBeenCalled();
   });
 
@@ -174,7 +174,7 @@ describe('ConfirmAppointmentUseCase atomic token claim', () => {
     await expect(useCase.execute(input)).rejects.toThrow('activity write failed');
 
     expect(tokenRepo.releaseClaim).toHaveBeenCalledTimes(1);
-    expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1');
+    expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
   });
 
   it('propagates the original error even when releaseClaim itself fails', async () => {
@@ -220,7 +220,7 @@ describe('ReportUnavailabilityUseCase atomic token claim', () => {
     const { useCase, tokenRepo, input } = build();
     await useCase.execute(input);
     expect(tokenRepo.tryClaim).toHaveBeenCalledTimes(1);
-    expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1');
+    expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1', 'appt-1');
     expect(tokenRepo.releaseClaim).not.toHaveBeenCalled();
   });
 
@@ -261,7 +261,15 @@ describe('ReportUnavailabilityUseCase atomic token claim', () => {
     await expect(useCase.execute(input)).rejects.toThrow('activity write failed');
 
     expect(tokenRepo.releaseClaim).toHaveBeenCalledTimes(1);
-    expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1');
+    expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
+  });
+
+  it('propagates the original error even when releaseClaim itself fails', async () => {
+    const { useCase, activityRepo, tokenRepo, input } = build();
+    activityRepo.save.mockRejectedValue(new Error('activity write failed'));
+    tokenRepo.releaseClaim.mockRejectedValue(new Error('release failed'));
+
+    await expect(useCase.execute(input)).rejects.toThrow('activity write failed');
   });
 });
 
@@ -338,7 +346,7 @@ describe('RescheduleRequestUseCase atomic token claim', () => {
     const { useCase, tokenRepo, input } = build();
     await useCase.execute(input);
     expect(tokenRepo.tryClaim).toHaveBeenCalledTimes(1);
-    expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1');
+    expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1', 'appt-1');
     expect(tokenRepo.releaseClaim).not.toHaveBeenCalled();
     // Reschedule still revokes all active tokens to restart the confirmation cycle
     expect(tokenRepo.revokeAllForAppointment).toHaveBeenCalledWith('appt-1');
@@ -363,7 +371,15 @@ describe('RescheduleRequestUseCase atomic token claim', () => {
     await expect(useCase.execute(input)).rejects.toThrow('transition failed');
 
     expect(tokenRepo.releaseClaim).toHaveBeenCalledTimes(1);
-    expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1');
+    expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
+  });
+
+  it('propagates the original error even when releaseClaim itself fails', async () => {
+    const { useCase, tokenRepo, reopenForReschedule, input } = build();
+    reopenForReschedule.execute.mockRejectedValue(new Error('transition failed'));
+    tokenRepo.releaseClaim.mockRejectedValue(new Error('release failed'));
+
+    await expect(useCase.execute(input)).rejects.toThrow('transition failed');
   });
 });
 
@@ -461,7 +477,7 @@ describe('JoinGroupUseCase atomic token claim', () => {
     const { useCase, tokenRepo, input } = build();
     await useCase.execute(input);
     expect(tokenRepo.tryClaim).toHaveBeenCalledTimes(1);
-    expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1');
+    expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1', 'appt-1');
     expect(tokenRepo.releaseClaim).not.toHaveBeenCalled();
   });
 
@@ -486,6 +502,14 @@ describe('JoinGroupUseCase atomic token claim', () => {
     await expect(useCase.execute(input)).rejects.toThrow('increment failed');
 
     expect(tokenRepo.releaseClaim).toHaveBeenCalledTimes(1);
-    expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1');
+    expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
+  });
+
+  it('propagates the original error even when releaseClaim itself fails', async () => {
+    const { useCase, serviceGroupRepo, tokenRepo, input } = build();
+    serviceGroupRepo.incrementConfirmedCount.mockRejectedValue(new Error('increment failed'));
+    tokenRepo.releaseClaim.mockRejectedValue(new Error('release failed'));
+
+    await expect(useCase.execute(input)).rejects.toThrow('increment failed');
   });
 });
