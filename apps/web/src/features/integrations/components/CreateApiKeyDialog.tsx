@@ -25,8 +25,8 @@ interface CreateApiKeyDialogProps {
 
 /**
  * Create flow: form dialog followed by the show-once plaintext dialog.
- * Scopes restrict a key to a dedicated machine surface (e.g. `bot:fy` → the
- * Fy agent API); a key without scopes is a general machine principal.
+ * Every key is created with the `bot:fy` scope — inbound API access is
+ * restricted to the Fy agent surface, there is no general machine principal.
  */
 export function CreateApiKeyDialog({ open, onClose }: CreateApiKeyDialogProps) {
   const { showError } = useSnackbar();
@@ -35,16 +35,14 @@ export function CreateApiKeyDialog({ open, onClose }: CreateApiKeyDialogProps) {
   const [name, setName] = useState('');
   const [role, setRole] = useState<ApiKeyRole>('OP');
   const [expiresAt, setExpiresAt] = useState('');
-  const [fyScope, setFyScope] = useState(false);
   const [createdKey, setCreatedKey] = useState<ApiKeyCreated | null>(null);
 
-  const scopes: ApiKeyScope[] = fyScope ? [FY_SCOPE] : [];
+  const scopes: ApiKeyScope[] = [FY_SCOPE];
 
   const reset = () => {
     setName('');
     setRole('OP');
     setExpiresAt('');
-    setFyScope(false);
   };
 
   // Fresh form on every open — cancelled input must not leak into the next create.
@@ -75,7 +73,7 @@ export function CreateApiKeyDialog({ open, onClose }: CreateApiKeyDialogProps) {
       <Dialog
         open={open}
         onClose={onClose}
-        title="New API key"
+        title="New Fy key"
         actions={
           <>
             <Button variant="secondary" onClick={onClose}>
@@ -106,17 +104,12 @@ export function CreateApiKeyDialog({ open, onClose }: CreateApiKeyDialogProps) {
               aria-label="API key role"
             />
           </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={fyScope}
-              onChange={(event) => setFyScope(event.target.checked)}
-              aria-label="Fy Agent scope"
-            />
+          <div className="flex items-center gap-2 rounded bg-success/10 px-3 py-2 text-sm text-success">
+            <i className="mdi mdi-lock-outline" aria-hidden="true" />
             <span>
-              Fy Agent scope (<code className="font-mono text-xs">bot:fy</code>)
+              Scope: <code className="font-mono text-xs">bot:fy</code> — applied to every key
             </span>
-          </label>
+          </div>
           <label className="block text-sm">
             <span className="mb-1 block text-xs font-medium text-text-secondary">
               Expiry date (optional)

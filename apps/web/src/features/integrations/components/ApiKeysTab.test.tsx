@@ -20,10 +20,10 @@ vi.mock('@/hooks/useSnackbar', () => ({
 
 const activeKey = {
   id: '7f0c2c6a-6f5c-4b6e-9a44-1f2d3c4b5a69',
-  name: 'n8n',
+  name: 'Fy production',
   prefix: 'pfy_ab12cd34',
   role: 'OP',
-  scopes: [],
+  scopes: ['bot:fy'],
   expiresAt: null,
   revokedAt: null,
   lastUsedAt: null,
@@ -36,11 +36,27 @@ describe('ApiKeysTab', () => {
     mockUseApiKeys.mockReturnValue({ data: [activeKey], isLoading: false });
   });
 
-  it('lists keys with prefix and status, no key material', () => {
+  it('lists keys with prefix, scope chip and status, no key material', () => {
     render(<ApiKeysTab />);
-    expect(screen.getByText('n8n')).toBeInTheDocument();
+    expect(screen.getByText('Fy production')).toBeInTheDocument();
     expect(screen.getByText('pfy_ab12cd34…')).toBeInTheDocument();
+    expect(screen.getAllByText('bot:fy').length).toBeGreaterThan(0);
     expect(screen.getByText('Active')).toBeInTheDocument();
+  });
+
+  it('always creates keys with the bot:fy scope — no scope choice is offered', async () => {
+    const user = userEvent.setup();
+    mockCreateMutateAsync.mockResolvedValue({ ...activeKey, key: 'pfy_onetimesecret' });
+    render(<ApiKeysTab />);
+
+    await user.click(screen.getByRole('button', { name: 'New Fy key' }));
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('API key name'), { target: { value: 'Fy production' } });
+    await user.click(screen.getByRole('button', { name: 'Create' }));
+
+    expect(mockCreateMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Fy production', role: 'OP', scopes: ['bot:fy'], expiresAt: null }),
+    );
   });
 
   it('shows the plaintext key exactly once after creation with a copy affordance', async () => {
@@ -48,39 +64,15 @@ describe('ApiKeysTab', () => {
     mockCreateMutateAsync.mockResolvedValue({ ...activeKey, key: 'pfy_onetimesecret' });
     render(<ApiKeysTab />);
 
-    await user.click(screen.getByRole('button', { name: 'New API key' }));
-    fireEvent.change(screen.getByLabelText('API key name'), { target: { value: 'n8n' } });
+    await user.click(screen.getByRole('button', { name: 'New Fy key' }));
+    fireEvent.change(screen.getByLabelText('API key name'), { target: { value: 'Fy production' } });
     await user.click(screen.getByRole('button', { name: 'Create' }));
 
     expect(await screen.findByText('API key created')).toBeInTheDocument();
     expect(screen.getByText(/it will not be shown again/)).toBeInTheDocument();
-    expect(mockCreateMutateAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'n8n', role: 'OP', scopes: [], expiresAt: null }),
-    );
 
     await user.click(screen.getByRole('button', { name: 'Done' }));
     expect(screen.queryByText('API key created')).not.toBeInTheDocument();
-  });
-
-  it('renders scope chips and sends the bot:fy scope when the checkbox is ticked', async () => {
-    const user = userEvent.setup();
-    mockUseApiKeys.mockReturnValue({
-      data: [{ ...activeKey, name: 'fy', scopes: ['bot:fy'] }],
-      isLoading: false,
-    });
-    mockCreateMutateAsync.mockResolvedValue({ ...activeKey, scopes: ['bot:fy'], key: 'pfy_onetimesecret' });
-    render(<ApiKeysTab />);
-
-    expect(screen.getAllByText('bot:fy').length).toBeGreaterThan(0);
-
-    await user.click(screen.getByRole('button', { name: 'New API key' }));
-    fireEvent.change(screen.getByLabelText('API key name'), { target: { value: 'fy' } });
-    await user.click(screen.getByLabelText('Fy Agent scope'));
-    await user.click(screen.getByRole('button', { name: 'Create' }));
-
-    expect(mockCreateMutateAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ scopes: ['bot:fy'] }),
-    );
   });
 
   it('revokes a key after confirmation', async () => {
@@ -88,7 +80,7 @@ describe('ApiKeysTab', () => {
     mockRevokeMutateAsync.mockResolvedValue({ ...activeKey, revokedAt: '2026-07-07T01:00:00.000Z' });
     render(<ApiKeysTab />);
 
-    await user.click(screen.getByRole('button', { name: 'Revoke n8n' }));
+    await user.click(screen.getByRole('button', { name: 'Revoke Fy production' }));
     expect(await screen.findByText('Revoke API key')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Revoke' }));
     expect(mockRevokeMutateAsync).toHaveBeenCalledWith(activeKey.id);

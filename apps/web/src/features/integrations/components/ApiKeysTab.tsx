@@ -50,21 +50,21 @@ export function ApiKeysTab() {
   return (
     <div className="space-y-4">
       <InfoBanner>
-        API keys let external systems (e.g. n8n automations) call the Properfy API using the{' '}
-        <code className="font-mono text-xs">X-API-Key</code> header. Each key acts with the role it
-        was created with; scoped keys are restricted to their machine surface (e.g.{' '}
-        <code className="font-mono text-xs">bot:fy</code>).
+        API keys let the Fy agent call the Properfy API using the{' '}
+        <code className="font-mono text-xs">X-API-Key</code> header. Every key is created with the{' '}
+        <code className="font-mono text-xs">bot:fy</code> scope and only reaches the Fy agent
+        surface.
       </InfoBanner>
 
       <div className="flex justify-end">
-        <Button onClick={() => setCreateOpen(true)}>New API key</Button>
+        <Button onClick={() => setCreateOpen(true)}>New Fy key</Button>
       </div>
 
       {!keys || keys.length === 0 ? (
         <EmptyState
           icon="mdi-key-outline"
           title="No API keys"
-          description="Create a key to allow an external system to call the Properfy API."
+          description="Create a key to allow the Fy agent to call the Properfy API."
         />
       ) : (
         <div className="overflow-x-auto rounded bg-card-bg shadow-sm">
