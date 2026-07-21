@@ -3,6 +3,7 @@ import { SAMPLE_DATA } from '@properfy/shared';
 import type { TemplateRendererService } from '../../domain/template-renderer.service';
 import type { IHtmlSanitizerService } from '../../domain/html-sanitizer.service';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
+import { LEGACY_IMAGE_PLACEHOLDER_REGEX } from '../render-email-body';
 
 export interface RenderTemplatePreviewInput {
   subject?: string;
@@ -15,9 +16,6 @@ export interface RenderTemplatePreviewOutput {
   subjectRendered: string;
   htmlRendered: string;
 }
-
-// Legacy {{image:key}} placeholders from the removed image-library feature.
-const LEGACY_IMAGE_PLACEHOLDER_REGEX = /\{\{image:[A-Za-z0-9_-]+\}\}/g;
 
 /**
  * Renders a preview of an email template body using sample data.

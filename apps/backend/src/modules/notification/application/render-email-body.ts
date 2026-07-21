@@ -23,7 +23,7 @@ export interface RenderEmailBodyOutput {
 
 // Legacy {{image:key}} placeholders from the removed image-library feature.
 // Stripped before Handlebars so orphaned tokens neither break parsing nor leak into emails.
-const LEGACY_IMAGE_PLACEHOLDER_REGEX = /\{\{image:[A-Za-z0-9_-]+\}\}/g;
+export const LEGACY_IMAGE_PLACEHOLDER_REGEX = /\{\{image:[A-Za-z0-9_-]+\}\}/g;
 
 /**
  * Shared render pipeline for email notifications.
