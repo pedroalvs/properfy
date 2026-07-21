@@ -81,6 +81,23 @@ vi.mock('@/features/offers/components/GroupDetailBottomSheet', () => ({
     ) : null,
 }));
 
+// Builds the useMarketplaceOffers return in its infinite-query shape.
+function offersHookReturn(offers: MarketplaceOffer[], overrides: Record<string, unknown> = {}) {
+  return {
+    offers,
+    total: offers.length,
+    data: { pages: [{ data: offers }], pageParams: [1] },
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+    dataUpdatedAt: Date.now(),
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    fetchNextPage: vi.fn(),
+    ...overrides,
+  };
+}
+
 vi.mock('@/features/offers/hooks/useMarketplaceOffers', () => ({
   useMarketplaceOffers: () => mockUseMarketplaceOffers(),
 }));
@@ -131,27 +148,21 @@ describe('MarketplacePage', () => {
 
   it('shows cached offers while offline', () => {
     mockUseIsOnline.mockReturnValue(false);
-    mockUseMarketplaceOffers.mockReturnValue({
-      data: {
-        data: [
-          {
-            groupId: 'grp-1',
-            tenantName: 'Agency',
-            serviceTypeName: 'Routine Inspection',
-            groupSize: 1,
-            scheduledDate: '2026-03-26',
-            timeWindow: '09:00-11:00',
-            priorityMode: 'STANDARD',
-            priorityExpiresAt: null,
-            suburbs: ['Brunswick'],
-          },
-        ],
-      },
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-      dataUpdatedAt: Date.now(),
-    });
+    mockUseMarketplaceOffers.mockReturnValue(
+      offersHookReturn([
+        {
+          groupId: 'grp-1',
+          tenantName: 'Agency',
+          serviceTypeName: 'Routine Inspection',
+          groupSize: 1,
+          scheduledDate: '2026-03-26',
+          timeWindow: '09:00-11:00',
+          priorityMode: 'STANDARD',
+          priorityExpiresAt: null,
+          suburbs: ['Brunswick'],
+        } as unknown as MarketplaceOffer,
+      ]),
+    );
 
     renderWithProviders(<MarketplacePage />);
 
@@ -161,13 +172,9 @@ describe('MarketplacePage', () => {
 
   it('shows error state when online fetch fails and there is no cached data', () => {
     mockUseIsOnline.mockReturnValue(true);
-    mockUseMarketplaceOffers.mockReturnValue({
-      data: { data: [] },
-      isLoading: false,
-      isError: true,
-      refetch: vi.fn(),
-      dataUpdatedAt: 0,
-    });
+    mockUseMarketplaceOffers.mockReturnValue(
+      offersHookReturn([], { isError: true, dataUpdatedAt: 0 }),
+    );
 
     renderWithProviders(<MarketplacePage />);
 
@@ -177,27 +184,21 @@ describe('MarketplacePage', () => {
 
   it('awaits accept before closing the detail sheet and passes accepting state', async () => {
     mockUseIsOnline.mockReturnValue(true);
-    mockUseMarketplaceOffers.mockReturnValue({
-      data: {
-        data: [
-          {
-            groupId: 'grp-1',
-            tenantName: 'Agency',
-            serviceTypeName: 'Routine Inspection',
-            groupSize: 1,
-            scheduledDate: '2026-03-26',
-            timeWindow: '09:00-11:00',
-            priorityMode: 'STANDARD',
-            priorityExpiresAt: null,
-            suburbs: ['Brunswick'],
-          },
-        ],
-      },
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-      dataUpdatedAt: Date.now(),
-    });
+    mockUseMarketplaceOffers.mockReturnValue(
+      offersHookReturn([
+        {
+          groupId: 'grp-1',
+          tenantName: 'Agency',
+          serviceTypeName: 'Routine Inspection',
+          groupSize: 1,
+          scheduledDate: '2026-03-26',
+          timeWindow: '09:00-11:00',
+          priorityMode: 'STANDARD',
+          priorityExpiresAt: null,
+          suburbs: ['Brunswick'],
+        } as unknown as MarketplaceOffer,
+      ]),
+    );
     let resolveAccept!: (state: string) => void;
     mockAccept.mockImplementation(() => new Promise<string>((resolve) => { resolveAccept = resolve; }));
     mockGetState.mockReturnValue('ACCEPTING');
@@ -220,27 +221,21 @@ describe('MarketplacePage', () => {
 
   it('keeps the detail sheet open when accept resolves with a retryable failure', async () => {
     mockUseIsOnline.mockReturnValue(true);
-    mockUseMarketplaceOffers.mockReturnValue({
-      data: {
-        data: [
-          {
-            groupId: 'grp-1',
-            tenantName: 'Agency',
-            serviceTypeName: 'Routine Inspection',
-            groupSize: 1,
-            scheduledDate: '2026-03-26',
-            timeWindow: '09:00-11:00',
-            priorityMode: 'STANDARD',
-            priorityExpiresAt: null,
-            suburbs: ['Brunswick'],
-          },
-        ],
-      },
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-      dataUpdatedAt: Date.now(),
-    });
+    mockUseMarketplaceOffers.mockReturnValue(
+      offersHookReturn([
+        {
+          groupId: 'grp-1',
+          tenantName: 'Agency',
+          serviceTypeName: 'Routine Inspection',
+          groupSize: 1,
+          scheduledDate: '2026-03-26',
+          timeWindow: '09:00-11:00',
+          priorityMode: 'STANDARD',
+          priorityExpiresAt: null,
+          suburbs: ['Brunswick'],
+        } as unknown as MarketplaceOffer,
+      ]),
+    );
     mockAccept.mockResolvedValue('ERROR');
     const user = userEvent.setup();
 
@@ -295,13 +290,9 @@ describe('MarketplacePage — map group drill-down', () => {
   };
 
   function mockOffers(offers = [offer]) {
-    mockUseMarketplaceOffers.mockReturnValue({
-      data: { data: offers },
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-      dataUpdatedAt: Date.now(),
-    });
+    mockUseMarketplaceOffers.mockReturnValue(
+      offersHookReturn(offers as unknown as MarketplaceOffer[]),
+    );
   }
 
   function mockDetailResolved() {
@@ -445,5 +436,69 @@ describe('MarketplacePage — map group drill-down', () => {
 
     expect(screen.queryByTestId('map-group-action-bar')).not.toBeInTheDocument();
     expect(screen.getByTestId('map-view')).toHaveAttribute('data-expanded', '');
+  });
+});
+
+describe('MarketplacePage — offers pagination', () => {
+  const baseOffer = {
+    groupId: 'grp-1',
+    tenantName: 'Agency',
+    serviceTypeName: 'Routine Inspection',
+    groupSize: 1,
+    scheduledDate: '2026-08-01',
+    timeWindow: '09:00-11:00',
+    priorityMode: 'STANDARD',
+    priorityExpiresAt: null,
+    suburbs: ['Brunswick'],
+  } as unknown as MarketplaceOffer;
+
+  beforeEach(() => {
+    mockUseMarketplaceOffers.mockReset();
+    mockUseIsOnline.mockReset();
+    mockUseIsOnline.mockReturnValue(true);
+    mockUseOfferDetail.mockReset();
+    mockUseOfferDetail.mockReturnValue({ data: undefined, isLoading: false, isError: false });
+  });
+
+  it('shows a Load more button in list view while more pages exist', async () => {
+    const fetchNextPage = vi.fn();
+    mockUseMarketplaceOffers.mockReturnValue(
+      offersHookReturn([baseOffer], { hasNextPage: true, fetchNextPage, total: 45 }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<MarketplacePage />);
+
+    const loadMore = screen.getByTestId('offers-load-more');
+    await user.click(loadMore);
+    expect(fetchNextPage).toHaveBeenCalled();
+  });
+
+  it('hides Load more when every page is loaded', () => {
+    mockUseMarketplaceOffers.mockReturnValue(offersHookReturn([baseOffer]));
+    renderWithProviders(<MarketplacePage />);
+    expect(screen.queryByTestId('offers-load-more')).not.toBeInTheDocument();
+  });
+
+  it('drains the remaining pages automatically when the map view is active', async () => {
+    const fetchNextPage = vi.fn();
+    mockUseMarketplaceOffers.mockReturnValue(
+      offersHookReturn([baseOffer], { hasNextPage: true, fetchNextPage }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<MarketplacePage />);
+    expect(fetchNextPage).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('tab', { name: 'Map' }));
+    await waitFor(() => expect(fetchNextPage).toHaveBeenCalled());
+  });
+
+  it('renders the backend total in the header, not just the loaded count', () => {
+    mockUseMarketplaceOffers.mockReturnValue(
+      offersHookReturn([baseOffer], { hasNextPage: true, total: 45 }),
+    );
+    renderWithProviders(<MarketplacePage />);
+    expect(screen.getByText(/45 available offers/)).toBeInTheDocument();
   });
 });
