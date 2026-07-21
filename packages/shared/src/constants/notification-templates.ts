@@ -31,6 +31,14 @@ export const MANDATORY_TEMPLATE_CODES = [
 export type MandatoryTemplateCode = (typeof MANDATORY_TEMPLATE_CODES)[number];
 
 /**
+ * Platform-only templates: seeded at platform level and never customizable per tenant,
+ * so they are excluded from MANDATORY_TEMPLATE_CODES (which drives the tenant template UI).
+ */
+export const PLATFORM_ONLY_TEMPLATE_CODES = ['PASSWORD_RESET'] as const;
+
+export type PlatformOnlyTemplateCode = (typeof PLATFORM_ONLY_TEMPLATE_CODES)[number];
+
+/**
  * Human-readable labels for each mandatory template code. Single source of truth
  * for code dropdowns in the UI (e.g. the "create custom template" form).
  */
@@ -123,7 +131,10 @@ export interface TemplateVariableSpec {
   optional: readonly string[];
 }
 
-export const TEMPLATE_VARIABLES: Record<MandatoryTemplateCode, TemplateVariableSpec> = {
+export const TEMPLATE_VARIABLES: Record<
+  MandatoryTemplateCode | PlatformOnlyTemplateCode,
+  TemplateVariableSpec
+> = {
   INSPECTION_NOTICE: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
     optional: ['inspectorName', 'agencyName', 'agencyPhone', 'appointmentCode', 'confirmationLink', 'rescheduleLink'],
@@ -208,6 +219,10 @@ export const TEMPLATE_VARIABLES: Record<MandatoryTemplateCode, TemplateVariableS
     required: ['rentalTenantName', 'scheduledDate', 'confirmationLink'],
     optional: ['rescheduleLink'],
   },
+  PASSWORD_RESET: {
+    required: ['userName', 'resetLink'],
+    optional: [],
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -230,6 +245,7 @@ export const ALLOWED_VARIABLES = [
   'reportType',
   'downloadLink',
   'errorMessage',
+  'resetLink',
 ] as const;
 
 export type AllowedVariable = (typeof ALLOWED_VARIABLES)[number];
@@ -280,4 +296,5 @@ export const SAMPLE_DATA: Record<AllowedVariable, string> = {
   reportType: 'Monthly Report',
   downloadLink: 'https://app.properfy.com/reports/abc123',
   errorMessage: 'Server timeout — please retry',
+  resetLink: 'https://app.properfy.com/reset-password?token=abc123',
 };

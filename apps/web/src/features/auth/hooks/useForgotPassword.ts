@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { env } from '@/config/env';
-import { ApiError, getErrorMessage } from '@/lib/api-error';
+import { api } from '@/services/api';
+import { ApiError, getErrorMessage, toApiError } from '@/lib/api-error';
 
 export interface UseForgotPasswordReturn {
   requestReset: (email: string) => Promise<void>;
@@ -28,27 +28,11 @@ export function useForgotPassword(): UseForgotPasswordReturn {
     setError(null);
 
     try {
-      const response = await fetch(`${env.apiBaseUrl}/v1/auth/forgot-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-request-id': crypto.randomUUID(),
-        },
-        body: JSON.stringify({ email }),
+      const { error: apiError, response } = await api.POST('/v1/auth/forgot-password', {
+        body: { email },
       });
 
-      if (!response.ok) {
-        let code: string | undefined;
-        let message = 'Failed to send reset email.';
-        try {
-          const body = await response.json();
-          code = body?.error?.code;
-          message = body?.error?.message ?? message;
-        } catch {
-          // ignore parse errors
-        }
-        throw new ApiError(response.status, message, code);
-      }
+      if (apiError) throw toApiError(apiError, (response as Response | undefined)?.status);
 
       setIsSuccess(true);
     } catch (err) {

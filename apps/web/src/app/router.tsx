@@ -19,6 +19,7 @@ const Loadable = (Component: any) => (props: any) => (
 
 const LoginPage = Loadable(lazyRetry(() => import('@/features/auth/pages/LoginPage').then(m => ({ default: m.LoginPage }))));
 const ForgotPasswordPage = Loadable(lazyRetry(() => import('@/features/auth/pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage }))));
+const ResetPasswordPage = Loadable(lazyRetry(() => import('@/features/auth/pages/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage }))));
 const AppointmentListPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentListPage').then(m => ({ default: m.AppointmentListPage }))));
 const AppointmentCreatePage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentCreatePage').then(m => ({ default: m.AppointmentCreatePage }))));
 const AppointmentDetailPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentDetailPage').then(m => ({ default: m.AppointmentDetailPage }))));
@@ -84,6 +85,11 @@ export const router = createBrowserRouter([
   {
     path: '/forgot-password',
     element: <ForgotPasswordPage />,
+    errorElement: <AppErrorBoundary />,
+  },
+  {
+    path: '/reset-password',
+    element: <ResetPasswordPage />,
     errorElement: <AppErrorBoundary />,
   },
   {
