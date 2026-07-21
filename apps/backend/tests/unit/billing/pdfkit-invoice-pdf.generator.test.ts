@@ -62,7 +62,7 @@ describe('PdfKitInvoicePdfGenerator', () => {
   it('renders the ABN line under the inspector name when an ABN is present', async () => {
     const buf = await new PdfKitInvoicePdfGenerator().generate(baseData);
     const text = extractPdfText(buf);
-    expect(text).toContain('ABN: 12 345 678 901');
+    expect(text).toMatch(/Inspector: Jane Inspector\s*ABN: 12 345 678 901/);
   });
 
   it('omits the ABN line entirely when the inspector has no ABN', async () => {
