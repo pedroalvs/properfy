@@ -366,6 +366,7 @@ import { CompensateFinancialOnDoneRejectedHandler } from '../modules/appointment
 import { APPOINTMENT_EVENTS } from '../shared/application/events/domain-event-bus';
 import { DeleteAppointmentUseCase } from '../modules/appointment/application/use-cases/delete-appointment.use-case';
 import { BulkEditAppointmentsUseCase } from '../modules/appointment/application/use-cases/bulk-edit-appointments.use-case';
+import { BulkCrossCheckDoneUseCase } from '../modules/appointment/application/use-cases/bulk-cross-check-done.use-case';
 import { BulkResendReminderUseCase } from '../modules/appointment/application/use-cases/bulk-resend-reminder.use-case';
 import { BulkCancelAppointmentsUseCase } from '../modules/appointment/application/use-cases/bulk-cancel-appointments.use-case';
 import { BulkRescheduleAppointmentsUseCase } from '../modules/appointment/application/use-cases/bulk-reschedule-appointments.use-case';
@@ -827,6 +828,10 @@ export function createContainer(logger: Logger): AppContainer {
     auditService,
     authorizationService,
     createFinancialEntriesOnDoneUseCase,
+  );
+  const bulkCrossCheckDoneUseCase = new BulkCrossCheckDoneUseCase(
+    performCrossCheckUseCase,
+    authorizationService,
   );
   const reportUnavailabilityUseCase = new ReportUnavailabilityUseCase(
     rentalTenantPortalActivityRepo,
@@ -1372,6 +1377,7 @@ export function createContainer(logger: Logger): AppContainer {
       getImportStatusUseCase,
       deleteAppointmentUseCase,
       bulkEditAppointmentsUseCase,
+      bulkCrossCheckDoneUseCase,
       bulkResendReminderUseCase,
       bulkCancelAppointmentsUseCase,
       bulkRescheduleAppointmentsUseCase,
