@@ -19,7 +19,7 @@ vi.mock('@/services/api', () => ({
 }));
 
 import { api } from '@/services/api';
-import { useDetailQuery, useCreateMutation } from './useApiQuery';
+import { useDetailQuery, useCreateMutation, useAllPagesQuery } from './useApiQuery';
 
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 const mockPost = api.POST as ReturnType<typeof vi.fn>;
@@ -188,5 +188,114 @@ describe('useApiQuery error normalization', () => {
     const error = thrown as ApiError;
     expect(error.status).toBe(422);
     expect(error.details).toEqual([{ field: 'email', message: 'Invalid email' }]);
+  });
+});
+
+describe('useAllPagesQuery', () => {
+  function pageResponse(items: unknown[], page: number, total: number, totalPages: number) {
+    return {
+      data: {
+        data: items,
+        pagination: { page, pageSize: 100, total, totalPages },
+      },
+      error: undefined,
+      response: { status: 200 },
+    };
+  }
+
+  it('aggregates every page sequentially with pageSize 100', async () => {
+    mockGet.mockImplementation(async (_path: string, opts: { params: { query: Record<string, string> } }) => {
+      const page = Number(opts.params.query.page);
+      const items = page === 3 ? [{ id: 'i-201' }] : Array.from({ length: 100 }, (_, i) => ({ id: `i-${(page - 1) * 100 + i}` }));
+      return pageResponse(items, page, 201, 3);
+    });
+
+    const { result } = renderHook(
+      () => useAllPagesQuery(['all-things'], '/v1/things', { status: 'OPEN' }),
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockGet).toHaveBeenCalledTimes(3);
+    expect(mockGet).toHaveBeenNthCalledWith(1, '/v1/things', {
+      params: { query: { page: '1', pageSize: '100', status: 'OPEN' } },
+    });
+    expect(mockGet).toHaveBeenNthCalledWith(2, '/v1/things', {
+      params: { query: { page: '2', pageSize: '100', status: 'OPEN' } },
+    });
+    expect(mockGet).toHaveBeenNthCalledWith(3, '/v1/things', {
+      params: { query: { page: '3', pageSize: '100', status: 'OPEN' } },
+    });
+    expect(result.current.data?.data).toHaveLength(201);
+    expect(result.current.data?.data[0]).toEqual({ id: 'i-0' });
+    expect(result.current.data?.data[200]).toEqual({ id: 'i-201' });
+    expect(result.current.data?.pagination.total).toBe(201);
+    expect(result.current.data?.pagination.totalPages).toBe(1);
+  });
+
+  it('issues a single request when everything fits in one page', async () => {
+    mockGet.mockResolvedValue(pageResponse([{ id: 'only' }], 1, 1, 1));
+
+    const { result } = renderHook(() => useAllPagesQuery(['all-things'], '/v1/things'), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockGet).toHaveBeenCalledTimes(1);
+    expect(result.current.data?.data).toEqual([{ id: 'only' }]);
+  });
+
+  it('overrides any caller-provided page/pageSize with the loop values', async () => {
+    mockGet.mockResolvedValue(pageResponse([], 1, 0, 0));
+
+    const { result } = renderHook(
+      () => useAllPagesQuery(['all-things'], '/v1/things', { page: 7, pageSize: 25 }),
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockGet).toHaveBeenCalledTimes(1);
+    expect(mockGet).toHaveBeenCalledWith('/v1/things', {
+      params: { query: { page: '1', pageSize: '100' } },
+    });
+  });
+
+  it('fails the whole query when a later page errors (no partial data)', async () => {
+    mockGet.mockImplementation(async (_path: string, opts: { params: { query: Record<string, string> } }) => {
+      if (opts.params.query.page === '2') {
+        return {
+          data: undefined,
+          error: { error: { code: 'INTERNAL_ERROR', message: 'boom' } },
+          response: { status: 500 },
+        };
+      }
+      return pageResponse(Array.from({ length: 100 }, (_, i) => ({ id: `i-${i}` })), 1, 150, 2);
+    });
+
+    const { result } = renderHook(() => useAllPagesQuery(['all-things'], '/v1/things'), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.data).toBeUndefined();
+    expect((result.current.error as ApiError).status).toBe(500);
+  });
+
+  it('stops at the safety cap and warns instead of looping forever', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mockGet.mockImplementation(async (_path: string, opts: { params: { query: Record<string, string> } }) => {
+      const page = Number(opts.params.query.page);
+      return pageResponse([{ id: `p-${page}` }], page, 100_000, 1_000);
+    });
+
+    const { result } = renderHook(() => useAllPagesQuery(['all-things'], '/v1/things'), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockGet).toHaveBeenCalledTimes(50);
+    expect(result.current.data?.data).toHaveLength(50);
+    expect(warnSpy).toHaveBeenCalledOnce();
+    warnSpy.mockRestore();
   });
 });

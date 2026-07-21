@@ -15,7 +15,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 import type { ServiceGroupStatus } from '@properfy/shared';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
-import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
+import { useAllPagesQuery, type ListParams } from '@/hooks/useApiQuery';
 import {
   AppointmentMapFilterPanel,
   DEFAULT_APPOINTMENT_FILTERS,
@@ -253,8 +253,6 @@ export function AppointmentMapPage() {
 
   // Appointment data — fetched when mode is 'appointments'
   const appointmentParams: ListParams = useMemo(() => ({
-    page: 1,
-    pageSize: 100,
     // ungroupedOnly: when the toggle is OFF, ask the backend to pre-filter so
     // only non-grouped appointments are returned (performance + semantic alignment).
     // When the toggle is ON the backend returns all and the client shows all.
@@ -279,7 +277,7 @@ export function AppointmentMapPage() {
     isError: appointmentsError,
     error: appointmentsErrorObj,
     refetch: refetchAppointments,
-  } = usePaginatedQuery<AppointmentMapItem>(
+  } = useAllPagesQuery<AppointmentMapItem>(
     ['appointments-map'],
     '/v1/appointments',
     appointmentParams,
@@ -296,8 +294,6 @@ export function AppointmentMapPage() {
 
   // Group data — fetched when mode is 'groups'
   const groupParams: ListParams = useMemo(() => ({
-    page: 1,
-    pageSize: 100,
     includeAppointments: 'true',
     ...(groupFilters.statuses.length > 0 ? { status: groupFilters.statuses.join(',') } : {}),
     ...(groupFilters.search ? { search: groupFilters.search } : {}),
@@ -314,7 +310,7 @@ export function AppointmentMapPage() {
     isError: groupsError,
     error: groupsErrorObj,
     refetch: refetchGroups,
-  } = usePaginatedQuery<ServiceGroupMapItem>(
+  } = useAllPagesQuery<ServiceGroupMapItem>(
     ['service-groups-map'],
     '/v1/service-groups',
     groupParams,
@@ -332,7 +328,7 @@ export function AppointmentMapPage() {
   // stripped by the query-params serializer when disabled.
   const drilledGroupId = mode === 'groups' ? selectedGroupItem?.id ?? null : null;
   const groupApptParams: ListParams = useMemo(
-    () => ({ page: 1, pageSize: 100, serviceGroupId: drilledGroupId ?? '' }),
+    () => ({ serviceGroupId: drilledGroupId ?? '' }),
     [drilledGroupId],
   );
   const {
@@ -341,7 +337,7 @@ export function AppointmentMapPage() {
     isError: groupApptError,
     error: groupApptErrorObj,
     refetch: refetchGroupAppointments,
-  } = usePaginatedQuery<AppointmentMapItem>(
+  } = useAllPagesQuery<AppointmentMapItem>(
     ['appointments-by-group', drilledGroupId],
     '/v1/appointments',
     groupApptParams,
@@ -359,11 +355,11 @@ export function AppointmentMapPage() {
   // operator previews and then drills into the same group.
   const previewGroupId = mode === 'groups' && !selectedGroupItem ? previewGroup?.id ?? null : null;
   const previewApptParams: ListParams = useMemo(
-    () => ({ page: 1, pageSize: 100, serviceGroupId: previewGroupId ?? '' }),
+    () => ({ serviceGroupId: previewGroupId ?? '' }),
     [previewGroupId],
   );
   const { data: previewApptResponse, isFetching: previewApptFetching } =
-    usePaginatedQuery<AppointmentMapItem>(
+    useAllPagesQuery<AppointmentMapItem>(
       ['appointments-by-group', previewGroupId],
       '/v1/appointments',
       previewApptParams,
