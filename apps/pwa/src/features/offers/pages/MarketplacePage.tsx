@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { TopBar } from '@/components/shell/TopBar';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -26,13 +26,24 @@ function formatTimeAgo(timestamp: number): string {
 
 export function MarketplacePage() {
   const isOnline = useIsOnline();
-  const { data, isLoading, isError, error, refetch, dataUpdatedAt } = useMarketplaceOffers();
+  const {
+    offers,
+    data,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    dataUpdatedAt,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+    total,
+  } = useMarketplaceOffers();
   const { accept, getState } = useAcceptOffer();
   const { showError, showInfo } = useSnackbar();
   const [detailGroupId, setDetailGroupId] = useState<string | null>(null);
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'map'>('list');
-  const offers = data?.data ?? [];
   const hasCachedOffers = offers.length > 0;
   const shouldShowFeed = !isLoading && (!isError || hasCachedOffers);
 
@@ -80,6 +91,26 @@ export function MarketplacePage() {
     setView(nextView);
   };
 
+  // Infinite scroll (list view): fetch the next page when the sentinel enters
+  // the viewport — same pattern as the Schedule History tab.
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (view !== 'list' || !el || !hasNextPage || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver((observed) => {
+      if (observed.some((entry) => entry.isIntersecting)) void fetchNextPage();
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [view, hasNextPage, fetchNextPage, offers.length]);
+
+  // Map view has no scroll to drive pagination — drain the remaining pages so
+  // every offer (including the furthest-dated ones) gets a pin.
+  useEffect(() => {
+    if (view !== 'map' || !hasNextPage || isFetchingNextPage) return;
+    void fetchNextPage();
+  }, [view, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
   return (
     <div className="w-full" data-testid="marketplace-page">
       <TopBar title="Marketplace" />
@@ -88,7 +119,7 @@ export function MarketplacePage() {
         <section className="rounded-[28px] border border-primary/10 bg-[linear-gradient(135deg,_rgba(239,246,255,0.96),_rgba(224,231,255,0.92))] px-5 py-5 shadow-[0_16px_38px_rgba(37,99,235,0.10)]">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/70">Open work</p>
           <h2 className="mt-3 text-xl font-bold tracking-tight text-secondary">
-            {offers.length} available {offers.length === 1 ? 'offer' : 'offers'}
+            {total} available {total === 1 ? 'offer' : 'offers'}
           </h2>
           <p className="mt-1 text-sm text-text-secondary">
             Review grouped inspections and accept only when you can commit to the route.
@@ -143,6 +174,24 @@ export function MarketplacePage() {
             </p>
           )}
           <OfferFeed offers={offers} onRefresh={refetch} onViewDetail={setDetailGroupId} />
+          <div ref={sentinelRef} aria-hidden="true" />
+          {isFetchingNextPage && (
+            <div className="px-page-x pt-2">
+              <LoadingState rows={1} variant="card" />
+            </div>
+          )}
+          {hasNextPage && !isFetchingNextPage && (
+            <div className="flex justify-center pt-2">
+              <button
+                type="button"
+                onClick={() => fetchNextPage()}
+                className="text-sm font-semibold text-primary"
+                data-testid="offers-load-more"
+              >
+                Load more
+              </button>
+            </div>
+          )}
         </PullToRefresh>
       )}
 
