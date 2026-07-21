@@ -176,7 +176,12 @@ describe('MapGroupCreateModal', () => {
   async function submitModal() {
     renderModal({ selectedAppointments: fiveAppointments });
     const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
-    fireEvent.change(dateInput, { target: { value: '2026-07-15' } });
+    // Dynamic future date — a hardcoded one becomes a time bomb once the
+    // universal past-date guard applies (see ServiceGroupCreatePage.test.tsx).
+    const futureDate = new Date(Date.now() + 14 * 24 * 3600 * 1000)
+      .toISOString()
+      .split('T')[0]!;
+    fireEvent.change(dateInput, { target: { value: futureDate } });
     await act(async () => {
       fireEvent.click(screen.getByText('Create Group'));
     });
