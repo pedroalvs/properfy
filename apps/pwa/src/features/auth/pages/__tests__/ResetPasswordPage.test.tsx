@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ResetPasswordPage } from '../ResetPasswordPage';
 
@@ -95,5 +95,37 @@ describe('ResetPasswordPage (PWA)', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/invalid or has expired/i);
     expect(screen.getByRole('link', { name: /request a new link/i })).toBeInTheDocument();
+  });
+
+  it('shows rate limit error on 429 response', async () => {
+    mockPost.mockResolvedValueOnce(apiError(429, 'RATE_LIMITED', 'Too many requests'));
+
+    renderPage();
+    fillPasswords('Str0ng!Pass');
+    fireEvent.click(screen.getByRole('button', { name: /reset password/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Too many attempts. Please wait and try again.',
+    );
+  });
+
+  it('disables the submit button while the request is in flight', async () => {
+    let resolveRequest: (value: ReturnType<typeof apiSuccess>) => void;
+    mockPost.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveRequest = resolve;
+      }),
+    );
+
+    renderPage();
+    fillPasswords('Str0ng!Pass');
+    fireEvent.click(screen.getByRole('button', { name: /reset password/i }));
+
+    expect(screen.getByRole('button', { name: /reset password/i })).toBeDisabled();
+
+    resolveRequest!(apiSuccess());
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /reset password/i })).not.toBeInTheDocument();
+    });
   });
 });

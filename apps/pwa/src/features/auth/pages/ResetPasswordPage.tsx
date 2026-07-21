@@ -1,36 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { passwordFieldSchema } from '@properfy/shared';
+import { passwordFieldSchema, mapResetPasswordError, PASSWORD_REQUIREMENTS_MESSAGE } from '@properfy/shared';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/services/api';
-import { ApiError, toApiError } from '@/lib/api-error';
-
-const INVALID_TOKEN_CODE = 'AUTH_INVALID_RESET_TOKEN';
-
-function getErrorMessage(error: unknown): { message: string; invalidToken: boolean } {
-  if (error instanceof ApiError) {
-    if (error.code === INVALID_TOKEN_CODE) {
-      return {
-        message: 'This reset link is invalid or has expired. Please request a new link.',
-        invalidToken: true,
-      };
-    }
-    if (error.status === 429) {
-      return { message: 'Too many attempts. Please wait and try again.', invalidToken: false };
-    }
-    if (error.status >= 500) {
-      return {
-        message: 'Server is temporarily unavailable. Try again shortly.',
-        invalidToken: false,
-      };
-    }
-    return { message: error.message, invalidToken: false };
-  }
-  return {
-    message: 'Something went wrong. Check your connection and try again.',
-    invalidToken: false,
-  };
-}
+import { toApiError } from '@/lib/api-error';
 
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
@@ -104,7 +77,7 @@ export function ResetPasswordPage() {
     setIsInvalidToken(false);
 
     if (!passwordFieldSchema.safeParse(newPassword).success) {
-      setNewPasswordError('Min 8 chars, uppercase, lowercase, number and special character');
+      setNewPasswordError(PASSWORD_REQUIREMENTS_MESSAGE);
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -122,7 +95,7 @@ export function ResetPasswordPage() {
 
       setIsSuccess(true);
     } catch (err) {
-      const parsed = getErrorMessage(err);
+      const parsed = mapResetPasswordError(toApiError(err));
       setError(parsed.message);
       setIsInvalidToken(parsed.invalidToken);
     } finally {
