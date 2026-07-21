@@ -480,6 +480,35 @@ describe('MarketplacePage — offers pagination', () => {
     expect(screen.queryByTestId('offers-load-more')).not.toBeInTheDocument();
   });
 
+  it('fetches the next page when the list sentinel enters the viewport', async () => {
+    const observed: Array<(entries: Array<{ isIntersecting: boolean }>) => void> = [];
+    const disconnect = vi.fn();
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(callback: (entries: Array<{ isIntersecting: boolean }>) => void) {
+          observed.push(callback);
+        }
+        observe() {}
+        disconnect = disconnect;
+      },
+    );
+    try {
+      const fetchNextPage = vi.fn();
+      mockUseMarketplaceOffers.mockReturnValue(
+        offersHookReturn([baseOffer], { hasNextPage: true, fetchNextPage }),
+      );
+
+      renderWithProviders(<MarketplacePage />);
+
+      expect(observed).toHaveLength(1);
+      observed[0]([{ isIntersecting: true }]);
+      await waitFor(() => expect(fetchNextPage).toHaveBeenCalled());
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('drains the remaining pages automatically when the map view is active', async () => {
     const fetchNextPage = vi.fn();
     mockUseMarketplaceOffers.mockReturnValue(
