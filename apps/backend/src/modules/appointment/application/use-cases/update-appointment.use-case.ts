@@ -1,5 +1,5 @@
 import { type AuthContext, type AppointmentContactRole, type AppointmentCustomField } from '@properfy/shared';
-import { PLATFORM_TIMEZONE } from '@properfy/shared';
+import { PLATFORM_TIMEZONE, ServiceGroupStatus } from '@properfy/shared';
 import { NotFoundError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
@@ -188,10 +188,23 @@ export class UpdateAppointmentUseCase {
     const scheduleChanged = dateChanged || timeChangedReal;
 
     // Appointments in a service group must share the group's calendar day
-    // (enforced at add-time) — an individual date change would break that
-    // invariant, so it stays blocked. Reschedule the whole group instead.
+    // (enforced at add-time). The only permitted individual date edit is
+    // re-aligning a divergent appointment back to the group's date while the
+    // group is still DRAFT (sync is best-effort, so divergence can happen);
+    // everything else stays blocked — reschedule the whole group instead.
+    // Fails closed: when the group can't be loaded the block stands.
     if (dateChanged && appointment.serviceGroupId) {
-      throw new AppointmentInServiceGroupError();
+      let realignsToDraftGroupDate = false;
+      if (this.serviceGroupRepo) {
+        const groupResult = await this.serviceGroupRepo.findById(appointment.serviceGroupId, null);
+        if (groupResult && groupResult.group.status === ServiceGroupStatus.DRAFT) {
+          const groupDateStr = groupResult.group.scheduledDate.toISOString().slice(0, 10);
+          realignsToDraftGroupDate = data.scheduledDate === groupDateStr;
+        }
+      }
+      if (!realignsToDraftGroupDate) {
+        throw new AppointmentInServiceGroupError();
+      }
     }
 
     // A time-slot-only edit is allowed as long as the new slot still fits
