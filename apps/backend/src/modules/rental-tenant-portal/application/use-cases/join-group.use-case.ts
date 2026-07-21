@@ -6,6 +6,8 @@ import type { IRentalTenantPortalTokenRepository } from '../../domain/rental-ten
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { ExecuteStatusTransitionInput, ExecuteStatusTransitionOutput } from '../../../appointment/application/use-cases/execute-status-transition.use-case';
 import { RentalTenantPortalActivityEntity } from '../../domain/rental-tenant-portal-activity.entity';
+import type { AppointmentEntity } from '../../../appointment/domain/appointment.entity';
+import type { ServiceGroupEntity } from '../../../service-group/domain/service-group.entity';
 import {
   PortalAppointmentInactiveError,
   PortalTokenAlreadyUsedError,
@@ -130,6 +132,42 @@ export class JoinGroupUseCase {
       throw new PortalGroupSlotUnavailableError();
     }
 
+    // Atomically claim the token before the first side effect. The
+    // conditional write is the real replay guard — the isUsed fast-path above
+    // is stale under concurrency, so two racing requests must resolve here.
+    const claimed = await this.tokenRepo.tryClaim(input.tokenId);
+    if (!claimed) {
+      throw new PortalTokenAlreadyUsedError();
+    }
+
+    try {
+      await this.applyJoin(input, appointment, group);
+    } catch (error) {
+      // Best-effort release so the tenant can retry with the same link;
+      // never mask the original failure.
+      try {
+        await this.tokenRepo.releaseClaim(input.tokenId);
+      } catch {
+        // release failure leaves the token consumed — fail-closed
+      }
+      throw error;
+    }
+
+    return {
+      scheduledDate: input.scheduledDate,
+      timeSlotStart: input.timeSlotStart,
+      timeSlotEnd: input.timeSlotEnd,
+      rentalTenantConfirmationStatus: 'CONFIRMED',
+      appointmentStatus: 'SCHEDULED',
+      inspector: { id: group.assignedInspectorId, name: assignedInspectorName },
+    };
+  }
+
+  /**
+   * Side-effect sequence (spec §5.2 steps 4-13), executed only after the
+   * token claim succeeded.
+   */
+  private async applyJoin(input: JoinGroupInput, appointment: AppointmentEntity, group: ServiceGroupEntity): Promise<void> {
     const previousGroupId = appointment.serviceGroupId;
     const previousValues = {
       serviceGroupId: previousGroupId,
@@ -222,9 +260,6 @@ export class JoinGroupUseCase {
       ipAddress: input.ipAddress ?? undefined,
     });
 
-    // 12. Mark token as used (single-shot)
-    await this.tokenRepo.markUsed(input.tokenId);
-
     // 13. Fire-and-forget notification
     if (this.onNotificationHandler) {
       try {
@@ -237,14 +272,5 @@ export class JoinGroupUseCase {
         // notification failure must not affect the join
       }
     }
-
-    return {
-      scheduledDate: input.scheduledDate,
-      timeSlotStart: input.timeSlotStart,
-      timeSlotEnd: input.timeSlotEnd,
-      rentalTenantConfirmationStatus: 'CONFIRMED',
-      appointmentStatus: 'SCHEDULED',
-      inspector: { id: group.assignedInspectorId, name: assignedInspectorName },
-    };
   }
 }

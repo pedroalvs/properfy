@@ -174,7 +174,8 @@ describe('GetPortalDataUseCase', () => {
       updateStatus: vi.fn(),
       updateLastAccessedAt: vi.fn(),
       revokeAllForAppointment: vi.fn(),
-      markUsed: vi.fn(),
+      tryClaim: vi.fn().mockResolvedValue(true),
+      releaseClaim: vi.fn(),
     };
     activityRepo = {
       save: vi.fn(),

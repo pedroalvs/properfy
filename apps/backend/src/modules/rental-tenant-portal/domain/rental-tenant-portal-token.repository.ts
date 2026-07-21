@@ -16,7 +16,17 @@ export interface IRentalTenantPortalTokenRepository {
   revokeAndSave(appointmentId: string, newToken: RentalTenantPortalTokenEntity, tx?: Prisma.TransactionClient): Promise<void>;
   updateStatus(id: string, appointmentId: string, status: string): Promise<void>;
   updateLastAccessedAt(id: string, appointmentId: string, date: Date): Promise<void>;
-  markUsed(id: string): Promise<void>;
+  /**
+   * Atomically consume the token (compare-and-set on `used_at IS NULL`).
+   * Returns true when this call won the claim; false when the token was
+   * already used — the caller must treat false as "already used" and stop.
+   */
+  tryClaim(id: string): Promise<boolean>;
+  /**
+   * Best-effort rollback of a successful `tryClaim` when the mutation that
+   * followed it failed, so the tenant can retry with the same link.
+   */
+  releaseClaim(id: string): Promise<void>;
   revokeAllForAppointment(appointmentId: string): Promise<void>;
   expireActiveTokens(): Promise<number>;
 }

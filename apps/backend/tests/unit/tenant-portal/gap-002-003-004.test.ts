@@ -149,7 +149,8 @@ function makeTokenRepo() {
     revokeAndSave: vi.fn().mockResolvedValue(undefined),
     updateStatus: vi.fn(),
     updateLastAccessedAt: vi.fn(),
-    markUsed: vi.fn().mockResolvedValue(undefined),
+    tryClaim: vi.fn().mockResolvedValue(true),
+    releaseClaim: vi.fn().mockResolvedValue(undefined),
     revokeAllForAppointment: vi.fn().mockResolvedValue(undefined),
     expireActiveTokens: vi.fn().mockResolvedValue(0),
   };
@@ -372,7 +373,7 @@ describe('GAP-003: Token replay detection', () => {
         userAgent: 'Test/1.0',
       });
 
-      expect(tokenRepo.markUsed).toHaveBeenCalledWith('token-1');
+      expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1');
     });
   });
 
@@ -438,7 +439,7 @@ describe('GAP-003: Token replay detection', () => {
         userAgent: 'Test/1.0',
       });
 
-      expect(tokenRepo.markUsed).toHaveBeenCalledWith('token-1');
+      expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1');
     });
   });
 
@@ -489,7 +490,7 @@ describe('GAP-003: Token replay detection', () => {
         userAgent: 'Test/1.0',
       });
 
-      expect(tokenRepo.markUsed).toHaveBeenCalledWith('token-1');
+      expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1');
     });
   });
 
