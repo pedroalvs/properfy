@@ -2,12 +2,11 @@ import { ALLOWED_VARIABLES } from '../types';
 
 interface VariableInsertToolbarProps {
   onInsert: (variable: string) => void;
-  onOpenImages?: () => void;
   disabled?: boolean;
   variables?: readonly string[];
 }
 
-export function VariableInsertToolbar({ onInsert, onOpenImages, disabled, variables }: VariableInsertToolbarProps) {
+export function VariableInsertToolbar({ onInsert, disabled, variables }: VariableInsertToolbarProps) {
   const displayVars = variables ?? ALLOWED_VARIABLES;
   return (
     <div className="flex flex-wrap gap-1.5 rounded bg-[#F5F5F5] p-2" role="toolbar" aria-label="Insert variable">
@@ -25,18 +24,6 @@ export function VariableInsertToolbar({ onInsert, onOpenImages, disabled, variab
           {variable}
         </button>
       ))}
-      {onOpenImages && (
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={onOpenImages}
-          className={`ml-auto rounded border border-[#E0E0E0] bg-white px-2 py-0.5 text-xs font-semibold text-primary transition-colors
-            ${disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:border-primary hover:bg-primary/5'}`}
-          aria-label="Open image library"
-        >
-          Images
-        </button>
-      )}
     </div>
   );
 }

@@ -9,9 +9,6 @@ import type { INotificationTemplateRepository } from '../../domain/notification-
 import type { TemplateRendererService } from '../../domain/template-renderer.service';
 import type { IHtmlSanitizerService } from '../../domain/html-sanitizer.service';
 import type { IHtmlToTextService } from '../../domain/html-to-text.service';
-import type { IImagePlaceholderResolver } from '../../domain/image-placeholder-resolver.service';
-import type { IEmailAssetRepository } from '../../domain/email-asset.repository';
-import type { ITemplateImageBindingRepository } from '../../domain/template-image-binding.repository';
 import type { IEmailProvider, ISmsProvider } from '../../domain/providers';
 import { NotificationForbiddenError, TemplateNotFoundError } from '../../domain/notification.errors';
 import { ForbiddenError } from '../../../../shared/domain/errors';
@@ -40,14 +37,10 @@ export class SendTestNotificationUseCase {
     private readonly authorizationService: AuthorizationService,
     /** Comma-separated list of allowed test-send recipients. Empty = no restriction (dev). */
     private readonly recipientAllowlist?: string,
-    /** Feature 030: render pipeline deps (image-resolve → sanitize → html-to-text) */
+    /** Render pipeline deps (sanitize → html-to-text) */
     private readonly renderDeps?: {
       htmlSanitizer?: IHtmlSanitizerService;
       htmlToText?: IHtmlToTextService;
-      imagePlaceholderResolver?: IImagePlaceholderResolver;
-      emailAssetRepo?: IEmailAssetRepository;
-      templateImageBindingRepo?: ITemplateImageBindingRepository;
-      emailAssetsPublicUrlBase?: string;
     },
   ) {}
 
@@ -107,9 +100,8 @@ export class SendTestNotificationUseCase {
     let messageId: string;
 
     if (input.channel === 'EMAIL') {
-      const { renderedSubject, renderedBodyHtml, renderedBodyText } = await renderEmailBody(
+      const { renderedSubject, renderedBodyHtml, renderedBodyText } = renderEmailBody(
         {
-          templateId: template.id,
           bodyHtmlSource: template.bodyHtml ?? '',
           bodyTextSource: template.bodyText,
           subject: template.subject,

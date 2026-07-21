@@ -12,9 +12,6 @@ export {
   TEMPLATE_VARIABLES,
   type TemplateVariableSpec,
   type MandatoryTemplateCode,
-  IMAGE_PLACEHOLDER_REGEX,
-  isValidImagePlaceholderKey,
-  extractImagePlaceholderKeys,
 } from '@properfy/shared';
 
 /** Channel is uniquely determined by the template code (codes ending in `_SMS` are SMS). */

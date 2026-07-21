@@ -31,7 +31,6 @@ const BUCKETS_REQUIRED = [
   'inspector-avatars',
   'inspector-documents',
   'inspection-assets',
-  'email-assets',
 ] as const;
 
 const BUCKETS_EXPECTED = [
@@ -101,7 +100,6 @@ async function main(): Promise<void> {
   console.log('  inspector-avatars:    5 MB   | image/png, image/jpeg, image/webp');
   console.log('  inspector-documents: 20 MB   | application/pdf, image/png, image/jpeg, image/webp');
   console.log('  inspection-assets:   30 MB   | image/jpeg, image/png, image/webp, image/heic');
-  console.log('  email-assets:         5 MB   | image/png, image/jpeg, image/webp, image/gif (public)');
 }
 
 main().catch((err: unknown) => {

@@ -16,114 +16,61 @@ function makeTemplateRenderer(): TemplateRendererService {
 
 describe('renderEmailBody', () => {
   const baseInput: RenderEmailBodyInput = {
-    templateId: 'tpl-1',
     bodyHtmlSource: '<p>Hello {{name}}</p>',
     bodyTextSource: 'Hello {{name}}',
     subject: 'Hi {{name}}',
     variables: { name: 'Alice' },
   };
 
-  it('should render Handlebars vars in subject, html and text', async () => {
+  it('should render Handlebars vars in subject, html and text', () => {
     const deps: RenderEmailBodyDeps = { templateRenderer: makeTemplateRenderer() };
-    const result = await renderEmailBody(baseInput, deps);
+    const result = renderEmailBody(baseInput, deps);
 
     expect(result.renderedSubject).toBe('Hi Alice');
     expect(result.renderedBodyHtml).toBe('<p>Hello Alice</p>');
     expect(result.renderedBodyText).toBe('Hello Alice');
   });
 
-  it('should resolve {{image:key}} placeholders before Handlebars rendering', async () => {
-    const templateRenderer = makeTemplateRenderer();
-    const imagePlaceholderResolver = {
-      resolve: vi.fn().mockReturnValue('<img src="https://cdn.example.com/logo.png" alt="Logo"> {{name}}'),
-    };
-    const templateImageBindingRepo = {
-      findByTemplate: vi.fn().mockResolvedValue([
-        { id: 'b1', templateId: 'tpl-1', assetId: 'asset-1', placeholderKey: 'logo', altText: 'Logo', width: null, height: null, createdAt: new Date() },
-      ]),
-      findByAsset: vi.fn(), upsert: vi.fn(), deleteByTemplateAndKey: vi.fn(), deleteAllByTemplate: vi.fn(),
-    };
-    const emailAssetRepo = {
-      findById: vi.fn().mockResolvedValue({
-        id: 'asset-1', tenantId: null, placeholderKey: 'logo',
-        storageKey: 'email-assets/logo.png', publicUrl: 'https://cdn.example.com/logo.png',
-        originalFilename: 'logo.png', contentType: 'image/png', sizeBytes: 1000,
-        width: 200, height: 100, status: 'VERIFIED', everSent: false, uploadedByUserId: 'u1', createdAt: new Date(),
-      }),
-      create: vi.fn(), findByPlaceholderKey: vi.fn(), findAll: vi.fn(), updateStatus: vi.fn(), markEverSent: vi.fn(), hardDelete: vi.fn(),
-    };
+  it('should strip orphaned {{image:key}} placeholders from html and text', () => {
+    const deps: RenderEmailBodyDeps = { templateRenderer: makeTemplateRenderer() };
 
-    const deps: RenderEmailBodyDeps = {
-      templateRenderer,
-      imagePlaceholderResolver,
-      templateImageBindingRepo,
-      emailAssetRepo,
-    };
-
-    const input: RenderEmailBodyInput = {
-      ...baseInput,
-      bodyHtmlSource: '{{image:logo}} {{name}}',
-    };
-
-    const result = await renderEmailBody(input, deps);
-
-    expect(imagePlaceholderResolver.resolve).toHaveBeenCalled();
-    expect(result.resolvedAssetIds).toContain('asset-1');
-    expect(result.renderedBodyHtml).toContain('Alice');
-    expect(result.renderedBodyHtml).toContain('https://cdn.example.com/logo.png');
-  });
-
-  it('should skip image placeholders with PENDING/FAILED assets', async () => {
-    const templateRenderer = makeTemplateRenderer();
-    const imagePlaceholderResolver = { resolve: vi.fn().mockReturnValue('{{image:logo}} {{name}}') };
-    const templateImageBindingRepo = {
-      findByTemplate: vi.fn().mockResolvedValue([
-        { id: 'b1', templateId: 'tpl-1', assetId: 'asset-bad', placeholderKey: 'logo', altText: null, width: null, height: null, createdAt: new Date() },
-      ]),
-      findByAsset: vi.fn(), upsert: vi.fn(), deleteByTemplateAndKey: vi.fn(), deleteAllByTemplate: vi.fn(),
-    };
-    const emailAssetRepo = {
-      findById: vi.fn().mockResolvedValue({
-        id: 'asset-bad', status: 'PENDING', tenantId: null, placeholderKey: 'logo',
-        storageKey: 'k', publicUrl: 'https://cdn.example.com/logo.png', originalFilename: 'logo.png',
-        contentType: 'image/png', sizeBytes: 1000, width: null, height: null, everSent: false,
-        uploadedByUserId: 'u1', createdAt: new Date(),
-      }),
-      create: vi.fn(), findByPlaceholderKey: vi.fn(), findAll: vi.fn(), updateStatus: vi.fn(), markEverSent: vi.fn(), hardDelete: vi.fn(),
-    };
-
-    const result = await renderEmailBody(
-      { ...baseInput, bodyHtmlSource: '{{image:logo}} {{name}}' },
-      { templateRenderer, imagePlaceholderResolver, templateImageBindingRepo, emailAssetRepo },
+    const result = renderEmailBody(
+      {
+        ...baseInput,
+        bodyHtmlSource: '<p>{{image:logo}}Hello {{name}}</p>',
+        bodyTextSource: '{{image:logo}}Hello {{name}}',
+      },
+      deps,
     );
 
-    expect(result.resolvedAssetIds).toHaveLength(0);
+    expect(result.renderedBodyHtml).toBe('<p>Hello Alice</p>');
+    expect(result.renderedBodyText).toBe('Hello Alice');
   });
 
-  it('should apply sanitizeForRender after Handlebars rendering', async () => {
+  it('should apply sanitizeForRender after Handlebars rendering', () => {
     const templateRenderer = makeTemplateRenderer();
     const htmlSanitizer = { validateForSave: vi.fn(), sanitizeForRender: vi.fn().mockReturnValue('<p>SANITIZED</p>') };
 
-    const result = await renderEmailBody(baseInput, { templateRenderer, htmlSanitizer });
+    const result = renderEmailBody(baseInput, { templateRenderer, htmlSanitizer });
 
-    expect(htmlSanitizer.sanitizeForRender).toHaveBeenCalledWith('<p>Hello Alice</p>', undefined);
+    expect(htmlSanitizer.sanitizeForRender).toHaveBeenCalledWith('<p>Hello Alice</p>');
     expect(result.renderedBodyHtml).toBe('<p>SANITIZED</p>');
   });
 
-  it('should derive renderedBodyText from html-to-text when htmlToText is provided', async () => {
+  it('should derive renderedBodyText from html-to-text when htmlToText is provided', () => {
     const templateRenderer = makeTemplateRenderer();
     const htmlToText = { convert: vi.fn().mockReturnValue('PLAIN TEXT') };
 
-    const result = await renderEmailBody(baseInput, { templateRenderer, htmlToText });
+    const result = renderEmailBody(baseInput, { templateRenderer, htmlToText });
 
     expect(htmlToText.convert).toHaveBeenCalledWith('<p>Hello Alice</p>');
     expect(result.renderedBodyText).toBe('PLAIN TEXT');
   });
 
-  it('should fall back to Handlebars-rendered bodyText when htmlToText is not provided', async () => {
+  it('should fall back to Handlebars-rendered bodyText when htmlToText is not provided', () => {
     const templateRenderer = makeTemplateRenderer();
 
-    const result = await renderEmailBody(
+    const result = renderEmailBody(
       { ...baseInput, bodyHtmlSource: '' },
       { templateRenderer },
     );
