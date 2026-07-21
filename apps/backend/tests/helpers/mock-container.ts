@@ -87,7 +87,6 @@ export function createMockContainer(
       deactivateUserUseCase: { execute: vi.fn() },
       unlockUserUseCase: { execute: vi.fn() },
       resetUserPasswordUseCase: { execute: vi.fn() },
-      inviteUserUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
       tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['user'],

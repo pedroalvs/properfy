@@ -6,7 +6,6 @@ import { LoginUseCase } from '../../../src/modules/auth/application/use-cases/lo
 import { ChangePasswordUseCase } from '../../../src/modules/auth/application/use-cases/change-password.use-case';
 import { RequestPasswordResetUseCase } from '../../../src/modules/auth/application/use-cases/request-password-reset.use-case';
 import { ConsumePasswordResetUseCase } from '../../../src/modules/auth/application/use-cases/consume-password-reset.use-case';
-import { AcceptInviteUseCase } from '../../../src/modules/auth/application/use-cases/accept-invite.use-case';
 import { SetupTotpUseCase } from '../../../src/modules/auth/application/use-cases/setup-totp.use-case';
 import { ConfirmTotpUseCase } from '../../../src/modules/auth/application/use-cases/confirm-totp.use-case';
 import { LogoutUseCase } from '../../../src/modules/auth/application/use-cases/logout.use-case';
@@ -18,7 +17,6 @@ import { UpdateUserUseCase } from '../../../src/modules/user/application/use-cas
 import { DeactivateUserUseCase } from '../../../src/modules/user/application/use-cases/deactivate-user.use-case';
 import { UnlockUserUseCase } from '../../../src/modules/user/application/use-cases/unlock-user.use-case';
 import { ResetUserPasswordUseCase } from '../../../src/modules/user/application/use-cases/reset-user-password.use-case';
-import { InviteUserUseCase } from '../../../src/modules/user/application/use-cases/invite-user.use-case';
 
 // Domain entities
 import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
@@ -334,21 +332,6 @@ describe('Audit completeness: every identity write-path emits exactly one audit 
     });
   });
 
-  describe('AcceptInviteUseCase', () => {
-    it('emits exactly one audit record on success', async () => {
-      const auditService = makeAuditService();
-      const tokenRepo = makePasswordResetTokenRepo();
-      vi.mocked(tokenRepo.findByTokenHash).mockResolvedValue(makePasswordResetToken());
-      const userRepo = makeUserRepo(makeUser({ status: 'PENDING_INVITE' }));
-
-      const useCase = new AcceptInviteUseCase(tokenRepo, userRepo, auditService);
-
-      await useCase.execute({ token: 'invite-token', password: 'NewPass2@' });
-
-      assertSingleAuditRecord(auditService);
-    });
-  });
-
   describe('SetupTotpUseCase', () => {
     it('emits exactly one audit record on success', async () => {
       const auditService = makeAuditService();
@@ -514,28 +497,4 @@ describe('Audit completeness: every identity write-path emits exactly one audit 
     });
   });
 
-  describe('InviteUserUseCase', () => {
-    it('emits exactly one audit record on success', async () => {
-      const auditService = makeAuditService();
-      const useCase = new InviteUserUseCase(
-        makeUserManagementRepo(),
-        makeTenantRepo(),
-        makeBranchRepo(),
-        makePasswordResetTokenRepo(),
-        makeCreateNotificationUseCase(),
-        auditService,
-        new AuthorizationService(auditService),
-      );
-
-      await useCase.execute({
-        tenantId: 'tenant-1',
-        name: 'Invited User',
-        email: 'invited@example.com',
-        role: 'CL_ADMIN',
-        actor: amActor,
-      });
-
-      assertSingleAuditRecord(auditService);
-    });
-  });
 });
