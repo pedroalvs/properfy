@@ -58,7 +58,8 @@ describe('AppointmentMapPage — group-modal lasso wiring (source guards)', () =
   });
 
   it('shows the Select Area button and drawing banner whenever the lasso is available', () => {
-    expect(PAGE_SOURCE).toContain('...(lassoAvailable');
+    expect(PAGE_SOURCE).toMatch(/\{lassoAvailable && \(/);
+    expect(PAGE_SOURCE).toContain("<MapLassoToggleButton active={lassoState !== 'idle'} onClick={handleLassoToggle} />");
     expect(PAGE_SOURCE).toMatch(/\{lassoAvailable && lassoState === 'drawing' &&/);
   });
 

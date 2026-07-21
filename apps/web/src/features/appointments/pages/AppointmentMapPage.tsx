@@ -27,6 +27,7 @@ import {
 import { MapLassoSelect, type LassoPoint, type LassoState, type MapLassoSelectHandle } from '@/components/map/MapLassoSelect';
 import { MapFilterToggleButton } from '@/components/map/MapFilterToggleButton';
 import { MapListViewToggleButton } from '@/components/map/MapListViewToggleButton';
+import { MapLassoToggleButton } from '@/components/map/MapLassoToggleButton';
 import { MapBulkActionModal } from '../components/MapBulkActionModal';
 import { MapAddToGroupSubModal } from '../components/MapAddToGroupSubModal';
 import { AppointmentMapDetailPanel } from '../components/AppointmentMapDetailPanel';
@@ -1071,9 +1072,6 @@ export function AppointmentMapPage() {
 
       <MapFloatingAction
         actions={[
-          ...(lassoAvailable
-            ? [{ icon: 'mdi-selection-drag', label: 'Select Area', onClick: handleLassoToggle, active: lassoState !== 'idle' }]
-            : []),
           { icon: 'mdi-crosshairs-gps', label: 'Re-center', onClick: handleRecenter },
         ]}
       />
@@ -1095,11 +1093,18 @@ export function AppointmentMapPage() {
           </div>
         )}
 
-        {/* C10 — List view button: top-right, offset left of the Mapbox zoom controls */}
-        <div className="pointer-events-none absolute right-14 top-4 z-30">
+        {/* C10 — top-right toolbar: List view + lasso, offset left of the
+            Mapbox zoom controls. Stacked vertically so the lasso button never
+            collides with the top-center drawing banner. */}
+        <div className="pointer-events-none absolute right-14 top-4 z-30 flex flex-col items-end gap-2">
           <div className="pointer-events-auto">
             <MapListViewToggleButton mode={mode} />
           </div>
+          {lassoAvailable && (
+            <div className="pointer-events-auto">
+              <MapLassoToggleButton active={lassoState !== 'idle'} onClick={handleLassoToggle} />
+            </div>
+          )}
         </div>
 
       <MapBulkActionModal
