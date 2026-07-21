@@ -3,12 +3,16 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ForgotPasswordPage } from '../ForgotPasswordPage';
 
-vi.mock('@/config/env', () => ({
-  env: { apiBaseUrl: 'http://localhost:3000' },
-}));
+const { mockPost } = vi.hoisted(() => ({ mockPost: vi.fn() }));
+vi.mock('@/services/api', () => ({ api: { POST: mockPost } }));
 
-const mockFetch = vi.fn();
-vi.stubGlobal('fetch', mockFetch);
+function apiSuccess() {
+  return { data: null, error: undefined, response: new Response(null, { status: 204 }) };
+}
+
+function apiError(status: number, code: string, message: string) {
+  return { data: undefined, error: { error: { code, message } }, response: new Response(null, { status }) };
+}
 
 function renderPage() {
   return render(
@@ -20,7 +24,7 @@ function renderPage() {
 
 describe('ForgotPasswordPage (PWA)', () => {
   beforeEach(() => {
-    mockFetch.mockReset();
+    mockPost.mockReset();
   });
 
   it('renders email input and submit button', () => {
@@ -38,11 +42,11 @@ describe('ForgotPasswordPage (PWA)', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Please enter a valid email address.',
     );
-    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockPost).not.toHaveBeenCalled();
   });
 
   it('submits email and shows generic success state', async () => {
-    mockFetch.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    mockPost.mockResolvedValueOnce(apiSuccess());
 
     renderPage();
     fireEvent.change(screen.getByLabelText('Email'), {
@@ -53,22 +57,13 @@ describe('ForgotPasswordPage (PWA)', () => {
     expect(await screen.findByText(/check your email/i)).toBeInTheDocument();
     expect(screen.getByText(/insp@example\.com/)).toBeInTheDocument();
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:3000/v1/auth/forgot-password',
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({ email: 'insp@example.com' }),
-      }),
-    );
+    expect(mockPost).toHaveBeenCalledWith('/v1/auth/forgot-password', {
+      body: { email: 'insp@example.com' },
+    });
   });
 
   it('shows rate limit error on 429 response', async () => {
-    mockFetch.mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({ error: { code: 'RATE_LIMITED', message: 'Too many requests' } }),
-        { status: 429, headers: { 'Content-Type': 'application/json' } },
-      ),
-    );
+    mockPost.mockResolvedValueOnce(apiError(429, 'RATE_LIMITED', 'Too many requests'));
 
     renderPage();
     fireEvent.change(screen.getByLabelText('Email'), {

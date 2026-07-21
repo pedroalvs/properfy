@@ -3,12 +3,16 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ResetPasswordPage } from '../ResetPasswordPage';
 
-vi.mock('@/config/env', () => ({
-  env: { apiBaseUrl: 'http://localhost:3000' },
-}));
+const { mockPost } = vi.hoisted(() => ({ mockPost: vi.fn() }));
+vi.mock('@/services/api', () => ({ api: { POST: mockPost } }));
 
-const mockFetch = vi.fn();
-vi.stubGlobal('fetch', mockFetch);
+function apiSuccess() {
+  return { data: null, error: undefined, response: new Response(null, { status: 204 }) };
+}
+
+function apiError(status: number, code: string, message: string) {
+  return { data: undefined, error: { error: { code, message } }, response: new Response(null, { status }) };
+}
 
 function renderPage(initialEntry = '/reset-password?token=valid-token-123') {
   return render(
@@ -28,7 +32,7 @@ function fillPasswords(password: string, confirm = password) {
 
 describe('ResetPasswordPage (PWA)', () => {
   beforeEach(() => {
-    mockFetch.mockReset();
+    mockPost.mockReset();
   });
 
   it('renders password fields when token is present', () => {
@@ -53,7 +57,7 @@ describe('ResetPasswordPage (PWA)', () => {
     expect(
       await screen.findByText(/uppercase, lowercase, number and special/i),
     ).toBeInTheDocument();
-    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockPost).not.toHaveBeenCalled();
   });
 
   it('shows validation error when passwords do not match', async () => {
@@ -62,11 +66,11 @@ describe('ResetPasswordPage (PWA)', () => {
     fireEvent.click(screen.getByRole('button', { name: /reset password/i }));
 
     expect(await screen.findByText('Passwords do not match')).toBeInTheDocument();
-    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockPost).not.toHaveBeenCalled();
   });
 
   it('submits token and new password, then shows success state', async () => {
-    mockFetch.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    mockPost.mockResolvedValueOnce(apiSuccess());
 
     renderPage();
     fillPasswords('Str0ng!Pass');
@@ -75,26 +79,14 @@ describe('ResetPasswordPage (PWA)', () => {
     expect(await screen.findByText(/password updated/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /go to sign in/i })).toBeInTheDocument();
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:3000/v1/auth/reset-password',
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({ token: 'valid-token-123', newPassword: 'Str0ng!Pass' }),
-      }),
-    );
+    expect(mockPost).toHaveBeenCalledWith('/v1/auth/reset-password', {
+      body: { token: 'valid-token-123', newPassword: 'Str0ng!Pass' },
+    });
   });
 
   it('shows expired-link message on invalid token response', async () => {
-    mockFetch.mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          error: {
-            code: 'AUTH_INVALID_RESET_TOKEN',
-            message: 'Password reset token is invalid, expired, or already used',
-          },
-        }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } },
-      ),
+    mockPost.mockResolvedValueOnce(
+      apiError(400, 'AUTH_INVALID_RESET_TOKEN', 'Password reset token is invalid, expired, or already used'),
     );
 
     renderPage();

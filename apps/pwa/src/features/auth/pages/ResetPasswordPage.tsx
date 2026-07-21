@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { passwordFieldSchema } from '@properfy/shared';
 import { Button } from '@/components/ui/Button';
-import { env } from '@/config/env';
-import { ApiError } from '@/lib/api-error';
+import { api } from '@/services/api';
+import { ApiError, toApiError } from '@/lib/api-error';
 
-const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,128}$/;
 const INVALID_TOKEN_CODE = 'AUTH_INVALID_RESET_TOKEN';
 
 function getErrorMessage(error: unknown): { message: string; invalidToken: boolean } {
@@ -81,7 +81,8 @@ export function ResetPasswordPage() {
 
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [fieldError, setFieldError] = useState('');
+  const [newPasswordError, setNewPasswordError] = useState('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
   const [error, setError] = useState('');
   const [isInvalidToken, setIsInvalidToken] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -98,41 +99,26 @@ export function ResetPasswordPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
-    setFieldError('');
+    setNewPasswordError('');
+    setConfirmPasswordError('');
     setIsInvalidToken(false);
 
-    if (!PASSWORD_REGEX.test(newPassword)) {
-      setFieldError('Min 8 chars, uppercase, lowercase, number and special character');
+    if (!passwordFieldSchema.safeParse(newPassword).success) {
+      setNewPasswordError('Min 8 chars, uppercase, lowercase, number and special character');
       return;
     }
     if (newPassword !== confirmPassword) {
-      setFieldError('Passwords do not match');
+      setConfirmPasswordError('Passwords do not match');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const response = await fetch(`${env.apiBaseUrl}/v1/auth/reset-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-request-id': crypto.randomUUID(),
-        },
-        body: JSON.stringify({ token, newPassword }),
+      const { error: apiError, response } = await api.POST('/v1/auth/reset-password', {
+        body: { token, newPassword },
       });
 
-      if (!response.ok) {
-        let code: string | undefined;
-        let message = 'Failed to reset password.';
-        try {
-          const body = await response.json();
-          code = body?.error?.code;
-          message = body?.error?.message ?? message;
-        } catch {
-          // ignore parse errors
-        }
-        throw new ApiError(response.status, message, code);
-      }
+      if (apiError) throw toApiError(apiError, (response as Response | undefined)?.status);
 
       setIsSuccess(true);
     } catch (err) {
@@ -209,8 +195,15 @@ export function ResetPasswordPage() {
             required
             autoComplete="new-password"
             disabled={isSubmitting}
+            aria-invalid={newPasswordError ? true : undefined}
+            aria-describedby={newPasswordError ? 'new-password-error' : undefined}
             className="h-12 w-full rounded-2xl border border-black/10 bg-white px-4 text-sm text-text-primary shadow-sm outline-none transition-all placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
           />
+          {newPasswordError && (
+            <p id="new-password-error" className="mt-1.5 text-xs text-error">
+              {newPasswordError}
+            </p>
+          )}
         </div>
 
         <div>
@@ -228,9 +221,15 @@ export function ResetPasswordPage() {
             required
             autoComplete="new-password"
             disabled={isSubmitting}
+            aria-invalid={confirmPasswordError ? true : undefined}
+            aria-describedby={confirmPasswordError ? 'confirm-password-error' : undefined}
             className="h-12 w-full rounded-2xl border border-black/10 bg-white px-4 text-sm text-text-primary shadow-sm outline-none transition-all placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
           />
-          {fieldError && <p className="mt-1.5 text-xs text-error">{fieldError}</p>}
+          {confirmPasswordError && (
+            <p id="confirm-password-error" className="mt-1.5 text-xs text-error">
+              {confirmPasswordError}
+            </p>
+          )}
         </div>
 
         <Button

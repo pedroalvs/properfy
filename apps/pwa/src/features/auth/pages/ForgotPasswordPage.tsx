@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
-import { env } from '@/config/env';
-import { ApiError } from '@/lib/api-error';
+import { api } from '@/services/api';
+import { ApiError, toApiError } from '@/lib/api-error';
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -35,27 +35,11 @@ export function ForgotPasswordPage() {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch(`${env.apiBaseUrl}/v1/auth/forgot-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-request-id': crypto.randomUUID(),
-        },
-        body: JSON.stringify({ email: trimmed }),
+      const { error: apiError, response } = await api.POST('/v1/auth/forgot-password', {
+        body: { email: trimmed },
       });
 
-      if (!response.ok) {
-        let code: string | undefined;
-        let message = 'Failed to send reset email.';
-        try {
-          const body = await response.json();
-          code = body?.error?.code;
-          message = body?.error?.message ?? message;
-        } catch {
-          // ignore parse errors
-        }
-        throw new ApiError(response.status, message, code);
-      }
+      if (apiError) throw toApiError(apiError, (response as Response | undefined)?.status);
 
       setIsSuccess(true);
     } catch (err) {
