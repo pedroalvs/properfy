@@ -187,19 +187,12 @@ export function PortalPage() {
   return (
     <PortalLayout>
       <div className="space-y-4">
-        {isReadOnly ? (
+        {(isPastConfirmCutoff || isReadOnly) && (
           <InfoBanner>
-            This portal is in restricted mode because the confirmation deadline has passed.
-            You can still report an urgent unavailability until the visit starts.
+            The confirmation deadline has passed, so this inspection can no longer be
+            confirmed. You can still report that you cannot attend, propose a new date,
+            or change to another available time.
           </InfoBanner>
-        ) : (
-          isPastConfirmCutoff && (
-            <InfoBanner>
-              The confirmation deadline has passed, so this inspection can no longer be
-              confirmed. You can still report that you cannot attend, propose a new date,
-              or change to another available time.
-            </InfoBanner>
-          )
         )}
 
         {isTerminal && (
@@ -260,13 +253,12 @@ export function PortalPage() {
             onConfirm={handleConfirm}
             onUnavailable={handleUnavailable}
             isSubmitting={confirmMutation.isPending || unavailableMutation.isPending}
-            isReadOnly={isReadOnly}
-            confirmDisabled={isPastConfirmCutoff}
+            confirmDisabled={isPastConfirmCutoff || isReadOnly}
           />
         )}
 
         {/* Change time CTA (US2 / §3.5) */}
-        {!isTerminal && !isReadOnly && (
+        {!isTerminal && (
           <div className="rounded bg-card-bg p-4 shadow-sm">
             {!changeTimeOpen ? (
               <button
@@ -353,11 +345,7 @@ export function PortalPage() {
                 >
                   ← Back
                 </button>
-                <RescheduleForm
-                  appointment={appointment}
-                  token={token}
-                  isReadOnly={isReadOnly}
-                />
+                <RescheduleForm appointment={appointment} token={token} />
               </div>
             )}
           </div>

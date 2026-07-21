@@ -393,7 +393,6 @@ describe('RescheduleRequestUseCase – rentalTenantNote', () => {
     const result = await useCase.execute({
       tokenId: 'token-1',
       appointmentId: 'appt-1',
-      isReadOnly: false,
       isUsed: false,
       newDate: FUTURE_DATE,
       newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',
@@ -412,7 +411,6 @@ describe('RescheduleRequestUseCase – rentalTenantNote', () => {
     await useCase.execute({
       tokenId: 'token-1',
       appointmentId: 'appt-1',
-      isReadOnly: false,
       isUsed: false,
       newDate: FUTURE_DATE,
       newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',

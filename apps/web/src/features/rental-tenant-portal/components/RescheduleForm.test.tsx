@@ -87,7 +87,7 @@ describe('RescheduleForm', () => {
 
   it('renders the form title', () => {
     render(
-      <RescheduleForm appointment={BASE_APPOINTMENT} token="tok-1" isReadOnly={false} />,
+      <RescheduleForm appointment={BASE_APPOINTMENT} token="tok-1" />,
     );
 
     expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Request Reschedule');
@@ -95,7 +95,7 @@ describe('RescheduleForm', () => {
 
   it('renders date and time slot fields', () => {
     render(
-      <RescheduleForm appointment={BASE_APPOINTMENT} token="tok-1" isReadOnly={false} />,
+      <RescheduleForm appointment={BASE_APPOINTMENT} token="tok-1" />,
     );
 
     expect(screen.getByText('New Date')).toBeInTheDocument();
@@ -104,7 +104,7 @@ describe('RescheduleForm', () => {
 
   it('shows validation errors when submitting empty form', async () => {
     render(
-      <RescheduleForm appointment={BASE_APPOINTMENT} token="tok-1" isReadOnly={false} />,
+      <RescheduleForm appointment={BASE_APPOINTMENT} token="tok-1" />,
     );
 
     fireEvent.click(screen.getByRole('button', { name: /Request Reschedule/ }));
@@ -114,19 +114,11 @@ describe('RescheduleForm', () => {
     expect(mockMutateAsync).not.toHaveBeenCalled();
   });
 
-  it('shows read-only message when isReadOnly is true', () => {
-    render(
-      <RescheduleForm appointment={BASE_APPOINTMENT} token="tok-1" isReadOnly={true} />,
-    );
-
-    expect(screen.getByText(/read-only/)).toBeInTheDocument();
-  });
-
   it('shows success state after successful submission', async () => {
     mockMutateAsync.mockResolvedValue({});
 
     render(
-      <RescheduleForm appointment={BASE_APPOINTMENT} token="tok-1" isReadOnly={false} />,
+      <RescheduleForm appointment={BASE_APPOINTMENT} token="tok-1" />,
     );
 
     // Fill in form fields
@@ -144,7 +136,7 @@ describe('RescheduleForm', () => {
 
   it('renders the additional notes textarea', () => {
     render(
-      <RescheduleForm appointment={BASE_APPOINTMENT} token="tok-1" isReadOnly={false} />,
+      <RescheduleForm appointment={BASE_APPOINTMENT} token="tok-1" />,
     );
 
     expect(screen.getByLabelText('Additional notes')).toBeInTheDocument();
@@ -154,7 +146,7 @@ describe('RescheduleForm', () => {
     mockMutateAsync.mockResolvedValue({});
 
     render(
-      <RescheduleForm appointment={BASE_APPOINTMENT} token="tok-1" isReadOnly={false} />,
+      <RescheduleForm appointment={BASE_APPOINTMENT} token="tok-1" />,
     );
 
     const futureDate = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().split('T')[0];
@@ -181,7 +173,7 @@ describe('RescheduleForm', () => {
     mockMutateAsync.mockRejectedValue(new Error('Server error'));
 
     render(
-      <RescheduleForm appointment={BASE_APPOINTMENT} token="tok-1" isReadOnly={false} />,
+      <RescheduleForm appointment={BASE_APPOINTMENT} token="tok-1" />,
     );
 
     fireEvent.change(screen.getByLabelText('date-input'), {

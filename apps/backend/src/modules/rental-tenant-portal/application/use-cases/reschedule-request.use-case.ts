@@ -13,7 +13,6 @@ import type { GeneratePortalTokenUseCase } from './generate-portal-token.use-cas
 import { RentalTenantPortalActivityEntity } from '../../domain/rental-tenant-portal-activity.entity';
 import { AppointmentRestrictionEntity } from '../../../appointment/domain/appointment-restriction.entity';
 import {
-  PortalActionBlockedError,
   PortalAppointmentInactiveError,
   PortalRescheduleNotAllowedError,
   PortalRescheduleWindowExceededError,
@@ -27,7 +26,6 @@ import { SystemClock, type Clock } from '../../../../shared/domain/clock';
 export interface RescheduleRequestInput {
   tokenId: string;
   appointmentId: string;
-  isReadOnly: boolean;
   isUsed: boolean;
   newDate: string;
   newTimeSlotStart: string;
@@ -64,12 +62,9 @@ export class RescheduleRequestUseCase {
   ) {}
 
   async execute(input: RescheduleRequestInput) {
-    // 1. Block if token is read-only (expired)
-    if (input.isReadOnly) {
-      throw new PortalActionBlockedError();
-    }
-
-    // 1b. Block if token has already been used for a mutation
+    // 1. Block if token has already been used for a mutation. Token expiry does
+    // not block reschedule: the tenant may still propose a new date after the
+    // scheduled day, as long as the appointment is active.
     if (input.isUsed) {
       throw new PortalTokenAlreadyUsedError();
     }

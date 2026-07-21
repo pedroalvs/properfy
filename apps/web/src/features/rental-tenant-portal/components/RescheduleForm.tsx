@@ -11,14 +11,9 @@ import type { PortalAppointment } from '../types';
 interface RescheduleFormProps {
   appointment: PortalAppointment;
   token: string;
-  isReadOnly: boolean;
 }
 
-export function RescheduleForm({
-  appointment,
-  token,
-  isReadOnly,
-}: RescheduleFormProps) {
+export function RescheduleForm({ appointment, token }: RescheduleFormProps) {
   const { showSuccess, showError } = useSnackbar();
   const rescheduleMutation = useRescheduleRequest(token);
 
@@ -106,11 +101,7 @@ export function RescheduleForm({
 
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
         <FormField label="New Date" required error={errors.date}>
-          <DateInput
-            value={newDate}
-            onChange={setNewDate}
-            disabled={isReadOnly}
-          />
+          <DateInput value={newDate} onChange={setNewDate} />
         </FormField>
 
         <FormField label="Preferred Time Slot" required error={errors.timeSlot}>
@@ -120,7 +111,6 @@ export function RescheduleForm({
             onStartChange={setNewTimeSlotStart}
             onEndChange={setNewTimeSlotEnd}
             error={!!errors.timeSlot}
-            disabled={isReadOnly}
             idPrefix="reschedule-time"
           />
         </FormField>
@@ -137,7 +127,6 @@ export function RescheduleForm({
             value={rentalTenantNote}
             onChange={setTenantNote}
             placeholder="Any additional information for the operator (optional)"
-            disabled={isReadOnly}
             rows={3}
             maxLength={2000}
             aria-label="Additional notes"
@@ -151,18 +140,11 @@ export function RescheduleForm({
           type="submit"
           variant="outlined"
           loading={rescheduleMutation.isPending}
-          disabled={isReadOnly}
         >
           <i className="mdi mdi-calendar-edit text-base" />
           Request Reschedule
         </Button>
       </form>
-
-      {isReadOnly && (
-        <p className="mt-2 text-xs text-text-muted">
-          This portal is read-only. Rescheduling is no longer available.
-        </p>
-      )}
     </div>
   );
 }

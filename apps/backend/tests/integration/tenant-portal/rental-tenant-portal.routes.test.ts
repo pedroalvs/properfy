@@ -193,7 +193,6 @@ describe('POST /v1/rental-tenant-portal/:token/reschedule', () => {
       expect.objectContaining({
         tokenId: TOKEN_ID,
         appointmentId: APPOINTMENT_ID,
-        isReadOnly: false,
         newDate: '2026-05-01',
         newTimeSlotStart: '09:00', newTimeSlotEnd: '10:00',
       }),

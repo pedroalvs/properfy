@@ -158,7 +158,6 @@ export async function registerRentalTenantPortalRoutes(
       const result = await container.rescheduleRequestUseCase.execute({
         tokenId: ctx.tokenId,
         appointmentId: ctx.appointmentId,
-        isReadOnly: ctx.isReadOnly,
         isUsed: ctx.isUsed,
         newDate: parsed.data.newDate,
         newTimeSlotStart: parsed.data.newTimeSlotStart,
@@ -261,7 +260,6 @@ export async function registerRentalTenantPortalRoutes(
       const ctx = request.portalContext!;
       const result = await container.getAvailableGroupsUseCase.execute({
         appointmentId: ctx.appointmentId,
-        isReadOnly: ctx.isReadOnly,
       });
       return reply.status(200).send(result);
     },
@@ -291,7 +289,6 @@ export async function registerRentalTenantPortalRoutes(
         scheduledDate: parsed.data.scheduledDate,
         timeSlotStart: parsed.data.timeSlotStart,
         timeSlotEnd: parsed.data.timeSlotEnd,
-        isReadOnly: ctx.isReadOnly,
         isUsed: ctx.isUsed,
         rentalTenantNote: parsed.data.rentalTenantNote,
         ipAddress,
