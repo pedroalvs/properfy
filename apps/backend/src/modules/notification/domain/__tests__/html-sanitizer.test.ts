@@ -116,6 +116,20 @@ describe('HtmlSanitizerService — render profile (sanitizeForRender)', () => {
     expect(result).not.toContain('javascript:');
   });
 
+  it('should strip src from <img> with http scheme in render profile', async () => {
+    const svc = await loadImpl();
+    const html = '<img src="http://assets.example.com/logo.png" alt="x">';
+    const result = svc.sanitizeForRender(html);
+    expect(result).not.toContain('http://assets.example.com');
+  });
+
+  it('should strip src from <img> with protocol-relative URL in render profile', async () => {
+    const svc = await loadImpl();
+    const html = '<img src="//assets.example.com/logo.png" alt="x">';
+    const result = svc.sanitizeForRender(html);
+    expect(result).not.toContain('//assets.example.com');
+  });
+
   it('should strip on* attributes in render profile', async () => {
     const svc = await loadImpl();
     const html = '<a href="https://properfy.com" onclick="evil()">Click</a>';
