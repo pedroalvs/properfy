@@ -582,48 +582,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/auth/accept-invite": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        token: string;
-                        password: string & (unknown & unknown & unknown & unknown);
-                    };
-                };
-            };
-            responses: {
-                /** @description Default Response */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": "null" | null;
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/tenants": {
         parameters: {
             query?: never;
@@ -1731,74 +1689,6 @@ export interface paths {
                         password: string & (unknown & unknown & unknown & unknown);
                         /** @enum {string} */
                         role: "AM" | "OP" | "CL_ADMIN" | "CL_USER" | "INSP";
-                        /** Format: uuid */
-                        branchId?: string;
-                        phone?: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description Default Response */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                /** Format: uuid */
-                                tenantId: string | null;
-                                /** Format: uuid */
-                                branchId: string | null;
-                                role: string;
-                                name: string;
-                                email: string;
-                                phone: string | null;
-                                status: string;
-                                totpEnabled?: boolean;
-                                lastLoginAt?: (string) | null;
-                                createdAt: string;
-                                updatedAt?: string;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/tenants/{tenantId}/users/invite": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    tenantId: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        name: string;
-                        /** Format: email */
-                        email: string;
-                        /** @enum {string} */
-                        role: "CL_ADMIN" | "CL_USER";
                         /** Format: uuid */
                         branchId?: string;
                         phone?: string;
