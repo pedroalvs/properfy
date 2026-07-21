@@ -14,6 +14,13 @@ export const passwordFieldSchema = z
   .regex(/[0-9]/, 'Must contain number')
   .regex(/[^A-Za-z0-9]/, 'Must contain special character');
 
+/**
+ * Client-facing summary of {@link passwordFieldSchema}, including the 128-char
+ * maximum, so the web and PWA reset flows show the same policy copy.
+ */
+export const PASSWORD_REQUIREMENTS_MESSAGE =
+  'Use 8–128 characters with uppercase, lowercase, number and special character.';
+
 export const loginSchema = z.object({
   email: z
     .string()

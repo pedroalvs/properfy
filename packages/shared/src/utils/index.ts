@@ -19,3 +19,8 @@ export {
   type LocationLike,
   type LoggerLike,
 } from './retry-lazy-import';
+export {
+  AUTH_INVALID_RESET_TOKEN,
+  mapResetPasswordError,
+  type ResetPasswordErrorMessage,
+} from './reset-password-error';
