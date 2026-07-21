@@ -505,4 +505,45 @@ describe('POST /v1/appointments/bulk-edit', () => {
       }),
     );
   });
+  // -------------------------------------------------------------------------
+  // markReviewed (cross-check DONE)
+  // -------------------------------------------------------------------------
+
+  it('markReviewed: true → 200 and passed through to the use case', async () => {
+    mockJwtVerify.mockResolvedValueOnce(opContext);
+    mockBulkEditExecute.mockResolvedValueOnce({
+      updated: 1,
+      failed: [{ id: APPT_2, code: 'APPOINTMENT_DONE_CROSS_CHECK_INVALID_STATUS', message: 'not DONE' }],
+    });
+
+    const res = await supertest(app.server)
+      .post('/v1/appointments/bulk-edit')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        ids: [APPT_1, APPT_2],
+        changes: { markReviewed: true },
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.updated).toBe(1);
+    expect(res.body.data.failed[0].code).toBe('APPOINTMENT_DONE_CROSS_CHECK_INVALID_STATUS');
+    expect(mockBulkEditExecute).toHaveBeenCalledWith(
+      expect.objectContaining({ changes: { markReviewed: true } }),
+    );
+  });
+
+  it('markReviewed combined with another field → 400 VALIDATION_ERROR', async () => {
+    mockJwtVerify.mockResolvedValueOnce(opContext);
+
+    const res = await supertest(app.server)
+      .post('/v1/appointments/bulk-edit')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        ids: [APPT_1],
+        changes: { markReviewed: true, scheduledDate: '2027-09-15' },
+      });
+
+    expect(res.status).toBe(400);
+    expect(mockBulkEditExecute).not.toHaveBeenCalled();
+  });
 });

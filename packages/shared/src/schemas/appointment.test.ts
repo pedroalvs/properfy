@@ -12,6 +12,7 @@ import {
   bulkActionResultItemSchema,
   bulkActionResponseSchema,
   bulkReopenForRescheduleRequestSchema,
+  bulkEditAppointmentSchema,
   normalizeCustomFields,
 } from './appointment';
 import { AppointmentStatus, RentalTenantConfirmationStatus } from '../enums/appointment';
@@ -1027,5 +1028,35 @@ describe('bulkReopenForRescheduleRequestSchema (026 §FR-540)', () => {
       newTimeSlotEnd: '10:00',
       reason: 'no',
     }).success).toBe(false);
+  });
+});
+
+describe('bulkEditAppointmentSchema markReviewed', () => {
+  it('accepts markReviewed: true as the only change', () => {
+    expect(bulkEditAppointmentSchema.safeParse({
+      ids: [apptIdA],
+      changes: { markReviewed: true },
+    }).success).toBe(true);
+  });
+
+  it('rejects markReviewed combined with any other change field', () => {
+    expect(bulkEditAppointmentSchema.safeParse({
+      ids: [apptIdA],
+      changes: { markReviewed: true, scheduledDate: '2027-06-01' },
+    }).success).toBe(false);
+  });
+
+  it('rejects markReviewed: false (literal true only)', () => {
+    expect(bulkEditAppointmentSchema.safeParse({
+      ids: [apptIdA],
+      changes: { markReviewed: false },
+    }).success).toBe(false);
+  });
+
+  it('still accepts existing field-only changes without markReviewed', () => {
+    expect(bulkEditAppointmentSchema.safeParse({
+      ids: [apptIdA],
+      changes: { scheduledDate: '2027-06-01' },
+    }).success).toBe(true);
   });
 });

@@ -24,6 +24,7 @@ import { useFormOptions } from '@/hooks/useFormOptions';
 import { api } from '@/services/api';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { useAppointmentSave } from '../hooks/useAppointmentSave';
+import { useAppointmentCrossCheck } from '../hooks/useAppointmentCrossCheck';
 import { AppointmentRestrictionFields } from './AppointmentRestrictionFields';
 import { ContactAutocomplete } from './ContactAutocomplete';
 import { AppCredentialMultiSelect } from './AppCredentialMultiSelect';
@@ -96,6 +97,10 @@ export function AppointmentFormDrawer({
   const [initialData, setInitialData] = useState<AppointmentFormData>(EMPTY_FORM_DATA);
   const [errors, setErrors] = useState<AppointmentFormErrors>({});
   const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmReviewOpen, setConfirmReviewOpen] = useState(false);
+  const { crossCheckDone, isCrossChecking } = useAppointmentCrossCheck(
+    isEditMode ? appointmentId : null,
+  );
 
   // In edit mode, derive tenantId from the loaded appointment so branch/property options load
   const effectiveTenantId = isGlobalRole
@@ -293,6 +298,12 @@ export function AppointmentFormDrawer({
     isEditMode &&
     canAssignRole &&
     appointment?.status === AppointmentStatus.AWAITING_INSPECTOR;
+  // "Reviewed" cross-check — same gate as the detail page's Confirm Done.
+  const canReview =
+    isEditMode &&
+    isGlobalRole &&
+    appointment?.status === AppointmentStatus.DONE &&
+    !appointment?.doneCheckedByUserId;
   const hasInspectorAssignmentChange =
     canAssignInspector &&
     !!selectedInspectorId &&
@@ -973,6 +984,23 @@ export function AppointmentFormDrawer({
                     onChangeNotes={handleRestrictionNotesChange}
                   />
 
+                  {canReview && (
+                    <FormSection title="Review">
+                      <p className="text-sm text-text-secondary">
+                        This appointment is done and pending operator review.
+                        Reviewing releases it for financial processing.
+                      </p>
+                      <Button
+                        variant="secondary"
+                        onClick={() => setConfirmReviewOpen(true)}
+                        loading={isCrossChecking}
+                      >
+                        <i className="mdi mdi-check-decagram" aria-hidden="true" />
+                        Mark as Reviewed
+                      </Button>
+                    </FormSection>
+                  )}
+
                   {canAssignInspector && (
                     <FormSection title="Assignment">
                       <FormField label="Inspector">
@@ -1084,6 +1112,19 @@ export function AppointmentFormDrawer({
         </div>
       </DrawerPanel>
 
+      <ConfirmDialog
+        open={confirmReviewOpen}
+        onClose={() => setConfirmReviewOpen(false)}
+        onConfirm={() => {
+          crossCheckDone();
+          setConfirmReviewOpen(false);
+        }}
+        title="Confirm Done"
+        message="Confirm that the field completion is valid and release this appointment for financial processing?"
+        confirmLabel="Confirm Done"
+        variant="warning"
+        loading={isCrossChecking}
+      />
       <ConfirmDialog
         open={showConfirm}
         title="Discard changes?"

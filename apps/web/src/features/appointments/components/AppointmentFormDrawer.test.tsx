@@ -102,11 +102,31 @@ const MOCK_APPOINTMENT_GROUPED = {
   serviceGroupId: 'sg-01',
 };
 
+// DONE appointments for the "Reviewed" cross-check section: one pending
+// review, one already reviewed.
+const MOCK_APPOINTMENT_DONE = {
+  ...MOCK_APPOINTMENT,
+  id: 'apt-done',
+  status: 'DONE',
+  doneCheckedByUserId: null,
+};
+const MOCK_APPOINTMENT_DONE_REVIEWED = {
+  ...MOCK_APPOINTMENT_DONE,
+  id: 'apt-done-reviewed',
+  doneCheckedByUserId: 'usr-2',
+};
+
 vi.mock('../hooks/useAppointmentDetail', () => ({
   useAppointmentDetail: (id: string | null) => {
     if (!id) return { appointment: null, isLoading: false, isError: false, refetch: vi.fn() };
     if (id === 'apt-grouped') {
       return { appointment: MOCK_APPOINTMENT_GROUPED, isLoading: false, isError: false, refetch: vi.fn() };
+    }
+    if (id === 'apt-done') {
+      return { appointment: MOCK_APPOINTMENT_DONE, isLoading: false, isError: false, refetch: vi.fn() };
+    }
+    if (id === 'apt-done-reviewed') {
+      return { appointment: MOCK_APPOINTMENT_DONE_REVIEWED, isLoading: false, isError: false, refetch: vi.fn() };
     }
     return { appointment: MOCK_APPOINTMENT, isLoading: false, isError: false, refetch: vi.fn() };
   },
@@ -431,5 +451,47 @@ describe('AppointmentFormDrawer', () => {
 
     expect(addBtn).not.toBeDisabled();
     expect(screen.queryByLabelText('Custom field 4 label')).not.toBeInTheDocument();
+  });
+  // -------------------------------------------------------------------------
+  // "Reviewed" cross-check section (DONE appointments, AM/OP only)
+  // -------------------------------------------------------------------------
+
+  it('shows the Review section for AM on a DONE appointment pending review and cross-checks on confirm', async () => {
+    renderDrawer({ appointmentId: 'apt-done' });
+
+    expect(screen.getByText('Review')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Mark as Reviewed'));
+    // ConfirmDialog opens with the same copy as the detail page
+    expect(
+      screen.getByText('Confirm that the field completion is valid and release this appointment for financial processing?'),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm Done' }));
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith(
+        '/v1/appointments/apt-done/cross-check-done',
+        expect.anything(),
+      );
+    });
+  });
+
+  it('does not show the Review section for non-privileged roles on a DONE appointment', () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'usr-1', name: 'Client', email: 'cl@test.com', role: 'CL_ADMIN', tenantId: 't-1' },
+      token: 'mock-token', isAuthenticated: true, isLoading: false, login: vi.fn(), logout: vi.fn(),
+    });
+    renderDrawer({ appointmentId: 'apt-done' });
+    expect(screen.queryByText('Review')).not.toBeInTheDocument();
+    expect(screen.queryByText('Mark as Reviewed')).not.toBeInTheDocument();
+  });
+
+  it('does not show the Review section when the appointment is not DONE', () => {
+    renderDrawer({ appointmentId: 'apt-01' });
+    expect(screen.queryByText('Mark as Reviewed')).not.toBeInTheDocument();
+  });
+
+  it('does not show the Review section when the appointment is already reviewed', () => {
+    renderDrawer({ appointmentId: 'apt-done-reviewed' });
+    expect(screen.queryByText('Mark as Reviewed')).not.toBeInTheDocument();
   });
 });

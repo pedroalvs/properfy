@@ -711,9 +711,20 @@ export function createContainer(logger: Logger): AppContainer {
   // updateAppointmentUseCase is constructed AFTER the notification handlers below —
   // schedule edits need confirmationCycleService + portal token repo + reschedule notifier.
   const deleteAppointmentUseCase = new DeleteAppointmentUseCase(appointmentRepo, auditService, authorizationService);
+  // Constructed here (not with the other execution wiring below) because the
+  // bulk-edit use case delegates markReviewed to the cross-check use case.
+  const inspectionExecutionRepo = new PrismaInspectionExecutionRepository(prisma);
+  const performCrossCheckUseCase = new PerformCrossCheckUseCase(
+    appointmentRepo,
+    auditLogRepo,
+    inspectionExecutionRepo,
+    auditService,
+    authorizationService,
+    createFinancialEntriesOnDoneUseCase,
+  );
   const bulkEditAppointmentsUseCase = new BulkEditAppointmentsUseCase(
     appointmentRepo, contactRepo, inspectorRepo, pricingRuleRepo,
-    auditService, authorizationService,
+    auditService, authorizationService, performCrossCheckUseCase,
   );
   // Tenant portal repositories — created BEFORE reopenForRescheduleUseCase
   // so 026 §FR-543 can inject the token repo (revoke active portal tokens
@@ -816,18 +827,10 @@ export function createContainer(logger: Logger): AppContainer {
   );
 
   // Inspector execution repositories and services
-  const inspectionExecutionRepo = new PrismaInspectionExecutionRepository(prisma);
+  // (inspectionExecutionRepo is constructed earlier, next to the cross-check wiring)
   const serviceTypeReaderForExec = new PrismaServiceTypeReader(prisma);
   const contactReaderForExec = new PrismaContactReader(prisma);
   const tenantSettingsReader = new PrismaTenantSettingsReader(prisma);
-  const performCrossCheckUseCase = new PerformCrossCheckUseCase(
-    appointmentRepo,
-    auditLogRepo,
-    inspectionExecutionRepo,
-    auditService,
-    authorizationService,
-    createFinancialEntriesOnDoneUseCase,
-  );
   const reportUnavailabilityUseCase = new ReportUnavailabilityUseCase(
     rentalTenantPortalActivityRepo,
     appointmentRepo,

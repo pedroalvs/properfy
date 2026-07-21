@@ -105,6 +105,7 @@ describe('BulkEditAppointmentsUseCase', () => {
   let pricingRuleRepo: IPricingRuleRepository;
   let auditService: AuditService;
   let authorizationService: AuthorizationService;
+  let performCrossCheck: { execute: ReturnType<typeof vi.fn> };
   let useCase: BulkEditAppointmentsUseCase;
 
   beforeEach(() => {
@@ -158,6 +159,8 @@ describe('BulkEditAppointmentsUseCase', () => {
     auditService = { log: vi.fn() } as unknown as AuditService;
     authorizationService = new AuthorizationService(auditService);
 
+    performCrossCheck = { execute: vi.fn() };
+
     useCase = new BulkEditAppointmentsUseCase(
       appointmentRepo,
       contactRepo,
@@ -165,6 +168,7 @@ describe('BulkEditAppointmentsUseCase', () => {
       pricingRuleRepo,
       auditService,
       authorizationService,
+      performCrossCheck,
     );
   });
 
@@ -929,5 +933,92 @@ describe('BulkEditAppointmentsUseCase', () => {
     expect(result.updated).toBe(1);
     // repo.update should NOT be called when updateData is empty
     expect(appointmentRepo.update).not.toHaveBeenCalled();
+  });
+  // -------------------------------------------------------------------------
+  // markReviewed → delegated per id to PerformCrossCheckUseCase
+  // -------------------------------------------------------------------------
+
+  describe('markReviewed', () => {
+    it('delegates each id to the cross-check use case and counts it in updated', async () => {
+      performCrossCheck.execute.mockResolvedValue({ id: 'appt-1' });
+
+      const actor = makeActor();
+      const result = await useCase.execute({
+        ids: ['appt-1', 'appt-2'],
+        changes: { markReviewed: true },
+        actor,
+      });
+
+      expect(result.updated).toBe(2);
+      expect(result.failed).toHaveLength(0);
+      expect(performCrossCheck.execute).toHaveBeenCalledTimes(2);
+      expect(performCrossCheck.execute).toHaveBeenCalledWith({ appointmentId: 'appt-1', actor });
+      expect(performCrossCheck.execute).toHaveBeenCalledWith({ appointmentId: 'appt-2', actor });
+    });
+
+    it('does not go through the normal update/audit path (cross-check audits itself)', async () => {
+      performCrossCheck.execute.mockResolvedValue({ id: 'appt-1' });
+
+      await useCase.execute({
+        ids: ['appt-1'],
+        changes: { markReviewed: true },
+        actor: makeActor(),
+      });
+
+      expect(appointmentRepo.update).not.toHaveBeenCalled();
+      expect(auditService.log).not.toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'appointment.updated' }),
+      );
+    });
+
+    it('reports non-DONE appointments in failed[] with the invalid-status code', async () => {
+      const { AppointmentDoneCrossCheckInvalidStatusError } = await import(
+        '../../../src/modules/appointment/domain/appointment.errors'
+      );
+      performCrossCheck.execute.mockRejectedValue(new AppointmentDoneCrossCheckInvalidStatusError('SCHEDULED'));
+
+      const result = await useCase.execute({
+        ids: ['appt-1'],
+        changes: { markReviewed: true },
+        actor: makeActor(),
+      });
+
+      expect(result.updated).toBe(0);
+      expect(result.failed).toEqual([
+        expect.objectContaining({ id: 'appt-1', code: 'APPOINTMENT_DONE_CROSS_CHECK_INVALID_STATUS' }),
+      ]);
+    });
+
+    it('reports already-reviewed and self-approval rows in failed[] and keeps processing the rest', async () => {
+      const errors = await import('../../../src/modules/appointment/domain/appointment.errors');
+      performCrossCheck.execute
+        .mockRejectedValueOnce(new errors.AppointmentDoneCrossCheckAlreadyCompletedError())
+        .mockRejectedValueOnce(new errors.AppointmentDoneCrossCheckSelfApprovalError())
+        .mockResolvedValueOnce({ id: 'appt-3' });
+
+      const result = await useCase.execute({
+        ids: ['appt-1', 'appt-2', 'appt-3'],
+        changes: { markReviewed: true },
+        actor: makeActor(),
+      });
+
+      expect(result.updated).toBe(1);
+      expect(result.failed).toEqual([
+        expect.objectContaining({ id: 'appt-1', code: 'APPOINTMENT_DONE_CROSS_CHECK_ALREADY_COMPLETED' }),
+        expect.objectContaining({ id: 'appt-2', code: 'APPOINTMENT_DONE_CROSS_CHECK_SELF_APPROVAL' }),
+      ]);
+    });
+
+    it('(RBAC) still forbids non-AM/OP actors before any delegation', async () => {
+      await expect(
+        useCase.execute({
+          ids: ['appt-1'],
+          changes: { markReviewed: true },
+          actor: makeActor({ role: 'CL_ADMIN' }),
+        }),
+      ).rejects.toThrow(ForbiddenError);
+
+      expect(performCrossCheck.execute).not.toHaveBeenCalled();
+    });
   });
 });

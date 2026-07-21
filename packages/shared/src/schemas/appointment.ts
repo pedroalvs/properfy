@@ -250,6 +250,9 @@ const bulkEditChangesSchema = z.object({
   branchId: z.string().uuid().optional(),
   serviceTypeId: z.string().uuid().optional(),
   propertyManagerContactId: z.string().uuid().optional(),
+  // Operator cross-check of DONE appointments ("Reviewed"). Delegated per id
+  // to the cross-check use case, so it cannot be mixed with field edits.
+  markReviewed: z.literal(true).optional(),
 }).strict() // .strict() rejects unknown keys → APPOINTMENT_BULK_FIELD_NOT_ALLOWED
   .refine(
     (data) => (data.timeSlotStart === undefined) === (data.timeSlotEnd === undefined),
@@ -258,6 +261,11 @@ const bulkEditChangesSchema = z.object({
   .refine(
     (data) => isTimeRangeOrdered(data.timeSlotStart, data.timeSlotEnd),
     { message: TIME_RANGE_MESSAGE, path: ['timeSlotEnd'] },
+  )
+  .refine(
+    (data) => data.markReviewed === undefined
+      || Object.entries(data).every(([key, value]) => key === 'markReviewed' || value === undefined),
+    { message: 'markReviewed cannot be combined with other changes', path: ['markReviewed'] },
   );
 
 /** Per-field policies the use case applies. Currently only governs the

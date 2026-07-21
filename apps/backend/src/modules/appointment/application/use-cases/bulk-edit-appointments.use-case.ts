@@ -18,6 +18,7 @@ const ALLOWED_FIELDS = new Set([
   'branchId',
   'serviceTypeId',
   'propertyManagerContactId',
+  'markReviewed',
 ]);
 
 const TERMINAL_STATUSES = new Set(['DONE', 'REJECTED', 'CANCELLED']);
@@ -45,6 +46,13 @@ export interface BulkEditResult {
   failed: Array<{ id: string; code: string; message: string }>;
 }
 
+/** Port for the "Reviewed" cross-check delegation — satisfied by
+ *  PerformCrossCheckUseCase, which owns every validation (DONE-only,
+ *  self-approval, evidence), its own audit log and the financial side effect. */
+interface PerformCrossCheck {
+  execute(input: { appointmentId: string; actor: AuthContext }): Promise<unknown>;
+}
+
 export class BulkEditAppointmentsUseCase {
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
@@ -53,6 +61,7 @@ export class BulkEditAppointmentsUseCase {
     private readonly pricingRuleRepo: IPricingRuleRepository,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
+    private readonly performCrossCheck?: PerformCrossCheck,
   ) {}
 
   async execute(input: BulkEditInput): Promise<BulkEditResult> {
@@ -75,6 +84,26 @@ export class BulkEditAppointmentsUseCase {
     const tenantId = actor.tenantId; // OP is tenant-scoped; AM may be null
     const updated: string[] = [];
     const failed: Array<{ id: string; code: string; message: string }> = [];
+
+    // "Reviewed" cross-check is delegated wholesale: the schema guarantees
+    // markReviewed is exclusive of field edits, and the cross-check use case
+    // owns validation, audit and the financial side effect per appointment.
+    if (changes.markReviewed === true) {
+      if (!this.performCrossCheck) {
+        throw new Error('BulkEditAppointmentsUseCase: performCrossCheck dependency not wired');
+      }
+      for (const appointmentId of ids) {
+        try {
+          await this.performCrossCheck.execute({ appointmentId, actor });
+          updated.push(appointmentId);
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : 'Unknown error';
+          const code = (err as { code?: string })?.code ?? 'INTERNAL_ERROR';
+          failed.push({ id: appointmentId, code, message });
+        }
+      }
+      return { updated: updated.length, failed };
+    }
 
     for (const appointmentId of ids) {
       try {

@@ -19,7 +19,8 @@ type FieldKey =
   | 'scheduledDate'
   | 'timeSlot'
   | 'serviceTypeId'
-  | 'propertyManagerContactId';
+  | 'propertyManagerContactId'
+  | 'markReviewed';
 
 /** Value model — one string per change field. The `timeSlot` toggle splits
  *  into the two `timeSlotStart` / `timeSlotEnd` value keys. */
@@ -41,6 +42,7 @@ const FIELD_LABELS: Record<FieldKey, string> = {
   timeSlot: 'Time Slot',
   serviceTypeId: 'Service Type',
   propertyManagerContactId: 'Add Property Manager Contact (only when missing)',
+  markReviewed: 'Mark as Reviewed',
 };
 
 /** Matches the backend `BulkEditResult` from
@@ -77,6 +79,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
     timeSlot: false,
     serviceTypeId: false,
     propertyManagerContactId: false,
+    markReviewed: false,
   });
   const [values, setValues] = useState<BulkEditValues>({});
   const [pmContactLabel, setPmContactLabel] = useState('');
@@ -107,6 +110,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
       timeSlot: false,
       serviceTypeId: false,
       propertyManagerContactId: false,
+      markReviewed: false,
     });
     setValues({});
     setPmContactLabel('');
@@ -123,13 +127,26 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
   const toggleField = (key: FieldKey) => {
     setEnabledFields((prev) => {
       const next = { ...prev, [key]: !prev[key] };
+      // "Mark as Reviewed" is exclusive of field edits (mirrors the backend
+      // schema refine): enabling it deselects everything else and vice versa.
+      if (next[key]) {
+        if (key === 'markReviewed') {
+          (Object.keys(next) as FieldKey[]).forEach((k) => {
+            if (k !== 'markReviewed') next[k] = false;
+          });
+          setValues({});
+          setPmContactLabel('');
+        } else {
+          next.markReviewed = false;
+        }
+      }
       if (!next[key]) {
         setValues((v) => {
           const copy = { ...v };
           if (key === 'timeSlot') {
             delete copy.timeSlotStart;
             delete copy.timeSlotEnd;
-          } else {
+          } else if (key !== 'markReviewed') {
             delete copy[key];
           }
           return copy;
@@ -160,6 +177,9 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
 
   const handleSubmit = async () => {
     const changes: Record<string, unknown> = {};
+    if (enabledFields.markReviewed) {
+      changes.markReviewed = true;
+    }
     const scalarKeys = ['assignedInspectorId', 'scheduledDate', 'serviceTypeId', 'propertyManagerContactId'] as const;
     scalarKeys.forEach((key) => {
       const v = values[key]?.trim();
@@ -376,6 +396,17 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
               placeholder="Search property manager..."
               aria-label="Property Manager Contact"
             />
+          </FieldRow>
+
+          {/* Mark as Reviewed (cross-check DONE) — exclusive of field edits */}
+          <FieldRow
+            id="bulk-mark-reviewed"
+            label={FIELD_LABELS.markReviewed}
+            checked={enabledFields.markReviewed}
+            onToggle={() => toggleField('markReviewed')}
+            helper="Only DONE appointments not yet reviewed will be processed; others will be skipped."
+          >
+            {null}
           </FieldRow>
         </div>
       )}

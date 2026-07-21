@@ -13977,6 +13977,11 @@
                                     "type": "string",
                                     "nullable": true
                                   },
+                                  "apartmentNumber": {
+                                    "type": "string",
+                                    "nullable": true,
+                                    "default": null
+                                  },
                                   "suburb": {
                                     "type": "string"
                                   },

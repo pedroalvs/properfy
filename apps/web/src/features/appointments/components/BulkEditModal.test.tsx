@@ -248,4 +248,71 @@ describe('BulkEditModal', () => {
     fireEvent.click(input);
     expect(showPickerSpy).toHaveBeenCalledTimes(1);
   });
+  // -------------------------------------------------------------------------
+  // Mark as Reviewed (cross-check DONE)
+  // -------------------------------------------------------------------------
+
+  it('renders the Mark as Reviewed field with the skip helper text when checked', () => {
+    renderModal([makeAppointment()]);
+    const checkbox = screen.getByLabelText('Mark as Reviewed');
+    expect(checkbox).toBeInTheDocument();
+    fireEvent.click(checkbox);
+    expect(
+      screen.getByText('Only DONE appointments not yet reviewed will be processed; others will be skipped.'),
+    ).toBeInTheDocument();
+  });
+
+  it('enabling Mark as Reviewed deselects other fields, and vice versa (exclusive)', () => {
+    renderModal([makeAppointment()]);
+    fireEvent.click(screen.getByLabelText('Time Slot'));
+    fireEvent.click(screen.getByLabelText('Mark as Reviewed'));
+    expect(screen.getByLabelText('Time Slot')).not.toBeChecked();
+    expect(screen.getByLabelText('Mark as Reviewed')).toBeChecked();
+
+    fireEvent.click(screen.getByLabelText('Scheduled Date'));
+    expect(screen.getByLabelText('Mark as Reviewed')).not.toBeChecked();
+    expect(screen.getByLabelText('Scheduled Date')).toBeChecked();
+  });
+
+  it('submits { markReviewed: true } as the only change', async () => {
+    renderModal([makeAppointment({ id: 'a1' }), makeAppointment({ id: 'a2' })]);
+    fireEvent.click(screen.getByLabelText('Mark as Reviewed'));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith('/v1/appointments/bulk-edit', {
+        body: { ids: ['a1', 'a2'], changes: { markReviewed: true } },
+      });
+    });
+  });
+
+  it('renders per-row failures (e.g. non-DONE skipped) in the error details list', async () => {
+    mockPost.mockResolvedValue({
+      data: {
+        data: {
+          updated: 1,
+          failed: [
+            {
+              id: 'aaaaaaaa-0000-0000-0000-000000000002',
+              code: 'APPOINTMENT_DONE_CROSS_CHECK_INVALID_STATUS',
+              message: 'Cross-check is only allowed for DONE appointments, current status is SCHEDULED',
+            },
+          ],
+        },
+      },
+      error: null,
+    });
+    renderModal([makeAppointment({ id: 'a1' }), makeAppointment({ id: 'a2' })]);
+    fireEvent.click(screen.getByLabelText('Mark as Reviewed'));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('1 updated')).toBeInTheDocument();
+      expect(screen.getByText('1 failed')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText(/Show error details/));
+    expect(
+      screen.getByText(/Cross-check is only allowed for DONE appointments/),
+    ).toBeInTheDocument();
+  });
 });
