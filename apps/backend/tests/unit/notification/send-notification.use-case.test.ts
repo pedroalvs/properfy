@@ -19,7 +19,11 @@ import {
 } from '../../../src/modules/notification/domain/notification-template.entity';
 import { NotificationNotFoundError } from '../../../src/modules/notification/domain/notification.errors';
 import { NotificationInvalidStatusError } from '../../../src/modules/notification/domain/notification.errors';
-import { MAX_RETRY_COUNT } from '../../../src/modules/notification/domain/notification.constants';
+import {
+  MAX_RETRY_COUNT,
+  SENSITIVE_PAYLOAD_KEYS,
+  REDACTED_PAYLOAD_VALUE,
+} from '../../../src/modules/notification/domain/notification.constants';
 import type { Logger } from '../../../src/shared/infrastructure/logger';
 import type { MetricsCollector } from '../../../src/shared/infrastructure/metrics';
 
@@ -79,6 +83,7 @@ function makeSut() {
     existsByAppointmentAndTemplate: vi.fn(),
     findRetryable: vi.fn(),
     countByTenantChannelSince: vi.fn().mockResolvedValue(0),
+    scrubPayload: vi.fn().mockResolvedValue(undefined),
   };
   const templateRepo: INotificationTemplateRepository = {
     findByTenantCodeChannel: vi.fn(),
@@ -903,5 +908,83 @@ describe('SendNotificationUseCase', () => {
       expect(savedAttempt.attemptNumber).toBe(3); // retryCount + 1
     });
 
+  });
+
+  describe('sensitive payload scrubbing', () => {
+    it('should scrub sensitive payload keys after a successful EMAIL send', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(makeNotification());
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+      vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.notificationRepo.scrubPayload).toHaveBeenCalledWith(
+        'notif-1',
+        SENSITIVE_PAYLOAD_KEYS,
+        REDACTED_PAYLOAD_VALUE,
+      );
+      // Scrub happens after the SENT status update
+      const updateOrder = vi.mocked(sut.notificationRepo.update).mock.invocationCallOrder[0]!;
+      const scrubOrder = vi.mocked(sut.notificationRepo.scrubPayload).mock.invocationCallOrder[0]!;
+      expect(scrubOrder).toBeGreaterThan(updateOrder);
+    });
+
+    it('should scrub sensitive payload keys after a successful SMS send', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+        makeNotification({ channel: 'SMS', recipient: '0412345678' }),
+      );
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ channel: 'SMS', subject: null, bodyHtml: null }),
+      );
+      vi.mocked(sut.smsProvider.send).mockResolvedValue({ messageId: 'msg-sms-1' });
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.notificationRepo.scrubPayload).toHaveBeenCalledWith(
+        'notif-1',
+        SENSITIVE_PAYLOAD_KEYS,
+        REDACTED_PAYLOAD_VALUE,
+      );
+    });
+
+    it('should NOT scrub on a transient provider failure (payload needed for retry)', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(makeNotification());
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+      vi.mocked(sut.emailProvider.send).mockRejectedValue(new Error('Provider timeout'));
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.notificationRepo.scrubPayload).not.toHaveBeenCalled();
+    });
+
+    it('should NOT scrub when retries are exhausted and the notification goes FAILED', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+        makeNotification({ retryCount: MAX_RETRY_COUNT - 1 }),
+      );
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+      vi.mocked(sut.emailProvider.send).mockRejectedValue(new Error('Provider down'));
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      const updated = vi.mocked(sut.notificationRepo.update).mock.calls[0][0];
+      expect(updated.status).toBe('FAILED');
+      expect(sut.notificationRepo.scrubPayload).not.toHaveBeenCalled();
+    });
+
+    it('should swallow and log a scrub failure after a successful send', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(makeNotification());
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+      vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
+      vi.mocked(sut.notificationRepo.scrubPayload).mockRejectedValue(new Error('db down'));
+
+      await expect(sut.useCase.execute({ notificationId: 'notif-1' })).resolves.toBeUndefined();
+
+      expect((sut.logger as unknown as { warn: ReturnType<typeof vi.fn> }).warn).toHaveBeenCalled();
+    });
   });
 });

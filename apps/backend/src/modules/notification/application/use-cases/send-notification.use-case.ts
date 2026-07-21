@@ -19,7 +19,13 @@ import {
   NotificationNotFoundError,
   NotificationInvalidStatusError,
 } from '../../domain/notification.errors';
-import { MAX_RETRY_COUNT, RETRY_DELAYS, JITTER_FACTOR } from '../../domain/notification.constants';
+import {
+  MAX_RETRY_COUNT,
+  RETRY_DELAYS,
+  JITTER_FACTOR,
+  SENSITIVE_PAYLOAD_KEYS,
+  REDACTED_PAYLOAD_VALUE,
+} from '../../domain/notification.constants';
 import { renderEmailBody } from '../render-email-body';
 
 /** Phone numbers are PII: log at most the last 4 digits. */
@@ -393,5 +399,26 @@ export class SendNotificationUseCase {
 
     notification.updatedAt = new Date();
     await this.notificationRepo.update(notification);
+
+    // Once SENT, the payload will never be re-rendered (delivery receipts and
+    // webhooks only touch status), so secret-bearing values can be redacted at
+    // rest. A scrub failure must never fail the job after a successful send.
+    if (notification.status === 'SENT') {
+      try {
+        await this.notificationRepo.scrubPayload(
+          notification.id,
+          SENSITIVE_PAYLOAD_KEYS,
+          REDACTED_PAYLOAD_VALUE,
+        );
+      } catch (error) {
+        this.logger.warn(
+          {
+            notificationId: notification.id,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          'notification.payload_scrub_failed: secrets remain in payload_json',
+        );
+      }
+    }
   }
 }

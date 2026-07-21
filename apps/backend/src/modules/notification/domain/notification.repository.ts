@@ -37,6 +37,12 @@ export interface INotificationRepository {
   findSmsAwaitingDeliveryReceipt(from: Date, to: Date, limit?: number): Promise<NotificationEntity[]>;
   save(notification: NotificationEntity): Promise<void>;
   update(notification: NotificationEntity): Promise<void>;
+  /**
+   * Replaces the given payload_json keys (when present) with `replacement`,
+   * atomically in the database. Used to redact secret-bearing values after the
+   * payload can no longer be re-rendered for sending.
+   */
+  scrubPayload(id: string, keys: readonly string[], replacement: string): Promise<void>;
   existsByAppointmentAndTemplate(appointmentId: string, templateCode: string): Promise<boolean>;
   countByTenantChannelSince(tenantId: string, channel: NotificationChannel, since: Date): Promise<number>;
 }
