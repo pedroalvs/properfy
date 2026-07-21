@@ -5,7 +5,9 @@ import type { AuthorizationService } from '../../../../shared/domain/authorizati
 import {
   NotificationNotFoundError,
   NotificationInvalidStatusError,
+  NotificationPayloadScrubbedError,
 } from '../../domain/notification.errors';
+import { REDACTED_PAYLOAD_VALUE } from '../../domain/notification.constants';
 
 export interface RetryNotificationInput {
   notificationId: string;
@@ -40,6 +42,11 @@ export class RetryNotificationUseCase {
 
     if (!notification.canBeRetried()) {
       throw new NotificationInvalidStatusError();
+    }
+
+    // A scrubbed payload would render "[REDACTED]" into the outgoing message.
+    if (Object.values(notification.payloadJson).some((v) => v === REDACTED_PAYLOAD_VALUE)) {
+      throw new NotificationPayloadScrubbedError();
     }
 
     const now = new Date();

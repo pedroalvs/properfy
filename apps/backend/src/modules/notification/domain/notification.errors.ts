@@ -58,6 +58,20 @@ export class ConsentTenantScopeError extends ForbiddenError {
 }
 
 /**
+ * Thrown when an operator manually retries a notification whose payload secrets
+ * were already redacted — resending would deliver "[REDACTED]" links.
+ */
+export class NotificationPayloadScrubbedError extends DomainError {
+  constructor() {
+    super(
+      'NOTIFICATION_PAYLOAD_SCRUBBED',
+      'This notification cannot be resent: its payload secrets were redacted after delivery. Trigger a new notification instead.',
+      409,
+    );
+  }
+}
+
+/**
  * Thrown when a caller attempts to dispatch a MARKETING-class notification.
  * Marketing dispatch is not enabled — no opt-in endpoint exists.
  */
