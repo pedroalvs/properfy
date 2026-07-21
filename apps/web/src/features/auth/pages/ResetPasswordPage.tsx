@@ -1,9 +1,8 @@
 import { useState, useCallback, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { passwordFieldSchema } from '@properfy/shared';
 import { PasswordStrengthIndicator } from '@/components/forms/PasswordStrengthIndicator';
 import { useResetPassword } from '../hooks/useResetPassword';
-
-const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,128}$/;
 
 interface ValidationErrors {
   newPassword?: string;
@@ -15,7 +14,7 @@ function validate(newPassword: string, confirmPassword: string): ValidationError
 
   if (!newPassword) {
     errors.newPassword = 'Required field';
-  } else if (!PASSWORD_REGEX.test(newPassword)) {
+  } else if (!passwordFieldSchema.safeParse(newPassword).success) {
     errors.newPassword = 'Min 8 chars, uppercase, lowercase, number and special character';
   }
 

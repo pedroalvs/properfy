@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { env } from '@/config/env';
-import { ApiError } from '@/lib/api-error';
+import { api } from '@/services/api';
+import { ApiError, toApiError } from '@/lib/api-error';
 
 export const INVALID_TOKEN_CODE = 'AUTH_INVALID_RESET_TOKEN';
 
@@ -43,27 +43,11 @@ export function useResetPassword(): UseResetPasswordReturn {
     setIsInvalidToken(false);
 
     try {
-      const response = await fetch(`${env.apiBaseUrl}/v1/auth/reset-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-request-id': crypto.randomUUID(),
-        },
-        body: JSON.stringify({ token, newPassword }),
+      const { error: apiError, response } = await api.POST('/v1/auth/reset-password', {
+        body: { token, newPassword },
       });
 
-      if (!response.ok) {
-        let code: string | undefined;
-        let message = 'Failed to reset password.';
-        try {
-          const body = await response.json();
-          code = body?.error?.code;
-          message = body?.error?.message ?? message;
-        } catch {
-          // ignore parse errors
-        }
-        throw new ApiError(response.status, message, code);
-      }
+      if (apiError) throw toApiError(apiError, (response as Response | undefined)?.status);
 
       setIsSuccess(true);
     } catch (err) {
