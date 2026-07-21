@@ -187,32 +187,36 @@ export class UpdateAppointmentUseCase {
       (data.timeSlotEnd !== undefined && data.timeSlotEnd !== appointment.timeSlotEnd);
     const scheduleChanged = dateChanged || timeChangedReal;
 
-    // Appointments in a service group must share the group's calendar day
-    // (enforced at add-time). The only permitted individual date edit is
-    // re-aligning a divergent appointment back to the group's date while the
-    // group is still DRAFT (sync is best-effort, so divergence can happen);
-    // everything else stays blocked — reschedule the whole group instead.
-    // Fails closed: when the group can't be loaded the block stands.
-    if (dateChanged && appointment.serviceGroupId) {
-      let realignsToDraftGroupDate = false;
-      if (this.serviceGroupRepo) {
-        const groupResult = await this.serviceGroupRepo.findById(appointment.serviceGroupId, null);
-        if (groupResult && groupResult.group.status === ServiceGroupStatus.DRAFT) {
-          const groupDateStr = groupResult.group.scheduledDate.toISOString().slice(0, 10);
-          realignsToDraftGroupDate = data.scheduledDate === groupDateStr;
-        }
-      }
-      if (!realignsToDraftGroupDate) {
+    // Schedule edits on a grouped appointment are validated against the group
+    // and fail closed: when the group can't be loaded, the edit is blocked
+    // (serviceGroupRepo is always wired in production — container.ts).
+    if (scheduleChanged && appointment.serviceGroupId) {
+      const groupResult = this.serviceGroupRepo
+        ? await this.serviceGroupRepo.findById(appointment.serviceGroupId, null)
+        : null;
+      if (!groupResult) {
         throw new AppointmentInServiceGroupError();
       }
-    }
 
-    // A time-slot-only edit is allowed as long as the new slot still fits
-    // inside the group's shared time window (same containment rule used
-    // when appointments are added to a group).
-    if (timeChangedReal && appointment.serviceGroupId && this.serviceGroupRepo) {
-      const groupResult = await this.serviceGroupRepo.findById(appointment.serviceGroupId, null);
-      if (groupResult) {
+      // Appointments in a service group must share the group's calendar day
+      // (enforced at add-time). The only permitted individual date edit is
+      // re-aligning a divergent appointment back to the group's date while
+      // the group is still DRAFT (sync is best-effort, so divergence can
+      // happen); everything else stays blocked — reschedule the whole group.
+      if (dateChanged) {
+        const groupDateStr = groupResult.group.scheduledDate.toISOString().slice(0, 10);
+        const realignsToDraftGroupDate =
+          groupResult.group.status === ServiceGroupStatus.DRAFT &&
+          data.scheduledDate === groupDateStr;
+        if (!realignsToDraftGroupDate) {
+          throw new AppointmentInServiceGroupError();
+        }
+      }
+
+      // A time-slot edit is allowed as long as the new slot still fits
+      // inside the group's shared time window (same containment rule used
+      // when appointments are added to a group).
+      if (timeChangedReal) {
         const newTimeSlotStart = data.timeSlotStart ?? appointment.timeSlotStart;
         const newTimeSlotEnd = data.timeSlotEnd ?? appointment.timeSlotEnd;
         const adjustment = getServiceGroupTimeSlotAdjustment(

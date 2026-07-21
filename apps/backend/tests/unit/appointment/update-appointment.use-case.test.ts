@@ -1104,11 +1104,10 @@ describe('UpdateAppointmentUseCase', () => {
       ).rejects.toThrow(AppointmentInServiceGroupError);
     });
 
-    // Both cases below intentionally fail OPEN: the window check only runs when
-    // `serviceGroupRepo` is wired AND resolves a group. Documented here so a
-    // future change to either condition doesn't silently start (or stop)
-    // enforcing the window without a test noticing.
-    it('fails open (no window check) when serviceGroupRepo is not wired', async () => {
+    // Both cases below fail CLOSED: any schedule edit on a grouped appointment
+    // requires the group to be loaded (serviceGroupRepo is always wired in
+    // production — container.ts); when it can't be, the edit is blocked.
+    it('rejects a time-slot change when serviceGroupRepo is not wired (fail-closed)', async () => {
       vi.mocked(appointmentRepo.findById).mockResolvedValue(
         makeAppointmentWithRelations({
           status: 'AWAITING_INSPECTOR',
@@ -1119,21 +1118,17 @@ describe('UpdateAppointmentUseCase', () => {
         }),
       );
 
-      const result = await useCase.execute({
-        appointmentId: 'appt-1',
-        data: { timeSlotStart: '13:00', timeSlotEnd: '14:00' },
-        actor: makeActor(),
-      });
-
-      expect(result.id).toBe('appt-1');
-      expect(appointmentRepo.update).toHaveBeenCalledWith(
-        'appt-1',
-        'tenant-1',
-        expect.objectContaining({ timeSlotStart: '13:00', timeSlotEnd: '14:00' }),
-      );
+      await expect(
+        useCase.execute({
+          appointmentId: 'appt-1',
+          data: { timeSlotStart: '13:00', timeSlotEnd: '14:00' },
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow(AppointmentInServiceGroupError);
+      expect(appointmentRepo.update).not.toHaveBeenCalled();
     });
 
-    it('fails open (no window check) when serviceGroupRepo.findById returns null', async () => {
+    it('rejects a time-slot change when serviceGroupRepo.findById returns null (fail-closed)', async () => {
       vi.mocked(appointmentRepo.findById).mockResolvedValue(
         makeAppointmentWithRelations({
           status: 'AWAITING_INSPECTOR',
@@ -1145,19 +1140,15 @@ describe('UpdateAppointmentUseCase', () => {
       );
       const serviceGroupRepo = { findById: vi.fn().mockResolvedValue(null) };
 
-      const result = await makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
-        appointmentId: 'appt-1',
-        data: { timeSlotStart: '13:00', timeSlotEnd: '14:00' },
-        actor: makeActor(),
-      });
-
-      expect(result.id).toBe('appt-1');
+      await expect(
+        makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+          appointmentId: 'appt-1',
+          data: { timeSlotStart: '13:00', timeSlotEnd: '14:00' },
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow(AppointmentInServiceGroupError);
       expect(serviceGroupRepo.findById).toHaveBeenCalledWith('group-1', null);
-      expect(appointmentRepo.update).toHaveBeenCalledWith(
-        'appt-1',
-        'tenant-1',
-        expect.objectContaining({ timeSlotStart: '13:00', timeSlotEnd: '14:00' }),
-      );
+      expect(appointmentRepo.update).not.toHaveBeenCalled();
     });
   });
 
