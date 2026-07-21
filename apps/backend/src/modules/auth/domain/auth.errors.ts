@@ -127,20 +127,6 @@ export class PasswordRecentlyUsedError extends DomainError {
   }
 }
 
-export class InvalidInviteTokenError extends DomainError {
-  constructor() {
-    super('AUTH_INVALID_INVITE_TOKEN', 'Invite token is invalid, expired, or already used', 400);
-    this.name = 'InvalidInviteTokenError';
-  }
-}
-
-export class UserNotPendingInviteError extends DomainError {
-  constructor() {
-    super('AUTH_USER_NOT_PENDING_INVITE', 'User is not in pending invite status', 400);
-    this.name = 'UserNotPendingInviteError';
-  }
-}
-
 export class PasswordTooWeakError extends DomainError {
   constructor(violations: string[]) {
     super('AUTH_PASSWORD_TOO_WEAK', 'Password does not meet strength requirements', 400, violations);

@@ -191,7 +191,12 @@ export function AppointmentCreatePage() {
         navigate('/appointments');
       }
     } else {
-      showError(result.error ?? 'Failed to create appointment');
+      if (result.fieldErrors) {
+        setErrors((prev) => ({ ...prev, ...result.fieldErrors }));
+      }
+      if (result.error || !result.fieldErrors) {
+        showError(result.error ?? 'Failed to create appointment');
+      }
     }
   }, [form, navigate, requiresTenantSelection, save, showError, showSuccess, validate]);
 

@@ -15,15 +15,6 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
-}));
-
 import { api } from '@/services/api';
 import { useTemplateSave } from './useTemplateSave';
 import type { TemplateFormData } from '../types';
@@ -208,5 +199,57 @@ describe('useTemplateSave', () => {
     });
 
     expect(result.current.isSaving).toBe(false);
+  });
+
+  it('save maps VALIDATION_ERROR details to form field errors (bodyHtml → body)', async () => {
+    mockPut.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [
+            { field: 'bodyHtml', message: 'Missing required variable: scheduledDate' },
+            { field: 'subject', message: 'Subject is too long' },
+          ],
+        },
+      },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save('INSPECTION_NOTICE', 'EMAIL', VALID_DATA);
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.fieldErrors?.body).toBe('Missing required variable: scheduledDate');
+    expect(saveResult?.fieldErrors?.subject).toBe('Subject is too long');
+    expect(saveResult?.error).toBeUndefined();
+  });
+
+  it('save keeps the summary error for details that do not match form fields', async () => {
+    mockPut.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [{ field: 'tenantId', message: 'Unknown agency' }],
+        },
+      },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save('INSPECTION_NOTICE', 'EMAIL', VALID_DATA);
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.fieldErrors).toBeUndefined();
+    expect(saveResult?.error).toBe('Validation failed');
   });
 });

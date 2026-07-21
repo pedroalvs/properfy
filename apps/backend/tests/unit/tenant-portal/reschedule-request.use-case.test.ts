@@ -15,7 +15,6 @@ import { AppointmentEntity } from '../../../src/modules/appointment/domain/appoi
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { ServiceTypeEntity } from '../../../src/modules/service-type/domain/service-type.entity';
 import { InspectionExecutionEntity } from '../../../src/modules/inspector-execution/domain/inspection-execution.entity';
-import { PortalActionBlockedError } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
 import { PortalAppointmentInactiveError } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
 import { PortalRescheduleNotAllowedError } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
 import { PortalRescheduleWindowExceededError } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
@@ -115,7 +114,6 @@ function makeInput(overrides: Partial<RescheduleRequestInput> = {}): RescheduleR
   return {
     tokenId: 'token-1',
     appointmentId: 'appt-1',
-    isReadOnly: false,
     isUsed: false,
     newDate: FUTURE_DATE,
     newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',
@@ -139,7 +137,8 @@ describe('RescheduleRequestUseCase', () => {
     updateLastAccessedAt: ReturnType<typeof vi.fn>;
     revokeAllForAppointment: ReturnType<typeof vi.fn>;
     expireActiveTokens: ReturnType<typeof vi.fn>;
-    markUsed: ReturnType<typeof vi.fn>;
+    tryClaim: ReturnType<typeof vi.fn>;
+    releaseClaim: ReturnType<typeof vi.fn>;
   };
   let appointmentRepo: {
     findById: ReturnType<typeof vi.fn>;
@@ -187,7 +186,8 @@ describe('RescheduleRequestUseCase', () => {
       updateLastAccessedAt: vi.fn(),
       revokeAllForAppointment: vi.fn().mockResolvedValue(undefined),
       expireActiveTokens: vi.fn(),
-      markUsed: vi.fn().mockResolvedValue(undefined),
+      tryClaim: vi.fn().mockResolvedValue(true),
+      releaseClaim: vi.fn().mockResolvedValue(undefined),
     };
     appointmentRepo = {
       findById: vi.fn().mockResolvedValue({
@@ -281,12 +281,11 @@ describe('RescheduleRequestUseCase', () => {
     expect(tokenRepo.revokeAllForAppointment).toHaveBeenCalledWith('appt-1');
   });
 
-  it('should throw PortalActionBlockedError when isReadOnly is true', async () => {
-    await expect(useCase.execute(makeInput({ isReadOnly: true }))).rejects.toThrow(
-      PortalActionBlockedError,
-    );
+  it('should allow reschedule after the portal token expired (isReadOnly)', async () => {
+    const result = await useCase.execute(makeInput());
 
-    expect(appointmentRepo.findById).not.toHaveBeenCalled();
+    expect(result.scheduledDate).toBe(FUTURE_DATE);
+    expect(reopenForRescheduleUseCase.execute).toHaveBeenCalled();
   });
 
   it('should throw PortalRescheduleNotAllowedError for non-ROUTINE service type', async () => {
@@ -525,7 +524,8 @@ describe('RescheduleRequestUseCase – onNotificationHandler', () => {
       updateLastAccessedAt: vi.fn(),
       revokeAllForAppointment: vi.fn().mockResolvedValue(undefined),
       expireActiveTokens: vi.fn(),
-      markUsed: vi.fn().mockResolvedValue(undefined),
+      tryClaim: vi.fn().mockResolvedValue(true),
+      releaseClaim: vi.fn().mockResolvedValue(undefined),
     };
     const appointmentRepo = {
       findById: vi.fn().mockResolvedValue({

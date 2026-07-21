@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
-import { ApiError } from '@/lib/api-error';
+import { toApiError, type ApiError } from '@/lib/api-error';
 
 export interface PortalActivity {
   id: string;
@@ -25,21 +25,19 @@ export interface UsePortalActivitiesReturn {
   activities: PortalActivity[];
   isLoading: boolean;
   isError: boolean;
+  error: ApiError | null;
   refetch: () => void;
 }
 
 export function usePortalActivities(appointmentId: string | null): UsePortalActivitiesReturn {
-  const { data, isLoading, isError, refetch } = useQuery<PortalActivitiesResponse, ApiError>({
+  const { data, isLoading, isError, error, refetch } = useQuery<PortalActivitiesResponse, ApiError>({
     queryKey: ['portal-activities', appointmentId],
     queryFn: async () => {
-      const { data: response, error } = await (api.GET as any)(
+      const { data: response, error, response: httpResponse } = await (api.GET as any)(
         `/v1/appointments/${appointmentId}/portal-activities`,
         { params: { query: { page: '1', pageSize: '50' } } },
       );
-      if (error) {
-        const apiError = error as { status?: number; message?: string };
-        throw new ApiError(apiError.status ?? 500, apiError.message ?? 'Failed to load portal activities');
-      }
+      if (error) throw toApiError(error, httpResponse?.status);
       return response as unknown as PortalActivitiesResponse;
     },
     enabled: !!appointmentId,
@@ -49,6 +47,7 @@ export function usePortalActivities(appointmentId: string | null): UsePortalActi
     activities: data?.data ?? [],
     isLoading,
     isError,
+    error: error ?? null,
     refetch,
   };
 }

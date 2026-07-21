@@ -19,15 +19,6 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
-}));
-
 import { api } from '@/services/api';
 import { ApiError } from '@/lib/api-error';
 import { PortalPage } from './PortalPage';
@@ -119,7 +110,7 @@ describe('PortalPage', () => {
     });
   });
 
-  it('shows read-only banner when token status is EXPIRED', async () => {
+  it('shows the deadline banner when token status is EXPIRED', async () => {
     mockGet.mockResolvedValue({ data: {
       ...MOCK_PORTAL_DATA,
       token: { status: 'EXPIRED', isReadOnly: true },
@@ -128,7 +119,7 @@ describe('PortalPage', () => {
 
     await waitFor(() => {
       expect(
-        screen.getAllByText(/restricted mode/i).length,
+        screen.getAllByText(/confirmation deadline has passed/i).length,
       ).toBeGreaterThan(0);
     });
   });
@@ -208,7 +199,7 @@ describe('PortalPage', () => {
     });
   });
 
-  it('hides reschedule form when token is expired (read-only)', async () => {
+  it('keeps the propose-new-date action when token is expired (read-only)', async () => {
     mockGet.mockResolvedValue({ data: {
       ...MOCK_PORTAL_DATA,
       token: { status: 'EXPIRED', isReadOnly: true },
@@ -216,9 +207,9 @@ describe('PortalPage', () => {
     renderPortal();
 
     await waitFor(() => {
-      expect(screen.getAllByText(/restricted mode/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/confirmation deadline has passed/i).length).toBeGreaterThan(0);
     });
-    expect(screen.queryByRole('heading', { name: 'Request Reschedule' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /propose new date/i })).toBeInTheDocument();
   });
 
   it('shows unavailability section when token is expired but confirmation is not CONFIRMED', async () => {
@@ -229,9 +220,9 @@ describe('PortalPage', () => {
     renderPortal();
 
     await waitFor(() => {
-      expect(screen.getAllByText(/restricted mode/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/confirmation deadline has passed/i).length).toBeGreaterThan(0);
     });
-    // In the unified form, the No button (disabled when read-only) is the unavailability path
+    // In the unified form, the No button is the unavailability path
     expect(screen.getByRole('button', { name: /no/i })).toBeInTheDocument();
   });
 
@@ -434,7 +425,7 @@ describe('PortalPage', () => {
       expect(screen.getByRole('button', { name: /propose new date/i })).toBeTruthy();
     });
 
-    it('keeps the fully restricted regime when the token is truly expired', async () => {
+    it('keeps reschedule actions available when the token is expired (active appointment)', async () => {
       mockGet.mockResolvedValue({
         data: {
           ...MOCK_PORTAL_DATA,
@@ -442,8 +433,27 @@ describe('PortalPage', () => {
         },
       });
       renderPortal();
-      await screen.findByText(/restricted mode/i);
-      expect(screen.queryByRole('button', { name: /change time/i })).toBeNull();
+      await screen.findByText(/confirmation deadline has passed/i);
+      const yesButton = screen.getByRole('button', { name: /yes/i });
+      expect(yesButton).toBeDisabled();
+      expect(yesButton).toHaveAttribute('title', 'The confirmation deadline has passed');
+      expect(screen.getByRole('button', { name: /change time/i })).toBeTruthy();
+      expect(screen.getByRole('button', { name: /propose new date/i })).toBeTruthy();
+    });
+
+    it('lets an expired token open the reschedule form with enabled fields', async () => {
+      const user = userEvent.setup();
+      mockGet.mockResolvedValue({
+        data: {
+          ...MOCK_PORTAL_DATA,
+          token: { status: 'EXPIRED', isReadOnly: true, isPastConfirmCutoff: true },
+        },
+      });
+      renderPortal();
+      await user.click(await screen.findByRole('button', { name: /propose new date/i }));
+      expect(
+        screen.getByRole('button', { name: /request reschedule/i }),
+      ).not.toBeDisabled();
     });
   });
 

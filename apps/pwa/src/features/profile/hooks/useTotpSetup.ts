@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { api } from '@/services/api';
-import { ApiError } from '@/lib/api-error';
+import { toApiError, getErrorMessage } from '@/lib/api-error';
 
 interface TotpSetupData {
   secret: string;
@@ -17,12 +17,9 @@ export function useTotpSetup() {
     try {
       const { data, error, response } = await api.POST('/v1/auth/2fa/setup' as any, {} as any);
       if (error || !data) {
-        const err = error as any;
-        throw new ApiError(
-          response?.status ?? 500,
-          err?.error?.message ?? 'Failed to set up 2FA',
-          err?.error?.code,
-        );
+        const apiError = toApiError(error, response?.status);
+        apiError.message = getErrorMessage(apiError, 'Failed to set up 2FA');
+        throw apiError;
       }
       const result = data as any;
       setSetupData({ secret: result.secret ?? result.data?.secret, qrUri: result.qrUri ?? result.data?.qrUri });
@@ -38,12 +35,9 @@ export function useTotpSetup() {
         body: { totpCode } as any,
       });
       if (error) {
-        const err = error as any;
-        throw new ApiError(
-          response?.status ?? 500,
-          err?.error?.message ?? 'Invalid verification code',
-          err?.error?.code,
-        );
+        const apiError = toApiError(error, response?.status);
+        apiError.message = getErrorMessage(apiError, 'Invalid verification code');
+        throw apiError;
       }
       setSetupData(null);
     } finally {

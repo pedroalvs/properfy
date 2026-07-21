@@ -23,7 +23,14 @@ interface AppointmentImportPreviewProps {
 function PropertyBadge({ property }: { property: ResolvedImportRow['property'] }) {
   if (!property) return <span className="text-xs text-text-muted">&mdash;</span>;
 
-  const addressLabel = [property.street, property.addressLine2, property.suburb, property.state, property.postcode]
+  const addressLabel = [
+    property.street,
+    property.apartmentNumber ? `Apt ${property.apartmentNumber}` : null,
+    property.addressLine2,
+    property.suburb,
+    property.state,
+    property.postcode,
+  ]
     .filter(Boolean)
     .join(', ');
   const geocodeStatus = geocodeVerificationToStatus(property.geocode);

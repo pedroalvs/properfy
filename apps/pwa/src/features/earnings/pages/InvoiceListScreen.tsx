@@ -2,10 +2,11 @@ import { useNavigate } from 'react-router-dom';
 import { TopBar } from '@/components/shell/TopBar';
 import { useMyInvoices } from '../hooks/useInspectorInvoices';
 import { invoiceStatusBadge, formatInvoiceCurrency } from '../lib/invoiceStatus';
+import { getErrorMessage } from '@/lib/api-error';
 
 export function InvoiceListScreen() {
   const navigate = useNavigate();
-  const { data, isLoading, isError, refetch } = useMyInvoices();
+  const { data, isLoading, isError, error, refetch } = useMyInvoices();
   const invoices = data?.data ?? [];
 
   return (
@@ -23,6 +24,7 @@ export function InvoiceListScreen() {
         {isError && (
           <div className="rounded-[24px] bg-white p-6 text-center shadow-sm">
             <p className="text-sm text-text-secondary">Unable to load invoices.</p>
+            <p className="mt-1 text-xs text-text-muted">{getErrorMessage(error)}</p>
             <button type="button" onClick={() => refetch()} className="mt-3 text-sm font-semibold text-primary">
               Retry
             </button>

@@ -104,7 +104,8 @@ describe('GeneratePortalTokenUseCase', () => {
     revokeAndSave: ReturnType<typeof vi.fn>;
     updateStatus: ReturnType<typeof vi.fn>;
     updateLastAccessedAt: ReturnType<typeof vi.fn>;
-    markUsed: ReturnType<typeof vi.fn>;
+    tryClaim: ReturnType<typeof vi.fn>;
+    releaseClaim: ReturnType<typeof vi.fn>;
     revokeAllForAppointment: ReturnType<typeof vi.fn>;
     expireActiveTokens: ReturnType<typeof vi.fn>;
   };
@@ -139,7 +140,8 @@ describe('GeneratePortalTokenUseCase', () => {
       revokeAndSave: vi.fn().mockResolvedValue(undefined),
       updateStatus: vi.fn(),
       updateLastAccessedAt: vi.fn(),
-      markUsed: vi.fn().mockResolvedValue(undefined),
+      tryClaim: vi.fn().mockResolvedValue(true),
+      releaseClaim: vi.fn().mockResolvedValue(undefined),
       revokeAllForAppointment: vi.fn().mockResolvedValue(undefined),
       expireActiveTokens: vi.fn().mockResolvedValue(0),
     };

@@ -96,6 +96,11 @@ export function InspectionConfirmationForm({
           <button
             type="button"
             disabled={isReadOnly || confirmDisabled}
+            title={
+              isReadOnly || confirmDisabled
+                ? 'The confirmation deadline has passed'
+                : undefined
+            }
             onClick={() => setSelection('YES')}
             className={[
               'rounded-full px-5 py-2 text-sm font-medium transition-colors',

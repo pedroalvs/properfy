@@ -48,24 +48,45 @@ describe('ContactsSection', () => {
     expect(screen.getByText('Acme Realty')).toBeInTheDocument();
   });
 
-  it('renders tel:/mailto: actions for primary phone and email', () => {
+  it('renders a tel: action for the phone and never shows the email', () => {
     render(<ContactsSection contacts={[primary]} />);
     expect(screen.getByTestId('contact-phone-link-0')).toHaveAttribute('href', 'tel:+61400000000');
-    expect(screen.getByTestId('contact-email-link-0')).toHaveAttribute('href', 'mailto:john@example.com');
+    expect(screen.queryByTestId('contact-email-link-0')).not.toBeInTheDocument();
+    expect(screen.queryByText('john@example.com')).not.toBeInTheDocument();
   });
 
-  it('renders additional channels with labels and actionable links', () => {
+  it('renders additional phone channels and filters out EMAIL channels', () => {
     render(<ContactsSection contacts={[primary]} />);
     const extraPhone = screen.getByTestId('contact-extra-channel-0-0');
     expect(extraPhone).toHaveAttribute('href', 'tel:+61411111111');
     expect(extraPhone).toHaveTextContent('+61411111111');
     expect(extraPhone).toHaveTextContent('Work');
-    const extraEmail = screen.getByTestId('contact-extra-channel-0-1');
-    expect(extraEmail).toHaveAttribute('href', 'mailto:alt@example.com');
+    expect(screen.queryByTestId('contact-extra-channel-0-1')).not.toBeInTheDocument();
+    expect(screen.queryByText('alt@example.com')).not.toBeInTheDocument();
   });
 
   it('shows a fallback note when a contact has no reachable details', () => {
     render(<ContactsSection contacts={[{ name: 'Silent Sam', email: null, phone: null, role: 'OTHER', isPrimary: false }]} />);
     expect(screen.getByText('No contact details available.')).toBeInTheDocument();
+  });
+
+  it('shows the fallback note when a contact only has an email', () => {
+    render(
+      <ContactsSection
+        contacts={[
+          {
+            name: 'Email Only',
+            email: 'only@example.com',
+            phone: null,
+            role: 'OTHER',
+            isPrimary: false,
+            additionalChannels: [{ channel: 'EMAIL', value: 'extra@example.com' }],
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText('No contact details available.')).toBeInTheDocument();
+    expect(screen.queryByText('only@example.com')).not.toBeInTheDocument();
+    expect(screen.queryByText('extra@example.com')).not.toBeInTheDocument();
   });
 });

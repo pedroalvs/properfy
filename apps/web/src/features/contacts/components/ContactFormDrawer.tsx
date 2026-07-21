@@ -183,7 +183,14 @@ export function ContactFormDrawer({
       setErrors((prev) => ({ ...prev, [fieldError.field]: fieldError.message }));
       return;
     }
-    showError(result.errorMessage ?? 'Failed to save contact');
+    // Backend VALIDATION_ERROR details land inline on the matching fields;
+    // unmatched details (or non-validation errors) keep the snackbar.
+    if (result.fieldErrors) {
+      setErrors((prev) => ({ ...prev, ...result.fieldErrors }));
+    }
+    if (result.errorMessage || !result.fieldErrors) {
+      showError(result.errorMessage ?? 'Failed to save contact');
+    }
   }, [isEditMode, form, validate, save, contactId, tenantIdOverride, showSuccess, showError, onSaved, onCreated]);
 
   const handleClose = useCallback(() => {

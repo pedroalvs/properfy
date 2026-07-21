@@ -4,7 +4,6 @@ import {
   updateUserSchema,
   resetUserPasswordSchema,
   listUsersQuerySchema,
-  inviteUserSchema,
 } from './user';
 
 describe('createUserSchema', () => {
@@ -223,14 +222,8 @@ describe('AU phone validation on user schemas', () => {
     ).toBe(false);
   });
 
-  it('updateUserSchema and inviteUserSchema validate phone', () => {
+  it('updateUserSchema validates phone', () => {
     expect(updateUserSchema.parse({ phone: '+61 412 345 678' }).phone).toBe('+61412345678');
     expect(updateUserSchema.safeParse({ phone: 'abc' }).success).toBe(false);
-    expect(
-      inviteUserSchema.parse({ name: 'I', email: 'i@example.com', role: 'CL_USER', phone: '0412345678' }).phone,
-    ).toBe('+61412345678');
-    expect(
-      inviteUserSchema.safeParse({ name: 'I', email: 'i@example.com', role: 'CL_USER', phone: '12' }).success,
-    ).toBe(false);
   });
 });

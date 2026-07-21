@@ -3,21 +3,16 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ForgotPasswordPage } from './ForgotPasswordPage';
 
-vi.mock('@/config/env', () => ({
-  env: { apiBaseUrl: 'http://localhost:3000' },
-}));
+const { mockPost } = vi.hoisted(() => ({ mockPost: vi.fn() }));
+vi.mock('@/services/api', () => ({ api: { POST: mockPost } }));
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
-}));
+function apiSuccess() {
+  return { data: null, error: undefined, response: new Response(null, { status: 204 }) };
+}
 
-const mockFetch = vi.fn();
-vi.stubGlobal('fetch', mockFetch);
+function apiError(status: number, code: string, message: string) {
+  return { data: undefined, error: { error: { code, message } }, response: new Response(null, { status }) };
+}
 
 function renderPage() {
   return render(
@@ -29,7 +24,7 @@ function renderPage() {
 
 describe('ForgotPasswordPage', () => {
   beforeEach(() => {
-    mockFetch.mockReset();
+    mockPost.mockReset();
   });
 
   it('renders email input and submit button', () => {
@@ -46,7 +41,7 @@ describe('ForgotPasswordPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Please enter your email address.',
     );
-    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockPost).not.toHaveBeenCalled();
   });
 
   it('shows validation error when email format is invalid', async () => {
@@ -58,13 +53,13 @@ describe('ForgotPasswordPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Please enter a valid email address.',
     );
-    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockPost).not.toHaveBeenCalled();
   });
 
   it('shows loading state during request', async () => {
-    let resolveRequest: (value: Response) => void;
-    mockFetch.mockReturnValueOnce(
-      new Promise<Response>((resolve) => {
+    let resolveRequest: (value: ReturnType<typeof apiSuccess>) => void;
+    mockPost.mockReturnValueOnce(
+      new Promise((resolve) => {
         resolveRequest = resolve;
       }),
     );
@@ -78,14 +73,14 @@ describe('ForgotPasswordPage', () => {
     const button = screen.getByRole('button', { name: /send reset link/i });
     expect(button).toBeDisabled();
 
-    resolveRequest!(new Response(null, { status: 204 }));
+    resolveRequest!(apiSuccess());
     await waitFor(() => {
       expect(button).not.toBeInTheDocument();
     });
   });
 
   it('shows success message after successful request', async () => {
-    mockFetch.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    mockPost.mockResolvedValueOnce(apiSuccess());
 
     renderPage();
     fireEvent.change(screen.getByLabelText('Work Email'), {
@@ -100,12 +95,7 @@ describe('ForgotPasswordPage', () => {
   });
 
   it('shows error message on API error', async () => {
-    mockFetch.mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({ error: { code: 'INTERNAL_ERROR', message: 'Server error occurred' } }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } },
-      ),
-    );
+    mockPost.mockResolvedValueOnce(apiError(500, 'INTERNAL_ERROR', 'Server error occurred'));
 
     renderPage();
     fireEvent.change(screen.getByLabelText('Work Email'), {
@@ -120,12 +110,7 @@ describe('ForgotPasswordPage', () => {
   });
 
   it('shows rate limit error on 429 response', async () => {
-    mockFetch.mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({ error: { code: 'RATE_LIMITED', message: 'Too many requests' } }),
-        { status: 429, headers: { 'Content-Type': 'application/json' } },
-      ),
-    );
+    mockPost.mockResolvedValueOnce(apiError(429, 'RATE_LIMITED', 'Too many requests'));
 
     renderPage();
     fireEvent.change(screen.getByLabelText('Work Email'), {

@@ -7,6 +7,7 @@ import { FormField } from '@/components/forms/FormField';
 import { TextInput } from '@/components/forms/TextInput';
 import { Textarea } from '@/components/forms/Textarea';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import { getErrorMessage } from '@/lib/api-error';
 import { useCreateRefund } from '../hooks/useCreateRefund';
 
 interface CreateRefundModalProps {
@@ -88,8 +89,8 @@ export function CreateRefundModal({ open, onClose, onCreated }: CreateRefundModa
       setForm(EMPTY_FORM);
       setErrors({});
       onCreated();
-    } catch {
-      showError('Failed to create refund');
+    } catch (err) {
+      showError(getErrorMessage(err, 'Failed to create refund'));
     }
   }, [form, mutateAsync, showSuccess, showError, onCreated]);
 

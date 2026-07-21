@@ -89,12 +89,16 @@ export class BranchAlreadyActiveError extends ConflictError {
 
 export class LogoStorageKeyInvalidError extends ValidationError {
   constructor() {
-    super('Invalid logo storage key format');
+    super('Invalid logo storage key format', undefined, 'LOGO_STORAGE_KEY_INVALID');
   }
 }
 
 export class LogoUploadObjectNotFoundError extends ValidationError {
   constructor() {
-    super('Logo object not found in storage — upload may have failed or key is incorrect');
+    super(
+      'Logo object not found in storage — upload may have failed or key is incorrect',
+      undefined,
+      'LOGO_UPLOAD_OBJECT_NOT_FOUND',
+    );
   }
 }

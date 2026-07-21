@@ -7,6 +7,7 @@ import type { DomainEventBus } from '../../../../shared/application/events/domai
 import { TENANT_PORTAL_EVENTS } from '../../../../shared/application/events/domain-event-bus';
 import { RentalTenantPortalActivityEntity } from '../../domain/rental-tenant-portal-activity.entity';
 import { AppointmentRestrictionEntity } from '../../../appointment/domain/appointment-restriction.entity';
+import type { AppointmentEntity } from '../../../appointment/domain/appointment.entity';
 import type { ConfirmationCycleService } from '../../../appointment/application/services/confirmation-cycle.service';
 import {
   PortalActionBlockedError,
@@ -84,6 +85,38 @@ export class ConfirmAppointmentUseCase {
       throw new PortalActionBlockedError();
     }
 
+    // 4c. Atomically claim the token before the first side effect. The
+    // conditional write is the real replay guard — the isUsed fast-path above
+    // is stale under concurrency, so two racing requests must resolve here.
+    if (this.tokenRepo) {
+      const claimed = await this.tokenRepo.tryClaim(input.tokenId, input.appointmentId);
+      if (!claimed) {
+        throw new PortalTokenAlreadyUsedError();
+      }
+    }
+
+    try {
+      await this.applyConfirmation(input, appointment);
+    } catch (error) {
+      // Best-effort release so the tenant can retry with the same link;
+      // never mask the original failure.
+      if (this.tokenRepo) {
+        try {
+          await this.tokenRepo.releaseClaim(input.tokenId, input.appointmentId);
+        } catch {
+          // release failure leaves the token consumed — fail-closed
+        }
+      }
+      throw error;
+    }
+
+    return {
+      rentalTenantConfirmationStatus: 'CONFIRMED' as const,
+      confirmedAt: new Date().toISOString(),
+    };
+  }
+
+  private async applyConfirmation(input: ConfirmAppointmentInput, appointment: AppointmentEntity): Promise<void> {
     // 5. Snapshot previous values
     const previousValues = {
       rentalTenantConfirmationStatus: appointment.rentalTenantConfirmationStatus,
@@ -127,11 +160,6 @@ export class ConfirmAppointmentUseCase {
         updatedAt: new Date(),
       });
       await this.appointmentRepo.saveRestriction(restriction);
-    }
-
-    // 7b. Mark token as used (replay detection)
-    if (this.tokenRepo) {
-      await this.tokenRepo.markUsed(input.tokenId);
     }
 
     // 8. Record CONFIRM activity
@@ -181,10 +209,5 @@ export class ConfirmAppointmentUseCase {
         occurredAt: new Date(),
       });
     }
-
-    return {
-      rentalTenantConfirmationStatus: 'CONFIRMED' as const,
-      confirmedAt: new Date().toISOString(),
-    };
   }
 }

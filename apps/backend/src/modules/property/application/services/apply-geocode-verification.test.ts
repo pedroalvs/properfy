@@ -10,6 +10,7 @@ function plan(overrides: Partial<ImportPropertyPlan> = {}): ImportPropertyPlan {
     propertyCode: null,
     street: '1 Test St',
     addressLine2: null,
+    apartmentNumber: null,
     suburb: 'Sydney',
     state: 'NSW',
     postcode: '2000',

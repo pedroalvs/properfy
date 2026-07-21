@@ -15,12 +15,7 @@ function roleLabel(role: string): string {
 
 function channelHref(channel: ContactChannel): string | null {
   if (channel.channel === 'PHONE') return `tel:${channel.value}`;
-  if (channel.channel === 'EMAIL') return `mailto:${channel.value}`;
   return null;
-}
-
-function channelIcon(channel: ContactChannel): string {
-  return channel.channel === 'EMAIL' ? 'mdi-email-outline' : 'mdi-phone';
 }
 
 interface ContactsSectionProps {
@@ -29,8 +24,8 @@ interface ContactsSectionProps {
 
 /**
  * All appointment contacts the inspector may need on site (PM and broker are
- * handled separately server-side). Snapshot name/phone/email plus live-registry
- * extras: company and additional channels.
+ * handled separately server-side). Snapshot name/phone plus live-registry
+ * extras: company and additional channels. Emails are never shown to inspectors.
  */
 export function ContactsSection({ contacts }: ContactsSectionProps) {
   if (contacts.length === 0) return null;
@@ -45,8 +40,10 @@ export function ContactsSection({ contacts }: ContactsSectionProps) {
       </div>
       <ul>
         {contacts.map((contact, index) => {
-          const extraChannels = contact.additionalChannels ?? [];
-          const hasDetails = Boolean(contact.phone || contact.email || extraChannels.length > 0);
+          const extraChannels = (contact.additionalChannels ?? []).filter(
+            (channel) => channel.channel !== 'EMAIL',
+          );
+          const hasDetails = Boolean(contact.phone || extraChannels.length > 0);
           return (
             <li
               key={index}
@@ -88,21 +85,11 @@ export function ContactsSection({ contacts }: ContactsSectionProps) {
                       {contact.phone}
                     </a>
                   )}
-                  {contact.email && (
-                    <a
-                      href={`mailto:${contact.email}`}
-                      className="flex min-h-touch items-center gap-2 px-4 py-2.5 text-sm font-semibold text-primary"
-                      data-testid={`contact-email-link-${index}`}
-                    >
-                      <i className="mdi mdi-email-outline text-base" aria-hidden="true" />
-                      {contact.email}
-                    </a>
-                  )}
                   {extraChannels.map((channel, channelIndex) => {
                     const href = channelHref(channel);
                     const content = (
                       <>
-                        <i className={`mdi ${channelIcon(channel)} text-base`} aria-hidden="true" />
+                        <i className="mdi mdi-phone text-base" aria-hidden="true" />
                         <span className="flex flex-col text-left">
                           {channel.label && (
                             <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">
@@ -117,7 +104,7 @@ export function ContactsSection({ contacts }: ContactsSectionProps) {
                       <a
                         key={channelIndex}
                         href={href}
-                        className={`flex min-h-touch items-center gap-2 px-4 py-2.5 text-sm font-semibold ${channel.channel === 'EMAIL' ? 'text-primary' : 'text-success'}`}
+                        className="flex min-h-touch items-center gap-2 px-4 py-2.5 text-sm font-semibold text-success"
                         data-testid={`contact-extra-channel-${index}-${channelIndex}`}
                       >
                         {content}

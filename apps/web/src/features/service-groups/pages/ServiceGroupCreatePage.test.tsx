@@ -4,6 +4,25 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
+// Spy on the snackbar messages: the toast DOM lives in the app shell (not in
+// this test tree), so assertions go through the mocked hook instead.
+const mockShowSuccess = vi.fn();
+const mockShowError = vi.fn();
+
+vi.mock('@/hooks/useSnackbar', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return {
+    ...actual,
+    useSnackbar: () => ({
+      messages: [],
+      showSuccess: mockShowSuccess,
+      showError: mockShowError,
+      showInfo: vi.fn(),
+      dismiss: vi.fn(),
+    }),
+  };
+});
+
 vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
 }));
@@ -16,15 +35,6 @@ vi.mock('@/services/api', () => ({
     PUT: vi.fn(),
     DELETE: vi.fn(),
     use: vi.fn(),
-  },
-}));
-
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
   },
 }));
 
@@ -295,6 +305,61 @@ describe('ServiceGroupCreatePage', () => {
           // so the backend can validate "today" in the operator's calendar.
         },
       });
+    });
+  });
+
+  it('shows a success toast with the group code returned by the API', async () => {
+    mockPost.mockImplementation((url: string) => {
+      if (url === '/v1/service-regions/resolve') {
+        return Promise.resolve({
+          data: {
+            regions: [{ regionId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', regionName: 'Sydney CBD', matchedAppointmentCount: 5, inspectorCount: 2, color: '#ff0000' }],
+            totalAppointments: 5,
+            unmatchedAppointmentIds: [],
+          },
+        });
+      }
+      return Promise.resolve({
+        data: { data: { id: '33333333-3333-4333-8333-333333333333', code: 'G-42', groupNumber: 42 } },
+      });
+    });
+
+    renderPage();
+    selectAgency();
+    selectServiceType();
+    selectAppointments(5);
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    const futureDate = new Date(Date.now() + 14 * 24 * 3600 * 1000)
+      .toISOString()
+      .split('T')[0]!;
+    fireEvent.change(screen.getByLabelText('Scheduled Date'), { target: { value: futureDate } });
+    await waitFor(() => expect(screen.getByLabelText('Target Region')).not.toBeDisabled());
+    fireEvent.click(screen.getByLabelText('Target Region'));
+    fireEvent.click(screen.getByRole('option', { name: /Sydney CBD/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create Group' }));
+
+    await waitFor(() => {
+      expect(mockShowSuccess).toHaveBeenCalledWith('Service group G-42 created');
+    });
+  });
+
+  it('shows the generic success toast when the API response has no code', async () => {
+    renderPage();
+    selectAgency();
+    selectServiceType();
+    selectAppointments(5);
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    const futureDate = new Date(Date.now() + 14 * 24 * 3600 * 1000)
+      .toISOString()
+      .split('T')[0]!;
+    fireEvent.change(screen.getByLabelText('Scheduled Date'), { target: { value: futureDate } });
+    await waitFor(() => expect(screen.getByLabelText('Target Region')).not.toBeDisabled());
+    fireEvent.click(screen.getByLabelText('Target Region'));
+    fireEvent.click(screen.getByRole('option', { name: /Sydney CBD/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create Group' }));
+
+    await waitFor(() => {
+      expect(mockShowSuccess).toHaveBeenCalledWith('Service group created');
     });
   });
 });

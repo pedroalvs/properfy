@@ -161,6 +161,7 @@ function baseRow(overrides: Partial<RawImportRow> = {}): RawImportRow {
     timeSlotEnd: '10:00',
     street: '3/18 Ocean St',
     addressLine2: null,
+    apartmentNumber: null,
     suburb: 'Kogarah',
     state: 'NSW',
     postcode: 2217,
@@ -209,6 +210,24 @@ describe('normalizeImportRow', () => {
     expect(normalized.timeDefaulted).toBe(true);
     expect(issues.find((i) => i.code === 'DEFAULT_APPLIED_DATE')?.severity).toBe('warning');
     expect(issues.find((i) => i.code === 'DEFAULT_APPLIED_TIME')?.severity).toBe('warning');
+  });
+
+  it('trims the apartment number and stringifies a numeric cell', () => {
+    expect(normalizeImportRow(baseRow({ apartmentNumber: ' 4B ' }), IMPORT_DAY).normalized.apartmentNumber).toBe('4B');
+    expect(normalizeImportRow(baseRow({ apartmentNumber: 4 }), IMPORT_DAY).normalized.apartmentNumber).toBe('4');
+  });
+
+  it('normalizes a blank apartment number to null with no warning', () => {
+    const { normalized, issues } = normalizeImportRow(baseRow({ apartmentNumber: '  ' }), IMPORT_DAY);
+    expect(normalized.apartmentNumber).toBeNull();
+    expect(issues.some((i) => i.code === 'APARTMENT_NUMBER_TRUNCATED')).toBe(false);
+  });
+
+  it('truncates an apartment number longer than 50 characters and reports a warning', () => {
+    const long = 'A'.repeat(60);
+    const { normalized, issues } = normalizeImportRow(baseRow({ apartmentNumber: long }), IMPORT_DAY);
+    expect(normalized.apartmentNumber).toBe('A'.repeat(50));
+    expect(issues.find((i) => i.code === 'APARTMENT_NUMBER_TRUNCATED')?.severity).toBe('warning');
   });
 
   it('derives the primary contact name from the email local part when the name is blank', () => {

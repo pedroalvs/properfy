@@ -15,15 +15,6 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
-}));
-
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({ user: { role: 'AM', tenantId: null }, isAuthenticated: true }),
 }));
@@ -204,5 +195,53 @@ describe('usePropertySave', () => {
     });
 
     expect(result.current.isSaving).toBe(false);
+  });
+
+  it('save maps VALIDATION_ERROR details to inline form field errors', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [{ field: 'postcode', message: 'Postcode must have 4 digits' }],
+        },
+      },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertySave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_CREATE_DATA);
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.fieldErrors?.postcode).toBe('Postcode must have 4 digits');
+    expect(saveResult?.error).toBeUndefined();
+  });
+
+  it('save falls back to the summary error when detail paths do not match form fields', async () => {
+    mockPatch.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [{ field: 'geo.latitude', message: 'Invalid latitude' }],
+        },
+      },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertySave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_CREATE_DATA, 'prop-01');
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.fieldErrors).toBeUndefined();
+    expect(saveResult?.error).toBe('Validation failed');
   });
 });

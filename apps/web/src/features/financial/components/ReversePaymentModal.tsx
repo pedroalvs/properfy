@@ -6,6 +6,7 @@ import { FormField } from '@/components/forms/FormField';
 import { Textarea } from '@/components/forms/Textarea';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
+import { getErrorMessage, toApiError, type ApiError } from '@/lib/api-error';
 
 interface ReversePaymentModalProps {
   open: boolean;
@@ -14,12 +15,12 @@ interface ReversePaymentModalProps {
   onSuccess: () => void;
 }
 
-function friendlyError(status: number | undefined, code: string | undefined): string {
+function friendlyError(err: ApiError): string {
+  const { status, code } = err;
   if (status === 403) return 'You do not have permission to reverse invoice payments.';
   if (code === 'INVOICE_NOT_PAID') return 'This invoice is not currently marked as paid.';
   if (status === 404) return 'Invoice not found.';
-  if (status === 400) return 'Invalid request. Please check the reason and try again.';
-  return 'Failed to reverse payment. Please try again.';
+  return getErrorMessage(err, 'Failed to reverse payment. Please try again.');
 }
 
 export function ReversePaymentModal({
@@ -54,7 +55,7 @@ export function ReversePaymentModal({
 
     setIsSubmitting(true);
     try {
-      const { error: apiErr } = await api.POST(
+      const { error: apiErr, response } = await api.POST(
         '/v1/billing/invoices/{invoiceId}/reverse-payment' as never,
         {
           params: { path: { invoiceId } },
@@ -63,8 +64,7 @@ export function ReversePaymentModal({
         } as never,
       );
       if (apiErr) {
-        const err = apiErr as { status?: number; error?: { code?: string } };
-        showError(friendlyError(err.status, err.error?.code));
+        showError(friendlyError(toApiError(apiErr, (response as Response | undefined)?.status)));
         return;
       }
       showSuccess('Invoice payment reversed');
@@ -72,8 +72,8 @@ export function ReversePaymentModal({
       queryClient.invalidateQueries({ queryKey: ['billing', 'reconciliation-summary'] });
       onSuccess();
       onClose();
-    } catch {
-      showError('Failed to reverse payment. Please try again.');
+    } catch (err) {
+      showError(friendlyError(toApiError(err)));
     } finally {
       setIsSubmitting(false);
     }

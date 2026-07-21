@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { env } from '@/config/env';
-import { ApiError } from '@/lib/api-error';
+import { api } from '@/services/api';
+import { ApiError, getErrorMessage, toApiError } from '@/lib/api-error';
 
 export interface UseForgotPasswordReturn {
   requestReset: (email: string) => Promise<void>;
@@ -10,13 +10,12 @@ export interface UseForgotPasswordReturn {
   reset: () => void;
 }
 
-function getErrorMessage(error: unknown): string {
+function getForgotPasswordErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status === 429) return 'Too many attempts. Please wait and try again.';
     if (error.status >= 500) return 'Server error. Please try again later.';
-    return error.message;
   }
-  return 'An unexpected error occurred. Please try again.';
+  return getErrorMessage(error, 'An unexpected error occurred. Please try again.');
 }
 
 export function useForgotPassword(): UseForgotPasswordReturn {
@@ -29,31 +28,15 @@ export function useForgotPassword(): UseForgotPasswordReturn {
     setError(null);
 
     try {
-      const response = await fetch(`${env.apiBaseUrl}/v1/auth/forgot-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-request-id': crypto.randomUUID(),
-        },
-        body: JSON.stringify({ email }),
+      const { error: apiError, response } = await api.POST('/v1/auth/forgot-password', {
+        body: { email },
       });
 
-      if (!response.ok) {
-        let code: string | undefined;
-        let message = 'Failed to send reset email.';
-        try {
-          const body = await response.json();
-          code = body?.error?.code;
-          message = body?.error?.message ?? message;
-        } catch {
-          // ignore parse errors
-        }
-        throw new ApiError(response.status, message, code);
-      }
+      if (apiError) throw toApiError(apiError, (response as Response | undefined)?.status);
 
       setIsSuccess(true);
     } catch (err) {
-      setError(getErrorMessage(err));
+      setError(getForgotPasswordErrorMessage(err));
     } finally {
       setIsLoading(false);
     }

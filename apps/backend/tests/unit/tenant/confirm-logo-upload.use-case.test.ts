@@ -248,3 +248,17 @@ describe('ConfirmLogoUploadUseCase', () => {
     );
   });
 });
+
+describe('tenant logo upload error codes', () => {
+  it('LogoStorageKeyInvalidError carries LOGO_STORAGE_KEY_INVALID with status 400', () => {
+    const err = new LogoStorageKeyInvalidError();
+    expect(err.code).toBe('LOGO_STORAGE_KEY_INVALID');
+    expect(err.statusCode).toBe(400);
+  });
+
+  it('LogoUploadObjectNotFoundError carries LOGO_UPLOAD_OBJECT_NOT_FOUND with status 400', () => {
+    const err = new LogoUploadObjectNotFoundError();
+    expect(err.code).toBe('LOGO_UPLOAD_OBJECT_NOT_FOUND');
+    expect(err.statusCode).toBe(400);
+  });
+});

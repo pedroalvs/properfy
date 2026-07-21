@@ -234,3 +234,17 @@ describe('ConfirmInspectorDocumentUploadUseCase', () => {
     );
   });
 });
+
+describe('inspector document upload error codes', () => {
+  it('InspectorDocumentInvalidKeyError carries INSPECTOR_DOCUMENT_KEY_INVALID with status 400', () => {
+    const err = new InspectorDocumentInvalidKeyError();
+    expect(err.code).toBe('INSPECTOR_DOCUMENT_KEY_INVALID');
+    expect(err.statusCode).toBe(400);
+  });
+
+  it('InspectorDocumentObjectNotFoundError carries INSPECTOR_DOCUMENT_OBJECT_NOT_FOUND with status 400', () => {
+    const err = new InspectorDocumentObjectNotFoundError();
+    expect(err.code).toBe('INSPECTOR_DOCUMENT_OBJECT_NOT_FOUND');
+    expect(err.statusCode).toBe(400);
+  });
+});

@@ -19,6 +19,7 @@ const Loadable = (Component: any) => (props: any) => (
 
 const LoginPage = Loadable(lazyRetry(() => import('@/features/auth/pages/LoginPage').then(m => ({ default: m.LoginPage }))));
 const ForgotPasswordPage = Loadable(lazyRetry(() => import('@/features/auth/pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage }))));
+const ResetPasswordPage = Loadable(lazyRetry(() => import('@/features/auth/pages/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage }))));
 const AppointmentListPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentListPage').then(m => ({ default: m.AppointmentListPage }))));
 const AppointmentCreatePage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentCreatePage').then(m => ({ default: m.AppointmentCreatePage }))));
 const AppointmentDetailPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentDetailPage').then(m => ({ default: m.AppointmentDetailPage }))));
@@ -26,7 +27,6 @@ const AppointmentImportPage = Loadable(lazyRetry(() => import('@/features/appoin
 const PropertyListPage = Loadable(lazyRetry(() => import('@/features/properties/pages/PropertyListPage').then(m => ({ default: m.PropertyListPage }))));
 const PropertyCreatePage = Loadable(lazyRetry(() => import('@/features/properties/pages/PropertyCreatePage').then(m => ({ default: m.PropertyCreatePage }))));
 const PropertyDetailPage = Loadable(lazyRetry(() => import('@/features/properties/pages/PropertyDetailPage').then(m => ({ default: m.PropertyDetailPage }))));
-const PropertyImportPage = Loadable(lazyRetry(() => import('@/features/properties/pages/PropertyImportPage').then(m => ({ default: m.PropertyImportPage }))));
 const ContactListPage = Loadable(lazyRetry(() => import('@/features/contacts/pages/ContactListPage').then(m => ({ default: m.ContactListPage }))));
 const ContactDetailPage = Loadable(lazyRetry(() => import('@/features/contacts/pages/ContactDetailPage').then(m => ({ default: m.ContactDetailPage }))));
 const AppListPage = Loadable(lazyRetry(() => import('@/features/apps/pages/AppListPage').then(m => ({ default: m.AppListPage }))));
@@ -45,6 +45,8 @@ const DashboardPage = Loadable(lazyRetry(() => import('@/features/dashboard/page
 const PortalPage = Loadable(lazyRetry(() => import('@/features/rental-tenant-portal/pages/PortalPage').then(m => ({ default: m.PortalPage }))));
 const ServiceTypeListPage = Loadable(lazyRetry(() => import('@/features/service-types/pages/ServiceTypeListPage').then(m => ({ default: m.ServiceTypeListPage }))));
 const IntegrationsPage = Loadable(lazyRetry(() => import('@/features/integrations/pages/IntegrationsPage').then(m => ({ default: m.IntegrationsPage }))));
+const IntegrationDetailPage = Loadable(lazyRetry(() => import('@/features/integrations/pages/IntegrationDetailPage').then(m => ({ default: m.IntegrationDetailPage }))));
+const FyIntegrationPage = Loadable(lazyRetry(() => import('@/features/integrations/pages/FyIntegrationPage').then(m => ({ default: m.FyIntegrationPage }))));
 const PricingRuleListPage = Loadable(lazyRetry(() => import('@/features/pricing-rules/pages/PricingRuleListPage').then(m => ({ default: m.PricingRuleListPage }))));
 const AccountSettingsPage = Loadable(lazyRetry(() => import('@/features/settings/pages/AccountSettingsPage').then(m => ({ default: m.AccountSettingsPage }))));
 const SecuritySettingsPage = Loadable(lazyRetry(() => import('@/features/settings/pages/SecuritySettingsPage').then(m => ({ default: m.SecuritySettingsPage }))));
@@ -85,6 +87,11 @@ export const router = createBrowserRouter([
   {
     path: '/forgot-password',
     element: <ForgotPasswordPage />,
+    errorElement: <AppErrorBoundary />,
+  },
+  {
+    path: '/reset-password',
+    element: <ResetPasswordPage />,
     errorElement: <AppErrorBoundary />,
   },
   {
@@ -183,17 +190,16 @@ export const router = createBrowserRouter([
             ),
           },
           {
-            path: 'properties/import',
-            element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
-                <PropertyImportPage />
-              </AuthGuard>
-            ),
-          },
-          {
             // Legacy bookmark: the property map was removed; without this the
             // URL would fall through to properties/:id with id="map".
             path: 'properties/map',
+            element: <Navigate to="/properties" replace />,
+          },
+          {
+            // Legacy bookmark: the standalone property import was removed;
+            // without this the URL would fall through to properties/:id
+            // with id="import".
+            path: 'properties/import',
             element: <Navigate to="/properties" replace />,
           },
           {
@@ -352,6 +358,23 @@ export const router = createBrowserRouter([
             element: (
               <AuthGuard roles={[UserRole.AM]}>
                 <IntegrationsPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            // Literal route declared before ':provider' so it is not captured as a slug.
+            path: 'integrations/fy-api',
+            element: (
+              <AuthGuard roles={[UserRole.AM]}>
+                <FyIntegrationPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            path: 'integrations/:provider',
+            element: (
+              <AuthGuard roles={[UserRole.AM]}>
+                <IntegrationDetailPage />
               </AuthGuard>
             ),
           },

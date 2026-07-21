@@ -21,6 +21,10 @@ vi.mock('../../components/ScheduleOfflineBanner', () => ({
   ScheduleOfflineBanner: () => null,
 }));
 
+vi.mock('@/features/execution/components/FailedSyncBanner', () => ({
+  FailedSyncBanner: () => null,
+}));
+
 vi.mock('../../hooks/useScheduleMonth', () => ({
   useScheduleMonth: () => ({
     data: undefined,

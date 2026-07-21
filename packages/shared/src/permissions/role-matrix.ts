@@ -70,9 +70,6 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
   'property.list': {
     roles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'],
   },
-  'property.import': {
-    roles: ['AM', 'OP'],
-  },
 
   // ── Appointment Lifecycle ────────────────────────────────────────────
   // Frontend-gating only: the backend enforces roles directly via

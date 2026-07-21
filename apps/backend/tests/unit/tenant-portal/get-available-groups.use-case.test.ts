@@ -52,7 +52,6 @@ const ELIGIBLE_SLOT: PortalEligibleSlot = {
 function makeInput(overrides: Partial<GetAvailableGroupsInput> = {}): GetAvailableGroupsInput {
   return {
     appointmentId: 'appt-1',
-    isReadOnly: false,
     ...overrides,
   };
 }
@@ -94,10 +93,10 @@ describe('GetAvailableGroupsUseCase', () => {
     });
   });
 
-  it('should return empty groups when isReadOnly (past cutoff)', async () => {
-    const result = await useCase.execute(makeInput({ isReadOnly: true }));
-    expect(result.groups).toEqual([]);
-    expect(serviceGroupRepo.findPortalEligibleSlots).not.toHaveBeenCalled();
+  it('should return groups even after the portal token expired (isReadOnly)', async () => {
+    const result = await useCase.execute(makeInput());
+    expect(result.groups).toHaveLength(1);
+    expect(serviceGroupRepo.findPortalEligibleSlots).toHaveBeenCalled();
   });
 
   it('should pass correct params to repository', async () => {

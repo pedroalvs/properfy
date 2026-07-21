@@ -167,7 +167,12 @@ export function PropertyFormDrawer({
       }
       onSaved();
     } else {
-      showError(result.error ?? 'Failed to save');
+      if (result.fieldErrors) {
+        setErrors((prev) => ({ ...prev, ...result.fieldErrors }));
+      }
+      if (result.error || !result.fieldErrors) {
+        showError(result.error ?? 'Failed to save');
+      }
     }
   }, [isEditMode, form, validate, save, propertyId, tenantIdOverride, showSuccess, showError, onSaved, onCreated]);
 

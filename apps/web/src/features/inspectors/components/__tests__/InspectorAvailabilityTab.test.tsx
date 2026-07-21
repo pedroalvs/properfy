@@ -6,13 +6,6 @@ vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } })
 vi.mock('@/services/api', () => ({
   api: { GET: vi.fn(), POST: vi.fn(), PATCH: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
 }));
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-    }
-  },
-}));
 vi.mock('@/hooks/useFormOptions', () => ({
   useFormOptions: () => ({ options: [], isLoading: false }),
 }));

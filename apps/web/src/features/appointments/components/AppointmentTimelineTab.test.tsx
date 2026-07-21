@@ -24,7 +24,14 @@ const mockEntries = [
 vi.mock('../hooks/useAppointmentAuditLog', () => ({
   useAppointmentAuditLog: (id: string) => {
     if (id === 'loading') return { entries: [], isLoading: true, isError: false, refetch: vi.fn() };
-    if (id === 'error') return { entries: [], isLoading: false, isError: true, refetch: vi.fn() };
+    if (id === 'error')
+      return {
+        entries: [],
+        isLoading: false,
+        isError: true,
+        error: { error: { code: 'FORBIDDEN', message: 'You cannot view this appointment audit log' } },
+        refetch: vi.fn(),
+      };
     if (id === 'empty') return { entries: [], isLoading: false, isError: false, refetch: vi.fn() };
     return { entries: mockEntries, isLoading: false, isError: false, refetch: vi.fn() };
   },
@@ -41,9 +48,10 @@ describe('AppointmentTimelineTab', () => {
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
-  it('shows error state', () => {
+  it('shows error state with the backend message as detail', () => {
     render(<AppointmentTimelineTab appointmentId="error" />);
     expect(screen.getByText('Failed to load audit log')).toBeInTheDocument();
+    expect(screen.getByText('You cannot view this appointment audit log')).toBeInTheDocument();
   });
 
   it('shows empty state when no entries', () => {

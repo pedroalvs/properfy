@@ -4,11 +4,14 @@ import type { ApiKeyResponse } from '@properfy/shared';
 import { Button } from '@/components/ui';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { ErrorState } from '@/components/feedback/ErrorState';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
+import { getErrorMessage } from '@/lib/api-error';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useApiKeys, useRevokeApiKey } from '../hooks/useApiKeys';
 import { CreateApiKeyDialog } from './CreateApiKeyDialog';
+import { isFyKey } from './fyKey';
 
 export function keyStatus(key: ApiKeyResponse): { label: string; className: string } {
   if (key.revokedAt) return { label: 'Revoked', className: 'bg-error/10 text-error' };
@@ -29,7 +32,7 @@ function formatDate(value: string | null): string {
  */
 export function ApiKeysTab() {
   const { showError } = useSnackbar();
-  const { data: keys, isLoading } = useApiKeys();
+  const { data: keys, isLoading, isError, error, refetch } = useApiKeys();
   const revokeKey = useRevokeApiKey();
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -46,25 +49,34 @@ export function ApiKeysTab() {
   };
 
   if (isLoading) return <LoadingState />;
+  if (isError) {
+    return (
+      <ErrorState
+        message="Failed to load API keys"
+        detail={getErrorMessage(error)}
+        onRetry={() => void refetch()}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">
       <InfoBanner>
-        API keys let external systems (e.g. n8n automations) call the Properfy API using the{' '}
-        <code className="font-mono text-xs">X-API-Key</code> header. Each key acts with the role it
-        was created with; scoped keys are restricted to their machine surface (e.g.{' '}
-        <code className="font-mono text-xs">bot:fy</code>).
+        API keys let the Fy agent call the Properfy API using the{' '}
+        <code className="font-mono text-xs">X-API-Key</code> header. Every key is created with the{' '}
+        <code className="font-mono text-xs">bot:fy</code> scope and only reaches the Fy agent
+        surface.
       </InfoBanner>
 
       <div className="flex justify-end">
-        <Button onClick={() => setCreateOpen(true)}>New API key</Button>
+        <Button onClick={() => setCreateOpen(true)}>New Fy key</Button>
       </div>
 
       {!keys || keys.length === 0 ? (
         <EmptyState
           icon="mdi-key-outline"
           title="No API keys"
-          description="Create a key to allow an external system to call the Properfy API."
+          description="Create a key to allow the Fy agent to call the Properfy API."
         />
       ) : (
         <div className="overflow-x-auto rounded bg-card-bg shadow-sm">
@@ -73,8 +85,6 @@ export function ApiKeysTab() {
               <tr className="border-b border-black/10 text-left text-xs text-text-secondary">
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Key prefix</th>
-                <th className="px-4 py-3 font-medium">Role</th>
-                <th className="px-4 py-3 font-medium">Scopes</th>
                 <th className="px-4 py-3 font-medium">Expires</th>
                 <th className="px-4 py-3 font-medium">Last used</th>
                 <th className="px-4 py-3 font-medium">Status</th>
@@ -86,23 +96,15 @@ export function ApiKeysTab() {
                 const status = keyStatus(key);
                 return (
                   <tr key={key.id} className="border-b border-black/5 last:border-b-0">
-                    <td className="px-4 py-3">{key.name}</td>
-                    <td className="px-4 py-3 font-mono text-xs">{key.prefix}…</td>
-                    <td className="px-4 py-3">{key.role}</td>
                     <td className="px-4 py-3">
-                      {key.scopes.length === 0 ? (
-                        <span className="text-text-secondary">—</span>
-                      ) : (
-                        key.scopes.map((scope) => (
-                          <span
-                            key={scope}
-                            className="mr-1 rounded-full bg-primary/10 px-2.5 py-1 font-mono text-xs text-primary"
-                          >
-                            {scope}
-                          </span>
-                        ))
+                      {key.name}
+                      {!isFyKey(key) && (
+                        <span className="ml-2 rounded-full bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning">
+                          Legacy — not Fy contract
+                        </span>
                       )}
                     </td>
+                    <td className="px-4 py-3 font-mono text-xs">{key.prefix}…</td>
                     <td className="px-4 py-3">{formatDate(key.expiresAt)}</td>
                     <td className="px-4 py-3">{formatDate(key.lastUsedAt)}</td>
                     <td className="px-4 py-3">

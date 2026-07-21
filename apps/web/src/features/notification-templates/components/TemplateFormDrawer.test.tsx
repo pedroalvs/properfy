@@ -20,15 +20,6 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
-}));
-
 vi.mock('@/lib/auth-storage', () => ({
   authStorage: {
     getAccessToken: vi.fn(() => null),
@@ -206,6 +197,29 @@ describe('TemplateFormDrawer', () => {
     renderDrawer();
     expect(screen.getByText('Cancel')).toBeInTheDocument();
     expect(screen.getByText('Save')).toBeInTheDocument();
+  });
+
+  it('renders backend VALIDATION_ERROR details inline on the matching fields', async () => {
+    mockPut.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [{ field: 'bodyHtml', message: 'Missing required variable: scheduledDate' }],
+        },
+      },
+    });
+
+    const user = userEvent.setup();
+    const { onSaved } = renderDrawer();
+
+    await user.click(screen.getByText('Save'));
+
+    expect(await screen.findByText('Missing required variable: scheduledDate')).toBeInTheDocument();
+    // Fully mapped details render inline only — no summary snackbar.
+    expect(screen.queryByText('Validation failed')).not.toBeInTheDocument();
+    expect(onSaved).not.toHaveBeenCalled();
   });
 
   it('shows active toggle', () => {

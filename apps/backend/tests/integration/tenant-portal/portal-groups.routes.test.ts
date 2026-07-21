@@ -52,7 +52,8 @@ vi.mock('../../../src/main/container', () => ({
         save: vi.fn(),
         updateStatus: vi.fn(),
         updateLastAccessedAt: vi.fn(),
-        markUsed: vi.fn(),
+        tryClaim: vi.fn().mockResolvedValue(true),
+        releaseClaim: vi.fn(),
         revokeAllForAppointment: vi.fn(),
         expireActiveTokens: vi.fn(),
       },
@@ -129,12 +130,11 @@ describe('GET /v1/rental-tenant-portal/:token/available-groups', () => {
     expect(mockGetAvailableGroupsExecute).toHaveBeenCalledWith(
       expect.objectContaining({
         appointmentId: APPOINTMENT_ID,
-        isReadOnly: false,
       }),
     );
   });
 
-  it('should return empty groups when isReadOnly', async () => {
+  it('should still list groups when the token is expired', async () => {
     mockHashToken.mockReturnValue('hashed-token');
     const expiredToken = createMockToken({ status: 'EXPIRED' });
     mockFindByTokenHash.mockResolvedValue(expiredToken);
@@ -144,7 +144,7 @@ describe('GET /v1/rental-tenant-portal/:token/available-groups', () => {
 
     expect(res.status).toBe(200);
     expect(mockGetAvailableGroupsExecute).toHaveBeenCalledWith(
-      expect.objectContaining({ isReadOnly: true }),
+      expect.objectContaining({ appointmentId: APPOINTMENT_ID }),
     );
   });
 
@@ -191,7 +191,6 @@ describe('POST /v1/rental-tenant-portal/:token/join-group', () => {
         scheduledDate: '2026-06-01',
         timeSlotStart: '13:00',
         timeSlotEnd: '15:00',
-        isReadOnly: false,
         isUsed: false,
       }),
     );

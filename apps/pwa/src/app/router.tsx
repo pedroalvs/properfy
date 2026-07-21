@@ -18,6 +18,16 @@ function lazyRetry<T extends { default: ComponentType<any> }>(importFn: () => Pr
 const LoginPage = lazyRetry(() =>
   import('@/features/auth/pages/LoginPage').then((module) => ({ default: module.LoginPage })),
 );
+const ForgotPasswordPage = lazyRetry(() =>
+  import('@/features/auth/pages/ForgotPasswordPage').then((module) => ({
+    default: module.ForgotPasswordPage,
+  })),
+);
+const ResetPasswordPage = lazyRetry(() =>
+  import('@/features/auth/pages/ResetPasswordPage').then((module) => ({
+    default: module.ResetPasswordPage,
+  })),
+);
 const AccessDeniedPage = lazyRetry(() =>
   import('@/features/auth/pages/AccessDeniedPage').then((module) => ({ default: module.AccessDeniedPage })),
 );
@@ -96,6 +106,14 @@ export const router = createBrowserRouter(
     {
       path: '/login',
       element: lazyElement(LoginPage),
+    },
+    {
+      path: '/forgot-password',
+      element: lazyElement(ForgotPasswordPage),
+    },
+    {
+      path: '/reset-password',
+      element: lazyElement(ResetPasswordPage),
     },
     {
       path: '/access-denied',

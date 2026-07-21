@@ -14,12 +14,18 @@ export interface RequestPasswordResetInput {
   email: string;
 }
 
+export interface ResetLinkConfig {
+  webAppBaseUrl: string;
+  pwaBaseUrl: string;
+}
+
 export class RequestPasswordResetUseCase {
   constructor(
     private readonly userRepo: IUserRepository,
     private readonly passwordResetTokenRepo: IPasswordResetTokenRepository,
     private readonly createNotificationUseCase: CreateNotificationUseCase,
     private readonly auditService: AuditService,
+    private readonly resetLinkConfig: ResetLinkConfig,
   ) {}
 
   async execute(input: RequestPasswordResetInput): Promise<void> {
@@ -54,6 +60,12 @@ export class RequestPasswordResetUseCase {
 
     await this.passwordResetTokenRepo.save(tokenEntity);
 
+    // Inspectors only have access to the PWA; everyone else uses the web app.
+    const baseUrl =
+      user.role === 'INSP' ? this.resetLinkConfig.pwaBaseUrl : this.resetLinkConfig.webAppBaseUrl;
+    const resetLink = new URL('/reset-password', baseUrl);
+    resetLink.searchParams.set('token', rawToken);
+
     await this.createNotificationUseCase.execute({
       tenantId: user.tenantId ?? 'platform',
       recipient: user.email,
@@ -61,7 +73,7 @@ export class RequestPasswordResetUseCase {
       templateCode: 'PASSWORD_RESET',
       payloadJson: {
         userName: user.name,
-        resetToken: rawToken,
+        resetLink: resetLink.toString(),
       },
     });
 

@@ -23,7 +23,6 @@ import { SessionTrustService } from '../modules/auth/application/services/sessio
 import { StubGeoIpService } from '../shared/infrastructure/geoip.service';
 import { RequestPasswordResetUseCase } from '../modules/auth/application/use-cases/request-password-reset.use-case';
 import { ConsumePasswordResetUseCase } from '../modules/auth/application/use-cases/consume-password-reset.use-case';
-import { AcceptInviteUseCase } from '../modules/auth/application/use-cases/accept-invite.use-case';
 import { PrismaPasswordResetTokenRepository } from '../modules/auth/infrastructure/prisma-password-reset-token.repository';
 import { PrismaPasswordHistoryRepository } from '../modules/auth/infrastructure/prisma-password-history.repository';
 import type { AuthRouteContainer } from '../modules/auth/interfaces/auth.routes';
@@ -62,7 +61,6 @@ import { UpdateUserUseCase } from '../modules/user/application/use-cases/update-
 import { DeactivateUserUseCase } from '../modules/user/application/use-cases/deactivate-user.use-case';
 import { UnlockUserUseCase } from '../modules/user/application/use-cases/unlock-user.use-case';
 import { ResetUserPasswordUseCase } from '../modules/user/application/use-cases/reset-user-password.use-case';
-import { InviteUserUseCase } from '../modules/user/application/use-cases/invite-user.use-case';
 import type { UserRouteContainer } from '../modules/user/interfaces/user.routes';
 
 // Property module
@@ -75,14 +73,9 @@ import { UpdatePropertyUseCase } from '../modules/property/application/use-cases
 import { DeletePropertyUseCase } from '../modules/property/application/use-cases/delete-property.use-case';
 import { GeocodePropertyUseCase } from '../modules/property/application/use-cases/geocode-property.use-case';
 import { SearchAddressesUseCase } from '../modules/property/application/use-cases/search-addresses.use-case';
-import { ImportPropertiesUseCase } from '../modules/property/application/use-cases/import-properties.use-case';
-import { GetPropertyImportStatusUseCase } from '../modules/property/application/use-cases/get-property-import-status.use-case';
-import { ExportImportErrorsUseCase } from '../modules/property/application/use-cases/export-import-errors.use-case';
 import { CachedAddressLookupService } from '../modules/property/infrastructure/cached-address-lookup.service';
-import { PrismaPropertyImportRepository } from '../modules/property/infrastructure/prisma-property-import.repository';
 import { GeocodeWorker } from '../modules/property/infrastructure/workers/geocode.worker';
 import { GeocodeRetryWorker } from '../modules/property/infrastructure/workers/geocode-retry.worker';
-import { ImportPropertyWorker } from '../modules/property/infrastructure/workers/import-property.worker';
 import type { PropertyRouteContainer } from '../modules/property/interfaces/property.routes';
 
 // Service type module
@@ -393,12 +386,7 @@ import { PrismaAppointmentImportRepository } from '../modules/appointment/infras
 import { AppointmentImportRowResolver } from '../modules/appointment/application/services/appointment-import-row-resolver';
 import { AppointmentImportCommitWorker } from '../modules/appointment/infrastructure/workers/appointment-import-commit.worker';
 import { SweepAbandonedAppointmentImportsWorker } from '../modules/appointment/infrastructure/workers/sweep-abandoned-appointment-imports.worker';
-import { PropertyImportRowResolver } from '../modules/property/application/services/property-import-row-resolver';
 import { ImportGeocodeVerifier } from '../modules/property/application/services/import-geocode-verifier';
-import { PreviewPropertyImportUseCase } from '../modules/property/application/use-cases/preview-property-import.use-case';
-import { CommitPropertyImportUseCase } from '../modules/property/application/use-cases/commit-property-import.use-case';
-import { PropertyImportCommitWorker } from '../modules/property/infrastructure/workers/property-import-commit.worker';
-import { SweepAbandonedPropertyImportsWorker } from '../modules/property/infrastructure/workers/sweep-abandoned-property-imports.worker';
 import { RejectUnconfirmedAppointmentsUseCase } from '../modules/appointment/application/use-cases/reject-unconfirmed-appointments.use-case';
 import { RejectUnconfirmedWorker } from '../modules/appointment/infrastructure/workers/reject-unconfirmed.worker';
 import { GetPortalLinkUseCase } from '../modules/rental-tenant-portal/application/use-cases/get-portal-link.use-case';
@@ -449,9 +437,6 @@ export interface AppContainer {
   fyWebhookDispatcher: FyWebhookDispatcher;
   geocodeWorker: GeocodeWorker;
   geocodeRetryWorker: GeocodeRetryWorker;
-  propertyImportWorker: ImportPropertyWorker;
-  propertyImportCommitWorker: PropertyImportCommitWorker;
-  sweepAbandonedPropertyImportsWorker: SweepAbandonedPropertyImportsWorker;
   cleanupSessionsWorker: CleanupSessionsWorker;
   keyExpiryCheckWorker: KeyExpiryCheckWorker;
   expireFilesWorker: ExpireFilesWorker;
@@ -619,7 +604,6 @@ export function createContainer(logger: Logger): AppContainer {
   const geocodeRetryWorker = new GeocodeRetryWorker(propertyRepo, logger);
 
   // Property import
-  const propertyImportRepo = new PrismaPropertyImportRepository(prisma);
 
   // Service type repositories and use cases
   const serviceTypeRepo = new PrismaServiceTypeRepository(prisma);
@@ -695,12 +679,12 @@ export function createContainer(logger: Logger): AppContainer {
   );
 
   // Password reset use cases (depend on createNotificationUseCase)
-  const requestPasswordResetUseCase = new RequestPasswordResetUseCase(userRepo, passwordResetTokenRepo, createNotificationUseCase, auditService);
+  const requestPasswordResetUseCase = new RequestPasswordResetUseCase(userRepo, passwordResetTokenRepo, createNotificationUseCase, auditService, {
+    webAppBaseUrl: env.WEB_APP_BASE_URL,
+    pwaBaseUrl: env.PWA_BASE_URL,
+  });
   const consumePasswordResetUseCase = new ConsumePasswordResetUseCase(passwordResetTokenRepo, userRepo, sessionRepo, auditService, passwordHistoryRepo);
-  const acceptInviteUseCase = new AcceptInviteUseCase(passwordResetTokenRepo, userRepo, auditService);
 
-  // Invite user use case (depends on createNotificationUseCase)
-  const inviteUserUseCase = new InviteUserUseCase(userManagementRepo, tenantRepo, branchRepo, passwordResetTokenRepo, createNotificationUseCase, auditService, authorizationService);
 
   // Shared idempotency service (used across modules)
   const idempotencyService = new PrismaIdempotencyService(prisma);
@@ -1275,41 +1259,6 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentImportRepo, reportStorageService, logger,
   );
 
-  // Property import (depends on reportStorageService and job queue)
-  const propertyImportJobQueue = env.ENABLE_JOB_QUEUE === 'true'
-    ? new PgBossJobQueue()
-    : new StubJobQueue();
-  const importPropertiesUseCase = new ImportPropertiesUseCase(
-    propertyImportRepo, reportStorageService, propertyImportJobQueue, idempotencyService, authorizationService,
-  );
-  const getPropertyImportStatusUseCase = new GetPropertyImportStatusUseCase(propertyImportRepo, authorizationService);
-  const exportImportErrorsUseCase = new ExportImportErrorsUseCase(propertyImportRepo, authorizationService);
-  const geocodeJobQueue = env.ENABLE_JOB_QUEUE === 'true'
-    ? new PgBossJobQueue()
-    : new StubJobQueue();
-  const propertyImportWorker = new ImportPropertyWorker(
-    propertyImportRepo, reportStorageService, propertyRepo, logger, auditService, geocodeJobQueue,
-  );
-
-  // Property import — preview/commit split with synchronous geocode
-  // verification (reuses the same DynamicGeocodingService as the async
-  // geocode worker, bounded by the verifier's own timeout/budget/cap).
-  const propertyImportRowResolver = new PropertyImportRowResolver(propertyRepo);
-  const importGeocodeVerifier = new ImportGeocodeVerifier(geocodingService);
-  const previewPropertyImportUseCase = new PreviewPropertyImportUseCase(
-    propertyImportRepo, reportStorageService, tenantRepo, propertyImportRowResolver, importGeocodeVerifier, authorizationService,
-  );
-  const commitPropertyImportUseCase = new CommitPropertyImportUseCase(
-    propertyImportRepo, propertyImportJobQueue, authorizationService, idempotencyService,
-  );
-  const propertyImportCommitWorker = new PropertyImportCommitWorker(
-    propertyImportRepo, reportStorageService, propertyRepo, propertyImportRowResolver,
-    geocodeJobQueue, auditService, logger,
-  );
-  const sweepAbandonedPropertyImportsWorker = new SweepAbandonedPropertyImportsWorker(
-    propertyImportRepo, reportStorageService, logger,
-  );
-
   return {
     prisma,
     auditService,
@@ -1326,7 +1275,6 @@ export function createContainer(logger: Logger): AppContainer {
       confirmTotpUseCase,
       requestPasswordResetUseCase,
       consumePasswordResetUseCase,
-      acceptInviteUseCase,
       jwtService,
       tenantRepo,
     },
@@ -1356,7 +1304,6 @@ export function createContainer(logger: Logger): AppContainer {
       deactivateUserUseCase,
       unlockUserUseCase,
       resetUserPasswordUseCase,
-      inviteUserUseCase,
       jwtService,
       tenantRepo,
     },
@@ -1369,11 +1316,6 @@ export function createContainer(logger: Logger): AppContainer {
       deletePropertyUseCase,
       geocodePropertyUseCase,
       searchAddressesUseCase,
-      importPropertiesUseCase,
-      previewPropertyImportUseCase,
-      commitPropertyImportUseCase,
-      getPropertyImportStatusUseCase,
-      exportImportErrorsUseCase,
       jwtService,
       tenantRepo,
     },
@@ -1665,9 +1607,6 @@ export function createContainer(logger: Logger): AppContainer {
     processReportJobUseCase,
     geocodeWorker,
     geocodeRetryWorker,
-    propertyImportWorker,
-    propertyImportCommitWorker,
-    sweepAbandonedPropertyImportsWorker,
     appointmentImportCommitWorker,
     sweepAbandonedAppointmentImportsWorker,
     generateInvoiceFileWorker,

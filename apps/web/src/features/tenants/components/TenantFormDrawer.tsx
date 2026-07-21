@@ -108,11 +108,15 @@ export function TenantFormDrawer({
     if (result.success) {
       showSuccess(isEditMode ? 'Agency updated successfully' : 'Agency created successfully');
       onSaved();
-    } else if (result.fieldErrors) {
-      // Inline field-level errors (e.g. a 409 prefix conflict).
-      setErrors(result.fieldErrors);
     } else {
-      showError(result.error ?? 'Failed to save');
+      // Inline field-level errors (e.g. a 409 prefix conflict or backend
+      // VALIDATION_ERROR details); unmatched details keep the snackbar.
+      if (result.fieldErrors) {
+        setErrors((prev) => ({ ...prev, ...result.fieldErrors }));
+      }
+      if (result.error || !result.fieldErrors) {
+        showError(result.error ?? 'Failed to save');
+      }
     }
   }, [isEditMode, form, validate, save, tenantId, showSuccess, showError, onSaved]);
 

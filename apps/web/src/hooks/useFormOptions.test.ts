@@ -11,15 +11,6 @@ vi.mock('@/services/api', () => ({
   api: { GET: (...args: unknown[]) => mockGet(...args) },
 }));
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
-}));
-
 import { useFormOptions } from './useFormOptions';
 
 function createWrapper() {

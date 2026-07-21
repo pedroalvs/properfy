@@ -358,7 +358,12 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": {
+                            secret: string;
+                            qrUri: string;
+                        };
+                    };
                 };
             };
         };
@@ -556,48 +561,6 @@ export interface paths {
                     "application/json": {
                         token: string;
                         newPassword: string & (unknown & unknown & unknown & unknown);
-                    };
-                };
-            };
-            responses: {
-                /** @description Default Response */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": "null" | null;
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/auth/accept-invite": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        token: string;
-                        password: string & (unknown & unknown & unknown & unknown);
                     };
                 };
             };
@@ -1768,74 +1731,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/tenants/{tenantId}/users/invite": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    tenantId: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        name: string;
-                        /** Format: email */
-                        email: string;
-                        /** @enum {string} */
-                        role: "CL_ADMIN" | "CL_USER";
-                        /** Format: uuid */
-                        branchId?: string;
-                        phone?: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description Default Response */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                /** Format: uuid */
-                                tenantId: string | null;
-                                /** Format: uuid */
-                                branchId: string | null;
-                                role: string;
-                                name: string;
-                                email: string;
-                                phone: string | null;
-                                status: string;
-                                totpEnabled?: boolean;
-                                lastLoginAt?: (string) | null;
-                                createdAt: string;
-                                updatedAt?: string;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/tenants/{tenantId}/users/{userId}": {
         parameters: {
             query?: never;
@@ -2734,250 +2629,6 @@ export interface paths {
                 };
             };
         };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/properties/import": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/properties/import/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                importId: string;
-                                /** Format: uuid */
-                                tenantId: string;
-                                summary: {
-                                    totalRows: number;
-                                    importable: number;
-                                    withWarnings: number;
-                                    withErrors: number;
-                                };
-                                rows: {
-                                    rowNumber: number;
-                                    /** @enum {string} */
-                                    severity: "ready" | "warning" | "error";
-                                    importable: boolean;
-                                    propertyCode: string | null;
-                                    type: string | null;
-                                    notes: string | null;
-                                    property: {
-                                        /** @enum {string} */
-                                        resolution: "existing" | "new";
-                                        /** Format: uuid */
-                                        propertyId: string | null;
-                                        propertyCode: string | null;
-                                        street: string;
-                                        addressLine2: string | null;
-                                        suburb: string;
-                                        state: string;
-                                        postcode: string;
-                                        country: string;
-                                        duplicateOfRow: number | null;
-                                        /** @default null */
-                                        geocode: ({
-                                            /** @enum {string} */
-                                            status: "found";
-                                            lat: number;
-                                            lng: number;
-                                        } | {
-                                            /** @enum {string} */
-                                            status: "not_found";
-                                            /** @enum {unknown|null} */
-                                            lat: "null" | null;
-                                            /** @enum {unknown|null} */
-                                            lng: "null" | null;
-                                        } | {
-                                            /** @enum {string} */
-                                            status: "unverified";
-                                            /** @enum {unknown|null} */
-                                            lat: "null" | null;
-                                            /** @enum {unknown|null} */
-                                            lng: "null" | null;
-                                        }) | null;
-                                    } | null;
-                                    issues: {
-                                        field: string;
-                                        code: string;
-                                        /** @enum {string} */
-                                        severity: "warning" | "error";
-                                        message: string;
-                                    }[];
-                                }[];
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/properties/import/{importId}/commit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    importId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json": {
-                        /** @default false */
-                        skipInvalidRows?: boolean;
-                    };
-                };
-            };
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/properties/import/{importId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    importId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/properties/import/{importId}/errors.csv": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    importId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -7963,6 +7614,7 @@ export interface paths {
                             token: {
                                 status: string;
                                 isReadOnly: boolean;
+                                isPastConfirmCutoff?: boolean;
                                 isExpired: boolean;
                                 canRequestNewLink: boolean;
                                 expiresAt: string;
@@ -8362,7 +8014,13 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json": unknown | ({
+                        notify?: boolean;
+                    } | null);
+                };
+            };
             responses: {
                 /** @description Default Response */
                 201: {
@@ -8376,7 +8034,7 @@ export interface paths {
                                 expiresAt: string;
                                 dispatched?: boolean;
                                 /** @enum {string} */
-                                reason?: "NO_PRIMARY_CONTACT" | "DISPATCH_FAILED";
+                                reason?: "NO_PRIMARY_CONTACT" | "DISPATCH_FAILED" | "NOTIFY_DISABLED";
                             };
                         };
                     };

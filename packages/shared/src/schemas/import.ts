@@ -70,6 +70,10 @@ export const importPropertyPlanSchema = z.object({
   propertyCode: z.string().nullable(),
   street: z.string(),
   addressLine2: z.string().nullable(),
+  /** Free-text unit identifier; when set on a 'new' plan the property is
+   * created as APARTMENT. Defaulted so pre-existing previewJson payloads
+   * (persisted before the field existed) still parse. */
+  apartmentNumber: z.string().nullable().default(null),
   suburb: z.string(),
   state: z.string(),
   postcode: z.string(),

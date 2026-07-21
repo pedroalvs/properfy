@@ -22,7 +22,7 @@ function buildRow(overrides: Partial<ResolvedImportRow> = {}): ResolvedImportRow
       propertyId: 'prop-1',
       propertyCode: 'PROP-001',
       street: '1 Main St',
-      addressLine2: null,
+      addressLine2: null, apartmentNumber: null,
       suburb: 'Kogarah',
       state: 'NSW',
       postcode: '2217',
@@ -85,7 +85,7 @@ describe('AppointmentImportPreview', () => {
   it('shows a New badge for a new property and Existing for an existing one', () => {
     const newRow = buildRow({
       rowNumber: 2,
-      property: { resolution: 'new', propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null, suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: null, geocode: null },
+      property: { resolution: 'new', propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null, apartmentNumber: null, suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: null, geocode: null },
     });
     render(<AppointmentImportPreview rows={[newRow]} summary={SUMMARY} />);
     expect(screen.getByText(/New property/i)).toBeInTheDocument();
@@ -95,7 +95,7 @@ describe('AppointmentImportPreview', () => {
   it('shows "same as row X" for an intra-batch duplicate new property', () => {
     const row = buildRow({
       rowNumber: 3,
-      property: { resolution: 'new', propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null, suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: 2, geocode: null },
+      property: { resolution: 'new', propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null, apartmentNumber: null, suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: 2, geocode: null },
     });
     render(<AppointmentImportPreview rows={[row]} summary={SUMMARY} />);
     expect(screen.getByText(/same as row 2/i)).toBeInTheDocument();
@@ -164,7 +164,7 @@ describe('AppointmentImportPreview', () => {
   it('renders a Success geocode badge for a found verification on a new property', () => {
     const row = buildRow({
       property: {
-        resolution: 'new', propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null,
+        resolution: 'new', propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null, apartmentNumber: null,
         suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: null,
         geocode: { status: 'found', lat: -33.9, lng: 151.1 },
       },
@@ -177,7 +177,7 @@ describe('AppointmentImportPreview', () => {
     const row = buildRow({
       severity: 'warning',
       property: {
-        resolution: 'new', propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null,
+        resolution: 'new', propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null, apartmentNumber: null,
         suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: null,
         geocode: { status: 'not_found', lat: null, lng: null },
       },
