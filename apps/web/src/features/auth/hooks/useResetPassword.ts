@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react';
+import { mapResetPasswordError } from '@properfy/shared';
 import { api } from '@/services/api';
-import { ApiError, toApiError } from '@/lib/api-error';
-
-export const INVALID_TOKEN_CODE = 'AUTH_INVALID_RESET_TOKEN';
+import { toApiError } from '@/lib/api-error';
 
 export interface UseResetPasswordReturn {
   resetPassword: (token: string, newPassword: string) => Promise<void>;
@@ -10,25 +9,6 @@ export interface UseResetPasswordReturn {
   isSuccess: boolean;
   error: string | null;
   isInvalidToken: boolean;
-}
-
-function getErrorMessage(error: unknown): { message: string; invalidToken: boolean } {
-  if (error instanceof ApiError) {
-    if (error.code === INVALID_TOKEN_CODE) {
-      return {
-        message: 'This reset link is invalid or has expired. Please request a new link.',
-        invalidToken: true,
-      };
-    }
-    if (error.status === 429) {
-      return { message: 'Too many attempts. Please wait and try again.', invalidToken: false };
-    }
-    if (error.status >= 500) {
-      return { message: 'Server error. Please try again later.', invalidToken: false };
-    }
-    return { message: error.message, invalidToken: false };
-  }
-  return { message: 'An unexpected error occurred. Please try again.', invalidToken: false };
 }
 
 export function useResetPassword(): UseResetPasswordReturn {
@@ -51,7 +31,7 @@ export function useResetPassword(): UseResetPasswordReturn {
 
       setIsSuccess(true);
     } catch (err) {
-      const { message, invalidToken } = getErrorMessage(err);
+      const { message, invalidToken } = mapResetPasswordError(toApiError(err));
       setError(message);
       setIsInvalidToken(invalidToken);
     } finally {

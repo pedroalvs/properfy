@@ -1,6 +1,6 @@
 import { useState, useCallback, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { passwordFieldSchema } from '@properfy/shared';
+import { passwordFieldSchema, PASSWORD_REQUIREMENTS_MESSAGE } from '@properfy/shared';
 import { PasswordStrengthIndicator } from '@/components/forms/PasswordStrengthIndicator';
 import { useResetPassword } from '../hooks/useResetPassword';
 
@@ -15,7 +15,7 @@ function validate(newPassword: string, confirmPassword: string): ValidationError
   if (!newPassword) {
     errors.newPassword = 'Required field';
   } else if (!passwordFieldSchema.safeParse(newPassword).success) {
-    errors.newPassword = 'Min 8 chars, uppercase, lowercase, number and special character';
+    errors.newPassword = PASSWORD_REQUIREMENTS_MESSAGE;
   }
 
   if (!confirmPassword) {
@@ -199,10 +199,14 @@ export function ResetPasswordPage() {
             autoComplete="new-password"
             autoFocus
             disabled={isLoading}
+            aria-invalid={validationErrors.newPassword ? true : undefined}
+            aria-describedby={validationErrors.newPassword ? 'reset-new-password-error' : undefined}
             className="h-12 w-full rounded-2xl border border-black/10 bg-white px-4 text-sm text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
           />
           {validationErrors.newPassword && (
-            <p className="mt-1.5 text-xs text-error">{validationErrors.newPassword}</p>
+            <p id="reset-new-password-error" className="mt-1.5 text-xs text-error">
+              {validationErrors.newPassword}
+            </p>
           )}
         </div>
 
@@ -220,10 +224,14 @@ export function ResetPasswordPage() {
             onChange={(e) => setConfirmPassword(e.target.value)}
             autoComplete="new-password"
             disabled={isLoading}
+            aria-invalid={validationErrors.confirmPassword ? true : undefined}
+            aria-describedby={validationErrors.confirmPassword ? 'reset-confirm-password-error' : undefined}
             className="h-12 w-full rounded-2xl border border-black/10 bg-white px-4 text-sm text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
           />
           {validationErrors.confirmPassword && (
-            <p className="mt-1.5 text-xs text-error">{validationErrors.confirmPassword}</p>
+            <p id="reset-confirm-password-error" className="mt-1.5 text-xs text-error">
+              {validationErrors.confirmPassword}
+            </p>
           )}
           <PasswordStrengthIndicator password={newPassword} confirmPassword={confirmPassword} />
         </div>
