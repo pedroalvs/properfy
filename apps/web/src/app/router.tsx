@@ -45,6 +45,8 @@ const DashboardPage = Loadable(lazyRetry(() => import('@/features/dashboard/page
 const PortalPage = Loadable(lazyRetry(() => import('@/features/rental-tenant-portal/pages/PortalPage').then(m => ({ default: m.PortalPage }))));
 const ServiceTypeListPage = Loadable(lazyRetry(() => import('@/features/service-types/pages/ServiceTypeListPage').then(m => ({ default: m.ServiceTypeListPage }))));
 const IntegrationsPage = Loadable(lazyRetry(() => import('@/features/integrations/pages/IntegrationsPage').then(m => ({ default: m.IntegrationsPage }))));
+const IntegrationDetailPage = Loadable(lazyRetry(() => import('@/features/integrations/pages/IntegrationDetailPage').then(m => ({ default: m.IntegrationDetailPage }))));
+const FyIntegrationPage = Loadable(lazyRetry(() => import('@/features/integrations/pages/FyIntegrationPage').then(m => ({ default: m.FyIntegrationPage }))));
 const PricingRuleListPage = Loadable(lazyRetry(() => import('@/features/pricing-rules/pages/PricingRuleListPage').then(m => ({ default: m.PricingRuleListPage }))));
 const AccountSettingsPage = Loadable(lazyRetry(() => import('@/features/settings/pages/AccountSettingsPage').then(m => ({ default: m.AccountSettingsPage }))));
 const SecuritySettingsPage = Loadable(lazyRetry(() => import('@/features/settings/pages/SecuritySettingsPage').then(m => ({ default: m.SecuritySettingsPage }))));
@@ -356,6 +358,23 @@ export const router = createBrowserRouter([
             element: (
               <AuthGuard roles={[UserRole.AM]}>
                 <IntegrationsPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            // Literal route declared before ':provider' so it is not captured as a slug.
+            path: 'integrations/fy-api',
+            element: (
+              <AuthGuard roles={[UserRole.AM]}>
+                <FyIntegrationPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            path: 'integrations/:provider',
+            element: (
+              <AuthGuard roles={[UserRole.AM]}>
+                <IntegrationDetailPage />
               </AuthGuard>
             ),
           },
