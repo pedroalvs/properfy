@@ -19,6 +19,7 @@ export const APPOINTMENT_IMPORT_HEADER_MAP: Record<string, Exclude<keyof RawImpo
   'Postcode': 'postcode',
   'Country': 'country',
   'Address line 2': 'addressLine2',
+  'Apartment': 'apartmentNumber',
   'Notes': 'notes',
   'Realty description': 'realtyDescription',
   'Tenant name': 'primaryContactName',
@@ -40,7 +41,7 @@ const CUSTOM_HEADER_RE = /^CUSTOM:\s*(.+)$/i;
 
 const EMPTY_ROW: Omit<RawImportRow, 'customFieldCandidates'> = {
   serviceTypeName: null, scheduledDate: null, timeSlotStart: null, timeSlotEnd: null,
-  street: null, addressLine2: null, suburb: null, state: null, postcode: null, country: null,
+  street: null, addressLine2: null, apartmentNumber: null, suburb: null, state: null, postcode: null, country: null,
   notes: null, realtyDescription: null,
   primaryContactName: null, primaryContactEmail: null, primaryContactPhone: null,
   secondaryEmail: null, secondaryPhone: null,

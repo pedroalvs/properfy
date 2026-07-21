@@ -64,7 +64,7 @@ const PREVIEW_RESPONSE = {
     timeSlotStart: '09:00', timeSlotEnd: '10:00', timeDefaulted: false, notes: null,
     property: {
       resolution: 'existing', propertyId: 'prop-1', propertyCode: 'PROP-001',
-      street: '1 Main St', addressLine2: null, suburb: 'Kogarah', state: 'NSW', postcode: '2217',
+      street: '1 Main St', addressLine2: null, apartmentNumber: '4B', suburb: 'Kogarah', state: 'NSW', postcode: '2217',
       country: 'AU', duplicateOfRow: null,
     },
     contact: {
@@ -246,6 +246,7 @@ describe('AppointmentImportPage', () => {
     fireEvent.click(screen.getByText('Next'));
 
     await waitFor(() => expect(screen.getByText('Ready')).toBeInTheDocument());
+    expect(screen.getByText('1 Main St, Apt 4B, Kogarah, NSW, 2217')).toBeInTheDocument();
     expect(mockPost).toHaveBeenCalledWith(
       '/v1/appointments/import/preview',
       expect.objectContaining({ body: expect.any(FormData) }),
