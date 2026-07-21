@@ -17,15 +17,6 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
-}));
-
 import { api } from '@/services/api';
 import { MarkInvoicePaidModal } from '../MarkInvoicePaidModal';
 

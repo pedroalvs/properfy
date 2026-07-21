@@ -1,6 +1,7 @@
 import { memo, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
-import { formatDate, toLocalISODate } from '@/lib/format-date';
+import { PLATFORM_TIMEZONE, todayInTzDateString } from '@properfy/shared';
+import { formatCivilDate } from '@/lib/format-date';
 import { formatCurrency } from '@/lib/format-currency';
 import type { MarketplaceOffer, OfferAcceptState } from '../types';
 
@@ -12,14 +13,13 @@ interface OfferCardProps {
 }
 
 function isToday(dateStr: string): boolean {
-  const today = toLocalISODate(new Date());
-  return dateStr === today;
+  return dateStr.slice(0, 10) === todayInTzDateString(PLATFORM_TIMEZONE);
 }
 
 function isTomorrow(dateStr: string): boolean {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  return dateStr === toLocalISODate(tomorrow);
+  const tomorrow = new Date(`${todayInTzDateString(PLATFORM_TIMEZONE)}T00:00:00Z`);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  return dateStr.slice(0, 10) === tomorrow.toISOString().slice(0, 10);
 }
 
 function formatTimeWindow(timeWindow: string): string {
@@ -86,7 +86,7 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
             </span>
           )}
           <span className="text-xs font-semibold text-text-secondary truncate">
-            {formatDate(offer.scheduledDate)}
+            {formatCivilDate(offer.scheduledDate)}
           </span>
         </div>
         <span className="shrink-0 text-xs font-bold text-text-primary">

@@ -1,4 +1,4 @@
-import { TEMPLATE_VARIABLES } from '@properfy/shared';
+import { TEMPLATE_VARIABLES, PLATFORM_TIMEZONE } from '@properfy/shared';
 import type { AppointmentEntity } from '../../appointment/domain/appointment.entity';
 import type { AppointmentContactEntity } from '../../appointment/domain/appointment-contact.entity';
 import type { TenantEntity } from '../../tenant/domain/tenant.entity';
@@ -37,10 +37,10 @@ export class BuildNotificationPayloadService {
 
     const settings = ctx.tenant.settingsJson;
 
-    // H1: Format date in tenant timezone to prevent UTC-day boundary errors.
+    // H1: Format date in the platform timezone (Sydney) to prevent UTC-day boundary errors.
     // en-CA locale produces YYYY-MM-DD, consistent with ISO date strings.
     const scheduledDate = new Intl.DateTimeFormat('en-CA', {
-      timeZone: ctx.tenant.timezone,
+      timeZone: PLATFORM_TIMEZONE,
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',

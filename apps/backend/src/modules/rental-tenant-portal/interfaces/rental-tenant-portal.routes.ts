@@ -10,6 +10,7 @@ import {
   reportUnavailabilityPortalResponseSchema,
   portalDataResponseSchema,
   portalTokenResponseSchema,
+  generatePortalTokenBodySchema,
   portalActivitiesResponseSchema,
   availableGroupsResponseSchema,
   joinGroupRequestSchema,
@@ -85,6 +86,7 @@ export async function registerRentalTenantPortalRoutes(
         tokenId: ctx.tokenId,
         appointmentId: ctx.appointmentId,
         isReadOnly: ctx.isReadOnly,
+        isPastConfirmCutoff: ctx.isPastConfirmCutoff,
         tokenStatus: ctx.tokenStatus,
         expiresAt: ctx.expiresAt,
         ipAddress,
@@ -115,6 +117,7 @@ export async function registerRentalTenantPortalRoutes(
         tokenId: ctx.tokenId,
         appointmentId: ctx.appointmentId,
         isReadOnly: ctx.isReadOnly,
+        isPastConfirmCutoff: ctx.isPastConfirmCutoff,
         isUsed: ctx.isUsed,
         restrictions: parsed.data.restrictions
           ? {
@@ -155,7 +158,6 @@ export async function registerRentalTenantPortalRoutes(
       const result = await container.rescheduleRequestUseCase.execute({
         tokenId: ctx.tokenId,
         appointmentId: ctx.appointmentId,
-        isReadOnly: ctx.isReadOnly,
         isUsed: ctx.isUsed,
         newDate: parsed.data.newDate,
         newTimeSlotStart: parsed.data.newTimeSlotStart,
@@ -229,6 +231,7 @@ export async function registerRentalTenantPortalRoutes(
         tokenId: ctx.tokenId,
         appointmentId: ctx.appointmentId,
         isReadOnly: ctx.isReadOnly,
+        isPastConfirmCutoff: ctx.isPastConfirmCutoff,
         isUsed: ctx.isUsed,
         restrictions: parsed.data.restrictions
           ? {
@@ -257,7 +260,6 @@ export async function registerRentalTenantPortalRoutes(
       const ctx = request.portalContext!;
       const result = await container.getAvailableGroupsUseCase.execute({
         appointmentId: ctx.appointmentId,
-        isReadOnly: ctx.isReadOnly,
       });
       return reply.status(200).send(result);
     },
@@ -287,7 +289,6 @@ export async function registerRentalTenantPortalRoutes(
         scheduledDate: parsed.data.scheduledDate,
         timeSlotStart: parsed.data.timeSlotStart,
         timeSlotEnd: parsed.data.timeSlotEnd,
-        isReadOnly: ctx.isReadOnly,
         isUsed: ctx.isUsed,
         rentalTenantNote: parsed.data.rentalTenantNote,
         ipAddress,
@@ -302,16 +303,21 @@ export async function registerRentalTenantPortalRoutes(
   // POST /v1/appointments/:appointmentId/portal-token
   app.post(
     '/v1/appointments/:appointmentId/portal-token',
-    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }), response: { 201: successResponseSchema(portalTokenResponseSchema) } } },
+    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }), body: generatePortalTokenBodySchema, response: { 201: successResponseSchema(portalTokenResponseSchema) } } },
     async (request, reply) => {
       const params = appointmentIdParam.safeParse(request.params);
       if (!params.success) {
         throw new ValidationError('Invalid appointment ID', params.error.errors);
       }
+      const body = generatePortalTokenBodySchema.safeParse(request.body);
+      if (!body.success) {
+        throw new ValidationError('Request payload is invalid', body.error.errors);
+      }
 
       const result = await container.generatePortalTokenUseCase.execute({
         appointmentId: params.data.appointmentId,
         actor: request.authContext!,
+        notify: body.data?.notify,
       });
       return reply.status(201).send(success(result));
     },

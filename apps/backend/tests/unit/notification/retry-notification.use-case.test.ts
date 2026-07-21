@@ -8,7 +8,9 @@ import {
 import {
   NotificationNotFoundError,
   NotificationInvalidStatusError,
+  NotificationPayloadScrubbedError,
 } from '../../../src/modules/notification/domain/notification.errors';
+import { REDACTED_PAYLOAD_VALUE } from '../../../src/modules/notification/domain/notification.constants';
 import type { AuditService } from '../../../src/modules/notification/../../../shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
@@ -181,5 +183,39 @@ describe('RetryNotificationUseCase', () => {
         tenantId: 'tenant-1',
       }),
     );
+  });
+
+  it('should reject retry of a notification whose payload was scrubbed', async () => {
+    vi.mocked(notificationRepo.findById).mockResolvedValue(
+      makeNotification({
+        payloadJson: { userName: 'John', resetLink: REDACTED_PAYLOAD_VALUE },
+      }),
+    );
+
+    await expect(
+      useCase.execute({ notificationId: 'notif-1', actor: makeActor() }),
+    ).rejects.toThrow(NotificationPayloadScrubbedError);
+
+    expect(notificationRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('should allow retry when a NON-sensitive field happens to contain the redaction marker', async () => {
+    vi.mocked(notificationRepo.findById).mockResolvedValue(
+      makeNotification({ payloadJson: { rentalTenantName: REDACTED_PAYLOAD_VALUE } }),
+    );
+
+    const result = await useCase.execute({ notificationId: 'notif-1', actor: makeActor() });
+
+    expect(result.status).toBe('PENDING');
+  });
+
+  it('should allow retry when payload has no scrubbed values', async () => {
+    vi.mocked(notificationRepo.findById).mockResolvedValue(
+      makeNotification({ payloadJson: { rentalTenantName: 'John' } }),
+    );
+
+    const result = await useCase.execute({ notificationId: 'notif-1', actor: makeActor() });
+
+    expect(result.status).toBe('PENDING');
   });
 });

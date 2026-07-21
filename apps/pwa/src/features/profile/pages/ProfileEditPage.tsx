@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { applyPhoneMask, formatAuPhone, maxPhoneDigits, stripNonDigits, toE164Au } from '@properfy/shared';
 import { useAuth } from '@/hooks/useAuth';
 import { TopBar } from '@/components/shell/TopBar';
 import { AvatarUploader } from '../components/AvatarUploader';
@@ -12,18 +13,33 @@ export function ProfileEditPage() {
   const { data: availability } = useInspectorAvailabilityTemplate();
   const { mutateAsync: updateSelf, isPending: isSavingPhone } = useUpdateInspectorSelf();
 
-  const [phone, setPhone] = useState(user?.phone ?? '');
+  const [phone, setPhone] = useState(formatAuPhone(user?.phone ?? ''));
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [phoneSuccess, setPhoneSuccess] = useState(false);
 
-  const isPhoneDirty = phone !== (user?.phone ?? '');
+  const isPhoneDirty = phone !== formatAuPhone(user?.phone ?? '');
   const isAnyDirty = isPhoneDirty;
 
   useUnsavedChangesPrompt(isAnyDirty);
 
+  const handlePhoneChange = useCallback((raw: string) => {
+    const stripped = stripNonDigits(raw);
+    const max = maxPhoneDigits(stripped);
+    const digits = stripped.startsWith('+')
+      ? `+${stripped.slice(1).slice(0, max)}`
+      : stripped.slice(0, max);
+    setPhone(applyPhoneMask(digits));
+    setPhoneError(null);
+    setPhoneSuccess(false);
+  }, []);
+
   const handleSavePhone = useCallback(async () => {
     setPhoneError(null);
     setPhoneSuccess(false);
+    if (phone.trim() && toE164Au(phone) === null) {
+      setPhoneError('Enter a valid Australian phone number');
+      return;
+    }
     try {
       await updateSelf({ phone: phone || null });
       setPhoneSuccess(true);
@@ -75,8 +91,8 @@ export function ProfileEditPage() {
               type="tel"
               aria-label="Phone"
               value={phone}
-              onChange={(e) => { setPhone(e.target.value); setPhoneError(null); setPhoneSuccess(false); }}
-              placeholder="+61 4XX XXX XXX"
+              onChange={(e) => handlePhoneChange(e.target.value)}
+              placeholder="0412 345 678"
               className="rounded-xl border border-black/10 bg-slate-50 px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-real-estate/30"
             />
             {phoneError && <p className="text-xs text-error">{phoneError}</p>}

@@ -288,7 +288,8 @@ describe('RescheduleRequestUseCase – rentalTenantNote', () => {
     updateLastAccessedAt: ReturnType<typeof vi.fn>;
     revokeAllForAppointment: ReturnType<typeof vi.fn>;
     expireActiveTokens: ReturnType<typeof vi.fn>;
-    markUsed: ReturnType<typeof vi.fn>;
+    tryClaim: ReturnType<typeof vi.fn>;
+    releaseClaim: ReturnType<typeof vi.fn>;
   };
   let appointmentRepo: {
     findById: ReturnType<typeof vi.fn>;
@@ -336,7 +337,8 @@ describe('RescheduleRequestUseCase – rentalTenantNote', () => {
       updateLastAccessedAt: vi.fn(),
       revokeAllForAppointment: vi.fn().mockResolvedValue(undefined),
       expireActiveTokens: vi.fn(),
-      markUsed: vi.fn().mockResolvedValue(undefined),
+      tryClaim: vi.fn().mockResolvedValue(true),
+      releaseClaim: vi.fn().mockResolvedValue(undefined),
     };
     appointmentRepo = {
       findById: vi.fn().mockResolvedValue(
@@ -393,7 +395,6 @@ describe('RescheduleRequestUseCase – rentalTenantNote', () => {
     const result = await useCase.execute({
       tokenId: 'token-1',
       appointmentId: 'appt-1',
-      isReadOnly: false,
       isUsed: false,
       newDate: FUTURE_DATE,
       newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',
@@ -412,7 +413,6 @@ describe('RescheduleRequestUseCase – rentalTenantNote', () => {
     await useCase.execute({
       tokenId: 'token-1',
       appointmentId: 'appt-1',
-      isReadOnly: false,
       isUsed: false,
       newDate: FUTURE_DATE,
       newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',

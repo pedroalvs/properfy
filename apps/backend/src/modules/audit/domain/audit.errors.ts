@@ -24,6 +24,7 @@ export class RetentionPeriodTooShortError extends ValidationError {
     super(
       `Retention period for ${categoryName} cannot be shorter than ${minimumYears} years`,
       { categoryName, minimumYears, code: 'RETENTION_PERIOD_TOO_SHORT' },
+      'RETENTION_PERIOD_TOO_SHORT',
     );
   }
 }

@@ -59,7 +59,7 @@ describe('Property summary: countByType (real DB)', () => {
       data: [
         { ...base, property_code: 'SUM-APT-1', type: 'APARTMENT', street: '10 Apartment Ave' },
         { ...base, property_code: 'SUM-APT-2', type: 'APARTMENT', street: '12 Apartment Ave' },
-        { ...base, property_code: 'SUM-COM-1', type: 'COMMERCIAL', street: '99 Commerce Rd' },
+        { ...base, property_code: 'SUM-COM-1', type: 'APARTMENT', street: '99 Commerce Rd' },
         {
           ...base,
           property_code: 'SUM-DEL-1',
@@ -80,15 +80,15 @@ describe('Property summary: countByType (real DB)', () => {
 
     const counts = await repo().countByType({ tenantId: fixtureA.tenantId });
 
-    expect(counts).toEqual({ HOUSE: 1, APARTMENT: 2, COMMERCIAL: 1 });
+    expect(counts).toEqual({ HOUSE: 1, APARTMENT: 3 });
   });
 
   it('aggregates across tenants when tenantId is omitted (AM/OP cross-tenant path)', async () => {
     const counts = await repo().countByType({});
 
-    // Tenant A: 1 HOUSE + 2 APARTMENT + 1 COMMERCIAL; tenant B: 1 HOUSE.
+    // Tenant A: 1 HOUSE + 3 APARTMENT; tenant B: 1 HOUSE.
     // The soft-deleted HOUSE stays excluded even without a tenant scope.
-    expect(counts).toEqual({ HOUSE: 2, APARTMENT: 2, COMMERCIAL: 1 });
+    expect(counts).toEqual({ HOUSE: 2, APARTMENT: 3 });
   });
 
   it('does not leak rows from another tenant', async () => {

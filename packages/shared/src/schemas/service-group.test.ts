@@ -288,10 +288,10 @@ describe('group portal-link schemas', () => {
     expect(sendGroupPortalLinksRequestSchema.safeParse({}).success).toBe(true);
   });
 
-  it('accepts a send request with actorTimezone', () => {
-    expect(
-      sendGroupPortalLinksRequestSchema.safeParse({ actorTimezone: 'Australia/Sydney' }).success,
-    ).toBe(true);
+  it('strips actorTimezone from stale clients (field removed, platform is Sydney-only)', () => {
+    const result = sendGroupPortalLinksRequestSchema.safeParse({ actorTimezone: 'Australia/Sydney' });
+    expect(result.success).toBe(true);
+    expect(result.success && 'actorTimezone' in result.data).toBe(false);
   });
 
   it('accepts a valid plan response', () => {

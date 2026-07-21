@@ -53,9 +53,21 @@ export function PortalPage() {
 
   const handleConfirm = useCallback(
     async (rentalTenantNote?: string) => {
-      await confirmMutation.mutateAsync({ ...(rentalTenantNote ? { rentalTenantNote } : {}) });
+      try {
+        await confirmMutation.mutateAsync({ ...(rentalTenantNote ? { rentalTenantNote } : {}) });
+      } catch (err) {
+        // Portal open in a stale tab: the appointment may have been cancelled or the
+        // cutoff may have passed since load. Refetch so the real state renders.
+        if (
+          err instanceof ApiError &&
+          (err.code === 'PORTAL_APPOINTMENT_INACTIVE' || err.code === 'PORTAL_ACTION_BLOCKED')
+        ) {
+          void refetch();
+        }
+        throw err;
+      }
     },
-    [confirmMutation],
+    [confirmMutation, refetch],
   );
 
   const handleUnavailable = useCallback(
@@ -151,6 +163,9 @@ export function PortalPage() {
   }
 
   const isReadOnly = data.token.isReadOnly;
+  // Confirmation window closed but the token is still valid: only the Yes path locks.
+  // Older API payloads without the field fall back to the legacy behavior (read-only = cutoff).
+  const isPastConfirmCutoff = data.token.isPastConfirmCutoff ?? isReadOnly;
   const isTerminal =
     appointment.status === AppointmentStatus.DONE ||
     appointment.status === AppointmentStatus.REJECTED;
@@ -162,20 +177,21 @@ export function PortalPage() {
     appointment.rentalTenantConfirmationStatus === RentalTenantConfirmationStatus.UNAVAILABLE;
 
   // Show unified form when appointment is actionable. For the urgent-mode case
-  // (already CONFIRMED + past cutoff), the form renders in read-only so the tenant
-  // can only use the No (urgent unavailability) path.
+  // (already CONFIRMED + past cutoff), the form renders with confirm locked so the
+  // tenant can only use the No (urgent unavailability) path.
   const showForm =
     !isTerminal &&
     !alreadyUnavailable &&
-    (!alreadyConfirmed || isReadOnly);
+    (!alreadyConfirmed || isPastConfirmCutoff);
 
   return (
     <PortalLayout>
       <div className="space-y-4">
-        {isReadOnly && (
+        {(isPastConfirmCutoff || isReadOnly) && (
           <InfoBanner>
-            This portal is in restricted mode because the confirmation deadline has passed.
-            You can still report an urgent unavailability until the visit starts.
+            The confirmation deadline has passed, so this inspection can no longer be
+            confirmed. You can still report that you cannot attend, propose a new date,
+            or change to another available time.
           </InfoBanner>
         )}
 
@@ -204,7 +220,7 @@ export function PortalPage() {
           <ResponseConfirmationCard response={data.existingResponse} isExpired={isReadOnly} />
         )}
 
-        {alreadyConfirmed && !isReadOnly && !isTerminal && (
+        {alreadyConfirmed && !isPastConfirmCutoff && !isTerminal && (
           <div className="rounded bg-card-bg p-6 shadow-sm">
             <div className="flex items-center gap-3 text-success">
               <i className="mdi mdi-check-circle text-2xl" />
@@ -237,12 +253,12 @@ export function PortalPage() {
             onConfirm={handleConfirm}
             onUnavailable={handleUnavailable}
             isSubmitting={confirmMutation.isPending || unavailableMutation.isPending}
-            isReadOnly={isReadOnly}
+            confirmDisabled={isPastConfirmCutoff || isReadOnly}
           />
         )}
 
         {/* Change time CTA (US2 / §3.5) */}
-        {!isTerminal && !isReadOnly && (
+        {!isTerminal && (
           <div className="rounded bg-card-bg p-4 shadow-sm">
             {!changeTimeOpen ? (
               <button
@@ -329,11 +345,7 @@ export function PortalPage() {
                 >
                   ← Back
                 </button>
-                <RescheduleForm
-                  appointment={appointment}
-                  token={token}
-                  isReadOnly={isReadOnly}
-                />
+                <RescheduleForm appointment={appointment} token={token} />
               </div>
             )}
           </div>

@@ -1,6 +1,7 @@
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
+import { getErrorMessage } from '@/lib/api-error';
 import { formatDateTime } from '@/lib/format-date';
 import { usePortalActivities } from '../hooks/usePortalActivities';
 
@@ -32,14 +33,20 @@ function formatActionLabel(action: string): string {
 }
 
 export function AppointmentPortalActivityTab({ appointmentId }: AppointmentPortalActivityTabProps) {
-  const { activities, isLoading, isError, refetch } = usePortalActivities(appointmentId);
+  const { activities, isLoading, isError, error, refetch } = usePortalActivities(appointmentId);
 
   if (isLoading) {
     return <LoadingState rows={4} />;
   }
 
   if (isError) {
-    return <ErrorState message="Failed to load portal activities" onRetry={refetch} />;
+    return (
+      <ErrorState
+        message="Failed to load portal activities"
+        detail={getErrorMessage(error)}
+        onRetry={refetch}
+      />
+    );
   }
 
   if (activities.length === 0) {

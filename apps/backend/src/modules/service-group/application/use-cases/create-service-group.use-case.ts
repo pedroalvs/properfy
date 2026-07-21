@@ -9,7 +9,7 @@ import { ServiceGroupEntity } from '../../domain/service-group.entity';
 import { ServiceGroupValidator } from '../../domain/service-group.validator';
 import { AppointmentNotFoundError } from '../../../appointment/domain/appointment.errors';
 import { ServiceRegionInactiveError, ServiceGroupDateInPastError, ServiceGroupTimeInPastError } from '../../domain/service-group.errors';
-import { validateNewSchedule } from '@properfy/shared';
+import { validateNewSchedule, PLATFORM_TIMEZONE } from '@properfy/shared';
 import { NotFoundError } from '../../../../shared/domain/errors';
 import { SystemClock, type Clock } from '../../../../shared/domain/clock';
 import { trySyncAppointmentScheduleToGroup, type ServiceGroupTimeSyncLogger } from '../sync-appointment-time-slot-to-group';
@@ -21,7 +21,6 @@ export interface CreateServiceGroupInput {
   timeWindow: string; // HH:mm-HH:mm
   serviceRegionId?: string | null;
   description?: string;
-  actorTimezone?: string;
   actor: AuthContext;
 }
 
@@ -66,7 +65,7 @@ export class CreateServiceGroupUseCase {
     this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'service_group.create', entityType: 'ServiceGroup' });
 
     // 1b. TZ-aware past-date/time validation (R7: falls back to UTC when tz absent).
-    const tz = input.actorTimezone ?? 'UTC';
+    const tz = PLATFORM_TIMEZONE;
     const scheduleCheck = validateNewSchedule({ date: input.scheduledDate, timeSlot: input.timeWindow, tz });
     if (!scheduleCheck.ok) {
       throw scheduleCheck.code === 'TIME_IN_PAST' ? new ServiceGroupTimeInPastError() : new ServiceGroupDateInPastError();

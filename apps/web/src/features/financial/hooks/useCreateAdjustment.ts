@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
-import { ApiError } from '@/lib/api-error';
+import { toApiError } from '@/lib/api-error';
 
 export interface CreateAdjustmentInput {
   tenantId: string;
@@ -15,17 +15,14 @@ export function useCreateAdjustment() {
 
   return useMutation({
     mutationFn: async (data: CreateAdjustmentInput) => {
-      const { data: response, error } = await api.POST('/v1/financial/entries/adjust' as any, {
+      const { data: responseData, error, response } = await api.POST('/v1/financial/entries/adjust' as any, {
         body: data as any,
         headers: {
           'Idempotency-Key': crypto.randomUUID(),
         },
       });
-      if (error) {
-        const apiError = error as { status?: number; message?: string };
-        throw new ApiError(apiError.status ?? 500, apiError.message ?? 'Failed to create adjustment');
-      }
-      return response;
+      if (error) throw toApiError(error, response?.status);
+      return responseData;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financial-entries'] });

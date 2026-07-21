@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { usePermissions } from '@/hooks/usePermissions';
+import { formatDateTime } from '@/lib/format-date';
 import { useConsentLookup, type ConsentRecord } from '../hooks/useConsentLookup';
 import { ConsentOverrideModal } from './ConsentOverrideModal';
 
@@ -112,7 +113,7 @@ export function ConsentLookup() {
                         </td>
                         <td className="py-2">{entry.changeSource ?? '—'}</td>
                         <td className="py-2 text-text-secondary">
-                          {entry.changedAt ? new Date(entry.changedAt).toLocaleString() : '—'}
+                          {entry.changedAt ? formatDateTime(entry.changedAt) : '—'}
                         </td>
                         <td className="py-2">
                           {entry.optedOut && (

@@ -112,6 +112,24 @@ describe('useAcceptOffer', () => {
     vi.useRealTimers();
   });
 
+  it('surfaces the backend message on unmapped API errors', async () => {
+    vi.useFakeTimers();
+    vi.mocked(apiPost).mockRejectedValueOnce(
+      new ApiError(422, 'Your account is suspended', 'INSPECTOR_SUSPENDED'),
+    );
+
+    const { result } = renderHook(() => useAcceptOffer());
+
+    await act(async () => {
+      await result.current.accept('group-1');
+    });
+
+    expect(result.current.getState('group-1')).toBe('ERROR');
+    expect(mockShowError).toHaveBeenCalledWith('Your account is suspended');
+
+    vi.useRealTimers();
+  });
+
   it('resolves with the final state — ACCEPTED on success, ERROR on retryable failure', async () => {
     vi.mocked(apiPost).mockResolvedValueOnce({ data: {} });
     const { result } = renderHook(() => useAcceptOffer());

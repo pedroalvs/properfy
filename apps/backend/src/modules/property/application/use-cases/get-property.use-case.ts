@@ -17,6 +17,7 @@ export interface GetPropertyOutput {
   tenantName: string | null;
   propertyCode: string;
   type: string;
+  apartmentNumber: string | null;
   street: string;
   addressLine2: string | null;
   suburb: string;
@@ -78,6 +79,7 @@ export class GetPropertyUseCase {
       tenantName: found.tenantName,
       propertyCode: found.property.propertyCode,
       type: found.property.type,
+      apartmentNumber: found.property.apartmentNumber,
       street: found.property.street,
       addressLine2: found.property.addressLine2,
       suburb: found.property.suburb,

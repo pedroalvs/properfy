@@ -7,6 +7,7 @@ import { TENANT_PORTAL_EVENTS } from '../../../../shared/application/events/doma
 import type { IInspectionExecutionRepository } from '../../../inspector-execution/domain/inspection-execution.repository';
 import { RentalTenantPortalActivityEntity } from '../../domain/rental-tenant-portal-activity.entity';
 import { AppointmentRestrictionEntity } from '../../../appointment/domain/appointment-restriction.entity';
+import type { AppointmentEntity } from '../../../appointment/domain/appointment.entity';
 import type { IRentalTenantPortalTokenRepository } from '../../domain/rental-tenant-portal-token.repository';
 import type { AvailableSlot } from '@properfy/shared';
 import {
@@ -20,6 +21,7 @@ export interface ReportUnavailabilityInput {
   tokenId: string;
   appointmentId: string;
   isReadOnly: boolean;
+  isPastConfirmCutoff: boolean;
   isUsed: boolean;
   restrictions?: {
     isHome: boolean;
@@ -82,6 +84,38 @@ export class ReportUnavailabilityUseCase {
       throw new PortalInspectionAlreadyStartedError();
     }
 
+    // 4b. Atomically claim the token before the first side effect. The
+    // conditional write is the real replay guard — the isUsed fast-path above
+    // is stale under concurrency, so two racing requests must resolve here.
+    if (this.tokenRepo) {
+      const claimed = await this.tokenRepo.tryClaim(input.tokenId, input.appointmentId);
+      if (!claimed) {
+        throw new PortalTokenAlreadyUsedError();
+      }
+    }
+
+    try {
+      await this.applyUnavailability(input, appointment);
+    } catch (error) {
+      // Best-effort release so the tenant can retry with the same link;
+      // never mask the original failure.
+      if (this.tokenRepo) {
+        try {
+          await this.tokenRepo.releaseClaim(input.tokenId, input.appointmentId);
+        } catch {
+          // release failure leaves the token consumed — fail-closed
+        }
+      }
+      throw error;
+    }
+
+    return {
+      rentalTenantConfirmationStatus: 'UNAVAILABLE' as const,
+      urgentMode: input.isPastConfirmCutoff,
+    };
+  }
+
+  private async applyUnavailability(input: ReportUnavailabilityInput, appointment: AppointmentEntity): Promise<void> {
     // 4. Snapshot previous values
     const previousValues = {
       rentalTenantConfirmationStatus: appointment.rentalTenantConfirmationStatus,
@@ -106,11 +140,6 @@ export class ReportUnavailabilityUseCase {
       const payload: Record<string, unknown> = { rentalTenantConfirmationStatus: 'UNAVAILABLE' };
       if (input.rentalTenantNote !== undefined) payload.rentalTenantNote = input.rentalTenantNote;
       await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, payload);
-    }
-
-    // 5b. Mark token as used (replay detection)
-    if (this.tokenRepo) {
-      await this.tokenRepo.markUsed(input.tokenId);
     }
 
     // 6. Save restrictions if provided
@@ -162,7 +191,7 @@ export class ReportUnavailabilityUseCase {
       after: { rentalTenantConfirmationStatus: 'UNAVAILABLE' },
       metadata: {
         origin: 'tenant_portal',
-        urgentMode: input.isReadOnly,
+        urgentMode: input.isPastConfirmCutoff,
       },
       ipAddress: input.ipAddress ?? undefined,
     });
@@ -188,10 +217,5 @@ export class ReportUnavailabilityUseCase {
         occurredAt: new Date(),
       });
     }
-
-    return {
-      rentalTenantConfirmationStatus: 'UNAVAILABLE' as const,
-      urgentMode: input.isReadOnly,
-    };
   }
 }

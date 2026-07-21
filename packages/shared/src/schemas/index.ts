@@ -26,3 +26,5 @@ export * from './import';
 export * from './appointment-import';
 export * from './service-region';
 export * from './inspector-availability';
+export * from './fy';
+export * from './phone';

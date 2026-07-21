@@ -213,7 +213,7 @@ export class AppointmentImportRowResolver {
     issues: ImportRowIssue[],
     propertyByKey: Map<string, PropertyEntity>,
   ): ResolvedImportRow['property'] {
-    const { street, addressLine2, suburb, state, postcode, country } = normalized;
+    const { street, addressLine2, apartmentNumber, suburb, state, postcode, country } = normalized;
     if (!street) issues.push(errorIssue('property', 'PROPERTY_STREET_REQUIRED', 'Street is required'));
     if (!suburb) issues.push(errorIssue('property', 'PROPERTY_SUBURB_REQUIRED', 'Suburb is required'));
     if (!state) issues.push(errorIssue('property', 'PROPERTY_STATE_REQUIRED', 'State is required'));
@@ -228,20 +228,27 @@ export class AppointmentImportRowResolver {
         resolution: 'existing',
         propertyId: existing.id,
         propertyCode: existing.propertyCode,
-        street, addressLine2, suburb, state, postcode, country,
+        street, addressLine2, apartmentNumber, suburb, state, postcode, country,
         duplicateOfRow: null,
+        geocode: null,
       };
     }
 
     const firstRow = newPropertyFirstRow.get(key);
     if (firstRow === undefined) newPropertyFirstRow.set(key, rowNumber);
 
+    if (apartmentNumber) {
+      issues.push(warningIssue('property', 'PROPERTY_TYPE_INFERRED_APARTMENT',
+        'Apartment value provided — property will be created as type Apartment'));
+    }
+
     return {
       resolution: 'new',
       propertyId: null,
       propertyCode: null,
-      street, addressLine2, suburb, state, postcode, country,
+      street, addressLine2, apartmentNumber, suburb, state, postcode, country,
       duplicateOfRow: firstRow ?? null,
+      geocode: null,
     };
   }
 

@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback } from 'react';
 import { api } from '@/services/api';
-import { ApiError } from '@/lib/api-error';
+import { toApiError, getErrorMessage } from '@/lib/api-error';
 
 export interface Session {
   id: string;
@@ -18,8 +18,12 @@ export function useSessions() {
   const query = useQuery<Session[]>({
     queryKey: ['auth', 'sessions'],
     queryFn: async () => {
-      const { data, error } = await api.GET('/v1/auth/sessions' as any, {} as any);
-      if (error) throw new ApiError(500, 'Failed to load sessions');
+      const { data, error, response } = await api.GET('/v1/auth/sessions' as any, {} as any);
+      if (error) {
+        const apiError = toApiError(error, response?.status);
+        apiError.message = getErrorMessage(apiError, 'Failed to load sessions');
+        throw apiError;
+      }
       const result = data as any;
       return (result?.data ?? []) as Session[];
     },
@@ -33,12 +37,9 @@ export function useSessions() {
         params: { path: { sessionId } } as any,
       });
       if (error) {
-        const err = error as any;
-        throw new ApiError(
-          response?.status ?? 500,
-          err?.error?.message ?? 'Failed to revoke session',
-          err?.error?.code,
-        );
+        const apiError = toApiError(error, response?.status);
+        apiError.message = getErrorMessage(apiError, 'Failed to revoke session');
+        throw apiError;
       }
       await queryClient.invalidateQueries({ queryKey: ['auth', 'sessions'] });
     } finally {

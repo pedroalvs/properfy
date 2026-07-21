@@ -75,11 +75,13 @@ const fullResolvedRow = {
     propertyCode: 'PROP-001',
     street: '1 Main St',
     addressLine2: null,
+    apartmentNumber: null,
     suburb: 'Kogarah',
     state: 'NSW',
     postcode: '2217',
     country: 'AU',
     duplicateOfRow: null,
+    geocode: null,
   },
   contact: {
     resolution: 'new',
@@ -180,12 +182,13 @@ describe('POST /v1/appointments/import/:importId/commit', () => {
       .post(`/v1/appointments/import/${IMPORT_ID}/commit`)
       .set('Authorization', 'Bearer valid-token')
       .set('Idempotency-Key', 'commit-key-1')
+      // actorTimezone is a legacy field — the schema strips it (Sydney-only platform).
       .send({ skipInvalidRows: true, actorTimezone: 'Australia/Sydney' });
 
     expect(res.status).toBe(202);
     expect(res.body.data).toEqual({ importId: IMPORT_ID, status: 'PROCESSING' });
     expect(mockCommitExecute).toHaveBeenCalledWith({
-      importId: IMPORT_ID, skipInvalidRows: true, actorTimezone: 'Australia/Sydney',
+      importId: IMPORT_ID, skipInvalidRows: true,
       idempotencyKey: 'commit-key-1', actor: amContext,
     });
   });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
@@ -16,15 +16,6 @@ vi.mock('@/services/api', () => ({
     PATCH: vi.fn(),
     PUT: vi.fn(),
     DELETE: vi.fn(),
-  },
-}));
-
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
   },
 }));
 
@@ -495,6 +486,80 @@ describe('AppointmentDetailPage — Send Portal Link status gating', () => {
   it('hides Send Portal Link for DONE appointments', () => {
     renderPage('/appointments/done');
     expect(screen.queryByTestId('send-portal-link-button')).not.toBeInTheDocument();
+  });
+});
+
+describe('AppointmentDetailPage — Copy Portal Link generate-only modal', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUserRole = 'AM';
+    Object.assign(navigator, {
+      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
+  });
+
+  it('enables Copy without an active token when generation is possible (AWAITING_INSPECTOR)', () => {
+    renderPage('/appointments/awaiting');
+    expect(screen.getByTestId('copy-portal-link-button')).not.toBeDisabled();
+  });
+
+  it('keeps Copy disabled for DRAFT appointments without a token', () => {
+    renderPage(); // default mock appointment is DRAFT
+    expect(screen.getByTestId('copy-portal-link-button')).toBeDisabled();
+  });
+
+  it('opens the confirmation modal instead of copying when no token exists', async () => {
+    renderPage('/appointments/awaiting');
+    fireEvent.click(screen.getByTestId('copy-portal-link-button'));
+    await screen.findByText(/will NOT be sent to the tenant/i);
+    expect(api.POST).not.toHaveBeenCalled();
+    expect(api.GET).not.toHaveBeenCalled();
+  });
+
+  it('generates with notify:false, copies the link and refetches on confirm', async () => {
+    vi.mocked(api.POST).mockResolvedValueOnce({
+      data: { data: { token: 'raw-tk', expiresAt: '2026-06-01T14:00:00Z', dispatched: false, reason: 'NOTIFY_DISABLED' } },
+      error: undefined,
+      response: { status: 201 } as Response,
+    } as never);
+    vi.mocked(api.GET).mockResolvedValueOnce({
+      data: { data: { portalUrl: 'https://portal.test/portal/raw-tk', expiresAt: '2026-06-01T14:00:00Z' } },
+      error: undefined,
+      response: { status: 200 } as Response,
+    } as never);
+    renderPage('/appointments/awaiting');
+    fireEvent.click(screen.getByTestId('copy-portal-link-button'));
+    await screen.findByText(/will NOT be sent to the tenant/i);
+    fireEvent.click(screen.getByRole('button', { name: /generate & copy/i }));
+    await screen.findByText(/generated and copied/i);
+    expect(api.POST).toHaveBeenCalledWith(
+      '/v1/appointments/awaiting/portal-token',
+      expect.objectContaining({ body: { notify: false } }),
+    );
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://portal.test/portal/raw-tk');
+    expect(mockRefetch).toHaveBeenCalled();
+  });
+
+  it('does nothing when the modal is cancelled', async () => {
+    renderPage('/appointments/awaiting');
+    fireEvent.click(screen.getByTestId('copy-portal-link-button'));
+    await screen.findByText(/will NOT be sent to the tenant/i);
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^cancel$/i }));
+    expect(api.POST).not.toHaveBeenCalled();
+    expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+  });
+
+  it('copies directly without the modal when a token is already active', async () => {
+    vi.mocked(api.GET).mockResolvedValueOnce({
+      data: { data: { portalUrl: 'https://portal.test/portal/abc123', expiresAt: '2026-06-01T14:00:00Z' } },
+      error: undefined,
+      response: { status: 200 } as Response,
+    } as never);
+    renderPage('/appointments/with-portal-token');
+    fireEvent.click(screen.getByTestId('copy-portal-link-button'));
+    await screen.findByText('Portal link copied to clipboard');
+    expect(screen.queryByText(/will NOT be sent to the tenant/i)).not.toBeInTheDocument();
+    expect(api.POST).not.toHaveBeenCalled();
   });
 });
 

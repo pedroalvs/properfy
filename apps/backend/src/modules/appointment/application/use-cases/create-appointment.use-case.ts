@@ -1,4 +1,5 @@
 import { type AuthContext, type PropertyType } from '@properfy/shared';
+import { PLATFORM_TIMEZONE } from '@properfy/shared';
 import type { AppointmentContactRole, AppointmentApp, AppointmentCustomField } from '@properfy/shared';
 import {
   NotFoundError,
@@ -46,8 +47,8 @@ export interface CreateAppointmentInput {
   branchId: string;
   propertyId?: string;
   property?: {
-    propertyCode: string;
     type: PropertyType;
+    apartmentNumber?: string;
     street: string;
     addressLine2?: string;
     suburb: string;
@@ -97,7 +98,6 @@ export interface CreateAppointmentInput {
   observation?: string;
   customFields?: AppointmentCustomField[];
   idempotencyKey?: string;
-  actorTimezone?: string;
   /**
    * Bypasses ONLY the time-of-day re-check (`TIME_IN_PAST`) below — the
    * date-level check (`DATE_IN_PAST`) always still runs regardless of this
@@ -187,12 +187,12 @@ export class CreateAppointmentUseCase {
     // 1b. CL_USER must have create_appointments permission
     this.authorizationService.assertClUserPermission(actor, 'create_appointments');
 
-    // 1c. TZ-aware past-date/time validation — fail fast before expensive repo lookups.
-    // Falls back to UTC when actorTimezone absent (R7: PWA / future callers).
+    // 1c. Past-date/time validation anchored to the platform timezone (Sydney) —
+    // fail fast before expensive repo lookups.
     // DATE_IN_PAST always throws, regardless of skipTimeInPastCheck — only
     // the time-of-day outcome is ever bypassed (see the flag's doc comment).
     {
-      const tz = input.actorTimezone ?? 'UTC';
+      const tz = PLATFORM_TIMEZONE;
       const scheduleCheck = validateNewSchedule({ date: input.scheduledDate, timeSlot: input.timeSlotStart, tz });
       if (!scheduleCheck.ok) {
         if (scheduleCheck.code === 'TIME_IN_PAST') {
@@ -243,8 +243,8 @@ export class CreateAppointmentUseCase {
       const createdProperty = await this.createPropertyUseCase.execute({
         tenantId,
         branchId: input.branchId,
-        propertyCode: input.property.propertyCode,
         type: input.property.type,
+        apartmentNumber: input.property.apartmentNumber,
         street: input.property.street,
         addressLine2: input.property.addressLine2,
         suburb: input.property.suburb,

@@ -5,6 +5,7 @@ import { formatDateTime } from '@/lib/format-date';
 import { UserRoleChip } from './UserRoleChip';
 import { UserStatusChip } from './UserStatusChip';
 import type { UserDetail } from '../types';
+import { formatAuPhone } from '@/lib/phone-mask';
 
 interface UserDetailSectionsProps {
   user: UserDetail;
@@ -16,7 +17,7 @@ export function UserDetailSections({ user }: UserDetailSectionsProps) {
       <FormSection title="Personal Details">
         <DetailRow label="Name" value={user.name} />
         <DetailRow label="Email" value={user.email} />
-        <DetailRow label="Phone" value={user.phone} />
+        <DetailRow label="Phone" value={user.phone ? formatAuPhone(user.phone) : user.phone} />
       </FormSection>
 
       <FormSection title="Profile">

@@ -19,15 +19,6 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
-}));
-
 vi.mock('@/lib/auth-storage', () => ({
   authStorage: {
     getAccessToken: vi.fn(() => null),
@@ -140,13 +131,26 @@ describe('PropertyCreatePage', () => {
   it('renders required form fields', () => {
     renderPage();
     expect(screen.getByLabelText('Agency')).toBeInTheDocument();
-    expect(screen.getByLabelText('Property Code')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Property Code')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Verified Address')).toBeInTheDocument();
     expect(screen.getByLabelText('Type')).toBeInTheDocument();
     expect(screen.getByLabelText('Street')).toBeInTheDocument();
     expect(screen.getByLabelText('Suburb')).toBeInTheDocument();
     expect(screen.getByLabelText('Postcode')).toBeInTheDocument();
     expect(screen.getByLabelText('State')).toBeInTheDocument();
+  });
+
+  it('shows the Apartment field only when type is APARTMENT', () => {
+    renderPage();
+    expect(screen.queryByLabelText('Apartment')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Type'));
+    fireEvent.click(screen.getByText('Apartment'));
+    expect(screen.getByLabelText('Apartment')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Type'));
+    fireEvent.click(screen.getByText('House'));
+    expect(screen.queryByLabelText('Apartment')).not.toBeInTheDocument();
   });
 
   it('renders Create Property button', () => {
@@ -206,7 +210,6 @@ describe('PropertyCreatePage', () => {
 
     renderPage(`/properties/new?tenantId=${TENANT_ID}&branchId=${BRANCH_ID}`);
 
-    fireEvent.change(screen.getByLabelText('Property Code'), { target: { value: 'PROP-1' } });
     fireEvent.click(screen.getByLabelText('Type'));
     fireEvent.click(screen.getByText('House'));
     fireEvent.change(screen.getByLabelText('Street'), { target: { value: '1 Test St' } });

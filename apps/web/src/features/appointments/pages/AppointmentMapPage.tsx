@@ -15,7 +15,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 import type { ServiceGroupStatus } from '@properfy/shared';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
-import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
+import { useAllPagesQuery, type ListParams } from '@/hooks/useApiQuery';
 import {
   AppointmentMapFilterPanel,
   DEFAULT_APPOINTMENT_FILTERS,
@@ -27,6 +27,7 @@ import {
 import { MapLassoSelect, type LassoPoint, type LassoState, type MapLassoSelectHandle } from '@/components/map/MapLassoSelect';
 import { MapFilterToggleButton } from '@/components/map/MapFilterToggleButton';
 import { MapListViewToggleButton } from '@/components/map/MapListViewToggleButton';
+import { MapLassoToggleButton } from '@/components/map/MapLassoToggleButton';
 import { MapBulkActionModal } from '../components/MapBulkActionModal';
 import { MapAddToGroupSubModal } from '../components/MapAddToGroupSubModal';
 import { AppointmentMapDetailPanel } from '../components/AppointmentMapDetailPanel';
@@ -249,14 +250,9 @@ export function AppointmentMapPage() {
   const lassoRef = useRef<MapLassoSelectHandle | null>(null);
   // Browser timezone — forwarded so the per-day idempotency bucket honours
   // the operator's local "today" instead of the server clock.
-  const actorTimezone = useMemo(() => {
-    try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return undefined; }
-  }, []);
 
   // Appointment data — fetched when mode is 'appointments'
   const appointmentParams: ListParams = useMemo(() => ({
-    page: 1,
-    pageSize: 100,
     // ungroupedOnly: when the toggle is OFF, ask the backend to pre-filter so
     // only non-grouped appointments are returned (performance + semantic alignment).
     // When the toggle is ON the backend returns all and the client shows all.
@@ -281,7 +277,7 @@ export function AppointmentMapPage() {
     isError: appointmentsError,
     error: appointmentsErrorObj,
     refetch: refetchAppointments,
-  } = usePaginatedQuery<AppointmentMapItem>(
+  } = useAllPagesQuery<AppointmentMapItem>(
     ['appointments-map'],
     '/v1/appointments',
     appointmentParams,
@@ -298,8 +294,6 @@ export function AppointmentMapPage() {
 
   // Group data — fetched when mode is 'groups'
   const groupParams: ListParams = useMemo(() => ({
-    page: 1,
-    pageSize: 100,
     includeAppointments: 'true',
     ...(groupFilters.statuses.length > 0 ? { status: groupFilters.statuses.join(',') } : {}),
     ...(groupFilters.search ? { search: groupFilters.search } : {}),
@@ -316,7 +310,7 @@ export function AppointmentMapPage() {
     isError: groupsError,
     error: groupsErrorObj,
     refetch: refetchGroups,
-  } = usePaginatedQuery<ServiceGroupMapItem>(
+  } = useAllPagesQuery<ServiceGroupMapItem>(
     ['service-groups-map'],
     '/v1/service-groups',
     groupParams,
@@ -334,15 +328,16 @@ export function AppointmentMapPage() {
   // stripped by the query-params serializer when disabled.
   const drilledGroupId = mode === 'groups' ? selectedGroupItem?.id ?? null : null;
   const groupApptParams: ListParams = useMemo(
-    () => ({ page: 1, pageSize: 100, serviceGroupId: drilledGroupId ?? '' }),
+    () => ({ serviceGroupId: drilledGroupId ?? '' }),
     [drilledGroupId],
   );
   const {
     data: groupApptResponse,
     isFetching: groupApptFetching,
     isError: groupApptError,
+    error: groupApptErrorObj,
     refetch: refetchGroupAppointments,
-  } = usePaginatedQuery<AppointmentMapItem>(
+  } = useAllPagesQuery<AppointmentMapItem>(
     ['appointments-by-group', drilledGroupId],
     '/v1/appointments',
     groupApptParams,
@@ -360,11 +355,11 @@ export function AppointmentMapPage() {
   // operator previews and then drills into the same group.
   const previewGroupId = mode === 'groups' && !selectedGroupItem ? previewGroup?.id ?? null : null;
   const previewApptParams: ListParams = useMemo(
-    () => ({ page: 1, pageSize: 100, serviceGroupId: previewGroupId ?? '' }),
+    () => ({ serviceGroupId: previewGroupId ?? '' }),
     [previewGroupId],
   );
   const { data: previewApptResponse, isFetching: previewApptFetching } =
-    usePaginatedQuery<AppointmentMapItem>(
+    useAllPagesQuery<AppointmentMapItem>(
       ['appointments-by-group', previewGroupId],
       '/v1/appointments',
       previewApptParams,
@@ -1073,9 +1068,6 @@ export function AppointmentMapPage() {
 
       <MapFloatingAction
         actions={[
-          ...(lassoAvailable
-            ? [{ icon: 'mdi-selection-drag', label: 'Select Area', onClick: handleLassoToggle, active: lassoState !== 'idle' }]
-            : []),
           { icon: 'mdi-crosshairs-gps', label: 'Re-center', onClick: handleRecenter },
         ]}
       />
@@ -1097,18 +1089,24 @@ export function AppointmentMapPage() {
           </div>
         )}
 
-        {/* C10 — List view button: top-right, offset left of the Mapbox zoom controls */}
-        <div className="pointer-events-none absolute right-14 top-4 z-30">
+        {/* C10 — top-right toolbar: List view + lasso, offset left of the
+            Mapbox zoom controls. Stacked vertically so the lasso button never
+            collides with the top-center drawing banner. */}
+        <div className="pointer-events-none absolute right-14 top-4 z-30 flex flex-col items-end gap-2">
           <div className="pointer-events-auto">
             <MapListViewToggleButton mode={mode} />
           </div>
+          {lassoAvailable && (
+            <div className="pointer-events-auto">
+              <MapLassoToggleButton active={lassoState !== 'idle'} onClick={handleLassoToggle} />
+            </div>
+          )}
         </div>
 
       <MapBulkActionModal
         appointments={selectedAppointmentsForPanel}
         open={(lassoState === 'review' || lassoState === 'applying') && mode === 'appointments'}
         onClose={handleBulkModalClose}
-        actorTimezone={actorTimezone}
         actorRole={actorRole}
         clUserFlags={clUserFlags}
         onAddToGroup={handleOpenAddToGroup}
@@ -1150,13 +1148,13 @@ export function AppointmentMapPage() {
         externalSelectedIds={groupLassoSelectedIds ?? undefined}
         isLoading={groupApptFetching}
         isError={groupApptError}
+        error={groupApptErrorObj}
         onRetry={() => { void refetchGroupAppointments(); }}
         title={selectedGroupItem?.name ?? 'Group appointments'}
         emptyText="This group has no appointments."
         resizeStorageKey="appointments-map.group-modal.width"
         showGroupCreationActions={false}
         onClose={() => { setSelectedGroupItem(null); setSelectedItem(null); }}
-        actorTimezone={actorTimezone}
         actorRole={actorRole}
         clUserFlags={clUserFlags}
         onResize={setGroupModalWidth}

@@ -105,19 +105,20 @@ describe('BuildNotificationPayloadService', () => {
 
   // ── H1: Timezone-correct date formatting ──────────────────────────────────
 
-  it('H1: formats scheduledDate in tenant timezone, not UTC', () => {
+  it('H1: formats scheduledDate in the platform timezone (Sydney), not UTC', () => {
     // scheduledDate = 2026-04-30T23:00:00Z = 2026-05-01 09:00 Australia/Sydney (UTC+10)
     const result = svc.build(baseCtx());
     expect(result.scheduledDate).toBe('2026-05-01');
   });
 
-  it('H1: uses UTC date when timezone is UTC', () => {
+  it('H1: formats in Sydney even when the tenant record carries another timezone', () => {
+    // tenant.timezone is ignored — the platform is Sydney-only.
     const tenant = makeTenant({ timezone: 'UTC' });
     const appointment = makeAppointment({
-      scheduledDate: new Date('2026-04-30T23:00:00.000Z'),
+      scheduledDate: new Date('2026-04-30T23:00:00.000Z'), // 2026-05-01 09:00 Sydney
     });
     const result = svc.build(baseCtx({ tenant, appointment }));
-    expect(result.scheduledDate).toBe('2026-04-30');
+    expect(result.scheduledDate).toBe('2026-05-01');
   });
 
   // ── H2: Required variable enforcement ─────────────────────────────────────

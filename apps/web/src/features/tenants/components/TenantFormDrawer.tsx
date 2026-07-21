@@ -18,21 +18,6 @@ import { useTenantAdminSave } from '../hooks/useTenantAdminSave';
 import type { TenantAdminFormData, TenantAdminFormErrors } from '../types';
 import { EMPTY_TENANT_ADMIN_FORM } from '../types';
 
-const TIMEZONE_OPTIONS = [
-  { value: 'America/Sao_Paulo', label: 'America/Sao Paulo (BRT)' },
-  { value: 'America/New_York', label: 'America/New York (EST)' },
-  { value: 'America/Chicago', label: 'America/Chicago (CST)' },
-  { value: 'America/Denver', label: 'America/Denver (MST)' },
-  { value: 'America/Los_Angeles', label: 'America/Los Angeles (PST)' },
-  { value: 'Europe/London', label: 'Europe/London (GMT)' },
-  { value: 'Europe/Berlin', label: 'Europe/Berlin (CET)' },
-  { value: 'Australia/Sydney', label: 'Australia/Sydney (AEST)' },
-  { value: 'Australia/Melbourne', label: 'Australia/Melbourne (AEST)' },
-  { value: 'Australia/Brisbane', label: 'Australia/Brisbane (AEST)' },
-  { value: 'Australia/Adelaide', label: 'Australia/Adelaide (ACST)' },
-  { value: 'Australia/Perth', label: 'Australia/Perth (AWST)' },
-];
-
 const CURRENCY_OPTIONS = [
   { value: 'AUD', label: 'AUD - Australian Dollar' },
   { value: 'BRL', label: 'BRL - Brazilian Real' },
@@ -75,7 +60,6 @@ export function TenantFormDrawer({
       const data: TenantAdminFormData = {
         name: tenant.name,
         legalName: tenant.legalName ?? '',
-        timezone: tenant.timezone,
         currency: tenant.currency,
         appointmentCodePrefix: tenant.appointmentCodePrefix ?? '',
         notes: tenant.notes ?? '',
@@ -124,11 +108,15 @@ export function TenantFormDrawer({
     if (result.success) {
       showSuccess(isEditMode ? 'Agency updated successfully' : 'Agency created successfully');
       onSaved();
-    } else if (result.fieldErrors) {
-      // Inline field-level errors (e.g. a 409 prefix conflict).
-      setErrors(result.fieldErrors);
     } else {
-      showError(result.error ?? 'Failed to save');
+      // Inline field-level errors (e.g. a 409 prefix conflict or backend
+      // VALIDATION_ERROR details); unmatched details keep the snackbar.
+      if (result.fieldErrors) {
+        setErrors((prev) => ({ ...prev, ...result.fieldErrors }));
+      }
+      if (result.error || !result.fieldErrors) {
+        showError(result.error ?? 'Failed to save');
+      }
     }
   }, [isEditMode, form, validate, save, tenantId, showSuccess, showError, onSaved]);
 
@@ -183,16 +171,6 @@ export function TenantFormDrawer({
                         placeholder="Legal entity name"
                         error={!!errors.legalName}
                         aria-label="Legal Name"
-                      />
-                    </FormField>
-                    <FormField label="Timezone" required error={errors.timezone}>
-                      <SelectInput
-                        value={form.timezone}
-                        onChange={(v) => updateField('timezone', v)}
-                        options={TIMEZONE_OPTIONS}
-                        placeholder="Select timezone"
-                        error={!!errors.timezone}
-                        aria-label="Timezone"
                       />
                     </FormField>
                     <FormField label="Currency" required error={errors.currency}>

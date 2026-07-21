@@ -13,6 +13,7 @@ function makeProperty(overrides: Partial<Property> = {}): Property {
     branchName: 'Filial Centro',
     tenantName: null,
     propertyCode: 'IMV-001',
+    apartmentNumber: null,
     type: PropertyType.HOUSE,
     street: 'Rua das Flores, 123',
     addressLine2: null,
@@ -53,9 +54,9 @@ describe('PropertyTable', () => {
   });
 
   it('renders PropertyTypeChip for type', () => {
-    const prop = makeProperty({ type: PropertyType.COMMERCIAL });
+    const prop = makeProperty({ type: PropertyType.APARTMENT });
     render(<PropertyTable data={[prop]} />);
-    expect(screen.getByText('Commercial')).toBeInTheDocument();
+    expect(screen.getByText('Apartment')).toBeInTheDocument();
   });
 
   it('renders em dash for null branchName', () => {

@@ -2,12 +2,25 @@ import { useState, useCallback } from 'react';
 import {
   contactRegistrySchema,
   contactRegistryUpdateSchema,
+  getErrorMessage,
+  getFieldErrors,
   type ContactChannelType,
 } from '@properfy/shared';
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
+import { identityFieldMapper } from '@/lib/server-field-errors';
 import type { ContactFormData, ContactFormErrors } from '../types';
+
+/** Backend VALIDATION_ERROR detail paths that mirror the flat registry schema. */
+const flatFieldMapper = identityFieldMapper<keyof ContactFormData>([
+  'type',
+  'displayName',
+  'company',
+  'primaryEmail',
+  'primaryPhone',
+  'notes',
+]);
 
 function trimToNullableString(v: string): string | null {
   const t = v.trim();
@@ -78,7 +91,17 @@ function zodErrorsToFormErrors(issues: { path: (string | number)[]; message: str
   const errors: ContactFormErrors = {};
   for (const issue of issues) {
     const top = issue.path[0];
-    const key = (typeof top === 'string' ? top : 'additionalChannels') as keyof ContactFormErrors;
+    // Per-row channel errors: path ['additionalChannels', index, 'value'|...]
+    if (top === 'additionalChannels' && typeof issue.path[1] === 'number') {
+      const index = issue.path[1];
+      const rowErrors = errors.additionalChannelErrors ?? {};
+      if (!rowErrors[index]) {
+        rowErrors[index] = isRequiredError(issue) ? 'Required field' : issue.message;
+        errors.additionalChannelErrors = rowErrors;
+      }
+      continue;
+    }
+    const key = (typeof top === 'string' ? top : 'additionalChannels') as keyof Omit<ContactFormErrors, 'additionalChannelErrors'>;
     if (key && !errors[key]) {
       errors[key] = isRequiredError(issue) ? 'Required field' : issue.message;
     }
@@ -91,7 +114,55 @@ export interface SaveResult {
   /** API error code, e.g. CONTACT_EMAIL_EXISTS / CONTACT_PHONE_EXISTS / VALIDATION_ERROR. */
   errorCode?: string;
   errorMessage?: string;
+  /** Backend VALIDATION_ERROR details mapped to form fields (inline display). */
+  fieldErrors?: ContactFormErrors;
   id?: string;
+}
+
+/**
+ * Normalize an API error into the contact SaveResult failure shape.
+ *
+ * Flat detail paths map 1:1 to form fields. Per-row `additionalChannels.N.*`
+ * paths are remapped from payload index to form row index (the payload builder
+ * drops rows without a channel/value, see `buildAdditionalChannels`); an index
+ * that no longer maps to a form row falls back to the summary snackbar.
+ */
+function toFailureResult(error: unknown, data: ContactFormData): SaveResult {
+  const apiErr = error as { error?: { code?: string } };
+  const details = getFieldErrors(error);
+  const channelFormIndexes = data.additionalChannels
+    .map((c, i) => ({ c, i }))
+    .filter(({ c }) => c.channel && c.value.trim() !== '')
+    .map(({ i }) => i);
+  const fieldErrors: ContactFormErrors = {};
+  let unmatched = false;
+  for (const [path, message] of Object.entries(details)) {
+    const flat = flatFieldMapper(path);
+    if (flat !== undefined) {
+      if (fieldErrors[flat] === undefined) fieldErrors[flat] = message;
+      continue;
+    }
+    const channelMatch = /^additionalChannels\.(\d+)\./.exec(path);
+    if (channelMatch) {
+      const formIndex = channelFormIndexes[Number(channelMatch[1])];
+      if (formIndex !== undefined) {
+        const rowErrors = fieldErrors.additionalChannelErrors ?? {};
+        if (rowErrors[formIndex] === undefined) rowErrors[formIndex] = message;
+        fieldErrors.additionalChannelErrors = rowErrors;
+        continue;
+      }
+    }
+    unmatched = true;
+  }
+  const matched = Object.keys(fieldErrors).length > 0;
+  return {
+    success: false,
+    errorCode: apiErr?.error?.code ?? 'UNKNOWN_ERROR',
+    ...(matched ? { fieldErrors } : {}),
+    ...(!matched || unmatched
+      ? { errorMessage: getErrorMessage(error, 'Request failed') }
+      : {}),
+  };
 }
 
 export interface UseContactSaveReturn {
@@ -117,6 +188,20 @@ export function useContactSave(): UseContactSaveReturn {
     const errors: ContactFormErrors = {};
     if (!result.success) {
       Object.assign(errors, zodErrorsToFormErrors(result.error.issues));
+      // buildAdditionalChannels drops empty rows before parsing, so zod issue
+      // indexes refer to the filtered payload — remap them to form row indexes.
+      if (errors.additionalChannelErrors) {
+        const formIndexes = data.additionalChannels
+          .map((c, i) => ({ c, i }))
+          .filter(({ c }) => c.channel && c.value.trim() !== '')
+          .map(({ i }) => i);
+        const remapped: Record<number, string> = {};
+        for (const [payloadIndex, message] of Object.entries(errors.additionalChannelErrors)) {
+          const formIndex = formIndexes[Number(payloadIndex)];
+          if (formIndex !== undefined) remapped[formIndex] = message;
+        }
+        errors.additionalChannelErrors = remapped;
+      }
     }
     return errors;
   }, []);
@@ -132,13 +217,7 @@ export function useContactSave(): UseContactSaveReturn {
       if (contactId) {
         const payload = toUpdatePayload(data);
         const { error } = await api.PATCH(`/v1/contacts/${contactId}` as any, { body: payload as any });
-        if (error) {
-          return {
-            success: false,
-            errorCode: (error as any)?.error?.code ?? 'UNKNOWN_ERROR',
-            errorMessage: (error as any)?.error?.message ?? 'Request failed',
-          };
-        }
+        if (error) return toFailureResult(error, data);
       } else {
         // 024 §FR-308 — distinguish "AM/OP picked Standalone" (override === null,
         // post tenantId: null) from "fall back to JWT" (override === undefined).
@@ -146,13 +225,7 @@ export function useContactSave(): UseContactSaveReturn {
         const resolvedTenantId = tenantIdOverride !== undefined ? tenantIdOverride : (user?.tenantId ?? null);
         const payload = toCreatePayload(data, resolvedTenantId);
         const { data: responseData, error } = await api.POST('/v1/contacts' as any, { body: payload as any });
-        if (error) {
-          return {
-            success: false,
-            errorCode: (error as any)?.error?.code ?? 'UNKNOWN_ERROR',
-            errorMessage: (error as any)?.error?.message ?? 'Request failed',
-          };
-        }
+        if (error) return toFailureResult(error, data);
         newId = (responseData as any)?.data?.id;
       }
       queryClient.invalidateQueries({ queryKey: ['contacts'] });

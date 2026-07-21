@@ -88,6 +88,16 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     body: 'The inspection for appointment {{appointmentId}} (inspector {{inspectorId}}) started at {{startedAt}} and has been in progress for more than {{hoursStuck}} hours without being finished. Please review the execution and follow up with the inspector.',
     notificationClass: 'TRANSACTIONAL',
   },
+  {
+    // Security email for the self-service forgot-password flow. TRANSACTIONAL so it can
+    // never be consent-blocked. The resetLink already points at the right app for the
+    // recipient (web app, or PWA for inspectors).
+    code: 'PASSWORD_RESET',
+    channel: 'EMAIL',
+    subject: 'Reset your Properfy password',
+    body: 'Hi {{userName}}, we received a request to reset your Properfy password. Reset it here: {{resetLink}}. This link expires in 1 hour. If you did not request this, you can safely ignore this email.',
+    notificationClass: 'TRANSACTIONAL',
+  },
   // ── SMS templates ─────────────────────────────────────────────────────────
   {
     code: 'INSPECTION_NOTICE_SMS',

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { UserRole } from '@properfy/shared';
+import { UserRole, PropertyType } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
@@ -16,7 +16,7 @@ import { useFormOptions } from '@/hooks/useFormOptions';
 import { useAuth } from '@/hooks/useAuth';
 import { useGoBack } from '@/hooks/useGoBack';
 import { usePropertySave } from '../hooks/usePropertySave';
-import { PROPERTY_TYPE_OPTIONS, STATE_OPTIONS } from '../constants/form-options';
+import { PROPERTY_TYPE_OPTIONS, STATE_OPTIONS, YES_NO_OPTIONS } from '../constants/form-options';
 import type { PropertyFormData, PropertyFormErrors } from '../types';
 import { EMPTY_PROPERTY_FORM } from '../types';
 import type { AddressLookupSuggestion } from '@/lib/address';
@@ -148,7 +148,12 @@ export function PropertyCreatePage() {
         navigate('/properties');
       }
     } else {
-      showError(result.error ?? 'Failed to create property');
+      if (result.fieldErrors) {
+        setErrors((prev) => ({ ...prev, ...result.fieldErrors }));
+      }
+      if (result.error || !result.fieldErrors) {
+        showError(result.error ?? 'Failed to create property');
+      }
     }
   }, [effectiveTenantId, form, navigate, requiresTenantSelection, save, showError, showSuccess, validate]);
 
@@ -204,15 +209,6 @@ export function PropertyCreatePage() {
               </FormSection>
             )}
             <FormSection title="Identification" columns={2}>
-              <FormField label="Property Code" required error={errors.propertyCode}>
-                <TextInput
-                  value={form.propertyCode}
-                  onChange={(v) => updateField('propertyCode', v)}
-                  placeholder="e.g. PROP-001"
-                  error={!!errors.propertyCode}
-                  aria-label="Property Code"
-                />
-              </FormField>
               <FormField label="Type" required error={errors.type}>
                 <SelectInput
                   value={form.type}
@@ -223,6 +219,16 @@ export function PropertyCreatePage() {
                   aria-label="Type"
                 />
               </FormField>
+              {form.type === PropertyType.APARTMENT && (
+                <FormField label="Apartment" error={errors.apartmentNumber}>
+                  <TextInput
+                    value={form.apartmentNumber}
+                    onChange={(v) => updateField('apartmentNumber', v)}
+                    placeholder="e.g. Apt 12B"
+                    aria-label="Apartment"
+                  />
+                </FormField>
+              )}
               <FormField label="Branch" error={errors.branchId}>
                 <SelectInput
                   value={form.branchId}
@@ -307,6 +313,51 @@ export function PropertyCreatePage() {
                   value={form.country}
                   onChange={(v) => updateField('country', v)}
                   aria-label="Country"
+                />
+              </FormField>
+            </FormSection>
+
+            <FormSection title="Details" columns={2}>
+              <FormField label="Private Area (m²)" error={errors.privateAreaM2}>
+                <TextInput
+                  value={form.privateAreaM2}
+                  onChange={(v) => updateField('privateAreaM2', v)}
+                  placeholder="85.5"
+                  aria-label="Private Area (m²)"
+                />
+              </FormField>
+              <FormField label="Total Area (m²)" error={errors.totalAreaM2}>
+                <TextInput
+                  value={form.totalAreaM2}
+                  onChange={(v) => updateField('totalAreaM2', v)}
+                  placeholder="120"
+                  aria-label="Total Area (m²)"
+                />
+              </FormField>
+              <FormField label="Furnished" error={errors.furnished}>
+                <SelectInput
+                  value={form.furnished}
+                  onChange={(v) => updateField('furnished', v as '' | 'true' | 'false')}
+                  options={YES_NO_OPTIONS}
+                  placeholder="Not specified"
+                  aria-label="Furnished"
+                />
+              </FormField>
+              <FormField label="Linen Provided" error={errors.linenProvided}>
+                <SelectInput
+                  value={form.linenProvided}
+                  onChange={(v) => updateField('linenProvided', v as '' | 'true' | 'false')}
+                  options={YES_NO_OPTIONS}
+                  placeholder="Not specified"
+                  aria-label="Linen Provided"
+                />
+              </FormField>
+              <FormField label="Rent Amount" error={errors.rentAmount}>
+                <TextInput
+                  value={form.rentAmount}
+                  onChange={(v) => updateField('rentAmount', v)}
+                  placeholder="2500.00"
+                  aria-label="Rent Amount"
                 />
               </FormField>
             </FormSection>

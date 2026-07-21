@@ -44,7 +44,6 @@ describe('registerWorkers', () => {
   const mockGeocodeRetryExecute = vi.fn().mockResolvedValue({ reenqueuedCount: 0, pendingReenqueuedCount: 0, failedGeocodingCount: 0 });
   const mockCommitExecute = vi.fn().mockResolvedValue(undefined);
   const mockSweepExecute = vi.fn().mockResolvedValue({ sweptCount: 0 });
-  const mockPropertyImportExecute = vi.fn().mockResolvedValue(undefined);
   const mockGenerateInvoiceFileExecute = vi.fn().mockResolvedValue(undefined);
   const mockExpireTokensExecute = vi.fn().mockResolvedValue({ expiredCount: 0 });
   const mockNotifyStuckExecute = vi.fn().mockResolvedValue({ notifiedCount: 0 });
@@ -61,7 +60,6 @@ describe('registerWorkers', () => {
   const mockGeocodeRetryWorker = { execute: mockGeocodeRetryExecute } as any;
   const mockAppointmentImportCommitWorker = { execute: mockCommitExecute } as any;
   const mockSweepAbandonedAppointmentImportsWorker = { execute: mockSweepExecute } as any;
-  const mockPropertyImportWorker = { execute: mockPropertyImportExecute } as any;
   const mockGenerateInvoiceFileWorker = { execute: mockGenerateInvoiceFileExecute } as any;
   const mockExpireTokensWorker = { execute: mockExpireTokensExecute } as any;
   const mockNotifyStuckWorker = { execute: mockNotifyStuckExecute } as any;
@@ -71,6 +69,7 @@ describe('registerWorkers', () => {
   const mockAuditRetentionWorker = { execute: mockAuditRetentionExecute } as any;
   const mockRejectUnconfirmedExecute = vi.fn().mockResolvedValue({ rejectedCount: 0, groupsClosedCount: 0, groupsUpdatedCount: 0 });
   const mockRejectUnconfirmedWorker = { execute: mockRejectUnconfirmedExecute } as any;
+  const mockFyWebhookDispatcher = { deliver: vi.fn().mockResolvedValue(undefined) } as any;
   const mockLogger = {
     info: vi.fn(),
     error: vi.fn(),
@@ -94,7 +93,6 @@ describe('registerWorkers', () => {
       mockExpireFilesWorker,
       mockGeocodeWorker,
       mockGeocodeRetryWorker,
-      mockPropertyImportWorker,
       mockAppointmentImportCommitWorker,
       mockSweepAbandonedAppointmentImportsWorker,
       mockGenerateInvoiceFileWorker,
@@ -102,6 +100,7 @@ describe('registerWorkers', () => {
       mockNotifyStuckWorker,
       mockAuditRetentionWorker,
       mockRejectUnconfirmedWorker,
+      mockFyWebhookDispatcher,
       mockLogger,
     );
   }
@@ -114,6 +113,7 @@ describe('registerWorkers', () => {
     await callRegister();
 
     expect(mockWork).toHaveBeenCalledTimes(20);
+    expect(mockWork).toHaveBeenCalledWith('fy.webhook.deliver', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('report.generate', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.send', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.retry-poll', expect.any(Function));
@@ -127,28 +127,29 @@ describe('registerWorkers', () => {
     expect(mockWork).toHaveBeenCalledWith('property.geocode-retry', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('appointment.import.commit', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('appointment.import.sweep-abandoned', expect.any(Function));
-    expect(mockWork).toHaveBeenCalledWith('property.import', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('billing.generate-invoice-file', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('rental-tenant-portal.expire-tokens', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('inspection-execution.notify-not-started', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('audit.retention', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('appointment.reject-unconfirmed', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('system.dlq-monitor', expect.any(Function));
+    // All recurring jobs are anchored to the platform timezone (Sydney).
+    const sydneyTz = { tz: 'Australia/Sydney' };
     expect(mockSchedule).toHaveBeenCalledTimes(14);
-    expect(mockSchedule).toHaveBeenCalledWith('notification.retry-poll', '*/5 * * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('notification.sms-delivery-poll', '*/10 * * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('notification.dispatch-reminders', '0 8 * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('notification.dispatch-escalations', '0 8 * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('auth.cleanup-sessions', '0 2 * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('auth.check-key-expiry', '0 3 * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('report.expire-files', '0 3 * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('property.geocode-retry', '*/15 * * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('rental-tenant-portal.expire-tokens', '*/15 * * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('inspection-execution.notify-not-started', '0 * * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('audit.retention', '30 3 * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('appointment.reject-unconfirmed', '0 9 * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('appointment.import.sweep-abandoned', '0 * * * *', {});
-    expect(mockSchedule).toHaveBeenCalledWith('system.dlq-monitor', '*/5 * * * *', {});
+    expect(mockSchedule).toHaveBeenCalledWith('notification.retry-poll', '*/5 * * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('notification.sms-delivery-poll', '*/10 * * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('notification.dispatch-reminders', '0 18 * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('notification.dispatch-escalations', '0 18 * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('auth.cleanup-sessions', '0 2 * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('auth.check-key-expiry', '0 3 * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('report.expire-files', '0 3 * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('property.geocode-retry', '*/15 * * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('rental-tenant-portal.expire-tokens', '*/15 * * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('inspection-execution.notify-not-started', '0 * * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('audit.retention', '30 3 * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('appointment.reject-unconfirmed', '0 19 * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('appointment.import.sweep-abandoned', '0 * * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('system.dlq-monitor', '*/5 * * * *', {}, sydneyTz);
   });
 
   it('report.generate handler calls processReportJobUseCase.execute with correct reportId', async () => {

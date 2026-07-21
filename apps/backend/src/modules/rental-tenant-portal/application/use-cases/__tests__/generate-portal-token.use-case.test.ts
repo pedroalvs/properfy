@@ -235,3 +235,53 @@ describe('GeneratePortalTokenUseCase — logger behavior on notification dispatc
     });
   });
 });
+
+describe('GeneratePortalTokenUseCase — generate-only (notify: false)', () => {
+  it('should mint the token but skip dispatch entirely and return NOTIFY_DISABLED', async () => {
+    const createNotificationUseCase = {
+      execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }),
+    };
+    const { uc } = makeUseCase({ createNotificationUseCase });
+
+    const result = await uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR, notify: false });
+
+    expect(result.token).toBe('raw-token-abc');
+    expect(result.dispatched).toBe(false);
+    expect((result as { reason?: string }).reason).toBe('NOTIFY_DISABLED');
+    expect(createNotificationUseCase.execute).not.toHaveBeenCalled();
+  });
+
+  it('should audit the skipped dispatch with reason NOTIFY_DISABLED', async () => {
+    const { uc, auditService } = makeUseCase({});
+
+    await uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR, notify: false });
+
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'rental_tenant_portal.dispatch_skipped',
+        metadata: expect.objectContaining({ reason: 'NOTIFY_DISABLED' }),
+      }),
+    );
+  });
+
+  it('should still dispatch when notify is omitted (default true)', async () => {
+    const createNotificationUseCase = {
+      execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }),
+    };
+    const { uc } = makeUseCase({ createNotificationUseCase });
+
+    const result = await uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR });
+
+    expect(result.dispatched).toBe(true);
+    expect(createNotificationUseCase.execute).toHaveBeenCalled();
+  });
+
+  it('should return NOTIFY_DISABLED even without a primary contact (generate-only ignores contacts)', async () => {
+    const { uc } = makeUseCase({ contact: null });
+
+    const result = await uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR, notify: false });
+
+    expect(result.dispatched).toBe(false);
+    expect((result as { reason?: string }).reason).toBe('NOTIFY_DISABLED');
+  });
+});

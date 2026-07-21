@@ -19,15 +19,6 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
-}));
-
 vi.mock('@/lib/auth-storage', () => ({
   authStorage: {
     getAccessToken: vi.fn(() => null),
@@ -73,7 +64,7 @@ const PREVIEW_RESPONSE = {
     timeSlotStart: '09:00', timeSlotEnd: '10:00', timeDefaulted: false, notes: null,
     property: {
       resolution: 'existing', propertyId: 'prop-1', propertyCode: 'PROP-001',
-      street: '1 Main St', addressLine2: null, suburb: 'Kogarah', state: 'NSW', postcode: '2217',
+      street: '1 Main St', addressLine2: null, apartmentNumber: '4B', suburb: 'Kogarah', state: 'NSW', postcode: '2217',
       country: 'AU', duplicateOfRow: null,
     },
     contact: {
@@ -255,6 +246,7 @@ describe('AppointmentImportPage', () => {
     fireEvent.click(screen.getByText('Next'));
 
     await waitFor(() => expect(screen.getByText('Ready')).toBeInTheDocument());
+    expect(screen.getByText('1 Main St, Apt 4B, Kogarah, NSW, 2217')).toBeInTheDocument();
     expect(mockPost).toHaveBeenCalledWith(
       '/v1/appointments/import/preview',
       expect.objectContaining({ body: expect.any(FormData) }),
@@ -310,13 +302,13 @@ describe('AppointmentImportPage', () => {
       expect.objectContaining({ body: expect.objectContaining({ skipInvalidRows: false }) }),
     ));
 
-    // The operator's real IANA timezone must reach both calls — otherwise
-    // date-defaulting and the past-date check run in UTC on the backend.
+    // Sydney-only platform: no client timezone travels with either call —
+    // date-defaulting and the past-date check run in Australia/Sydney server-side.
     const previewCall = mockPost.mock.calls.find((c) => c[0] === '/v1/appointments/import/preview')!;
     const previewFormData = previewCall[1].body;
-    expect(previewFormData.get('actorTimezone')).toBeTruthy();
+    expect(previewFormData.get('actorTimezone')).toBeNull();
     const commitCall = mockPost.mock.calls.find((c) => c[0] === '/v1/appointments/import/{importId}/commit')!;
-    expect(commitCall[1].body.actorTimezone).toBeTruthy();
+    expect(commitCall[1].body.actorTimezone).toBeUndefined();
   });
 
   it('asks to import valid rows only when the preview has errors, then commits with skipInvalidRows', async () => {

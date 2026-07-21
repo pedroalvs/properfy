@@ -40,9 +40,6 @@ enum BranchStatus {
 enum PropertyType {
   APARTMENT
   HOUSE
-  COMMERCIAL
-  INDUSTRIAL
-  RURAL
 }
 
 enum GeocodingStatus {
@@ -188,7 +185,6 @@ model Tenant {
   notification_templates NotificationTemplate[]
   reports                Report[]
   appointment_imports    AppointmentImport[]
-  property_imports       PropertyImport[]
   service_regions        ServiceRegion[]
   contacts               Contact[]
   app_credentials        AppCredential[]
@@ -262,7 +258,6 @@ model User {
   consent_changes           NotificationConsent[] @relation("NotificationConsentChangedBy")
   requested_reports         Report[]
   created_imports           AppointmentImport[]   @relation("importCreatedBy")
-  created_property_imports  PropertyImport[]      @relation("propertyImportCreatedBy")
   created_service_regions   ServiceRegion[]       @relation("ServiceRegionCreatedBy")
   uploaded_email_assets      EmailAsset[]          @relation("EmailAssetUploadedBy")
 
@@ -329,7 +324,13 @@ model Property {
   tenant_id        String
   branch_id        String?
   property_code    String          @db.VarChar(50)
+  // Per-tenant sequential number backing the generated property_code
+  // (PREFIX-PROP-0001). Nullable: rows created by the import worker (which
+  // still carries client-supplied codes) don't receive one.
+  property_number  Int?
   type             PropertyType
+  // Free-text unit identifier, only meaningful for APARTMENT properties.
+  apartment_number String?         @db.VarChar(50)
   street           String          @db.VarChar(300)
   address_line_2   String?         @db.VarChar(200)
   suburb           String          @db.VarChar(100)
@@ -375,6 +376,7 @@ model Property {
   appointments Appointment[]
 
   @@unique([tenant_id, property_code])
+  @@unique([tenant_id, property_number])
   @@index([tenant_id])
   @@index([tenant_id, type])
   @@index([branch_id])
@@ -1026,6 +1028,7 @@ model RentalTenantPortalToken {
   appointment_id        String
   token_hash            String                  @unique
   expires_at            DateTime
+  confirm_cutoff_at     DateTime?
   status                RentalTenantPortalTokenStatus @default(ACTIVE)
   used_at               DateTime?
   last_accessed_at      DateTime?
@@ -1369,31 +1372,6 @@ model AppointmentImport {
   @@index([created_at])
   @@map("appointment_imports")
 }
-
-model PropertyImport {
-  id                 String   @id @default(uuid())
-  tenant_id          String
-  status             String   @default("PENDING") @db.VarChar(20)
-  file_key           String   @db.VarChar(500)
-  original_filename  String   @db.VarChar(255)
-  total_rows         Int      @default(0)
-  success_count      Int      @default(0)
-  error_count        Int      @default(0)
-  errors_json        Json?
-  created_by_user_id String
-  created_at         DateTime @default(now())
-  updated_at         DateTime @updatedAt
-
-  tenant     Tenant @relation(fields: [tenant_id], references: [id])
-  created_by User   @relation("propertyImportCreatedBy", fields: [created_by_user_id], references: [id])
-
-  @@index([tenant_id])
-  @@index([status])
-  @@index([created_by_user_id])
-  @@index([created_at])
-  @@map("property_imports")
-}
-
 
 enum RegionStatus {
   ACTIVE

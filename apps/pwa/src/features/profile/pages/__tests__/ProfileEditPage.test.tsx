@@ -1,4 +1,5 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '@/test-utils';
 import { ProfileEditPage } from '../ProfileEditPage';
 
@@ -85,5 +86,60 @@ describe('ProfileEditPage', () => {
     mockUseAuth.mockReturnValue({ user: null, logout: vi.fn(), refreshUser: vi.fn() });
     const { container } = renderWithProviders(<ProfileEditPage />);
     expect(container.firstChild).toBeNull();
+  });
+});
+
+describe('ProfileEditPage — AU phone mask and validation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue({ user: MOCK_USER, logout: vi.fn(), refreshUser: vi.fn() });
+    mockUsePrompt.mockImplementation(() => {});
+  });
+
+  it('displays the stored E.164 phone in local masked format', () => {
+    renderWithProviders(<ProfileEditPage />);
+    expect(screen.getByLabelText(/phone/i)).toHaveValue('0412 345 678');
+  });
+
+  it('is not dirty when the stored phone equals its formatted seed', () => {
+    renderWithProviders(<ProfileEditPage />);
+    expect(mockUsePrompt).toHaveBeenCalledWith(false);
+    expect(screen.queryByRole('button', { name: /save phone/i })).not.toBeInTheDocument();
+  });
+
+  it('applies the mask while typing', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<ProfileEditPage />);
+    const input = screen.getByLabelText(/phone/i);
+    await user.clear(input);
+    await user.type(input, '0498765432');
+    expect(input).toHaveValue('0498 765 432');
+  });
+
+  it('blocks save and shows an error for an invalid AU phone', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<ProfileEditPage />);
+    const input = screen.getByLabelText(/phone/i);
+    await user.clear(input);
+    await user.type(input, '12345');
+    await user.click(screen.getByRole('button', { name: /save phone/i }));
+    expect(screen.getByText(/valid australian phone/i)).toBeInTheDocument();
+    expect(mockMutateInspectorSelf).not.toHaveBeenCalled();
+  });
+
+  it('saves a valid local number', async () => {
+    mockMutateInspectorSelf.mockResolvedValue({});
+    const user = userEvent.setup();
+    renderWithProviders(<ProfileEditPage />);
+    const input = screen.getByLabelText(/phone/i);
+    await user.clear(input);
+    await user.type(input, '0498 765 432');
+    await user.click(screen.getByRole('button', { name: /save phone/i }));
+    expect(mockMutateInspectorSelf).toHaveBeenCalledWith({ phone: '0498 765 432' });
+  });
+
+  it('shows the local placeholder', () => {
+    renderWithProviders(<ProfileEditPage />);
+    expect(screen.getByPlaceholderText('0412 345 678')).toBeInTheDocument();
   });
 });

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { PLATFORM_TIMEZONE, currentTimeInTzHHmm, todayInTzDateString } from '@properfy/shared';
 import { Button } from '@/components/ui/Button';
-import { getScheduleStartDateTime } from '../lib/time-slot';
 
 interface StartInspectionButtonProps {
   appointmentId: string;
@@ -13,33 +13,34 @@ interface StartInspectionButtonProps {
 const MINUTES_BEFORE = 30;
 const HOURS_AFTER = 2;
 
-function getWindowState(scheduledDate: string, timeSlotStart: string): { enabled: boolean; label: string; sublabel?: string } {
-  const now = new Date();
-  const start = getScheduleStartDateTime(scheduledDate, timeSlotStart);
-  const today = new Date();
+function toMinutes(hhmm: string): number {
+  const [hours = 0, minutes = 0] = hhmm.split(':').map(Number);
+  return hours * 60 + minutes;
+}
 
-  const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const startMidnight = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+function getWindowState(scheduledDate: string, timeSlotStart: string): { enabled: boolean; label: string; sublabel?: string } {
+  // All gating is anchored to Sydney civil time, never the device timezone.
+  const today = todayInTzDateString(PLATFORM_TIMEZONE);
+  const date = scheduledDate.slice(0, 10);
 
   // Past date: inspection window has passed, backend rejects past-date starts
-  if (startMidnight < todayMidnight) {
+  if (date < today) {
     return { enabled: false, label: 'Start Inspection', sublabel: 'Inspection window has passed' };
   }
 
-  const isSameDay = startMidnight.getTime() === todayMidnight.getTime();
-
-  if (!isSameDay) {
+  if (date > today) {
     // Future date
     return { enabled: false, label: 'Start Inspection', sublabel: 'Available on inspection day' };
   }
 
-  // Same day: apply time-window logic
-  const windowStart = new Date(start.getTime() - MINUTES_BEFORE * 60 * 1000);
-  const windowEnd = new Date(start.getTime() + HOURS_AFTER * 60 * 60 * 1000);
+  // Same day: apply time-window logic in Sydney wall-clock minutes
+  const nowMinutes = toMinutes(currentTimeInTzHHmm(PLATFORM_TIMEZONE));
+  const startMinutes = toMinutes(timeSlotStart);
+  const windowStart = startMinutes - MINUTES_BEFORE;
+  const windowEnd = startMinutes + HOURS_AFTER * 60;
 
-  if (now < windowStart) {
-    const diffMs = windowStart.getTime() - now.getTime();
-    const diffMin = Math.ceil(diffMs / 60000);
+  if (nowMinutes < windowStart) {
+    const diffMin = windowStart - nowMinutes;
     const timeLabel =
       diffMin > 60
         ? `${Math.floor(diffMin / 60)}h ${diffMin % 60}m`
@@ -47,7 +48,7 @@ function getWindowState(scheduledDate: string, timeSlotStart: string): { enabled
     return { enabled: false, label: 'Start Inspection', sublabel: `Available in ${timeLabel}` };
   }
 
-  if (now > windowEnd) {
+  if (nowMinutes > windowEnd) {
     return { enabled: false, label: 'Start Inspection', sublabel: 'Start window has passed' };
   }
 

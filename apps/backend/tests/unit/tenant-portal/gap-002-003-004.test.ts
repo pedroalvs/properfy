@@ -149,7 +149,8 @@ function makeTokenRepo() {
     revokeAndSave: vi.fn().mockResolvedValue(undefined),
     updateStatus: vi.fn(),
     updateLastAccessedAt: vi.fn(),
-    markUsed: vi.fn().mockResolvedValue(undefined),
+    tryClaim: vi.fn().mockResolvedValue(true),
+    releaseClaim: vi.fn().mockResolvedValue(undefined),
     revokeAllForAppointment: vi.fn().mockResolvedValue(undefined),
     expireActiveTokens: vi.fn().mockResolvedValue(0),
   };
@@ -304,7 +305,6 @@ describe('GAP-002: Domain events for portal actions', () => {
       await useCase.execute({
         tokenId: 'token-1',
         appointmentId: 'appt-1',
-        isReadOnly: false,
         isUsed: false,
         newDate,
         newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',
@@ -373,7 +373,7 @@ describe('GAP-003: Token replay detection', () => {
         userAgent: 'Test/1.0',
       });
 
-      expect(tokenRepo.markUsed).toHaveBeenCalledWith('token-1');
+      expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1', 'appt-1');
     });
   });
 
@@ -416,7 +416,6 @@ describe('GAP-003: Token replay detection', () => {
       await expect(useCase.execute({
         tokenId: 'token-1',
         appointmentId: 'appt-1',
-        isReadOnly: false,
         isUsed: true,
         newDate: new Date(Date.now() + 7*24*3600*1000).toISOString().split('T')[0]!,
         newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',
@@ -433,7 +432,6 @@ describe('GAP-003: Token replay detection', () => {
       await useCase.execute({
         tokenId: 'token-1',
         appointmentId: 'appt-1',
-        isReadOnly: false,
         isUsed: false,
         newDate: new Date(Date.now() + 7*24*3600*1000).toISOString().split('T')[0]!,
         newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',
@@ -441,7 +439,7 @@ describe('GAP-003: Token replay detection', () => {
         userAgent: 'Test/1.0',
       });
 
-      expect(tokenRepo.markUsed).toHaveBeenCalledWith('token-1');
+      expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1', 'appt-1');
     });
   });
 
@@ -492,7 +490,7 @@ describe('GAP-003: Token replay detection', () => {
         userAgent: 'Test/1.0',
       });
 
-      expect(tokenRepo.markUsed).toHaveBeenCalledWith('token-1');
+      expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1', 'appt-1');
     });
   });
 
@@ -570,7 +568,6 @@ describe('GAP-004: Auto-generate new token on reschedule', () => {
     await useCase.execute({
       tokenId: 'token-1',
       appointmentId: 'appt-1',
-      isReadOnly: false,
       isUsed: false,
       newDate: new Date(Date.now() + 7*24*3600*1000).toISOString().split('T')[0]!,
       newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',
@@ -602,7 +599,6 @@ describe('GAP-004: Auto-generate new token on reschedule', () => {
     const result = await useCase.execute({
       tokenId: 'token-1',
       appointmentId: 'appt-1',
-      isReadOnly: false,
       isUsed: false,
       newDate,
       newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',
@@ -645,7 +641,6 @@ describe('GAP-004: Auto-generate new token on reschedule', () => {
     const result = await useCase.execute({
       tokenId: 'token-1',
       appointmentId: 'appt-1',
-      isReadOnly: false,
       isUsed: false,
       newDate: new Date(Date.now() + 7*24*3600*1000).toISOString().split('T')[0]!,
       newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',

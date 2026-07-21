@@ -23,7 +23,6 @@ import { SessionTrustService } from '../modules/auth/application/services/sessio
 import { StubGeoIpService } from '../shared/infrastructure/geoip.service';
 import { RequestPasswordResetUseCase } from '../modules/auth/application/use-cases/request-password-reset.use-case';
 import { ConsumePasswordResetUseCase } from '../modules/auth/application/use-cases/consume-password-reset.use-case';
-import { AcceptInviteUseCase } from '../modules/auth/application/use-cases/accept-invite.use-case';
 import { PrismaPasswordResetTokenRepository } from '../modules/auth/infrastructure/prisma-password-reset-token.repository';
 import { PrismaPasswordHistoryRepository } from '../modules/auth/infrastructure/prisma-password-history.repository';
 import type { AuthRouteContainer } from '../modules/auth/interfaces/auth.routes';
@@ -62,7 +61,6 @@ import { UpdateUserUseCase } from '../modules/user/application/use-cases/update-
 import { DeactivateUserUseCase } from '../modules/user/application/use-cases/deactivate-user.use-case';
 import { UnlockUserUseCase } from '../modules/user/application/use-cases/unlock-user.use-case';
 import { ResetUserPasswordUseCase } from '../modules/user/application/use-cases/reset-user-password.use-case';
-import { InviteUserUseCase } from '../modules/user/application/use-cases/invite-user.use-case';
 import type { UserRouteContainer } from '../modules/user/interfaces/user.routes';
 
 // Property module
@@ -75,14 +73,9 @@ import { UpdatePropertyUseCase } from '../modules/property/application/use-cases
 import { DeletePropertyUseCase } from '../modules/property/application/use-cases/delete-property.use-case';
 import { GeocodePropertyUseCase } from '../modules/property/application/use-cases/geocode-property.use-case';
 import { SearchAddressesUseCase } from '../modules/property/application/use-cases/search-addresses.use-case';
-import { ImportPropertiesUseCase } from '../modules/property/application/use-cases/import-properties.use-case';
-import { GetPropertyImportStatusUseCase } from '../modules/property/application/use-cases/get-property-import-status.use-case';
-import { ExportImportErrorsUseCase } from '../modules/property/application/use-cases/export-import-errors.use-case';
 import { CachedAddressLookupService } from '../modules/property/infrastructure/cached-address-lookup.service';
-import { PrismaPropertyImportRepository } from '../modules/property/infrastructure/prisma-property-import.repository';
 import { GeocodeWorker } from '../modules/property/infrastructure/workers/geocode.worker';
 import { GeocodeRetryWorker } from '../modules/property/infrastructure/workers/geocode-retry.worker';
-import { ImportPropertyWorker } from '../modules/property/infrastructure/workers/import-property.worker';
 import type { PropertyRouteContainer } from '../modules/property/interfaces/property.routes';
 
 // Service type module
@@ -341,6 +334,21 @@ import { CreateApiKeyUseCase } from '../modules/integration/application/use-case
 import { ListApiKeysUseCase } from '../modules/integration/application/use-cases/list-api-keys.use-case';
 import { RevokeApiKeyUseCase } from '../modules/integration/application/use-cases/revoke-api-key.use-case';
 
+// Fy agent module (external WhatsApp bot API)
+import type { FyRouteContainer } from '../modules/fy/interfaces/fy.routes';
+import { PrismaFyRepository } from '../modules/fy/infrastructure/prisma-fy.repository';
+import { FindFyAppointmentsByPhoneUseCase } from '../modules/fy/application/use-cases/find-fy-appointments-by-phone.use-case';
+import { GetFyAppointmentUseCase } from '../modules/fy/application/use-cases/get-fy-appointment.use-case';
+import { GetFyAgencyUseCase } from '../modules/fy/application/use-cases/get-fy-agency.use-case';
+import { GetFyAvailableDatesUseCase } from '../modules/fy/application/use-cases/get-fy-available-dates.use-case';
+import { AddFyAppointmentNoteUseCase } from '../modules/fy/application/use-cases/add-fy-appointment-note.use-case';
+import { UpdateFyAppointmentContactUseCase } from '../modules/fy/application/use-cases/update-fy-appointment-contact.use-case';
+import { ResendFyNoticeUseCase } from '../modules/fy/application/use-cases/resend-fy-notice.use-case';
+import { FyWebhookDispatcher } from '../modules/fy/infrastructure/fy-webhook-dispatcher';
+import { FyWebhookSubscriber } from '../modules/fy/application/webhooks/fy-webhook-subscriber';
+import { createApiKeyAuthMiddleware } from '../shared/interfaces/api-key-auth-middleware';
+import { createAuthMiddleware } from '../shared/interfaces/auth-middleware';
+
 // Appointment module
 import { PrismaAppointmentRepository } from '../modules/appointment/infrastructure/prisma-appointment.repository';
 import { CreateAppointmentUseCase } from '../modules/appointment/application/use-cases/create-appointment.use-case';
@@ -378,6 +386,7 @@ import { PrismaAppointmentImportRepository } from '../modules/appointment/infras
 import { AppointmentImportRowResolver } from '../modules/appointment/application/services/appointment-import-row-resolver';
 import { AppointmentImportCommitWorker } from '../modules/appointment/infrastructure/workers/appointment-import-commit.worker';
 import { SweepAbandonedAppointmentImportsWorker } from '../modules/appointment/infrastructure/workers/sweep-abandoned-appointment-imports.worker';
+import { ImportGeocodeVerifier } from '../modules/property/application/services/import-geocode-verifier';
 import { RejectUnconfirmedAppointmentsUseCase } from '../modules/appointment/application/use-cases/reject-unconfirmed-appointments.use-case';
 import { RejectUnconfirmedWorker } from '../modules/appointment/infrastructure/workers/reject-unconfirmed.worker';
 import { GetPortalLinkUseCase } from '../modules/rental-tenant-portal/application/use-cases/get-portal-link.use-case';
@@ -424,9 +433,10 @@ export interface AppContainer {
   contact: ContactRouteContainer;
   appCredential: AppCredentialRouteContainer;
   integration: IntegrationRouteContainer;
+  fy: FyRouteContainer;
+  fyWebhookDispatcher: FyWebhookDispatcher;
   geocodeWorker: GeocodeWorker;
   geocodeRetryWorker: GeocodeRetryWorker;
-  propertyImportWorker: ImportPropertyWorker;
   cleanupSessionsWorker: CleanupSessionsWorker;
   keyExpiryCheckWorker: KeyExpiryCheckWorker;
   expireFilesWorker: ExpireFilesWorker;
@@ -570,6 +580,7 @@ export function createContainer(logger: Logger): AppContainer {
         webhookToken: env.MOBILE_MESSAGE_WEBHOOK_TOKEN,
       }),
       mapbox: compactConfig({ accessToken: env.MAPBOX_ACCESS_TOKEN }),
+      fy_webhook: compactConfig({ url: env.FY_WEBHOOK_URL, secret: env.FY_WEBHOOK_SECRET }),
     },
     logger,
   );
@@ -593,7 +604,6 @@ export function createContainer(logger: Logger): AppContainer {
   const geocodeRetryWorker = new GeocodeRetryWorker(propertyRepo, logger);
 
   // Property import
-  const propertyImportRepo = new PrismaPropertyImportRepository(prisma);
 
   // Service type repositories and use cases
   const serviceTypeRepo = new PrismaServiceTypeRepository(prisma);
@@ -669,12 +679,12 @@ export function createContainer(logger: Logger): AppContainer {
   );
 
   // Password reset use cases (depend on createNotificationUseCase)
-  const requestPasswordResetUseCase = new RequestPasswordResetUseCase(userRepo, passwordResetTokenRepo, createNotificationUseCase, auditService);
+  const requestPasswordResetUseCase = new RequestPasswordResetUseCase(userRepo, passwordResetTokenRepo, createNotificationUseCase, auditService, {
+    webAppBaseUrl: env.WEB_APP_BASE_URL,
+    pwaBaseUrl: env.PWA_BASE_URL,
+  });
   const consumePasswordResetUseCase = new ConsumePasswordResetUseCase(passwordResetTokenRepo, userRepo, sessionRepo, auditService, passwordHistoryRepo);
-  const acceptInviteUseCase = new AcceptInviteUseCase(passwordResetTokenRepo, userRepo, auditService);
 
-  // Invite user use case (depends on createNotificationUseCase)
-  const inviteUserUseCase = new InviteUserUseCase(userManagementRepo, tenantRepo, branchRepo, passwordResetTokenRepo, createNotificationUseCase, auditService, authorizationService);
 
   // Shared idempotency service (used across modules)
   const idempotencyService = new PrismaIdempotencyService(prisma);
@@ -1167,14 +1177,21 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Appointment import — preview/commit split (depends on reportStorageService and job queue)
   const appointmentImportRepo = new PrismaAppointmentImportRepository(prisma);
+  const fyRepo = new PrismaFyRepository(prisma);
   const importJobQueue = env.ENABLE_JOB_QUEUE === 'true'
     ? new PgBossJobQueue()
     : new StubJobQueue();
+  // Fy outbound webhooks: subscriber enqueues, worker delivers with retry.
+  const fyWebhookDispatcher = new FyWebhookDispatcher(integrationConfigResolver);
+  new FyWebhookSubscriber(integrationConfigResolver, fyRepo, importJobQueue, logger).register(domainEventBus);
+
   const appointmentImportRowResolver = new AppointmentImportRowResolver(
     propertyRepo, serviceTypeRepo, pricingRuleRepo, contactRepo,
   );
+  const appointmentImportGeocodeVerifier = new ImportGeocodeVerifier(geocodingService);
   const previewAppointmentImportUseCase = new PreviewAppointmentImportUseCase(
-    appointmentImportRepo, reportStorageService, branchRepo, appointmentImportRowResolver, authorizationService,
+    appointmentImportRepo, reportStorageService, branchRepo, appointmentImportRowResolver,
+    appointmentImportGeocodeVerifier, authorizationService,
   );
   const commitAppointmentImportUseCase = new CommitAppointmentImportUseCase(
     appointmentImportRepo, importJobQueue, authorizationService, idempotencyService,
@@ -1242,22 +1259,6 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentImportRepo, reportStorageService, logger,
   );
 
-  // Property import (depends on reportStorageService and job queue)
-  const propertyImportJobQueue = env.ENABLE_JOB_QUEUE === 'true'
-    ? new PgBossJobQueue()
-    : new StubJobQueue();
-  const importPropertiesUseCase = new ImportPropertiesUseCase(
-    propertyImportRepo, reportStorageService, propertyImportJobQueue, idempotencyService, authorizationService,
-  );
-  const getPropertyImportStatusUseCase = new GetPropertyImportStatusUseCase(propertyImportRepo, authorizationService);
-  const exportImportErrorsUseCase = new ExportImportErrorsUseCase(propertyImportRepo, authorizationService);
-  const geocodeJobQueue = env.ENABLE_JOB_QUEUE === 'true'
-    ? new PgBossJobQueue()
-    : new StubJobQueue();
-  const propertyImportWorker = new ImportPropertyWorker(
-    propertyImportRepo, reportStorageService, propertyRepo, logger, auditService, geocodeJobQueue,
-  );
-
   return {
     prisma,
     auditService,
@@ -1274,7 +1275,6 @@ export function createContainer(logger: Logger): AppContainer {
       confirmTotpUseCase,
       requestPasswordResetUseCase,
       consumePasswordResetUseCase,
-      acceptInviteUseCase,
       jwtService,
       tenantRepo,
     },
@@ -1304,7 +1304,6 @@ export function createContainer(logger: Logger): AppContainer {
       deactivateUserUseCase,
       unlockUserUseCase,
       resetUserPasswordUseCase,
-      inviteUserUseCase,
       jwtService,
       tenantRepo,
     },
@@ -1317,9 +1316,6 @@ export function createContainer(logger: Logger): AppContainer {
       deletePropertyUseCase,
       geocodePropertyUseCase,
       searchAddressesUseCase,
-      importPropertiesUseCase,
-      getPropertyImportStatusUseCase,
-      exportImportErrorsUseCase,
       jwtService,
       tenantRepo,
     },
@@ -1577,13 +1573,40 @@ export function createContainer(logger: Logger): AppContainer {
       jwtService,
       tenantRepo,
     },
+    fy: (() => {
+      // Composite auth: X-API-Key decides when present; otherwise JWT (whose
+      // principals then fail the bot:fy scope gate — the Fy API is machine-only).
+      const jwtAuthenticate = createAuthMiddleware(
+        (token) => jwtService.verify(token),
+        async (tenantId) => {
+          const tenant = await tenantRepo.findById(tenantId);
+          return tenant?.isActive() ?? false;
+        },
+      );
+      return {
+        apiKeyAuthenticate: createApiKeyAuthMiddleware(apiKeyRepo, jwtAuthenticate),
+        findFyAppointmentsByPhoneUseCase: new FindFyAppointmentsByPhoneUseCase(fyRepo),
+        getFyAppointmentUseCase: new GetFyAppointmentUseCase(
+          appointmentRepo,
+          rentalTenantPortalTokenRepo,
+          portalTokenEncrypter ?? null,
+          env.TENANT_PORTAL_BASE_URL,
+          fyRepo,
+        ),
+        getFyAgencyUseCase: new GetFyAgencyUseCase(fyRepo),
+        getFyAvailableDatesUseCase: new GetFyAvailableDatesUseCase(appointmentRepo, serviceGroupRepo),
+        addFyAppointmentNoteUseCase: new AddFyAppointmentNoteUseCase(fyRepo, auditService),
+        updateFyAppointmentContactUseCase: new UpdateFyAppointmentContactUseCase(appointmentRepo, contactRepo, auditService),
+        resendFyNoticeUseCase: new ResendFyNoticeUseCase(generatePortalTokenUseCase, idempotencyService),
+      };
+    })(),
+    fyWebhookDispatcher,
     cleanupSessionsWorker,
     keyExpiryCheckWorker,
     expireFilesWorker,
     processReportJobUseCase,
     geocodeWorker,
     geocodeRetryWorker,
-    propertyImportWorker,
     appointmentImportCommitWorker,
     sweepAbandonedAppointmentImportsWorker,
     generateInvoiceFileWorker,

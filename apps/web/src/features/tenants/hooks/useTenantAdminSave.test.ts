@@ -15,15 +15,6 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
-}));
-
 import { api } from '@/services/api';
 import { useTenantAdminSave } from './useTenantAdminSave';
 import type { TenantAdminFormData } from '../types';
@@ -36,7 +27,6 @@ const mockPatch = api.PATCH as ReturnType<typeof vi.fn>;
 const VALID_DATA: TenantAdminFormData = {
   name: 'Imob Alpha',
   legalName: 'Alpha LTDA',
-  timezone: 'America/Sao_Paulo',
   currency: 'AUD',
   appointmentCodePrefix: 'INS',
   notes: '',
@@ -57,7 +47,6 @@ describe('useTenantAdminSave', () => {
     const errors = result.current.validate(EMPTY_TENANT_ADMIN_FORM);
     expect(errors.name).toBeDefined();
     expect(errors.legalName).toBeDefined();
-    expect(errors.timezone).toBeDefined();
     expect(errors.currency).toBeDefined();
   });
 
@@ -170,7 +159,6 @@ describe('useTenantAdminSave', () => {
       body: {
         name: 'Imob Alpha',
         legalName: 'Alpha LTDA',
-        timezone: 'America/Sao_Paulo',
         currency: 'AUD',
         appointmentCodePrefix: 'INS',
         settings: { emailSendingEnabled: true },
@@ -263,5 +251,77 @@ describe('useTenantAdminSave', () => {
     });
 
     expect(result.current.isSaving).toBe(false);
+  });
+
+  it('save maps VALIDATION_ERROR details to inline field errors', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [{ field: 'legalName', message: 'Legal name is too long' }],
+        },
+      },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_DATA);
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.fieldErrors?.legalName).toBe('Legal name is too long');
+    expect(saveResult?.error).toBeUndefined();
+  });
+
+  it('save maps the nested settings.emailSendingEnabled detail to the form toggle', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [{ field: 'settings.emailSendingEnabled', message: 'Must be boolean' }],
+        },
+      },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_DATA);
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.fieldErrors?.emailSendingEnabled).toBe('Must be boolean');
+    expect(saveResult?.error).toBeUndefined();
+  });
+
+  it('save falls back to the summary error when detail paths do not match form fields', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [{ field: 'settings.unknownFlag', message: 'Unknown setting' }],
+        },
+      },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_DATA);
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.fieldErrors).toBeUndefined();
+    expect(saveResult?.error).toBe('Validation failed');
   });
 });

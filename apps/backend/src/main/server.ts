@@ -111,7 +111,6 @@ async function start() {
       container.expireFilesWorker,
       container.geocodeWorker,
       container.geocodeRetryWorker,
-      container.propertyImportWorker,
       container.appointmentImportCommitWorker,
       container.sweepAbandonedAppointmentImportsWorker,
       container.generateInvoiceFileWorker,
@@ -119,6 +118,7 @@ async function start() {
       container.notifyStuckInspectionsWorker,
       container.auditRetentionWorker,
       container.rejectUnconfirmedWorker,
+      container.fyWebhookDispatcher,
       app.log,
     );
   }

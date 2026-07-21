@@ -50,4 +50,24 @@ describe('isAppointmentOverdue', () => {
   it('accepts ISO datetime strings', () => {
     expect(isAppointmentOverdue('SCHEDULED', '2026-03-28T14:00:00.000Z')).toBe(true);
   });
+
+  describe('Sydney civil-day anchoring', () => {
+    it('is overdue once the Sydney day has rolled over, even while UTC is still on the scheduled date', () => {
+      // 2026-07-15T15:00Z = 2026-07-16 01:00 in Sydney (AEST +10)
+      vi.setSystemTime(new Date('2026-07-15T15:00:00Z'));
+      expect(isAppointmentOverdue('SCHEDULED', '2026-07-15')).toBe(true);
+    });
+
+    it('is not overdue late in the Sydney evening of the scheduled date', () => {
+      // 2026-07-15T13:00Z = 2026-07-15 23:00 in Sydney
+      vi.setSystemTime(new Date('2026-07-15T13:00:00Z'));
+      expect(isAppointmentOverdue('SCHEDULED', '2026-07-15')).toBe(false);
+    });
+
+    it('resolves Date instants to their Sydney civil date', () => {
+      // Both instants are 2026-07-16 in Sydney — same civil day, not overdue.
+      vi.setSystemTime(new Date('2026-07-15T15:00:00Z'));
+      expect(isAppointmentOverdue('SCHEDULED', new Date('2026-07-15T14:30:00Z'))).toBe(false);
+    });
+  });
 });

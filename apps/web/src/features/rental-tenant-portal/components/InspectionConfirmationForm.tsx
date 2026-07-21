@@ -7,6 +7,11 @@ interface InspectionConfirmationFormProps {
   onUnavailable: (input: { rentalTenantNote: string; availableSlotsJson: AvailableSlot[] }) => Promise<void>;
   isSubmitting?: boolean;
   isReadOnly?: boolean;
+  /**
+   * Past the confirm cutoff: the Yes path is locked but the No (unavailability)
+   * path stays fully functional, so No comes pre-selected.
+   */
+  confirmDisabled?: boolean;
 }
 
 type Selection = 'YES' | 'NO' | null;
@@ -23,8 +28,9 @@ export function InspectionConfirmationForm({
   onUnavailable,
   isSubmitting,
   isReadOnly,
+  confirmDisabled,
 }: InspectionConfirmationFormProps) {
-  const [selection, setSelection] = useState<Selection>(null);
+  const [selection, setSelection] = useState<Selection>(confirmDisabled ? 'NO' : null);
   const [note, setNote] = useState('');
   const [slots, setSlots] = useState<AvailableSlot[]>([]);
   const [done, setDone] = useState<'CONFIRMED' | 'UNAVAILABLE' | null>(null);
@@ -63,12 +69,18 @@ export function InspectionConfirmationForm({
 
   async function handleSubmit() {
     if (!isSubmitEnabled(selection, note, slots)) return;
-    if (selection === 'YES') {
-      await onConfirm(note.trim() || undefined);
-      setDone('CONFIRMED');
-    } else {
-      await onUnavailable({ rentalTenantNote: note.trim(), availableSlotsJson: slots });
-      setDone('UNAVAILABLE');
+    // A rejected mutation must not flip the form into a success card — the parent
+    // refetches portal data and renders the real state (e.g. cancelled view).
+    try {
+      if (selection === 'YES') {
+        await onConfirm(note.trim() || undefined);
+        setDone('CONFIRMED');
+      } else {
+        await onUnavailable({ rentalTenantNote: note.trim(), availableSlotsJson: slots });
+        setDone('UNAVAILABLE');
+      }
+    } catch {
+      // parent surfaces the failure via refetch/banner
     }
   }
 
@@ -83,14 +95,19 @@ export function InspectionConfirmationForm({
         <div className="flex gap-2">
           <button
             type="button"
-            disabled={isReadOnly}
+            disabled={isReadOnly || confirmDisabled}
+            title={
+              isReadOnly || confirmDisabled
+                ? 'The confirmation deadline has passed'
+                : undefined
+            }
             onClick={() => setSelection('YES')}
             className={[
               'rounded-full px-5 py-2 text-sm font-medium transition-colors',
               selection === 'YES'
                 ? 'bg-success text-white'
                 : 'bg-gray-100 text-text-secondary hover:bg-gray-200',
-              isReadOnly ? 'cursor-not-allowed opacity-50' : '',
+              isReadOnly || confirmDisabled ? 'cursor-not-allowed opacity-50' : '',
             ]
               .filter(Boolean)
               .join(' ')}

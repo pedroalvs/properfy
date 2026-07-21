@@ -19,15 +19,6 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
-}));
-
 vi.mock('@/lib/auth-storage', () => ({
   authStorage: {
     getAccessToken: vi.fn(() => null),
@@ -118,9 +109,14 @@ describe('PropertyListPage', () => {
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders Map View button', () => {
+  it('does not render a Map View button', () => {
     renderPage();
-    expect(screen.getByText('Map View')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Map View' })).not.toBeInTheDocument();
+  });
+
+  it('does not render an Import button', () => {
+    renderPage();
+    expect(screen.queryByText('Import')).not.toBeInTheDocument();
   });
 
   it('renders filter bar with search and type controls', () => {
@@ -183,9 +179,11 @@ describe('PropertyListPage', () => {
       });
     });
 
-    it('does not disable New Property / Map View actions', () => {
+    it('does not disable the New Property action', () => {
       renderPage();
-      expect(screen.getByText('Map View').closest('button')).not.toBeDisabled();
+      for (const button of screen.getAllByRole('button', { name: 'New Property' })) {
+        expect(button).not.toBeDisabled();
+      }
     });
 
     it('renders an Agency filter', () => {

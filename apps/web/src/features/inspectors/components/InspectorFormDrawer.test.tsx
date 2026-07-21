@@ -3,8 +3,8 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
-vi.mock('@properfy/shared', () => ({
-  contactSchema: { shape: { primaryEmail: { safeParse: () => ({ success: true }) } } },
+vi.mock('@properfy/shared', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
 }));
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } }));
 vi.mock('@/services/api', () => ({
@@ -17,14 +17,6 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
-}));
 vi.mock('@/lib/auth-storage', () => ({
   authStorage: { getAccessToken: vi.fn(() => null), hasTokens: vi.fn(() => false), setTokens: vi.fn(), clearTokens: vi.fn() },
 }));

@@ -373,7 +373,27 @@
       "post": {
         "responses": {
           "200": {
-            "description": "Default Response"
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "secret": {
+                      "type": "string"
+                    },
+                    "qrUri": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "secret",
+                    "qrUri"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -609,65 +629,6 @@
         }
       }
     },
-    "/v1/auth/accept-invite": {
-      "post": {
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "token": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "password": {
-                    "type": "string",
-                    "minLength": 8,
-                    "maxLength": 128,
-                    "allOf": [
-                      {
-                        "pattern": "[A-Z]"
-                      },
-                      {
-                        "pattern": "[a-z]"
-                      },
-                      {
-                        "pattern": "[0-9]"
-                      },
-                      {
-                        "pattern": "[^A-Za-z0-9]"
-                      }
-                    ]
-                  }
-                },
-                "required": [
-                  "token",
-                  "password"
-                ],
-                "additionalProperties": false
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "204": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "enum": [
-                    "null"
-                  ],
-                  "nullable": true
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/tenants": {
       "post": {
         "requestBody": {
@@ -685,12 +646,6 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 200
-                  },
-                  "timezone": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 60,
-                    "default": "Australia/Sydney"
                   },
                   "currency": {
                     "type": "string",
@@ -1363,11 +1318,6 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 200
-                  },
-                  "timezone": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 60
                   },
                   "currency": {
                     "type": "string",
@@ -2864,7 +2814,7 @@
                   },
                   "phone": {
                     "type": "string",
-                    "maxLength": 20
+                    "maxLength": 30
                   }
                 },
                 "required": [
@@ -3270,7 +3220,7 @@
                   },
                   "phone": {
                     "type": "string",
-                    "maxLength": 20
+                    "maxLength": 30
                   }
                 },
                 "required": [
@@ -3603,166 +3553,6 @@
         }
       }
     },
-    "/v1/tenants/{tenantId}/users/invite": {
-      "post": {
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 200
-                  },
-                  "email": {
-                    "type": "string",
-                    "format": "email",
-                    "maxLength": 254
-                  },
-                  "role": {
-                    "type": "string",
-                    "enum": [
-                      "CL_ADMIN",
-                      "CL_USER"
-                    ]
-                  },
-                  "branchId": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
-                  "phone": {
-                    "type": "string",
-                    "maxLength": 20
-                  }
-                },
-                "required": [
-                  "name",
-                  "email",
-                  "role"
-                ],
-                "additionalProperties": false
-              }
-            }
-          },
-          "required": true
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "name": "tenantId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "tenantId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "branchId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "role": {
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string"
-                        },
-                        "email": {
-                          "type": "string"
-                        },
-                        "phone": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "status": {
-                          "type": "string"
-                        },
-                        "totpEnabled": {
-                          "type": "boolean"
-                        },
-                        "lastLoginAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "createdAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "updatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "tenantId",
-                        "branchId",
-                        "role",
-                        "name",
-                        "email",
-                        "phone",
-                        "status",
-                        "createdAt"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/tenants/{tenantId}/users/{userId}": {
       "get": {
         "parameters": [
@@ -3902,7 +3692,7 @@
                   },
                   "phone": {
                     "type": "string",
-                    "maxLength": 20
+                    "maxLength": 30
                   },
                   "branchId": {
                     "type": "string",
@@ -4179,7 +3969,7 @@
                   },
                   "phone": {
                     "type": "string",
-                    "maxLength": 20
+                    "maxLength": 30
                   },
                   "branchId": {
                     "type": "string",
@@ -4686,20 +4476,16 @@
                     "type": "string",
                     "format": "uuid"
                   },
-                  "propertyCode": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 50
-                  },
                   "type": {
                     "type": "string",
                     "enum": [
                       "APARTMENT",
-                      "HOUSE",
-                      "COMMERCIAL",
-                      "INDUSTRIAL",
-                      "RURAL"
+                      "HOUSE"
                     ]
+                  },
+                  "apartmentNumber": {
+                    "type": "string",
+                    "maxLength": 50
                   },
                   "privateAreaM2": {
                     "type": "number",
@@ -4793,7 +4579,6 @@
                   }
                 },
                 "required": [
-                  "propertyCode",
                   "type",
                   "street",
                   "suburb",
@@ -4843,6 +4628,10 @@
                         },
                         "type": {
                           "type": "string"
+                        },
+                        "apartmentNumber": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "street": {
                           "type": "string"
@@ -5051,10 +4840,7 @@
               "type": "string",
               "enum": [
                 "APARTMENT",
-                "HOUSE",
-                "COMMERCIAL",
-                "INDUSTRIAL",
-                "RURAL"
+                "HOUSE"
               ]
             },
             "in": "query",
@@ -5149,6 +4935,10 @@
                           },
                           "type": {
                             "type": "string"
+                          },
+                          "apartmentNumber": {
+                            "type": "string",
+                            "nullable": true
                           },
                           "street": {
                             "type": "string"
@@ -5442,6 +5232,10 @@
                         "type": {
                           "type": "string"
                         },
+                        "apartmentNumber": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "street": {
                           "type": "string"
                         },
@@ -5598,11 +5392,13 @@
                     "type": "string",
                     "enum": [
                       "APARTMENT",
-                      "HOUSE",
-                      "COMMERCIAL",
-                      "INDUSTRIAL",
-                      "RURAL"
+                      "HOUSE"
                     ]
+                  },
+                  "apartmentNumber": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "nullable": true
                   },
                   "privateAreaM2": {
                     "type": "number",
@@ -5767,6 +5563,10 @@
                         },
                         "type": {
                           "type": "string"
+                        },
+                        "apartmentNumber": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "street": {
                           "type": "string"
@@ -5947,55 +5747,6 @@
             },
             "in": "path",
             "name": "propertyId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/v1/properties/import": {
-      "post": {
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/v1/properties/import/{importId}": {
-      "get": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "name": "importId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/v1/properties/import/{importId}/errors.csv": {
-      "get": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "name": "importId",
             "required": true
           }
         ],
@@ -7262,7 +7013,7 @@
                   },
                   "phone": {
                     "type": "string",
-                    "maxLength": 20
+                    "maxLength": 30
                   },
                   "paymentSettings": {
                     "type": "object",
@@ -7973,7 +7724,7 @@
                   },
                   "phone": {
                     "type": "string",
-                    "maxLength": 20,
+                    "maxLength": 30,
                     "nullable": true
                   },
                   "status": {
@@ -9402,7 +9153,7 @@
                 "properties": {
                   "phone": {
                     "type": "string",
-                    "pattern": "^\\+[1-9]\\d{6,14}$",
+                    "maxLength": 30,
                     "nullable": true
                   },
                   "fullName": {
@@ -10734,20 +10485,16 @@
                   "property": {
                     "type": "object",
                     "properties": {
-                      "propertyCode": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 50
-                      },
                       "type": {
                         "type": "string",
                         "enum": [
                           "APARTMENT",
-                          "HOUSE",
-                          "COMMERCIAL",
-                          "INDUSTRIAL",
-                          "RURAL"
+                          "HOUSE"
                         ]
+                      },
+                      "apartmentNumber": {
+                        "type": "string",
+                        "maxLength": 50
                       },
                       "street": {
                         "type": "string",
@@ -10785,7 +10532,6 @@
                       }
                     },
                     "required": [
-                      "propertyCode",
                       "type",
                       "street",
                       "suburb",
@@ -10907,7 +10653,6 @@
                                 },
                                 "primaryPhone": {
                                   "type": "string",
-                                  "minLength": 1,
                                   "maxLength": 30,
                                   "nullable": true
                                 },
@@ -11069,9 +10814,6 @@
                       "additionalProperties": false
                     },
                     "maxItems": 4
-                  },
-                  "actorTimezone": {
-                    "type": "string"
                   }
                 },
                 "required": [
@@ -11304,10 +11046,7 @@
                           "type": "string",
                           "enum": [
                             "APARTMENT",
-                            "HOUSE",
-                            "COMMERCIAL",
-                            "INDUSTRIAL",
-                            "RURAL"
+                            "HOUSE"
                           ],
                           "nullable": true
                         },
@@ -11887,10 +11626,7 @@
                             "type": "string",
                             "enum": [
                               "APARTMENT",
-                              "HOUSE",
-                              "COMMERCIAL",
-                              "INDUSTRIAL",
-                              "RURAL"
+                              "HOUSE"
                             ],
                             "nullable": true
                           },
@@ -12277,10 +12013,7 @@
                           "type": "string",
                           "enum": [
                             "APARTMENT",
-                            "HOUSE",
-                            "COMMERCIAL",
-                            "INDUSTRIAL",
-                            "RURAL"
+                            "HOUSE"
                           ],
                           "nullable": true
                         },
@@ -12549,7 +12282,6 @@
                                 },
                                 "primaryPhone": {
                                   "type": "string",
-                                  "minLength": 1,
                                   "maxLength": 30,
                                   "nullable": true
                                 },
@@ -12692,9 +12424,6 @@
                     },
                     "maxItems": 4,
                     "nullable": true
-                  },
-                  "actorTimezone": {
-                    "type": "string"
                   }
                 },
                 "additionalProperties": false
@@ -12930,10 +12659,7 @@
                           "type": "string",
                           "enum": [
                             "APARTMENT",
-                            "HOUSE",
-                            "COMMERCIAL",
-                            "INDUSTRIAL",
-                            "RURAL"
+                            "HOUSE"
                           ],
                           "nullable": true
                         },
@@ -13461,9 +13187,6 @@
                     },
                     "minItems": 1,
                     "maxItems": 100
-                  },
-                  "actorTimezone": {
-                    "type": "string"
                   }
                 },
                 "required": [
@@ -13567,9 +13290,6 @@
                     "type": "string",
                     "minLength": 3,
                     "maxLength": 500
-                  },
-                  "actorTimezone": {
-                    "type": "string"
                   }
                 },
                 "required": [
@@ -13691,9 +13411,6 @@
                   "newTimeSlotEnd": {
                     "type": "string",
                     "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
-                  },
-                  "actorTimezone": {
-                    "type": "string"
                   }
                 },
                 "required": [
@@ -13811,9 +13528,6 @@
                     "type": "string",
                     "minLength": 3,
                     "maxLength": 500
-                  },
-                  "actorTimezone": {
-                    "type": "string"
                   }
                 },
                 "required": [
@@ -13919,9 +13633,6 @@
                   "inspectorId": {
                     "type": "string",
                     "format": "uuid"
-                  },
-                  "actorTimezone": {
-                    "type": "string"
                   }
                 },
                 "required": [
@@ -14048,9 +13759,6 @@
                     "type": "string",
                     "minLength": 3,
                     "maxLength": 500
-                  },
-                  "actorTimezone": {
-                    "type": "string"
                   }
                 },
                 "required": [
@@ -14286,6 +13994,93 @@
                                     "exclusiveMinimum": true,
                                     "minimum": 0,
                                     "nullable": true
+                                  },
+                                  "geocode": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "status": {
+                                            "type": "string",
+                                            "enum": [
+                                              "found"
+                                            ]
+                                          },
+                                          "lat": {
+                                            "type": "number"
+                                          },
+                                          "lng": {
+                                            "type": "number"
+                                          }
+                                        },
+                                        "required": [
+                                          "status",
+                                          "lat",
+                                          "lng"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "status": {
+                                            "type": "string",
+                                            "enum": [
+                                              "not_found"
+                                            ]
+                                          },
+                                          "lat": {
+                                            "enum": [
+                                              "null"
+                                            ],
+                                            "nullable": true
+                                          },
+                                          "lng": {
+                                            "enum": [
+                                              "null"
+                                            ],
+                                            "nullable": true
+                                          }
+                                        },
+                                        "required": [
+                                          "status",
+                                          "lat",
+                                          "lng"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "status": {
+                                            "type": "string",
+                                            "enum": [
+                                              "unverified"
+                                            ]
+                                          },
+                                          "lat": {
+                                            "enum": [
+                                              "null"
+                                            ],
+                                            "nullable": true
+                                          },
+                                          "lng": {
+                                            "enum": [
+                                              "null"
+                                            ],
+                                            "nullable": true
+                                          }
+                                        },
+                                        "required": [
+                                          "status",
+                                          "lat",
+                                          "lng"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    ],
+                                    "nullable": true,
+                                    "default": null
                                   }
                                 },
                                 "required": [
@@ -14486,9 +14281,6 @@
                 "properties": {
                   "skipInvalidRows": {
                     "type": "boolean"
-                  },
-                  "actorTimezone": {
-                    "type": "string"
                   }
                 },
                 "required": [
@@ -14603,9 +14395,6 @@
                   "description": {
                     "type": "string",
                     "maxLength": 5000
-                  },
-                  "actorTimezone": {
-                    "type": "string"
                   }
                 },
                 "required": [
@@ -15382,9 +15171,6 @@
                   "timeWindow": {
                     "type": "string",
                     "pattern": "^\\d{2}:\\d{2}-\\d{2}:\\d{2}$"
-                  },
-                  "actorTimezone": {
-                    "type": "string"
                   }
                 },
                 "additionalProperties": false
@@ -16648,11 +16434,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": {
-                  "actorTimezone": {
-                    "type": "string"
-                  }
-                },
+                "properties": {},
                 "additionalProperties": false
               }
             }
@@ -17059,6 +16841,26 @@
                               "timeSlotEnd": {
                                 "type": "string",
                                 "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "street": {
+                                "type": "string"
+                              },
+                              "coordinates": {
+                                "type": "object",
+                                "properties": {
+                                  "lat": {
+                                    "type": "number"
+                                  },
+                                  "lng": {
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "lat",
+                                  "lng"
+                                ],
+                                "additionalProperties": false,
+                                "nullable": true
                               }
                             },
                             "required": [
@@ -17071,7 +16873,9 @@
                               "payoutAmount",
                               "tenantName",
                               "timeSlotStart",
-                              "timeSlotEnd"
+                              "timeSlotEnd",
+                              "street",
+                              "coordinates"
                             ],
                             "additionalProperties": false
                           }
@@ -17677,6 +17481,9 @@
                         "isReadOnly": {
                           "type": "boolean"
                         },
+                        "isPastConfirmCutoff": {
+                          "type": "boolean"
+                        },
                         "isExpired": {
                           "type": "boolean"
                         },
@@ -18098,8 +17905,7 @@
                   },
                   "primaryPhone": {
                     "type": "string",
-                    "minLength": 8,
-                    "maxLength": 20
+                    "maxLength": 30
                   }
                 },
                 "additionalProperties": false
@@ -18471,6 +18277,29 @@
     },
     "/v1/appointments/{appointmentId}/portal-token": {
       "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "not": {}
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "notify": {
+                        "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "nullable": true
+                  }
+                ]
+              }
+            }
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -18514,7 +18343,8 @@
                           "type": "string",
                           "enum": [
                             "NO_PRIMARY_CONTACT",
-                            "DISPATCH_FAILED"
+                            "DISPATCH_FAILED",
+                            "NOTIFY_DISABLED"
                           ]
                         }
                       },
@@ -19203,7 +19033,15 @@
                                 "type": "string"
                               },
                               "status": {
-                                "type": "string"
+                                "type": "string",
+                                "enum": [
+                                  "DRAFT",
+                                  "AWAITING_INSPECTOR",
+                                  "SCHEDULED",
+                                  "DONE",
+                                  "CANCELLED",
+                                  "REJECTED"
+                                ]
                               },
                               "scheduledDate": {
                                 "anyOf": [
@@ -19253,10 +19091,31 @@
                               "agencyName": {
                                 "type": "string",
                                 "nullable": true
+                              },
+                              "propertyAddress": {
+                                "type": "string"
+                              },
+                              "suburb": {
+                                "type": "string"
+                              },
+                              "serviceTypeName": {
+                                "type": "string"
+                              },
+                              "flowType": {
+                                "type": "string",
+                                "enum": [
+                                  "ROUTINE",
+                                  "INGOING",
+                                  "OUTGOING"
+                                ]
+                              },
+                              "isOverdue": {
+                                "type": "boolean"
                               }
                             },
                             "required": [
                               "id",
+                              "appointmentCode",
                               "status",
                               "scheduledDate",
                               "timeSlotStart",
@@ -19266,7 +19125,11 @@
                               "rentalTenantConfirmationStatus",
                               "keyRequired",
                               "meetingLocation",
-                              "executionStatus"
+                              "executionStatus",
+                              "propertyAddress",
+                              "suburb",
+                              "serviceTypeName",
+                              "flowType"
                             ],
                             "additionalProperties": false
                           }
@@ -19389,10 +19252,7 @@
                           "type": "string",
                           "enum": [
                             "APARTMENT",
-                            "HOUSE",
-                            "COMMERCIAL",
-                            "INDUSTRIAL",
-                            "RURAL"
+                            "HOUSE"
                           ],
                           "nullable": true
                         },
@@ -25379,7 +25239,6 @@
                   },
                   "primaryPhone": {
                     "type": "string",
-                    "minLength": 1,
                     "maxLength": 30,
                     "nullable": true
                   },
@@ -25840,7 +25699,6 @@
                   },
                   "primaryPhone": {
                     "type": "string",
-                    "minLength": 1,
                     "maxLength": 30,
                     "nullable": true
                   },
@@ -27295,7 +27153,8 @@
                                 "enum": [
                                   "resend",
                                   "mobile_message",
-                                  "mapbox"
+                                  "mapbox",
+                                  "fy_webhook"
                                 ]
                               },
                               "configured": {
@@ -27377,7 +27236,8 @@
                                 "enum": [
                                   "resend",
                                   "mobile_message",
-                                  "mapbox"
+                                  "mapbox",
+                                  "fy_webhook"
                                 ]
                               },
                               "configured": {
@@ -27454,7 +27314,8 @@
               "enum": [
                 "resend",
                 "mobile_message",
-                "mapbox"
+                "mapbox",
+                "fy_webhook"
               ]
             },
             "in": "path",
@@ -27478,7 +27339,8 @@
                           "enum": [
                             "resend",
                             "mobile_message",
-                            "mapbox"
+                            "mapbox",
+                            "fy_webhook"
                           ]
                         },
                         "configured": {
@@ -27537,7 +27399,8 @@
               "enum": [
                 "resend",
                 "mobile_message",
-                "mapbox"
+                "mapbox",
+                "fy_webhook"
               ]
             },
             "in": "path",
@@ -27586,7 +27449,8 @@
               "enum": [
                 "resend",
                 "mobile_message",
-                "mapbox"
+                "mapbox",
+                "fy_webhook"
               ]
             },
             "in": "path",
@@ -27651,6 +27515,17 @@
                     ],
                     "default": "OP"
                   },
+                  "scopes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "bot:fy"
+                      ]
+                    },
+                    "maxItems": 10,
+                    "default": []
+                  },
                   "expiresAt": {
                     "type": "string",
                     "format": "date-time",
@@ -27694,6 +27569,12 @@
                             "OP"
                           ]
                         },
+                        "scopes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
                         "expiresAt": {
                           "type": "string",
                           "format": "date-time",
@@ -27723,6 +27604,7 @@
                         "name",
                         "prefix",
                         "role",
+                        "scopes",
                         "expiresAt",
                         "revokedAt",
                         "lastUsedAt",
@@ -27776,6 +27658,12 @@
                                   "OP"
                                 ]
                               },
+                              "scopes": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
                               "expiresAt": {
                                 "type": "string",
                                 "format": "date-time",
@@ -27801,6 +27689,7 @@
                               "name",
                               "prefix",
                               "role",
+                              "scopes",
                               "expiresAt",
                               "revokedAt",
                               "lastUsedAt",
@@ -27868,6 +27757,12 @@
                             "OP"
                           ]
                         },
+                        "scopes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
                         "expiresAt": {
                           "type": "string",
                           "format": "date-time",
@@ -27893,10 +27788,799 @@
                         "name",
                         "prefix",
                         "role",
+                        "scopes",
                         "expiresAt",
                         "revokedAt",
                         "lastUsedAt",
                         "createdAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/integrations/fy/appointments/by-contact-phone": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "query",
+            "name": "phone",
+            "required": true
+          },
+          {
+            "schema": {
+              "allOf": [
+                {
+                  "anyOf": [
+                    {
+                      "not": {}
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "anyOf": [
+                    {
+                      "not": {}
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "allOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "DRAFT",
+                              "AWAITING_INSPECTOR",
+                              "SCHEDULED",
+                              "DONE",
+                              "CANCELLED",
+                              "REJECTED"
+                            ]
+                          }
+                        ]
+                      },
+                      "minItems": 1
+                    }
+                  ]
+                }
+              ]
+            },
+            "in": "query",
+            "name": "statusIn",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "contact": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "email": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "phone": {
+                              "type": "string",
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "email",
+                            "phone"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "appointments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "code": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "DRAFT",
+                                  "AWAITING_INSPECTOR",
+                                  "SCHEDULED",
+                                  "DONE",
+                                  "CANCELLED",
+                                  "REJECTED"
+                                ]
+                              },
+                              "serviceType": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "name"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "scheduledDate": {
+                                "type": "string"
+                              },
+                              "timeSlotStart": {
+                                "type": "string"
+                              },
+                              "timeSlotEnd": {
+                                "type": "string"
+                              },
+                              "propertyAddress": {
+                                "type": "string"
+                              },
+                              "agency": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "name"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "code",
+                              "status",
+                              "serviceType",
+                              "scheduledDate",
+                              "timeSlotStart",
+                              "timeSlotEnd",
+                              "propertyAddress",
+                              "agency"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "contact",
+                        "appointments"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/integrations/fy/appointments/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "DRAFT",
+                            "AWAITING_INSPECTOR",
+                            "SCHEDULED",
+                            "DONE",
+                            "CANCELLED",
+                            "REJECTED"
+                          ]
+                        },
+                        "serviceType": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "scheduledDate": {
+                          "type": "string"
+                        },
+                        "timeSlotStart": {
+                          "type": "string"
+                        },
+                        "timeSlotEnd": {
+                          "type": "string"
+                        },
+                        "propertyAddress": {
+                          "type": "string"
+                        },
+                        "agency": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "timezone": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name",
+                            "timezone"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "keyRequired": {
+                          "type": "boolean"
+                        },
+                        "meetingLocation": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "keyLocation": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "inspector": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        },
+                        "contact": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "email": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "phone": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "confirmed": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "email",
+                            "phone",
+                            "confirmed"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "rentalTenantNote": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "confirmationLink": {
+                          "type": "object",
+                          "properties": {
+                            "url": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "expiresAt": {
+                              "type": "string",
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "url",
+                            "expiresAt"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "code",
+                        "status",
+                        "serviceType",
+                        "scheduledDate",
+                        "timeSlotStart",
+                        "timeSlotEnd",
+                        "propertyAddress",
+                        "agency",
+                        "keyRequired",
+                        "meetingLocation",
+                        "keyLocation",
+                        "inspector",
+                        "contact",
+                        "notes",
+                        "rentalTenantNote",
+                        "confirmationLink"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/integrations/fy/agencies/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "timezone": {
+                          "type": "string"
+                        },
+                        "branches": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "email": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "address": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "email",
+                              "address"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "timezone",
+                        "branches"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/integrations/fy/appointments/{id}/available-dates": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "default": 5
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "availableDates": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "date": {
+                                "type": "string"
+                              },
+                              "timeSlots": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "start": {
+                                      "type": "string"
+                                    },
+                                    "end": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "start",
+                                    "end"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "date",
+                              "timeSlots"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "availableDates"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/integrations/fy/appointments/{id}/notes": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "content": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "content"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "content": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "content",
+                        "createdAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/integrations/fy/appointments/{id}/contact": {
+      "patch": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254,
+                    "nullable": true
+                  },
+                  "phone": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "contact": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "email": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "phone": {
+                              "type": "string",
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "email",
+                            "phone"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "contact"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/integrations/fy/appointments/{id}/resend-notice": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "QUEUED"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "status"
                       ],
                       "additionalProperties": false
                     }

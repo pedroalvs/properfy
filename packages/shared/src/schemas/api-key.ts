@@ -13,9 +13,20 @@ export const API_KEY_PLAINTEXT_PREFIX = 'pfy_';
 export const apiKeyRoleSchema = z.enum(['AM', 'OP']);
 export type ApiKeyRole = z.infer<typeof apiKeyRoleSchema>;
 
+/**
+ * Scopes a key may carry. Scoped routes (e.g. the Fy agent API) require the
+ * matching scope and are machine-only — JWT principals never carry scopes.
+ */
+export const apiKeyScopeSchema = z.enum(['bot:fy']);
+export type ApiKeyScope = z.infer<typeof apiKeyScopeSchema>;
+
+/** Scope required by the Fy agent routes (`/v1/integrations/fy/*`). */
+export const FY_AGENT_SCOPE = apiKeyScopeSchema.enum['bot:fy'];
+
 export const apiKeyCreateSchema = z.object({
   name: z.string().trim().min(1).max(200),
   role: apiKeyRoleSchema.default('OP'),
+  scopes: z.array(apiKeyScopeSchema).max(10).default([]),
   /** ISO datetime after which the key is rejected. Null/omitted = no expiry. */
   expiresAt: z.string().datetime().nullable().optional(),
 });
@@ -26,6 +37,7 @@ export const apiKeyResponseSchema = z.object({
   name: z.string(),
   prefix: z.string(),
   role: apiKeyRoleSchema,
+  scopes: z.array(z.string()),
   expiresAt: z.string().datetime().nullable(),
   revokedAt: z.string().datetime().nullable(),
   lastUsedAt: z.string().datetime().nullable(),

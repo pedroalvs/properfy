@@ -9,6 +9,7 @@ export function toApiKeyResponse(key: ApiKey): ApiKeyResponse {
     name: key.name,
     prefix: key.prefix,
     role: key.role,
+    scopes: key.scopes,
     expiresAt: key.expiresAt?.toISOString() ?? null,
     revokedAt: key.revokedAt?.toISOString() ?? null,
     lastUsedAt: key.lastUsedAt?.toISOString() ?? null,

@@ -52,9 +52,13 @@ describe('MapBulkRescheduleForm — free start/end time range', () => {
     expect(screen.getByLabelText('End time')).toBeInTheDocument();
   });
 
-  it('submits newTimeSlotStart/newTimeSlotEnd to the reopen-for-reschedule mutation', async () => {
+  it('does not render a date input — the group date is kept', () => {
     renderForm([makeAppointment()]);
-    fireEvent.change(screen.getByTestId('map-bulk-reschedule-date'), { target: { value: '2027-06-20' } });
+    expect(screen.queryByTestId('map-bulk-reschedule-date')).toBeNull();
+  });
+
+  it('submits the current scheduled date with newTimeSlotStart/newTimeSlotEnd', async () => {
+    renderForm([makeAppointment()]);
     fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '13:00' } });
     fireEvent.change(screen.getByLabelText('End time'), { target: { value: '16:00' } });
     fireEvent.click(screen.getByTestId('map-bulk-reschedule-apply'));
@@ -63,7 +67,7 @@ describe('MapBulkRescheduleForm — free start/end time range', () => {
       expect(mutateAsync).toHaveBeenCalledWith(
         expect.objectContaining({
           appointmentIds: ['appt-1'],
-          newDate: '2027-06-20',
+          newDate: '2027-06-15',
           newTimeSlotStart: '13:00',
           newTimeSlotEnd: '16:00',
         }),
@@ -71,12 +75,27 @@ describe('MapBulkRescheduleForm — free start/end time range', () => {
     });
   });
 
-  it('opens the native picker when the date input is clicked', () => {
-    renderForm([makeAppointment()]);
-    const input = screen.getByTestId('map-bulk-reschedule-date') as HTMLInputElement;
-    const showPickerSpy = vi.fn();
-    input.showPicker = showPickerSpy;
-    fireEvent.click(input);
-    expect(showPickerSpy).toHaveBeenCalledTimes(1);
+  it('blocks submission when same-group appointments have different scheduled dates', () => {
+    renderForm([
+      makeAppointment(),
+      makeAppointment({ id: 'appt-2', code: 'INS-0002', scheduledDate: '2027-06-16' }),
+    ]);
+    expect(screen.getByTestId('map-bulk-reschedule-scope-banner')).toHaveTextContent(
+      'Selected appointments have different dates',
+    );
+    expect(screen.getByTestId('map-bulk-reschedule-apply')).toBeDisabled();
+  });
+
+  it('normalizes an ISO datetime scheduledDate to date-only before submitting', async () => {
+    renderForm([makeAppointment({ scheduledDate: '2027-06-15T00:00:00.000Z' })]);
+    fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '13:00' } });
+    fireEvent.change(screen.getByLabelText('End time'), { target: { value: '16:00' } });
+    fireEvent.click(screen.getByTestId('map-bulk-reschedule-apply'));
+
+    await waitFor(() => {
+      expect(mutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ newDate: '2027-06-15' }),
+      );
+    });
   });
 });

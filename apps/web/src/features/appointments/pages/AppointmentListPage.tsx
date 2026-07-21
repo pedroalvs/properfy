@@ -85,15 +85,10 @@ export function AppointmentListPage() {
   const handleBulkResend = async () => {
     if (selectedIds.length === 0) return;
     try {
-      // Review fix — Issue 3: forward the operator's IANA timezone so the
-      // backend's per-day idempotency key buckets correctly across regions.
-      // Without it the server falls back to its own TZ and an operator at
-      // UTC+10 vs the server's UTC+0 can flip into a different "day" mid-
-      // afternoon, breaking the IDEMPOTENT_REPLAY guarantee.
-      const actorTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      // The backend buckets the per-day idempotency key in the platform
+      // timezone (Sydney); no client timezone is sent.
       const response = await bulkResend.mutateAsync({
         appointmentIds: selectedIds,
-        actorTimezone,
       });
       const sent = response.data.results.filter((r) => r.status === 'SENT').length;
       const noPrimary = response.data.results.filter((r) => r.status === 'NO_PRIMARY_CONTACT').length;

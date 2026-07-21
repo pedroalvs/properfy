@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AppointmentStatus, AppointmentContactRole, ContactType, ContactChannelType, todayLocalDateString, isTimeStartInPastForDate, validateEditedSchedule, CUSTOM_FIELD_LABEL_MAX, CUSTOM_FIELD_VALUE_MAX } from '@properfy/shared';
+import { AppointmentStatus, AppointmentContactRole, ContactType, ContactChannelType, PLATFORM_TIMEZONE, todayInTzDateString, currentTimeInTzHHmm, isTimeStartInPastForDate, validateEditedSchedule, CUSTOM_FIELD_LABEL_MAX, CUSTOM_FIELD_VALUE_MAX } from '@properfy/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
@@ -30,6 +30,7 @@ import { AppCredentialMultiSelect } from './AppCredentialMultiSelect';
 import type { AppointmentFormData, AppointmentFormErrors, ContactFormEntry } from '../types';
 import { EMPTY_FORM_DATA, createEmptyContact, createEmptyCustomField, MAX_CUSTOM_FIELDS } from '../types';
 import type { ContactSearchResult } from '../hooks/useContactSearch';
+import { formatAuPhone } from '@/lib/phone-mask';
 
 const CONTACT_ROLE_OPTIONS = [
   { value: AppointmentContactRole.RENTAL_TENANT, label: 'Tenant' },
@@ -147,7 +148,7 @@ export function AppointmentFormDrawer({
               contactId: c.contactId ?? undefined,
               name: c.snapshotName ?? '',
               email: c.snapshotEmail ?? '',
-              phone: c.snapshotPhone ?? '',
+              phone: formatAuPhone(c.snapshotPhone ?? ''),
               role: c.role ?? ('RENTAL_TENANT' as AppointmentContactRole),
               isPrimary: c.isPrimary ?? false,
             }))
@@ -156,7 +157,7 @@ export function AppointmentFormDrawer({
                 key: crypto.randomUUID(),
                 name: appointment.contactName ?? '',
                 email: appointment.contactEmail ?? '',
-                phone: appointment.contactPhone ?? '',
+                phone: formatAuPhone(appointment.contactPhone ?? ''),
                 role: 'RENTAL_TENANT' as AppointmentContactRole,
                 isPrimary: true,
               },
@@ -170,7 +171,7 @@ export function AppointmentFormDrawer({
         timeSlotStart: appointment.timeSlotStart,
         timeSlotEnd: appointment.timeSlotEnd,
         contactName: appointment.contactName,
-        contactPhone: appointment.contactPhone ?? '',
+        contactPhone: formatAuPhone(appointment.contactPhone ?? ''),
         contactEmail: appointment.contactEmail ?? '',
         contacts,
         customFields: (appointment.customFields ?? []).map((f) => ({
@@ -359,7 +360,7 @@ export function AppointmentFormDrawer({
                 contactId: contact.id,
                 name: contact.displayName,
                 email: contact.primaryEmail ?? '',
-                phone: contact.primaryPhone ?? '',
+                phone: formatAuPhone(contact.primaryPhone ?? ''),
               }
             : c,
         ),
@@ -423,8 +424,9 @@ export function AppointmentFormDrawer({
     // Past-time guard (applies to ALL roles, incl. AM/OP — native input `min`
     // is only a hint and does not block the button-submit path). On edit we use
     // `validateEditedSchedule` so an untouched legacy past appointment is NOT
-    // blocked; only a changed date/time is re-validated.
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    // blocked; only a changed date/time is re-validated. Sydney-only platform:
+    // validate in the platform timezone so the UI matches the backend.
+    const tz = PLATFORM_TIMEZONE;
     if (isEditMode && appointment) {
       const result = validateEditedSchedule({
         existingDate: (appointment.scheduledDate ?? '').split('T')[0] ?? '',
@@ -440,7 +442,7 @@ export function AppointmentFormDrawer({
       }
     } else if (
       form.timeSlotStart &&
-      form.scheduledDate === todayLocalDateString() &&
+      form.scheduledDate === todayInTzDateString(tz) &&
       isTimeStartInPastForDate(form.timeSlotStart, form.scheduledDate, tz)
     ) {
       validationErrors.timeSlotStart = validationErrors.timeSlotStart ?? 'Start time is in the past';
@@ -457,12 +459,19 @@ export function AppointmentFormDrawer({
     if (shouldSaveAppointment) {
       const result = await save(form, appointmentId ?? undefined);
       if (!result.success) {
-        const errorMessage = result.error === 'APPOINTMENT_CONTACT_NOT_FOUND'
-          ? 'One or more contacts belong to a different agency and cannot be linked to this appointment.'
-          : result.errorCode === 'APPOINTMENT_TIME_SLOT_OUTSIDE_GROUP_WINDOW'
-          ? "This time slot falls outside the service group's time window. Choose a time within the group's window instead."
-          : (result.error ?? 'Failed to save');
-        showError(errorMessage);
+        // Backend VALIDATION_ERROR details land inline on the matching fields;
+        // unmatched details (or non-validation errors) keep the snackbar.
+        if (result.fieldErrors) {
+          setErrors((prev) => ({ ...prev, ...result.fieldErrors }));
+        }
+        if (result.error || !result.fieldErrors) {
+          const errorMessage = result.error === 'APPOINTMENT_CONTACT_NOT_FOUND'
+            ? 'One or more contacts belong to a different agency and cannot be linked to this appointment.'
+            : result.errorCode === 'APPOINTMENT_TIME_SLOT_OUTSIDE_GROUP_WINDOW'
+            ? "This time slot falls outside the service group's time window. Choose a time within the group's window instead."
+            : (result.error ?? 'Failed to save');
+          showError(errorMessage);
+        }
         return;
       }
       savedAppointment = true;
@@ -640,7 +649,7 @@ export function AppointmentFormDrawer({
                         // Edit-conditional: allow keeping a legacy past date when editing;
                         // create flow always enforces min=today.
                         min={(() => {
-                          const today = todayLocalDateString();
+                          const today = todayInTzDateString(PLATFORM_TIMEZONE);
                           if (!isEditMode) return today;
                           const existing = (appointment?.scheduledDate ?? '').split('T')[0] ?? '';
                           return existing < today ? undefined : today;
@@ -657,8 +666,8 @@ export function AppointmentFormDrawer({
                         onStartChange={(v) => updateField('timeSlotStart', v)}
                         onEndChange={(v) => updateField('timeSlotEnd', v)}
                         minStartTime={
-                          form.scheduledDate === todayLocalDateString()
-                            ? Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date())
+                          form.scheduledDate === todayInTzDateString(PLATFORM_TIMEZONE)
+                            ? currentTimeInTzHHmm(PLATFORM_TIMEZONE)
                             : undefined
                         }
                         error={!!errors.timeSlotStart || !!errors.timeSlotEnd}

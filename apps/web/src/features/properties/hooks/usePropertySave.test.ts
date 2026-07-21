@@ -15,15 +15,6 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
-}));
-
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({ user: { role: 'AM', tenantId: null }, isAuthenticated: true }),
 }));
@@ -38,8 +29,8 @@ const mockPost = api.POST as ReturnType<typeof vi.fn>;
 const mockPatch = api.PATCH as ReturnType<typeof vi.fn>;
 
 const VALID_CREATE_DATA: PropertyFormData = {
-  propertyCode: 'IMV-100',
   type: 'HOUSE',
+  apartmentNumber: '',
   branchId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
   street: '123 Smith Street',
   addressLine2: 'Unit 42',
@@ -69,7 +60,6 @@ describe('usePropertySave', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => usePropertySave(), { wrapper });
     const errors = result.current.validate(EMPTY_PROPERTY_FORM, 'create');
-    expect(errors.propertyCode).toBeDefined();
     expect(errors.type).toBeDefined();
     expect(errors.street).toBeDefined();
     expect(errors.suburb).toBeDefined();
@@ -84,14 +74,45 @@ describe('usePropertySave', () => {
     expect(Object.keys(errors)).toHaveLength(0);
   });
 
-  it('validate does not require propertyCode in edit mode', () => {
+  it('create payload sends apartmentNumber only for APARTMENT type', async () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => usePropertySave(), { wrapper });
-    const errors = result.current.validate(
-      { ...VALID_CREATE_DATA, propertyCode: '' },
-      'edit',
-    );
-    expect(errors.propertyCode).toBeUndefined();
+
+    await act(async () => {
+      await result.current.save(
+        { ...VALID_CREATE_DATA, type: 'APARTMENT', apartmentNumber: ' Apt 12B ' },
+        undefined,
+        '123e4567-e89b-12d3-a456-426614174000',
+      );
+    });
+
+    expect(mockPost).toHaveBeenCalledWith('/v1/properties', {
+      body: expect.objectContaining({ apartmentNumber: 'Apt 12B' }),
+    });
+
+    mockPost.mockClear();
+    await act(async () => {
+      await result.current.save(
+        { ...VALID_CREATE_DATA, type: 'HOUSE', apartmentNumber: 'Apt 12B' },
+        undefined,
+        '123e4567-e89b-12d3-a456-426614174000',
+      );
+    });
+    const houseBody = mockPost.mock.calls[0]![1].body as Record<string, unknown>;
+    expect('apartmentNumber' in houseBody).toBe(false);
+  });
+
+  it('edit payload nulls apartmentNumber when type is not APARTMENT', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertySave(), { wrapper });
+
+    await act(async () => {
+      await result.current.save({ ...VALID_CREATE_DATA, apartmentNumber: 'Apt 9' }, 'prop-01');
+    });
+
+    expect(mockPatch).toHaveBeenCalledWith('/v1/properties/prop-01', {
+      body: expect.objectContaining({ apartmentNumber: null }),
+    });
   });
 
   it('validate requires address fields in edit mode', () => {
@@ -117,7 +138,6 @@ describe('usePropertySave', () => {
     expect(saveResult?.id).toBe('new-prop');
     expect(mockPost).toHaveBeenCalledWith('/v1/properties', {
       body: expect.objectContaining({
-        propertyCode: VALID_CREATE_DATA.propertyCode,
         tenantId: '123e4567-e89b-12d3-a456-426614174000',
         type: VALID_CREATE_DATA.type,
         branchId: VALID_CREATE_DATA.branchId,
@@ -142,7 +162,6 @@ describe('usePropertySave', () => {
     expect(saveResult?.success).toBe(true);
     expect(mockPatch).toHaveBeenCalledWith('/v1/properties/prop-01', {
       body: expect.objectContaining({
-        propertyCode: VALID_CREATE_DATA.propertyCode,
         type: VALID_CREATE_DATA.type,
         branchId: VALID_CREATE_DATA.branchId,
         street: VALID_CREATE_DATA.street,
@@ -176,5 +195,53 @@ describe('usePropertySave', () => {
     });
 
     expect(result.current.isSaving).toBe(false);
+  });
+
+  it('save maps VALIDATION_ERROR details to inline form field errors', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [{ field: 'postcode', message: 'Postcode must have 4 digits' }],
+        },
+      },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertySave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_CREATE_DATA);
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.fieldErrors?.postcode).toBe('Postcode must have 4 digits');
+    expect(saveResult?.error).toBeUndefined();
+  });
+
+  it('save falls back to the summary error when detail paths do not match form fields', async () => {
+    mockPatch.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [{ field: 'geo.latitude', message: 'Invalid latitude' }],
+        },
+      },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertySave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_CREATE_DATA, 'prop-01');
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.fieldErrors).toBeUndefined();
+    expect(saveResult?.error).toBe('Validation failed');
   });
 });

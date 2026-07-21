@@ -3,7 +3,9 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
-vi.mock('@properfy/shared', () => ({}));
+vi.mock('@properfy/shared', () => ({
+  PropertyType: { APARTMENT: 'APARTMENT', HOUSE: 'HOUSE' },
+}));
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } }));
 vi.mock('@/services/api', () => ({
   api: {
@@ -15,14 +17,6 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
-}));
 vi.mock('@/lib/auth-storage', () => ({
   authStorage: { getAccessToken: vi.fn(() => null), hasTokens: vi.fn(() => false), setTokens: vi.fn(), clearTokens: vi.fn() },
 }));
@@ -125,5 +119,15 @@ describe('PropertyFormDrawer', () => {
     fireEvent.click(screen.getByText('Create Property'));
     expect(screen.getByText('Required field')).toBeInTheDocument();
     expect(mockSave).not.toHaveBeenCalled();
+  });
+
+  it('renders backend VALIDATION_ERROR details inline on the matching field', async () => {
+    mockSave.mockResolvedValue({
+      success: false,
+      fieldErrors: { street: 'Street could not be verified' },
+    });
+    renderDrawer();
+    fireEvent.click(screen.getByText('Create Property'));
+    expect(await screen.findByText('Street could not be verified')).toBeInTheDocument();
   });
 });

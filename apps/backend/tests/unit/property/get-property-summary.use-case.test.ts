@@ -21,15 +21,15 @@ describe('GetPropertySummaryUseCase', () => {
 
   beforeEach(() => {
     propertyRepo = {
-      countByType: vi.fn().mockResolvedValue({ HOUSE: 4, APARTMENT: 6, COMMERCIAL: 2 }),
+      countByType: vi.fn().mockResolvedValue({ HOUSE: 4, APARTMENT: 6 }),
     };
     useCase = new GetPropertySummaryUseCase(propertyRepo as IPropertyRepository);
   });
 
-  it('should return total, house and apartment counts (total includes other types)', async () => {
+  it('should return total, house and apartment counts', async () => {
     const result = await useCase.execute({ filters: {}, actor: makeActor() });
 
-    expect(result).toEqual({ totalCount: 12, houseCount: 4, apartmentCount: 6 });
+    expect(result).toEqual({ totalCount: 10, houseCount: 4, apartmentCount: 6 });
   });
 
   it('should return zeros when there are no properties', async () => {

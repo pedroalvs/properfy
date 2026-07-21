@@ -19,15 +19,6 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
-}));
-
 import { api } from '@/services/api';
 import { ApiError } from '@/lib/api-error';
 import { PortalPage } from './PortalPage';
@@ -119,7 +110,7 @@ describe('PortalPage', () => {
     });
   });
 
-  it('shows read-only banner when token status is EXPIRED', async () => {
+  it('shows the deadline banner when token status is EXPIRED', async () => {
     mockGet.mockResolvedValue({ data: {
       ...MOCK_PORTAL_DATA,
       token: { status: 'EXPIRED', isReadOnly: true },
@@ -128,7 +119,7 @@ describe('PortalPage', () => {
 
     await waitFor(() => {
       expect(
-        screen.getAllByText(/restricted mode/i).length,
+        screen.getAllByText(/confirmation deadline has passed/i).length,
       ).toBeGreaterThan(0);
     });
   });
@@ -208,7 +199,7 @@ describe('PortalPage', () => {
     });
   });
 
-  it('hides reschedule form when token is expired (read-only)', async () => {
+  it('keeps the propose-new-date action when token is expired (read-only)', async () => {
     mockGet.mockResolvedValue({ data: {
       ...MOCK_PORTAL_DATA,
       token: { status: 'EXPIRED', isReadOnly: true },
@@ -216,9 +207,9 @@ describe('PortalPage', () => {
     renderPortal();
 
     await waitFor(() => {
-      expect(screen.getAllByText(/restricted mode/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/confirmation deadline has passed/i).length).toBeGreaterThan(0);
     });
-    expect(screen.queryByRole('heading', { name: 'Request Reschedule' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /propose new date/i })).toBeInTheDocument();
   });
 
   it('shows unavailability section when token is expired but confirmation is not CONFIRMED', async () => {
@@ -229,9 +220,9 @@ describe('PortalPage', () => {
     renderPortal();
 
     await waitFor(() => {
-      expect(screen.getAllByText(/restricted mode/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/confirmation deadline has passed/i).length).toBeGreaterThan(0);
     });
-    // In the unified form, the No button (disabled when read-only) is the unavailability path
+    // In the unified form, the No button is the unavailability path
     expect(screen.getByRole('button', { name: /no/i })).toBeInTheDocument();
   });
 
@@ -410,6 +401,80 @@ describe('PortalPage', () => {
       'We could not join this time slot. Please try again.',
     );
     expect(screen.getByRole('button', { name: 'Join this time slot' })).toBeInTheDocument();
+  });
+
+  describe('past confirm cutoff regime (valid token)', () => {
+    const PAST_CUTOFF_DATA = {
+      ...MOCK_PORTAL_DATA,
+      token: { status: 'ACTIVE', isReadOnly: false, isPastConfirmCutoff: true },
+    };
+
+    it('shows the cutoff banner and locks only the Yes option', async () => {
+      mockGet.mockResolvedValue({ data: PAST_CUTOFF_DATA });
+      renderPortal();
+      await screen.findByText(/confirmation deadline has passed/i);
+      expect(screen.getByRole('button', { name: /yes/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /no/i })).not.toBeDisabled();
+    });
+
+    it('keeps "Change time" and "Propose new date" available past the cutoff', async () => {
+      mockGet.mockResolvedValue({ data: PAST_CUTOFF_DATA });
+      renderPortal();
+      await screen.findByText(/confirmation deadline has passed/i);
+      expect(screen.getByRole('button', { name: /change time/i })).toBeTruthy();
+      expect(screen.getByRole('button', { name: /propose new date/i })).toBeTruthy();
+    });
+
+    it('keeps reschedule actions available when the token is expired (active appointment)', async () => {
+      mockGet.mockResolvedValue({
+        data: {
+          ...MOCK_PORTAL_DATA,
+          token: { status: 'EXPIRED', isReadOnly: true, isPastConfirmCutoff: true },
+        },
+      });
+      renderPortal();
+      await screen.findByText(/confirmation deadline has passed/i);
+      const yesButton = screen.getByRole('button', { name: /yes/i });
+      expect(yesButton).toBeDisabled();
+      expect(yesButton).toHaveAttribute('title', 'The confirmation deadline has passed');
+      expect(screen.getByRole('button', { name: /change time/i })).toBeTruthy();
+      expect(screen.getByRole('button', { name: /propose new date/i })).toBeTruthy();
+    });
+
+    it('lets an expired token open the reschedule form with enabled fields', async () => {
+      const user = userEvent.setup();
+      mockGet.mockResolvedValue({
+        data: {
+          ...MOCK_PORTAL_DATA,
+          token: { status: 'EXPIRED', isReadOnly: true, isPastConfirmCutoff: true },
+        },
+      });
+      renderPortal();
+      await user.click(await screen.findByRole('button', { name: /propose new date/i }));
+      expect(
+        screen.getByRole('button', { name: /request reschedule/i }),
+      ).not.toBeDisabled();
+    });
+  });
+
+  describe('confirm race with a just-cancelled appointment', () => {
+    it('refetches and shows the cancelled view when confirm returns PORTAL_APPOINTMENT_INACTIVE', async () => {
+      mockGet.mockResolvedValueOnce({ data: MOCK_PORTAL_DATA });
+      mockPost.mockResolvedValue({
+        error: { error: { code: 'PORTAL_APPOINTMENT_INACTIVE', message: 'Appointment is no longer active' } },
+        response: { status: 409 },
+      });
+      mockGet.mockResolvedValue({
+        data: { ...MOCK_PORTAL_DATA, appointment: { ...MOCK_PORTAL_DATA.appointment, status: 'CANCELLED' } },
+      });
+      renderPortal();
+      const user = userEvent.setup();
+      await screen.findByRole('button', { name: /yes/i });
+      await user.click(screen.getByRole('button', { name: /yes/i }));
+      await user.click(screen.getByRole('button', { name: /submit/i }));
+      await screen.findByText(/cancelled/i);
+      expect(screen.queryByText(/attendance confirmed/i)).toBeNull();
+    });
   });
 
   it('shows generic error state for unknown API errors', async () => {

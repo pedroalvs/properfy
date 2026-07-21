@@ -1,9 +1,16 @@
 import { useState, useCallback } from 'react';
-import { createPropertySchema, updatePropertySchema } from '@properfy/shared';
+import { createPropertySchema, updatePropertySchema, PropertyType } from '@properfy/shared';
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
+import { identityFieldMapper, mapServerFieldErrors } from '@/lib/server-field-errors';
 import type { PropertyFormData, PropertyFormErrors } from '../types';
+import { EMPTY_PROPERTY_FORM } from '../types';
+
+/** Backend VALIDATION_ERROR detail paths mirror the flat property schema. */
+const serverFieldMapper = identityFieldMapper(
+  Object.keys(EMPTY_PROPERTY_FORM) as (keyof PropertyFormData)[],
+);
 
 function parseBoolField(value: '' | 'true' | 'false'): boolean | undefined {
   return value === '' ? undefined : value === 'true';
@@ -35,8 +42,10 @@ function toSchemaPayload(data: PropertyFormData, mode: 'create' | 'edit', tenant
       ...(parseNumberField(data.rentAmount) !== undefined
         ? { rentAmount: parseNumberField(data.rentAmount) }
         : {}),
-      propertyCode: data.propertyCode.trim() || undefined,
       type: data.type || undefined,
+      ...(data.type === PropertyType.APARTMENT && data.apartmentNumber.trim()
+        ? { apartmentNumber: data.apartmentNumber.trim() }
+        : {}),
       street: data.street.trim() || undefined,
       ...(data.addressLine2.trim() ? { addressLine2: data.addressLine2.trim() } : {}),
       suburb: data.suburb.trim() || undefined,
@@ -50,8 +59,10 @@ function toSchemaPayload(data: PropertyFormData, mode: 'create' | 'edit', tenant
   }
 
   const payload: Record<string, unknown> = {
-    ...(data.propertyCode.trim() ? { propertyCode: data.propertyCode.trim() } : {}),
     ...(data.type ? { type: data.type } : {}),
+    // Only meaningful for apartments; clearing (or switching to HOUSE) nulls it.
+    apartmentNumber:
+      data.type === PropertyType.APARTMENT ? data.apartmentNumber.trim() || null : null,
     ...(data.street.trim() ? { street: data.street.trim() } : {}),
     addressLine2: data.addressLine2.trim() || null,
     ...(data.suburb.trim() ? { suburb: data.suburb.trim() } : {}),
@@ -96,6 +107,8 @@ function zodErrorsToFormErrors(issues: { path: (string | number)[]; message: str
 export interface SaveResult {
   success: boolean;
   error?: string;
+  /** Backend VALIDATION_ERROR details mapped to form fields (inline display). */
+  fieldErrors?: PropertyFormErrors;
   id?: string;
 }
 
@@ -136,11 +149,11 @@ export function usePropertySave(): UsePropertySaveReturn {
       if (propertyId) {
         const payload = toSchemaPayload(data, 'edit');
         const { error } = await api.PATCH(`/v1/properties/${propertyId}` as any, { body: payload as any });
-        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        if (error) return { success: false, ...mapServerFieldErrors(error, serverFieldMapper, 'Request failed') };
       } else {
         const payload = toSchemaPayload(data, 'create', tenantIdOverride ?? user?.tenantId);
         const { data: responseData, error } = await api.POST('/v1/properties' as any, { body: payload as any });
-        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        if (error) return { success: false, ...mapServerFieldErrors(error, serverFieldMapper, 'Request failed') };
         newId = (responseData as any)?.data?.id;
       }
       queryClient.invalidateQueries({ queryKey: ['properties'] });

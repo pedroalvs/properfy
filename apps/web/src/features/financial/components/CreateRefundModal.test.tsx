@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
+import { Snackbar } from '@/components/feedback/Snackbar';
 
 vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
@@ -17,15 +18,6 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
-}));
-
 import { api } from '@/services/api';
 import { CreateRefundModal } from './CreateRefundModal';
 
@@ -38,7 +30,10 @@ function createWrapper() {
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        <SnackbarProvider>{children}</SnackbarProvider>
+        <SnackbarProvider>
+          {children}
+          <Snackbar />
+        </SnackbarProvider>
       </QueryClientProvider>
     );
   };
@@ -140,5 +135,53 @@ describe('CreateRefundModal', () => {
       expect(screen.getByText('Invalid entry ID')).toBeInTheDocument();
     });
     expect(mockPost).not.toHaveBeenCalled();
+  });
+
+  it('surfaces the backend error message in the snackbar on failure', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: { error: { code: 'FINANCIAL_ENTRY_NOT_REFUNDABLE', message: 'Entry was already refunded' } },
+      response: { status: 409 },
+    });
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <CreateRefundModal open={true} onClose={onClose} onCreated={onCreated} />
+      </Wrapper>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Financial Entry ID'), { target: { value: '123e4567-e89b-12d3-a456-426614174000' } });
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Refund requested' } });
+    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Customer overpaid' } });
+    fireEvent.click(screen.getByText('Create'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Entry was already refunded')).toBeInTheDocument();
+    });
+    expect(onCreated).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the generic message on a 500', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: { error: { code: 'INTERNAL_ERROR', message: 'ECONNREFUSED at pg-pool' } },
+      response: { status: 500 },
+    });
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <CreateRefundModal open={true} onClose={onClose} onCreated={onCreated} />
+      </Wrapper>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Financial Entry ID'), { target: { value: '123e4567-e89b-12d3-a456-426614174000' } });
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Refund requested' } });
+    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Customer overpaid' } });
+    fireEvent.click(screen.getByText('Create'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to create refund')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('ECONNREFUSED at pg-pool')).not.toBeInTheDocument();
   });
 });

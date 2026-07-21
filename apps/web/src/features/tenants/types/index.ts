@@ -27,7 +27,6 @@ export interface TenantAdminDetail extends TenantAdmin {
 export interface TenantAdminFormData {
   name: string;
   legalName: string;
-  timezone: string;
   currency: string;
   /** 3–4 letters/numbers, uppercased, unique per agency (e.g. "INS" -> "INS-0042"). */
   appointmentCodePrefix: string;
@@ -41,7 +40,6 @@ export type TenantAdminFormErrors = Partial<Record<keyof TenantAdminFormData, st
 export const EMPTY_TENANT_ADMIN_FORM: TenantAdminFormData = {
   name: '',
   legalName: '',
-  timezone: '',
   currency: '',
   appointmentCodePrefix: '',
   notes: '',

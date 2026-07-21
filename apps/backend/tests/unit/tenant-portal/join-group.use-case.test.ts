@@ -6,7 +6,7 @@ import {
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
 import {
-  PortalActionBlockedError,
+  PortalAppointmentInactiveError,
   PortalTokenAlreadyUsedError,
   PortalGroupNotFoundError,
   PortalGroupFullError,
@@ -80,7 +80,6 @@ function makeInput(overrides: Partial<JoinGroupInput> = {}): JoinGroupInput {
     scheduledDate: '2026-06-02',
     timeSlotStart: '13:00',
     timeSlotEnd: '15:00',
-    isReadOnly: false,
     isUsed: false,
     ipAddress: '127.0.0.1',
     userAgent: 'TestAgent/1.0',
@@ -101,7 +100,7 @@ describe('JoinGroupUseCase', () => {
     incrementConfirmedCount: ReturnType<typeof vi.fn>;
   };
   let activityRepo: { save: ReturnType<typeof vi.fn> };
-  let tokenRepo: { markUsed: ReturnType<typeof vi.fn> };
+  let tokenRepo: { tryClaim: ReturnType<typeof vi.fn>; releaseClaim: ReturnType<typeof vi.fn> };
   let auditService: { log: ReturnType<typeof vi.fn> };
   let statusTransition: { execute: ReturnType<typeof vi.fn> };
   let notificationHandler: { execute: ReturnType<typeof vi.fn> };
@@ -140,7 +139,7 @@ describe('JoinGroupUseCase', () => {
       incrementConfirmedCount: vi.fn().mockResolvedValue(undefined),
     };
     activityRepo = { save: vi.fn().mockResolvedValue(undefined) };
-    tokenRepo = { markUsed: vi.fn().mockResolvedValue(undefined) };
+    tokenRepo = { tryClaim: vi.fn().mockResolvedValue(true), releaseClaim: vi.fn().mockResolvedValue(undefined) };
     auditService = { log: vi.fn().mockResolvedValue(undefined) };
     statusTransition = {
       execute: vi.fn().mockResolvedValue({
@@ -167,8 +166,20 @@ describe('JoinGroupUseCase', () => {
     );
   });
 
-  it('should throw PortalActionBlockedError when isReadOnly', async () => {
-    await expect(useCase.execute(makeInput({ isReadOnly: true }))).rejects.toThrow(PortalActionBlockedError);
+  it('should allow joining a group after the portal token expired (isReadOnly)', async () => {
+    const result = await useCase.execute(makeInput());
+    expect(result.appointmentStatus).toBe('SCHEDULED');
+  });
+
+  it('should throw PortalAppointmentInactiveError for finalized appointments', async () => {
+    for (const status of ['DONE', 'CANCELLED', 'REJECTED'] as const) {
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ status }),
+        contact: null,
+        restrictions: [],
+      });
+      await expect(useCase.execute(makeInput())).rejects.toThrow(PortalAppointmentInactiveError);
+    }
   });
 
   it('should throw PortalTokenAlreadyUsedError when isUsed', async () => {
@@ -321,7 +332,7 @@ describe('JoinGroupUseCase', () => {
 
   it('should mark token as used', async () => {
     await useCase.execute(makeInput());
-    expect(tokenRepo.markUsed).toHaveBeenCalledWith('token-1');
+    expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1', 'appt-1');
   });
 
   it('should call audit service with ANONYMOUS actor', async () => {

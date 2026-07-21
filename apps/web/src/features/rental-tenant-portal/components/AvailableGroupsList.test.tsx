@@ -37,7 +37,7 @@ describe('AvailableGroupsList', () => {
     render(<AvailableGroupsList groups={[GROUP]} isLoading={false} onSelect={vi.fn()} />);
     expect(screen.getByText('Surry Hills')).toBeTruthy();
     expect(screen.getByText('09:00-12:00')).toBeTruthy();
-    expect(screen.getByText('2026-06-15')).toBeTruthy();
+    expect(screen.getByText('15/06/2026')).toBeTruthy();
     expect(screen.getByText('John Smith')).toBeTruthy();
   });
 

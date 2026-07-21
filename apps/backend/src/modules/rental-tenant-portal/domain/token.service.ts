@@ -37,7 +37,11 @@ export class TokenService {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
-      hour12: false,
+      // h23, not hour12:false — some ICU versions map hour12:false to the h24
+      // cycle, formatting local midnight as hour "24" with the day already
+      // advanced, which corrupts the offset measured at exactly-midnight
+      // instants (the end-of-day expiry).
+      hourCycle: 'h23',
     });
 
     // Measure the UTC offset at a given instant by comparing the UTC hour

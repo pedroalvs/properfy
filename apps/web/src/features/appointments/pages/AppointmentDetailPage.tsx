@@ -67,6 +67,7 @@ export function AppointmentDetailPage() {
   const { showSuccess, showError } = useSnackbar();
   const [isGeneratingPortalToken, setIsGeneratingPortalToken] = useState(false);
   const [isCopyingPortalLink, setIsCopyingPortalLink] = useState(false);
+  const [generateAndCopyOpen, setGenerateAndCopyOpen] = useState(false);
   const tabs = [
     ...BASE_TABS,
     ...(isPrivileged ? [PORTAL_ACTIVITY_TAB] : []),
@@ -100,6 +101,11 @@ export function AppointmentDetailPage() {
     (appointment.status === 'AWAITING_INSPECTOR' || appointment.status === 'SCHEDULED') &&
     (!!appointment.contactEmail || !!appointment.contactPhone);
   const canCopyPortalLink = !!appointment && isPrivileged;
+  // Generate-only (no notification) follows the same backend status gate as Send,
+  // but needs no contact — nothing is dispatched.
+  const canGeneratePortalToken = !!appointment &&
+    isPrivileged &&
+    (appointment.status === 'AWAITING_INSPECTOR' || appointment.status === 'SCHEDULED');
   const canDelete = !!appointment && user?.role === 'AM' && appointment.status === 'DRAFT';
   const canForceConfirm = !!appointment &&
     isPrivileged &&
@@ -148,7 +154,9 @@ export function AppointmentDetailPage() {
     }
   }, [appointment, showSuccess, showError, refetch]);
 
-  const handleCopyPortalLink = useCallback(async () => {
+  // Copies the current active portal link to the clipboard. `successMessage`
+  // lets the generate-and-copy flow make clear nothing was sent to the tenant.
+  const copyPortalLink = useCallback(async (successMessage: string) => {
     if (!appointment) return;
     setIsCopyingPortalLink(true);
     try {
@@ -171,13 +179,41 @@ export function AppointmentDetailPage() {
         return;
       }
       await navigator.clipboard.writeText(url);
-      showSuccess('Portal link copied to clipboard');
+      showSuccess(successMessage);
     } catch {
       showError('Failed to copy portal link');
     } finally {
       setIsCopyingPortalLink(false);
     }
   }, [appointment, showSuccess, showError]);
+
+  const handleCopyPortalLink = useCallback(() => {
+    void copyPortalLink('Portal link copied to clipboard');
+  }, [copyPortalLink]);
+
+  // Generate-only: mint a token without notifying the tenant, then copy the link.
+  const handleGenerateAndCopy = useCallback(async () => {
+    if (!appointment) return;
+    setGenerateAndCopyOpen(false);
+    setIsGeneratingPortalToken(true);
+    try {
+      const { error } = await api.POST(
+        `/v1/appointments/${appointment.id}/portal-token` as never,
+        { body: { notify: false } } as never,
+      );
+      if (error) {
+        const err = error as { error?: { message?: string } };
+        showError(err?.error?.message ?? 'Failed to generate portal link');
+        return;
+      }
+      await copyPortalLink('Portal link generated and copied — not sent to tenant');
+      refetch();
+    } catch {
+      showError('Failed to generate portal link');
+    } finally {
+      setIsGeneratingPortalToken(false);
+    }
+  }, [appointment, copyPortalLink, showError, refetch]);
 
   if (isLoading) {
     return (
@@ -254,13 +290,21 @@ export function AppointmentDetailPage() {
           )}
           {canCopyPortalLink && (
             <span
-              title={!appointment.hasActivePortalToken ? 'No active portal link — send one first' : undefined}
+              title={
+                !appointment.hasActivePortalToken && !canGeneratePortalToken
+                  ? 'No active portal link — send one first'
+                  : undefined
+              }
             >
               <Button
                 variant="secondary"
-                onClick={handleCopyPortalLink}
-                loading={isCopyingPortalLink}
-                disabled={!appointment.hasActivePortalToken}
+                onClick={
+                  appointment.hasActivePortalToken
+                    ? handleCopyPortalLink
+                    : () => setGenerateAndCopyOpen(true)
+                }
+                loading={isCopyingPortalLink || isGeneratingPortalToken}
+                disabled={!appointment.hasActivePortalToken && !canGeneratePortalToken}
                 data-testid="copy-portal-link-button"
               >
                 <i className="mdi mdi-content-copy text-base" aria-hidden="true" />
@@ -388,6 +432,18 @@ export function AppointmentDetailPage() {
         confirmLabel="Delete"
         variant="danger"
         loading={isDeleting}
+      />
+      <ConfirmDialog
+        open={generateAndCopyOpen}
+        onClose={() => setGenerateAndCopyOpen(false)}
+        onConfirm={() => {
+          void handleGenerateAndCopy();
+        }}
+        title="Generate Portal Link"
+        message="This will generate a portal link that will NOT be sent to the tenant. Generate and copy?"
+        confirmLabel="Generate & Copy"
+        variant="warning"
+        loading={isGeneratingPortalToken}
       />
       <ForceConfirmDialog
         open={forceConfirmOpen}

@@ -91,6 +91,23 @@ describe('importPropertyPlanSchema', () => {
     const result = importPropertyPlanSchema.safeParse({ ...VALID_PROPERTY_PLAN, resolution: 'reused' });
     expect(result.success).toBe(false);
   });
+
+  it('accepts an apartmentNumber string', () => {
+    const result = importPropertyPlanSchema.safeParse({ ...VALID_PROPERTY_PLAN, apartmentNumber: '4' });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.apartmentNumber).toBe('4');
+  });
+
+  it('defaults apartmentNumber to null when omitted (pre-existing previewJson payloads)', () => {
+    const result = importPropertyPlanSchema.safeParse(VALID_PROPERTY_PLAN);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.apartmentNumber).toBeNull();
+  });
+
+  it('rejects a non-string apartmentNumber', () => {
+    const result = importPropertyPlanSchema.safeParse({ ...VALID_PROPERTY_PLAN, apartmentNumber: 4 });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('importContactPlanSchema', () => {

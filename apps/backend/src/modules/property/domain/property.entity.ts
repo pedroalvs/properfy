@@ -8,7 +8,9 @@ export interface PropertyProps {
   tenantId: string;
   branchId: string | null;
   propertyCode: string;
+  propertyNumber?: number | null;
   type: PropertyType;
+  apartmentNumber?: string | null;
   street: string;
   addressLine2: string | null;
   suburb: string;
@@ -34,7 +36,9 @@ export class PropertyEntity extends BaseEntity {
   readonly tenantId: string;
   readonly branchId: string | null;
   readonly propertyCode: string;
+  readonly propertyNumber: number | null;
   readonly type: PropertyType;
+  readonly apartmentNumber: string | null;
   readonly street: string;
   readonly addressLine2: string | null;
   readonly suburb: string;
@@ -58,7 +62,9 @@ export class PropertyEntity extends BaseEntity {
     this.tenantId = props.tenantId;
     this.branchId = props.branchId;
     this.propertyCode = props.propertyCode;
+    this.propertyNumber = props.propertyNumber ?? null;
     this.type = props.type;
+    this.apartmentNumber = props.apartmentNumber ?? null;
     this.street = props.street;
     this.addressLine2 = props.addressLine2;
     this.suburb = props.suburb;

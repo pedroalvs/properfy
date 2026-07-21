@@ -358,7 +358,12 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": {
+                            secret: string;
+                            qrUri: string;
+                        };
+                    };
                 };
             };
         };
@@ -577,48 +582,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/auth/accept-invite": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        token: string;
-                        password: string & (unknown & unknown & unknown & unknown);
-                    };
-                };
-            };
-            responses: {
-                /** @description Default Response */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": "null" | null;
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/tenants": {
         parameters: {
             query?: never;
@@ -687,8 +650,6 @@ export interface paths {
                     "application/json": {
                         name: string;
                         legalName: string;
-                        /** @default Australia/Sydney */
-                        timezone?: string;
                         /** @default AUD */
                         currency?: string;
                         appointmentCodePrefix: string;
@@ -879,7 +840,6 @@ export interface paths {
                     "application/json": {
                         name?: string;
                         legalName?: string;
-                        timezone?: string;
                         currency?: string;
                         appointmentCodePrefix?: string;
                         settings?: {
@@ -1771,74 +1731,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/tenants/{tenantId}/users/invite": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    tenantId: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        name: string;
-                        /** Format: email */
-                        email: string;
-                        /** @enum {string} */
-                        role: "CL_ADMIN" | "CL_USER";
-                        /** Format: uuid */
-                        branchId?: string;
-                        phone?: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description Default Response */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                id: string;
-                                /** Format: uuid */
-                                tenantId: string | null;
-                                /** Format: uuid */
-                                branchId: string | null;
-                                role: string;
-                                name: string;
-                                email: string;
-                                phone: string | null;
-                                status: string;
-                                totpEnabled?: boolean;
-                                lastLoginAt?: (string) | null;
-                                createdAt: string;
-                                updatedAt?: string;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/tenants/{tenantId}/users/{userId}": {
         parameters: {
             query?: never;
@@ -2288,7 +2180,7 @@ export interface paths {
                     sortOrder?: "asc" | "desc";
                     tenantId?: string;
                     branchId?: string;
-                    type?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
+                    type?: "APARTMENT" | "HOUSE";
                     search?: string;
                     hasCoordinates?: boolean;
                     nearLat?: number;
@@ -2319,6 +2211,7 @@ export interface paths {
                                 tenantName?: string | null;
                                 propertyCode: string;
                                 type: string;
+                                apartmentNumber?: string | null;
                                 street: string;
                                 addressLine2: string | null;
                                 suburb: string;
@@ -2374,9 +2267,9 @@ export interface paths {
                         tenantId?: string;
                         /** Format: uuid */
                         branchId?: string;
-                        propertyCode: string;
                         /** @enum {string} */
-                        type: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
+                        type: "APARTMENT" | "HOUSE";
+                        apartmentNumber?: string;
                         privateAreaM2?: number;
                         totalAreaM2?: number;
                         furnished?: boolean;
@@ -2423,6 +2316,7 @@ export interface paths {
                                 tenantName?: string | null;
                                 propertyCode: string;
                                 type: string;
+                                apartmentNumber?: string | null;
                                 street: string;
                                 addressLine2: string | null;
                                 suburb: string;
@@ -2544,6 +2438,7 @@ export interface paths {
                                 tenantName?: string | null;
                                 propertyCode: string;
                                 type: string;
+                                apartmentNumber?: string | null;
                                 street: string;
                                 addressLine2: string | null;
                                 suburb: string;
@@ -2619,7 +2514,8 @@ export interface paths {
                         /** Format: uuid */
                         branchId?: string | null;
                         /** @enum {string} */
-                        type?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
+                        type?: "APARTMENT" | "HOUSE";
+                        apartmentNumber?: string | null;
                         privateAreaM2?: number | null;
                         totalAreaM2?: number | null;
                         furnished?: boolean | null;
@@ -2667,6 +2563,7 @@ export interface paths {
                                 tenantName?: string | null;
                                 propertyCode: string;
                                 type: string;
+                                apartmentNumber?: string | null;
                                 street: string;
                                 addressLine2: string | null;
                                 suburb: string;
@@ -2732,109 +2629,6 @@ export interface paths {
                 };
             };
         };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/properties/import": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/properties/import/{importId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    importId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/properties/import/{importId}/errors.csv": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    importId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4788,7 +4582,7 @@ export interface paths {
                                 latitude?: number | null;
                                 longitude?: number | null;
                                 /** @enum {string|null} */
-                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
+                                propertyType?: "APARTMENT" | "HOUSE" | null;
                                 propertyAddressLine2?: string | null;
                                 propertyPrivateAreaM2?: number | null;
                                 propertyTotalAreaM2?: number | null;
@@ -4842,9 +4636,9 @@ export interface paths {
                         /** Format: uuid */
                         propertyId?: string;
                         property?: {
-                            propertyCode: string;
                             /** @enum {string} */
-                            type: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL";
+                            type: "APARTMENT" | "HOUSE";
+                            apartmentNumber?: string;
                             street: string;
                             addressLine2?: string;
                             suburb: string;
@@ -4915,7 +4709,6 @@ export interface paths {
                             label: string;
                             value: string;
                         }[];
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -4986,7 +4779,7 @@ export interface paths {
                                 latitude?: number | null;
                                 longitude?: number | null;
                                 /** @enum {string|null} */
-                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
+                                propertyType?: "APARTMENT" | "HOUSE" | null;
                                 propertyAddressLine2?: string | null;
                                 propertyPrivateAreaM2?: number | null;
                                 propertyTotalAreaM2?: number | null;
@@ -5108,7 +4901,7 @@ export interface paths {
                                 latitude?: number | null;
                                 longitude?: number | null;
                                 /** @enum {string|null} */
-                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
+                                propertyType?: "APARTMENT" | "HOUSE" | null;
                                 propertyAddressLine2?: string | null;
                                 propertyPrivateAreaM2?: number | null;
                                 propertyTotalAreaM2?: number | null;
@@ -5234,7 +5027,6 @@ export interface paths {
                             label: string;
                             value: string;
                         }[] | null;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -5305,7 +5097,7 @@ export interface paths {
                                 latitude?: number | null;
                                 longitude?: number | null;
                                 /** @enum {string|null} */
-                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
+                                propertyType?: "APARTMENT" | "HOUSE" | null;
                                 propertyAddressLine2?: string | null;
                                 propertyPrivateAreaM2?: number | null;
                                 propertyTotalAreaM2?: number | null;
@@ -5578,7 +5370,6 @@ export interface paths {
                 content: {
                     "application/json": {
                         appointmentIds: string[];
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -5634,7 +5425,6 @@ export interface paths {
                     "application/json": {
                         appointmentIds: string[];
                         reason: string;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -5692,7 +5482,6 @@ export interface paths {
                         newDate: string;
                         newTimeSlotStart?: string;
                         newTimeSlotEnd?: string;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -5750,7 +5539,6 @@ export interface paths {
                         /** @enum {string} */
                         targetStatus: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
                         reason?: string;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -5807,7 +5595,6 @@ export interface paths {
                         appointmentIds: string[];
                         /** Format: uuid */
                         inspectorId: string;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -5866,7 +5653,6 @@ export interface paths {
                         newTimeSlotStart: string;
                         newTimeSlotEnd: string;
                         reason?: string;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -5967,6 +5753,27 @@ export interface paths {
                                         postcode: string;
                                         country: string;
                                         duplicateOfRow: number | null;
+                                        /** @default null */
+                                        geocode: ({
+                                            /** @enum {string} */
+                                            status: "found";
+                                            lat: number;
+                                            lng: number;
+                                        } | {
+                                            /** @enum {string} */
+                                            status: "not_found";
+                                            /** @enum {unknown|null} */
+                                            lat: "null" | null;
+                                            /** @enum {unknown|null} */
+                                            lng: "null" | null;
+                                        } | {
+                                            /** @enum {string} */
+                                            status: "unverified";
+                                            /** @enum {unknown|null} */
+                                            lat: "null" | null;
+                                            /** @enum {unknown|null} */
+                                            lng: "null" | null;
+                                        }) | null;
                                     } | null;
                                     contact: {
                                         /** @enum {string} */
@@ -6031,7 +5838,6 @@ export interface paths {
                 content: {
                     "application/json": {
                         skipInvalidRows: boolean;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -6257,7 +6063,6 @@ export interface paths {
                         /** Format: uuid */
                         serviceRegionId?: string | null;
                         description?: string;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -6404,7 +6209,6 @@ export interface paths {
                         description?: string;
                         scheduledDate?: string;
                         timeWindow?: string;
-                        actorTimezone?: string;
                     };
                 };
             };
@@ -7003,9 +6807,7 @@ export interface paths {
             };
             requestBody?: {
                 content: {
-                    "application/json": {
-                        actorTimezone?: string;
-                    };
+                    "application/json": Record<string, never>;
                 };
             };
             responses: {
@@ -7161,6 +6963,11 @@ export interface paths {
                                     tenantName: string;
                                     timeSlotStart: string;
                                     timeSlotEnd: string;
+                                    street: string;
+                                    coordinates: {
+                                        lat: number;
+                                        lng: number;
+                                    } | null;
                                 }[];
                             };
                         };
@@ -7807,6 +7614,7 @@ export interface paths {
                             token: {
                                 status: string;
                                 isReadOnly: boolean;
+                                isPastConfirmCutoff?: boolean;
                                 isExpired: boolean;
                                 canRequestNewLink: boolean;
                                 expiresAt: string;
@@ -8206,7 +8014,13 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json": unknown | ({
+                        notify?: boolean;
+                    } | null);
+                };
+            };
             responses: {
                 /** @description Default Response */
                 201: {
@@ -8220,7 +8034,7 @@ export interface paths {
                                 expiresAt: string;
                                 dispatched?: boolean;
                                 /** @enum {string} */
-                                reason?: "NO_PRIMARY_CONTACT" | "DISPATCH_FAILED";
+                                reason?: "NO_PRIMARY_CONTACT" | "DISPATCH_FAILED" | "NOTIFY_DISABLED";
                             };
                         };
                     };
@@ -8443,8 +8257,9 @@ export interface paths {
                         } | {
                             data: {
                                 id: string;
-                                appointmentCode?: string;
-                                status: string;
+                                appointmentCode: string;
+                                /** @enum {string} */
+                                status: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
                                 scheduledDate: string;
                                 timeSlotStart: string;
                                 timeSlotEnd: string;
@@ -8458,6 +8273,12 @@ export interface paths {
                                 /** @enum {string} */
                                 executionStatus: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED";
                                 agencyName?: string | null;
+                                propertyAddress: string;
+                                suburb: string;
+                                serviceTypeName: string;
+                                /** @enum {string} */
+                                flowType: "ROUTINE" | "INGOING" | "OUTGOING";
+                                isOverdue?: boolean;
                             }[];
                             pagination: {
                                 page: number;
@@ -8522,7 +8343,7 @@ export interface paths {
                                 propertyLongitude: number | null;
                                 propertyAddressLine2?: string | null;
                                 /** @enum {string|null} */
-                                propertyType?: "APARTMENT" | "HOUSE" | "COMMERCIAL" | "INDUSTRIAL" | "RURAL" | null;
+                                propertyType?: "APARTMENT" | "HOUSE" | null;
                                 propertyPrivateAreaM2?: number | null;
                                 propertyTotalAreaM2?: number | null;
                                 propertyFurnished?: boolean | null;
@@ -12200,7 +12021,7 @@ export interface paths {
                             data: {
                                 integrations: {
                                     /** @enum {string} */
-                                    provider: "resend" | "mobile_message" | "mapbox";
+                                    provider: "resend" | "mobile_message" | "mapbox" | "fy_webhook";
                                     configured: boolean;
                                     /** @enum {string} */
                                     source: "database" | "env" | "none";
@@ -12251,7 +12072,7 @@ export interface paths {
                             data: {
                                 integrations: {
                                     /** @enum {string} */
-                                    provider: "resend" | "mobile_message" | "mapbox";
+                                    provider: "resend" | "mobile_message" | "mapbox" | "fy_webhook";
                                     configured: boolean;
                                     /** @enum {string} */
                                     source: "database" | "env" | "none";
@@ -12284,7 +12105,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    provider: "resend" | "mobile_message" | "mapbox";
+                    provider: "resend" | "mobile_message" | "mapbox" | "fy_webhook";
                 };
                 cookie?: never;
             };
@@ -12308,7 +12129,7 @@ export interface paths {
                         "application/json": {
                             data: {
                                 /** @enum {string} */
-                                provider: "resend" | "mobile_message" | "mapbox";
+                                provider: "resend" | "mobile_message" | "mapbox" | "fy_webhook";
                                 configured: boolean;
                                 /** @enum {string} */
                                 source: "database" | "env" | "none";
@@ -12330,7 +12151,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    provider: "resend" | "mobile_message" | "mapbox";
+                    provider: "resend" | "mobile_message" | "mapbox" | "fy_webhook";
                 };
                 cookie?: never;
             };
@@ -12370,7 +12191,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    provider: "resend" | "mobile_message" | "mapbox";
+                    provider: "resend" | "mobile_message" | "mapbox" | "fy_webhook";
                 };
                 cookie?: never;
             };
@@ -12429,6 +12250,7 @@ export interface paths {
                                     prefix: string;
                                     /** @enum {string} */
                                     role: "AM" | "OP";
+                                    scopes: string[];
                                     /** Format: date-time */
                                     expiresAt: string | null;
                                     /** Format: date-time */
@@ -12461,6 +12283,8 @@ export interface paths {
                          * @enum {string}
                          */
                         role?: "AM" | "OP";
+                        /** @default [] */
+                        scopes?: "bot:fy"[];
                         /** Format: date-time */
                         expiresAt?: string | null;
                     };
@@ -12481,6 +12305,7 @@ export interface paths {
                                 prefix: string;
                                 /** @enum {string} */
                                 role: "AM" | "OP";
+                                scopes: string[];
                                 /** Format: date-time */
                                 expiresAt: string | null;
                                 /** Format: date-time */
@@ -12536,6 +12361,7 @@ export interface paths {
                                 prefix: string;
                                 /** @enum {string} */
                                 role: "AM" | "OP";
+                                scopes: string[];
                                 /** Format: date-time */
                                 expiresAt: string | null;
                                 /** Format: date-time */
@@ -12544,6 +12370,398 @@ export interface paths {
                                 lastUsedAt: string | null;
                                 /** Format: date-time */
                                 createdAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integrations/fy/appointments/by-contact-phone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    phone: string;
+                    statusIn?: (unknown | string) & (unknown | (string & ("DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED"))[]);
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                contact: {
+                                    name: string;
+                                    email: string | null;
+                                    phone: string | null;
+                                };
+                                appointments: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    code: string;
+                                    /** @enum {string} */
+                                    status: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
+                                    serviceType: {
+                                        /** Format: uuid */
+                                        id: string;
+                                        name: string;
+                                    };
+                                    scheduledDate: string;
+                                    timeSlotStart: string;
+                                    timeSlotEnd: string;
+                                    propertyAddress: string;
+                                    agency: {
+                                        /** Format: uuid */
+                                        id: string;
+                                        name: string;
+                                    };
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integrations/fy/appointments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                code: string;
+                                /** @enum {string} */
+                                status: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
+                                serviceType: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                };
+                                scheduledDate: string;
+                                timeSlotStart: string;
+                                timeSlotEnd: string;
+                                propertyAddress: string;
+                                agency: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                    timezone: string;
+                                };
+                                keyRequired: boolean;
+                                meetingLocation: string | null;
+                                keyLocation: string | null;
+                                inspector: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                } | null;
+                                contact: {
+                                    name: string;
+                                    email: string | null;
+                                    phone: string | null;
+                                    confirmed: boolean;
+                                } | null;
+                                notes: string | null;
+                                rentalTenantNote: string | null;
+                                confirmationLink: {
+                                    url: string | null;
+                                    expiresAt: string | null;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integrations/fy/agencies/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                name: string;
+                                timezone: string;
+                                branches: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                    email: string | null;
+                                    address: string | null;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integrations/fy/appointments/{id}/available-dates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                availableDates: {
+                                    date: string;
+                                    timeSlots: {
+                                        start: string;
+                                        end: string;
+                                    }[];
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integrations/fy/appointments/{id}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        content: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                content: string;
+                                /** Format: date-time */
+                                createdAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integrations/fy/appointments/{id}/contact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        name?: string;
+                        /** Format: email */
+                        email?: string | null;
+                        phone?: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                contact: {
+                                    name: string;
+                                    email: string | null;
+                                    phone: string | null;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/v1/integrations/fy/appointments/{id}/resend-notice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** @enum {string} */
+                                status: "QUEUED";
                             };
                         };
                     };

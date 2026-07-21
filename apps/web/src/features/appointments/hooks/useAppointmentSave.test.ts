@@ -15,26 +15,18 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
-}));
-
 import { api } from '@/services/api';
+import { ContactType } from '@properfy/shared';
 import { useAppointmentSave } from './useAppointmentSave';
 import type { AppointmentFormData } from '../types';
-import { EMPTY_FORM_DATA } from '../types';
+import { EMPTY_FORM_DATA, createEmptyContact } from '../types';
 import { createQueryWrapper } from '@/test-utils/test-wrappers';
 
 const mockPost = api.POST as ReturnType<typeof vi.fn>;
 const mockPatch = api.PATCH as ReturnType<typeof vi.fn>;
 
 // Both `createAppointmentSchema` and `updateAppointmentSchema` refine against
-// `todayLocalDateString()` and reject past dates. A hard-coded future literal
+// today's date and reject past dates. A hard-coded future literal
 // turns into a time bomb once the real clock crosses it. Compute dynamically.
 const FUTURE_SCHEDULED_DATE = (() => {
   const d = new Date();
@@ -50,7 +42,7 @@ const VALID_CREATE_DATA: AppointmentFormData = {
   timeSlotStart: '09:00',
   timeSlotEnd: '12:00',
   contactName: 'João Silva',
-  contactPhone: '11999999999',
+  contactPhone: '0412 345 678',
   contactEmail: 'joao@email.com',
   contacts: [],
   customFields: [],
@@ -141,7 +133,6 @@ describe('useAppointmentSave', () => {
           primaryEmail: VALID_CREATE_DATA.contactEmail,
           primaryPhone: VALID_CREATE_DATA.contactPhone,
         },
-        actorTimezone: expect.any(String),
       },
     });
   });
@@ -173,7 +164,6 @@ describe('useAppointmentSave', () => {
         },
         customFields: [],
         appCredentialIds: [],
-        actorTimezone: expect.any(String),
       },
     });
   });
@@ -507,5 +497,132 @@ describe('useAppointmentSave', () => {
     });
 
     expect(result.current.isSaving).toBe(false);
+  });
+
+  it('save maps VALIDATION_ERROR details (dotted Zod paths) to form field errors', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [
+            { field: 'scheduledDate', message: 'Scheduled date cannot be in the past' },
+            { field: 'contact.rentalTenantName', message: 'Contact name is required' },
+          ],
+        },
+      },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_CREATE_DATA);
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.fieldErrors?.scheduledDate).toBe('Scheduled date cannot be in the past');
+    expect(saveResult?.fieldErrors?.contactName).toBe('Contact name is required');
+    expect(saveResult?.errorCode).toBe('VALIDATION_ERROR');
+    // All details matched — no summary error, no snackbar fallback needed.
+    expect(saveResult?.error).toBeUndefined();
+  });
+
+  it('save maps indexed inline-contact detail paths to per-row contact errors', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [
+            { field: 'contacts.0.inline.type', message: 'Invalid contact type' },
+            { field: 'contacts.0.inline.primaryEmail', message: 'Invalid email address' },
+            { field: 'contacts.1.role', message: 'Invalid role' },
+          ],
+        },
+      },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save({
+        ...VALID_CREATE_DATA,
+        contacts: [
+          { ...createEmptyContact(), name: 'Jane', contactType: ContactType.RENTAL_TENANT },
+          { ...createEmptyContact(), contactId: 'c-2' },
+        ],
+      });
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.fieldErrors?.contacts?.[0]?.contactType).toBe('Invalid contact type');
+    expect(saveResult?.fieldErrors?.contacts?.[0]?.email).toBe('Invalid email address');
+    expect(saveResult?.fieldErrors?.contacts?.[1]?.role).toBe('Invalid role');
+    // All details matched — no summary error, no snackbar fallback needed.
+    expect(saveResult?.error).toBeUndefined();
+  });
+
+  it('save remaps indexed custom-field detail paths to the form row (empty rows are dropped from the payload)', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [{ field: 'customFields.0.value', message: 'Value is too long' }],
+        },
+      },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save({
+        ...VALID_CREATE_DATA,
+        customFields: [
+          // Fully-empty row is dropped by buildCustomFieldsPayload, so the
+          // backend's payload index 0 refers to form row 1.
+          { key: 'k-empty', label: '', value: '' },
+          { key: 'k-gate', label: 'Gate', value: 'x'.repeat(600) },
+        ],
+      });
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.fieldErrors?.customFields?.[1]?.value).toBe('Value is too long');
+    expect(saveResult?.fieldErrors?.customFields?.[0]).toBeUndefined();
+    expect(saveResult?.error).toBeUndefined();
+  });
+
+  it('save keeps the summary error when an indexed detail path cannot be mapped to a form row', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [{ field: 'contacts.5.inline.type', message: 'Invalid contact type' }],
+        },
+      },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save({
+        ...VALID_CREATE_DATA,
+        contacts: [{ ...createEmptyContact(), name: 'Jane', contactType: ContactType.RENTAL_TENANT }],
+      });
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.fieldErrors).toBeUndefined();
+    expect(saveResult?.error).toBe('Validation failed');
   });
 });

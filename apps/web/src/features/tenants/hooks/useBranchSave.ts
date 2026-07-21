@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { api } from '@/services/api';
+import { isValidEmail } from '@/lib/validation';
 import { useQueryClient } from '@tanstack/react-query';
 import type { BranchFormData, BranchFormErrors } from '../types';
 
@@ -20,8 +21,7 @@ function validateRequired(data: BranchFormData, fields: (keyof BranchFormData)[]
 
 function validateEmail(email: string): string | undefined {
   if (!email) return undefined;
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) return 'Invalid email';
+  if (!isValidEmail(email)) return 'Invalid email';
   return undefined;
 }
 

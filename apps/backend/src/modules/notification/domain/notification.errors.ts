@@ -34,6 +34,7 @@ export class ProtectedTemplateClassificationError extends ValidationError {
     super(
       `Template "${templateCode}" is protected and must be classified as ${requiredClass}. It cannot be reclassified.`,
       { templateCode, requiredClass },
+      'PROTECTED_TEMPLATE_CLASSIFICATION',
     );
   }
 }
@@ -53,6 +54,20 @@ export class NotificationConsentNotFoundError extends NotFoundError {
 export class ConsentTenantScopeError extends ForbiddenError {
   constructor() {
     super('TENANT_SCOPE_VIOLATION', 'Operator cannot modify consent records belonging to another tenant');
+  }
+}
+
+/**
+ * Thrown when an operator manually retries a notification whose payload secrets
+ * were already redacted — resending would deliver "[REDACTED]" links.
+ */
+export class NotificationPayloadScrubbedError extends DomainError {
+  constructor() {
+    super(
+      'NOTIFICATION_PAYLOAD_SCRUBBED',
+      'This notification cannot be resent: its payload secrets were redacted after delivery. Trigger a new notification instead.',
+      409,
+    );
   }
 }
 

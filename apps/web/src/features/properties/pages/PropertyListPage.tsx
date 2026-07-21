@@ -82,16 +82,6 @@ export function PropertyListPage() {
           icon: 'mdi-plus',
           onClick: () => navigate('/properties/new', { state: effectiveTenantId ? { tenantId: effectiveTenantId } : undefined }),
         } : undefined}
-        secondaryActions={[
-          { label: 'Import', icon: 'mdi-upload', onClick: () => navigate('/properties/import') },
-          {
-            label: 'Map View',
-            icon: 'mdi-map-outline',
-            onClick: () => navigate('/properties/map', {
-              state: effectiveTenantId ? { tenantId: effectiveTenantId } : undefined,
-            }),
-          },
-        ]}
       >
         <PropertySummaryIndicators
           summary={summaryQuery.summary}

@@ -1,51 +1,32 @@
 import { z } from 'zod';
 import { additionalChannelSchema } from './contact';
 import { customFieldSchema, CUSTOM_FIELDS_MAX, HHMM_REGEX } from './appointment';
+import { importPropertyPlanSchema, importRowIssueSchema, importSummarySchema, IMPORT_ROW_SEVERITY } from './import';
 
 /**
  * Single source of truth for the appointment-import preview/commit contract.
- * Both the backend route `response` schemas (preview + status) and the web
- * preview UI infer their types from these — see
- * `project_fastify_response_schema_serializer_throws` (a hand-written type
- * that drifts from the actual payload throws a 500 in the serializer, not a
- * type error). Produced by the row resolver (application/services/
- * appointment-import-row-resolver.ts) and consumed unchanged by both the
- * preview endpoint and the `previewJson` field on the status endpoint.
+ * The generic building blocks (row severity, issues, property plan, summary)
+ * live in `./import` and are shared with the property importer; they are
+ * re-exported here so existing imports keep working. Produced by the row
+ * resolver (application/services/appointment-import-row-resolver.ts) and
+ * consumed unchanged by both the preview endpoint and the `previewJson`
+ * field on the status endpoint.
  */
 
-export const IMPORT_ROW_SEVERITY = ['ready', 'warning', 'error'] as const;
-export type ImportRowSeverity = (typeof IMPORT_ROW_SEVERITY)[number];
-
-/** A single problem or applied-default found on a row, with a stable `code`
- * for tests/i18n and a human `message` for the preview UI. */
-export const importRowIssueSchema = z.object({
-  field: z.string(),
-  code: z.string(),
-  severity: z.enum(['warning', 'error']),
-  message: z.string(),
-});
-export type ImportRowIssue = z.infer<typeof importRowIssueSchema>;
-
-/**
- * How the row's property will be handled at commit. `resolution: 'existing'`
- * means a perfect normalized-address match was found (`propertyId`/`propertyCode`
- * set); `'new'` means one will be created. `duplicateOfRow` marks intra-batch
- * dedupe — the first row number in this import that introduced the same new
- * address (null for the first occurrence, or when resolution is 'existing').
- */
-export const importPropertyPlanSchema = z.object({
-  resolution: z.enum(['existing', 'new']),
-  propertyId: z.string().uuid().nullable(),
-  propertyCode: z.string().nullable(),
-  street: z.string(),
-  addressLine2: z.string().nullable(),
-  suburb: z.string(),
-  state: z.string(),
-  postcode: z.string(),
-  country: z.string(),
-  duplicateOfRow: z.number().int().positive().nullable(),
-});
-export type ImportPropertyPlan = z.infer<typeof importPropertyPlanSchema>;
+export {
+  IMPORT_ROW_SEVERITY,
+  importRowIssueSchema,
+  importPropertyPlanSchema,
+  importSummarySchema,
+  geocodeVerificationSchema,
+} from './import';
+export type {
+  ImportRowSeverity,
+  ImportRowIssue,
+  ImportPropertyPlan,
+  ImportSummary,
+  GeocodeVerification,
+} from './import';
 
 /**
  * How the row's single contact will be handled at commit. `additionalChannels`
@@ -89,14 +70,6 @@ export const resolvedImportRowSchema = z.object({
   issues: z.array(importRowIssueSchema),
 });
 export type ResolvedImportRow = z.infer<typeof resolvedImportRowSchema>;
-
-export const importSummarySchema = z.object({
-  totalRows: z.number().int().nonnegative(),
-  importable: z.number().int().nonnegative(),
-  withWarnings: z.number().int().nonnegative(),
-  withErrors: z.number().int().nonnegative(),
-});
-export type ImportSummary = z.infer<typeof importSummarySchema>;
 
 /** Response body of `POST /v1/appointments/import/preview`, and the value of
  * `previewJson` on the extended status response. */

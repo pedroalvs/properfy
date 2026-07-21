@@ -3,7 +3,6 @@ import type { IServiceGroupRepository } from '../../../service-group/domain/serv
 
 export interface GetAvailableGroupsInput {
   appointmentId: string;
-  isReadOnly: boolean;
 }
 
 export class GetAvailableGroupsUseCase {
@@ -14,7 +13,8 @@ export class GetAvailableGroupsUseCase {
 
   /**
    * Returns ACCEPTED service groups that the tenant can join via the portal.
-   * Returns an empty list when the token is past the cutoff (isReadOnly = true).
+   * Available regardless of token expiry — group changes stay open while the
+   * appointment is active.
    */
   async execute(input: GetAvailableGroupsInput): Promise<{ groups: Array<{
     groupId: string;
@@ -26,10 +26,6 @@ export class GetAvailableGroupsUseCase {
     confirmedCount: number;
     capacityMax: number;
   }> }> {
-    if (input.isReadOnly) {
-      return { groups: [] };
-    }
-
     const result = await this.appointmentRepo.findById(input.appointmentId, null);
     if (!result || !result.appointment.propertyId || !result.appointment.serviceTypeId) {
       return { groups: [] };

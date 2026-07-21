@@ -7,6 +7,7 @@ import { NumberInput } from '@/components/forms/NumberInput';
 import { DateInput } from '@/components/forms/DateInput';
 import { Textarea } from '@/components/forms/Textarea';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import { getErrorMessage } from '@/lib/api-error';
 import { useAuth } from '@/hooks/useAuth';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { useTenantAdminDetail } from '@/features/tenants/hooks/useTenantAdminDetail';
@@ -121,8 +122,8 @@ export function CreateAdjustmentModal({ open, onClose, onCreated }: CreateAdjust
       setForm({ ...EMPTY_FORM, tenantId: user?.tenantId ?? '' });
       setErrors({});
       onCreated();
-    } catch {
-      showError('Failed to create adjustment');
+    } catch (err) {
+      showError(getErrorMessage(err, 'Failed to create adjustment'));
     }
   }, [form, mutateAsync, onCreated, resolvedTenantId, showError, showSuccess, user?.tenantId]);
 

@@ -6,6 +6,7 @@ import type {
 } from '@properfy/shared';
 
 import { api } from '@/services/api';
+import { toApiError } from '@/lib/api-error';
 import { INTEGRATIONS_STATUS_QUERY_KEY } from './useIntegrationsStatus';
 
 export const INTEGRATIONS_QUERY_KEY = ['integrations'] as const;
@@ -14,8 +15,9 @@ export function useIntegrations() {
   return useQuery({
     queryKey: INTEGRATIONS_QUERY_KEY,
     queryFn: async (): Promise<IntegrationDetail[]> => {
-      const { data, error } = await api.GET('/v1/integrations');
-      if (error || !data) throw new Error('Failed to load integrations');
+      const { data, error, response } = await api.GET('/v1/integrations');
+      if (error) throw toApiError(error, (response as Response | undefined)?.status);
+      if (!data) throw new Error('Failed to load integrations');
       return data.data.integrations as IntegrationDetail[];
     },
   });

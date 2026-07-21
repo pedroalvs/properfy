@@ -15,15 +15,6 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
-}));
-
 const mockShowSuccess = vi.fn();
 const mockShowError = vi.fn();
 
@@ -50,7 +41,7 @@ describe('useSendGroupPortalLinks', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useSendGroupPortalLinks(null), { wrapper });
 
-    act(() => result.current.send('Australia/Sydney'));
+    act(() => result.current.send());
 
     expect(mockPost).not.toHaveBeenCalled();
   });
@@ -75,7 +66,7 @@ describe('useSendGroupPortalLinks', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useSendGroupPortalLinks('sg-01', onSuccess), { wrapper });
 
-    act(() => result.current.send('Australia/Sydney'));
+    act(() => result.current.send());
 
     await waitFor(() => {
       // 2 sent (SENT + DATE_CHANGED_RESENT), 2 skipped (ALREADY_CONFIRMED + NOT_SENDABLE),

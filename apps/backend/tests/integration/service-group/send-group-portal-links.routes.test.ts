@@ -6,7 +6,7 @@
  * The use cases are mocked (their behaviour is covered by the unit tests at
  * tests/unit/service-group/*.use-case.test.ts). This file pins the WIRE shape:
  * Fastify schema, RBAC (AM/OP only), the canonical `{ data: ... }` envelope,
- * and that `actorTimezone` flows from the body to the use case.
+ * and that a legacy `actorTimezone` body field is stripped (Sydney-only platform).
  */
 
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
@@ -106,21 +106,23 @@ describe('POST /v1/service-groups/:groupId/portal-links', () => {
     expect(res.body.data.results[0]).toEqual({ appointmentId: APPT_ID, status: 'SENT' });
   });
 
-  it('forwards actorTimezone from the body to the use case', async () => {
+  it('strips a legacy actorTimezone field and calls the use case without it', async () => {
     mockJwtVerify.mockResolvedValue(opContext);
     mockSendExecute.mockResolvedValue({ results: [] });
 
-    await supertest(app.server)
+    const res = await supertest(app.server)
       .post(`/v1/service-groups/${GROUP_ID}/portal-links`)
       .set('Authorization', 'Bearer token')
-      .send({ actorTimezone: 'Australia/Sydney' });
+      .send({ actorTimezone: 'Australia/Sydney' }); // legacy field — must be ignored, not rejected
 
+    expect(res.status).toBe(200);
     expect(mockSendExecute).toHaveBeenCalledWith(
-      expect.objectContaining({ groupId: GROUP_ID, actorTimezone: 'Australia/Sydney' }),
+      expect.objectContaining({ groupId: GROUP_ID }),
     );
+    expect(mockSendExecute.mock.calls[0]![0]).not.toHaveProperty('actorTimezone');
   });
 
-  it('omits actorTimezone when the body does not include it', async () => {
+  it('calls the use case without actorTimezone when the body omits it too', async () => {
     mockJwtVerify.mockResolvedValue(amContext);
     mockSendExecute.mockResolvedValue({ results: [] });
 
@@ -129,7 +131,7 @@ describe('POST /v1/service-groups/:groupId/portal-links', () => {
       .set('Authorization', 'Bearer token')
       .send({});
 
-    expect(mockSendExecute.mock.calls[0]![0].actorTimezone).toBeUndefined();
+    expect(mockSendExecute.mock.calls[0]![0]).not.toHaveProperty('actorTimezone');
   });
 
   it('rejects CL_ADMIN with 403 (AM/OP only)', async () => {

@@ -758,13 +758,14 @@ describe('bulkCancelRequestSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('accepts optional actorTimezone', () => {
+  it('strips actorTimezone from stale clients (field removed, platform is Sydney-only)', () => {
     const result = bulkCancelRequestSchema.safeParse({
       appointmentIds: [apptIdA],
       reason: 'cancel',
-      actorTimezone: 'Australia/Sydney',
+      actorTimezone: 'America/Sao_Paulo',
     });
     expect(result.success).toBe(true);
+    expect(result.success && 'actorTimezone' in result.data).toBe(false);
   });
 
   it('rejects empty appointmentIds', () => {
@@ -977,15 +978,17 @@ describe('bulkReopenForRescheduleRequestSchema (026 §FR-540)', () => {
     }).success).toBe(true);
   });
 
-  it('accepts optional reason and actorTimezone', () => {
-    expect(bulkReopenForRescheduleRequestSchema.safeParse({
+  it('accepts optional reason and strips the removed actorTimezone field', () => {
+    const result = bulkReopenForRescheduleRequestSchema.safeParse({
       appointmentIds: [apptIdA],
       newDate: '2027-06-01',
       newTimeSlotStart: '09:00',
       newTimeSlotEnd: '10:00',
       reason: 'Tenant requested change',
       actorTimezone: 'Australia/Sydney',
-    }).success).toBe(true);
+    });
+    expect(result.success).toBe(true);
+    expect(result.success && 'actorTimezone' in result.data).toBe(false);
   });
 
   it('rejects when the new time window is missing (start/end are mandatory)', () => {

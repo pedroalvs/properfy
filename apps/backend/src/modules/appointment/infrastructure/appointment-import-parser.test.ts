@@ -26,6 +26,7 @@ describe('APPOINTMENT_IMPORT_HEADER_MAP', () => {
     expect(APPOINTMENT_IMPORT_HEADER_MAP['Postcode']).toBe('postcode');
     expect(APPOINTMENT_IMPORT_HEADER_MAP['Country']).toBe('country');
     expect(APPOINTMENT_IMPORT_HEADER_MAP['Address line 2']).toBe('addressLine2');
+    expect(APPOINTMENT_IMPORT_HEADER_MAP['Apartment']).toBe('apartmentNumber');
     expect(APPOINTMENT_IMPORT_HEADER_MAP['Notes']).toBe('notes');
     expect(APPOINTMENT_IMPORT_HEADER_MAP['Realty description']).toBe('realtyDescription');
     expect(APPOINTMENT_IMPORT_HEADER_MAP['Tenant name']).toBe('primaryContactName');
@@ -61,6 +62,20 @@ describe('parseAppointmentImportFile — CSV', () => {
     expect(row.customFieldCandidates).toEqual([
       { label: 'Complete Property Address', rawValue: '3/18 Ocean St Kogarah' },
     ]);
+  });
+
+  it('maps the optional Apartment column, and leaves it null when the column is absent', async () => {
+    const withColumn = await parseAppointmentImportFile(
+      Buffer.from(['Type,Apartment', 'Routine Inspection,4'].join('\n')),
+      'csv',
+    );
+    expect(withColumn[0]!.apartmentNumber).toBe('4');
+
+    const withoutColumn = await parseAppointmentImportFile(
+      Buffer.from(['Type', 'Routine Inspection'].join('\n')),
+      'csv',
+    );
+    expect(withoutColumn[0]!.apartmentNumber).toBeNull();
   });
 
   it('ignores an unmapped, non-CUSTOM header', async () => {
@@ -106,6 +121,12 @@ describe('parseAppointmentImportFile — XLSX (type preservation)', () => {
     expect(typeof rows[0]!.postcode).toBe('number');
     expect(rows[0]!.primaryContactPhone).toBe(412345678);
     expect(typeof rows[0]!.primaryContactPhone).toBe('number');
+  });
+
+  it('preserves a numeric Apartment cell as a number', async () => {
+    const buffer = await buildXlsxBuffer(['Type', 'Apartment'], [['Routine Inspection', 4]]);
+    const rows = await parseAppointmentImportFile(buffer, 'xlsx');
+    expect(rows[0]!.apartmentNumber).toBe(4);
   });
 
   it('preserves a date-typed cell as a Date object, not a stringified value', async () => {

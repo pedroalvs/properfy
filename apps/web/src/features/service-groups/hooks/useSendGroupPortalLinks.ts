@@ -3,7 +3,7 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 import type { SendGroupPortalLinksResponse, SendGroupPortalLinksResultItem } from '@properfy/shared';
 
 export interface UseSendGroupPortalLinksReturn {
-  send: (actorTimezone?: string) => void;
+  send: () => void;
   isSending: boolean;
 }
 
@@ -41,10 +41,10 @@ export function useSendGroupPortalLinks(
     [['service-groups'], ['service-groups', serviceGroupId], ['appointments']],
   );
 
-  const send = (actorTimezone?: string) => {
+  const send = () => {
     if (!serviceGroupId) return;
     mutation.mutate(
-      actorTimezone ? { actorTimezone } : {},
+      {},
       {
         onSuccess: (resp) => {
           showSuccess(summarize(resp.data.results));

@@ -25,15 +25,6 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
-}));
-
 vi.mock('@/lib/auth-storage', () => ({
   authStorage: {
     getAccessToken: vi.fn(() => null),
@@ -125,17 +116,17 @@ describe('useAppointmentImport', () => {
       expect(formData.get('branchId')).toBe('branch-1');
     });
 
-    it('includes actorTimezone when provided', async () => {
+    it('does not send an actorTimezone field (platform is Sydney-only)', async () => {
       mockPost.mockResolvedValue({ data: { data: PREVIEW_RESPONSE } });
       const { result } = renderHook(() => useAppointmentImport(), { wrapper: createWrapper() });
       const file = new File(['data'], 'import.csv');
 
       await act(async () => {
-        await result.current.preview(file, 'branch-1', 'Australia/Sydney');
+        await result.current.preview(file, 'branch-1');
       });
 
       const formData = mockPost.mock.calls[0]![1].body as FormData;
-      expect(formData.get('actorTimezone')).toBe('Australia/Sydney');
+      expect(formData.get('actorTimezone')).toBeNull();
     });
 
     it('returns the preview response data', async () => {
@@ -191,7 +182,7 @@ describe('useAppointmentImport', () => {
 
       let ok = false;
       await act(async () => {
-        ok = await result.current.commit('import-123', { skipInvalidRows: true, actorTimezone: 'Australia/Sydney' });
+        ok = await result.current.commit('import-123', { skipInvalidRows: true });
       });
 
       expect(ok).toBe(true);
@@ -199,7 +190,7 @@ describe('useAppointmentImport', () => {
         '/v1/appointments/import/{importId}/commit',
         expect.objectContaining({
           params: { path: { importId: 'import-123' } },
-          body: { skipInvalidRows: true, actorTimezone: 'Australia/Sydney' },
+          body: { skipInvalidRows: true },
         }),
       );
       const headers = mockPost.mock.calls[0]![1].headers;

@@ -8,7 +8,7 @@ import {
   reopenExecutionSchema,
   saveExecutionProgressSchema,
   inspectorScheduleResponseSchema,
-  inspectorScheduleItemSchema,
+  inspectorScheduleMonthItemSchema,
   inspectorScheduleMonthResponseSchema,
   inspectionExecutionResponseSchema,
   inspectorAppointmentDetailResponseSchema,
@@ -108,7 +108,7 @@ export async function registerInspectorExecutionRoutes(
         response: {
           200: z.union([
             successResponseSchema(inspectorScheduleResponseSchema),
-            paginatedResponseSchema(inspectorScheduleItemSchema),
+            paginatedResponseSchema(inspectorScheduleMonthItemSchema),
           ]),
         },
       },

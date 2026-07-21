@@ -1,3 +1,0 @@
-branchName,propertyCode,type,street,addressLine2,suburb,postcode,state,country,notes
-Main Branch,PROP-001,RESIDENTIAL,123 Example Street,,Suburb Name,2000,NSW,AU,Sample row 1
-South Branch,PROP-002,COMMERCIAL,456 Business Ave,Suite 10,Another Suburb,3000,VIC,AU,Sample row 2

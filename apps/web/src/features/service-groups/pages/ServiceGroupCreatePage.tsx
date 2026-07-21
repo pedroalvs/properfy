@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { createServiceGroupSchema, UserRole, todayLocalDateString, currentTimeInTzHHmm } from '@properfy/shared';
+import { createServiceGroupSchema, UserRole, currentTimeInTzHHmm, todayInTzDateString, PLATFORM_TIMEZONE } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
@@ -71,7 +71,6 @@ export function ServiceGroupCreatePage() {
     timeWindow: `${startTime}-${endTime}`,
     serviceRegionId: serviceRegionId || undefined,
     ...(description ? { description } : {}),
-    actorTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   };
   const parsedCreatePayload = createServiceGroupSchema.safeParse(createPayload);
 
@@ -115,7 +114,8 @@ export function ServiceGroupCreatePage() {
       });
       if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       queryClient.invalidateQueries({ queryKey: ['service-groups'] });
-      showSuccess('Service group created');
+      const groupCode = (data as { data?: { code?: string } } | undefined)?.data?.code;
+      showSuccess(groupCode ? `Service group ${groupCode} created` : 'Service group created');
       const newId = (data as any)?.data?.id ?? (data as any)?.id;
       if (newId) {
         navigate(`/service-groups/${newId}`);
@@ -278,7 +278,7 @@ export function ServiceGroupCreatePage() {
                 <DateInput
                   value={scheduledDate}
                   onChange={setScheduledDate}
-                  min={todayLocalDateString()}
+                  min={todayInTzDateString(PLATFORM_TIMEZONE)}
                   aria-label="Scheduled Date"
                 />
               </FormField>
@@ -294,8 +294,8 @@ export function ServiceGroupCreatePage() {
                 onStartTimeChange={setStartTime}
                 onEndTimeChange={setEndTime}
                 minStartTime={(() => {
-                  const today = todayLocalDateString();
-                  return scheduledDate === today ? currentTimeInTzHHmm(Intl.DateTimeFormat().resolvedOptions().timeZone) : undefined;
+                  const today = todayInTzDateString(PLATFORM_TIMEZONE);
+                  return scheduledDate === today ? currentTimeInTzHHmm(PLATFORM_TIMEZONE) : undefined;
                 })()}
               />
             </FormSection>

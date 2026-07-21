@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createServiceGroupSchema, todayLocalDateString, currentTimeInTzHHmm } from '@properfy/shared';
+import { createServiceGroupSchema, currentTimeInTzHHmm, todayInTzDateString, PLATFORM_TIMEZONE } from '@properfy/shared';
 import { Dialog } from '@/components/ui/Dialog';
 import { FormField } from '@/components/forms/FormField';
 import { DateInput } from '@/components/forms/DateInput';
@@ -62,9 +62,8 @@ export function MapGroupCreateModal({
     { status: 'ACTIVE' },
   );
 
-  const today = todayLocalDateString();
-  const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const minStartTime = useMemo(() => scheduledDate === today ? currentTimeInTzHHmm(browserTz) : undefined, [scheduledDate, today, browserTz]);
+  const today = todayInTzDateString(PLATFORM_TIMEZONE);
+  const minStartTime = useMemo(() => scheduledDate === today ? currentTimeInTzHHmm(PLATFORM_TIMEZONE) : undefined, [scheduledDate, today]);
 
   const handleSubmit = useCallback(async () => {
     const timeWindow = `${startTime}-${endTime}`;
@@ -75,7 +74,6 @@ export function MapGroupCreateModal({
       timeWindow,
       ...(serviceRegionId && !isMixedAgency ? { serviceRegionId } : {}),
       ...(description ? { description } : {}),
-      actorTimezone: browserTz,
     };
 
     const result = createServiceGroupSchema.safeParse(payload);
@@ -89,13 +87,14 @@ export function MapGroupCreateModal({
 
     setSubmitting(true);
     try {
-      const { error: apiError } = await api.POST('/v1/service-groups' as any, { body: result.data as any });
+      const { data, error: apiError } = await api.POST('/v1/service-groups' as any, { body: result.data as any });
       if (apiError) {
         const env = apiError as { error?: { message?: string; code?: string } };
         showError(env?.error?.message ?? 'Failed to create service group');
         return;
       }
-      showSuccess('Service group created successfully');
+      const groupCode = (data as { data?: { code?: string } } | undefined)?.data?.code;
+      showSuccess(groupCode ? `Service group ${groupCode} created successfully` : 'Service group created successfully');
       queryClient.invalidateQueries({ queryKey: ['service-groups'] });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       onSuccess();

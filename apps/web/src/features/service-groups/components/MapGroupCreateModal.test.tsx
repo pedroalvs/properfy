@@ -153,6 +153,61 @@ describe('MapGroupCreateModal', () => {
 
   // --- Core fix coverage (fix/group-creation) ---
 
+  // Shared fixture: 5 appointments with the same service type (valid UUIDs)
+  // so the standard-size check passes and the form can be submitted.
+  const ST_UUID_SHARED = 'aaaaaaaa-0000-4000-8000-000000000099';
+  const fiveAppointments = Array.from({ length: 5 }, (_, i) => ({
+    id: `aaaaaaaa-0000-4000-8000-00000000000${i + 1}`,
+    code: `INS-000${i + 1}`,
+    status: 'DRAFT' as const,
+    propertyAddress: `${i + 1} Test St`,
+    latitude: 0,
+    longitude: 0,
+    scheduledDate: '2026-07-01',
+    timeSlotStart: '09:00',
+    timeSlotEnd: '10:00',
+    inspectorName: null,
+    branchName: 'Br',
+    tenantId: 'tenant-1',
+    clientName: 'Acme',
+    serviceTypeId: ST_UUID_SHARED,
+  }));
+
+  async function submitModal() {
+    renderModal({ selectedAppointments: fiveAppointments });
+    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+    // Dynamic future date — a hardcoded one becomes a time bomb once the
+    // universal past-date guard applies (see ServiceGroupCreatePage.test.tsx).
+    const futureDate = new Date(Date.now() + 14 * 24 * 3600 * 1000)
+      .toISOString()
+      .split('T')[0]!;
+    fireEvent.change(dateInput, { target: { value: futureDate } });
+    await act(async () => {
+      fireEvent.click(screen.getByText('Create Group'));
+    });
+  }
+
+  it('includes the group code in the success toast when the API returns it', async () => {
+    vi.mocked(api.POST).mockResolvedValueOnce({
+      data: { data: { id: 'bbbbbbbb-0000-4000-8000-000000000001', code: 'G-123', groupNumber: 123 } },
+    } as any);
+
+    await submitModal();
+
+    await waitFor(() => {
+      expect(mockShowSuccess).toHaveBeenCalledWith('Service group G-123 created successfully');
+    });
+    expect(mockShowError).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the generic success toast when the response has no code', async () => {
+    await submitModal();
+
+    await waitFor(() => {
+      expect(mockShowSuccess).toHaveBeenCalledWith('Service group created successfully');
+    });
+  });
+
   it('calls showError and does NOT call showSuccess when api.POST returns an error envelope', async () => {
     vi.mocked(api.POST).mockResolvedValueOnce({
       error: { error: { message: 'All appointments must have the same service type', code: 'SERVICE_TYPE_MISMATCH' } },

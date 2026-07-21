@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { MobileDrawer } from './MobileDrawer';
+import { OfflineBanner } from '@/components/feedback/OfflineBanner';
 
 export function AppShell() {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -23,6 +24,7 @@ export function AppShell() {
           className="min-h-screen min-w-0 max-w-full overflow-x-hidden bg-card-bg md:rounded-tl-[20px] md:shadow-[0_6px_12px_0_rgba(0,0,0,0.1)]"
           data-testid="main-content"
         >
+          <OfflineBanner />
           {/* Mobile top bar with hamburger */}
           <div className="flex items-center gap-3 px-4 pt-2 pb-0 md:hidden">
             <button

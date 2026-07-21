@@ -9,7 +9,7 @@ import {
   ServiceGroupDateInPastError,
   ServiceGroupTimeInPastError,
 } from '../../domain/service-group.errors';
-import { validateEditedSchedule } from '@properfy/shared';
+import { validateEditedSchedule, PLATFORM_TIMEZONE } from '@properfy/shared';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import { getServiceGroupDateAdjustment } from '../../domain/service-group-date-sync';
 import type { ServiceGroupTimeSyncLogger } from '../sync-appointment-time-slot-to-group';
@@ -27,7 +27,6 @@ export interface UpdateServiceGroupInput {
   serviceRegionId?: string | null;
   scheduledDate?: string;
   timeWindow?: string;
-  actorTimezone?: string;
   actor: AuthContext;
 }
 
@@ -88,7 +87,7 @@ export class UpdateServiceGroupUseCase {
 
     // TZ-aware past-date/time validation when date or window changes (R7: falls back to UTC).
     if (input.scheduledDate !== undefined || input.timeWindow !== undefined) {
-      const tz = input.actorTimezone ?? 'UTC';
+      const tz = PLATFORM_TIMEZONE;
       const existingDateStr = group.scheduledDate.toISOString().slice(0, 10);
       const scheduleCheck = validateEditedSchedule({
         existingDate: existingDateStr,

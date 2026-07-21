@@ -3,6 +3,7 @@ import type { AppointmentListItem, IAppointmentRepository } from '../../../appoi
 import type { IInspectionExecutionRepository } from '../../domain/inspection-execution.repository';
 import type { InspectionExecutionEntity } from '../../domain/inspection-execution.entity';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import { civilDateInTimezone, PLATFORM_TIMEZONE } from '../../../../shared/domain/timezone-date';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 
 export interface GetInspectorScheduleInput {
@@ -46,7 +47,7 @@ export interface GetInspectorScheduleOutput {
 }
 
 export interface GetInspectorScheduleRangeOutput {
-  data: ScheduleAppointmentItem[];
+  data: ScheduleMonthAppointmentItem[];
   total: number;
   page: number;
   pageSize: number;
@@ -91,15 +92,15 @@ export class GetInspectorScheduleUseCase {
       return this.executeRange(input, actor.inspectorId);
     }
 
-    const today = new Date();
-    const targetDateStr = input.date ?? today.toISOString().split('T')[0]!;
+    const todayStr = civilDateInTimezone(new Date(), PLATFORM_TIMEZONE);
+    const targetDateStr = input.date ?? todayStr;
 
     // T-1 filtering is centralized inside findVisibleForInspector
     const visibleAppointments = await this.appointmentRepo.findVisibleForInspector({
       inspectorId: actor.inspectorId,
       fromDate: targetDateStr,
       toDate: targetDateStr,
-      today,
+      todayCivil: todayStr,
     });
 
     // Load execution statuses for visible appointments
@@ -116,9 +117,8 @@ export class GetInspectorScheduleUseCase {
 
     // When viewing today's schedule, include overdue appointments (scheduled before today).
     // T-1 visibility is intentionally skipped for overdue items — they need operator attention regardless.
-    const todayStr = today.toISOString().split('T')[0]!;
     if (targetDateStr === todayStr) {
-      const yesterday = new Date(today);
+      const yesterday = new Date(`${todayStr}T00:00:00.000Z`);
       yesterday.setUTCDate(yesterday.getUTCDate() - 1);
       const yesterdayStr = yesterday.toISOString().split('T')[0]!;
 
@@ -184,7 +184,7 @@ export class GetInspectorScheduleUseCase {
       : [];
     const executionMap = new Map(executions.map((e) => [e.appointmentId, e]));
 
-    const data = rows.map((item) => this.toScheduleItem(item, executionMap));
+    const data = rows.map((item) => this.toMonthItem(item, executionMap, false));
 
     return { data, total, page, pageSize };
   }
@@ -201,16 +201,16 @@ export class GetInspectorScheduleUseCase {
       throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
     }
 
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0]!;
-    const monthEnd = new Date(today);
+    const todayStr = civilDateInTimezone(new Date(), PLATFORM_TIMEZONE);
+    const todayCivilUtc = new Date(`${todayStr}T00:00:00.000Z`);
+    const monthEnd = new Date(todayCivilUtc);
     monthEnd.setUTCDate(monthEnd.getUTCDate() + 30);
     const toStr = monthEnd.toISOString().split('T')[0]!;
 
-    const overdueFrom = new Date(today);
+    const overdueFrom = new Date(todayCivilUtc);
     overdueFrom.setUTCDate(overdueFrom.getUTCDate() - 30);
     const overdueFromStr = overdueFrom.toISOString().split('T')[0]!;
-    const overdueTo = new Date(today);
+    const overdueTo = new Date(todayCivilUtc);
     overdueTo.setUTCDate(overdueTo.getUTCDate() - 1);
     const overdueToStr = overdueTo.toISOString().split('T')[0]!;
     const [visibleAppointments, overdueAppointments] = await Promise.all([
@@ -218,7 +218,7 @@ export class GetInspectorScheduleUseCase {
         inspectorId: actor.inspectorId,
         fromDate: todayStr,
         toDate: toStr,
-        today,
+        todayCivil: todayStr,
       }),
       this.appointmentRepo.findAll(
         {

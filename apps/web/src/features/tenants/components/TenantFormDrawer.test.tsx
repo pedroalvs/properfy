@@ -19,15 +19,6 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
-vi.mock('@/lib/api-error', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(public status: number, message: string, public code?: string) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
-}));
-
 vi.mock('@/hooks/usePermissions', () => ({
   usePermissions: vi.fn(() => ({ role: 'AM', hasRole: () => true, canPerform: () => true })),
 }));
@@ -63,8 +54,6 @@ beforeEach(() => {
 async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText('Name'), 'Test Agency');
   await user.type(screen.getByLabelText('Legal Name'), 'Test Agency LLC');
-  await user.click(screen.getByRole('button', { name: 'Timezone' }));
-  await user.click(screen.getByRole('option', { name: 'Australia/Sydney (AEST)' }));
   await user.click(screen.getByRole('button', { name: 'Currency' }));
   await user.click(screen.getByRole('option', { name: 'AUD - Australian Dollar' }));
   await user.type(screen.getByLabelText('Appointment code prefix'), 'TST');
@@ -106,7 +95,7 @@ describe('TenantFormDrawer', () => {
     expect(screen.getByText('New Agency')).toBeInTheDocument();
   });
 
-  it('renders form fields for name, legal name, timezone, currency, notes', () => {
+  it('renders form fields for name, legal name, currency, notes (timezone is fixed to Sydney)', () => {
     const Wrapper = createWrapper();
     render(
       <Wrapper>
@@ -115,7 +104,7 @@ describe('TenantFormDrawer', () => {
     );
     expect(screen.getByLabelText('Name')).toBeInTheDocument();
     expect(screen.getByLabelText('Legal Name')).toBeInTheDocument();
-    expect(screen.getByLabelText('Timezone')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Timezone')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Currency')).toBeInTheDocument();
     expect(screen.getByLabelText('Appointment code prefix')).toBeInTheDocument();
     expect(screen.getByLabelText('Notes')).toBeInTheDocument();
@@ -237,6 +226,38 @@ describe('TenantFormDrawer – submit behavior', () => {
         screen.getByText('This prefix is already in use by another agency'),
       ).toBeInTheDocument(),
     );
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  it('renders backend VALIDATION_ERROR details inline on the matching field', async () => {
+    const user = userEvent.setup();
+    const onSaved = vi.fn();
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [{ field: 'legalName', message: 'Legal name is too long' }],
+        },
+      },
+    });
+
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <TenantFormDrawer open onClose={vi.fn()} onSaved={onSaved} />
+      </Wrapper>,
+    );
+
+    await fillRequiredFields(user);
+    await user.click(screen.getByRole('button', { name: 'Create Agency' }));
+
+    await waitFor(() =>
+      expect(screen.getByText('Legal name is too long')).toBeInTheDocument(),
+    );
+    // Fully mapped details render inline only — no summary snackbar.
+    expect(screen.queryByText('Validation failed')).not.toBeInTheDocument();
     expect(onSaved).not.toHaveBeenCalled();
   });
 });

@@ -36,6 +36,7 @@ export interface RawImportRow {
   timeSlotEnd: RawCell;
   street: RawCell;
   addressLine2: RawCell;
+  apartmentNumber: RawCell;
   suburb: RawCell;
   state: RawCell;
   postcode: RawCell;
@@ -83,6 +84,7 @@ export interface NormalizedRow {
   timeDefaulted: boolean;
   street: string | null;
   addressLine2: string | null;
+  apartmentNumber: string | null;
   suburb: string | null;
   state: string | null;
   postcode: string | null;
@@ -103,6 +105,8 @@ function trimOrNull(raw: RawCell): string | null {
 function toDateOnlyUTC(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
+
+const APARTMENT_NUMBER_MAX = 50;
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 /** Excel's 1900 date system: serial 1 = 1900-01-01. Using the 1899-12-30
@@ -327,6 +331,14 @@ export function normalizeImportRow(
   const { fields, truncated, issues: customFieldIssues } = buildCustomFields(raw.customFieldCandidates);
   issues.push(...customFieldIssues);
 
+  // Matches the createPropertySchema/`apartment_number` column limit of 50.
+  const rawApartment = trimOrNull(raw.apartmentNumber);
+  const apartmentNumber = rawApartment ? rawApartment.slice(0, APARTMENT_NUMBER_MAX) : null;
+  if (rawApartment && apartmentNumber!.length < rawApartment.length) {
+    issues.push(issue('apartmentNumber', 'APARTMENT_NUMBER_TRUNCATED', 'warning',
+      `Apartment was truncated to fit the ${APARTMENT_NUMBER_MAX} character limit`));
+  }
+
   const notes = trimOrNull(raw.notes);
   const realtyDescription = trimOrNull(raw.realtyDescription);
   const combinedNotes = [notes, realtyDescription ? `Realty description: ${realtyDescription}` : null]
@@ -342,6 +354,7 @@ export function normalizeImportRow(
     timeDefaulted: timeResult.defaulted,
     street: trimOrNull(raw.street),
     addressLine2: trimOrNull(raw.addressLine2),
+    apartmentNumber,
     suburb: trimOrNull(raw.suburb),
     state: trimOrNull(raw.state),
     postcode: normalizePostcode(raw.postcode),

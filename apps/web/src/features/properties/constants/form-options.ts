@@ -3,9 +3,11 @@ import type { SelectOption } from '@/components/forms/SelectInput';
 export const PROPERTY_TYPE_OPTIONS: SelectOption[] = [
   { label: 'Apartment', value: 'APARTMENT' },
   { label: 'House', value: 'HOUSE' },
-  { label: 'Commercial', value: 'COMMERCIAL' },
-  { label: 'Industrial', value: 'INDUSTRIAL' },
-  { label: 'Rural', value: 'RURAL' },
+];
+
+export const YES_NO_OPTIONS: SelectOption[] = [
+  { label: 'Yes', value: 'true' },
+  { label: 'No', value: 'false' },
 ];
 
 export const STATE_OPTIONS: SelectOption[] = [

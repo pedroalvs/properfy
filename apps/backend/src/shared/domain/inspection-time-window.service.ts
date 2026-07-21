@@ -10,8 +10,10 @@
  * inspectionWindowAfterMinutes). When not configured, falls back to
  * the defaults above.
  *
- * All date operations use UTC.
+ * Time slots are wall-clock times in the platform timezone (Sydney); they are
+ * resolved to UTC instants against the scheduled civil date before comparison.
  */
+import { PLATFORM_TIMEZONE, zonedWallTimeToUtc } from '@properfy/shared';
 
 export interface InspectionTimeWindowBounds {
   beforeMinutes: number;
@@ -71,11 +73,8 @@ export class InspectionTimeWindowService {
   }
 
   private combineDateAndTime(date: Date, time: string): Date {
-    const parts = time.split(':').map(Number);
-    const hours = parts[0] ?? 0;
-    const minutes = parts[1] ?? 0;
-    const combined = new Date(date.getTime());
-    combined.setUTCHours(hours, minutes, 0, 0);
-    return combined;
+    // `date` is a @db.Date civil date pinned to UTC midnight; the slot is Sydney wall time.
+    const civilDate = date.toISOString().slice(0, 10);
+    return zonedWallTimeToUtc(civilDate, time, PLATFORM_TIMEZONE);
   }
 }

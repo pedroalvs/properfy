@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import { getErrorMessage, toApiError } from '@/lib/api-error';
 import type { AppointmentImportPreviewResponse } from '@properfy/shared';
 
 const FAST_POLL_INTERVAL_MS = 3000;
@@ -71,9 +72,9 @@ function normalizeStatus(data: BackendImportStatusResponse): ImportStatus {
 }
 
 export interface UseAppointmentImportReturn {
-  preview: (file: File, branchId: string, actorTimezone?: string) => Promise<AppointmentImportPreviewResponse | null>;
+  preview: (file: File, branchId: string) => Promise<AppointmentImportPreviewResponse | null>;
   isPreviewing: boolean;
-  commit: (importId: string, opts: { skipInvalidRows: boolean; actorTimezone?: string }) => Promise<boolean>;
+  commit: (importId: string, opts: { skipInvalidRows: boolean }) => Promise<boolean>;
   isCommitting: boolean;
   importStatus: ImportStatus | null;
   isPolling: boolean;
@@ -148,30 +149,29 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
   });
 
   const preview = useCallback(
-    async (file: File, branchId: string, actorTimezone?: string): Promise<AppointmentImportPreviewResponse | null> => {
+    async (file: File, branchId: string): Promise<AppointmentImportPreviewResponse | null> => {
       setIsPreviewing(true);
       try {
         const formData = new FormData();
-        // branchId (and actorTimezone) appended BEFORE the file — the backend
+        // branchId appended BEFORE the file — the backend
         // reads all multipart parts regardless of order, but this keeps
         // client and server conventions aligned per the documented contract.
         formData.append('branchId', branchId);
-        if (actorTimezone) formData.append('actorTimezone', actorTimezone);
         formData.append('file', file);
 
-        const { data, error } = await api.POST('/v1/appointments/import/preview' as any, {
+        const { data, error, response } = await api.POST('/v1/appointments/import/preview' as any, {
           body: formData as any,
           bodySerializer: (body: any) => body,
         } as any);
 
         if (error) {
-          showError('Failed to preview the import file');
+          showError(getErrorMessage(toApiError(error, response?.status), 'Failed to preview the import file'));
           return null;
         }
 
         return (data as { data: AppointmentImportPreviewResponse }).data;
-      } catch {
-        showError('Failed to preview the import file');
+      } catch (err) {
+        showError(getErrorMessage(err, 'Failed to preview the import file'));
         return null;
       } finally {
         setIsPreviewing(false);
@@ -181,7 +181,7 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
   );
 
   const commit = useCallback(
-    async (id: string, opts: { skipInvalidRows: boolean; actorTimezone?: string }): Promise<boolean> => {
+    async (id: string, opts: { skipInvalidRows: boolean }): Promise<boolean> => {
       setIsCommitting(true);
       try {
         // Derived from the importId, not randomUUID() — a retry of the same
@@ -189,14 +189,14 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
         // actually landed) must reuse the same key so the backend can
         // recognize it as a replay instead of a second attempt.
         const idempotencyKey = `appointment-import-commit:${id}`;
-        const { error } = await api.POST('/v1/appointments/import/{importId}/commit' as any, {
+        const { error, response } = await api.POST('/v1/appointments/import/{importId}/commit' as any, {
           params: { path: { importId: id } } as any,
-          body: { skipInvalidRows: opts.skipInvalidRows, actorTimezone: opts.actorTimezone },
+          body: { skipInvalidRows: opts.skipInvalidRows },
           headers: { 'Idempotency-Key': idempotencyKey },
         } as any);
 
         if (error) {
-          showError('Failed to start the import');
+          showError(getErrorMessage(toApiError(error, response?.status), 'Failed to start the import'));
           return false;
         }
 
@@ -207,8 +207,8 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
         setImportId(id);
         setPollingEnabled(true);
         return true;
-      } catch {
-        showError('Failed to start the import');
+      } catch (err) {
+        showError(getErrorMessage(err, 'Failed to start the import'));
         return false;
       } finally {
         setIsCommitting(false);

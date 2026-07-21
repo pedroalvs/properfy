@@ -10,6 +10,7 @@ export interface CreateApiKeyInput {
   name: string;
   role: ApiKeyRole;
   expiresAt: string | null;
+  scopes?: string[];
   actorId: string;
 }
 
@@ -32,6 +33,7 @@ export class CreateApiKeyUseCase {
       keyHash: hashApiKey(plaintext),
       prefix: plaintext.slice(0, 12),
       role: input.role,
+      scopes: input.scopes ?? [],
       expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
       createdById: input.actorId,
     });
@@ -44,7 +46,13 @@ export class CreateApiKeyUseCase {
       entityId: created.id,
       tenantId: null,
       // Never log the plaintext key or its hash.
-      after: { name: created.name, prefix: created.prefix, role: created.role, expiresAt: input.expiresAt },
+      after: {
+        name: created.name,
+        prefix: created.prefix,
+        role: created.role,
+        scopes: created.scopes,
+        expiresAt: input.expiresAt,
+      },
     });
 
     return { ...toApiKeyResponse(created), key: plaintext };

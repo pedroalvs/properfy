@@ -3,6 +3,9 @@ import type { ResolvedImportRow, ImportSummary } from '@properfy/shared';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { DetailRow } from '@/components/data/DetailRow';
 import { Button } from '@/components/ui/Button';
+import { geocodeVerificationToStatus } from '@/lib/geocode-verification';
+import { GeocodingStatusBadge } from '@/features/properties/components/GeocodingStatusBadge';
+import { formatAuPhone } from '@/lib/phone-mask';
 
 const PAGE_SIZE = 20;
 
@@ -20,9 +23,17 @@ interface AppointmentImportPreviewProps {
 function PropertyBadge({ property }: { property: ResolvedImportRow['property'] }) {
   if (!property) return <span className="text-xs text-text-muted">&mdash;</span>;
 
-  const addressLabel = [property.street, property.addressLine2, property.suburb, property.state, property.postcode]
+  const addressLabel = [
+    property.street,
+    property.apartmentNumber ? `Apt ${property.apartmentNumber}` : null,
+    property.addressLine2,
+    property.suburb,
+    property.state,
+    property.postcode,
+  ]
     .filter(Boolean)
     .join(', ');
+  const geocodeStatus = geocodeVerificationToStatus(property.geocode);
 
   return (
     <div className="space-y-1">
@@ -32,6 +43,7 @@ function PropertyBadge({ property }: { property: ResolvedImportRow['property'] }
           bg={property.resolution === 'existing' ? 'var(--color-info)' : 'var(--color-accent)'}
           text="#fff"
         />
+        {geocodeStatus && <GeocodingStatusBadge status={geocodeStatus} size="sm" />}
         {property.duplicateOfRow != null && (
           <span className="text-xs text-text-muted">(same as row {property.duplicateOfRow})</span>
         )}
@@ -54,11 +66,11 @@ function ContactBadge({ contact }: { contact: ResolvedImportRow['contact'] }) {
       />
       <p className="text-xs text-text-secondary">{contact.displayName}</p>
       <p className="text-xs text-text-muted">
-        {[contact.primaryEmail, contact.primaryPhone].filter(Boolean).join(' · ')}
+        {[contact.primaryEmail, contact.primaryPhone ? formatAuPhone(contact.primaryPhone) : null].filter(Boolean).join(' · ')}
       </p>
       {contact.additionalChannels.length > 0 && (
         <p className="text-xs text-text-muted">
-          +{contact.additionalChannels.length} more: {contact.additionalChannels.map((c) => c.value).join(', ')}
+          +{contact.additionalChannels.length} more: {contact.additionalChannels.map((c) => (c.channel === 'PHONE' ? formatAuPhone(c.value) : c.value)).join(', ')}
         </p>
       )}
     </div>

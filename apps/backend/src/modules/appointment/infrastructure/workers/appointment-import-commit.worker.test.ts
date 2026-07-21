@@ -151,11 +151,41 @@ describe('AppointmentImportCommitWorker', () => {
     const savedProperty = deps.propertyRepo.save.mock.calls[0]![0];
     expect(savedProperty.street).toBe('9 New St');
     expect(savedProperty.type).toBe('HOUSE');
+    expect(savedProperty.apartmentNumber).toBeNull();
     expect(savedProperty.geocodingStatus).toBe('PENDING');
     expect(deps.jobQueue.enqueue).toHaveBeenCalledWith('property.geocode', { propertyId: savedProperty.id });
 
     const input = deps.createAppointmentUseCase.execute.mock.calls[0]![0];
     expect(input.propertyId).toBe(savedProperty.id);
+  });
+
+  it('creates the property as APARTMENT with the apartment number when the plan carries one', async () => {
+    const deps = buildDeps();
+    deps.importRepo.findById.mockResolvedValue(buildRecord());
+    deps.resolver.resolve.mockResolvedValue({
+      rows: [readyRow({ property: { resolution: 'new', propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null, apartmentNumber: '4B', suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: null } })],
+    });
+    const worker = buildWorker(deps);
+
+    await worker.execute({ importId: 'import-1', actor: ACTOR });
+
+    const savedProperty = deps.propertyRepo.save.mock.calls[0]![0];
+    expect(savedProperty.type).toBe('APARTMENT');
+    expect(savedProperty.apartmentNumber).toBe('4B');
+  });
+
+  it('never saves a property for an existing-property plan even when it carries an apartment number', async () => {
+    const deps = buildDeps();
+    deps.importRepo.findById.mockResolvedValue(buildRecord());
+    deps.resolver.resolve.mockResolvedValue({
+      rows: [readyRow({ property: { ...readyRow().property as object, apartmentNumber: '4B' } })],
+    });
+    const worker = buildWorker(deps);
+
+    await worker.execute({ importId: 'import-1', actor: ACTOR });
+
+    expect(deps.propertyRepo.save).not.toHaveBeenCalled();
+    expect(deps.createAppointmentUseCase.execute.mock.calls[0]![0].propertyId).toBe('prop-1');
   });
 
   it('creates a new property only once for two rows sharing the same new address (intra-batch dedupe)', async () => {
@@ -174,6 +204,57 @@ describe('AppointmentImportCommitWorker', () => {
     expect(deps.createAppointmentUseCase.execute).toHaveBeenCalledTimes(2);
     expect(deps.createAppointmentUseCase.execute.mock.calls[0]![0].propertyId).toBe(savedPropertyId);
     expect(deps.createAppointmentUseCase.execute.mock.calls[1]![0].propertyId).toBe(savedPropertyId);
+  });
+
+  it('reuses a found geocode from previewJson: SUCCESS with coordinates, NO async geocode job', async () => {
+    const deps = buildDeps();
+    const newAddr = { resolution: 'new' as const, propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null, suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: null };
+    deps.importRepo.findById.mockResolvedValue(buildRecord({
+      previewJson: { summary: {}, rows: [{ property: { ...newAddr, geocode: { status: 'found', lat: -33.97, lng: 151.12 } } }] },
+    }));
+    deps.resolver.resolve.mockResolvedValue({ rows: [readyRow({ property: newAddr })] });
+    const worker = buildWorker(deps);
+
+    await worker.execute({ importId: 'import-1', actor: ACTOR });
+
+    const savedProperty = deps.propertyRepo.save.mock.calls[0]![0];
+    expect(savedProperty.geocodingStatus).toBe('SUCCESS');
+    expect(savedProperty.lat).toBe(-33.97);
+    expect(savedProperty.lng).toBe(151.12);
+    expect(deps.jobQueue.enqueue).not.toHaveBeenCalledWith('property.geocode', expect.anything());
+  });
+
+  it('persists a not_found geocode as FAILED without enqueueing a geocode job', async () => {
+    const deps = buildDeps();
+    const newAddr = { resolution: 'new' as const, propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null, suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: null };
+    deps.importRepo.findById.mockResolvedValue(buildRecord({
+      previewJson: { summary: {}, rows: [{ property: { ...newAddr, geocode: { status: 'not_found', lat: null, lng: null } } }] },
+    }));
+    deps.resolver.resolve.mockResolvedValue({ rows: [readyRow({ property: newAddr })] });
+    const worker = buildWorker(deps);
+
+    await worker.execute({ importId: 'import-1', actor: ACTOR });
+
+    const savedProperty = deps.propertyRepo.save.mock.calls[0]![0];
+    expect(savedProperty.geocodingStatus).toBe('FAILED');
+    expect(savedProperty.lat).toBeNull();
+    expect(deps.jobQueue.enqueue).not.toHaveBeenCalledWith('property.geocode', expect.anything());
+  });
+
+  it('falls back to PENDING + async job when the preview verification was unverified', async () => {
+    const deps = buildDeps();
+    const newAddr = { resolution: 'new' as const, propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null, suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: null };
+    deps.importRepo.findById.mockResolvedValue(buildRecord({
+      previewJson: { summary: {}, rows: [{ property: { ...newAddr, geocode: { status: 'unverified', lat: null, lng: null } } }] },
+    }));
+    deps.resolver.resolve.mockResolvedValue({ rows: [readyRow({ property: newAddr })] });
+    const worker = buildWorker(deps);
+
+    await worker.execute({ importId: 'import-1', actor: ACTOR });
+
+    const savedProperty = deps.propertyRepo.save.mock.calls[0]![0];
+    expect(savedProperty.geocodingStatus).toBe('PENDING');
+    expect(deps.jobQueue.enqueue).toHaveBeenCalledWith('property.geocode', { propertyId: savedProperty.id });
   });
 
   it('falls back to findByNormalizedAddress on a genuine concurrent-duplicate-address conflict', async () => {
