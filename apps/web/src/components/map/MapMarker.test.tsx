@@ -65,6 +65,19 @@ describe('MapMarker', () => {
     expect(label.className).toContain('select-none');
   });
 
+  // Hover feedback must never resize the pin: `hover:scale-*` makes the
+  // hit area grow under the cursor, the pointer falls off the edge, hover
+  // drops, the pin shrinks back — an oscillating "jitter" loop.
+  it('circle pin hover feedback does not scale the button', () => {
+    render(<MapMarker longitude={0} latitude={0} />);
+    expect(screen.getByRole('button').className).not.toContain('hover:scale');
+  });
+
+  it('icon pin hover feedback does not scale the button', () => {
+    render(<MapMarker longitude={0} latitude={0} icon="mdi-check-bold" />);
+    expect(screen.getByRole('button').className).not.toContain('hover:scale');
+  });
+
   // Appointments status map — black teardrop pins whose inner icon encodes
   // the appointment status (color no longer differentiates statuses).
   describe('icon variant (status pins)', () => {

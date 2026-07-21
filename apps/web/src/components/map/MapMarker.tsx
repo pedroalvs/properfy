@@ -130,8 +130,10 @@ export function MapMarker({
     <button
       type="button"
       disabled={disabled}
-      className={`inline-flex flex-col items-center transition-transform hover:scale-110 ${
-        active ? 'scale-110 drop-shadow-[0_0_4px_rgba(0,157,217,0.95)]' : 'drop-shadow-md'
+      className={`inline-flex flex-col items-center transition-[filter] ${
+        active
+          ? 'scale-110 drop-shadow-[0_0_4px_rgba(0,157,217,0.95)]'
+          : 'drop-shadow-md hover:drop-shadow-[0_0_4px_rgba(0,157,217,0.6)]'
       } ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
       onClick={(e) => {
         if (disabled) return;
@@ -165,7 +167,7 @@ export function MapMarker({
     <button
       type="button"
       disabled={disabled}
-      className={`flex items-center justify-center rounded-full shadow-md transition-transform hover:scale-110 ${size} ${ringClass} ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
+      className={`flex items-center justify-center rounded-full shadow-md transition hover:shadow-lg hover:brightness-110 ${size} ${ringClass} ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
       style={{ backgroundColor: color }}
       onClick={(e) => {
         if (disabled) return;
