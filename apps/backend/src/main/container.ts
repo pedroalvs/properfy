@@ -23,7 +23,6 @@ import { SessionTrustService } from '../modules/auth/application/services/sessio
 import { StubGeoIpService } from '../shared/infrastructure/geoip.service';
 import { RequestPasswordResetUseCase } from '../modules/auth/application/use-cases/request-password-reset.use-case';
 import { ConsumePasswordResetUseCase } from '../modules/auth/application/use-cases/consume-password-reset.use-case';
-import { AcceptInviteUseCase } from '../modules/auth/application/use-cases/accept-invite.use-case';
 import { PrismaPasswordResetTokenRepository } from '../modules/auth/infrastructure/prisma-password-reset-token.repository';
 import { PrismaPasswordHistoryRepository } from '../modules/auth/infrastructure/prisma-password-history.repository';
 import type { AuthRouteContainer } from '../modules/auth/interfaces/auth.routes';
@@ -62,7 +61,6 @@ import { UpdateUserUseCase } from '../modules/user/application/use-cases/update-
 import { DeactivateUserUseCase } from '../modules/user/application/use-cases/deactivate-user.use-case';
 import { UnlockUserUseCase } from '../modules/user/application/use-cases/unlock-user.use-case';
 import { ResetUserPasswordUseCase } from '../modules/user/application/use-cases/reset-user-password.use-case';
-import { InviteUserUseCase } from '../modules/user/application/use-cases/invite-user.use-case';
 import type { UserRouteContainer } from '../modules/user/interfaces/user.routes';
 
 // Property module
@@ -686,10 +684,7 @@ export function createContainer(logger: Logger): AppContainer {
     pwaBaseUrl: env.PWA_BASE_URL,
   });
   const consumePasswordResetUseCase = new ConsumePasswordResetUseCase(passwordResetTokenRepo, userRepo, sessionRepo, auditService, passwordHistoryRepo);
-  const acceptInviteUseCase = new AcceptInviteUseCase(passwordResetTokenRepo, userRepo, auditService);
 
-  // Invite user use case (depends on createNotificationUseCase)
-  const inviteUserUseCase = new InviteUserUseCase(userManagementRepo, tenantRepo, branchRepo, passwordResetTokenRepo, createNotificationUseCase, auditService, authorizationService);
 
   // Shared idempotency service (used across modules)
   const idempotencyService = new PrismaIdempotencyService(prisma);
@@ -1280,7 +1275,6 @@ export function createContainer(logger: Logger): AppContainer {
       confirmTotpUseCase,
       requestPasswordResetUseCase,
       consumePasswordResetUseCase,
-      acceptInviteUseCase,
       jwtService,
       tenantRepo,
     },
@@ -1310,7 +1304,6 @@ export function createContainer(logger: Logger): AppContainer {
       deactivateUserUseCase,
       unlockUserUseCase,
       resetUserPasswordUseCase,
-      inviteUserUseCase,
       jwtService,
       tenantRepo,
     },

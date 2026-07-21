@@ -57,9 +57,3 @@ export const resetPasswordSchema = z.object({
   newPassword: passwordFieldSchema,
 });
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
-
-export const acceptInviteSchema = z.object({
-  token: z.string().min(1),
-  password: passwordFieldSchema,
-});
-export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>;

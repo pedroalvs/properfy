@@ -5,7 +5,6 @@ import {
   updateUserSchema,
   resetUserPasswordSchema,
   listUsersQuerySchema,
-  inviteUserSchema,
   deactivateSchema,
   userResponseSchema,
   successResponseSchema,
@@ -21,7 +20,6 @@ import type { UpdateUserUseCase } from '../application/use-cases/update-user.use
 import type { DeactivateUserUseCase } from '../application/use-cases/deactivate-user.use-case';
 import type { UnlockUserUseCase } from '../application/use-cases/unlock-user.use-case';
 import type { ResetUserPasswordUseCase } from '../application/use-cases/reset-user-password.use-case';
-import type { InviteUserUseCase } from '../application/use-cases/invite-user.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface UserRouteContainer {
@@ -32,7 +30,6 @@ export interface UserRouteContainer {
   deactivateUserUseCase: DeactivateUserUseCase;
   unlockUserUseCase: UnlockUserUseCase;
   resetUserPasswordUseCase: ResetUserPasswordUseCase;
-  inviteUserUseCase: InviteUserUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
@@ -108,39 +105,6 @@ export async function registerUserRoutes(
         );
       const result = await container.createUserUseCase.execute({
         tenantId: null,
-        ...parsed.data,
-        actor: request.authContext!,
-      });
-      return reply.status(201).send(success(result));
-    },
-  );
-
-  // POST /v1/tenants/:tenantId/users/invite
-  app.post(
-    '/v1/tenants/:tenantId/users/invite',
-    {
-      preHandler: authenticate,
-      schema: {
-        params: tenantIdParam,
-        body: inviteUserSchema,
-        response: { 201: successResponseSchema(userResponseSchema) },
-      },
-    },
-    async (request, reply) => {
-      const params = tenantIdParam.safeParse(request.params);
-      if (!params.success)
-        throw new ValidationError(
-          'Invalid tenant ID',
-          params.error.errors,
-        );
-      const parsed = inviteUserSchema.safeParse(request.body);
-      if (!parsed.success)
-        throw new ValidationError(
-          'Request payload is invalid',
-          parsed.error.errors,
-        );
-      const result = await container.inviteUserUseCase.execute({
-        tenantId: params.data.tenantId,
         ...parsed.data,
         actor: request.authContext!,
       });

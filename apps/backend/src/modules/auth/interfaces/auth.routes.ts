@@ -10,14 +10,12 @@ import type { SetupTotpUseCase } from '../application/use-cases/setup-totp.use-c
 import type { ConfirmTotpUseCase } from '../application/use-cases/confirm-totp.use-case';
 import type { RequestPasswordResetUseCase } from '../application/use-cases/request-password-reset.use-case';
 import type { ConsumePasswordResetUseCase } from '../application/use-cases/consume-password-reset.use-case';
-import type { AcceptInviteUseCase } from '../application/use-cases/accept-invite.use-case';
 import {
   loginSchema,
   refreshSchema,
   changePasswordSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
-  acceptInviteSchema,
   loginResponseSchema,
   refreshResponseSchema,
   meResponseSchema,
@@ -39,7 +37,6 @@ export interface AuthRouteContainer {
   confirmTotpUseCase: ConfirmTotpUseCase;
   requestPasswordResetUseCase: RequestPasswordResetUseCase;
   consumePasswordResetUseCase: ConsumePasswordResetUseCase;
-  acceptInviteUseCase: AcceptInviteUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean; settingsJson?: Record<string, unknown> } | null> };
 }
@@ -300,27 +297,4 @@ export async function registerAuthRoutes(
     return reply.status(204).send();
   });
 
-  // POST /v1/auth/accept-invite (public)
-  app.post('/v1/auth/accept-invite', {
-    config: {
-      rateLimit: {
-        max: 10,
-        timeWindow: '1 minute',
-      },
-    },
-    schema: {
-      body: acceptInviteSchema,
-      response: { 204: z.null() },
-    },
-  }, async (request, reply) => {
-    const parsed = acceptInviteSchema.safeParse(request.body);
-    if (!parsed.success) {
-      throw new ValidationError('Request payload is invalid', parsed.error.errors);
-    }
-    await container.acceptInviteUseCase.execute({
-      token: parsed.data.token,
-      password: parsed.data.password,
-    });
-    return reply.status(204).send();
-  });
 }
