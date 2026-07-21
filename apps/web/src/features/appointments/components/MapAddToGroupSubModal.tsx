@@ -4,6 +4,7 @@ import { SelectInput } from '@/components/forms/SelectInput';
 import { useFindAddableGroupsForAppointments } from '../hooks/useFindAddableGroupsForAppointments';
 import { useAppointmentsEligibilityCheck } from '../hooks/useAppointmentsEligibilityCheck';
 import { useAddAppointmentsToGroup } from '../hooks/useAddAppointmentsToGroup';
+import { useSnackbar } from '@/hooks/useSnackbar';
 import { AppointmentCodePill } from './AppointmentCodePill';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 import type { AddableGroupSummary } from '@properfy/shared';
@@ -58,6 +59,7 @@ export function MapAddToGroupSubModal({
   const [eligibility, setEligibility] = useState<EligibilityState>({ phase: 'idle' });
   const [addResult, setAddResult] = useState<AddResultState>(null);
 
+  const { showSuccess } = useSnackbar();
   const findGroupsMutation = useFindAddableGroupsForAppointments();
   const eligibilityMutation = useAppointmentsEligibilityCheck(selectedGroupId);
   const addMutation = useAddAppointmentsToGroup(selectedGroupId);
@@ -125,7 +127,18 @@ export function MapAddToGroupSubModal({
     if (eligibility.phase !== 'ready' || eligibility.eligible.length === 0) return;
     const res = await addMutation.mutateAsync({ appointmentIds: eligibility.eligible });
     setAddResult({ results: res.data.results });
-    if (res.data.results.some((r) => r.status === 'OK')) onSuccess?.();
+    const okCount = res.data.results.filter((r) => r.status === 'OK').length;
+    if (okCount > 0) {
+      const targetGroup = groupsState.phase === 'ready'
+        ? groupsState.groups.find((g) => g.id === selectedGroupId)
+        : undefined;
+      showSuccess(
+        targetGroup
+          ? `${okCount} appointment${okCount === 1 ? '' : 's'} added to group ${targetGroup.code}`
+          : `${okCount} appointment${okCount === 1 ? '' : 's'} added to group`,
+      );
+      onSuccess?.();
+    }
   };
 
   return (

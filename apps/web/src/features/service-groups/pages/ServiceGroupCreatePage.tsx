@@ -114,7 +114,8 @@ export function ServiceGroupCreatePage() {
       });
       if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       queryClient.invalidateQueries({ queryKey: ['service-groups'] });
-      showSuccess('Service group created');
+      const groupCode = (data as { data?: { code?: string } } | undefined)?.data?.code;
+      showSuccess(groupCode ? `Service group ${groupCode} created` : 'Service group created');
       const newId = (data as any)?.data?.id ?? (data as any)?.id;
       if (newId) {
         navigate(`/service-groups/${newId}`);

@@ -6,6 +6,12 @@ import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 const mockFindGroups = vi.fn();
 const mockEligibility = vi.fn();
 const mockAdd = vi.fn();
+const mockShowSuccess = vi.fn();
+const mockShowError = vi.fn();
+
+vi.mock('@/hooks/useSnackbar', () => ({
+  useSnackbar: () => ({ showSuccess: mockShowSuccess, showError: mockShowError }),
+}));
 
 vi.mock('../hooks/useFindAddableGroupsForAppointments', () => ({
   useFindAddableGroupsForAppointments: () => ({ mutateAsync: mockFindGroups }),
@@ -43,7 +49,20 @@ beforeEach(() => {
     data: { eligibleAppointmentIds: ['appt-1', 'appt-2'], ineligibleAppointmentIds: [], groupAccepts: true, groupReasons: [] },
   });
   mockAdd.mockReset().mockResolvedValue({ data: { results: [] } });
+  mockShowSuccess.mockReset();
+  mockShowError.mockReset();
 });
+
+async function selectGroupAndAdd(appts: AppointmentMapItem[]) {
+  render(<MapAddToGroupSubModal open onClose={() => {}} appointments={appts} />);
+  await waitFor(() => expect(screen.getByLabelText('Service group')).toBeInTheDocument());
+  fireEvent.click(screen.getByLabelText('Service group'));
+  fireEvent.click(screen.getByText('Group 7 · 01/08/2026 · 09:00-12:00 (3 appts)'));
+  const confirm = await screen.findByTestId('map-add-to-group-confirm');
+  await waitFor(() => expect(confirm).not.toBeDisabled());
+  fireEvent.click(confirm);
+  await waitFor(() => expect(mockAdd).toHaveBeenCalled());
+}
 
 describe('MapAddToGroupSubModal', () => {
   it('shows the group date in the option label', async () => {
@@ -71,6 +90,53 @@ describe('MapAddToGroupSubModal', () => {
 
     await waitFor(() => expect(mockEligibility).toHaveBeenCalled());
     expect(screen.queryByTestId('map-add-to-group-date-sync-banner')).not.toBeInTheDocument();
+  });
+
+  it('shows a success toast with the target group code after adding appointments', async () => {
+    mockAdd.mockResolvedValue({
+      data: {
+        results: [
+          { appointmentId: 'appt-1', status: 'OK' },
+          { appointmentId: 'appt-2', status: 'OK' },
+        ],
+      },
+    });
+
+    await selectGroupAndAdd(appointments);
+
+    await waitFor(() => {
+      expect(mockShowSuccess).toHaveBeenCalledWith('2 appointments added to group 7');
+    });
+  });
+
+  it('uses the singular form in the toast when a single appointment is added', async () => {
+    mockEligibility.mockResolvedValue({
+      data: { eligibleAppointmentIds: ['appt-1'], ineligibleAppointmentIds: [], groupAccepts: true, groupReasons: [] },
+    });
+    mockAdd.mockResolvedValue({
+      data: { results: [{ appointmentId: 'appt-1', status: 'OK' }] },
+    });
+
+    await selectGroupAndAdd(sameDayAppointments);
+
+    await waitFor(() => {
+      expect(mockShowSuccess).toHaveBeenCalledWith('1 appointment added to group 7');
+    });
+  });
+
+  it('does not show a success toast when no appointment was added', async () => {
+    mockAdd.mockResolvedValue({
+      data: {
+        results: [
+          { appointmentId: 'appt-1', status: 'FAILED', error: { code: 'X', message: 'boom' } },
+          { appointmentId: 'appt-2', status: 'FAILED', error: { code: 'X', message: 'boom' } },
+        ],
+      },
+    });
+
+    await selectGroupAndAdd(appointments);
+
+    expect(mockShowSuccess).not.toHaveBeenCalled();
   });
 
   it('shows the mixed banner mentioning service type only', async () => {
