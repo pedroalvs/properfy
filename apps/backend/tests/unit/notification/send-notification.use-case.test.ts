@@ -921,6 +921,7 @@ describe('SendNotificationUseCase', () => {
 
       expect(sut.notificationRepo.scrubPayload).toHaveBeenCalledWith(
         'notif-1',
+        'tenant-1',
         SENSITIVE_PAYLOAD_KEYS,
         REDACTED_PAYLOAD_VALUE,
       );
@@ -944,6 +945,7 @@ describe('SendNotificationUseCase', () => {
 
       expect(sut.notificationRepo.scrubPayload).toHaveBeenCalledWith(
         'notif-1',
+        'tenant-1',
         SENSITIVE_PAYLOAD_KEYS,
         REDACTED_PAYLOAD_VALUE,
       );

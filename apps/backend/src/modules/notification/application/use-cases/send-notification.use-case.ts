@@ -407,6 +407,7 @@ export class SendNotificationUseCase {
       try {
         await this.notificationRepo.scrubPayload(
           notification.id,
+          notification.tenantId,
           SENSITIVE_PAYLOAD_KEYS,
           REDACTED_PAYLOAD_VALUE,
         );

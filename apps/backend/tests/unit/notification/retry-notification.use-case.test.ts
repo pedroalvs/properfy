@@ -199,6 +199,16 @@ describe('RetryNotificationUseCase', () => {
     expect(notificationRepo.update).not.toHaveBeenCalled();
   });
 
+  it('should allow retry when a NON-sensitive field happens to contain the redaction marker', async () => {
+    vi.mocked(notificationRepo.findById).mockResolvedValue(
+      makeNotification({ payloadJson: { rentalTenantName: REDACTED_PAYLOAD_VALUE } }),
+    );
+
+    const result = await useCase.execute({ notificationId: 'notif-1', actor: makeActor() });
+
+    expect(result.status).toBe('PENDING');
+  });
+
   it('should allow retry when payload has no scrubbed values', async () => {
     vi.mocked(notificationRepo.findById).mockResolvedValue(
       makeNotification({ payloadJson: { rentalTenantName: 'John' } }),

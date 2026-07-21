@@ -40,9 +40,14 @@ export interface INotificationRepository {
   /**
    * Replaces the given payload_json keys (when present) with `replacement`,
    * atomically in the database. Used to redact secret-bearing values after the
-   * payload can no longer be re-rendered for sending.
+   * payload can no longer be re-rendered for sending. Scoped by tenant.
    */
-  scrubPayload(id: string, keys: readonly string[], replacement: string): Promise<void>;
+  scrubPayload(
+    id: string,
+    tenantId: string,
+    keys: readonly string[],
+    replacement: string,
+  ): Promise<void>;
   existsByAppointmentAndTemplate(appointmentId: string, templateCode: string): Promise<boolean>;
   countByTenantChannelSince(tenantId: string, channel: NotificationChannel, since: Date): Promise<number>;
 }

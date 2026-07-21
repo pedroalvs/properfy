@@ -44,10 +44,13 @@ beforeEach(async () => {
   tenantId = tenant.id;
 });
 
-async function seedNotification(payloadJson: Record<string, unknown>): Promise<string> {
+async function seedNotification(
+  payloadJson: Record<string, unknown>,
+  ownerTenantId: string = tenantId,
+): Promise<string> {
   const row = await harness.prisma.notification.create({
     data: {
-      tenant_id: tenantId,
+      tenant_id: ownerTenantId,
       recipient: 'user@example.com',
       channel: 'EMAIL',
       template_code: 'PASSWORD_RESET',
@@ -71,7 +74,7 @@ describe('scrubPayload', () => {
       confirmationLink: 'https://portal.example.com/portal/rawtoken',
     });
 
-    await repo.scrubPayload(id, SENSITIVE_PAYLOAD_KEYS, REDACTED_PAYLOAD_VALUE);
+    await repo.scrubPayload(id, tenantId, SENSITIVE_PAYLOAD_KEYS, REDACTED_PAYLOAD_VALUE);
 
     expect(await readPayload(id)).toEqual({
       userName: 'John Smith',
@@ -83,7 +86,7 @@ describe('scrubPayload', () => {
   it('is a no-op when the payload has none of the listed keys', async () => {
     const id = await seedNotification({ rentalTenantName: 'Jane', scheduledDate: '2026-08-01' });
 
-    await repo.scrubPayload(id, SENSITIVE_PAYLOAD_KEYS, REDACTED_PAYLOAD_VALUE);
+    await repo.scrubPayload(id, tenantId, SENSITIVE_PAYLOAD_KEYS, REDACTED_PAYLOAD_VALUE);
 
     expect(await readPayload(id)).toEqual({
       rentalTenantName: 'Jane',
@@ -95,7 +98,7 @@ describe('scrubPayload', () => {
     const target = await seedNotification({ resetLink: 'https://a/reset?token=1' });
     const other = await seedNotification({ resetLink: 'https://a/reset?token=2' });
 
-    await repo.scrubPayload(target, SENSITIVE_PAYLOAD_KEYS, REDACTED_PAYLOAD_VALUE);
+    await repo.scrubPayload(target, tenantId, SENSITIVE_PAYLOAD_KEYS, REDACTED_PAYLOAD_VALUE);
 
     expect(await readPayload(target)).toEqual({ resetLink: REDACTED_PAYLOAD_VALUE });
     expect(await readPayload(other)).toEqual({ resetLink: 'https://a/reset?token=2' });
@@ -104,9 +107,28 @@ describe('scrubPayload', () => {
   it('handles an empty payload object', async () => {
     const id = await seedNotification({});
 
-    await repo.scrubPayload(id, SENSITIVE_PAYLOAD_KEYS, REDACTED_PAYLOAD_VALUE);
+    await repo.scrubPayload(id, tenantId, SENSITIVE_PAYLOAD_KEYS, REDACTED_PAYLOAD_VALUE);
 
     expect(await readPayload(id)).toEqual({});
+  });
+
+  it('cannot alter a row belonging to another tenant', async () => {
+    const otherTenant = await harness.prisma.tenant.create({
+      data: {
+        name: 'Other Tenant',
+        legal_name: `Other LLC ${Math.random().toString(36).slice(2, 10)}`,
+        status: 'ACTIVE',
+      },
+    });
+    const foreignRow = await seedNotification(
+      { resetLink: 'https://a/reset?token=foreign' },
+      otherTenant.id,
+    );
+
+    // Scrub scoped to tenantId must not touch a row owned by otherTenant.
+    await repo.scrubPayload(foreignRow, tenantId, SENSITIVE_PAYLOAD_KEYS, REDACTED_PAYLOAD_VALUE);
+
+    expect(await readPayload(foreignRow)).toEqual({ resetLink: 'https://a/reset?token=foreign' });
   });
 });
 
@@ -120,7 +142,7 @@ describe('backfill migration semantics (20260721000000_scrub_notification_payloa
   );
 
   async function seedWithStatus(
-    status: 'PENDING' | 'SENT' | 'FAILED',
+    status: 'PENDING' | 'SENT' | 'FAILED' | 'SKIPPED_OPT_OUT',
     payloadJson: Record<string, unknown>,
   ): Promise<string> {
     const row = await harness.prisma.notification.create({
@@ -151,5 +173,28 @@ describe('backfill migration semantics (20260721000000_scrub_notification_payloa
     expect(await readPayload(sent)).toEqual({ userName: 'B', resetToken: '[REDACTED]' });
     expect(await readPayload(failed)).toEqual({ userName: 'C', confirmationLink: '[REDACTED]' });
     expect(await readPayload(untouched)).toEqual({ rentalTenantName: 'D' });
+  });
+
+  it('redacts all five sensitive keys on any non-PENDING status', async () => {
+    const allKeys = {
+      userName: 'E',
+      resetLink: 'https://a/reset?token=1',
+      resetToken: 'raw-token',
+      confirmationLink: 'https://portal/x?token=2',
+      rescheduleLink: 'https://portal/x/reschedule?token=3',
+      inviteToken: 'raw-invite',
+    };
+    const skipped = await seedWithStatus('SKIPPED_OPT_OUT', allKeys);
+
+    await harness.prisma.$executeRawUnsafe(migrationSql);
+
+    expect(await readPayload(skipped)).toEqual({
+      userName: 'E',
+      resetLink: '[REDACTED]',
+      resetToken: '[REDACTED]',
+      confirmationLink: '[REDACTED]',
+      rescheduleLink: '[REDACTED]',
+      inviteToken: '[REDACTED]',
+    });
   });
 });

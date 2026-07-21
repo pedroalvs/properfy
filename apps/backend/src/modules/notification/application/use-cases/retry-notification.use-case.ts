@@ -7,7 +7,10 @@ import {
   NotificationInvalidStatusError,
   NotificationPayloadScrubbedError,
 } from '../../domain/notification.errors';
-import { REDACTED_PAYLOAD_VALUE } from '../../domain/notification.constants';
+import {
+  REDACTED_PAYLOAD_VALUE,
+  SENSITIVE_PAYLOAD_KEYS,
+} from '../../domain/notification.constants';
 
 export interface RetryNotificationInput {
   notificationId: string;
@@ -45,7 +48,13 @@ export class RetryNotificationUseCase {
     }
 
     // A scrubbed payload would render "[REDACTED]" into the outgoing message.
-    if (Object.values(notification.payloadJson).some((v) => v === REDACTED_PAYLOAD_VALUE)) {
+    // Only sensitive keys are inspected so an ordinary payload value that
+    // happens to contain the marker text never blocks a retry.
+    if (
+      SENSITIVE_PAYLOAD_KEYS.some(
+        (key) => notification.payloadJson[key] === REDACTED_PAYLOAD_VALUE,
+      )
+    ) {
       throw new NotificationPayloadScrubbedError();
     }
 
