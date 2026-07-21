@@ -832,6 +832,8 @@ export function createContainer(logger: Logger): AppContainer {
   const bulkCrossCheckDoneUseCase = new BulkCrossCheckDoneUseCase(
     performCrossCheckUseCase,
     authorizationService,
+    idempotencyService,
+    logger,
   );
   const reportUnavailabilityUseCase = new ReportUnavailabilityUseCase(
     rentalTenantPortalActivityRepo,

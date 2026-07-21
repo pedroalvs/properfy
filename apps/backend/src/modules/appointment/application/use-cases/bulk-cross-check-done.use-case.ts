@@ -1,6 +1,12 @@
 import type { AuthContext } from '@properfy/shared';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
+import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
+import type { Logger } from '../../../../shared/infrastructure/logger';
 import type { PerformCrossCheckUseCase } from './perform-cross-check.use-case';
+import { dayKeyInTz } from './bulk-action-shared';
+
+const IDEMPOTENCY_SCOPE = 'bulk_cross_check';
+const IDEMPOTENCY_TTL_HOURS = 36;
 
 export interface BulkCrossCheckDoneInput {
   ids: string[];
@@ -22,15 +28,26 @@ export interface BulkCrossCheckDoneResult {
  * (status must be DONE, not already checked, no self-approval, inspection
  * evidence present) plus the financial-entry side effect — no duplication.
  *
- * Sequential (not Promise.all) is intentional: per-item domain errors are
- * captured into `failed[]` so the batch never aborts. A non-DONE appointment
- * surfaces as `APPOINTMENT_DONE_CROSS_CHECK_INVALID_STATUS` — the "skipped with
- * a warning" behaviour shown in the UI.
+ * Per-item idempotency keyed by `(appointmentId, dayInActorTz)` mirrors the
+ * sibling bulk wrappers (`bulk-cancel`, `bulk-status-transition`, …). Because
+ * the delegated cross-check produces a financial-entry side effect, the key
+ * guards a same-day retry / concurrent double-submit from re-firing it: a
+ * cached hit is counted as `updated` without re-invoking the inner use case.
+ * Only successful cross-checks are cached, so genuine failures (non-DONE,
+ * evidence-incomplete, …) are always retried.
+ *
+ * Sequential (not Promise.all) is intentional: per-item errors are captured
+ * into `failed[]` so the batch never aborts. A non-DONE appointment surfaces
+ * as `APPOINTMENT_DONE_CROSS_CHECK_INVALID_STATUS` — the "skipped with a
+ * warning" behaviour shown in the UI.
  */
 export class BulkCrossCheckDoneUseCase {
   constructor(
     private readonly performCrossCheck: PerformCrossCheckUseCase,
     private readonly authorizationService: AuthorizationService,
+    private readonly idempotency: IIdempotencyService,
+    private readonly logger: Logger,
+    private readonly clock: () => Date = () => new Date(),
   ) {}
 
   async execute(input: BulkCrossCheckDoneInput): Promise<BulkCrossCheckDoneResult> {
@@ -39,20 +56,43 @@ export class BulkCrossCheckDoneUseCase {
       entityType: 'Appointment',
     });
 
-    const updated: string[] = [];
+    const dayKey = dayKeyInTz(this.clock());
+    let updated = 0;
     const failed: Array<{ id: string; code: string; message: string }> = [];
 
     for (const appointmentId of input.ids) {
+      const idemKey = `bulk_cross_check:${appointmentId}:${dayKey}`;
+      const cached = await this.idempotency.getWithHash<{ ok: true }>(idemKey, IDEMPOTENCY_SCOPE);
+      if (cached) {
+        // Already cross-checked in this window — treat the replay as a success
+        // without re-firing the financial side effect.
+        updated += 1;
+        continue;
+      }
+
       try {
         await this.performCrossCheck.execute({ appointmentId, actor: input.actor });
-        updated.push(appointmentId);
+        await this.idempotency.set(idemKey, IDEMPOTENCY_SCOPE, { ok: true }, IDEMPOTENCY_TTL_HOURS);
+        updated += 1;
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        const code = (err as { code?: string })?.code ?? 'INTERNAL_ERROR';
-        failed.push({ id: appointmentId, code, message });
+        const code = (err as { code?: string })?.code;
+        if (code) {
+          // Known domain error — its code/message are safe to surface.
+          const message = err instanceof Error ? err.message : 'Unable to cross-check appointment';
+          failed.push({ id: appointmentId, code, message });
+        } else {
+          // Unexpected error — log the raw detail server-side, return a generic
+          // message so internals don't leak into the API response.
+          this.logger.error({ err, appointmentId }, 'Unexpected error during bulk cross-check');
+          failed.push({
+            id: appointmentId,
+            code: 'INTERNAL_ERROR',
+            message: 'Unexpected error while processing this appointment',
+          });
+        }
       }
     }
 
-    return { updated: updated.length, failed };
+    return { updated, failed };
   }
 }

@@ -485,8 +485,9 @@ describe('AppointmentFormDrawer', () => {
       expect(screen.queryByText('Review')).not.toBeInTheDocument();
     });
 
-    it('confirming triggers the cross-check endpoint for the appointment', async () => {
-      renderDrawer({ appointmentId: 'apt-done' });
+    it('confirming triggers the cross-check endpoint and refreshes on success', async () => {
+      const onSaved = vi.fn();
+      renderDrawer({ appointmentId: 'apt-done', onSaved });
 
       // Section button opens the confirm dialog.
       fireEvent.click(screen.getByRole('button', { name: /Confirm Done/ }));
@@ -500,6 +501,13 @@ describe('AppointmentFormDrawer', () => {
           '/v1/appointments/apt-done/cross-check-done',
           { body: {} },
         );
+      });
+
+      // On success the drawer detail is refetched and the parent is notified,
+      // so the reviewed state propagates to both the drawer and the list.
+      await waitFor(() => {
+        expect(mockRefetchDetail).toHaveBeenCalled();
+        expect(onSaved).toHaveBeenCalled();
       });
     });
   });
