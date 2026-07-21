@@ -39,6 +39,7 @@ export class GenerateInvoiceFileWorker {
     const buffer = await this.pdfGenerator.generate({
       invoiceNumberDisplay: formatInvoiceNumber(invoice.invoiceNumber)!,
       inspectorName: invoice.inspectorName,
+      inspectorAbn: invoice.inspectorAbn,
       periodStart: invoice.periodStart.toISOString().slice(0, 10),
       periodEnd: invoice.periodEnd.toISOString().slice(0, 10),
       issuedAt: invoice.issuedAt ? invoice.issuedAt.toISOString().slice(0, 10) : null,

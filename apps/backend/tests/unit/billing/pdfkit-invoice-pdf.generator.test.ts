@@ -5,6 +5,7 @@ import type { InvoicePdfData } from '../../../src/modules/billing/domain/invoice
 const baseData: InvoicePdfData = {
   invoiceNumberDisplay: 'PINV-000042',
   inspectorName: 'Jane Inspector',
+  inspectorAbn: '12 345 678 901',
   periodStart: '2026-03-01',
   periodEnd: '2026-03-15',
   issuedAt: '2026-03-16',
@@ -24,10 +25,17 @@ describe('PdfKitInvoicePdfGenerator', () => {
     expect(buf.subarray(0, 5).toString('latin1')).toBe('%PDF-');
   });
 
+  it('omits the ABN line without crashing when the inspector has no ABN', async () => {
+    const buf = await new PdfKitInvoicePdfGenerator().generate({ ...baseData, inspectorAbn: null });
+    expect(buf.subarray(0, 5).toString('latin1')).toBe('%PDF-');
+    expect(buf.length).toBeGreaterThan(200);
+  });
+
   it('renders robustly when join-derived line fields are null', async () => {
     const buf = await new PdfKitInvoicePdfGenerator().generate({
       ...baseData,
       inspectorName: null,
+      inspectorAbn: null,
       issuedAt: null,
       lines: [
         { serviceDate: '2026-03-02', appointmentId: 'a1', appointmentCode: 'INS-0001', propertyAddress: null, serviceType: null, amount: 700, agencyId: null, agencyName: null, branchId: null, branchName: null },

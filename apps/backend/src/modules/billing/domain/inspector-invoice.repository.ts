@@ -23,6 +23,7 @@ export interface InvoiceUpdateData {
   status?: string;
   invoiceNumber?: number | null;
   inspectorName?: string | null;
+  inspectorAbn?: string | null;
   lineItemsSnapshot?: InvoiceSnapshotLine[] | null;
   fileKey?: string | null;
   generatedByUserId?: string | null;
@@ -85,6 +86,7 @@ export interface IInspectorInvoiceRepository {
       lineItemsSnapshot: InvoiceSnapshotLine[];
       totalAmount: number;
       inspectorName: string | null;
+      inspectorAbn: string | null;
       issuedAt: Date;
       generatedByUserId: string;
     },
