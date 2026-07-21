@@ -76,14 +76,15 @@ const envSchema = z.object({
   AUDIT_RETENTION_BATCH_SIZE: z.coerce.number().int().positive().default(1000),
 
   // Tenant portal SPA base URL used to build confirmationLink / rescheduleLink in templates
-  // (e.g., https://app.properfy.com).
-  TENANT_PORTAL_BASE_URL: z.string().default('http://localhost:5173'),
+  // (e.g., https://app.properfy.com). URL syntax is validated in every runtime because these
+  // values feed `new URL(...)` at link-build time; HTTPS/private-host checks below are strict-only.
+  TENANT_PORTAL_BASE_URL: z.string().url('TENANT_PORTAL_BASE_URL must be a valid URL').default('http://localhost:5173'),
 
   // Web SPA base URL used to build password-reset links for non-inspector users.
-  WEB_APP_BASE_URL: z.string().default('http://localhost:5173'),
+  WEB_APP_BASE_URL: z.string().url('WEB_APP_BASE_URL must be a valid URL').default('http://localhost:5173'),
 
   // PWA base URL used to build password-reset links for inspectors (INSP role).
-  PWA_BASE_URL: z.string().default('http://localhost:5174'),
+  PWA_BASE_URL: z.string().url('PWA_BASE_URL must be a valid URL').default('http://localhost:5174'),
 
   // Optional direct DB URL (migrations)
   DIRECT_URL: z.string().optional(),

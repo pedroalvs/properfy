@@ -119,6 +119,12 @@ describe('validateEnv', () => {
     expect(result.PWA_BASE_URL).toBe('http://localhost:5174');
   });
 
+  it('should reject a malformed WEB_APP_BASE_URL in every runtime', () => {
+    expect(() =>
+      validateEnv({ ...validEnv, WEB_APP_BASE_URL: 'not-a-url' }),
+    ).toThrow('WEB_APP_BASE_URL');
+  });
+
   it('should reject non-HTTPS WEB_APP_BASE_URL and PWA_BASE_URL in production', () => {
     expect(() =>
       validateEnv({
