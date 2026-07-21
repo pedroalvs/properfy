@@ -87,13 +87,14 @@ export function MapGroupCreateModal({
 
     setSubmitting(true);
     try {
-      const { error: apiError } = await api.POST('/v1/service-groups' as any, { body: result.data as any });
+      const { data, error: apiError } = await api.POST('/v1/service-groups' as any, { body: result.data as any });
       if (apiError) {
         const env = apiError as { error?: { message?: string; code?: string } };
         showError(env?.error?.message ?? 'Failed to create service group');
         return;
       }
-      showSuccess('Service group created successfully');
+      const groupCode = (data as { data?: { code?: string } } | undefined)?.data?.code;
+      showSuccess(groupCode ? `Service group ${groupCode} created successfully` : 'Service group created successfully');
       queryClient.invalidateQueries({ queryKey: ['service-groups'] });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       onSuccess();
