@@ -199,4 +199,23 @@ export class PrismaNotificationRepository implements INotificationRepository {
       },
     });
   }
+
+  async scrubPayload(
+    id: string,
+    tenantId: string,
+    keys: readonly string[],
+    replacement: string,
+  ): Promise<void> {
+    // Atomic jsonb merge: only keys that exist in the payload are overwritten,
+    // preserving the payload shape for operators inspecting the notification.
+    await this.prisma.$executeRaw`
+      UPDATE notifications
+      SET payload_json = payload_json || (
+        SELECT COALESCE(jsonb_object_agg(k, to_jsonb(${replacement}::text)), '{}'::jsonb)
+        FROM jsonb_object_keys(payload_json) AS k
+        WHERE k = ANY(${[...keys]}::text[])
+      )
+      WHERE id = ${id} AND tenant_id = ${tenantId}
+    `;
+  }
 }
