@@ -6,7 +6,7 @@ import {
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
 import {
-  PortalActionBlockedError,
+  PortalAppointmentInactiveError,
   PortalTokenAlreadyUsedError,
   PortalGroupNotFoundError,
   PortalGroupFullError,
@@ -80,7 +80,6 @@ function makeInput(overrides: Partial<JoinGroupInput> = {}): JoinGroupInput {
     scheduledDate: '2026-06-02',
     timeSlotStart: '13:00',
     timeSlotEnd: '15:00',
-    isReadOnly: false,
     isUsed: false,
     ipAddress: '127.0.0.1',
     userAgent: 'TestAgent/1.0',
@@ -167,8 +166,20 @@ describe('JoinGroupUseCase', () => {
     );
   });
 
-  it('should throw PortalActionBlockedError when isReadOnly', async () => {
-    await expect(useCase.execute(makeInput({ isReadOnly: true }))).rejects.toThrow(PortalActionBlockedError);
+  it('should allow joining a group after the portal token expired (isReadOnly)', async () => {
+    const result = await useCase.execute(makeInput());
+    expect(result.appointmentStatus).toBe('SCHEDULED');
+  });
+
+  it('should throw PortalAppointmentInactiveError for finalized appointments', async () => {
+    for (const status of ['DONE', 'CANCELLED', 'REJECTED'] as const) {
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ status }),
+        contact: null,
+        restrictions: [],
+      });
+      await expect(useCase.execute(makeInput())).rejects.toThrow(PortalAppointmentInactiveError);
+    }
   });
 
   it('should throw PortalTokenAlreadyUsedError when isUsed', async () => {

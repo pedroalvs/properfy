@@ -304,7 +304,6 @@ describe('GAP-002: Domain events for portal actions', () => {
       await useCase.execute({
         tokenId: 'token-1',
         appointmentId: 'appt-1',
-        isReadOnly: false,
         isUsed: false,
         newDate,
         newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',
@@ -416,7 +415,6 @@ describe('GAP-003: Token replay detection', () => {
       await expect(useCase.execute({
         tokenId: 'token-1',
         appointmentId: 'appt-1',
-        isReadOnly: false,
         isUsed: true,
         newDate: new Date(Date.now() + 7*24*3600*1000).toISOString().split('T')[0]!,
         newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',
@@ -433,7 +431,6 @@ describe('GAP-003: Token replay detection', () => {
       await useCase.execute({
         tokenId: 'token-1',
         appointmentId: 'appt-1',
-        isReadOnly: false,
         isUsed: false,
         newDate: new Date(Date.now() + 7*24*3600*1000).toISOString().split('T')[0]!,
         newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',
@@ -570,7 +567,6 @@ describe('GAP-004: Auto-generate new token on reschedule', () => {
     await useCase.execute({
       tokenId: 'token-1',
       appointmentId: 'appt-1',
-      isReadOnly: false,
       isUsed: false,
       newDate: new Date(Date.now() + 7*24*3600*1000).toISOString().split('T')[0]!,
       newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',
@@ -602,7 +598,6 @@ describe('GAP-004: Auto-generate new token on reschedule', () => {
     const result = await useCase.execute({
       tokenId: 'token-1',
       appointmentId: 'appt-1',
-      isReadOnly: false,
       isUsed: false,
       newDate,
       newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',
@@ -645,7 +640,6 @@ describe('GAP-004: Auto-generate new token on reschedule', () => {
     const result = await useCase.execute({
       tokenId: 'token-1',
       appointmentId: 'appt-1',
-      isReadOnly: false,
       isUsed: false,
       newDate: new Date(Date.now() + 7*24*3600*1000).toISOString().split('T')[0]!,
       newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',

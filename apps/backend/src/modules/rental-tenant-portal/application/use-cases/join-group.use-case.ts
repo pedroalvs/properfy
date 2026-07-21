@@ -7,7 +7,7 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { ExecuteStatusTransitionInput, ExecuteStatusTransitionOutput } from '../../../appointment/application/use-cases/execute-status-transition.use-case';
 import { RentalTenantPortalActivityEntity } from '../../domain/rental-tenant-portal-activity.entity';
 import {
-  PortalActionBlockedError,
+  PortalAppointmentInactiveError,
   PortalTokenAlreadyUsedError,
   PortalGroupNotFoundError,
   PortalGroupFullError,
@@ -30,7 +30,6 @@ export interface JoinGroupInput {
   scheduledDate: string;
   timeSlotStart: string;
   timeSlotEnd: string;
-  isReadOnly: boolean;
   isUsed: boolean;
   rentalTenantNote?: string;
   ipAddress: string | null;
@@ -47,6 +46,7 @@ export interface JoinGroupOutput {
 }
 
 const ACTIVE_GROUP_STATUSES = new Set(['ACCEPTED']);
+const INACTIVE_STATUSES = new Set(['CANCELLED', 'DONE', 'REJECTED']);
 
 export class JoinGroupUseCase {
   constructor(
@@ -64,14 +64,19 @@ export class JoinGroupUseCase {
    * Implements the 13-step side-effect sequence from spec §5.2.
    */
   async execute(input: JoinGroupInput): Promise<JoinGroupOutput> {
-    // 1-2. Validate token state
-    if (input.isReadOnly) throw new PortalActionBlockedError();
+    // 1-2. Validate token state. Token expiry does not block a group change:
+    // the tenant may still pick another slot after the scheduled day, as long
+    // as the appointment is active.
     if (input.isUsed) throw new PortalTokenAlreadyUsedError();
 
     // Load appointment
     const apptResult = await this.appointmentRepo.findById(input.appointmentId, null);
     if (!apptResult) throw new PortalGroupNotFoundError();
     const { appointment } = apptResult;
+
+    if (INACTIVE_STATUSES.has(appointment.status)) {
+      throw new PortalAppointmentInactiveError();
+    }
 
     // 3. Validate group
     const groupResult = await this.serviceGroupRepo.findById(input.groupId, null);
