@@ -9,6 +9,9 @@ describe('MapLassoToggleButton', () => {
     expect(btn).toBeInTheDocument();
     expect(btn).toHaveAttribute('aria-label', 'Select area');
     expect(screen.getByText('Select area')).toBeInTheDocument();
+    const icon = btn.querySelector('.mdi-selection-drag');
+    expect(icon).toBeInTheDocument();
+    expect(icon).toHaveAttribute('aria-hidden', 'true');
   });
 
   it('fires onClick when clicked', () => {
