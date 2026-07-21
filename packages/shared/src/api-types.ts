@@ -5748,6 +5748,8 @@ export interface paths {
                                         propertyCode: string | null;
                                         street: string;
                                         addressLine2: string | null;
+                                        /** @default null */
+                                        apartmentNumber: string | null;
                                         suburb: string;
                                         state: string;
                                         postcode: string;
@@ -10508,17 +10510,6 @@ export interface paths {
                                 isActive: boolean;
                                 /** @enum {string} */
                                 notificationClass?: "TRANSACTIONAL" | "OPERATIONAL" | "MARKETING";
-                                imageBindings?: {
-                                    /** Format: uuid */
-                                    id: string;
-                                    placeholderKey: string;
-                                    /** Format: uuid */
-                                    assetId: string;
-                                    publicUrl: string;
-                                    altText: string | null;
-                                    width: number | null;
-                                    height: number | null;
-                                }[];
                                 createdAt: string;
                                 updatedAt: string;
                             }[];
@@ -10673,12 +10664,6 @@ export interface paths {
                         notificationClass?: "TRANSACTIONAL" | "OPERATIONAL" | "MARKETING";
                         /** Format: uuid */
                         tenantId?: string;
-                        imageBindings?: {
-                            placeholderKey: string;
-                            altText?: string;
-                            width?: number;
-                            height?: number;
-                        }[];
                     };
                 };
             };
@@ -10706,17 +10691,6 @@ export interface paths {
                                 isActive: boolean;
                                 /** @enum {string} */
                                 notificationClass?: "TRANSACTIONAL" | "OPERATIONAL" | "MARKETING";
-                                imageBindings?: {
-                                    /** Format: uuid */
-                                    id: string;
-                                    placeholderKey: string;
-                                    /** Format: uuid */
-                                    assetId: string;
-                                    publicUrl: string;
-                                    altText: string | null;
-                                    width: number | null;
-                                    height: number | null;
-                                }[];
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -10769,197 +10743,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/email-assets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/email-assets/{id}/confirm": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/email-assets/{id}/usages": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/email-assets/{id}/bindings/{bindingId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                    bindingId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        trace?: never;
-    };
-    "/v1/email-assets/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/notification-templates/{templateCode}/{channel}/preview": {
         parameters: {
             query?: never;
@@ -10986,12 +10769,6 @@ export interface paths {
                         bodyHtml: string;
                         /** Format: uuid */
                         tenantId?: string;
-                        imageBindings?: {
-                            placeholderKey: string;
-                            altText?: string;
-                            width?: number;
-                            height?: number;
-                        }[];
                     };
                 };
             };

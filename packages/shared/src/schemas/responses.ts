@@ -877,15 +877,6 @@ export const notificationTemplateResponseSchema = z.object({
   variables: z.unknown().optional(),
   isActive: z.boolean(),
   notificationClass: z.enum(['TRANSACTIONAL', 'OPERATIONAL', 'MARKETING']).optional(),
-  imageBindings: z.array(z.object({
-    id: z.string().uuid(),
-    placeholderKey: z.string(),
-    assetId: z.string().uuid(),
-    publicUrl: z.string(),
-    altText: z.string().nullable(),
-    width: z.number().int().nullable(),
-    height: z.number().int().nullable(),
-  })).optional(),
   createdAt: dateStr(),
   updatedAt: dateStr(),
 });

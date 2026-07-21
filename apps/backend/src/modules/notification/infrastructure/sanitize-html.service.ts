@@ -4,9 +4,9 @@ import type { IHtmlSanitizerService, SanitizeResult } from '../domain/html-sanit
 const ALLOWED_TAGS = [
   'a', 'abbr', 'b', 'blockquote', 'br', 'caption', 'cite', 'code', 'col', 'colgroup',
   'dd', 'del', 'dfn', 'div', 'dl', 'dt', 'em', 'figcaption', 'figure', 'h1', 'h2',
-  'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'ins', 'kbd', 'li', 'mark', 'ol', 'p', 'pre',
-  'q', 's', 'samp', 'small', 'span', 'strong', 'sub', 'sup', 'table', 'tbody', 'td',
-  'tfoot', 'th', 'thead', 'tr', 'u', 'ul', 'var',
+  'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'img', 'ins', 'kbd', 'li', 'mark', 'ol', 'p',
+  'pre', 'q', 's', 'samp', 'small', 'span', 'strong', 'sub', 'sup', 'table', 'tbody',
+  'td', 'tfoot', 'th', 'thead', 'tr', 'u', 'ul', 'var',
 ];
 
 const ALLOWED_ATTRS: sanitizeHtml.IOptions['allowedAttributes'] = {
@@ -14,70 +14,44 @@ const ALLOWED_ATTRS: sanitizeHtml.IOptions['allowedAttributes'] = {
   a: ['href', 'name', 'target', 'title'],
   col: ['span'],
   colgroup: ['span'],
+  img: ['src', 'alt', 'width', 'height', 'style'],
   td: ['colspan', 'rowspan', 'headers'],
   th: ['colspan', 'rowspan', 'scope'],
 };
 
 const ALLOWED_SCHEMES = ['http', 'https', 'mailto'];
 
-/** Build sanitize-html options for the SAVE profile (no <img> at all). */
-function buildSaveOptions(): sanitizeHtml.IOptions {
+function buildOptions(): sanitizeHtml.IOptions {
   return {
     allowedTags: ALLOWED_TAGS,
     allowedAttributes: ALLOWED_ATTRS,
     allowedSchemes: ALLOWED_SCHEMES,
-    allowedSchemesByTag: {},
+    // Images must be served over https; links may still be http/mailto
+    allowedSchemesByTag: { img: ['https'] },
     allowProtocolRelative: false,
     disallowedTagsMode: 'discard',
   };
 }
 
-/** Build sanitize-html options for the RENDER profile (permits asset-host <img>). */
-function buildRenderOptions(assetHostOrigin?: string): sanitizeHtml.IOptions {
-  const tags = [...ALLOWED_TAGS, 'img'];
-  const attrs: sanitizeHtml.IOptions['allowedAttributes'] = {
-    ...ALLOWED_ATTRS,
-    img: ['src', 'alt', 'width', 'height', 'style'],
-  };
-
-  return {
-    allowedTags: tags,
-    allowedAttributes: attrs,
-    allowedSchemes: ALLOWED_SCHEMES,
-    allowProtocolRelative: false,
-    disallowedTagsMode: 'discard',
-    exclusiveFilter: assetHostOrigin
-      ? (frame) => {
-          if (frame.tag === 'img') {
-            const src: string = (frame.attribs['src'] as string) ?? '';
-            return !src.startsWith(assetHostOrigin);
-          }
-          return false;
-        }
-      : (frame) => frame.tag === 'img',
-  };
+/**
+ * Normalizes void-tag serialization so that `<img ...>` and `<img ... />`
+ * compare equal — sanitize-html always re-emits self-closing syntax.
+ */
+function normalizeSelfClosing(html: string): string {
+  return html.replace(/\s*\/>/g, '>');
 }
 
 /**
  * Implements IHtmlSanitizerService using the sanitize-html library.
  *
  * save profile  — validates (reject-on-diff, no mutation)
- * render profile — sanitizes (permits trusted-host <img>)
+ * render profile — sanitizes (strips unsafe constructs, keeps https <img>)
  */
 export class SanitizeHtmlService implements IHtmlSanitizerService {
   validateForSave(html: string): SanitizeResult {
-    // Explicit check: any <img> tag is forbidden at save time
-    if (/<img\b/i.test(html)) {
-      return {
-        safe: false,
-        rejectedReason:
-          'Literal <img> tags are not allowed. Use {{image:key}} placeholders instead.',
-      };
-    }
+    const sanitized = sanitizeHtml(html, buildOptions());
 
-    const sanitized = sanitizeHtml(html, buildSaveOptions());
-
-    if (sanitized === html) {
+    if (normalizeSelfClosing(sanitized) === normalizeSelfClosing(html)) {
       return { safe: true };
     }
 
@@ -94,6 +68,10 @@ export class SanitizeHtmlService implements IHtmlSanitizerService {
     if (jsMatch) {
       return { safe: false, rejectedReason: 'Disallowed URL scheme: javascript:' };
     }
+    const httpImgMatch = /<img\b[^>]*\bsrc\s*=\s*["']?(?!https:)/i.exec(html);
+    if (httpImgMatch) {
+      return { safe: false, rejectedReason: 'Image src must use https.' };
+    }
 
     return {
       safe: false,
@@ -101,7 +79,7 @@ export class SanitizeHtmlService implements IHtmlSanitizerService {
     };
   }
 
-  sanitizeForRender(html: string, assetHostOrigin?: string): string {
-    return sanitizeHtml(html, buildRenderOptions(assetHostOrigin));
+  sanitizeForRender(html: string): string {
+    return sanitizeHtml(html, buildOptions());
   }
 }

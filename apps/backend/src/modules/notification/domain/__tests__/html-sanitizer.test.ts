@@ -41,12 +41,33 @@ describe('HtmlSanitizerService — save profile (validateForSave)', () => {
     expect(result.safe).toBe(false);
   });
 
-  it('should reject any literal <img> tag (even with trusted src)', async () => {
+  it('should permit <img> with https src', async () => {
     const svc = await loadImpl();
-    const html = '<img src="https://assets.example.com/logo.png" alt="logo">';
+    const html = '<img src="https://assets.example.com/logo.png" alt="logo" width="120">';
+    const result = svc.validateForSave(html);
+    expect(result.safe).toBe(true);
+  });
+
+  it('should permit self-closing <img /> with https src', async () => {
+    const svc = await loadImpl();
+    const html = '<p>Hi</p><img src="https://assets.example.com/logo.png" alt="logo" />';
+    const result = svc.validateForSave(html);
+    expect(result.safe).toBe(true);
+  });
+
+  it('should reject <img> with http (non-https) src', async () => {
+    const svc = await loadImpl();
+    const html = '<img src="http://assets.example.com/logo.png" alt="logo">';
     const result = svc.validateForSave(html);
     expect(result.safe).toBe(false);
-    expect(result.rejectedReason).toMatch(/img/i);
+    expect(result.rejectedReason).toMatch(/https/i);
+  });
+
+  it('should reject <img> with javascript: src', async () => {
+    const svc = await loadImpl();
+    const html = '<img src="javascript:alert(1)">';
+    const result = svc.validateForSave(html);
+    expect(result.safe).toBe(false);
   });
 
   it('should permit http links', async () => {
@@ -80,21 +101,19 @@ describe('HtmlSanitizerService — render profile (sanitizeForRender)', () => {
     expect(result).toContain('Hello');
   });
 
-  it('should permit asset-host <img> when assetHostOrigin matches src', async () => {
+  it('should keep <img> with https src in render profile', async () => {
     const svc = await loadImpl();
-    const origin = 'https://cdn.supabase.example.com';
-    const html = `<img src="${origin}/email-assets/t/logo.png" alt="logo">`;
-    const result = svc.sanitizeForRender(html, origin);
+    const html = '<img src="https://assets.example.com/logo.png" alt="logo">';
+    const result = svc.sanitizeForRender(html);
     expect(result).toContain('<img');
-    expect(result).toContain(origin);
+    expect(result).toContain('https://assets.example.com/logo.png');
   });
 
-  it('should strip non-asset-host <img> tags in render profile', async () => {
+  it('should strip src from <img> with non-https scheme in render profile', async () => {
     const svc = await loadImpl();
-    const origin = 'https://cdn.supabase.example.com';
-    const html = '<img src="https://evil.com/tracker.png" alt="x">';
-    const result = svc.sanitizeForRender(html, origin);
-    expect(result).not.toContain('<img');
+    const html = '<img src="javascript:alert(1)" alt="x">';
+    const result = svc.sanitizeForRender(html);
+    expect(result).not.toContain('javascript:');
   });
 
   it('should strip on* attributes in render profile', async () => {

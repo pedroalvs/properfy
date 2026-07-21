@@ -103,7 +103,6 @@ describe('PUT /v1/notification-templates/:code/:channel — RBAC', () => {
     subject: 'Test Subject',
     bodyHtml: '<p>Hello</p>',
     bodyText: 'Hello',
-    imageBindings: [],
     isActive: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

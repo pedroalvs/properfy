@@ -97,7 +97,6 @@ const fullTemplate = {
   bodyHtml: '<p>Hello {{rentalTenantName}}</p>',
   bodyText: 'Hello rentalTenantName',
   variablesJson: ['rentalTenantName'],
-  imageBindings: [],
   isActive: true,
   createdAt: '2026-03-16T00:00:00.000Z',
   updatedAt: '2026-03-16T00:00:00.000Z',

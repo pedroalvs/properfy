@@ -39,9 +39,6 @@ const envSchema = z.object({
   FY_WEBHOOK_URL: z.string().optional(),
   FY_WEBHOOK_SECRET: z.string().optional(),
 
-  // Email assets (image library)
-  EMAIL_ASSETS_BUCKET: z.string().default('email-assets'),
-  EMAIL_ASSETS_PUBLIC_URL_BASE: z.string().optional(),
   /** Comma-separated list of email addresses allowed as test-send recipients (FR-027a) */
   EMAIL_TEST_RECIPIENT_ALLOWLIST: z.string().optional(),
 
