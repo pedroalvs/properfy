@@ -46,6 +46,13 @@ export function IntegrationDetailPage() {
         />
       )}
       {meta && detail && <IntegrationCard meta={meta} detail={detail} />}
+      {meta && integrations && !detail && (
+        <EmptyState
+          icon="mdi-connection"
+          title="Integration unavailable"
+          description="The API did not return this integration. Go back to the hub and try again."
+        />
+      )}
     </div>
   );
 }

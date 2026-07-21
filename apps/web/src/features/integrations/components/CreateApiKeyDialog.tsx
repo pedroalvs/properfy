@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { PLATFORM_TIMEZONE, endOfCivilDayInTz } from '@properfy/shared';
-import type { ApiKeyCreated, ApiKeyRole, ApiKeyScope } from '@properfy/shared';
+import type { ApiKeyCreated, ApiKeyScope } from '@properfy/shared';
 
 import { Button } from '@/components/ui';
 import { Dialog } from '@/components/ui/Dialog';
@@ -10,9 +10,7 @@ import { SecretValue } from '@/components/ui/SecretValue';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useCreateApiKey } from '../hooks/useApiKeys';
 
-export const FY_SCOPE: ApiKeyScope = 'bot:fy';
-/** Fy keys always act as Operator — fixed, not exposed in the UI. */
-export const FY_KEY_ROLE: ApiKeyRole = 'OP';
+import { FY_KEY_ROLE, FY_SCOPE } from './fyKey';
 
 interface CreateApiKeyDialogProps {
   open: boolean;

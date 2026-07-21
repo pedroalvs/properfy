@@ -59,4 +59,16 @@ describe('IntegrationDetailPage', () => {
     renderAt('/integrations/unknown-provider');
     expect(screen.getByText(/Integration not found/)).toBeInTheDocument();
   });
+
+  it('shows an unavailable state when the API omits a known provider', () => {
+    mockUseIntegrations.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    renderAt('/integrations/resend');
+    expect(screen.getByText(/Integration unavailable/)).toBeInTheDocument();
+  });
 });

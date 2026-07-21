@@ -1,9 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 
 import { IntegrationsPage } from './IntegrationsPage';
+
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location">{location.pathname + location.search}</div>;
+}
 
 const mockUseIntegrations = vi.fn();
 const mockUseApiKeys = vi.fn();
@@ -31,6 +36,7 @@ function renderPage(initialEntry = '/integrations') {
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
       <IntegrationsPage />
+      <LocationProbe />
     </MemoryRouter>,
   );
 }
@@ -88,5 +94,54 @@ describe('IntegrationsPage', () => {
   it('opens directly on the API Keys tab via the tab query param', () => {
     renderPage('/integrations?tab=api-keys');
     expect(screen.getByRole('link', { name: /Fy Integration/ })).toBeInTheDocument();
+  });
+
+  it('keeps the active tab in the URL when switching tabs', async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole('tab', { name: 'API Keys' }));
+    expect(screen.getByTestId('location')).toHaveTextContent('/integrations?tab=api-keys');
+
+    await user.click(screen.getByRole('tab', { name: 'Integrations' }));
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/integrations$/);
+  });
+
+  it('excludes legacy unscoped keys from the Fy tile count', async () => {
+    const user = userEvent.setup();
+    mockUseApiKeys.mockReturnValue({
+      data: [
+        { id: '1', name: 'fy', prefix: 'pfy_1', role: 'OP', scopes: ['bot:fy'], expiresAt: null, revokedAt: null, lastUsedAt: null, createdAt: '2026-07-07T00:00:00.000Z' },
+        { id: '3', name: 'legacy general', prefix: 'pfy_3', role: 'OP', scopes: [], expiresAt: null, revokedAt: null, lastUsedAt: null, createdAt: '2026-07-07T00:00:00.000Z' },
+      ],
+      isLoading: false,
+      isError: false,
+    });
+    renderPage();
+
+    await user.click(screen.getByRole('tab', { name: 'API Keys' }));
+    expect(screen.getByText('1 active key')).toBeInTheDocument();
+  });
+
+  it('surfaces API-key query loading and error states on the Fy tile', async () => {
+    const user = userEvent.setup();
+    mockUseApiKeys.mockReturnValue({ data: undefined, isLoading: false, isError: true });
+    renderPage();
+
+    await user.click(screen.getByRole('tab', { name: 'API Keys' }));
+    expect(screen.getByText('Key count unavailable')).toBeInTheDocument();
+    expect(screen.getByText('Unknown')).toBeInTheDocument();
+  });
+
+  it('shows an empty state when the API returns no integrations', () => {
+    mockUseIntegrations.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    renderPage();
+    expect(screen.getByText('No integrations')).toBeInTheDocument();
   });
 });

@@ -76,6 +76,28 @@ describe('ApiKeysTab', () => {
     expect(screen.queryByText('API key created')).not.toBeInTheDocument();
   });
 
+  it('flags legacy unscoped keys instead of presenting them as Fy keys', () => {
+    mockUseApiKeys.mockReturnValue({
+      data: [activeKey, { ...activeKey, id: 'legacy-1', name: 'old n8n', prefix: 'pfy_old12345', scopes: [] }],
+      isLoading: false,
+      isError: false,
+    });
+    render(<ApiKeysTab />);
+    expect(screen.getByText('old n8n')).toBeInTheDocument();
+    expect(screen.getByText('Legacy — unscoped')).toBeInTheDocument();
+  });
+
+  it('renders a retryable error state when the keys query fails', async () => {
+    const user = userEvent.setup();
+    const refetch = vi.fn();
+    mockUseApiKeys.mockReturnValue({ data: undefined, isLoading: false, isError: true, error: new Error('boom'), refetch });
+    render(<ApiKeysTab />);
+
+    expect(screen.getByText('Failed to load API keys')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Try Again/i }));
+    expect(refetch).toHaveBeenCalled();
+  });
+
   it('revokes a key after confirmation', async () => {
     const user = userEvent.setup();
     mockRevokeMutateAsync.mockResolvedValue({ ...activeKey, revokedAt: '2026-07-07T01:00:00.000Z' });

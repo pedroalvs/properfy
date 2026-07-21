@@ -4,11 +4,14 @@ import type { ApiKeyResponse } from '@properfy/shared';
 import { Button } from '@/components/ui';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { ErrorState } from '@/components/feedback/ErrorState';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
+import { getErrorMessage } from '@/lib/api-error';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useApiKeys, useRevokeApiKey } from '../hooks/useApiKeys';
 import { CreateApiKeyDialog } from './CreateApiKeyDialog';
+import { isFyKey } from './fyKey';
 
 export function keyStatus(key: ApiKeyResponse): { label: string; className: string } {
   if (key.revokedAt) return { label: 'Revoked', className: 'bg-error/10 text-error' };
@@ -29,7 +32,7 @@ function formatDate(value: string | null): string {
  */
 export function ApiKeysTab() {
   const { showError } = useSnackbar();
-  const { data: keys, isLoading } = useApiKeys();
+  const { data: keys, isLoading, isError, error, refetch } = useApiKeys();
   const revokeKey = useRevokeApiKey();
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -46,6 +49,15 @@ export function ApiKeysTab() {
   };
 
   if (isLoading) return <LoadingState />;
+  if (isError) {
+    return (
+      <ErrorState
+        message="Failed to load API keys"
+        detail={getErrorMessage(error)}
+        onRetry={() => void refetch()}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -84,7 +96,14 @@ export function ApiKeysTab() {
                 const status = keyStatus(key);
                 return (
                   <tr key={key.id} className="border-b border-black/5 last:border-b-0">
-                    <td className="px-4 py-3">{key.name}</td>
+                    <td className="px-4 py-3">
+                      {key.name}
+                      {!isFyKey(key) && (
+                        <span className="ml-2 rounded-full bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning">
+                          Legacy — unscoped
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 font-mono text-xs">{key.prefix}…</td>
                     <td className="px-4 py-3">{formatDate(key.expiresAt)}</td>
                     <td className="px-4 py-3">{formatDate(key.lastUsedAt)}</td>
