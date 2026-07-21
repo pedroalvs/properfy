@@ -288,7 +288,8 @@ describe('RescheduleRequestUseCase – rentalTenantNote', () => {
     updateLastAccessedAt: ReturnType<typeof vi.fn>;
     revokeAllForAppointment: ReturnType<typeof vi.fn>;
     expireActiveTokens: ReturnType<typeof vi.fn>;
-    markUsed: ReturnType<typeof vi.fn>;
+    tryClaim: ReturnType<typeof vi.fn>;
+    releaseClaim: ReturnType<typeof vi.fn>;
   };
   let appointmentRepo: {
     findById: ReturnType<typeof vi.fn>;
@@ -336,7 +337,8 @@ describe('RescheduleRequestUseCase – rentalTenantNote', () => {
       updateLastAccessedAt: vi.fn(),
       revokeAllForAppointment: vi.fn().mockResolvedValue(undefined),
       expireActiveTokens: vi.fn(),
-      markUsed: vi.fn().mockResolvedValue(undefined),
+      tryClaim: vi.fn().mockResolvedValue(true),
+      releaseClaim: vi.fn().mockResolvedValue(undefined),
     };
     appointmentRepo = {
       findById: vi.fn().mockResolvedValue(

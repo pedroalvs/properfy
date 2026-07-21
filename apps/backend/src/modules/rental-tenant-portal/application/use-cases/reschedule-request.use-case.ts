@@ -12,6 +12,7 @@ import type { ReopenForRescheduleUseCase } from '../../../appointment/applicatio
 import type { GeneratePortalTokenUseCase } from './generate-portal-token.use-case';
 import { RentalTenantPortalActivityEntity } from '../../domain/rental-tenant-portal-activity.entity';
 import { AppointmentRestrictionEntity } from '../../../appointment/domain/appointment-restriction.entity';
+import type { AppointmentEntity } from '../../../appointment/domain/appointment.entity';
 import {
   PortalAppointmentInactiveError,
   PortalRescheduleNotAllowedError,
@@ -117,6 +118,36 @@ export class RescheduleRequestUseCase {
       throw new PortalRescheduleWindowExceededError();
     }
 
+    // 9. Atomically claim the token before the first side effect. The
+    // conditional write is the real replay guard — the isUsed fast-path above
+    // is stale under concurrency, so two racing requests must resolve here.
+    const claimed = await this.tokenRepo.tryClaim(input.tokenId, input.appointmentId);
+    if (!claimed) {
+      throw new PortalTokenAlreadyUsedError();
+    }
+
+    try {
+      await this.applyReschedule(input, appointment);
+    } catch (error) {
+      // Best-effort release so the tenant can retry with the same link;
+      // never mask the original failure.
+      try {
+        await this.tokenRepo.releaseClaim(input.tokenId, input.appointmentId);
+      } catch {
+        // release failure leaves the token consumed — fail-closed
+      }
+      throw error;
+    }
+
+    return {
+      scheduledDate: input.newDate,
+      timeSlotStart: input.newTimeSlotStart,
+      timeSlotEnd: input.newTimeSlotEnd,
+      rentalTenantConfirmationStatus: 'PENDING' as const,
+    };
+  }
+
+  private async applyReschedule(input: RescheduleRequestInput, appointment: AppointmentEntity): Promise<void> {
     // 7. Snapshot previous values
     const previousValues = {
       scheduledDate: appointment.scheduledDate.toISOString(),
@@ -146,9 +177,6 @@ export class RescheduleRequestUseCase {
         rentalTenantNote: input.rentalTenantNote,
       });
     }
-
-    // Mark token as used (replay detection)
-    await this.tokenRepo.markUsed(input.tokenId);
 
     // Portal reschedule restarts the tenant confirmation cycle; revoke active portal tokens
     // so the cutoff window is not inherited from the previous scheduled date.
@@ -247,12 +275,5 @@ export class RescheduleRequestUseCase {
         // fire-and-forget — token generation failure must not affect the reschedule
       }
     }
-
-    return {
-      scheduledDate: input.newDate,
-      timeSlotStart: input.newTimeSlotStart,
-      timeSlotEnd: input.newTimeSlotEnd,
-      rentalTenantConfirmationStatus: 'PENDING' as const,
-    };
   }
 }

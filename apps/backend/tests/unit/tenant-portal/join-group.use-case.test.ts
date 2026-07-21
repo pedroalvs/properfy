@@ -100,7 +100,7 @@ describe('JoinGroupUseCase', () => {
     incrementConfirmedCount: ReturnType<typeof vi.fn>;
   };
   let activityRepo: { save: ReturnType<typeof vi.fn> };
-  let tokenRepo: { markUsed: ReturnType<typeof vi.fn> };
+  let tokenRepo: { tryClaim: ReturnType<typeof vi.fn>; releaseClaim: ReturnType<typeof vi.fn> };
   let auditService: { log: ReturnType<typeof vi.fn> };
   let statusTransition: { execute: ReturnType<typeof vi.fn> };
   let notificationHandler: { execute: ReturnType<typeof vi.fn> };
@@ -139,7 +139,7 @@ describe('JoinGroupUseCase', () => {
       incrementConfirmedCount: vi.fn().mockResolvedValue(undefined),
     };
     activityRepo = { save: vi.fn().mockResolvedValue(undefined) };
-    tokenRepo = { markUsed: vi.fn().mockResolvedValue(undefined) };
+    tokenRepo = { tryClaim: vi.fn().mockResolvedValue(true), releaseClaim: vi.fn().mockResolvedValue(undefined) };
     auditService = { log: vi.fn().mockResolvedValue(undefined) };
     statusTransition = {
       execute: vi.fn().mockResolvedValue({
@@ -332,7 +332,7 @@ describe('JoinGroupUseCase', () => {
 
   it('should mark token as used', async () => {
     await useCase.execute(makeInput());
-    expect(tokenRepo.markUsed).toHaveBeenCalledWith('token-1');
+    expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1', 'appt-1');
   });
 
   it('should call audit service with ANONYMOUS actor', async () => {
