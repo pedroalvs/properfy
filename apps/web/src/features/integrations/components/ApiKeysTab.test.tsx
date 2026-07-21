@@ -36,12 +36,13 @@ describe('ApiKeysTab', () => {
     mockUseApiKeys.mockReturnValue({ data: [activeKey], isLoading: false });
   });
 
-  it('lists keys with prefix, scope chip and status, no key material', () => {
+  it('lists keys with prefix and status, no key material and no role/scope columns', () => {
     render(<ApiKeysTab />);
     expect(screen.getByText('Fy production')).toBeInTheDocument();
     expect(screen.getByText('pfy_ab12cd34…')).toBeInTheDocument();
-    expect(screen.getAllByText('bot:fy').length).toBeGreaterThan(0);
     expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.queryByText('Role')).not.toBeInTheDocument();
+    expect(screen.queryByText('Scopes')).not.toBeInTheDocument();
   });
 
   it('always creates keys with the bot:fy scope — no scope choice is offered', async () => {

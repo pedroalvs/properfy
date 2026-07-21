@@ -73,8 +73,6 @@ export function ApiKeysTab() {
               <tr className="border-b border-black/10 text-left text-xs text-text-secondary">
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Key prefix</th>
-                <th className="px-4 py-3 font-medium">Role</th>
-                <th className="px-4 py-3 font-medium">Scopes</th>
                 <th className="px-4 py-3 font-medium">Expires</th>
                 <th className="px-4 py-3 font-medium">Last used</th>
                 <th className="px-4 py-3 font-medium">Status</th>
@@ -88,21 +86,6 @@ export function ApiKeysTab() {
                   <tr key={key.id} className="border-b border-black/5 last:border-b-0">
                     <td className="px-4 py-3">{key.name}</td>
                     <td className="px-4 py-3 font-mono text-xs">{key.prefix}…</td>
-                    <td className="px-4 py-3">{key.role}</td>
-                    <td className="px-4 py-3">
-                      {key.scopes.length === 0 ? (
-                        <span className="text-text-secondary">—</span>
-                      ) : (
-                        key.scopes.map((scope) => (
-                          <span
-                            key={scope}
-                            className="mr-1 rounded-full bg-primary/10 px-2.5 py-1 font-mono text-xs text-primary"
-                          >
-                            {scope}
-                          </span>
-                        ))
-                      )}
-                    </td>
                     <td className="px-4 py-3">{formatDate(key.expiresAt)}</td>
                     <td className="px-4 py-3">{formatDate(key.lastUsedAt)}</td>
                     <td className="px-4 py-3">

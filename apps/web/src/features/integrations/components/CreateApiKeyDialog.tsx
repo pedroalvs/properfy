@@ -5,18 +5,14 @@ import type { ApiKeyCreated, ApiKeyRole, ApiKeyScope } from '@properfy/shared';
 import { Button } from '@/components/ui';
 import { Dialog } from '@/components/ui/Dialog';
 import { TextInput } from '@/components/forms/TextInput';
-import { SelectInput } from '@/components/forms/SelectInput';
 import { DateInput } from '@/components/forms/DateInput';
 import { SecretValue } from '@/components/ui/SecretValue';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useCreateApiKey } from '../hooks/useApiKeys';
 
-const ROLE_OPTIONS = [
-  { value: 'OP', label: 'Operator (OP)' },
-  { value: 'AM', label: 'Admin Master (AM)' },
-];
-
 export const FY_SCOPE: ApiKeyScope = 'bot:fy';
+/** Fy keys always act as Operator — fixed, not exposed in the UI. */
+export const FY_KEY_ROLE: ApiKeyRole = 'OP';
 
 interface CreateApiKeyDialogProps {
   open: boolean;
@@ -33,7 +29,6 @@ export function CreateApiKeyDialog({ open, onClose }: CreateApiKeyDialogProps) {
   const createKey = useCreateApiKey();
 
   const [name, setName] = useState('');
-  const [role, setRole] = useState<ApiKeyRole>('OP');
   const [expiresAt, setExpiresAt] = useState('');
   const [createdKey, setCreatedKey] = useState<ApiKeyCreated | null>(null);
 
@@ -41,7 +36,6 @@ export function CreateApiKeyDialog({ open, onClose }: CreateApiKeyDialogProps) {
 
   const reset = () => {
     setName('');
-    setRole('OP');
     setExpiresAt('');
   };
 
@@ -55,7 +49,7 @@ export function CreateApiKeyDialog({ open, onClose }: CreateApiKeyDialogProps) {
     try {
       const created = await createKey.mutateAsync({
         name: name.trim(),
-        role,
+        role: FY_KEY_ROLE,
         scopes,
         // Sydney end-of-day, regardless of where the operator is located.
         expiresAt: expiresAt ? endOfCivilDayInTz(expiresAt, PLATFORM_TIMEZONE).toISOString() : null,
@@ -91,25 +85,10 @@ export function CreateApiKeyDialog({ open, onClose }: CreateApiKeyDialogProps) {
             <TextInput
               value={name}
               onChange={setName}
-              placeholder="e.g. n8n automation"
+              placeholder="e.g. Fy production"
               aria-label="API key name"
             />
           </label>
-          <label className="block text-sm">
-            <span className="mb-1 block text-xs font-medium text-text-secondary">Role</span>
-            <SelectInput
-              value={role}
-              onChange={(value) => setRole(value as ApiKeyRole)}
-              options={ROLE_OPTIONS}
-              aria-label="API key role"
-            />
-          </label>
-          <div className="flex items-center gap-2 rounded bg-success/10 px-3 py-2 text-sm text-success">
-            <i className="mdi mdi-lock-outline" aria-hidden="true" />
-            <span>
-              Scope: <code className="font-mono text-xs">bot:fy</code> — applied to every key
-            </span>
-          </div>
           <label className="block text-sm">
             <span className="mb-1 block text-xs font-medium text-text-secondary">
               Expiry date (optional)
