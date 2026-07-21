@@ -75,6 +75,7 @@ const fullResolvedRow = {
     propertyCode: 'PROP-001',
     street: '1 Main St',
     addressLine2: null,
+    apartmentNumber: null,
     suburb: 'Kogarah',
     state: 'NSW',
     postcode: '2217',

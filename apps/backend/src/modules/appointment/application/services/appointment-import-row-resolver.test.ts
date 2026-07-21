@@ -17,6 +17,7 @@ function baseRawRow(overrides: Partial<RawImportRow> = {}): RawImportRow {
     timeSlotEnd: '10:00',
     street: '3/18 Ocean St',
     addressLine2: null,
+    apartmentNumber: null,
     suburb: 'Kogarah',
     state: 'NSW',
     postcode: '2217',
@@ -416,6 +417,52 @@ describe('AppointmentImportRowResolver.resolve', () => {
       ], CTX);
 
       expect(summary).toEqual({ totalRows: 3, importable: 2, withWarnings: 1, withErrors: 1 });
+    });
+  });
+
+  describe('apartment number', () => {
+    it('carries the apartment number on a new-property plan and warns about the type inference', async () => {
+      const repos = buildRepos();
+      repos.serviceTypeRepo.findByName.mockResolvedValue(buildServiceType());
+      repos.pricingRuleRepo.findAll.mockResolvedValue([buildPricingRule()]);
+      repos.contactRepo.findManyActiveByEmailsOrPhones.mockResolvedValue([buildContact()]);
+      const resolver = buildResolver(repos);
+
+      const { rows } = await resolver.resolve([baseRawRow({ apartmentNumber: '4B' })], CTX);
+
+      const row = rows[0]!;
+      expect(row.property).toEqual(expect.objectContaining({ resolution: 'new', apartmentNumber: '4B' }));
+      const warning = row.issues.find((i) => i.code === 'PROPERTY_TYPE_INFERRED_APARTMENT');
+      expect(warning?.severity).toBe('warning');
+      expect(row.severity).toBe('warning');
+      expect(row.importable).toBe(true);
+    });
+
+    it('carries the apartment number on an existing-property plan without the inference warning', async () => {
+      const repos = buildRepos();
+      repos.serviceTypeRepo.findByName.mockResolvedValue(buildServiceType());
+      repos.pricingRuleRepo.findAll.mockResolvedValue([buildPricingRule()]);
+      repos.propertyRepo.findManyByNormalizedAddressKeys.mockResolvedValue([buildProperty()]);
+      repos.contactRepo.findManyActiveByEmailsOrPhones.mockResolvedValue([buildContact()]);
+      const resolver = buildResolver(repos);
+
+      const { rows } = await resolver.resolve([baseRawRow({ apartmentNumber: '4B' })], CTX);
+
+      expect(rows[0]!.property).toEqual(expect.objectContaining({ resolution: 'existing', apartmentNumber: '4B' }));
+      expect(rows[0]!.issues.some((i) => i.code === 'PROPERTY_TYPE_INFERRED_APARTMENT')).toBe(false);
+    });
+
+    it('leaves apartmentNumber null and emits no inference warning when the column is empty', async () => {
+      const repos = buildRepos();
+      repos.serviceTypeRepo.findByName.mockResolvedValue(buildServiceType());
+      repos.pricingRuleRepo.findAll.mockResolvedValue([buildPricingRule()]);
+      repos.contactRepo.findManyActiveByEmailsOrPhones.mockResolvedValue([buildContact()]);
+      const resolver = buildResolver(repos);
+
+      const { rows } = await resolver.resolve([baseRawRow()], CTX);
+
+      expect(rows[0]!.property).toEqual(expect.objectContaining({ resolution: 'new', apartmentNumber: null }));
+      expect(rows[0]!.issues.some((i) => i.code === 'PROPERTY_TYPE_INFERRED_APARTMENT')).toBe(false);
     });
   });
 });

@@ -151,11 +151,41 @@ describe('AppointmentImportCommitWorker', () => {
     const savedProperty = deps.propertyRepo.save.mock.calls[0]![0];
     expect(savedProperty.street).toBe('9 New St');
     expect(savedProperty.type).toBe('HOUSE');
+    expect(savedProperty.apartmentNumber).toBeNull();
     expect(savedProperty.geocodingStatus).toBe('PENDING');
     expect(deps.jobQueue.enqueue).toHaveBeenCalledWith('property.geocode', { propertyId: savedProperty.id });
 
     const input = deps.createAppointmentUseCase.execute.mock.calls[0]![0];
     expect(input.propertyId).toBe(savedProperty.id);
+  });
+
+  it('creates the property as APARTMENT with the apartment number when the plan carries one', async () => {
+    const deps = buildDeps();
+    deps.importRepo.findById.mockResolvedValue(buildRecord());
+    deps.resolver.resolve.mockResolvedValue({
+      rows: [readyRow({ property: { resolution: 'new', propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null, apartmentNumber: '4B', suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: null } })],
+    });
+    const worker = buildWorker(deps);
+
+    await worker.execute({ importId: 'import-1', actor: ACTOR });
+
+    const savedProperty = deps.propertyRepo.save.mock.calls[0]![0];
+    expect(savedProperty.type).toBe('APARTMENT');
+    expect(savedProperty.apartmentNumber).toBe('4B');
+  });
+
+  it('never saves a property for an existing-property plan even when it carries an apartment number', async () => {
+    const deps = buildDeps();
+    deps.importRepo.findById.mockResolvedValue(buildRecord());
+    deps.resolver.resolve.mockResolvedValue({
+      rows: [readyRow({ property: { ...readyRow().property as object, apartmentNumber: '4B' } })],
+    });
+    const worker = buildWorker(deps);
+
+    await worker.execute({ importId: 'import-1', actor: ACTOR });
+
+    expect(deps.propertyRepo.save).not.toHaveBeenCalled();
+    expect(deps.createAppointmentUseCase.execute.mock.calls[0]![0].propertyId).toBe('prop-1');
   });
 
   it('creates a new property only once for two rows sharing the same new address (intra-batch dedupe)', async () => {
