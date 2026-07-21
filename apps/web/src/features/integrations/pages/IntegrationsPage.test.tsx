@@ -107,12 +107,15 @@ describe('IntegrationsPage', () => {
     expect(screen.getByTestId('location')).toHaveTextContent(/^\/integrations$/);
   });
 
-  it('excludes legacy unscoped keys from the Fy tile count', async () => {
+  it('excludes keys outside the Fy contract from the Fy tile count', async () => {
     const user = userEvent.setup();
+    const base = { expiresAt: null, revokedAt: null, lastUsedAt: null, createdAt: '2026-07-07T00:00:00.000Z' };
     mockUseApiKeys.mockReturnValue({
       data: [
-        { id: '1', name: 'fy', prefix: 'pfy_1', role: 'OP', scopes: ['bot:fy'], expiresAt: null, revokedAt: null, lastUsedAt: null, createdAt: '2026-07-07T00:00:00.000Z' },
-        { id: '3', name: 'legacy general', prefix: 'pfy_3', role: 'OP', scopes: [], expiresAt: null, revokedAt: null, lastUsedAt: null, createdAt: '2026-07-07T00:00:00.000Z' },
+        { id: '1', name: 'fy', prefix: 'pfy_1', role: 'OP', scopes: ['bot:fy'], ...base },
+        { id: '3', name: 'legacy general', prefix: 'pfy_3', role: 'OP', scopes: [], ...base },
+        { id: '4', name: 'multi scope', prefix: 'pfy_4', role: 'OP', scopes: ['bot:fy', 'other:scope'], ...base },
+        { id: '5', name: 'am key', prefix: 'pfy_5', role: 'AM', scopes: ['bot:fy'], ...base },
       ],
       isLoading: false,
       isError: false,

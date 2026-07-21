@@ -100,7 +100,7 @@ export function ApiKeysTab() {
                       {key.name}
                       {!isFyKey(key) && (
                         <span className="ml-2 rounded-full bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning">
-                          Legacy — unscoped
+                          Legacy — not Fy contract
                         </span>
                       )}
                     </td>

@@ -76,15 +76,20 @@ describe('ApiKeysTab', () => {
     expect(screen.queryByText('API key created')).not.toBeInTheDocument();
   });
 
-  it('flags legacy unscoped keys instead of presenting them as Fy keys', () => {
+  it('flags keys outside the Fy contract (unscoped, multi-scope or non-OP)', () => {
     mockUseApiKeys.mockReturnValue({
-      data: [activeKey, { ...activeKey, id: 'legacy-1', name: 'old n8n', prefix: 'pfy_old12345', scopes: [] }],
+      data: [
+        activeKey,
+        { ...activeKey, id: 'legacy-1', name: 'old n8n', prefix: 'pfy_old12345', scopes: [] },
+        { ...activeKey, id: 'legacy-2', name: 'multi scope', prefix: 'pfy_multi123', scopes: ['bot:fy', 'other:scope'] },
+        { ...activeKey, id: 'legacy-3', name: 'am key', prefix: 'pfy_amkey123', role: 'AM' },
+      ],
       isLoading: false,
       isError: false,
     });
     render(<ApiKeysTab />);
     expect(screen.getByText('old n8n')).toBeInTheDocument();
-    expect(screen.getByText('Legacy — unscoped')).toBeInTheDocument();
+    expect(screen.getAllByText('Legacy — not Fy contract')).toHaveLength(3);
   });
 
   it('renders a retryable error state when the keys query fails', async () => {
