@@ -132,8 +132,8 @@ export function MapMarker({
       disabled={disabled}
       className={`inline-flex flex-col items-center transition-[filter] ${
         active
-          ? 'scale-110 drop-shadow-[0_0_4px_rgba(0,157,217,0.95)]'
-          : 'drop-shadow-md hover:drop-shadow-[0_0_4px_rgba(0,157,217,0.6)]'
+          ? 'scale-110 drop-shadow-[0_0_4px_color-mix(in_srgb,var(--color-primary)_95%,transparent)]'
+          : 'drop-shadow-md hover:drop-shadow-[0_0_4px_color-mix(in_srgb,var(--color-primary)_60%,transparent)]'
       } ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
       onClick={(e) => {
         if (disabled) return;
