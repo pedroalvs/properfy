@@ -122,6 +122,59 @@ export function usePaginatedQuery<T, P extends keyof paths = any>(
   });
 }
 
+// ─── All-Pages Query ───────────────────────────────────────────────────────
+
+/**
+ * Hard stop so a pathological `totalPages` can never loop forever
+ * (50 pages × 100 rows = 5,000 rows).
+ */
+const MAX_FETCH_ALL_PAGES = 50;
+
+/**
+ * Sequentially fetches every page of a list endpoint (the backend caps
+ * pageSize at 100 — larger values are a 400) and returns the aggregated
+ * result with synthetic single-page pagination meta. Any page failing
+ * rejects the whole call — partial data would render a misleading map.
+ */
+async function fetchAllPages<T>(path: string, params?: ListParams): Promise<PaginatedResponse<T>> {
+  const pageSize = 100;
+  const all: T[] = [];
+  let page = 1;
+  let meta: PaginationMeta = { page: 1, pageSize, total: 0, totalPages: 0 };
+  do {
+    const res = await apiGet<PaginatedResponse<T>>(
+      path,
+      toStringParams({ ...params, page, pageSize }),
+    );
+    all.push(...res.data);
+    meta = res.pagination;
+    page += 1;
+  } while (page <= meta.totalPages && page <= MAX_FETCH_ALL_PAGES);
+  if (meta.totalPages > MAX_FETCH_ALL_PAGES) {
+    console.warn(
+      `[fetchAllPages] ${path}: stopped at ${MAX_FETCH_ALL_PAGES} of ${meta.totalPages} pages`,
+    );
+  }
+  return { data: all, pagination: { page: 1, pageSize: all.length, total: meta.total, totalPages: 1 } };
+}
+
+/**
+ * Like usePaginatedQuery, but aggregates ALL pages of the endpoint. Any
+ * `page`/`pageSize` in `params` is ignored — the loop drives both.
+ */
+export function useAllPagesQuery<T, P extends keyof paths = any>(
+  queryKey: unknown[],
+  path: P | string,
+  params?: ListParams,
+  options?: Omit<UseQueryOptions<PaginatedResponse<T>, ApiError>, 'queryKey' | 'queryFn'>,
+) {
+  return useQuery<PaginatedResponse<T>, ApiError>({
+    queryKey: [...queryKey, params],
+    queryFn: () => fetchAllPages<T>(path as string, params),
+    ...options,
+  });
+}
+
 // ─── Detail Query ──────────────────────────────────────────────────────────
 
 export function useDetailQuery<T, P extends keyof paths = any>(

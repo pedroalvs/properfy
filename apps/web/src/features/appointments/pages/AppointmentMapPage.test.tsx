@@ -292,3 +292,47 @@ describe('AppointmentMapPage', () => {
     });
   });
 });
+
+// Item 13 — the map must aggregate ALL pages, not silently truncate at the
+// backend's 100-row page cap.
+describe('AppointmentMapPage — full pagination fetch', () => {
+  it('aggregates every page of /v1/appointments before rendering the count', async () => {
+    const pageOneItems = Array.from({ length: 100 }, (_, i) => ({
+      ...MOCK_MAP_DATA[0],
+      id: `apt-${i}`,
+      code: `VST-${i}`,
+    }));
+    const pageTwoItems = Array.from({ length: 5 }, (_, i) => ({
+      ...MOCK_MAP_DATA[0],
+      id: `apt-1${i}`,
+      code: `VST-1${i}`,
+    }));
+    mockGet.mockImplementation(async (path: string, opts: { params?: { query?: Record<string, string> } }) => {
+      if (path !== '/v1/appointments') {
+        return { data: { data: [], pagination: { page: 1, pageSize: 100, total: 0, totalPages: 0 } } };
+      }
+      const page = Number(opts?.params?.query?.page ?? '1');
+      return {
+        data: {
+          data: page === 1 ? pageOneItems : pageTwoItems,
+          pagination: { page, pageSize: 100, total: 105, totalPages: 2 },
+        },
+      };
+    });
+
+    renderPage();
+    fireEvent.click(screen.getByTestId('map-filter-toggle'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/105 appointments/)).toBeInTheDocument();
+    });
+    expect(mockGet).toHaveBeenCalledWith(
+      '/v1/appointments',
+      expect.objectContaining({ params: { query: expect.objectContaining({ page: '1', pageSize: '100' }) } }),
+    );
+    expect(mockGet).toHaveBeenCalledWith(
+      '/v1/appointments',
+      expect.objectContaining({ params: { query: expect.objectContaining({ page: '2', pageSize: '100' }) } }),
+    );
+  });
+});
