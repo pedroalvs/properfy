@@ -26,7 +26,11 @@ function mapToEntity(row: any): InspectorInvoiceEntity {
     inspectorId: row.inspector_id,
     // Prefer the frozen snapshot name; fall back to the live inspector join for pre-approval reads.
     inspectorName: row.inspector_name ?? row.inspector?.name ?? null,
-    inspectorAbn: row.inspector_abn ?? row.inspector?.abn ?? null,
+    // ABN is frozen at approval and may legitimately be null (inspector had no ABN then). Once
+    // frozen (any status past PENDING_REVIEW) the stored value is authoritative — never fall back
+    // to the live join, or a later-added ABN would leak onto an already-frozen invoice.
+    inspectorAbn:
+      row.inspector_abn ?? (row.status === 'PENDING_REVIEW' ? (row.inspector?.abn ?? null) : null),
     periodStart: row.period_start,
     periodEnd: row.period_end,
     periodType: row.period_type as BillingPeriodType,
@@ -193,7 +197,6 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
     if (data.status !== undefined) updateData.status = data.status;
     if (data.invoiceNumber !== undefined) updateData.invoice_number = data.invoiceNumber;
     if (data.inspectorName !== undefined) updateData.inspector_name = data.inspectorName;
-    if (data.inspectorAbn !== undefined) updateData.inspector_abn = data.inspectorAbn;
     if (data.lineItemsSnapshot !== undefined) updateData.line_items_snapshot = toSnapshotJson(data.lineItemsSnapshot);
     if (data.fileKey !== undefined) updateData.file_key = data.fileKey;
     if (data.generatedByUserId !== undefined) updateData.generated_by_user_id = data.generatedByUserId;

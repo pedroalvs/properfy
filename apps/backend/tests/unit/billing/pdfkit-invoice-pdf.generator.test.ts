@@ -1,6 +1,40 @@
+import zlib from 'node:zlib';
 import { describe, it, expect } from 'vitest';
 import { PdfKitInvoicePdfGenerator } from '../../../src/modules/billing/infrastructure/pdfkit-invoice-pdf.generator';
 import type { InvoicePdfData } from '../../../src/modules/billing/domain/invoice-pdf-generator';
+
+/**
+ * Extracts the visible text of a pdfkit document. pdfkit compresses page content streams
+ * (FlateDecode) and exposes no option to disable it, so we inflate every `stream…endstream` block,
+ * then decode the text-show tokens: pdfkit emits kerned `TJ` arrays where each run is a `<hex>`
+ * (or `(literal)`) string. Concatenating those decoded runs reconstructs the rendered text.
+ */
+function extractPdfText(pdf: Buffer): string {
+  const raw = pdf.toString('latin1');
+  const streamRe = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+  let content = '';
+  let m: RegExpExecArray | null;
+  while ((m = streamRe.exec(raw)) !== null) {
+    const chunk = Buffer.from(m[1], 'latin1');
+    try {
+      content += zlib.inflateSync(chunk).toString('latin1');
+    } catch {
+      content += chunk.toString('latin1'); // uncompressed stream — use as-is
+    }
+  }
+
+  const tokenRe = /<([0-9A-Fa-f\s]+)>|\(((?:\\.|[^\\()])*)\)/g;
+  let out = '';
+  let t: RegExpExecArray | null;
+  while ((t = tokenRe.exec(content)) !== null) {
+    if (t[1] !== undefined) {
+      out += Buffer.from(t[1].replace(/\s+/g, ''), 'hex').toString('latin1');
+    } else {
+      out += t[2].replace(/\\([()\\])/g, '$1');
+    }
+  }
+  return out;
+}
 
 const baseData: InvoicePdfData = {
   invoiceNumberDisplay: 'PINV-000042',
@@ -25,10 +59,17 @@ describe('PdfKitInvoicePdfGenerator', () => {
     expect(buf.subarray(0, 5).toString('latin1')).toBe('%PDF-');
   });
 
-  it('omits the ABN line without crashing when the inspector has no ABN', async () => {
+  it('renders the ABN line under the inspector name when an ABN is present', async () => {
+    const buf = await new PdfKitInvoicePdfGenerator().generate(baseData);
+    const text = extractPdfText(buf);
+    expect(text).toContain('ABN: 12 345 678 901');
+  });
+
+  it('omits the ABN line entirely when the inspector has no ABN', async () => {
     const buf = await new PdfKitInvoicePdfGenerator().generate({ ...baseData, inspectorAbn: null });
     expect(buf.subarray(0, 5).toString('latin1')).toBe('%PDF-');
     expect(buf.length).toBeGreaterThan(200);
+    expect(extractPdfText(buf)).not.toContain('ABN');
   });
 
   it('renders robustly when join-derived line fields are null', async () => {
