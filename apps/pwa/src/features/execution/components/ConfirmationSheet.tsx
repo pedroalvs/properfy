@@ -30,6 +30,7 @@ export function ConfirmationSheet({
   cancelTestId,
 }: ConfirmationSheetProps) {
   const titleId = useId();
+  const descriptionId = useId();
   const sheetRef = useRef<HTMLDivElement>(null);
   const onCancelRef = useRef(onCancel);
   onCancelRef.current = onCancel;
@@ -38,7 +39,30 @@ export function ConfirmationSheet({
     const previouslyFocused = document.activeElement as HTMLElement | null;
     sheetRef.current?.focus();
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onCancelRef.current();
+      if (event.key === 'Escape') {
+        onCancelRef.current();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const sheet = sheetRef.current;
+      if (!sheet) return;
+      const focusables = sheet.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (!first || !last) return;
+      const active = document.activeElement;
+      if (!sheet.contains(active)) {
+        event.preventDefault();
+        first.focus();
+      } else if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => {
@@ -55,6 +79,7 @@ export function ConfirmationSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        aria-describedby={description ? descriptionId : undefined}
         className="w-full max-w-lg rounded-t-2xl bg-card-bg p-6 outline-none"
       >
         <div className="flex flex-col items-center gap-2 text-center">
@@ -62,7 +87,11 @@ export function ConfirmationSheet({
           <h2 id={titleId} className="text-lg font-bold text-text-primary">
             {title}
           </h2>
-          {description && <p className="text-sm text-text-secondary">{description}</p>}
+          {description && (
+            <p id={descriptionId} className="text-sm text-text-secondary">
+              {description}
+            </p>
+          )}
         </div>
 
         <div className="mt-6 flex flex-col gap-2">
