@@ -22,3 +22,41 @@ export function isIdenticalContact(
   const samePhone = (contact.primaryPhone ?? null) === (candidate.phone ?? null);
   return sameName && sameEmail && samePhone;
 }
+
+export interface InlineContactMatch {
+  contactId: string | null;
+  snapshotName: string;
+  snapshotEmail: string | null;
+  snapshotPhone: string | null;
+}
+
+/**
+ * Decides how an inline contact payload maps onto the registry candidates
+ * that share one of its channels: link the fully identical candidate, keep
+ * the payload as an unlinked snapshot on a partial collision (the global
+ * unique indexes forbid creating a duplicate row for that channel), or
+ * return null so the caller creates a new registry contact.
+ */
+export function resolveInlineContactMatch(
+  candidates: ContactEntity[],
+  inline: ContactIdentityCandidate,
+): InlineContactMatch | null {
+  const identical = candidates.find((c) => isIdenticalContact(c, inline));
+  if (identical) {
+    return {
+      contactId: identical.id,
+      snapshotName: identical.displayName,
+      snapshotEmail: identical.primaryEmail,
+      snapshotPhone: identical.primaryPhone,
+    };
+  }
+  if (candidates.length > 0) {
+    return {
+      contactId: null,
+      snapshotName: inline.name,
+      snapshotEmail: inline.email,
+      snapshotPhone: inline.phone,
+    };
+  }
+  return null;
+}

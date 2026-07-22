@@ -15,7 +15,7 @@ import type { IPricingRuleRepository } from '../../../pricing-rule/domain/pricin
 import type { CreatePropertyUseCase } from '../../../property/application/use-cases/create-property.use-case';
 import type { IContactRepository } from '../../../contact/domain/contact.repository';
 import { ContactEntity } from '../../../contact/domain/contact.entity';
-import { isIdenticalContact } from '../../../contact/domain/contact-identity';
+import { resolveInlineContactMatch } from '../../../contact/domain/contact-identity';
 import { ContactNoChannelError } from '../../../contact/domain/contact.errors';
 import type { IAppCredentialRepository } from '../../../app-credential/domain/app-credential.repository';
 import { toAppointmentApp } from '../../../app-credential/application/appointment-app.mapper';
@@ -400,21 +400,16 @@ export class CreateAppointmentUseCase {
                 inlinePhone ? [inlinePhone] : [],
               )
             : [];
-          const identical = candidates.find((c) => isIdenticalContact(c, {
-            name: entry.inline!.displayName,
+          const match = resolveInlineContactMatch(candidates, {
+            name: entry.inline.displayName,
             email: inlineEmail,
             phone: inlinePhone,
-          }));
-          if (identical) {
-            contactId = identical.id;
-            snapshotName = identical.displayName;
-            snapshotEmail = identical.primaryEmail;
-            snapshotPhone = identical.primaryPhone;
-          } else if (candidates.length > 0) {
-            contactId = null;
-            snapshotName = entry.inline.displayName;
-            snapshotEmail = inlineEmail;
-            snapshotPhone = inlinePhone;
+          });
+          if (match) {
+            contactId = match.contactId;
+            snapshotName = match.snapshotName;
+            snapshotEmail = match.snapshotEmail;
+            snapshotPhone = match.snapshotPhone;
           } else {
             if (!inlineEmail && !inlinePhone && (entry.inline.additionalChannels ?? []).length === 0) {
               throw new ContactNoChannelError();

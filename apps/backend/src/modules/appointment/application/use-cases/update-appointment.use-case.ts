@@ -5,7 +5,7 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IContactRepository } from '../../../contact/domain/contact.repository';
 import { ContactEntity } from '../../../contact/domain/contact.entity';
-import { isIdenticalContact } from '../../../contact/domain/contact-identity';
+import { resolveInlineContactMatch } from '../../../contact/domain/contact-identity';
 import { ContactNoChannelError } from '../../../contact/domain/contact.errors';
 import type { IAppCredentialRepository } from '../../../app-credential/domain/app-credential.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
@@ -400,21 +400,16 @@ export class UpdateAppointmentUseCase {
                 inlinePhone ? [inlinePhone] : [],
               )
             : [];
-          const identical = candidates.find((c) => isIdenticalContact(c, {
-            name: entry.inline!.displayName,
+          const match = resolveInlineContactMatch(candidates, {
+            name: entry.inline.displayName,
             email: inlineEmail,
             phone: inlinePhone,
-          }));
-          if (identical) {
-            cId = identical.id;
-            sName = identical.displayName;
-            sEmail = identical.primaryEmail;
-            sPhone = identical.primaryPhone;
-          } else if (candidates.length > 0) {
-            cId = null;
-            sName = entry.inline.displayName;
-            sEmail = inlineEmail;
-            sPhone = inlinePhone;
+          });
+          if (match) {
+            cId = match.contactId;
+            sName = match.snapshotName;
+            sEmail = match.snapshotEmail;
+            sPhone = match.snapshotPhone;
           } else {
             if (!inlineEmail && !inlinePhone && (entry.inline.additionalChannels ?? []).length === 0) {
               throw new ContactNoChannelError();
