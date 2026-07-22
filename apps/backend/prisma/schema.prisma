@@ -1176,6 +1176,7 @@ model InspectorInvoice {
   invoice_number          Int?                   @unique
   inspector_id            String
   inspector_name          String?
+  inspector_abn           String?                @db.VarChar(20)
   period_start            DateTime               @db.Date
   period_end              DateTime               @db.Date
   period_type             BillingPeriodType

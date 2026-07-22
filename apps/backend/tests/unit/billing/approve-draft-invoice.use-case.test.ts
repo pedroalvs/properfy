@@ -43,6 +43,7 @@ function makePendingReviewInvoice(overrides: Record<string, unknown> = {}) {
     invoiceNumber: null,
     inspectorId: 'insp-1',
     inspectorName: 'Jane Inspector',
+    inspectorAbn: '12 345 678 901',
     periodStart: new Date('2026-03-01'),
     periodEnd: new Date('2026-03-15'),
     periodType: 'FORTNIGHTLY',
@@ -99,6 +100,7 @@ describe('ApproveDraftInvoiceUseCase', () => {
       lineItemsSnapshot: SNAPSHOT,
       totalAmount: 700,
       inspectorName: 'Jane Inspector',
+      inspectorAbn: '12 345 678 901',
       issuedAt: expect.any(Date),
       generatedByUserId: 'op-1',
     });
