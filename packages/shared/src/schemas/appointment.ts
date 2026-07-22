@@ -278,6 +278,35 @@ export const bulkEditAppointmentSchema = z.object({
 });
 export type BulkEditAppointmentInput = z.infer<typeof bulkEditAppointmentSchema>;
 
+// --- Bulk cross-check DONE (Reviewed) ---
+//
+// Bulk "Reviewed" action: cross-checks a batch of DONE appointments
+// (field `doneCheckedByUserId`). Delegates per-item to the single-appointment
+// cross-check use case, so the full guard chain (status must be DONE,
+// already-checked, self-approval, inspection evidence) runs per id. Non-DONE
+// and otherwise-ineligible appointments land in `failed[]` — the "skipped with
+// a warning" behaviour surfaced in the UI. AM / OP only.
+
+export const bulkCrossCheckDoneRequestSchema = z.object({
+  ids: z
+    .array(z.string().uuid())
+    .min(1, 'At least one appointment id is required')
+    .max(100, 'Maximum 100 appointments per bulk cross-check'),
+});
+export type BulkCrossCheckDoneRequest = z.infer<typeof bulkCrossCheckDoneRequestSchema>;
+
+export const bulkCrossCheckDoneResponseSchema = z.object({
+  updated: z.number().int().nonnegative(),
+  failed: z.array(
+    z.object({
+      id: z.string(),
+      code: z.string(),
+      message: z.string(),
+    }),
+  ),
+});
+export type BulkCrossCheckDoneResponse = z.infer<typeof bulkCrossCheckDoneResponseSchema>;
+
 export const forceManualConfirmationSchema = z.object({
   rentalTenantConfirmationStatus: z.literal('CONFIRMED'),
   reason: z.string().min(1).max(1000),

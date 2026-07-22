@@ -33,6 +33,16 @@ vi.mock('@/hooks/useFormOptions', () => ({
   useFormOptions: (...args: unknown[]) => mockUseFormOptions(...args),
 }));
 
+let mockCanReview = true;
+vi.mock('@/hooks/usePermissions', () => ({
+  usePermissions: () => ({
+    role: 'OP',
+    hasRole: () => true,
+    canPerform: (action: string) => (action === 'appointment.cross_check' ? mockCanReview : true),
+    hasClUserFlag: () => true,
+  }),
+}));
+
 vi.mock('../hooks/useContactSearch', () => ({
   useContactSearch: () => ({
     search: '',
@@ -111,6 +121,7 @@ function renderModal(selected: Appointment[]) {
 describe('BulkEditModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCanReview = true;
     mockUseFormOptions.mockImplementation(() => emptyFormOptions);
     mockPost.mockResolvedValue({ data: { data: { updated: 1, failed: [] } }, error: null });
   });
@@ -247,5 +258,69 @@ describe('BulkEditModal', () => {
     input.showPicker = showPickerSpy;
     fireEvent.click(input);
     expect(showPickerSpy).toHaveBeenCalledTimes(1);
+  });
+
+  describe('Mark as Reviewed', () => {
+    it('shows the toggle for AM/OP and hides it without the cross_check permission', () => {
+      const { rerender } = renderModal([makeAppointment({ status: 'DONE' })]);
+      expect(screen.getByText('Mark as Reviewed')).toBeInTheDocument();
+
+      mockCanReview = false;
+      rerender(
+        <QueryClientProvider client={new QueryClient()}>
+          <SnackbarProvider>
+            <BulkEditModal selectedAppointments={[makeAppointment({ status: 'DONE' })]} open onClose={vi.fn()} onSuccess={vi.fn()} />
+          </SnackbarProvider>
+        </QueryClientProvider>,
+      );
+      expect(screen.queryByText('Mark as Reviewed')).not.toBeInTheDocument();
+    });
+
+    it('shows how many of the selection are DONE and pending review', () => {
+      renderModal([
+        makeAppointment({ id: 'a', status: 'DONE' }),
+        makeAppointment({ id: 'b', status: 'DONE', doneCheckedByUserId: 'someone' }),
+        makeAppointment({ id: 'c', status: 'SCHEDULED' }),
+      ]);
+      fireEvent.click(screen.getByLabelText('Mark as Reviewed'));
+      expect(
+        screen.getByText('1 of 3 selected are DONE and pending review; the others will be skipped.'),
+      ).toBeInTheDocument();
+    });
+
+    it('submits the bulk cross-check endpoint with the selected ids', async () => {
+      renderModal([makeAppointment({ id: 'a', status: 'DONE' }), makeAppointment({ id: 'b', status: 'DONE' })]);
+      fireEvent.click(screen.getByLabelText('Mark as Reviewed'));
+      fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
+
+      await waitFor(() => {
+        expect(mockPost).toHaveBeenCalledWith(
+          '/v1/appointments/bulk-cross-check-done',
+          { body: { ids: ['a', 'b'] } },
+        );
+      });
+    });
+
+    it('renders partial failures in the result view', async () => {
+      mockPost.mockResolvedValue({
+        data: { data: { updated: 1, failed: [{ id: 'b', code: 'APPOINTMENT_DONE_CROSS_CHECK_INVALID_STATUS', message: 'Cross-check is only allowed for DONE appointments' }] } },
+        error: null,
+      });
+      renderModal([makeAppointment({ id: 'a', status: 'DONE' }), makeAppointment({ id: 'b', status: 'SCHEDULED' })]);
+      fireEvent.click(screen.getByLabelText('Mark as Reviewed'));
+      fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
+
+      expect(await screen.findByText('1 updated')).toBeInTheDocument();
+      expect(screen.getByText('1 failed')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /Show error details/ }));
+      expect(screen.getByText(/only allowed for DONE/)).toBeInTheDocument();
+    });
+
+    it('disables the field toggles while Mark as Reviewed is checked', () => {
+      renderModal([makeAppointment({ status: 'DONE' })]);
+      fireEvent.click(screen.getByLabelText('Mark as Reviewed'));
+      expect(screen.getByLabelText('Inspector')).toBeDisabled();
+      expect(screen.getByLabelText('Scheduled Date')).toBeDisabled();
+    });
   });
 });

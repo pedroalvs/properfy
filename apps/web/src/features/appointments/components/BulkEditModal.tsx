@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/Button';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { TimeRangeInput } from '@/components/forms/TimeRangeInput';
 import { useFormOptions } from '@/hooks/useFormOptions';
+import { usePermissions } from '@/hooks/usePermissions';
 import { api } from '@/services/api';
 import { ContactAutocomplete } from './ContactAutocomplete';
+import { useBulkCrossCheckDone } from '../hooks/useBulkCrossCheckDone';
 import type { ContactSearchResult } from '../hooks/useContactSearch';
 import type { Appointment } from '../types';
 
@@ -59,6 +61,19 @@ interface BulkEditModalProps {
 
 export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }: BulkEditModalProps) {
   const selectedIds = useMemo(() => selectedAppointments.map((a) => a.id), [selectedAppointments]);
+  const { canPerform } = usePermissions();
+  const canReview = canPerform('appointment.cross_check');
+  const bulkCrossCheck = useBulkCrossCheckDone();
+
+  // "Mark as Reviewed" cross-checks DONE appointments. It targets a different
+  // status (DONE) than the field edits (DRAFT / AWAITING_INSPECTOR), so it is
+  // mutually exclusive with them — checking it disables the other rows and vice
+  // versa. This keeps the single {updated, failed} result UI intact without
+  // juggling two overlapping mutations.
+  const reviewableCount = useMemo(
+    () => selectedAppointments.filter((a) => a.status === 'DONE' && !a.doneCheckedByUserId).length,
+    [selectedAppointments],
+  );
 
   // Derive a single tenant from the selection. Used to scope the inspector
   // dropdown. When the selection spans tenants, the inspector field is disabled
@@ -78,6 +93,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
     serviceTypeId: false,
     propertyManagerContactId: false,
   });
+  const [reviewed, setReviewed] = useState(false);
   const [values, setValues] = useState<BulkEditValues>({});
   const [pmContactLabel, setPmContactLabel] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -108,6 +124,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
       serviceTypeId: false,
       propertyManagerContactId: false,
     });
+    setReviewed(false);
     setValues({});
     setPmContactLabel('');
     setResult(null);
@@ -159,6 +176,27 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
   }, []);
 
   const handleSubmit = async () => {
+    // "Mark as Reviewed" path — exclusive with the field edits. Cross-checks the
+    // whole selection; the backend skips non-DONE / already-reviewed ids into
+    // `failed[]`, which reuses the same result UI below.
+    if (reviewed) {
+      setSubmitting(true);
+      setErrorMessage(null);
+      try {
+        const response = await bulkCrossCheck.mutateAsync({ ids: selectedIds });
+        const payload = response.data as BulkEditResult;
+        setResult(payload);
+        if ((payload.failed?.length ?? 0) === 0) {
+          onSuccess();
+        }
+      } catch (err) {
+        setErrorMessage((err as Error)?.message ?? 'Bulk review failed');
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
     const changes: Record<string, unknown> = {};
     const scalarKeys = ['assignedInspectorId', 'scheduledDate', 'serviceTypeId', 'propertyManagerContactId'] as const;
     scalarKeys.forEach((key) => {
@@ -217,7 +255,9 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
     }
   };
 
-  const hasCheckedFields = (Object.values(enabledFields) as boolean[]).some(Boolean);
+  const hasCheckedFields = (Object.values(enabledFields) as boolean[]).some(Boolean) || reviewed;
+  // Exclusivity: field edits and "Mark as Reviewed" cannot be combined.
+  const anyFieldChecked = (Object.values(enabledFields) as boolean[]).some(Boolean);
 
   const inspectorDisabled = !activeTenantId;
   const inspectorHelper = multiTenant
@@ -295,6 +335,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
             checked={enabledFields.assignedInspectorId}
             onToggle={() => toggleField('assignedInspectorId')}
             helper={inspectorHelper}
+            disabled={reviewed}
           >
             <SelectInput
               id="bulk-inspector"
@@ -313,6 +354,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
             label={FIELD_LABELS.scheduledDate}
             checked={enabledFields.scheduledDate}
             onToggle={() => toggleField('scheduledDate')}
+            disabled={reviewed}
           >
             <input
               id="bulk-scheduled-date"
@@ -332,6 +374,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
             label={FIELD_LABELS.timeSlot}
             checked={enabledFields.timeSlot}
             onToggle={() => toggleField('timeSlot')}
+            disabled={reviewed}
           >
             <TimeRangeInput
               startTime={values.timeSlotStart ?? ''}
@@ -348,6 +391,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
             label={FIELD_LABELS.serviceTypeId}
             checked={enabledFields.serviceTypeId}
             onToggle={() => toggleField('serviceTypeId')}
+            disabled={reviewed}
           >
             <SelectInput
               id="bulk-service-type"
@@ -367,6 +411,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
             checked={enabledFields.propertyManagerContactId}
             onToggle={() => toggleField('propertyManagerContactId')}
             helper="Appointments that already have a PM contact will be skipped."
+            disabled={reviewed}
           >
             <ContactAutocomplete
               value={pmContactLabel}
@@ -377,6 +422,19 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
               aria-label="Property Manager Contact"
             />
           </FieldRow>
+
+          {/* Mark as Reviewed — AM/OP only. Cross-checks DONE appointments and
+              is mutually exclusive with the field edits above. */}
+          {canReview && (
+            <FieldRow
+              id="bulk-reviewed"
+              label="Mark as Reviewed"
+              checked={reviewed}
+              onToggle={() => setReviewed((v) => !v)}
+              disabled={anyFieldChecked}
+              helper={`${reviewableCount} of ${selectedIds.length} selected are DONE and pending review; the others will be skipped.`}
+            />
+          )}
         </div>
       )}
     </Dialog>
@@ -389,6 +447,7 @@ function FieldRow({
   checked,
   onToggle,
   helper,
+  disabled = false,
   children,
 }: {
   id: string;
@@ -396,17 +455,24 @@ function FieldRow({
   checked: boolean;
   onToggle: () => void;
   helper?: string | null;
-  children: React.ReactNode;
+  disabled?: boolean;
+  children?: React.ReactNode;
 }) {
   return (
     <div className="space-y-1">
-      <label htmlFor={`${id}-checkbox`} className="flex items-center gap-2 text-sm font-medium text-text-primary">
+      <label
+        htmlFor={`${id}-checkbox`}
+        className={`flex items-center gap-2 text-sm font-medium ${
+          disabled ? 'cursor-not-allowed text-text-muted' : 'text-text-primary'
+        }`}
+      >
         <input
           id={`${id}-checkbox`}
           type="checkbox"
           checked={checked}
           onChange={onToggle}
-          className="h-4 w-4 rounded border-gray-300 accent-primary"
+          disabled={disabled}
+          className="h-4 w-4 rounded border-gray-300 accent-primary disabled:opacity-50"
         />
         {label}
       </label>
