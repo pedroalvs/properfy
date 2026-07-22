@@ -133,7 +133,7 @@ describe('BulkEditAppointmentsUseCase', () => {
       update: vi.fn(),
       existsByEmail: vi.fn(),
       existsByPhone: vi.fn(),
-      findActiveByEmailOrPhone: vi.fn(),
+      findManyActiveByEmailsOrPhones: vi.fn().mockResolvedValue([]),
       findAppointmentsByContactId: vi.fn(),
       countAppointmentsByContactId: vi.fn(),
       search: vi.fn(),

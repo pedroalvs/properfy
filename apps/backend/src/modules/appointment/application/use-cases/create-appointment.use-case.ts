@@ -15,6 +15,7 @@ import type { IPricingRuleRepository } from '../../../pricing-rule/domain/pricin
 import type { CreatePropertyUseCase } from '../../../property/application/use-cases/create-property.use-case';
 import type { IContactRepository } from '../../../contact/domain/contact.repository';
 import { ContactEntity } from '../../../contact/domain/contact.entity';
+import { resolveInlineContactMatch } from '../../../contact/domain/contact-identity';
 import { ContactNoChannelError } from '../../../contact/domain/contact.errors';
 import type { IAppCredentialRepository } from '../../../app-credential/domain/app-credential.repository';
 import { toAppointmentApp } from '../../../app-credential/application/appointment-app.mapper';
@@ -383,24 +384,32 @@ export class CreateAppointmentUseCase {
           snapshotEmail = registryContact.primaryEmail;
           snapshotPhone = registryContact.primaryPhone;
         } else if (entry.inline) {
-          // Reuse an existing active registry contact whose email/phone
-          // matches the inline payload before creating a new row. Keeps the
-          // inline path idempotent and prevents the
-          // contacts_tenant_email_active_unique /
-          // contacts_tenant_phone_active_unique partial indexes from
-          // surfacing as a 500 on repeat submissions.
+          // Reuse an existing active registry contact ONLY when the inline
+          // payload is fully identical to it (name + email + phone). A
+          // partial channel collision means "same email/phone, different
+          // person data": linking would silently replace the payload with the
+          // registry row, and creating a new row would hit the global
+          // contacts_email_active_unique / contacts_phone_active_unique
+          // partial indexes — so the appointment keeps the payload as its
+          // snapshot with no registry link (contact_id null).
           const inlineEmail = entry.inline.primaryEmail ?? null;
           const inlinePhone = entry.inline.primaryPhone ?? null;
-          const existing = await this.contactRepo.findActiveByEmailOrPhone(
-            tenantId,
-            inlineEmail,
-            inlinePhone,
-          );
-          if (existing) {
-            contactId = existing.id;
-            snapshotName = existing.displayName;
-            snapshotEmail = existing.primaryEmail;
-            snapshotPhone = existing.primaryPhone;
+          const candidates = (inlineEmail || inlinePhone)
+            ? await this.contactRepo.findManyActiveByEmailsOrPhones(
+                inlineEmail ? [inlineEmail] : [],
+                inlinePhone ? [inlinePhone] : [],
+              )
+            : [];
+          const match = resolveInlineContactMatch(candidates, {
+            name: entry.inline.displayName,
+            email: inlineEmail,
+            phone: inlinePhone,
+          });
+          if (match) {
+            contactId = match.contactId;
+            snapshotName = match.snapshotName;
+            snapshotEmail = match.snapshotEmail;
+            snapshotPhone = match.snapshotPhone;
           } else {
             if (!inlineEmail && !inlinePhone && (entry.inline.additionalChannels ?? []).length === 0) {
               throw new ContactNoChannelError();

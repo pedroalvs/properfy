@@ -115,6 +115,21 @@ describe('AppointmentImportPreview', () => {
     expect(screen.getByText(/second@example.com/)).toBeInTheDocument();
   });
 
+  it('shows a Sheet data badge for a snapshot-only contact (collides with a differing registry contact)', () => {
+    const row = buildRow({
+      contact: {
+        resolution: 'snapshot-only', contactId: null, displayName: 'Jane Smith',
+        primaryEmail: 'jane@example.com', primaryPhone: '0412345678',
+        additionalChannels: [], channelsDropped: false,
+      },
+      issues: [{ field: 'contact', code: 'CONTACT_MISMATCH_SNAPSHOT_ONLY', severity: 'warning', message: 'Row contact shares an email/phone with a registry contact but the data differs' }],
+    });
+    render(<AppointmentImportPreview rows={[row]} summary={SUMMARY} />);
+    expect(screen.getByText('Sheet data')).toBeInTheDocument();
+    expect(screen.queryByText(/New contact/i)).not.toBeInTheDocument();
+    expect(screen.getByText('Jane Smith')).toBeInTheDocument();
+  });
+
   it('shows a warning note when extra channels were not applied to an existing contact', () => {
     const row = buildRow({
       contact: {

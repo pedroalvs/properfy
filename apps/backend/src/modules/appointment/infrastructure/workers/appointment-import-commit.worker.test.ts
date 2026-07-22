@@ -115,6 +115,31 @@ describe('AppointmentImportCommitWorker', () => {
     ]);
   });
 
+  it('passes the sheet data as the inline payload for a snapshot-only contact plan', async () => {
+    const deps = buildDeps();
+    deps.importRepo.findById.mockResolvedValue(buildRecord());
+    deps.resolver.resolve.mockResolvedValue({
+      rows: [readyRow({
+        severity: 'warning',
+        contact: {
+          resolution: 'snapshot-only', contactId: null, displayName: 'Jane Smith',
+          primaryEmail: 'jane@example.com', primaryPhone: '0412345678',
+          additionalChannels: [], channelsDropped: false,
+        },
+        issues: [{ field: 'contact', code: 'CONTACT_MISMATCH_SNAPSHOT_ONLY', severity: 'warning', message: 'Row contact differs from the registry contact' }],
+      })],
+    });
+    const worker = buildWorker(deps);
+
+    await worker.execute({ importId: 'import-1', actor: ACTOR });
+
+    expect(deps.createAppointmentUseCase.execute).toHaveBeenCalledTimes(1);
+    const input = deps.createAppointmentUseCase.execute.mock.calls[0]![0];
+    expect(input.contacts).toEqual([
+      { inline: { type: 'RENTAL_TENANT', displayName: 'Jane Smith', primaryEmail: 'jane@example.com', primaryPhone: '0412345678', additionalChannels: [] }, role: 'RENTAL_TENANT', isPrimary: true },
+    ]);
+  });
+
   it('creates the appointment with no contacts when the row has no contact (CONTACT_INCOMPLETE is a warning, not a blocker)', async () => {
     const deps = buildDeps();
     deps.importRepo.findById.mockResolvedValue(buildRecord());

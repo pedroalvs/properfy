@@ -9,6 +9,7 @@ import type { ServiceTypeEntity } from '../../../service-type/domain/service-typ
 import type { IPricingRuleRepository } from '../../../pricing-rule/domain/pricing-rule.repository';
 import type { IContactRepository } from '../../../contact/domain/contact.repository';
 import type { ContactEntity } from '../../../contact/domain/contact.entity';
+import { isIdenticalContact } from '../../../contact/domain/contact-identity';
 import { resolvePricingRule } from '../../../pricing-rule/domain/resolve-pricing-rule';
 
 export interface ResolveContext {
@@ -276,19 +277,43 @@ export class AppointmentImportRowResolver {
       return null;
     }
 
-    const existing = contactByEmail.get(email) ?? contactByPhone.get(phone);
-    if (existing) {
-      const hasExtraChannels = normalized.additionalChannelCandidates.length > 0;
+    // A registry contact is only linked when the row is fully identical to it
+    // (name + email + phone — see isIdenticalContact). A partial channel
+    // collision means "same email/phone, different person data": the global
+    // unique indexes forbid creating a duplicate row for that channel, so the
+    // appointment keeps the sheet data as its snapshot with no registry link.
+    const candidates = [contactByEmail.get(email), contactByPhone.get(phone)]
+      .filter((c): c is ContactEntity => c !== undefined);
+    const identical = candidates.find((c) => isIdenticalContact(c, { name, email, phone }));
+    const hasExtraChannels = normalized.additionalChannelCandidates.length > 0;
+    if (identical) {
       if (hasExtraChannels) {
         issues.push(warningIssue('contact', 'CONTACT_CHANNELS_NOT_APPLIED',
           'Existing contact linked; extra channels from the sheet were not applied'));
       }
       return {
         resolution: 'existing',
-        contactId: existing.id,
-        displayName: existing.displayName,
-        primaryEmail: existing.primaryEmail,
-        primaryPhone: existing.primaryPhone,
+        contactId: identical.id,
+        displayName: identical.displayName,
+        primaryEmail: identical.primaryEmail,
+        primaryPhone: identical.primaryPhone,
+        additionalChannels: [],
+        channelsDropped: hasExtraChannels,
+      };
+    }
+    if (candidates.length > 0) {
+      issues.push(warningIssue('contact', 'CONTACT_MISMATCH_SNAPSHOT_ONLY',
+        'Row contact shares an email/phone with a registry contact but the data differs — the appointment will show the spreadsheet data without linking the registry contact'));
+      if (hasExtraChannels) {
+        issues.push(warningIssue('contact', 'CONTACT_CHANNELS_NOT_APPLIED',
+          'Contact is not linked to the registry, so the extra channels from the sheet were not applied'));
+      }
+      return {
+        resolution: 'snapshot-only',
+        contactId: null,
+        displayName: name,
+        primaryEmail: email,
+        primaryPhone: phone,
         additionalChannels: [],
         channelsDropped: hasExtraChannels,
       };

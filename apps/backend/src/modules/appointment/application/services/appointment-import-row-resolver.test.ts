@@ -332,6 +332,50 @@ describe('AppointmentImportRowResolver.resolve', () => {
       }));
     });
 
+    it('plans snapshot-only with the row data when a channel collides but the name differs', async () => {
+      const repos = buildRepos();
+      repos.serviceTypeRepo.findByName.mockResolvedValue(buildServiceType());
+      repos.pricingRuleRepo.findAll.mockResolvedValue([buildPricingRule()]);
+      repos.propertyRepo.findManyByNormalizedAddressKeys.mockResolvedValue([buildProperty()]);
+      repos.contactRepo.findManyActiveByEmailsOrPhones.mockResolvedValue([
+        buildContact({ displayName: 'Alicia Valdivia Riquelme', primaryPhone: '0422568109' }),
+      ]);
+      const resolver = buildResolver(repos);
+
+      const { rows } = await resolver.resolve([baseRawRow()], CTX);
+
+      expect(rows[0]!.contact).toEqual(expect.objectContaining({
+        resolution: 'snapshot-only',
+        contactId: null,
+        displayName: 'Jeanette Rojas',
+        primaryEmail: 'jeanette.rojas31@gmail.com',
+        primaryPhone: '0412345678',
+      }));
+      expect(rows[0]!.issues).toEqual(expect.arrayContaining([
+        expect.objectContaining({ code: 'CONTACT_MISMATCH_SNAPSHOT_ONLY', severity: 'warning' }),
+      ]));
+      // Warnings don't block import.
+      expect(rows[0]!.importable).toBe(true);
+    });
+
+    it('links the identical contact even when the phone also collides with a different contact', async () => {
+      const repos = buildRepos();
+      repos.serviceTypeRepo.findByName.mockResolvedValue(buildServiceType());
+      repos.pricingRuleRepo.findAll.mockResolvedValue([buildPricingRule()]);
+      repos.propertyRepo.findManyByNormalizedAddressKeys.mockResolvedValue([buildProperty()]);
+      repos.contactRepo.findManyActiveByEmailsOrPhones.mockResolvedValue([
+        buildContact({ id: 'contact-other', displayName: 'Someone Else', primaryEmail: 'other@example.com' }),
+        buildContact({ id: 'contact-identical' }),
+      ]);
+      const resolver = buildResolver(repos);
+
+      const { rows } = await resolver.resolve([baseRawRow()], CTX);
+
+      expect(rows[0]!.contact).toEqual(expect.objectContaining({
+        resolution: 'existing', contactId: 'contact-identical',
+      }));
+    });
+
     it('drops additional channels and warns when the contact already exists', async () => {
       const repos = buildRepos();
       repos.serviceTypeRepo.findByName.mockResolvedValue(buildServiceType());
