@@ -91,7 +91,7 @@ describe('CreateAppointmentUseCase — app-credential linking', () => {
   beforeEach(() => {
     repos = makeRepos();
     // Inline contact reuse path: no existing match → create a fresh contact.
-    (repos as any).contactRepo = { findActiveByEmailOrPhone: vi.fn().mockResolvedValue(null), save: vi.fn() };
+    (repos as any).contactRepo = { findManyActiveByEmailsOrPhones: vi.fn().mockResolvedValue([]), save: vi.fn() };
     useCase = new CreateAppointmentUseCase(
       repos.appointmentRepo, repos.branchRepo, repos.propertyRepo, repos.serviceTypeRepo, repos.pricingRuleRepo,
       { execute: vi.fn() } as any, repos.auditService, new AuthorizationService(repos.auditService),

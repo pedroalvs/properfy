@@ -1163,7 +1163,7 @@ describe('UpdateAppointmentUseCase', () => {
     const tenantId = 'tenant-1';
     const appointmentId = 'appt-1';
 
-    function makeContactRepo(existing: unknown) {
+    function makeContactRepo(candidates: unknown[]) {
       return {
         findById: vi.fn(),
         findAll: vi.fn(),
@@ -1173,13 +1173,13 @@ describe('UpdateAppointmentUseCase', () => {
         update: vi.fn(),
         existsByEmail: vi.fn(),
         existsByPhone: vi.fn(),
-        findActiveByEmailOrPhone: vi.fn().mockResolvedValue(existing),
+        findManyActiveByEmailsOrPhones: vi.fn().mockResolvedValue(candidates),
         findAppointmentsByContactId: vi.fn(),
         countAppointmentsByContactId: vi.fn(),
       };
     }
 
-    it('reuses an existing active contact when inline email/phone collide', async () => {
+    it('reuses an existing active contact when the inline payload is fully identical', async () => {
       const existing = {
         id: 'registry-contact-1',
         tenantId,
@@ -1187,7 +1187,57 @@ describe('UpdateAppointmentUseCase', () => {
         primaryEmail: 'tenant@example.com',
         primaryPhone: null,
       };
-      const contactRepo = makeContactRepo(existing);
+      const contactRepo = makeContactRepo([existing]);
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ tenantId }),
+      );
+      (appointmentRepo as any).deleteContactsByAppointmentId = vi.fn();
+
+      const uc = new UpdateAppointmentUseCase(
+        appointmentRepo,
+        auditService,
+        new AuthorizationService(auditService),
+        undefined,
+        contactRepo as any,
+      );
+
+      await uc.execute({
+        appointmentId,
+        data: {
+          contacts: [
+            {
+              inline: {
+                type: 'RENTAL_TENANT',
+                displayName: 'Existing Tenant',
+                primaryEmail: 'tenant@example.com',
+              },
+              role: 'RENTAL_TENANT',
+              isPrimary: true,
+            },
+          ],
+        },
+        actor: makeActor(),
+      });
+
+      expect(contactRepo.findManyActiveByEmailsOrPhones).toHaveBeenCalledWith(
+        ['tenant@example.com'],
+        [],
+      );
+      expect(contactRepo.save).not.toHaveBeenCalled();
+      expect(appointmentRepo.saveContact).toHaveBeenCalledWith(
+        expect.objectContaining({ contactId: 'registry-contact-1' }),
+      );
+    });
+
+    it('keeps the payload as an unlinked snapshot when the email collides but the name differs', async () => {
+      const existing = {
+        id: 'registry-contact-1',
+        tenantId,
+        displayName: 'Existing Tenant',
+        primaryEmail: 'tenant@example.com',
+        primaryPhone: null,
+      };
+      const contactRepo = makeContactRepo([existing]);
       vi.mocked(appointmentRepo.findById).mockResolvedValue(
         makeAppointmentWithRelations({ tenantId }),
       );
@@ -1219,19 +1269,20 @@ describe('UpdateAppointmentUseCase', () => {
         actor: makeActor(),
       });
 
-      expect(contactRepo.findActiveByEmailOrPhone).toHaveBeenCalledWith(
-        tenantId,
-        'tenant@example.com',
-        null,
-      );
+      // B-1 regression guarantee holds: no duplicate registry row is created,
+      // so the global unique indexes cannot surface as a 500.
       expect(contactRepo.save).not.toHaveBeenCalled();
       expect(appointmentRepo.saveContact).toHaveBeenCalledWith(
-        expect.objectContaining({ contactId: 'registry-contact-1' }),
+        expect.objectContaining({
+          contactId: null,
+          snapshotName: 'Re-typed Tenant',
+          snapshotEmail: 'tenant@example.com',
+        }),
       );
     });
 
     it('creates a new registry contact when no active match exists', async () => {
-      const contactRepo = makeContactRepo(null);
+      const contactRepo = makeContactRepo([]);
       vi.mocked(appointmentRepo.findById).mockResolvedValue(
         makeAppointmentWithRelations({ tenantId }),
       );
@@ -1263,7 +1314,7 @@ describe('UpdateAppointmentUseCase', () => {
         actor: makeActor(),
       });
 
-      expect(contactRepo.findActiveByEmailOrPhone).toHaveBeenCalled();
+      expect(contactRepo.findManyActiveByEmailsOrPhones).toHaveBeenCalled();
       expect(contactRepo.save).toHaveBeenCalledTimes(1);
       expect(appointmentRepo.saveContact).toHaveBeenCalled();
     });

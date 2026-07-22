@@ -14110,7 +14110,8 @@
                                     "type": "string",
                                     "enum": [
                                       "existing",
-                                      "new"
+                                      "new",
+                                      "snapshot-only"
                                     ]
                                   },
                                   "contactId": {

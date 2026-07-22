@@ -129,6 +129,16 @@ describe('importContactPlanSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts a snapshot-only plan with null contactId', () => {
+    const result = importContactPlanSchema.safeParse({
+      ...VALID_CONTACT_PLAN,
+      resolution: 'snapshot-only',
+      contactId: null,
+      channelsDropped: true,
+    });
+    expect(result.success).toBe(true);
+  });
+
   it('rejects an unknown resolution', () => {
     const result = importContactPlanSchema.safeParse({ ...VALID_CONTACT_PLAN, resolution: 'linked' });
     expect(result.success).toBe(false);

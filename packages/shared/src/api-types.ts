@@ -5779,7 +5779,7 @@ export interface paths {
                                     } | null;
                                     contact: {
                                         /** @enum {string} */
-                                        resolution: "existing" | "new";
+                                        resolution: "existing" | "new" | "snapshot-only";
                                         /** Format: uuid */
                                         contactId: string | null;
                                         displayName: string;

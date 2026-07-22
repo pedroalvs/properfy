@@ -5,6 +5,7 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IContactRepository } from '../../../contact/domain/contact.repository';
 import { ContactEntity } from '../../../contact/domain/contact.entity';
+import { isIdenticalContact } from '../../../contact/domain/contact-identity';
 import { ContactNoChannelError } from '../../../contact/domain/contact.errors';
 import type { IAppCredentialRepository } from '../../../app-credential/domain/app-credential.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
@@ -384,24 +385,36 @@ export class UpdateAppointmentUseCase {
           sEmail = reg.primaryEmail;
           sPhone = reg.primaryPhone;
         } else if (entry.inline) {
-          // Reuse an existing active registry contact whose email/phone
-          // matches the inline payload before creating a new row. This keeps
-          // repeated edits idempotent and prevents the
-          // contacts_tenant_email_active_unique /
-          // contacts_tenant_phone_active_unique partial indexes from
-          // surfacing as a 500.
+          // Reuse an existing active registry contact ONLY when the inline
+          // payload is fully identical to it (name + email + phone). A
+          // partial channel collision keeps the payload as the snapshot with
+          // no registry link (contact_id null) — creating a new row would hit
+          // the global contacts_email_active_unique /
+          // contacts_phone_active_unique partial indexes, and linking would
+          // silently replace the payload with the registry row.
           const inlineEmail = entry.inline.primaryEmail ?? null;
           const inlinePhone = entry.inline.primaryPhone ?? null;
-          const existing = await this.contactRepo.findActiveByEmailOrPhone(
-            appointment.tenantId,
-            inlineEmail,
-            inlinePhone,
-          );
-          if (existing) {
-            cId = existing.id;
-            sName = existing.displayName;
-            sEmail = existing.primaryEmail;
-            sPhone = existing.primaryPhone;
+          const candidates = (inlineEmail || inlinePhone)
+            ? await this.contactRepo.findManyActiveByEmailsOrPhones(
+                inlineEmail ? [inlineEmail] : [],
+                inlinePhone ? [inlinePhone] : [],
+              )
+            : [];
+          const identical = candidates.find((c) => isIdenticalContact(c, {
+            name: entry.inline!.displayName,
+            email: inlineEmail,
+            phone: inlinePhone,
+          }));
+          if (identical) {
+            cId = identical.id;
+            sName = identical.displayName;
+            sEmail = identical.primaryEmail;
+            sPhone = identical.primaryPhone;
+          } else if (candidates.length > 0) {
+            cId = null;
+            sName = entry.inline.displayName;
+            sEmail = inlineEmail;
+            sPhone = inlinePhone;
           } else {
             if (!inlineEmail && !inlinePhone && (entry.inline.additionalChannels ?? []).length === 0) {
               throw new ContactNoChannelError();

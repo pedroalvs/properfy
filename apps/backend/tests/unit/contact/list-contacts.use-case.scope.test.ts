@@ -74,7 +74,7 @@ describe('ListContactsUseCase scope threading (024 §FR-303)', () => {
       update: vi.fn(),
       existsByEmail: vi.fn(),
       existsByPhone: vi.fn(),
-      findActiveByEmailOrPhone: vi.fn(),
+      findManyActiveByEmailsOrPhones: vi.fn().mockResolvedValue([]),
       existsLinkedToTenant: vi.fn(),
       findAppointmentsByContactId: vi.fn(),
       countAppointmentsByContactId: vi.fn(),

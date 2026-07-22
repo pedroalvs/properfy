@@ -84,10 +84,14 @@ async function seedScenario() {
       status: 'ACTIVE',
     },
   });
+  // Digits-only phone: the CSV round-trips through normalizePhoneAU, and the
+  // identity rule compares phones exactly — a letter-bearing suffix would
+  // normalize to a different string and break the "fully identical" match.
   const existingContact = await harness.prisma.contact.create({
     data: {
       type: 'RENTAL_TENANT', display_name: 'Existing Tenant',
-      primary_email: `existing-${suffix}@example.com`, primary_phone: `04${suffix.slice(0, 8).padEnd(8, '1')}`,
+      primary_email: `existing-${suffix}@example.com`,
+      primary_phone: `04${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
       additional_channels_json: [], is_active: true,
     },
   });
@@ -201,5 +205,39 @@ describe('AppointmentImportCommitWorker — real Postgres end-to-end', () => {
     expect(geocodeJobs).toHaveLength(2);
 
     void contactRepo; // referenced for type-completeness of destructure
+  });
+
+  it('keeps the sheet data as an unlinked snapshot when a row shares an existing contact email but the name differs', async () => {
+    const { tenant, branch, user, serviceType, existingContact } = await seedScenario();
+    const storage = new FakeStorageService();
+    const jobQueue = new FakeJobQueue();
+
+    const csv = [
+      'Type,Date,Start Time,End Time,Street,Suburb,State,Postcode,Tenant name,Tenant mail,Tenant phone',
+      `${serviceType.name},2027-06-20,09:00,10:00,5 Mismatch St,Carlton,NSW,2218,Completely Different Person,${existingContact.primary_email},0400999888`,
+    ].join('\n');
+
+    const { importId, importRepo } = await seedPreviewImport(tenant.id, branch.id, user.id, storage, csv);
+    const { worker } = buildWorker(storage, jobQueue);
+
+    await worker.execute({ importId, actor: actor(tenant.id, user.id) });
+
+    const finalRecord = await importRepo.findById(importId, tenant.id);
+    expect(finalRecord!.status).toBe('COMPLETED');
+    expect(finalRecord!.successCount).toBe(1);
+    expect(finalRecord!.errorCount).toBe(0);
+
+    // No duplicate registry row for the colliding email (the real global
+    // partial unique index would have rejected it as a 500 anyway).
+    const contactsWithThatEmail = await harness.prisma.contact.findMany({ where: { primary_email: existingContact.primary_email } });
+    expect(contactsWithThatEmail).toHaveLength(1);
+
+    // The appointment shows the SHEET data, unlinked from the registry row.
+    const appointment = await harness.prisma.appointment.findFirst({ where: { tenant_id: tenant.id } });
+    const junction = await harness.prisma.appointmentContact.findFirst({ where: { appointment_id: appointment!.id } });
+    expect(junction!.contact_id).toBeNull();
+    expect(junction!.snapshot_name).toBe('Completely Different Person');
+    expect(junction!.snapshot_email).toBe(existingContact.primary_email);
+    expect(junction!.snapshot_phone).toBe('0400999888');
   });
 });
