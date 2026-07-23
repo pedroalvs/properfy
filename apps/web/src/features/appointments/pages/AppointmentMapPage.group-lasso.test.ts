@@ -63,6 +63,20 @@ describe('AppointmentMapPage — group-modal lasso wiring (source guards)', () =
     expect(PAGE_SOURCE).toMatch(/\{lassoAvailable && lassoState === 'drawing' &&/);
   });
 
+  it('renders the lasso button left of the List view toggle in a horizontal toolbar row', () => {
+    const lassoIdx = PAGE_SOURCE.indexOf('<MapLassoToggleButton');
+    const listViewIdx = PAGE_SOURCE.indexOf('<MapListViewToggleButton');
+    expect(lassoIdx, 'MapLassoToggleButton not found').toBeGreaterThan(-1);
+    expect(listViewIdx, 'MapListViewToggleButton not found').toBeGreaterThan(-1);
+    expect(lassoIdx).toBeLessThan(listViewIdx);
+    // The toolbar lays the pair out as a horizontal row, not a vertical stack.
+    const toolbarStart = PAGE_SOURCE.lastIndexOf('<div', lassoIdx);
+    const toolbar = PAGE_SOURCE.slice(PAGE_SOURCE.lastIndexOf('className="pointer-events-none absolute right-14', lassoIdx), listViewIdx);
+    expect(toolbarStart).toBeGreaterThan(-1);
+    expect(toolbar).toContain('flex items-center');
+    expect(toolbar).not.toContain('flex-col');
+  });
+
   it('in the group drill-down the lasso seeds the modal selection then drops the polygon (no review)', () => {
     // Bound the slice to the callback itself (start marker → next declaration)
     // rather than a magic char window, so it stays valid as the file grows.
