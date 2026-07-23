@@ -28,8 +28,8 @@ describe('RentalTenantPortalExpiredView', () => {
   it('shows appointment info card', () => {
     render(<RentalTenantPortalExpiredView appointment={MOCK_APPOINTMENT} />);
 
-    expect(screen.getByText('Appointment Details')).toBeInTheDocument();
-    expect(screen.getByText('09:00 - 11:00')).toBeInTheDocument();
+    expect(screen.getByText('Details')).toBeInTheDocument();
+    expect(screen.getByText('09:00 – 11:00')).toBeInTheDocument();
   });
 
   it('shows existing response when provided', () => {
