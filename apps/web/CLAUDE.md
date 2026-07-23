@@ -315,7 +315,7 @@ Follow this order strictly – do not start with final pages:
 
 ## 12. Decisions already closed
 
-1. **Board/Kanban:** NOT in initial scope. Only implement if explicitly requested.
+1. **Board/Kanban:** now IN SCOPE — explicitly requested by the client (see `escopo-pendencias-execucao.md` item 09, "Service Dashboard" in the client scope doc §4.3). Column-per-status board for AM/OP.
 2. **SVG assets:** Do not reuse legacy branding. Only neutral/functional icons validated for Properfy.
 3. **TableSwitch:** Opt-in per page, not global.
 4. **Snackbar:** No raw JSON in production.
