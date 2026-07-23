@@ -755,9 +755,17 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       where['scheduled_date'] = dateFilter;
     }
     if (filters.search) {
-      where['OR'] = [
+      const searchOr: Record<string, unknown>[] = [
         { description: { contains: filters.search, mode: 'insensitive' } },
       ];
+      // Group codes are the pure-numeric group_number, so an all-digit search
+      // also matches by code (mirrors appointment_number search).
+      const trimmed = filters.search.trim();
+      // Bounded to the Postgres Int range so an absurdly long digit string can't blow up the query.
+      if (/^\d{1,10}$/.test(trimmed) && Number(trimmed) <= 2_147_483_647) {
+        searchOr.push({ group_number: Number(trimmed) });
+      }
+      where['OR'] = searchOr;
     }
 
     // Tenant/branch/contact all scope by the group's linked appointments. The

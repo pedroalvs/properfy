@@ -310,7 +310,7 @@ function GroupModeFields({
         label="Search"
         value={filters.search}
         onChange={(v) => onChange({ ...filters, search: v })}
-        placeholder="Group name, description..."
+        placeholder="Group code, description..."
       />
 
       <StatusMultiSelect
