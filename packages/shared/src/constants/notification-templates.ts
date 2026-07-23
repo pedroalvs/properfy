@@ -264,7 +264,7 @@ export const SAMPLE_DATA: Record<AllowedVariable, string> = {
   agencyPhone: '+61 2 9876 5432',
   appointmentCode: 'INS-0042',
   branchName: 'Sydney CBD Branch',
-  agencyLogoUrl: 'https://dummyimage.com/240x70/2f2f2f/ffffff&text=ABC+Realty',
+  agencyLogoUrl: 'https://properfy.pedroalvs.com/images/properfy-logo-red.png',
   serviceTypeName: 'Routine inspection',
   userName: 'Admin User',
   reportType: 'Monthly Report',
