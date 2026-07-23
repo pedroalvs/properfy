@@ -579,9 +579,9 @@ export class CreateAppointmentUseCase {
   }
 
   /**
-   * Validate and persist appointment ↔ app-credential links (live reference).
-   * Returns the linked credentials as a flat payload for the response. A
-   * `undefined` id list means "no app linkage requested" → returns [].
+   * Validate and persist appointment ↔ app-credential links (live reference),
+   * then return the appointment's effective credentials (explicit links plus
+   * the agency's defaults) so the response echo matches a subsequent GET.
    */
   private async linkAppCredentials(
     appointmentId: string,
@@ -589,34 +589,33 @@ export class CreateAppointmentUseCase {
     branchId: string,
     appCredentialIds: string[] | undefined,
   ): Promise<AppointmentApp[]> {
-    if (appCredentialIds === undefined || !this.appCredentialRepo) return [];
-    const ids = [...new Set(appCredentialIds)];
-    if (ids.length === 0) return [];
+    if (!this.appCredentialRepo) return [];
+    const ids = [...new Set(appCredentialIds ?? [])];
 
-    const found = await this.appCredentialRepo.findByIds(ids);
-    const byId = new Map(found.map((a) => [a.id, a]));
-    for (const id of ids) {
-      const cred = byId.get(id);
-      if (!cred || cred.tenantId !== tenantId) {
-        throw new NotFoundError('APPOINTMENT_APP_CREDENTIAL_NOT_FOUND', `App credential ${id} not found`);
+    if (ids.length > 0) {
+      const found = await this.appCredentialRepo.findByIds(ids);
+      const byId = new Map(found.map((a) => [a.id, a]));
+      for (const id of ids) {
+        const cred = byId.get(id);
+        if (!cred || cred.tenantId !== tenantId) {
+          throw new NotFoundError('APPOINTMENT_APP_CREDENTIAL_NOT_FOUND', `App credential ${id} not found`);
+        }
+        if (!cred.isActive) {
+          throw new ValidationError('APPOINTMENT_APP_CREDENTIAL_INACTIVE', `App credential ${id} is not active`);
+        }
+        // Branch-scoped credentials only attach to appointments of that branch;
+        // agency-wide credentials (branchId null) attach anywhere in the tenant.
+        if (cred.branchId !== null && cred.branchId !== branchId) {
+          throw new ValidationError(
+            'APPOINTMENT_APP_CREDENTIAL_BRANCH_MISMATCH',
+            `App credential ${id} belongs to another branch`,
+          );
+        }
       }
-      if (!cred.isActive) {
-        throw new ValidationError('APPOINTMENT_APP_CREDENTIAL_INACTIVE', `App credential ${id} is not active`);
-      }
-      // Branch-scoped credentials only attach to appointments of that branch;
-      // agency-wide credentials (branchId null) attach anywhere in the tenant.
-      if (cred.branchId !== null && cred.branchId !== branchId) {
-        throw new ValidationError(
-          'APPOINTMENT_APP_CREDENTIAL_BRANCH_MISMATCH',
-          `App credential ${id} belongs to another branch`,
-        );
-      }
+      await this.appCredentialRepo.replaceAppointmentLinks(appointmentId, ids);
     }
 
-    await this.appCredentialRepo.replaceAppointmentLinks(appointmentId, ids);
-    return ids.map((id) => {
-      const cred = byId.get(id)!;
-      return toAppointmentApp(cred);
-    });
+    const effective = await this.appCredentialRepo.findEffectiveForAppointment(appointmentId, tenantId, branchId);
+    return effective.map(toAppointmentApp);
   }
 }

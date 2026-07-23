@@ -15,6 +15,8 @@ export interface AppFormData {
   appUrl: string;
   instructionsUrl: string;
   instructionsPassword: string;
+  /** Default credentials show automatically on every appointment of the agency (or branch). */
+  isDefault: boolean;
 }
 
 export type AppFormErrors = Partial<Record<keyof AppFormData, string>>;
@@ -30,6 +32,7 @@ export const EMPTY_APP_FORM: AppFormData = {
   appUrl: '',
   instructionsUrl: '',
   instructionsPassword: '',
+  isDefault: false,
 };
 
 export interface AppFiltersState {

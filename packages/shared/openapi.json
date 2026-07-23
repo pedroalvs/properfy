@@ -26263,6 +26263,10 @@
                     "minLength": 1,
                     "maxLength": 500,
                     "nullable": true
+                  },
+                  "isDefault": {
+                    "type": "boolean",
+                    "default": false
                   }
                 },
                 "required": [
@@ -26332,6 +26336,9 @@
                         "isActive": {
                           "type": "boolean"
                         },
+                        "isDefault": {
+                          "type": "boolean"
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -26354,6 +26361,7 @@
                         "instructionsUrl",
                         "instructionsPassword",
                         "isActive",
+                        "isDefault",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -26516,6 +26524,9 @@
                           "isActive": {
                             "type": "boolean"
                           },
+                          "isDefault": {
+                            "type": "boolean"
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
@@ -26546,6 +26557,7 @@
                           "instructionsUrl",
                           "instructionsPassword",
                           "isActive",
+                          "isDefault",
                           "createdAt",
                           "updatedAt",
                           "tenantName",
@@ -26648,6 +26660,9 @@
                   },
                   "isActive": {
                     "type": "boolean"
+                  },
+                  "isDefault": {
+                    "type": "boolean"
                   }
                 },
                 "additionalProperties": false
@@ -26721,6 +26736,9 @@
                         "isActive": {
                           "type": "boolean"
                         },
+                        "isDefault": {
+                          "type": "boolean"
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -26743,6 +26761,7 @@
                         "instructionsUrl",
                         "instructionsPassword",
                         "isActive",
+                        "isDefault",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -26826,6 +26845,9 @@
                         "isActive": {
                           "type": "boolean"
                         },
+                        "isDefault": {
+                          "type": "boolean"
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -26848,6 +26870,7 @@
                         "instructionsUrl",
                         "instructionsPassword",
                         "isActive",
+                        "isDefault",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -26933,6 +26956,9 @@
                         "isActive": {
                           "type": "boolean"
                         },
+                        "isDefault": {
+                          "type": "boolean"
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -26955,6 +26981,7 @@
                         "instructionsUrl",
                         "instructionsPassword",
                         "isActive",
+                        "isDefault",
                         "createdAt",
                         "updatedAt"
                       ],

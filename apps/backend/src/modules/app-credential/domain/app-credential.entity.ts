@@ -23,6 +23,12 @@ export interface AppCredentialProps {
   /** Plaintext instructions password — encrypted at rest, like password. */
   instructionsPassword?: string | null;
   isActive: boolean;
+  /**
+   * When true, the credential is automatically shown on every appointment of
+   * its agency (restricted to branchId's appointments when set) without an
+   * explicit appointment link.
+   */
+  isDefault?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,6 +46,7 @@ export class AppCredentialEntity {
   readonly instructionsUrl: string | null;
   readonly instructionsPassword: string | null;
   readonly isActive: boolean;
+  readonly isDefault: boolean;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 
@@ -56,6 +63,7 @@ export class AppCredentialEntity {
     this.instructionsUrl = props.instructionsUrl ?? null;
     this.instructionsPassword = props.instructionsPassword ?? null;
     this.isActive = props.isActive;
+    this.isDefault = props.isDefault ?? false;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
   }
