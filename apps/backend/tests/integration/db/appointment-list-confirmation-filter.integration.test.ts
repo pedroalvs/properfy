@@ -118,16 +118,32 @@ describe('PrismaAppointmentRepository.findAll — rentalTenantConfirmationStatus
     const pendingId = await seedAppointment(harness.prisma, { ...base, confirmationStatus: 'PENDING' });
     const noResponseId = await seedAppointment(harness.prisma, { ...base, confirmationStatus: 'NO_RESPONSE' });
 
+    // Competing tenant with the same confirmation statuses — must never leak
+    // into tenant-A-scoped results (pins the combined tenant_id + IN predicate).
+    const { tenantId: tenantB, userId: userB } = await seedTenant(harness.prisma, 'Agency B');
+    const branchB = await getBranchId(harness.prisma, tenantB);
+    const propertyB = await seedProperty(harness.prisma, tenantB, branchB);
+    const tenantBConfirmedId = await seedAppointment(harness.prisma, {
+      tenantId: tenantB, branchId: branchB, propertyId: propertyB, serviceTypeId, userId: userB,
+      confirmationStatus: 'CONFIRMED',
+    });
+    const tenantBPendingId = await seedAppointment(harness.prisma, {
+      tenantId: tenantB, branchId: branchB, propertyId: propertyB, serviceTypeId, userId: userB,
+      confirmationStatus: 'PENDING',
+    });
+
     const confirmedOnly = await repo.findAll(
       { tenantId, rentalTenantConfirmationStatus: ['CONFIRMED'] },
       PAGINATION,
     );
     expect(confirmedOnly.map((i) => i.appointment.id)).toEqual([confirmedId]);
+    expect(confirmedOnly.some((i) => i.appointment.id === tenantBConfirmedId)).toBe(false);
 
     const notConfirmed = await repo.findAll(
       { tenantId, rentalTenantConfirmationStatus: ['PENDING', 'NO_RESPONSE'] },
       PAGINATION,
     );
     expect(notConfirmed.map((i) => i.appointment.id).sort()).toEqual([pendingId, noResponseId].sort());
+    expect(notConfirmed.some((i) => i.appointment.id === tenantBPendingId)).toBe(false);
   });
 });
