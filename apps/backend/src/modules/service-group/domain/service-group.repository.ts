@@ -229,12 +229,14 @@ export interface IServiceGroupRepository {
    * Find member appointment slots in ACCEPTED service groups eligible for a tenant to join via the portal.
    * Criteria: same tenant + same service type, confirmed_count < 10, scheduled_date >= today+1,
    * and at least one appointment in the group has a property within 2 km of `propertyId`.
+   * `excludeGroupId` drops the appointment's current group from the results.
    */
   findPortalEligibleSlots(params: {
     tenantId: string;
     serviceTypeId: string;
     propertyId: string;
     today: Date;
+    excludeGroupId?: string | null;
   }): Promise<PortalEligibleSlot[]>;
   /** Re-check that the selected portal slot still exists on a future member appointment. */
   hasPortalMemberSlot(params: {

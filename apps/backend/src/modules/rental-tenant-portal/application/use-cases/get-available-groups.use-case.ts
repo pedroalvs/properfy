@@ -39,6 +39,7 @@ export class GetAvailableGroupsUseCase {
       serviceTypeId: appointment.serviceTypeId,
       propertyId: appointment.propertyId,
       today,
+      excludeGroupId: appointment.serviceGroupId,
     });
 
     return {
