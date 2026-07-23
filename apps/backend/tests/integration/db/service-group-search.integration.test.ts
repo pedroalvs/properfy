@@ -12,6 +12,10 @@
  *   3. A numeric search also matches descriptions containing that digit string
  *      (OR semantics — code match must not replace the description match).
  *   4. A non-matching search returns nothing.
+ *   5. The search OR stays constrained by the appointment-derived tenant
+ *      scope: with `tenantId` set, matching groups of other tenants are hidden.
+ *   6. Int-range bounds: max Postgres Int matches; anything above is ignored
+ *      (no query error).
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -32,6 +36,53 @@ describe('service group search filter (real DB)', () => {
   let plainGroupId: string;
   let plainGroupNumber: number;
   let describedGroupId: string;
+  let tenantAId: string;
+  let scopedGroupAId: string;
+  let scopedGroupBId: string;
+
+  /** Tenant → branch → property chain plus one appointment linking the group to that tenant. */
+  async function seedTenantWithGroupAppointment(name: string, serviceGroupId: string): Promise<string> {
+    const suffix = Math.random().toString(36).slice(2, 10);
+    const tenant = await prisma.tenant.create({
+      data: { name, legal_name: `${name} LLC ${suffix}`, status: 'ACTIVE' },
+    });
+    const branch = await prisma.branch.create({
+      data: { tenant_id: tenant.id, name: `${name} Branch`, status: 'ACTIVE' },
+    });
+    const property = await prisma.property.create({
+      data: {
+        tenant_id: tenant.id,
+        branch_id: branch.id,
+        property_code: `SGSF-${suffix}`,
+        type: 'HOUSE',
+        street: '1 Test St',
+        suburb: 'Test',
+        postcode: '2000',
+        state: 'NSW',
+        country: 'AU',
+        geocoding_status: 'SUCCESS',
+      },
+    });
+    await prisma.appointment.create({
+      data: {
+        tenant_id: tenant.id,
+        branch_id: branch.id,
+        property_id: property.id,
+        service_type_id: serviceTypeId,
+        service_group_id: serviceGroupId,
+        status: 'AWAITING_INSPECTOR',
+        scheduled_date: new Date(futureDateStr(30)),
+        time_slot_start: '09:00',
+        time_slot_end: '10:00',
+        price_amount: '100.00',
+        payout_amount: '80.00',
+        pricing_rule_snapshot_json: {},
+        rental_tenant_confirmation_status: 'PENDING',
+        created_by_user_id: userId,
+      },
+    });
+    return tenant.id;
+  }
 
   async function seedGroup(description: string | null): Promise<{ id: string; groupNumber: number }> {
     const group = await prisma.serviceGroup.create({
@@ -84,6 +135,13 @@ describe('service group search filter (real DB)', () => {
     plainGroupNumber = plain.groupNumber;
     const described = await seedGroup(`Sylvania sweep ${plain.groupNumber}`);
     describedGroupId = described.id;
+
+    // Two groups with the same searchable description, each linked (via an
+    // appointment) to a different tenant — for the tenant-scope case.
+    scopedGroupAId = (await seedGroup('Scoped sweep')).id;
+    scopedGroupBId = (await seedGroup('Scoped sweep')).id;
+    tenantAId = await seedTenantWithGroupAppointment('SGSF Tenant A', scopedGroupAId);
+    await seedTenantWithGroupAppointment('SGSF Tenant B', scopedGroupBId);
   }, 120_000);
 
   afterAll(async () => {
@@ -111,7 +169,22 @@ describe('service group search filter (real DB)', () => {
 
   it('returns nothing for a search matching neither code nor description', async () => {
     const rows = await repo.findAll({ search: 'zzz-no-such-group-999999999' }, PAGINATION);
-    expect(rows.map((r) => r.group.id)).not.toContain(plainGroupId);
-    expect(rows.map((r) => r.group.id)).not.toContain(describedGroupId);
+    expect(rows).toHaveLength(0);
+  });
+
+  it('search stays constrained by the appointment-derived tenant scope', async () => {
+    const rows = await repo.findAll({ search: 'Scoped sweep', tenantId: tenantAId }, PAGINATION);
+    const ids = rows.map((r) => r.group.id);
+    expect(ids).toContain(scopedGroupAId);
+    expect(ids).not.toContain(scopedGroupBId);
+  });
+
+  it('bounds numeric code matching to the Postgres Int range', async () => {
+    // Max Int is still treated as a code candidate (no match here, no error)...
+    const atMax = await repo.findAll({ search: '2147483647' }, PAGINATION);
+    expect(atMax).toHaveLength(0);
+    // ...and anything above the range is ignored instead of blowing up the query.
+    const aboveMax = await repo.findAll({ search: '2147483648' }, PAGINATION);
+    expect(aboveMax).toHaveLength(0);
   });
 });

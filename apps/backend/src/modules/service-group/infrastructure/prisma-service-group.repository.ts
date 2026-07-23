@@ -761,8 +761,8 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       // Group codes are the pure-numeric group_number, so an all-digit search
       // also matches by code (mirrors appointment_number search).
       const trimmed = filters.search.trim();
-      // Bounded to Postgres Int so an absurdly long digit string can't blow up the query.
-      if (/^\d{1,9}$/.test(trimmed)) {
+      // Bounded to the Postgres Int range so an absurdly long digit string can't blow up the query.
+      if (/^\d{1,10}$/.test(trimmed) && Number(trimmed) <= 2_147_483_647) {
         searchOr.push({ group_number: Number(trimmed) });
       }
       where['OR'] = searchOr;
