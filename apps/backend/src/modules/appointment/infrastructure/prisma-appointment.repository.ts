@@ -435,7 +435,12 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         scheduled_date: { gte: startOfDay, lt: endOfDay },
         deleted_at: null,
       },
-      include: { contacts: true, restrictions: true },
+      include: {
+        contacts: true,
+        restrictions: true,
+        service_type: { select: { name: true } },
+        property: { select: { street: true, suburb: true, state: true, postcode: true } },
+      },
     });
 
     return rows.map((row) => {
@@ -443,7 +448,18 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       const allContacts = row.contacts.map(mapContactToEntity);
       const contact = allContacts[0] ?? null;
       const restrictions = row.restrictions.map(mapRestrictionToEntity);
-      return { appointment, contact, contacts: allContacts, restrictions, hasActivePortalToken: false };
+      const propertyAddress = row.property
+        ? `${row.property.street}, ${row.property.suburb} ${row.property.state} ${row.property.postcode}`
+        : '';
+      return {
+        appointment,
+        contact,
+        contacts: allContacts,
+        restrictions,
+        propertyAddress,
+        serviceTypeName: row.service_type?.name ?? '',
+        hasActivePortalToken: false,
+      };
     });
   }
 
