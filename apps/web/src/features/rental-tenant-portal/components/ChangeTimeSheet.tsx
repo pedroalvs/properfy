@@ -36,13 +36,19 @@ export function ChangeTimeSheet({
   const sheetRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
 
+  // Focus only on the open transition — depending on `onClose` here would re-run
+  // the effect on every parent re-render (inline lambda) and steal focus back
+  // from whatever the user just interacted with (e.g. a slot row).
+  useEffect(() => {
+    if (open) sheetRef.current?.focus();
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     document.addEventListener('keydown', handleKeyDown);
-    sheetRef.current?.focus();
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [open, onClose]);
 
@@ -64,7 +70,7 @@ export function ChangeTimeSheet({
       <div
         ref={sheetRef}
         tabIndex={-1}
-        className="relative z-10 flex max-h-[85vh] w-full flex-col rounded-t-2xl bg-white px-5 pb-6 pt-3 shadow-xl outline-none sm:max-w-[480px] sm:rounded-2xl sm:pt-5"
+        className="relative z-10 flex max-h-[85vh] w-full flex-col rounded-t-2xl bg-card-bg px-5 pb-6 pt-3 shadow-xl outline-none sm:max-w-[480px] sm:rounded-2xl sm:pt-5"
       >
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-200 sm:hidden" aria-hidden="true" />
 

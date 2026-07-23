@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { AppointmentStatus, RentalTenantConfirmationStatus } from '@properfy/shared';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
+import { buildAddressLabel } from '@/lib/address';
 import { ApiError } from '@/lib/api-error';
 import { PortalLayout } from '../components/PortalLayout';
 import { PortalErrorState } from '../components/PortalErrorState';
@@ -187,7 +188,12 @@ export function PortalPage() {
     (!alreadyConfirmed || isPastConfirmCutoff);
 
   const propertyAddress = appointment.property
-    ? `${appointment.property.street}, ${appointment.property.suburb} ${appointment.property.state} ${appointment.property.postcode}`
+    ? buildAddressLabel({
+        street: appointment.property.street,
+        suburb: appointment.property.suburb,
+        state: appointment.property.state,
+        postcode: appointment.property.postcode,
+      })
     : null;
 
   return (
@@ -261,7 +267,7 @@ export function PortalPage() {
         )}
 
         {alreadyConfirmed && !isPastConfirmCutoff && !isTerminal && (
-          <div className="rounded-xl border border-black/10 bg-white p-6">
+          <div className="rounded-xl border border-border-subtle bg-card-bg p-6">
             <div className="flex items-center gap-3 text-success">
               <i className="mdi mdi-check-circle text-2xl" />
               <div>
@@ -275,7 +281,7 @@ export function PortalPage() {
         )}
 
         {alreadyUnavailable && !isTerminal && (
-          <div className="rounded-xl border border-black/10 bg-white p-6">
+          <div className="rounded-xl border border-border-subtle bg-card-bg p-6">
             <div className="flex items-center gap-3 text-warning">
               <i className="mdi mdi-calendar-remove text-2xl" />
               <div>
@@ -299,7 +305,7 @@ export function PortalPage() {
 
         {/* Propose new date CTA (US3 / §3.6) */}
         {!isTerminal && data.rescheduleAllowed !== false && (
-          <div className="rounded-xl border border-black/10 bg-white p-4">
+          <div className="rounded-xl border border-border-subtle bg-card-bg p-4">
             {!proposeNewDateOpen ? (
               <button
                 type="button"

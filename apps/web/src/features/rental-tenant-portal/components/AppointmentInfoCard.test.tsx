@@ -56,7 +56,7 @@ describe('AppointmentInfoCard', () => {
   it('renders time slot', () => {
     render(<AppointmentInfoCard appointment={MOCK_APPOINTMENT} />);
 
-    expect(screen.getByText('09:00 - 11:00')).toBeInTheDocument();
+    expect(screen.getByText('09:00 – 11:00')).toBeInTheDocument();
   });
 
   it('renders confirmation status label', () => {

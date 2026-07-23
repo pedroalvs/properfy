@@ -98,7 +98,7 @@ describe('PortalPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Details')).toBeInTheDocument();
     });
-    expect(screen.getByText('09:00 - 11:00')).toBeInTheDocument();
+    expect(screen.getAllByText('09:00 – 11:00').length).toBeGreaterThan(0);
   });
 
   it('shows confirm section when status is PENDING', async () => {

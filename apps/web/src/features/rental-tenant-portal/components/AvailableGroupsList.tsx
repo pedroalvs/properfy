@@ -17,7 +17,7 @@ export function getAvailableGroupSlotKey(group: Pick<AvailableGroup, 'groupId' |
 
 function SkeletonRow() {
   return (
-    <div className="animate-pulse rounded-xl border border-black/10 bg-white p-4">
+    <div className="animate-pulse rounded-xl border border-border-subtle bg-card-bg p-4">
       <div className="mb-2 h-4 w-1/3 rounded bg-gray-200" />
       <div className="h-3 w-1/2 rounded bg-gray-100" />
     </div>
@@ -101,7 +101,7 @@ export function AvailableGroupsList({
                 'min-w-[62px] rounded-xl border-[1.5px] px-2 pb-1.5 pt-2 text-center text-xs transition-colors',
                 isActive
                   ? 'border-real-estate bg-real-estate text-white'
-                  : 'border-black/10 text-text-secondary hover:border-black/20',
+                  : 'border-border-subtle text-text-secondary hover:border-black/20',
               ].join(' ')}
             >
               <span className="block text-lg font-extrabold leading-tight">{day}</span>
@@ -122,10 +122,10 @@ export function AvailableGroupsList({
               data-testid="group-row"
               onClick={() => onSelect(group)}
               className={[
-                'w-full rounded-xl border-[1.5px] bg-white p-3.5 text-left transition-colors',
+                'w-full rounded-xl border-[1.5px] bg-card-bg p-3.5 text-left transition-colors',
                 isSelected
                   ? 'border-real-estate bg-[color-mix(in_srgb,var(--color-real-estate)_12%,white)] shadow-[0_0_0_1px_var(--color-real-estate)]'
-                  : 'border-black/10 hover:border-[color-mix(in_srgb,var(--color-real-estate)_50%,white)]',
+                  : 'border-border-subtle hover:border-[color-mix(in_srgb,var(--color-real-estate)_50%,white)]',
               ].join(' ')}
             >
               <div className="flex items-center justify-between">

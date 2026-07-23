@@ -6,7 +6,7 @@ interface PortalLayoutProps {
 
 export function PortalLayout({ children }: PortalLayoutProps) {
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="flex min-h-screen flex-col bg-card-bg">
       <header className="flex items-center justify-center pb-2 pt-7">
         <img src="/images/properfy-logo-red.png" alt="Properfy" className="h-9" />
       </header>

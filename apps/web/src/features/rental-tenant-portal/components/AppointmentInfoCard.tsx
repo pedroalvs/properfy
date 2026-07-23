@@ -1,4 +1,5 @@
 import { AppointmentStatusChip } from '@/features/appointments/components/AppointmentStatusChip';
+import { buildAddressLabel } from '@/lib/address';
 import { formatDate } from '@/lib/format-date';
 import { RENTAL_TENANT_CONFIRMATION_STATUS_MAP } from '@/lib/status-colors';
 import { useCountdown } from '../hooks/useCountdown';
@@ -43,7 +44,12 @@ export function AppointmentInfoCard({
 
         {appointment.property && (
           <DetailItem label="Property address">
-            {`${appointment.property.street}, ${appointment.property.suburb} ${appointment.property.state} ${appointment.property.postcode}`}
+            {buildAddressLabel({
+              street: appointment.property.street,
+              suburb: appointment.property.suburb,
+              state: appointment.property.state,
+              postcode: appointment.property.postcode,
+            })}
           </DetailItem>
         )}
 
@@ -54,7 +60,7 @@ export function AppointmentInfoCard({
         <DetailItem label="Scheduled date">{formatDate(appointment.scheduledDate)}</DetailItem>
 
         <DetailItem label="Time slot">
-          {`${appointment.timeSlotStart} - ${appointment.timeSlotEnd}`}
+          {`${appointment.timeSlotStart} – ${appointment.timeSlotEnd}`}
         </DetailItem>
 
         <DetailItem label="Status">

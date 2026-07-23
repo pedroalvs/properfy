@@ -37,7 +37,7 @@ export function InspectionConfirmationForm({
 
   if (done === 'CONFIRMED') {
     return (
-      <div className="rounded-xl border border-black/10 bg-white p-6">
+      <div className="rounded-xl border border-border-subtle bg-card-bg p-6">
         <div className="flex items-center gap-3 text-success">
           <i className="mdi mdi-check-circle text-2xl" />
           <div>
@@ -53,7 +53,7 @@ export function InspectionConfirmationForm({
 
   if (done === 'UNAVAILABLE') {
     return (
-      <div className="rounded-xl border border-black/10 bg-white p-6">
+      <div className="rounded-xl border border-border-subtle bg-card-bg p-6">
         <div className="flex items-center gap-3 text-warning">
           <i className="mdi mdi-calendar-remove text-2xl" />
           <div>
@@ -93,9 +93,10 @@ export function InspectionConfirmationForm({
         <p className="mb-3 text-sm font-semibold text-text-primary">
           Do you confirm the inspection?
         </p>
-        <div className="flex overflow-hidden rounded-full border-[1.5px] border-black/10">
+        <div className="flex overflow-hidden rounded-full border-[1.5px] border-border-subtle">
           <button
             type="button"
+            aria-pressed={selection === 'YES'}
             disabled={isReadOnly || confirmDisabled}
             title={
               isReadOnly || confirmDisabled
@@ -117,10 +118,11 @@ export function InspectionConfirmationForm({
           </button>
           <button
             type="button"
+            aria-pressed={selection === 'NO'}
             disabled={isReadOnly}
             onClick={() => setSelection('NO')}
             className={[
-              'flex-1 border-l-[1.5px] border-black/10 py-2.5 text-sm font-extrabold transition-colors',
+              'flex-1 border-l-[1.5px] border-border-subtle py-2.5 text-sm font-extrabold transition-colors',
               selection === 'NO'
                 ? 'bg-warning text-white'
                 : 'bg-transparent text-text-secondary hover:bg-gray-50',
@@ -161,7 +163,7 @@ export function InspectionConfirmationForm({
           }
           rows={3}
           maxLength={2000}
-          className="w-full rounded border border-black/10 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50"
+          className="w-full rounded border border-border-subtle px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50"
         />
       </div>
 
