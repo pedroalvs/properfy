@@ -98,7 +98,7 @@ describe('PLATFORM_TEMPLATES appointment email HTML bodies', () => {
       // Dark layout markers from the client-approved design
       expect(entry!.bodyHtml).toContain('rgb(47,47,47)');
       // Conditional agency logo footer
-      expect(entry!.bodyHtml).toContain('{{#if agencyLogoUrl}}');
+      expect(entry!.bodyHtml).toContain('{{#if properfyLogoUrl}}');
     });
 
     it(`${code} bodyHtml passes the save-time sanitizer unchanged`, () => {

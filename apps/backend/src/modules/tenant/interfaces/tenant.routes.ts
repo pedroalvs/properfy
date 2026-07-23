@@ -29,8 +29,6 @@ import type { ListBranchesUseCase } from '../application/use-cases/list-branches
 import type { UpdateBranchUseCase } from '../application/use-cases/update-branch.use-case';
 import type { DeactivateBranchUseCase } from '../application/use-cases/deactivate-branch.use-case';
 import type { ActivateBranchUseCase } from '../application/use-cases/activate-branch.use-case';
-import type { GenerateLogoUploadUrlUseCase } from '../application/use-cases/generate-logo-upload-url.use-case';
-import type { ConfirmLogoUploadUseCase } from '../application/use-cases/confirm-logo-upload.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface TenantRouteContainer {
@@ -46,8 +44,6 @@ export interface TenantRouteContainer {
   updateBranchUseCase: UpdateBranchUseCase;
   deactivateBranchUseCase: DeactivateBranchUseCase;
   activateBranchUseCase: ActivateBranchUseCase;
-  generateLogoUploadUrlUseCase: GenerateLogoUploadUrlUseCase;
-  confirmLogoUploadUseCase: ConfirmLogoUploadUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
@@ -468,75 +464,4 @@ export async function registerTenantRoutes(
     },
   );
 
-  // POST /v1/tenants/:tenantId/branding/logo/presign
-  const presignBodySchema = z.object({
-    contentType: z.string().min(1),
-  });
-
-  app.post(
-    '/v1/tenants/:tenantId/branding/logo/presign',
-    {
-      preHandler: authenticate,
-      schema: {
-        params: tenantIdParam,
-        body: presignBodySchema,
-      },
-    },
-    async (request, reply) => {
-      const params = tenantIdParam.safeParse(request.params);
-      if (!params.success)
-        throw new ValidationError(
-          'Invalid tenant ID',
-          params.error.errors,
-        );
-      const parsed = presignBodySchema.safeParse(request.body);
-      if (!parsed.success)
-        throw new ValidationError(
-          'Request payload is invalid',
-          parsed.error.errors,
-        );
-      const result = await container.generateLogoUploadUrlUseCase.execute({
-        tenantId: params.data.tenantId,
-        contentType: parsed.data.contentType,
-        actor: request.authContext!,
-      });
-      return reply.status(200).send(success(result));
-    },
-  );
-
-  // POST /v1/tenants/:tenantId/branding/logo/confirm
-  const confirmBodySchema = z.object({
-    storageKey: z.string().min(1),
-  });
-
-  app.post(
-    '/v1/tenants/:tenantId/branding/logo/confirm',
-    {
-      preHandler: authenticate,
-      schema: {
-        params: tenantIdParam,
-        body: confirmBodySchema,
-      },
-    },
-    async (request, reply) => {
-      const params = tenantIdParam.safeParse(request.params);
-      if (!params.success)
-        throw new ValidationError(
-          'Invalid tenant ID',
-          params.error.errors,
-        );
-      const parsed = confirmBodySchema.safeParse(request.body);
-      if (!parsed.success)
-        throw new ValidationError(
-          'Request payload is invalid',
-          parsed.error.errors,
-        );
-      const result = await container.confirmLogoUploadUseCase.execute({
-        tenantId: params.data.tenantId,
-        storageKey: parsed.data.storageKey,
-        actor: request.authContext!,
-      });
-      return reply.status(200).send(success(result));
-    },
-  );
 }

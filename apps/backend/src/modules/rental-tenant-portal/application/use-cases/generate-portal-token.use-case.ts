@@ -9,6 +9,7 @@ import type { CreateNotificationUseCase } from '../../../notification/applicatio
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import { ConflictError, ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
 import { AppointmentCodeFormatter } from '../../../appointment/domain/appointment-code.formatter';
+import { PROPERFY_LOGO_URL } from '@properfy/shared';
 
 export interface AuthContext {
   userId: string;
@@ -197,7 +198,7 @@ export class GeneratePortalTokenUseCase {
         ),
         agencyName: tenant.name,
         agencyPhone: typeof tenantSettings.contactPhone === 'string' ? tenantSettings.contactPhone : '',
-        agencyLogoUrl: typeof tenantSettings.logoUrl === 'string' ? tenantSettings.logoUrl : '',
+        properfyLogoUrl: PROPERFY_LOGO_URL,
         serviceTypeName: result.serviceTypeName ?? '',
       };
 

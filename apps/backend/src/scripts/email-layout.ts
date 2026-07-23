@@ -1,9 +1,11 @@
+import { PROPERFY_LOGO_URL } from '@properfy/shared';
+
 // Shared HTML layout for appointment-related platform email templates.
 // Ported from the client-approved reference email: dark background, wide
 // greeting header, 460px content column, pink links, amber call-out box and
-// a conditional agency logo footer. The header artwork of the original is
-// reproduced with a pure-CSS gradient so the layout has no external asset
-// dependency (only the per-agency logo, hosted by the agency, is an <img>).
+// the Properfy logo footer ({{properfyLogoUrl}}). The header artwork of the
+// original is reproduced with a pure-CSS gradient so the layout has no other
+// external asset dependency.
 //
 // Everything here must stay within the notification sanitizer allowlist
 // (sanitize-html.service.ts): inline styles, tables and https images only.
@@ -22,9 +24,9 @@ const HEADER_STYLE =
   'background-image:linear-gradient(115deg,rgba(233,74,111,0.45) 0%,rgba(233,74,111,0.12) 38%,rgba(41,41,41,0) 62%);';
 
 const FOOTER_LOGO_BLOCK =
-  '{{#if agencyLogoUrl}}' +
+  '{{#if properfyLogoUrl}}' +
   '<tr><td style="padding:20px 30px 30px 30px;">' +
-  '<img src="{{agencyLogoUrl}}" alt="{{agencyName}}" width="199" ' +
+  '<img src="{{properfyLogoUrl}}" alt="Properfy" width="199" ' +
   'style="display:block;max-width:199px;max-height:70px;outline:0;">' +
   '</td></tr>' +
   '{{/if}}';
@@ -53,7 +55,7 @@ export function renderAppointmentEmailHtml(content: AppointmentEmailContent): st
     '<tr><td style="padding:20px 30px 0 30px;color:#ffffff;">' +
     content.contentHtml +
     '</td></tr>' +
-    // Footer logo (per-agency, optional)
+    // Footer logo (Properfy)
     FOOTER_LOGO_BLOCK +
     '</table>' +
     '</td></tr></table>' +
@@ -73,8 +75,6 @@ export function tenantEmailHtml(contentHtml: string): string {
 // coral (#F37A76) accents and the Properfy logo on top. These templates are
 // not tenant-customizable, so the logo is a fixed https asset served by the
 // production web app.
-
-const PROPERFY_LOGO_URL = 'https://properfy.autolabs.tech/images/properfy-logo-red.png';
 
 const SYSTEM_BODY_STYLE =
   'margin:0;padding:0;background-color:#F5F5F5;color:rgba(0,0,0,0.87);' +

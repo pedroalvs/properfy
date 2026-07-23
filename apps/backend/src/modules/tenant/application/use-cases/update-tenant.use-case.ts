@@ -26,7 +26,8 @@ const CL_ADMIN_SETTINGS_ALLOW_LIST = new Set([
   'contactPhone',
 ]);
 
-// These keys must only be set via the dedicated logo upload flow (presign → PUT → confirm).
+// Legacy branding keys from the removed logo-upload flow. Kept blocked so the
+// generic settings endpoint can never resurrect them.
 const IMMUTABLE_SETTINGS_KEYS = ['logoUrl', 'logoStorageKey'] as const;
 
 // H8: Zod schema for CL_ADMIN-writable settings fields that require validation.
@@ -119,7 +120,7 @@ export class UpdateTenantUseCase {
       for (const key of IMMUTABLE_SETTINGS_KEYS) {
         if (key in data.settings) {
           throw new ValidationError(
-            `settings.${key} cannot be set via this endpoint. Use the logo upload flow.`,
+            `settings.${key} is not supported.`,
           );
         }
       }

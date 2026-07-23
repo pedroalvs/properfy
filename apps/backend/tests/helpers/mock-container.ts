@@ -74,8 +74,6 @@ export function createMockContainer(
       updateBranchUseCase: { execute: vi.fn() },
       deactivateBranchUseCase: { execute: vi.fn() },
       activateBranchUseCase: { execute: vi.fn() },
-      generateLogoUploadUrlUseCase: { execute: vi.fn() },
-      confirmLogoUploadUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
       tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['tenant'],
