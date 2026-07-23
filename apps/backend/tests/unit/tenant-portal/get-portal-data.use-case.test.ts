@@ -116,14 +116,34 @@ function makeServiceType(): ServiceTypeEntity {
   });
 }
 
+function makeExtraContact(
+  overrides: Partial<ConstructorParameters<typeof AppointmentContactEntity>[0]> = {},
+): AppointmentContactEntity {
+  return new AppointmentContactEntity({
+    id: 'contact-2',
+    appointmentId: 'appt-1',
+    contactId: null,
+    role: 'RENTAL_TENANT',
+    isPrimary: false,
+    snapshotName: 'Jane Doe',
+    snapshotEmail: null,
+    snapshotPhone: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  });
+}
+
 function makeAppointmentWithRelations(
   appointmentOverrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {},
   withContact = true,
   withRestrictions = false,
 ): AppointmentWithRelations {
+  const contact = withContact ? makeContact() : null;
   return {
     appointment: makeAppointmentEntity(appointmentOverrides),
-    contact: withContact ? makeContact() : null,
+    contact,
+    contacts: contact ? [contact] : [],
     restrictions: withRestrictions ? [makeRestriction()] : [],
   };
 }
@@ -347,6 +367,7 @@ describe('GetPortalDataUseCase', () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue({
       appointment: makeAppointmentEntity(),
       contact: makeContact(),
+      contacts: [makeContact()],
       restrictions: [makeRestriction(), restriction2],
     });
     vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
@@ -496,6 +517,44 @@ describe('GetPortalDataUseCase', () => {
       name: 'Sunrise Property Group',
       timezone: 'Australia/Sydney',
     });
+  });
+
+  it('should list all rental tenant names and expose the property manager name', async () => {
+    const rentalTenant1 = makeContact();
+    const rentalTenant2 = makeExtraContact({ id: 'contact-2', snapshotName: 'Hiranya Koehler' });
+    const propertyManager = makeExtraContact({
+      id: 'contact-3',
+      role: 'PROPERTY_MANAGER',
+      snapshotName: 'Belle Property Randwick',
+    });
+    vi.mocked(appointmentRepo.findById).mockResolvedValue({
+      appointment: makeAppointmentEntity(),
+      contact: rentalTenant1,
+      contacts: [rentalTenant1, rentalTenant2, propertyManager],
+      restrictions: [],
+    });
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(activityRepo.findLatestByTokenAndAction).mockResolvedValue(null);
+
+    const result = await useCase.execute(makeInput());
+
+    expect(result.rentalTenantNames).toEqual(['John Smith', 'Hiranya Koehler']);
+    expect(result.propertyManager).toBe('Belle Property Randwick');
+  });
+
+  it('should return null propertyManager and empty rentalTenantNames when there are no contacts', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({}, false, false),
+    );
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(activityRepo.findLatestByTokenAndAction).mockResolvedValue(null);
+
+    const result = await useCase.execute(makeInput());
+
+    expect(result.rentalTenantNames).toEqual([]);
+    expect(result.propertyManager).toBeNull();
   });
 
   it('should return tenant block with null name when tenant not found (T013)', async () => {

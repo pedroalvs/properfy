@@ -6,7 +6,8 @@ describe('PortalLayout', () => {
   it('renders the Properfy header', () => {
     render(<PortalLayout><div /></PortalLayout>);
 
-    expect(screen.getByText('Properfy')).toBeInTheDocument();
+    const logo = screen.getByRole('img', { name: 'Properfy' });
+    expect(logo).toHaveAttribute('src', '/images/properfy-logo-red.png');
   });
 
   it('renders children in the main area', () => {

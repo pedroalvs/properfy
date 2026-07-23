@@ -33,11 +33,3 @@ export const NotificationAttemptStatus = {
   FAILED: 'FAILED',
 } as const;
 export type NotificationAttemptStatus = (typeof NotificationAttemptStatus)[keyof typeof NotificationAttemptStatus];
-
-export const EmailAssetStatus = {
-  PENDING: 'PENDING',
-  UPLOADED: 'UPLOADED',
-  VERIFIED: 'VERIFIED',
-  UPLOAD_FAILED: 'UPLOAD_FAILED',
-} as const;
-export type EmailAssetStatus = (typeof EmailAssetStatus)[keyof typeof EmailAssetStatus];

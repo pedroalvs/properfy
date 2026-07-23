@@ -20,9 +20,11 @@ import { Checkbox } from '@/components/forms/Checkbox';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { api } from '@/services/api';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
+import { useAppointmentCrossCheck } from '../hooks/useAppointmentCrossCheck';
 import { useAppointmentSave } from '../hooks/useAppointmentSave';
 import { AppointmentRestrictionFields } from './AppointmentRestrictionFields';
 import { ContactAutocomplete } from './ContactAutocomplete';
@@ -72,6 +74,7 @@ export function AppointmentFormDrawer({
   onSaved,
 }: AppointmentFormDrawerProps) {
   const { user } = useAuth();
+  const { canPerform } = usePermissions();
   const isGlobalRole = user?.role === 'AM' || user?.role === 'OP';
   const canAssignRole = user?.role === 'AM' || user?.role === 'OP';
   const queryClient = useQueryClient();
@@ -88,7 +91,7 @@ export function AppointmentFormDrawer({
   );
 
   const isEditMode = !!appointmentId;
-  const { appointment, isLoading: isLoadingDetail } = useAppointmentDetail(
+  const { appointment, isLoading: isLoadingDetail, refetch: refetchDetail } = useAppointmentDetail(
     isEditMode ? appointmentId : null,
   );
 
@@ -96,6 +99,7 @@ export function AppointmentFormDrawer({
   const [initialData, setInitialData] = useState<AppointmentFormData>(EMPTY_FORM_DATA);
   const [errors, setErrors] = useState<AppointmentFormErrors>({});
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showCrossCheckConfirm, setShowCrossCheckConfirm] = useState(false);
 
   // In edit mode, derive tenantId from the loaded appointment so branch/property options load
   const effectiveTenantId = isGlobalRole
@@ -302,6 +306,23 @@ export function AppointmentFormDrawer({
     : isEditMode
       ? 'Save'
       : 'Create Appointment';
+
+  // "Reviewed" (DONE cross-check) — AM/OP only, edit mode, and the appointment
+  // is DONE. This is a separate endpoint (not the drawer save); on success we
+  // refetch the drawer's detail so the read-only indicator flips, and bubble
+  // up via onSaved so the list refreshes.
+  const { crossCheckDone, isCrossChecking } = useAppointmentCrossCheck(
+    isEditMode ? appointmentId ?? null : null,
+    () => {
+      refetchDetail();
+      onSaved();
+    },
+  );
+  const canReviewSection =
+    isEditMode &&
+    canPerform('appointment.cross_check') &&
+    appointment?.status === AppointmentStatus.DONE;
+  const isReviewed = !!appointment?.doneCheckedByUserId;
 
   const updateField = useCallback(
     <K extends keyof AppointmentFormData>(field: K, value: AppointmentFormData[K]) => {
@@ -987,6 +1008,29 @@ export function AppointmentFormDrawer({
                     </FormSection>
                   )}
 
+                  {canReviewSection && (
+                    <FormSection title="Review">
+                      {isReviewed ? (
+                        <div
+                          className="flex items-center gap-2 text-sm font-medium text-success"
+                          data-testid="reviewed-indicator"
+                        >
+                          <i className="mdi mdi-check-decagram text-base" aria-hidden="true" />
+                          Reviewed — released for financial processing.
+                        </div>
+                      ) : (
+                        <Button
+                          variant="primary"
+                          onClick={() => setShowCrossCheckConfirm(true)}
+                          loading={isCrossChecking}
+                        >
+                          <i className="mdi mdi-check-decagram text-base" aria-hidden="true" />
+                          Confirm Done
+                        </Button>
+                      )}
+                    </FormSection>
+                  )}
+
                   <FormSection title="Notes">
                     <FormField label="Notes" error={errors.notes}>
                       <Textarea
@@ -1093,6 +1137,20 @@ export function AppointmentFormDrawer({
         variant="warning"
         onConfirm={forceClose}
         onClose={cancelDiscard}
+      />
+
+      <ConfirmDialog
+        open={showCrossCheckConfirm}
+        title="Confirm Done"
+        message="Confirm that the field completion is valid and release this appointment for financial processing?"
+        confirmLabel="Confirm Done"
+        variant="warning"
+        loading={isCrossChecking}
+        onConfirm={() => {
+          crossCheckDone();
+          setShowCrossCheckConfirm(false);
+        }}
+        onClose={() => setShowCrossCheckConfirm(false)}
       />
     </>
   );

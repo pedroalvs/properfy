@@ -237,7 +237,13 @@ export class GetAppointmentUseCase {
     }
 
     const apps: AppointmentApp[] = this.appCredentialRepo
-      ? (await this.appCredentialRepo.findByAppointmentId(found.appointment.id)).map(toAppointmentApp)
+      ? (
+          await this.appCredentialRepo.findEffectiveForAppointment(
+            found.appointment.id,
+            found.appointment.tenantId,
+            found.appointment.branchId,
+          )
+        ).map(toAppointmentApp)
       : [];
 
     return mapToOutput(found, apps);

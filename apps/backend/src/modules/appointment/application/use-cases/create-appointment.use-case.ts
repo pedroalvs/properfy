@@ -15,6 +15,7 @@ import type { IPricingRuleRepository } from '../../../pricing-rule/domain/pricin
 import type { CreatePropertyUseCase } from '../../../property/application/use-cases/create-property.use-case';
 import type { IContactRepository } from '../../../contact/domain/contact.repository';
 import { ContactEntity } from '../../../contact/domain/contact.entity';
+import { resolveInlineContactMatch } from '../../../contact/domain/contact-identity';
 import { ContactNoChannelError } from '../../../contact/domain/contact.errors';
 import type { IAppCredentialRepository } from '../../../app-credential/domain/app-credential.repository';
 import { toAppointmentApp } from '../../../app-credential/application/appointment-app.mapper';
@@ -383,24 +384,32 @@ export class CreateAppointmentUseCase {
           snapshotEmail = registryContact.primaryEmail;
           snapshotPhone = registryContact.primaryPhone;
         } else if (entry.inline) {
-          // Reuse an existing active registry contact whose email/phone
-          // matches the inline payload before creating a new row. Keeps the
-          // inline path idempotent and prevents the
-          // contacts_tenant_email_active_unique /
-          // contacts_tenant_phone_active_unique partial indexes from
-          // surfacing as a 500 on repeat submissions.
+          // Reuse an existing active registry contact ONLY when the inline
+          // payload is fully identical to it (name + email + phone). A
+          // partial channel collision means "same email/phone, different
+          // person data": linking would silently replace the payload with the
+          // registry row, and creating a new row would hit the global
+          // contacts_email_active_unique / contacts_phone_active_unique
+          // partial indexes — so the appointment keeps the payload as its
+          // snapshot with no registry link (contact_id null).
           const inlineEmail = entry.inline.primaryEmail ?? null;
           const inlinePhone = entry.inline.primaryPhone ?? null;
-          const existing = await this.contactRepo.findActiveByEmailOrPhone(
-            tenantId,
-            inlineEmail,
-            inlinePhone,
-          );
-          if (existing) {
-            contactId = existing.id;
-            snapshotName = existing.displayName;
-            snapshotEmail = existing.primaryEmail;
-            snapshotPhone = existing.primaryPhone;
+          const candidates = (inlineEmail || inlinePhone)
+            ? await this.contactRepo.findManyActiveByEmailsOrPhones(
+                inlineEmail ? [inlineEmail] : [],
+                inlinePhone ? [inlinePhone] : [],
+              )
+            : [];
+          const match = resolveInlineContactMatch(candidates, {
+            name: entry.inline.displayName,
+            email: inlineEmail,
+            phone: inlinePhone,
+          });
+          if (match) {
+            contactId = match.contactId;
+            snapshotName = match.snapshotName;
+            snapshotEmail = match.snapshotEmail;
+            snapshotPhone = match.snapshotPhone;
           } else {
             if (!inlineEmail && !inlinePhone && (entry.inline.additionalChannels ?? []).length === 0) {
               throw new ContactNoChannelError();
@@ -570,9 +579,9 @@ export class CreateAppointmentUseCase {
   }
 
   /**
-   * Validate and persist appointment ↔ app-credential links (live reference).
-   * Returns the linked credentials as a flat payload for the response. A
-   * `undefined` id list means "no app linkage requested" → returns [].
+   * Validate and persist appointment ↔ app-credential links (live reference),
+   * then return the appointment's effective credentials (explicit links plus
+   * the agency's defaults) so the response echo matches a subsequent GET.
    */
   private async linkAppCredentials(
     appointmentId: string,
@@ -580,34 +589,33 @@ export class CreateAppointmentUseCase {
     branchId: string,
     appCredentialIds: string[] | undefined,
   ): Promise<AppointmentApp[]> {
-    if (appCredentialIds === undefined || !this.appCredentialRepo) return [];
-    const ids = [...new Set(appCredentialIds)];
-    if (ids.length === 0) return [];
+    if (!this.appCredentialRepo) return [];
+    const ids = [...new Set(appCredentialIds ?? [])];
 
-    const found = await this.appCredentialRepo.findByIds(ids);
-    const byId = new Map(found.map((a) => [a.id, a]));
-    for (const id of ids) {
-      const cred = byId.get(id);
-      if (!cred || cred.tenantId !== tenantId) {
-        throw new NotFoundError('APPOINTMENT_APP_CREDENTIAL_NOT_FOUND', `App credential ${id} not found`);
+    if (ids.length > 0) {
+      const found = await this.appCredentialRepo.findByIds(ids);
+      const byId = new Map(found.map((a) => [a.id, a]));
+      for (const id of ids) {
+        const cred = byId.get(id);
+        if (!cred || cred.tenantId !== tenantId) {
+          throw new NotFoundError('APPOINTMENT_APP_CREDENTIAL_NOT_FOUND', `App credential ${id} not found`);
+        }
+        if (!cred.isActive) {
+          throw new ValidationError('APPOINTMENT_APP_CREDENTIAL_INACTIVE', `App credential ${id} is not active`);
+        }
+        // Branch-scoped credentials only attach to appointments of that branch;
+        // agency-wide credentials (branchId null) attach anywhere in the tenant.
+        if (cred.branchId !== null && cred.branchId !== branchId) {
+          throw new ValidationError(
+            'APPOINTMENT_APP_CREDENTIAL_BRANCH_MISMATCH',
+            `App credential ${id} belongs to another branch`,
+          );
+        }
       }
-      if (!cred.isActive) {
-        throw new ValidationError('APPOINTMENT_APP_CREDENTIAL_INACTIVE', `App credential ${id} is not active`);
-      }
-      // Branch-scoped credentials only attach to appointments of that branch;
-      // agency-wide credentials (branchId null) attach anywhere in the tenant.
-      if (cred.branchId !== null && cred.branchId !== branchId) {
-        throw new ValidationError(
-          'APPOINTMENT_APP_CREDENTIAL_BRANCH_MISMATCH',
-          `App credential ${id} belongs to another branch`,
-        );
-      }
+      await this.appCredentialRepo.replaceAppointmentLinks(appointmentId, ids);
     }
 
-    await this.appCredentialRepo.replaceAppointmentLinks(appointmentId, ids);
-    return ids.map((id) => {
-      const cred = byId.get(id)!;
-      return toAppointmentApp(cred);
-    });
+    const effective = await this.appCredentialRepo.findEffectiveForAppointment(appointmentId, tenantId, branchId);
+    return effective.map(toAppointmentApp);
   }
 }

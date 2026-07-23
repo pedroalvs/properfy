@@ -648,4 +648,151 @@ describe('CreateAppointmentUseCase', () => {
       ).rejects.toThrow('CL_USER does not have create_appointments permission');
     });
   });
+
+  // Inline contacts must only reuse a registry contact when the payload is
+  // fully identical (name + email + phone). A partial channel collision links
+  // nothing (contact_id null) and keeps the payload as the snapshot — the
+  // global unique indexes forbid creating a duplicate row for that channel.
+  describe('inline contact identity matching', () => {
+    function makeContactRepo(candidates: unknown[]) {
+      return {
+        findById: vi.fn(),
+        findAll: vi.fn(),
+        count: vi.fn(),
+        search: vi.fn(),
+        save: vi.fn(),
+        update: vi.fn(),
+        existsByEmail: vi.fn(),
+        existsByPhone: vi.fn(),
+        findManyActiveByEmailsOrPhones: vi.fn().mockResolvedValue(candidates),
+        findAppointmentsByContactId: vi.fn(),
+        countAppointmentsByContactId: vi.fn(),
+      };
+    }
+
+    function makeUseCase(contactRepo: unknown) {
+      return new CreateAppointmentUseCase(
+        appointmentRepo, branchRepo, propertyRepo, serviceTypeRepo,
+        pricingRuleRepo, createPropertyUseCase, auditService, new AuthorizationService(auditService),
+        undefined,
+        contactRepo as any,
+      );
+    }
+
+    function inlineInput(inline: Record<string, unknown>) {
+      return {
+        ...baseInput,
+        contact: undefined,
+        contacts: [{ inline: { type: 'RENTAL_TENANT', ...inline }, role: 'RENTAL_TENANT', isPrimary: true }],
+        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+      };
+    }
+
+    beforeEach(() => {
+      vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
+      vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+      vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+      vi.mocked(pricingRuleRepo.findAll).mockResolvedValue([makePricingRule()]);
+    });
+
+    it('links the existing contact when name, email and phone are identical', async () => {
+      const existing = {
+        id: 'registry-contact-1',
+        displayName: 'Jane Tenant',
+        primaryEmail: 'jane@example.com',
+        primaryPhone: '0400 111 222',
+      };
+      const contactRepo = makeContactRepo([existing]);
+
+      await makeUseCase(contactRepo).execute(inlineInput({
+        displayName: 'Jane Tenant',
+        primaryEmail: 'jane@example.com',
+        primaryPhone: '0400 111 222',
+      }));
+
+      expect(contactRepo.save).not.toHaveBeenCalled();
+      expect(appointmentRepo.saveContact).toHaveBeenCalledWith(
+        expect.objectContaining({
+          contactId: 'registry-contact-1',
+          snapshotName: 'Jane Tenant',
+          snapshotEmail: 'jane@example.com',
+          snapshotPhone: '0400 111 222',
+        }),
+      );
+    });
+
+    it('keeps the payload as snapshot without linking when a channel collides but data differs', async () => {
+      const existing = {
+        id: 'registry-contact-1',
+        displayName: 'Alicia Valdivia Riquelme',
+        primaryEmail: 'jane@example.com',
+        primaryPhone: '0422 568 109',
+      };
+      const contactRepo = makeContactRepo([existing]);
+
+      await makeUseCase(contactRepo).execute(inlineInput({
+        displayName: 'Jane Tenant',
+        primaryEmail: 'jane@example.com',
+        primaryPhone: '0400 111 222',
+      }));
+
+      expect(contactRepo.save).not.toHaveBeenCalled();
+      expect(appointmentRepo.saveContact).toHaveBeenCalledWith(
+        expect.objectContaining({
+          contactId: null,
+          snapshotName: 'Jane Tenant',
+          snapshotEmail: 'jane@example.com',
+          snapshotPhone: '0400 111 222',
+        }),
+      );
+    });
+
+    it('links the identical candidate even when another candidate collides on a different channel', async () => {
+      const phoneCollision = {
+        id: 'registry-contact-2',
+        displayName: 'Someone Else',
+        primaryEmail: 'someone@example.com',
+        primaryPhone: '0400 111 222',
+      };
+      const identical = {
+        id: 'registry-contact-1',
+        displayName: 'Jane Tenant',
+        primaryEmail: 'jane@example.com',
+        primaryPhone: '0400 111 222',
+      };
+      const contactRepo = makeContactRepo([phoneCollision, identical]);
+
+      await makeUseCase(contactRepo).execute(inlineInput({
+        displayName: 'Jane Tenant',
+        primaryEmail: 'jane@example.com',
+        primaryPhone: '0400 111 222',
+      }));
+
+      expect(appointmentRepo.saveContact).toHaveBeenCalledWith(
+        expect.objectContaining({ contactId: 'registry-contact-1' }),
+      );
+    });
+
+    it('creates a new registry contact when nothing matches', async () => {
+      const contactRepo = makeContactRepo([]);
+
+      await makeUseCase(contactRepo).execute(inlineInput({
+        displayName: 'Jane Tenant',
+        primaryEmail: 'jane@example.com',
+        primaryPhone: '0400 111 222',
+      }));
+
+      expect(contactRepo.findManyActiveByEmailsOrPhones).toHaveBeenCalledWith(
+        ['jane@example.com'],
+        ['0400 111 222'],
+      );
+      expect(contactRepo.save).toHaveBeenCalledTimes(1);
+      expect(appointmentRepo.saveContact).toHaveBeenCalledWith(
+        expect.objectContaining({
+          snapshotName: 'Jane Tenant',
+          snapshotEmail: 'jane@example.com',
+        }),
+      );
+    });
+  });
 });

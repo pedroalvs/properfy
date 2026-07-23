@@ -85,6 +85,7 @@ export interface IInspectorInvoiceRepository {
       lineItemsSnapshot: InvoiceSnapshotLine[];
       totalAmount: number;
       inspectorName: string | null;
+      inspectorAbn: string | null;
       issuedAt: Date;
       generatedByUserId: string;
     },

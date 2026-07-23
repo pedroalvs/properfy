@@ -264,16 +264,6 @@ import { createWebhookSignatureValidator } from '../modules/notification/infrast
 import { SanitizeHtmlService } from '../modules/notification/infrastructure/sanitize-html.service';
 import { HtmlToTextService } from '../modules/notification/infrastructure/html-to-text.service';
 import { RenderTemplatePreviewUseCase } from '../modules/notification/application/use-cases/render-template-preview.use-case';
-import { PrismaEmailAssetRepository } from '../modules/notification/infrastructure/prisma-email-asset.repository';
-import { PrismaTemplateImageBindingRepository } from '../modules/notification/infrastructure/prisma-template-image-binding.repository';
-import { SupabaseEmailAssetStorageService } from '../modules/notification/infrastructure/supabase-email-asset-storage.service';
-import { ImageContentVerifier } from '../modules/notification/infrastructure/image-content-verifier';
-import { RequestImageUploadUseCase } from '../modules/notification/application/use-cases/request-image-upload.use-case';
-import { ConfirmImageUploadUseCase } from '../modules/notification/application/use-cases/confirm-image-upload.use-case';
-import { ListEmailAssetsUseCase } from '../modules/notification/application/use-cases/list-email-assets.use-case';
-import { EditImageBindingUseCase } from '../modules/notification/application/use-cases/edit-image-binding.use-case';
-import { DeleteEmailAssetUseCase } from '../modules/notification/application/use-cases/delete-email-asset.use-case';
-import { ImagePlaceholderResolver } from '../modules/notification/domain/image-placeholder-resolver.service';
 
 // Notification handlers
 import { NotifyOnStatusTransitionHandler } from '../modules/notification/application/handlers/notify-on-status-transition.handler';
@@ -346,6 +336,7 @@ import { UpdateFyAppointmentContactUseCase } from '../modules/fy/application/use
 import { ResendFyNoticeUseCase } from '../modules/fy/application/use-cases/resend-fy-notice.use-case';
 import { FyWebhookDispatcher } from '../modules/fy/infrastructure/fy-webhook-dispatcher';
 import { FyWebhookSubscriber } from '../modules/fy/application/webhooks/fy-webhook-subscriber';
+import { NotifyOnGroupAcceptedSubscriber } from '../modules/notification/application/subscribers/notify-on-group-accepted.subscriber';
 import { createApiKeyAuthMiddleware } from '../shared/interfaces/api-key-auth-middleware';
 import { createAuthMiddleware } from '../shared/interfaces/auth-middleware';
 
@@ -366,6 +357,7 @@ import { CompensateFinancialOnDoneRejectedHandler } from '../modules/appointment
 import { APPOINTMENT_EVENTS } from '../shared/application/events/domain-event-bus';
 import { DeleteAppointmentUseCase } from '../modules/appointment/application/use-cases/delete-appointment.use-case';
 import { BulkEditAppointmentsUseCase } from '../modules/appointment/application/use-cases/bulk-edit-appointments.use-case';
+import { BulkCrossCheckDoneUseCase } from '../modules/appointment/application/use-cases/bulk-cross-check-done.use-case';
 import { BulkResendReminderUseCase } from '../modules/appointment/application/use-cases/bulk-resend-reminder.use-case';
 import { BulkCancelAppointmentsUseCase } from '../modules/appointment/application/use-cases/bulk-cancel-appointments.use-case';
 import { BulkRescheduleAppointmentsUseCase } from '../modules/appointment/application/use-cases/bulk-reschedule-appointments.use-case';
@@ -828,6 +820,12 @@ export function createContainer(logger: Logger): AppContainer {
     authorizationService,
     createFinancialEntriesOnDoneUseCase,
   );
+  const bulkCrossCheckDoneUseCase = new BulkCrossCheckDoneUseCase(
+    performCrossCheckUseCase,
+    authorizationService,
+    idempotencyService,
+    logger,
+  );
   const reportUnavailabilityUseCase = new ReportUnavailabilityUseCase(
     rentalTenantPortalActivityRepo,
     appointmentRepo,
@@ -1027,33 +1025,12 @@ export function createContainer(logger: Logger): AppContainer {
   const htmlSanitizer = new SanitizeHtmlService();
   const htmlToText = new HtmlToTextService();
 
-  // Email assets (US2)
-  const emailAssetRepo = new PrismaEmailAssetRepository(prisma);
-  const templateImageBindingRepo = new PrismaTemplateImageBindingRepository(prisma);
-  const imageContentVerifier = new ImageContentVerifier();
-  const emailAssetStorage = env.SUPABASE_S3_ENDPOINT && env.EMAIL_ASSETS_PUBLIC_URL_BASE
-    ? new SupabaseEmailAssetStorageService(
-        new S3Client({
-          endpoint: env.SUPABASE_S3_ENDPOINT,
-          region: 'us-east-1',
-          credentials: {
-            accessKeyId: env.SUPABASE_S3_ACCESS_KEY_ID ?? '',
-            secretAccessKey: env.SUPABASE_S3_SECRET_ACCESS_KEY ?? '',
-          },
-          forcePathStyle: true,
-        }),
-        env.EMAIL_ASSETS_BUCKET,
-        env.EMAIL_ASSETS_PUBLIC_URL_BASE,
-      )
-    : null;
-
   // Notification use cases
   const consentRepo = new PrismaNotificationConsentRepository(prisma);
   const getTenantSettings = async (tenantId: string): Promise<Record<string, unknown>> => {
     const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { settings_json: true } });
     return (tenant?.settings_json as Record<string, unknown>) ?? {};
   };
-  const imagePlaceholderResolver = new ImagePlaceholderResolver();
 
   const sendNotificationUseCase = new SendNotificationUseCase({
     notificationRepo,
@@ -1066,13 +1043,8 @@ export function createContainer(logger: Logger): AppContainer {
     logger,
     metrics,
     getTenantSettings,
-    // Feature 030: image-resolve → render → sanitize pipeline
     htmlSanitizer,
     htmlToText,
-    imagePlaceholderResolver,
-    emailAssetRepo,
-    templateImageBindingRepo,
-    emailAssetsPublicUrlBase: env.EMAIL_ASSETS_PUBLIC_URL_BASE,
   });
   const retryNotificationUseCase = new RetryNotificationUseCase(notificationRepo, auditService, authorizationService);
   const handleProviderWebhookUseCase = new HandleProviderWebhookUseCase(notificationRepo, logger);
@@ -1083,43 +1055,22 @@ export function createContainer(logger: Logger): AppContainer {
   const getNotificationUseCase = new GetNotificationUseCase(notificationRepo, authorizationService);
   const upsertNotificationTemplateUseCase = new UpsertNotificationTemplateUseCase(
     notificationTemplateRepo, templateRenderer, auditService, authorizationService,
-    htmlSanitizer, htmlToText, emailAssetRepo, templateImageBindingRepo,
+    htmlSanitizer, htmlToText,
   );
   const deleteNotificationTemplateUseCase = new DeleteNotificationTemplateUseCase(
     notificationTemplateRepo, authorizationService, auditService,
   );
   const renderTemplatePreviewUseCase = new RenderTemplatePreviewUseCase(
     templateRenderer, htmlSanitizer, authorizationService,
-    emailAssetRepo, env.EMAIL_ASSETS_PUBLIC_URL_BASE,
   );
-
-  // Email asset use cases (US2)
-  const requestImageUploadUseCase = emailAssetStorage
-    ? new RequestImageUploadUseCase(emailAssetRepo, emailAssetStorage, auditService, authorizationService)
-    : null;
-  const confirmImageUploadUseCase = emailAssetStorage
-    ? new ConfirmImageUploadUseCase(emailAssetRepo, emailAssetStorage, imageContentVerifier, auditService, authorizationService)
-    : null;
-  const listEmailAssetsUseCase = new ListEmailAssetsUseCase(emailAssetRepo, authorizationService);
-  const editImageBindingUseCase = new EditImageBindingUseCase(templateImageBindingRepo, emailAssetRepo, authorizationService);
-  const deleteEmailAssetUseCase = emailAssetStorage
-    ? new DeleteEmailAssetUseCase(emailAssetRepo, templateImageBindingRepo, emailAssetStorage, auditService, authorizationService)
-    : null;
 
   const sendTestNotificationUseCase = new SendTestNotificationUseCase(
     notificationTemplateRepo, templateRenderer, emailProvider, smsProvider, auditService, authorizationService,
     env.EMAIL_TEST_RECIPIENT_ALLOWLIST,
-    {
-      htmlSanitizer,
-      htmlToText,
-      imagePlaceholderResolver,
-      emailAssetRepo,
-      templateImageBindingRepo,
-      emailAssetsPublicUrlBase: env.EMAIL_ASSETS_PUBLIC_URL_BASE,
-    },
+    { htmlSanitizer, htmlToText },
   );
   const listNotificationTemplatesUseCase = new ListNotificationTemplatesUseCase(
-    notificationTemplateRepo, authorizationService, templateImageBindingRepo, emailAssetRepo,
+    notificationTemplateRepo, authorizationService,
   );
   // createNotificationUseCase and notificationJobQueue created above (before appointments)
   const pollRetryableNotificationsUseCase = new PollRetryableNotificationsUseCase(notificationRepo, notificationJobQueue, logger);
@@ -1184,6 +1135,9 @@ export function createContainer(logger: Logger): AppContainer {
   // Fy outbound webhooks: subscriber enqueues, worker delivers with retry.
   const fyWebhookDispatcher = new FyWebhookDispatcher(integrationConfigResolver);
   new FyWebhookSubscriber(integrationConfigResolver, fyRepo, importJobQueue, logger).register(domainEventBus);
+  // Rental-tenant notifications for group acceptance paths (marketplace accept
+  // + manual assign), which schedule appointments outside the transition use case.
+  new NotifyOnGroupAcceptedSubscriber(serviceGroupRepo, notifyOnStatusTransitionHandler, logger).register(domainEventBus);
 
   const appointmentImportRowResolver = new AppointmentImportRowResolver(
     propertyRepo, serviceTypeRepo, pricingRuleRepo, contactRepo,
@@ -1372,6 +1326,7 @@ export function createContainer(logger: Logger): AppContainer {
       getImportStatusUseCase,
       deleteAppointmentUseCase,
       bulkEditAppointmentsUseCase,
+      bulkCrossCheckDoneUseCase,
       bulkResendReminderUseCase,
       bulkCancelAppointmentsUseCase,
       bulkRescheduleAppointmentsUseCase,
@@ -1508,11 +1463,6 @@ export function createContainer(logger: Logger): AppContainer {
       upsertNotificationTemplateUseCase,
       deleteNotificationTemplateUseCase,
       renderTemplatePreviewUseCase,
-      requestImageUploadUseCase: requestImageUploadUseCase as NonNullable<typeof requestImageUploadUseCase>,
-      confirmImageUploadUseCase: confirmImageUploadUseCase as NonNullable<typeof confirmImageUploadUseCase>,
-      listEmailAssetsUseCase,
-      editImageBindingUseCase,
-      deleteEmailAssetUseCase: deleteEmailAssetUseCase as NonNullable<typeof deleteEmailAssetUseCase>,
       sendTestNotificationUseCase,
       listNotificationTemplatesUseCase,
       createNotificationUseCase,

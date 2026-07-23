@@ -6,7 +6,7 @@ export interface ServiceGroupFilters {
   serviceTypeId?: string;
   scheduledDateFrom?: string;
   scheduledDateTo?: string;
-  /** Text search on group description. */
+  /** Text search on group description; all-digit terms also match the group code (group_number). */
   search?: string;
   /** Filter by branch ID of linked appointments. */
   branchId?: string;

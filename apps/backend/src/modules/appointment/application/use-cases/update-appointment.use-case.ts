@@ -1,10 +1,11 @@
 import { type AuthContext, type AppointmentContactRole, type AppointmentCustomField } from '@properfy/shared';
-import { PLATFORM_TIMEZONE } from '@properfy/shared';
+import { PLATFORM_TIMEZONE, ServiceGroupStatus } from '@properfy/shared';
 import { NotFoundError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IContactRepository } from '../../../contact/domain/contact.repository';
 import { ContactEntity } from '../../../contact/domain/contact.entity';
+import { resolveInlineContactMatch } from '../../../contact/domain/contact-identity';
 import { ContactNoChannelError } from '../../../contact/domain/contact.errors';
 import type { IAppCredentialRepository } from '../../../app-credential/domain/app-credential.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
@@ -187,19 +188,36 @@ export class UpdateAppointmentUseCase {
       (data.timeSlotEnd !== undefined && data.timeSlotEnd !== appointment.timeSlotEnd);
     const scheduleChanged = dateChanged || timeChangedReal;
 
-    // Appointments in a service group must share the group's calendar day
-    // (enforced at add-time) — an individual date change would break that
-    // invariant, so it stays blocked. Reschedule the whole group instead.
-    if (dateChanged && appointment.serviceGroupId) {
-      throw new AppointmentInServiceGroupError();
-    }
+    // Schedule edits on a grouped appointment are validated against the group
+    // and fail closed: when the group can't be loaded, the edit is blocked
+    // (serviceGroupRepo is always wired in production — container.ts).
+    if (scheduleChanged && appointment.serviceGroupId) {
+      const groupResult = this.serviceGroupRepo
+        ? await this.serviceGroupRepo.findById(appointment.serviceGroupId, null)
+        : null;
+      if (!groupResult) {
+        throw new AppointmentInServiceGroupError();
+      }
 
-    // A time-slot-only edit is allowed as long as the new slot still fits
-    // inside the group's shared time window (same containment rule used
-    // when appointments are added to a group).
-    if (timeChangedReal && appointment.serviceGroupId && this.serviceGroupRepo) {
-      const groupResult = await this.serviceGroupRepo.findById(appointment.serviceGroupId, null);
-      if (groupResult) {
+      // Appointments in a service group must share the group's calendar day
+      // (enforced at add-time). The only permitted individual date edit is
+      // re-aligning a divergent appointment back to the group's date while
+      // the group is still DRAFT (sync is best-effort, so divergence can
+      // happen); everything else stays blocked — reschedule the whole group.
+      if (dateChanged) {
+        const groupDateStr = groupResult.group.scheduledDate.toISOString().slice(0, 10);
+        const realignsToDraftGroupDate =
+          groupResult.group.status === ServiceGroupStatus.DRAFT &&
+          data.scheduledDate === groupDateStr;
+        if (!realignsToDraftGroupDate) {
+          throw new AppointmentInServiceGroupError();
+        }
+      }
+
+      // A time-slot edit is allowed as long as the new slot still fits
+      // inside the group's shared time window (same containment rule used
+      // when appointments are added to a group).
+      if (timeChangedReal) {
         const newTimeSlotStart = data.timeSlotStart ?? appointment.timeSlotStart;
         const newTimeSlotEnd = data.timeSlotEnd ?? appointment.timeSlotEnd;
         const adjustment = getServiceGroupTimeSlotAdjustment(
@@ -367,24 +385,31 @@ export class UpdateAppointmentUseCase {
           sEmail = reg.primaryEmail;
           sPhone = reg.primaryPhone;
         } else if (entry.inline) {
-          // Reuse an existing active registry contact whose email/phone
-          // matches the inline payload before creating a new row. This keeps
-          // repeated edits idempotent and prevents the
-          // contacts_tenant_email_active_unique /
-          // contacts_tenant_phone_active_unique partial indexes from
-          // surfacing as a 500.
+          // Reuse an existing active registry contact ONLY when the inline
+          // payload is fully identical to it (name + email + phone). A
+          // partial channel collision keeps the payload as the snapshot with
+          // no registry link (contact_id null) — creating a new row would hit
+          // the global contacts_email_active_unique /
+          // contacts_phone_active_unique partial indexes, and linking would
+          // silently replace the payload with the registry row.
           const inlineEmail = entry.inline.primaryEmail ?? null;
           const inlinePhone = entry.inline.primaryPhone ?? null;
-          const existing = await this.contactRepo.findActiveByEmailOrPhone(
-            appointment.tenantId,
-            inlineEmail,
-            inlinePhone,
-          );
-          if (existing) {
-            cId = existing.id;
-            sName = existing.displayName;
-            sEmail = existing.primaryEmail;
-            sPhone = existing.primaryPhone;
+          const candidates = (inlineEmail || inlinePhone)
+            ? await this.contactRepo.findManyActiveByEmailsOrPhones(
+                inlineEmail ? [inlineEmail] : [],
+                inlinePhone ? [inlinePhone] : [],
+              )
+            : [];
+          const match = resolveInlineContactMatch(candidates, {
+            name: entry.inline.displayName,
+            email: inlineEmail,
+            phone: inlinePhone,
+          });
+          if (match) {
+            cId = match.contactId;
+            sName = match.snapshotName;
+            sEmail = match.snapshotEmail;
+            sPhone = match.snapshotPhone;
           } else {
             if (!inlineEmail && !inlinePhone && (entry.inline.additionalChannels ?? []).length === 0) {
               throw new ContactNoChannelError();

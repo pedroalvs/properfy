@@ -73,6 +73,12 @@ describe('appCredentialCreateSchema', () => {
     expect(appCredentialCreateSchema.safeParse({ ...valid, appUrl: null, instructionsUrl: null }).success).toBe(true);
   });
 
+  it('defaults isDefault to false and accepts an explicit value', () => {
+    expect(appCredentialCreateSchema.parse(valid).isDefault).toBe(false);
+    expect(appCredentialCreateSchema.parse({ ...valid, isDefault: true }).isDefault).toBe(true);
+    expect(appCredentialCreateSchema.safeParse({ ...valid, isDefault: 'yes' }).success).toBe(false);
+  });
+
   it('accepts instructionsPassword and rejects empty string', () => {
     expect(appCredentialCreateSchema.safeParse({ ...valid, instructionsPassword: 'doc-pass' }).success).toBe(true);
     expect(appCredentialCreateSchema.safeParse({ ...valid, instructionsPassword: '' }).success).toBe(false);
@@ -98,6 +104,12 @@ describe('appCredentialUpdateSchema', () => {
     expect(appCredentialUpdateSchema.safeParse({ authCode: null }).success).toBe(true);
     expect(appCredentialUpdateSchema.safeParse({ appUrl: 'https://example.com', instructionsUrl: null }).success).toBe(true);
     expect(appCredentialUpdateSchema.safeParse({ instructionsPassword: 'x' }).success).toBe(true);
+  });
+
+  it('accepts isDefault as optional boolean', () => {
+    expect(appCredentialUpdateSchema.parse({}).isDefault).toBeUndefined();
+    expect(appCredentialUpdateSchema.safeParse({ isDefault: true }).success).toBe(true);
+    expect(appCredentialUpdateSchema.safeParse({ isDefault: 'yes' }).success).toBe(false);
   });
 
   it('rejects invalid urls and empty secrets on update', () => {

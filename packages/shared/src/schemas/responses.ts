@@ -438,9 +438,8 @@ export type Agency = z.infer<typeof agencyRefSchema>;
 export const serviceGroupResponseSchema = z.object({
   id: z.string().uuid(),
   // Sequential human-friendly code (pure numeric, cross-tenant global sequence).
-  // Kept optional: this schema is also the declared response for the `assign`
-  // route, whose use case returns a narrowed shape — read paths (create/get/list)
-  // always populate these.
+  // Kept optional: the publish/update use cases return the group without these
+  // fields — read paths (create/get/list) always populate them.
   groupNumber: z.number().optional(),
   code: z.string().optional(),
   // Null when the group spans multiple agencies (cross-agency group).
@@ -578,6 +577,10 @@ export const portalDataResponseSchema = z.object({
   }).optional(),
   agencyPhone: z.string().optional(),
   deadline: dateStr().optional(),
+  // All RENTAL_TENANT contact names (primary first) — portal Details section.
+  rentalTenantNames: z.array(z.string()).optional(),
+  // Display name of the PROPERTY_MANAGER contact, when one is linked.
+  propertyManager: z.string().nullable().optional(),
   rescheduleAllowed: z.boolean().optional(),
   tenant: z.object({ name: z.string().nullable(), timezone: z.string() }).optional(),
 });
@@ -877,15 +880,6 @@ export const notificationTemplateResponseSchema = z.object({
   variables: z.unknown().optional(),
   isActive: z.boolean(),
   notificationClass: z.enum(['TRANSACTIONAL', 'OPERATIONAL', 'MARKETING']).optional(),
-  imageBindings: z.array(z.object({
-    id: z.string().uuid(),
-    placeholderKey: z.string(),
-    assetId: z.string().uuid(),
-    publicUrl: z.string(),
-    altText: z.string().nullable(),
-    width: z.number().int().nullable(),
-    height: z.number().int().nullable(),
-  })).optional(),
   createdAt: dateStr(),
   updatedAt: dateStr(),
 });

@@ -268,6 +268,10 @@ export function AppointmentMapPage() {
     ...(appointmentFilters.contactSearch ? { contactSearch: appointmentFilters.contactSearch } : {}),
     ...(appointmentFilters.confirmationStatus ? { confirmationStatus: appointmentFilters.confirmationStatus } : {}),
     ...(appointmentFilters.tenantId ? { tenantId: appointmentFilters.tenantId } : {}),
+    ...(appointmentFilters.inspectorId ? { inspectorId: appointmentFilters.inspectorId } : {}),
+    ...(appointmentFilters.rentalTenantConfirmationStatuses.length > 0
+      ? { rentalTenantConfirmationStatus: appointmentFilters.rentalTenantConfirmationStatuses.join(',') }
+      : {}),
   }), [appointmentFilters]);
 
   const {
@@ -396,13 +400,22 @@ export function AppointmentMapPage() {
     { status: 'ACTIVE' },
   );
 
-  // Tenant options — AM only (cross-tenant Customers filter).
+  // Tenant options — AM/OP only (cross-tenant Agencies filter).
   const { options: tenantOptions } = useFormOptions<{ id: string; name: string }>(
     ['tenants', 'map-filter'],
     '/v1/tenants',
     (item) => ({ value: item.id, label: item.name }),
     { status: 'ACTIVE' },
-    { enabled: user?.role === 'AM' },
+    { enabled: isGlobalRole },
+  );
+
+  // Inspector options — AM/OP only (inspectors list is a global-role surface).
+  const { options: inspectorOptions } = useFormOptions<{ id: string; name: string }>(
+    ['inspectors', 'map-filter'],
+    '/v1/inspectors',
+    (item) => ({ value: item.id, label: item.name }),
+    { status: 'ACTIVE' },
+    { enabled: isGlobalRole },
   );
 
   // Branch options
@@ -839,6 +852,7 @@ export function AppointmentMapPage() {
           serviceTypeOptions={serviceTypeOptions}
           branchOptions={branchOptions}
           tenantOptions={tenantOptions}
+          inspectorOptions={inspectorOptions}
           actorRole={actorRole}
         />
       </div>

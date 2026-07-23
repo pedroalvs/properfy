@@ -102,13 +102,36 @@ const MOCK_APPOINTMENT_GROUPED = {
   serviceGroupId: 'sg-01',
 };
 
+// DONE appointment pending cross-check (Review section shows "Confirm Done").
+const MOCK_APPOINTMENT_DONE = {
+  ...MOCK_APPOINTMENT,
+  id: 'apt-done',
+  status: 'DONE',
+  inspectorId: 'insp-1',
+  doneCheckedByUserId: null,
+};
+
+// DONE appointment already cross-checked (Review section shows the indicator).
+const MOCK_APPOINTMENT_REVIEWED = {
+  ...MOCK_APPOINTMENT_DONE,
+  id: 'apt-reviewed',
+  doneCheckedByUserId: 'reviewer-1',
+};
+
+const mockRefetchDetail = vi.fn();
 vi.mock('../hooks/useAppointmentDetail', () => ({
   useAppointmentDetail: (id: string | null) => {
-    if (!id) return { appointment: null, isLoading: false, isError: false, refetch: vi.fn() };
+    if (!id) return { appointment: null, isLoading: false, isError: false, refetch: mockRefetchDetail };
     if (id === 'apt-grouped') {
-      return { appointment: MOCK_APPOINTMENT_GROUPED, isLoading: false, isError: false, refetch: vi.fn() };
+      return { appointment: MOCK_APPOINTMENT_GROUPED, isLoading: false, isError: false, refetch: mockRefetchDetail };
     }
-    return { appointment: MOCK_APPOINTMENT, isLoading: false, isError: false, refetch: vi.fn() };
+    if (id === 'apt-done') {
+      return { appointment: MOCK_APPOINTMENT_DONE, isLoading: false, isError: false, refetch: mockRefetchDetail };
+    }
+    if (id === 'apt-reviewed') {
+      return { appointment: MOCK_APPOINTMENT_REVIEWED, isLoading: false, isError: false, refetch: mockRefetchDetail };
+    }
+    return { appointment: MOCK_APPOINTMENT, isLoading: false, isError: false, refetch: mockRefetchDetail };
   },
 }));
 
@@ -431,5 +454,61 @@ describe('AppointmentFormDrawer', () => {
 
     expect(addBtn).not.toBeDisabled();
     expect(screen.queryByLabelText('Custom field 4 label')).not.toBeInTheDocument();
+  });
+
+  describe('Review (DONE cross-check)', () => {
+    it('shows the Review section with a Confirm Done button for AM/OP on a DONE, unchecked appointment', () => {
+      renderDrawer({ appointmentId: 'apt-done' });
+      expect(screen.getByText('Review')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Confirm Done/ })).toBeInTheDocument();
+      expect(screen.queryByTestId('reviewed-indicator')).not.toBeInTheDocument();
+    });
+
+    it('shows a read-only Reviewed indicator when already cross-checked', () => {
+      renderDrawer({ appointmentId: 'apt-reviewed' });
+      expect(screen.getByText('Review')).toBeInTheDocument();
+      expect(screen.getByTestId('reviewed-indicator')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Confirm Done/ })).not.toBeInTheDocument();
+    });
+
+    it('hides the Review section when the appointment is not DONE', () => {
+      renderDrawer({ appointmentId: 'apt-01' });
+      expect(screen.queryByText('Review')).not.toBeInTheDocument();
+    });
+
+    it('hides the Review section for non-privileged roles', () => {
+      mockUseAuth.mockReturnValue({
+        user: { id: 'cl-1', name: 'Client', email: 'cl@test.com', role: 'CL_ADMIN', tenantId: 't-1' },
+        token: 'mock-token', isAuthenticated: true, isLoading: false, login: vi.fn(), logout: vi.fn(),
+      });
+      renderDrawer({ appointmentId: 'apt-done' });
+      expect(screen.queryByText('Review')).not.toBeInTheDocument();
+    });
+
+    it('confirming triggers the cross-check endpoint and refreshes on success', async () => {
+      const onSaved = vi.fn();
+      renderDrawer({ appointmentId: 'apt-done', onSaved });
+
+      // Section button opens the confirm dialog.
+      fireEvent.click(screen.getByRole('button', { name: /Confirm Done/ }));
+
+      // Dialog + section each render a "Confirm Done" control — click the dialog's.
+      const confirmButtons = screen.getAllByRole('button', { name: /Confirm Done/ });
+      fireEvent.click(confirmButtons[confirmButtons.length - 1]!);
+
+      await waitFor(() => {
+        expect(mockPost).toHaveBeenCalledWith(
+          '/v1/appointments/apt-done/cross-check-done',
+          { body: {} },
+        );
+      });
+
+      // On success the drawer detail is refetched and the parent is notified,
+      // so the reviewed state propagates to both the drawer and the list.
+      await waitFor(() => {
+        expect(mockRefetchDetail).toHaveBeenCalled();
+        expect(onSaved).toHaveBeenCalled();
+      });
+    });
   });
 });

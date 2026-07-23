@@ -907,7 +907,7 @@ describe('UpdateAppointmentUseCase', () => {
     });
   });
 
-  describe('time-slot edits on a grouped appointment', () => {
+  describe('schedule edits on a grouped appointment', () => {
     function makeUseCaseWithGroupRepo(serviceGroupRepo: { findById: ReturnType<typeof vi.fn> }) {
       return new UpdateAppointmentUseCase(
         appointmentRepo,
@@ -924,9 +924,17 @@ describe('UpdateAppointmentUseCase', () => {
       );
     }
 
-    function makeGroupResult(timeWindow: string) {
+    function makeGroupResult(
+      timeWindow: string,
+      groupOverrides: { status?: string; scheduledDate?: Date } = {},
+    ) {
       return {
-        group: { timeWindow },
+        group: {
+          timeWindow,
+          status: 'PUBLISHED',
+          scheduledDate: new Date('2099-04-01'),
+          ...groupOverrides,
+        },
         assignedInspectorName: null,
         tenantIds: ['tenant-1'],
         primaryTenantId: 'tenant-1',
@@ -983,11 +991,13 @@ describe('UpdateAppointmentUseCase', () => {
       expect(appointmentRepo.update).not.toHaveBeenCalled();
     });
 
-    it('still rejects a date change on a grouped appointment even with serviceGroupRepo wired', async () => {
+    it('rejects a date change on an appointment in a non-DRAFT group', async () => {
       vi.mocked(appointmentRepo.findById).mockResolvedValue(
         makeAppointmentWithRelations({ status: 'AWAITING_INSPECTOR', serviceGroupId: 'group-1' }),
       );
-      const serviceGroupRepo = { findById: vi.fn().mockResolvedValue(makeGroupResult('08:00-12:00')) };
+      const serviceGroupRepo = {
+        findById: vi.fn().mockResolvedValue(makeGroupResult('08:00-12:00', { status: 'PUBLISHED' })),
+      };
 
       await expect(
         makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
@@ -998,11 +1008,106 @@ describe('UpdateAppointmentUseCase', () => {
       ).rejects.toThrow(AppointmentInServiceGroupError);
     });
 
-    // Both cases below intentionally fail OPEN: the window check only runs when
-    // `serviceGroupRepo` is wired AND resolves a group. Documented here so a
-    // future change to either condition doesn't silently start (or stop)
-    // enforcing the window without a test noticing.
-    it('fails open (no window check) when serviceGroupRepo is not wired', async () => {
+    it('rejects a date change matching the group date when the group is not DRAFT', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({
+          status: 'AWAITING_INSPECTOR',
+          serviceGroupId: 'group-1',
+          scheduledDate: new Date('2099-04-05'),
+        }),
+      );
+      const serviceGroupRepo = {
+        findById: vi.fn().mockResolvedValue(
+          makeGroupResult('08:00-12:00', { status: 'PUBLISHED', scheduledDate: new Date('2099-04-01') }),
+        ),
+      };
+
+      await expect(
+        makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+          appointmentId: 'appt-1',
+          data: { scheduledDate: '2099-04-01' },
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow(AppointmentInServiceGroupError);
+    });
+
+    it('allows realigning a divergent appointment to the group date while the group is DRAFT', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({
+          status: 'AWAITING_INSPECTOR',
+          serviceGroupId: 'group-1',
+          scheduledDate: new Date('2099-04-05'),
+          timeSlotStart: '09:00',
+          timeSlotEnd: '10:00',
+        }),
+      );
+      const serviceGroupRepo = {
+        findById: vi.fn().mockResolvedValue(
+          makeGroupResult('08:00-12:00', { status: 'DRAFT', scheduledDate: new Date('2099-04-01') }),
+        ),
+      };
+
+      const result = await makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+        appointmentId: 'appt-1',
+        data: { scheduledDate: '2099-04-01' },
+        actor: makeActor(),
+      });
+
+      expect(result.id).toBe('appt-1');
+      expect(appointmentRepo.update).toHaveBeenCalledWith(
+        'appt-1',
+        'tenant-1',
+        expect.objectContaining({ scheduledDate: new Date('2099-04-01') }),
+      );
+    });
+
+    it('rejects a date change that diverges from the group date even while the group is DRAFT', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({
+          status: 'AWAITING_INSPECTOR',
+          serviceGroupId: 'group-1',
+          scheduledDate: new Date('2099-04-01'),
+        }),
+      );
+      const serviceGroupRepo = {
+        findById: vi.fn().mockResolvedValue(
+          makeGroupResult('08:00-12:00', { status: 'DRAFT', scheduledDate: new Date('2099-04-01') }),
+        ),
+      };
+
+      await expect(
+        makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+          appointmentId: 'appt-1',
+          data: { scheduledDate: '2099-04-10' },
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow(AppointmentInServiceGroupError);
+      expect(appointmentRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects a date change when the group cannot be loaded (fail-closed)', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({
+          status: 'AWAITING_INSPECTOR',
+          serviceGroupId: 'group-1',
+          scheduledDate: new Date('2099-04-05'),
+        }),
+      );
+      const serviceGroupRepo = { findById: vi.fn().mockResolvedValue(null) };
+
+      await expect(
+        makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+          appointmentId: 'appt-1',
+          data: { scheduledDate: '2099-04-01' },
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow(AppointmentInServiceGroupError);
+    });
+
+    // Both cases below fail CLOSED: any schedule edit on a grouped appointment
+    // requires the group to be loaded (serviceGroupRepo is always wired in
+    // production — container.ts); when it can't be, the edit is blocked.
+    it('rejects a time-slot change when serviceGroupRepo is not wired (fail-closed)', async () => {
       vi.mocked(appointmentRepo.findById).mockResolvedValue(
         makeAppointmentWithRelations({
           status: 'AWAITING_INSPECTOR',
@@ -1013,21 +1118,17 @@ describe('UpdateAppointmentUseCase', () => {
         }),
       );
 
-      const result = await useCase.execute({
-        appointmentId: 'appt-1',
-        data: { timeSlotStart: '13:00', timeSlotEnd: '14:00' },
-        actor: makeActor(),
-      });
-
-      expect(result.id).toBe('appt-1');
-      expect(appointmentRepo.update).toHaveBeenCalledWith(
-        'appt-1',
-        'tenant-1',
-        expect.objectContaining({ timeSlotStart: '13:00', timeSlotEnd: '14:00' }),
-      );
+      await expect(
+        useCase.execute({
+          appointmentId: 'appt-1',
+          data: { timeSlotStart: '13:00', timeSlotEnd: '14:00' },
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow(AppointmentInServiceGroupError);
+      expect(appointmentRepo.update).not.toHaveBeenCalled();
     });
 
-    it('fails open (no window check) when serviceGroupRepo.findById returns null', async () => {
+    it('rejects a time-slot change when serviceGroupRepo.findById returns null (fail-closed)', async () => {
       vi.mocked(appointmentRepo.findById).mockResolvedValue(
         makeAppointmentWithRelations({
           status: 'AWAITING_INSPECTOR',
@@ -1039,19 +1140,15 @@ describe('UpdateAppointmentUseCase', () => {
       );
       const serviceGroupRepo = { findById: vi.fn().mockResolvedValue(null) };
 
-      const result = await makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
-        appointmentId: 'appt-1',
-        data: { timeSlotStart: '13:00', timeSlotEnd: '14:00' },
-        actor: makeActor(),
-      });
-
-      expect(result.id).toBe('appt-1');
+      await expect(
+        makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+          appointmentId: 'appt-1',
+          data: { timeSlotStart: '13:00', timeSlotEnd: '14:00' },
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow(AppointmentInServiceGroupError);
       expect(serviceGroupRepo.findById).toHaveBeenCalledWith('group-1', null);
-      expect(appointmentRepo.update).toHaveBeenCalledWith(
-        'appt-1',
-        'tenant-1',
-        expect.objectContaining({ timeSlotStart: '13:00', timeSlotEnd: '14:00' }),
-      );
+      expect(appointmentRepo.update).not.toHaveBeenCalled();
     });
   });
 
@@ -1066,7 +1163,7 @@ describe('UpdateAppointmentUseCase', () => {
     const tenantId = 'tenant-1';
     const appointmentId = 'appt-1';
 
-    function makeContactRepo(existing: unknown) {
+    function makeContactRepo(candidates: unknown[]) {
       return {
         findById: vi.fn(),
         findAll: vi.fn(),
@@ -1076,13 +1173,13 @@ describe('UpdateAppointmentUseCase', () => {
         update: vi.fn(),
         existsByEmail: vi.fn(),
         existsByPhone: vi.fn(),
-        findActiveByEmailOrPhone: vi.fn().mockResolvedValue(existing),
+        findManyActiveByEmailsOrPhones: vi.fn().mockResolvedValue(candidates),
         findAppointmentsByContactId: vi.fn(),
         countAppointmentsByContactId: vi.fn(),
       };
     }
 
-    it('reuses an existing active contact when inline email/phone collide', async () => {
+    it('reuses an existing active contact when the inline payload is fully identical', async () => {
       const existing = {
         id: 'registry-contact-1',
         tenantId,
@@ -1090,7 +1187,57 @@ describe('UpdateAppointmentUseCase', () => {
         primaryEmail: 'tenant@example.com',
         primaryPhone: null,
       };
-      const contactRepo = makeContactRepo(existing);
+      const contactRepo = makeContactRepo([existing]);
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ tenantId }),
+      );
+      (appointmentRepo as any).deleteContactsByAppointmentId = vi.fn();
+
+      const uc = new UpdateAppointmentUseCase(
+        appointmentRepo,
+        auditService,
+        new AuthorizationService(auditService),
+        undefined,
+        contactRepo as any,
+      );
+
+      await uc.execute({
+        appointmentId,
+        data: {
+          contacts: [
+            {
+              inline: {
+                type: 'RENTAL_TENANT',
+                displayName: 'Existing Tenant',
+                primaryEmail: 'tenant@example.com',
+              },
+              role: 'RENTAL_TENANT',
+              isPrimary: true,
+            },
+          ],
+        },
+        actor: makeActor(),
+      });
+
+      expect(contactRepo.findManyActiveByEmailsOrPhones).toHaveBeenCalledWith(
+        ['tenant@example.com'],
+        [],
+      );
+      expect(contactRepo.save).not.toHaveBeenCalled();
+      expect(appointmentRepo.saveContact).toHaveBeenCalledWith(
+        expect.objectContaining({ contactId: 'registry-contact-1' }),
+      );
+    });
+
+    it('keeps the payload as an unlinked snapshot when the email collides but the name differs', async () => {
+      const existing = {
+        id: 'registry-contact-1',
+        tenantId,
+        displayName: 'Existing Tenant',
+        primaryEmail: 'tenant@example.com',
+        primaryPhone: null,
+      };
+      const contactRepo = makeContactRepo([existing]);
       vi.mocked(appointmentRepo.findById).mockResolvedValue(
         makeAppointmentWithRelations({ tenantId }),
       );
@@ -1122,19 +1269,20 @@ describe('UpdateAppointmentUseCase', () => {
         actor: makeActor(),
       });
 
-      expect(contactRepo.findActiveByEmailOrPhone).toHaveBeenCalledWith(
-        tenantId,
-        'tenant@example.com',
-        null,
-      );
+      // B-1 regression guarantee holds: no duplicate registry row is created,
+      // so the global unique indexes cannot surface as a 500.
       expect(contactRepo.save).not.toHaveBeenCalled();
       expect(appointmentRepo.saveContact).toHaveBeenCalledWith(
-        expect.objectContaining({ contactId: 'registry-contact-1' }),
+        expect.objectContaining({
+          contactId: null,
+          snapshotName: 'Re-typed Tenant',
+          snapshotEmail: 'tenant@example.com',
+        }),
       );
     });
 
     it('creates a new registry contact when no active match exists', async () => {
-      const contactRepo = makeContactRepo(null);
+      const contactRepo = makeContactRepo([]);
       vi.mocked(appointmentRepo.findById).mockResolvedValue(
         makeAppointmentWithRelations({ tenantId }),
       );
@@ -1166,7 +1314,7 @@ describe('UpdateAppointmentUseCase', () => {
         actor: makeActor(),
       });
 
-      expect(contactRepo.findActiveByEmailOrPhone).toHaveBeenCalled();
+      expect(contactRepo.findManyActiveByEmailsOrPhones).toHaveBeenCalled();
       expect(contactRepo.save).toHaveBeenCalledTimes(1);
       expect(appointmentRepo.saveContact).toHaveBeenCalled();
     });

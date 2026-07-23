@@ -11,7 +11,6 @@ import { Checkbox } from '@/components/forms/Checkbox';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useTemplateSave } from '../hooks/useTemplateSave';
 import { useTemplatePreview } from '../hooks/useTemplatePreview';
-import { ImageLibraryModal } from './ImageLibraryModal';
 import { SendTestEmailDialog } from './SendTestEmailDialog';
 import { SendTestSmsDialog } from './SendTestSmsDialog';
 import { VariableInsertToolbar } from './VariableInsertToolbar';
@@ -42,7 +41,6 @@ export function TemplateFormDrawer({
   const [showConfirm, setShowConfirm] = useState(false);
   const [showTestDialog, setShowTestDialog] = useState(false);
   const [showTestSmsDialog, setShowTestSmsDialog] = useState(false);
-  const [showImageLibrary, setShowImageLibrary] = useState(false);
 
   useEffect(() => {
     if (template && open) {
@@ -96,11 +94,7 @@ export function TemplateFormDrawer({
     insertAtCursor(variable);
   }, [insertAtCursor]);
 
-  const handleInsertImage = useCallback((placeholderKey: string) => {
-    insertAtCursor(`{{image:${placeholderKey}}}`);
-  }, [insertAtCursor]);
-
-  // Single source of truth for channel-based conditions — Images, Preview, Send Test all
+  // Single source of truth for channel-based conditions — Preview and Send Test
   // depend on this. Avoids divergence if code is later refactored.
   const isEmailChannel = template?.channel === 'EMAIL';
 
@@ -210,7 +204,6 @@ export function TemplateFormDrawer({
                 <div className="flex flex-col gap-2">
                   <VariableInsertToolbar
                     onInsert={handleInsertVariable}
-                    onOpenImages={isEmailChannel ? () => setShowImageLibrary(true) : undefined}
                     disabled={isSaving}
                     variables={canonicalAllowed}
                   />
@@ -287,15 +280,6 @@ export function TemplateFormDrawer({
           onClose={() => setShowTestSmsDialog(false)}
           templateCode={template.code}
           channel={template.channel}
-        />
-      )}
-
-      {showImageLibrary && (
-        <ImageLibraryModal
-          open={showImageLibrary}
-          onClose={() => setShowImageLibrary(false)}
-          onInsert={handleInsertImage}
-          tenantId={template?.tenantId}
         />
       )}
 

@@ -22,6 +22,12 @@ vi.mock('@/lib/status-colors', () => ({
     CANCELLED: { bg: '#FFCDD2', text: '#000', label: 'Canceled' },
     REJECTED: { bg: '#FFAB91', text: '#000', label: 'Rejected' },
   },
+  RENTAL_TENANT_CONFIRMATION_STATUS_MAP: {
+    PENDING: { bg: '#FFE0B2', text: '#000', label: 'Pending' },
+    CONFIRMED: { bg: '#C8E6C9', text: '#000', label: 'Confirmed' },
+    UNAVAILABLE: { bg: '#FFCDD2', text: '#000', label: 'Unavailable' },
+    NO_RESPONSE: { bg: '#EEEEEE', text: '#000', label: 'No Response' },
+  },
 }));
 
 function renderPanel(overrides = {}) {
@@ -130,6 +136,73 @@ describe('AppointmentMapFilterPanel', () => {
     it('shows the Groups mode option for OP', () => {
       renderPanel({ actorRole: 'OP' });
       expect(screen.getByRole('tab', { name: 'Groups' })).toBeInTheDocument();
+    });
+  });
+
+  describe('Agencies filter RBAC gating', () => {
+    const tenantOptions = [{ label: 'Agency A', value: 'tenant-a' }];
+
+    it('shows the Agencies filter for AM', () => {
+      renderPanel({ actorRole: 'AM', tenantOptions });
+      expect(screen.getByLabelText('Agencies')).toBeInTheDocument();
+    });
+
+    it('shows the Agencies filter for OP', () => {
+      renderPanel({ actorRole: 'OP', tenantOptions });
+      expect(screen.getByLabelText('Agencies')).toBeInTheDocument();
+    });
+
+    it('hides the Agencies filter for CL_ADMIN', () => {
+      renderPanel({ actorRole: 'CL_ADMIN', tenantOptions });
+      expect(screen.queryByLabelText('Agencies')).toBeNull();
+    });
+  });
+
+  describe('Inspector filter', () => {
+    const inspectorOptions = [{ label: 'Jane Inspector', value: 'insp-1' }];
+
+    it('renders the Inspector select when options are provided', () => {
+      renderPanel({ inspectorOptions });
+      expect(screen.getByLabelText('Inspector')).toBeInTheDocument();
+    });
+
+    it('hides the Inspector select without options', () => {
+      renderPanel();
+      expect(screen.queryByLabelText('Inspector')).toBeNull();
+    });
+
+    it('emits inspectorId on selection', () => {
+      const onChange = vi.fn();
+      renderPanel({ inspectorOptions, onAppointmentFiltersChange: onChange });
+      fireEvent.click(screen.getByLabelText('Inspector'));
+      fireEvent.click(screen.getByText('Jane Inspector'));
+      expect(onChange).toHaveBeenCalledWith(
+        expect.objectContaining({ inspectorId: 'insp-1' }),
+      );
+    });
+  });
+
+  describe('Tenant Confirmation filter', () => {
+    it('renders one chip per confirmation status, none selected by default', () => {
+      renderPanel();
+      for (const label of ['Confirmed', 'Pending', 'Unavailable', 'No Response']) {
+        const chip = screen.getByRole('button', { name: label });
+        expect(chip.getAttribute('aria-pressed')).toBe('false');
+      }
+    });
+
+    it('toggles a confirmation status on click', () => {
+      const onChange = vi.fn();
+      renderPanel({ onAppointmentFiltersChange: onChange });
+      fireEvent.click(screen.getByRole('button', { name: 'Confirmed' }));
+      expect(onChange).toHaveBeenCalledWith(
+        expect.objectContaining({ rentalTenantConfirmationStatuses: ['CONFIRMED'] }),
+      );
+    });
+
+    it('is not rendered in groups mode', () => {
+      renderPanel({ mode: 'groups' });
+      expect(screen.queryByText('Tenant Confirmation')).toBeNull();
     });
   });
 });

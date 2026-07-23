@@ -18,6 +18,7 @@ export interface CreateAppCredentialInput {
   appUrl?: string | null;
   instructionsUrl?: string | null;
   instructionsPassword?: string | null;
+  isDefault?: boolean;
   actorId: string;
   /** Actor's own JWT tenant (AM may be null), recorded for audit traceability. */
   actorTenantId?: string | null;
@@ -59,6 +60,7 @@ export class CreateAppCredentialUseCase {
       instructionsUrl: input.instructionsUrl ?? null,
       instructionsPassword: input.instructionsPassword ?? null,
       isActive: true,
+      isDefault: input.isDefault ?? false,
       createdAt: now,
       updatedAt: now,
     });
@@ -81,6 +83,7 @@ export class CreateAppCredentialUseCase {
         needsAuthCode: credential.needsAuthCode,
         appUrl: credential.appUrl,
         instructionsUrl: credential.instructionsUrl,
+        isDefault: credential.isDefault,
       },
     });
 

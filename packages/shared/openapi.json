@@ -11314,13 +11314,17 @@
           },
           {
             "schema": {
-              "type": "string",
-              "enum": [
-                "PENDING",
-                "CONFIRMED",
-                "UNAVAILABLE",
-                "NO_RESPONSE"
-              ]
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "PENDING",
+                  "CONFIRMED",
+                  "UNAVAILABLE",
+                  "NO_RESPONSE"
+                ]
+              },
+              "minItems": 1
             },
             "in": "query",
             "name": "rentalTenantConfirmationStatus",
@@ -13977,6 +13981,11 @@
                                     "type": "string",
                                     "nullable": true
                                   },
+                                  "apartmentNumber": {
+                                    "type": "string",
+                                    "nullable": true,
+                                    "default": null
+                                  },
                                   "suburb": {
                                     "type": "string"
                                   },
@@ -14105,7 +14114,8 @@
                                     "type": "string",
                                     "enum": [
                                       "existing",
-                                      "new"
+                                      "new",
+                                      "snapshot-only"
                                     ]
                                   },
                                   "contactId": {
@@ -14355,6 +14365,90 @@
         "responses": {
           "200": {
             "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/appointments/bulk-cross-check-done": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "maxItems": 100
+                  }
+                },
+                "required": [
+                  "ids"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "updated": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "failed": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "code": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "code",
+                              "message"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "updated",
+                        "failed"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -15616,159 +15710,22 @@
                           "type": "string",
                           "format": "uuid"
                         },
-                        "groupNumber": {
-                          "type": "number"
-                        },
-                        "code": {
-                          "type": "string"
-                        },
-                        "tenantId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "agencies": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "string",
-                                "format": "uuid"
-                              },
-                              "name": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "name"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "serviceTypeId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
                         "status": {
                           "type": "string"
                         },
-                        "groupSize": {
-                          "type": "number"
-                        },
-                        "offeredCount": {
-                          "type": "number"
-                        },
-                        "confirmedCount": {
-                          "type": "number"
-                        },
-                        "scheduledDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "timeWindow": {
-                          "type": "string"
-                        },
-                        "regionName": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "description": {
-                          "type": "string",
-                          "nullable": true
-                        },
                         "assignedInspectorId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "serviceRegionId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "publishedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "assignedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "createdByUserId": {
                           "type": "string",
                           "format": "uuid"
                         },
-                        "createdAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "updatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "appointmentsCount": {
+                        "appointmentsScheduled": {
                           "type": "number"
-                        },
-                        "appointments": {
-                          "type": "array",
-                          "items": {}
-                        },
-                        "assignedInspector": {
-                          "nullable": true
                         }
                       },
                       "required": [
                         "id",
-                        "tenantId",
-                        "serviceTypeId",
                         "status",
-                        "groupSize",
-                        "offeredCount",
-                        "confirmedCount",
-                        "scheduledDate",
-                        "timeWindow",
                         "assignedInspectorId",
-                        "publishedAt",
-                        "createdAt"
+                        "appointmentsScheduled"
                       ],
                       "additionalProperties": false
                     }
@@ -17558,6 +17515,16 @@
                           "format": "date-time"
                         }
                       ]
+                    },
+                    "rentalTenantNames": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "propertyManager": {
+                      "type": "string",
+                      "nullable": true
                     },
                     "rescheduleAllowed": {
                       "type": "boolean"
@@ -24167,50 +24134,6 @@
                               "MARKETING"
                             ]
                           },
-                          "imageBindings": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "id": {
-                                  "type": "string",
-                                  "format": "uuid"
-                                },
-                                "placeholderKey": {
-                                  "type": "string"
-                                },
-                                "assetId": {
-                                  "type": "string",
-                                  "format": "uuid"
-                                },
-                                "publicUrl": {
-                                  "type": "string"
-                                },
-                                "altText": {
-                                  "type": "string",
-                                  "nullable": true
-                                },
-                                "width": {
-                                  "type": "integer",
-                                  "nullable": true
-                                },
-                                "height": {
-                                  "type": "integer",
-                                  "nullable": true
-                                }
-                              },
-                              "required": [
-                                "id",
-                                "placeholderKey",
-                                "assetId",
-                                "publicUrl",
-                                "altText",
-                                "width",
-                                "height"
-                              ],
-                              "additionalProperties": false
-                            }
-                          },
                           "createdAt": {
                             "anyOf": [
                               {
@@ -24372,36 +24295,6 @@
                   "tenantId": {
                     "type": "string",
                     "format": "uuid"
-                  },
-                  "imageBindings": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "placeholderKey": {
-                          "type": "string",
-                          "pattern": "^[a-zA-Z0-9_-]{1,64}$"
-                        },
-                        "altText": {
-                          "type": "string",
-                          "maxLength": 255
-                        },
-                        "width": {
-                          "type": "integer",
-                          "exclusiveMinimum": true,
-                          "minimum": 0
-                        },
-                        "height": {
-                          "type": "integer",
-                          "exclusiveMinimum": true,
-                          "minimum": 0
-                        }
-                      },
-                      "required": [
-                        "placeholderKey"
-                      ],
-                      "additionalProperties": false
-                    }
                   }
                 },
                 "required": [
@@ -24485,50 +24378,6 @@
                             "MARKETING"
                           ]
                         },
-                        "imageBindings": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "string",
-                                "format": "uuid"
-                              },
-                              "placeholderKey": {
-                                "type": "string"
-                              },
-                              "assetId": {
-                                "type": "string",
-                                "format": "uuid"
-                              },
-                              "publicUrl": {
-                                "type": "string"
-                              },
-                              "altText": {
-                                "type": "string",
-                                "nullable": true
-                              },
-                              "width": {
-                                "type": "integer",
-                                "nullable": true
-                              },
-                              "height": {
-                                "type": "integer",
-                                "nullable": true
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "placeholderKey",
-                              "assetId",
-                              "publicUrl",
-                              "altText",
-                              "width",
-                              "height"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
                         "createdAt": {
                           "anyOf": [
                             {
@@ -24608,106 +24457,6 @@
         }
       }
     },
-    "/v1/email-assets": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      },
-      "post": {
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/v1/email-assets/{id}/confirm": {
-      "post": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/v1/email-assets/{id}/usages": {
-      "get": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/v1/email-assets/{id}/bindings/{bindingId}": {
-      "patch": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "bindingId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/v1/email-assets/{id}": {
-      "delete": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
     "/v1/notification-templates/{templateCode}/{channel}/preview": {
       "post": {
         "requestBody": {
@@ -24726,36 +24475,6 @@
                   "tenantId": {
                     "type": "string",
                     "format": "uuid"
-                  },
-                  "imageBindings": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "placeholderKey": {
-                          "type": "string",
-                          "pattern": "^[a-zA-Z0-9_-]{1,64}$"
-                        },
-                        "altText": {
-                          "type": "string",
-                          "maxLength": 255
-                        },
-                        "width": {
-                          "type": "integer",
-                          "exclusiveMinimum": true,
-                          "minimum": 0
-                        },
-                        "height": {
-                          "type": "integer",
-                          "exclusiveMinimum": true,
-                          "minimum": 0
-                        }
-                      },
-                      "required": [
-                        "placeholderKey"
-                      ],
-                      "additionalProperties": false
-                    }
                   }
                 },
                 "required": [
@@ -26421,6 +26140,10 @@
                     "minLength": 1,
                     "maxLength": 500,
                     "nullable": true
+                  },
+                  "isDefault": {
+                    "type": "boolean",
+                    "default": false
                   }
                 },
                 "required": [
@@ -26490,6 +26213,9 @@
                         "isActive": {
                           "type": "boolean"
                         },
+                        "isDefault": {
+                          "type": "boolean"
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -26512,6 +26238,7 @@
                         "instructionsUrl",
                         "instructionsPassword",
                         "isActive",
+                        "isDefault",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -26674,6 +26401,9 @@
                           "isActive": {
                             "type": "boolean"
                           },
+                          "isDefault": {
+                            "type": "boolean"
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
@@ -26704,6 +26434,7 @@
                           "instructionsUrl",
                           "instructionsPassword",
                           "isActive",
+                          "isDefault",
                           "createdAt",
                           "updatedAt",
                           "tenantName",
@@ -26806,6 +26537,9 @@
                   },
                   "isActive": {
                     "type": "boolean"
+                  },
+                  "isDefault": {
+                    "type": "boolean"
                   }
                 },
                 "additionalProperties": false
@@ -26879,6 +26613,9 @@
                         "isActive": {
                           "type": "boolean"
                         },
+                        "isDefault": {
+                          "type": "boolean"
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -26901,6 +26638,7 @@
                         "instructionsUrl",
                         "instructionsPassword",
                         "isActive",
+                        "isDefault",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -26984,6 +26722,9 @@
                         "isActive": {
                           "type": "boolean"
                         },
+                        "isDefault": {
+                          "type": "boolean"
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -27006,6 +26747,7 @@
                         "instructionsUrl",
                         "instructionsPassword",
                         "isActive",
+                        "isDefault",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -27091,6 +26833,9 @@
                         "isActive": {
                           "type": "boolean"
                         },
+                        "isDefault": {
+                          "type": "boolean"
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -27113,6 +26858,7 @@
                         "instructionsUrl",
                         "instructionsPassword",
                         "isActive",
+                        "isDefault",
                         "createdAt",
                         "updatedAt"
                       ],
