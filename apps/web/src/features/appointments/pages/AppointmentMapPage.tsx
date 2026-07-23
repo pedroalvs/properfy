@@ -68,6 +68,8 @@ interface ServiceGroupMapAppointment {
 interface ServiceGroupMapItem {
   id: string;
   name: string | null;
+  /** Human-friendly group code — always populated by the list endpoint. */
+  code?: string;
   status: ServiceGroupStatus;
   groupSize: number;
   scheduledDate: string;

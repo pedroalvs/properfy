@@ -58,6 +58,22 @@ describe('GroupMapDetailPanel', () => {
     expect(screen.getByText('Service group')).toBeInTheDocument();
   });
 
+  it('shows the group code next to the name when present', () => {
+    renderPanel({ group: { ...sampleGroup, code: '37' } });
+    expect(screen.getByRole('heading', { name: /North Shore run\s*#37/ })).toBeInTheDocument();
+  });
+
+  it('shows the group code next to the fallback title when name is null', () => {
+    renderPanel({ group: { ...sampleGroup, name: null, code: '37' } });
+    expect(screen.getByRole('heading', { name: /Service group\s*#37/ })).toBeInTheDocument();
+  });
+
+  it('omits the code marker when the group has no code', () => {
+    renderPanel();
+    expect(screen.getByRole('heading', { name: 'North Shore run' })).toBeInTheDocument();
+    expect(screen.queryByText(/#/)).toBeNull();
+  });
+
   it('uses singular "appointment" for groupSize 1', () => {
     renderPanel({ group: { ...sampleGroup, groupSize: 1 } });
     expect(screen.getByTestId('group-map-detail-size')).toHaveTextContent('1 appointment');

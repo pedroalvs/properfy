@@ -72,3 +72,13 @@
 .appt-map-lasso-drawing .mapboxgl-marker {
   pointer-events: none;
 }
+
+/* The appointment/group detail popups render their own card chrome
+ * (rounded-lg bg-card-bg shadow-xl), so strip the mapbox-gl default
+ * white box behind them — it showed as an unwanted frame. */
+.appt-map-detail-popup .mapboxgl-popup-content {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+}
