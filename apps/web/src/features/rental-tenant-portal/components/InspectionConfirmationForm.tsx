@@ -37,7 +37,7 @@ export function InspectionConfirmationForm({
 
   if (done === 'CONFIRMED') {
     return (
-      <div className="rounded bg-card-bg p-6 shadow-sm">
+      <div className="rounded-xl border border-black/10 bg-white p-6">
         <div className="flex items-center gap-3 text-success">
           <i className="mdi mdi-check-circle text-2xl" />
           <div>
@@ -53,7 +53,7 @@ export function InspectionConfirmationForm({
 
   if (done === 'UNAVAILABLE') {
     return (
-      <div className="rounded bg-card-bg p-6 shadow-sm">
+      <div className="rounded-xl border border-black/10 bg-white p-6">
         <div className="flex items-center gap-3 text-warning">
           <i className="mdi mdi-calendar-remove text-2xl" />
           <div>
@@ -87,12 +87,13 @@ export function InspectionConfirmationForm({
   const canSubmit = isSubmitEnabled(selection, note, slots) && !isSubmitting;
 
   return (
-    <div className="space-y-5 rounded bg-card-bg p-6 shadow-sm">
+    <section className="space-y-5" aria-label="Your response">
       <div>
-        <p className="mb-3 text-sm font-medium text-text-primary">
+        <h2 className="mb-1 text-base font-extrabold text-text-primary">Your response</h2>
+        <p className="mb-3 text-sm font-semibold text-text-primary">
           Do you confirm the inspection?
         </p>
-        <div className="flex gap-2">
+        <div className="flex overflow-hidden rounded-full border-[1.5px] border-black/10">
           <button
             type="button"
             disabled={isReadOnly || confirmDisabled}
@@ -103,10 +104,10 @@ export function InspectionConfirmationForm({
             }
             onClick={() => setSelection('YES')}
             className={[
-              'rounded-full px-5 py-2 text-sm font-medium transition-colors',
+              'flex-1 py-2.5 text-sm font-extrabold transition-colors',
               selection === 'YES'
                 ? 'bg-success text-white'
-                : 'bg-gray-100 text-text-secondary hover:bg-gray-200',
+                : 'bg-transparent text-text-secondary hover:bg-gray-50',
               isReadOnly || confirmDisabled ? 'cursor-not-allowed opacity-50' : '',
             ]
               .filter(Boolean)
@@ -119,10 +120,10 @@ export function InspectionConfirmationForm({
             disabled={isReadOnly}
             onClick={() => setSelection('NO')}
             className={[
-              'rounded-full px-5 py-2 text-sm font-medium transition-colors',
+              'flex-1 border-l-[1.5px] border-black/10 py-2.5 text-sm font-extrabold transition-colors',
               selection === 'NO'
                 ? 'bg-warning text-white'
-                : 'bg-gray-100 text-text-secondary hover:bg-gray-200',
+                : 'bg-transparent text-text-secondary hover:bg-gray-50',
               isReadOnly ? 'cursor-not-allowed opacity-50' : '',
             ]
               .filter(Boolean)
@@ -140,9 +141,14 @@ export function InspectionConfirmationForm({
       )}
 
       <div>
-        <label htmlFor="icf-note" className="mb-1 block text-sm font-medium text-text-secondary">
+        <label htmlFor="icf-note" className="mb-1 block text-sm font-semibold text-text-primary">
           Observation
         </label>
+        <p className="mb-2 text-xs text-text-muted">
+          Please do not leave key requests on this form. If key access is required, please
+          email us separately. Key access is not available for all inspections and will be
+          assessed on a case-by-case basis.
+        </p>
         <textarea
           id="icf-note"
           value={note}
@@ -173,14 +179,14 @@ export function InspectionConfirmationForm({
         disabled={!canSubmit}
         onClick={handleSubmit}
         className={[
-          'w-full rounded-lg py-2.5 text-sm font-semibold transition-colors',
+          'w-full rounded-full py-3 text-sm font-extrabold transition-colors',
           canSubmit
-            ? 'bg-primary text-white hover:bg-primary/90'
+            ? 'bg-real-estate text-white shadow-[0_8px_18px_-8px_color-mix(in_srgb,var(--color-real-estate)_70%,transparent)] hover:bg-[color-mix(in_srgb,var(--color-real-estate)_85%,black)]'
             : 'cursor-not-allowed bg-gray-100 text-text-muted',
         ].join(' ')}
       >
         {isSubmitting ? 'Submitting…' : 'Submit'}
       </button>
-    </div>
+    </section>
   );
 }

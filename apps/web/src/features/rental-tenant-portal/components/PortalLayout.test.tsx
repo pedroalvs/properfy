@@ -6,7 +6,7 @@ describe('PortalLayout', () => {
   it('renders the Properfy header', () => {
     render(<PortalLayout><div /></PortalLayout>);
 
-    expect(screen.getByText('Properfy')).toBeInTheDocument();
+    expect(screen.getByAltText('Properfy')).toBeInTheDocument();
   });
 
   it('renders children in the main area', () => {

@@ -96,7 +96,7 @@ describe('PortalPage', () => {
     renderPortal();
 
     await waitFor(() => {
-      expect(screen.getByText('Appointment Details')).toBeInTheDocument();
+      expect(screen.getByText('Details')).toBeInTheDocument();
     });
     expect(screen.getByText('09:00 - 11:00')).toBeInTheDocument();
   });
@@ -186,7 +186,7 @@ describe('PortalPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Contact Information')).toBeInTheDocument();
     });
-    expect(screen.getByText('John Tenant')).toBeInTheDocument();
+    expect(screen.getAllByText('John Tenant').length).toBeGreaterThan(0);
   });
 
   it('shows reschedule form when not read-only and not terminal', async () => {

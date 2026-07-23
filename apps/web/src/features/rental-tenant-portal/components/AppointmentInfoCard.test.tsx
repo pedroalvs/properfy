@@ -36,7 +36,7 @@ describe('AppointmentInfoCard', () => {
   it('renders the title', () => {
     render(<AppointmentInfoCard appointment={MOCK_APPOINTMENT} />);
 
-    expect(screen.getByText('Appointment Details')).toBeInTheDocument();
+    expect(screen.getByText('Details')).toBeInTheDocument();
   });
 
   it('renders appointment status chip', () => {
@@ -48,7 +48,7 @@ describe('AppointmentInfoCard', () => {
   it('renders scheduled date', () => {
     render(<AppointmentInfoCard appointment={MOCK_APPOINTMENT} />);
 
-    expect(screen.getByText('Scheduled Date')).toBeInTheDocument();
+    expect(screen.getByText('Scheduled date')).toBeInTheDocument();
     // formatDate uses en-AU locale: DD/MM/YYYY
     expect(screen.getByText(/04\/2026|2026/)).toBeInTheDocument();
   });
@@ -69,7 +69,7 @@ describe('AppointmentInfoCard', () => {
   it('does not show key required when false', () => {
     render(<AppointmentInfoCard appointment={MOCK_APPOINTMENT} />);
 
-    expect(screen.queryByText('Key Required')).not.toBeInTheDocument();
+    expect(screen.queryByText('Key required')).not.toBeInTheDocument();
   });
 
   it('shows key required when true', () => {
@@ -79,7 +79,7 @@ describe('AppointmentInfoCard', () => {
       />,
     );
 
-    expect(screen.getByText('Key Required')).toBeInTheDocument();
+    expect(screen.getByText('Key required')).toBeInTheDocument();
     expect(screen.getByText('Yes')).toBeInTheDocument();
   });
 
@@ -90,14 +90,14 @@ describe('AppointmentInfoCard', () => {
       />,
     );
 
-    expect(screen.getByText('Meeting Location')).toBeInTheDocument();
+    expect(screen.getByText('Meeting location')).toBeInTheDocument();
     expect(screen.getByText('Front lobby')).toBeInTheDocument();
   });
 
   it('does not show meeting location when null', () => {
     render(<AppointmentInfoCard appointment={MOCK_APPOINTMENT} />);
 
-    expect(screen.queryByText('Meeting Location')).not.toBeInTheDocument();
+    expect(screen.queryByText('Meeting location')).not.toBeInTheDocument();
   });
 
   it('shows notes when provided', () => {
