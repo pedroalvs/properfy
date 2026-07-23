@@ -103,6 +103,10 @@ export class JoinGroupUseCase {
     if (!appointment.propertyId || !appointment.serviceTypeId) {
       throw new PortalGroupSlotUnavailableError();
     }
+    // The appointment's own group is never a valid change-time target.
+    if (appointment.serviceGroupId === group.id) {
+      throw new PortalGroupSlotUnavailableError();
+    }
 
     const now = new Date();
     const eligibleSlots = await this.serviceGroupRepo.findPortalEligibleSlots({
@@ -110,6 +114,7 @@ export class JoinGroupUseCase {
       serviceTypeId: appointment.serviceTypeId,
       propertyId: appointment.propertyId,
       today: now,
+      excludeGroupId: appointment.serviceGroupId,
     });
     const selectedEligibleSlot = eligibleSlots.find((slot) => (
       slot.groupId === group.id &&

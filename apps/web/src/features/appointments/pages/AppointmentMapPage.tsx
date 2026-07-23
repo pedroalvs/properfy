@@ -68,6 +68,8 @@ interface ServiceGroupMapAppointment {
 interface ServiceGroupMapItem {
   id: string;
   name: string | null;
+  /** Human-friendly group code — always populated by the list endpoint. */
+  code?: string;
   status: ServiceGroupStatus;
   groupSize: number;
   scheduledDate: string;
@@ -1103,18 +1105,17 @@ export function AppointmentMapPage() {
           </div>
         )}
 
-        {/* C10 — top-right toolbar: List view + lasso, offset left of the
-            Mapbox zoom controls. Stacked vertically so the lasso button never
-            collides with the top-center drawing banner. */}
-        <div className="pointer-events-none absolute right-14 top-4 z-30 flex flex-col items-end gap-2">
-          <div className="pointer-events-auto">
-            <MapListViewToggleButton mode={mode} />
-          </div>
+        {/* C10 — top-right toolbar: lasso + List view in a horizontal row,
+            offset left of the Mapbox zoom controls. */}
+        <div className="pointer-events-none absolute right-14 top-4 z-30 flex items-center gap-2">
           {lassoAvailable && (
             <div className="pointer-events-auto">
               <MapLassoToggleButton active={lassoState !== 'idle'} onClick={handleLassoToggle} />
             </div>
           )}
+          <div className="pointer-events-auto">
+            <MapListViewToggleButton mode={mode} />
+          </div>
         </div>
 
       <MapBulkActionModal

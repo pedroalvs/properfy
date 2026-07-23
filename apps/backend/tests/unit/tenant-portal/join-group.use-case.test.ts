@@ -241,6 +241,31 @@ describe('JoinGroupUseCase', () => {
     await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupUnavailableError);
   });
 
+  it('should throw PortalGroupSlotUnavailableError when joining the appointment own group', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment({ status: 'SCHEDULED', serviceGroupId: 'sg-new' }),
+      contact: null,
+      restrictions: [],
+    });
+
+    await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupSlotUnavailableError);
+    expect(serviceGroupRepo.findPortalEligibleSlots).not.toHaveBeenCalled();
+    expect(tokenRepo.tryClaim).not.toHaveBeenCalled();
+  });
+
+  it('should exclude the previous group from the eligible-slot whitelist', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment({ status: 'SCHEDULED', serviceGroupId: 'sg-old' }),
+      contact: null,
+      restrictions: [],
+    });
+
+    await useCase.execute(makeInput());
+    expect(serviceGroupRepo.findPortalEligibleSlots).toHaveBeenCalledWith(
+      expect.objectContaining({ excludeGroupId: 'sg-old' }),
+    );
+  });
+
   it('should throw PortalGroupSlotUnavailableError when selected slot is not a current member appointment slot', async () => {
     serviceGroupRepo.hasPortalMemberSlot.mockResolvedValue(false);
     await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupSlotUnavailableError);
