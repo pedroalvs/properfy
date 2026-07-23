@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { Aes256GcmService } from '../../../shared/infrastructure/crypto/aes-256-gcm.service';
 import { AppCredentialEntity } from '../domain/app-credential.entity';
+import { mergeEffectiveCredentials } from '../domain/effective-credentials';
 import type {
   IAppCredentialRepository,
   AppCredentialFilters,
@@ -22,6 +23,7 @@ interface AppCredentialRow {
   instructions_url: string | null;
   instructions_password_encrypted: string | null;
   is_active: boolean;
+  is_default: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -54,6 +56,7 @@ export class PrismaAppCredentialRepository implements IAppCredentialRepository {
         ? this.aes.decrypt(row.instructions_password_encrypted)
         : null,
       isActive: row.is_active,
+      isDefault: row.is_default,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     });
@@ -148,6 +151,7 @@ export class PrismaAppCredentialRepository implements IAppCredentialRepository {
           ? this.aes.encrypt(credential.instructionsPassword)
           : null,
         is_active: credential.isActive,
+        is_default: credential.isDefault,
         created_at: credential.createdAt,
         updated_at: credential.updatedAt,
       },
@@ -172,6 +176,7 @@ export class PrismaAppCredentialRepository implements IAppCredentialRepository {
         : null;
     }
     if (data.isActive !== undefined) updateData.is_active = data.isActive;
+    if (data.isDefault !== undefined) updateData.is_default = data.isDefault;
     await this.prisma.appCredential.update({ where: { id }, data: updateData });
   }
 
@@ -188,6 +193,29 @@ export class PrismaAppCredentialRepository implements IAppCredentialRepository {
       include: { app_credential: true },
     });
     return links.map((link) => this.mapToEntity(link.app_credential));
+  }
+
+  async findEffectiveForAppointment(
+    appointmentId: string,
+    tenantId: string,
+    branchId: string | null,
+  ): Promise<AppCredentialEntity[]> {
+    const [linked, defaultRows] = await Promise.all([
+      this.findByAppointmentId(appointmentId),
+      this.prisma.appCredential.findMany({
+        where: {
+          tenant_id: tenantId,
+          is_default: true,
+          is_active: true,
+          OR: [{ branch_id: branchId }, { branch_id: null }],
+        },
+        orderBy: { name: 'asc' },
+      }),
+    ]);
+    return mergeEffectiveCredentials(
+      linked,
+      defaultRows.map((row) => this.mapToEntity(row)),
+    );
   }
 
   async replaceAppointmentLinks(appointmentId: string, appCredentialIds: string[]): Promise<void> {

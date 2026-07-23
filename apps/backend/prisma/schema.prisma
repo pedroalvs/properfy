@@ -706,6 +706,7 @@ model AppCredential {
   instructions_url                String?  @db.VarChar(1000)
   instructions_password_encrypted String?
   is_active                       Boolean  @default(true)
+  is_default                      Boolean  @default(false)
   created_at                      DateTime @default(now())
   updated_at                      DateTime @updatedAt
 
@@ -713,6 +714,7 @@ model AppCredential {
   branch       Branch?                    @relation(fields: [branch_id], references: [id])
   appointments AppointmentAppCredential[]
 
+  @@index([tenant_id, is_default])
   @@index([tenant_id, is_active])
   @@index([tenant_id, name])
   @@index([tenant_id, branch_id])

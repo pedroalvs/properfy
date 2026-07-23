@@ -33,7 +33,12 @@ export function AppCredentialMultiSelect({ value, onChange, tenantId, branchId, 
   );
 
   const options = useMemo(
-    () => (data?.data ?? []).map((a) => ({ value: a.id, label: `${a.name} · ${a.username}` })),
+    () =>
+      (data?.data ?? []).map((a) => ({
+        value: a.id,
+        // Defaults already show on every appointment; selecting one is a harmless no-op.
+        label: `${a.name} · ${a.username}${a.isDefault ? ' · always included' : ''}`,
+      })),
     [data],
   );
 
