@@ -4,7 +4,7 @@ import { TemplateRendererService } from '../modules/notification/domain/template
 
 const prisma = new PrismaClient();
 
-// AST-based extraction (handles block helpers like {{#if agencyLogoUrl}}),
+// AST-based extraction (handles block helpers like {{#if properfyLogoUrl}}),
 // shared with the runtime render pipeline.
 const templateRenderer = new TemplateRendererService();
 

@@ -137,14 +137,14 @@ describe('HtmlSanitizerService — save profile (validateForSave)', () => {
 
   it('should permit <img> whose src is a template variable (resolved at render time)', async () => {
     const svc = await loadImpl();
-    const html = '{{#if agencyLogoUrl}}<img src="{{agencyLogoUrl}}" alt="{{agencyName}}">{{/if}}';
+    const html = '{{#if properfyLogoUrl}}<img src="{{properfyLogoUrl}}" alt="{{agencyName}}">{{/if}}';
     const result = svc.validateForSave(html);
     expect(result.safe).toBe(true);
   });
 
   it('should still reject javascript: prefix even with a template variable appended', async () => {
     const svc = await loadImpl();
-    const html = '<img src="javascript:{{agencyLogoUrl}}">';
+    const html = '<img src="javascript:{{properfyLogoUrl}}">';
     const result = svc.validateForSave(html);
     expect(result.safe).toBe(false);
   });

@@ -7,7 +7,7 @@ import { AppointmentEntity } from '../../../src/modules/appointment/domain/appoi
 import { AppointmentContactEntity } from '../../../src/modules/appointment/domain/appointment-contact.entity';
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { AppointmentCodeFormatter } from '../../../src/modules/appointment/domain/appointment-code.formatter';
-import { MANDATORY_TEMPLATE_CODES } from '@properfy/shared';
+import { MANDATORY_TEMPLATE_CODES, PROPERFY_LOGO_URL } from '@properfy/shared';
 
 const formatter = new AppointmentCodeFormatter();
 
@@ -201,17 +201,12 @@ describe('BuildNotificationPayloadService', () => {
     expect(result.appointmentCode).toBe('ABC-0042');
   });
 
-  // ── Agency logo and service type name ─────────────────────────────────────
+  // ── Properfy logo and service type name ───────────────────────────────────
 
-  it('exposes agencyLogoUrl from tenant.settingsJson.logoUrl', () => {
-    const tenant = makeTenant({ settingsJson: { logoUrl: 'https://cdn.example.com/logo.png' } });
-    const result = svc.build(baseCtx({ tenant }));
-    expect(result.agencyLogoUrl).toBe('https://cdn.example.com/logo.png');
-  });
-
-  it('agencyLogoUrl is empty string when tenant has no logo configured', () => {
+  it('exposes properfyLogoUrl as the fixed Properfy logo asset', () => {
     const result = svc.build(baseCtx());
-    expect(result.agencyLogoUrl).toBe('');
+    expect(result.properfyLogoUrl).toBe(PROPERFY_LOGO_URL);
+    expect(result.properfyLogoUrl).toMatch(/^https:\/\//);
   });
 
   it('exposes serviceTypeName from context', () => {
