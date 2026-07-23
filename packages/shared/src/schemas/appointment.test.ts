@@ -710,6 +710,43 @@ describe('listAppointmentsQuerySchema', () => {
     const result = listAppointmentsQuerySchema.safeParse({ ungroupedOnly: 'true' });
     expect(result.success).toBe(true);
   });
+
+  it('should parse a single rentalTenantConfirmationStatus into a one-element array', () => {
+    const result = listAppointmentsQuerySchema.safeParse({
+      rentalTenantConfirmationStatus: 'CONFIRMED',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.rentalTenantConfirmationStatus).toEqual(['CONFIRMED']);
+    }
+  });
+
+  it('should parse a comma-separated rentalTenantConfirmationStatus list', () => {
+    const result = listAppointmentsQuerySchema.safeParse({
+      rentalTenantConfirmationStatus: 'PENDING,NO_RESPONSE',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.rentalTenantConfirmationStatus).toEqual(['PENDING', 'NO_RESPONSE']);
+    }
+  });
+
+  it('should reject an unknown rentalTenantConfirmationStatus value', () => {
+    const result = listAppointmentsQuerySchema.safeParse({
+      rentalTenantConfirmationStatus: 'CONFIRMED,INVALID',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should treat an empty rentalTenantConfirmationStatus as absent', () => {
+    const result = listAppointmentsQuerySchema.safeParse({
+      rentalTenantConfirmationStatus: '',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.rentalTenantConfirmationStatus).toBeUndefined();
+    }
+  });
 });
 
 describe('forceManualConfirmationSchema', () => {

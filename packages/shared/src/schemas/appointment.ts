@@ -194,7 +194,15 @@ export const listAppointmentsQuerySchema = paginationSchema.extend({
   search: z.string().max(200).optional(),
   fromDate: z.string().date().optional(),
   toDate: z.string().date().optional(),
-  rentalTenantConfirmationStatus: z.nativeEnum(RentalTenantConfirmationStatus).optional(),
+  rentalTenantConfirmationStatus: z.preprocess(
+    (v) => {
+      if (v === undefined || v === null || v === '') return undefined;
+      if (Array.isArray(v)) return v;
+      if (typeof v === 'string') return v.split(',').map((s) => s.trim()).filter(Boolean);
+      return [v];
+    },
+    z.array(z.nativeEnum(RentalTenantConfirmationStatus)).min(1).optional(),
+  ),
   showCancelled: z
     .preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean())
     .optional(),

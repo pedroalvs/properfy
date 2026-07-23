@@ -217,7 +217,7 @@ class InMemoryAppointmentRepo implements IAppointmentRepository {
         if (filters.serviceTypeId && appointment.serviceTypeId !== filters.serviceTypeId) return false;
         if (filters.inspectorId && appointment.inspectorId !== filters.inspectorId) return false;
         if (filters.propertyId && appointment.propertyId !== filters.propertyId) return false;
-        if (filters.rentalTenantConfirmationStatus && appointment.rentalTenantConfirmationStatus !== filters.rentalTenantConfirmationStatus) return false;
+        if (filters.rentalTenantConfirmationStatus && !filters.rentalTenantConfirmationStatus.includes(appointment.rentalTenantConfirmationStatus)) return false;
         const scheduledDate = appointment.scheduledDate.toISOString().slice(0, 10);
         if (filters.fromDate && scheduledDate < filters.fromDate) return false;
         if (filters.toDate && scheduledDate > filters.toDate) return false;

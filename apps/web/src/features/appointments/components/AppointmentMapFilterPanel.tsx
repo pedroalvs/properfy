@@ -4,7 +4,11 @@ import { FilterInput } from '@/components/filters/FilterInput';
 import { FilterDateRange } from '@/components/filters/FilterDateRange';
 import { FilterTimeRange } from '@/components/filters/FilterTimeRange';
 import { FilterBoolean } from '@/components/filters/FilterBoolean';
-import { APPOINTMENT_STATUS_MAP, SERVICE_GROUP_STATUS_MAP } from '@/lib/status-colors';
+import {
+  APPOINTMENT_STATUS_MAP,
+  SERVICE_GROUP_STATUS_MAP,
+  RENTAL_TENANT_CONFIRMATION_STATUS_MAP,
+} from '@/lib/status-colors';
 
 export type FilterMode = 'appointments' | 'groups';
 
@@ -13,9 +17,13 @@ export interface AppointmentModeFilters {
   statuses: string[];
   serviceTypeId: string;
   contactSearch: string;
-  /** AM-only: filter by tenant (agency). */
+  /** AM/OP-only: filter by tenant (agency). */
   tenantId: string;
   branchId: string;
+  /** AM/OP-only: filter by assigned inspector. */
+  inspectorId: string;
+  /** Multi-select over RentalTenantConfirmationStatus; empty = all. */
+  rentalTenantConfirmationStatuses: string[];
   dateFrom: string;
   dateTo: string;
   timeFrom: string;
@@ -40,6 +48,8 @@ export const DEFAULT_APPOINTMENT_FILTERS: AppointmentModeFilters = {
   contactSearch: '',
   tenantId: '',
   branchId: '',
+  inspectorId: '',
+  rentalTenantConfirmationStatuses: [],
   dateFrom: '',
   dateTo: '',
   timeFrom: '',
@@ -70,6 +80,10 @@ const GROUP_STATUS_OPTIONS = Object.entries(SERVICE_GROUP_STATUS_MAP).map(
   ([value, config]) => ({ label: config.label, value }),
 );
 
+const CONFIRMATION_STATUS_OPTIONS = Object.entries(RENTAL_TENANT_CONFIRMATION_STATUS_MAP).map(
+  ([value, config]) => ({ label: config.label, value }),
+);
+
 const EMAIL_SENT_OPTIONS = [
   { label: 'All', value: '' },
   { label: 'Email sent', value: 'sent' },
@@ -85,9 +99,11 @@ interface AppointmentMapFilterPanelProps {
   onGroupFiltersChange: (filters: GroupModeFilters) => void;
   serviceTypeOptions?: Array<{ label: string; value: string }>;
   branchOptions?: Array<{ label: string; value: string }>;
-  /** AM-only: list of tenants for the Customers filter. */
+  /** AM/OP-only: list of tenants for the Agencies filter. */
   tenantOptions?: Array<{ label: string; value: string }>;
-  /** Actor role — gates the Customers filter to AM only. */
+  /** AM/OP-only: list of inspectors for the Inspector filter. */
+  inspectorOptions?: Array<{ label: string; value: string }>;
+  /** Actor role — gates the Agencies filter to AM/OP. */
   actorRole?: string;
 }
 
@@ -101,6 +117,7 @@ export function AppointmentMapFilterPanel({
   serviceTypeOptions = [],
   branchOptions = [],
   tenantOptions = [],
+  inspectorOptions = [],
   actorRole,
 }: AppointmentMapFilterPanelProps) {
   const toggleStatus = (
@@ -140,6 +157,7 @@ export function AppointmentMapFilterPanel({
               serviceTypeOptions={serviceTypeOptions}
               branchOptions={branchOptions}
               tenantOptions={tenantOptions}
+              inspectorOptions={inspectorOptions}
               actorRole={actorRole}
             />
           ) : (
@@ -200,6 +218,7 @@ function AppointmentModeFields({
   serviceTypeOptions,
   branchOptions,
   tenantOptions,
+  inspectorOptions,
   actorRole,
 }: {
   filters: AppointmentModeFilters;
@@ -208,6 +227,7 @@ function AppointmentModeFields({
   serviceTypeOptions: Array<{ label: string; value: string }>;
   branchOptions: Array<{ label: string; value: string }>;
   tenantOptions: Array<{ label: string; value: string }>;
+  inspectorOptions: Array<{ label: string; value: string }>;
   actorRole?: string;
 }) {
   return (
@@ -235,13 +255,22 @@ function AppointmentModeFields({
         />
       )}
 
-      {/* Customers filter — AM only (cross-tenant role, needs per-tenant narrowing). */}
-      {actorRole === 'AM' && tenantOptions.length > 0 && (
+      {/* Agencies filter — AM/OP only (cross-tenant roles, need per-tenant narrowing). */}
+      {(actorRole === 'AM' || actorRole === 'OP') && tenantOptions.length > 0 && (
         <FilterSelect
           label="Agencies"
           value={filters.tenantId}
           options={[{ label: 'All', value: '' }, ...tenantOptions]}
           onChange={(v) => onChange({ ...filters, tenantId: v })}
+        />
+      )}
+
+      {inspectorOptions.length > 0 && (
+        <FilterSelect
+          label="Inspector"
+          value={filters.inspectorId}
+          options={[{ label: 'All', value: '' }, ...inspectorOptions]}
+          onChange={(v) => onChange({ ...filters, inspectorId: v })}
         />
       )}
 
@@ -268,6 +297,18 @@ function AppointmentModeFields({
         endTime={filters.timeTo}
         onStartChange={(v) => onChange({ ...filters, timeFrom: v })}
         onEndChange={(v) => onChange({ ...filters, timeTo: v })}
+      />
+
+      <StatusMultiSelect
+        label="Tenant Confirmation"
+        options={CONFIRMATION_STATUS_OPTIONS}
+        selectedValues={filters.rentalTenantConfirmationStatuses}
+        onToggle={(s) =>
+          onChange({
+            ...filters,
+            rentalTenantConfirmationStatuses: toggleStatus(filters.rentalTenantConfirmationStatuses, s),
+          })
+        }
       />
 
       <FilterSelect
