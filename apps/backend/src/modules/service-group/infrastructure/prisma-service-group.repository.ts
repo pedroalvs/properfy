@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import type { ServiceGroupStatus as PrismaServiceGroupStatus } from '@prisma/client';
 import { ServiceGroupEntity } from '../domain/service-group.entity';
@@ -826,8 +827,12 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     serviceTypeId: string;
     propertyId: string;
     today: Date;
+    excludeGroupId?: string | null;
   }): Promise<PortalEligibleSlot[]> {
     const todayStr = params.today.toISOString().slice(0, 10);
+    const excludeClause = params.excludeGroupId
+      ? Prisma.sql`AND sg.id <> ${params.excludeGroupId}`
+      : Prisma.empty;
 
     type Row = {
       group_id: string;
@@ -847,6 +852,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         JOIN properties p ON p.id = a.property_id AND p.deleted_at IS NULL
         WHERE a.tenant_id = ${params.tenantId}
           AND sg.service_type_id = ${params.serviceTypeId}
+          ${excludeClause}
           AND sg.status = 'ACCEPTED'
           AND sg.confirmed_count < 10
           AND sg.scheduled_date::date > ${todayStr}::date
