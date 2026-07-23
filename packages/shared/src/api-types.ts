@@ -4499,7 +4499,7 @@ export interface paths {
                     search?: string;
                     fromDate?: string;
                     toDate?: string;
-                    rentalTenantConfirmationStatus?: "PENDING" | "CONFIRMED" | "UNAVAILABLE" | "NO_RESPONSE";
+                    rentalTenantConfirmationStatus?: ("PENDING" | "CONFIRMED" | "UNAVAILABLE" | "NO_RESPONSE")[];
                     showCancelled?: boolean;
                     overdueOnly?: boolean;
                     ungroupedOnly?: boolean;
@@ -7681,6 +7681,8 @@ export interface paths {
                             };
                             agencyPhone?: string;
                             deadline?: string;
+                            rentalTenantNames?: string[];
+                            propertyManager?: string | null;
                             rescheduleAllowed?: boolean;
                             tenant?: {
                                 name: string | null;
@@ -11556,6 +11558,7 @@ export interface paths {
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;
                                 isActive: boolean;
+                                isDefault: boolean;
                                 /** Format: date-time */
                                 createdAt: string;
                                 /** Format: date-time */
@@ -11600,6 +11603,8 @@ export interface paths {
                         /** Format: uri */
                         instructionsUrl?: string | null;
                         instructionsPassword?: string | null;
+                        /** @default false */
+                        isDefault?: boolean;
                     };
                 };
             };
@@ -11627,6 +11632,7 @@ export interface paths {
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;
                                 isActive: boolean;
+                                isDefault: boolean;
                                 /** Format: date-time */
                                 createdAt: string;
                                 /** Format: date-time */
@@ -11684,6 +11690,7 @@ export interface paths {
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;
                                 isActive: boolean;
+                                isDefault: boolean;
                                 /** Format: date-time */
                                 createdAt: string;
                                 /** Format: date-time */
@@ -11724,6 +11731,7 @@ export interface paths {
                         instructionsUrl?: string | null;
                         instructionsPassword?: string | null;
                         isActive?: boolean;
+                        isDefault?: boolean;
                     };
                 };
             };
@@ -11751,6 +11759,7 @@ export interface paths {
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;
                                 isActive: boolean;
+                                isDefault: boolean;
                                 /** Format: date-time */
                                 createdAt: string;
                                 /** Format: date-time */
@@ -11806,6 +11815,7 @@ export interface paths {
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;
                                 isActive: boolean;
+                                isDefault: boolean;
                                 /** Format: date-time */
                                 createdAt: string;
                                 /** Format: date-time */

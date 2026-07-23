@@ -11314,13 +11314,17 @@
           },
           {
             "schema": {
-              "type": "string",
-              "enum": [
-                "PENDING",
-                "CONFIRMED",
-                "UNAVAILABLE",
-                "NO_RESPONSE"
-              ]
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "PENDING",
+                  "CONFIRMED",
+                  "UNAVAILABLE",
+                  "NO_RESPONSE"
+                ]
+              },
+              "minItems": 1
             },
             "in": "query",
             "name": "rentalTenantConfirmationStatus",
@@ -17648,6 +17652,16 @@
                           "format": "date-time"
                         }
                       ]
+                    },
+                    "rentalTenantNames": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "propertyManager": {
+                      "type": "string",
+                      "nullable": true
                     },
                     "rescheduleAllowed": {
                       "type": "boolean"
