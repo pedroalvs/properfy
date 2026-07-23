@@ -15706,159 +15706,22 @@
                           "type": "string",
                           "format": "uuid"
                         },
-                        "groupNumber": {
-                          "type": "number"
-                        },
-                        "code": {
-                          "type": "string"
-                        },
-                        "tenantId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "agencies": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "string",
-                                "format": "uuid"
-                              },
-                              "name": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "name"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "serviceTypeId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
                         "status": {
                           "type": "string"
                         },
-                        "groupSize": {
-                          "type": "number"
-                        },
-                        "offeredCount": {
-                          "type": "number"
-                        },
-                        "confirmedCount": {
-                          "type": "number"
-                        },
-                        "scheduledDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "timeWindow": {
-                          "type": "string"
-                        },
-                        "regionName": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "description": {
-                          "type": "string",
-                          "nullable": true
-                        },
                         "assignedInspectorId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "serviceRegionId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "nullable": true
-                        },
-                        "publishedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "assignedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "createdByUserId": {
                           "type": "string",
                           "format": "uuid"
                         },
-                        "createdAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "updatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "appointmentsCount": {
+                        "appointmentsScheduled": {
                           "type": "number"
-                        },
-                        "appointments": {
-                          "type": "array",
-                          "items": {}
-                        },
-                        "assignedInspector": {
-                          "nullable": true
                         }
                       },
                       "required": [
                         "id",
-                        "tenantId",
-                        "serviceTypeId",
                         "status",
-                        "groupSize",
-                        "offeredCount",
-                        "confirmedCount",
-                        "scheduledDate",
-                        "timeWindow",
                         "assignedInspectorId",
-                        "publishedAt",
-                        "createdAt"
+                        "appointmentsScheduled"
                       ],
                       "additionalProperties": false
                     }

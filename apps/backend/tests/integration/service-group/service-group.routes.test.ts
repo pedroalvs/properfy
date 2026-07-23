@@ -221,8 +221,14 @@ describe('POST /v1/service-groups/:groupId/publish', () => {
 describe('POST /v1/service-groups/:groupId/assign', () => {
   it('should return 200 on successful assignment', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
-    const assignedGroup = { ...fullServiceGroup, status: 'ASSIGNED', assignedInspectorId: INSPECTOR_ID, assignedAt: new Date().toISOString() };
-    mockAssignInspectorManuallyExecute.mockResolvedValueOnce(assignedGroup);
+    // The use case returns a narrowed AssignInspectorManuallyOutput, not the
+    // full group — the response schema must accept exactly this shape.
+    mockAssignInspectorManuallyExecute.mockResolvedValueOnce({
+      id: GROUP_ID,
+      status: 'ACCEPTED',
+      assignedInspectorId: INSPECTOR_ID,
+      appointmentsScheduled: 3,
+    });
 
     const res = await supertest(app.server)
       .post(`/v1/service-groups/${GROUP_ID}/assign`)
@@ -230,8 +236,12 @@ describe('POST /v1/service-groups/:groupId/assign', () => {
       .send({ inspectorId: INSPECTOR_ID });
 
     expect(res.status).toBe(200);
-    expect(res.body.data.assignedInspectorId).toBe(INSPECTOR_ID);
-    expect(res.body.data.assignedAt).toBeTruthy();
+    expect(res.body.data).toEqual({
+      id: GROUP_ID,
+      status: 'ACCEPTED',
+      assignedInspectorId: INSPECTOR_ID,
+      appointmentsScheduled: 3,
+    });
   });
 
   it('should return 401 without auth token', async () => {
