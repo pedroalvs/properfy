@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -149,7 +149,7 @@ export function RelationsTab({ contactId, enabled }: RelationsTabProps) {
                 aria-label="Open property"
                 className="inline-flex h-9 w-9 items-center justify-center rounded-full text-text-secondary hover:bg-black/5"
               >
-                <i className="mdi mdi-open-in-new text-lg" aria-hidden="true" />
+                <i className="mdi mdi-eye-outline text-lg" aria-hidden="true" />
               </button>
             </div>
             {expanded ? (
@@ -159,14 +159,12 @@ export function RelationsTab({ contactId, enabled }: RelationsTabProps) {
                 ) : (
                   g.appointments.map((a) => (
                     <li key={a.appointmentId} className="flex items-center gap-3">
-                      <a
+                      <Link
                         className="text-primary hover:underline"
-                        href={`/appointments/${a.appointmentId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        to={`/appointments/${a.appointmentId}`}
                       >
                         #{a.appointmentNumber}
-                      </a>
+                      </Link>
                       <span className="text-text-secondary">{a.status}</span>
                       <span className="text-text-secondary">{a.role}</span>
                       {a.isPrimary ? <span className="text-xs font-semibold text-success">primary</span> : null}

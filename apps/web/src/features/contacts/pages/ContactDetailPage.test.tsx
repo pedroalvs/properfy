@@ -125,6 +125,58 @@ describe('ContactDetailPage — lazy fetch on tab activation (NFR-204)', () => {
     });
   });
 
+  it('Relations tab renders appointment links that navigate in the same tab', async () => {
+    mockGet.mockImplementation(async (path: string) => {
+      if (typeof path === 'string' && path.includes('includeProperties=true')) {
+        return {
+          data: {
+            data: {
+              ...baseContact,
+              properties: {
+                data: [{
+                  propertyId: 'prop-1',
+                  propertyCode: 'AG-PROP-0001',
+                  street: '1 Test St',
+                  suburb: 'Sydney',
+                  postcode: '2000',
+                  state: 'NSW',
+                  appointmentCount: 1,
+                  isPrimaryInActiveAppointment: false,
+                }],
+                pagination: { page: 1, pageSize: 100, total: 1, totalPages: 1 },
+              },
+              appointments: {
+                data: [{
+                  appointmentId: 'apt-9',
+                  appointmentNumber: 1009,
+                  status: 'SCHEDULED',
+                  scheduledDate: '2026-08-01',
+                  role: 'TENANT',
+                  isPrimary: false,
+                  propertyId: 'prop-1',
+                  propertyCode: 'AG-PROP-0001',
+                }],
+                pagination: { page: 1, pageSize: 100, total: 1, totalPages: 1 },
+              },
+            },
+          },
+        };
+      }
+      if (typeof path === 'string' && path.startsWith('/v1/contacts/')) {
+        return { data: { data: baseContact } };
+      }
+      return { data: { data: [], pagination: { page: 1, pageSize: 10, total: 0, totalPages: 0 } } };
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getAllByText('Jane Smith').length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByRole('tab', { name: /Relations/i }));
+    const groupToggle = await screen.findByText('AG-PROP-0001');
+    fireEvent.click(groupToggle);
+    const link = await screen.findByRole('link', { name: '#1009' });
+    expect(link).toHaveAttribute('href', '/appointments/apt-9');
+    expect(link).not.toHaveAttribute('target');
+  });
+
   it('activating Timeline tab fires the audit-logs query', async () => {
     renderPage();
     await waitFor(() => expect(screen.getAllByText('Jane Smith').length).toBeGreaterThan(0));

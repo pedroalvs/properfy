@@ -125,9 +125,6 @@ export function AppointmentListPage() {
           error={isError ? (errorMessage ?? 'Failed to load appointments') : undefined}
           onRetryError={refetch}
           pagination={pagination}
-          onView={(apt) => {
-            window.open(`/appointments/${apt.id}`, '_blank');
-          }}
           selectedIds={canBulkEdit ? selectedIds : undefined}
           onSelectionChange={canBulkEdit ? setSelectedIds : undefined}
         />

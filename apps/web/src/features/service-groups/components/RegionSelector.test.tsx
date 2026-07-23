@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { RegionSelector } from './RegionSelector';
 
 vi.mock('../hooks/useResolveRegions', () => ({
@@ -14,12 +15,14 @@ function renderSelector(props: Partial<React.ComponentProps<typeof RegionSelecto
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <RegionSelector
-        appointmentIds={['apt-1']}
-        selectedRegionId=""
-        onRegionChange={vi.fn()}
-        {...props}
-      />
+      <MemoryRouter>
+        <RegionSelector
+          appointmentIds={['apt-1']}
+          selectedRegionId=""
+          onRegionChange={vi.fn()}
+          {...props}
+        />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -43,6 +46,9 @@ describe('RegionSelector — single banner per state', () => {
     } as any);
     renderSelector();
     expect(screen.getByText(/No active regions/i)).toBeInTheDocument();
+    const manageLink = screen.getByRole('link', { name: /manage regions/i });
+    expect(manageLink).toHaveAttribute('href', '/service-regions');
+    expect(manageLink).not.toHaveAttribute('target');
     expect(screen.queryByText(/Failed to load/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/could not be matched/i)).not.toBeInTheDocument();
   });

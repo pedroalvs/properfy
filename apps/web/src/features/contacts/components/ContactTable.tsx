@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import { ContactTypeChip } from './ContactTypeChip';
@@ -111,19 +112,14 @@ export function ContactTable({
         }
         return (
           <div className="flex items-center gap-1">
-            <a
-              href={`/contacts/${row.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              to={`/contacts/${row.id}`}
               aria-label="Open detail"
-              onClick={(e) => {
-                e.stopPropagation();
-                onView?.(row);
-              }}
+              onClick={(e) => e.stopPropagation()}
               className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgba(0,0,0,0.54)] hover:bg-black/5"
             >
-              <i className="mdi mdi-open-in-new text-lg" aria-hidden="true" />
-            </a>
+              <i className="mdi mdi-eye-outline text-lg" aria-hidden="true" />
+            </Link>
             {actions.length > 0 ? <RowActions actions={actions} /> : null}
           </div>
         );
@@ -141,6 +137,7 @@ export function ContactTable({
       pagination={pagination}
       defaultSort={{ key: 'displayName', order: 'asc' }}
       keyExtractor={(row) => row.id}
+      onRowClick={onView}
     />
   );
 }
