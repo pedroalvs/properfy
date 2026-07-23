@@ -578,6 +578,10 @@ export const portalDataResponseSchema = z.object({
   }).optional(),
   agencyPhone: z.string().optional(),
   deadline: dateStr().optional(),
+  // All RENTAL_TENANT contact names (primary first) — portal Details section.
+  rentalTenantNames: z.array(z.string()).optional(),
+  // Display name of the PROPERTY_MANAGER contact, when one is linked.
+  propertyManager: z.string().nullable().optional(),
   rescheduleAllowed: z.boolean().optional(),
   tenant: z.object({ name: z.string().nullable(), timezone: z.string() }).optional(),
 });

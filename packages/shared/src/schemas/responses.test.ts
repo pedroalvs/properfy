@@ -288,6 +288,41 @@ describe('portalDataResponseSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  const validBase = {
+    token: { status: 'ACTIVE', isReadOnly: false, isExpired: false, canRequestNewLink: false, expiresAt: '2026-04-01T00:00:00.000Z' },
+    appointment: { id: '123' },
+    contact: null,
+    restrictions: null,
+  };
+
+  it('should accept rentalTenantNames and propertyManager', () => {
+    const result = portalDataResponseSchema.safeParse({
+      ...validBase,
+      rentalTenantNames: ['Daniel Anderson', 'Hiranya Koehler'],
+      propertyManager: 'Belle Property Randwick',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept propertyManager as null and omitted new fields', () => {
+    expect(portalDataResponseSchema.safeParse({ ...validBase, propertyManager: null }).success).toBe(true);
+    expect(portalDataResponseSchema.safeParse(validBase).success).toBe(true);
+  });
+
+  it('should accept an empty rentalTenantNames array', () => {
+    expect(portalDataResponseSchema.safeParse({ ...validBase, rentalTenantNames: [] }).success).toBe(true);
+  });
+
+  it('should reject rentalTenantNames with non-string members', () => {
+    expect(portalDataResponseSchema.safeParse({ ...validBase, rentalTenantNames: [123] }).success).toBe(false);
+    expect(portalDataResponseSchema.safeParse({ ...validBase, rentalTenantNames: 'Daniel' }).success).toBe(false);
+  });
+
+  it('should reject non-string propertyManager', () => {
+    expect(portalDataResponseSchema.safeParse({ ...validBase, propertyManager: 42 }).success).toBe(false);
+    expect(portalDataResponseSchema.safeParse({ ...validBase, propertyManager: { name: 'x' } }).success).toBe(false);
+  });
+
   it('should accept expired token with canRequestNewLink flag', () => {
     const result = portalDataResponseSchema.safeParse({
       token: { status: 'EXPIRED', isReadOnly: true, isExpired: true, canRequestNewLink: true, expiresAt: '2026-04-01T00:00:00.000Z' },
