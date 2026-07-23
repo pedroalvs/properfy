@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useDetailQuery } from '@/hooks/useApiQuery';
 import { normalizeCustomFields } from '@properfy/shared';
 import type { AppointmentDetail } from '../types';
@@ -24,12 +25,20 @@ export function useAppointmentDetail(id: string | null): UseAppointmentDetailRet
   );
 
   const raw = response?.data ?? null;
-  const appointment: AppointmentDetail | null = raw
-    ? {
-        ...raw,
-        customFields: normalizeCustomFields(raw.customFieldsJson),
-      }
-    : null;
+  // Memoized so consumers get a referentially stable object per fetch result.
+  // AppointmentFormDrawer's populate effect depends on this reference; a fresh
+  // object every render re-triggers its setState calls in an infinite loop
+  // that starves router re-renders (URL changes but the screen never swaps).
+  const appointment: AppointmentDetail | null = useMemo(
+    () =>
+      raw
+        ? {
+            ...raw,
+            customFields: normalizeCustomFields(raw.customFieldsJson),
+          }
+        : null,
+    [raw],
+  );
 
   return {
     appointment,
