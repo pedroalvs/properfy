@@ -482,8 +482,8 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     if (filters.branchId) where['branch_id'] = filters.branchId;
     if (filters.inspectorId) where['inspector_id'] = filters.inspectorId;
     if (filters.propertyId) where['property_id'] = filters.propertyId;
-    if (filters.rentalTenantConfirmationStatus) {
-      where['rental_tenant_confirmation_status'] = filters.rentalTenantConfirmationStatus;
+    if (filters.rentalTenantConfirmationStatus && filters.rentalTenantConfirmationStatus.length > 0) {
+      where['rental_tenant_confirmation_status'] = { in: filters.rentalTenantConfirmationStatus };
     }
     if (filters.search) {
       const orConditions: Record<string, unknown>[] = [

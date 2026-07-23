@@ -291,6 +291,47 @@ describe('AppointmentMapPage', () => {
       );
     });
   });
+
+  it('sends a comma-joined rentalTenantConfirmationStatus when confirmation chips are toggled', async () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId('map-filter-toggle'));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmed' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pending' }));
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith(
+        '/v1/appointments',
+        expect.objectContaining({
+          params: {
+            query: expect.objectContaining({
+              rentalTenantConfirmationStatus: 'CONFIRMED,PENDING',
+            }),
+          },
+        }),
+      );
+    });
+  });
+
+  it('fetches agency and inspector filter options for OP (cross-tenant role)', async () => {
+    authState.role = 'OP';
+    renderPage();
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith('/v1/tenants', expect.anything());
+      expect(mockGet).toHaveBeenCalledWith('/v1/inspectors', expect.anything());
+    });
+  });
+
+  it('does not fetch agency or inspector filter options for a client role', async () => {
+    authState.role = 'CL_ADMIN';
+    renderPage();
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith('/v1/appointments', expect.anything());
+    });
+    expect(mockGet).not.toHaveBeenCalledWith('/v1/tenants', expect.anything());
+    expect(mockGet).not.toHaveBeenCalledWith('/v1/inspectors', expect.anything());
+  });
 });
 
 // Item 13 — the map must aggregate ALL pages, not silently truncate at the
