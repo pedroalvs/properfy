@@ -201,6 +201,29 @@ describe('BuildNotificationPayloadService', () => {
     expect(result.appointmentCode).toBe('ABC-0042');
   });
 
+  // ── Agency logo and service type name ─────────────────────────────────────
+
+  it('exposes agencyLogoUrl from tenant.settingsJson.logoUrl', () => {
+    const tenant = makeTenant({ settingsJson: { logoUrl: 'https://cdn.example.com/logo.png' } });
+    const result = svc.build(baseCtx({ tenant }));
+    expect(result.agencyLogoUrl).toBe('https://cdn.example.com/logo.png');
+  });
+
+  it('agencyLogoUrl is empty string when tenant has no logo configured', () => {
+    const result = svc.build(baseCtx());
+    expect(result.agencyLogoUrl).toBe('');
+  });
+
+  it('exposes serviceTypeName from context', () => {
+    const result = svc.build(baseCtx({ serviceTypeName: 'Routine inspection' }));
+    expect(result.serviceTypeName).toBe('Routine inspection');
+  });
+
+  it('serviceTypeName is empty string when not provided', () => {
+    const result = svc.build(baseCtx());
+    expect(result.serviceTypeName).toBe('');
+  });
+
   // ── All mandatory template codes build without throwing ───────────────────
 
   // Only appointment-related templates can be built via this service.

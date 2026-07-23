@@ -137,7 +137,7 @@ export const TEMPLATE_VARIABLES: Record<
 > = {
   INSPECTION_NOTICE: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
-    optional: ['inspectorName', 'agencyName', 'agencyPhone', 'appointmentCode', 'confirmationLink', 'rescheduleLink'],
+    optional: ['inspectorName', 'agencyName', 'agencyPhone', 'appointmentCode', 'confirmationLink', 'rescheduleLink', 'agencyLogoUrl', 'serviceTypeName'],
   },
   INSPECTION_NOTICE_SMS: {
     required: ['rentalTenantName', 'scheduledDate'],
@@ -145,15 +145,15 @@ export const TEMPLATE_VARIABLES: Record<
   },
   REMINDER_7_DAYS: {
     required: ['rentalTenantName', 'scheduledDate'],
-    optional: ['propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone'],
+    optional: ['propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone', 'agencyLogoUrl', 'serviceTypeName', 'confirmationLink'],
   },
   REMINDER_5_DAYS: {
     required: ['rentalTenantName', 'scheduledDate'],
-    optional: ['propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone'],
+    optional: ['propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone', 'agencyLogoUrl', 'serviceTypeName', 'confirmationLink'],
   },
   REMINDER_3_DAYS: {
     required: ['rentalTenantName', 'scheduledDate'],
-    optional: ['propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone'],
+    optional: ['propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone', 'agencyLogoUrl', 'serviceTypeName', 'confirmationLink'],
   },
   REMINDER_7_DAYS_SMS: {
     required: ['rentalTenantName', 'scheduledDate'],
@@ -169,7 +169,7 @@ export const TEMPLATE_VARIABLES: Record<
   },
   PROPERTY_MANAGER_ESCALATION: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
-    optional: ['branchName', 'appointmentCode', 'agencyName'],
+    optional: ['branchName', 'appointmentCode', 'agencyName', 'agencyPhone', 'agencyLogoUrl', 'serviceTypeName'],
   },
   TENANT_SMS_ALERT: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate'],
@@ -177,7 +177,7 @@ export const TEMPLATE_VARIABLES: Record<
   },
   INSPECTION_CONFIRMED: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
-    optional: ['inspectorName', 'agencyName', 'agencyPhone', 'appointmentCode'],
+    optional: ['inspectorName', 'agencyName', 'agencyPhone', 'appointmentCode', 'agencyLogoUrl', 'serviceTypeName'],
   },
   INSPECTION_CONFIRMED_SMS: {
     required: ['rentalTenantName', 'scheduledDate'],
@@ -185,7 +185,7 @@ export const TEMPLATE_VARIABLES: Record<
   },
   INSPECTION_RESCHEDULED: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
-    optional: ['inspectorName', 'agencyName', 'agencyPhone', 'appointmentCode'],
+    optional: ['inspectorName', 'agencyName', 'agencyPhone', 'appointmentCode', 'agencyLogoUrl', 'serviceTypeName'],
   },
   INSPECTION_RESCHEDULED_SMS: {
     required: ['rentalTenantName', 'scheduledDate'],
@@ -193,7 +193,7 @@ export const TEMPLATE_VARIABLES: Record<
   },
   INSPECTION_CANCELLED: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate'],
-    optional: ['agencyName', 'agencyPhone', 'appointmentCode'],
+    optional: ['agencyName', 'agencyPhone', 'appointmentCode', 'agencyLogoUrl', 'serviceTypeName'],
   },
   INSPECTION_CANCELLED_SMS: {
     required: ['rentalTenantName', 'scheduledDate'],
@@ -201,7 +201,7 @@ export const TEMPLATE_VARIABLES: Record<
   },
   INSPECTION_UNAVAILABILITY_REPORTED: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'appointmentCode'],
-    optional: ['agencyName'],
+    optional: ['agencyName', 'agencyPhone', 'agencyLogoUrl', 'serviceTypeName'],
   },
   INSPECTION_UNAVAILABILITY_REPORTED_SMS: {
     required: ['rentalTenantName', 'scheduledDate'],
@@ -217,7 +217,7 @@ export const TEMPLATE_VARIABLES: Record<
   },
   TENANT_PORTAL_LINK: {
     required: ['rentalTenantName', 'scheduledDate', 'confirmationLink'],
-    optional: ['rescheduleLink'],
+    optional: ['rescheduleLink', 'propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone', 'agencyLogoUrl', 'serviceTypeName'],
   },
   PASSWORD_RESET: {
     required: ['userName', 'resetLink'],
@@ -241,6 +241,8 @@ export const ALLOWED_VARIABLES = [
   'confirmationLink',
   'rescheduleLink',
   'branchName',
+  'agencyLogoUrl',
+  'serviceTypeName',
   'userName',
   'reportType',
   'downloadLink',
@@ -262,6 +264,8 @@ export const SAMPLE_DATA: Record<AllowedVariable, string> = {
   agencyPhone: '+61 2 9876 5432',
   appointmentCode: 'INS-0042',
   branchName: 'Sydney CBD Branch',
+  agencyLogoUrl: 'https://dummyimage.com/240x70/2f2f2f/ffffff&text=ABC+Realty',
+  serviceTypeName: 'Routine inspection',
   userName: 'Admin User',
   reportType: 'Monthly Report',
   downloadLink: 'https://app.properfy.com/reports/abc123',

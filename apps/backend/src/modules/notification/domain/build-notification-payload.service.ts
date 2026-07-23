@@ -22,6 +22,7 @@ export interface NotificationPayloadContext {
   propertyAddress?: string;
   branchName?: string;
   inspectorName?: string | null;
+  serviceTypeName?: string | null;
   rawPortalToken?: string | null;
   portalBaseUrl: string;
   appointmentCodeFormatter: AppointmentCodeFormatter;
@@ -72,6 +73,8 @@ export class BuildNotificationPayloadService {
       confirmationLink,
       rescheduleLink,
       branchName: ctx.branchName ?? '',
+      agencyLogoUrl: typeof settings.logoUrl === 'string' ? settings.logoUrl : '',
+      serviceTypeName: ctx.serviceTypeName ?? '',
     };
 
     const spec = TEMPLATE_VARIABLES[ctx.templateCode as keyof typeof TEMPLATE_VARIABLES];

@@ -108,6 +108,7 @@ export class NotifyOnStatusTransitionHandler {
       contact,
       propertyAddress: property?.fullAddress ?? '',
       inspectorName: result.inspectorName ?? null,
+      serviceTypeName: result.serviceTypeName ?? null,
       rawPortalToken,
       portalBaseUrl: this.rentalTenantPortalBaseUrl,
       appointmentCodeFormatter: this.appointmentCodeFormatter,
