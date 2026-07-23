@@ -4,9 +4,12 @@
 
 import {
   renderAppointmentEmailHtml,
+  renderSystemEmailHtml,
   tenantEmailHtml,
   EMAIL_LINK_STYLE,
   EMAIL_CALLOUT_STYLE,
+  SYSTEM_CTA_STYLE,
+  SYSTEM_NOTE_STYLE,
 } from './email-layout';
 
 export interface PlatformTemplateSeed {
@@ -141,6 +144,45 @@ const PORTAL_LINK_HTML = tenantEmailHtml(
   CLOSING_PARAGRAPHS,
 );
 
+// ── System EMAIL bodies (Properfy-branded light layout) ─────────────────────
+
+const PASSWORD_RESET_HTML = renderSystemEmailHtml({
+  heading: 'Reset your password',
+  contentHtml:
+    '<p>Hi {{userName}},</p>' +
+    '<p>We received a request to reset your Properfy password. Click the button below to choose a new one.</p>' +
+    `<p style="margin:24px 0;" align="center"><a href="{{resetLink}}" target="_blank" style="${SYSTEM_CTA_STYLE}">Reset password</a></p>` +
+    `<p style="${SYSTEM_NOTE_STYLE}">This link expires in <strong>1 hour</strong>. ` +
+    'If you did not request a password reset, you can safely ignore this email — your password will not change.</p>',
+});
+
+const REPORT_READY_HTML = renderSystemEmailHtml({
+  heading: 'Your report is ready',
+  contentHtml:
+    '<p>Hi {{userName}},</p>' +
+    '<p>Your <strong>{{reportType}}</strong> report has been generated and is ready to download.</p>' +
+    `<p style="margin:24px 0;" align="center"><a href="{{downloadLink}}" target="_blank" style="${SYSTEM_CTA_STYLE}">Download report</a></p>` +
+    `<p style="${SYSTEM_NOTE_STYLE}">The file is available for <strong>30 days</strong>. After that you can generate it again from the reports page.</p>`,
+});
+
+const REPORT_FAILED_HTML = renderSystemEmailHtml({
+  heading: 'Report generation failed',
+  contentHtml:
+    '<p>Hi {{userName}},</p>' +
+    '<p>Unfortunately your <strong>{{reportType}}</strong> report could not be generated.</p>' +
+    `<p style="${SYSTEM_NOTE_STYLE}"><strong>Reason:</strong> {{errorMessage}}</p>` +
+    `<p style="margin:24px 0;" align="center"><a href="{{downloadLink}}" target="_blank" style="${SYSTEM_CTA_STYLE}">Try again</a></p>`,
+});
+
+const STUCK_ALERT_HTML = renderSystemEmailHtml({
+  heading: 'Inspection stuck in progress',
+  contentHtml:
+    '<p>The inspection for appointment <strong>{{appointmentId}}</strong> (inspector <strong>{{inspectorId}}</strong>) ' +
+    'started at <strong>{{startedAt}}</strong> and has been in progress for more than ' +
+    '<strong>{{hoursStuck}} hours</strong> without being finished.</p>' +
+    `<p style="${SYSTEM_NOTE_STYLE}"><strong>Action required:</strong> review the execution and follow up with the inspector.</p>`,
+});
+
 export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
   // ── EMAIL templates ────────────────────────────────────────────────────────
   {
@@ -211,12 +253,14 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     channel: 'EMAIL',
     subject: 'Your report "{{reportType}}" is ready',
     body: `Hi {{userName}}, your {{reportType}} report is ready. View and download it at {{downloadLink}}. The file is available for 30 days.`,
+    bodyHtml: REPORT_READY_HTML,
   },
   {
     code: 'REPORT_FAILED',
     channel: 'EMAIL',
     subject: 'Your report "{{reportType}}" failed',
     body: `Hi {{userName}}, your {{reportType}} report could not be generated. Reason: {{errorMessage}}. You can retry from the reports page: {{downloadLink}}.`,
+    bodyHtml: REPORT_FAILED_HTML,
   },
   {
     // Internal ops alert (inspection-execution.notify-not-started cron). TRANSACTIONAL so it
@@ -225,6 +269,7 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     channel: 'EMAIL',
     subject: 'Inspection stuck in progress for over {{hoursStuck}} hours',
     body: 'The inspection for appointment {{appointmentId}} (inspector {{inspectorId}}) started at {{startedAt}} and has been in progress for more than {{hoursStuck}} hours without being finished. Please review the execution and follow up with the inspector.',
+    bodyHtml: STUCK_ALERT_HTML,
     notificationClass: 'TRANSACTIONAL',
   },
   {
@@ -235,6 +280,7 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     channel: 'EMAIL',
     subject: 'Reset your Properfy password',
     body: 'Hi {{userName}}, we received a request to reset your Properfy password. Reset it here: {{resetLink}}. This link expires in 1 hour. If you did not request this, you can safely ignore this email.',
+    bodyHtml: PASSWORD_RESET_HTML,
     notificationClass: 'TRANSACTIONAL',
   },
   // ── SMS templates ─────────────────────────────────────────────────────────
