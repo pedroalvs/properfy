@@ -336,6 +336,7 @@ import { UpdateFyAppointmentContactUseCase } from '../modules/fy/application/use
 import { ResendFyNoticeUseCase } from '../modules/fy/application/use-cases/resend-fy-notice.use-case';
 import { FyWebhookDispatcher } from '../modules/fy/infrastructure/fy-webhook-dispatcher';
 import { FyWebhookSubscriber } from '../modules/fy/application/webhooks/fy-webhook-subscriber';
+import { NotifyOnGroupAcceptedSubscriber } from '../modules/notification/application/subscribers/notify-on-group-accepted.subscriber';
 import { createApiKeyAuthMiddleware } from '../shared/interfaces/api-key-auth-middleware';
 import { createAuthMiddleware } from '../shared/interfaces/auth-middleware';
 
@@ -1134,6 +1135,9 @@ export function createContainer(logger: Logger): AppContainer {
   // Fy outbound webhooks: subscriber enqueues, worker delivers with retry.
   const fyWebhookDispatcher = new FyWebhookDispatcher(integrationConfigResolver);
   new FyWebhookSubscriber(integrationConfigResolver, fyRepo, importJobQueue, logger).register(domainEventBus);
+  // Rental-tenant notifications for group acceptance paths (marketplace accept
+  // + manual assign), which schedule appointments outside the transition use case.
+  new NotifyOnGroupAcceptedSubscriber(serviceGroupRepo, notifyOnStatusTransitionHandler, logger).register(domainEventBus);
 
   const appointmentImportRowResolver = new AppointmentImportRowResolver(
     propertyRepo, serviceTypeRepo, pricingRuleRepo, contactRepo,
