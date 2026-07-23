@@ -1,23 +1,12 @@
 import { PrismaClient } from '@prisma/client';
 import { PLATFORM_TEMPLATES } from './platform-notification-templates';
+import { TemplateRendererService } from '../modules/notification/domain/template-renderer.service';
 
 const prisma = new PrismaClient();
 
-const HANDLEBARS_KEYWORDS = new Set(['if', 'unless', 'else', 'each', 'with', 'lookup', 'log']);
-
-/**
- * Derives the variable names used by a template, including those referenced
- * inside block helpers (e.g. {{#if agencyLogoUrl}}).
- */
-function extractTemplateVariables(content: string): string[] {
-  const variables = new Set<string>();
-  for (const token of content.match(/\{\{[^}]+\}\}/g) ?? []) {
-    for (const word of token.replace(/[{}#/]/g, ' ').trim().split(/\s+/)) {
-      if (/^\w+$/.test(word) && !HANDLEBARS_KEYWORDS.has(word)) variables.add(word);
-    }
-  }
-  return [...variables];
-}
+// AST-based extraction (handles block helpers like {{#if agencyLogoUrl}}),
+// shared with the runtime render pipeline.
+const templateRenderer = new TemplateRendererService();
 
 async function main() {
   let upserted = 0;
@@ -26,7 +15,7 @@ async function main() {
     // Subject and the rich HTML body can carry variables too, so derive
     // variables_json from subject + body + bodyHtml, deduplicated.
     const bodyHtml = t.channel === 'EMAIL' ? (t.bodyHtml ?? `<p>${t.body}</p>`) : null;
-    const variables = extractTemplateVariables(
+    const variables = templateRenderer.extractVariables(
       `${t.subject ?? ''} ${t.body} ${bodyHtml ?? ''}`,
     );
 

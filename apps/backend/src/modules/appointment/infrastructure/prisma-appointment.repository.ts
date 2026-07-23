@@ -41,6 +41,14 @@ function nextUtcDay(date: Date): Date {
   return new Date(date.getTime() + 86_400_000);
 }
 
+function formatPropertyAddress(
+  property: { street: string; suburb: string; state: string; postcode: string } | null | undefined,
+): string {
+  return property
+    ? `${property.street}, ${property.suburb} ${property.state} ${property.postcode}`
+    : '';
+}
+
 function mapToEntity(row: any): AppointmentEntity {
   return new AppointmentEntity({
     id: row.id,
@@ -160,9 +168,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     const contact = allContacts[0] ?? null;
     const restrictions = row.restrictions.map(mapRestrictionToEntity);
 
-    const propertyAddress = row.property
-      ? `${row.property.street}, ${row.property.suburb} ${row.property.state} ${row.property.postcode}`
-      : '';
+    const propertyAddress = formatPropertyAddress(row.property);
 
     const tenantAppointmentCodePrefix =
       (row as any).tenant?.appointment_code_prefix ?? null;
@@ -227,9 +233,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     return rows.map((row) => {
       const appointment = mapToEntity(row);
       const contact = row.contacts[0] ? mapContactToEntity(row.contacts[0]) : null;
-      const propertyAddress = row.property
-        ? `${row.property.street}, ${row.property.suburb} ${row.property.state} ${row.property.postcode}`
-        : '';
+      const propertyAddress = formatPropertyAddress(row.property);
       const tenantAppointmentCodePrefix = row.tenant?.appointment_code_prefix ?? null;
       return {
         appointment,
@@ -448,9 +452,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       const allContacts = row.contacts.map(mapContactToEntity);
       const contact = allContacts[0] ?? null;
       const restrictions = row.restrictions.map(mapRestrictionToEntity);
-      const propertyAddress = row.property
-        ? `${row.property.street}, ${row.property.suburb} ${row.property.state} ${row.property.postcode}`
-        : '';
+      const propertyAddress = formatPropertyAddress(row.property);
       return {
         appointment,
         contact,

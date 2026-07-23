@@ -69,9 +69,9 @@ const INSPECTION_NOTICE_HTML = tenantEmailHtml(
 function reminderHtml(days: number): string {
   return tenantEmailHtml(
     `<p>This is a friendly reminder that the <strong>${SERVICE_LABEL}</strong>` +
-    '{{#if appointmentCode}} <strong>#{{appointmentCode}}</strong>{{/if}} of ' +
-    '<strong>{{propertyAddress}}</strong> is in ' +
-    `<strong>${days} days</strong>, on <strong>{{scheduledDate}} between {{timeSlot}}</strong>.</p>` +
+    '{{#if appointmentCode}} <strong>#{{appointmentCode}}</strong>{{/if}}' +
+    '{{#if propertyAddress}} of <strong>{{propertyAddress}}</strong>{{/if}} is in ' +
+    `<strong>${days} days</strong>, on <strong>{{scheduledDate}}{{#if timeSlot}} between {{timeSlot}}{{/if}}</strong>.</p>` +
     '{{#if confirmationLink}}' +
     '<p>If you have not confirmed your attendance yet, please do so via the link below.</p>' +
     `<p><a href="{{confirmationLink}}" target="_blank" style="${EMAIL_LINK_STYLE}">Confirm Availability</a></p>` +
