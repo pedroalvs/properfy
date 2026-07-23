@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { UserRole, PLATFORM_TIMEZONE, todayInTzDateString, currentTimeInTzHHmm, isTimeStartInPastForDate } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FormSection } from '@/components/forms/FormSection';
@@ -21,6 +22,7 @@ import { useFormOptions } from '@/hooks/useFormOptions';
 import { useGoBack } from '@/hooks/useGoBack';
 import { useAppointmentSave } from '../hooks/useAppointmentSave';
 import { AppointmentRestrictionFields } from '../components/AppointmentRestrictionFields';
+import { PropertyFormDrawer } from '@/features/properties/components/PropertyFormDrawer';
 import type { AppointmentFormData, AppointmentFormErrors } from '../types';
 import { EMPTY_FORM_DATA } from '../types';
 
@@ -36,6 +38,8 @@ export function AppointmentCreatePage() {
   const [initialData] = useState<AppointmentFormData>(EMPTY_FORM_DATA);
   const [errors, setErrors] = useState<AppointmentFormErrors>({});
   const [showConfirm, setShowConfirm] = useState(false);
+  const [propertyDrawerOpen, setPropertyDrawerOpen] = useState(false);
+  const queryClient = useQueryClient();
   const effectiveTenantId = isGlobalRole ? selectedTenantId : undefined;
   const requiresTenantSelection = isGlobalRole && !selectedTenantId;
 
@@ -108,16 +112,17 @@ export function AppointmentCreatePage() {
     });
   }, []);
 
-  // Open the full property-creation page in a new tab, pre-filled with the current agency and
-  // branch. Defined inline (not memoized) so it always reads the current selection. The button
-  // is only enabled once a branch (and, for global roles, an agency) is selected.
-  const openPropertyCreateTab = () => {
-    const params = new URLSearchParams();
-    if (effectiveTenantId) params.set('tenantId', effectiveTenantId);
-    if (form.branchId) params.set('branchId', form.branchId);
-    const query = params.toString();
-    window.open(query ? `/properties/new?${query}` : '/properties/new', '_blank');
-  };
+  const handlePropertyCreated = useCallback((propertyId: string) => {
+    // Refetch every property options list so the new property shows up, then
+    // auto-select it in the form.
+    void queryClient.invalidateQueries({ queryKey: ['properties'] });
+    setForm((prev) => ({ ...prev, propertyId }));
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.propertyId;
+      return next;
+    });
+  }, [queryClient]);
 
   const handleRestrictionToggle = useCallback((value: boolean) => {
     setForm((prev) => ({
@@ -275,13 +280,11 @@ export function AppointmentCreatePage() {
             <div className="md:col-span-2">
               <Button
                 variant="secondary"
-                onClick={openPropertyCreateTab}
+                onClick={() => setPropertyDrawerOpen(true)}
                 disabled={!form.branchId || requiresTenantSelection}
               >
                 <i className="mdi mdi-home-plus-outline" aria-hidden="true" />
                 Property not listed? Create one
-                <i className="mdi mdi-open-in-new" aria-hidden="true" />
-                <span className="sr-only"> (opens in a new tab)</span>
               </Button>
             </div>
             <FormField label="Service Type" required error={errors.serviceTypeId}>
@@ -419,6 +422,16 @@ export function AppointmentCreatePage() {
         variant="warning"
         onConfirm={forceBack}
         onClose={cancelDiscard}
+      />
+      <PropertyFormDrawer
+        open={propertyDrawerOpen}
+        onClose={() => setPropertyDrawerOpen(false)}
+        propertyId={null}
+        tenantIdOverride={effectiveTenantId}
+        initialBranchId={form.branchId}
+        lockBranch
+        onSaved={() => setPropertyDrawerOpen(false)}
+        onCreated={handlePropertyCreated}
       />
     </>
   );

@@ -39,6 +39,45 @@ vi.mock('@/hooks/useAuth', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+// Shallow mock — property-form internals are covered by PropertyFormDrawer.test.tsx.
+vi.mock('@/features/properties/components/PropertyFormDrawer', () => ({
+  PropertyFormDrawer: ({
+    open,
+    onClose,
+    onCreated,
+    onSaved,
+    tenantIdOverride,
+    initialBranchId,
+    lockBranch,
+  }: {
+    open: boolean;
+    onClose: () => void;
+    onCreated?: (id: string) => void;
+    onSaved: () => void;
+    tenantIdOverride?: string;
+    initialBranchId?: string;
+    lockBranch?: boolean;
+  }) =>
+    open ? (
+      <div
+        data-testid="property-form-drawer"
+        data-tenant={tenantIdOverride ?? ''}
+        data-branch={initialBranchId ?? ''}
+        data-locked={String(!!lockBranch)}
+      >
+        <button
+          onClick={() => {
+            onCreated?.('prop-new');
+            onSaved();
+          }}
+        >
+          simulate-create
+        </button>
+        <button onClick={onClose}>simulate-close</button>
+      </div>
+    ) : null,
+}));
+
 import { api } from '@/services/api';
 import { AppointmentCreatePage } from './AppointmentCreatePage';
 
@@ -136,7 +175,7 @@ describe('AppointmentCreatePage', () => {
     });
   });
 
-  it('opens the property-creation page in a new tab pre-filled with the selected agency and branch', async () => {
+  it('opens the inline property drawer pre-filled with the selected agency and locked branch', async () => {
     mockGet.mockImplementation((path: string) => {
       const list = (items: Array<Record<string, unknown>>) => Promise.resolve({
         data: { data: items, pagination: { page: 1, pageSize: 100, total: items.length, totalPages: items.length ? 1 : 0 } },
@@ -145,7 +184,6 @@ describe('AppointmentCreatePage', () => {
       if (path === '/v1/branches') return list([{ id: 'branch-9', name: 'Branch Nine' }]);
       return list([]);
     });
-    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
 
     renderPage();
 
@@ -157,14 +195,52 @@ describe('AppointmentCreatePage', () => {
 
     fireEvent.click(screen.getByText('Property not listed? Create one'));
 
-    expect(openSpy).toHaveBeenCalledTimes(1);
-    const url = String(openSpy.mock.calls[0]?.[0]);
-    const target = openSpy.mock.calls[0]?.[1];
-    expect(url).toContain('/properties/new?');
-    expect(url).toContain('tenantId=tenant-1');
-    expect(url).toContain('branchId=branch-9');
-    expect(target).toBe('_blank');
+    const drawer = screen.getByTestId('property-form-drawer');
+    expect(drawer).toHaveAttribute('data-tenant', 'tenant-1');
+    expect(drawer).toHaveAttribute('data-branch', 'branch-9');
+    expect(drawer).toHaveAttribute('data-locked', 'true');
+  });
 
-    openSpy.mockRestore();
+  it('auto-selects the created property and closes the drawer on create success', async () => {
+    let created = false;
+    mockGet.mockImplementation((path: string) => {
+      const list = (items: Array<Record<string, unknown>>) => Promise.resolve({
+        data: { data: items, pagination: { page: 1, pageSize: 100, total: items.length, totalPages: items.length ? 1 : 0 } },
+      });
+      if (path === '/v1/tenants') return list([{ id: 'tenant-1', name: 'Agency One' }]);
+      if (path === '/v1/branches') return list([{ id: 'branch-9', name: 'Branch Nine' }]);
+      if (path === '/v1/properties') {
+        return list(created
+          ? [{ id: 'prop-new', street: 'New St', propertyCode: 'AG-PROP-0009' }]
+          : []);
+      }
+      return list([]);
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByLabelText('Agency'));
+    fireEvent.click(await screen.findByText('Agency One'));
+    fireEvent.click(screen.getByLabelText('Branch'));
+    fireEvent.click(await screen.findByText('Branch Nine'));
+
+    // Let the initial (empty) property-options fetch settle before creating —
+    // an in-flight fetch would dedupe the invalidation-triggered refetch.
+    await waitFor(() => {
+      expect(mockGet.mock.calls.filter(([p]) => p === '/v1/properties').length).toBe(1);
+    });
+
+    fireEvent.click(screen.getByText('Property not listed? Create one'));
+    created = true;
+    fireEvent.click(screen.getByText('simulate-create'));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('property-form-drawer')).not.toBeInTheDocument();
+    });
+    // The refetched options list now contains the created property, and the
+    // form holds its id, so the select renders its label.
+    await waitFor(() => {
+      expect(screen.getByText('AG-PROP-0009 - New St')).toBeInTheDocument();
+    });
   });
 });

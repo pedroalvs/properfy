@@ -72,6 +72,45 @@ vi.mock('../hooks/useContactSearch', () => ({
   }),
 }));
 
+// Shallow mock — property-form internals are covered by PropertyFormDrawer's own tests.
+vi.mock('@/features/properties/components/PropertyFormDrawer', () => ({
+  PropertyFormDrawer: ({
+    open,
+    onClose,
+    onCreated,
+    onSaved,
+    tenantIdOverride,
+    initialBranchId,
+    lockBranch,
+  }: {
+    open: boolean;
+    onClose: () => void;
+    onCreated?: (id: string) => void;
+    onSaved: () => void;
+    tenantIdOverride?: string;
+    initialBranchId?: string;
+    lockBranch?: boolean;
+  }) =>
+    open ? (
+      <div
+        data-testid="property-form-drawer"
+        data-tenant={tenantIdOverride ?? ''}
+        data-branch={initialBranchId ?? ''}
+        data-locked={String(!!lockBranch)}
+      >
+        <button
+          onClick={() => {
+            onCreated?.('prop-new');
+            onSaved();
+          }}
+        >
+          simulate-create
+        </button>
+        <button onClick={onClose}>simulate-close</button>
+      </div>
+    ) : null,
+}));
+
 const mockSave = vi.fn();
 const mockValidate = vi.fn();
 
@@ -355,14 +394,13 @@ describe('AppointmentFormDrawer', () => {
     );
   });
 
-  it('opens the property-creation page in a new tab pre-filled with agency and branch (create mode)', async () => {
+  it('opens the inline property drawer pre-filled with agency and locked branch (create mode)', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockUseFormOptions.mockImplementation(((_key: any, path: any) => {
       if (path === '/v1/tenants') return { options: [{ value: 'tenant-1', label: 'Agency One' }], isLoading: false };
       if (path === '/v1/branches') return { options: [{ value: 'branch-9', label: 'Branch Nine' }], isLoading: false };
       return { options: [], isLoading: false };
     }) as any);
-    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
 
     renderDrawer();
 
@@ -373,15 +411,62 @@ describe('AppointmentFormDrawer', () => {
 
     fireEvent.click(screen.getByText('Property not listed? Create one'));
 
-    expect(openSpy).toHaveBeenCalledTimes(1);
-    const url = String(openSpy.mock.calls[0]?.[0]);
-    const target = openSpy.mock.calls[0]?.[1];
-    expect(url).toContain('/properties/new?');
-    expect(url).toContain('tenantId=tenant-1');
-    expect(url).toContain('branchId=branch-9');
-    expect(target).toBe('_blank');
+    const drawer = screen.getByTestId('property-form-drawer');
+    expect(drawer).toHaveAttribute('data-tenant', 'tenant-1');
+    expect(drawer).toHaveAttribute('data-branch', 'branch-9');
+    expect(drawer).toHaveAttribute('data-locked', 'true');
+  });
 
-    openSpy.mockRestore();
+  it('auto-selects the created property and closes only the nested drawer on create success', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mockUseFormOptions.mockImplementation(((_key: any, path: any) => {
+      if (path === '/v1/tenants') return { options: [{ value: 'tenant-1', label: 'Agency One' }], isLoading: false };
+      if (path === '/v1/branches') return { options: [{ value: 'branch-9', label: 'Branch Nine' }], isLoading: false };
+      if (path === '/v1/properties') return { options: [{ value: 'prop-new', label: 'AG-PROP-0009 - New St' }], isLoading: false };
+      return { options: [], isLoading: false };
+    }) as any);
+
+    renderDrawer();
+
+    fireEvent.click(screen.getByLabelText('Agency'));
+    fireEvent.click(screen.getByText('Agency One'));
+    fireEvent.click(screen.getByLabelText('Branch'));
+    fireEvent.click(screen.getByText('Branch Nine'));
+
+    fireEvent.click(screen.getByText('Property not listed? Create one'));
+    fireEvent.click(screen.getByText('simulate-create'));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('property-form-drawer')).not.toBeInTheDocument();
+    });
+    // Appointment drawer is still open and now shows the created property.
+    expect(screen.getByText('New Appointment')).toBeInTheDocument();
+    expect(screen.getByText('AG-PROP-0009 - New St')).toBeInTheDocument();
+  });
+
+  it('Escape closes only the nested property drawer, not the appointment drawer', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mockUseFormOptions.mockImplementation(((_key: any, path: any) => {
+      if (path === '/v1/tenants') return { options: [{ value: 'tenant-1', label: 'Agency One' }], isLoading: false };
+      if (path === '/v1/branches') return { options: [{ value: 'branch-9', label: 'Branch Nine' }], isLoading: false };
+      return { options: [], isLoading: false };
+    }) as any);
+    const onClose = vi.fn();
+
+    renderDrawer({ onClose });
+
+    fireEvent.click(screen.getByLabelText('Agency'));
+    fireEvent.click(screen.getByText('Agency One'));
+    fireEvent.click(screen.getByLabelText('Branch'));
+    fireEvent.click(screen.getByText('Branch Nine'));
+    fireEvent.click(screen.getByText('Property not listed? Create one'));
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    // The appointment drawer must neither close nor show its discard dialog.
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.queryByText('Discard changes?')).not.toBeInTheDocument();
+    expect(screen.getByText('New Appointment')).toBeInTheDocument();
   });
 
   it('does not render the create-property action in edit mode', () => {
