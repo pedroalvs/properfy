@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useDetailQuery } from '@/hooks/useApiQuery';
 import type { TenantAdminDetail } from '../types';
 
@@ -15,8 +16,12 @@ export function useTenantAdminDetail(id: string | null): UseTenantAdminDetailRet
     { enabled: !!id },
   );
 
+  // PR #961 bug class: TenantFormDrawer's populate effect depends on this reference —
+  // keep any future payload transforms INSIDE this memo so it stays stable per fetch.
+  const tenant = useMemo(() => response?.data ?? null, [response?.data]);
+
   return {
-    tenant: response?.data ?? null,
+    tenant,
     isLoading,
     isError,
     refetch,

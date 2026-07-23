@@ -107,4 +107,20 @@ describe('useUserDetail', () => {
 
     expect(mockGet).toHaveBeenCalledWith('/v1/users/usr-01', { params: { query: undefined } });
   });
+
+  it('keeps a stable user reference across re-renders with unchanged data', async () => {
+    // Regression guard for the PR #961 bug class: an unstable reference here
+    // can feed a consumer effect (e.g. deps [isEditMode, entity]) whose
+    // setState calls re-render into an infinite loop that starves router
+    // updates — URL changes but the screen never swaps.
+    const wrapper = createQueryWrapper();
+    const { result, rerender } = renderHook(() => useUserDetail('usr-01'), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const first = result.current.user;
+    expect(first).not.toBeNull();
+    rerender();
+    expect(result.current.user).toBe(first);
+  });
 });

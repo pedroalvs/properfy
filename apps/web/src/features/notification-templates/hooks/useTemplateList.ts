@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
 import { DEFAULT_TEMPLATE_FILTERS, type NotificationTemplate, type TemplateFiltersState } from '../types';
 
@@ -28,7 +28,8 @@ export function useTemplateList(): UseTemplateListReturn {
     params,
   );
 
-  const templates: NotificationTemplate[] = (response?.data ?? []).map((raw) => ({
+  // PR #961 bug class: memoized so consumers get a stable array per fetch result.
+  const templates: NotificationTemplate[] = useMemo(() => (response?.data ?? []).map((raw) => ({
     id: raw['id'] as string,
     tenantId: (raw['tenantId'] as string | null | undefined) ?? null,
     rentalTenantName: (raw['rentalTenantName'] as string | null | undefined) ?? null,
@@ -42,7 +43,7 @@ export function useTemplateList(): UseTemplateListReturn {
     requiredVariables: (raw['variables'] ?? raw['variablesJson'] ?? raw['requiredVariables'] ?? []) as string[],
     createdAt: raw['createdAt'] as string,
     updatedAt: raw['updatedAt'] as string,
-  }));
+  })), [response?.data]);
 
   return {
     data: templates,

@@ -315,7 +315,7 @@ Follow this order strictly – do not start with final pages:
 
 ## 12. Decisions already closed
 
-1. **Board/Kanban:** NOT in initial scope. Only implement if explicitly requested.
+1. **Board/Kanban:** now IN SCOPE — explicitly requested by the client (see `escopo-pendencias-execucao.md` item 09, "Service Dashboard" in the client scope doc §4.3). Column-per-status board for AM/OP.
 2. **SVG assets:** Do not reuse legacy branding. Only neutral/functional icons validated for Properfy.
 3. **TableSwitch:** Opt-in per page, not global.
 4. **Snackbar:** No raw JSON in production.
@@ -337,5 +337,6 @@ When you (Claude Code) implement or modify frontend code:
 8. **Types from `packages/shared`** for enums, IDs and shared schemas.
 9. **If a rule is still open**, declare the assumption explicitly in your output.
 10. **The frontend must NOT look like a generic Tailwind template.**
+11. **Data hooks must return referentially stable values.** Any object/array derived from a query payload (spread, `.map()`, normalization) MUST be wrapped in `useMemo` keyed on the raw query data. An unmemoized derived return caused a production freeze — an infinite render loop via a consumer's `useEffect(..., [entity])` populate effect that starved React Router updates (PR #961). Add future payload transforms inside the existing memo, never outside it.
 
 For complete visual specs, consult `projeto-consolidado/frontend-system-spec.md` and `projeto-consolidado/ui-system-atual.md`.
