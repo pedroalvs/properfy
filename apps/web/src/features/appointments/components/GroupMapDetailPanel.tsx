@@ -13,6 +13,8 @@ interface GroupMapDetailPanelProps {
   group: {
     id: string;
     name: string | null;
+    /** Human-friendly group code from /v1/service-groups (always set on read paths). */
+    code?: string;
     status: ServiceGroupStatus;
     groupSize: number;
     scheduledDate: string;
@@ -119,6 +121,9 @@ export function GroupMapDetailPanel({
           <div className="min-w-0">
             <h2 className="truncate text-sm font-semibold text-text-primary">
               {group.name ?? 'Service group'}
+              {group.code && (
+                <span className="ml-1.5 font-normal text-text-secondary">#{group.code}</span>
+              )}
             </h2>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-text-secondary">
               {statusMeta && <StatusChip label={statusMeta.label} bg={statusMeta.bg} />}
