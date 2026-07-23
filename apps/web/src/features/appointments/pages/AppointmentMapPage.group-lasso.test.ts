@@ -64,16 +64,22 @@ describe('AppointmentMapPage — group-modal lasso wiring (source guards)', () =
   });
 
   it('renders the lasso button left of the List view toggle in a horizontal toolbar row', () => {
-    const lassoIdx = PAGE_SOURCE.indexOf('<MapLassoToggleButton');
-    const listViewIdx = PAGE_SOURCE.indexOf('<MapListViewToggleButton');
-    expect(lassoIdx, 'MapLassoToggleButton not found').toBeGreaterThan(-1);
-    expect(listViewIdx, 'MapListViewToggleButton not found').toBeGreaterThan(-1);
+    // Bound the slice to the toolbar container itself (its className — which
+    // also pins the horizontal `flex items-center` layout — → the next
+    // sibling component), so the assertions can't match stray duplicates
+    // elsewhere in the file.
+    const toolbarStart = PAGE_SOURCE.indexOf(
+      'className="pointer-events-none absolute right-14 top-4 z-30 flex items-center gap-2"',
+    );
+    expect(toolbarStart, 'top-right toolbar container not found').toBeGreaterThan(-1);
+    const toolbarEnd = PAGE_SOURCE.indexOf('<MapBulkActionModal', toolbarStart);
+    expect(toolbarEnd, 'toolbar end marker not found').toBeGreaterThan(toolbarStart);
+    const toolbar = PAGE_SOURCE.slice(toolbarStart, toolbarEnd);
+    const lassoIdx = toolbar.indexOf('<MapLassoToggleButton');
+    const listViewIdx = toolbar.indexOf('<MapListViewToggleButton');
+    expect(lassoIdx, 'MapLassoToggleButton not in toolbar').toBeGreaterThan(-1);
+    expect(listViewIdx, 'MapListViewToggleButton not in toolbar').toBeGreaterThan(-1);
     expect(lassoIdx).toBeLessThan(listViewIdx);
-    // The toolbar lays the pair out as a horizontal row, not a vertical stack.
-    const toolbarStart = PAGE_SOURCE.lastIndexOf('<div', lassoIdx);
-    const toolbar = PAGE_SOURCE.slice(PAGE_SOURCE.lastIndexOf('className="pointer-events-none absolute right-14', lassoIdx), listViewIdx);
-    expect(toolbarStart).toBeGreaterThan(-1);
-    expect(toolbar).toContain('flex items-center');
     expect(toolbar).not.toContain('flex-col');
   });
 
