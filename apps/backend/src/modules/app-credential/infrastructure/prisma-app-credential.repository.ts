@@ -200,8 +200,18 @@ export class PrismaAppCredentialRepository implements IAppCredentialRepository {
     tenantId: string,
     branchId: string | null,
   ): Promise<AppCredentialEntity[]> {
+    // Defense in depth: even though links are validated on write, never
+    // surface (and decrypt) a credential from another tenant if a stale
+    // cross-tenant junction row exists.
+    const linkedQuery = this.prisma.appointmentAppCredential
+      .findMany({
+        where: { appointment_id: appointmentId, app_credential: { tenant_id: tenantId } },
+        orderBy: { created_at: 'asc' },
+        include: { app_credential: true },
+      })
+      .then((links) => links.map((link) => this.mapToEntity(link.app_credential)));
     const [linked, defaultRows] = await Promise.all([
-      this.findByAppointmentId(appointmentId),
+      linkedQuery,
       this.prisma.appCredential.findMany({
         where: {
           tenant_id: tenantId,

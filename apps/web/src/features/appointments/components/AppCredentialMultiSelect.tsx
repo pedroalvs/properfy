@@ -36,7 +36,9 @@ export function AppCredentialMultiSelect({ value, onChange, tenantId, branchId, 
     () =>
       (data?.data ?? []).map((a) => ({
         value: a.id,
-        // Defaults already show on every appointment; selecting one is a harmless no-op.
+        // Defaults already show on every appointment. Selecting one anyway
+        // creates an explicit link, which pins the credential to this
+        // appointment even if its default flag is later removed.
         label: `${a.name} · ${a.username}${a.isDefault ? ' · always included' : ''}`,
       })),
     [data],

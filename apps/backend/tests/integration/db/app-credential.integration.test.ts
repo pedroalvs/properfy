@@ -274,6 +274,20 @@ describe('PrismaAppCredentialRepository (real DB)', () => {
       await repo.update(both.id, { isDefault: false });
     });
 
+    it('never surfaces a stale cross-tenant junction row', async () => {
+      const foreign = mkFull(seed.tenantB, 'EFF-stale-foreign');
+      await repo.save(foreign);
+      // Bypass the write-path validation to simulate a stale/corrupt link.
+      await harness.prisma.appointmentAppCredential.create({
+        data: { id: crypto.randomUUID(), appointment_id: seed.appointmentA, app_credential_id: foreign.id },
+      });
+
+      const effective = await repo.findEffectiveForAppointment(seed.appointmentA, seed.tenantA, seed.branchA);
+      expect(effective.some((c) => c.id === foreign.id)).toBe(false);
+
+      await repo.replaceAppointmentLinks(seed.appointmentA, []);
+    });
+
     it('keeps returning an explicitly linked credential even when inactive (defaults do not)', async () => {
       const inactiveLinked = mkFull(seed.tenantA, 'EFF-inactive-linked', { isActive: false });
       await repo.save(inactiveLinked);
