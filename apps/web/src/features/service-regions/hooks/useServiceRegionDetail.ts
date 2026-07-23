@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useDetailQuery } from '@/hooks/useApiQuery';
 import type { ServiceRegion } from '../types';
 
@@ -15,8 +16,12 @@ export function useServiceRegionDetail(id: string | null): UseServiceRegionDetai
     { enabled: !!id },
   );
 
+  // PR #961 bug class: ServiceRegionFormDrawer's populate effect depends on this reference —
+  // keep any future payload transforms INSIDE this memo so it stays stable per fetch.
+  const serviceRegion = useMemo(() => response?.data ?? null, [response?.data]);
+
   return {
-    serviceRegion: response?.data ?? null,
+    serviceRegion,
     isLoading,
     isError,
     refetch,

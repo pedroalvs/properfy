@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useDetailQuery } from '@/hooks/useApiQuery';
 import type { FinancialEntryDetail } from '../types';
 
@@ -15,8 +16,12 @@ export function useFinancialEntryDetail(id: string | null): UseFinancialEntryDet
     { enabled: !!id },
   );
 
+  // PR #961 bug class: FinancialEntryFormDrawer's populate effect depends on this reference —
+  // keep any future payload transforms INSIDE this memo so it stays stable per fetch.
+  const entry = useMemo(() => query.data?.data ?? null, [query.data?.data]);
+
   return {
-    entry: query.data?.data ?? null,
+    entry,
     isLoading: query.isLoading,
     isError: query.isError,
     refetch: query.refetch,
