@@ -46,10 +46,6 @@ import { ListBranchesUseCase } from '../modules/tenant/application/use-cases/lis
 import { UpdateBranchUseCase } from '../modules/tenant/application/use-cases/update-branch.use-case';
 import { DeactivateBranchUseCase } from '../modules/tenant/application/use-cases/deactivate-branch.use-case';
 import { ActivateBranchUseCase } from '../modules/tenant/application/use-cases/activate-branch.use-case';
-import { GenerateLogoUploadUrlUseCase } from '../modules/tenant/application/use-cases/generate-logo-upload-url.use-case';
-import { ConfirmLogoUploadUseCase } from '../modules/tenant/application/use-cases/confirm-logo-upload.use-case';
-import { SupabaseBrandingStorageService } from '../modules/tenant/infrastructure/supabase-branding-storage.service';
-import { StubBrandingStorageService } from '../modules/tenant/infrastructure/stub-branding-storage.service';
 import type { TenantRouteContainer } from '../modules/tenant/interfaces/tenant.routes';
 
 // User module
@@ -530,14 +526,6 @@ export function createContainer(logger: Logger): AppContainer {
   const updateBranchUseCase = new UpdateBranchUseCase(tenantRepo, branchRepo, auditService, domainEventBus);
   const deactivateBranchUseCase = new DeactivateBranchUseCase(tenantRepo, branchRepo, appointmentChecker, auditService, authorizationService, domainEventBus);
   const activateBranchUseCase = new ActivateBranchUseCase(tenantRepo, branchRepo, auditService, authorizationService, domainEventBus);
-
-  // Branding storage service
-  const brandingStorageService = s3Client && env.SUPABASE_STORAGE_PUBLIC_URL
-    ? new SupabaseBrandingStorageService(s3Client, env.SUPABASE_STORAGE_PUBLIC_URL)
-    : new StubBrandingStorageService();
-
-  const generateLogoUploadUrlUseCase = new GenerateLogoUploadUrlUseCase(tenantRepo, brandingStorageService);
-  const confirmLogoUploadUseCase = new ConfirmLogoUploadUseCase(tenantRepo, brandingStorageService, auditService);
 
   // User use cases
   const createUserUseCase = new CreateUserUseCase(userManagementRepo, tenantRepo, branchRepo, auditService, authorizationService);
@@ -1245,8 +1233,6 @@ export function createContainer(logger: Logger): AppContainer {
       updateBranchUseCase,
       deactivateBranchUseCase,
       activateBranchUseCase,
-      generateLogoUploadUrlUseCase,
-      confirmLogoUploadUseCase,
       jwtService,
       tenantRepo,
     },

@@ -1,4 +1,4 @@
-import { TEMPLATE_VARIABLES, PLATFORM_TIMEZONE } from '@properfy/shared';
+import { TEMPLATE_VARIABLES, PLATFORM_TIMEZONE, PROPERFY_LOGO_URL } from '@properfy/shared';
 import type { AppointmentEntity } from '../../appointment/domain/appointment.entity';
 import type { AppointmentContactEntity } from '../../appointment/domain/appointment-contact.entity';
 import type { TenantEntity } from '../../tenant/domain/tenant.entity';
@@ -73,7 +73,7 @@ export class BuildNotificationPayloadService {
       confirmationLink,
       rescheduleLink,
       branchName: ctx.branchName ?? '',
-      agencyLogoUrl: typeof settings.logoUrl === 'string' ? settings.logoUrl : '',
+      properfyLogoUrl: PROPERFY_LOGO_URL,
       serviceTypeName: ctx.serviceTypeName ?? '',
     };
 

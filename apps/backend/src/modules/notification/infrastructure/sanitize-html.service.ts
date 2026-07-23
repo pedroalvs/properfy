@@ -51,7 +51,7 @@ function normalizeSelfClosing(html: string): string {
 
 /**
  * At save time the body still carries Handlebars tokens (e.g.
- * `<img src="{{agencyLogoUrl}}">`), which are not URLs yet and would fail the
+ * `<img src="{{properfyLogoUrl}}">`), which are not URLs yet and would fail the
  * https scheme check. Masking every `{{...}}` token with a neutral https value
  * lets scheme validation run against the *rendered* shape of the template.
  * This does not weaken the pipeline: sanitizeForRender runs again on the fully
