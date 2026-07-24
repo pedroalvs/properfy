@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
 import { formatDate } from '@/lib/format-date';
@@ -14,7 +15,7 @@ interface AppointmentMapDetailPanelProps {
   /** Marker that triggered the panel. Source of CLIENT / PROPERTIES (no fetch needed). */
   appointment: AppointmentMapItem | null;
   onClose: () => void;
-  /** "MORE DETAILS" CTA target — defaults to opening the detail page in a new tab. */
+  /** "MORE DETAILS" CTA target — defaults to navigating to the detail page in the same tab. */
   onMoreDetails?: (id: string) => void;
 }
 
@@ -72,6 +73,9 @@ export function AppointmentMapDetailPanel({
 }: AppointmentMapDetailPanelProps) {
   const [expanded, setExpanded] = useState<Set<SectionKey>>(new Set());
   const cardRef = useRef<HTMLDivElement | null>(null);
+  const navigate = useNavigate();
+  const handleMoreDetails =
+    onMoreDetails ?? ((id: string) => navigate(`/appointments/${id}`));
 
   // Reset collapsibles whenever the appointment changes
   // (clicking a different marker swaps the popup content).
@@ -231,11 +235,11 @@ export function AppointmentMapDetailPanel({
         })}
       </div>
 
-      {/* Footer CTA — opens the full appointment page in a new tab */}
+      {/* Footer CTA — navigates to the full appointment page */}
       <div className="border-t border-border-subtle px-4 py-2">
         <button
           type="button"
-          onClick={() => (onMoreDetails ?? defaultMoreDetails)(appointment.id)}
+          onClick={() => handleMoreDetails(appointment.id)}
           className="w-full rounded border border-real-estate px-3 py-1.5 text-xs font-semibold text-real-estate hover:bg-real-estate/5"
           data-testid="map-detail-more-details"
         >
@@ -244,10 +248,6 @@ export function AppointmentMapDetailPanel({
       </div>
     </div>
   );
-}
-
-function defaultMoreDetails(id: string) {
-  window.open(`/appointments/${id}`, '_blank');
 }
 
 interface SectionCtx {

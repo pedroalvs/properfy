@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { SERVICE_GROUP_STATUS_MAP } from '@/lib/status-colors';
 import { formatDate } from '@/lib/format-date';
@@ -153,17 +154,16 @@ export function GroupMapDetailPanel({
         </p>
       </div>
 
-      {/* Footer — VIEW GROUP opens the full detail page in a new tab;
+      {/* Footer — VIEW GROUP navigates to the full detail page;
           PUBLISH is the DRAFT-only action (backend re-validates). */}
       <div className="flex gap-2 px-4 py-2">
-        <button
-          type="button"
-          onClick={() => window.open(`/service-groups/${group.id}`, '_blank')}
-          className="flex-1 rounded border border-real-estate px-3 py-1.5 text-xs font-semibold text-real-estate hover:bg-real-estate/5"
+        <Link
+          to={`/service-groups/${group.id}`}
+          className="flex-1 rounded border border-real-estate px-3 py-1.5 text-center text-xs font-semibold text-real-estate hover:bg-real-estate/5"
           data-testid="group-map-detail-view"
         >
           VIEW GROUP
-        </button>
+        </Link>
         <span
           className="flex-1"
           title={isDraft ? undefined : 'Only draft groups can be published'}
