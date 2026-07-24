@@ -43,15 +43,24 @@ export function PropertyFormDrawer({
   lockBranch = false,
   onCreated,
 }: PropertyFormDrawerProps) {
-  const { options: branchOptions } = useFormOptions<{ id: string; name: string }>(
-    ['branches', 'form-options'],
-    '/v1/branches',
-    (item) => ({ value: item.id, label: item.name }),
-  );
-
   const isEditMode = !!propertyId;
   const { property, isLoading: isLoadingDetail } = usePropertyDetail(
     isEditMode ? propertyId : null,
+  );
+
+  // `/v1/branches` is tenant-scoped on the backend: a global role (AM/OP) that
+  // sends no `tenantId` gets zero rows, and an empty option list leaves the
+  // Branch select unable to render its own value — it falls back to the
+  // placeholder even when `form.branchId` is set. Create → the tenant comes
+  // from the parent form (nested appointment flow); edit → from the loaded
+  // property. No `status` filter: it would hide a branch that went inactive
+  // after the property was linked to it.
+  const branchTenantId = tenantIdOverride ?? property?.tenantId;
+  const { options: branchOptions } = useFormOptions<{ id: string; name: string }>(
+    ['branches', 'property-form-options', branchTenantId ?? ''],
+    '/v1/branches',
+    (item) => ({ value: item.id, label: item.name }),
+    { ...(branchTenantId ? { tenantId: branchTenantId } : {}) },
   );
   const { save, isSaving, validate } = usePropertySave();
   const { showSuccess, showError } = useSnackbar();

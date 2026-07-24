@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { AuthProvider } from '@/hooks/useAuth';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
@@ -61,7 +61,13 @@ const MOCK_APPOINTMENTS = [
   },
 ];
 
-function createWrapper() {
+/** Surfaces the current query string so tests can assert param clean-up. */
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location-search">{location.search}</div>;
+}
+
+function createWrapper(initialEntries: string[] = ['/appointments']) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false, gcTime: 0 },
@@ -74,7 +80,10 @@ function createWrapper() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <SnackbarProvider>
-            <MemoryRouter>{children}</MemoryRouter>
+            <MemoryRouter initialEntries={initialEntries}>
+              {children}
+              <LocationProbe />
+            </MemoryRouter>
           </SnackbarProvider>
         </AuthProvider>
       </QueryClientProvider>
@@ -98,13 +107,34 @@ beforeEach(() => {
   });
 });
 
-function renderPage() {
-  const Wrapper = createWrapper();
+function renderPage(initialEntries?: string[]) {
+  const Wrapper = createWrapper(initialEntries);
   return render(
     <Wrapper>
       <AppointmentListPage />
     </Wrapper>,
   );
+}
+
+/**
+ * `DrawerPanel` keeps its markup mounted while closed (it slides off-screen and
+ * jsdom can't see transforms), so "is the create drawer open?" is read from the
+ * a11y contract — `aria-modal` tracks `open`.
+ */
+function isCreateDrawerOpen(): boolean {
+  return Array.from(document.querySelectorAll('[role="dialog"][aria-modal="true"]'))
+    .some((el) => (el.textContent ?? '').includes('Create Appointment'));
+}
+
+function signInAs(role: string) {
+  mockUseAuth.mockReturnValue({
+    user: { id: 'u1', name: 'User', email: 'user@test.com', role, tenantId: 't-1' },
+    token: 'token',
+    isAuthenticated: true,
+    isLoading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+  });
 }
 
 describe('AppointmentListPage', () => {
@@ -202,5 +232,33 @@ describe('AppointmentListPage', () => {
   it('shows loading state initially', () => {
     renderPage();
     expect(screen.getByText('Code')).toBeInTheDocument();
+  });
+
+  // `/appointments/new` redirects here with `?new=1` instead of rendering a
+  // second, drifting copy of the create form.
+  describe('?new=1 deep link', () => {
+    it('opens the create drawer and drops the param so a refresh does not reopen it', async () => {
+      signInAs('AM');
+      renderPage(['/appointments?new=1']);
+
+      await waitFor(() => {
+        expect(isCreateDrawerOpen()).toBe(true);
+      });
+      expect(screen.getByTestId('location-search')).toHaveTextContent('');
+    });
+
+    it('does not open the create drawer for a role without appointment.create', () => {
+      signInAs('INSP');
+      renderPage(['/appointments?new=1']);
+
+      expect(isCreateDrawerOpen()).toBe(false);
+    });
+
+    it('keeps the drawer closed without the param', () => {
+      signInAs('AM');
+      renderPage();
+
+      expect(isCreateDrawerOpen()).toBe(false);
+    });
   });
 });

@@ -28,9 +28,27 @@ vi.mock('@/hooks/useAuth', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-vi.mock('@/hooks/useFormOptions', () => ({
-  useFormOptions: () => ({ options: [], isLoading: false }),
+type FormOptionsArgs = [unknown[], string, (item: unknown) => unknown, Record<string, unknown> | undefined];
+const mockUseFormOptions = vi.fn((..._args: FormOptionsArgs) => ({
+  options: [] as Array<{ value: string; label: string }>,
+  isLoading: false,
 }));
+
+vi.mock('@/hooks/useFormOptions', () => ({
+  useFormOptions: (...args: FormOptionsArgs) => mockUseFormOptions(...args),
+}));
+
+/** Stand-in for the tenant-scoped `/v1/branches` endpoint: it returns nothing
+ *  unless the caller sends a `tenantId` (verified against staging — an AM with
+ *  no tenant filter gets zero rows). */
+function mockTenantScopedBranches(tenantId: string, branch: { value: string; label: string }) {
+  mockUseFormOptions.mockImplementation((_key, path, _mapper, params) => {
+    if (path === '/v1/branches' && params?.tenantId === tenantId) {
+      return { options: [branch], isLoading: false };
+    }
+    return { options: [], isLoading: false };
+  });
+}
 
 const mockSave = vi.fn();
 const mockValidate = vi.fn();
@@ -45,7 +63,7 @@ vi.mock('../hooks/usePropertySave', () => ({
 
 // Stable reference to prevent infinite re-render in useEffect
 const MOCK_PROPERTY = {
-  id: 'prop-01', propertyCode: 'P-001', type: 'HOUSE', branchId: 'branch-1',
+  id: 'prop-01', propertyCode: 'P-001', type: 'HOUSE', tenantId: 'tenant-9', branchId: 'branch-1',
   street: 'Rua das Flores, 123', addressLine2: 'Apt 4', suburb: 'Centro',
   postcode: '01000-000', state: 'SP', country: 'BR', notes: 'Some notes',
 };
@@ -73,14 +91,24 @@ function renderDrawer(props: Partial<Parameters<typeof PropertyFormDrawer>[0]> =
       onClose={props.onClose ?? vi.fn()}
       propertyId={props.propertyId ?? undefined}
       onSaved={props.onSaved ?? vi.fn()}
+      tenantIdOverride={props.tenantIdOverride}
+      initialBranchId={props.initialBranchId}
+      lockBranch={props.lockBranch}
+      onCreated={props.onCreated}
     />,
     { wrapper: createWrapper() },
   );
 }
 
+/** Args of the `/v1/branches` call, or undefined when it was never requested. */
+function branchOptionsCall(): FormOptionsArgs | undefined {
+  return mockUseFormOptions.mock.calls.find(([, path]) => path === '/v1/branches');
+}
+
 describe('PropertyFormDrawer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseFormOptions.mockImplementation(() => ({ options: [], isLoading: false }));
     mockSave.mockResolvedValue({ success: true });
     mockValidate.mockReturnValue({});
   });
@@ -119,6 +147,29 @@ describe('PropertyFormDrawer', () => {
     fireEvent.click(screen.getByText('Create Property'));
     expect(screen.getByText('Required field')).toBeInTheDocument();
     expect(mockSave).not.toHaveBeenCalled();
+  });
+
+  // `/v1/branches` is tenant-scoped on the backend: without a `tenantId` a
+  // global role gets zero rows, which used to leave the locked Branch field
+  // showing the "Select branch" placeholder instead of the inherited branch.
+  it('renders the inherited branch in the locked Branch field (nested create flow)', () => {
+    mockTenantScopedBranches('tenant-9', { value: 'branch-9', label: 'North Shore Office' });
+
+    renderDrawer({ tenantIdOverride: 'tenant-9', initialBranchId: 'branch-9', lockBranch: true });
+
+    const branch = screen.getByLabelText('Branch');
+    expect(branch).toHaveTextContent('North Shore Office');
+    expect(branch).toBeDisabled();
+    expect(branchOptionsCall()?.[3]).toMatchObject({ tenantId: 'tenant-9' });
+  });
+
+  it('scopes the branch options to the edited property tenant', () => {
+    mockTenantScopedBranches('tenant-9', { value: 'branch-1', label: 'City Office' });
+
+    renderDrawer({ propertyId: 'prop-01' });
+
+    expect(screen.getByLabelText('Branch')).toHaveTextContent('City Office');
+    expect(branchOptionsCall()?.[3]).toMatchObject({ tenantId: 'tenant-9' });
   });
 
   it('renders backend VALIDATION_ERROR details inline on the matching field', async () => {
