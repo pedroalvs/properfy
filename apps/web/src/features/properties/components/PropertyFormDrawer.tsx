@@ -61,6 +61,9 @@ export function PropertyFormDrawer({
     '/v1/branches',
     (item) => ({ value: item.id, label: item.name }),
     { ...(branchTenantId ? { tenantId: branchTenantId } : {}) },
+    // On the first edit render the property hasn't loaded, so its tenant is
+    // still unknown — skip that request instead of firing an unscoped one.
+    { enabled: !isEditMode || !!branchTenantId },
   );
   const { save, isSaving, validate } = usePropertySave();
   const { showSuccess, showError } = useSnackbar();

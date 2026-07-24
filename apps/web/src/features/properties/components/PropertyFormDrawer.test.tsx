@@ -28,7 +28,13 @@ vi.mock('@/hooks/useAuth', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-type FormOptionsArgs = [unknown[], string, (item: unknown) => unknown, Record<string, unknown> | undefined];
+type FormOptionsArgs = [
+  unknown[],
+  string,
+  (item: unknown) => unknown,
+  Record<string, unknown> | undefined,
+  { enabled?: boolean; staleTime?: number } | undefined,
+];
 const mockUseFormOptions = vi.fn((..._args: FormOptionsArgs) => ({
   options: [] as Array<{ value: string; label: string }>,
   isLoading: false,
@@ -170,6 +176,11 @@ describe('PropertyFormDrawer', () => {
 
     expect(screen.getByLabelText('Branch')).toHaveTextContent('City Office');
     expect(branchOptionsCall()?.[3]).toMatchObject({ tenantId: 'tenant-9' });
+    // Every branches call is scoped — no unscoped request slips out while the
+    // property is still loading.
+    const unscoped = mockUseFormOptions.mock.calls
+      .filter(([, path, , params]) => path === '/v1/branches' && !params?.tenantId);
+    expect(unscoped.every(([, , , , options]) => (options as { enabled?: boolean } | undefined)?.enabled === false)).toBe(true);
   });
 
   it('renders backend VALIDATION_ERROR details inline on the matching field', async () => {
