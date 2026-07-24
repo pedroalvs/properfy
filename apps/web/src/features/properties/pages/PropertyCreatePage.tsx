@@ -31,9 +31,9 @@ export function PropertyCreatePage() {
   const { save, isSaving, validate } = usePropertySave();
   const isGlobalRole = user?.role === UserRole.AM || user?.role === UserRole.OP;
   const [searchParams] = useSearchParams();
-  // Pre-fill context can arrive via URL query params (new browser tab, e.g. from the
-  // appointment-create flow) or via router location.state (same-tab navigation from the
-  // property list). Query params win; location.state is the backward-compatible fallback.
+  // Pre-fill context can arrive via URL query params (deep links / bookmarks) or via
+  // router location.state (same-tab navigation from the property list). Query params
+  // win; location.state is the backward-compatible fallback.
   const stateTenantId = typeof location.state === 'object'
     && location.state
     && 'tenantId' in location.state
