@@ -15,7 +15,7 @@ interface AppointmentMapDetailPanelProps {
   /** Marker that triggered the panel. Source of CLIENT / PROPERTIES (no fetch needed). */
   appointment: AppointmentMapItem | null;
   onClose: () => void;
-  /** "MORE DETAILS" CTA target — defaults to opening the detail page in a new tab. */
+  /** "MORE DETAILS" CTA target — defaults to navigating to the detail page in the same tab. */
   onMoreDetails?: (id: string) => void;
 }
 
