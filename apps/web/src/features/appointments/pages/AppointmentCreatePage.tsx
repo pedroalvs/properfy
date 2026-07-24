@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
 import { UserRole, PLATFORM_TIMEZONE, todayInTzDateString, currentTimeInTzHHmm, isTimeStartInPastForDate } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FormSection } from '@/components/forms/FormSection';
@@ -21,6 +20,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { useGoBack } from '@/hooks/useGoBack';
 import { useAppointmentSave } from '../hooks/useAppointmentSave';
+import { usePropertyCreated } from '../hooks/usePropertyCreated';
 import { AppointmentRestrictionFields } from '../components/AppointmentRestrictionFields';
 import { PropertyFormDrawer } from '@/features/properties/components/PropertyFormDrawer';
 import type { AppointmentFormData, AppointmentFormErrors } from '../types';
@@ -39,7 +39,6 @@ export function AppointmentCreatePage() {
   const [errors, setErrors] = useState<AppointmentFormErrors>({});
   const [showConfirm, setShowConfirm] = useState(false);
   const [propertyDrawerOpen, setPropertyDrawerOpen] = useState(false);
-  const queryClient = useQueryClient();
   const effectiveTenantId = isGlobalRole ? selectedTenantId : undefined;
   const requiresTenantSelection = isGlobalRole && !selectedTenantId;
 
@@ -112,17 +111,7 @@ export function AppointmentCreatePage() {
     });
   }, []);
 
-  const handlePropertyCreated = useCallback((propertyId: string) => {
-    // Refetch every property options list so the new property shows up, then
-    // auto-select it in the form.
-    void queryClient.invalidateQueries({ queryKey: ['properties'] });
-    setForm((prev) => ({ ...prev, propertyId }));
-    setErrors((prev) => {
-      const next = { ...prev };
-      delete next.propertyId;
-      return next;
-    });
-  }, [queryClient]);
+  const handlePropertyCreated = usePropertyCreated(setForm, setErrors);
 
   const handleRestrictionToggle = useCallback((value: boolean) => {
     setForm((prev) => ({

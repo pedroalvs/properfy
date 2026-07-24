@@ -34,6 +34,7 @@ import { EMPTY_FORM_DATA, createEmptyContact, createEmptyCustomField, MAX_CUSTOM
 import type { ContactSearchResult } from '../hooks/useContactSearch';
 import { formatAuPhone } from '@/lib/phone-mask';
 import { PropertyFormDrawer } from '@/features/properties/components/PropertyFormDrawer';
+import { usePropertyCreated } from '../hooks/usePropertyCreated';
 
 const CONTACT_ROLE_OPTIONS = [
   { value: AppointmentContactRole.RENTAL_TENANT, label: 'Tenant' },
@@ -229,17 +230,7 @@ export function AppointmentFormDrawer({
     });
   }, []);
 
-  const handlePropertyCreated = useCallback((propertyId: string) => {
-    // Refetch every property options list so the new property shows up, then
-    // auto-select it in the form.
-    void queryClient.invalidateQueries({ queryKey: ['properties'] });
-    setForm((prev) => ({ ...prev, propertyId }));
-    setErrors((prev) => {
-      const next = { ...prev };
-      delete next.propertyId;
-      return next;
-    });
-  }, [queryClient]);
+  const handlePropertyCreated = usePropertyCreated(setForm, setErrors);
 
   const handleRestrictionToggle = useCallback((value: boolean) => {
     setForm((prev) => ({

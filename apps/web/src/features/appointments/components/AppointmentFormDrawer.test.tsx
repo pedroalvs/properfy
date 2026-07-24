@@ -72,44 +72,58 @@ vi.mock('../hooks/useContactSearch', () => ({
   }),
 }));
 
-// Shallow mock — property-form internals are covered by PropertyFormDrawer's own tests.
-vi.mock('@/features/properties/components/PropertyFormDrawer', () => ({
-  PropertyFormDrawer: ({
-    open,
-    onClose,
-    onCreated,
-    onSaved,
-    tenantIdOverride,
-    initialBranchId,
-    lockBranch,
-  }: {
-    open: boolean;
-    onClose: () => void;
-    onCreated?: (id: string) => void;
-    onSaved: () => void;
-    tenantIdOverride?: string;
-    initialBranchId?: string;
-    lockBranch?: boolean;
-  }) =>
-    open ? (
-      <div
-        data-testid="property-form-drawer"
-        data-tenant={tenantIdOverride ?? ''}
-        data-branch={initialBranchId ?? ''}
-        data-locked={String(!!lockBranch)}
-      >
-        <button
-          onClick={() => {
-            onCreated?.('prop-new');
-            onSaved();
-          }}
+// Shallow mock — property-form internals are covered by PropertyFormDrawer's own
+// tests. Mirrors the real DrawerPanel dismissal contract: while open, Escape
+// calls onClose (backdrop clicks do the same and are exercised via simulate-close).
+vi.mock('@/features/properties/components/PropertyFormDrawer', async () => {
+  const { useEffect } = await import('react');
+  return {
+    PropertyFormDrawer: ({
+      open,
+      onClose,
+      onCreated,
+      onSaved,
+      tenantIdOverride,
+      initialBranchId,
+      lockBranch,
+    }: {
+      open: boolean;
+      onClose: () => void;
+      onCreated?: (id: string) => void;
+      onSaved: () => void;
+      tenantIdOverride?: string;
+      initialBranchId?: string;
+      lockBranch?: boolean;
+    }) => {
+      useEffect(() => {
+        if (!open) return;
+        const onKeyDown = (e: KeyboardEvent) => {
+          if (e.key === 'Escape') onClose();
+        };
+        document.addEventListener('keydown', onKeyDown);
+        return () => document.removeEventListener('keydown', onKeyDown);
+      }, [open, onClose]);
+      return open ? (
+        <div
+          data-testid="property-form-drawer"
+          data-tenant={tenantIdOverride ?? ''}
+          data-branch={initialBranchId ?? ''}
+          data-locked={String(!!lockBranch)}
         >
-          simulate-create
-        </button>
-        <button onClick={onClose}>simulate-close</button>
-      </div>
-    ) : null,
-}));
+          <button
+            onClick={() => {
+              onCreated?.('prop-new');
+              onSaved();
+            }}
+          >
+            simulate-create
+          </button>
+          <button onClick={onClose}>simulate-close</button>
+        </div>
+      ) : null;
+    },
+  };
+});
 
 const mockSave = vi.fn();
 const mockValidate = vi.fn();
@@ -463,7 +477,38 @@ describe('AppointmentFormDrawer', () => {
 
     fireEvent.keyDown(document, { key: 'Escape' });
 
-    // The appointment drawer must neither close nor show its discard dialog.
+    // The nested drawer closes; the appointment drawer must neither close
+    // nor show its discard dialog.
+    await waitFor(() => {
+      expect(screen.queryByTestId('property-form-drawer')).not.toBeInTheDocument();
+    });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.queryByText('Discard changes?')).not.toBeInTheDocument();
+    expect(screen.getByText('New Appointment')).toBeInTheDocument();
+  });
+
+  it('backdrop-style close dismisses only the nested property drawer', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mockUseFormOptions.mockImplementation(((_key: any, path: any) => {
+      if (path === '/v1/tenants') return { options: [{ value: 'tenant-1', label: 'Agency One' }], isLoading: false };
+      if (path === '/v1/branches') return { options: [{ value: 'branch-9', label: 'Branch Nine' }], isLoading: false };
+      return { options: [], isLoading: false };
+    }) as any);
+    const onClose = vi.fn();
+
+    renderDrawer({ onClose });
+
+    fireEvent.click(screen.getByLabelText('Agency'));
+    fireEvent.click(screen.getByText('Agency One'));
+    fireEvent.click(screen.getByLabelText('Branch'));
+    fireEvent.click(screen.getByText('Branch Nine'));
+    fireEvent.click(screen.getByText('Property not listed? Create one'));
+
+    fireEvent.click(screen.getByText('simulate-close'));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('property-form-drawer')).not.toBeInTheDocument();
+    });
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.queryByText('Discard changes?')).not.toBeInTheDocument();
     expect(screen.getByText('New Appointment')).toBeInTheDocument();
