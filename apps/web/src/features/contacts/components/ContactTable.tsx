@@ -85,8 +85,8 @@ export function ContactTable({
       key: 'actions',
       label: '',
       width: '140px',
-      // 023 §FR-203 — "Open detail" must navigate in a new tab so the operator
-      // keeps the list as a workbench. Memory feedback_new_tab_detail.md.
+      // "Open detail" navigates to the contact page in the same tab (Cmd+click
+      // still opens a new one); row click opens the quick-view drawer.
       render: (row) => {
         const actions = [];
         if (canMutate && onEdit) {
@@ -116,7 +116,7 @@ export function ContactTable({
               to={`/contacts/${row.id}`}
               aria-label="Open detail"
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgba(0,0,0,0.54)] hover:bg-black/5"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full text-text-secondary hover:bg-black/5"
             >
               <i className="mdi mdi-eye-outline text-lg" aria-hidden="true" />
             </Link>
