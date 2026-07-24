@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { keepPreviousData } from '@tanstack/react-query';
 import { createPortal } from 'react-dom';
 
@@ -181,6 +181,7 @@ export function AppointmentMapPage() {
   // view targets /service-groups, both AM/OP-gated), so only honour the
   // groups deep-link for global roles. Client roles stay on appointments.
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [mode, setMode] = useState<FilterMode>(
     () => (searchParams.get('mode') === 'groups' && isGlobalRole ? 'groups' : 'appointments'),
   );
@@ -644,9 +645,9 @@ export function AppointmentMapPage() {
 
   const handleViewDetail = useCallback(
     (id: string) => {
-      window.open(`/appointments/${id}`, '_blank');
+      navigate(`/appointments/${id}`);
     },
-    [],
+    [navigate],
   );
 
   const handleRecenter = useCallback(() => {

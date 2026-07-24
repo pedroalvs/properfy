@@ -6,7 +6,7 @@
  *     and a time range derived from the group's appointments — no fetch of
  *     its own (the page supplies `appointments`).
  *   - Close button and ESC call onClose.
- *   - VIEW GROUP opens /service-groups/{id} in a new tab.
+ *   - VIEW GROUP links to /service-groups/{id} (same tab).
  *   - PUBLISH calls onPublish and is enabled only for DRAFT groups.
  *   - Focus moves into the dialog on open.
  *   - Renders nothing when group is null.
@@ -14,6 +14,7 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { GroupMapDetailPanel } from './GroupMapDetailPanel';
 import { ServiceGroupStatus } from '@properfy/shared';
 
@@ -27,12 +28,14 @@ const sampleGroup = {
 
 function renderPanel(props: Partial<Parameters<typeof GroupMapDetailPanel>[0]> = {}) {
   return render(
-    <GroupMapDetailPanel
-      group={sampleGroup}
-      onClose={vi.fn()}
-      onPublish={vi.fn()}
-      {...props}
-    />,
+    <MemoryRouter>
+      <GroupMapDetailPanel
+        group={sampleGroup}
+        onClose={vi.fn()}
+        onPublish={vi.fn()}
+        {...props}
+      />
+    </MemoryRouter>,
   );
 }
 
@@ -109,11 +112,11 @@ describe('GroupMapDetailPanel', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('VIEW GROUP opens the group detail page in a new tab', () => {
-    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+  it('VIEW GROUP links to the group detail page in the same tab', () => {
     renderPanel();
-    fireEvent.click(screen.getByTestId('group-map-detail-view'));
-    expect(openSpy).toHaveBeenCalledWith(`/service-groups/${sampleGroup.id}`, '_blank');
+    const link = screen.getByTestId('group-map-detail-view');
+    expect(link).toHaveAttribute('href', `/service-groups/${sampleGroup.id}`);
+    expect(link).not.toHaveAttribute('target');
   });
 
   it('PUBLISH is disabled for non-DRAFT groups and never fires onPublish', () => {
