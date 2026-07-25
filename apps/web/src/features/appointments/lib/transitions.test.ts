@@ -45,6 +45,22 @@ describe('getAvailableTransitions', () => {
     expect(transitions[0]!.targetStatus).toBe(AppointmentStatus.REJECTED);
   });
 
+  it('AM from REJECTED sees 2 transitions (Reopen as Draft and CANCELLED) — CANCELLED is new in this PR', () => {
+    const transitions = getAvailableTransitions(AppointmentStatus.REJECTED, 'AM');
+    expect(transitions).toHaveLength(2);
+    expect(transitions[0]!.targetStatus).toBe(AppointmentStatus.DRAFT);
+    expect(transitions[0]!.label).toBe('Reopen as Draft');
+    expect(transitions[1]!.targetStatus).toBe(AppointmentStatus.CANCELLED);
+    expect(transitions[1]!.requiresReason).toBe(true);
+  });
+
+  it('OP from REJECTED sees 2 transitions (Reopen as Draft and CANCELLED) — CANCELLED is new in this PR', () => {
+    const transitions = getAvailableTransitions(AppointmentStatus.REJECTED, 'OP');
+    expect(transitions).toHaveLength(2);
+    expect(transitions[0]!.targetStatus).toBe(AppointmentStatus.DRAFT);
+    expect(transitions[1]!.targetStatus).toBe(AppointmentStatus.CANCELLED);
+  });
+
   it('OP from AWAITING_INSPECTOR sees CANCELLED, REJECTED (SCHEDULED handled by Assign button)', () => {
     const transitions = getAvailableTransitions(AppointmentStatus.AWAITING_INSPECTOR, 'OP');
     expect(transitions).toHaveLength(2);
@@ -75,10 +91,21 @@ describe('getAvailableTransitions', () => {
     expect(transitions).toHaveLength(0);
   });
 
+  it('CL_ADMIN from REJECTED sees only CANCELLED — the detail-page mirror of the map bulk-cancel fix', () => {
+    const transitions = getAvailableTransitions(AppointmentStatus.REJECTED, 'CL_ADMIN');
+    expect(transitions).toHaveLength(1);
+    expect(transitions[0]!.targetStatus).toBe(AppointmentStatus.CANCELLED);
+  });
+
   it('INSP from SCHEDULED sees only DONE', () => {
     const transitions = getAvailableTransitions(AppointmentStatus.SCHEDULED, 'INSP');
     expect(transitions).toHaveLength(1);
     expect(transitions[0]!.targetStatus).toBe(AppointmentStatus.DONE);
+  });
+
+  it('INSP from REJECTED sees nothing', () => {
+    const transitions = getAvailableTransitions(AppointmentStatus.REJECTED, 'INSP');
+    expect(transitions).toHaveLength(0);
   });
 
   it('INSP from DRAFT sees nothing', () => {

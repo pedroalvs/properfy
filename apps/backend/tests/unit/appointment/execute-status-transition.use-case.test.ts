@@ -354,7 +354,7 @@ describe('ExecuteStatusTransitionUseCase – valid transitions', () => {
     expect(result.status).toBe('AWAITING_INSPECTOR');
   });
 
-  it('REJECTED → CANCELLED with reason (OP actor) — 025 §FR-411 bulk cancel from map', async () => {
+  it('REJECTED → CANCELLED with reason (OP actor) — map bulk-cancel from a REJECTED selection', async () => {
     appointmentRepo.findById.mockResolvedValue(
       makeWithRelations({ status: 'REJECTED', reason: 'old reason' }),
     );
