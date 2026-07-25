@@ -2,14 +2,16 @@
  * BulkStatusTransitionUseCase (025 §FR-431) — generic wrapper around
  * ExecuteStatusTransitionUseCase for the bulk-modal transitions. State
  * machine validation lives in the underlying use case; this test pins
- * the per-target idempotency-key bucketing (so flipping the target in
- * the same day still executes) and the typed error envelope.
+ * the per-target idempotency key (so flipping the target still executes),
+ * the short replay window that replaced the old day bucket, and the typed
+ * error envelope.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BulkStatusTransitionUseCase } from '../../../src/modules/appointment/application/use-cases/bulk-status-transition.use-case';
 import type { ExecuteStatusTransitionUseCase } from '../../../src/modules/appointment/application/use-cases/execute-status-transition.use-case';
 import type { IIdempotencyService } from '../../../src/shared/domain/idempotency.service';
+import { REPLAY_WINDOW_TTL_HOURS } from '../../../src/modules/appointment/application/use-cases/bulk-action-shared';
 import {
   AppointmentInvalidTransitionError,
   AppointmentReasonRequiredError,
@@ -108,7 +110,7 @@ describe('BulkStatusTransitionUseCase', () => {
     // `set(key, scope, response, ttlHours)` — the service multiplies by
     // 60 * 60 * 1000, so 3 minutes is 3/60 of an hour.
     const setCall = (mocks.idempotency.set as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(setCall?.[3]).toBeCloseTo(3 / 60, 10);
+    expect(setCall?.[3]).toBeCloseTo(REPLAY_WINDOW_TTL_HOURS, 10);
   });
 
   it('maps AppointmentInvalidTransitionError → INVALID_TRANSITION', async () => {

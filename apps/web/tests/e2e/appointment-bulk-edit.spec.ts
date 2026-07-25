@@ -176,7 +176,7 @@ test.describe('Bulk Change Status', () => {
     for (const code of codes) {
       await page.getByLabel(`Select appointment ${code}`).check();
     }
-    await page.getByText(/Bulk Edit/).click();
+    await page.getByRole('button', { name: /Bulk Edit/ }).click();
     return page.getByRole('dialog');
   }
 

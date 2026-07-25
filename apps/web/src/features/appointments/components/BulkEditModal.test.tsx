@@ -465,6 +465,39 @@ describe('BulkEditModal', () => {
       });
     });
 
+    it('drops a stale target when the selection changes underneath it', () => {
+      // targetStatus is derived, not stored: if the new selection cannot reach
+      // the target that was already picked, the pick must vanish rather than
+      // sit invisibly in state while SelectInput shows the placeholder.
+      const Wrapper = createWrapper();
+      const { rerender } = render(
+        <Wrapper>
+          <BulkEditModal
+            selectedAppointments={[makeAppointment({ id: 'a', status: 'DRAFT' })]}
+            open
+            onClose={vi.fn()}
+            onSuccess={vi.fn()}
+          />
+        </Wrapper>,
+      );
+      fireEvent.click(screen.getByLabelText('Change status'));
+      chooseTarget('Awaiting Inspector');
+      expect(screen.getByRole('button', { name: 'Apply Changes' })).toBeEnabled();
+
+      // A CANCELLED row can only reach DRAFT, so the earlier pick is now invalid.
+      rerender(
+        <Wrapper>
+          <BulkEditModal
+            selectedAppointments={[makeAppointment({ id: 'a', status: 'CANCELLED' })]}
+            open
+            onClose={vi.fn()}
+            onSuccess={vi.fn()}
+          />
+        </Wrapper>,
+      );
+      expect(screen.getByRole('button', { name: 'Apply Changes' })).toBeDisabled();
+    });
+
     it('drops the reason when the target changes', () => {
       // The text justifies a specific transition; carrying it to another target
       // would submit it unread.
@@ -583,7 +616,9 @@ describe('BulkEditModal', () => {
     it('counts an IDEMPOTENT_REPLAY as updated, not as a failure', async () => {
       // The backend guard is a 3-minute double-click window, so a replay is
       // the operator's own duplicate submit — reporting it as a failure would
-      // be noise. All-replay batches therefore close the modal like a success.
+      // be noise. An all-replay batch therefore reports success, which is what
+      // the list page turns into closing the modal and clearing the selection
+      // (the modal itself never calls onClose on this path).
       mockPost.mockResolvedValue({
         data: { data: { results: [{ appointmentId: 'a', status: 'IDEMPOTENT_REPLAY' }] } },
         error: null,

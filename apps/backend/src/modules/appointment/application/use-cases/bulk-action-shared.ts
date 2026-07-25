@@ -42,6 +42,16 @@ export function dayKeyInTz(now: Date): string {
  * `dayKeyInTz`, because a replay there means another real email/SMS to the
  * rental tenant. Keep that distinction when adding a new bulk action, and ask:
  * does replaying it cost the tenant anything? If yes, bucket it per day.
+ *
+ * This key is a cheap short-circuit, NOT the correctness guarantee. The
+ * authoritative protection against applying an action twice lives in the
+ * delegated use cases' domain invariants — the state machine rejects a
+ * transition whose `from` no longer matches, and `PerformCrossCheckUseCase`
+ * throws `AppointmentDoneCrossCheckAlreadyCompletedError` when
+ * `doneCheckedByUserId` is already set. That is why changing the key format
+ * (this commit dropped the day bucket) is safe to deploy: records written
+ * under the old format simply become unreachable, the item is re-invoked, and
+ * the domain rejects it into `failed[]` instead of duplicating a side effect.
  */
 export const REPLAY_WINDOW_MINUTES = 3;
 /** `IIdempotencyService.set` takes hours and multiplies by 60 * 60 * 1000. */
