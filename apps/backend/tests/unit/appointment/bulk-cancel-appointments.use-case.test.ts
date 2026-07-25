@@ -11,6 +11,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BulkCancelAppointmentsUseCase } from '../../../src/modules/appointment/application/use-cases/bulk-cancel-appointments.use-case';
 import type { ExecuteStatusTransitionUseCase } from '../../../src/modules/appointment/application/use-cases/execute-status-transition.use-case';
 import type { IIdempotencyService } from '../../../src/shared/domain/idempotency.service';
+import { REPLAY_WINDOW_TTL_HOURS } from '../../../src/modules/appointment/application/use-cases/bulk-action-shared';
 import {
   AppointmentNotFoundError,
   AppointmentInvalidTransitionError,
@@ -71,17 +72,19 @@ describe('BulkCancelAppointmentsUseCase', () => {
     ]);
   });
 
-  it('uses the actor TZ for the idempotency day key', async () => {
+  it('is not bucketed by day — the replay guard is the TTL alone', async () => {
+    // A day bucket would make a re-cancel unrepeatable until midnight. The
+    // guard only absorbs double-clicks; deliberate repeats must execute.
     const useCase = new BulkCancelAppointmentsUseCase(
       mocks.executeStatusTransition,
       mocks.idempotency,
-      () => new Date('2026-04-15T14:30:00Z'), // 2026-04-16 in Sydney
+      () => new Date('2026-04-15T14:30:00Z'),
     );
 
-    await useCase.execute({ appointmentIds: [APPT_A], reason: 'x', actor, actorTimezone: 'Australia/Sydney' });
+    await useCase.execute({ appointmentIds: [APPT_A], reason: 'x', actor });
 
     const [key] = (mocks.idempotency.getWithHash as ReturnType<typeof vi.fn>).mock.calls[0]!;
-    expect(key).toBe(`bulk_cancel:${APPT_A}:2026-04-16`);
+    expect(key).toBe(`bulk_cancel:${APPT_A}`);
   });
 
   it('returns IDEMPOTENT_REPLAY when the per-day cache exists and skips the delegate', async () => {
@@ -146,10 +149,10 @@ describe('BulkCancelAppointmentsUseCase', () => {
     });
 
     expect(mocks.idempotency.set).toHaveBeenCalledWith(
-      `bulk_cancel:${APPT_A}:2026-04-15`,
+      `bulk_cancel:${APPT_A}`,
       'bulk_cancel',
       { appointmentId: APPT_A, status: 'OK' },
-      36,
+      REPLAY_WINDOW_TTL_HOURS,
     );
   });
 });

@@ -58,7 +58,7 @@ describe('BulkCrossCheckDoneUseCase', () => {
   it('treats a cached idempotency hit as updated without re-invoking the inner use case', async () => {
     // 'b' already cross-checked in this window → replay, no delegation.
     idempotency.getWithHash.mockImplementation(async (key: string) =>
-      key.includes(':b:') ? { response: { ok: true }, payloadHash: null } : null,
+      key === 'bulk_cross_check:b' ? { response: { ok: true }, payloadHash: null } : null,
     );
     performCrossCheck.execute.mockResolvedValue({ id: 'x' });
 
