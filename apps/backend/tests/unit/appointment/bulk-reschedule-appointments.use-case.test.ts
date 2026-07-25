@@ -181,6 +181,9 @@ describe('BulkRescheduleAppointmentsUseCase', () => {
     expect(calls[1]).not.toBe(calls[2]);
     expect(calls[0]).toContain('2026-06-01');
     expect(calls[1]).toContain('2026-06-02');
+    // The slot itself must discriminate, not just the date.
+    expect(calls[1]).toContain('09:00-10:00');
+    expect(calls[2]).toContain('14:00-15:00');
     // ...and no day bucket: the replay window is the TTL alone.
     expect(calls[0]).not.toContain('2026-04-15');
     // Every distinct slot reached the delegate — none was swallowed as a replay.

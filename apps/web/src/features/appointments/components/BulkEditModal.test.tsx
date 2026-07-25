@@ -552,7 +552,9 @@ describe('BulkEditModal', () => {
           data: {
             results: [
               {
-                appointmentId: 'b',
+                // A distinctive id, so the "no raw id fragment" assertion below
+                // cannot pass vacuously the way a single letter would.
+                appointmentId: 'apt-uuid-9f21',
                 status: 'FORBIDDEN',
                 error: { code: 'APPOINTMENT_TRANSITION_NOT_PERMITTED', message: 'Not permitted for your role' },
               },
@@ -561,7 +563,9 @@ describe('BulkEditModal', () => {
         },
         error: null,
       });
-      const { container } = renderModal([makeAppointment({ id: 'b', code: 'VST-014', status: 'DRAFT' })]);
+      const { container } = renderModal([
+        makeAppointment({ id: 'apt-uuid-9f21', code: 'VST-014', status: 'DRAFT' }),
+      ]);
       fireEvent.click(screen.getByLabelText('Change status'));
       chooseTarget('Cancelled');
       fireEvent.change(screen.getByLabelText('Status change reason'), {
@@ -573,7 +577,7 @@ describe('BulkEditModal', () => {
       expect(screen.getByText('VST-014')).toBeInTheDocument();
       // Assert against the whole rendered text, so an id fragment sitting
       // alongside other row content is still caught.
-      expect(container.textContent).not.toMatch(/b\.\.\./);
+      expect(container.textContent).not.toMatch(/apt-uuid/);
     });
 
     it('counts an IDEMPOTENT_REPLAY as updated, not as a failure', async () => {

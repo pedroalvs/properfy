@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import {
   setupAuth,
   mockMeEndpoint,
@@ -170,7 +171,7 @@ test.describe('Bulk Change Status', () => {
   // intersection assertions below would pass for the wrong reason.
   const OP_USER = { ...AM_USER, role: 'OP' };
 
-  async function openBulkEdit(page: import('@playwright/test').Page, codes: string[]) {
+  async function openBulkEdit(page: Page, codes: string[]) {
     await page.goto('/appointments');
     for (const code of codes) {
       await page.getByLabel(`Select appointment ${code}`).check();
@@ -191,7 +192,7 @@ test.describe('Bulk Change Status', () => {
     ]);
 
     const dialog = await openBulkEdit(page, ['APT-1001', 'APT-1009']);
-    await dialog.locator('label:has-text("Change status") input[type="checkbox"]').check();
+    await dialog.getByLabel('Change status').check();
     await dialog.getByLabel('Set target status').click();
 
     await expect(dialog.getByRole('option', { name: 'Rejected' })).toBeVisible();
@@ -210,7 +211,7 @@ test.describe('Bulk Change Status', () => {
     ]);
 
     const dialog = await openBulkEdit(page, ['APT-1001', 'APT-1008']);
-    await dialog.locator('label:has-text("Change status") input[type="checkbox"]').check();
+    await dialog.getByLabel('Change status').check();
 
     await expect(
       dialog.getByText('No common transition is available for the selected rows.'),
@@ -244,7 +245,7 @@ test.describe('Bulk Change Status', () => {
     });
 
     const dialog = await openBulkEdit(page, ['APT-1001', 'APT-1002']);
-    await dialog.locator('label:has-text("Change status") input[type="checkbox"]').check();
+    await dialog.getByLabel('Change status').check();
 
     // Apply stays disabled until a target is chosen.
     await expect(dialog.getByRole('button', { name: 'Apply Changes' })).toBeDisabled();
@@ -279,7 +280,7 @@ test.describe('Bulk Change Status', () => {
     await mockAppointmentList(page, draftRows);
 
     const dialog = await openBulkEdit(page, ['APT-1001']);
-    await dialog.locator('label:has-text("Change status") input[type="checkbox"]').check();
+    await dialog.getByLabel('Change status').check();
     await dialog.getByLabel('Set target status').click();
     await dialog.getByRole('option', { name: 'Awaiting Inspector' }).click();
 
@@ -294,10 +295,10 @@ test.describe('Bulk Change Status', () => {
     await mockAppointmentList(page, draftRows);
 
     const dialog = await openBulkEdit(page, ['APT-1001']);
-    await dialog.locator('label:has-text("Change status") input[type="checkbox"]').check();
+    await dialog.getByLabel('Change status').check();
 
     await expect(dialog.locator('label:has-text("Inspector") input[type="checkbox"]').first()).toBeDisabled();
-    await expect(dialog.locator('label:has-text("Mark as Reviewed") input[type="checkbox"]')).toBeDisabled();
+    await expect(dialog.getByLabel('Mark as Reviewed')).toBeDisabled();
   });
 
   test('is hidden for a client admin', async ({ page }) => {

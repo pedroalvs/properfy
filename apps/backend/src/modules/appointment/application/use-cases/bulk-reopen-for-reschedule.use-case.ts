@@ -125,7 +125,12 @@ export class BulkReopenForRescheduleUseCase {
         }
       }
 
-      const idemKey = `bulk_reopen_reschedule:${apptId}`;
+      // Keyed by the requested slot, not just the id: reopening to a DIFFERENT
+      // date/time is a different action and must execute, even seconds after
+      // the previous one. Only an identical re-submit replays.
+      const normalisedDate = input.newDate.length >= 10 ? input.newDate.slice(0, 10) : input.newDate;
+      const slotKey = `${normalisedDate}:${input.newTimeSlotStart}-${input.newTimeSlotEnd}`;
+      const idemKey = `bulk_reopen_reschedule:${apptId}:${slotKey}`;
       const cached = await this.idempotency.getWithHash<BulkActionResultItem>(idemKey, IDEMPOTENCY_SCOPE);
       if (cached) {
         results.push({ appointmentId: apptId, status: 'IDEMPOTENT_REPLAY' });
