@@ -70,6 +70,12 @@ const BASE_MATRIX: Record<AppointmentStatus, TransitionEntry[]> = {
     { target: AppointmentStatus.DRAFT, allowedRoles: ['OP', 'AM'], reasonRequired: true },
     // System-triggered when a REJECTED appointment is added to a service group.
     { target: AppointmentStatus.AWAITING_INSPECTOR, allowedRoles: ['OP', 'AM'], reasonRequired: true },
+    {
+      target: AppointmentStatus.CANCELLED,
+      allowedRoles: ['OP', 'AM', 'CL_ADMIN'],
+      clUserFlag: 'cancel_appointments',
+      reasonRequired: true,
+    },
   ],
 };
 
