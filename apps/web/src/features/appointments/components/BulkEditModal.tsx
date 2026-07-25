@@ -1,14 +1,24 @@
 import { useState, useCallback, useMemo } from 'react';
-import { todayInTzDateString, PLATFORM_TIMEZONE } from '@properfy/shared';
+import {
+  todayInTzDateString,
+  PLATFORM_TIMEZONE,
+  getValidTransitions,
+  isReasonRequired,
+  type AppointmentStatus,
+  type BulkActionResponse,
+} from '@properfy/shared';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { SelectInput } from '@/components/forms/SelectInput';
+import { Textarea } from '@/components/forms/Textarea';
 import { TimeRangeInput } from '@/components/forms/TimeRangeInput';
+import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { usePermissions } from '@/hooks/usePermissions';
 import { api } from '@/services/api';
 import { ContactAutocomplete } from './ContactAutocomplete';
 import { useBulkCrossCheckDone } from '../hooks/useBulkCrossCheckDone';
+import { useBulkStatusTransition } from '../hooks/useBulkStatusTransition';
 import type { ContactSearchResult } from '../hooks/useContactSearch';
 import type { Appointment } from '../types';
 
@@ -52,6 +62,38 @@ interface BulkEditResult {
   failed: Array<{ id: string; code: string; message: string }>;
 }
 
+/**
+ * Folds the bulk status-transition envelope into the `{ updated, failed }`
+ * shape this modal's result view already renders, so both bulk paths share
+ * one summary UI.
+ *
+ * `IDEMPOTENT_REPLAY` counts as updated. The backend guard is a 3-minute
+ * double-click window (`REPLAY_WINDOW_MINUTES` in `bulk-action-shared.ts`),
+ * not a per-day rule — so a replay means this exact transition succeeded
+ * seconds ago and the operator is seeing their own duplicate submit. Calling
+ * that a failure would be noise.
+ *
+ * The backend already emits domain-level `{ code, message }` per row via
+ * `mapErrorToResult`, so the message is passed through rather than restated.
+ */
+function toBulkEditResult(results: BulkActionResponse['results']): BulkEditResult {
+  const failed = results
+    .filter((r) => r.status !== 'OK' && r.status !== 'IDEMPOTENT_REPLAY')
+    .map((r) => ({
+      id: r.appointmentId,
+      code: r.error?.code ?? r.status,
+      message: r.error?.message ?? r.status,
+    }));
+  return { updated: results.length - failed.length, failed };
+}
+
+/** Mirrors `bulkStatusTransitionRequestSchema` in
+ *  `packages/shared/src/schemas/appointment.ts` (`reason: min(3).max(500)`).
+ *  Named so the submit gate, the field cap and the label copy cannot drift
+ *  apart from each other or from the server-side bound. */
+const REASON_MIN_LENGTH = 3;
+const REASON_MAX_LENGTH = 500;
+
 interface BulkEditModalProps {
   selectedAppointments: Appointment[];
   open: boolean;
@@ -61,9 +103,13 @@ interface BulkEditModalProps {
 
 export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }: BulkEditModalProps) {
   const selectedIds = useMemo(() => selectedAppointments.map((a) => a.id), [selectedAppointments]);
-  const { canPerform } = usePermissions();
+  const { canPerform, role } = usePermissions();
   const canReview = canPerform('appointment.cross_check');
+  // AM/OP only — mirrors the server-side gate on the bulk endpoint. Deliberately
+  // NOT the page's `appointment.cancel` gate, which also lets CL roles in.
+  const canChangeStatus = canPerform('appointment.bulk_status_transition');
   const bulkCrossCheck = useBulkCrossCheckDone();
+  const bulkStatusTransition = useBulkStatusTransition();
 
   // "Mark as Reviewed" cross-checks DONE appointments. It targets a different
   // status (DONE) than the field edits (DRAFT / AWAITING_INSPECTOR), so it is
@@ -94,6 +140,9 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
     propertyManagerContactId: false,
   });
   const [reviewed, setReviewed] = useState(false);
+  const [changeStatus, setChangeStatus] = useState(false);
+  const [pickedTarget, setPickedTarget] = useState<AppointmentStatus | ''>('');
+  const [statusReason, setStatusReason] = useState('');
   const [values, setValues] = useState<BulkEditValues>({});
   const [pmContactLabel, setPmContactLabel] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -116,6 +165,49 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
     (item) => ({ value: item.id, label: item.name }),
   );
 
+  // ── Change status ────────────────────────────────────────────────────────
+  // Only offer targets EVERY selected row can reach, so the dropdown never
+  // promises an option that would fail for part of the batch. Mixed selections
+  // therefore narrow the menu rather than producing per-row rejections.
+  const statusTargets = useMemo(() => {
+    if (!role || selectedAppointments.length === 0) return [] as AppointmentStatus[];
+    const perRow = selectedAppointments.map(
+      (a) => new Set(getValidTransitions(a.status as AppointmentStatus, role)),
+    );
+    return Array.from(perRow.reduce((acc, s) => new Set([...acc].filter((t) => s.has(t)))));
+  }, [selectedAppointments, role]);
+
+  const statusTargetOptions = useMemo(
+    () => statusTargets.map((t) => ({ value: t, label: APPOINTMENT_STATUS_MAP[t]?.label ?? t })),
+    [statusTargets],
+  );
+
+  // Derived, not stored: if the selection changes under a picked target, drop
+  // the stale pick instead of letting SelectInput silently fall back to the
+  // placeholder while `pickedTarget` still holds the old value.
+  const targetStatus = pickedTarget && statusTargets.includes(pickedTarget) ? pickedTarget : '';
+
+  // Require a reason if ANY selected row requires one — not just the first.
+  // DRAFT → AWAITING_INSPECTOR needs no reason but REJECTED → AWAITING_INSPECTOR
+  // does, so a mixed batch judged on row 0 alone would be rejected server-side.
+  const statusReasonRequired = useMemo(
+    () =>
+      !!targetStatus &&
+      selectedAppointments.some((a) => isReasonRequired(a.status as AppointmentStatus, targetStatus)),
+    [selectedAppointments, targetStatus],
+  );
+
+  const changeStatusReady =
+    !!targetStatus && (!statusReasonRequired || statusReason.trim().length >= REASON_MIN_LENGTH);
+
+  // Failure rows identify the appointment by its human-readable code — an id
+  // fragment tells the operator nothing about which row to go fix. Falls back
+  // to the raw id if the row is somehow not in the current selection.
+  const codeOf = useCallback(
+    (id: string) => selectedAppointments.find((a) => a.id === id)?.code ?? id,
+    [selectedAppointments],
+  );
+
   const reset = useCallback(() => {
     setEnabledFields({
       assignedInspectorId: false,
@@ -125,6 +217,9 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
       propertyManagerContactId: false,
     });
     setReviewed(false);
+    setChangeStatus(false);
+    setPickedTarget('');
+    setStatusReason('');
     setValues({});
     setPmContactLabel('');
     setResult(null);
@@ -176,6 +271,33 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
   }, []);
 
   const handleSubmit = async () => {
+    // "Change status" path — exclusive with the field edits and with review.
+    // The endpoint loops the single-transition use case per item, so RBAC, the
+    // state machine and the reason rules are all re-checked server-side and a
+    // rejected row never aborts the rest of the batch.
+    if (changeStatus) {
+      if (!changeStatusReady || !targetStatus) return;
+      setSubmitting(true);
+      setErrorMessage(null);
+      try {
+        const response = await bulkStatusTransition.mutateAsync({
+          appointmentIds: selectedIds,
+          targetStatus,
+          ...(statusReasonRequired ? { reason: statusReason.trim() } : {}),
+        });
+        const payload = toBulkEditResult(response.data.results);
+        setResult(payload);
+        if (payload.failed.length === 0) {
+          onSuccess();
+        }
+      } catch (err) {
+        setErrorMessage((err as Error)?.message ?? 'Bulk status change failed');
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
     // "Mark as Reviewed" path — exclusive with the field edits. Cross-checks the
     // whole selection; the backend skips non-DONE / already-reviewed ids into
     // `failed[]`, which reuses the same result UI below.
@@ -255,9 +377,11 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
     }
   };
 
-  const hasCheckedFields = (Object.values(enabledFields) as boolean[]).some(Boolean) || reviewed;
-  // Exclusivity: field edits and "Mark as Reviewed" cannot be combined.
+  // Exclusivity: field edits, "Mark as Reviewed" and "Change status" are three
+  // mutually exclusive modes — checking any one disables the other two.
   const anyFieldChecked = (Object.values(enabledFields) as boolean[]).some(Boolean);
+  const hasCheckedFields = anyFieldChecked || reviewed || changeStatus;
+  const submitDisabled = !hasCheckedFields || (changeStatus && !changeStatusReady);
 
   const inspectorDisabled = !activeTenantId;
   const inspectorHelper = multiTenant
@@ -280,7 +404,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
             <Button variant="secondary" onClick={handleClose} disabled={submitting}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit} loading={submitting} disabled={!hasCheckedFields}>
+            <Button onClick={handleSubmit} loading={submitting} disabled={submitDisabled}>
               Apply Changes
             </Button>
           </>
@@ -307,7 +431,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
                 <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto text-sm text-text-secondary">
                   {result.failed.map((err) => (
                     <li key={err.id} className="rounded border border-border-subtle px-3 py-2">
-                      <span className="font-mono text-xs text-text-muted">{err.id.slice(0, 8)}...</span>{' '}
+                      <span className="font-semibold text-text-primary">{codeOf(err.id)}</span>{' '}
                       {err.message}
                     </li>
                   ))}
@@ -335,7 +459,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
             checked={enabledFields.assignedInspectorId}
             onToggle={() => toggleField('assignedInspectorId')}
             helper={inspectorHelper}
-            disabled={reviewed}
+            disabled={reviewed || changeStatus}
           >
             <SelectInput
               id="bulk-inspector"
@@ -354,7 +478,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
             label={FIELD_LABELS.scheduledDate}
             checked={enabledFields.scheduledDate}
             onToggle={() => toggleField('scheduledDate')}
-            disabled={reviewed}
+            disabled={reviewed || changeStatus}
           >
             <input
               id="bulk-scheduled-date"
@@ -374,7 +498,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
             label={FIELD_LABELS.timeSlot}
             checked={enabledFields.timeSlot}
             onToggle={() => toggleField('timeSlot')}
-            disabled={reviewed}
+            disabled={reviewed || changeStatus}
           >
             <TimeRangeInput
               startTime={values.timeSlotStart ?? ''}
@@ -391,7 +515,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
             label={FIELD_LABELS.serviceTypeId}
             checked={enabledFields.serviceTypeId}
             onToggle={() => toggleField('serviceTypeId')}
-            disabled={reviewed}
+            disabled={reviewed || changeStatus}
           >
             <SelectInput
               id="bulk-service-type"
@@ -411,7 +535,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
             checked={enabledFields.propertyManagerContactId}
             onToggle={() => toggleField('propertyManagerContactId')}
             helper="Appointments that already have a PM contact will be skipped."
-            disabled={reviewed}
+            disabled={reviewed || changeStatus}
           >
             <ContactAutocomplete
               value={pmContactLabel}
@@ -431,9 +555,76 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
               label="Mark as Reviewed"
               checked={reviewed}
               onToggle={() => setReviewed((v) => !v)}
-              disabled={anyFieldChecked}
+              disabled={anyFieldChecked || changeStatus}
               helper={`${reviewableCount} of ${selectedIds.length} selected are DONE and pending review; the others will be skipped.`}
             />
+          )}
+
+          {/* Change status — AM/OP only, gated on the same permission the
+              backend enforces. Targets are the intersection across the
+              selection, so an option is never offered that part of the batch
+              cannot reach. */}
+          {canChangeStatus && (
+            <FieldRow
+              id="bulk-change-status"
+              label="Change status"
+              checked={changeStatus}
+              // Unchecking discards the picked target and reason, mirroring how
+              // `toggleField` clears a field's value when its row is unchecked.
+              // Otherwise re-checking the row would silently restore a stale
+              // target the operator had already abandoned.
+              onToggle={() =>
+                setChangeStatus((v) => {
+                  if (v) {
+                    setPickedTarget('');
+                    setStatusReason('');
+                  }
+                  return !v;
+                })
+              }
+              disabled={anyFieldChecked || reviewed}
+              helper={
+                statusTargets.length === 0
+                  ? 'No common transition is available for the selected rows.'
+                  : null
+              }
+            >
+              <div className="space-y-2">
+                <SelectInput
+                  id="bulk-change-status"
+                  aria-label="Set target status"
+                  value={targetStatus}
+                  // Changing the target drops the reason: the text was written
+                  // to justify a different transition ("Tenant moved out" for a
+                  // cancel is not a rejection reason), and carrying it over
+                  // would submit it unread against the new target.
+                  onChange={(v) => {
+                    setPickedTarget(v as AppointmentStatus);
+                    setStatusReason('');
+                  }}
+                  options={statusTargetOptions}
+                  placeholder="Select target status"
+                  disabled={statusTargets.length === 0}
+                />
+                {statusReasonRequired && (
+                  <label className="block text-sm font-medium text-text-primary">
+                    Reason{' '}
+                    {/* State the requirement, so a disabled Apply is never
+                        unexplained while the operator types. */}
+                    <span className="font-normal text-text-muted">
+                      (required, at least {REASON_MIN_LENGTH} characters)
+                    </span>
+                    <Textarea
+                      aria-label="Status change reason"
+                      value={statusReason}
+                      onChange={setStatusReason}
+                      maxLength={REASON_MAX_LENGTH}
+                      rows={3}
+                    />
+                  </label>
+                )}
+              </div>
+            </FieldRow>
           )}
         </div>
       )}

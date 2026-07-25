@@ -9,8 +9,8 @@ const machine = new AppointmentStateMachine();
 
 describe('AppointmentStateMachine', () => {
   describe('TRANSITION_RULES count', () => {
-    it('defines exactly 14 transition rules', () => {
-      expect(TRANSITION_RULES).toHaveLength(14);
+    it('defines exactly 15 transition rules', () => {
+      expect(TRANSITION_RULES).toHaveLength(15);
     });
   });
 
@@ -40,6 +40,7 @@ describe('AppointmentStateMachine', () => {
       ['SCHEDULED', 'REJECTED'],
       ['REJECTED', 'DRAFT'],
       ['REJECTED', 'AWAITING_INSPECTOR'],
+      ['REJECTED', 'CANCELLED'],
       ['CANCELLED', 'DRAFT'],
       ['DONE', 'DRAFT'],
       ['DONE', 'REJECTED'],
@@ -245,6 +246,12 @@ describe('AppointmentStateMachine', () => {
     it('REJECTED → AWAITING_INSPECTOR requires reason', () => {
       const rule = machine.getTransitionRule('REJECTED', 'AWAITING_INSPECTOR');
       expect(rule?.requiresReason).toBe(true);
+    });
+
+    it('REJECTED → CANCELLED requires reason', () => {
+      const rule = machine.getTransitionRule('REJECTED', 'CANCELLED');
+      expect(rule?.requiresReason).toBe(true);
+      expect(rule?.requiresDoneCheckedBy).toBe(false);
     });
 
     it('CANCELLED → DRAFT requires reason', () => {

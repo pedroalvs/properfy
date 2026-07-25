@@ -3,10 +3,9 @@ import type { AuthorizationService } from '../../../../shared/domain/authorizati
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import type { PerformCrossCheckUseCase } from './perform-cross-check.use-case';
-import { dayKeyInTz } from './bulk-action-shared';
+import { REPLAY_WINDOW_TTL_HOURS } from './bulk-action-shared';
 
 const IDEMPOTENCY_SCOPE = 'bulk_cross_check';
-const IDEMPOTENCY_TTL_HOURS = 36;
 
 export interface BulkCrossCheckDoneInput {
   ids: string[];
@@ -28,10 +27,11 @@ export interface BulkCrossCheckDoneResult {
  * (status must be DONE, not already checked, no self-approval, inspection
  * evidence present) plus the financial-entry side effect — no duplication.
  *
- * Per-item idempotency keyed by `(appointmentId, dayInActorTz)` mirrors the
- * sibling bulk wrappers (`bulk-cancel`, `bulk-status-transition`, …). Because
- * the delegated cross-check produces a financial-entry side effect, the key
- * guards a same-day retry / concurrent double-submit from re-firing it: a
+ * Per-item idempotency keyed by `appointmentId` for a short replay window
+ * mirrors the sibling bulk wrappers (`bulk-cancel`, `bulk-status-transition`,
+ * …). Because the delegated cross-check produces a financial-entry side
+ * effect, the key guards an immediate retry / concurrent double-submit from
+ * re-firing it: a
  * cached hit is counted as `updated` without re-invoking the inner use case.
  * Only successful cross-checks are cached, so genuine failures (non-DONE,
  * evidence-incomplete, …) are always retried.
@@ -55,13 +55,11 @@ export class BulkCrossCheckDoneUseCase {
       action: 'appointment.cross_check',
       entityType: 'Appointment',
     });
-
-    const dayKey = dayKeyInTz(this.clock());
     let updated = 0;
     const failed: Array<{ id: string; code: string; message: string }> = [];
 
     for (const appointmentId of input.ids) {
-      const idemKey = `bulk_cross_check:${appointmentId}:${dayKey}`;
+      const idemKey = `bulk_cross_check:${appointmentId}`;
       const cached = await this.idempotency.getWithHash<{ ok: true }>(idemKey, IDEMPOTENCY_SCOPE);
       if (cached) {
         // Already cross-checked in this window — treat the replay as a success
@@ -72,7 +70,7 @@ export class BulkCrossCheckDoneUseCase {
 
       try {
         await this.performCrossCheck.execute({ appointmentId, actor: input.actor });
-        await this.idempotency.set(idemKey, IDEMPOTENCY_SCOPE, { ok: true }, IDEMPOTENCY_TTL_HOURS);
+        await this.idempotency.set(idemKey, IDEMPOTENCY_SCOPE, { ok: true }, REPLAY_WINDOW_TTL_HOURS);
         updated += 1;
       } catch (err: unknown) {
         const code = (err as { code?: string })?.code;

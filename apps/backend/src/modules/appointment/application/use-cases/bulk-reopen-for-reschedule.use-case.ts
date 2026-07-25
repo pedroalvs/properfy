@@ -2,10 +2,9 @@ import type { AuthContext, BulkActionResultItem } from '@properfy/shared';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { ReopenForRescheduleUseCase } from './reopen-for-reschedule.use-case';
-import { dayKeyInTz, mapErrorToResult } from './bulk-action-shared';
+import { mapErrorToResult, REPLAY_WINDOW_TTL_HOURS } from './bulk-action-shared';
 
 const IDEMPOTENCY_SCOPE = 'bulk_reopen_reschedule';
-const IDEMPOTENCY_TTL_HOURS = 36;
 
 export interface BulkReopenForRescheduleInput {
   appointmentIds: string[];
@@ -34,9 +33,11 @@ export interface BulkReopenForRescheduleOutput {
  *     inspector) is per-group. Mixed selections / non-grouped items return
  *     `INVALID_SCOPE` for every item without applying anything (no partial).
  *
- *  2. **Per-day idempotency** with the `bulk_reopen_reschedule` scope key
- *     so a same-day retry returns `IDEMPOTENT_REPLAY` without re-firing
- *     the (potentially expensive) reopen path.
+ *  2. **Short-window idempotency** with the `bulk_reopen_reschedule` scope
+ *     key so an immediate re-submit returns `IDEMPOTENT_REPLAY` without
+ *     re-firing the (potentially expensive) reopen path. The window is
+ *     `REPLAY_WINDOW_TTL_HOURS`, not a day — a deliberate repeat later on
+ *     must execute.
  *
  *  3. **Mixed-result envelope** — typed per-item statuses via
  *     `mapErrorToResult` so a single failed item doesn't kill the batch.
@@ -90,8 +91,6 @@ export class BulkReopenForRescheduleUseCase {
         }),
       };
     }
-
-    const dayKey = dayKeyInTz(this.clock());
     const results: BulkActionResultItem[] = [];
 
     for (const apptId of input.appointmentIds) {
@@ -126,7 +125,12 @@ export class BulkReopenForRescheduleUseCase {
         }
       }
 
-      const idemKey = `bulk_reopen_reschedule:${apptId}:${dayKey}`;
+      // Keyed by the requested slot, not just the id: reopening to a DIFFERENT
+      // date/time is a different action and must execute, even seconds after
+      // the previous one. Only an identical re-submit replays.
+      const normalisedDate = input.newDate.length >= 10 ? input.newDate.slice(0, 10) : input.newDate;
+      const slotKey = `${normalisedDate}:${input.newTimeSlotStart}-${input.newTimeSlotEnd}`;
+      const idemKey = `bulk_reopen_reschedule:${apptId}:${slotKey}`;
       const cached = await this.idempotency.getWithHash<BulkActionResultItem>(idemKey, IDEMPOTENCY_SCOPE);
       if (cached) {
         results.push({ appointmentId: apptId, status: 'IDEMPOTENT_REPLAY' });
@@ -143,7 +147,7 @@ export class BulkReopenForRescheduleUseCase {
           actor: input.actor,
         });
         const result: BulkActionResultItem = { appointmentId: apptId, status: 'OK' };
-        await this.idempotency.set(idemKey, IDEMPOTENCY_SCOPE, result, IDEMPOTENCY_TTL_HOURS);
+        await this.idempotency.set(idemKey, IDEMPOTENCY_SCOPE, result, REPLAY_WINDOW_TTL_HOURS);
         results.push(result);
       } catch (err) {
         results.push(mapErrorToResult(apptId, err));

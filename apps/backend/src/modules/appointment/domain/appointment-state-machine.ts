@@ -87,6 +87,13 @@ export const TRANSITION_RULES: TransitionRule[] = [
     requiresDoneCheckedBy: false,
   },
   {
+    from: 'REJECTED',
+    to: 'CANCELLED',
+    allowedActors: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'],
+    requiresReason: true,
+    requiresDoneCheckedBy: false,
+  },
+  {
     from: 'CANCELLED',
     to: 'DRAFT',
     allowedActors: ['AM', 'OP'],

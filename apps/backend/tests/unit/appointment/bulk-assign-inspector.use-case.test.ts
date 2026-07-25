@@ -72,8 +72,8 @@ describe('BulkAssignInspectorUseCase', () => {
     await useCase.execute({ appointmentIds: [APPT_A], inspectorId: 'dddddddd-0000-4000-8000-000000000099', actor, actorTimezone: 'Australia/Sydney' });
 
     const calls = (mocks.idempotency.getWithHash as ReturnType<typeof vi.fn>).mock.calls.map(([k]) => k as string);
-    expect(calls[0]).toBe(`bulk_assign_inspector:${APPT_A}:${INSPECTOR_ID}:2026-04-15`);
-    expect(calls[1]).toBe(`bulk_assign_inspector:${APPT_A}:dddddddd-0000-4000-8000-000000000099:2026-04-15`);
+    expect(calls[0]).toBe(`bulk_assign_inspector:${APPT_A}:${INSPECTOR_ID}`);
+    expect(calls[1]).toBe(`bulk_assign_inspector:${APPT_A}:dddddddd-0000-4000-8000-000000000099`);
   });
 
   it('translates BulkEdit failed[] entries to typed per-item statuses', async () => {
