@@ -312,3 +312,46 @@ test.describe('Bulk Change Status', () => {
     await expect(dialog.getByLabel('Change status')).toHaveCount(0);
   });
 });
+
+test.describe('Bulk Change Status — dropdown is actually visible', () => {
+  // Regression guard for the staging bug: the options rendered into the
+  // dialog's clipped region, so the menu looked empty. Neither the unit tests
+  // (jsdom does no layout) nor the other e2e specs caught it, because
+  // Playwright auto-scrolls before clicking. This one measures geometry.
+  test('renders the target-status options inside the dialog viewport', async ({ page }) => {
+    await setupAuth(page);
+    await mockMeEndpoint(page, { ...AM_USER, role: 'OP' });
+    await mockFormOptions(page);
+    await mockAppointmentList(page, [
+      makeAppointment({ id: 'apt-1', code: 'APT-1001', appointmentNumber: 1001, status: 'DRAFT' }),
+    ]);
+
+    await page.goto('/appointments');
+    await page.getByLabel('Select appointment APT-1001').check();
+    await page.getByRole('button', { name: /Bulk Edit/ }).click();
+
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Change status').check();
+    await dialog.getByLabel('Set target status').click();
+
+    const fits = await page.evaluate(() => {
+      const ul = document.querySelector('ul[role="listbox"][aria-label="Set target status"]');
+      if (!ul) return { found: false };
+      // Walk to whatever actually clips it.
+      let node = ul.parentElement;
+      while (node && node !== document.body) {
+        const { overflowY } = getComputedStyle(node);
+        if (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'hidden') break;
+        node = node.parentElement;
+      }
+      const menu = ul.getBoundingClientRect();
+      const clip = (node ?? document.documentElement).getBoundingClientRect();
+      const visible = Math.max(0, Math.min(menu.bottom, clip.bottom) - Math.max(menu.top, clip.top));
+      return { found: true, menuHeight: Math.round(menu.height), visibleHeight: Math.round(visible) };
+    });
+
+    expect(fits.found).toBe(true);
+    // Before the fix only ~4px of a 74px menu were inside the clip.
+    expect(fits.visibleHeight).toBeGreaterThanOrEqual(fits.menuHeight! - 1);
+  });
+});
