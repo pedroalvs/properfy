@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AppointmentStatus, AppointmentContactRole, ContactType, ContactChannelType, PLATFORM_TIMEZONE, todayInTzDateString, currentTimeInTzHHmm, isTimeStartInPastForDate, validateEditedSchedule, CUSTOM_FIELD_LABEL_MAX, CUSTOM_FIELD_VALUE_MAX } from '@properfy/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
@@ -12,7 +12,7 @@ import { FormActions } from '@/components/forms/FormActions';
 import { TextInput } from '@/components/forms/TextInput';
 import { EmailInput } from '@/components/forms/EmailInput';
 import { PhoneInput } from '@/components/forms/PhoneInput';
-import { SelectInput } from '@/components/forms/SelectInput';
+import { SelectInput, type SelectOption } from '@/components/forms/SelectInput';
 import { DateInput } from '@/components/forms/DateInput';
 import { TimeRangeInput } from '@/components/forms/TimeRangeInput';
 import { Textarea } from '@/components/forms/Textarea';
@@ -62,6 +62,24 @@ const CHANNEL_OPTIONS = [
   { value: ContactChannelType.PHONE, label: 'Phone' },
 ];
 
+/**
+ * Keep the currently selected value renderable by `SelectInput`, which shows
+ * its placeholder whenever `value` has no matching option. Branch, Property and
+ * Service Type are locked in edit mode and their option lists are scoped
+ * (tenant + branch), so a legitimate value can be missing from the list — an
+ * import-created property carries `branch_id = NULL` and is therefore never
+ * returned by the branch-filtered `/v1/properties` query. The appointment's own
+ * denormalized label is used as the fallback; a fetched option always wins.
+ */
+function withCurrentOption(
+  options: SelectOption[],
+  value: string | undefined,
+  label: string | undefined,
+): SelectOption[] {
+  if (!value || !label || options.some((o) => o.value === value)) return options;
+  return [{ value, label }, ...options];
+}
+
 interface AppointmentFormDrawerProps {
   open: boolean;
   onClose: () => void;
@@ -109,14 +127,14 @@ export function AppointmentFormDrawer({
     ? (selectedTenantId || (isEditMode && appointment?.tenantId) || '')
     : undefined;
 
-  const { options: branchOptions } = useFormOptions<{ id: string; name: string }>(
+  const { options: branchApiOptions } = useFormOptions<{ id: string; name: string }>(
     ['branches', 'form-options', effectiveTenantId ?? ''],
     '/v1/branches',
     (item) => ({ value: item.id, label: item.name }),
     { ...(effectiveTenantId ? { tenantId: effectiveTenantId } : {}), status: 'ACTIVE' },
     { enabled: !isGlobalRole || !!effectiveTenantId },
   );
-  const { options: serviceTypeOptions } = useFormOptions<{ id: string; name: string }>(
+  const { options: serviceTypeApiOptions } = useFormOptions<{ id: string; name: string }>(
     ['service-types', 'form-options'],
     '/v1/service-types',
     (item) => ({ value: item.id, label: item.name }),
@@ -128,7 +146,7 @@ export function AppointmentFormDrawer({
     { status: 'ACTIVE' },
     { enabled: canAssignRole },
   );
-  const { options: propertyOptions } = useFormOptions<{ id: string; street: string; propertyCode: string }>(
+  const { options: propertyApiOptions } = useFormOptions<{ id: string; street: string; propertyCode: string }>(
     ['properties', 'form-options', effectiveTenantId ?? '', 'branch', form.branchId],
     '/v1/properties',
     (item) => ({ value: item.id, label: `${item.propertyCode} - ${item.street}` }),
@@ -137,8 +155,23 @@ export function AppointmentFormDrawer({
       ...(form.branchId ? { branchId: form.branchId } : {}),
     },
     // staleTime 0 (vs the global 30s) lets this branch-scoped list refetch on window focus,
-    // so a property created in the new property tab appears when the user returns here.
+    // so a property created in the nested property drawer appears right away.
     { enabled: (!isGlobalRole || !!effectiveTenantId) && !!form.branchId, staleTime: 0 },
+  );
+
+  // In create mode `appointment` is null, so these collapse to the fetched
+  // lists untouched. See `withCurrentOption` for why the fallback exists.
+  const branchOptions = useMemo(
+    () => withCurrentOption(branchApiOptions, appointment?.branchId, appointment?.branchName),
+    [branchApiOptions, appointment?.branchId, appointment?.branchName],
+  );
+  const serviceTypeOptions = useMemo(
+    () => withCurrentOption(serviceTypeApiOptions, appointment?.serviceTypeId, appointment?.serviceTypeName),
+    [serviceTypeApiOptions, appointment?.serviceTypeId, appointment?.serviceTypeName],
+  );
+  const propertyOptions = useMemo(
+    () => withCurrentOption(propertyApiOptions, appointment?.propertyId, appointment?.propertyAddress),
+    [propertyApiOptions, appointment?.propertyId, appointment?.propertyAddress],
   );
 
   const { save, isSaving, validate } = useAppointmentSave();
