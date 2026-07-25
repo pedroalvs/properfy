@@ -34,11 +34,16 @@ vi.mock('@/hooks/useFormOptions', () => ({
 }));
 
 let mockCanReview = true;
+let mockCanChangeStatus = true;
 vi.mock('@/hooks/usePermissions', () => ({
   usePermissions: () => ({
     role: 'OP',
     hasRole: () => true,
-    canPerform: (action: string) => (action === 'appointment.cross_check' ? mockCanReview : true),
+    canPerform: (action: string) => {
+      if (action === 'appointment.cross_check') return mockCanReview;
+      if (action === 'appointment.bulk_status_transition') return mockCanChangeStatus;
+      return true;
+    },
     hasClUserFlag: () => true,
   }),
 }));
@@ -122,6 +127,7 @@ describe('BulkEditModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCanReview = true;
+    mockCanChangeStatus = true;
     mockUseFormOptions.mockImplementation(() => emptyFormOptions);
     mockPost.mockResolvedValue({ data: { data: { updated: 1, failed: [] } }, error: null });
   });
@@ -321,6 +327,238 @@ describe('BulkEditModal', () => {
       fireEvent.click(screen.getByLabelText('Mark as Reviewed'));
       expect(screen.getByLabelText('Inspector')).toBeDisabled();
       expect(screen.getByLabelText('Scheduled Date')).toBeDisabled();
+    });
+  });
+
+  describe('Change status', () => {
+    /** Opens the target-status dropdown and picks the option with this label. */
+    function chooseTarget(label: string) {
+      fireEvent.click(screen.getByLabelText('Set target status'));
+      fireEvent.click(screen.getByRole('option', { name: label }));
+    }
+
+    it('shows the toggle for AM/OP and hides it without the bulk_status_transition permission', () => {
+      renderModal([makeAppointment()]);
+      expect(screen.getByText('Change status')).toBeInTheDocument();
+
+      mockCanChangeStatus = false;
+      const Wrapper = createWrapper();
+      render(
+        <Wrapper>
+          <BulkEditModal selectedAppointments={[makeAppointment()]} open onClose={vi.fn()} onSuccess={vi.fn()} />
+        </Wrapper>,
+      );
+      // Only the first render's row remains — the second render has none.
+      expect(screen.getAllByText('Change status')).toHaveLength(1);
+    });
+
+    it('offers only targets EVERY selected row can reach (intersection, not union)', () => {
+      // DRAFT → AWAITING_INSPECTOR | REJECTED | CANCELLED
+      // SCHEDULED →                  REJECTED | CANCELLED
+      renderModal([
+        makeAppointment({ id: 'a', status: 'DRAFT' }),
+        makeAppointment({ id: 'b', status: 'SCHEDULED' }),
+      ]);
+      fireEvent.click(screen.getByLabelText('Change status'));
+      fireEvent.click(screen.getByLabelText('Set target status'));
+
+      expect(screen.getByRole('option', { name: 'Rejected' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Cancelled' })).toBeInTheDocument();
+      // Reachable from DRAFT but NOT from SCHEDULED — must not be offered.
+      expect(screen.queryByRole('option', { name: 'Awaiting Inspector' })).not.toBeInTheDocument();
+    });
+
+    it('tells the operator when the selection has no transition in common', () => {
+      // DRAFT → AWAITING_INSPECTOR | REJECTED | CANCELLED
+      // CANCELLED → DRAFT                              → intersection is empty
+      renderModal([
+        makeAppointment({ id: 'a', status: 'DRAFT' }),
+        makeAppointment({ id: 'b', status: 'CANCELLED' }),
+      ]);
+      fireEvent.click(screen.getByLabelText('Change status'));
+      expect(
+        screen.getByText('No common transition is available for the selected rows.'),
+      ).toBeInTheDocument();
+    });
+
+    it('asks for a reason only when the chosen transition requires one', () => {
+      renderModal([makeAppointment({ status: 'DRAFT' })]);
+      fireEvent.click(screen.getByLabelText('Change status'));
+
+      // DRAFT → AWAITING_INSPECTOR is reasonRequired: false
+      chooseTarget('Awaiting Inspector');
+      expect(screen.queryByLabelText('Status change reason')).not.toBeInTheDocument();
+
+      // DRAFT → CANCELLED is reasonRequired: true
+      chooseTarget('Cancelled');
+      expect(screen.getByLabelText('Status change reason')).toBeInTheDocument();
+    });
+
+    it('requires a reason when ANY selected row requires one for that target', () => {
+      // DRAFT → AWAITING_INSPECTOR does NOT require a reason, but
+      // REJECTED → AWAITING_INSPECTOR DOES. Deciding from the first row alone
+      // would let the request through and the REJECTED rows would be rejected
+      // server-side, so the stricter row must win.
+      renderModal([
+        makeAppointment({ id: 'a', status: 'DRAFT' }),
+        makeAppointment({ id: 'b', status: 'REJECTED' }),
+      ]);
+      fireEvent.click(screen.getByLabelText('Change status'));
+      chooseTarget('Awaiting Inspector');
+
+      expect(screen.getByLabelText('Status change reason')).toBeInTheDocument();
+    });
+
+    it('keeps Apply disabled until a target — and any required reason — is filled in', () => {
+      renderModal([makeAppointment({ status: 'DRAFT' })]);
+      fireEvent.click(screen.getByLabelText('Change status'));
+
+      const apply = screen.getByRole('button', { name: 'Apply Changes' });
+      expect(apply).toBeDisabled();
+
+      chooseTarget('Cancelled');
+      expect(apply).toBeDisabled();
+
+      fireEvent.change(screen.getByLabelText('Status change reason'), { target: { value: 'no' } });
+      expect(apply).toBeDisabled();
+
+      fireEvent.change(screen.getByLabelText('Status change reason'), {
+        target: { value: 'Tenant moved out' },
+      });
+      expect(apply).toBeEnabled();
+    });
+
+    it('submits the bulk status-transition endpoint with the ids, target and reason', async () => {
+      mockPost.mockResolvedValue({ data: { data: { results: [] } }, error: null });
+      renderModal([
+        makeAppointment({ id: 'a', status: 'DRAFT' }),
+        makeAppointment({ id: 'b', status: 'DRAFT' }),
+      ]);
+      fireEvent.click(screen.getByLabelText('Change status'));
+      chooseTarget('Cancelled');
+      fireEvent.change(screen.getByLabelText('Status change reason'), {
+        target: { value: 'Tenant moved out' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
+
+      await waitFor(() => {
+        expect(mockPost).toHaveBeenCalledWith('/v1/appointments/bulk-status-transition', {
+          body: {
+            appointmentIds: ['a', 'b'],
+            targetStatus: 'CANCELLED',
+            reason: 'Tenant moved out',
+          },
+        });
+      });
+    });
+
+    it('omits the reason when the transition does not require one', async () => {
+      mockPost.mockResolvedValue({ data: { data: { results: [] } }, error: null });
+      renderModal([makeAppointment({ id: 'a', status: 'DRAFT' })]);
+      fireEvent.click(screen.getByLabelText('Change status'));
+      chooseTarget('Awaiting Inspector');
+      fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
+
+      await waitFor(() => {
+        expect(mockPost).toHaveBeenCalledWith('/v1/appointments/bulk-status-transition', {
+          body: { appointmentIds: ['a'], targetStatus: 'AWAITING_INSPECTOR' },
+        });
+      });
+    });
+
+    it('is mutually exclusive with the field edits and with Mark as Reviewed', () => {
+      renderModal([makeAppointment({ status: 'DRAFT' })]);
+
+      fireEvent.click(screen.getByLabelText('Change status'));
+      expect(screen.getByLabelText('Inspector')).toBeDisabled();
+      expect(screen.getByLabelText('Scheduled Date')).toBeDisabled();
+      expect(screen.getByLabelText('Mark as Reviewed')).toBeDisabled();
+
+      // ...and the other way round.
+      fireEvent.click(screen.getByLabelText('Change status'));
+      fireEvent.click(screen.getByLabelText('Inspector'));
+      expect(screen.getByLabelText('Change status')).toBeDisabled();
+    });
+
+    it('reports per-row failures from the bulk envelope in the result view', async () => {
+      mockPost.mockResolvedValue({
+        data: {
+          data: {
+            results: [
+              { appointmentId: 'a', status: 'OK' },
+              {
+                appointmentId: 'b',
+                status: 'INVALID_TRANSITION',
+                // The envelope carries a domain {code, message}, not a string.
+                error: { code: 'APPOINTMENT_INVALID_TRANSITION', message: 'Cannot go from DONE to CANCELLED' },
+              },
+            ],
+          },
+        },
+        error: null,
+      });
+      renderModal([
+        makeAppointment({ id: 'a', status: 'DRAFT' }),
+        makeAppointment({ id: 'b', status: 'DRAFT' }),
+      ]);
+      fireEvent.click(screen.getByLabelText('Change status'));
+      chooseTarget('Cancelled');
+      fireEvent.change(screen.getByLabelText('Status change reason'), {
+        target: { value: 'Tenant moved out' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
+
+      expect(await screen.findByText('1 updated')).toBeInTheDocument();
+      expect(screen.getByText('1 failed')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /Show error details/ }));
+      expect(screen.getByText(/Cannot go from DONE to CANCELLED/)).toBeInTheDocument();
+    });
+
+    it('identifies failed rows by appointment code, not by a raw id fragment', async () => {
+      mockPost.mockResolvedValue({
+        data: {
+          data: {
+            results: [
+              {
+                appointmentId: 'b',
+                status: 'FORBIDDEN',
+                error: { code: 'APPOINTMENT_TRANSITION_NOT_PERMITTED', message: 'Not permitted for your role' },
+              },
+            ],
+          },
+        },
+        error: null,
+      });
+      renderModal([makeAppointment({ id: 'b', code: 'VST-014', status: 'DRAFT' })]);
+      fireEvent.click(screen.getByLabelText('Change status'));
+      chooseTarget('Cancelled');
+      fireEvent.change(screen.getByLabelText('Status change reason'), {
+        target: { value: 'Tenant moved out' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
+
+      fireEvent.click(await screen.findByRole('button', { name: /Show error details/ }));
+      expect(screen.getByText('VST-014')).toBeInTheDocument();
+      expect(screen.queryByText(/^b\.\.\./)).not.toBeInTheDocument();
+    });
+
+    it('counts an IDEMPOTENT_REPLAY as updated, not as a failure', async () => {
+      // The backend guard is a 3-minute double-click window, so a replay is
+      // the operator's own duplicate submit — reporting it as a failure would
+      // be noise. All-replay batches therefore close the modal like a success.
+      mockPost.mockResolvedValue({
+        data: { data: { results: [{ appointmentId: 'a', status: 'IDEMPOTENT_REPLAY' }] } },
+        error: null,
+      });
+      renderModal([makeAppointment({ id: 'a', status: 'DRAFT' })]);
+      fireEvent.click(screen.getByLabelText('Change status'));
+      chooseTarget('Awaiting Inspector');
+      fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
+
+      await waitFor(() => {
+        expect(mockPost).toHaveBeenCalled();
+      });
+      expect(screen.queryByText(/failed/)).not.toBeInTheDocument();
     });
   });
 });
