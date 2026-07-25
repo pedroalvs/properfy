@@ -562,7 +562,19 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
               id="bulk-change-status"
               label="Change status"
               checked={changeStatus}
-              onToggle={() => setChangeStatus((v) => !v)}
+              // Unchecking discards the picked target and reason, mirroring how
+              // `toggleField` clears a field's value when its row is unchecked.
+              // Otherwise re-checking the row would silently restore a stale
+              // target the operator had already abandoned.
+              onToggle={() =>
+                setChangeStatus((v) => {
+                  if (v) {
+                    setPickedTarget('');
+                    setStatusReason('');
+                  }
+                  return !v;
+                })
+              }
               disabled={anyFieldChecked || reviewed}
               helper={
                 statusTargets.length === 0
@@ -575,7 +587,14 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
                   id="bulk-change-status"
                   aria-label="Set target status"
                   value={targetStatus}
-                  onChange={(v) => setPickedTarget(v as AppointmentStatus)}
+                  // Changing the target drops the reason: the text was written
+                  // to justify a different transition ("Tenant moved out" for a
+                  // cancel is not a rejection reason), and carrying it over
+                  // would submit it unread against the new target.
+                  onChange={(v) => {
+                    setPickedTarget(v as AppointmentStatus);
+                    setStatusReason('');
+                  }}
                   options={statusTargetOptions}
                   placeholder="Select target status"
                   disabled={statusTargets.length === 0}

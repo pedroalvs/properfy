@@ -27,10 +27,11 @@ export interface BulkCrossCheckDoneResult {
  * (status must be DONE, not already checked, no self-approval, inspection
  * evidence present) plus the financial-entry side effect — no duplication.
  *
- * Per-item idempotency keyed by `(appointmentId, dayInActorTz)` mirrors the
- * sibling bulk wrappers (`bulk-cancel`, `bulk-status-transition`, …). Because
- * the delegated cross-check produces a financial-entry side effect, the key
- * guards a same-day retry / concurrent double-submit from re-firing it: a
+ * Per-item idempotency keyed by `appointmentId` for a short replay window
+ * mirrors the sibling bulk wrappers (`bulk-cancel`, `bulk-status-transition`,
+ * …). Because the delegated cross-check produces a financial-entry side
+ * effect, the key guards an immediate retry / concurrent double-submit from
+ * re-firing it: a
  * cached hit is counted as `updated` without re-invoking the inner use case.
  * Only successful cross-checks are cached, so genuine failures (non-DONE,
  * evidence-incomplete, …) are always retried.

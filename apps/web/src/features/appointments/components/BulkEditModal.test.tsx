@@ -109,15 +109,18 @@ function createWrapper() {
   };
 }
 
-function renderModal(selected: Appointment[]) {
+function renderModal(
+  selected: Appointment[],
+  handlers: { onClose?: () => void; onSuccess?: () => void } = {},
+) {
   const Wrapper = createWrapper();
   return render(
     <Wrapper>
       <BulkEditModal
         selectedAppointments={selected}
         open
-        onClose={vi.fn()}
-        onSuccess={vi.fn()}
+        onClose={handlers.onClose ?? vi.fn()}
+        onSuccess={handlers.onSuccess ?? vi.fn()}
       />
     </Wrapper>,
   );
@@ -337,19 +340,15 @@ describe('BulkEditModal', () => {
       fireEvent.click(screen.getByRole('option', { name: label }));
     }
 
-    it('shows the toggle for AM/OP and hides it without the bulk_status_transition permission', () => {
+    it('shows the toggle for AM/OP', () => {
       renderModal([makeAppointment()]);
       expect(screen.getByText('Change status')).toBeInTheDocument();
+    });
 
+    it('hides the toggle without the bulk_status_transition permission', () => {
       mockCanChangeStatus = false;
-      const Wrapper = createWrapper();
-      render(
-        <Wrapper>
-          <BulkEditModal selectedAppointments={[makeAppointment()]} open onClose={vi.fn()} onSuccess={vi.fn()} />
-        </Wrapper>,
-      );
-      // Only the first render's row remains — the second render has none.
-      expect(screen.getAllByText('Change status')).toHaveLength(1);
+      renderModal([makeAppointment()]);
+      expect(screen.queryByText('Change status')).not.toBeInTheDocument();
     });
 
     it('offers only targets EVERY selected row can reach (intersection, not union)', () => {
@@ -466,6 +465,39 @@ describe('BulkEditModal', () => {
       });
     });
 
+    it('drops the reason when the target changes', () => {
+      // The text justifies a specific transition; carrying it to another target
+      // would submit it unread.
+      renderModal([makeAppointment({ status: 'SCHEDULED' })]);
+      fireEvent.click(screen.getByLabelText('Change status'));
+
+      chooseTarget('Cancelled');
+      fireEvent.change(screen.getByLabelText('Status change reason'), {
+        target: { value: 'Tenant moved out' },
+      });
+      expect(screen.getByLabelText('Status change reason')).toHaveValue('Tenant moved out');
+
+      chooseTarget('Rejected');
+      expect(screen.getByLabelText('Status change reason')).toHaveValue('');
+    });
+
+    it('discards the picked target when the row is unchecked', () => {
+      renderModal([makeAppointment({ status: 'DRAFT' })]);
+
+      fireEvent.click(screen.getByLabelText('Change status'));
+      chooseTarget('Cancelled');
+      fireEvent.change(screen.getByLabelText('Status change reason'), {
+        target: { value: 'Tenant moved out' },
+      });
+
+      // Uncheck, then re-check: nothing from the abandoned attempt survives.
+      fireEvent.click(screen.getByLabelText('Change status'));
+      fireEvent.click(screen.getByLabelText('Change status'));
+
+      expect(screen.queryByLabelText('Status change reason')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Apply Changes' })).toBeDisabled();
+    });
+
     it('is mutually exclusive with the field edits and with Mark as Reviewed', () => {
       renderModal([makeAppointment({ status: 'DRAFT' })]);
 
@@ -529,7 +561,7 @@ describe('BulkEditModal', () => {
         },
         error: null,
       });
-      renderModal([makeAppointment({ id: 'b', code: 'VST-014', status: 'DRAFT' })]);
+      const { container } = renderModal([makeAppointment({ id: 'b', code: 'VST-014', status: 'DRAFT' })]);
       fireEvent.click(screen.getByLabelText('Change status'));
       chooseTarget('Cancelled');
       fireEvent.change(screen.getByLabelText('Status change reason'), {
@@ -539,7 +571,9 @@ describe('BulkEditModal', () => {
 
       fireEvent.click(await screen.findByRole('button', { name: /Show error details/ }));
       expect(screen.getByText('VST-014')).toBeInTheDocument();
-      expect(screen.queryByText(/^b\.\.\./)).not.toBeInTheDocument();
+      // Assert against the whole rendered text, so an id fragment sitting
+      // alongside other row content is still caught.
+      expect(container.textContent).not.toMatch(/b\.\.\./);
     });
 
     it('counts an IDEMPOTENT_REPLAY as updated, not as a failure', async () => {
@@ -550,14 +584,18 @@ describe('BulkEditModal', () => {
         data: { data: { results: [{ appointmentId: 'a', status: 'IDEMPOTENT_REPLAY' }] } },
         error: null,
       });
-      renderModal([makeAppointment({ id: 'a', status: 'DRAFT' })]);
+      const onSuccess = vi.fn();
+      renderModal([makeAppointment({ id: 'a', status: 'DRAFT' })], { onSuccess });
       fireEvent.click(screen.getByLabelText('Change status'));
       chooseTarget('Awaiting Inspector');
       fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
 
+      // An all-replay batch is reported as a success and closes the modal —
+      // it never lands in the failure list.
       await waitFor(() => {
-        expect(mockPost).toHaveBeenCalled();
+        expect(onSuccess).toHaveBeenCalled();
       });
+      expect(await screen.findByText('1 updated')).toBeInTheDocument();
       expect(screen.queryByText(/failed/)).not.toBeInTheDocument();
     });
   });

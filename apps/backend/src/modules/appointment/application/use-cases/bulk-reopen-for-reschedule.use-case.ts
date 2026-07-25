@@ -33,9 +33,11 @@ export interface BulkReopenForRescheduleOutput {
  *     inspector) is per-group. Mixed selections / non-grouped items return
  *     `INVALID_SCOPE` for every item without applying anything (no partial).
  *
- *  2. **Per-day idempotency** with the `bulk_reopen_reschedule` scope key
- *     so a same-day retry returns `IDEMPOTENT_REPLAY` without re-firing
- *     the (potentially expensive) reopen path.
+ *  2. **Short-window idempotency** with the `bulk_reopen_reschedule` scope
+ *     key so an immediate re-submit returns `IDEMPOTENT_REPLAY` without
+ *     re-firing the (potentially expensive) reopen path. The window is
+ *     `REPLAY_WINDOW_TTL_HOURS`, not a day — a deliberate repeat later on
+ *     must execute.
  *
  *  3. **Mixed-result envelope** — typed per-item statuses via
  *     `mapErrorToResult` so a single failed item doesn't kill the batch.

@@ -167,12 +167,24 @@ describe('BulkRescheduleAppointmentsUseCase', () => {
       actor,
     });
 
+    // Same date, different time slot — also a distinct action.
+    await useCase.execute({
+      appointmentIds: [APPT_A],
+      newDate: '2026-06-02',
+      newTimeSlotStart: '14:00',
+      newTimeSlotEnd: '15:00',
+      actor,
+    });
+
     const calls = (mocks.idempotency.getWithHash as ReturnType<typeof vi.fn>).mock.calls.map(([k]) => k as string);
     expect(calls[0]).not.toBe(calls[1]);
+    expect(calls[1]).not.toBe(calls[2]);
     expect(calls[0]).toContain('2026-06-01');
     expect(calls[1]).toContain('2026-06-02');
     // ...and no day bucket: the replay window is the TTL alone.
     expect(calls[0]).not.toContain('2026-04-15');
+    // Every distinct slot reached the delegate — none was swallowed as a replay.
+    expect(mocks.updateAppointment.execute).toHaveBeenCalledTimes(3);
   });
 
   it('IDEMPOTENT_REPLAY skips the delegate on an immediate retry', async () => {

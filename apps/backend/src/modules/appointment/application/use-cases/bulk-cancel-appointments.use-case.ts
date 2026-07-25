@@ -19,7 +19,8 @@ export interface BulkCancelAppointmentsOutput {
  * 025 §FR-411 — Bulk cancel from the map flow.
  *
  * Thin sequential loop around `ExecuteStatusTransitionUseCase` with
- * per-item idempotency keyed by `(appointmentId, dayInActorTz)`. The
+ * per-item idempotency keyed by `appointmentId` for a short replay
+ * window (`REPLAY_WINDOW_TTL_HOURS`). The
  * underlying use case owns RBAC, state-machine validation, audit logs
  * and side effects; the bulk wrapper adds no transition logic of its
  * own (Constitution §State Machine Sovereignty).
