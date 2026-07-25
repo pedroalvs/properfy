@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Prisma } from '@prisma/client';
 import { AppointmentImportCommitWorker } from './appointment-import-commit.worker';
+import { PropertyAddressConflictError, PropertyCodeConflictError } from '../../../property/domain/property.errors';
 import { AppointmentImportEntity } from '../../domain/appointment-import.entity';
 import type { AuthContext } from '@properfy/shared';
 
@@ -45,7 +45,12 @@ function buildDeps() {
   return {
     importRepo: { findById: vi.fn(), update: vi.fn().mockResolvedValue(undefined) },
     storageService: { download: vi.fn().mockResolvedValue(Buffer.from('Type\nRoutine Inspection\n')), upload: vi.fn() },
-    propertyRepo: { save: vi.fn().mockResolvedValue(undefined), findByNormalizedAddress: vi.fn() },
+    propertyRepo: {
+      save: vi.fn().mockResolvedValue(undefined),
+      findByNormalizedAddress: vi.fn(),
+      nextPropertyNumber: vi.fn().mockResolvedValue(7),
+    },
+    tenantRepo: { findById: vi.fn().mockResolvedValue({ id: 'tenant-1', appointmentCodePrefix: 'SPS' }) },
     resolver: { resolve: vi.fn() },
     createAppointmentUseCase: { execute: vi.fn().mockResolvedValue({ id: 'apt-1' }) },
     jobQueue: { enqueue: vi.fn() },
@@ -59,6 +64,7 @@ function buildWorker(deps: ReturnType<typeof buildDeps>) {
     deps.importRepo as any,
     deps.storageService as any,
     deps.propertyRepo as any,
+    deps.tenantRepo as any,
     deps.resolver as any,
     deps.createAppointmentUseCase as any,
     deps.jobQueue as any,
@@ -184,6 +190,60 @@ describe('AppointmentImportCommitWorker', () => {
     expect(input.propertyId).toBe(savedProperty.id);
   });
 
+  // The batch's branch is operator-selected and already validated at preview.
+  // A property created without it is invisible in every branch-filtered picker
+  // — including the one used to create the next appointment for that branch.
+  it('creates the property on the batch branch', async () => {
+    const deps = buildDeps();
+    deps.importRepo.findById.mockResolvedValue(buildRecord({ branchId: 'branch-9' }));
+    deps.resolver.resolve.mockResolvedValue({
+      rows: [readyRow({ property: { resolution: 'new', propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null, suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: null } })],
+    });
+    const worker = buildWorker(deps);
+
+    await worker.execute({ importId: 'import-1', actor: ACTOR });
+
+    expect(deps.propertyRepo.save.mock.calls[0]![0].branchId).toBe('branch-9');
+  });
+
+  it('gives the created property the standard sequential code for its tenant', async () => {
+    const deps = buildDeps();
+    deps.importRepo.findById.mockResolvedValue(buildRecord());
+    deps.propertyRepo.nextPropertyNumber.mockResolvedValue(42);
+    deps.resolver.resolve.mockResolvedValue({
+      rows: [readyRow({ property: { resolution: 'new', propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null, suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: null } })],
+    });
+    const worker = buildWorker(deps);
+
+    await worker.execute({ importId: 'import-1', actor: ACTOR });
+
+    const saved = deps.propertyRepo.save.mock.calls[0]![0];
+    expect(saved.propertyCode).toBe('SPS-PROP-0042');
+    expect(saved.propertyNumber).toBe(42);
+    // The tenant prefix is read once per batch, not once per row.
+    expect(deps.tenantRepo.findById).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries with the next number when a concurrent create wins the property code', async () => {
+    const deps = buildDeps();
+    deps.importRepo.findById.mockResolvedValue(buildRecord());
+    deps.propertyRepo.nextPropertyNumber.mockResolvedValueOnce(7).mockResolvedValueOnce(8);
+    deps.propertyRepo.save
+      .mockRejectedValueOnce(new PropertyCodeConflictError())
+      .mockResolvedValueOnce(undefined);
+    deps.resolver.resolve.mockResolvedValue({
+      rows: [readyRow({ property: { resolution: 'new', propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null, suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: null } })],
+    });
+    const worker = buildWorker(deps);
+
+    await worker.execute({ importId: 'import-1', actor: ACTOR });
+
+    expect(deps.propertyRepo.save).toHaveBeenCalledTimes(2);
+    expect(deps.propertyRepo.save.mock.calls[1]![0].propertyCode).toBe('SPS-PROP-0008');
+    expect(deps.createAppointmentUseCase.execute.mock.calls[0]![0].propertyId)
+      .toBe(deps.propertyRepo.save.mock.calls[1]![0].id);
+  });
+
   it('creates the property as APARTMENT with the apartment number when the plan carries one', async () => {
     const deps = buildDeps();
     deps.importRepo.findById.mockResolvedValue(buildRecord());
@@ -288,11 +348,10 @@ describe('AppointmentImportCommitWorker', () => {
     deps.resolver.resolve.mockResolvedValue({
       rows: [readyRow({ property: { resolution: 'new', propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null, suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: null } })],
     });
-    deps.propertyRepo.save.mockRejectedValue(
-      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
-        code: 'P2002', clientVersion: '5.22.0', meta: { target: ['tenant_id', 'normalized_address_key'] },
-      }),
-    );
+    // The error the REAL repository throws: PrismaPropertyRepository.save()
+    // translates P2002 into this domain error, so a test that rejects with the
+    // raw Prisma error proves nothing about production behaviour.
+    deps.propertyRepo.save.mockRejectedValue(new PropertyAddressConflictError());
     deps.propertyRepo.findByNormalizedAddress.mockResolvedValue({ id: 'concurrently-created-prop' });
     const worker = buildWorker(deps);
 

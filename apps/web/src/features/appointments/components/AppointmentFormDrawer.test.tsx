@@ -55,7 +55,10 @@ vi.mock('@/hooks/useAuth', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-const mockUseFormOptions = vi.fn((..._args: unknown[]) => ({ options: [], isLoading: false }));
+const mockUseFormOptions = vi.fn((..._args: unknown[]) => ({
+  options: [] as Array<{ value: string; label: string }>,
+  isLoading: false,
+}));
 
 vi.mock('@/hooks/useFormOptions', () => ({
   useFormOptions: (...args: unknown[]) => mockUseFormOptions(...args),
@@ -139,6 +142,8 @@ vi.mock('../hooks/useAppointmentSave', () => ({
 // Stable reference to prevent infinite re-render in useEffect
 const MOCK_APPOINTMENT = {
   id: 'apt-01', branchId: 'branch-1', propertyId: 'prop-1', serviceTypeId: 'st-1',
+  branchName: 'North Shore Office', propertyAddress: '5/24 Belgrave St, Kogarah NSW 2217',
+  serviceTypeName: 'Routine Inspection',
   scheduledDate: '2026-04-01', timeSlotStart: '09:00', timeSlotEnd: '12:00', contactName: 'John Doe',
   contactPhone: '11999999999', contactEmail: 'john@test.com', keyRequired: true,
   meetingLocation: 'Lobby', keyLocation: 'Portaria', notes: 'Test notes',
@@ -290,6 +295,47 @@ describe('AppointmentFormDrawer', () => {
       .at(-1);
 
     expect((latestPropertyCall as unknown[] | undefined)?.[3]).toEqual({ branchId: 'branch-1' });
+  });
+
+  // Regression: an import-created property has `branch_id = NULL`, so the
+  // branch-scoped `/v1/properties` list can never contain it. The field is
+  // locked in edit mode, so with no matching option it rendered the
+  // "Select property" placeholder and the linked property became invisible.
+  it('renders the linked property, branch and service type in edit mode even when the scoped lists exclude them', () => {
+    mockUseFormOptions.mockImplementation((...args: unknown[]) => {
+      if (args[1] === '/v1/properties') {
+        return { options: [{ value: 'prop-other', label: 'SPS-003 - 5 Blue St' }], isLoading: false };
+      }
+      return { options: [], isLoading: false };
+    });
+
+    renderDrawer({ appointmentId: 'apt-01' });
+
+    expect(screen.getByLabelText('Property')).toHaveTextContent('5/24 Belgrave St, Kogarah NSW 2217');
+    expect(screen.getByLabelText('Branch')).toHaveTextContent('North Shore Office');
+    expect(screen.getByLabelText('Service Type')).toHaveTextContent('Routine Inspection');
+  });
+
+  it('does not duplicate the current option when the scoped list already contains it', () => {
+    mockUseFormOptions.mockImplementation((...args: unknown[]) => {
+      if (args[1] === '/v1/properties') {
+        return {
+          options: [
+            { value: 'prop-1', label: 'SPS-001 - Belgrave St' },
+            { value: 'prop-other', label: 'SPS-003 - 5 Blue St' },
+          ],
+          isLoading: false,
+        };
+      }
+      return { options: [], isLoading: false };
+    });
+
+    renderDrawer({ appointmentId: 'apt-01' });
+
+    // The list label wins over the appointment snapshot, and appears once.
+    const property = screen.getByLabelText('Property');
+    expect(property).toHaveTextContent('SPS-001 - Belgrave St');
+    expect(property).not.toHaveTextContent('Kogarah');
   });
 
   it('allows editing the time slot (free start/end range) in edit mode', () => {
