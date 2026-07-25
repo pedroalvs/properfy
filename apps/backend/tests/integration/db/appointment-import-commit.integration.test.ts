@@ -21,6 +21,7 @@ import { PrismaAppointmentImportRepository } from '../../../src/modules/appointm
 import { PrismaAppointmentRepository } from '../../../src/modules/appointment/infrastructure/prisma-appointment.repository';
 import { PrismaPropertyRepository } from '../../../src/modules/property/infrastructure/prisma-property.repository';
 import { PrismaBranchRepository } from '../../../src/modules/tenant/infrastructure/prisma-branch.repository';
+import { PrismaTenantRepository } from '../../../src/modules/tenant/infrastructure/prisma-tenant.repository';
 import { PrismaServiceTypeRepository } from '../../../src/modules/service-type/infrastructure/prisma-service-type.repository';
 import { PrismaPricingRuleRepository } from '../../../src/modules/pricing-rule/infrastructure/prisma-pricing-rule.repository';
 import { PrismaContactRepository } from '../../../src/modules/contact/infrastructure/prisma-contact.repository';
@@ -60,7 +61,12 @@ const noopLogger: Logger = { info: () => {}, warn: () => {}, error: () => {}, de
 async function seedScenario() {
   const suffix = Math.random().toString(36).slice(2, 10);
   const tenant = await harness.prisma.tenant.create({
-    data: { name: `T-commit-${suffix}`, legal_name: `T-commit-${suffix} LLC`, status: 'ACTIVE' },
+    data: {
+      name: `T-commit-${suffix}`, legal_name: `T-commit-${suffix} LLC`, status: 'ACTIVE',
+      // Globally unique (VarChar(4)) — derived from the per-scenario suffix so
+      // two scenarios in this file never collide.
+      appointment_code_prefix: suffix.slice(0, 4).toUpperCase(),
+    },
   });
   const branch = await harness.prisma.branch.create({
     data: { tenant_id: tenant.id, name: 'Main', status: 'ACTIVE' },
@@ -96,7 +102,7 @@ async function seedScenario() {
     },
   });
 
-  return { tenant, branch, user, serviceType, existingContact };
+  return { tenant, branch, user, serviceType, existingContact, codePrefix: suffix.slice(0, 4).toUpperCase() };
 }
 
 async function seedPreviewImport(tenantId: string, branchId: string, userId: string, storage: FakeStorageService, csv: string) {
@@ -133,7 +139,8 @@ function buildWorker(storage: FakeStorageService, jobQueue: FakeJobQueue) {
   );
 
   const worker = new AppointmentImportCommitWorker(
-    importRepo, storage, propertyRepo, resolver, createAppointmentUseCase, jobQueue, auditService, noopLogger,
+    importRepo, storage, propertyRepo, new PrismaTenantRepository(harness.prisma), resolver,
+    createAppointmentUseCase, jobQueue, auditService, noopLogger,
   );
   return { worker, importRepo, propertyRepo, contactRepo };
 }
@@ -152,7 +159,7 @@ afterAll(async () => {
 
 describe('AppointmentImportCommitWorker — real Postgres end-to-end', () => {
   it('creates exactly one property for two rows sharing a new address, prices the appointment via the real pricing rule, and reuses an existing contact', async () => {
-    const { tenant, branch, user, serviceType, existingContact } = await seedScenario();
+    const { tenant, branch, user, serviceType, existingContact, codePrefix } = await seedScenario();
     const storage = new FakeStorageService();
     const jobQueue = new FakeJobQueue();
 
@@ -199,6 +206,19 @@ describe('AppointmentImportCommitWorker — real Postgres end-to-end', () => {
     const existingRowAppointment = appointments.find((a) => a.scheduled_date.toISOString().startsWith('2027-06-22'))!;
     const junction = await harness.prisma.appointmentContact.findFirst({ where: { appointment_id: existingRowAppointment.id } });
     expect(junction!.contact_id).toBe(existingContact.id);
+
+    // Every created property lands on the batch's branch — the column the
+    // branch-scoped `/v1/properties` query filters on. Asserted against the
+    // real row, since this is exactly what a mocked repository cannot prove.
+    for (const p of allProperties) {
+      expect(p.branch_id).toBe(branch.id);
+    }
+
+    // …and carries the same sequential code scheme as any other property,
+    // numbered per tenant.
+    const codes = allProperties.map((p) => p.property_code).sort();
+    expect(codes).toEqual([`${codePrefix}-PROP-0001`, `${codePrefix}-PROP-0002`]);
+    expect(allProperties.map((p) => p.property_number).sort()).toEqual([1, 2]);
 
     // Async geocode enqueued for each newly created property (not a synchronous Mapbox call).
     const geocodeJobs = jobQueue.enqueued.filter((j) => j.jobName === 'property.geocode');
