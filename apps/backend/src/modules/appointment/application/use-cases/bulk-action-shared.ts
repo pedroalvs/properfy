@@ -28,6 +28,26 @@ export function dayKeyInTz(now: Date): string {
 }
 
 /**
+ * Replay window for the STATE-MUTATING bulk actions (status transition,
+ * cancel, reschedule, assign inspector, reopen, cross-check).
+ *
+ * This guard exists only to absorb double-clicks, network retries and two
+ * operators submitting the same batch at once — it is NOT a business rule.
+ * A deliberate repeat must go through: moving a status away and back, or
+ * correcting a reschedule made moments earlier, are legitimate operator
+ * actions and replaying them costs nobody anything. Hence minutes, not a day.
+ *
+ * The NOTIFICATION bulk actions deliberately do NOT use this — `bulk-resend-
+ * reminder` and `send-group-portal-links` stay bucketed per day via
+ * `dayKeyInTz`, because a replay there means another real email/SMS to the
+ * rental tenant. Keep that distinction when adding a new bulk action, and ask:
+ * does replaying it cost the tenant anything? If yes, bucket it per day.
+ */
+export const REPLAY_WINDOW_MINUTES = 3;
+/** `IIdempotencyService.set` takes hours and multiplies by 60 * 60 * 1000. */
+export const REPLAY_WINDOW_TTL_HOURS = REPLAY_WINDOW_MINUTES / 60;
+
+/**
  * Map a thrown error from a per-item operation to the bulk-action result
  * envelope. Known domain errors map to typed statuses; anything else falls
  * back to `ERROR` so the batch can continue without exposing internals.

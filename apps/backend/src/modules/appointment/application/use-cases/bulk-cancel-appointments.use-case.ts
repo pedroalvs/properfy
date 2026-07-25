@@ -1,10 +1,9 @@
 import type { AuthContext, BulkActionResultItem } from '@properfy/shared';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import type { ExecuteStatusTransitionUseCase } from './execute-status-transition.use-case';
-import { dayKeyInTz, mapErrorToResult } from './bulk-action-shared';
+import { mapErrorToResult, REPLAY_WINDOW_TTL_HOURS } from './bulk-action-shared';
 
 const IDEMPOTENCY_SCOPE = 'bulk_cancel';
-const IDEMPOTENCY_TTL_HOURS = 36;
 
 export interface BulkCancelAppointmentsInput {
   appointmentIds: string[];
@@ -37,11 +36,10 @@ export class BulkCancelAppointmentsUseCase {
   ) {}
 
   async execute(input: BulkCancelAppointmentsInput): Promise<BulkCancelAppointmentsOutput> {
-    const dayKey = dayKeyInTz(this.clock());
     const results: BulkActionResultItem[] = [];
 
     for (const appointmentId of input.appointmentIds) {
-      const idemKey = `bulk_cancel:${appointmentId}:${dayKey}`;
+      const idemKey = `bulk_cancel:${appointmentId}`;
       const cached = await this.idempotency.getWithHash<BulkActionResultItem>(
         idemKey,
         IDEMPOTENCY_SCOPE,
@@ -59,7 +57,7 @@ export class BulkCancelAppointmentsUseCase {
           actor: input.actor,
         });
         const result: BulkActionResultItem = { appointmentId, status: 'OK' };
-        await this.idempotency.set(idemKey, IDEMPOTENCY_SCOPE, result, IDEMPOTENCY_TTL_HOURS);
+        await this.idempotency.set(idemKey, IDEMPOTENCY_SCOPE, result, REPLAY_WINDOW_TTL_HOURS);
         results.push(result);
       } catch (err) {
         results.push(mapErrorToResult(appointmentId, err));

@@ -3,10 +3,9 @@ import type { AuthorizationService } from '../../../../shared/domain/authorizati
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import type { PerformCrossCheckUseCase } from './perform-cross-check.use-case';
-import { dayKeyInTz } from './bulk-action-shared';
+import { REPLAY_WINDOW_TTL_HOURS } from './bulk-action-shared';
 
 const IDEMPOTENCY_SCOPE = 'bulk_cross_check';
-const IDEMPOTENCY_TTL_HOURS = 36;
 
 export interface BulkCrossCheckDoneInput {
   ids: string[];
@@ -55,13 +54,11 @@ export class BulkCrossCheckDoneUseCase {
       action: 'appointment.cross_check',
       entityType: 'Appointment',
     });
-
-    const dayKey = dayKeyInTz(this.clock());
     let updated = 0;
     const failed: Array<{ id: string; code: string; message: string }> = [];
 
     for (const appointmentId of input.ids) {
-      const idemKey = `bulk_cross_check:${appointmentId}:${dayKey}`;
+      const idemKey = `bulk_cross_check:${appointmentId}`;
       const cached = await this.idempotency.getWithHash<{ ok: true }>(idemKey, IDEMPOTENCY_SCOPE);
       if (cached) {
         // Already cross-checked in this window — treat the replay as a success
@@ -72,7 +69,7 @@ export class BulkCrossCheckDoneUseCase {
 
       try {
         await this.performCrossCheck.execute({ appointmentId, actor: input.actor });
-        await this.idempotency.set(idemKey, IDEMPOTENCY_SCOPE, { ok: true }, IDEMPOTENCY_TTL_HOURS);
+        await this.idempotency.set(idemKey, IDEMPOTENCY_SCOPE, { ok: true }, REPLAY_WINDOW_TTL_HOURS);
         updated += 1;
       } catch (err: unknown) {
         const code = (err as { code?: string })?.code;

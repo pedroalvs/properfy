@@ -1,10 +1,9 @@
 import type { AppointmentStatus, AuthContext, BulkActionResultItem } from '@properfy/shared';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import type { ExecuteStatusTransitionUseCase } from './execute-status-transition.use-case';
-import { dayKeyInTz, mapErrorToResult } from './bulk-action-shared';
+import { mapErrorToResult, REPLAY_WINDOW_TTL_HOURS } from './bulk-action-shared';
 
 const IDEMPOTENCY_SCOPE = 'bulk_status_transition';
-const IDEMPOTENCY_TTL_HOURS = 36;
 
 export interface BulkStatusTransitionInput {
   appointmentIds: string[];
@@ -35,13 +34,12 @@ export class BulkStatusTransitionUseCase {
   ) {}
 
   async execute(input: BulkStatusTransitionInput): Promise<BulkStatusTransitionOutput> {
-    const dayKey = dayKeyInTz(this.clock());
     const results: BulkActionResultItem[] = [];
 
     for (const appointmentId of input.appointmentIds) {
-      // Day key buckets by (id, target) so flipping the target later in the
-      // day still executes; same (id, target) within the day is a replay.
-      const idemKey = `bulk_status_transition:${appointmentId}:${input.targetStatus}:${dayKey}`;
+      // Keyed by (id, target) only — the replay window is the TTL alone, so
+      // the same transition can be re-applied once the window lapses.
+      const idemKey = `bulk_status_transition:${appointmentId}:${input.targetStatus}`;
       const cached = await this.idempotency.getWithHash<BulkActionResultItem>(
         idemKey,
         IDEMPOTENCY_SCOPE,
@@ -59,7 +57,7 @@ export class BulkStatusTransitionUseCase {
           actor: input.actor,
         });
         const result: BulkActionResultItem = { appointmentId, status: 'OK' };
-        await this.idempotency.set(idemKey, IDEMPOTENCY_SCOPE, result, IDEMPOTENCY_TTL_HOURS);
+        await this.idempotency.set(idemKey, IDEMPOTENCY_SCOPE, result, REPLAY_WINDOW_TTL_HOURS);
         results.push(result);
       } catch (err) {
         results.push(mapErrorToResult(appointmentId, err));

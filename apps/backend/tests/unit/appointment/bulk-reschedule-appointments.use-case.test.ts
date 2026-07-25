@@ -141,7 +141,41 @@ describe('BulkRescheduleAppointmentsUseCase', () => {
     expect(out.results[0]?.status).toBe('INVALID_TRANSITION');
   });
 
-  it('IDEMPOTENT_REPLAY skips the delegate on same-day retry', async () => {
+  it('keys by the requested slot — correcting a reschedule re-executes', async () => {
+    // Regression: the key used to be `bulk_reschedule:{id}:{day}`, so an
+    // operator who rescheduled to the wrong date and immediately corrected it
+    // got a silent IDEMPOTENT_REPLAY — the correction never applied. The slot
+    // must be part of the key so a DIFFERENT target is a different action.
+    const useCase = new BulkRescheduleAppointmentsUseCase(
+      mocks.updateAppointment,
+      mocks.idempotency,
+      () => new Date('2026-04-15T12:00:00Z'),
+    );
+
+    await useCase.execute({
+      appointmentIds: [APPT_A],
+      newDate: '2026-06-01',
+      newTimeSlotStart: '09:00',
+      newTimeSlotEnd: '10:00',
+      actor,
+    });
+    await useCase.execute({
+      appointmentIds: [APPT_A],
+      newDate: '2026-06-02',
+      newTimeSlotStart: '09:00',
+      newTimeSlotEnd: '10:00',
+      actor,
+    });
+
+    const calls = (mocks.idempotency.getWithHash as ReturnType<typeof vi.fn>).mock.calls.map(([k]) => k as string);
+    expect(calls[0]).not.toBe(calls[1]);
+    expect(calls[0]).toContain('2026-06-01');
+    expect(calls[1]).toContain('2026-06-02');
+    // ...and no day bucket: the replay window is the TTL alone.
+    expect(calls[0]).not.toContain('2026-04-15');
+  });
+
+  it('IDEMPOTENT_REPLAY skips the delegate on an immediate retry', async () => {
     (mocks.idempotency.getWithHash as ReturnType<typeof vi.fn>).mockResolvedValue({
       appointmentId: APPT_A,
       status: 'OK',

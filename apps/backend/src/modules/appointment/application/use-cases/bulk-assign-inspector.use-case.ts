@@ -1,10 +1,9 @@
 import type { AuthContext, BulkActionResultItem } from '@properfy/shared';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import type { BulkEditAppointmentsUseCase } from './bulk-edit-appointments.use-case';
-import { dayKeyInTz, mapBulkEditFailureToResult } from './bulk-action-shared';
+import { mapBulkEditFailureToResult, REPLAY_WINDOW_TTL_HOURS } from './bulk-action-shared';
 
 const IDEMPOTENCY_SCOPE = 'bulk_assign_inspector';
-const IDEMPOTENCY_TTL_HOURS = 36;
 
 export interface BulkAssignInspectorInput {
   appointmentIds: string[];
@@ -38,13 +37,12 @@ export class BulkAssignInspectorUseCase {
   ) {}
 
   async execute(input: BulkAssignInspectorInput): Promise<BulkAssignInspectorOutput> {
-    const dayKey = dayKeyInTz(this.clock());
     const results: BulkActionResultItem[] = [];
 
     for (const appointmentId of input.appointmentIds) {
       // Idempotency keys by (id, inspector) within the day — reassigning to
       // a different inspector still goes through; same target is a replay.
-      const idemKey = `bulk_assign_inspector:${appointmentId}:${input.inspectorId}:${dayKey}`;
+      const idemKey = `bulk_assign_inspector:${appointmentId}:${input.inspectorId}`;
       const cached = await this.idempotency.getWithHash<BulkActionResultItem>(
         idemKey,
         IDEMPOTENCY_SCOPE,
@@ -65,7 +63,7 @@ export class BulkAssignInspectorUseCase {
           continue;
         }
         const result: BulkActionResultItem = { appointmentId, status: 'OK' };
-        await this.idempotency.set(idemKey, IDEMPOTENCY_SCOPE, result, IDEMPOTENCY_TTL_HOURS);
+        await this.idempotency.set(idemKey, IDEMPOTENCY_SCOPE, result, REPLAY_WINDOW_TTL_HOURS);
         results.push(result);
       } catch (err) {
         // `BulkEditAppointmentsUseCase` may also throw (e.g. RBAC denial as
