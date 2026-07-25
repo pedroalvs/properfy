@@ -74,9 +74,14 @@ const MOCK_PROPERTY = {
   postcode: '01000-000', state: 'SP', country: 'BR', notes: 'Some notes',
 };
 
+/** Lets a test hold the property detail in flight, as it is on the first
+ *  render of a real edit — the state in which the tenant is still unknown. */
+let propertyDetailPending = false;
+
 vi.mock('../hooks/usePropertyDetail', () => ({
   usePropertyDetail: (id: string | null) => {
     if (!id) return { property: null, isLoading: false, isError: false, refetch: vi.fn() };
+    if (propertyDetailPending) return { property: null, isLoading: true, isError: false, refetch: vi.fn() };
     return { property: MOCK_PROPERTY, isLoading: false, isError: false, refetch: vi.fn() };
   },
 }));
@@ -111,10 +116,16 @@ function branchOptionsCall(): FormOptionsArgs | undefined {
   return mockUseFormOptions.mock.calls.find(([, path]) => path === '/v1/branches');
 }
 
+/** Args of the most recent `/v1/branches` call. */
+function latestBranchOptionsCall(): FormOptionsArgs | undefined {
+  return mockUseFormOptions.mock.calls.filter(([, path]) => path === '/v1/branches').at(-1);
+}
+
 describe('PropertyFormDrawer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseFormOptions.mockImplementation(() => ({ options: [], isLoading: false }));
+    propertyDetailPending = false;
     mockSave.mockResolvedValue({ success: true });
     mockValidate.mockReturnValue({});
   });
@@ -176,11 +187,29 @@ describe('PropertyFormDrawer', () => {
 
     expect(screen.getByLabelText('Branch')).toHaveTextContent('City Office');
     expect(branchOptionsCall()?.[3]).toMatchObject({ tenantId: 'tenant-9' });
-    // Every branches call is scoped — no unscoped request slips out while the
-    // property is still loading.
-    const unscoped = mockUseFormOptions.mock.calls
-      .filter(([, path, , params]) => path === '/v1/branches' && !params?.tenantId);
-    expect(unscoped.every(([, , , , options]) => (options as { enabled?: boolean } | undefined)?.enabled === false)).toBe(true);
+  });
+
+  // The tenant is only known once the property detail resolves; until then the
+  // query must stay disabled rather than fire an unscoped (and useless) request.
+  it('holds the branch query until the edited property resolves its tenant', () => {
+    mockTenantScopedBranches('tenant-9', { value: 'branch-1', label: 'City Office' });
+    propertyDetailPending = true;
+
+    const { rerender } = renderDrawer({ propertyId: 'prop-01' });
+
+    const pendingCall = latestBranchOptionsCall();
+    expect(pendingCall?.[3]?.tenantId).toBeUndefined();
+    expect(pendingCall?.[4]).toMatchObject({ enabled: false });
+
+    propertyDetailPending = false;
+    rerender(
+      <PropertyFormDrawer open onClose={vi.fn()} propertyId="prop-01" onSaved={vi.fn()} />,
+    );
+
+    const resolvedCall = latestBranchOptionsCall();
+    expect(resolvedCall?.[3]).toMatchObject({ tenantId: 'tenant-9' });
+    expect(resolvedCall?.[4]).toMatchObject({ enabled: true });
+    expect(screen.getByLabelText('Branch')).toHaveTextContent('City Office');
   });
 
   it('renders backend VALIDATION_ERROR details inline on the matching field', async () => {
