@@ -142,6 +142,21 @@ describe('backfill-property-branch (real DB)', () => {
     expect(await branchOf(s.alreadyBranchedProperty)).toBe(s.branchB);
   });
 
+  it('leaves another agency branch-less properties alone when scoped to one tenant', async () => {
+    const mine = await seedScenario();
+    const theirs = await seedScenario();
+
+    const summary = await backfillPropertyBranch(harness.prisma, { apply: true, tenantId: mine.tenantId });
+
+    // Only this tenant's rows were even looked at…
+    expect(summary.scanned).toBe(3);
+    expect(summary.applied).toBe(1);
+    expect(summary.skipped.map((s) => s.propertyId).sort())
+      .toEqual([mine.multiBranchProperty, mine.orphanProperty].sort());
+    // …and the other agency's repairable property is untouched.
+    expect(await branchOf(theirs.singleBranchProperty)).toBeNull();
+  });
+
   it('is safe to re-run — a second pass finds nothing left to repair', async () => {
     const s = await seedScenario();
 

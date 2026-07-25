@@ -160,6 +160,18 @@ afterAll(async () => {
 describe('AppointmentImportCommitWorker — real Postgres end-to-end', () => {
   it('creates exactly one property for two rows sharing a new address, prices the appointment via the real pricing rule, and reuses an existing contact', async () => {
     const { tenant, branch, user, serviceType, existingContact, codePrefix } = await seedScenario();
+    // A competing agency that already owns numbered properties: the codes
+    // asserted below must still start at 0001, which only holds if the
+    // sequence is allocated per tenant rather than globally.
+    const other = await seedScenario();
+    await harness.prisma.property.createMany({
+      data: [1, 2, 3].map((n) => ({
+        tenant_id: other.tenant.id, branch_id: other.branch.id,
+        property_code: `${other.codePrefix}-PROP-000${n}`, property_number: n, type: 'HOUSE' as const,
+        street: `${n} Other Tenant Rd`, suburb: 'Newtown', postcode: '2042', state: 'NSW', country: 'AU',
+      })),
+    });
+
     const storage = new FakeStorageService();
     const jobQueue = new FakeJobQueue();
 
@@ -215,10 +227,13 @@ describe('AppointmentImportCommitWorker — real Postgres end-to-end', () => {
     }
 
     // …and carries the same sequential code scheme as any other property,
-    // numbered per tenant.
+    // numbered per tenant: this agency starts at 0001 under its own prefix even
+    // though the other agency already holds 0001-0003.
     const codes = allProperties.map((p) => p.property_code).sort();
     expect(codes).toEqual([`${codePrefix}-PROP-0001`, `${codePrefix}-PROP-0002`]);
     expect(allProperties.map((p) => p.property_number).sort()).toEqual([1, 2]);
+    const otherProperties = await harness.prisma.property.findMany({ where: { tenant_id: other.tenant.id } });
+    expect(otherProperties).toHaveLength(3); // untouched by this tenant's import
 
     // Async geocode enqueued for each newly created property (not a synchronous Mapbox call).
     const geocodeJobs = jobQueue.enqueued.filter((j) => j.jobName === 'property.geocode');

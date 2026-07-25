@@ -65,9 +65,12 @@ export async function backfillPropertyBranch(
 
   for (const property of properties) {
     // Every status counts, cancelled included: a cancelled appointment still
-    // records which branch the property was operated under.
+    // records which branch the property was operated under. Scoped by tenant
+    // as well as property: cross-tenant references shouldn't exist (create
+    // validates the property's tenant), but evidence for a repair must not
+    // depend on that holding.
     const branches = await prisma.appointment.findMany({
-      where: { property_id: property.id },
+      where: { property_id: property.id, tenant_id: property.tenant_id },
       select: { branch_id: true },
       distinct: ['branch_id'],
     });
@@ -84,11 +87,14 @@ export async function backfillPropertyBranch(
     summary.inferable++;
     if (!options.apply) continue;
 
-    await prisma.property.update({
-      where: { id: property.id },
+    // Conditional write: `branch_id: null` in the WHERE means a branch assigned
+    // by someone else between the scan and here is never overwritten. `applied`
+    // counts rows this run actually changed, not rows it intended to change.
+    const updated = await prisma.property.updateMany({
+      where: { id: property.id, tenant_id: property.tenant_id, branch_id: null },
       data: { branch_id: branches[0]!.branch_id },
     });
-    summary.applied++;
+    summary.applied += updated.count;
   }
 
   return summary;
@@ -96,12 +102,18 @@ export async function backfillPropertyBranch(
 
 async function main() {
   const apply = process.argv.includes('--apply');
+  // Optional: repair one agency at a time. Omitted, the script sweeps the whole
+  // environment — it is an operator-run maintenance task, not a request-path
+  // query, and the tenant of each row is carried through every statement.
+  const tenantArg = process.argv.find((arg) => arg.startsWith('--tenant-id='));
+  const tenantId = tenantArg?.split('=')[1];
   const prisma = new PrismaClient({ log: [] });
 
-  console.log(`\n=== backfill-property-branch (${apply ? 'APPLY' : 'DRY RUN'}) ===\n`);
+  const scope = tenantId ? `tenant ${tenantId}` : 'all tenants';
+  console.log(`\n=== backfill-property-branch (${apply ? 'APPLY' : 'DRY RUN'}, ${scope}) ===\n`);
 
   try {
-    const summary = await backfillPropertyBranch(prisma, { apply });
+    const summary = await backfillPropertyBranch(prisma, { apply, ...(tenantId ? { tenantId } : {}) });
 
     console.log(`  properties without a branch : ${summary.scanned}`);
     console.log(`  inferable (one branch)      : ${summary.inferable}`);
