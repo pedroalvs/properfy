@@ -31,8 +31,15 @@ export function dayKeyInTz(now: Date): string {
  * Replay window for the STATE-MUTATING bulk actions (status transition,
  * cancel, reschedule, assign inspector, reopen, cross-check).
  *
- * This guard exists only to absorb double-clicks, network retries and two
- * operators submitting the same batch at once — it is NOT a business rule.
+ * This guard exists only to absorb a repeated submit — a double-click or a
+ * network retry — and it is NOT a business rule. Note it is deliberately
+ * best-effort: the callers do `getWithHash` → mutate → `set`, which is
+ * check-then-act, so two genuinely concurrent requests can both miss the
+ * cache. Protection against actually applying an action twice does not come
+ * from here (see the domain-invariant note below); making the guard atomic
+ * would mean reserving the key before the mutation in `IIdempotencyService`,
+ * which every bulk action shares — worth doing, but not as a side effect of
+ * retuning the window.
  * A deliberate repeat must go through: moving a status away and back, or
  * correcting a reschedule made moments earlier, are legitimate operator
  * actions and replaying them costs nobody anything. Hence minutes, not a day.

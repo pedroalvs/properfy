@@ -87,6 +87,13 @@ function toBulkEditResult(results: BulkActionResponse['results']): BulkEditResul
   return { updated: results.length - failed.length, failed };
 }
 
+/** Mirrors `bulkStatusTransitionRequestSchema` in
+ *  `packages/shared/src/schemas/appointment.ts` (`reason: min(3).max(500)`).
+ *  Named so the submit gate, the field cap and the label copy cannot drift
+ *  apart from each other or from the server-side bound. */
+const REASON_MIN_LENGTH = 3;
+const REASON_MAX_LENGTH = 500;
+
 interface BulkEditModalProps {
   selectedAppointments: Appointment[];
   open: boolean;
@@ -191,7 +198,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
   );
 
   const changeStatusReady =
-    !!targetStatus && (!statusReasonRequired || statusReason.trim().length >= 3);
+    !!targetStatus && (!statusReasonRequired || statusReason.trim().length >= REASON_MIN_LENGTH);
 
   // Failure rows identify the appointment by its human-readable code — an id
   // fragment tells the operator nothing about which row to go fix. Falls back
@@ -370,11 +377,10 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
     }
   };
 
-  const hasCheckedFields =
-    (Object.values(enabledFields) as boolean[]).some(Boolean) || reviewed || changeStatus;
   // Exclusivity: field edits, "Mark as Reviewed" and "Change status" are three
   // mutually exclusive modes — checking any one disables the other two.
   const anyFieldChecked = (Object.values(enabledFields) as boolean[]).some(Boolean);
+  const hasCheckedFields = anyFieldChecked || reviewed || changeStatus;
   const submitDisabled = !hasCheckedFields || (changeStatus && !changeStatusReady);
 
   const inspectorDisabled = !activeTenantId;
@@ -606,13 +612,13 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
                     {/* State the requirement, so a disabled Apply is never
                         unexplained while the operator types. */}
                     <span className="font-normal text-text-muted">
-                      (required, at least 3 characters)
+                      (required, at least {REASON_MIN_LENGTH} characters)
                     </span>
                     <Textarea
                       aria-label="Status change reason"
                       value={statusReason}
                       onChange={setStatusReason}
-                      maxLength={500}
+                      maxLength={REASON_MAX_LENGTH}
                       rows={3}
                     />
                   </label>
