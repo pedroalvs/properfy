@@ -134,6 +134,7 @@ Official statuses:
 | `SCHEDULED` | `REJECTED` | OP, SYS | Yes |
 | `REJECTED` | `DRAFT` | OP, AM | Yes |
 | `REJECTED` | `AWAITING_INSPECTOR` | OP, AM | Yes | System-triggered when appointment is added to a service group |
+| `REJECTED` | `CANCELLED` | OP, CL, AM | Yes |
 | `CANCELLED` | `DRAFT` | OP, AM | Yes |
 | `DONE` | `DRAFT` | AM only | Yes |
 | `DONE` | `REJECTED` | AM only | Yes | Emits `DONE_REJECTED` for financial compensation |

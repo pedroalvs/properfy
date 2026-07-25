@@ -110,7 +110,7 @@ describe('getValidTransitions — DONE', () => {
 });
 
 describe('getValidTransitions — CANCELLED / REJECTED', () => {
-  it('OP/AM can revive CANCELLED back to DRAFT and REJECTED to DRAFT or AWAITING_INSPECTOR', () => {
+  it('OP/AM can revive CANCELLED back to DRAFT and REJECTED to DRAFT, AWAITING_INSPECTOR or CANCELLED', () => {
     expect(getValidTransitions(AppointmentStatus.CANCELLED, 'OP')).toEqual([
       AppointmentStatus.DRAFT,
     ]);
@@ -118,19 +118,31 @@ describe('getValidTransitions — CANCELLED / REJECTED', () => {
       AppointmentStatus.DRAFT,
     ]);
     // REJECTED → AWAITING_INSPECTOR added in cycle 5 (groupable) + cycle 6 (TZ-aware re-open)
+    // REJECTED → CANCELLED added so a rejected appointment can be cancelled directly
+    // from the map bulk-cancel flow instead of only reopened.
     expect(getValidTransitions(AppointmentStatus.REJECTED, 'OP')).toEqual([
       AppointmentStatus.DRAFT,
       AppointmentStatus.AWAITING_INSPECTOR,
+      AppointmentStatus.CANCELLED,
     ]);
     expect(getValidTransitions(AppointmentStatus.REJECTED, 'AM')).toEqual([
       AppointmentStatus.DRAFT,
       AppointmentStatus.AWAITING_INSPECTOR,
+      AppointmentStatus.CANCELLED,
     ]);
   });
 
-  it('CL_ADMIN/CL_USER cannot revive terminal-non-failure rows', () => {
+  it('CL_ADMIN/CL_USER cannot revive terminal-non-failure rows, but CL_ADMIN can cancel a REJECTED row', () => {
     expect(getValidTransitions(AppointmentStatus.CANCELLED, 'CL_ADMIN')).toEqual([]);
-    expect(getValidTransitions(AppointmentStatus.REJECTED, 'CL_ADMIN')).toEqual([]);
+    expect(getValidTransitions(AppointmentStatus.REJECTED, 'CL_ADMIN')).toEqual([
+      AppointmentStatus.CANCELLED,
+    ]);
+    expect(
+      getValidTransitions(AppointmentStatus.REJECTED, 'CL_USER', { cancel_appointments: true }),
+    ).toEqual([AppointmentStatus.CANCELLED]);
+    expect(
+      getValidTransitions(AppointmentStatus.REJECTED, 'CL_USER', { cancel_appointments: false }),
+    ).toEqual([]);
     expect(getValidTransitions(AppointmentStatus.CANCELLED, 'CL_USER')).toEqual([]);
   });
 });
@@ -146,6 +158,7 @@ describe('isReasonRequired', () => {
     [AppointmentStatus.DONE, AppointmentStatus.DRAFT, true],
     [AppointmentStatus.CANCELLED, AppointmentStatus.DRAFT, true],
     [AppointmentStatus.REJECTED, AppointmentStatus.DRAFT, true],
+    [AppointmentStatus.REJECTED, AppointmentStatus.CANCELLED, true],
   ])('%s → %s reasonRequired=%s', (from, to, expected) => {
     expect(isReasonRequired(from, to)).toBe(expected);
   });

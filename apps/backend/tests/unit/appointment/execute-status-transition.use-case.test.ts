@@ -354,6 +354,21 @@ describe('ExecuteStatusTransitionUseCase – valid transitions', () => {
     expect(result.status).toBe('AWAITING_INSPECTOR');
   });
 
+  it('REJECTED → CANCELLED with reason (OP actor) — map bulk-cancel from a REJECTED selection', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'REJECTED', reason: 'old reason' }),
+    );
+    const uc = makeUseCase();
+    const result = await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'CANCELLED',
+      reason: 'No longer needed',
+      actor: makeActor('OP'),
+    });
+    expect(result.status).toBe('CANCELLED');
+    expect(result.previousStatus).toBe('REJECTED');
+  });
+
   it('CANCELLED → DRAFT with reason (AM actor)', async () => {
     appointmentRepo.findById.mockResolvedValue(
       makeWithRelations({ status: 'CANCELLED', reason: 'cancelled before' }),

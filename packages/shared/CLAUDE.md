@@ -207,7 +207,7 @@ export const VALID_TRANSITIONS: Record<AppointmentStatus, AppointmentStatus[]> =
   SCHEDULED: ['DONE', 'CANCELLED', 'REJECTED'],
   DONE: ['DRAFT', 'REJECTED'],
   CANCELLED: ['DRAFT'],
-  REJECTED: ['DRAFT', 'AWAITING_INSPECTOR'],
+  REJECTED: ['DRAFT', 'AWAITING_INSPECTOR', 'CANCELLED'],
 };
 ```
 
