@@ -59,6 +59,7 @@ describe('getAvailableTransitions', () => {
     expect(transitions).toHaveLength(2);
     expect(transitions[0]!.targetStatus).toBe(AppointmentStatus.DRAFT);
     expect(transitions[1]!.targetStatus).toBe(AppointmentStatus.CANCELLED);
+    expect(transitions[1]!.requiresReason).toBe(true);
   });
 
   it('OP from AWAITING_INSPECTOR sees CANCELLED, REJECTED (SCHEDULED handled by Assign button)', () => {
@@ -95,6 +96,7 @@ describe('getAvailableTransitions', () => {
     const transitions = getAvailableTransitions(AppointmentStatus.REJECTED, 'CL_ADMIN');
     expect(transitions).toHaveLength(1);
     expect(transitions[0]!.targetStatus).toBe(AppointmentStatus.CANCELLED);
+    expect(transitions[0]!.requiresReason).toBe(true);
   });
 
   it('INSP from SCHEDULED sees only DONE', () => {

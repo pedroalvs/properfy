@@ -137,6 +137,12 @@ describe('getValidTransitions — CANCELLED / REJECTED', () => {
     expect(getValidTransitions(AppointmentStatus.REJECTED, 'CL_ADMIN')).toEqual([
       AppointmentStatus.CANCELLED,
     ]);
+    expect(
+      getValidTransitions(AppointmentStatus.REJECTED, 'CL_USER', { cancel_appointments: true }),
+    ).toEqual([AppointmentStatus.CANCELLED]);
+    expect(
+      getValidTransitions(AppointmentStatus.REJECTED, 'CL_USER', { cancel_appointments: false }),
+    ).toEqual([]);
     expect(getValidTransitions(AppointmentStatus.CANCELLED, 'CL_USER')).toEqual([]);
   });
 });
