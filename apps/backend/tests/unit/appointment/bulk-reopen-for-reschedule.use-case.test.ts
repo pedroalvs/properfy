@@ -125,8 +125,8 @@ describe('BulkReopenForRescheduleUseCase — 30-day window', () => {
 
     const calls = (mocks.idempotency.getWithHash as ReturnType<typeof vi.fn>).mock.calls.map(([k]) => k as string);
     expect(calls[0]).not.toBe(calls[1]);
-    expect(calls[0]).toContain('09:00');
-    expect(calls[1]).toContain('14:00');
+    expect(calls[0]).toContain('09:00-10:00');
+    expect(calls[1]).toContain('14:00-15:00');
     expect(calls[0]).toContain(WITHIN_WINDOW_DATE.slice(0, 10));
     expect(mocks.reopenForReschedule.execute).toHaveBeenCalledTimes(2);
   });

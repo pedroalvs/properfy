@@ -602,7 +602,12 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
                 />
                 {statusReasonRequired && (
                   <label className="block text-sm font-medium text-text-primary">
-                    Reason
+                    Reason{' '}
+                    {/* State the requirement, so a disabled Apply is never
+                        unexplained while the operator types. */}
+                    <span className="font-normal text-text-muted">
+                      (required, at least 3 characters)
+                    </span>
                     <Textarea
                       aria-label="Status change reason"
                       value={statusReason}

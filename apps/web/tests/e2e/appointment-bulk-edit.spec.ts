@@ -309,6 +309,6 @@ test.describe('Bulk Change Status', () => {
 
     const dialog = await openBulkEdit(page, ['APT-1001']);
     await expect(dialog.getByText('Select the fields you want to change')).toBeVisible();
-    await expect(dialog.getByText('Change status')).toHaveCount(0);
+    await expect(dialog.getByLabel('Change status')).toHaveCount(0);
   });
 });
