@@ -43,11 +43,20 @@ export class BulkRescheduleAppointmentsUseCase {
     // "use the actor's local intent".
     const newDate = input.newDate.length >= 10 ? input.newDate.slice(0, 10) : input.newDate;
 
+    // The delegate applies the time slot only when BOTH ends are present, so
+    // the key must be built from that same effective payload. Keying off each
+    // end independently would give two requests that mutate identically (date
+    // only) different keys, and the replay guard would miss.
+    const effectiveSlot =
+      input.newTimeSlotStart && input.newTimeSlotEnd
+        ? `${input.newTimeSlotStart}-${input.newTimeSlotEnd}`
+        : '';
+
     for (const appointmentId of input.appointmentIds) {
       // Keyed by the requested slot, not just the id: rescheduling to a
       // DIFFERENT date/time is a different action and must execute, even
       // seconds after the previous one. Only an identical re-submit replays.
-      const slotKey = `${newDate}:${input.newTimeSlotStart ?? ''}-${input.newTimeSlotEnd ?? ''}`;
+      const slotKey = `${newDate}:${effectiveSlot}`;
       const idemKey = `bulk_reschedule:${appointmentId}:${slotKey}`;
       const cached = await this.idempotency.getWithHash<BulkActionResultItem>(
         idemKey,

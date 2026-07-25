@@ -190,6 +190,29 @@ describe('BulkRescheduleAppointmentsUseCase', () => {
     expect(mocks.updateAppointment.execute).toHaveBeenCalledTimes(3);
   });
 
+  it('keys off the EFFECTIVE slot — a half-specified slot is not applied, so it must not change the key', async () => {
+    // The delegate only applies the slot when both ends are present. A request
+    // with just a start mutates the date alone, exactly like a request with no
+    // slot at all — so both must produce the same key, or the replay guard
+    // misses two identical mutations.
+    const useCase = new BulkRescheduleAppointmentsUseCase(
+      mocks.updateAppointment,
+      mocks.idempotency,
+      () => new Date('2026-04-15T12:00:00Z'),
+    );
+
+    await useCase.execute({ appointmentIds: [APPT_A], newDate: '2026-06-01', actor });
+    await useCase.execute({
+      appointmentIds: [APPT_A],
+      newDate: '2026-06-01',
+      newTimeSlotStart: '09:00', // no end → slot not applied by the delegate
+      actor,
+    });
+
+    const calls = (mocks.idempotency.getWithHash as ReturnType<typeof vi.fn>).mock.calls.map(([k]) => k as string);
+    expect(calls[0]).toBe(calls[1]);
+  });
+
   it('IDEMPOTENT_REPLAY skips the delegate on an immediate retry', async () => {
     (mocks.idempotency.getWithHash as ReturnType<typeof vi.fn>).mockResolvedValue({
       appointmentId: APPT_A,

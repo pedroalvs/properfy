@@ -10,6 +10,7 @@ import {
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { SelectInput } from '@/components/forms/SelectInput';
+import { Textarea } from '@/components/forms/Textarea';
 import { TimeRangeInput } from '@/components/forms/TimeRangeInput';
 import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
 import { useFormOptions } from '@/hooks/useFormOptions';
@@ -602,14 +603,12 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
                 {statusReasonRequired && (
                   <label className="block text-sm font-medium text-text-primary">
                     Reason
-                    <textarea
+                    <Textarea
                       aria-label="Status change reason"
                       value={statusReason}
-                      onChange={(e) => setStatusReason(e.target.value)}
-                      minLength={3}
+                      onChange={setStatusReason}
                       maxLength={500}
                       rows={3}
-                      className="mt-1 block w-full rounded border border-border-subtle bg-card-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-primary"
                     />
                   </label>
                 )}

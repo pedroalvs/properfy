@@ -297,7 +297,7 @@ test.describe('Bulk Change Status', () => {
     const dialog = await openBulkEdit(page, ['APT-1001']);
     await dialog.getByLabel('Change status').check();
 
-    await expect(dialog.locator('label:has-text("Inspector") input[type="checkbox"]').first()).toBeDisabled();
+    await expect(dialog.getByLabel('Inspector', { exact: true })).toBeDisabled();
     await expect(dialog.getByLabel('Mark as Reviewed')).toBeDisabled();
   });
 
