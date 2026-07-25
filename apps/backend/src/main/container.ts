@@ -1194,7 +1194,7 @@ export function createContainer(logger: Logger): AppContainer {
   const listRetentionRunsUseCase = new ListRetentionRunsUseCase(auditLogRepo);
 
   const appointmentImportCommitWorker = new AppointmentImportCommitWorker(
-    appointmentImportRepo, reportStorageService, propertyRepo, appointmentImportRowResolver,
+    appointmentImportRepo, reportStorageService, propertyRepo, tenantRepo, appointmentImportRowResolver,
     createAppointmentUseCase, importJobQueue, auditService, logger,
   );
   const sweepAbandonedAppointmentImportsWorker = new SweepAbandonedAppointmentImportsWorker(
