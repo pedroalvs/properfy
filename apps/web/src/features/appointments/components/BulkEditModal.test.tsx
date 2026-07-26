@@ -48,15 +48,16 @@ vi.mock('@/hooks/usePermissions', () => ({
   }),
 }));
 
+const mockUseContactSearch = vi.fn((..._args: unknown[]) => ({
+  search: '',
+  debouncedSearch: '',
+  results: [] as unknown[],
+  isSearching: false,
+  setSearch: vi.fn(),
+  reset: vi.fn(),
+}));
 vi.mock('../hooks/useContactSearch', () => ({
-  useContactSearch: () => ({
-    search: '',
-    debouncedSearch: '',
-    results: [],
-    isSearching: false,
-    setSearch: vi.fn(),
-    reset: vi.fn(),
-  }),
+  useContactSearch: (...args: unknown[]) => mockUseContactSearch(...args),
 }));
 
 import { BulkEditModal } from './BulkEditModal';
@@ -330,6 +331,29 @@ describe('BulkEditModal', () => {
       fireEvent.click(screen.getByLabelText('Mark as Reviewed'));
       expect(screen.getByLabelText('Inspector')).toBeDisabled();
       expect(screen.getByLabelText('Scheduled Date')).toBeDisabled();
+    });
+  });
+
+  describe('Property Manager contact', () => {
+    it('scopes the contact search to the selection tenant', () => {
+      // useContactSearch is disabled unless it receives a tenantId, so omitting
+      // it left this field permanently unable to return a single contact.
+      renderModal([makeAppointment({ tenantId: 'tenant-X' })]);
+      fireEvent.click(screen.getByLabelText(/Add Property Manager Contact/));
+
+      expect(mockUseContactSearch).toHaveBeenCalledWith(true, 'tenant-X');
+    });
+
+    it('does not search across a multi-tenant selection', () => {
+      // Contacts are per-agency; with no single tenant there is nothing valid
+      // to scope by, matching how the inspector field already behaves.
+      renderModal([
+        makeAppointment({ id: 'a', tenantId: 'tenant-A' }),
+        makeAppointment({ id: 'b', tenantId: 'tenant-B' }),
+      ]);
+      fireEvent.click(screen.getByLabelText(/Add Property Manager Contact/));
+
+      expect(mockUseContactSearch).toHaveBeenCalledWith(false, undefined);
     });
   });
 
