@@ -27,6 +27,17 @@ export function FilterInput({
   const [focused, setFocused] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
 
+  // Callers pass `(v) => onFiltersChange({ ...filters, search: v })` — a fresh
+  // closure per render over that render's `filters`. The debounce timer would
+  // otherwise fire the handler captured at keystroke time, merging into a
+  // snapshot up to `debounceMs` old and silently reverting any sibling filter
+  // changed inside the window. Every notification below goes through this ref so
+  // the rule is uniform: this component always calls the NEWEST handler. The
+  // synchronous paths (Enter flush, clear) are already current — routing them
+  // too keeps the invariant from being reintroduced if either becomes deferred.
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
   useEffect(() => {
     setLocalValue(value);
   }, [value]);
@@ -38,7 +49,7 @@ export function FilterInput({
       // Clear BEFORE notifying so `timerRef` means "a change is still pending"
       // and nothing else — a fired timer must not look like a queued one.
       timerRef.current = undefined;
-      onChange(newValue);
+      onChangeRef.current(newValue);
     }, debounceMs);
   };
 
@@ -55,7 +66,7 @@ export function FilterInput({
     if (timerRef.current !== undefined) {
       clearTimeout(timerRef.current);
       timerRef.current = undefined;
-      onChange(localValue);
+      onChangeRef.current(localValue);
     }
     onSubmit?.();
   };
@@ -64,7 +75,7 @@ export function FilterInput({
     setLocalValue('');
     clearTimeout(timerRef.current);
     timerRef.current = undefined;
-    onChange('');
+    onChangeRef.current('');
   };
 
   useEffect(() => {
