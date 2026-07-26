@@ -37,9 +37,12 @@ export interface ServiceGroupDetail extends ServiceGroup {
 }
 
 export interface ServiceGroupFiltersState {
+  /** Free text; the backend matches group description and numeric group code. */
+  search: string;
   status: string;
 }
 
 export const DEFAULT_FILTERS: ServiceGroupFiltersState = {
+  search: '',
   status: '',
 };

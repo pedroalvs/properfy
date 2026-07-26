@@ -72,7 +72,7 @@ describe('useServiceGroupList', () => {
     expect(mockGet).toHaveBeenCalledWith('/v1/service-groups', { params: { query: expect.any(Object) } });
   });
 
-  it('does not send unsupported search params', async () => {
+  it('sends the status filter as a query param', async () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useServiceGroupList(), { wrapper });
 
@@ -81,7 +81,7 @@ describe('useServiceGroupList', () => {
     });
 
     act(() => {
-      result.current.setFilters({ status: 'PUBLISHED' });
+      result.current.setFilters({ search: '', status: 'PUBLISHED' });
     });
 
     await waitFor(() => {
@@ -93,9 +93,118 @@ describe('useServiceGroupList', () => {
         },
       });
     });
+  });
+
+  it('sends the search term as the `search` query param', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useServiceGroupList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    act(() => {
+      result.current.setFilters({ search: '1042', status: '' });
+    });
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenLastCalledWith('/v1/service-groups', {
+        params: {
+          query: expect.objectContaining({
+            search: '1042',
+          }),
+        },
+      });
+    });
+  });
+
+  it('sends search and status together', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useServiceGroupList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    act(() => {
+      result.current.setFilters({ search: 'roof', status: 'PUBLISHED' });
+    });
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenLastCalledWith('/v1/service-groups', {
+        params: {
+          query: expect.objectContaining({
+            search: 'roof',
+            status: 'PUBLISHED',
+          }),
+        },
+      });
+    });
+  });
+
+  it('omits `search` entirely while the box is empty', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useServiceGroupList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
 
     const lastCall = mockGet.mock.calls.at(-1)?.[1] as { params?: { query?: Record<string, string> } } | undefined;
     expect(lastCall?.params?.query).not.toHaveProperty('search');
+  });
+
+  it('drops the `search` param again when the term is cleared', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useServiceGroupList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    act(() => {
+      result.current.setFilters({ search: 'roof', status: '' });
+    });
+    await waitFor(() => {
+      const query = mockGet.mock.calls.at(-1)?.[1]?.params?.query as Record<string, string>;
+      expect(query).toHaveProperty('search', 'roof');
+    });
+
+    act(() => {
+      result.current.setFilters({ search: '', status: '' });
+    });
+    await waitFor(() => {
+      const query = mockGet.mock.calls.at(-1)?.[1]?.params?.query as Record<string, string>;
+      expect(query).not.toHaveProperty('search');
+    });
+  });
+
+  it('resets to page 1 when a filter changes', async () => {
+    // Filtering while on a later page would otherwise query e.g. page 3 of a
+    // now-shorter result set and render a misleadingly empty table.
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useServiceGroupList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    act(() => {
+      result.current.pagination.onChange(3, 10);
+    });
+    await waitFor(() => {
+      const query = mockGet.mock.calls.at(-1)?.[1]?.params?.query as Record<string, string>;
+      expect(query).toHaveProperty('page', '3');
+    });
+
+    act(() => {
+      result.current.setFilters({ search: 'roof', status: '' });
+    });
+    await waitFor(() => {
+      const query = mockGet.mock.calls.at(-1)?.[1]?.params?.query as Record<string, string>;
+      expect(query).toMatchObject({ page: '1', search: 'roof' });
+    });
+    expect(result.current.pagination.page).toBe(1);
   });
 
   it('handles API error gracefully', async () => {
