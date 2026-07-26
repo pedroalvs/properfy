@@ -141,3 +141,126 @@ describe('ContactAutocomplete', () => {
     expect(mockSetSearch).toHaveBeenCalledWith('test');
   });
 });
+
+/**
+ * Keyboard access. Same gap the SelectInput had: the suggestions were
+ * <li onClick> with no key handling, so they could not be reached without a
+ * mouse. This is a combobox, so the active suggestion is published through
+ * aria-activedescendant while focus stays in the text input.
+ */
+describe('ContactAutocomplete keyboard navigation', () => {
+  const onSelect = vi.fn();
+  const onClear = vi.fn();
+
+  const contacts = [
+    { id: 'c1', displayName: 'Alice Smith', type: 'RENTAL_TENANT', primaryEmail: 'a@x.com', primaryPhone: null },
+    { id: 'c2', displayName: 'Bob Jones', type: 'PROPERTY_MANAGER', primaryEmail: null, primaryPhone: null },
+    { id: 'c3', displayName: 'Cara Lee', type: 'BROKER', primaryEmail: null, primaryPhone: null },
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSearchValue = 'ali';
+    mockResults.length = 0;
+    mockResults.push(...contacts);
+  });
+
+  function renderAndOpen() {
+    render(
+      <ContactAutocomplete value="" onSelect={onSelect} onClear={onClear} aria-label="Search" />,
+    );
+    const input = screen.getByLabelText('Search');
+    fireEvent.focus(input);
+    return input;
+  }
+
+  function activeLabel(input: HTMLElement) {
+    const id = input.getAttribute('aria-activedescendant');
+    return id ? document.getElementById(id)?.textContent : null;
+  }
+
+  it('links the input to the suggestion list', () => {
+    const input = renderAndOpen();
+    const listboxId = screen.getByRole('listbox').getAttribute('id');
+    expect(listboxId).toBeTruthy();
+    expect(input).toHaveAttribute('aria-controls', listboxId!);
+  });
+
+  it('moves through suggestions with the arrow keys', () => {
+    const input = renderAndOpen();
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(activeLabel(input)).toContain('Alice Smith');
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(activeLabel(input)).toContain('Bob Jones');
+
+    fireEvent.keyDown(input, { key: 'ArrowUp' });
+    expect(activeLabel(input)).toContain('Alice Smith');
+
+    // Clamped at the first suggestion rather than wrapping around.
+    fireEvent.keyDown(input, { key: 'ArrowUp' });
+    expect(activeLabel(input)).toContain('Alice Smith');
+  });
+
+  it('jumps to the first and last suggestion with Home and End', () => {
+    const input = renderAndOpen();
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'End' });
+    expect(activeLabel(input)).toContain('Cara Lee');
+
+    fireEvent.keyDown(input, { key: 'Home' });
+    expect(activeLabel(input)).toContain('Alice Smith');
+  });
+
+  it('selects the active suggestion with Enter', () => {
+    const input = renderAndOpen();
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'c2' }));
+  });
+
+  it('does nothing on Enter when no suggestion is active', () => {
+    const input = renderAndOpen();
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('consumes Escape so an enclosing dialog does not close too', () => {
+    // The PM-contact field lives inside the bulk-edit dialog, which closes on
+    // Escape from a document listener.
+    const onDocumentEscape = vi.fn();
+    const listener = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onDocumentEscape();
+    };
+    document.addEventListener('keydown', listener);
+    try {
+      const input = renderAndOpen();
+      expect(screen.getByRole('listbox')).toBeInTheDocument();
+
+      fireEvent.keyDown(input, { key: 'Escape' });
+
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+      expect(onDocumentEscape).not.toHaveBeenCalled();
+    } finally {
+      document.removeEventListener('keydown', listener);
+    }
+  });
+
+  it('does not mark the status messages as selectable options', () => {
+    mockResults.length = 0;
+    mockSearchValue = 'a';
+    render(
+      <ContactAutocomplete value="" onSelect={onSelect} onClear={onClear} aria-label="Search" />,
+    );
+    fireEvent.focus(screen.getByLabelText('Search'));
+
+    expect(screen.getByText('Type at least 2 characters to search')).toBeInTheDocument();
+    // A hint is not an option; arrowing must never land on it.
+    expect(screen.queryAllByRole('option')).toHaveLength(0);
+  });
+});
