@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
 import type { DataTablePagination } from '@/components/data/DataTable';
 import { DEFAULT_FILTERS, type ServiceGroup, type ServiceGroupFiltersState } from '../types';
@@ -15,13 +15,21 @@ export interface UseServiceGroupListReturn {
 }
 
 export function useServiceGroupList(): UseServiceGroupListReturn {
-  const [filters, setFilters] = useState<ServiceGroupFiltersState>(DEFAULT_FILTERS);
+  const [filters, setFiltersState] = useState<ServiceGroupFiltersState>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  // Narrowing the result set while on a later page would query e.g. page 3 of a
+  // now-shorter list and render a misleadingly empty table.
+  const setFilters = useCallback((next: ServiceGroupFiltersState) => {
+    setFiltersState(next);
+    setPage(1);
+  }, []);
 
   const params: ListParams = {
     page,
     pageSize,
+    search: filters.search || undefined,
     status: filters.status || undefined,
   };
 

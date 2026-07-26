@@ -85,10 +85,10 @@ describe('ServiceGroupListPage', () => {
     expect(screen.getByText('Map View')).toBeInTheDocument();
   });
 
-  it('renders only contract-backed filters', () => {
+  it('renders the contract-backed Search and Status filters', () => {
     renderPage();
+    expect(screen.getByLabelText('Search')).toBeInTheDocument();
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Search')).not.toBeInTheDocument();
   });
 
   it('renders data table with service group data after loading', async () => {

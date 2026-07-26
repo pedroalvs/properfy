@@ -140,9 +140,19 @@ async function main() {
   }
 }
 
-// Only run when invoked directly — importing this module (tests) must not
-// open a connection or touch the database.
-if (process.argv[1] && process.argv[1].endsWith('backfill-property-branch.ts')) {
+/**
+ * True when this module is the process entrypoint rather than an import.
+ *
+ * Must match the bundled `.js` as well as the `.ts` source: production runs
+ * `dist/backfill-property-branch.js`, so a `.ts`-only check would leave the
+ * script a silent no-op exactly where the repair is needed. Importing the
+ * module (tests) must never open a connection or touch the database.
+ */
+export function isDirectInvocation(entrypoint: string | undefined): boolean {
+  return /[/\\]backfill-property-branch\.(ts|js)$/.test(entrypoint ?? '');
+}
+
+if (isDirectInvocation(process.argv[1])) {
   main().catch((err) => {
     console.error(err);
     process.exit(1);

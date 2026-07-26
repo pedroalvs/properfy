@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ServiceGroupFilters } from './ServiceGroupFilters';
 import { DEFAULT_FILTERS } from '../types';
@@ -12,6 +12,7 @@ describe('ServiceGroupFilters', () => {
         onFiltersChange={() => {}}
       />,
     );
+    expect(screen.getByLabelText('Search')).toBeInTheDocument();
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
   });
 
@@ -46,13 +47,105 @@ describe('ServiceGroupFilters', () => {
     expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, status: 'PUBLISHED' });
   });
 
-  it('does not render unsupported search filter', () => {
+  it('search field advertises what the backend actually matches', () => {
     render(
       <ServiceGroupFilters
-        filters={DEFAULT_FILTERS}
+        filters={{ ...DEFAULT_FILTERS, search: 'x' }}
         onFiltersChange={() => {}}
       />,
     );
-    expect(screen.queryByLabelText('Search')).not.toBeInTheDocument();
+    // The backend matches group description + numeric group code only, so the
+    // placeholder must not promise region/inspector search.
+    expect(screen.getByPlaceholderText('Group code, description...')).toBeInTheDocument();
+  });
+
+  it('reflects the current search value', () => {
+    render(
+      <ServiceGroupFilters
+        filters={{ ...DEFAULT_FILTERS, search: '1042' }}
+        onFiltersChange={() => {}}
+      />,
+    );
+    expect(screen.getByLabelText('Search')).toHaveValue('1042');
+  });
+
+  // Fake timers are scoped to this block: userEvent.setup() in the tests above
+  // deadlocks against them unless given an `advanceTimers` bridge.
+  describe('search debounce', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('calls onFiltersChange with the search term after the 300ms debounce', () => {
+      const onChange = vi.fn();
+      render(
+        <ServiceGroupFilters
+          filters={DEFAULT_FILTERS}
+          onFiltersChange={onChange}
+        />,
+      );
+
+      act(() => {
+        fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'roof' } });
+      });
+      expect(onChange).not.toHaveBeenCalled();
+
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+      expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, search: 'roof' });
+    });
+
+    it('does not clobber a status picked while the search debounce is pending', () => {
+      // FilterInput fires the onChange captured at keystroke time. If that
+      // callback closes over the render-time `filters`, a status selected
+      // inside the 300ms window is silently reverted when the timer fires.
+      const onChange = vi.fn();
+      const { rerender } = render(
+        <ServiceGroupFilters
+          filters={DEFAULT_FILTERS}
+          onFiltersChange={onChange}
+        />,
+      );
+
+      act(() => {
+        fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'roof' } });
+      });
+
+      // Parent state advances mid-debounce (user picked a status).
+      rerender(
+        <ServiceGroupFilters
+          filters={{ ...DEFAULT_FILTERS, status: 'PUBLISHED' }}
+          onFiltersChange={onChange}
+        />,
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+
+      expect(onChange).toHaveBeenCalledWith({ search: 'roof', status: 'PUBLISHED' });
+    });
+
+    it('preserves the active status when the search changes', () => {
+      const onChange = vi.fn();
+      render(
+        <ServiceGroupFilters
+          filters={{ ...DEFAULT_FILTERS, status: 'PUBLISHED' }}
+          onFiltersChange={onChange}
+        />,
+      );
+
+      act(() => {
+        fireEvent.change(screen.getByLabelText('Search'), { target: { value: '77' } });
+        vi.advanceTimersByTime(300);
+      });
+
+      expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, status: 'PUBLISHED', search: '77' });
+    });
   });
 });
