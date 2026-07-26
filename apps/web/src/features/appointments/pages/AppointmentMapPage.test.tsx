@@ -388,7 +388,7 @@ describe('AppointmentMapPage — un-plottable rows are surfaced, not hidden', ()
     expect(warning).toHaveTextContent(/no map location/i);
     // The operator needs to know WHY, and groupSize is the only honest total —
     // the API's appointmentsCount is itself coordinate-filtered.
-    expect(warning).toHaveTextContent(/0 of 3 appointments/i);
+    expect(warning).toHaveTextContent(/0 of 3 appointments have a valid map location/i);
 
     const link = screen.getByRole('link', { name: /Group #25/ });
     expect(link).toHaveAttribute('href', '/service-groups/sg-1');
@@ -411,7 +411,12 @@ describe('AppointmentMapPage — un-plottable rows are surfaced, not hidden', ()
     await waitFor(() => {
       expect(screen.getByText(/1 group · 0 on map/)).toBeInTheDocument();
     });
-    expect(screen.getByTestId('map-unplottable-warning')).toBeInTheDocument();
+    const warning = screen.getByTestId('map-unplottable-warning');
+    expect(warning).toBeInTheDocument();
+    // The reason must hold for a REJECTED coordinate too — this appointment
+    // has one, it is just out of range. "have coordinates" would be a lie.
+    expect(warning).toHaveTextContent(/0 of 3 appointments have a valid map location/i);
+    expect(warning).not.toHaveTextContent(/have coordinates/i);
   });
 
   it('stays silent when every group is plottable', async () => {

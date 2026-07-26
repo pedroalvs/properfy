@@ -935,7 +935,9 @@ export function AppointmentMapPage() {
         id: item.id,
         label: item.code,
         to: `/appointments/${item.id}`,
-        reason: 'address not geocoded yet',
+        // Covers both causes: never geocoded, and geocoded to something
+        // `isPlottablePoint` rejects (non-finite or out of range).
+        reason: 'address has no valid map location',
       }));
     }
     return unplottableGroups.map((group) => ({
@@ -946,7 +948,7 @@ export function AppointmentMapPage() {
       label: group.code ? `Group #${group.code}` : 'Group (code unavailable)',
       to: `/service-groups/${group.id}`,
       reason: group.groupSize > 0
-        ? `0 of ${group.groupSize} appointments have coordinates`
+        ? `0 of ${group.groupSize} appointments have a valid map location`
         : 'group has no appointments',
     }));
   }, [mode, unplottableAppointments, unplottableGroups]);
