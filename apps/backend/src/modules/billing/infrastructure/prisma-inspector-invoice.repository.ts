@@ -26,6 +26,11 @@ function mapToEntity(row: any): InspectorInvoiceEntity {
     inspectorId: row.inspector_id,
     // Prefer the frozen snapshot name; fall back to the live inspector join for pre-approval reads.
     inspectorName: row.inspector_name ?? row.inspector?.name ?? null,
+    // ABN is frozen at approval and may legitimately be null (inspector had no ABN then). Once
+    // frozen (any status past PENDING_REVIEW) the stored value is authoritative — never fall back
+    // to the live join, or a later-added ABN would leak onto an already-frozen invoice.
+    inspectorAbn:
+      row.inspector_abn ?? (row.status === 'PENDING_REVIEW' ? (row.inspector?.abn ?? null) : null),
     periodStart: row.period_start,
     periodEnd: row.period_end,
     periodType: row.period_type as BillingPeriodType,
@@ -93,7 +98,7 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
   async findById(id: string): Promise<InspectorInvoiceEntity | null> {
     const row = await this.prisma.inspectorInvoice.findUnique({
       where: { id },
-      include: { inspector: { select: { name: true } } },
+      include: { inspector: { select: { name: true, abn: true } } },
     });
     return row ? mapToEntity(row) : null;
   }
@@ -125,7 +130,7 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
         period_end: periodEnd,
         status: { in: [...ACTIVE_INVOICE_STATUSES] },
       },
-      include: { inspector: { select: { name: true } } },
+      include: { inspector: { select: { name: true, abn: true } } },
     });
     return row ? mapToEntity(row) : null;
   }
@@ -141,7 +146,7 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
       skip: (pagination.page - 1) * pagination.pageSize,
       take: pagination.pageSize,
       orderBy: { period_start: 'desc' },
-      include: { inspector: { select: { name: true } } },
+      include: { inspector: { select: { name: true, abn: true } } },
     });
 
     return rows.map(mapToEntity);
@@ -167,6 +172,7 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
         invoice_number: invoice.invoiceNumber,
         inspector_id: invoice.inspectorId,
         inspector_name: invoice.inspectorName,
+        inspector_abn: invoice.inspectorAbn,
         period_start: invoice.periodStart,
         period_end: invoice.periodEnd,
         period_type: invoice.periodType,
@@ -212,6 +218,7 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
       lineItemsSnapshot: InvoiceSnapshotLine[];
       totalAmount: number;
       inspectorName: string | null;
+      inspectorAbn: string | null;
       issuedAt: Date;
       generatedByUserId: string;
     },
@@ -232,6 +239,7 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
           line_items_snapshot: params.lineItemsSnapshot as unknown as Prisma.InputJsonValue,
           total_amount: params.totalAmount,
           inspector_name: params.inspectorName,
+          inspector_abn: params.inspectorAbn,
           issued_at: params.issuedAt,
           generated_by_user_id: params.generatedByUserId,
         },

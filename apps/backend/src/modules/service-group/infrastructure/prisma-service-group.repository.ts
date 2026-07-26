@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import type { ServiceGroupStatus as PrismaServiceGroupStatus } from '@prisma/client';
 import { ServiceGroupEntity } from '../domain/service-group.entity';
@@ -755,9 +756,17 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       where['scheduled_date'] = dateFilter;
     }
     if (filters.search) {
-      where['OR'] = [
+      const searchOr: Record<string, unknown>[] = [
         { description: { contains: filters.search, mode: 'insensitive' } },
       ];
+      // Group codes are the pure-numeric group_number, so an all-digit search
+      // also matches by code (mirrors appointment_number search).
+      const trimmed = filters.search.trim();
+      // Bounded to the Postgres Int range so an absurdly long digit string can't blow up the query.
+      if (/^\d{1,10}$/.test(trimmed) && Number(trimmed) <= 2_147_483_647) {
+        searchOr.push({ group_number: Number(trimmed) });
+      }
+      where['OR'] = searchOr;
     }
 
     // Tenant/branch/contact all scope by the group's linked appointments. The
@@ -818,8 +827,12 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     serviceTypeId: string;
     propertyId: string;
     today: Date;
+    excludeGroupId?: string | null;
   }): Promise<PortalEligibleSlot[]> {
     const todayStr = params.today.toISOString().slice(0, 10);
+    const excludeClause = params.excludeGroupId
+      ? Prisma.sql`AND sg.id <> ${params.excludeGroupId}`
+      : Prisma.empty;
 
     type Row = {
       group_id: string;
@@ -839,6 +852,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         JOIN properties p ON p.id = a.property_id AND p.deleted_at IS NULL
         WHERE a.tenant_id = ${params.tenantId}
           AND sg.service_type_id = ${params.serviceTypeId}
+          ${excludeClause}
           AND sg.status = 'ACCEPTED'
           AND sg.confirmed_count < 10
           AND sg.scheduled_date::date > ${todayStr}::date

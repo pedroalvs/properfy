@@ -7,6 +7,21 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { REPLAY_WINDOW_MINUTES, REPLAY_WINDOW_TTL_HOURS } from '../../../src/modules/appointment/application/use-cases/bulk-action-shared';
+
+describe('replay window', () => {
+  it('is a short double-click guard, not a business rule', () => {
+    // Long enough to absorb a double-click or a retry, short enough that a
+    // deliberate repeat goes through. Pinned exactly: a range would let the
+    // window drift back towards a business rule without failing.
+    expect(REPLAY_WINDOW_MINUTES).toBe(3);
+  });
+
+  it('converts minutes to the fractional hours the idempotency service expects', () => {
+    // `set()` computes `ttlHours * 60 * 60 * 1000`, so minutes must be /60.
+    expect(REPLAY_WINDOW_TTL_HOURS * 60).toBeCloseTo(REPLAY_WINDOW_MINUTES, 10);
+  });
+});
 import {
   dayKeyInTz,
   mapErrorToResult,

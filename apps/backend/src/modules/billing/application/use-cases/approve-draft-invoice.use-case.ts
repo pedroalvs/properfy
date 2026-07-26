@@ -88,6 +88,7 @@ export class ApproveDraftInvoiceUseCase {
       lineItemsSnapshot: snapshot,
       totalAmount,
       inspectorName: invoice.inspectorName,
+      inspectorAbn: invoice.inspectorAbn,
       issuedAt: now,
       generatedByUserId: actor.userId,
     });

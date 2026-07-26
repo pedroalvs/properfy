@@ -22,7 +22,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AppointmentMapDetailPanel } from './AppointmentMapDetailPanel';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 
@@ -197,11 +197,30 @@ describe('AppointmentMapDetailPanel (content)', () => {
     expect(screen.getByTestId('map-detail-section-meeting').getAttribute('aria-expanded')).toBe('false');
   });
 
-  it('MORE DETAILS CTA opens the appointment detail page in a new tab', () => {
+  it('MORE DETAILS CTA calls the onMoreDetails override', () => {
     const onMoreDetails = vi.fn();
     renderPanel({ onMoreDetails });
     fireEvent.click(screen.getByTestId('map-detail-more-details'));
     expect(onMoreDetails).toHaveBeenCalledWith(sampleAppointment.id);
+  });
+
+  it('MORE DETAILS CTA navigates to the appointment detail in the same tab by default', () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/appointments/map']}>
+          <Routes>
+            <Route
+              path="/appointments/map"
+              element={<AppointmentMapDetailPanel appointment={sampleAppointment} onClose={vi.fn()} />}
+            />
+            <Route path="/appointments/:id" element={<div data-testid="detail-probe" />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByTestId('map-detail-more-details'));
+    expect(screen.getByTestId('detail-probe')).toBeInTheDocument();
   });
 
   it('panel renders with NO absolute positioning — Mapbox Popup owns positioning now', () => {

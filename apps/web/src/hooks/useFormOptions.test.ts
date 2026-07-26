@@ -70,4 +70,30 @@ describe('useFormOptions', () => {
     expect(result.current.isLoading).toBe(true);
     expect(result.current.options).toEqual([]);
   });
+
+  it('keeps a stable options reference across re-renders with unchanged data', async () => {
+    // Regression guard for the PR #961 bug class: a fresh options array every
+    // render would re-fire any consumer effect keyed on it.
+    mockGet.mockResolvedValue({ data: {
+      data: [{ id: 'b-1', name: 'Branch A' }],
+      pagination: { page: 1, pageSize: 100, total: 1, totalPages: 1 },
+    } });
+
+    const { result, rerender } = renderHook(
+      () =>
+        useFormOptions<{ id: string; name: string }>(
+          ['branches', 'form-options-stability'],
+          '/v1/branches',
+          (item) => ({ value: item.id, label: item.name }),
+        ),
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const first = result.current.options;
+    expect(first).toHaveLength(1);
+    rerender();
+    expect(result.current.options).toBe(first);
+  });
 });

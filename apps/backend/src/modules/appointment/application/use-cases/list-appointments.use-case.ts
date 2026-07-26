@@ -19,7 +19,7 @@ export interface ListAppointmentsInput {
     search?: string;
     fromDate?: string;
     toDate?: string;
-    rentalTenantConfirmationStatus?: string;
+    rentalTenantConfirmationStatus?: string[];
     showCancelled?: boolean;
     overdueOnly?: boolean;
     ungroupedOnly?: boolean;

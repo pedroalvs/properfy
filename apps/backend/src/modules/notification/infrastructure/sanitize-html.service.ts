@@ -2,11 +2,12 @@ import sanitizeHtml from 'sanitize-html';
 import type { IHtmlSanitizerService, SanitizeResult } from '../domain/html-sanitizer.service';
 
 const ALLOWED_TAGS = [
-  'a', 'abbr', 'b', 'blockquote', 'br', 'caption', 'cite', 'code', 'col', 'colgroup',
-  'dd', 'del', 'dfn', 'div', 'dl', 'dt', 'em', 'figcaption', 'figure', 'h1', 'h2',
-  'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'ins', 'kbd', 'li', 'mark', 'ol', 'p', 'pre',
-  'q', 's', 'samp', 'small', 'span', 'strong', 'sub', 'sup', 'table', 'tbody', 'td',
-  'tfoot', 'th', 'thead', 'tr', 'u', 'ul', 'var',
+  'a', 'abbr', 'b', 'big', 'blockquote', 'body', 'br', 'caption', 'center', 'cite',
+  'code', 'col', 'colgroup', 'dd', 'del', 'dfn', 'div', 'dl', 'dt', 'em', 'figcaption',
+  'figure', 'font', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'head', 'hr', 'html', 'i',
+  'img', 'ins', 'kbd', 'li', 'mark', 'meta', 'ol', 'p', 'pre', 'q', 's', 'samp',
+  'small', 'span', 'strong', 'style', 'sub', 'sup', 'table', 'tbody', 'td', 'tfoot',
+  'th', 'thead', 'title', 'tr', 'u', 'ul', 'var',
 ];
 
 const ALLOWED_ATTRS: sanitizeHtml.IOptions['allowedAttributes'] = {
@@ -14,70 +15,80 @@ const ALLOWED_ATTRS: sanitizeHtml.IOptions['allowedAttributes'] = {
   a: ['href', 'name', 'target', 'title'],
   col: ['span'],
   colgroup: ['span'],
+  font: ['color', 'face', 'size'],
+  html: ['lang', 'xmlns'],
+  img: ['src', 'alt', 'width', 'height', 'style'],
+  meta: ['charset', 'name', 'content'],
   td: ['colspan', 'rowspan', 'headers'],
   th: ['colspan', 'rowspan', 'scope'],
 };
 
 const ALLOWED_SCHEMES = ['http', 'https', 'mailto'];
 
-/** Build sanitize-html options for the SAVE profile (no <img> at all). */
-function buildSaveOptions(): sanitizeHtml.IOptions {
+function buildOptions(): sanitizeHtml.IOptions {
   return {
     allowedTags: ALLOWED_TAGS,
     allowedAttributes: ALLOWED_ATTRS,
     allowedSchemes: ALLOWED_SCHEMES,
-    allowedSchemesByTag: {},
+    // Images must be served over https; links may still be http/mailto
+    allowedSchemesByTag: { img: ['https'] },
     allowProtocolRelative: false,
     disallowedTagsMode: 'discard',
+    // <style> is on the allowlist so operators can paste complete email documents.
+    // Emails never execute JavaScript, so the residual risk of a style block is
+    // CSS-only; sanitize-html still refuses to enable it without this flag.
+    allowVulnerableTags: true,
   };
 }
 
-/** Build sanitize-html options for the RENDER profile (permits asset-host <img>). */
-function buildRenderOptions(assetHostOrigin?: string): sanitizeHtml.IOptions {
-  const tags = [...ALLOWED_TAGS, 'img'];
-  const attrs: sanitizeHtml.IOptions['allowedAttributes'] = {
-    ...ALLOWED_ATTRS,
-    img: ['src', 'alt', 'width', 'height', 'style'],
-  };
+/**
+ * Normalizes void-tag serialization so that `<img ...>` and `<img ... />`
+ * compare equal — sanitize-html always re-emits self-closing syntax.
+ */
+function normalizeSelfClosing(html: string): string {
+  return html.replace(/\s*\/>/g, '>');
+}
 
-  return {
-    allowedTags: tags,
-    allowedAttributes: attrs,
-    allowedSchemes: ALLOWED_SCHEMES,
-    allowProtocolRelative: false,
-    disallowedTagsMode: 'discard',
-    exclusiveFilter: assetHostOrigin
-      ? (frame) => {
-          if (frame.tag === 'img') {
-            const src: string = (frame.attribs['src'] as string) ?? '';
-            return !src.startsWith(assetHostOrigin);
-          }
-          return false;
-        }
-      : (frame) => frame.tag === 'img',
-  };
+/**
+ * At save time the body still carries Handlebars tokens (e.g.
+ * `<img src="{{properfyLogoUrl}}">`), which are not URLs yet and would fail the
+ * https scheme check. Masking every `{{...}}` token with a neutral https value
+ * lets scheme validation run against the *rendered* shape of the template.
+ * This does not weaken the pipeline: sanitizeForRender runs again on the fully
+ * rendered HTML at send time and remains the authoritative gate.
+ */
+function maskTemplateTokens(html: string): string {
+  return html.replace(/\{\{[^}]*\}\}/g, 'https://template-token.invalid');
+}
+
+/**
+ * sanitize-html always drops doctype declarations and HTML comments, and trims
+ * the trailing semicolon of style attributes, with no option to keep them.
+ * All three are harmless in email bodies, so the save-time diff must ignore
+ * them on both sides or pasting a complete email document would always be
+ * rejected.
+ */
+function normalizeForComparison(html: string): string {
+  return normalizeSelfClosing(
+    html
+      .replace(/<!doctype[^>]*>/gi, '')
+      .replace(/<!--[\s\S]*?-->/g, '')
+      .replace(/(style\s*=\s*")([^"]*?);\s*"/gi, '$1$2"'),
+  ).trim();
 }
 
 /**
  * Implements IHtmlSanitizerService using the sanitize-html library.
  *
  * save profile  — validates (reject-on-diff, no mutation)
- * render profile — sanitizes (permits trusted-host <img>)
+ * render profile — sanitizes (strips unsafe constructs, keeps https <img>)
  */
 export class SanitizeHtmlService implements IHtmlSanitizerService {
   validateForSave(html: string): SanitizeResult {
-    // Explicit check: any <img> tag is forbidden at save time
-    if (/<img\b/i.test(html)) {
-      return {
-        safe: false,
-        rejectedReason:
-          'Literal <img> tags are not allowed. Use {{image:key}} placeholders instead.',
-      };
-    }
+    const masked = maskTemplateTokens(html);
+    const sanitized = sanitizeHtml(masked, buildOptions());
 
-    const sanitized = sanitizeHtml(html, buildSaveOptions());
-
-    if (sanitized === html) {
+    if (normalizeForComparison(sanitized) === normalizeForComparison(masked)) {
       return { safe: true };
     }
 
@@ -94,6 +105,10 @@ export class SanitizeHtmlService implements IHtmlSanitizerService {
     if (jsMatch) {
       return { safe: false, rejectedReason: 'Disallowed URL scheme: javascript:' };
     }
+    const httpImgMatch = /<img\b[^>]*\bsrc\s*=\s*["']?(?!https:)/i.exec(html);
+    if (httpImgMatch) {
+      return { safe: false, rejectedReason: 'Image src must use https.' };
+    }
 
     return {
       safe: false,
@@ -101,7 +116,7 @@ export class SanitizeHtmlService implements IHtmlSanitizerService {
     };
   }
 
-  sanitizeForRender(html: string, assetHostOrigin?: string): string {
-    return sanitizeHtml(html, buildRenderOptions(assetHostOrigin));
+  sanitizeForRender(html: string): string {
+    return sanitizeHtml(html, buildOptions());
   }
 }

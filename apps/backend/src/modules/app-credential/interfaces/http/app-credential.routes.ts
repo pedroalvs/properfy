@@ -98,6 +98,7 @@ export async function registerAppCredentialRoutes(
         appUrl: parsed.data.appUrl ?? null,
         instructionsUrl: parsed.data.instructionsUrl ?? null,
         instructionsPassword: parsed.data.instructionsPassword ?? null,
+        isDefault: parsed.data.isDefault,
         actorId: auth.userId,
         actorTenantId: auth.tenantId ?? null,
       });
@@ -240,6 +241,7 @@ function formatCredential(c: AppCredentialEntity): AppCredentialResponse {
     instructionsUrl: c.instructionsUrl ?? null,
     instructionsPassword: c.instructionsPassword ?? null,
     isActive: c.isActive,
+    isDefault: c.isDefault,
     createdAt: c.createdAt.toISOString(),
     updatedAt: c.updatedAt.toISOString(),
   };

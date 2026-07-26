@@ -89,6 +89,7 @@ export class NotifyOnRentalTenantPortalActionHandler {
       contact,
       propertyAddress: property?.fullAddress ?? '',
       inspectorName: result.inspectorName ?? null,
+      serviceTypeName: result.serviceTypeName ?? null,
       rawPortalToken: null,
       portalBaseUrl: this.rentalTenantPortalBaseUrl,
       appointmentCodeFormatter: this.appointmentCodeFormatter,

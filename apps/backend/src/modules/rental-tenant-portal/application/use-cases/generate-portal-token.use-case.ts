@@ -8,6 +8,8 @@ import type { ConfirmationCycleService } from '../../../appointment/application/
 import type { CreateNotificationUseCase } from '../../../notification/application/use-cases/create-notification.use-case';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import { ConflictError, ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
+import { AppointmentCodeFormatter } from '../../../appointment/domain/appointment-code.formatter';
+import { PROPERFY_LOGO_URL } from '@properfy/shared';
 
 export interface AuthContext {
   userId: string;
@@ -182,11 +184,22 @@ export class GeneratePortalTokenUseCase {
         '/portal/' + encodeURIComponent(rawToken) + '/reschedule',
         this.rentalTenantPortalBaseUrl,
       ).toString();
+      const tenantSettings: Record<string, unknown> = tenant.settingsJson ?? {};
       const payloadJson = {
         confirmationLink,
         rescheduleLink,
         scheduledDate: scheduledDateStr,
         rentalTenantName: result.contact.effectiveName,
+        propertyAddress: result.propertyAddress ?? '',
+        timeSlot: `${appointment.timeSlotStart}-${appointment.timeSlotEnd}`,
+        appointmentCode: new AppointmentCodeFormatter().format(
+          appointment.appointmentNumber,
+          tenant,
+        ),
+        agencyName: tenant.name,
+        agencyPhone: typeof tenantSettings.contactPhone === 'string' ? tenantSettings.contactPhone : '',
+        properfyLogoUrl: PROPERFY_LOGO_URL,
+        serviceTypeName: result.serviceTypeName ?? '',
       };
 
       const recipientEmail = result.contact.effectiveEmail;

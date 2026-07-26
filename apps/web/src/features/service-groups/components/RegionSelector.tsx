@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { FormField } from '@/components/forms/FormField';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
@@ -54,9 +55,9 @@ export function RegionSelector({
   ) : hasNoMatch ? (
     <InfoBanner>
       No active regions contain these appointments. You can{' '}
-      <a href="/service-regions" target="_blank" rel="noopener noreferrer" className="font-semibold underline">
+      <Link to="/service-regions" className="font-semibold underline">
         manage regions
-      </a>{' '}
+      </Link>{' '}
       or assign an inspector manually after creation.
     </InfoBanner>
   ) : hasPartialMatch && selectedRegionId ? (

@@ -80,6 +80,7 @@ export class UpdateAppCredentialUseCase {
         appUrl: updated.appUrl,
         instructionsUrl: updated.instructionsUrl,
         isActive: updated.isActive,
+        isDefault: updated.isDefault,
         passwordChanged: input.data.password !== undefined,
         authCodeChanged: input.data.authCode !== undefined,
         instructionsPasswordChanged: input.data.instructionsPassword !== undefined,

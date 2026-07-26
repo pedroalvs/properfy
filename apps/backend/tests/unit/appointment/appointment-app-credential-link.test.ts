@@ -69,6 +69,7 @@ function makeRepos() {
     findById: vi.fn(), findAll: vi.fn(), count: vi.fn(), search: vi.fn(),
     save: vi.fn(), update: vi.fn(), findByIds: vi.fn(),
     findByAppointmentId: vi.fn(), replaceAppointmentLinks: vi.fn(),
+    findEffectiveForAppointment: vi.fn().mockResolvedValue([]),
   } as unknown as IAppCredentialRepository;
   const auditService = { log: vi.fn() } as any;
   return { appointmentRepo, branchRepo, propertyRepo, serviceTypeRepo, pricingRuleRepo, appCredentialRepo, auditService };
@@ -91,7 +92,7 @@ describe('CreateAppointmentUseCase — app-credential linking', () => {
   beforeEach(() => {
     repos = makeRepos();
     // Inline contact reuse path: no existing match → create a fresh contact.
-    (repos as any).contactRepo = { findActiveByEmailOrPhone: vi.fn().mockResolvedValue(null), save: vi.fn() };
+    (repos as any).contactRepo = { findManyActiveByEmailsOrPhones: vi.fn().mockResolvedValue([]), save: vi.fn() };
     useCase = new CreateAppointmentUseCase(
       repos.appointmentRepo, repos.branchRepo, repos.propertyRepo, repos.serviceTypeRepo, repos.pricingRuleRepo,
       { execute: vi.fn() } as any, repos.auditService, new AuthorizationService(repos.auditService),
@@ -103,6 +104,7 @@ describe('CreateAppointmentUseCase — app-credential linking', () => {
     const c1 = cred('11111111-0000-4000-8000-000000000001', TENANT_B);
     const c2 = cred('22222222-0000-4000-8000-000000000002', TENANT_B);
     vi.mocked(repos.appCredentialRepo.findByIds).mockResolvedValue([c1, c2]);
+    vi.mocked(repos.appCredentialRepo.findEffectiveForAppointment).mockResolvedValue([c1, c2]);
 
     const result = await useCase.execute({
       ...baseInput, appCredentialIds: [c1.id, c2.id], actor: makeActor(),
@@ -111,6 +113,17 @@ describe('CreateAppointmentUseCase — app-credential linking', () => {
     expect(repos.appCredentialRepo.replaceAppointmentLinks).toHaveBeenCalledWith(result.id, [c1.id, c2.id]);
     expect(result.apps.map((a) => a.id)).toEqual([c1.id, c2.id]);
     expect(result.apps[0]!.name).toBe(c1.name);
+  });
+
+  it('echoes the agency default credentials even when no explicit ids are sent', async () => {
+    const dflt = cred('33333333-0000-4000-8000-000000000003', TENANT_B);
+    vi.mocked(repos.appCredentialRepo.findEffectiveForAppointment).mockResolvedValue([dflt]);
+
+    const result = await useCase.execute({ ...baseInput, actor: makeActor() } as any);
+
+    expect(repos.appCredentialRepo.replaceAppointmentLinks).not.toHaveBeenCalled();
+    expect(repos.appCredentialRepo.findEffectiveForAppointment).toHaveBeenCalledWith(result.id, TENANT_B, BRANCH_B);
+    expect(result.apps.map((a) => a.id)).toEqual([dflt.id]);
   });
 
   it('rejects a credential from another tenant with a 404 (no leakage)', async () => {
@@ -136,6 +149,7 @@ describe('CreateAppointmentUseCase — app-credential linking', () => {
     const branchScoped = cred('55555555-0000-4000-8000-000000000005', TENANT_B, true, BRANCH_B);
     const agencyWide = cred('66666666-0000-4000-8000-000000000006', TENANT_B, true, null);
     vi.mocked(repos.appCredentialRepo.findByIds).mockResolvedValue([branchScoped, agencyWide]);
+    vi.mocked(repos.appCredentialRepo.findEffectiveForAppointment).mockResolvedValue([branchScoped, agencyWide]);
 
     const result = await useCase.execute({
       ...baseInput, appCredentialIds: [branchScoped.id, agencyWide.id], actor: makeActor(),

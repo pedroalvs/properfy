@@ -3,7 +3,7 @@ import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import type { NotificationChannel } from '@properfy/shared';
 import { mapServerFieldErrors } from '@/lib/server-field-errors';
-import { ALLOWED_VARIABLES, IMAGE_PLACEHOLDER_REGEX, type TemplateFormData, type TemplateFormErrors } from '../types';
+import { ALLOWED_VARIABLES, type TemplateFormData, type TemplateFormErrors } from '../types';
 
 export interface SaveResult {
   success: boolean;
@@ -57,9 +57,7 @@ function validateTemplate(
     errors.subject = 'HTML is not allowed in the subject line';
   }
 
-  // Extract only Handlebars data variables (not image placeholders)
-  const bodyWithoutImagePlaceholders = data.body.replace(new RegExp(IMAGE_PLACEHOLDER_REGEX.source, 'g'), '');
-  const allText = `${data.subject} ${bodyWithoutImagePlaceholders}`;
+  const allText = `${data.subject} ${data.body}`;
   const usedVariables = extractVariables(allText);
   const allowedSet = new Set<string>(allowedVariables ?? ALLOWED_VARIABLES);
   const disallowed = usedVariables.filter((v) => !allowedSet.has(v));
@@ -69,7 +67,7 @@ function validateTemplate(
     errors.body = errors.body ? `${errors.body}. ${errorMsg}` : errorMsg;
   }
 
-  const bodyVariables = extractVariables(bodyWithoutImagePlaceholders);
+  const bodyVariables = extractVariables(data.body);
   const subjectVariables = extractVariables(data.subject);
   const allUsed = new Set([...bodyVariables, ...subjectVariables]);
   const missing = requiredVariables.filter((v) => !allUsed.has(v));

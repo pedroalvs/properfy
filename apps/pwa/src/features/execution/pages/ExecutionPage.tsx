@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { TopBar } from '@/components/shell/TopBar';
 import { LoadingState } from '@/components/feedback/LoadingState';
@@ -11,6 +11,8 @@ import { DonePanel } from '../components/DonePanel';
 import { ErrorPanel } from '../components/ErrorPanel';
 import { FailedSyncBanner } from '../components/FailedSyncBanner';
 import { LeaveWarningModal } from '../components/LeaveWarningModal';
+import { SyncConfirmModal } from '../components/SyncConfirmModal';
+import { PastTimeConfirmModal } from '../components/PastTimeConfirmModal';
 import { useLocalExecutionState } from '../hooks/useLocalExecutionState';
 import { useAutoSave } from '../hooks/useAutoSave';
 import { useStartInspection } from '../hooks/useStartInspection';
@@ -18,21 +20,26 @@ import { useFinishInspection } from '../hooks/useFinishInspection';
 import { useInspectorAppointment } from '@/features/schedule/hooks/useInspectorAppointment';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { canTransition } from '../lib/execution-state-machine';
+import { isPastScheduledEnd } from '../lib/isPastScheduledEnd';
 import { getErrorMessage } from '@/lib/api-error';
 import type { CapturedLocation, ChecklistResponse } from '../types';
+
+type FinishConfirmStep = 'SYNC' | 'PAST_TIME' | null;
 
 export function ExecutionPage() {
   const { appointmentId: appointmentIdParam } = useParams<{ appointmentId: string }>();
   const navigate = useNavigate();
   const appointmentId = appointmentIdParam!;
 
-  const { data: aptData, isLoading: aptLoading, isError: aptError, error: aptLoadError, refetch: refetchAppointment } = useInspectorAppointment(appointmentId);
+  const { data: aptData, isLoading: aptLoading, isError: aptError, error: aptLoadError, refetch: refetchAppointment, jobDetails } = useInspectorAppointment(appointmentId);
   const { state, updateState, clearState, isRestored } = useLocalExecutionState(appointmentId);
   const startMutation = useStartInspection();
   const finishMutation = useFinishInspection();
   const { showInfo, showError } = useSnackbar();
   useAutoSave(state);
   const resumeBannerShown = useRef(false);
+  const [confirmStep, setConfirmStep] = useState<FinishConfirmStep>(null);
+  const [pendingLocation, setPendingLocation] = useState<CapturedLocation | null>(null);
 
   useEffect(() => {
     if (isRestored && !resumeBannerShown.current && state.phase !== 'PRE_START' && state.phase !== 'DONE') {
@@ -115,6 +122,49 @@ export function ExecutionPage() {
     updateState({ phase: 'FINISHING' });
   };
 
+  const appointmentPastEnd = isPastScheduledEnd(appointment.scheduledDate, appointment.timeSlotEnd);
+  const hasInspectionAppLink = Boolean(jobDetails?.inspectionAppLink);
+
+  const handleSubmitRequest = (location: CapturedLocation) => {
+    if (hasInspectionAppLink) {
+      setPendingLocation(location);
+      setConfirmStep('SYNC');
+      return;
+    }
+    if (appointmentPastEnd) {
+      setPendingLocation(location);
+      setConfirmStep('PAST_TIME');
+      return;
+    }
+    handleSubmit(location);
+  };
+
+  const clearConfirmation = () => {
+    setConfirmStep(null);
+    setPendingLocation(null);
+  };
+
+  const handleSyncConfirmed = () => {
+    if (appointmentPastEnd) {
+      setConfirmStep('PAST_TIME');
+      return;
+    }
+    const location = pendingLocation;
+    clearConfirmation();
+    if (location) handleSubmit(location);
+  };
+
+  const handleSyncDeclined = () => {
+    clearConfirmation();
+    showInfo('Sync the inspection in the Inspection App before completing.');
+  };
+
+  const handlePastTimeConfirmed = () => {
+    const location = pendingLocation;
+    clearConfirmation();
+    if (location) handleSubmit(location);
+  };
+
   const handleSubmit = async (location: CapturedLocation) => {
     if (!canTransition(state.phase, 'SUBMITTING')) return;
     updateState({ phase: 'SUBMITTING', finishLocation: location });
@@ -186,7 +236,7 @@ export function ExecutionPage() {
         <FinishingPanel
           checklistCount={state.checklistResponses.length}
           notes={state.notes}
-          onSubmit={handleSubmit}
+          onSubmit={handleSubmitRequest}
           isSubmitting={finishMutation.isPending}
           propertyLatitude={appointment?.propertyLatitude}
           propertyLongitude={appointment?.propertyLongitude}
@@ -212,6 +262,14 @@ export function ExecutionPage() {
           onRetry={handleRetry}
           onSaveExit={handleSaveExit}
         />
+      )}
+
+      {state.phase === 'FINISHING' && confirmStep === 'SYNC' && (
+        <SyncConfirmModal onConfirm={handleSyncConfirmed} onCancel={handleSyncDeclined} />
+      )}
+
+      {state.phase === 'FINISHING' && confirmStep === 'PAST_TIME' && (
+        <PastTimeConfirmModal onConfirm={handlePastTimeConfirmed} onCancel={clearConfirmation} />
       )}
 
       {blocker.state === 'blocked' && (

@@ -69,7 +69,6 @@ const mockTemplateResponse = {
   variablesJson: ['rentalTenantName'],
   isActive: true,
   notificationClass: 'OPERATIONAL',
-  imageBindings: [],
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };

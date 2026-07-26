@@ -12,7 +12,6 @@ interface AppointmentTableProps {
   error?: string;
   onRetryError?: () => void;
   pagination?: DataTablePagination;
-  onView?: (appointment: Appointment) => void;
   selectedIds?: string[];
   onSelectionChange?: (ids: string[]) => void;
 }
@@ -23,7 +22,6 @@ export function AppointmentTable({
   error,
   onRetryError,
   pagination,
-  onView,
   selectedIds,
   onSelectionChange,
 }: AppointmentTableProps) {
@@ -183,7 +181,7 @@ export function AppointmentTable({
             {
               icon: 'mdi-eye-outline',
               label: 'View',
-              onClick: () => onView?.(row),
+              to: `/appointments/${row.id}`,
             },
           ]}
         />

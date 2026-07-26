@@ -7,6 +7,8 @@ import {
   listAppointmentsQuerySchema,
   forceManualConfirmationSchema,
   bulkEditAppointmentSchema,
+  bulkCrossCheckDoneRequestSchema,
+  bulkCrossCheckDoneResponseSchema,
   appointmentResponseSchema,
   forceManualConfirmationResponseSchema,
   bulkResendReminderRequestSchema,
@@ -37,6 +39,7 @@ import type { ExportAppointmentImportErrorsUseCase } from '../application/use-ca
 import type { GetImportStatusUseCase } from '../application/use-cases/get-import-status.use-case';
 import type { DeleteAppointmentUseCase } from '../application/use-cases/delete-appointment.use-case';
 import type { BulkEditAppointmentsUseCase } from '../application/use-cases/bulk-edit-appointments.use-case';
+import type { BulkCrossCheckDoneUseCase } from '../application/use-cases/bulk-cross-check-done.use-case';
 import type { BulkResendReminderUseCase } from '../application/use-cases/bulk-resend-reminder.use-case';
 import type { BulkCancelAppointmentsUseCase } from '../application/use-cases/bulk-cancel-appointments.use-case';
 import type { BulkRescheduleAppointmentsUseCase } from '../application/use-cases/bulk-reschedule-appointments.use-case';
@@ -72,6 +75,7 @@ export interface AppointmentRouteContainer {
   getImportStatusUseCase: GetImportStatusUseCase;
   deleteAppointmentUseCase: DeleteAppointmentUseCase;
   bulkEditAppointmentsUseCase: BulkEditAppointmentsUseCase;
+  bulkCrossCheckDoneUseCase: BulkCrossCheckDoneUseCase;
   bulkResendReminderUseCase: BulkResendReminderUseCase;
   bulkCancelAppointmentsUseCase: BulkCancelAppointmentsUseCase;
   bulkRescheduleAppointmentsUseCase: BulkRescheduleAppointmentsUseCase;
@@ -699,6 +703,36 @@ export async function registerAppointmentRoutes(
         requestId: (request as any).requestId,
       });
 
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/appointments/bulk-cross-check-done — 200
+  // AM / OP only. Bulk "Reviewed" action: cross-checks a batch of DONE
+  // appointments. Per-item delegation to the single cross-check use case;
+  // non-DONE / ineligible ids land in `failed[]` (skipped with a warning).
+  app.post(
+    '/v1/appointments/bulk-cross-check-done',
+    {
+      preHandler: authenticate,
+      schema: {
+        body: bulkCrossCheckDoneRequestSchema,
+        response: { 200: successResponseSchema(bulkCrossCheckDoneResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const auth = request.authContext!;
+      if (auth.role !== 'AM' && auth.role !== 'OP') {
+        return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'AM or OP role required' } });
+      }
+      const parsed = bulkCrossCheckDoneRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.bulkCrossCheckDoneUseCase.execute({
+        ids: parsed.data.ids,
+        actor: auth,
+      });
       return reply.status(200).send(success(result));
     },
   );

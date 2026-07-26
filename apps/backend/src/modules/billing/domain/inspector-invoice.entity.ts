@@ -7,6 +7,7 @@ export interface InspectorInvoiceProps {
   invoiceNumber: number | null;
   inspectorId: string;
   inspectorName?: string | null;
+  inspectorAbn?: string | null;
   periodStart: Date;
   periodEnd: Date;
   periodType: BillingPeriodType;
@@ -32,6 +33,7 @@ export interface AssignNumberAndFreezeParams {
   lineItemsSnapshot: InvoiceSnapshotLine[];
   totalAmount: number;
   inspectorName: string | null;
+  inspectorAbn: string | null;
   issuedAt: Date;
   generatedByUserId: string;
 }
@@ -40,6 +42,7 @@ export class InspectorInvoiceEntity extends BaseEntity {
   invoiceNumber: number | null;
   readonly inspectorId: string;
   inspectorName: string | null;
+  inspectorAbn: string | null;
   readonly periodStart: Date;
   readonly periodEnd: Date;
   readonly periodType: BillingPeriodType;
@@ -61,6 +64,7 @@ export class InspectorInvoiceEntity extends BaseEntity {
     this.invoiceNumber = props.invoiceNumber;
     this.inspectorId = props.inspectorId;
     this.inspectorName = props.inspectorName ?? null;
+    this.inspectorAbn = props.inspectorAbn ?? null;
     this.periodStart = props.periodStart;
     this.periodEnd = props.periodEnd;
     this.periodType = props.periodType;
@@ -132,6 +136,7 @@ export class InspectorInvoiceEntity extends BaseEntity {
     this.lineItemsSnapshot = params.lineItemsSnapshot;
     this.totalAmount = params.totalAmount;
     this.inspectorName = params.inspectorName;
+    this.inspectorAbn = params.inspectorAbn;
     this.issuedAt = params.issuedAt;
     this.generatedByUserId = params.generatedByUserId;
   }

@@ -41,6 +41,14 @@ function nextUtcDay(date: Date): Date {
   return new Date(date.getTime() + 86_400_000);
 }
 
+function formatPropertyAddress(
+  property: { street: string; suburb: string; state: string; postcode: string } | null | undefined,
+): string {
+  return property
+    ? `${property.street}, ${property.suburb} ${property.state} ${property.postcode}`
+    : '';
+}
+
 function mapToEntity(row: any): AppointmentEntity {
   return new AppointmentEntity({
     id: row.id,
@@ -160,9 +168,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     const contact = allContacts[0] ?? null;
     const restrictions = row.restrictions.map(mapRestrictionToEntity);
 
-    const propertyAddress = row.property
-      ? `${row.property.street}, ${row.property.suburb} ${row.property.state} ${row.property.postcode}`
-      : '';
+    const propertyAddress = formatPropertyAddress(row.property);
 
     const tenantAppointmentCodePrefix =
       (row as any).tenant?.appointment_code_prefix ?? null;
@@ -227,9 +233,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     return rows.map((row) => {
       const appointment = mapToEntity(row);
       const contact = row.contacts[0] ? mapContactToEntity(row.contacts[0]) : null;
-      const propertyAddress = row.property
-        ? `${row.property.street}, ${row.property.suburb} ${row.property.state} ${row.property.postcode}`
-        : '';
+      const propertyAddress = formatPropertyAddress(row.property);
       const tenantAppointmentCodePrefix = row.tenant?.appointment_code_prefix ?? null;
       return {
         appointment,
@@ -435,7 +439,12 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         scheduled_date: { gte: startOfDay, lt: endOfDay },
         deleted_at: null,
       },
-      include: { contacts: true, restrictions: true },
+      include: {
+        contacts: true,
+        restrictions: true,
+        service_type: { select: { name: true } },
+        property: { select: { street: true, suburb: true, state: true, postcode: true } },
+      },
     });
 
     return rows.map((row) => {
@@ -443,7 +452,16 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       const allContacts = row.contacts.map(mapContactToEntity);
       const contact = allContacts[0] ?? null;
       const restrictions = row.restrictions.map(mapRestrictionToEntity);
-      return { appointment, contact, contacts: allContacts, restrictions, hasActivePortalToken: false };
+      const propertyAddress = formatPropertyAddress(row.property);
+      return {
+        appointment,
+        contact,
+        contacts: allContacts,
+        restrictions,
+        propertyAddress,
+        serviceTypeName: row.service_type?.name ?? '',
+        hasActivePortalToken: false,
+      };
     });
   }
 
@@ -482,8 +500,8 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     if (filters.branchId) where['branch_id'] = filters.branchId;
     if (filters.inspectorId) where['inspector_id'] = filters.inspectorId;
     if (filters.propertyId) where['property_id'] = filters.propertyId;
-    if (filters.rentalTenantConfirmationStatus) {
-      where['rental_tenant_confirmation_status'] = filters.rentalTenantConfirmationStatus;
+    if (filters.rentalTenantConfirmationStatus && filters.rentalTenantConfirmationStatus.length > 0) {
+      where['rental_tenant_confirmation_status'] = { in: filters.rentalTenantConfirmationStatus };
     }
     if (filters.search) {
       const orConditions: Record<string, unknown>[] = [

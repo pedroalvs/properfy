@@ -63,6 +63,26 @@ describe('AppointmentMapPage — group-modal lasso wiring (source guards)', () =
     expect(PAGE_SOURCE).toMatch(/\{lassoAvailable && lassoState === 'drawing' &&/);
   });
 
+  it('renders the lasso button left of the List view toggle in a horizontal toolbar row', () => {
+    // Bound the slice to the toolbar container itself (its className — which
+    // also pins the horizontal `flex items-center` layout — → the next
+    // sibling component), so the assertions can't match stray duplicates
+    // elsewhere in the file.
+    const toolbarStart = PAGE_SOURCE.indexOf(
+      'className="pointer-events-none absolute right-14 top-4 z-30 flex items-center gap-2"',
+    );
+    expect(toolbarStart, 'top-right toolbar container not found').toBeGreaterThan(-1);
+    const toolbarEnd = PAGE_SOURCE.indexOf('<MapBulkActionModal', toolbarStart);
+    expect(toolbarEnd, 'toolbar end marker not found').toBeGreaterThan(toolbarStart);
+    const toolbar = PAGE_SOURCE.slice(toolbarStart, toolbarEnd);
+    const lassoIdx = toolbar.indexOf('<MapLassoToggleButton');
+    const listViewIdx = toolbar.indexOf('<MapListViewToggleButton');
+    expect(lassoIdx, 'MapLassoToggleButton not in toolbar').toBeGreaterThan(-1);
+    expect(listViewIdx, 'MapListViewToggleButton not in toolbar').toBeGreaterThan(-1);
+    expect(lassoIdx).toBeLessThan(listViewIdx);
+    expect(toolbar).not.toContain('flex-col');
+  });
+
   it('in the group drill-down the lasso seeds the modal selection then drops the polygon (no review)', () => {
     // Bound the slice to the callback itself (start marker → next declaration)
     // rather than a magic char window, so it stays valid as the file grows.

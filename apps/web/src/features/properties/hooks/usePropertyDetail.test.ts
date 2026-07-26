@@ -84,4 +84,20 @@ describe('usePropertyDetail', () => {
     expect(result.current.isError).toBe(true);
     expect(result.current.property).toBeNull();
   });
+
+  it('keeps a stable property reference across re-renders with unchanged data', async () => {
+    // Regression guard for the PR #961 bug class: an unstable reference here
+    // can feed a consumer effect (e.g. deps [isEditMode, entity]) whose
+    // setState calls re-render into an infinite loop that starves router
+    // updates — URL changes but the screen never swaps.
+    const wrapper = createQueryWrapper();
+    const { result, rerender } = renderHook(() => usePropertyDetail('prop-01'), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const first = result.current.property;
+    expect(first).not.toBeNull();
+    rerender();
+    expect(result.current.property).toBe(first);
+  });
 });

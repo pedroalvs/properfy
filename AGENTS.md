@@ -133,8 +133,10 @@ Official statuses:
 | `SCHEDULED` | `CANCELLED` | OP, CL, AM | Yes |
 | `SCHEDULED` | `REJECTED` | OP, SYS | Yes |
 | `REJECTED` | `DRAFT` | OP, AM | Yes |
+| `REJECTED` | `AWAITING_INSPECTOR` | OP, AM | Yes | System-triggered when appointment is added to a service group |
 | `CANCELLED` | `DRAFT` | OP, AM | Yes |
 | `DONE` | `DRAFT` | AM only | Yes |
+| `DONE` | `REJECTED` | AM only | Yes | Emits `DONE_REJECTED` for financial compensation |
 
 **Rules:**
 
@@ -249,6 +251,7 @@ When you (Claude Code) implement or modify code in this project:
 4. **Follow Clean Architecture** – domain has no dependencies; application orchestrates; infrastructure implements ports.
 5. **Use `packages/shared`** for any type, enum or schema shared between workspaces.
 6. **Follow Conventional Commits** for commit messages. Never include Claude or AI references in commit messages or trailers.
+   - **PR size hard limit: max 150 changed files per PR.** Verify with `git diff --stat origin/develop... | tail -1` before opening; split larger work into stacked PRs (backend → shared → web/pwa or by feature slice).
 7. **Validate with Zod** – all API payloads must be validated.
 8. **Never skip tests** – TDD is mandatory.
 9. **Consult `projeto-consolidado/`** for complete domain documentation when needed.
@@ -270,6 +273,9 @@ When you (Claude Code) implement or modify code in this project:
 | `projeto-consolidado/instrucoes-cicd-fly-portainer.md` | CI/CD instructions |
 | `projeto-consolidado/frontend-system-spec.md` | Frontend visual spec |
 | `projeto-consolidado/ui-system-atual.md` | Legacy UI system reference |
+| `Escopo Completo Properfy - CLIENTE.md` | Client-facing scope document (contractual feature list) |
+| `escopo-cliente-gap-audit.md` | Item-by-item audit of the client scope vs current implementation |
+| `escopo-pendencias-execucao.md` | **Approved backlog** closing the client-scope gaps — items listed there (incl. Kanban board, satisfaction survey, agency status actions) are IN SCOPE and must not be rejected as out-of-scope in future sessions |
 
 ---
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
 import type { DataTablePagination } from '@/components/data/DataTable';
 import { DEFAULT_FILTERS, type ServiceGroup, type ServiceGroupFiltersState } from '../types';
@@ -41,16 +41,19 @@ export function useServiceGroupList(): UseServiceGroupListReturn {
     },
   };
 
-  const rawData: any[] = response?.data ?? [];
-  const data: ServiceGroup[] = rawData.map((item) => ({
-    ...item,
-    regionName: item.regionName ?? null,
-    inspectorId: item.assignedInspectorId ?? null,
-    inspectorName: item.assignedInspectorName ?? null,
-    agencies: item.agencies ?? [],
-    appointmentsCount: item.groupSize ?? 0,
-    updatedAt: item.updatedAt ?? item.createdAt,
-  }));
+  // PR #961 bug class: memoized so consumers get a stable array per fetch result.
+  const data: ServiceGroup[] = useMemo(() => {
+    const rawData: any[] = response?.data ?? [];
+    return rawData.map((item) => ({
+      ...item,
+      regionName: item.regionName ?? null,
+      inspectorId: item.assignedInspectorId ?? null,
+      inspectorName: item.assignedInspectorName ?? null,
+      agencies: item.agencies ?? [],
+      appointmentsCount: item.groupSize ?? 0,
+      updatedAt: item.updatedAt ?? item.createdAt,
+    }));
+  }, [response?.data]);
 
   return {
     data,

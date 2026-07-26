@@ -220,9 +220,16 @@ export class GetAppointmentDetailUseCase {
     // Build jobDetails payload
     const jobDetails = await this.buildJobDetails(appointment, contacts);
 
-    // App credentials linked to this appointment (live reference — current values).
+    // App credentials surfaced on this appointment: explicit links plus the
+    // agency's defaults (live reference — current values).
     const apps: AppointmentApp[] = this.appCredentialRepo
-      ? (await this.appCredentialRepo.findByAppointmentId(appointment.id)).map(toAppointmentApp)
+      ? (
+          await this.appCredentialRepo.findEffectiveForAppointment(
+            appointment.id,
+            appointment.tenantId,
+            appointment.branchId,
+          )
+        ).map(toAppointmentApp)
       : [];
 
     const codePrefix = result.tenantAppointmentCodePrefix ?? 'INS';

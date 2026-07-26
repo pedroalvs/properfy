@@ -3,11 +3,8 @@ import supertest from 'supertest';
 import { buildApp } from '../../../src/main/server';
 import type { FastifyInstance } from 'fastify';
 import { createMockContainer } from '../../helpers/mock-container';
-import { makeAmContext, makeClAdminContext } from '../../helpers/rbac-test-helpers';
-import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { makeAmContext } from '../../helpers/rbac-test-helpers';
 
-const mockGenerateLogoUploadUrlExecute = vi.fn();
-const mockConfirmLogoUploadExecute = vi.fn();
 const mockUpdateTenantExecute = vi.fn();
 const mockGetTenantExecute = vi.fn();
 const mockJwtVerify = vi.fn();
@@ -18,8 +15,6 @@ vi.mock('../../../src/main/container', () => ({
     auditService: { log: mockAuditLog } as any,
     auth: { jwtService: { verify: mockJwtVerify } },
     tenant: {
-      generateLogoUploadUrlUseCase: { execute: mockGenerateLogoUploadUrlExecute },
-      confirmLogoUploadUseCase: { execute: mockConfirmLogoUploadExecute },
       updateTenantUseCase: { execute: mockUpdateTenantExecute },
       getTenantUseCase: { execute: mockGetTenantExecute },
       jwtService: { verify: mockJwtVerify },
@@ -60,69 +55,27 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe('POST /v1/tenants/:tenantId/branding/presign', () => {
-  it('returns 200 with uploadUrl and storageKey for AM', async () => {
+// The logo upload flow (presign/confirm) was removed as an orphan feature —
+// the routes must no longer exist.
+describe('removed branding logo routes', () => {
+  it('POST /v1/tenants/:tenantId/branding/logo/presign returns 404', async () => {
     mockJwtVerify.mockResolvedValueOnce(makeAmContext());
-    mockGenerateLogoUploadUrlExecute.mockResolvedValueOnce({
-      uploadUrl: 'https://supabase.example/signed-upload',
-      storageKey: `tenants/${TENANT_ID}/branding/logo.png`,
-    });
-
     const res = await supertest(app.server)
       .post(`/v1/tenants/${TENANT_ID}/branding/logo/presign`)
       .set('Authorization', 'Bearer token')
       .send({ contentType: 'image/png' });
 
-    expect(res.status).toBe(200);
-    expect(res.body.data).toHaveProperty('uploadUrl');
-    expect(res.body.data).toHaveProperty('storageKey');
+    expect(res.status).toBe(404);
   });
 
-  it('returns 401 without auth', async () => {
-    const res = await supertest(app.server)
-      .post(`/v1/tenants/${TENANT_ID}/branding/logo/presign`)
-      .send({ contentType: 'image/png' });
-
-    expect(res.status).toBe(401);
-  });
-
-  it('returns 403 for CL_ADMIN of a different tenant', async () => {
-    mockJwtVerify.mockResolvedValueOnce(makeClAdminContext('other-tenant-id-0000000000000000'));
-    mockGenerateLogoUploadUrlExecute.mockRejectedValueOnce(
-      new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions'),
-    );
-
-    const res = await supertest(app.server)
-      .post(`/v1/tenants/${TENANT_ID}/branding/logo/presign`)
-      .set('Authorization', 'Bearer token')
-      .send({ contentType: 'image/png' });
-
-    expect(res.status).toBe(403);
-  });
-});
-
-describe('POST /v1/tenants/:tenantId/branding/confirm', () => {
-  it('returns 200 on successful confirm for AM', async () => {
+  it('POST /v1/tenants/:tenantId/branding/logo/confirm returns 404', async () => {
     mockJwtVerify.mockResolvedValueOnce(makeAmContext());
-    mockConfirmLogoUploadExecute.mockResolvedValueOnce({
-      logoUrl: 'https://public.supabase.example/tenant-branding/logo.png',
-    });
-
     const res = await supertest(app.server)
       .post(`/v1/tenants/${TENANT_ID}/branding/logo/confirm`)
       .set('Authorization', 'Bearer token')
       .send({ storageKey: `tenants/${TENANT_ID}/branding/logo.png` });
 
-    expect(res.status).toBe(200);
-    expect(res.body.data).toHaveProperty('logoUrl');
-  });
-
-  it('returns 401 without auth', async () => {
-    const res = await supertest(app.server)
-      .post(`/v1/tenants/${TENANT_ID}/branding/logo/confirm`)
-      .send({ storageKey: `tenants/${TENANT_ID}/branding/logo.png` });
-
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(404);
   });
 });
 
@@ -131,7 +84,7 @@ describe('PATCH /v1/tenants/:tenantId — immutable settings hardening', () => {
     mockJwtVerify.mockResolvedValueOnce(makeAmContext());
     const { ValidationError } = await import('../../../src/shared/domain/errors');
     mockUpdateTenantExecute.mockRejectedValueOnce(
-      new ValidationError('settings.logoUrl cannot be set via this endpoint. Use the logo upload flow.', []),
+      new ValidationError('settings.logoUrl is not supported.', []),
     );
 
     const res = await supertest(app.server)
@@ -146,7 +99,7 @@ describe('PATCH /v1/tenants/:tenantId — immutable settings hardening', () => {
     mockJwtVerify.mockResolvedValueOnce(makeAmContext());
     const { ValidationError } = await import('../../../src/shared/domain/errors');
     mockUpdateTenantExecute.mockRejectedValueOnce(
-      new ValidationError('settings.logoStorageKey cannot be set via this endpoint. Use the logo upload flow.', []),
+      new ValidationError('settings.logoStorageKey is not supported.', []),
     );
 
     const res = await supertest(app.server)

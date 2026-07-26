@@ -73,6 +73,10 @@ export interface PortalData {
   existingResponse?: PortalExistingResponse;
   agencyPhone?: string;
   deadline?: string;
+  /** All RENTAL_TENANT contact names (primary first). */
+  rentalTenantNames?: string[];
+  /** Display name of the PROPERTY_MANAGER contact, when one is linked. */
+  propertyManager?: string | null;
   rescheduleAllowed?: boolean;
   tenant?: PortalTenantInfo;
 }

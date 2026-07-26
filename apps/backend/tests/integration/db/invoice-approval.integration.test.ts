@@ -51,7 +51,7 @@ function repos() {
 async function seedRequestedInvoice(suffix: string): Promise<string> {
   const fixture = await seedLegacyDoneAppointment(harness.prisma, { tenantName: `Approval ${suffix}` });
   const inspector = await harness.prisma.inspector.create({
-    data: { name: `Approval ${suffix}`, email: `approval-${suffix}@test.local`, billing_cycle: 'FORTNIGHTLY' },
+    data: { name: `Approval ${suffix}`, email: `approval-${suffix}@test.local`, abn: '12 345 678 901', billing_cycle: 'FORTNIGHTLY' },
   });
   await harness.prisma.financialEntry.create({
     data: {
@@ -102,6 +102,15 @@ describe('Invoice approval flow (real DB)', () => {
     expect(snapshot[0].branchName).toBe('T061 Branch');
     expect(snapshot[0].appointmentCode).toMatch(/^[A-Za-z]{3,4}-\d{4}$/); // no raw UUID
     expect(snapshot[0].amount).toBe(80);
+
+    // ABN is frozen at approval from the live inspector.
+    expect(row.inspector_abn).toBe('12 345 678 901');
+
+    // Freezing is airtight: changing the inspector's live ABN afterwards must NOT leak onto the
+    // already-frozen (CLOSED) invoice — the reader returns the stored value, never the live join.
+    await harness.prisma.inspector.update({ where: { id: row.inspector_id }, data: { abn: '99 999 999 999' } });
+    const reread = await invoiceRepo.findById(invoiceId);
+    expect(reread?.inspectorAbn).toBe('12 345 678 901');
   });
 
   it('assigns strictly increasing numbers across invoices (sequence)', async () => {

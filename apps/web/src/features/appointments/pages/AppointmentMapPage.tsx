@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { keepPreviousData } from '@tanstack/react-query';
 import { createPortal } from 'react-dom';
 
@@ -68,6 +68,8 @@ interface ServiceGroupMapAppointment {
 interface ServiceGroupMapItem {
   id: string;
   name: string | null;
+  /** Human-friendly group code — always populated by the list endpoint. */
+  code?: string;
   status: ServiceGroupStatus;
   groupSize: number;
   scheduledDate: string;
@@ -179,6 +181,7 @@ export function AppointmentMapPage() {
   // view targets /service-groups, both AM/OP-gated), so only honour the
   // groups deep-link for global roles. Client roles stay on appointments.
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [mode, setMode] = useState<FilterMode>(
     () => (searchParams.get('mode') === 'groups' && isGlobalRole ? 'groups' : 'appointments'),
   );
@@ -268,6 +271,10 @@ export function AppointmentMapPage() {
     ...(appointmentFilters.contactSearch ? { contactSearch: appointmentFilters.contactSearch } : {}),
     ...(appointmentFilters.confirmationStatus ? { confirmationStatus: appointmentFilters.confirmationStatus } : {}),
     ...(appointmentFilters.tenantId ? { tenantId: appointmentFilters.tenantId } : {}),
+    ...(appointmentFilters.inspectorId ? { inspectorId: appointmentFilters.inspectorId } : {}),
+    ...(appointmentFilters.rentalTenantConfirmationStatuses.length > 0
+      ? { rentalTenantConfirmationStatus: appointmentFilters.rentalTenantConfirmationStatuses.join(',') }
+      : {}),
   }), [appointmentFilters]);
 
   const {
@@ -396,13 +403,22 @@ export function AppointmentMapPage() {
     { status: 'ACTIVE' },
   );
 
-  // Tenant options — AM only (cross-tenant Customers filter).
+  // Tenant options — AM/OP only (cross-tenant Agencies filter).
   const { options: tenantOptions } = useFormOptions<{ id: string; name: string }>(
     ['tenants', 'map-filter'],
     '/v1/tenants',
     (item) => ({ value: item.id, label: item.name }),
     { status: 'ACTIVE' },
-    { enabled: user?.role === 'AM' },
+    { enabled: isGlobalRole },
+  );
+
+  // Inspector options — AM/OP only (inspectors list is a global-role surface).
+  const { options: inspectorOptions } = useFormOptions<{ id: string; name: string }>(
+    ['inspectors', 'map-filter'],
+    '/v1/inspectors',
+    (item) => ({ value: item.id, label: item.name }),
+    { status: 'ACTIVE' },
+    { enabled: isGlobalRole },
   );
 
   // Branch options
@@ -629,9 +645,9 @@ export function AppointmentMapPage() {
 
   const handleViewDetail = useCallback(
     (id: string) => {
-      window.open(`/appointments/${id}`, '_blank');
+      navigate(`/appointments/${id}`);
     },
-    [],
+    [navigate],
   );
 
   const handleRecenter = useCallback(() => {
@@ -839,6 +855,7 @@ export function AppointmentMapPage() {
           serviceTypeOptions={serviceTypeOptions}
           branchOptions={branchOptions}
           tenantOptions={tenantOptions}
+          inspectorOptions={inspectorOptions}
           actorRole={actorRole}
         />
       </div>
@@ -1089,18 +1106,17 @@ export function AppointmentMapPage() {
           </div>
         )}
 
-        {/* C10 — top-right toolbar: List view + lasso, offset left of the
-            Mapbox zoom controls. Stacked vertically so the lasso button never
-            collides with the top-center drawing banner. */}
-        <div className="pointer-events-none absolute right-14 top-4 z-30 flex flex-col items-end gap-2">
-          <div className="pointer-events-auto">
-            <MapListViewToggleButton mode={mode} />
-          </div>
+        {/* C10 — top-right toolbar: lasso + List view in a horizontal row,
+            offset left of the Mapbox zoom controls. */}
+        <div className="pointer-events-none absolute right-14 top-4 z-30 flex items-center gap-2">
           {lassoAvailable && (
             <div className="pointer-events-auto">
               <MapLassoToggleButton active={lassoState !== 'idle'} onClick={handleLassoToggle} />
             </div>
           )}
+          <div className="pointer-events-auto">
+            <MapListViewToggleButton mode={mode} />
+          </div>
         </div>
 
       <MapBulkActionModal

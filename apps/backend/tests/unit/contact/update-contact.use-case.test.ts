@@ -15,7 +15,7 @@ const contactRepo = {
   update: vi.fn(),
   existsByEmail: vi.fn(),
   existsByPhone: vi.fn(),
-  findActiveByEmailOrPhone: vi.fn(),
+  findManyActiveByEmailsOrPhones: vi.fn().mockResolvedValue([]),
   searchByTrigram: vi.fn(),
   linkToAppointment: vi.fn(),
   updateContactSnapshot: vi.fn(),

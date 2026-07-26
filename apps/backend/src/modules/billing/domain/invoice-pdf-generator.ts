@@ -4,6 +4,7 @@ import type { InvoiceSnapshotLine } from '@properfy/shared';
 export interface InvoicePdfData {
   invoiceNumberDisplay: string; // e.g. PINV-000123
   inspectorName: string | null;
+  inspectorAbn: string | null;
   periodStart: string; // YYYY-MM-DD
   periodEnd: string; // YYYY-MM-DD
   issuedAt: string | null; // YYYY-MM-DD

@@ -38,7 +38,7 @@ export class DispatchEscalationsUseCase {
     targetDate.setUTCDate(targetDate.getUTCDate() + ESCALATION_OFFSET_DAYS);
     const appointments = await this.appointmentRepo.findScheduledOnDate(targetDate);
 
-    for (const { appointment, contact } of appointments) {
+    for (const { appointment, contact, propertyAddress, serviceTypeName } of appointments) {
       if (appointment.rentalTenantConfirmationStatus === 'CONFIRMED') {
         skipped++;
         continue;
@@ -75,6 +75,8 @@ export class DispatchEscalationsUseCase {
               appointment,
               contact,
               branchName: branch.name,
+              propertyAddress: propertyAddress ?? '',
+              serviceTypeName: serviceTypeName ?? null,
               rawPortalToken: null,
               portalBaseUrl: this.rentalTenantPortalBaseUrl,
               appointmentCodeFormatter: this.appointmentCodeFormatter,
@@ -107,6 +109,8 @@ export class DispatchEscalationsUseCase {
               tenant,
               appointment,
               contact,
+              propertyAddress: propertyAddress ?? '',
+              serviceTypeName: serviceTypeName ?? null,
               rawPortalToken: null,
               portalBaseUrl: this.rentalTenantPortalBaseUrl,
               appointmentCodeFormatter: this.appointmentCodeFormatter,

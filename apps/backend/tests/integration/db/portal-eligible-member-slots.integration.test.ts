@@ -329,6 +329,80 @@ describe('PrismaServiceGroupRepository portal member slots — real DB', () => {
     expect(slots[0]!.capacityMax).toBe(10);
   });
 
+  it('excludes the appointment current group when excludeGroupId is provided', async () => {
+    const { tenantId, userId } = await seedTenant(harness.prisma, 'Portal Exclude Agency');
+    const branchId = await getBranchId(harness.prisma, tenantId);
+    const serviceTypeId = await seedServiceType(harness.prisma);
+    const { inspectorId } = await seedInspector(harness.prisma, 'Exclude Inspector');
+
+    const portalPropertyId = await seedPropertyPoint(harness.prisma, {
+      tenantId,
+      branchId,
+      suburb: 'Exclude Home',
+      lat: -33.865,
+      lng: 151.209,
+    });
+    const nearPropertyId = await seedPropertyPoint(harness.prisma, {
+      tenantId,
+      branchId,
+      suburb: 'Exclude Near',
+      lat: -33.866,
+      lng: 151.210,
+    });
+
+    const ownGroupId = await seedAcceptedGroup(harness.prisma, {
+      serviceTypeId,
+      createdByUserId: userId,
+      inspectorId,
+    });
+    await seedAppointment(harness.prisma, {
+      tenantId,
+      branchId,
+      propertyId: portalPropertyId,
+      serviceTypeId,
+      createdByUserId: userId,
+      groupId: ownGroupId,
+      scheduledDate: SLOT_ONE_DATE,
+      timeSlotStart: '09:00',
+      timeSlotEnd: '10:00',
+    });
+    const otherGroupId = await seedAcceptedGroup(harness.prisma, {
+      serviceTypeId,
+      createdByUserId: userId,
+      inspectorId,
+    });
+    await seedAppointment(harness.prisma, {
+      tenantId,
+      branchId,
+      propertyId: nearPropertyId,
+      serviceTypeId,
+      createdByUserId: userId,
+      groupId: otherGroupId,
+      scheduledDate: SLOT_TWO_DATE,
+      timeSlotStart: '11:00',
+      timeSlotEnd: '12:00',
+    });
+
+    const withoutExclusion = await repo.findPortalEligibleSlots({
+      tenantId,
+      serviceTypeId,
+      propertyId: portalPropertyId,
+      today: TODAY,
+    });
+    expect(withoutExclusion.map((slot) => slot.groupId).sort()).toEqual(
+      [ownGroupId, otherGroupId].sort(),
+    );
+
+    const withExclusion = await repo.findPortalEligibleSlots({
+      tenantId,
+      serviceTypeId,
+      propertyId: portalPropertyId,
+      today: TODAY,
+      excludeGroupId: ownGroupId,
+    });
+    expect(withExclusion.map((slot) => slot.groupId)).toEqual([otherGroupId]);
+  });
+
   it('validates selected slots only when a matching non-deleted future member appointment exists', async () => {
     const { tenantId, userId } = await seedTenant(harness.prisma, 'Portal Slot Validation Agency');
     const branchId = await getBranchId(harness.prisma, tenantId);

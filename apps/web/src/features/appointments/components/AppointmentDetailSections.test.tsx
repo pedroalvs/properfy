@@ -1,8 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render as rtlRender, screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { AppointmentStatus, RentalTenantConfirmationStatus } from '@properfy/shared';
 import { AppointmentDetailSections } from './AppointmentDetailSections';
 import type { AppointmentDetail } from '../types';
+
+// The property link is a router <Link>, so every render needs a router context.
+const render = (ui: ReactElement) => rtlRender(ui, { wrapper: MemoryRouter });
 
 function makeAppointment(overrides: Partial<AppointmentDetail> = {}): AppointmentDetail {
   return {
@@ -83,8 +88,7 @@ describe('AppointmentDetailSections', () => {
     );
     const link = screen.getByTestId('appointment-property-link');
     expect(link).toHaveAttribute('href', '/properties/prop-42');
-    expect(link).toHaveAttribute('target', '_blank');
-    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(link).not.toHaveAttribute('target');
   });
 
   it('renders contact name, phone, email', () => {

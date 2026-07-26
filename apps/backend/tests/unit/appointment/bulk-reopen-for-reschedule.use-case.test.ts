@@ -102,4 +102,32 @@ describe('BulkReopenForRescheduleUseCase — 30-day window', () => {
     expect(out.results).toEqual([{ appointmentId: APPT_A, status: 'OK' }]);
     expect(mocks.reopenForReschedule.execute).toHaveBeenCalledTimes(1);
   });
+
+  it('keys by the requested slot — correcting a reopen re-executes', async () => {
+    // Same class of bug as bulk_reschedule: keyed by appointment id alone, an
+    // operator who reopened to the wrong date and corrected it inside the
+    // replay window got a silent IDEMPOTENT_REPLAY and lost the correction.
+    const useCase = makeUseCase(mocks);
+
+    await useCase.execute({
+      appointmentIds: [APPT_A],
+      newDate: WITHIN_WINDOW_DATE,
+      newTimeSlotStart: '09:00', newTimeSlotEnd: '10:00',
+      actor: actorWithRole('CL_ADMIN'),
+    });
+    // Same date, different slot.
+    await useCase.execute({
+      appointmentIds: [APPT_A],
+      newDate: WITHIN_WINDOW_DATE,
+      newTimeSlotStart: '14:00', newTimeSlotEnd: '15:00',
+      actor: actorWithRole('CL_ADMIN'),
+    });
+
+    const calls = (mocks.idempotency.getWithHash as ReturnType<typeof vi.fn>).mock.calls.map(([k]) => k as string);
+    expect(calls[0]).not.toBe(calls[1]);
+    expect(calls[0]).toContain('09:00-10:00');
+    expect(calls[1]).toContain('14:00-15:00');
+    expect(calls[0]).toContain(WITHIN_WINDOW_DATE.slice(0, 10));
+    expect(mocks.reopenForReschedule.execute).toHaveBeenCalledTimes(2);
+  });
 });

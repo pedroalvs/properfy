@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { SERVICE_GROUP_STATUS_MAP } from '@/lib/status-colors';
 import { formatDate } from '@/lib/format-date';
@@ -13,6 +14,8 @@ interface GroupMapDetailPanelProps {
   group: {
     id: string;
     name: string | null;
+    /** Human-friendly group code from /v1/service-groups (always set on read paths). */
+    code?: string;
     status: ServiceGroupStatus;
     groupSize: number;
     scheduledDate: string;
@@ -119,6 +122,9 @@ export function GroupMapDetailPanel({
           <div className="min-w-0">
             <h2 className="truncate text-sm font-semibold text-text-primary">
               {group.name ?? 'Service group'}
+              {group.code && (
+                <span className="ml-1.5 font-normal text-text-secondary">#{group.code}</span>
+              )}
             </h2>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-text-secondary">
               {statusMeta && <StatusChip label={statusMeta.label} bg={statusMeta.bg} />}
@@ -148,17 +154,16 @@ export function GroupMapDetailPanel({
         </p>
       </div>
 
-      {/* Footer — VIEW GROUP opens the full detail page in a new tab;
+      {/* Footer — VIEW GROUP navigates to the full detail page;
           PUBLISH is the DRAFT-only action (backend re-validates). */}
       <div className="flex gap-2 px-4 py-2">
-        <button
-          type="button"
-          onClick={() => window.open(`/service-groups/${group.id}`, '_blank')}
-          className="flex-1 rounded border border-real-estate px-3 py-1.5 text-xs font-semibold text-real-estate hover:bg-real-estate/5"
+        <Link
+          to={`/service-groups/${group.id}`}
+          className="flex-1 rounded border border-real-estate px-3 py-1.5 text-center text-xs font-semibold text-real-estate hover:bg-real-estate/5"
           data-testid="group-map-detail-view"
         >
           VIEW GROUP
-        </button>
+        </Link>
         <span
           className="flex-1"
           title={isDraft ? undefined : 'Only draft groups can be published'}

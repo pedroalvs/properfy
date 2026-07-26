@@ -50,6 +50,19 @@ describe('useAppSave.validate', () => {
     expect(result.current.validate({ ...VALID, appUrl: 'https://x.com', instructionsUrl: '' }, 'create')).toEqual({});
   });
 
+  it('sends isDefault on create and update payloads', async () => {
+    const { api } = await import('@/services/api');
+    vi.mocked(api.POST).mockResolvedValue({ data: { data: { id: 'new-id' } }, error: undefined } as never);
+    vi.mocked(api.PATCH).mockResolvedValue({ data: { data: { id: 'cred-1' } }, error: undefined } as never);
+    const { result } = renderHook(() => useAppSave(), { wrapper: createQueryWrapper() });
+
+    await result.current.save({ ...VALID, isDefault: true });
+    expect(vi.mocked(api.POST).mock.calls[0]![1]).toMatchObject({ body: expect.objectContaining({ isDefault: true }) });
+
+    await result.current.save({ ...VALID, isDefault: false }, 'cred-1');
+    expect(vi.mocked(api.PATCH).mock.calls[0]![1]).toMatchObject({ body: expect.objectContaining({ isDefault: false }) });
+  });
+
   it('accepts branch and optional secret fields', () => {
     const { result } = renderHook(() => useAppSave(), { wrapper: createQueryWrapper() });
     expect(result.current.validate({

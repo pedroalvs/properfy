@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AppointmentStatus, AppointmentContactRole, ContactType, ContactChannelType, PLATFORM_TIMEZONE, todayInTzDateString, currentTimeInTzHHmm, isTimeStartInPastForDate, validateEditedSchedule, CUSTOM_FIELD_LABEL_MAX, CUSTOM_FIELD_VALUE_MAX } from '@properfy/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
@@ -12,7 +12,7 @@ import { FormActions } from '@/components/forms/FormActions';
 import { TextInput } from '@/components/forms/TextInput';
 import { EmailInput } from '@/components/forms/EmailInput';
 import { PhoneInput } from '@/components/forms/PhoneInput';
-import { SelectInput } from '@/components/forms/SelectInput';
+import { SelectInput, type SelectOption } from '@/components/forms/SelectInput';
 import { DateInput } from '@/components/forms/DateInput';
 import { TimeRangeInput } from '@/components/forms/TimeRangeInput';
 import { Textarea } from '@/components/forms/Textarea';
@@ -20,9 +20,11 @@ import { Checkbox } from '@/components/forms/Checkbox';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { api } from '@/services/api';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
+import { useAppointmentCrossCheck } from '../hooks/useAppointmentCrossCheck';
 import { useAppointmentSave } from '../hooks/useAppointmentSave';
 import { AppointmentRestrictionFields } from './AppointmentRestrictionFields';
 import { ContactAutocomplete } from './ContactAutocomplete';
@@ -31,6 +33,8 @@ import type { AppointmentFormData, AppointmentFormErrors, ContactFormEntry } fro
 import { EMPTY_FORM_DATA, createEmptyContact, createEmptyCustomField, MAX_CUSTOM_FIELDS } from '../types';
 import type { ContactSearchResult } from '../hooks/useContactSearch';
 import { formatAuPhone } from '@/lib/phone-mask';
+import { PropertyFormDrawer } from '@/features/properties/components/PropertyFormDrawer';
+import { usePropertyCreated } from '../hooks/usePropertyCreated';
 
 const CONTACT_ROLE_OPTIONS = [
   { value: AppointmentContactRole.RENTAL_TENANT, label: 'Tenant' },
@@ -58,6 +62,24 @@ const CHANNEL_OPTIONS = [
   { value: ContactChannelType.PHONE, label: 'Phone' },
 ];
 
+/**
+ * Keep the currently selected value renderable by `SelectInput`, which shows
+ * its placeholder whenever `value` has no matching option. Branch, Property and
+ * Service Type are locked in edit mode and their option lists are scoped
+ * (tenant + branch), so a legitimate value can be missing from the list — an
+ * import-created property carries `branch_id = NULL` and is therefore never
+ * returned by the branch-filtered `/v1/properties` query. The appointment's own
+ * denormalized label is used as the fallback; a fetched option always wins.
+ */
+function withCurrentOption(
+  options: SelectOption[],
+  value: string | undefined,
+  label: string | undefined,
+): SelectOption[] {
+  if (!value || !label || options.some((o) => o.value === value)) return options;
+  return [{ value, label }, ...options];
+}
+
 interface AppointmentFormDrawerProps {
   open: boolean;
   onClose: () => void;
@@ -72,6 +94,7 @@ export function AppointmentFormDrawer({
   onSaved,
 }: AppointmentFormDrawerProps) {
   const { user } = useAuth();
+  const { canPerform } = usePermissions();
   const isGlobalRole = user?.role === 'AM' || user?.role === 'OP';
   const canAssignRole = user?.role === 'AM' || user?.role === 'OP';
   const queryClient = useQueryClient();
@@ -88,7 +111,7 @@ export function AppointmentFormDrawer({
   );
 
   const isEditMode = !!appointmentId;
-  const { appointment, isLoading: isLoadingDetail } = useAppointmentDetail(
+  const { appointment, isLoading: isLoadingDetail, refetch: refetchDetail } = useAppointmentDetail(
     isEditMode ? appointmentId : null,
   );
 
@@ -96,20 +119,22 @@ export function AppointmentFormDrawer({
   const [initialData, setInitialData] = useState<AppointmentFormData>(EMPTY_FORM_DATA);
   const [errors, setErrors] = useState<AppointmentFormErrors>({});
   const [showConfirm, setShowConfirm] = useState(false);
+  const [propertyDrawerOpen, setPropertyDrawerOpen] = useState(false);
+  const [showCrossCheckConfirm, setShowCrossCheckConfirm] = useState(false);
 
   // In edit mode, derive tenantId from the loaded appointment so branch/property options load
   const effectiveTenantId = isGlobalRole
     ? (selectedTenantId || (isEditMode && appointment?.tenantId) || '')
     : undefined;
 
-  const { options: branchOptions } = useFormOptions<{ id: string; name: string }>(
+  const { options: branchApiOptions } = useFormOptions<{ id: string; name: string }>(
     ['branches', 'form-options', effectiveTenantId ?? ''],
     '/v1/branches',
     (item) => ({ value: item.id, label: item.name }),
     { ...(effectiveTenantId ? { tenantId: effectiveTenantId } : {}), status: 'ACTIVE' },
     { enabled: !isGlobalRole || !!effectiveTenantId },
   );
-  const { options: serviceTypeOptions } = useFormOptions<{ id: string; name: string }>(
+  const { options: serviceTypeApiOptions } = useFormOptions<{ id: string; name: string }>(
     ['service-types', 'form-options'],
     '/v1/service-types',
     (item) => ({ value: item.id, label: item.name }),
@@ -121,7 +146,7 @@ export function AppointmentFormDrawer({
     { status: 'ACTIVE' },
     { enabled: canAssignRole },
   );
-  const { options: propertyOptions } = useFormOptions<{ id: string; street: string; propertyCode: string }>(
+  const { options: propertyApiOptions } = useFormOptions<{ id: string; street: string; propertyCode: string }>(
     ['properties', 'form-options', effectiveTenantId ?? '', 'branch', form.branchId],
     '/v1/properties',
     (item) => ({ value: item.id, label: `${item.propertyCode} - ${item.street}` }),
@@ -130,8 +155,23 @@ export function AppointmentFormDrawer({
       ...(form.branchId ? { branchId: form.branchId } : {}),
     },
     // staleTime 0 (vs the global 30s) lets this branch-scoped list refetch on window focus,
-    // so a property created in the new property tab appears when the user returns here.
+    // so a property created in the nested property drawer appears right away.
     { enabled: (!isGlobalRole || !!effectiveTenantId) && !!form.branchId, staleTime: 0 },
+  );
+
+  // In create mode `appointment` is null, so these collapse to the fetched
+  // lists untouched. See `withCurrentOption` for why the fallback exists.
+  const branchOptions = useMemo(
+    () => withCurrentOption(branchApiOptions, appointment?.branchId, appointment?.branchName),
+    [branchApiOptions, appointment?.branchId, appointment?.branchName],
+  );
+  const serviceTypeOptions = useMemo(
+    () => withCurrentOption(serviceTypeApiOptions, appointment?.serviceTypeId, appointment?.serviceTypeName),
+    [serviceTypeApiOptions, appointment?.serviceTypeId, appointment?.serviceTypeName],
+  );
+  const propertyOptions = useMemo(
+    () => withCurrentOption(propertyApiOptions, appointment?.propertyId, appointment?.propertyAddress),
+    [propertyApiOptions, appointment?.propertyId, appointment?.propertyAddress],
   );
 
   const { save, isSaving, validate } = useAppointmentSave();
@@ -223,17 +263,7 @@ export function AppointmentFormDrawer({
     });
   }, []);
 
-  // Open the full property-creation page in a new tab, pre-filled with the current agency and
-  // branch. Defined inline (not memoized) so it always reads the current selection. Only reachable
-  // in create mode, and the button is disabled until a branch (and, for global roles, an agency)
-  // is selected.
-  const openPropertyCreateTab = () => {
-    const params = new URLSearchParams();
-    if (effectiveTenantId) params.set('tenantId', effectiveTenantId);
-    if (form.branchId) params.set('branchId', form.branchId);
-    const query = params.toString();
-    window.open(query ? `/properties/new?${query}` : '/properties/new', '_blank');
-  };
+  const handlePropertyCreated = usePropertyCreated(setForm, setErrors);
 
   const handleRestrictionToggle = useCallback((value: boolean) => {
     setForm((prev) => ({
@@ -302,6 +332,23 @@ export function AppointmentFormDrawer({
     : isEditMode
       ? 'Save'
       : 'Create Appointment';
+
+  // "Reviewed" (DONE cross-check) — AM/OP only, edit mode, and the appointment
+  // is DONE. This is a separate endpoint (not the drawer save); on success we
+  // refetch the drawer's detail so the read-only indicator flips, and bubble
+  // up via onSaved so the list refreshes.
+  const { crossCheckDone, isCrossChecking } = useAppointmentCrossCheck(
+    isEditMode ? appointmentId ?? null : null,
+    () => {
+      refetchDetail();
+      onSaved();
+    },
+  );
+  const canReviewSection =
+    isEditMode &&
+    canPerform('appointment.cross_check') &&
+    appointment?.status === AppointmentStatus.DONE;
+  const isReviewed = !!appointment?.doneCheckedByUserId;
 
   const updateField = useCallback(
     <K extends keyof AppointmentFormData>(field: K, value: AppointmentFormData[K]) => {
@@ -533,12 +580,15 @@ export function AppointmentFormDrawer({
   ]);
 
   const handleClose = useCallback(() => {
+    // While the nested property drawer is open, Escape/backdrop events reach
+    // both drawers — only the nested one may close.
+    if (propertyDrawerOpen) return;
     if (isDirty) {
       setShowConfirm(true);
     } else {
       onClose();
     }
-  }, [isDirty, onClose]);
+  }, [propertyDrawerOpen, isDirty, onClose]);
 
   const forceClose = useCallback(() => {
     setShowConfirm(false);
@@ -604,13 +654,11 @@ export function AppointmentFormDrawer({
                       <div className="md:col-span-2">
                         <Button
                           variant="secondary"
-                          onClick={openPropertyCreateTab}
+                          onClick={() => setPropertyDrawerOpen(true)}
                           disabled={!form.branchId || (isGlobalRole && !selectedTenantId)}
                         >
                           <i className="mdi mdi-home-plus-outline" aria-hidden="true" />
                           Property not listed? Create one
-                          <i className="mdi mdi-open-in-new" aria-hidden="true" />
-                          <span className="sr-only"> (opens in a new tab)</span>
                         </Button>
                       </div>
                     )}
@@ -987,6 +1035,29 @@ export function AppointmentFormDrawer({
                     </FormSection>
                   )}
 
+                  {canReviewSection && (
+                    <FormSection title="Review">
+                      {isReviewed ? (
+                        <div
+                          className="flex items-center gap-2 text-sm font-medium text-success"
+                          data-testid="reviewed-indicator"
+                        >
+                          <i className="mdi mdi-check-decagram text-base" aria-hidden="true" />
+                          Reviewed — released for financial processing.
+                        </div>
+                      ) : (
+                        <Button
+                          variant="primary"
+                          onClick={() => setShowCrossCheckConfirm(true)}
+                          loading={isCrossChecking}
+                        >
+                          <i className="mdi mdi-check-decagram text-base" aria-hidden="true" />
+                          Confirm Done
+                        </Button>
+                      )}
+                    </FormSection>
+                  )}
+
                   <FormSection title="Notes">
                     <FormField label="Notes" error={errors.notes}>
                       <Textarea
@@ -1082,6 +1153,18 @@ export function AppointmentFormDrawer({
             </>
           )}
         </div>
+        {/* Nested inside the DrawerPanel so its backdrop/panel stack above this
+            drawer's fixed z-50 panel instead of behind it. */}
+        <PropertyFormDrawer
+          open={propertyDrawerOpen}
+          onClose={() => setPropertyDrawerOpen(false)}
+          propertyId={null}
+          tenantIdOverride={effectiveTenantId}
+          initialBranchId={form.branchId}
+          lockBranch
+          onSaved={() => setPropertyDrawerOpen(false)}
+          onCreated={handlePropertyCreated}
+        />
       </DrawerPanel>
 
       <ConfirmDialog
@@ -1093,6 +1176,20 @@ export function AppointmentFormDrawer({
         variant="warning"
         onConfirm={forceClose}
         onClose={cancelDiscard}
+      />
+
+      <ConfirmDialog
+        open={showCrossCheckConfirm}
+        title="Confirm Done"
+        message="Confirm that the field completion is valid and release this appointment for financial processing?"
+        confirmLabel="Confirm Done"
+        variant="warning"
+        loading={isCrossChecking}
+        onConfirm={() => {
+          crossCheckDone();
+          setShowCrossCheckConfirm(false);
+        }}
+        onClose={() => setShowCrossCheckConfirm(false)}
       />
     </>
   );

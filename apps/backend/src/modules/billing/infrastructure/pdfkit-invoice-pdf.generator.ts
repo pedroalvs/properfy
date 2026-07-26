@@ -65,6 +65,9 @@ export class PdfKitInvoicePdfGenerator implements IInvoicePdfGenerator {
     doc.font('Helvetica').fontSize(10);
     doc.text(`Invoice: ${data.invoiceNumberDisplay}`);
     doc.text(`Inspector: ${data.inspectorName ?? '-'}`);
+    if (data.inspectorAbn) {
+      doc.text(`ABN: ${data.inspectorAbn}`);
+    }
     doc.text(`Period: ${data.periodStart} to ${data.periodEnd}`);
     doc.text(`Issued: ${data.issuedAt ?? '-'}`);
     doc.moveDown(0.6);

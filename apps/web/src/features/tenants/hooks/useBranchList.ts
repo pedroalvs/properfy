@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
 import { formatAddressLabel } from '@/lib/address';
 import type { DataTablePagination } from '@/components/data/DataTable';
@@ -38,11 +38,18 @@ export function useBranchList(tenantId: string | null): UseBranchListReturn {
     },
   };
 
+  // PR #961 bug class: memoized so consumers get a stable array per fetch result.
+  const data = useMemo(
+    () =>
+      (response?.data ?? []).map((branch: Branch) => ({
+        ...branch,
+        address: formatAddressLabel((branch as Branch).addressJson) ?? null,
+      })),
+    [response?.data],
+  );
+
   return {
-    data: (response?.data ?? []).map((branch: Branch) => ({
-      ...branch,
-      address: formatAddressLabel((branch as Branch).addressJson) ?? null,
-    })),
+    data,
     isLoading,
     isError,
     refetch,

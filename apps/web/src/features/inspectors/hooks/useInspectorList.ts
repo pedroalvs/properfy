@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { DataTablePagination } from '@/components/data/DataTable';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { useUrlFilters, type FilterSchema } from '@/hooks/useUrlFilters';
@@ -53,12 +53,15 @@ export function useInspectorList(): UseInspectorListReturn {
     },
   };
 
-  const rawData: any[] = query.data?.data ?? [];
-  const data: Inspector[] = rawData.map((item) => ({
-    ...item,
-    regionsCount: Array.isArray(item.regionIds) ? item.regionIds.length : 0,
-    serviceTypesCount: Array.isArray(item.serviceTypesJson) ? item.serviceTypesJson.length : 0,
-  }));
+  // PR #961 bug class: memoized so consumers get a stable array per fetch result.
+  const data: Inspector[] = useMemo(() => {
+    const rawData: any[] = query.data?.data ?? [];
+    return rawData.map((item) => ({
+      ...item,
+      regionsCount: Array.isArray(item.regionIds) ? item.regionIds.length : 0,
+      serviceTypesCount: Array.isArray(item.serviceTypesJson) ? item.serviceTypesJson.length : 0,
+    }));
+  }, [query.data?.data]);
 
   return {
     data,

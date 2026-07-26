@@ -55,7 +55,10 @@ vi.mock('@/hooks/useAuth', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-const mockUseFormOptions = vi.fn((..._args: unknown[]) => ({ options: [], isLoading: false }));
+const mockUseFormOptions = vi.fn((..._args: unknown[]) => ({
+  options: [] as Array<{ value: string; label: string }>,
+  isLoading: false,
+}));
 
 vi.mock('@/hooks/useFormOptions', () => ({
   useFormOptions: (...args: unknown[]) => mockUseFormOptions(...args),
@@ -72,6 +75,59 @@ vi.mock('../hooks/useContactSearch', () => ({
   }),
 }));
 
+// Shallow mock — property-form internals are covered by PropertyFormDrawer's own
+// tests. Mirrors the real DrawerPanel dismissal contract: while open, Escape
+// calls onClose (backdrop clicks do the same and are exercised via simulate-close).
+vi.mock('@/features/properties/components/PropertyFormDrawer', async () => {
+  const { useEffect } = await import('react');
+  return {
+    PropertyFormDrawer: ({
+      open,
+      onClose,
+      onCreated,
+      onSaved,
+      tenantIdOverride,
+      initialBranchId,
+      lockBranch,
+    }: {
+      open: boolean;
+      onClose: () => void;
+      onCreated?: (id: string) => void;
+      onSaved: () => void;
+      tenantIdOverride?: string;
+      initialBranchId?: string;
+      lockBranch?: boolean;
+    }) => {
+      useEffect(() => {
+        if (!open) return;
+        const onKeyDown = (e: KeyboardEvent) => {
+          if (e.key === 'Escape') onClose();
+        };
+        document.addEventListener('keydown', onKeyDown);
+        return () => document.removeEventListener('keydown', onKeyDown);
+      }, [open, onClose]);
+      return open ? (
+        <div
+          data-testid="property-form-drawer"
+          data-tenant={tenantIdOverride ?? ''}
+          data-branch={initialBranchId ?? ''}
+          data-locked={String(!!lockBranch)}
+        >
+          <button
+            onClick={() => {
+              onCreated?.('prop-new');
+              onSaved();
+            }}
+          >
+            simulate-create
+          </button>
+          <button onClick={onClose}>simulate-close</button>
+        </div>
+      ) : null;
+    },
+  };
+});
+
 const mockSave = vi.fn();
 const mockValidate = vi.fn();
 
@@ -86,6 +142,8 @@ vi.mock('../hooks/useAppointmentSave', () => ({
 // Stable reference to prevent infinite re-render in useEffect
 const MOCK_APPOINTMENT = {
   id: 'apt-01', branchId: 'branch-1', propertyId: 'prop-1', serviceTypeId: 'st-1',
+  branchName: 'North Shore Office', propertyAddress: '5/24 Belgrave St, Kogarah NSW 2217',
+  serviceTypeName: 'Routine Inspection',
   scheduledDate: '2026-04-01', timeSlotStart: '09:00', timeSlotEnd: '12:00', contactName: 'John Doe',
   contactPhone: '11999999999', contactEmail: 'john@test.com', keyRequired: true,
   meetingLocation: 'Lobby', keyLocation: 'Portaria', notes: 'Test notes',
@@ -102,13 +160,36 @@ const MOCK_APPOINTMENT_GROUPED = {
   serviceGroupId: 'sg-01',
 };
 
+// DONE appointment pending cross-check (Review section shows "Confirm Done").
+const MOCK_APPOINTMENT_DONE = {
+  ...MOCK_APPOINTMENT,
+  id: 'apt-done',
+  status: 'DONE',
+  inspectorId: 'insp-1',
+  doneCheckedByUserId: null,
+};
+
+// DONE appointment already cross-checked (Review section shows the indicator).
+const MOCK_APPOINTMENT_REVIEWED = {
+  ...MOCK_APPOINTMENT_DONE,
+  id: 'apt-reviewed',
+  doneCheckedByUserId: 'reviewer-1',
+};
+
+const mockRefetchDetail = vi.fn();
 vi.mock('../hooks/useAppointmentDetail', () => ({
   useAppointmentDetail: (id: string | null) => {
-    if (!id) return { appointment: null, isLoading: false, isError: false, refetch: vi.fn() };
+    if (!id) return { appointment: null, isLoading: false, isError: false, refetch: mockRefetchDetail };
     if (id === 'apt-grouped') {
-      return { appointment: MOCK_APPOINTMENT_GROUPED, isLoading: false, isError: false, refetch: vi.fn() };
+      return { appointment: MOCK_APPOINTMENT_GROUPED, isLoading: false, isError: false, refetch: mockRefetchDetail };
     }
-    return { appointment: MOCK_APPOINTMENT, isLoading: false, isError: false, refetch: vi.fn() };
+    if (id === 'apt-done') {
+      return { appointment: MOCK_APPOINTMENT_DONE, isLoading: false, isError: false, refetch: mockRefetchDetail };
+    }
+    if (id === 'apt-reviewed') {
+      return { appointment: MOCK_APPOINTMENT_REVIEWED, isLoading: false, isError: false, refetch: mockRefetchDetail };
+    }
+    return { appointment: MOCK_APPOINTMENT, isLoading: false, isError: false, refetch: mockRefetchDetail };
   },
 }));
 
@@ -214,6 +295,47 @@ describe('AppointmentFormDrawer', () => {
       .at(-1);
 
     expect((latestPropertyCall as unknown[] | undefined)?.[3]).toEqual({ branchId: 'branch-1' });
+  });
+
+  // Regression: an import-created property has `branch_id = NULL`, so the
+  // branch-scoped `/v1/properties` list can never contain it. The field is
+  // locked in edit mode, so with no matching option it rendered the
+  // "Select property" placeholder and the linked property became invisible.
+  it('renders the linked property, branch and service type in edit mode even when the scoped lists exclude them', () => {
+    mockUseFormOptions.mockImplementation((...args: unknown[]) => {
+      if (args[1] === '/v1/properties') {
+        return { options: [{ value: 'prop-other', label: 'SPS-003 - 5 Blue St' }], isLoading: false };
+      }
+      return { options: [], isLoading: false };
+    });
+
+    renderDrawer({ appointmentId: 'apt-01' });
+
+    expect(screen.getByLabelText('Property')).toHaveTextContent('5/24 Belgrave St, Kogarah NSW 2217');
+    expect(screen.getByLabelText('Branch')).toHaveTextContent('North Shore Office');
+    expect(screen.getByLabelText('Service Type')).toHaveTextContent('Routine Inspection');
+  });
+
+  it('does not duplicate the current option when the scoped list already contains it', () => {
+    mockUseFormOptions.mockImplementation((...args: unknown[]) => {
+      if (args[1] === '/v1/properties') {
+        return {
+          options: [
+            { value: 'prop-1', label: 'SPS-001 - Belgrave St' },
+            { value: 'prop-other', label: 'SPS-003 - 5 Blue St' },
+          ],
+          isLoading: false,
+        };
+      }
+      return { options: [], isLoading: false };
+    });
+
+    renderDrawer({ appointmentId: 'apt-01' });
+
+    // The list label wins over the appointment snapshot, and appears once.
+    const property = screen.getByLabelText('Property');
+    expect(property).toHaveTextContent('SPS-001 - Belgrave St');
+    expect(property).not.toHaveTextContent('Kogarah');
   });
 
   it('allows editing the time slot (free start/end range) in edit mode', () => {
@@ -332,14 +454,13 @@ describe('AppointmentFormDrawer', () => {
     );
   });
 
-  it('opens the property-creation page in a new tab pre-filled with agency and branch (create mode)', async () => {
+  it('opens the inline property drawer pre-filled with agency and locked branch (create mode)', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockUseFormOptions.mockImplementation(((_key: any, path: any) => {
       if (path === '/v1/tenants') return { options: [{ value: 'tenant-1', label: 'Agency One' }], isLoading: false };
       if (path === '/v1/branches') return { options: [{ value: 'branch-9', label: 'Branch Nine' }], isLoading: false };
       return { options: [], isLoading: false };
     }) as any);
-    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
 
     renderDrawer();
 
@@ -350,15 +471,93 @@ describe('AppointmentFormDrawer', () => {
 
     fireEvent.click(screen.getByText('Property not listed? Create one'));
 
-    expect(openSpy).toHaveBeenCalledTimes(1);
-    const url = String(openSpy.mock.calls[0]?.[0]);
-    const target = openSpy.mock.calls[0]?.[1];
-    expect(url).toContain('/properties/new?');
-    expect(url).toContain('tenantId=tenant-1');
-    expect(url).toContain('branchId=branch-9');
-    expect(target).toBe('_blank');
+    const drawer = screen.getByTestId('property-form-drawer');
+    expect(drawer).toHaveAttribute('data-tenant', 'tenant-1');
+    expect(drawer).toHaveAttribute('data-branch', 'branch-9');
+    expect(drawer).toHaveAttribute('data-locked', 'true');
+  });
 
-    openSpy.mockRestore();
+  it('auto-selects the created property and closes only the nested drawer on create success', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mockUseFormOptions.mockImplementation(((_key: any, path: any) => {
+      if (path === '/v1/tenants') return { options: [{ value: 'tenant-1', label: 'Agency One' }], isLoading: false };
+      if (path === '/v1/branches') return { options: [{ value: 'branch-9', label: 'Branch Nine' }], isLoading: false };
+      if (path === '/v1/properties') return { options: [{ value: 'prop-new', label: 'AG-PROP-0009 - New St' }], isLoading: false };
+      return { options: [], isLoading: false };
+    }) as any);
+
+    renderDrawer();
+
+    fireEvent.click(screen.getByLabelText('Agency'));
+    fireEvent.click(screen.getByText('Agency One'));
+    fireEvent.click(screen.getByLabelText('Branch'));
+    fireEvent.click(screen.getByText('Branch Nine'));
+
+    fireEvent.click(screen.getByText('Property not listed? Create one'));
+    fireEvent.click(screen.getByText('simulate-create'));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('property-form-drawer')).not.toBeInTheDocument();
+    });
+    // Appointment drawer is still open and now shows the created property.
+    expect(screen.getByText('New Appointment')).toBeInTheDocument();
+    expect(screen.getByText('AG-PROP-0009 - New St')).toBeInTheDocument();
+  });
+
+  it('Escape closes only the nested property drawer, not the appointment drawer', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mockUseFormOptions.mockImplementation(((_key: any, path: any) => {
+      if (path === '/v1/tenants') return { options: [{ value: 'tenant-1', label: 'Agency One' }], isLoading: false };
+      if (path === '/v1/branches') return { options: [{ value: 'branch-9', label: 'Branch Nine' }], isLoading: false };
+      return { options: [], isLoading: false };
+    }) as any);
+    const onClose = vi.fn();
+
+    renderDrawer({ onClose });
+
+    fireEvent.click(screen.getByLabelText('Agency'));
+    fireEvent.click(screen.getByText('Agency One'));
+    fireEvent.click(screen.getByLabelText('Branch'));
+    fireEvent.click(screen.getByText('Branch Nine'));
+    fireEvent.click(screen.getByText('Property not listed? Create one'));
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    // The nested drawer closes; the appointment drawer must neither close
+    // nor show its discard dialog.
+    await waitFor(() => {
+      expect(screen.queryByTestId('property-form-drawer')).not.toBeInTheDocument();
+    });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.queryByText('Discard changes?')).not.toBeInTheDocument();
+    expect(screen.getByText('New Appointment')).toBeInTheDocument();
+  });
+
+  it('backdrop-style close dismisses only the nested property drawer', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mockUseFormOptions.mockImplementation(((_key: any, path: any) => {
+      if (path === '/v1/tenants') return { options: [{ value: 'tenant-1', label: 'Agency One' }], isLoading: false };
+      if (path === '/v1/branches') return { options: [{ value: 'branch-9', label: 'Branch Nine' }], isLoading: false };
+      return { options: [], isLoading: false };
+    }) as any);
+    const onClose = vi.fn();
+
+    renderDrawer({ onClose });
+
+    fireEvent.click(screen.getByLabelText('Agency'));
+    fireEvent.click(screen.getByText('Agency One'));
+    fireEvent.click(screen.getByLabelText('Branch'));
+    fireEvent.click(screen.getByText('Branch Nine'));
+    fireEvent.click(screen.getByText('Property not listed? Create one'));
+
+    fireEvent.click(screen.getByText('simulate-close'));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('property-form-drawer')).not.toBeInTheDocument();
+    });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.queryByText('Discard changes?')).not.toBeInTheDocument();
+    expect(screen.getByText('New Appointment')).toBeInTheDocument();
   });
 
   it('does not render the create-property action in edit mode', () => {
@@ -431,5 +630,61 @@ describe('AppointmentFormDrawer', () => {
 
     expect(addBtn).not.toBeDisabled();
     expect(screen.queryByLabelText('Custom field 4 label')).not.toBeInTheDocument();
+  });
+
+  describe('Review (DONE cross-check)', () => {
+    it('shows the Review section with a Confirm Done button for AM/OP on a DONE, unchecked appointment', () => {
+      renderDrawer({ appointmentId: 'apt-done' });
+      expect(screen.getByText('Review')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Confirm Done/ })).toBeInTheDocument();
+      expect(screen.queryByTestId('reviewed-indicator')).not.toBeInTheDocument();
+    });
+
+    it('shows a read-only Reviewed indicator when already cross-checked', () => {
+      renderDrawer({ appointmentId: 'apt-reviewed' });
+      expect(screen.getByText('Review')).toBeInTheDocument();
+      expect(screen.getByTestId('reviewed-indicator')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Confirm Done/ })).not.toBeInTheDocument();
+    });
+
+    it('hides the Review section when the appointment is not DONE', () => {
+      renderDrawer({ appointmentId: 'apt-01' });
+      expect(screen.queryByText('Review')).not.toBeInTheDocument();
+    });
+
+    it('hides the Review section for non-privileged roles', () => {
+      mockUseAuth.mockReturnValue({
+        user: { id: 'cl-1', name: 'Client', email: 'cl@test.com', role: 'CL_ADMIN', tenantId: 't-1' },
+        token: 'mock-token', isAuthenticated: true, isLoading: false, login: vi.fn(), logout: vi.fn(),
+      });
+      renderDrawer({ appointmentId: 'apt-done' });
+      expect(screen.queryByText('Review')).not.toBeInTheDocument();
+    });
+
+    it('confirming triggers the cross-check endpoint and refreshes on success', async () => {
+      const onSaved = vi.fn();
+      renderDrawer({ appointmentId: 'apt-done', onSaved });
+
+      // Section button opens the confirm dialog.
+      fireEvent.click(screen.getByRole('button', { name: /Confirm Done/ }));
+
+      // Dialog + section each render a "Confirm Done" control — click the dialog's.
+      const confirmButtons = screen.getAllByRole('button', { name: /Confirm Done/ });
+      fireEvent.click(confirmButtons[confirmButtons.length - 1]!);
+
+      await waitFor(() => {
+        expect(mockPost).toHaveBeenCalledWith(
+          '/v1/appointments/apt-done/cross-check-done',
+          { body: {} },
+        );
+      });
+
+      // On success the drawer detail is refetched and the parent is notified,
+      // so the reviewed state propagates to both the drawer and the list.
+      await waitFor(() => {
+        expect(mockRefetchDetail).toHaveBeenCalled();
+        expect(onSaved).toHaveBeenCalled();
+      });
+    });
   });
 });

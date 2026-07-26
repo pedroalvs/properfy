@@ -10,10 +10,10 @@ export interface SanitizeResult {
  * Port for HTML sanitization with two stage-specific profiles.
  *
  * save profile  — validates that the body contains only allowlist-conformant HTML;
- *                 literal img tags and unsafe constructs (script, on-handlers, javascript: URLs) cause
- *                 rejection. Does NOT mutate the body.
- * render profile — permits trusted-host img tags (injected by the resolver), strips
- *                  non-host images and unsafe constructs. Mutates (sanitizes) the output.
+ *                 unsafe constructs (script, on-handlers, javascript: URLs, non-https
+ *                 image sources) cause rejection. Does NOT mutate the body.
+ * render profile — strips unsafe constructs, keeps https <img> tags.
+ *                  Mutates (sanitizes) the output.
  */
 export interface IHtmlSanitizerService {
   /**
@@ -25,8 +25,8 @@ export interface IHtmlSanitizerService {
 
   /**
    * Sanitizes the body using the render profile.
-   * Permits asset-host <img> tags, strips all unsafe constructs.
+   * Strips all unsafe constructs, keeps https <img> tags.
    * Returns the sanitized HTML string.
    */
-  sanitizeForRender(html: string, assetHostOrigin?: string): string;
+  sanitizeForRender(html: string): string;
 }

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useDetailQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/hooks/useAuth';
 import type { UserDetail, UserScope } from '../types';
@@ -23,8 +24,12 @@ export function useUserDetail(
     { enabled: !!id && (scope === 'internal' || !!tenantId) },
   );
 
+  // PR #961 bug class: UserFormDrawer's populate effect depends on this reference —
+  // keep any future payload transforms INSIDE this memo so it stays stable per fetch.
+  const user = useMemo(() => query.data?.data ?? null, [query.data?.data]);
+
   return {
-    user: query.data?.data ?? null,
+    user,
     isLoading: query.isLoading,
     isError: query.isError,
     refetch: query.refetch,

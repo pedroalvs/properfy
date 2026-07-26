@@ -1,4 +1,5 @@
 import { AppointmentStatusChip } from '@/features/appointments/components/AppointmentStatusChip';
+import { buildAddressLabel } from '@/lib/address';
 import { formatDate } from '@/lib/format-date';
 import { RENTAL_TENANT_CONFIRMATION_STATUS_MAP } from '@/lib/status-colors';
 import { useCountdown } from '../hooks/useCountdown';
@@ -8,43 +9,65 @@ interface AppointmentInfoCardProps {
   appointment: PortalAppointment;
   deadline?: string;
   onDeadlineExpire?: () => void;
+  /** Agency (tenant) display name. */
+  agencyName?: string | null;
+  /** PROPERTY_MANAGER contact display name. */
+  propertyManager?: string | null;
+  /** All RENTAL_TENANT contact names (primary first). */
+  rentalTenantNames?: string[];
 }
 
-export function AppointmentInfoCard({ appointment, deadline, onDeadlineExpire }: AppointmentInfoCardProps) {
+export function AppointmentInfoCard({
+  appointment,
+  deadline,
+  onDeadlineExpire,
+  agencyName,
+  propertyManager,
+  rentalTenantNames,
+}: AppointmentInfoCardProps) {
   const confirmationStyle =
     RENTAL_TENANT_CONFIRMATION_STATUS_MAP[appointment.rentalTenantConfirmationStatus];
   const countdown = useCountdown(deadline, onDeadlineExpire);
+  const names = rentalTenantNames?.length ? rentalTenantNames.join(' & ') : null;
 
   return (
-    <div className="rounded bg-card-bg p-6 shadow-sm">
-      <h2 className="mb-4 text-base font-bold text-secondary">
-        Appointment Details
-      </h2>
+    <section aria-label="Details">
+      <h2 className="mb-4 text-base font-extrabold text-text-primary">Details</h2>
 
-      <div className="space-y-3 text-sm">
-        <InfoRow label="Status">
-          <AppointmentStatusChip status={appointment.status} />
-        </InfoRow>
+      <dl className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+        {agencyName && <DetailItem label="Agency">{agencyName}</DetailItem>}
+        {propertyManager && <DetailItem label="Property manager">{propertyManager}</DetailItem>}
+        {appointment.property?.propertyCode && (
+          <DetailItem label="Code">{appointment.property.propertyCode}</DetailItem>
+        )}
+        {names && <DetailItem label="Name">{names}</DetailItem>}
 
         {appointment.property && (
-          <InfoRow label="Property Address">
-            {`${appointment.property.street}, ${appointment.property.suburb} ${appointment.property.state} ${appointment.property.postcode}`}
-          </InfoRow>
+          <DetailItem label="Property address">
+            {buildAddressLabel({
+              street: appointment.property.street,
+              suburb: appointment.property.suburb,
+              state: appointment.property.state,
+              postcode: appointment.property.postcode,
+            })}
+          </DetailItem>
         )}
 
         {appointment.serviceType?.name && (
-          <InfoRow label="Service Type">
-            {appointment.serviceType.name}
-          </InfoRow>
+          <DetailItem label="Service type">{appointment.serviceType.name}</DetailItem>
         )}
 
-        <InfoRow label="Scheduled Date">
-          {formatDate(appointment.scheduledDate)}
-        </InfoRow>
+        <DetailItem label="Scheduled date">{formatDate(appointment.scheduledDate)}</DetailItem>
 
-        <InfoRow label="Time Slot">{`${appointment.timeSlotStart} - ${appointment.timeSlotEnd}`}</InfoRow>
+        <DetailItem label="Time slot">
+          {`${appointment.timeSlotStart} – ${appointment.timeSlotEnd}`}
+        </DetailItem>
 
-        <InfoRow label="Confirmation">
+        <DetailItem label="Status">
+          <AppointmentStatusChip status={appointment.status} />
+        </DetailItem>
+
+        <DetailItem label="Confirmation">
           <span
             className="inline-block rounded px-2 py-0.5 text-xs font-semibold leading-5"
             style={{
@@ -54,34 +77,28 @@ export function AppointmentInfoCard({ appointment, deadline, onDeadlineExpire }:
           >
             {confirmationStyle.label}
           </span>
-        </InfoRow>
+        </DetailItem>
 
         {appointment.keyRequired && (
-          <InfoRow label="Key Required">
+          <DetailItem label="Key required">
             <span className="inline-flex items-center gap-1 text-warning">
               <i className="mdi mdi-key text-base" />
               Yes
             </span>
-          </InfoRow>
+          </DetailItem>
         )}
 
         {appointment.meetingLocation && (
-          <InfoRow label="Meeting Location">
-            {appointment.meetingLocation}
-          </InfoRow>
+          <DetailItem label="Meeting location">{appointment.meetingLocation}</DetailItem>
         )}
 
-        {appointment.notes && (
-          <InfoRow label="Notes">{appointment.notes}</InfoRow>
-        )}
-      </div>
+        {appointment.notes && <DetailItem label="Notes">{appointment.notes}</DetailItem>}
+      </dl>
 
       {deadline && countdown.isUrgent && !countdown.isExpired && (
         <div
           className={`mt-4 flex items-center gap-2 rounded px-3 py-2 text-sm font-semibold ${
-            countdown.isCritical
-              ? 'bg-error/10 text-error'
-              : 'bg-warning/10 text-warning'
+            countdown.isCritical ? 'bg-error/10 text-error' : 'bg-warning/10 text-warning'
           }`}
           role="status"
           aria-label="Countdown timer"
@@ -90,11 +107,11 @@ export function AppointmentInfoCard({ appointment, deadline, onDeadlineExpire }:
           {countdown.label}
         </div>
       )}
-    </div>
+    </section>
   );
 }
 
-function InfoRow({
+function DetailItem({
   label,
   children,
 }: {
@@ -102,10 +119,11 @@ function InfoRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4">
-      <span className="font-medium text-text-secondary">{label}</span>
-      <span className="text-right text-text-primary">{children}</span>
+    <div>
+      <dt className="text-[10px] font-extrabold uppercase tracking-wider text-text-muted">
+        {label}
+      </dt>
+      <dd className="mt-0.5 text-sm font-semibold text-text-primary">{children}</dd>
     </div>
   );
 }
-

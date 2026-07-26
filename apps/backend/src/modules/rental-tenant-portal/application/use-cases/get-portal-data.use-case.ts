@@ -39,7 +39,7 @@ export class GetPortalDataUseCase {
       throw new PortalAppointmentInactiveError();
     }
 
-    const { appointment, contact, restrictions } = result;
+    const { appointment, contact, contacts, restrictions } = result;
 
     // Fetch property details for the portal
     const property = appointment.propertyId
@@ -130,6 +130,11 @@ export class GetPortalDataUseCase {
           }
         : null,
       existingResponse,
+      rentalTenantNames: contacts
+        .filter((c) => c.role === 'RENTAL_TENANT')
+        .map((c) => c.effectiveName),
+      propertyManager:
+        contacts.find((c) => c.role === 'PROPERTY_MANAGER')?.effectiveName ?? null,
       rescheduleAllowed: serviceType?.flowType === 'ROUTINE',
       tenant: {
         name: tenant?.name ?? null,

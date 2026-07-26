@@ -13,6 +13,7 @@ function toOptionalFields(data: AppFormData) {
     appUrl: data.appUrl.trim() || null,
     instructionsUrl: data.instructionsUrl.trim() || null,
     instructionsPassword: data.instructionsPassword || null,
+    isDefault: data.isDefault,
   };
 }
 

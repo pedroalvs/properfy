@@ -174,7 +174,16 @@ export async function registerServiceGroupRoutes(
       schema: {
         params: z.object({ groupId: z.string().uuid() }),
         body: assignInspectorSchema,
-        response: { 200: successResponseSchema(serviceGroupResponseSchema) },
+        response: {
+          200: successResponseSchema(
+            z.object({
+              id: z.string().uuid(),
+              status: z.string(),
+              assignedInspectorId: z.string().uuid(),
+              appointmentsScheduled: z.number(),
+            }),
+          ),
+        },
       },
     },
     async (request, reply) => {

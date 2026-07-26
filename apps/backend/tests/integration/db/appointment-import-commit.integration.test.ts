@@ -21,6 +21,7 @@ import { PrismaAppointmentImportRepository } from '../../../src/modules/appointm
 import { PrismaAppointmentRepository } from '../../../src/modules/appointment/infrastructure/prisma-appointment.repository';
 import { PrismaPropertyRepository } from '../../../src/modules/property/infrastructure/prisma-property.repository';
 import { PrismaBranchRepository } from '../../../src/modules/tenant/infrastructure/prisma-branch.repository';
+import { PrismaTenantRepository } from '../../../src/modules/tenant/infrastructure/prisma-tenant.repository';
 import { PrismaServiceTypeRepository } from '../../../src/modules/service-type/infrastructure/prisma-service-type.repository';
 import { PrismaPricingRuleRepository } from '../../../src/modules/pricing-rule/infrastructure/prisma-pricing-rule.repository';
 import { PrismaContactRepository } from '../../../src/modules/contact/infrastructure/prisma-contact.repository';
@@ -60,7 +61,12 @@ const noopLogger: Logger = { info: () => {}, warn: () => {}, error: () => {}, de
 async function seedScenario() {
   const suffix = Math.random().toString(36).slice(2, 10);
   const tenant = await harness.prisma.tenant.create({
-    data: { name: `T-commit-${suffix}`, legal_name: `T-commit-${suffix} LLC`, status: 'ACTIVE' },
+    data: {
+      name: `T-commit-${suffix}`, legal_name: `T-commit-${suffix} LLC`, status: 'ACTIVE',
+      // Globally unique (VarChar(4)) — derived from the per-scenario suffix so
+      // two scenarios in this file never collide.
+      appointment_code_prefix: suffix.slice(0, 4).toUpperCase(),
+    },
   });
   const branch = await harness.prisma.branch.create({
     data: { tenant_id: tenant.id, name: 'Main', status: 'ACTIVE' },
@@ -84,15 +90,19 @@ async function seedScenario() {
       status: 'ACTIVE',
     },
   });
+  // Digits-only phone: the CSV round-trips through normalizePhoneAU, and the
+  // identity rule compares phones exactly — a letter-bearing suffix would
+  // normalize to a different string and break the "fully identical" match.
   const existingContact = await harness.prisma.contact.create({
     data: {
       type: 'RENTAL_TENANT', display_name: 'Existing Tenant',
-      primary_email: `existing-${suffix}@example.com`, primary_phone: `04${suffix.slice(0, 8).padEnd(8, '1')}`,
+      primary_email: `existing-${suffix}@example.com`,
+      primary_phone: `04${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
       additional_channels_json: [], is_active: true,
     },
   });
 
-  return { tenant, branch, user, serviceType, existingContact };
+  return { tenant, branch, user, serviceType, existingContact, codePrefix: suffix.slice(0, 4).toUpperCase() };
 }
 
 async function seedPreviewImport(tenantId: string, branchId: string, userId: string, storage: FakeStorageService, csv: string) {
@@ -129,7 +139,8 @@ function buildWorker(storage: FakeStorageService, jobQueue: FakeJobQueue) {
   );
 
   const worker = new AppointmentImportCommitWorker(
-    importRepo, storage, propertyRepo, resolver, createAppointmentUseCase, jobQueue, auditService, noopLogger,
+    importRepo, storage, propertyRepo, new PrismaTenantRepository(harness.prisma), resolver,
+    createAppointmentUseCase, jobQueue, auditService, noopLogger,
   );
   return { worker, importRepo, propertyRepo, contactRepo };
 }
@@ -148,7 +159,19 @@ afterAll(async () => {
 
 describe('AppointmentImportCommitWorker — real Postgres end-to-end', () => {
   it('creates exactly one property for two rows sharing a new address, prices the appointment via the real pricing rule, and reuses an existing contact', async () => {
-    const { tenant, branch, user, serviceType, existingContact } = await seedScenario();
+    const { tenant, branch, user, serviceType, existingContact, codePrefix } = await seedScenario();
+    // A competing agency that already owns numbered properties: the codes
+    // asserted below must still start at 0001, which only holds if the
+    // sequence is allocated per tenant rather than globally.
+    const other = await seedScenario();
+    await harness.prisma.property.createMany({
+      data: [1, 2, 3].map((n) => ({
+        tenant_id: other.tenant.id, branch_id: other.branch.id,
+        property_code: `${other.codePrefix}-PROP-000${n}`, property_number: n, type: 'HOUSE' as const,
+        street: `${n} Other Tenant Rd`, suburb: 'Newtown', postcode: '2042', state: 'NSW', country: 'AU',
+      })),
+    });
+
     const storage = new FakeStorageService();
     const jobQueue = new FakeJobQueue();
 
@@ -196,10 +219,60 @@ describe('AppointmentImportCommitWorker — real Postgres end-to-end', () => {
     const junction = await harness.prisma.appointmentContact.findFirst({ where: { appointment_id: existingRowAppointment.id } });
     expect(junction!.contact_id).toBe(existingContact.id);
 
+    // Every created property lands on the batch's branch — the column the
+    // branch-scoped `/v1/properties` query filters on. Asserted against the
+    // real row, since this is exactly what a mocked repository cannot prove.
+    for (const p of allProperties) {
+      expect(p.branch_id).toBe(branch.id);
+    }
+
+    // …and carries the same sequential code scheme as any other property,
+    // numbered per tenant: this agency starts at 0001 under its own prefix even
+    // though the other agency already holds 0001-0003.
+    const codes = allProperties.map((p) => p.property_code).sort();
+    expect(codes).toEqual([`${codePrefix}-PROP-0001`, `${codePrefix}-PROP-0002`]);
+    expect(allProperties.map((p) => p.property_number).sort()).toEqual([1, 2]);
+    const otherProperties = await harness.prisma.property.findMany({ where: { tenant_id: other.tenant.id } });
+    expect(otherProperties).toHaveLength(3); // untouched by this tenant's import
+
     // Async geocode enqueued for each newly created property (not a synchronous Mapbox call).
     const geocodeJobs = jobQueue.enqueued.filter((j) => j.jobName === 'property.geocode');
     expect(geocodeJobs).toHaveLength(2);
 
     void contactRepo; // referenced for type-completeness of destructure
+  });
+
+  it('keeps the sheet data as an unlinked snapshot when a row shares an existing contact email but the name differs', async () => {
+    const { tenant, branch, user, serviceType, existingContact } = await seedScenario();
+    const storage = new FakeStorageService();
+    const jobQueue = new FakeJobQueue();
+
+    const csv = [
+      'Type,Date,Start Time,End Time,Street,Suburb,State,Postcode,Tenant name,Tenant mail,Tenant phone',
+      `${serviceType.name},2027-06-20,09:00,10:00,5 Mismatch St,Carlton,NSW,2218,Completely Different Person,${existingContact.primary_email},0400999888`,
+    ].join('\n');
+
+    const { importId, importRepo } = await seedPreviewImport(tenant.id, branch.id, user.id, storage, csv);
+    const { worker } = buildWorker(storage, jobQueue);
+
+    await worker.execute({ importId, actor: actor(tenant.id, user.id) });
+
+    const finalRecord = await importRepo.findById(importId, tenant.id);
+    expect(finalRecord!.status).toBe('COMPLETED');
+    expect(finalRecord!.successCount).toBe(1);
+    expect(finalRecord!.errorCount).toBe(0);
+
+    // No duplicate registry row for the colliding email (the real global
+    // partial unique index would have rejected it as a 500 anyway).
+    const contactsWithThatEmail = await harness.prisma.contact.findMany({ where: { primary_email: existingContact.primary_email } });
+    expect(contactsWithThatEmail).toHaveLength(1);
+
+    // The appointment shows the SHEET data, unlinked from the registry row.
+    const appointment = await harness.prisma.appointment.findFirst({ where: { tenant_id: tenant.id } });
+    const junction = await harness.prisma.appointmentContact.findFirst({ where: { appointment_id: appointment!.id } });
+    expect(junction!.contact_id).toBeNull();
+    expect(junction!.snapshot_name).toBe('Completely Different Person');
+    expect(junction!.snapshot_email).toBe(existingContact.primary_email);
+    expect(junction!.snapshot_phone).toBe('0400999888');
   });
 });

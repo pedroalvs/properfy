@@ -12,6 +12,12 @@ Ele complementa os arquivos `CLAUDE.md` existentes na raiz e nos workspaces. Em 
 
 Use `projeto-consolidado/` como fonte consolidada de produto, escopo, regras de negócio e contexto histórico. Use o código atual como fonte de verdade do estado implementado.
 
+Para o escopo contratado com o cliente e o backlog aprovado de gaps, use:
+
+- `Escopo Completo Properfy - CLIENTE.md` — escopo contratual (feature list do cliente)
+- `escopo-cliente-gap-audit.md` — auditoria item a item do escopo vs implementação
+- `escopo-pendencias-execucao.md` — backlog aprovado, em ordem de execução; os itens listados lá (incl. Kanban board, formulário de satisfação, ações de status pela imobiliária) estão DENTRO do escopo e não devem ser rejeitados como "fora de escopo" em análises futuras
+
 ## 1. Papel do agente
 
 Você é um agente técnico principal do projeto.

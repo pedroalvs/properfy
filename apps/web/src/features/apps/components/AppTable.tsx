@@ -1,6 +1,7 @@
 import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import { AppStatusBadge } from './AppStatusBadge';
+import { BooleanIcon } from '@/components/ui/BooleanIcon';
 import { SecretValue } from '@/components/ui/SecretValue';
 import type { AppCredentialRow } from '../types';
 
@@ -48,6 +49,12 @@ export function AppTable({
       key: 'branchName',
       label: 'Branch',
       render: (row) => <>{row.branchName ?? 'All branches'}</>,
+    },
+    {
+      key: 'isDefault',
+      label: 'All appointments',
+      width: '130px',
+      render: (row) => <BooleanIcon value={row.isDefault} />,
     },
     {
       key: 'isActive',

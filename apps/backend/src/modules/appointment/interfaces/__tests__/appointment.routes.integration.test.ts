@@ -19,6 +19,7 @@ const APPT_ID = 'aaaaaaaa-0000-4000-8000-aaaaaaaaaaaa';
 const TENANT_ID = 'bbbbbbbb-0000-4000-8000-bbbbbbbbbbbb';
 
 const mockGetAppointmentExecute = vi.fn();
+const mockBulkCrossCheckDoneExecute = vi.fn();
 const mockJwtVerify = vi.fn();
 
 vi.mock('../../../../main/container', () => ({
@@ -38,6 +39,7 @@ vi.mock('../../../../main/container', () => ({
       getImportStatusUseCase: { execute: vi.fn() },
       deleteAppointmentUseCase: { execute: vi.fn() },
       bulkEditAppointmentsUseCase: { execute: vi.fn() },
+      bulkCrossCheckDoneUseCase: { execute: mockBulkCrossCheckDoneExecute },
       bulkResendReminderUseCase: { execute: vi.fn() },
       bulkCancelAppointmentsUseCase: { execute: vi.fn() },
       bulkRescheduleAppointmentsUseCase: { execute: vi.fn() },
@@ -213,5 +215,52 @@ describe('GET /v1/appointments/:appointmentId — hasActivePortalToken field con
     expect(res.body.data).toHaveProperty('hasActivePortalToken');
     expect(typeof res.body.data.hasActivePortalToken).toBe('boolean');
     expect(res.body.data.hasActivePortalToken).toBe(false);
+  });
+});
+
+describe('POST /v1/appointments/bulk-cross-check-done', () => {
+  const ID_A = 'aaaaaaaa-2222-4000-8000-aaaaaaaaaaaa';
+  const ID_B = 'bbbbbbbb-2222-4000-8000-bbbbbbbbbbbb';
+
+  it('returns 200 with the {updated, failed} envelope for AM/OP', async () => {
+    mockBulkCrossCheckDoneExecute.mockResolvedValue({
+      updated: 1,
+      failed: [{ id: ID_B, code: 'APPOINTMENT_DONE_CROSS_CHECK_INVALID_STATUS', message: 'not DONE' }],
+    });
+
+    const res = await supertest(app.server)
+      .post('/v1/appointments/bulk-cross-check-done')
+      .set('Authorization', 'Bearer token')
+      .send({ ids: [ID_A, ID_B] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.updated).toBe(1);
+    expect(res.body.data.failed).toHaveLength(1);
+    expect(res.body.data.failed[0].code).toBe('APPOINTMENT_DONE_CROSS_CHECK_INVALID_STATUS');
+    expect(mockBulkCrossCheckDoneExecute).toHaveBeenCalledWith(
+      expect.objectContaining({ ids: [ID_A, ID_B] }),
+    );
+  });
+
+  it('returns 403 for non-AM/OP actors and never invokes the use case', async () => {
+    mockJwtVerify.mockResolvedValue({ ...opActor, role: 'CL_ADMIN', tenantId: TENANT_ID });
+
+    const res = await supertest(app.server)
+      .post('/v1/appointments/bulk-cross-check-done')
+      .set('Authorization', 'Bearer token')
+      .send({ ids: [ID_A] });
+
+    expect(res.status).toBe(403);
+    expect(mockBulkCrossCheckDoneExecute).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 when ids is empty', async () => {
+    const res = await supertest(app.server)
+      .post('/v1/appointments/bulk-cross-check-done')
+      .set('Authorization', 'Bearer token')
+      .send({ ids: [] });
+
+    expect(res.status).toBe(400);
+    expect(mockBulkCrossCheckDoneExecute).not.toHaveBeenCalled();
   });
 });

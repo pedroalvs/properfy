@@ -40,7 +40,8 @@ function makeCred(overrides: Record<string, unknown> = {}) {
   return {
     id: CRED_ID, tenantId: TENANT_A, branchId: null, name: 'Airbnb', username: 'host', password: 'secret',
     needsAuthCode: false, authCode: null, appUrl: null, instructionsUrl: null, instructionsPassword: null,
-    isActive: true, createdAt: new Date('2026-01-01T00:00:00.000Z'), updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    isActive: true, isDefault: false,
+    createdAt: new Date('2026-01-01T00:00:00.000Z'), updatedAt: new Date('2026-01-01T00:00:00.000Z'),
     ...overrides,
   };
 }
@@ -125,7 +126,7 @@ describe('POST /v1/app-credentials', () => {
     mockCreate.mockResolvedValueOnce(makeCred({
       branchId, needsAuthCode: true, authCode: '123456',
       appUrl: 'https://example.com/app', instructionsUrl: 'https://example.com/docs',
-      instructionsPassword: 'doc-pass',
+      instructionsPassword: 'doc-pass', isDefault: true,
     }));
     const res = await supertest(app.server)
       .post('/v1/app-credentials')
@@ -134,11 +135,12 @@ describe('POST /v1/app-credentials', () => {
         tenantId: TENANT_A, branchId, name: 'Airbnb', username: 'host', password: 'secret',
         needsAuthCode: true, authCode: '123456',
         appUrl: 'https://example.com/app', instructionsUrl: 'https://example.com/docs',
-        instructionsPassword: 'doc-pass',
+        instructionsPassword: 'doc-pass', isDefault: true,
       })
       .expect(201);
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ isDefault: true }));
     expect(res.body.data).toMatchObject({
-      branchId, needsAuthCode: true, authCode: '123456',
+      branchId, needsAuthCode: true, authCode: '123456', isDefault: true,
       appUrl: 'https://example.com/app', instructionsUrl: 'https://example.com/docs',
       instructionsPassword: 'doc-pass',
     });

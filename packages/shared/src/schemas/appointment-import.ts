@@ -32,12 +32,18 @@ export type {
  * How the row's single contact will be handled at commit. `additionalChannels`
  * are only ever persisted when `resolution === 'new'` — `CreateAppointmentUseCase`
  * only applies inline `additionalChannels` on the new-contact branch. When
- * `resolution === 'existing'` and the sheet had extra channels to offer,
+ * the sheet had extra channels to offer on any other resolution,
  * `channelsDropped` is true and the preview must surface that as a warning
  * (see role-matrix note + the plan's decision on contact matching).
+ *
+ * `existing` — the row is fully identical (name + email + phone) to an active
+ * registry contact, which will be linked. `snapshot-only` — the row collides
+ * with a registry contact on email or phone but the data differs; the
+ * appointment keeps the sheet data as its snapshot with no registry link
+ * (`contactId` stays null), surfaced via `CONTACT_MISMATCH_SNAPSHOT_ONLY`.
  */
 export const importContactPlanSchema = z.object({
-  resolution: z.enum(['existing', 'new']),
+  resolution: z.enum(['existing', 'new', 'snapshot-only']),
   contactId: z.string().uuid().nullable(),
   displayName: z.string(),
   primaryEmail: z.string().nullable(),

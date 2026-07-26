@@ -21,7 +21,7 @@ export interface AppointmentFilters {
   searchAppointmentNumber?: number;
   fromDate?: string;
   toDate?: string;
-  rentalTenantConfirmationStatus?: string;
+  rentalTenantConfirmationStatus?: string[];
   showCancelled?: boolean;
   overdueOnly?: boolean;
   ungroupedOnly?: boolean;

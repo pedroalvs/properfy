@@ -21,7 +21,6 @@ const LoginPage = Loadable(lazyRetry(() => import('@/features/auth/pages/LoginPa
 const ForgotPasswordPage = Loadable(lazyRetry(() => import('@/features/auth/pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage }))));
 const ResetPasswordPage = Loadable(lazyRetry(() => import('@/features/auth/pages/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage }))));
 const AppointmentListPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentListPage').then(m => ({ default: m.AppointmentListPage }))));
-const AppointmentCreatePage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentCreatePage').then(m => ({ default: m.AppointmentCreatePage }))));
 const AppointmentDetailPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentDetailPage').then(m => ({ default: m.AppointmentDetailPage }))));
 const AppointmentImportPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentImportPage').then(m => ({ default: m.AppointmentImportPage }))));
 const PropertyListPage = Loadable(lazyRetry(() => import('@/features/properties/pages/PropertyListPage').then(m => ({ default: m.PropertyListPage }))));
@@ -142,12 +141,10 @@ export const router = createBrowserRouter([
             element: <Navigate to="/appointments" replace />,
           },
           {
+            // Creating an appointment happens in the list's drawer — the single
+            // implementation of the form. This deep link only opens it.
             path: 'appointments/new',
-            element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN]}>
-                <AppointmentCreatePage />
-              </AuthGuard>
-            ),
+            element: <Navigate to="/appointments?new=1" replace />,
           },
           {
             path: 'appointments/import',

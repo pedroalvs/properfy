@@ -95,4 +95,20 @@ describe('useInspectorList', () => {
     expect(result.current.isError).toBe(true);
     expect(result.current.data).toHaveLength(0);
   });
+
+  it('keeps a stable data array reference across re-renders with unchanged data', async () => {
+    // Regression guard for the PR #961 bug class: an unstable reference here
+    // can feed a consumer effect (e.g. deps [isEditMode, entity]) whose
+    // setState calls re-render into an infinite loop that starves router
+    // updates — URL changes but the screen never swaps.
+    const wrapper = createRouterQueryWrapper();
+    const { result, rerender } = renderHook(() => useInspectorList(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const first = result.current.data;
+    expect(first).not.toBeNull();
+    rerender();
+    expect(result.current.data).toBe(first);
+  });
 });

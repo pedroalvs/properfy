@@ -83,20 +83,10 @@ export interface IContactRepository {
   existsByEmail(tenantId: string | null, email: string, excludeContactId?: string): Promise<boolean>;
   existsByPhone(tenantId: string | null, phone: string, excludeContactId?: string): Promise<boolean>;
   /**
-   * Find the first active contact (globally) that matches the given email or
-   * phone. Used by the appointment inline-contact path to reuse an existing
-   * registry row instead of hitting the global partial unique indexes.
-   */
-  findActiveByEmailOrPhone(
-    tenantId: string | null,
-    email: string | null,
-    phone: string | null,
-  ): Promise<ContactEntity | null>;
-  /**
-   * Batched counterpart of `findActiveByEmailOrPhone` — one query matching
-   * many emails/phones at once instead of one round-trip per candidate, for
-   * callers (e.g. the appointment-import row resolver) matching hundreds/
-   * thousands of rows against the registry in a single pass.
+   * All active contacts (globally) matching any of the given emails/phones in
+   * one query. Callers (appointment inline-contact paths, the
+   * appointment-import row resolver) decide reuse per candidate via
+   * `isIdenticalContact` — a partial channel match must never silently link.
    */
   findManyActiveByEmailsOrPhones(emails: string[], phones: string[]): Promise<ContactEntity[]>;
   /**

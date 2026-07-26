@@ -60,8 +60,16 @@ function ContactBadge({ contact }: { contact: ResolvedImportRow['contact'] }) {
   return (
     <div className="space-y-1">
       <StatusChip
-        label={contact.resolution === 'existing' ? 'Existing contact' : 'New contact'}
-        bg={contact.resolution === 'existing' ? 'var(--color-info)' : 'var(--color-accent)'}
+        label={
+          contact.resolution === 'existing' ? 'Existing contact'
+            : contact.resolution === 'snapshot-only' ? 'Sheet data'
+            : 'New contact'
+        }
+        bg={
+          contact.resolution === 'existing' ? 'var(--color-info)'
+            : contact.resolution === 'snapshot-only' ? 'var(--color-warning)'
+            : 'var(--color-accent)'
+        }
         text="#fff"
       />
       <p className="text-xs text-text-secondary">{contact.displayName}</p>

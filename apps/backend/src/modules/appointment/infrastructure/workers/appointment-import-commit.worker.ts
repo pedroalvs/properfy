@@ -1,10 +1,12 @@
-import { Prisma } from '@prisma/client';
 import { PLATFORM_TIMEZONE } from '@properfy/shared';
 import type { AuthContext, GeocodeVerification, ResolvedImportRow } from '@properfy/shared';
 import type { IAppointmentImportRepository } from '../../domain/appointment-import.repository';
 import type { IReportStorageService } from '../../../report/domain/report-storage.service';
 import type { IPropertyRepository } from '../../../property/domain/property.repository';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import { PropertyEntity } from '../../../property/domain/property.entity';
+import { PropertyCodeFormatter } from '../../../property/domain/property-code.formatter';
+import { PropertyAddressConflictError, PropertyCodeConflictError } from '../../../property/domain/property.errors';
 import type { AppointmentImportRowResolver } from '../../application/services/appointment-import-row-resolver';
 import type { CreateAppointmentUseCase } from '../../application/use-cases/create-appointment.use-case';
 import type { IJobQueue } from '../../../../shared/domain/job-queue';
@@ -33,11 +35,16 @@ export interface AppointmentImportCommitJobData {
  * property (if needed) and calls `CreateAppointmentUseCase`. One row's
  * failure never aborts the batch.
  */
+/** Mirrors CreatePropertyUseCase: a concurrent create can win the sequential
+ *  number between `nextPropertyNumber()` and the insert. */
+const MAX_CODE_GENERATION_ATTEMPTS = 3;
+
 export class AppointmentImportCommitWorker {
   constructor(
     private readonly importRepo: IAppointmentImportRepository,
     private readonly storageService: IReportStorageService,
     private readonly propertyRepo: IPropertyRepository,
+    private readonly tenantRepo: ITenantRepository,
     private readonly resolver: AppointmentImportRowResolver,
     private readonly createAppointmentUseCase: CreateAppointmentUseCase,
     private readonly jobQueue: IJobQueue,
@@ -96,9 +103,15 @@ export class AppointmentImportCommitWorker {
       const createdPropertyIds = new Map<string, string>();
       const results: ImportRowResult[] = [];
 
+      // Property codes are `<PREFIX>-PROP-NNNN` like every other property; the
+      // tenant prefix is a per-batch constant, so it is read once here rather
+      // than once per created row.
+      const tenant = await this.tenantRepo.findById(importRecord.tenantId);
+      const codePrefix = tenant?.appointmentCodePrefix ?? null;
+
       for (const row of rows) {
         const prior = priorByRow.get(row.rowNumber);
-        const result = prior ?? await this.processRow(row, importRecord.tenantId, importRecord.branchId, importId, actor, tz, createdPropertyIds, geocodeCache);
+        const result = prior ?? await this.processRow(row, importRecord.tenantId, importRecord.branchId, codePrefix, importId, actor, tz, createdPropertyIds, geocodeCache);
         results.push(result);
         // successCount/errorCount/totalRows are updated on every row, not
         // just at the end — the frontend's progress bar derives
@@ -152,6 +165,7 @@ export class AppointmentImportCommitWorker {
     row: ResolvedImportRow,
     tenantId: string,
     branchId: string,
+    codePrefix: string | null,
     importId: string,
     actor: AuthContext,
     tz: string,
@@ -164,7 +178,7 @@ export class AppointmentImportCommitWorker {
     }
 
     try {
-      const propertyId = await this.resolveOrCreateProperty(row, tenantId, createdPropertyIds, geocodeCache);
+      const propertyId = await this.resolveOrCreateProperty(row, tenantId, branchId, codePrefix, createdPropertyIds, geocodeCache);
 
       // A contact is not required to import (CONTACT_INCOMPLETE is a
       // warning, not an error) — `contacts` defaults to `[]` in
@@ -231,11 +245,15 @@ export class AppointmentImportCommitWorker {
   private async resolveOrCreateProperty(
     row: ResolvedImportRow,
     tenantId: string,
+    branchId: string,
+    codePrefix: string | null,
     createdPropertyIds: Map<string, string>,
     geocodeCache: Map<string, GeocodeVerification>,
   ): Promise<string> {
     const plan = row.property!;
     if (plan.resolution === 'existing') {
+      // A property matched by address is never edited here — it may legitimately
+      // belong to another branch, and the operator did not ask to move it.
       return plan.propertyId!;
     }
 
@@ -254,11 +272,16 @@ export class AppointmentImportCommitWorker {
     const geocodingStatus = found ? 'SUCCESS' : verification?.status === 'not_found' ? 'FAILED' : 'PENDING';
 
     const now = new Date();
-    const property = new PropertyEntity({
+    const buildProperty = (propertyNumber: number) => new PropertyEntity({
       id: crypto.randomUUID(),
       tenantId,
-      branchId: null,
-      propertyCode: `IMP-${crypto.randomUUID().replace(/-/g, '').slice(0, 10).toUpperCase()}`,
+      // The batch's branch — operator-selected and already validated (exists,
+      // ACTIVE, belongs to this tenant) at preview. Without it the property is
+      // excluded from every branch-filtered picker, including the one used to
+      // create the next appointment for this very branch.
+      branchId,
+      propertyCode: PropertyCodeFormatter.formatParts(propertyNumber, codePrefix),
+      propertyNumber,
       type: plan.apartmentNumber ? 'APARTMENT' : 'HOUSE',
       street: addr.street,
       addressLine2: addr.addressLine2,
@@ -277,30 +300,36 @@ export class AppointmentImportCommitWorker {
       deletedAt: null,
     });
 
-    try {
-      await this.propertyRepo.save(property);
-      if (property.geocodingStatus === 'PENDING') {
-        await this.jobQueue.enqueue('property.geocode', { propertyId: property.id });
-      }
-      createdPropertyIds.set(key, property.id);
-      return property.id;
-    } catch (err) {
-      // A genuine concurrent duplicate — another process (or a retried job)
-      // created a matching address between this batch's resolve() and now.
-      // Any other error (e.g. the near-impossible property_code collision)
-      // is left to fail the row via the outer try/catch.
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-        const target = err.meta?.['target'];
-        const isAddressConflict = Array.isArray(target) && target.includes('normalized_address_key');
-        if (isAddressConflict) {
+    // The repository translates every P2002 into a domain conflict error
+    // (see `rethrowPropertyConflict`), so both cases below are matched on the
+    // domain error — never on the raw Prisma one, which never escapes `save`.
+    for (let attempt = 1; attempt <= MAX_CODE_GENERATION_ATTEMPTS; attempt++) {
+      const property = buildProperty(await this.propertyRepo.nextPropertyNumber(tenantId));
+      try {
+        await this.propertyRepo.save(property);
+        if (property.geocodingStatus === 'PENDING') {
+          await this.jobQueue.enqueue('property.geocode', { propertyId: property.id });
+        }
+        createdPropertyIds.set(key, property.id);
+        return property.id;
+      } catch (err) {
+        // A concurrent create won the sequential number — take the next one.
+        if (err instanceof PropertyCodeConflictError && attempt < MAX_CODE_GENERATION_ATTEMPTS) {
+          this.logger.warn({ tenantId, attempt }, 'import.property_code_conflict_retrying');
+          continue;
+        }
+        // A genuine concurrent duplicate — another process (or a retried job)
+        // created a matching address between this batch's resolve() and now.
+        if (err instanceof PropertyAddressConflictError) {
           const existing = await this.propertyRepo.findByNormalizedAddress(tenantId, addr);
           if (existing) {
             createdPropertyIds.set(key, existing.id);
             return existing.id;
           }
         }
+        throw err;
       }
-      throw err;
     }
+    throw new PropertyCodeConflictError();
   }
 }

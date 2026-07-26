@@ -1,5 +1,4 @@
 import type { AuthContext, NotificationChannel, NotificationClass } from '@properfy/shared';
-import { extractImagePlaceholderKeys } from '@properfy/shared';
 import { ValidationError, UnprocessableEntityError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
@@ -7,8 +6,6 @@ import type { INotificationTemplateRepository } from '../../domain/notification-
 import type { TemplateRendererService } from '../../domain/template-renderer.service';
 import type { IHtmlSanitizerService } from '../../domain/html-sanitizer.service';
 import type { IHtmlToTextService } from '../../domain/html-to-text.service';
-import type { IEmailAssetRepository } from '../../domain/email-asset.repository';
-import type { ITemplateImageBindingRepository } from '../../domain/template-image-binding.repository';
 import { ProtectedTemplateClassificationError } from '../../domain/notification.errors';
 import {
   MANDATORY_TEMPLATE_CODES,
@@ -28,7 +25,6 @@ export interface UpsertNotificationTemplateInput {
   notificationClass?: NotificationClass;
   actor: AuthContext;
   tenantId?: string;
-  imageBindings?: Array<{ placeholderKey: string; altText?: string; width?: number; height?: number }>;
 }
 
 export interface UpsertNotificationTemplateOutput {
@@ -39,7 +35,6 @@ export interface UpsertNotificationTemplateOutput {
   subject: string | null;
   bodyHtml: string;
   bodyText: string;
-  imageBindings: Array<{ id: string; placeholderKey: string; assetId: string; publicUrl: string; altText: string | null; width: number | null; height: number | null }>;
   isActive: boolean;
   notificationClass: NotificationClass;
   createdAt: string;
@@ -54,8 +49,6 @@ export class UpsertNotificationTemplateUseCase {
     private readonly authorizationService: AuthorizationService,
     private readonly htmlSanitizer?: IHtmlSanitizerService,
     private readonly htmlToText?: IHtmlToTextService,
-    private readonly emailAssetRepo?: IEmailAssetRepository,
-    private readonly imageBindingRepo?: ITemplateImageBindingRepository,
   ) {}
 
   async execute(input: UpsertNotificationTemplateInput): Promise<UpsertNotificationTemplateOutput> {
@@ -111,47 +104,13 @@ export class UpsertNotificationTemplateUseCase {
       }
     }
 
-    // 7. Validate {{image:key}} placeholders — reject unknown keys
-    const imagePlaceholderKeys = extractImagePlaceholderKeys(input.bodyHtml);
-    if (imagePlaceholderKeys.length > 0) {
-      if (!this.emailAssetRepo) {
-        // No asset repo available (US2 not yet wired) — reject any image placeholders
-        throw new ValidationError(
-          `Unknown image placeholder keys: ${imagePlaceholderKeys.join(', ')}`,
-          imagePlaceholderKeys.map((k) => ({
-            code: 'custom' as const,
-            message: `Unknown image key: ${k}`,
-            path: ['bodyHtml'],
-          })),
-        );
-      }
-      // Validate each key against the asset repository
-      const unknownKeys: string[] = [];
-      for (const key of imagePlaceholderKeys) {
-        const asset = await this.emailAssetRepo.findByPlaceholderKey(tenantId, key);
-        if (!asset || asset.status !== 'VERIFIED') {
-          unknownKeys.push(key);
-        }
-      }
-      if (unknownKeys.length > 0) {
-        throw new ValidationError(
-          `Unknown image placeholder keys: ${unknownKeys.join(', ')}`,
-          unknownKeys.map((k) => ({
-            code: 'custom' as const,
-            message: `Unknown or unverified image key: ${k}`,
-            path: ['bodyHtml'],
-          })),
-        );
-      }
-    }
-
-    // 8. Derive bodyText from HTML (EMAIL channel)
+    // 7. Derive bodyText from HTML (EMAIL channel)
     const bodyText =
       input.channel.toUpperCase() === 'EMAIL' && this.htmlToText
         ? this.htmlToText.convert(input.bodyHtml)
         : input.bodyHtml;
 
-    // 9. Extract Handlebars variables (from bodyHtml + subject)
+    // 8. Extract Handlebars variables (from bodyHtml + subject)
     const allVariables = new Set<string>();
     for (const variable of this.templateRenderer.extractVariables(input.bodyHtml)) {
       allVariables.add(variable);
@@ -163,14 +122,14 @@ export class UpsertNotificationTemplateUseCase {
     }
     const variablesJson = [...allVariables];
 
-    // 10. Load existing template for audit before-state
+    // 9. Load existing template for audit before-state
     const existing = await this.templateRepo.findByTenantCodeChannel(
       tenantId,
       input.templateCode,
       input.channel as NotificationChannel,
     );
 
-    // 11. Build entity
+    // 10. Build entity
     const now = new Date();
     const template = new NotificationTemplateEntity({
       id: existing?.id ?? crypto.randomUUID(),
@@ -189,39 +148,7 @@ export class UpsertNotificationTemplateUseCase {
 
     await this.templateRepo.upsert(template);
 
-    // 12. Reconcile image bindings (upsert/remove per placeholder keys)
-    const reconciledBindings: Array<{ id: string; placeholderKey: string; assetId: string; publicUrl: string; altText: string | null; width: number | null; height: number | null }> = [];
-    if (imagePlaceholderKeys.length > 0 && this.emailAssetRepo && this.imageBindingRepo) {
-      const inputBindingsByKey = new Map(
-        (input.imageBindings ?? []).map((b) => [b.placeholderKey, b]),
-      );
-      for (const key of imagePlaceholderKeys) {
-        const asset = await this.emailAssetRepo.findByPlaceholderKey(tenantId, key);
-        if (!asset) continue;
-        const meta = inputBindingsByKey.get(key);
-        const binding = await this.imageBindingRepo.upsert({
-          templateId: template.id,
-          assetId: asset.id,
-          placeholderKey: key,
-          altText: meta?.altText ?? asset.placeholderKey,
-          width: meta?.width ?? asset.width,
-          height: meta?.height ?? asset.height,
-        });
-        reconciledBindings.push({
-          id: binding.id, placeholderKey: binding.placeholderKey, assetId: binding.assetId,
-          publicUrl: asset.publicUrl, altText: binding.altText, width: binding.width, height: binding.height,
-        });
-      }
-      // Remove stale bindings no longer referenced
-      const existingBindings = await this.imageBindingRepo.findByTemplate(template.id);
-      for (const b of existingBindings) {
-        if (!imagePlaceholderKeys.includes(b.placeholderKey)) {
-          await this.imageBindingRepo.deleteByTemplateAndKey(template.id, b.placeholderKey);
-        }
-      }
-    }
-
-    // 13. Audit with before/after body (FR-011)
+    // 11. Audit with before/after body (FR-011)
     this.auditService.log({
       action: 'NOTIFICATION_TEMPLATE_UPSERTED',
       actorType: 'USER',
@@ -248,7 +175,6 @@ export class UpsertNotificationTemplateUseCase {
       subject: template.subject,
       bodyHtml: template.bodyHtml ?? '',
       bodyText: template.bodyText,
-      imageBindings: reconciledBindings,
       isActive: template.active,
       notificationClass: template.notificationClass,
       createdAt: template.createdAt.toISOString(),

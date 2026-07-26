@@ -117,6 +117,22 @@ describe('ListAppointmentsUseCase', () => {
     );
   });
 
+  it('should forward a multi-value rentalTenantConfirmationStatus filter to the repository', async () => {
+    vi.mocked(appointmentRepo.findAll).mockResolvedValue([makeAppointmentListItem()]);
+    vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+
+    await useCase.execute({
+      filters: { rentalTenantConfirmationStatus: ['PENDING', 'NO_RESPONSE'] },
+      pagination: defaultPagination,
+      actor: makeActor({ role: 'OP' }),
+    });
+
+    expect(appointmentRepo.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ rentalTenantConfirmationStatus: ['PENDING', 'NO_RESPONSE'] }),
+      defaultPagination,
+    );
+  });
+
   it('should return all appointments for AM without tenantId filter', async () => {
     vi.mocked(appointmentRepo.findAll).mockResolvedValue([makeAppointmentListItem()]);
     vi.mocked(appointmentRepo.count).mockResolvedValue(1);

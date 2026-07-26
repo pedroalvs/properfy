@@ -154,6 +154,30 @@ describe('ContactListPage — Agency selector visibility (Constitution v1.3.0 �
   });
 });
 
+describe('ContactListPage — row open-detail link', () => {
+  it('Open detail is a same-tab link to the contact detail page', async () => {
+    setUser('CL_ADMIN', TENANT_A);
+    mockGet.mockResolvedValue({
+      data: {
+        data: [{
+          id: 'contact-1',
+          displayName: 'Jane Owner',
+          type: 'OWNER',
+          primaryEmail: 'jane@example.com',
+          primaryPhone: null,
+          propertyCount: 0,
+          isActive: true,
+        }],
+        pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1 },
+      },
+    });
+    renderPage();
+    const link = await screen.findByLabelText('Open detail');
+    expect(link).toHaveAttribute('href', '/contacts/contact-1');
+    expect(link).not.toHaveAttribute('target');
+  });
+});
+
 describe('ContactListPage — Standalone sentinel option (024 §FR-308)', () => {
   function mockTenantsResponse(tenants: Array<{ id: string; name: string }>) {
     mockGet.mockImplementation(async (path: string) => {

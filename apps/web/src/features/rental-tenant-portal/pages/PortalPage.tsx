@@ -2,12 +2,15 @@ import { useCallback, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { AppointmentStatus, RentalTenantConfirmationStatus } from '@properfy/shared';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
+import { buildAddressLabel } from '@/lib/address';
 import { ApiError } from '@/lib/api-error';
 import { PortalLayout } from '../components/PortalLayout';
 import { PortalErrorState } from '../components/PortalErrorState';
 import { AppointmentInfoCard } from '../components/AppointmentInfoCard';
+import { BookedSlotCard } from '../components/BookedSlotCard';
+import { ChangeTimeSheet } from '../components/ChangeTimeSheet';
 import { InspectionConfirmationForm } from '../components/InspectionConfirmationForm';
-import { AvailableGroupsList, getAvailableGroupSlotKey } from '../components/AvailableGroupsList';
+import { getAvailableGroupSlotKey } from '../components/AvailableGroupsList';
 import { RescheduleForm } from '../components/RescheduleForm';
 import { ContactForm } from '../components/ContactForm';
 import { RentalTenantPortalExpiredView } from '../components/RentalTenantPortalExpiredView';
@@ -184,9 +187,43 @@ export function PortalPage() {
     !alreadyUnavailable &&
     (!alreadyConfirmed || isPastConfirmCutoff);
 
+  const propertyAddress = appointment.property
+    ? buildAddressLabel({
+        street: appointment.property.street,
+        suburb: appointment.property.suburb,
+        state: appointment.property.state,
+        postcode: appointment.property.postcode,
+      })
+    : null;
+
   return (
     <PortalLayout>
-      <div className="space-y-4">
+      <div className="space-y-6">
+        <h1 className="text-center text-xl font-bold text-secondary">
+          Inspection Confirmation
+        </h1>
+
+        <BookedSlotCard
+          appointment={appointment}
+          onChangeTime={
+            !isTerminal
+              ? () => {
+                  setChangeTimeOpen(true);
+                  joinGroupFlow.clearError();
+                }
+              : undefined
+          }
+        />
+
+        <p className="text-center text-sm text-text-secondary">
+          This is the confirmation form for an upcoming home inspection scheduled for the
+          property you&apos;re in{propertyAddress ? `, at ${propertyAddress}` : ''}
+          {appointment.property?.propertyCode
+            ? `, code ${appointment.property.propertyCode}`
+            : ''}
+          . Please check the date, time and other information before confirming it.
+        </p>
+
         {(isPastConfirmCutoff || isReadOnly) && (
           <InfoBanner>
             The confirmation deadline has passed, so this inspection can no longer be
@@ -214,6 +251,15 @@ export function PortalPage() {
           appointment={appointment}
           deadline={data.deadline}
           onDeadlineExpire={handleDeadlineExpire}
+          agencyName={data.tenant?.name}
+          propertyManager={data.propertyManager}
+          rentalTenantNames={
+            data.rentalTenantNames?.length
+              ? data.rentalTenantNames
+              : contact
+                ? [contact.rentalTenantName]
+                : undefined
+          }
         />
 
         {data.existingResponse && (
@@ -221,7 +267,7 @@ export function PortalPage() {
         )}
 
         {alreadyConfirmed && !isPastConfirmCutoff && !isTerminal && (
-          <div className="rounded bg-card-bg p-6 shadow-sm">
+          <div className="rounded-xl border border-border-subtle bg-card-bg p-6">
             <div className="flex items-center gap-3 text-success">
               <i className="mdi mdi-check-circle text-2xl" />
               <div>
@@ -235,7 +281,7 @@ export function PortalPage() {
         )}
 
         {alreadyUnavailable && !isTerminal && (
-          <div className="rounded bg-card-bg p-6 shadow-sm">
+          <div className="rounded-xl border border-border-subtle bg-card-bg p-6">
             <div className="flex items-center gap-3 text-warning">
               <i className="mdi mdi-calendar-remove text-2xl" />
               <div>
@@ -257,82 +303,14 @@ export function PortalPage() {
           />
         )}
 
-        {/* Change time CTA (US2 / §3.5) */}
-        {!isTerminal && (
-          <div className="rounded bg-card-bg p-4 shadow-sm">
-            {!changeTimeOpen ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setChangeTimeOpen(true);
-                  joinGroupFlow.clearError();
-                }}
-                className="text-sm font-medium text-primary hover:underline"
-              >
-                Change time
-              </button>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setChangeTimeOpen(false);
-                      joinGroupFlow.clearSelection();
-                    }}
-                    className="text-sm text-text-muted hover:text-text-primary"
-                  >
-                    ← Back
-                  </button>
-                  <span className="text-sm font-medium text-text-primary">
-                    Select an available time
-                  </span>
-                </div>
-                <AvailableGroupsList
-                  groups={availableGroupsQuery.data?.groups ?? []}
-                  isLoading={availableGroupsQuery.isLoading}
-                  isError={availableGroupsQuery.isError}
-                  selectedSlotKey={
-                    joinGroupFlow.selectedSlot
-                      ? getAvailableGroupSlotKey(joinGroupFlow.selectedSlot)
-                      : undefined
-                  }
-                  onSelect={joinGroupFlow.selectSlot}
-                  onRetry={() => availableGroupsQuery.refetch()}
-                />
-                {joinGroupFlow.joinErrorMessage && (
-                  <p
-                    className="rounded border border-error/20 bg-error/10 px-3 py-2 text-sm text-error"
-                    role="alert"
-                  >
-                    {joinGroupFlow.joinErrorMessage}
-                  </p>
-                )}
-                {joinGroupFlow.selectedSlot && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={joinGroupFlow.joinSelectedSlot}
-                      disabled={joinGroupFlow.isJoining}
-                      className="w-full rounded bg-primary py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60"
-                    >
-                      {joinGroupFlow.isJoining ? 'Joining…' : 'Join this time slot'}
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Propose new date CTA (US3 / §3.6) */}
         {!isTerminal && data.rescheduleAllowed !== false && (
-          <div className="rounded bg-card-bg p-4 shadow-sm">
+          <div className="rounded-xl border border-border-subtle bg-card-bg p-4">
             {!proposeNewDateOpen ? (
               <button
                 type="button"
                 onClick={() => setProposeNewDateOpen(true)}
-                className="text-sm font-medium text-text-secondary hover:text-text-primary hover:underline"
+                className="text-sm font-bold text-text-secondary hover:text-text-primary hover:underline"
               >
                 Propose new date
               </button>
@@ -353,6 +331,30 @@ export function PortalPage() {
 
         <ContactForm contact={contact} token={token} isReadOnly={isReadOnly || isTerminal} />
       </div>
+
+      {/* Change time picker (US2 / §3.5) — bottom sheet / dialog */}
+      {!isTerminal && (
+        <ChangeTimeSheet
+          open={changeTimeOpen}
+          onClose={() => {
+            setChangeTimeOpen(false);
+            joinGroupFlow.clearSelection();
+          }}
+          groups={availableGroupsQuery.data?.groups ?? []}
+          isLoading={availableGroupsQuery.isLoading}
+          isError={availableGroupsQuery.isError}
+          selectedSlotKey={
+            joinGroupFlow.selectedSlot
+              ? getAvailableGroupSlotKey(joinGroupFlow.selectedSlot)
+              : undefined
+          }
+          onSelect={joinGroupFlow.selectSlot}
+          onRetry={() => availableGroupsQuery.refetch()}
+          onJoin={joinGroupFlow.joinSelectedSlot}
+          isJoining={joinGroupFlow.isJoining}
+          joinErrorMessage={joinGroupFlow.joinErrorMessage}
+        />
+      )}
     </PortalLayout>
   );
 }

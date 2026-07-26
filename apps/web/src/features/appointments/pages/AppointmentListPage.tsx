@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/hooks/useAuth';
@@ -14,6 +14,7 @@ import { useBulkResendReminder } from '../hooks/useBulkResendReminder';
 
 export function AppointmentListPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { canPerform, hasRole } = usePermissions();
   const { user } = useAuth();
   const isGlobalRole = hasRole('AM', 'OP');
@@ -80,6 +81,20 @@ export function AppointmentListPage() {
   const canBulkResend = canPerform('appointment.bulk_resend_reminder');
   const canViewMap = true;
 
+  // `/appointments/new` redirects here with `?new=1` — the create form lives in
+  // this drawer only, so there is no second copy to drift. The param is dropped
+  // right away so a refresh or a Back navigation doesn't reopen the drawer.
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return;
+    if (canCreate) {
+      setEditId(null);
+      setFormOpen(true);
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete('new');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams, canCreate]);
+
   const { showSuccess, showError } = useSnackbar();
   const bulkResend = useBulkResendReminder();
   const handleBulkResend = async () => {
@@ -125,9 +140,6 @@ export function AppointmentListPage() {
           error={isError ? (errorMessage ?? 'Failed to load appointments') : undefined}
           onRetryError={refetch}
           pagination={pagination}
-          onView={(apt) => {
-            window.open(`/appointments/${apt.id}`, '_blank');
-          }}
           selectedIds={canBulkEdit ? selectedIds : undefined}
           onSelectionChange={canBulkEdit ? setSelectedIds : undefined}
         />

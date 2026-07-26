@@ -1,9 +1,13 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { describe, it, expect } from 'vitest';
+import { render as rtlRender, screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { AppointmentStatus, RentalTenantConfirmationStatus } from '@properfy/shared';
 import { AppointmentTable } from './AppointmentTable';
 import type { Appointment } from '../types';
+
+// The View action renders a router <Link>, so every render needs a router context.
+const render = (ui: ReactElement) => rtlRender(ui, { wrapper: MemoryRouter });
 
 function makeAppointment(overrides: Partial<Appointment> = {}): Appointment {
   return {
@@ -149,13 +153,12 @@ describe('AppointmentTable', () => {
     expect(screen.queryByLabelText('Tenant left a note')).not.toBeInTheDocument();
   });
 
-  it('view action calls onView with correct appointment', async () => {
-    const user = userEvent.setup();
-    const onView = vi.fn();
+  it('view action links to the appointment detail in the same tab', () => {
     const apt = makeAppointment();
-    render(<AppointmentTable data={[apt]} onView={onView} />);
-    await user.click(screen.getByLabelText('View'));
-    expect(onView).toHaveBeenCalledWith(apt);
+    render(<AppointmentTable data={[apt]} />);
+    const link = screen.getByLabelText('View');
+    expect(link).toHaveAttribute('href', '/appointments/apt-1');
+    expect(link).not.toHaveAttribute('target');
   });
 
 });

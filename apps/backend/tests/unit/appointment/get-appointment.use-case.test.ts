@@ -10,6 +10,8 @@ import {
   AppointmentAccessDeniedError,
 } from '../../../src/modules/appointment/domain/appointment.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { AppCredentialEntity } from '../../../src/modules/app-credential/domain/app-credential.entity';
+import type { IAppCredentialRepository } from '../../../src/modules/app-credential/domain/app-credential.repository';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 
@@ -272,5 +274,31 @@ describe('GetAppointmentUseCase', () => {
         actor: makeActor({ role: 'TNT' }),
       }),
     ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('should resolve apps via findEffectiveForAppointment with the appointment tenant/branch scope', async () => {
+    const effective = new AppCredentialEntity({
+      id: 'cred-1',
+      tenantId: 'tenant-1',
+      name: 'Building App',
+      username: 'insp',
+      password: 'secret',
+      isActive: true,
+      isDefault: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const appCredentialRepo = {
+      findEffectiveForAppointment: vi.fn().mockResolvedValue([effective]),
+    } as unknown as IAppCredentialRepository;
+    useCase = new GetAppointmentUseCase(appointmentRepo, new AuthorizationService(auditService), appCredentialRepo);
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+
+    const result = await useCase.execute({ appointmentId: 'appt-1', actor: makeActor({ role: 'AM' }) });
+
+    expect(appCredentialRepo.findEffectiveForAppointment).toHaveBeenCalledWith('appt-1', 'tenant-1', 'branch-1');
+    expect(result.apps).toEqual([
+      expect.objectContaining({ id: 'cred-1', name: 'Building App', username: 'insp', password: 'secret' }),
+    ]);
   });
 });

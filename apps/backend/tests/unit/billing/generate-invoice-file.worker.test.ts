@@ -17,6 +17,7 @@ function closedInvoice(overrides: Record<string, unknown> = {}) {
     invoiceNumber: 42,
     inspectorId: 'insp-1',
     inspectorName: 'Jane Inspector',
+    inspectorAbn: '12 345 678 901',
     periodStart: new Date('2026-03-01'),
     periodEnd: new Date('2026-03-15'),
     periodType: 'FORTNIGHTLY',
@@ -54,7 +55,7 @@ describe('GenerateInvoiceFileWorker', () => {
     await makeWorker().execute({ invoiceId: 'inv-1' });
 
     expect(pdfGenerator.generate).toHaveBeenCalledWith(
-      expect.objectContaining({ invoiceNumberDisplay: 'PINV-000042', lines: SNAPSHOT, currency: 'AUD', totalAmount: 700 }),
+      expect.objectContaining({ invoiceNumberDisplay: 'PINV-000042', lines: SNAPSHOT, currency: 'AUD', totalAmount: 700, inspectorAbn: '12 345 678 901' }),
     );
     expect(storageService.upload).toHaveBeenCalledWith('invoices/insp-1/inv-1.pdf', expect.any(Buffer), 'application/pdf');
     expect(invoiceRepo.update).toHaveBeenCalledWith('inv-1', { fileKey: 'invoices/insp-1/inv-1.pdf' });

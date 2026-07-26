@@ -464,4 +464,44 @@ describe('PrismaServiceGroupRepository.findPortalEligibleSlots', () => {
     expect(sqlText).toContain('ACCEPTED');
     expect(sqlText).toContain('2000');
   });
+
+  // Nested Prisma.sql fragments arrive as Sql values on the tagged-template
+  // mock, so the full query text spans the strings array plus any Sql values.
+  function fullSqlText(call: unknown[]): string {
+    const [strings, ...values] = call as [string[], ...unknown[]];
+    const fragmentText = values
+      .filter((v): v is { strings: string[]; values: unknown[] } =>
+        typeof v === 'object' && v !== null && 'strings' in v)
+      .map((v) => v.strings.join('') + v.values.map(String).join(''))
+      .join('');
+    return strings.join('') + fragmentText;
+  }
+
+  it('excludes the given group when excludeGroupId is provided', async () => {
+    const { repo, queryRaw } = makeRepo([]);
+    await repo.findPortalEligibleSlots({
+      tenantId: 'tenant-1',
+      serviceTypeId: 'stype-1',
+      propertyId: 'prop-1',
+      today: TODAY,
+      excludeGroupId: 'sg-own',
+    });
+
+    const sqlText = fullSqlText(queryRaw.mock.calls[0]);
+    expect(sqlText).toContain('sg.id <>');
+    expect(sqlText).toContain('sg-own');
+  });
+
+  it('does not add an exclusion clause when excludeGroupId is absent', async () => {
+    const { repo, queryRaw } = makeRepo([]);
+    await repo.findPortalEligibleSlots({
+      tenantId: 'tenant-1',
+      serviceTypeId: 'stype-1',
+      propertyId: 'prop-1',
+      today: TODAY,
+    });
+
+    const sqlText = fullSqlText(queryRaw.mock.calls[0]);
+    expect(sqlText).not.toContain('sg.id <>');
+  });
 });

@@ -4499,7 +4499,7 @@ export interface paths {
                     search?: string;
                     fromDate?: string;
                     toDate?: string;
-                    rentalTenantConfirmationStatus?: "PENDING" | "CONFIRMED" | "UNAVAILABLE" | "NO_RESPONSE";
+                    rentalTenantConfirmationStatus?: ("PENDING" | "CONFIRMED" | "UNAVAILABLE" | "NO_RESPONSE")[];
                     showCancelled?: boolean;
                     overdueOnly?: boolean;
                     ungroupedOnly?: boolean;
@@ -5748,6 +5748,8 @@ export interface paths {
                                         propertyCode: string | null;
                                         street: string;
                                         addressLine2: string | null;
+                                        /** @default null */
+                                        apartmentNumber: string | null;
                                         suburb: string;
                                         state: string;
                                         postcode: string;
@@ -5777,7 +5779,7 @@ export interface paths {
                                     } | null;
                                     contact: {
                                         /** @enum {string} */
-                                        resolution: "existing" | "new";
+                                        resolution: "existing" | "new" | "snapshot-only";
                                         /** Format: uuid */
                                         contactId: string | null;
                                         displayName: string;
@@ -5951,6 +5953,56 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/appointments/bulk-cross-check-done": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        ids: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                updated: number;
+                                failed: {
+                                    id: string;
+                                    code: string;
+                                    message: string;
+                                }[];
+                            };
+                        };
+                    };
                 };
             };
         };
@@ -7629,6 +7681,8 @@ export interface paths {
                             };
                             agencyPhone?: string;
                             deadline?: string;
+                            rentalTenantNames?: string[];
+                            propertyManager?: string | null;
                             rescheduleAllowed?: boolean;
                             tenant?: {
                                 name: string | null;
@@ -10508,17 +10562,6 @@ export interface paths {
                                 isActive: boolean;
                                 /** @enum {string} */
                                 notificationClass?: "TRANSACTIONAL" | "OPERATIONAL" | "MARKETING";
-                                imageBindings?: {
-                                    /** Format: uuid */
-                                    id: string;
-                                    placeholderKey: string;
-                                    /** Format: uuid */
-                                    assetId: string;
-                                    publicUrl: string;
-                                    altText: string | null;
-                                    width: number | null;
-                                    height: number | null;
-                                }[];
                                 createdAt: string;
                                 updatedAt: string;
                             }[];
@@ -10673,12 +10716,6 @@ export interface paths {
                         notificationClass?: "TRANSACTIONAL" | "OPERATIONAL" | "MARKETING";
                         /** Format: uuid */
                         tenantId?: string;
-                        imageBindings?: {
-                            placeholderKey: string;
-                            altText?: string;
-                            width?: number;
-                            height?: number;
-                        }[];
                     };
                 };
             };
@@ -10706,17 +10743,6 @@ export interface paths {
                                 isActive: boolean;
                                 /** @enum {string} */
                                 notificationClass?: "TRANSACTIONAL" | "OPERATIONAL" | "MARKETING";
-                                imageBindings?: {
-                                    /** Format: uuid */
-                                    id: string;
-                                    placeholderKey: string;
-                                    /** Format: uuid */
-                                    assetId: string;
-                                    publicUrl: string;
-                                    altText: string | null;
-                                    width: number | null;
-                                    height: number | null;
-                                }[];
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -10769,197 +10795,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/email-assets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/email-assets/{id}/confirm": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/email-assets/{id}/usages": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/email-assets/{id}/bindings/{bindingId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                    bindingId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        trace?: never;
-    };
-    "/v1/email-assets/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/notification-templates/{templateCode}/{channel}/preview": {
         parameters: {
             query?: never;
@@ -10986,12 +10821,6 @@ export interface paths {
                         bodyHtml: string;
                         /** Format: uuid */
                         tenantId?: string;
-                        imageBindings?: {
-                            placeholderKey: string;
-                            altText?: string;
-                            width?: number;
-                            height?: number;
-                        }[];
                     };
                 };
             };
@@ -11729,6 +11558,7 @@ export interface paths {
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;
                                 isActive: boolean;
+                                isDefault: boolean;
                                 /** Format: date-time */
                                 createdAt: string;
                                 /** Format: date-time */
@@ -11773,6 +11603,8 @@ export interface paths {
                         /** Format: uri */
                         instructionsUrl?: string | null;
                         instructionsPassword?: string | null;
+                        /** @default false */
+                        isDefault?: boolean;
                     };
                 };
             };
@@ -11800,6 +11632,7 @@ export interface paths {
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;
                                 isActive: boolean;
+                                isDefault: boolean;
                                 /** Format: date-time */
                                 createdAt: string;
                                 /** Format: date-time */
@@ -11857,6 +11690,7 @@ export interface paths {
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;
                                 isActive: boolean;
+                                isDefault: boolean;
                                 /** Format: date-time */
                                 createdAt: string;
                                 /** Format: date-time */
@@ -11897,6 +11731,7 @@ export interface paths {
                         instructionsUrl?: string | null;
                         instructionsPassword?: string | null;
                         isActive?: boolean;
+                        isDefault?: boolean;
                     };
                 };
             };
@@ -11924,6 +11759,7 @@ export interface paths {
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;
                                 isActive: boolean;
+                                isDefault: boolean;
                                 /** Format: date-time */
                                 createdAt: string;
                                 /** Format: date-time */
@@ -11979,6 +11815,7 @@ export interface paths {
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;
                                 isActive: boolean;
+                                isDefault: boolean;
                                 /** Format: date-time */
                                 createdAt: string;
                                 /** Format: date-time */

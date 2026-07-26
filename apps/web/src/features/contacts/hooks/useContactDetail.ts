@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useDetailQuery } from '@/hooks/useApiQuery';
 import type { ContactDetail } from '../types';
 
@@ -15,8 +16,12 @@ export function useContactDetail(contactId: string | null): UseContactDetailRetu
     { enabled: !!contactId },
   );
 
+  // PR #961 bug class: ContactFormDrawer's populate effect depends on this reference —
+  // keep any future payload transforms INSIDE this memo so it stays stable per fetch.
+  const contact = useMemo(() => response?.data ?? null, [response?.data]);
+
   return {
-    contact: response?.data ?? null,
+    contact,
     isLoading,
     isError,
     refetch,

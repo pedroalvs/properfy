@@ -1,10 +1,9 @@
 import type { AuthContext, BulkActionResultItem } from '@properfy/shared';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import type { UpdateAppointmentUseCase } from './update-appointment.use-case';
-import { dayKeyInTz, mapErrorToResult } from './bulk-action-shared';
+import { mapErrorToResult, REPLAY_WINDOW_TTL_HOURS } from './bulk-action-shared';
 
 const IDEMPOTENCY_SCOPE = 'bulk_reschedule';
-const IDEMPOTENCY_TTL_HOURS = 36;
 
 export interface BulkRescheduleAppointmentsInput {
   appointmentIds: string[];
@@ -36,7 +35,6 @@ export class BulkRescheduleAppointmentsUseCase {
   ) {}
 
   async execute(input: BulkRescheduleAppointmentsInput): Promise<BulkRescheduleAppointmentsOutput> {
-    const dayKey = dayKeyInTz(this.clock());
     const results: BulkActionResultItem[] = [];
 
     // Normalise to YYYY-MM-DD. UpdateAppointmentUseCase parses with `new Date(value)`
@@ -45,8 +43,21 @@ export class BulkRescheduleAppointmentsUseCase {
     // "use the actor's local intent".
     const newDate = input.newDate.length >= 10 ? input.newDate.slice(0, 10) : input.newDate;
 
+    // The delegate applies the time slot only when BOTH ends are present, so
+    // the key must be built from that same effective payload. Keying off each
+    // end independently would give two requests that mutate identically (date
+    // only) different keys, and the replay guard would miss.
+    const effectiveSlot =
+      input.newTimeSlotStart && input.newTimeSlotEnd
+        ? `${input.newTimeSlotStart}-${input.newTimeSlotEnd}`
+        : '';
+
     for (const appointmentId of input.appointmentIds) {
-      const idemKey = `bulk_reschedule:${appointmentId}:${dayKey}`;
+      // Keyed by the requested slot, not just the id: rescheduling to a
+      // DIFFERENT date/time is a different action and must execute, even
+      // seconds after the previous one. Only an identical re-submit replays.
+      const slotKey = `${newDate}:${effectiveSlot}`;
+      const idemKey = `bulk_reschedule:${appointmentId}:${slotKey}`;
       const cached = await this.idempotency.getWithHash<BulkActionResultItem>(
         idemKey,
         IDEMPOTENCY_SCOPE,
@@ -68,7 +79,7 @@ export class BulkRescheduleAppointmentsUseCase {
           actor: input.actor,
         });
         const result: BulkActionResultItem = { appointmentId, status: 'OK' };
-        await this.idempotency.set(idemKey, IDEMPOTENCY_SCOPE, result, IDEMPOTENCY_TTL_HOURS);
+        await this.idempotency.set(idemKey, IDEMPOTENCY_SCOPE, result, REPLAY_WINDOW_TTL_HOURS);
         results.push(result);
       } catch (err) {
         results.push(mapErrorToResult(appointmentId, err));

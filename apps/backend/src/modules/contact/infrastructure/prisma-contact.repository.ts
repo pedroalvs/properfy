@@ -252,28 +252,9 @@ export class PrismaContactRepository implements IContactRepository {
     return count > 0;
   }
 
-  async findActiveByEmailOrPhone(
-    _tenantId: string | null,
-    email: string | null,
-    phone: string | null,
-  ): Promise<ContactEntity | null> {
-    if (!email && !phone) return null;
-    const or: Array<Record<string, unknown>> = [];
-    if (email) or.push({ primary_email: email });
-    if (phone) or.push({ primary_phone: phone });
-    // 024 §FR-310 — global lookup. The previous tenant_id filter is
-    // dropped: the registry row is shared across tenants now, so the
-    // appointment inline-create path should reuse any active row that
-    // matches, regardless of which tenant originally created it.
-    const row = await this.prisma.contact.findFirst({
-      where: {
-        is_active: true,
-        OR: or,
-      } as any,
-    });
-    return row ? mapToEntity(row) : null;
-  }
-
+  // 024 §FR-310 — global lookup, no tenant_id filter: the registry row is
+  // shared across tenants, so inline/import paths may reuse any active row
+  // that matches, regardless of which tenant originally created it.
   async findManyActiveByEmailsOrPhones(emails: string[], phones: string[]): Promise<ContactEntity[]> {
     if (emails.length === 0 && phones.length === 0) return [];
     const or: Array<Record<string, unknown>> = [];

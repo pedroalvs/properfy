@@ -224,4 +224,88 @@ describe('PrismaAppCredentialRepository (real DB)', () => {
     );
     expect(unscoped.map((r) => r.credential.name).sort()).toEqual(['XTEN-a-wide', 'XTEN-b-wide']);
   });
+
+  describe('findEffectiveForAppointment (defaults + explicit links)', () => {
+    const mkFull = (
+      tenantId: string,
+      name: string,
+      opts: { branchId?: string | null; isActive?: boolean; isDefault?: boolean } = {},
+    ) => {
+      const now = new Date();
+      return new AppCredentialEntity({
+        id: crypto.randomUUID(), tenantId, branchId: opts.branchId ?? null, name, username: 'u', password: 'p',
+        isActive: opts.isActive ?? true, isDefault: opts.isDefault ?? false, createdAt: now, updatedAt: now,
+      });
+    };
+
+    it('merges tenant-wide and matching-branch defaults with explicit links, excluding other tenants/branches/inactive', async () => {
+      const otherBranch = await harness.prisma.branch.create({
+        data: { tenant_id: seed.tenantA, name: 'A-Branch-3', status: 'ACTIVE' },
+      });
+      const linked = mkFull(seed.tenantA, 'EFF-linked');
+      const tenantWideDefault = mkFull(seed.tenantA, 'EFF-tenantwide', { isDefault: true });
+      const branchDefault = mkFull(seed.tenantA, 'EFF-branch', { branchId: seed.branchA, isDefault: true });
+      const otherBranchDefault = mkFull(seed.tenantA, 'EFF-otherbranch', { branchId: otherBranch.id, isDefault: true });
+      const inactiveDefault = mkFull(seed.tenantA, 'EFF-inactive', { isDefault: true, isActive: false });
+      const otherTenantDefault = mkFull(seed.tenantB, 'EFF-foreign', { isDefault: true });
+      for (const c of [linked, tenantWideDefault, branchDefault, otherBranchDefault, inactiveDefault, otherTenantDefault]) {
+        await repo.save(c);
+      }
+      await repo.replaceAppointmentLinks(seed.appointmentA, [linked.id]);
+
+      const effective = await repo.findEffectiveForAppointment(seed.appointmentA, seed.tenantA, seed.branchA);
+      const names = effective.map((c) => c.name);
+      // Linked first, then defaults sorted by name.
+      expect(names).toEqual(['EFF-linked', 'EFF-branch', 'EFF-tenantwide']);
+      expect(effective[0]!.password).toBe('p');
+
+      await repo.replaceAppointmentLinks(seed.appointmentA, []);
+    });
+
+    it('dedupes a default that is also explicitly linked', async () => {
+      const both = mkFull(seed.tenantA, 'EFF-dedupe', { isDefault: true });
+      await repo.save(both);
+      await repo.replaceAppointmentLinks(seed.appointmentA, [both.id]);
+
+      const effective = await repo.findEffectiveForAppointment(seed.appointmentA, seed.tenantA, seed.branchA);
+      expect(effective.filter((c) => c.id === both.id)).toHaveLength(1);
+
+      await repo.replaceAppointmentLinks(seed.appointmentA, []);
+      await repo.update(both.id, { isDefault: false });
+    });
+
+    it('never surfaces a stale cross-tenant junction row', async () => {
+      const foreign = mkFull(seed.tenantB, 'EFF-stale-foreign');
+      await repo.save(foreign);
+      // Bypass the write-path validation to simulate a stale/corrupt link.
+      await harness.prisma.appointmentAppCredential.create({
+        data: { id: crypto.randomUUID(), appointment_id: seed.appointmentA, app_credential_id: foreign.id },
+      });
+
+      const effective = await repo.findEffectiveForAppointment(seed.appointmentA, seed.tenantA, seed.branchA);
+      expect(effective.some((c) => c.id === foreign.id)).toBe(false);
+
+      await repo.replaceAppointmentLinks(seed.appointmentA, []);
+    });
+
+    it('keeps returning an explicitly linked credential even when inactive (defaults do not)', async () => {
+      const inactiveLinked = mkFull(seed.tenantA, 'EFF-inactive-linked', { isActive: false });
+      await repo.save(inactiveLinked);
+      await repo.replaceAppointmentLinks(seed.appointmentA, [inactiveLinked.id]);
+
+      const effective = await repo.findEffectiveForAppointment(seed.appointmentA, seed.tenantA, seed.branchA);
+      expect(effective.some((c) => c.id === inactiveLinked.id)).toBe(true);
+
+      await repo.replaceAppointmentLinks(seed.appointmentA, []);
+    });
+
+    it('persists isDefault through save/update and surfaces it on reads', async () => {
+      const cred = mkFull(seed.tenantA, 'EFF-flag', { isDefault: true });
+      await repo.save(cred);
+      expect((await repo.findById(cred.id))!.isDefault).toBe(true);
+
+      await repo.update(cred.id, { isDefault: false });
+      expect((await repo.findById(cred.id))!.isDefault).toBe(false);
+    });
+  });
 });

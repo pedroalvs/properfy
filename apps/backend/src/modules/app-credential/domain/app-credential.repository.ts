@@ -39,6 +39,7 @@ export type AppCredentialUpdateData = Partial<{
   instructionsUrl: string | null;
   instructionsPassword: string | null;
   isActive: boolean;
+  isDefault: boolean;
 }>;
 
 export interface IAppCredentialRepository {
@@ -59,6 +60,17 @@ export interface IAppCredentialRepository {
   findByIds(ids: string[]): Promise<AppCredentialEntity[]>;
   /** Credentials currently linked to an appointment (decrypted), insertion order. */
   findByAppointmentId(appointmentId: string): Promise<AppCredentialEntity[]>;
+  /**
+   * Effective credentials surfaced on an appointment: explicit links (any
+   * state — an operator linked them deliberately) merged with the agency's
+   * defaults (is_default AND is_active, branch-scoped: branch_id NULL =
+   * tenant-wide, otherwise only the matching branch), deduped by id.
+   */
+  findEffectiveForAppointment(
+    appointmentId: string,
+    tenantId: string,
+    branchId: string | null,
+  ): Promise<AppCredentialEntity[]>;
   /** Replace all junction rows for an appointment with the given credential ids. */
   replaceAppointmentLinks(appointmentId: string, appCredentialIds: string[]): Promise<void>;
 }

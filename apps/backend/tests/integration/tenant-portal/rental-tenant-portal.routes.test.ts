@@ -326,6 +326,27 @@ describe('GET /v1/rental-tenant-portal/:token — BUG-1 regression: rescheduleAl
     expect(res.body.rescheduleAllowed).toBe(false);
     expect(res.body.tenant).toEqual({ name: 'Jane Tenant', timezone: 'Australia/Sydney' });
   });
+
+  it('preserves rentalTenantNames and propertyManager in the response', async () => {
+    setupPortalAuth();
+    const mockResult = {
+      token: { status: 'ACTIVE', isReadOnly: false, isExpired: false, canRequestNewLink: false, expiresAt: '2026-04-01T00:00:00.000Z' },
+      appointment: {},
+      contact: null,
+      restrictions: null,
+      rentalTenantNames: ['Daniel Anderson', 'Hiranya Koehler'],
+      propertyManager: 'Belle Property Randwick',
+      rescheduleAllowed: true,
+      tenant: { name: 'Belle Property', timezone: 'Australia/Sydney' },
+    };
+    mockGetPortalDataExecute.mockResolvedValueOnce(mockResult);
+
+    const res = await supertest(app.server).get('/v1/rental-tenant-portal/valid-raw-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.rentalTenantNames).toEqual(['Daniel Anderson', 'Hiranya Koehler']);
+    expect(res.body.propertyManager).toBe('Belle Property Randwick');
+  });
 });
 
 // BUG-2 regression: availableSlotsJson must be forwarded from route body to use case

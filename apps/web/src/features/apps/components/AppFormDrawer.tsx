@@ -76,6 +76,7 @@ export function AppFormDrawer({ open, onClose, app, defaultTenantId, onSaved }: 
             appUrl: app.appUrl ?? '',
             instructionsUrl: app.instructionsUrl ?? '',
             instructionsPassword: app.instructionsPassword ?? '',
+            isDefault: app.isDefault,
           }
         : { ...EMPTY_APP_FORM, tenantId: defaultTenantId ?? '' },
     );
@@ -150,6 +151,18 @@ export function AppFormDrawer({ open, onClose, app, defaultTenantId, onSaved }: 
                 <FormField label="Name" required error={errors.name}>
                   <TextInput value={form.name} onChange={(v) => updateField('name', v)} aria-label="Name" />
                 </FormField>
+                <div className="col-span-2">
+                  <Checkbox
+                    checked={form.isDefault}
+                    onChange={(checked) => updateField('isDefault', checked)}
+                    label="Apply to all appointments"
+                  />
+                  <p className="mt-1 text-xs text-text-secondary">
+                    {form.branchId
+                      ? 'Automatically shown on every appointment of the selected branch.'
+                      : 'Automatically shown on every appointment of this agency.'}
+                  </p>
+                </div>
               </FormSection>
 
               <FormSection title="Credentials" columns={2}>

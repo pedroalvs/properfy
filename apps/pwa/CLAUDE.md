@@ -252,6 +252,7 @@ When you (Claude Code) implement or modify PWA code:
 8. **Performance matters** – compress images, lazy load, minimize bundle.
 9. **Touch-friendly** – large targets, no hover-dependent interactions.
 10. **Consult `projeto-consolidado/`** for complete business rules, especially state machine and T-1 rules.
+11. **Data hooks must return referentially stable values.** Any object/array derived from a query payload (spread, `.map()`, adapter mapping) MUST be wrapped in `useMemo` keyed on the raw query data. An unmemoized derived return caused a production freeze on web — an infinite render loop via a consumer's `useEffect(..., [entity])` effect that starved React Router updates (PR #961). Add future payload transforms inside the existing memo, never outside it.
 
 Key documentation:
 

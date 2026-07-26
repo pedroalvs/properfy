@@ -1,4 +1,4 @@
-import { TEMPLATE_VARIABLES, PLATFORM_TIMEZONE } from '@properfy/shared';
+import { TEMPLATE_VARIABLES, PLATFORM_TIMEZONE, PROPERFY_LOGO_URL } from '@properfy/shared';
 import type { AppointmentEntity } from '../../appointment/domain/appointment.entity';
 import type { AppointmentContactEntity } from '../../appointment/domain/appointment-contact.entity';
 import type { TenantEntity } from '../../tenant/domain/tenant.entity';
@@ -22,6 +22,7 @@ export interface NotificationPayloadContext {
   propertyAddress?: string;
   branchName?: string;
   inspectorName?: string | null;
+  serviceTypeName?: string | null;
   rawPortalToken?: string | null;
   portalBaseUrl: string;
   appointmentCodeFormatter: AppointmentCodeFormatter;
@@ -72,6 +73,8 @@ export class BuildNotificationPayloadService {
       confirmationLink,
       rescheduleLink,
       branchName: ctx.branchName ?? '',
+      properfyLogoUrl: PROPERFY_LOGO_URL,
+      serviceTypeName: ctx.serviceTypeName ?? '',
     };
 
     const spec = TEMPLATE_VARIABLES[ctx.templateCode as keyof typeof TEMPLATE_VARIABLES];

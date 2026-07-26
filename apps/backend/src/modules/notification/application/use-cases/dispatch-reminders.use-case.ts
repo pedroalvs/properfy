@@ -41,7 +41,7 @@ export class DispatchRemindersUseCase {
       targetDate.setUTCDate(targetDate.getUTCDate() + offsetDays);
       const appointments = await this.appointmentRepo.findScheduledOnDate(targetDate);
 
-      for (const { appointment, contact } of appointments) {
+      for (const { appointment, contact, propertyAddress, serviceTypeName } of appointments) {
         let channel: NotificationChannel;
         let recipient: string;
         let effectiveTemplateCode: string;
@@ -82,6 +82,8 @@ export class DispatchRemindersUseCase {
           tenant,
           appointment,
           contact,
+          propertyAddress: propertyAddress ?? '',
+          serviceTypeName: serviceTypeName ?? null,
           rawPortalToken: null,
           portalBaseUrl: this.rentalTenantPortalBaseUrl,
           appointmentCodeFormatter: this.appointmentCodeFormatter,

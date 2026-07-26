@@ -108,6 +108,22 @@ describe('useAppointmentDetail', () => {
     expect(result.current.appointment?.customFields).toEqual([]);
   });
 
+  it('keeps a stable appointment reference across re-renders with unchanged data', async () => {
+    // Regression: an unstable reference here feeds AppointmentFormDrawer's
+    // populate effect (deps [isEditMode, appointment]), whose setState calls
+    // re-render the tree and spawn a fresh reference — an infinite render
+    // loop that starves router updates (URL changes, screen does not).
+    const wrapper = createQueryWrapper();
+    const { result, rerender } = renderHook(() => useAppointmentDetail('apt-01'), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const first = result.current.appointment;
+    expect(first).not.toBeNull();
+    rerender();
+    expect(result.current.appointment).toBe(first);
+  });
+
   it('handles API error gracefully', async () => {
     mockGet.mockResolvedValueOnce({ data: undefined, error: { message: 'Not found' } });
     const wrapper = createQueryWrapper();

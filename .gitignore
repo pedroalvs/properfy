@@ -64,3 +64,5 @@ temp/
 # Local task trackers
 tasks/todo.md
 
+apps/pwa/playwright-report/
+apps/pwa/test-results/

@@ -20,6 +20,8 @@ import {
 import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import type { AuthContext } from '@properfy/shared';
+import { AppCredentialEntity } from '../../../src/modules/app-credential/domain/app-credential.entity';
+import type { IAppCredentialRepository } from '../../../src/modules/app-credential/domain/app-credential.repository';
 
 function makeAppointmentEntity(
   overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {},
@@ -579,6 +581,42 @@ describe('GetAppointmentDetailUseCase', () => {
         { label: 'C', value: '3' },
         { label: 'D', value: '4' },
         { label: 'E', value: '5' },
+      ]);
+    });
+  });
+
+  describe('apps (effective credentials)', () => {
+    it('resolves apps via findEffectiveForAppointment with the appointment tenant/branch scope', async () => {
+      const effective = new AppCredentialEntity({
+        id: 'cred-1',
+        tenantId: 'tenant-1',
+        name: 'Building App',
+        username: 'insp',
+        password: 'secret',
+        isActive: true,
+        isDefault: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      const appCredentialRepo = {
+        findEffectiveForAppointment: vi.fn().mockResolvedValue([effective]),
+      } as unknown as IAppCredentialRepository;
+      const authorizationService = new AuthorizationService({ log: vi.fn() } as never);
+      const useCaseWithApps = new GetAppointmentDetailUseCase(
+        appointmentRepo,
+        executionRepo,
+        serviceTypeReader,
+        authorizationService,
+        tenantRepo,
+        appCredentialRepo,
+      );
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+
+      const result = await useCaseWithApps.execute({ appointmentId: 'appt-1', actor: inspActor });
+
+      expect(appCredentialRepo.findEffectiveForAppointment).toHaveBeenCalledWith('appt-1', 'tenant-1', 'branch-1');
+      expect(result.apps).toEqual([
+        expect.objectContaining({ id: 'cred-1', name: 'Building App', username: 'insp', password: 'secret' }),
       ]);
     });
   });

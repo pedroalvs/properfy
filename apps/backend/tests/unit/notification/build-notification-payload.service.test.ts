@@ -7,7 +7,7 @@ import { AppointmentEntity } from '../../../src/modules/appointment/domain/appoi
 import { AppointmentContactEntity } from '../../../src/modules/appointment/domain/appointment-contact.entity';
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { AppointmentCodeFormatter } from '../../../src/modules/appointment/domain/appointment-code.formatter';
-import { MANDATORY_TEMPLATE_CODES } from '@properfy/shared';
+import { MANDATORY_TEMPLATE_CODES, PROPERFY_LOGO_URL } from '@properfy/shared';
 
 const formatter = new AppointmentCodeFormatter();
 
@@ -199,6 +199,24 @@ describe('BuildNotificationPayloadService', () => {
     const appointment = makeAppointment({ appointmentNumber: 42 });
     const result = svc.build(baseCtx({ tenant, appointment, templateCode: 'INSPECTION_NOTICE' }));
     expect(result.appointmentCode).toBe('ABC-0042');
+  });
+
+  // ── Properfy logo and service type name ───────────────────────────────────
+
+  it('exposes properfyLogoUrl as the fixed Properfy logo asset', () => {
+    const result = svc.build(baseCtx());
+    expect(result.properfyLogoUrl).toBe(PROPERFY_LOGO_URL);
+    expect(result.properfyLogoUrl).toMatch(/^https:\/\//);
+  });
+
+  it('exposes serviceTypeName from context', () => {
+    const result = svc.build(baseCtx({ serviceTypeName: 'Routine inspection' }));
+    expect(result.serviceTypeName).toBe('Routine inspection');
+  });
+
+  it('serviceTypeName is empty string when not provided', () => {
+    const result = svc.build(baseCtx());
+    expect(result.serviceTypeName).toBe('');
   });
 
   // ── All mandatory template codes build without throwing ───────────────────

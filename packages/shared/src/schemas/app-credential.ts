@@ -36,6 +36,10 @@ export const appCredentialCreateSchema = z
     appUrl: urlSchema.nullable().optional(),
     instructionsUrl: urlSchema.nullable().optional(),
     instructionsPassword: secretSchema.nullable().optional(),
+    // Default credentials are automatically shown on every appointment of the
+    // owning agency (branch-scoped when branchId is set) without an explicit
+    // appointment link.
+    isDefault: z.boolean().default(false),
   })
   .superRefine((value, ctx) => {
     if (value.needsAuthCode && !value.authCode) {
@@ -63,6 +67,7 @@ export const appCredentialUpdateSchema = z.object({
   instructionsUrl: urlSchema.nullable().optional(),
   instructionsPassword: secretSchema.nullable().optional(),
   isActive: z.boolean().optional(),
+  isDefault: z.boolean().optional(),
 });
 export type AppCredentialUpdateInput = z.infer<typeof appCredentialUpdateSchema>;
 
@@ -82,6 +87,7 @@ export const appCredentialResponseSchema = z.object({
   instructionsUrl: z.string().nullable(),
   instructionsPassword: z.string().nullable(),
   isActive: z.boolean(),
+  isDefault: z.boolean(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
 import { BooleanIcon } from '@/components/ui/BooleanIcon';
@@ -71,16 +72,14 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
           }
         />
         <DetailRow label="Rent Amount" value={formatRent(appointment.propertyRentAmount)} />
-        <a
-          href={`/properties/${appointment.propertyId}`}
-          target="_blank"
-          rel="noopener noreferrer"
+        <Link
+          to={`/properties/${appointment.propertyId}`}
           className="inline-flex w-fit items-center gap-1 text-sm font-semibold text-primary hover:underline"
           data-testid="appointment-property-link"
         >
-          <i className="mdi mdi-open-in-new text-base" aria-hidden="true" />
+          <i className="mdi mdi-arrow-right text-base" aria-hidden="true" />
           View property
-        </a>
+        </Link>
       </FormSection>
 
       <FormSection title="Contact">

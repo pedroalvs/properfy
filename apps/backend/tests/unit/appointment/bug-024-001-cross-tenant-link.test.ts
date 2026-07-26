@@ -131,7 +131,7 @@ function makeRepos() {
     update: vi.fn(),
     existsByEmail: vi.fn(),
     existsByPhone: vi.fn(),
-    findActiveByEmailOrPhone: vi.fn(),
+    findManyActiveByEmailsOrPhones: vi.fn().mockResolvedValue([]),
     existsLinkedToTenant: vi.fn(),
     findAppointmentsByContactId: vi.fn(),
     countAppointmentsByContactId: vi.fn(),
