@@ -99,3 +99,131 @@ describe('SelectInput dropdown placement', () => {
     expect(screen.getByRole('listbox').className).toContain('bottom-full');
   });
 });
+
+/**
+ * Keyboard access. The menu is built from <li> elements, which are not
+ * focusable, so navigation follows the WAI-ARIA listbox pattern: focus stays
+ * on the trigger and the active option is published via aria-activedescendant.
+ */
+describe('SelectInput keyboard navigation', () => {
+  function activeOptionLabel() {
+    const id = screen.getByRole('button').getAttribute('aria-activedescendant');
+    return id ? document.getElementById(id)?.textContent : null;
+  }
+
+  it('opens with ArrowDown without needing a click', async () => {
+    const user = userEvent.setup();
+    render(<SelectInput value="" onChange={() => {}} options={options} aria-label="Status" />);
+    screen.getByRole('button').focus();
+
+    await user.keyboard('{ArrowDown}');
+
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    expect(activeOptionLabel()).toBe('Ativo');
+  });
+
+  it('moves the active option with the arrow keys and stops at the ends', async () => {
+    const user = userEvent.setup();
+    render(<SelectInput value="" onChange={() => {}} options={options} aria-label="Status" />);
+    screen.getByRole('button').focus();
+
+    await user.keyboard('{ArrowDown}');
+    await user.keyboard('{ArrowDown}');
+    expect(activeOptionLabel()).toBe('Inativo');
+
+    await user.keyboard('{ArrowUp}');
+    expect(activeOptionLabel()).toBe('Ativo');
+
+    // Already at the first option — does not wrap past the start.
+    await user.keyboard('{ArrowUp}');
+    expect(activeOptionLabel()).toBe('Ativo');
+  });
+
+  it('jumps to the first and last option with Home and End', async () => {
+    const user = userEvent.setup();
+    render(<SelectInput value="" onChange={() => {}} options={options} aria-label="Status" />);
+    screen.getByRole('button').focus();
+
+    await user.keyboard('{ArrowDown}');
+    await user.keyboard('{End}');
+    expect(activeOptionLabel()).toBe('Bloqueado');
+
+    await user.keyboard('{Home}');
+    expect(activeOptionLabel()).toBe('Ativo');
+  });
+
+  it('selects the active option with Enter and closes', async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(<SelectInput value="" onChange={onChange} options={options} aria-label="Status" />);
+    screen.getByRole('button').focus();
+
+    await user.keyboard('{ArrowDown}');
+    await user.keyboard('{ArrowDown}');
+    await user.keyboard('{Enter}');
+
+    expect(onChange).toHaveBeenCalledWith('inactive');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  it('consumes Escape so an enclosing dialog does not close too', async () => {
+    // Dialog listens for Escape on document. Without stopPropagation the key
+    // that dismisses the menu also dismisses the whole modal, discarding
+    // whatever the operator had filled in.
+    const onDocumentEscape = vi.fn();
+    const listener = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onDocumentEscape();
+    };
+    document.addEventListener('keydown', listener);
+    try {
+      const user = userEvent.setup();
+      render(<SelectInput value="" onChange={() => {}} options={options} aria-label="Status" />);
+      screen.getByRole('button').focus();
+
+      await user.keyboard('{ArrowDown}');
+      await user.keyboard('{Escape}');
+
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+      expect(onDocumentEscape).not.toHaveBeenCalled();
+
+      // With the menu closed, Escape is no longer ours to swallow.
+      await user.keyboard('{Escape}');
+      expect(onDocumentEscape).toHaveBeenCalledTimes(1);
+    } finally {
+      document.removeEventListener('keydown', listener);
+    }
+  });
+
+  it('closes on Escape without selecting', async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(<SelectInput value="" onChange={onChange} options={options} aria-label="Status" />);
+    screen.getByRole('button').focus();
+
+    await user.keyboard('{ArrowDown}');
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('starts navigation from the currently selected option', async () => {
+    const user = userEvent.setup();
+    render(<SelectInput value="locked" onChange={() => {}} options={options} aria-label="Status" />);
+    screen.getByRole('button').focus();
+
+    await user.keyboard('{ArrowDown}');
+
+    expect(activeOptionLabel()).toBe('Bloqueado');
+  });
+
+  it('links the trigger to the listbox for assistive tech', async () => {
+    const user = userEvent.setup();
+    render(<SelectInput value="" onChange={() => {}} options={options} aria-label="Status" />);
+    await user.click(screen.getByRole('button'));
+
+    const listboxId = screen.getByRole('listbox').getAttribute('id');
+    expect(listboxId).toBeTruthy();
+    expect(screen.getByRole('button')).toHaveAttribute('aria-controls', listboxId!);
+  });
+});
