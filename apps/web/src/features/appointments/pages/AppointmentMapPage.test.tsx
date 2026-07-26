@@ -343,7 +343,10 @@ describe('AppointmentMapPage — un-plottable rows are surfaced, not hidden', ()
     id: 'sg-1',
     code: '25',
     status: 'PUBLISHED',
+    // groupSize is a stored counter that drifts; appointmentsCount is the live
+    // number of LINKED appointments. Here: 3 linked, none of them mappable.
     groupSize: 3,
+    appointmentsCount: 3,
     scheduledDate: '2026-04-01',
     appointments: [],
   };
@@ -417,6 +420,23 @@ describe('AppointmentMapPage — un-plottable rows are surfaced, not hidden', ()
     // has one, it is just out of range. "have coordinates" would be a lie.
     expect(warning).toHaveTextContent(/0 of 3 appointments have a valid map location/i);
     expect(warning).not.toHaveTextContent(/have coordinates/i);
+  });
+
+  it('says the group is empty rather than quoting the stale groupSize', async () => {
+    // The reported case: a CANCELLED group keeps groupSize=3 while every
+    // appointment has been unlinked. Saying "0 of 3 appointments have a valid
+    // map location" invents three appointments that no longer exist, and sends
+    // the operator looking for a geocoding problem that isn't there.
+    mockGroups([{ ...UNGEOCODED_GROUP, groupSize: 3, appointmentsCount: 0, appointments: [] }]);
+    renderPageAt(['/map?mode=groups']);
+    fireEvent.click(screen.getByTestId('map-filter-toggle'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('map-unplottable-warning')).toBeInTheDocument();
+    });
+    const warning = screen.getByTestId('map-unplottable-warning');
+    expect(warning).toHaveTextContent(/group has no appointments/i);
+    expect(warning).not.toHaveTextContent(/0 of 3/);
   });
 
   it('stays silent when every group is plottable', async () => {

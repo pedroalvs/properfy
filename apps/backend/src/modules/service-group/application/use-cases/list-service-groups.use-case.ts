@@ -128,17 +128,26 @@ export class ListServiceGroupsUseCase {
           updatedAt: g.updatedAt,
           ...(includeAppointments
             ? {
+                // Counts every LINKED appointment, including un-geocoded ones.
+                // `appointments` below carries only the plottable subset, so a
+                // consumer can tell "3 appointments, none mappable" apart from
+                // "no appointments at all" — different problems, different fixes.
                 appointmentsCount: appointments?.length ?? 0,
-                appointments: (appointments ?? []).map((a) => ({
-                  id: a.id,
-                  code: a.code,
-                  status: a.status,
-                  address: a.address,
-                  latitude: a.latitude,
-                  longitude: a.longitude,
-                  scheduledDate: a.scheduledDate.toISOString(),
-                  inspectorName: a.inspectorName,
-                })),
+                appointments: (appointments ?? [])
+                  .filter(
+                    (a): a is typeof a & { latitude: number; longitude: number } =>
+                      a.latitude != null && a.longitude != null,
+                  )
+                  .map((a) => ({
+                    id: a.id,
+                    code: a.code,
+                    status: a.status,
+                    address: a.address,
+                    latitude: a.latitude,
+                    longitude: a.longitude,
+                    scheduledDate: a.scheduledDate.toISOString(),
+                    inspectorName: a.inspectorName,
+                  })),
               }
             : {}),
         };

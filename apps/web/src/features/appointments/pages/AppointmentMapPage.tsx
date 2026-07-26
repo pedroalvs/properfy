@@ -73,6 +73,13 @@ interface ServiceGroupMapItem {
   code?: string;
   status: ServiceGroupStatus;
   groupSize: number;
+  /**
+   * Live count of appointments LINKED to the group, including un-geocoded ones
+   * (the list endpoint populates it whenever `includeAppointments` is set).
+   * Distinct from `groupSize`, a stored counter that drifts — a cancelled group
+   * can report groupSize 3 with every appointment unlinked.
+   */
+  appointmentsCount?: number;
   scheduledDate: string;
   appointments: ServiceGroupMapAppointment[];
 }
@@ -926,9 +933,10 @@ export function AppointmentMapPage() {
     return appointmentData.filter((item) => !plotted.has(item.id));
   }, [appointmentData, validAppointmentPins]);
 
-  // Domain rows -> warning entries. `groupSize` is the honest appointment total:
-  // the API's `appointmentsCount` is itself coordinate-filtered, so it would
-  // always read "0 of 0" for exactly the groups we need to explain.
+  // Domain rows -> warning entries. The denominator is `appointmentsCount` (the
+  // live number of LINKED appointments), never `groupSize` — that stored counter
+  // drifts, and a cancelled group with every appointment unlinked still reports
+  // groupSize 3, which would invent three appointments that no longer exist.
   const unplottableEntries: UnplottableEntry[] = useMemo(() => {
     if (mode === 'appointments') {
       return unplottableAppointments.map((item) => ({
@@ -947,8 +955,8 @@ export function AppointmentMapPage() {
       // type and a raw id must never surface in the UI.
       label: group.code ? `Group #${group.code}` : 'Group (code unavailable)',
       to: `/service-groups/${group.id}`,
-      reason: group.groupSize > 0
-        ? `0 of ${group.groupSize} appointments have a valid map location`
+      reason: (group.appointmentsCount ?? 0) > 0
+        ? `0 of ${group.appointmentsCount} appointments have a valid map location`
         : 'group has no appointments',
     }));
   }, [mode, unplottableAppointments, unplottableGroups]);

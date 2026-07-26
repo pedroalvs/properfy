@@ -228,15 +228,16 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         },
       },
     });
-    return rows.flatMap((row): ServiceGroupMapAppointment[] => {
+    return rows.map((row): ServiceGroupMapAppointment => {
       const lat = row.property?.lat != null ? Number(row.property.lat) : null;
       const lng = row.property?.lng != null ? Number(row.property.lng) : null;
-      // Skip appointments without coordinates — the map can't render them.
-      if (lat == null || lng == null) return [];
+      // Un-geocoded appointments are RETURNED (with null coordinates), not
+      // dropped: the caller needs the true linked count to explain an empty
+      // group pin. Filtering for plottable rows happens in the use case.
       const street = row.property?.street ?? '';
       const suburb = row.property?.suburb ?? '';
       const address = [street, suburb].filter(Boolean).join(', ');
-      return [{
+      return {
         id: row.id,
         serviceGroupId: row.service_group_id ?? '',
         code: row.property?.property_code ?? '',
@@ -246,7 +247,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         longitude: lng,
         scheduledDate: row.scheduled_date,
         inspectorName: row.inspector?.name ?? null,
-      }];
+      };
     });
   }
 

@@ -265,6 +265,70 @@ describe('ListServiceGroupsUseCase', () => {
     expect(result.data[1]!.appointments?.[0]?.inspectorName).toBe('Mike');
   });
 
+  // The map warns "0 of N appointments have a valid map location". N must be
+  // the number of appointments LINKED to the group — counting only the
+  // plottable ones makes it read "0 of 0" for precisely the groups that need
+  // explaining, and the UI then falls back to the stale `groupSize` counter.
+  it('counts every linked appointment, but only embeds the plottable ones', async () => {
+    vi.mocked(serviceGroupRepo.findAll).mockResolvedValue([
+      { group: makeGroup({ id: 'group-1' }), assignedInspectorName: null },
+    ]);
+    vi.mocked(serviceGroupRepo.count).mockResolvedValue(1);
+    vi.mocked(serviceGroupRepo.findAppointmentsForMapByGroupIds).mockResolvedValue([
+      {
+        id: 'apt-1',
+        serviceGroupId: 'group-1',
+        code: 'VST-001',
+        status: 'SCHEDULED',
+        address: '10 Main St, Sydney',
+        latitude: -33.8,
+        longitude: 151.2,
+        scheduledDate: new Date('2026-05-01T00:00:00Z'),
+        inspectorName: null,
+      },
+      {
+        id: 'apt-2',
+        serviceGroupId: 'group-1',
+        code: 'VST-002',
+        status: 'SCHEDULED',
+        address: '20 Ungeocoded Rd',
+        latitude: null,
+        longitude: null,
+        scheduledDate: new Date('2026-05-02T00:00:00Z'),
+        inspectorName: null,
+      },
+    ]);
+
+    const result = await useCase.execute({
+      filters: { includeAppointments: true },
+      pagination: defaultPagination,
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(result.data[0]!.appointmentsCount).toBe(2);
+    expect(result.data[0]!.appointments).toHaveLength(1);
+    expect(result.data[0]!.appointments?.[0]?.id).toBe('apt-1');
+  });
+
+  it('reports zero linked appointments as zero, not as the stale groupSize', async () => {
+    // A cancelled group can keep groupSize=3 while every appointment has been
+    // unlinked. The map must be able to say "no appointments", not "0 of 3".
+    vi.mocked(serviceGroupRepo.findAll).mockResolvedValue([
+      { group: makeGroup({ id: 'group-1', groupSize: 3 }), assignedInspectorName: null },
+    ]);
+    vi.mocked(serviceGroupRepo.count).mockResolvedValue(1);
+    vi.mocked(serviceGroupRepo.findAppointmentsForMapByGroupIds).mockResolvedValue([]);
+
+    const result = await useCase.execute({
+      filters: { includeAppointments: true },
+      pagination: defaultPagination,
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(result.data[0]!.appointmentsCount).toBe(0);
+    expect(result.data[0]!.groupSize).toBe(3);
+  });
+
   it('omits appointments by default (includeAppointments is false/absent)', async () => {
     vi.mocked(serviceGroupRepo.findAll).mockResolvedValue([
       { group: makeGroup(), assignedInspectorName: null },
