@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   todayInTzDateString,
   PLATFORM_TIMEZONE,
@@ -196,6 +196,20 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
       selectedAppointments.some((a) => isReasonRequired(a.status as AppointmentStatus, targetStatus)),
     [selectedAppointments, targetStatus],
   );
+
+  // The row sits last in a scrolling dialog, so the controls it reveals land
+  // below the fold and its dropdown would open into the clipped region. Bring
+  // the row into view on check. Keyed on the boolean, so it fires once per
+  // toggle and never on unrelated renders.
+  const changeStatusRowRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (changeStatus) {
+      // Instant, not smooth: SelectInput measures placement when the menu
+      // opens, so an in-flight animated scroll would have it decide against
+      // stale geometry if the operator clicks straight through.
+      changeStatusRowRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'instant' });
+    }
+  }, [changeStatus]);
 
   const changeStatusReady =
     !!targetStatus && (!statusReasonRequired || statusReason.trim().length >= REASON_MIN_LENGTH);
@@ -566,6 +580,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
               cannot reach. */}
           {canChangeStatus && (
             <FieldRow
+              containerRef={changeStatusRowRef}
               id="bulk-change-status"
               label="Change status"
               checked={changeStatus}
@@ -639,6 +654,7 @@ function FieldRow({
   onToggle,
   helper,
   disabled = false,
+  containerRef,
   children,
 }: {
   id: string;
@@ -647,10 +663,12 @@ function FieldRow({
   onToggle: () => void;
   helper?: string | null;
   disabled?: boolean;
+  /** Lets a caller scroll this row into view — see the change-status effect. */
+  containerRef?: React.Ref<HTMLDivElement>;
   children?: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1">
+    <div ref={containerRef} className="space-y-1">
       <label
         htmlFor={`${id}-checkbox`}
         className={`flex items-center gap-2 text-sm font-medium ${

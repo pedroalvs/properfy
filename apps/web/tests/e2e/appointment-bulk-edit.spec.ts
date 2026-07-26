@@ -110,9 +110,9 @@ test.describe('Bulk Edit Flow (T033)', () => {
     const scheduledDateCheckbox = dialog.locator('label:has-text("Scheduled Date") input[type="checkbox"]');
     await scheduledDateCheckbox.check();
 
-    // Fill in the date input (use placeholder to distinguish from the form DateInput)
-    const dateInput = dialog.getByPlaceholder('YYYY-MM-DD');
-    await dateInput.fill('2026-05-01');
+    // The bulk modal uses a native date input, labelled rather than
+    // placeholdered — the old getByPlaceholder('YYYY-MM-DD') could never match.
+    await dialog.getByLabel('Set scheduled date').fill('2026-05-01');
 
     // Submit
     await dialog.getByText('Apply Changes').click();
@@ -147,7 +147,7 @@ test.describe('Bulk Edit Flow (T033)', () => {
 
     const scheduledDateCheckbox = dialog.locator('label:has-text("Scheduled Date") input[type="checkbox"]');
     await scheduledDateCheckbox.check();
-    await dialog.getByPlaceholder('YYYY-MM-DD').fill('2026-05-01');
+    await dialog.getByLabel('Set scheduled date').fill('2026-05-01');
     await dialog.getByText('Apply Changes').click();
 
     // Results should display
@@ -310,5 +310,137 @@ test.describe('Bulk Change Status', () => {
     const dialog = await openBulkEdit(page, ['APT-1001']);
     await expect(dialog.getByText('Select the fields you want to change')).toBeVisible();
     await expect(dialog.getByLabel('Change status')).toHaveCount(0);
+  });
+});
+
+test.describe('Bulk Change Status — dropdown is actually visible', () => {
+  // Regression guard for the staging bug: the options rendered into the
+  // dialog's clipped region, so the menu looked empty. Neither the unit tests
+  // (jsdom does no layout) nor the other e2e specs caught it, because
+  // Playwright auto-scrolls before clicking. This one measures geometry.
+  test('renders the target-status options inside the dialog viewport', async ({ page }) => {
+    await setupAuth(page);
+    await mockMeEndpoint(page, { ...AM_USER, role: 'OP' });
+    await mockFormOptions(page);
+    await mockAppointmentList(page, [
+      makeAppointment({ id: 'apt-1', code: 'APT-1001', appointmentNumber: 1001, status: 'DRAFT' }),
+    ]);
+
+    await page.goto('/appointments');
+    await page.getByLabel('Select appointment APT-1001').check();
+    await page.getByRole('button', { name: /Bulk Edit/ }).click();
+
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Change status').check();
+    // Open it via a direct DOM click: Playwright's click auto-scrolls the
+    // trigger into view, which would itself relieve the clipping this test
+    // exists to detect.
+    await page.evaluate(() => {
+      (document.querySelector('button[aria-label="Set target status"]') as HTMLButtonElement).click();
+    });
+
+    const fits = await page.evaluate(() => {
+      const ul = document.querySelector('ul[role="listbox"][aria-label="Set target status"]');
+      if (!ul) return { found: false };
+      // Walk to whatever actually clips it.
+      let node = ul.parentElement;
+      while (node && node !== document.body) {
+        const { overflowY } = getComputedStyle(node);
+        if (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'hidden') break;
+        node = node.parentElement;
+      }
+      const menu = ul.getBoundingClientRect();
+      const clip = (node ?? document.documentElement).getBoundingClientRect();
+      const visible = Math.max(0, Math.min(menu.bottom, clip.bottom) - Math.max(menu.top, clip.top));
+      return {
+        found: true,
+        options: ul.querySelectorAll('[role="option"]').length,
+        menuHeight: Math.round(menu.height),
+        visibleHeight: Math.round(visible),
+      };
+    });
+
+    expect(fits.found).toBe(true);
+    // Without these the visibility check passes vacuously on an empty menu,
+    // since 0 >= 0 - 1.
+    expect(fits.options).toBeGreaterThan(0);
+    expect(fits.menuHeight).toBeGreaterThan(0);
+    // Before the fix only ~4px of a 109px menu were inside the clip.
+    expect(fits.visibleHeight).toBeGreaterThanOrEqual(fits.menuHeight! - 1);
+  });
+});
+
+test.describe('Bulk Change Status — keyboard only', () => {
+  // jsdom cannot prove real key handling. This drives the target-status menu
+  // in Chromium without ever using the mouse on it.
+  test('selects a target status with the keyboard alone', async ({ page }) => {
+    let payload: Record<string, unknown> | null = null;
+    await setupAuth(page);
+    await mockMeEndpoint(page, { ...AM_USER, role: 'OP' });
+    await mockFormOptions(page);
+    await mockAppointmentList(page, [
+      makeAppointment({ id: 'apt-1', code: 'APT-1001', appointmentNumber: 1001, status: 'DRAFT' }),
+    ]);
+    await page.route('**/v1/appointments/bulk-status-transition', async (route) => {
+      payload = route.request().postDataJSON();
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: { results: [{ appointmentId: 'apt-1', status: 'OK' }] } }),
+      });
+    });
+
+    await page.goto('/appointments');
+    await page.getByLabel('Select appointment APT-1001').check();
+    await page.getByRole('button', { name: /Bulk Edit/ }).click();
+
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Change status').check();
+
+    // From here on: keyboard only.
+    await dialog.getByRole('button', { name: 'Set target status' }).focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(dialog.getByRole('listbox')).toBeVisible();
+
+    // Options are announced through aria-activedescendant, since <li> cannot
+    // hold focus.
+    const activeId = await dialog.getByRole('button', { name: 'Set target status' }).getAttribute('aria-activedescendant');
+    expect(activeId).toBeTruthy();
+
+    await page.keyboard.press('End');
+    await page.keyboard.press('Enter');
+
+    // The menu closed and the last option landed in the trigger.
+    await expect(dialog.getByRole('listbox')).toHaveCount(0);
+    await expect(dialog.getByRole('button', { name: 'Set target status' })).toContainText('Cancelled');
+
+    await dialog.getByLabel('Status change reason').fill('Keyboard-only smoke');
+    await dialog.getByRole('button', { name: 'Apply Changes' }).click();
+
+    await expect.poll(() => payload).not.toBeNull();
+    expect(payload).toMatchObject({ targetStatus: 'CANCELLED' });
+  });
+
+  test('Escape closes the menu without choosing anything', async ({ page }) => {
+    await setupAuth(page);
+    await mockMeEndpoint(page, { ...AM_USER, role: 'OP' });
+    await mockFormOptions(page);
+    await mockAppointmentList(page, [
+      makeAppointment({ id: 'apt-1', code: 'APT-1001', appointmentNumber: 1001, status: 'DRAFT' }),
+    ]);
+
+    await page.goto('/appointments');
+    await page.getByLabel('Select appointment APT-1001').check();
+    await page.getByRole('button', { name: /Bulk Edit/ }).click();
+
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Change status').check();
+    await dialog.getByRole('button', { name: 'Set target status' }).focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(dialog.getByRole('listbox')).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(dialog.getByRole('listbox')).toHaveCount(0);
+    await expect(dialog.getByRole('button', { name: 'Apply Changes' })).toBeDisabled();
   });
 });
