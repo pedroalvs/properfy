@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import {
   AppointmentMapFilterPanel,
   DEFAULT_APPOINTMENT_FILTERS,
@@ -236,6 +236,46 @@ describe('AppointmentMapFilterPanel', () => {
     it('is not rendered in groups mode', () => {
       renderPanel({ mode: 'groups' });
       expect(screen.queryByText('Tenant Confirmation')).toBeNull();
+    });
+  });
+
+  describe('group search debounce', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('keeps a status toggled while the search debounce is pending', () => {
+      // Guards the fix in FilterInput itself: the debounced callback must be the
+      // newest one, or this panel's `{ ...filters, search: v }` merge would
+      // revert a status pill toggled inside the 300ms window.
+      const onGroupFiltersChange = vi.fn();
+      const props = {
+        mode: 'groups' as const,
+        onModeChange: vi.fn(),
+        appointmentFilters: DEFAULT_APPOINTMENT_FILTERS,
+        onAppointmentFiltersChange: vi.fn(),
+        groupFilters: DEFAULT_GROUP_FILTERS,
+        onGroupFiltersChange,
+      };
+      const { rerender } = render(<AppointmentMapFilterPanel {...props} />);
+
+      act(() => {
+        fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'roof' } });
+      });
+
+      // Parent state advances mid-debounce (a status pill was toggled off).
+      const advanced = { ...DEFAULT_GROUP_FILTERS, statuses: ['ACCEPTED'] };
+      rerender(<AppointmentMapFilterPanel {...props} groupFilters={advanced} />);
+
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+
+      expect(onGroupFiltersChange).toHaveBeenCalledWith({ ...advanced, search: 'roof' });
     });
   });
 });

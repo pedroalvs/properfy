@@ -35,6 +35,45 @@ describe('FilterInput', () => {
     expect(onChange).toHaveBeenCalledWith('test');
   });
 
+  it('invokes the latest onChange when the debounce fires', () => {
+    // Consumers pass `(v) => onFiltersChange({ ...filters, search: v })`, a new
+    // closure per render over that render's `filters`. Calling the handler
+    // captured at keystroke time would merge into a 300ms-stale snapshot and
+    // revert any sibling filter the user changed inside the window.
+    const stale = vi.fn();
+    const latest = vi.fn();
+    const { rerender } = render(<FilterInput label="Buscar" value="" onChange={stale} />);
+
+    act(() => {
+      fireEvent.change(screen.getByLabelText('Buscar'), { target: { value: 'test' } });
+    });
+
+    // Parent re-renders with a fresh handler before the timer fires.
+    rerender(<FilterInput label="Buscar" value="" onChange={latest} />);
+
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(stale).not.toHaveBeenCalled();
+    expect(latest).toHaveBeenCalledWith('test');
+  });
+
+  it('invokes the latest onChange when cleared', () => {
+    const stale = vi.fn();
+    const latest = vi.fn();
+    const { rerender } = render(<FilterInput label="Buscar" value="abc" onChange={stale} />);
+
+    rerender(<FilterInput label="Buscar" value="abc" onChange={latest} />);
+
+    act(() => {
+      fireEvent.click(screen.getByLabelText('Clear Buscar'));
+    });
+
+    expect(stale).not.toHaveBeenCalled();
+    expect(latest).toHaveBeenCalledWith('');
+  });
+
   it('shows floating label on focus', () => {
     render(<FilterInput label="Buscar" value="" onChange={() => {}} />);
 
