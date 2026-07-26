@@ -27,8 +27,15 @@ export const formSelectTrigger =
   'w-full bg-transparent px-3 py-2 text-sm text-text-primary outline-none cursor-pointer flex items-center justify-between';
 
 // Dropdown
-export const formDropdown =
-  'absolute left-0 top-full z-50 mt-1 max-h-60 w-full overflow-auto overscroll-contain rounded bg-card-bg shadow-lg border border-black/10';
+const formDropdownBase =
+  'absolute left-0 z-50 max-h-60 w-full overflow-auto overscroll-contain rounded bg-card-bg shadow-lg border border-black/10';
+
+/** Default placement: below the trigger. */
+export const formDropdown = `${formDropdownBase} top-full mt-1`;
+
+/** Flipped placement, for a trigger pinned near the bottom of a scrolling
+ *  container — see `resolveDropdownPlacement` in `dropdown-placement.ts`. */
+export const formDropdownAbove = `${formDropdownBase} bottom-full mb-1`;
 
 export const formOption =
   'cursor-pointer px-3 py-2 text-sm text-text-primary hover:bg-primary/5 transition-colors';

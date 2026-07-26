@@ -5,9 +5,11 @@ import {
   formInputContainerDisabled,
   formSelectTrigger,
   formDropdown,
+  formDropdownAbove,
   formOption,
   formOptionActive,
 } from './form-styles';
+import { clippingRect, resolveDropdownPlacement, type DropdownPlacement } from './dropdown-placement';
 
 export interface SelectOption {
   label: string;
@@ -36,7 +38,30 @@ export function SelectInput({
   'aria-label': ariaLabel,
 }: SelectInputProps) {
   const [open, setOpen] = useState(false);
+  const [placement, setPlacement] = useState<DropdownPlacement>('below');
   const containerRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Decide placement at open time, from the space left inside whatever
+   * actually clips the menu. Measuring here (rather than on every render)
+   * keeps the common case free and avoids a visible reposition.
+   */
+  const toggleOpen = () => {
+    if (disabled) return;
+    if (!open && containerRef.current) {
+      const trigger = containerRef.current.getBoundingClientRect();
+      const clip = clippingRect(containerRef.current);
+      setPlacement(
+        resolveDropdownPlacement({
+          triggerTop: trigger.top,
+          triggerBottom: trigger.bottom,
+          clipTop: clip.top,
+          clipBottom: clip.bottom,
+        }),
+      );
+    }
+    setOpen(!open);
+  };
 
   const selectedLabel = options.find((o) => o.value === value)?.label;
 
@@ -62,7 +87,7 @@ export function SelectInput({
         type="button"
         id={id}
         className={formSelectTrigger}
-        onClick={() => !disabled && setOpen(!open)}
+        onClick={toggleOpen}
         disabled={disabled}
         aria-label={ariaLabel}
         aria-expanded={open}
@@ -77,7 +102,7 @@ export function SelectInput({
       </button>
 
       {open && (
-        <ul className={formDropdown} role="listbox" aria-label={ariaLabel}>
+        <ul className={placement === "above" ? formDropdownAbove : formDropdown} role="listbox" aria-label={ariaLabel}>
           {options.map((opt) => (
             <li
               key={opt.value}

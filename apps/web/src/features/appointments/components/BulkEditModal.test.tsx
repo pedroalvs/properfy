@@ -465,6 +465,24 @@ describe('BulkEditModal', () => {
       });
     });
 
+    it('brings its own row into view when checked', () => {
+      // It is the last row in a scrolling dialog, so the controls it reveals
+      // land below the fold and the target dropdown opens into the clipped
+      // region. Observed on staging: the menu looked empty until scrolled.
+      const original = Element.prototype.scrollIntoView;
+      const scrollIntoView = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoView;
+      try {
+        renderModal([makeAppointment({ status: 'DRAFT' })]);
+        expect(scrollIntoView).not.toHaveBeenCalled();
+
+        fireEvent.click(screen.getByLabelText('Change status'));
+        expect(scrollIntoView).toHaveBeenCalled();
+      } finally {
+        Element.prototype.scrollIntoView = original;
+      }
+    });
+
     it('drops a stale target when the selection changes underneath it', () => {
       // targetStatus is derived, not stored: if the new selection cannot reach
       // the target that was already picked, the pick must vanish rather than
