@@ -130,6 +130,31 @@ describe('FilterInput', () => {
       expect(onChange).toHaveBeenCalledTimes(1);
     });
 
+    it('ignores the Enter that commits an IME composition', () => {
+      // For CJK input, Enter confirms a candidate mid-word. Treating that as a
+      // submit would flush a half-composed term and move the map while the
+      // operator is still typing.
+      const onChange = vi.fn();
+      const onSubmit = vi.fn();
+      render(<FilterInput label="Buscar" value="" onChange={onChange} onSubmit={onSubmit} />);
+      const input = screen.getByLabelText('Buscar');
+
+      act(() => {
+        fireEvent.change(input, { target: { value: '東京' } });
+        fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
+      });
+
+      expect(onSubmit).not.toHaveBeenCalled();
+      expect(onChange).not.toHaveBeenCalled();
+
+      // The composition ends; a real Enter still submits.
+      act(() => {
+        fireEvent.keyDown(input, { key: 'Enter' });
+      });
+      expect(onChange).toHaveBeenCalledWith('東京');
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
+
     it('ignores other keys', () => {
       const onSubmit = vi.fn();
 

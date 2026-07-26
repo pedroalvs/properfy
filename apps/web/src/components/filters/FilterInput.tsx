@@ -44,6 +44,9 @@ export function FilterInput({
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key !== 'Enter') return;
+    // With an IME (CJK input), Enter commits the composition candidate rather
+    // than meaning "submit" — acting on it would flush a half-composed term.
+    if (event.nativeEvent.isComposing) return;
     event.preventDefault();
     // A live timer is the only reliable "the parent has not seen this keystroke
     // yet" signal — comparing localValue to value would also fire when the

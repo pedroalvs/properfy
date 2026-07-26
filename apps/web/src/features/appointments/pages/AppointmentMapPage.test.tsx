@@ -394,6 +394,26 @@ describe('AppointmentMapPage — un-plottable rows are surfaced, not hidden', ()
     expect(link).toHaveAttribute('href', '/service-groups/sg-1');
   });
 
+  it('treats a malformed coordinate as unplottable, not as "on map"', async () => {
+    // `!= null` is not enough: computeBounds (which frames the camera) also
+    // rejects non-finite and out-of-range values. If the header used the looser
+    // rule it would claim this group is on the map while the camera silently
+    // ignored it — the exact divergence this feature exists to close.
+    mockGroups([
+      {
+        ...UNGEOCODED_GROUP,
+        appointments: [{ id: 'apt-1', latitude: 999, longitude: 151.2 }],
+      },
+    ]);
+    renderPageAt(['/map?mode=groups']);
+    fireEvent.click(screen.getByTestId('map-filter-toggle'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/1 group · 0 on map/)).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('map-unplottable-warning')).toBeInTheDocument();
+  });
+
   it('stays silent when every group is plottable', async () => {
     mockGroups([
       {

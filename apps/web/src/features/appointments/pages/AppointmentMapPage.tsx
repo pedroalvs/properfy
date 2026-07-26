@@ -8,7 +8,7 @@ import { MapScreenLayout } from '@/components/map/MapScreenLayout';
 import { MapContainer } from '@/components/map/MapContainer';
 import { MapMarker } from '@/components/map/MapMarker';
 import { MapFloatingAction } from '@/components/map/MapFloatingAction';
-import { computeBounds, isSinglePointBounds, type PointLike } from '@/lib/map-bounds';
+import { computeBounds, isSinglePointBounds, isPlottablePoint, type PointLike } from '@/lib/map-bounds';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { useAuth } from '@/hooks/useAuth';
@@ -148,7 +148,7 @@ function fitToPoints(
 function computeGroupCentroid(
   appointments: ServiceGroupMapAppointment[],
 ): { latitude: number; longitude: number } | null {
-  const valid = appointments.filter((a) => a.latitude != null && a.longitude != null);
+  const valid = appointments.filter(isPlottablePoint);
   if (valid.length === 0) return null;
   return {
     latitude: valid.reduce((s, a) => s + a.latitude, 0) / valid.length,
@@ -885,7 +885,7 @@ export function AppointmentMapPage() {
     () =>
       appointmentData.filter(
         (item): item is AppointmentMapItem & { latitude: number; longitude: number } =>
-          item.latitude != null && item.longitude != null,
+          isPlottablePoint(item),
       ),
     [appointmentData],
   );
@@ -907,14 +907,15 @@ export function AppointmentMapPage() {
     () =>
       groupAppointments.filter(
         (item): item is AppointmentMapItem & { latitude: number; longitude: number } =>
-          item.latitude != null && item.longitude != null,
+          isPlottablePoint(item),
       ),
     [groupAppointments],
   );
 
   // Rows the API matched but the map cannot plot. Derived by set difference
-  // against the pins above, so there is exactly ONE definition of "plottable"
-  // and the warning can never disagree with the markers.
+  // against the pins above, which filter on the same `isPlottablePoint`
+  // predicate `computeBounds` uses — so the header, the markers and the camera
+  // fit can never disagree about what "plottable" means.
   const unplottableGroups = useMemo(() => {
     const plotted = new Set(validGroupPins.map((pin) => pin.id));
     return groupData.filter((group) => !plotted.has(group.id));
