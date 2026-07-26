@@ -105,6 +105,13 @@ interface AppointmentMapFilterPanelProps {
   inspectorOptions?: Array<{ label: string; value: string }>;
   /** Actor role — gates the Agencies filter to AM/OP. */
   actorRole?: string;
+  /**
+   * Fired when the operator presses Enter in a filter text field — the explicit
+   * "frame these results on the map" ask. Filter changes deliberately do NOT
+   * move the camera (see the `hasFittedRef` guard in AppointmentMapPage), so
+   * this is how a searched pin gets brought into view.
+   */
+  onFilterSubmit?: () => void;
 }
 
 export function AppointmentMapFilterPanel({
@@ -119,6 +126,7 @@ export function AppointmentMapFilterPanel({
   tenantOptions = [],
   inspectorOptions = [],
   actorRole,
+  onFilterSubmit,
 }: AppointmentMapFilterPanelProps) {
   const toggleStatus = (
     currentStatuses: string[],
@@ -159,6 +167,7 @@ export function AppointmentMapFilterPanel({
               tenantOptions={tenantOptions}
               inspectorOptions={inspectorOptions}
               actorRole={actorRole}
+              onFilterSubmit={onFilterSubmit}
             />
           ) : (
             <GroupModeFields
@@ -166,6 +175,7 @@ export function AppointmentMapFilterPanel({
               onChange={onGroupFiltersChange}
               toggleStatus={toggleStatus}
               branchOptions={branchOptions}
+              onFilterSubmit={onFilterSubmit}
             />
           )}
         </div>
@@ -220,6 +230,7 @@ function AppointmentModeFields({
   tenantOptions,
   inspectorOptions,
   actorRole,
+  onFilterSubmit,
 }: {
   filters: AppointmentModeFilters;
   onChange: (f: AppointmentModeFilters) => void;
@@ -229,6 +240,7 @@ function AppointmentModeFields({
   tenantOptions: Array<{ label: string; value: string }>;
   inspectorOptions: Array<{ label: string; value: string }>;
   actorRole?: string;
+  onFilterSubmit?: () => void;
 }) {
   return (
     <>
@@ -237,6 +249,7 @@ function AppointmentModeFields({
         value={filters.search}
         onChange={(v) => onChange({ ...filters, search: v })}
         placeholder="Code, address, contact..."
+        onSubmit={onFilterSubmit}
       />
 
       <StatusMultiSelect
@@ -323,6 +336,7 @@ function AppointmentModeFields({
         value={filters.contactSearch}
         onChange={(v) => onChange({ ...filters, contactSearch: v })}
         placeholder="Name, email, phone..."
+        onSubmit={onFilterSubmit}
       />
 
       <FilterBoolean
@@ -339,11 +353,13 @@ function GroupModeFields({
   onChange,
   toggleStatus,
   branchOptions,
+  onFilterSubmit,
 }: {
   filters: GroupModeFilters;
   onChange: (f: GroupModeFilters) => void;
   toggleStatus: (current: string[], value: string) => string[];
   branchOptions: Array<{ label: string; value: string }>;
+  onFilterSubmit?: () => void;
 }) {
   return (
     <>
@@ -352,6 +368,7 @@ function GroupModeFields({
         value={filters.search}
         onChange={(v) => onChange({ ...filters, search: v })}
         placeholder="Group code, description..."
+        onSubmit={onFilterSubmit}
       />
 
       <StatusMultiSelect
@@ -366,6 +383,7 @@ function GroupModeFields({
         value={filters.contactSearch}
         onChange={(v) => onChange({ ...filters, contactSearch: v })}
         placeholder="Name, email, phone..."
+        onSubmit={onFilterSubmit}
       />
 
       {branchOptions.length > 0 && (

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type KeyboardEvent } from 'react';
 import { filterContainer, filterInput, filterLabel, filterLabelFocused, filterIcon, filterClearButton } from './filter-styles';
 
 interface FilterInputProps {
@@ -7,6 +7,12 @@ interface FilterInputProps {
   onChange: (value: string) => void;
   placeholder?: string;
   debounceMs?: number;
+  /**
+   * Fired when the operator presses Enter, AFTER any pending debounce has been
+   * flushed — so a consumer that refetches off `onChange` is already acting on
+   * the just-typed term by the time this runs.
+   */
+  onSubmit?: () => void;
 }
 
 export function FilterInput({
@@ -15,6 +21,7 @@ export function FilterInput({
   onChange,
   placeholder,
   debounceMs = 300,
+  onSubmit,
 }: FilterInputProps) {
   const [localValue, setLocalValue] = useState(value);
   const [focused, setFocused] = useState(false);
@@ -30,6 +37,19 @@ export function FilterInput({
     timerRef.current = setTimeout(() => {
       onChange(newValue);
     }, debounceMs);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    // `localValue !== value` is exactly "a debounce is still in flight": the
+    // parent has not seen this keystroke yet. Flush it before notifying, or the
+    // submit would act on the previous term.
+    if (localValue !== value) {
+      clearTimeout(timerRef.current);
+      onChange(localValue);
+    }
+    onSubmit?.();
   };
 
   const handleClear = () => {
@@ -58,6 +78,7 @@ export function FilterInput({
           placeholder={showFloatingLabel ? placeholder : label}
           value={localValue}
           onChange={(e) => handleChange(e.target.value)}
+          onKeyDown={handleKeyDown}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           aria-label={label}
