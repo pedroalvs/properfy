@@ -369,3 +369,78 @@ test.describe('Bulk Change Status — dropdown is actually visible', () => {
     expect(fits.visibleHeight).toBeGreaterThanOrEqual(fits.menuHeight! - 1);
   });
 });
+
+test.describe('Bulk Change Status — keyboard only', () => {
+  // jsdom cannot prove real key handling. This drives the target-status menu
+  // in Chromium without ever using the mouse on it.
+  test('selects a target status with the keyboard alone', async ({ page }) => {
+    let payload: Record<string, unknown> | null = null;
+    await setupAuth(page);
+    await mockMeEndpoint(page, { ...AM_USER, role: 'OP' });
+    await mockFormOptions(page);
+    await mockAppointmentList(page, [
+      makeAppointment({ id: 'apt-1', code: 'APT-1001', appointmentNumber: 1001, status: 'DRAFT' }),
+    ]);
+    await page.route('**/v1/appointments/bulk-status-transition', async (route) => {
+      payload = route.request().postDataJSON();
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: { results: [{ appointmentId: 'apt-1', status: 'OK' }] } }),
+      });
+    });
+
+    await page.goto('/appointments');
+    await page.getByLabel('Select appointment APT-1001').check();
+    await page.getByRole('button', { name: /Bulk Edit/ }).click();
+
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Change status').check();
+
+    // From here on: keyboard only.
+    await dialog.getByRole('button', { name: 'Set target status' }).focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(dialog.getByRole('listbox')).toBeVisible();
+
+    // Options are announced through aria-activedescendant, since <li> cannot
+    // hold focus.
+    const activeId = await dialog.getByRole('button', { name: 'Set target status' }).getAttribute('aria-activedescendant');
+    expect(activeId).toBeTruthy();
+
+    await page.keyboard.press('End');
+    await page.keyboard.press('Enter');
+
+    // The menu closed and the last option landed in the trigger.
+    await expect(dialog.getByRole('listbox')).toHaveCount(0);
+    await expect(dialog.getByRole('button', { name: 'Set target status' })).toContainText('Cancelled');
+
+    await dialog.getByLabel('Status change reason').fill('Keyboard-only smoke');
+    await dialog.getByRole('button', { name: 'Apply Changes' }).click();
+
+    await expect.poll(() => payload).not.toBeNull();
+    expect(payload).toMatchObject({ targetStatus: 'CANCELLED' });
+  });
+
+  test('Escape closes the menu without choosing anything', async ({ page }) => {
+    await setupAuth(page);
+    await mockMeEndpoint(page, { ...AM_USER, role: 'OP' });
+    await mockFormOptions(page);
+    await mockAppointmentList(page, [
+      makeAppointment({ id: 'apt-1', code: 'APT-1001', appointmentNumber: 1001, status: 'DRAFT' }),
+    ]);
+
+    await page.goto('/appointments');
+    await page.getByLabel('Select appointment APT-1001').check();
+    await page.getByRole('button', { name: /Bulk Edit/ }).click();
+
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Change status').check();
+    await dialog.getByRole('button', { name: 'Set target status' }).focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(dialog.getByRole('listbox')).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(dialog.getByRole('listbox')).toHaveCount(0);
+    await expect(dialog.getByRole('button', { name: 'Apply Changes' })).toBeDisabled();
+  });
+});
