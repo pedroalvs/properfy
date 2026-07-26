@@ -84,7 +84,6 @@ async function seedGroup(prisma: PrismaClient, serviceTypeId: string, userId: st
     data: {
       service_type_id: serviceTypeId,
       status: 'DRAFT',
-      group_size: 1,
       scheduled_date: FUTURE_DATE,
       time_window: '08:00-12:00',
       created_by_user_id: userId,

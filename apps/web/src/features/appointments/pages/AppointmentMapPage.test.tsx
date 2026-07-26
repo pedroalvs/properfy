@@ -343,8 +343,8 @@ describe('AppointmentMapPage — un-plottable rows are surfaced, not hidden', ()
     id: 'sg-1',
     code: '25',
     status: 'PUBLISHED',
-    // groupSize is a stored counter that drifts; appointmentsCount is the live
-    // number of LINKED appointments. Here: 3 linked, none of them mappable.
+    // Both are the live number of LINKED appointments — the backend derives
+    // them from the same count. Here: 3 linked, none of them mappable.
     groupSize: 3,
     appointmentsCount: 3,
     scheduledDate: '2026-04-01',
@@ -389,8 +389,8 @@ describe('AppointmentMapPage — un-plottable rows are surfaced, not hidden', ()
     });
     const warning = screen.getByTestId('map-unplottable-warning');
     expect(warning).toHaveTextContent(/no map location/i);
-    // The operator needs to know WHY, and groupSize is the only honest total —
-    // the API's appointmentsCount is itself coordinate-filtered.
+    // The operator needs to know WHY, and the denominator has to be the number
+    // of appointments actually linked to the group.
     expect(warning).toHaveTextContent(/0 of 3 appointments have a valid map location/i);
 
     const link = screen.getByRole('link', { name: /Group #25/ });
@@ -422,12 +422,32 @@ describe('AppointmentMapPage — un-plottable rows are surfaced, not hidden', ()
     expect(warning).not.toHaveTextContent(/have coordinates/i);
   });
 
-  it('says the group is empty rather than quoting the stale groupSize', async () => {
-    // The reported case: a CANCELLED group keeps groupSize=3 while every
-    // appointment has been unlinked. Saying "0 of 3 appointments have a valid
-    // map location" invents three appointments that no longer exist, and sends
-    // the operator looking for a geocoding problem that isn't there.
-    mockGroups([{ ...UNGEOCODED_GROUP, groupSize: 3, appointmentsCount: 0, appointments: [] }]);
+  it('does not claim the group is empty when the count is absent', async () => {
+    // A missing `appointmentsCount` means "the server did not say", which is
+    // not the same as "the server said zero". Reading it as `?? 0` collapsed
+    // the two and made the page assert emptiness it had never measured — so a
+    // renamed or dropped field would silently read as a legitimately empty
+    // group. Say only what is true regardless: nothing could be plotted.
+    const { appointmentsCount: _omitted, ...withoutCount } = UNGEOCODED_GROUP;
+    mockGroups([{ ...withoutCount, appointments: [] }]);
+    renderPageAt(['/map?mode=groups']);
+    fireEvent.click(screen.getByTestId('map-filter-toggle'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('map-unplottable-warning')).toBeInTheDocument();
+    });
+    const warning = screen.getByTestId('map-unplottable-warning');
+    expect(warning).toHaveTextContent(/no appointment with a valid map location/i);
+    expect(warning).not.toHaveTextContent(/group has no appointments/i);
+    expect(warning).not.toHaveTextContent(/0 of/);
+  });
+
+  it('says the group is empty when the server reports zero appointments', async () => {
+    // The reported case: a CANCELLED group whose appointments have all been
+    // unlinked. Quoting a non-zero total here would invent appointments that no
+    // longer exist and send the operator hunting a geocoding problem that isn't
+    // there. Zero linked appointments has its own, different explanation.
+    mockGroups([{ ...UNGEOCODED_GROUP, groupSize: 0, appointmentsCount: 0, appointments: [] }]);
     renderPageAt(['/map?mode=groups']);
     fireEvent.click(screen.getByTestId('map-filter-toggle'));
 

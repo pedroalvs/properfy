@@ -166,7 +166,6 @@ describe('T184 — delete safety', () => {
         service_type_id: serviceType.id,
         service_region_id: regionId,
         status: 'DRAFT',
-        group_size: 3,
         scheduled_date: new Date('2026-06-01'),
         time_window: '08:00-12:00',
         created_by_user_id: userId,

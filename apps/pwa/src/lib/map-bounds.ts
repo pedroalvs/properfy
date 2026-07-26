@@ -1,9 +1,13 @@
 import type { LngLatBoundsLike } from 'mapbox-gl';
+import { isPlottablePoint, type PointLike } from '@properfy/shared';
 
-export interface PointLike {
-  latitude: number | null | undefined;
-  longitude: number | null | undefined;
-}
+/**
+ * `isPlottablePoint` is defined in `@properfy/shared` so the backend filters
+ * map payloads by the very same rule this camera fit applies. Re-exported here
+ * because it belongs to the map vocabulary from a caller's point of view — but
+ * there is only one implementation, and it is not this file's.
+ */
+export { isPlottablePoint, type PointLike };
 
 /**
  * Compute a Mapbox GL bounding box from an array of points.
@@ -22,11 +26,9 @@ export function computeBounds(points: PointLike[]): LngLatBoundsLike | null {
   let count = 0;
 
   for (const point of points) {
-    const { latitude, longitude } = point;
-    if (latitude == null || longitude == null) continue;
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) continue;
-    if (latitude < -90 || latitude > 90) continue;
-    if (longitude < -180 || longitude > 180) continue;
+    if (!isPlottablePoint(point)) continue;
+    const latitude = point.latitude as number;
+    const longitude = point.longitude as number;
 
     if (longitude < minLng) minLng = longitude;
     if (longitude > maxLng) maxLng = longitude;

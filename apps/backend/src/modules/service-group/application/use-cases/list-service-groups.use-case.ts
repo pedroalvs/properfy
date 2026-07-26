@@ -1,4 +1,4 @@
-import type { AuthContext } from '@properfy/shared';
+import { isPlottablePoint, type AuthContext } from '@properfy/shared';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type {
   IServiceGroupRepository,
@@ -126,18 +126,22 @@ export class ListServiceGroupsUseCase {
           publishedAt: g.publishedAt,
           createdAt: g.createdAt,
           updatedAt: g.updatedAt,
+          // Every LINKED appointment, including un-geocoded ones. Emitted
+          // unconditionally: it is the same derived count as `groupSize`, so it
+          // costs nothing, and a consumer that only sometimes receives it
+          // cannot tell "no appointments" from "the server didn't say".
+          appointmentsCount: g.groupSize,
           ...(includeAppointments
             ? {
-                // Counts every LINKED appointment, including un-geocoded ones.
-                // `appointments` below carries only the plottable subset, so a
-                // consumer can tell "3 appointments, none mappable" apart from
-                // "no appointments at all" — different problems, different fixes.
-                appointmentsCount: appointments?.length ?? 0,
+                // Only the PLOTTABLE subset, so a consumer can tell
+                // "3 appointments, none mappable" apart from "no appointments
+                // at all" — different problems, different fixes. Filtered with
+                // the shared predicate rather than a looser `!= null`: the map
+                // rejects non-finite and out-of-range coordinates too, and a
+                // payload that advertises a subset its only reader disagrees
+                // with is the bug this filter exists to prevent.
                 appointments: (appointments ?? [])
-                  .filter(
-                    (a): a is typeof a & { latitude: number; longitude: number } =>
-                      a.latitude != null && a.longitude != null,
-                  )
+                  .filter(isPlottablePoint)
                   .map((a) => ({
                     id: a.id,
                     code: a.code,

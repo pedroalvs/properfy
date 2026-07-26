@@ -152,13 +152,11 @@ async function seedPublishedGroup(
   prisma: PrismaClient,
   serviceTypeId: string,
   createdByUserId: string,
-  groupSize: number,
 ): Promise<string> {
   const group = await prisma.serviceGroup.create({
     data: {
       service_type_id: serviceTypeId,
       status: 'PUBLISHED',
-      group_size: groupSize,
       scheduled_date: FUTURE_DATE,
       time_window: '08:00-12:00',
       published_at: new Date(),
@@ -218,7 +216,7 @@ describe('marketplace offer detail — per-appointment coordinates and street', 
     const { inspectorId } = await seedInspector(harness.prisma, 'Insp Geo');
     await linkInspectorRegion(harness.prisma, inspectorId, regionId);
 
-    const groupId = await seedPublishedGroup(harness.prisma, serviceTypeId, userId, 2);
+    const groupId = await seedPublishedGroup(harness.prisma, serviceTypeId, userId);
     const geocodedProperty = await seedPropertyInsideSydney(harness.prisma, tenantId, branchId, {
       street: '10 Main St',
       withLatLng: true,

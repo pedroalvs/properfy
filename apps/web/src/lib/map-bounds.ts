@@ -1,26 +1,13 @@
 import type { LngLatBoundsLike } from 'mapbox-gl';
-
-export interface PointLike {
-  latitude: number | null | undefined;
-  longitude: number | null | undefined;
-}
+import { isPlottablePoint, type PointLike } from '@properfy/shared';
 
 /**
- * Whether a point can actually be drawn and framed.
- *
- * This is THE definition of "plottable" — callers filtering their own pin
- * collections must use it rather than a looser `!= null` check, or a malformed
- * coordinate will be counted as on-screen and handed to a marker while
- * `computeBounds` silently drops it from the camera fit.
+ * `isPlottablePoint` is defined in `@properfy/shared` so the backend filters
+ * map payloads by the very same rule this camera fit applies. Re-exported here
+ * because it belongs to the map vocabulary from a caller's point of view — but
+ * there is only one implementation, and it is not this file's.
  */
-export function isPlottablePoint(point: PointLike): boolean {
-  const { latitude, longitude } = point;
-  if (latitude == null || longitude == null) return false;
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return false;
-  if (latitude < -90 || latitude > 90) return false;
-  if (longitude < -180 || longitude > 180) return false;
-  return true;
-}
+export { isPlottablePoint, type PointLike };
 
 /**
  * Compute a Mapbox GL bounding box from an array of points.
