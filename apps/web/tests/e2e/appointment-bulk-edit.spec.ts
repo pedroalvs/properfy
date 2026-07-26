@@ -110,9 +110,9 @@ test.describe('Bulk Edit Flow (T033)', () => {
     const scheduledDateCheckbox = dialog.locator('label:has-text("Scheduled Date") input[type="checkbox"]');
     await scheduledDateCheckbox.check();
 
-    // Fill in the date input (use placeholder to distinguish from the form DateInput)
-    const dateInput = dialog.getByPlaceholder('YYYY-MM-DD');
-    await dateInput.fill('2026-05-01');
+    // The bulk modal uses a native date input, labelled rather than
+    // placeholdered — the old getByPlaceholder('YYYY-MM-DD') could never match.
+    await dialog.getByLabel('Set scheduled date').fill('2026-05-01');
 
     // Submit
     await dialog.getByText('Apply Changes').click();
@@ -147,7 +147,7 @@ test.describe('Bulk Edit Flow (T033)', () => {
 
     const scheduledDateCheckbox = dialog.locator('label:has-text("Scheduled Date") input[type="checkbox"]');
     await scheduledDateCheckbox.check();
-    await dialog.getByPlaceholder('YYYY-MM-DD').fill('2026-05-01');
+    await dialog.getByLabel('Set scheduled date').fill('2026-05-01');
     await dialog.getByText('Apply Changes').click();
 
     // Results should display
