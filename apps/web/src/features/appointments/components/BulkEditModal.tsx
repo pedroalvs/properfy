@@ -556,8 +556,19 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
               selectedContactId={values.propertyManagerContactId}
               onSelect={handlePmContactSelect}
               onClear={handlePmContactClear}
-              placeholder="Search property manager..."
+              placeholder={
+                multiTenant
+                  ? 'All selected appointments must share an agency'
+                  : 'Search property manager...'
+              }
               aria-label="Property Manager Contact"
+              // Contacts are per-agency, and useContactSearch stays disabled
+              // without a tenant — omitting this left the field unable to
+              // return a single result. Scoped to the selection's agency, and
+              // disabled when the selection spans several, exactly as the
+              // inspector dropdown above behaves.
+              tenantId={activeTenantId}
+              disabled={multiTenant}
             />
           </FieldRow>
 

@@ -444,3 +444,63 @@ test.describe('Bulk Change Status — keyboard only', () => {
     await expect(dialog.getByRole('button', { name: 'Apply Changes' })).toBeDisabled();
   });
 });
+
+test.describe('Contact autocomplete — keyboard only', () => {
+  // The PM-contact field sits inside the bulk-edit dialog, which is the risky
+  // context: Escape reaches a document listener there, and the suggestion list
+  // can be clipped by the dialog's scroll container.
+  test('picks a contact with the keyboard and Escape spares the dialog', async ({ page }) => {
+    await setupAuth(page);
+    await mockMeEndpoint(page, { ...AM_USER, role: 'OP' });
+    await mockFormOptions(page);
+    await mockAppointmentList(page, [
+      makeAppointment({ id: 'apt-1', code: 'APT-1001', appointmentNumber: 1001, status: 'DRAFT' }),
+    ]);
+    await page.route('**/v1/contacts?**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data: [
+            { id: 'c1', displayName: 'Alice Smith', type: 'PROPERTY_MANAGER', primaryEmail: 'alice@x.com', primaryPhone: null },
+            { id: 'c2', displayName: 'Bob Jones', type: 'PROPERTY_MANAGER', primaryEmail: 'bob@x.com', primaryPhone: null },
+          ],
+          total: 2,
+          page: 1,
+          pageSize: 10,
+        }),
+      });
+    });
+
+    await page.goto('/appointments');
+    await page.getByLabel('Select appointment APT-1001').check();
+    await page.getByRole('button', { name: /Bulk Edit/ }).click();
+
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel(/Add Property Manager Contact/).check();
+
+    const input = dialog.getByRole('combobox', { name: 'Property Manager Contact' });
+    await input.focus();
+    await input.fill('ali');
+    await expect(dialog.getByRole('option').first()).toBeVisible();
+
+    // Keyboard only from here.
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    const activeId = await input.getAttribute('aria-activedescendant');
+    expect(activeId).toBeTruthy();
+    await expect(page.locator(`#${activeId!.replace(/:/g, '\\:')}`)).toContainText('Bob Jones');
+
+    await page.keyboard.press('Enter');
+    await expect(dialog.getByRole('listbox')).toHaveCount(0);
+    await expect(input).toHaveValue('Bob Jones');
+
+    // Reopen, then Escape: suggestions go, the dialog stays.
+    await input.focus();
+    await input.fill('ali');
+    await expect(dialog.getByRole('option').first()).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(dialog.getByRole('listbox')).toHaveCount(0);
+    await expect(dialog.getByText('Select the fields you want to change')).toBeVisible();
+  });
+});
