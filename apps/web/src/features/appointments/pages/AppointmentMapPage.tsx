@@ -8,7 +8,7 @@ import { MapScreenLayout } from '@/components/map/MapScreenLayout';
 import { MapContainer } from '@/components/map/MapContainer';
 import { MapMarker } from '@/components/map/MapMarker';
 import { MapFloatingAction } from '@/components/map/MapFloatingAction';
-import { computeBounds, isSinglePointBounds } from '@/lib/map-bounds';
+import { computeBounds, isSinglePointBounds, isPlottablePoint, type PointLike } from '@/lib/map-bounds';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { useAuth } from '@/hooks/useAuth';
@@ -31,6 +31,7 @@ import { MapLassoToggleButton } from '@/components/map/MapLassoToggleButton';
 import { MapBulkActionModal } from '../components/MapBulkActionModal';
 import { MapAddToGroupSubModal } from '../components/MapAddToGroupSubModal';
 import { AppointmentMapDetailPanel } from '../components/AppointmentMapDetailPanel';
+import { MapUnplottableWarning, type UnplottableEntry } from '../components/MapUnplottableWarning';
 import { GroupMapDetailPanel } from '../components/GroupMapDetailPanel';
 import { usePublishServiceGroup } from '@/features/service-groups/hooks/usePublishServiceGroup';
 import { MapGroupCreateModal } from '@/features/service-groups/components/MapGroupCreateModal';
@@ -98,10 +99,56 @@ function flyToPoint(
   });
 }
 
+/**
+ * Frame a whole point set — the counterpart to `flyToPoint`, which focuses a
+ * single pin without ever zooming out. Use this only for an explicit "show me
+ * everything" ask (first load, Re-center, Enter in a filter field).
+ *
+ * Degenerate bounds (one point) fly instead of fitting: `fitBounds` on a
+ * zero-area box slams the camera to max zoom. Returns false when nothing was
+ * plottable, so callers leave the camera untouched rather than guessing.
+ */
+function fitToPoints(
+  map: mapboxgl.Map | null,
+  points: PointLike[],
+  opts: {
+    singleZoom: number;
+    padding: number | mapboxgl.PaddingOptions;
+    maxZoom: number;
+    duration: number;
+    /**
+     * Padding for the single-point `flyTo` only. Distinct from `padding`
+     * because flyTo padding shifts the CENTRE — symmetric fitBounds padding
+     * would nudge a lone pin off-target. Supply it only to clear a modal.
+     */
+    singlePadding?: mapboxgl.PaddingOptions;
+  },
+): boolean {
+  if (!map) return false;
+  const bounds = computeBounds(points);
+  if (!bounds) return false;
+  if (isSinglePointBounds(bounds)) {
+    const [[lng, lat]] = bounds as [[number, number], [number, number]];
+    map.flyTo({
+      center: [lng, lat],
+      zoom: opts.singleZoom,
+      duration: opts.duration,
+      ...(opts.singlePadding ? { padding: opts.singlePadding } : {}),
+    });
+  } else {
+    map.fitBounds(bounds, {
+      padding: opts.padding,
+      maxZoom: opts.maxZoom,
+      duration: opts.duration,
+    });
+  }
+  return true;
+}
+
 function computeGroupCentroid(
   appointments: ServiceGroupMapAppointment[],
 ): { latitude: number; longitude: number } | null {
-  const valid = appointments.filter((a) => a.latitude != null && a.longitude != null);
+  const valid = appointments.filter(isPlottablePoint);
   if (valid.length === 0) return null;
   return {
     latitude: valid.reduce((s, a) => s + a.latitude, 0) / valid.length,
@@ -146,6 +193,56 @@ export function selectGroupModePins(args: {
     return { kind: 'appointments', items: args.groupAppointmentPins };
   }
   return { kind: 'groups', items: args.groupPins };
+}
+
+/**
+ * The filter-panel header count. A row the map can't plot (a group whose
+ * appointments are all un-geocoded has no centroid) must NOT be counted as if
+ * it were on screen — that divergence is what made a searched group read as
+ * "1 groups" above an empty map. The `· N on map` suffix appears only when the
+ * two numbers actually differ, so the common case stays uncluttered.
+ */
+export function formatPinCountLabel(
+  noun: 'appointment' | 'group',
+  total: number,
+  plotted: number,
+): string {
+  const label = `${total} ${noun}${total === 1 ? '' : 's'}`;
+  return plotted < total ? `${label} · ${plotted} on map` : label;
+}
+
+/**
+ * Which pins an explicit "frame the results" ask (Enter in a filter field)
+ * should fit. Mirrors the three-way split `selectGroupModePins` makes for
+ * markers, so the camera always frames exactly what is rendered.
+ */
+export function selectFitPoints(args: {
+  mode: FilterMode;
+  groupDrilledIn: boolean;
+  appointmentPins: PointLike[];
+  groupPins: PointLike[];
+  groupAppointmentPins: PointLike[];
+}): PointLike[] {
+  if (args.mode !== 'groups') return args.appointmentPins;
+  return args.groupDrilledIn ? args.groupAppointmentPins : args.groupPins;
+}
+
+/**
+ * Camera padding for an explicit fit. During the Groups drill-down the group
+ * modal overlays the right of the canvas, so fitting without that pad frames
+ * pins UNDERNEATH it — which is not "on screen". `singlePadding` is kept
+ * separate because flyTo padding shifts the centre (see `fitToPoints`).
+ */
+export function resolveFitPadding(args: {
+  groupDrilledIn: boolean;
+  groupModalWidth: number;
+}): { padding: number | mapboxgl.PaddingOptions; singlePadding?: mapboxgl.PaddingOptions } {
+  if (!args.groupDrilledIn) return { padding: 60 };
+  const right = args.groupModalWidth + 32;
+  return {
+    padding: { top: 60, bottom: 60, left: 60, right },
+    singlePadding: { right },
+  };
 }
 
 /**
@@ -326,7 +423,9 @@ export function AppointmentMapPage() {
     { enabled: isGlobalRole, placeholderData: keepPreviousData },
   );
 
-  const groupData = groupResponse?.data ?? [];
+  // Memoised per apps/web/CLAUDE.md §13.11 — several memos and an effect key off
+  // this array, and a fresh identity every render would defeat all of them.
+  const groupData = useMemo(() => groupResponse?.data ?? [], [groupResponse]);
 
   // Group drill-down: when a group pin is clicked, fetch that group's FULL
   // appointments (same shape as the lasso bulk modal) so the modal renders the
@@ -455,14 +554,7 @@ export function AppointmentMapPage() {
           return c ? [c] : [];
         });
     if (points.length === 0) return;
-    const bounds = computeBounds(points);
-    if (!bounds) return;
-    if (isSinglePointBounds(bounds)) {
-      const [[lng, lat]] = bounds as [[number, number], [number, number]];
-      mapInstance.flyTo({ center: [lng, lat], zoom: 14, duration: 600 });
-    } else {
-      mapInstance.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 600 });
-    }
+    if (!fitToPoints(mapInstance, points, { singleZoom: 14, padding: 60, maxZoom: 15, duration: 600 })) return;
     hasFittedRef.current = { mode, map: mapInstance };
   }, [appointmentData, groupData, mapInstance, mode, lassoState]);
 
@@ -664,17 +756,8 @@ export function AppointmentMapPage() {
             const c = computeGroupCentroid(g.appointments);
             return c ? [c] : [];
           });
-      if (points.length > 0) {
-        const bounds = computeBounds(points);
-        if (bounds) {
-          if (isSinglePointBounds(bounds)) {
-            const [[lng, lat]] = bounds as [[number, number], [number, number]];
-            mapInstance.flyTo({ center: [lng, lat], zoom: 14, duration: 600 });
-          } else {
-            mapInstance.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 600 });
-          }
-          hasFittedRef.current = { mode, map: mapInstance };
-        }
+      if (fitToPoints(mapInstance, points, { singleZoom: 14, padding: 60, maxZoom: 15, duration: 600 })) {
+        hasFittedRef.current = { mode, map: mapInstance };
       }
     }
   }, [mapInstance, mode, appointmentData, groupData]);
@@ -795,6 +878,128 @@ export function AppointmentMapPage() {
   );
   const actorRole: UserRole = (user?.role ?? 'CL_USER') as UserRole;
 
+  // Map markers. Declared ABOVE the side panel because the panel header counts
+  // what actually reached the map, not what the API returned — see
+  // `formatPinCountLabel`.
+  const validAppointmentPins = useMemo(
+    () =>
+      appointmentData.filter(
+        (item): item is AppointmentMapItem & { latitude: number; longitude: number } =>
+          isPlottablePoint(item),
+      ),
+    [appointmentData],
+  );
+
+  const validGroupPins = useMemo(
+    (): ServiceGroupMapPin[] =>
+      groupData
+        .map((item) => {
+          const centroid = computeGroupCentroid(item.appointments);
+          if (!centroid) return null;
+          return { ...item, ...centroid };
+        })
+        .filter((item): item is ServiceGroupMapPin => item !== null),
+    [groupData],
+  );
+
+  // The drilled group's appointment pins (teardrops) — only those with coords.
+  const validGroupApptPins = useMemo(
+    () =>
+      groupAppointments.filter(
+        (item): item is AppointmentMapItem & { latitude: number; longitude: number } =>
+          isPlottablePoint(item),
+      ),
+    [groupAppointments],
+  );
+
+  // Rows the API matched but the map cannot plot. Derived by set difference
+  // against the pins above, which filter on the same `isPlottablePoint`
+  // predicate `computeBounds` uses — so the header, the markers and the camera
+  // fit can never disagree about what "plottable" means.
+  const unplottableGroups = useMemo(() => {
+    const plotted = new Set(validGroupPins.map((pin) => pin.id));
+    return groupData.filter((group) => !plotted.has(group.id));
+  }, [groupData, validGroupPins]);
+
+  const unplottableAppointments = useMemo(() => {
+    const plotted = new Set(validAppointmentPins.map((pin) => pin.id));
+    return appointmentData.filter((item) => !plotted.has(item.id));
+  }, [appointmentData, validAppointmentPins]);
+
+  // Domain rows -> warning entries. `groupSize` is the honest appointment total:
+  // the API's `appointmentsCount` is itself coordinate-filtered, so it would
+  // always read "0 of 0" for exactly the groups we need to explain.
+  const unplottableEntries: UnplottableEntry[] = useMemo(() => {
+    if (mode === 'appointments') {
+      return unplottableAppointments.map((item) => ({
+        id: item.id,
+        label: item.code,
+        to: `/appointments/${item.id}`,
+        // Covers both causes: never geocoded, and geocoded to something
+        // `isPlottablePoint` rejects (non-finite or out of range).
+        reason: 'address has no valid map location',
+      }));
+    }
+    return unplottableGroups.map((group) => ({
+      id: group.id,
+      // Never fall back to the UUID — the list endpoint always populates `code`
+      // (it is the stringified group_number), but the field is optional on the
+      // type and a raw id must never surface in the UI.
+      label: group.code ? `Group #${group.code}` : 'Group (code unavailable)',
+      to: `/service-groups/${group.id}`,
+      reason: group.groupSize > 0
+        ? `0 of ${group.groupSize} appointments have a valid map location`
+        : 'group has no appointments',
+    }));
+  }, [mode, unplottableAppointments, unplottableGroups]);
+
+  // Enter in a filter text field means "frame these results". Filter changes
+  // deliberately never move the camera (see `hasFittedRef`), so this is the
+  // operator's explicit ask. A counter, not a boolean, so a second Enter
+  // re-frames after the operator has panned away.
+  const [fitRequest, setFitRequest] = useState(0);
+  const handleFilterSubmit = useCallback(() => setFitRequest((n) => n + 1), []);
+
+  useEffect(() => {
+    if (fitRequest === 0) return;
+    // The Enter keystroke flushes any pending debounce, and that starts a
+    // refetch in the very same render. Framing now would frame the PREVIOUS
+    // result set — wait for the new one to land.
+    if (isFetching) return;
+    const groupDrilledIn = !!selectedGroupItem;
+    fitToPoints(
+      mapInstance,
+      selectFitPoints({
+        mode,
+        groupDrilledIn,
+        appointmentPins: validAppointmentPins,
+        groupPins: validGroupPins,
+        groupAppointmentPins: validGroupApptPins,
+      }),
+      {
+        singleZoom: 14,
+        maxZoom: 15,
+        duration: 600,
+        ...resolveFitPadding({ groupDrilledIn, groupModalWidth }),
+      },
+    );
+    // Claim the auto-fit sentinel even when nothing was plottable: the operator
+    // has framed the view deliberately, and a later once-per-mode fit must not
+    // fight that.
+    hasFittedRef.current = { mode, map: mapInstance };
+    setFitRequest(0);
+  }, [
+    fitRequest,
+    isFetching,
+    mapInstance,
+    mode,
+    selectedGroupItem,
+    groupModalWidth,
+    validAppointmentPins,
+    validGroupPins,
+    validGroupApptPins,
+  ]);
+
   // Side panel
   // 026 cycle 1 devolução — sidePanel is now FILTER-ONLY.
   //  - The appointments/groups list that lived at the bottom is removed
@@ -813,8 +1018,8 @@ export function AppointmentMapPage() {
           Filters{' '}
           <span className="font-normal text-text-muted">
             · {mode === 'appointments'
-              ? `${appointmentData.length} appointments`
-              : `${groupData.length} groups`}
+              ? formatPinCountLabel('appointment', appointmentData.length, validAppointmentPins.length)
+              : formatPinCountLabel('group', groupData.length, validGroupPins.length)}
           </span>
         </h2>
         <button
@@ -839,6 +1044,12 @@ export function AppointmentMapPage() {
           <span className="text-xs text-text-muted">Updating…</span>
         </div>
       )}
+      {/* Rows the filters matched but the canvas can't plot. Sits above the
+          scrollable filter region so it is never scrolled out of sight. */}
+      <MapUnplottableWarning
+        noun={mode === 'appointments' ? 'appointment' : 'group'}
+        entries={unplottableEntries}
+      />
 
       {/* The scrollable filter region. `min-h-0` is the documented escape
           hatch for flex children that need to scroll inside a flex parent —
@@ -857,37 +1068,10 @@ export function AppointmentMapPage() {
           tenantOptions={tenantOptions}
           inspectorOptions={inspectorOptions}
           actorRole={actorRole}
+          onFilterSubmit={handleFilterSubmit}
         />
       </div>
     </div>
-  );
-
-  // Map markers
-  const validAppointmentPins = appointmentData.filter(
-    (item): item is AppointmentMapItem & { latitude: number; longitude: number } =>
-      item.latitude != null && item.longitude != null,
-  );
-
-  const validGroupPins = useMemo(
-    (): ServiceGroupMapPin[] =>
-      groupData
-        .map((item) => {
-          const centroid = computeGroupCentroid(item.appointments);
-          if (!centroid) return null;
-          return { ...item, ...centroid };
-        })
-        .filter((item): item is ServiceGroupMapPin => item !== null),
-    [groupData],
-  );
-
-  // The drilled group's appointment pins (teardrops) — only those with coords.
-  const validGroupApptPins = useMemo(
-    () =>
-      groupAppointments.filter(
-        (item): item is AppointmentMapItem & { latitude: number; longitude: number } =>
-          item.latitude != null && item.longitude != null,
-      ),
-    [groupAppointments],
   );
 
   // Groups mode renders EITHER the group teardrops (no drill-down) OR the
@@ -917,21 +1101,17 @@ export function AppointmentMapPage() {
     if (!mapInstance) return;
     if (hasFittedGroupRef.current === drilledGroupId) return;
     if (validGroupApptPins.length === 0) return;
-    const bounds = computeBounds(
+    const fitted = fitToPoints(
+      mapInstance,
       validGroupApptPins.map((p) => ({ latitude: p.latitude, longitude: p.longitude })),
-    );
-    if (!bounds) return;
-    const rightPad = groupModalWidth + 32;
-    if (isSinglePointBounds(bounds)) {
-      const [[lng, lat]] = bounds as [[number, number], [number, number]];
-      mapInstance.flyTo({ center: [lng, lat], zoom: 15, duration: 600, padding: { right: rightPad } });
-    } else {
-      mapInstance.fitBounds(bounds, {
-        padding: { top: 60, bottom: 60, left: 60, right: rightPad },
+      {
+        singleZoom: 15,
         maxZoom: 15,
         duration: 600,
-      });
-    }
+        ...resolveFitPadding({ groupDrilledIn: true, groupModalWidth }),
+      },
+    );
+    if (!fitted) return;
     hasFittedGroupRef.current = drilledGroupId;
   }, [drilledGroupId, mapInstance, validGroupApptPins, groupModalWidth]);
 

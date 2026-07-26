@@ -6,6 +6,23 @@ export interface PointLike {
 }
 
 /**
+ * Whether a point can actually be drawn and framed.
+ *
+ * This is THE definition of "plottable" — callers filtering their own pin
+ * collections must use it rather than a looser `!= null` check, or a malformed
+ * coordinate will be counted as on-screen and handed to a marker while
+ * `computeBounds` silently drops it from the camera fit.
+ */
+export function isPlottablePoint(point: PointLike): boolean {
+  const { latitude, longitude } = point;
+  if (latitude == null || longitude == null) return false;
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return false;
+  if (latitude < -90 || latitude > 90) return false;
+  if (longitude < -180 || longitude > 180) return false;
+  return true;
+}
+
+/**
  * Compute a Mapbox GL bounding box from an array of points.
  *
  * - Skips points with null/undefined coordinates
@@ -22,11 +39,9 @@ export function computeBounds(points: PointLike[]): LngLatBoundsLike | null {
   let count = 0;
 
   for (const point of points) {
-    const { latitude, longitude } = point;
-    if (latitude == null || longitude == null) continue;
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) continue;
-    if (latitude < -90 || latitude > 90) continue;
-    if (longitude < -180 || longitude > 180) continue;
+    if (!isPlottablePoint(point)) continue;
+    const latitude = point.latitude as number;
+    const longitude = point.longitude as number;
 
     if (longitude < minLng) minLng = longitude;
     if (longitude > maxLng) maxLng = longitude;

@@ -82,7 +82,11 @@ describe('AppointmentMapPage — group drill-down wiring (source guards)', () =>
   it('the per-group camera fit uses its own once-per-group sentinel and right padding', () => {
     expect(PAGE_SOURCE).toContain('hasFittedGroupRef');
     expect(PAGE_SOURCE).toMatch(/hasFittedGroupRef\.current === drilledGroupId/);
-    expect(PAGE_SOURCE).toMatch(/right: rightPad/);
+    // The right pad moved into the shared `resolveFitPadding` helper (so the
+    // Enter-to-fit path can't drift from this one). The literal offset is now
+    // pinned behaviourally in AppointmentMapPage.fit-points.test.ts; here we
+    // guard that this fit still asks for the modal-aware padding.
+    expect(PAGE_SOURCE).toMatch(/resolveFitPadding\(\{ groupDrilledIn: true, groupModalWidth \}\)/);
   });
 
   it('the legacy screen-pixel group popup is gone', () => {

@@ -43,6 +43,39 @@ function renderPanel(overrides = {}) {
   return { ...render(<AppointmentMapFilterPanel {...defaultProps} />), props: defaultProps };
 }
 
+describe('AppointmentMapFilterPanel — Enter frames the results', () => {
+  // Both text fields, both modes: Enter is the operator's explicit "show me
+  // where these are" ask, and a field that silently ignores it reads as broken.
+  it.each([
+    ['appointments' as const, 'Search'],
+    ['appointments' as const, 'Contact'],
+    ['groups' as const, 'Search'],
+    ['groups' as const, 'Contact'],
+  ])('fires onFilterSubmit from the %s-mode %s field', (mode, label) => {
+    const onFilterSubmit = vi.fn();
+    renderPanel({ mode, onFilterSubmit, actorRole: 'AM' });
+
+    fireEvent.keyDown(screen.getByLabelText(label), { key: 'Enter' });
+
+    expect(onFilterSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it('submits the freshly typed term, not the committed one', () => {
+    const onFilterSubmit = vi.fn();
+    const onGroupFiltersChange = vi.fn();
+    renderPanel({ mode: 'groups', onFilterSubmit, onGroupFiltersChange, actorRole: 'AM' });
+
+    const search = screen.getByLabelText('Search');
+    fireEvent.change(search, { target: { value: '25' } });
+    fireEvent.keyDown(search, { key: 'Enter' });
+
+    expect(onGroupFiltersChange).toHaveBeenCalledWith(
+      expect.objectContaining({ search: '25' }),
+    );
+    expect(onFilterSubmit).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('AppointmentMapFilterPanel', () => {
   it('renders filter panel with mode selector', () => {
     renderPanel();
