@@ -332,7 +332,12 @@ test.describe('Bulk Change Status — dropdown is actually visible', () => {
 
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel('Change status').check();
-    await dialog.getByLabel('Set target status').click();
+    // Open it via a direct DOM click: Playwright's click auto-scrolls the
+    // trigger into view, which would itself relieve the clipping this test
+    // exists to detect.
+    await page.evaluate(() => {
+      (document.querySelector('button[aria-label="Set target status"]') as HTMLButtonElement).click();
+    });
 
     const fits = await page.evaluate(() => {
       const ul = document.querySelector('ul[role="listbox"][aria-label="Set target status"]');
@@ -347,11 +352,20 @@ test.describe('Bulk Change Status — dropdown is actually visible', () => {
       const menu = ul.getBoundingClientRect();
       const clip = (node ?? document.documentElement).getBoundingClientRect();
       const visible = Math.max(0, Math.min(menu.bottom, clip.bottom) - Math.max(menu.top, clip.top));
-      return { found: true, menuHeight: Math.round(menu.height), visibleHeight: Math.round(visible) };
+      return {
+        found: true,
+        options: ul.querySelectorAll('[role="option"]').length,
+        menuHeight: Math.round(menu.height),
+        visibleHeight: Math.round(visible),
+      };
     });
 
     expect(fits.found).toBe(true);
-    // Before the fix only ~4px of a 74px menu were inside the clip.
+    // Without these the visibility check passes vacuously on an empty menu,
+    // since 0 >= 0 - 1.
+    expect(fits.options).toBeGreaterThan(0);
+    expect(fits.menuHeight).toBeGreaterThan(0);
+    // Before the fix only ~4px of a 109px menu were inside the clip.
     expect(fits.visibleHeight).toBeGreaterThanOrEqual(fits.menuHeight! - 1);
   });
 });

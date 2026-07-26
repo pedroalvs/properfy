@@ -204,7 +204,10 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
   const changeStatusRowRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (changeStatus) {
-      changeStatusRowRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+      // Instant, not smooth: SelectInput measures placement when the menu
+      // opens, so an in-flight animated scroll would have it decide against
+      // stale geometry if the operator clicks straight through.
+      changeStatusRowRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'instant' });
     }
   }, [changeStatus]);
 

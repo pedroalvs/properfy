@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveDropdownPlacement, DROPDOWN_MIN_SPACE } from './dropdown-placement';
+import { resolveDropdownPlacement, clippingRect, DROPDOWN_MIN_SPACE } from './dropdown-placement';
 
 /**
  * A dropdown rendered `absolute top-full` inside a scrolling container is
@@ -40,5 +40,52 @@ describe('resolveDropdownPlacement', () => {
     expect(
       resolveDropdownPlacement({ ...atThreshold, clipBottom: 340 + DROPDOWN_MIN_SPACE - 1 }),
     ).toBe('above');
+  });
+});
+
+/**
+ * `clippingRect` decides WHICH rectangle the placement is measured against, so
+ * a wrong answer here silently defeats the flip. jsdom performs no layout, so
+ * geometry is stubbed per element.
+ */
+describe('clippingRect', () => {
+  function build(html: string) {
+    document.body.innerHTML = html;
+    return document.getElementById('leaf') as HTMLElement;
+  }
+
+  function stub(el: Element, top: number, bottom: number) {
+    el.getBoundingClientRect = () => ({ top, bottom, height: bottom - top }) as DOMRect;
+  }
+
+  it('falls back to the viewport when nothing clips', () => {
+    const leaf = build('<div><div id="leaf"></div></div>');
+    expect(clippingRect(leaf)).toEqual({ top: 0, bottom: window.innerHeight });
+  });
+
+  it('uses the nearest scrolling ancestor, not an outer one', () => {
+    const leaf = build(
+      '<div id="outer" style="overflow-y:auto"><div id="inner" style="overflow-y:auto"><div id="leaf"></div></div></div>',
+    );
+    stub(document.getElementById('outer')!, 0, 900);
+    stub(document.getElementById('inner')!, 200, 576);
+    expect(clippingRect(leaf)).toEqual({ top: 200, bottom: 576 });
+  });
+
+  it('treats overflow hidden as clipping', () => {
+    const leaf = build('<div id="box" style="overflow-y:hidden"><div id="leaf"></div></div>');
+    stub(document.getElementById('box')!, 100, 400);
+    expect(clippingRect(leaf)).toEqual({ top: 100, bottom: 400 });
+  });
+
+  it('skips a zero-height ancestor rather than trusting it', () => {
+    // An unlaid-out or collapsed ancestor would otherwise report a degenerate
+    // rect and force every dropdown to flip.
+    const leaf = build(
+      '<div id="real" style="overflow-y:auto"><div id="collapsed" style="overflow-y:auto"><div id="leaf"></div></div></div>',
+    );
+    stub(document.getElementById('real')!, 50, 700);
+    stub(document.getElementById('collapsed')!, 0, 0);
+    expect(clippingRect(leaf)).toEqual({ top: 50, bottom: 700 });
   });
 });
