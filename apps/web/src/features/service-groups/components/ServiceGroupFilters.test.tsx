@@ -100,6 +100,37 @@ describe('ServiceGroupFilters', () => {
       expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, search: 'roof' });
     });
 
+    it('does not clobber a status picked while the search debounce is pending', () => {
+      // FilterInput fires the onChange captured at keystroke time. If that
+      // callback closes over the render-time `filters`, a status selected
+      // inside the 300ms window is silently reverted when the timer fires.
+      const onChange = vi.fn();
+      const { rerender } = render(
+        <ServiceGroupFilters
+          filters={DEFAULT_FILTERS}
+          onFiltersChange={onChange}
+        />,
+      );
+
+      act(() => {
+        fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'roof' } });
+      });
+
+      // Parent state advances mid-debounce (user picked a status).
+      rerender(
+        <ServiceGroupFilters
+          filters={{ ...DEFAULT_FILTERS, status: 'PUBLISHED' }}
+          onFiltersChange={onChange}
+        />,
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+
+      expect(onChange).toHaveBeenCalledWith({ search: 'roof', status: 'PUBLISHED' });
+    });
+
     it('preserves the active status when the search changes', () => {
       const onChange = vi.fn();
       render(
