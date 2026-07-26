@@ -35,6 +35,9 @@ export function FilterInput({
     setLocalValue(newValue);
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
+      // Clear BEFORE notifying so `timerRef` means "a change is still pending"
+      // and nothing else — a fired timer must not look like a queued one.
+      timerRef.current = undefined;
       onChange(newValue);
     }, debounceMs);
   };
@@ -42,11 +45,13 @@ export function FilterInput({
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key !== 'Enter') return;
     event.preventDefault();
-    // `localValue !== value` is exactly "a debounce is still in flight": the
-    // parent has not seen this keystroke yet. Flush it before notifying, or the
-    // submit would act on the previous term.
-    if (localValue !== value) {
+    // A live timer is the only reliable "the parent has not seen this keystroke
+    // yet" signal — comparing localValue to value would also fire when the
+    // parent simply ignored or normalised an already-delivered change. Flush
+    // before notifying, or the submit would act on the previous term.
+    if (timerRef.current !== undefined) {
       clearTimeout(timerRef.current);
+      timerRef.current = undefined;
       onChange(localValue);
     }
     onSubmit?.();
@@ -55,6 +60,7 @@ export function FilterInput({
   const handleClear = () => {
     setLocalValue('');
     clearTimeout(timerRef.current);
+    timerRef.current = undefined;
     onChange('');
   };
 

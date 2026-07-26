@@ -228,6 +228,24 @@ export function selectFitPoints(args: {
 }
 
 /**
+ * Camera padding for an explicit fit. During the Groups drill-down the group
+ * modal overlays the right of the canvas, so fitting without that pad frames
+ * pins UNDERNEATH it — which is not "on screen". `singlePadding` is kept
+ * separate because flyTo padding shifts the centre (see `fitToPoints`).
+ */
+export function resolveFitPadding(args: {
+  groupDrilledIn: boolean;
+  groupModalWidth: number;
+}): { padding: number | mapboxgl.PaddingOptions; singlePadding?: mapboxgl.PaddingOptions } {
+  if (!args.groupDrilledIn) return { padding: 60 };
+  const right = args.groupModalWidth + 32;
+  return {
+    padding: { top: 60, bottom: 60, left: 60, right },
+    singlePadding: { right },
+  };
+}
+
+/**
  * Which point set the lasso hit-tests against. Inside the Groups drill-down (a
  * group modal is open) the lasso selects among THAT group's appointment pins;
  * otherwise it uses the Appointments-mode pins. Exported so the wiring is
@@ -921,7 +939,10 @@ export function AppointmentMapPage() {
     }
     return unplottableGroups.map((group) => ({
       id: group.id,
-      label: `Group #${group.code ?? group.id}`,
+      // Never fall back to the UUID — the list endpoint always populates `code`
+      // (it is the stringified group_number), but the field is optional on the
+      // type and a raw id must never surface in the UI.
+      label: group.code ? `Group #${group.code}` : 'Group (code unavailable)',
       to: `/service-groups/${group.id}`,
       reason: group.groupSize > 0
         ? `0 of ${group.groupSize} appointments have coordinates`
@@ -942,16 +963,22 @@ export function AppointmentMapPage() {
     // refetch in the very same render. Framing now would frame the PREVIOUS
     // result set — wait for the new one to land.
     if (isFetching) return;
+    const groupDrilledIn = !!selectedGroupItem;
     fitToPoints(
       mapInstance,
       selectFitPoints({
         mode,
-        groupDrilledIn: !!selectedGroupItem,
+        groupDrilledIn,
         appointmentPins: validAppointmentPins,
         groupPins: validGroupPins,
         groupAppointmentPins: validGroupApptPins,
       }),
-      { singleZoom: 14, padding: 60, maxZoom: 15, duration: 600 },
+      {
+        singleZoom: 14,
+        maxZoom: 15,
+        duration: 600,
+        ...resolveFitPadding({ groupDrilledIn, groupModalWidth }),
+      },
     );
     // Claim the auto-fit sentinel even when nothing was plottable: the operator
     // has framed the view deliberately, and a later once-per-mode fit must not
@@ -964,6 +991,7 @@ export function AppointmentMapPage() {
     mapInstance,
     mode,
     selectedGroupItem,
+    groupModalWidth,
     validAppointmentPins,
     validGroupPins,
     validGroupApptPins,
@@ -1070,16 +1098,14 @@ export function AppointmentMapPage() {
     if (!mapInstance) return;
     if (hasFittedGroupRef.current === drilledGroupId) return;
     if (validGroupApptPins.length === 0) return;
-    const rightPad = groupModalWidth + 32;
     const fitted = fitToPoints(
       mapInstance,
       validGroupApptPins.map((p) => ({ latitude: p.latitude, longitude: p.longitude })),
       {
         singleZoom: 15,
-        padding: { top: 60, bottom: 60, left: 60, right: rightPad },
-        singlePadding: { right: rightPad },
         maxZoom: 15,
         duration: 600,
+        ...resolveFitPadding({ groupDrilledIn: true, groupModalWidth }),
       },
     );
     if (!fitted) return;

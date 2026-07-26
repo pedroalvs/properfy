@@ -19,7 +19,10 @@ export function InfoBanner({ children, className = '', variant = 'info' }: InfoB
       role="status"
     >
       <i className={`mdi mt-0.5 text-lg ${styles.icon}`} />
-      <span>{children}</span>
+      {/* A div, not a span: callers legitimately pass flow content (lists,
+          paragraphs), which is invalid inside phrasing content. As a flex item
+          it renders identically to the span it replaced. */}
+      <div>{children}</div>
     </div>
   );
 }

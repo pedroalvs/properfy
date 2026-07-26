@@ -106,6 +106,30 @@ describe('FilterInput', () => {
       expect(onChange).toHaveBeenCalledTimes(1);
     });
 
+    it('does not resend a value the parent did not accept', () => {
+      // A controlled parent may ignore or normalise the change, leaving
+      // localValue !== value with NO debounce pending. Enter must submit, not
+      // re-fire onChange — otherwise the consumer refetches a second time and
+      // the deferred map fit waits on a phantom request.
+      const onChange = vi.fn();
+      render(<FilterInput label="Buscar" value="" onChange={onChange} onSubmit={() => {}} />);
+      const input = screen.getByLabelText('Buscar');
+
+      act(() => {
+        fireEvent.change(input, { target: { value: 'abc' } });
+      });
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+      expect(onChange).toHaveBeenCalledTimes(1);
+
+      act(() => {
+        fireEvent.keyDown(input, { key: 'Enter' });
+      });
+
+      expect(onChange).toHaveBeenCalledTimes(1);
+    });
+
     it('ignores other keys', () => {
       const onSubmit = vi.fn();
 

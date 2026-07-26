@@ -170,7 +170,7 @@ describe('AppointmentMapPage — Enter frames the search results', () => {
     await waitFor(() => {
       expect(mapApi.fitBounds).toHaveBeenCalledWith(
         [[144.96, -37.81], [151.2, -33.86]],
-        expect.objectContaining({ maxZoom: 15 }),
+        expect.objectContaining({ maxZoom: 15, padding: 60 }),
       );
     });
   });

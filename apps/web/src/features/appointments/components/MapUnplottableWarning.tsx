@@ -39,7 +39,7 @@ export function MapUnplottableWarning({
   return (
     <div className="border-b border-border-subtle px-4 py-2">
       <InfoBanner variant="warning">
-        <span data-testid="map-unplottable-warning">
+        <div data-testid="map-unplottable-warning">
           <span className="font-semibold">
             {entries.length} {noun}
             {plural ? 's' : ''} {plural ? 'have' : 'has'} no map location
@@ -57,7 +57,7 @@ export function MapUnplottableWarning({
           {hidden > 0 && (
             <span className="mt-1 block text-text-secondary">+{hidden} more</span>
           )}
-        </span>
+        </div>
       </InfoBanner>
     </div>
   );

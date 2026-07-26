@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { selectFitPoints } from './AppointmentMapPage';
+import { selectFitPoints, resolveFitPadding } from './AppointmentMapPage';
 
 const APPOINTMENT_PINS = [{ latitude: -33.86, longitude: 151.2 }];
 const GROUP_PINS = [{ latitude: -37.81, longitude: 144.96 }];
@@ -44,5 +44,28 @@ describe('selectFitPoints', () => {
     expect(
       selectFitPoints({ ...base, mode: 'appointments', groupDrilledIn: true }),
     ).toEqual(APPOINTMENT_PINS);
+  });
+});
+
+describe('resolveFitPadding', () => {
+  it('uses flat padding when no modal covers the canvas', () => {
+    expect(resolveFitPadding({ groupDrilledIn: false, groupModalWidth: 420 })).toEqual({
+      padding: 60,
+    });
+  });
+
+  it('clears the group modal on the right during drill-down', () => {
+    // The modal overlays the right of the canvas — fitting without this pad
+    // frames pins UNDERNEATH it, which is not "on screen". Mirrors the pad the
+    // drill-down auto-fit and group-appointment marker click already use.
+    expect(resolveFitPadding({ groupDrilledIn: true, groupModalWidth: 420 })).toEqual({
+      padding: { top: 60, bottom: 60, left: 60, right: 452 },
+      singlePadding: { right: 452 },
+    });
+  });
+
+  it('tracks the modal width so a resized modal stays cleared', () => {
+    const { singlePadding } = resolveFitPadding({ groupDrilledIn: true, groupModalWidth: 600 });
+    expect(singlePadding).toEqual({ right: 632 });
   });
 });
