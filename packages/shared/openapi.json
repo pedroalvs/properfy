@@ -4778,7 +4778,47 @@
           },
           {
             "schema": {
-              "type": "boolean"
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "true"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "false"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "1"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "0"
+                  ]
+                },
+                {
+                  "type": "number",
+                  "enum": [
+                    1
+                  ]
+                },
+                {
+                  "type": "number",
+                  "enum": [
+                    0
+                  ]
+                }
+              ]
             },
             "in": "query",
             "name": "hasCoordinates",
@@ -16970,7 +17010,47 @@
           },
           {
             "schema": {
-              "type": "boolean",
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "true"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "false"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "1"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "0"
+                  ]
+                },
+                {
+                  "type": "number",
+                  "enum": [
+                    1
+                  ]
+                },
+                {
+                  "type": "number",
+                  "enum": [
+                    0
+                  ]
+                }
+              ],
               "default": false
             },
             "in": "query",
@@ -23991,7 +24071,47 @@
           },
           {
             "schema": {
-              "type": "boolean",
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "true"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "false"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "1"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "0"
+                  ]
+                },
+                {
+                  "type": "number",
+                  "enum": [
+                    1
+                  ]
+                },
+                {
+                  "type": "number",
+                  "enum": [
+                    0
+                  ]
+                }
+              ],
               "default": true
             },
             "in": "query",

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { booleanQueryParam } from './boolean-query';
 import { paginationSchema } from './pagination';
 
 // ─── Feature 020: enums ──────────────────────────────────────────────────────
@@ -53,7 +54,7 @@ export const listAuditLogsQuerySchema = paginationSchema.extend({
   toDate: z.string().datetime().optional(),
   q: z.string().min(1).max(200).optional(),
   // Feature 020: AM/OP opt-in for cold-storage entries (CL_ADMIN → 403)
-  includeArchived: z.coerce.boolean().default(false),
+  includeArchived: booleanQueryParam().default(false),
 });
 export type ListAuditLogsQuery = z.infer<typeof listAuditLogsQuerySchema>;
 

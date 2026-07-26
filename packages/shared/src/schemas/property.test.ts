@@ -13,6 +13,26 @@ import {
   propertyAddressUpdateSchema,
 } from './address';
 
+describe('listPropertiesQuerySchema — hasCoordinates', () => {
+  // This filter is the only way to ask the API "which properties can the map
+  // not plot?". With z.coerce.boolean() both values parsed as `true`, so the
+  // question was unanswerable and the endpoint silently returned the opposite
+  // set for `false`.
+  it('parses hasCoordinates=false as false', () => {
+    const result = listPropertiesQuerySchema.parse({ hasCoordinates: 'false' });
+    expect(result.hasCoordinates).toBe(false);
+  });
+
+  it('parses hasCoordinates=true as true', () => {
+    const result = listPropertiesQuerySchema.parse({ hasCoordinates: 'true' });
+    expect(result.hasCoordinates).toBe(true);
+  });
+
+  it('leaves hasCoordinates undefined when absent', () => {
+    expect(listPropertiesQuerySchema.parse({}).hasCoordinates).toBeUndefined();
+  });
+});
+
 describe('propertyRulesSchema', () => {
   it('should accept a full rules object', () => {
     const result = propertyRulesSchema.safeParse({

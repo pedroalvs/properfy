@@ -71,4 +71,22 @@ describe('listAuditLogsQuerySchema', () => {
     const result = listAuditLogsQuerySchema.safeParse({ q: 'a'.repeat(200) });
     expect(result.success).toBe(true);
   });
+
+  it('should honour includeArchived=false as a query STRING', () => {
+    // Query strings deliver "false". Under z.coerce.boolean() that parsed as
+    // true, so the cold-storage opt-in was effectively always on.
+    const result = listAuditLogsQuerySchema.safeParse({ includeArchived: 'false' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.includeArchived).toBe(false);
+    }
+  });
+
+  it('should parse includeArchived=true as a query STRING', () => {
+    const result = listAuditLogsQuerySchema.safeParse({ includeArchived: 'true' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.includeArchived).toBe(true);
+    }
+  });
 });
