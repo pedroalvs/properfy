@@ -18,6 +18,12 @@ export default defineConfig({
     // Run once after first production deploy via:
     //   fly ssh console -a properfy-prod -C "cd /app && node apps/backend/dist/seed-platform-notification-templates.js"
     'seed-platform-notification-templates': 'src/scripts/seed-platform-notification-templates.ts',
+    // One-shot repair for properties the appointment import left without a
+    // branch (fixed at the source in #971; this heals the existing rows).
+    // Dry run by default — pass --apply to write:
+    //   fly ssh console -a properfy-prod -C \
+    //     "cd /app/apps/backend && node dist/backfill-property-branch.js"
+    'backfill-property-branch': 'src/scripts/backfill-property-branch.ts',
   },
   format: ['esm'],
   target: 'node20',
