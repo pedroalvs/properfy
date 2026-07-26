@@ -28,20 +28,46 @@ export interface DropdownGeometry {
 
 export type DropdownPlacement = 'below' | 'above';
 
+/** Design cap on the menu height (`max-h-60`, 15rem). */
+export const DROPDOWN_MAX_HEIGHT = 240;
+
+/** Breathing room between trigger and menu, matching the `mt-1` / `mb-1` gap. */
+const GUTTER = 4;
+
+export interface DropdownLayout {
+  placement: DropdownPlacement;
+  /** Height cap, in pixels, guaranteeing the menu stays inside the clip. */
+  maxHeight: number;
+}
+
 /**
- * Returns where the dropdown should open. Biased towards `below`: it only
- * flips when the space below is genuinely cramped AND flipping actually helps,
- * so the default behaviour of every existing consumer is unchanged.
+ * Returns where the dropdown should open and how tall it may be.
+ *
+ * Biased towards `below`: it only flips when the space below is genuinely
+ * cramped AND flipping actually helps, so existing consumers are unchanged.
+ *
+ * The height cap is what keeps the menu honest. Choosing a side by comparing
+ * free space is not enough — a menu flipped above a trigger that has less than
+ * a full menu's worth of room above it overflows the container, and in a modal
+ * that means the backdrop paints over it and swallows every click. Bounding the
+ * height by the space actually available makes the menu scroll internally
+ * instead of escaping.
  */
 export function resolveDropdownPlacement({
   triggerTop,
   triggerBottom,
   clipTop,
   clipBottom,
-}: DropdownGeometry): DropdownPlacement {
+}: DropdownGeometry): DropdownLayout {
   const spaceBelow = clipBottom - triggerBottom;
   const spaceAbove = triggerTop - clipTop;
-  return spaceBelow < DROPDOWN_MIN_SPACE && spaceAbove > spaceBelow ? 'above' : 'below';
+  const placement: DropdownPlacement =
+    spaceBelow < DROPDOWN_MIN_SPACE && spaceAbove > spaceBelow ? 'above' : 'below';
+  const available = (placement === 'above' ? spaceAbove : spaceBelow) - GUTTER;
+  return {
+    placement,
+    maxHeight: Math.max(0, Math.min(DROPDOWN_MAX_HEIGHT, available)),
+  };
 }
 
 /**

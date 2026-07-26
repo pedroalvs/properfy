@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { resolveDropdownPlacement, clippingRect, DROPDOWN_MIN_SPACE } from './dropdown-placement';
+import {
+  resolveDropdownPlacement,
+  clippingRect,
+  DROPDOWN_MIN_SPACE,
+  DROPDOWN_MAX_HEIGHT,
+} from './dropdown-placement';
 
 /**
  * A dropdown rendered `absolute top-full` inside a scrolling container is
@@ -11,21 +16,24 @@ import { resolveDropdownPlacement, clippingRect, DROPDOWN_MIN_SPACE } from './dr
 describe('resolveDropdownPlacement', () => {
   it('opens downward when there is room below', () => {
     expect(
-      resolveDropdownPlacement({ triggerTop: 100, triggerBottom: 140, clipTop: 0, clipBottom: 800 }),
+      resolveDropdownPlacement({ triggerTop: 100, triggerBottom: 140, clipTop: 0, clipBottom: 800 })
+        .placement,
     ).toBe('below');
   });
 
   it('opens upward when the space below is cramped and there is more above', () => {
     // Trigger ends 4px from the clipping edge — exactly the staging case.
     expect(
-      resolveDropdownPlacement({ triggerTop: 532, triggerBottom: 572, clipTop: 200, clipBottom: 576 }),
+      resolveDropdownPlacement({ triggerTop: 532, triggerBottom: 572, clipTop: 200, clipBottom: 576 })
+        .placement,
     ).toBe('above');
   });
 
   it('stays below when both sides are cramped but below has more room', () => {
     // Flipping would make it worse; keep the default so behaviour is stable.
     expect(
-      resolveDropdownPlacement({ triggerTop: 60, triggerBottom: 100, clipTop: 50, clipBottom: 200 }),
+      resolveDropdownPlacement({ triggerTop: 60, triggerBottom: 100, clipTop: 50, clipBottom: 200 })
+        .placement,
     ).toBe('below');
   });
 
@@ -36,9 +44,10 @@ describe('resolveDropdownPlacement', () => {
       clipTop: 0,
       clipBottom: 340 + DROPDOWN_MIN_SPACE,
     };
-    expect(resolveDropdownPlacement(atThreshold)).toBe('below');
+    expect(resolveDropdownPlacement(atThreshold).placement).toBe('below');
     expect(
-      resolveDropdownPlacement({ ...atThreshold, clipBottom: 340 + DROPDOWN_MIN_SPACE - 1 }),
+      resolveDropdownPlacement({ ...atThreshold, clipBottom: 340 + DROPDOWN_MIN_SPACE - 1 })
+        .placement,
     ).toBe('above');
   });
 });
@@ -87,5 +96,47 @@ describe('clippingRect', () => {
     stub(document.getElementById('real')!, 50, 700);
     stub(document.getElementById('collapsed')!, 0, 0);
     expect(clippingRect(leaf)).toEqual({ top: 50, bottom: 700 });
+  });
+});
+
+/**
+ * Regression: flipping upward is only safe if the menu FITS above. The first
+ * version checked that there was more room above than below, but not that the
+ * menu fit — so in the status-transition dialog the flipped menu overflowed the
+ * panel and the modal backdrop ended up on top of it, swallowing every click.
+ */
+describe('resolveDropdownPlacement — height', () => {
+  it('never returns a height larger than the space on the chosen side', () => {
+    // 120px above, 20px below: flips up, but only 120px of menu fit there.
+    const { placement, maxHeight } = resolveDropdownPlacement({
+      triggerTop: 320,
+      triggerBottom: 360,
+      clipTop: 200,
+      clipBottom: 380,
+    });
+    expect(placement).toBe('above');
+    expect(maxHeight).toBeLessThanOrEqual(120);
+    expect(maxHeight).toBeGreaterThan(0);
+  });
+
+  it('caps at the design maximum when there is abundant room', () => {
+    const { maxHeight } = resolveDropdownPlacement({
+      triggerTop: 100,
+      triggerBottom: 140,
+      clipTop: 0,
+      clipBottom: 2000,
+    });
+    expect(maxHeight).toBe(DROPDOWN_MAX_HEIGHT);
+  });
+
+  it('bounds the downward height by the container, not the viewport', () => {
+    const { placement, maxHeight } = resolveDropdownPlacement({
+      triggerTop: 100,
+      triggerBottom: 140,
+      clipTop: 0,
+      clipBottom: 340,
+    });
+    expect(placement).toBe('below');
+    expect(maxHeight).toBeLessThanOrEqual(200);
   });
 });

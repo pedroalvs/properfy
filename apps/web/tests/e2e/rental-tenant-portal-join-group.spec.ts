@@ -115,7 +115,7 @@ test.describe('Portal — Join Group (US2)', () => {
     await expect(page.getByText('Do you confirm the inspection?')).toBeVisible();
 
     await page.getByRole('button', { name: 'Change time' }).click();
-    await expect(page.getByText('Select an available time')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Pick a time for your booking' })).toBeVisible();
     await expect(page.getByText('Surry Hills')).toBeVisible();
 
     await page.getByTestId('group-row').click();
@@ -125,16 +125,16 @@ test.describe('Portal — Join Group (US2)', () => {
     await expect(page.getByText('Attendance Confirmed')).toBeVisible({ timeout: 5000 });
   });
 
-  test('cancel: back button collapses the change-time panel', async ({ page }) => {
+  test('cancel: close button dismisses the change-time sheet', async ({ page }) => {
     await mockPortalData(page);
     await mockAvailableGroups(page);
 
     await page.goto(`/rental-tenant-portal/${TOKEN}`);
     await page.getByRole('button', { name: 'Change time' }).click();
-    await expect(page.getByText('Select an available time')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Pick a time for your booking' })).toBeVisible();
 
-    await page.getByRole('button', { name: '← Back' }).click();
-    await expect(page.getByText('Select an available time')).not.toBeVisible();
+    await page.getByRole('button', { name: 'Close' }).click();
+    await expect(page.getByRole('heading', { name: 'Pick a time for your booking' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Change time' })).toBeVisible();
   });
 
@@ -155,7 +155,7 @@ test.describe('Portal — Join Group (US2)', () => {
 
     await page.goto(`/rental-tenant-portal/${TOKEN}`);
     await page.getByRole('button', { name: 'Change time' }).click();
-    await expect(page.getByText('Select an available time')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Pick a time for your booking' })).toBeVisible();
 
     const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
     expect(bodyWidth).toBeLessThanOrEqual(320);

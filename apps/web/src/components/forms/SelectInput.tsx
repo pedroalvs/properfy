@@ -39,6 +39,7 @@ export function SelectInput({
 }: SelectInputProps) {
   const [open, setOpen] = useState(false);
   const [placement, setPlacement] = useState<DropdownPlacement>('below');
+  const [maxHeight, setMaxHeight] = useState<number | undefined>(undefined);
   /**
    * Index of the keyboard-active option. The menu is built from `<li>`, which
    * cannot hold focus, so navigation follows the WAI-ARIA listbox pattern:
@@ -64,14 +65,14 @@ export function SelectInput({
     if (containerRef.current) {
       const trigger = containerRef.current.getBoundingClientRect();
       const clip = clippingRect(containerRef.current);
-      setPlacement(
-        resolveDropdownPlacement({
-          triggerTop: trigger.top,
-          triggerBottom: trigger.bottom,
-          clipTop: clip.top,
-          clipBottom: clip.bottom,
-        }),
-      );
+      const layout = resolveDropdownPlacement({
+        triggerTop: trigger.top,
+        triggerBottom: trigger.bottom,
+        clipTop: clip.top,
+        clipBottom: clip.bottom,
+      });
+      setPlacement(layout.placement);
+      setMaxHeight(layout.maxHeight);
     }
     // Navigation starts from the current selection, so arrowing into an
     // already-answered field does not silently jump back to the top.
@@ -203,6 +204,7 @@ export function SelectInput({
           ref={listRef}
           id={listboxId}
           className={placement === 'above' ? formDropdownAbove : formDropdown}
+          style={maxHeight !== undefined ? { maxHeight } : undefined}
           role="listbox"
           aria-label={ariaLabel}
         >

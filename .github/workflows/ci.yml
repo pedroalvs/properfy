@@ -123,6 +123,52 @@ jobs:
       - name: Test web
         run: pnpm --filter web test
 
+  test-web-e2e:
+    name: E2E web (Playwright)
+    runs-on: ubuntu-latest
+    # Added after the suite was found broken on develop with nobody noticing:
+    # it had never been wired into CI, so two deliberate UI changes (the
+    # same-tab navigation overhaul and the portal redesign) left seven specs
+    # asserting a UI that no longer existed. Running them here is what turns
+    # them back into a signal. The suite stubs every API call, so it needs no
+    # backend or database.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - name: Build shared (required for @properfy/shared resolution)
+        run: pnpm --filter shared build
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Chromium
+        # Only Chromium: playwright.config.ts defines a single Desktop Chrome
+        # project, and pulling the other engines triples the install time.
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      - name: E2E
+        run: pnpm --filter web test:e2e
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7
+
   build:
     name: Build
     runs-on: ubuntu-latest

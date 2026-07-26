@@ -8,6 +8,12 @@ import {
   makeAppointment,
 } from './helpers';
 
+/**
+ * The list's "View" action navigates to /appointments/:id — the detail drawer
+ * it used to open was removed in the same-tab navigation overhaul. These specs
+ * therefore open the detail route directly; the navigation itself is not what
+ * they are asserting.
+ */
 test.describe('Reject Scheduled Appointment (T032)', () => {
   const scheduledAppointment = makeAppointment({
     id: 'apt-sched-1',
@@ -25,18 +31,14 @@ test.describe('Reject Scheduled Appointment (T032)', () => {
   });
 
   test('displays Reject button for SCHEDULED appointment as AM', async ({ page }) => {
-    await page.goto('/appointments');
+    await page.goto(`/appointments/${scheduledAppointment.id}`);
 
-    // Click the view action to open the detail drawer
-    await page.getByRole('button', { name: 'View' }).first().click();
-
-    // The detail drawer should open and show the Reject button
+    // The detail page shows the transition actions for a SCHEDULED appointment
     await expect(page.getByText('Reject')).toBeVisible();
   });
 
   test('opens reason dialog on Reject click and requires reason code', async ({ page }) => {
-    await page.goto('/appointments');
-    await page.getByRole('button', { name: 'View' }).first().click();
+    await page.goto(`/appointments/${scheduledAppointment.id}`);
 
     // Click Reject button
     await page.getByText('Reject').click();
@@ -62,8 +64,7 @@ test.describe('Reject Scheduled Appointment (T032)', () => {
       });
     });
 
-    await page.goto('/appointments');
-    await page.getByRole('button', { name: 'View' }).first().click();
+    await page.goto(`/appointments/${scheduledAppointment.id}`);
     await page.getByText('Reject').click();
 
     // Open the reason code dropdown (scoped to dialog) and select first option
@@ -93,8 +94,7 @@ test.describe('Reject Scheduled Appointment (T032)', () => {
       });
     });
 
-    await page.goto('/appointments');
-    await page.getByRole('button', { name: 'View' }).first().click();
+    await page.goto(`/appointments/${scheduledAppointment.id}`);
     await page.getByText('Reject').click();
 
     // Open reason code dropdown and select OTHER
