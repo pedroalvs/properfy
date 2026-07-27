@@ -5,4 +5,5 @@ export * from './constants';
 export * from './utils';
 export * from './permissions';
 export * from './lib/appointment-transitions';
+export * from './lib/plottable-point';
 export type { paths, components, operations } from './api-types';

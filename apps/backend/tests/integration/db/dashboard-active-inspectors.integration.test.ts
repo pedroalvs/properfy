@@ -190,7 +190,6 @@ describe('Dashboard active-service-groups quick stat (per tenant)', () => {
         data: {
           service_type_id: st.id,
           status: status as never,
-          group_size: 4,
           scheduled_date: new Date(date),
           time_window: '09:00-10:00',
           created_by_user_id: a.userId,

@@ -141,7 +141,6 @@ describe('GET /v1/appointments serviceGroupId filter (real DB)', () => {
       data: {
         service_type_id: serviceType.id,
         status: 'PUBLISHED',
-        group_size: 4,
         scheduled_date: new Date('2026-07-15'),
         time_window: '09:00-10:00',
         created_by_user_id: tenantA.userId,
@@ -153,7 +152,6 @@ describe('GET /v1/appointments serviceGroupId filter (real DB)', () => {
       data: {
         service_type_id: serviceType.id,
         status: 'DRAFT',
-        group_size: 2,
         scheduled_date: new Date('2026-07-16'),
         time_window: '10:00-11:00',
         created_by_user_id: tenantA.userId,

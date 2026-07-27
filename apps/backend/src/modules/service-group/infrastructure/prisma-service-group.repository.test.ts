@@ -7,7 +7,6 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
     const findMany = vi.fn().mockResolvedValue([
       {
         id: 'sg-1',
-        group_size: 3,
         scheduled_date: new Date('2026-05-01'),
         time_window: '08:00-12:00',
         service_type: { name: 'Routine' },
@@ -61,6 +60,36 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
       suburbs: ['Bondi'],
       payoutEstimate: 50,
     });
+    // The offer's size comes from the appointments it actually carries — one
+    // here — and must agree with `appointmentCount`. There is no stored
+    // counter left to disagree with.
+    expect(result[0]).toMatchObject({ groupSize: 1, appointmentCount: 1 });
+  });
+
+  it('excludes soft-deleted appointments from the offers list, matching the detail view', async () => {
+    const queryRaw = vi.fn().mockResolvedValue([{ id: 'sg-1' }]);
+    const findMany = vi.fn().mockResolvedValue([]);
+    const repo = new PrismaServiceGroupRepository({
+      $queryRaw: queryRaw,
+      serviceGroup: { findMany },
+    } as any);
+
+    await repo.findPublishedForInspector('inspector-1', ['st-1'], [], {
+      page: 1,
+      pageSize: 20,
+      sortOrder: 'asc',
+    });
+
+    // Without this filter the list counted deleted appointments and summed
+    // their payouts, so an offer card advertised more work and more money than
+    // the detail view it opened into.
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          appointments: expect.objectContaining({ where: { deleted_at: null } }),
+        }),
+      }),
+    );
   });
 
   it('returns empty when spatial query finds no eligible groups', async () => {
@@ -375,6 +404,49 @@ describe('PrismaServiceGroupRepository list filters', () => {
         },
       ]),
     );
+  });
+
+  it('asks for a soft-delete-filtered relation count and maps it onto groupSize', async () => {
+    // Its own mock: returning a row makes findAll also derive agencies, which
+    // queries `appointment` — a table the shared mock above does not stub.
+    const groupFindMany = vi.fn().mockResolvedValue([
+      {
+        id: 'sg-1',
+        group_number: 7,
+        service_type_id: 'st-1',
+        status: 'PUBLISHED',
+        offered_count: 0,
+        confirmed_count: 0,
+        scheduled_date: new Date('2026-05-01'),
+        time_window: '08:00-12:00',
+        assigned_inspector_id: null,
+        service_region_id: null,
+        published_at: null,
+        assigned_at: null,
+        created_by_user_id: 'user-1',
+        created_at: new Date('2026-04-01'),
+        updated_at: new Date('2026-04-01'),
+        _count: { appointments: 4 },
+      },
+    ]);
+    const repo = new PrismaServiceGroupRepository({
+      serviceGroup: { findMany: groupFindMany, count: vi.fn() },
+      appointment: { findMany: vi.fn().mockResolvedValue([]) },
+    } as any);
+
+    const rows = await repo.findAll({}, { page: 1, pageSize: 10, sortOrder: 'asc' });
+
+    // The list does not fetch appointment rows, so the size has to come from a
+    // count — and that count must exclude soft-deleted appointments, which stay
+    // linked to their group after `delete-appointment` runs.
+    expect(groupFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          _count: { select: { appointments: { where: { deleted_at: null } } } },
+        }),
+      }),
+    );
+    expect(rows[0]!.group.groupSize).toBe(4);
   });
 
   it('count uses same search filter as findAll', async () => {

@@ -56,13 +56,20 @@ function deriveOfferTenant(
   return { tenantId: null, tenantName: 'Multiple agencies' };
 }
 
-function mapToEntity(row: any): ServiceGroupEntity {
+/**
+ * `groupSize` is passed in rather than read off `row`: there is no stored
+ * column for it any more, and each caller derives it differently — `findById`
+ * already has the appointment rows in hand, `findAll` asks for a count. Making
+ * it a required parameter is what stops a third caller from quietly
+ * reintroducing a stale field.
+ */
+function mapToEntity(row: any, groupSize: number): ServiceGroupEntity {
   return new ServiceGroupEntity({
     id: row.id,
     groupNumber: row.group_number,
     serviceTypeId: row.service_type_id,
     status: row.status as ServiceGroupStatus,
-    groupSize: row.group_size,
+    groupSize,
     offeredCount: row.offered_count,
     confirmedCount: row.confirmed_count,
     scheduledDate: row.scheduled_date,
@@ -97,6 +104,11 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
           select: { id: true, name: true },
         },
         appointments: {
+          // Soft-deleted appointments keep their `service_group_id` —
+          // `delete-appointment` sets `deleted_at` without unlinking — so
+          // without this filter they stay in the group's membership and get
+          // counted, validated and scheduled as if they still existed.
+          where: { deleted_at: null },
           select: {
             id: true,
             appointment_number: true,
@@ -123,7 +135,10 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     const agencies = deriveAgencies(row.appointments);
 
     return {
-      group: mapToEntity(row),
+      // Counting the rows we just fetched (rather than issuing a separate
+      // `_count`) is what guarantees the size can never contradict the
+      // `appointments` array returned beside it in the same payload.
+      group: mapToEntity(row, row.appointments.length),
       assignedInspectorName: row.assigned_inspector?.name ?? null,
       tenantIds,
       primaryTenantId,
@@ -154,6 +169,10 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         assigned_inspector: {
           select: { id: true, name: true },
         },
+        // The list does not fetch appointment rows, so the size comes from a
+        // filtered relation count — same `deleted_at: null` semantics as the
+        // detail read, so list and detail can never report different numbers.
+        _count: { select: { appointments: { where: { deleted_at: null } } } },
       },
       skip: (pagination.page - 1) * pagination.pageSize,
       take: pagination.pageSize,
@@ -165,7 +184,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     return rows.map((row: any) => {
       const info = tenantByGroup.get(row.id);
       return {
-        group: mapToEntity(row),
+        group: mapToEntity(row, row._count?.appointments ?? 0),
         assignedInspectorName: row.assigned_inspector?.name ?? null,
         primaryTenantId: info?.primaryTenantId ?? null,
         agencies: info?.agencies ?? [],
@@ -306,7 +325,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         id: group.id,
         service_type_id: group.serviceTypeId,
         status: group.status as PrismaServiceGroupStatus,
-        group_size: group.groupSize,
         offered_count: group.offeredCount,
         confirmed_count: group.confirmedCount,
         scheduled_date: group.scheduledDate,
@@ -410,6 +428,11 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       include: {
         service_type: { select: { name: true } },
         appointments: {
+          // Matches the offer DETAIL query below. Without it the list counted
+          // soft-deleted appointments and summed their payouts, so an offer
+          // advertised a bigger job and a bigger payout than the detail view
+          // it opened into.
+          where: { deleted_at: null },
           select: {
             payout_amount: true,
             tenant_id: true,
@@ -446,7 +469,10 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         tenantId,
         tenantName,
         serviceTypeName: row.service_type?.name ?? '',
-        groupSize: row.group_size,
+        // Same number as `appointmentCount`. The duplication is deliberate:
+        // both fields are in the published contract and consumers read either
+        // one, so they must agree rather than one of them being dropped.
+        groupSize: appts.length,
         scheduledDate: row.scheduled_date,
         timeWindow: row.time_window,
         suburbs,
@@ -608,7 +634,8 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       tenantId,
       tenantName,
       serviceTypeName: row.service_type?.name ?? '',
-      groupSize: row.group_size,
+      // Same number as `appointmentCount` — see the offers list above.
+      groupSize: appts.length,
       scheduledDate: row.scheduled_date,
       timeWindow: row.time_window,
       suburbs,

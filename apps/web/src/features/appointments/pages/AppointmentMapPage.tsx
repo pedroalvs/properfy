@@ -74,10 +74,11 @@ interface ServiceGroupMapItem {
   status: ServiceGroupStatus;
   groupSize: number;
   /**
-   * Live count of appointments LINKED to the group, including un-geocoded ones
-   * (the list endpoint populates it whenever `includeAppointments` is set).
-   * Distinct from `groupSize`, a stored counter that drifts — a cancelled group
-   * can report groupSize 3 with every appointment unlinked.
+   * Live count of appointments LINKED to the group, including un-geocoded ones.
+   * The list endpoint always populates it, and it equals `groupSize` — both are
+   * now derived from the same query. It stays optional in the contract because
+   * `serviceGroupResponseSchema` backs five endpoints, so the page must still
+   * tell "the server didn't say" apart from "the server said zero".
    */
   appointmentsCount?: number;
   scheduledDate: string;
@@ -933,10 +934,12 @@ export function AppointmentMapPage() {
     return appointmentData.filter((item) => !plotted.has(item.id));
   }, [appointmentData, validAppointmentPins]);
 
-  // Domain rows -> warning entries. The denominator is `appointmentsCount` (the
-  // live number of LINKED appointments), never `groupSize` — that stored counter
-  // drifts, and a cancelled group with every appointment unlinked still reports
-  // groupSize 3, which would invent three appointments that no longer exist.
+  // Domain rows -> warning entries. The denominator is `appointmentsCount`, the
+  // live number of LINKED appointments. An ABSENT count is not zero: reading it
+  // as `?? 0` would make the page announce "group has no appointments" whenever
+  // the field went missing — asserting emptiness it never measured. Hence three
+  // branches, with the unknown case falling back to a claim that holds either
+  // way (nothing is plottable, however many there turn out to be).
   const unplottableEntries: UnplottableEntry[] = useMemo(() => {
     if (mode === 'appointments') {
       return unplottableAppointments.map((item) => ({
@@ -955,9 +958,12 @@ export function AppointmentMapPage() {
       // type and a raw id must never surface in the UI.
       label: group.code ? `Group #${group.code}` : 'Group (code unavailable)',
       to: `/service-groups/${group.id}`,
-      reason: (group.appointmentsCount ?? 0) > 0
-        ? `0 of ${group.appointmentsCount} appointments have a valid map location`
-        : 'group has no appointments',
+      reason:
+        group.appointmentsCount == null
+          ? 'no appointment with a valid map location'
+          : group.appointmentsCount > 0
+            ? `0 of ${group.appointmentsCount} appointments have a valid map location`
+            : 'group has no appointments',
     }));
   }, [mode, unplottableAppointments, unplottableGroups]);
 
