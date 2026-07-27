@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { ServiceGroupStatus } from '@properfy/shared';
 import { getPublishBlockReason } from './publish-block-reason';
 
 // 2026-05-01T00:00:00Z is 2026-05-01 10:00 in Sydney, the timezone the shared
@@ -13,7 +14,7 @@ afterEach(() => {
 });
 
 const base = {
-  status: 'DRAFT',
+  status: ServiceGroupStatus.DRAFT,
   appointmentCount: 2,
   scheduledDate: '2026-06-01',
   timeWindow: '09:00-12:00',
@@ -63,7 +64,7 @@ describe('getPublishBlockReason', () => {
   it('lists appointments that are not awaiting inspector', () => {
     const reason = getPublishBlockReason({
       ...base,
-      blockingAppointments: [{ appointmentNumber: 12, status: 'CANCELLED' }],
+      blockingAppointments: [{ label: '#12', status: 'CANCELLED' }],
     });
     expect(reason).toContain('#12');
     expect(reason).toContain('CANCELLED');
@@ -73,14 +74,14 @@ describe('getPublishBlockReason', () => {
     const reason = getPublishBlockReason({
       ...base,
       appointmentCount: 0,
-      blockingAppointments: [{ appointmentNumber: 12, status: 'CANCELLED' }],
+      blockingAppointments: [{ label: '#12', status: 'CANCELLED' }],
     });
     expect(reason).toMatch(/no appointments/i);
   });
 
   it('does not block non-DRAFT groups (publish is not offered for them)', () => {
     expect(
-      getPublishBlockReason({ ...base, status: 'PUBLISHED', appointmentCount: 0 }),
+      getPublishBlockReason({ ...base, status: ServiceGroupStatus.PUBLISHED, appointmentCount: 0 }),
     ).toBeNull();
   });
 });

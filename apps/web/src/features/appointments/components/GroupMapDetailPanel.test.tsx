@@ -187,6 +187,31 @@ describe('GroupMapDetailPanel', () => {
     expect(screen.getByTestId('group-map-detail-publish')).toBeDisabled();
   });
 
+  it('PUBLISH is disabled while an appointment is not awaiting inspector', () => {
+    const onPublish = vi.fn();
+    renderPanel({
+      onPublish,
+      group: { ...sampleGroup, status: ServiceGroupStatus.DRAFT },
+      appointments: [
+        { code: 'INS-0001', status: 'AWAITING_INSPECTOR', timeSlotStart: '09:00', timeSlotEnd: '12:00' },
+        { code: 'INS-0002', status: 'CANCELLED', timeSlotStart: '09:00', timeSlotEnd: '12:00' },
+      ],
+    });
+    const btn = screen.getByTestId('group-map-detail-publish');
+    expect(btn).toBeDisabled();
+    fireEvent.click(btn);
+    expect(onPublish).not.toHaveBeenCalled();
+    expect(screen.getByTestId('group-map-detail-publish-reason')).toHaveTextContent(
+      /#INS-0002 \(CANCELLED\)/,
+    );
+  });
+
+  it('does not point aria-describedby at an unrendered reason for non-DRAFT groups', () => {
+    renderPanel();
+    expect(screen.getByTestId('group-map-detail-publish')).not.toHaveAttribute('aria-describedby');
+    expect(screen.queryByTestId('group-map-detail-publish-reason')).toBeNull();
+  });
+
   it('PUBLISH shows the in-flight state while publishing', () => {
     renderPanel({
       group: { ...sampleGroup, status: ServiceGroupStatus.DRAFT },

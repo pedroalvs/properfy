@@ -146,9 +146,9 @@ export function ServiceGroupDetailPage() {
     appointmentCount: serviceGroup.appointmentsCount,
     scheduledDate: serviceGroup.scheduledDate,
     timeWindow: serviceGroup.timeWindow,
-    blockingAppointments: (serviceGroup.appointments ?? []).filter(
-      (a) => a.status !== 'AWAITING_INSPECTOR',
-    ),
+    blockingAppointments: (serviceGroup.appointments ?? [])
+      .filter((a) => a.status !== 'AWAITING_INSPECTOR')
+      .map((a) => ({ label: `#${a.appointmentNumber}`, status: a.status })),
   });
   const publishBlocked = publishBlockReason !== null;
 

@@ -11,6 +11,9 @@ const PUBLISH_BLOCK_REASON_ID = 'group-map-publish-block-reason';
 interface GroupPreviewAppointment {
   timeSlotStart?: string | null;
   timeSlotEnd?: string | null;
+  /** Human-readable identifier used when an appointment blocks publishing. */
+  code?: string;
+  status?: string;
 }
 
 interface GroupMapDetailPanelProps {
@@ -118,6 +121,11 @@ export function GroupMapDetailPanel({
         appointmentCount: group.groupSize,
         scheduledDate: group.scheduledDate,
         timeWindow: group.timeWindow,
+        // The page already fetched the group's appointments for the time range;
+        // reuse them so this surface gates on status exactly like the detail page.
+        blockingAppointments: (appointments ?? [])
+          .filter((a) => a.status !== undefined && a.status !== 'AWAITING_INSPECTOR')
+          .map((a) => ({ label: a.code ? `#${a.code}` : 'an appointment', status: a.status as string })),
       })
     : 'Only draft groups can be published';
 
@@ -186,7 +194,9 @@ export function GroupMapDetailPanel({
             disabled={!!publishBlockReason || isPublishing}
             className="w-full rounded bg-real-estate px-3 py-1.5 text-xs font-semibold text-white hover:bg-real-estate/90 disabled:cursor-not-allowed disabled:bg-real-estate/40"
             data-testid="group-map-detail-publish"
-            aria-describedby={publishBlockReason ? PUBLISH_BLOCK_REASON_ID : undefined}
+            // Condition must match the paragraph below, or the reference
+            // dangles for non-DRAFT groups.
+            aria-describedby={isDraft && publishBlockReason ? PUBLISH_BLOCK_REASON_ID : undefined}
           >
             {isPublishing ? 'PUBLISHING…' : 'PUBLISH'}
           </button>

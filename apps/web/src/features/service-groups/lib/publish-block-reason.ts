@@ -1,7 +1,7 @@
 import { validateNewSchedule, PLATFORM_TIMEZONE, ServiceGroupStatus } from '@properfy/shared';
 
 export interface PublishBlockInput {
-  status: string;
+  status: ServiceGroupStatus;
   /**
    * Number of appointments actually linked to the group. Pass an explicit count
    * (never `array?.length ?? 0`) so "the payload did not include appointments"
@@ -9,14 +9,25 @@ export interface PublishBlockInput {
    */
   appointmentCount: number;
   /**
-   * `YYYY-MM-DD` or a full ISO datetime — only the civil date is read. When
-   * absent the schedule check is skipped and the backend guard remains the
-   * only line of defence, which is the safe direction to fail.
+   * `YYYY-MM-DD` or a full ISO datetime — only the civil date is read. The UTC
+   * prefix is the right slice, not a Sydney conversion: the API serialises a
+   * `@db.Date` column, which is pinned at UTC midnight, and the backend guard
+   * reads it with the same `toISOString().slice(0, 10)`. Converting here would
+   * introduce the client/server drift this helper exists to prevent.
+   *
+   * When absent the schedule check is skipped and the backend guard remains
+   * the only line of defence, which is the safe direction to fail.
    */
   scheduledDate?: string | null;
   /** `HH:mm-HH:mm`. Omit when the caller does not have it. */
   timeWindow?: string | null;
-  blockingAppointments?: { appointmentNumber: number; status: string }[];
+  /**
+   * Appointments that are not AWAITING_INSPECTOR. `label` is how the caller
+   * identifies an appointment to the user (`#1001` on the detail page, the
+   * appointment code on the map), since the two surfaces carry different
+   * identifiers in their payloads.
+   */
+  blockingAppointments?: { label: string; status: string }[];
 }
 
 /**
@@ -54,7 +65,7 @@ export function getPublishBlockReason(input: PublishBlockInput): string | null {
 
   const blocking = input.blockingAppointments ?? [];
   if (blocking.length > 0) {
-    const list = blocking.map((a) => `#${a.appointmentNumber} (${a.status})`).join(', ');
+    const list = blocking.map((a) => `${a.label} (${a.status})`).join(', ');
     return `Cannot publish: appointment${blocking.length > 1 ? 's' : ''} ${list} must be Awaiting Inspector`;
   }
 
