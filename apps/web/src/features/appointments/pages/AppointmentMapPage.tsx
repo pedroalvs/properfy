@@ -82,7 +82,10 @@ interface ServiceGroupMapItem {
    */
   appointmentsCount?: number;
   scheduledDate: string;
-  /** `HH:mm-HH:mm`. Drives the bulk-reschedule window-widening preview. */
+  /**
+   * `HH:mm-HH:mm`. Drives the bulk-reschedule window-widening preview and
+   * gates PUBLISH on same-day groups.
+   */
   timeWindow: string;
   appointments: ServiceGroupMapAppointment[];
 }

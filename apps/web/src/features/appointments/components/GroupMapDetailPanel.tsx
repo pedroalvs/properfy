@@ -4,6 +4,9 @@ import { StatusChip } from '@/components/ui/StatusChip';
 import { SERVICE_GROUP_STATUS_MAP } from '@/lib/status-colors';
 import { formatDate } from '@/lib/format-date';
 import { ServiceGroupStatus } from '@properfy/shared';
+import { getPublishBlockReason } from '@/features/service-groups/lib/publish-block-reason';
+
+const PUBLISH_BLOCK_REASON_ID = 'group-map-publish-block-reason';
 
 interface GroupPreviewAppointment {
   timeSlotStart?: string | null;
@@ -19,6 +22,8 @@ interface GroupMapDetailPanelProps {
     status: ServiceGroupStatus;
     groupSize: number;
     scheduledDate: string;
+    /** `HH:mm-HH:mm`. Absent payloads degrade the publish gate to date-only. */
+    timeWindow?: string;
   } | null;
   /**
    * The group's appointments (fetched by the page via
@@ -105,6 +110,16 @@ export function GroupMapDetailPanel({
   if (!group) return null;
 
   const isDraft = group.status === ServiceGroupStatus.DRAFT;
+  // Same guards the backend enforces on publish (empty group, past date/window)
+  // so the popup explains itself instead of firing a request that 422s.
+  const publishBlockReason = isDraft
+    ? getPublishBlockReason({
+        status: group.status,
+        appointmentCount: group.groupSize,
+        scheduledDate: group.scheduledDate,
+        timeWindow: group.timeWindow,
+      })
+    : 'Only draft groups can be published';
 
   return (
     <div
@@ -164,21 +179,31 @@ export function GroupMapDetailPanel({
         >
           VIEW GROUP
         </Link>
-        <span
-          className="flex-1"
-          title={isDraft ? undefined : 'Only draft groups can be published'}
-        >
+        <span className="flex-1" title={publishBlockReason ?? undefined}>
           <button
             type="button"
             onClick={onPublish}
-            disabled={!isDraft || isPublishing}
+            disabled={!!publishBlockReason || isPublishing}
             className="w-full rounded bg-real-estate px-3 py-1.5 text-xs font-semibold text-white hover:bg-real-estate/90 disabled:cursor-not-allowed disabled:bg-real-estate/40"
             data-testid="group-map-detail-publish"
+            aria-describedby={publishBlockReason ? PUBLISH_BLOCK_REASON_ID : undefined}
           >
             {isPublishing ? 'PUBLISHING…' : 'PUBLISH'}
           </button>
         </span>
       </div>
+
+      {/* The popup is compact, so the reason sits under the actions rather than
+          in a banner — but it is still text, not a tooltip alone. */}
+      {isDraft && publishBlockReason && (
+        <p
+          id={PUBLISH_BLOCK_REASON_ID}
+          className="px-4 pb-3 text-[11px] text-warning"
+          data-testid="group-map-detail-publish-reason"
+        >
+          {publishBlockReason}
+        </p>
+      )}
     </div>
   );
 }
