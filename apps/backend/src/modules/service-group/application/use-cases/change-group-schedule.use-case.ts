@@ -25,6 +25,14 @@ import type { SendGroupPortalLinksUseCase } from './send-group-portal-links.use-
 /** A closed group's schedule is history; only a live one can still move. */
 const CHANGEABLE_STATUSES = ['DRAFT', 'PUBLISHED', 'ACCEPTED'];
 
+/**
+ * Members whose schedule is already settled. A DONE inspection happened at a
+ * real time and a CANCELLED/REJECTED one will never happen at all — moving
+ * either would rewrite a record rather than plan work. An accepted group can
+ * hold completed members, so this is reachable in practice.
+ */
+const TERMINAL_MEMBER_STATUSES = ['DONE', 'CANCELLED', 'REJECTED'];
+
 const toDateString = (date: Date): string => date.toISOString().slice(0, 10);
 
 interface AdminRescheduleNotifier {
@@ -146,6 +154,8 @@ export class ChangeGroupScheduleUseCase {
     const movedMembers: Array<{ id: string; tenantId: string; timeSlot: string }> = [];
 
     for (const member of findResult.appointments) {
+      if (TERMINAL_MEMBER_STATUSES.includes(member.status)) continue;
+
       const memberDateMoves = dateChanged
         ? getServiceGroupDateAdjustment(member.scheduledDate, groupScheduledDate) !== null
         : false;

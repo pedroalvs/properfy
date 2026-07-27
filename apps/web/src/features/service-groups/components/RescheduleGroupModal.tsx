@@ -24,6 +24,13 @@ interface RescheduleGroupModalProps {
   onSaved: () => void;
 }
 
+/**
+ * A DONE inspection happened at a real time and a CANCELLED/REJECTED one never
+ * will, so neither moves with the group — the preview must not promise
+ * otherwise. Mirrors TERMINAL_MEMBER_STATUSES in the use case.
+ */
+const TERMINAL_MEMBER_STATUSES = ['DONE', 'CANCELLED', 'REJECTED'];
+
 const splitWindow = (timeWindow: string | null): [string, string] => {
   const [start, end] = (timeWindow ?? '').split('-');
   return [start ?? '', end ?? ''];
@@ -73,7 +80,10 @@ export function RescheduleGroupModal({
   const dateChanged = scheduledDate !== '' && scheduledDate !== currentDate;
   const windowChanged = newWindow !== '' && newWindow !== serviceGroup.timeWindow;
 
-  const appointments = serviceGroup.appointments ?? [];
+  const appointments = useMemo(
+    () => (serviceGroup.appointments ?? []).filter((a) => !TERMINAL_MEMBER_STATUSES.includes(a.status)),
+    [serviceGroup.appointments],
+  );
 
   /** Members whose slot leaves the new window and will be clamped into it. */
   const clamped = useMemo(() => {

@@ -201,3 +201,53 @@ describe('RescheduleGroupModal', () => {
     });
   });
 });
+
+describe('RescheduleGroupModal terminal members', () => {
+  it('never promises to move a completed inspection', () => {
+    renderModal(
+      makeGroup({
+        appointments: [
+          makeAppointment({ id: 'done', propertyCode: 'PROP-DONE', status: 'DONE', timeSlotStart: '09:30', timeSlotEnd: '10:30' }),
+          makeAppointment({ id: 'live', propertyCode: 'PROP-LIVE', status: 'SCHEDULED', timeSlotStart: '09:30', timeSlotEnd: '10:30' }),
+        ],
+      }),
+      'time-window',
+    );
+
+    fireEvent.change(startInput(), { target: { value: '12:00' } });
+    fireEvent.change(endInput(), { target: { value: '15:00' } });
+
+    const banner = screen.getByTestId('reschedule-group-clamp-warning');
+    expect(banner).toHaveTextContent('PROP-LIVE');
+    expect(banner).not.toHaveTextContent('PROP-DONE');
+  });
+
+  it('counts only the live members in the date-move warning', () => {
+    renderModal(
+      makeGroup({
+        appointments: [
+          makeAppointment({ id: 'done', status: 'DONE' }),
+          makeAppointment({ id: 'live', status: 'SCHEDULED' }),
+        ],
+      }),
+    );
+
+    fireEvent.change(dateInput(), { target: { value: '2030-07-20' } });
+    expect(screen.getByTestId('reschedule-group-date-warning')).toHaveTextContent(
+      '1 appointment(s) will be moved',
+    );
+  });
+
+  it('does not ask about a confirmation on a completed inspection', () => {
+    renderModal(
+      makeGroup({
+        appointments: [
+          makeAppointment({ id: 'done', status: 'DONE', rentalTenantConfirmationStatus: 'CONFIRMED' }),
+        ],
+      }),
+    );
+
+    fireEvent.change(dateInput(), { target: { value: '2030-07-20' } });
+    expect(screen.queryByTestId('reschedule-group-confirmation-choice')).not.toBeInTheDocument();
+  });
+});

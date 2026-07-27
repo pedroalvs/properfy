@@ -222,6 +222,50 @@ describe('ChangeGroupScheduleUseCase', () => {
     });
   });
 
+  describe('terminal members', () => {
+    it.each(['DONE', 'CANCELLED', 'REJECTED'] as const)('never moves a %s member', async (status) => {
+      const { useCase, appointmentRepo } = setup({
+        group: makeGroupWith({}, [makeMember({ status, timeSlotStart: '09:30', timeSlotEnd: '10:30' })]),
+      });
+
+      const result = await useCase.execute({ ...BASE, timeWindow: '12:00-15:00', actor: makeActor() });
+
+      expect(appointmentRepo.update).not.toHaveBeenCalled();
+      expect(result.applied).toMatchObject({ slotClamped: 0, dateChanged: 0 });
+    });
+
+    it('moves the live members of a group that also holds a completed one', async () => {
+      const { useCase, appointmentRepo } = setup({
+        group: makeGroupWith({}, [
+          makeMember({ id: 'done', status: 'DONE', timeSlotStart: '09:30', timeSlotEnd: '10:30' }),
+          makeMember({ id: 'live', status: 'SCHEDULED', timeSlotStart: '09:30', timeSlotEnd: '10:30' }),
+        ]),
+      });
+
+      const result = await useCase.execute({ ...BASE, timeWindow: '12:00-15:00', actor: makeActor() });
+
+      expect(appointmentRepo.update).toHaveBeenCalledTimes(1);
+      expect(appointmentRepo.update).toHaveBeenCalledWith('live', 'tenant-1', expect.anything());
+      expect(result.applied).toMatchObject({ total: 2, slotClamped: 1 });
+    });
+
+    it('never re-notifies the tenant of a completed inspection', async () => {
+      const { useCase, onAdminRescheduleHandler } = setup({
+        group: makeGroupWith({}, [
+          makeMember({
+            status: 'DONE',
+            rentalTenantConfirmationStatus: 'CONFIRMED',
+            activeConfirmationCycleId: 'cycle-1',
+          }),
+        ]),
+      });
+
+      await useCase.execute({ ...BASE, scheduledDate: FAR_FUTURE_DATE, actor: makeActor() });
+
+      expect(onAdminRescheduleHandler.execute).not.toHaveBeenCalled();
+    });
+  });
+
   describe('tenant confirmations', () => {
     const confirmedMember = makeMember({
       rentalTenantConfirmationStatus: 'CONFIRMED',

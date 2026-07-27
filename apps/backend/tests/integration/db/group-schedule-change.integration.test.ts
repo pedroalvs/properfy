@@ -348,6 +348,35 @@ describe('service group schedule change (real DB)', () => {
     expect(row.status).toBe('SCHEDULED');
   }, 60_000);
 
+  it('leaves a completed inspection where it happened', async () => {
+    const groupId = await seedGroup('ACCEPTED');
+    const live = await seedMember(prisma, tenantA, serviceTypeId, groupId, GROUP_DATE, { start: '09:30', end: '10:30' });
+    const done = await seedMember(prisma, tenantB, serviceTypeId, groupId, GROUP_DATE, { start: '09:30', end: '10:30' });
+    await prisma.appointment.update({ where: { id: done }, data: { status: 'DONE' } });
+    const newDate = futureDateStr(90);
+
+    const result = await makeUseCase().execute({
+      groupId,
+      scheduledDate: newDate,
+      timeWindow: '12:00-15:00',
+      confirmationStrategy: 'NOTIFY_ONLY',
+      actor: amActor(tenantA.userId),
+    });
+
+    const [liveRow, doneRow] = await Promise.all([
+      prisma.appointment.findUniqueOrThrow({ where: { id: live } }),
+      prisma.appointment.findUniqueOrThrow({ where: { id: done } }),
+    ]);
+
+    expect(liveRow.scheduled_date.toISOString().slice(0, 10)).toBe(newDate);
+    expect([liveRow.time_slot_start, liveRow.time_slot_end]).toEqual(['12:00', '15:00']);
+    // The inspection already happened at this date and time; moving it would
+    // rewrite the record rather than plan work.
+    expect(doneRow.scheduled_date.toISOString().slice(0, 10)).toBe(GROUP_DATE);
+    expect([doneRow.time_slot_start, doneRow.time_slot_end]).toEqual(['09:30', '10:30']);
+    expect(result.applied).toMatchObject({ dateChanged: 1, slotClamped: 1 });
+  }, 60_000);
+
   it('ignores a soft-deleted member', async () => {
     const groupId = await seedGroup();
     const live = await seedMember(prisma, tenantA, serviceTypeId, groupId, GROUP_DATE, { start: '09:30', end: '10:30' });
