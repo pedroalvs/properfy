@@ -85,17 +85,20 @@ describe('appointment search filter (real DB)', () => {
       },
     });
 
-    async function seedAppointment(property: {
-      code: string;
-      street: string;
-      suburb: string;
-      postcode: string;
-      state: string;
-    }) {
+    async function seedAppointment(
+      property: {
+        code: string;
+        street: string;
+        suburb: string;
+        postcode: string;
+        state: string;
+      },
+      owner: { tenantId: string; branchId: string } = { tenantId, branchId: branch.id },
+    ) {
       const prop = await prisma.property.create({
         data: {
-          tenant_id: tenantId,
-          branch_id: branch.id,
+          tenant_id: owner.tenantId,
+          branch_id: owner.branchId,
           property_code: property.code,
           type: 'HOUSE',
           street: property.street,
@@ -108,8 +111,8 @@ describe('appointment search filter (real DB)', () => {
       });
       return prisma.appointment.create({
         data: {
-          tenant_id: tenantId,
-          branch_id: branch.id,
+          tenant_id: owner.tenantId,
+          branch_id: owner.branchId,
           property_id: prop.id,
           service_type_id: serviceType.id,
           status: 'AWAITING_INSPECTOR',
@@ -144,6 +147,25 @@ describe('appointment search filter (real DB)', () => {
       postcode: '2095',
       state: 'NSW',
     });
+
+    // A SECOND AGENCY holding an identical address. Every scoped search must
+    // exclude it — otherwise the search OR is leaking across tenants.
+    const otherTenant = await prisma.tenant.create({
+      data: { name: 'APSF Other', legal_name: `APSF Other LLC ${suffix}`, status: 'ACTIVE' },
+    });
+    const otherBranch = await prisma.branch.create({
+      data: { tenant_id: otherTenant.id, name: 'APSF Other Branch', status: 'ACTIVE' },
+    });
+    await seedAppointment(
+      {
+        code: `APSF-C-${suffix}`,
+        street: '24/173-179 Princes Hwy',
+        suburb: 'Kogarah',
+        postcode: '2217',
+        state: 'NSW',
+      },
+      { tenantId: otherTenant.id, branchId: otherBranch.id },
+    );
   }, 180_000);
 
   afterAll(async () => {
@@ -181,6 +203,26 @@ describe('appointment search filter (real DB)', () => {
   it('matches by state, which spans both seeded rows', async () => {
     const { total } = await search('NSW');
     expect(total).toBe(2);
+  });
+
+  it('matches state exactly, so a fragment does not sweep the whole state', async () => {
+    // `state` is a short code. With a substring match, "NS" would pull in every
+    // NSW row — and "A" would pull in WA, SA and TAS. Exact-but-case-insensitive
+    // keeps the field useful.
+    expect((await search('NS')).total).toBe(0);
+    expect((await search('nsw')).total).toBe(2);
+  });
+
+  it('keeps the search OR inside the tenant scope', async () => {
+    // The OR spans joined relations (property, contacts). If it were not
+    // constrained by tenant_id, an identical address under another agency would
+    // leak into the results — a multi-tenant isolation break, not a search bug.
+    const { ids, total } = await search('Kogarah');
+    expect(ids).toEqual([targetId]);
+    expect(total).toBe(1);
+    // Sanity: the other tenant's row really does match the same term.
+    const unscoped = await repo.count({ search: 'Kogarah' });
+    expect(unscoped).toBeGreaterThan(1);
   });
 
   it('returns nothing for a term that matches no field', async () => {

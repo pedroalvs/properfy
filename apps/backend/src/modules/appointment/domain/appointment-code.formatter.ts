@@ -48,12 +48,14 @@ export class AppointmentCodeFormatter {
    * hit. Returns null for anything else so the caller falls back to text search.
    */
   static parseSearchTerm(term: string): number | null {
+    // `appointment_number` is int4: handing Postgres a larger value makes the
+    // whole query throw, so BOTH branches are capped. CODE_PATTERN's `\d+` is
+    // unbounded, so the prefixed form ("INS-99999999999") reaches the same
+    // overflow — capping only the bare digits would leave the 500 open.
     const formatted = this.parse(term);
-    if (formatted !== null) return formatted;
+    if (formatted !== null) return formatted <= INT4_MAX ? formatted : null;
 
     const trimmed = term.trim();
-    // Digits only, and within `integer` range — appointment_number is int4, and
-    // handing Postgres a larger value makes the whole query throw.
     if (!/^\d{1,10}$/.test(trimmed)) return null;
     const num = Number(trimmed);
     return num <= INT4_MAX ? num : null;

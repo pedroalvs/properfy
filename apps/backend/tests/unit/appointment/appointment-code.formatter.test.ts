@@ -142,6 +142,15 @@ describe('AppointmentCodeFormatter', () => {
       expect(AppointmentCodeFormatter.parseSearchTerm('99999999999')).toBeNull();
     });
 
+    it('applies the int4 ceiling to FORMATTED codes too', () => {
+      // CODE_PATTERN's `\d+` is unbounded, so the prefixed form reaches the
+      // same overflow through the other branch — guarding only the bare digits
+      // leaves the 500 wide open.
+      expect(AppointmentCodeFormatter.parseSearchTerm('INS-2147483647')).toBe(2147483647);
+      expect(AppointmentCodeFormatter.parseSearchTerm('INS-2147483648')).toBeNull();
+      expect(AppointmentCodeFormatter.parseSearchTerm('INS-99999999999')).toBeNull();
+    });
+
     it('leaves parse() strict — it still only accepts a formatted code', () => {
       expect(AppointmentCodeFormatter.parse('0071')).toBeNull();
     });

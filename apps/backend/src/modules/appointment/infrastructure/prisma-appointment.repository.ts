@@ -513,7 +513,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         { property: { street: { contains: filters.search, mode: 'insensitive' } } },
         { property: { suburb: { contains: filters.search, mode: 'insensitive' } } },
         { property: { postcode: { contains: filters.search, mode: 'insensitive' } } },
-        { property: { state: { contains: filters.search, mode: 'insensitive' } } },
+        // `equals`, not `contains`: state is a short code, so a substring match
+        // would let "NS" sweep every NSW row and "A" pull in WA, SA and TAS.
+        { property: { state: { equals: filters.search, mode: 'insensitive' } } },
         { contacts: { some: { snapshot_name: { contains: filters.search, mode: 'insensitive' } } } },
         { contacts: { some: { snapshot_email: { contains: filters.search, mode: 'insensitive' } } } },
         { contacts: { some: { snapshot_phone: { contains: filters.search } } } },
