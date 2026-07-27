@@ -113,11 +113,12 @@ export class ListAppointmentsUseCase {
         ? filters.tenantId
         : actor.tenantId ?? undefined;
 
-    // When the search term looks like an appointment code (e.g. "INS-0042"),
-    // extract the appointment number so the repository can add an OR condition
-    // on appointment_number in addition to the regular text search.
+    // When the search term looks like an appointment code — either fully
+    // formatted ("INS-0042") or the bare number the operator reads off the
+    // screen ("0042", "42") — extract the appointment number so the repository
+    // can add an OR condition on appointment_number alongside the text search.
     const searchAppointmentNumber = filters.search
-      ? AppointmentCodeFormatter.parse(filters.search) ?? undefined
+      ? AppointmentCodeFormatter.parseSearchTerm(filters.search) ?? undefined
       : undefined;
 
     const repoFilters: AppointmentFilters = {
