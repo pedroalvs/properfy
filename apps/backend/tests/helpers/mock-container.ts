@@ -178,6 +178,7 @@ export function createMockContainer(
       checkAppointmentsEligibilityForGroupUseCase: { execute: vi.fn() },
       getGroupPortalLinkPlanUseCase: { execute: vi.fn() },
       sendGroupPortalLinksUseCase: { execute: vi.fn() },
+      changeGroupInspectorUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
       tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['serviceGroup'],
