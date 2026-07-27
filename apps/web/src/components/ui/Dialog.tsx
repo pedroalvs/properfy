@@ -20,11 +20,20 @@ export function Dialog({
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
 
+  // Consumers commonly pass a render-time arrow as `onClose`. Reading it through a ref
+  // keeps the effect below keyed on `open` alone — otherwise every re-render of the
+  // consumer (e.g. a keystroke in a field inside the dialog) re-ran the effect and its
+  // `focus()` call, blurring whatever the user was typing into.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
   useEffect(() => {
     if (!open) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onCloseRef.current();
     };
     document.addEventListener('keydown', handleKeyDown);
 
@@ -32,7 +41,7 @@ export function Dialog({
     dialogRef.current?.focus();
 
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
