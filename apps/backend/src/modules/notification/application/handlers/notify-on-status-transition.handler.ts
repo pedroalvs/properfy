@@ -9,6 +9,58 @@ import type { CreateNotificationUseCase } from '../use-cases/create-notification
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import type { MetricsCollector } from '../../../../shared/infrastructure/metrics';
 import type { NotificationChannel } from '@properfy/shared';
+import type { AppointmentEntity } from '../../../appointment/domain/appointment.entity';
+import type { NotificationEntity } from '../../domain/notification.entity';
+import {
+  formatScheduledDate,
+  formatTimeSlot,
+} from '../../domain/build-notification-payload.service';
+
+/**
+ * Everything this handler can announce to the rental tenant. The dedupe looks at
+ * the whole set, not at one code, so a cancellation followed by a new scheduling
+ * is recognised as a state change and notifies again.
+ */
+const STATUS_TRANSITION_TEMPLATE_CODES = [
+  'INSPECTION_NOTICE',
+  'INSPECTION_NOTICE_SMS',
+  'INSPECTION_CANCELLED',
+  'INSPECTION_CANCELLED_SMS',
+] as const;
+
+/** Email and SMS variants of one announcement are the same event to the tenant. */
+function templateFamily(templateCode: string): string {
+  return templateCode.replace(/_SMS$/, '');
+}
+
+/**
+ * True when `latest` already told the tenant what we are about to send — same
+ * announcement, same date and slot. Keys absent from the stored payload are not
+ * compared: INSPECTION_CANCELLED declares no timeSlot, so requiring it would
+ * make every cancellation re-send.
+ */
+function alreadyAnnounced(
+  latest: NotificationEntity,
+  emailCode: string,
+  appointment: AppointmentEntity,
+): boolean {
+  if (templateFamily(latest.templateCode) !== emailCode) return false;
+
+  const payload = latest.payloadJson;
+  if (
+    payload.scheduledDate !== undefined &&
+    payload.scheduledDate !== formatScheduledDate(appointment.scheduledDate)
+  ) {
+    return false;
+  }
+  if (
+    payload.timeSlot !== undefined &&
+    payload.timeSlot !== formatTimeSlot(appointment.timeSlotStart, appointment.timeSlotEnd)
+  ) {
+    return false;
+  }
+  return true;
+}
 
 export class NotifyOnStatusTransitionHandler {
   constructor(
@@ -64,14 +116,6 @@ export class NotifyOnStatusTransitionHandler {
           : null;
     if (!emailCode) return;
 
-    // H5: Check idempotency before expensive repo loads and token mint.
-    // For the primary (email) path this saves appointment + tenant + property reads.
-    const emailAlreadySent = await this.notificationRepo.existsByAppointmentAndTemplate(
-      input.appointmentId,
-      emailCode,
-    );
-    if (emailAlreadySent) return;
-
     // H6: Scope repository call by tenantId when available
     const result = await this.appointmentRepo.findById(
       input.appointmentId,
@@ -80,6 +124,15 @@ export class NotifyOnStatusTransitionHandler {
     if (!result?.contact) return;
 
     const { appointment, contact } = result;
+
+    // Dedupe by occurrence, not by lifetime: skip only a replay of the same
+    // announcement. Must run before the token mint below — minting revokes the
+    // link the tenant already holds, so it can never happen on a skipped send.
+    const lastAnnouncement = await this.notificationRepo.findLatestByAppointmentAndTemplates(
+      appointment.id,
+      STATUS_TRANSITION_TEMPLATE_CODES,
+    );
+    if (lastAnnouncement && alreadyAnnounced(lastAnnouncement, emailCode, appointment)) return;
 
     const tenant = await this.tenantRepo.findById(appointment.tenantId);
     if (!tenant) return;
@@ -118,7 +171,7 @@ export class NotifyOnStatusTransitionHandler {
     const recipientPhone = contact.effectivePhone;
 
     if (recipientEmail) {
-      // Idempotency already confirmed above — send directly
+      // Dedupe already decided above — send directly
       await this.createNotification.execute({
         tenantId: appointment.tenantId,
         appointmentId: appointment.id,
@@ -127,26 +180,19 @@ export class NotifyOnStatusTransitionHandler {
         templateCode: emailCode,
         payloadJson: this.buildNotificationPayload.build(payloadCtx),
       });
-    } else {
-      // SMS fallback: use ${CODE}_SMS template when no email is available
+    } else if (recipientPhone) {
+      // SMS fallback: use ${CODE}_SMS template when no email is available. The
+      // dedupe set covers the _SMS codes, so the decision above governs it too.
       const smsCode = `${emailCode}_SMS` as string;
-      if (recipientPhone) {
-        const smsAlreadySent = await this.notificationRepo.existsByAppointmentAndTemplate(
-          appointment.id,
-          smsCode,
-        );
-        if (!smsAlreadySent) {
-          await this.createNotification.execute({
-            tenantId: appointment.tenantId,
-            appointmentId: appointment.id,
-            recipient: recipientPhone,
-            channel: 'SMS' as NotificationChannel,
-            templateCode: smsCode,
-            payloadJson: this.buildNotificationPayload.build({ ...payloadCtx, templateCode: smsCode }),
-          });
-        }
-      }
-      // No email and no phone: skip silently
+      await this.createNotification.execute({
+        tenantId: appointment.tenantId,
+        appointmentId: appointment.id,
+        recipient: recipientPhone,
+        channel: 'SMS' as NotificationChannel,
+        templateCode: smsCode,
+        payloadJson: this.buildNotificationPayload.build({ ...payloadCtx, templateCode: smsCode }),
+      });
     }
+    // No email and no phone: skip silently
   }
 }
