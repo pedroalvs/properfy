@@ -34,6 +34,14 @@ export interface ServiceGroupAppointment {
 export interface ServiceGroupDetail extends ServiceGroup {
   appointments: ServiceGroupAppointment[];
   description: string | null;
+  /**
+   * Group-level civil date (`YYYY-MM-DD`); appointments are synced to it.
+   * Optional because the hook spreads the raw payload — a response without it
+   * must read as "unknown", never as a valid date.
+   */
+  scheduledDate?: string;
+  /** Group-level window, `HH:mm-HH:mm`. Optional for the same reason. */
+  timeWindow?: string;
 }
 
 export interface ServiceGroupFiltersState {

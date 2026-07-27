@@ -22,7 +22,10 @@ import {
 } from '../../domain/appointment.errors';
 import type { IRentalTenantPortalTokenRepository } from '../../../rental-tenant-portal/domain/rental-tenant-portal-token.repository';
 import type { IServiceGroupRepository } from '../../../service-group/domain/service-group.repository';
-import { getServiceGroupTimeSlotAdjustment } from '../../../service-group/domain/service-group-time-slot-sync';
+import {
+  getServiceGroupTimeSlotAdjustment,
+  getServiceGroupTimeWindowExpansion,
+} from '../../../service-group/domain/service-group-time-slot-sync';
 import type { ConfirmationCycleService } from '../services/confirmation-cycle.service';
 import { validateEditedSchedule } from '@properfy/shared';
 import type { RestrictionSource } from '@properfy/shared';
@@ -86,6 +89,13 @@ export interface UpdateAppointmentInput {
       source: RestrictionSource;
     } | null;
   };
+  /**
+   * Opt-in: when a grouped appointment's new time slot falls outside its
+   * group's shared time window, widen the window to fit instead of rejecting.
+   * Callers that do not ask keep the 422 — a shared window must never move as
+   * a side effect of an edit the operator did not frame as a reschedule.
+   */
+  expandGroupTimeWindow?: boolean;
   actor: AuthContext;
 }
 
@@ -145,7 +155,7 @@ export class UpdateAppointmentUseCase {
   ) {}
 
   async execute(input: UpdateAppointmentInput): Promise<UpdateAppointmentOutput> {
-    const { appointmentId, data, actor } = input;
+    const { appointmentId, data, actor, expandGroupTimeWindow = false } = input;
 
     // RBAC
     this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN', 'CL_USER'], { action: 'appointment.update', entityType: 'Appointment' });
@@ -188,6 +198,14 @@ export class UpdateAppointmentUseCase {
       (data.timeSlotEnd !== undefined && data.timeSlotEnd !== appointment.timeSlotEnd);
     const scheduleChanged = dateChanged || timeChangedReal;
 
+    // Set when a grouped time edit needs the group's shared window widened.
+    // Held until the appointment write succeeds — see where it is assigned.
+    let pendingGroupExpansion: {
+      groupId: string;
+      expansion: { timeWindow: string; before: string };
+      groupStatus: string;
+    } | null = null;
+
     // Schedule edits on a grouped appointment are validated against the group
     // and fail closed: when the group can't be loaded, the edit is blocked
     // (serviceGroupRepo is always wired in production — container.ts).
@@ -216,7 +234,9 @@ export class UpdateAppointmentUseCase {
 
       // A time-slot edit is allowed as long as the new slot still fits
       // inside the group's shared time window (same containment rule used
-      // when appointments are added to a group).
+      // when appointments are added to a group). When the caller opted into
+      // `expandGroupTimeWindow`, the group follows the appointment instead:
+      // the window widens to contain the new slot.
       if (timeChangedReal) {
         const newTimeSlotStart = data.timeSlotStart ?? appointment.timeSlotStart;
         const newTimeSlotEnd = data.timeSlotEnd ?? appointment.timeSlotEnd;
@@ -225,7 +245,32 @@ export class UpdateAppointmentUseCase {
           groupResult.group.timeWindow,
         );
         if (adjustment) {
-          throw new AppointmentTimeSlotOutsideGroupWindowError();
+          // A closed group has no window worth widening — the appointment
+          // should leave the group instead, so keep the original rejection.
+          const groupIsActive =
+            groupResult.group.status !== ServiceGroupStatus.CANCELLED &&
+            groupResult.group.status !== ServiceGroupStatus.REJECTED;
+          const expansion = expandGroupTimeWindow && groupIsActive
+            ? getServiceGroupTimeWindowExpansion(
+                { timeSlotStart: newTimeSlotStart, timeSlotEnd: newTimeSlotEnd },
+                groupResult.group.timeWindow,
+              )
+            : null;
+          if (!expansion) {
+            throw new AppointmentTimeSlotOutsideGroupWindowError();
+          }
+
+          // Deferred until AFTER the appointment write succeeds. Widening here
+          // would outlive a later rejection (the TZ past-date check and the
+          // appointment update both still run below), leaving a shared window
+          // permanently stretched for an edit that never landed — and the bulk
+          // path hides it, since `mapErrorToResult` turns the throw into a
+          // per-item ERROR the caller cannot tie back to the moved window.
+          pendingGroupExpansion = {
+            groupId: appointment.serviceGroupId,
+            expansion,
+            groupStatus: groupResult.group.status,
+          };
         }
       }
     }
@@ -334,11 +379,45 @@ export class UpdateAppointmentUseCase {
       updateData,
     );
 
-    // SCHEDULED keeps its status and inspector, so no →SCHEDULED transition will
-    // fire INSPECTION_NOTICE — notify the rental tenant of the new date here,
-    // after the update is persisted. Fire-and-forget: a notification failure
-    // must not fail the PATCH.
-    if (scheduleChanged && appointment.status === 'SCHEDULED' && this.onAdminRescheduleHandler) {
+    // The appointment now holds the new slot, so the group's shared window can
+    // safely follow it. Ordering is deliberate: a failure here leaves the
+    // window narrower than a member appointment, which the next edit re-detects
+    // and re-widens. The reverse order would strand a widened window behind an
+    // edit that never landed.
+    if (pendingGroupExpansion) {
+      const { groupId, expansion, groupStatus } = pendingGroupExpansion;
+      await this.serviceGroupRepo!.update(groupId, { timeWindow: expansion.timeWindow });
+      this.auditService.log({
+        action: 'service_group.time_window_expanded',
+        actorType: 'USER',
+        actorId: actor.userId,
+        entityType: 'ServiceGroup',
+        entityId: groupId,
+        tenantId: appointment.tenantId,
+        before: { timeWindow: expansion.before },
+        after: { timeWindow: expansion.timeWindow },
+        metadata: { appointmentId, initiatedBy: actor.role, groupStatus },
+      });
+    }
+
+    // A schedule edit fires no status transition, so nothing else sends the new
+    // date out — notify the rental tenant here, after the update is persisted.
+    //
+    // The gate answers "was the tenant already told about the OLD time?", because
+    // the block above revoked their portal tokens unconditionally. SCHEDULED
+    // always qualifies; so does any status where a confirmation cycle is open or
+    // the tenant had already confirmed (notably grouped AWAITING_INSPECTOR rows,
+    // which otherwise ended up holding a dead link and a stale time). A DRAFT
+    // that was never released has neither, and stays silent.
+    //
+    // Fire-and-forget: a notification failure must not fail the PATCH.
+    // `appointment` is the pre-update entity — the reset above only ever wrote to
+    // `updateData`, so these still read the values the tenant was notified about.
+    const rentalTenantKnowsOldSchedule =
+      appointment.status === 'SCHEDULED' ||
+      appointment.rentalTenantConfirmationStatus === 'CONFIRMED' ||
+      !!appointment.activeConfirmationCycleId;
+    if (scheduleChanged && rentalTenantKnowsOldSchedule && this.onAdminRescheduleHandler) {
       try {
         await this.onAdminRescheduleHandler.execute({
           appointmentId,

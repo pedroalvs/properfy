@@ -33,6 +33,47 @@ export function getServiceGroupTimeSlotAdjustment(
   };
 }
 
+export interface TimeWindowExpansion {
+  /** The widened group window, `HH:mm-HH:mm`. */
+  timeWindow: string;
+  /** The window as it stood before widening, for the audit trail. */
+  before: string;
+}
+
+/**
+ * The mirror image of `getServiceGroupTimeSlotAdjustment`: instead of clamping
+ * the appointment into the group's window (what add-to-group does), stretch the
+ * window around the appointment. Used when an operator moves one appointment's
+ * time outside the shared window and the group must follow rather than reject.
+ *
+ * Returns `null` when the slot already fits — callers treat that as "no group
+ * write needed", so an unchanged window never produces a spurious audit entry.
+ */
+export function getServiceGroupTimeWindowExpansion(
+  appointment: AppointmentTimeSlot,
+  groupTimeWindow: string,
+): TimeWindowExpansion | null {
+  const [groupStart, groupEnd] = parseTimeWindow(groupTimeWindow);
+  const appointmentStart = parseAppointmentTime(appointment.timeSlotStart);
+  const appointmentEnd = parseAppointmentTime(appointment.timeSlotEnd);
+
+  if (!appointmentStart || !appointmentEnd) {
+    return null;
+  }
+
+  if (appointmentStart.minutes >= groupStart.minutes && appointmentEnd.minutes <= groupEnd.minutes) {
+    return null;
+  }
+
+  const start = appointmentStart.minutes < groupStart.minutes ? appointmentStart : groupStart;
+  const end = appointmentEnd.minutes > groupEnd.minutes ? appointmentEnd : groupEnd;
+
+  return {
+    timeWindow: `${start.value}-${end.value}`,
+    before: groupTimeWindow,
+  };
+}
+
 function parseTimeWindow(timeWindow: string): [{ value: string; minutes: number }, { value: string; minutes: number }] {
   const [start, end] = timeWindow.split('-');
   if (!start || !end) {

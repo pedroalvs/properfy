@@ -118,6 +118,12 @@ export class ServiceGroupTimeInPastError extends DomainError {
   }
 }
 
+export class ServiceGroupEmptyError extends DomainError {
+  constructor() {
+    super('SERVICE_GROUP_EMPTY', 'A service group with no appointments cannot be published', 422);
+  }
+}
+
 export class ServiceGroupNotDraftError extends DomainError {
   constructor() {
     super(

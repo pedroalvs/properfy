@@ -12388,6 +12388,9 @@
                     },
                     "maxItems": 4,
                     "nullable": true
+                  },
+                  "expandGroupTimeWindow": {
+                    "type": "boolean"
                   }
                 },
                 "additionalProperties": false
@@ -13375,6 +13378,9 @@
                   "newTimeSlotEnd": {
                     "type": "string",
                     "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                  },
+                  "expandGroupTimeWindow": {
+                    "type": "boolean"
                   }
                 },
                 "required": [

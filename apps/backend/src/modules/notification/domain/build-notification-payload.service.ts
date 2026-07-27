@@ -28,6 +28,26 @@ export interface NotificationPayloadContext {
   appointmentCodeFormatter: AppointmentCodeFormatter;
 }
 
+/**
+ * H1: Format date in the platform timezone (Sydney) to prevent UTC-day boundary
+ * errors. en-CA locale produces YYYY-MM-DD, consistent with ISO date strings.
+ *
+ * Exported so consumers comparing against a stored payload (occurrence dedupe)
+ * produce the exact same string this service writes.
+ */
+export function formatScheduledDate(date: Date): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: PLATFORM_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
+export function formatTimeSlot(start: string, end: string): string {
+  return `${start}-${end}`;
+}
+
 export class BuildNotificationPayloadService {
   build(ctx: NotificationPayloadContext): Record<string, string> {
     if (ctx.tenant.id !== ctx.appointment.tenantId) {
@@ -38,14 +58,7 @@ export class BuildNotificationPayloadService {
 
     const settings = ctx.tenant.settingsJson;
 
-    // H1: Format date in the platform timezone (Sydney) to prevent UTC-day boundary errors.
-    // en-CA locale produces YYYY-MM-DD, consistent with ISO date strings.
-    const scheduledDate = new Intl.DateTimeFormat('en-CA', {
-      timeZone: PLATFORM_TIMEZONE,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(ctx.appointment.scheduledDate);
+    const scheduledDate = formatScheduledDate(ctx.appointment.scheduledDate);
 
     // H3: Build portal URLs via URL constructor to normalize trailing slashes and encode tokens.
     const confirmationLink = ctx.rawPortalToken
@@ -62,7 +75,7 @@ export class BuildNotificationPayloadService {
       rentalTenantName: ctx.contact.effectiveName,
       propertyAddress: ctx.propertyAddress ?? '',
       scheduledDate,
-      timeSlot: `${ctx.appointment.timeSlotStart}-${ctx.appointment.timeSlotEnd}`,
+      timeSlot: formatTimeSlot(ctx.appointment.timeSlotStart, ctx.appointment.timeSlotEnd),
       inspectorName: ctx.inspectorName ?? '',
       agencyName: ctx.tenant.name,
       agencyPhone: typeof settings.contactPhone === 'string' ? settings.contactPhone : '',

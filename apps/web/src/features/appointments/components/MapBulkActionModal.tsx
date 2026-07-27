@@ -13,15 +13,23 @@ import type { AppointmentStatus, UserRole } from '@properfy/shared';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 import { AppointmentCodePill } from './AppointmentCodePill';
 import { ConfirmationChannelIcons, IconWithTooltip } from './ConfirmationChannelIcons';
-import { MapBulkRescheduleForm } from './MapBulkRescheduleForm';
+import { MapBulkRescheduleForm, type RescheduleGroupContext } from './MapBulkRescheduleForm';
+import { MapBulkReturnToPoolForm } from './MapBulkReturnToPoolForm';
 import { useBulkCancelAppointments } from '../hooks/useBulkCancelAppointments';
 import { useBulkStatusTransition } from '../hooks/useBulkStatusTransition';
 import { useBulkResendReminder } from '../hooks/useBulkResendReminder';
 
 /**
- * 026 §FR-530 — Bulk actions reduced to exactly 4 items (alphabetical):
- *   Cancel · Change status · Reschedule · Send confirmation email
+ * Bulk actions (alphabetical):
+ *   Cancel · Change status · Reschedule · Return to pool · Send confirmation email
  *
+ * - "Reschedule" changes the time and PRESERVES status + inspector
+ *   (`/v1/appointments/bulk-reschedule`).
+ * - "Return to pool" is the destructive reopen — `SCHEDULED → DRAFT` with the
+ *   inspector cleared (`/v1/appointments/bulk-reopen-for-reschedule`). It used
+ *   to be the implementation of "Reschedule", which meant an operator adjusting
+ *   a time silently lost the inspector, and grouped (AWAITING_INSPECTOR) rows
+ *   failed outright against the use case's SCHEDULED-only guard.
  * - "Assign Inspector" REMOVED from the map flow (kept in list-page
  *   `BulkEditModal` per 026 plan — out of scope here).
  * - "Re-send Reminder" RELABELLED to "Send confirmation email"
@@ -33,6 +41,7 @@ export type BulkAction =
   | 'cancel'
   | 'change_status'
   | 'reschedule'
+  | 'return_to_pool'
   | 'resend_reminder';
 
 /** 026 §FR-510 — separate footer buttons; NOT in the dropdown. */
@@ -88,6 +97,12 @@ interface MapBulkActionModalProps {
    * the Appointments-tab lasso flow, where selection stays fully uncontrolled.
    */
   externalSelectedIds?: string[];
+  /**
+   * Groups already loaded by the page. Only used by the Reschedule form to
+   * preview a group time-window widening; omitting it just hides the preview.
+   * Must be referentially stable (apps/web/CLAUDE.md §13.11).
+   */
+  serviceGroups?: RescheduleGroupContext[];
 }
 
 interface RowResult {
@@ -97,7 +112,7 @@ interface RowResult {
 }
 
 /**
- * 026 §FR-530 — exactly 4 dropdown items, alphabetical order.
+ * Dropdown items in alphabetical order.
  * "Send confirmation email" is the user-facing label for the existing
  * `/bulk-resend-reminder` endpoint (relabel only, route unchanged).
  */
@@ -105,6 +120,7 @@ const BULK_ACTIONS: Array<{ key: BulkAction; label: string; allowedRoles: UserRo
   { key: 'cancel', label: 'Cancel appointments', allowedRoles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'], clFlag: 'cancel_appointments' },
   { key: 'change_status', label: 'Change status', allowedRoles: ['AM', 'OP'] },
   { key: 'reschedule', label: 'Reschedule', allowedRoles: ['AM', 'OP', 'CL_ADMIN'] },
+  { key: 'return_to_pool', label: 'Return to pool', allowedRoles: ['AM', 'OP', 'CL_ADMIN'] },
   { key: 'resend_reminder', label: 'Send confirmation email', allowedRoles: ['AM', 'OP'] },
 ];
 
@@ -139,6 +155,7 @@ export function MapBulkActionModal({
   error,
   onRetry,
   externalSelectedIds,
+  serviceGroups,
 }: MapBulkActionModalProps) {
   const { widthPx, isDragging, onHandleMouseDown } = useResizableWidth({
     initialPx: Math.round(window.innerWidth * 0.6),
@@ -329,9 +346,9 @@ export function MapBulkActionModal({
   const cancelMutation = useBulkCancelAppointments();
   const statusMutation = useBulkStatusTransition();
   const resendMutation = useBulkResendReminder();
-  // 026 §FR-540 — reschedule now uses the bulk-reopen-for-reschedule
-  // endpoint via `MapBulkRescheduleForm` which encapsulates the
-  // same-group precheck + dropdown slot picker.
+  // The two time-changing actions own their own mutations:
+  // `MapBulkRescheduleForm` → bulk-reschedule (status-preserving),
+  // `MapBulkReturnToPoolForm` → bulk-reopen-for-reschedule (SCHEDULED→DRAFT).
   // 026 §FR-530 — assign_inspector REMOVED from the map flow.
 
   const handleActionComplete = (resultsFromApi: Array<{ appointmentId: string; status: string; error?: { message: string } }>) => {
@@ -345,22 +362,25 @@ export function MapBulkActionModal({
 
   const visibleActions = BULK_ACTIONS;
 
-  // 026 §FR-540 — Reschedule is bulk-same-group only. If the selection
-  // spans groups (or contains non-grouped items), disable with a tooltip
-  // explaining the limitation. Backend ALSO returns INVALID_SCOPE.
+  // 026 §FR-540 — both time-changing actions are bulk-same-group only: each
+  // derives the target date from the selection, so a cross-group (or partly
+  // ungrouped) selection has no single date to keep. Backend ALSO returns
+  // INVALID_SCOPE for the reopen path.
   const groupScopeStatus = useMemo<{ disabled: boolean; reason?: string }>(() => {
     if (checkedAppointments.length === 0) return { disabled: false };
     const groupIds = new Set(checkedAppointments.map((a) => a.serviceGroupId ?? null));
     if (groupIds.size > 1 || groupIds.has(null)) {
-      return { disabled: true, reason: 'Bulk reschedule limited to appointments within the same group in this cycle' };
+      return { disabled: true, reason: 'Limited to appointments within the same group in this cycle' };
     }
     return { disabled: false };
   }, [checkedAppointments]);
 
+  const GROUP_SCOPED_ACTIONS = new Set<BulkAction>(['reschedule', 'return_to_pool']);
+
   const isActionDisabled = (a: typeof BULK_ACTIONS[number]): { disabled: boolean; reason?: string } => {
     if (!isActionAllowed(a, actorRole, clUserFlags)) return { disabled: true, reason: 'Your role cannot perform this action' };
     if (checkedIds.size === 0) return { disabled: true, reason: 'Tick at least one appointment first' };
-    if (a.key === 'reschedule' && groupScopeStatus.disabled) {
+    if (GROUP_SCOPED_ACTIONS.has(a.key) && groupScopeStatus.disabled) {
       return { disabled: true, ...(groupScopeStatus.reason ? { reason: groupScopeStatus.reason } : {}) };
     }
     return { disabled: false };
@@ -495,6 +515,15 @@ export function MapBulkActionModal({
 
       {activeAction === 'reschedule' && !results && (
         <MapBulkRescheduleForm
+          checkedAppointments={checkedAppointments}
+          {...(serviceGroups ? { serviceGroups } : {})}
+          onCancel={() => setActiveAction(null)}
+          onComplete={handleActionComplete}
+        />
+      )}
+
+      {activeAction === 'return_to_pool' && !results && (
+        <MapBulkReturnToPoolForm
           checkedAppointments={checkedAppointments}
           onCancel={() => setActiveAction(null)}
           onComplete={handleActionComplete}

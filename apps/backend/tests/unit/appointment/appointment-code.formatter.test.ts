@@ -102,4 +102,57 @@ describe('AppointmentCodeFormatter', () => {
       expect(AppointmentCodeFormatter.parse('ins-0042')).toBe(42);
     });
   });
+
+  /**
+   * The search box accepts what the operator sees on screen. The code is
+   * DISPLAYED zero-padded ("INS-0071") but STORED as a plain integer (71), so a
+   * bare "0071" has to be read as a number — a substring match against the
+   * stored value would compare against "71" and never match it.
+   */
+  describe('parseSearchTerm', () => {
+    it('accepts a fully formatted code, like parse does', () => {
+      expect(AppointmentCodeFormatter.parseSearchTerm('INS-0071')).toBe(71);
+      expect(AppointmentCodeFormatter.parseSearchTerm('ab12-0007')).toBe(7);
+    });
+
+    it('accepts the zero-padded number on its own — the reported gap', () => {
+      expect(AppointmentCodeFormatter.parseSearchTerm('0071')).toBe(71);
+    });
+
+    it('accepts a plain number', () => {
+      expect(AppointmentCodeFormatter.parseSearchTerm('71')).toBe(71);
+      expect(AppointmentCodeFormatter.parseSearchTerm('0')).toBe(0);
+    });
+
+    it('tolerates surrounding whitespace', () => {
+      expect(AppointmentCodeFormatter.parseSearchTerm('  0071  ')).toBe(71);
+    });
+
+    it('returns null for text, so the caller falls back to the text search', () => {
+      for (const term of ['Kogarah', '', '   ', 'INS-', '-0042', '12a', '7.5', '-5']) {
+        expect(AppointmentCodeFormatter.parseSearchTerm(term), term).toBeNull();
+      }
+    });
+
+    it('returns null above the int4 ceiling instead of overflowing Postgres', () => {
+      // appointment_number is an `integer`; handing Postgres 99999999999 makes
+      // the whole query throw, turning a search into a 500.
+      expect(AppointmentCodeFormatter.parseSearchTerm('2147483647')).toBe(2147483647);
+      expect(AppointmentCodeFormatter.parseSearchTerm('2147483648')).toBeNull();
+      expect(AppointmentCodeFormatter.parseSearchTerm('99999999999')).toBeNull();
+    });
+
+    it('applies the int4 ceiling to FORMATTED codes too', () => {
+      // CODE_PATTERN's `\d+` is unbounded, so the prefixed form reaches the
+      // same overflow through the other branch — guarding only the bare digits
+      // leaves the 500 wide open.
+      expect(AppointmentCodeFormatter.parseSearchTerm('INS-2147483647')).toBe(2147483647);
+      expect(AppointmentCodeFormatter.parseSearchTerm('INS-2147483648')).toBeNull();
+      expect(AppointmentCodeFormatter.parseSearchTerm('INS-99999999999')).toBeNull();
+    });
+
+    it('leaves parse() strict — it still only accepts a formatted code', () => {
+      expect(AppointmentCodeFormatter.parse('0071')).toBeNull();
+    });
+  });
 });

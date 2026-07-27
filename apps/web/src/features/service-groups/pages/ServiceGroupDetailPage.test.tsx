@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -101,6 +101,74 @@ vi.mock('../hooks/useServiceGroupDetail', () => ({
       isError: false,
       refetch: mockRefetch,
     };
+    // Republished groups arrive empty: cancelling unlinks every appointment.
+    if (id === 'empty') return {
+      serviceGroup: {
+        id: 'empty',
+        code: '9',
+        status: 'DRAFT',
+        tenantId: 't-1',
+        regionName: 'Region D',
+        inspectorId: null,
+        inspectorName: null,
+        appointmentsCount: 0,
+        appointments: [],
+        scheduledDate: '2026-06-01',
+        timeWindow: '09:00-12:00',
+        description: null,
+        createdAt: '2026-03-01T10:00:00Z',
+        updatedAt: '2026-03-01T10:00:00Z',
+      },
+      isLoading: false,
+      isError: false,
+      refetch: mockRefetch,
+    };
+    if (id === 'past-date') return {
+      serviceGroup: {
+        id: 'past-date',
+        code: '10',
+        status: 'DRAFT',
+        tenantId: 't-1',
+        regionName: 'Region E',
+        inspectorId: null,
+        inspectorName: null,
+        appointmentsCount: 1,
+        appointments: [
+          { id: 'apt-past-01', appointmentNumber: 4001, status: 'AWAITING_INSPECTOR', scheduledDate: '2026-04-30', propertyAddress: '1 Past St', propertyCode: 'VST-010' },
+        ],
+        scheduledDate: '2026-04-30',
+        timeWindow: '09:00-12:00',
+        description: null,
+        createdAt: '2026-03-01T10:00:00Z',
+        updatedAt: '2026-03-01T10:00:00Z',
+      },
+      isLoading: false,
+      isError: false,
+      refetch: mockRefetch,
+    };
+    if (id === 'blocking-status') return {
+      serviceGroup: {
+        id: 'blocking-status',
+        code: '11',
+        status: 'DRAFT',
+        tenantId: 't-1',
+        regionName: 'Region F',
+        inspectorId: null,
+        inspectorName: null,
+        appointmentsCount: 1,
+        appointments: [
+          { id: 'apt-blk-01', appointmentNumber: 5001, status: 'CANCELLED', scheduledDate: '2026-06-01', propertyAddress: '2 Blocked St', propertyCode: 'VST-011' },
+        ],
+        scheduledDate: '2026-06-01',
+        timeWindow: '09:00-12:00',
+        description: null,
+        createdAt: '2026-03-01T10:00:00Z',
+        updatedAt: '2026-03-01T10:00:00Z',
+      },
+      isLoading: false,
+      isError: false,
+      refetch: mockRefetch,
+    };
     if (id === 'cancelled') return {
       serviceGroup: {
         id: 'cancelled',
@@ -132,9 +200,11 @@ vi.mock('../hooks/useServiceGroupDetail', () => ({
         inspectorName: null,
         appointmentsCount: 12,
         appointments: [
-          { id: 'apt-01', appointmentNumber: 1001, status: 'AWAITING_INSPECTOR', scheduledDate: '2026-03-10', propertyAddress: '123 Main St', propertyCode: 'VST-001' },
-          { id: 'apt-02', appointmentNumber: 1002, status: 'AWAITING_INSPECTOR', scheduledDate: '2026-03-11', propertyAddress: '456 Oak Ave', propertyCode: 'VST-002' },
+          { id: 'apt-01', appointmentNumber: 1001, status: 'AWAITING_INSPECTOR', scheduledDate: '2026-06-01', propertyAddress: '123 Main St', propertyCode: 'VST-001' },
+          { id: 'apt-02', appointmentNumber: 1002, status: 'AWAITING_INSPECTOR', scheduledDate: '2026-06-01', propertyAddress: '456 Oak Ave', propertyCode: 'VST-002' },
         ],
+        scheduledDate: '2026-06-01',
+        timeWindow: '09:00-12:00',
         description: 'Some notes',
         createdAt: '2026-03-01T10:00:00Z',
         updatedAt: '2026-03-01T10:00:00Z',
@@ -224,6 +294,15 @@ function renderPage(initialEntry?: string) {
 describe('ServiceGroupDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Publish is gated on the group schedule, which the shared validator
+    // resolves against "now" in Sydney. Pin it (Date only, timers stay real)
+    // so the fixtures below keep the same meaning on any day.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-05-01T00:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('renders group code in header', () => {
@@ -246,6 +325,39 @@ describe('ServiceGroupDetailPage', () => {
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: /Publish/ }));
     expect(mockPublish).toHaveBeenCalled();
+  });
+
+  it('blocks Publish for a group with no appointments', () => {
+    renderPage('/service-groups/empty');
+    const button = screen.getByRole('button', { name: /Publish/ });
+    expect(button).toBeDisabled();
+    // Scoped to the banner copy — the appointments section has its own
+    // "No appointments" empty state.
+    const banner = screen.getByText(/this group has no appointments/i);
+    expect(banner).toBeInTheDocument();
+    // The reason must be announced, not just shown next to the button.
+    expect(button).toHaveAttribute('aria-describedby', banner.id);
+    fireEvent.click(button);
+    expect(mockPublish).not.toHaveBeenCalled();
+  });
+
+  it('blocks Publish for a group whose scheduled date has passed', () => {
+    renderPage('/service-groups/past-date');
+    expect(screen.getByRole('button', { name: /Publish/ })).toBeDisabled();
+    expect(screen.getByText(/scheduled date is in the past/i)).toBeInTheDocument();
+  });
+
+  it('blocks Publish while an appointment is not awaiting inspector', () => {
+    renderPage('/service-groups/blocking-status');
+    expect(screen.getByRole('button', { name: /Publish/ })).toBeDisabled();
+    expect(screen.getByText(/#5001 \(CANCELLED\)/)).toBeInTheDocument();
+  });
+
+  it('enables Publish for a valid future group and describes nothing', () => {
+    renderPage();
+    const button = screen.getByRole('button', { name: /Publish/ });
+    expect(button).toBeEnabled();
+    expect(button).not.toHaveAttribute('aria-describedby');
   });
 
   it('shows Cancel Group button for DRAFT status', () => {
