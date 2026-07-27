@@ -53,10 +53,11 @@ export interface INotificationRepository {
    * Most recently created notification for the appointment among `templateCodes`,
    * or null when none exists. Backs occurrence-scoped dedupe — "what was the
    * rental tenant last told?" — as opposed to the lifetime guard of
-   * `existsByAppointmentAndTemplate`.
+   * `existsByAppointmentAndTemplate`. Scoped by tenant.
    */
   findLatestByAppointmentAndTemplates(
     appointmentId: string,
+    tenantId: string,
     templateCodes: readonly string[],
   ): Promise<NotificationEntity | null>;
   countByTenantChannelSince(tenantId: string, channel: NotificationChannel, since: Date): Promise<number>;

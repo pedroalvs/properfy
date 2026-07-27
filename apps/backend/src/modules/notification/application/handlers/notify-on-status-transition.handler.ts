@@ -130,6 +130,7 @@ export class NotifyOnStatusTransitionHandler {
     // link the tenant already holds, so it can never happen on a skipped send.
     const lastAnnouncement = await this.notificationRepo.findLatestByAppointmentAndTemplates(
       appointment.id,
+      appointment.tenantId,
       STATUS_TRANSITION_TEMPLATE_CODES,
     );
     if (lastAnnouncement && alreadyAnnounced(lastAnnouncement, emailCode, appointment)) return;

@@ -485,6 +485,7 @@ describe('NotifyOnStatusTransitionHandler occurrence dedupe', () => {
     expect(createNotification.execute).toHaveBeenCalledOnce();
     expect(notificationRepo.findLatestByAppointmentAndTemplates).toHaveBeenCalledWith(
       'appt-1',
+      'tenant-1',
       expect.arrayContaining([
         'INSPECTION_NOTICE',
         'INSPECTION_NOTICE_SMS',

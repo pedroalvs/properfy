@@ -170,11 +170,16 @@ export class PrismaNotificationRepository implements INotificationRepository {
 
   async findLatestByAppointmentAndTemplates(
     appointmentId: string,
+    tenantId: string,
     templateCodes: readonly string[],
   ): Promise<NotificationEntity | null> {
     if (templateCodes.length === 0) return null;
     const row = await this.prisma.notification.findFirst({
-      where: { appointment_id: appointmentId, template_code: { in: [...templateCodes] } },
+      where: {
+        appointment_id: appointmentId,
+        tenant_id: tenantId,
+        template_code: { in: [...templateCodes] },
+      },
       orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
     });
     return row ? mapToEntity(row) : null;

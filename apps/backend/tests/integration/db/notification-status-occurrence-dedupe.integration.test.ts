@@ -254,7 +254,7 @@ describe('findLatestByAppointmentAndTemplates — real DB', () => {
       other.appointmentId, other.tenantId, 'INSPECTION_NOTICE', new Date('2026-07-04'),
     );
 
-    const latest = await repo.findLatestByAppointmentAndTemplates(appointmentId, FAMILY);
+    const latest = await repo.findLatestByAppointmentAndTemplates(appointmentId, tenantId, FAMILY);
 
     expect(latest?.id).toBe(newest);
     expect(latest?.templateCode).toBe('INSPECTION_CANCELLED');
@@ -265,7 +265,9 @@ describe('findLatestByAppointmentAndTemplates — real DB', () => {
     const repo = new PrismaNotificationRepository(harness.prisma);
     await seedNotification(appointmentId, tenantId, 'REMINDER_7_DAYS', new Date('2026-07-01'));
 
-    expect(await repo.findLatestByAppointmentAndTemplates(appointmentId, FAMILY)).toBeNull();
+    expect(
+      await repo.findLatestByAppointmentAndTemplates(appointmentId, tenantId, FAMILY),
+    ).toBeNull();
   });
 
   it('returns null for an empty template list without querying', async () => {
@@ -273,6 +275,24 @@ describe('findLatestByAppointmentAndTemplates — real DB', () => {
     const repo = new PrismaNotificationRepository(harness.prisma);
     await seedNotification(appointmentId, tenantId, 'INSPECTION_NOTICE', new Date('2026-07-01'));
 
-    expect(await repo.findLatestByAppointmentAndTemplates(appointmentId, [])).toBeNull();
+    expect(await repo.findLatestByAppointmentAndTemplates(appointmentId, tenantId, [])).toBeNull();
+  });
+
+  it('does not read a row stamped with another tenant', async () => {
+    // Defense in depth: notifications are always stamped with their own
+    // appointment's tenant, so this state should not arise — but the WHERE
+    // clause must enforce it rather than trust the invariant. Only a real
+    // Postgres query can prove the filter is present.
+    const { appointmentId, tenantId } = await seedFixture(harness.prisma);
+    const foreign = await seedFixture(harness.prisma);
+    const repo = new PrismaNotificationRepository(harness.prisma);
+
+    await seedNotification(
+      appointmentId, foreign.tenantId, 'INSPECTION_NOTICE', new Date('2026-07-01'),
+    );
+
+    expect(
+      await repo.findLatestByAppointmentAndTemplates(appointmentId, tenantId, FAMILY),
+    ).toBeNull();
   });
 });
