@@ -188,6 +188,16 @@ describe('listNotificationTemplatesQuerySchema', () => {
     }
   });
 
+  it('should honour includeDefaults=false as a query STRING', () => {
+    // Real query strings deliver "false", not false. Under z.coerce.boolean()
+    // that parsed as true and platform defaults could never be excluded.
+    const result = listNotificationTemplatesQuerySchema.safeParse({ includeDefaults: 'false' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.includeDefaults).toBe(false);
+    }
+  });
+
   it('should reject invalid UUID for tenantId', () => {
     const result = listNotificationTemplatesQuerySchema.safeParse({ tenantId: 'not-a-uuid' });
     expect(result.success).toBe(false);

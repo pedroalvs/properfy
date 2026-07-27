@@ -143,7 +143,6 @@ describe('service group date sync (real DB)', () => {
       data: {
         service_type_id: serviceTypeId,
         status: 'DRAFT',
-        group_size: 2,
         scheduled_date: new Date(GROUP_DATE),
         time_window: '09:00-12:00',
         created_by_user_id: tenantA.userId,
@@ -206,7 +205,6 @@ describe('service group date sync (real DB)', () => {
       data: {
         service_type_id: serviceTypeId,
         status: 'DRAFT',
-        group_size: 1,
         scheduled_date: new Date('2020-01-01'),
         time_window: '09:00-12:00',
         created_by_user_id: tenantA.userId,

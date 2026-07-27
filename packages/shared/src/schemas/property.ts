@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { booleanQueryParam } from './boolean-query';
 import { paginationSchema } from './pagination';
 import { propertyAddressSchema, propertyAddressUpdateSchema } from './address';
 import { PropertyType } from '../enums/property';
@@ -78,7 +79,7 @@ export const listPropertiesQuerySchema = paginationSchema.extend({
   branchId: z.string().uuid().optional(),
   type: z.enum(PROPERTY_TYPE_VALUES).optional(),
   search: z.string().max(200).optional(),
-  hasCoordinates: z.coerce.boolean().optional(),
+  hasCoordinates: booleanQueryParam().optional(),
   nearLat: z.coerce.number().min(-90).max(90).optional(),
   nearLng: z.coerce.number().min(-180).max(180).optional(),
   nearRadiusKm: z.coerce.number().positive().max(500).optional(),

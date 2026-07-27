@@ -89,7 +89,6 @@ describe('service group search filter (real DB)', () => {
       data: {
         service_type_id: serviceTypeId,
         status: 'DRAFT',
-        group_size: 1,
         scheduled_date: new Date(futureDateStr(30)),
         time_window: '09:00-12:00',
         description,

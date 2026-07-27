@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { booleanQueryParam } from './boolean-query';
 import { paginationSchema } from './pagination';
 
 // Feature 018: shared classification and consent enums as Zod schemas
@@ -34,7 +35,7 @@ export const listNotificationTemplatesQuerySchema = z.object({
   tenantId: z.string().uuid().optional(),
   templateCode: z.string().optional(),
   channel: z.enum(['EMAIL', 'SMS']).optional(),
-  includeDefaults: z.coerce.boolean().default(true),
+  includeDefaults: booleanQueryParam().default(true),
 });
 export type ListNotificationTemplatesQuery = z.infer<typeof listNotificationTemplatesQuerySchema>;
 

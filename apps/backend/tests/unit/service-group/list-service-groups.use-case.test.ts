@@ -215,9 +215,12 @@ describe('ListServiceGroupsUseCase', () => {
   // Map page integration: when includeAppointments=true, appointments are
   // batch-fetched and embedded per group, with property coordinates populated.
   it('embeds appointments per group when includeAppointments is true', async () => {
+    // groupSize is the repository's derived count of linked appointments, and
+    // the map query below filters on the same predicate — so the fixture keeps
+    // them consistent, one appointment each.
     vi.mocked(serviceGroupRepo.findAll).mockResolvedValue([
-      { group: makeGroup({ id: 'group-1' }), assignedInspectorName: null },
-      { group: makeGroup({ id: 'group-2' }), assignedInspectorName: 'Mike' },
+      { group: makeGroup({ id: 'group-1', groupSize: 1 }), assignedInspectorName: null },
+      { group: makeGroup({ id: 'group-2', groupSize: 1 }), assignedInspectorName: 'Mike' },
     ]);
     vi.mocked(serviceGroupRepo.count).mockResolvedValue(2);
     vi.mocked(serviceGroupRepo.findAppointmentsForMapByGroupIds).mockResolvedValue([
@@ -265,9 +268,113 @@ describe('ListServiceGroupsUseCase', () => {
     expect(result.data[1]!.appointments?.[0]?.inspectorName).toBe('Mike');
   });
 
-  it('omits appointments by default (includeAppointments is false/absent)', async () => {
+  // The map warns "0 of N appointments have a valid map location". N must be
+  // the number of appointments LINKED to the group — counting only the
+  // plottable ones makes it read "0 of 0" for precisely the groups that need
+  // explaining.
+  it('counts every linked appointment, but only embeds the plottable ones', async () => {
     vi.mocked(serviceGroupRepo.findAll).mockResolvedValue([
-      { group: makeGroup(), assignedInspectorName: null },
+      { group: makeGroup({ id: 'group-1', groupSize: 2 }), assignedInspectorName: null },
+    ]);
+    vi.mocked(serviceGroupRepo.count).mockResolvedValue(1);
+    vi.mocked(serviceGroupRepo.findAppointmentsForMapByGroupIds).mockResolvedValue([
+      {
+        id: 'apt-1',
+        serviceGroupId: 'group-1',
+        code: 'VST-001',
+        status: 'SCHEDULED',
+        address: '10 Main St, Sydney',
+        latitude: -33.8,
+        longitude: 151.2,
+        scheduledDate: new Date('2026-05-01T00:00:00Z'),
+        inspectorName: null,
+      },
+      {
+        id: 'apt-2',
+        serviceGroupId: 'group-1',
+        code: 'VST-002',
+        status: 'SCHEDULED',
+        address: '20 Ungeocoded Rd',
+        latitude: null,
+        longitude: null,
+        scheduledDate: new Date('2026-05-02T00:00:00Z'),
+        inspectorName: null,
+      },
+    ]);
+
+    const result = await useCase.execute({
+      filters: { includeAppointments: true },
+      pagination: defaultPagination,
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(result.data[0]!.appointmentsCount).toBe(2);
+    expect(result.data[0]!.appointments).toHaveLength(1);
+    expect(result.data[0]!.appointments?.[0]?.id).toBe('apt-1');
+  });
+
+  it('reports an emptied group as zero, so the map can say "no appointments"', async () => {
+    // A cancelled group has had every appointment unlinked. The count is
+    // derived, so it reads 0 and the map says "group has no appointments"
+    // rather than inventing appointments that no longer exist.
+    vi.mocked(serviceGroupRepo.findAll).mockResolvedValue([
+      { group: makeGroup({ id: 'group-1', groupSize: 0 }), assignedInspectorName: null },
+    ]);
+    vi.mocked(serviceGroupRepo.count).mockResolvedValue(1);
+    vi.mocked(serviceGroupRepo.findAppointmentsForMapByGroupIds).mockResolvedValue([]);
+
+    const result = await useCase.execute({
+      filters: { includeAppointments: true },
+      pagination: defaultPagination,
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(result.data[0]!.appointmentsCount).toBe(0);
+    expect(result.data[0]!.groupSize).toBe(0);
+  });
+
+  // An appointment whose coordinates exist but are unusable must still be
+  // COUNTED — it is a real appointment. Only the embedded array, which feeds
+  // markers and the camera fit, drops it.
+  it('excludes malformed coordinates from the embedded array but still counts them', async () => {
+    vi.mocked(serviceGroupRepo.findAll).mockResolvedValue([
+      { group: makeGroup({ id: 'group-1', groupSize: 3 }), assignedInspectorName: null },
+    ]);
+    vi.mocked(serviceGroupRepo.count).mockResolvedValue(1);
+    vi.mocked(serviceGroupRepo.findAppointmentsForMapByGroupIds).mockResolvedValue([
+      {
+        id: 'apt-ok', serviceGroupId: 'group-1', code: 'VST-001', status: 'SCHEDULED',
+        address: '10 Main St', latitude: -33.8, longitude: 151.2,
+        scheduledDate: new Date('2026-05-01T00:00:00Z'), inspectorName: null,
+      },
+      {
+        id: 'apt-out-of-range', serviceGroupId: 'group-1', code: 'VST-002', status: 'SCHEDULED',
+        address: '20 Bad Rd', latitude: 999, longitude: 151.2,
+        scheduledDate: new Date('2026-05-02T00:00:00Z'), inspectorName: null,
+      },
+      {
+        id: 'apt-nan', serviceGroupId: 'group-1', code: 'VST-003', status: 'SCHEDULED',
+        address: '30 Bad Rd', latitude: Number.NaN, longitude: 151.2,
+        scheduledDate: new Date('2026-05-03T00:00:00Z'), inspectorName: null,
+      },
+    ]);
+
+    const result = await useCase.execute({
+      filters: { includeAppointments: true },
+      pagination: defaultPagination,
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    // A `!= null` filter would have let both malformed rows through, and the
+    // frontend would then have rejected them — payload and consumer
+    // disagreeing about what "plottable" means.
+    expect(result.data[0]!.appointments?.map((a) => a.id)).toEqual(['apt-ok']);
+    expect(result.data[0]!.appointmentsCount).toBe(3);
+  });
+
+  it('omits the appointments array by default, but still reports the count', async () => {
+    vi.mocked(serviceGroupRepo.findAll).mockResolvedValue([
+      { group: makeGroup({ groupSize: 5 }), assignedInspectorName: null },
     ]);
     vi.mocked(serviceGroupRepo.count).mockResolvedValue(1);
 
@@ -279,7 +386,10 @@ describe('ListServiceGroupsUseCase', () => {
 
     expect(serviceGroupRepo.findAppointmentsForMapByGroupIds).not.toHaveBeenCalled();
     expect(result.data[0]!.appointments).toBeUndefined();
-    expect(result.data[0]!.appointmentsCount).toBeUndefined();
+    // Emitted unconditionally: it is the already-derived count, so gating it on
+    // `includeAppointments` only created a state where a consumer could not
+    // tell "no appointments" from "the server didn't say".
+    expect(result.data[0]!.appointmentsCount).toBe(5);
   });
 
   describe('search filter', () => {

@@ -88,7 +88,7 @@ apps/web/
 │   │   ├── reports/
 │   │   └── settings/
 │   ├── services/               # API clients (generated from OpenAPI)
-│   ├── hooks/                  # Shared hooks (useAuth, useToast, useDebouncedSearch, etc.)
+│   ├── hooks/                  # Shared hooks (useAuth, useSnackbar, useApiQuery, useUrlFilters, etc.)
 │   ├── lib/                    # Helpers (formatCurrency, formatDate, status helpers, masks)
 │   ├── types/                  # DTOs and API types (from packages/shared when applicable)
 │   ├── assets/                 # Validated SVG assets (no legacy branding)
@@ -204,6 +204,14 @@ apps/web/
 - Filters use border via shadow + custom label (replicating legacy)
 - Boolean filters: white container with light border, `4px` radius
 - Responsive grid: `lg`/`md`/`sm` breakpoints
+- **`FilterInput` is the only debounced search primitive** (300 ms default, `debounceMs`
+  prop, magnify icon, floating label, clear button). Reuse it for every search box —
+  there is no `useDebouncedSearch` hook and no `SearchInput` in `components/ui/`; do not
+  hand-roll another debounce.
+- `FilterInput` fires the **latest** `onChange`, not the one captured at keystroke time, so
+  consumers can safely spread render-time state (`onChange={(v) => onFiltersChange({ ...filters, search: v })}`).
+  Before this was fixed centrally, a sibling filter changed inside the debounce window was
+  silently reverted. Preserve that contract if you touch the component.
 
 ### Tables
 

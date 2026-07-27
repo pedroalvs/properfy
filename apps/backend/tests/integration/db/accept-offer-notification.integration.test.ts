@@ -111,7 +111,7 @@ async function seedProperty(prisma: PrismaClient, tenantId: string, branchId: st
 async function seedGroup(prisma: PrismaClient, serviceTypeId: string, createdByUserId: string): Promise<string> {
   const g = await prisma.serviceGroup.create({
     data: {
-      service_type_id: serviceTypeId, status: 'PUBLISHED', group_size: 5,
+      service_type_id: serviceTypeId, status: 'PUBLISHED',
       scheduled_date: SCHEDULED_DATE, time_window: '08:00-12:00',
       published_at: new Date(), created_by_user_id: createdByUserId,
     },
