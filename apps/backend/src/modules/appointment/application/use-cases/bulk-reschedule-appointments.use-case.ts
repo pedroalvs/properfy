@@ -11,6 +11,8 @@ export interface BulkRescheduleAppointmentsInput {
   newDate: string;
   newTimeSlotStart?: string;
   newTimeSlotEnd?: string;
+  /** Forwarded per item — see `UpdateAppointmentInput.expandGroupTimeWindow`. */
+  expandGroupTimeWindow?: boolean;
   actor: AuthContext;
 }
 
@@ -76,6 +78,7 @@ export class BulkRescheduleAppointmentsUseCase {
               ? { timeSlotStart: input.newTimeSlotStart, timeSlotEnd: input.newTimeSlotEnd }
               : {}),
           },
+          ...(input.expandGroupTimeWindow ? { expandGroupTimeWindow: true } : {}),
           actor: input.actor,
         });
         const result: BulkActionResultItem = { appointmentId, status: 'OK' };

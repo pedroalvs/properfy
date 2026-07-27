@@ -1,42 +1,54 @@
 import { useMemo, useState } from 'react';
 import { TimeRangeInput } from '@/components/forms/TimeRangeInput';
-import { PLATFORM_TIMEZONE, todayInTzDateString, currentTimeInTzHHmm, isTimeStartInPastForDate } from '@properfy/shared';
-import { useBulkReopenForReschedule } from '../hooks/useBulkReopenForReschedule';
+import { PLATFORM_TIMEZONE, todayInTzDateString, currentTimeInTzHHmm, isTimeStartInPastForDate, ServiceGroupStatus } from '@properfy/shared';
+import { useBulkRescheduleAppointments } from '../hooks/useBulkRescheduleAppointments';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
+import { AppointmentCodePill } from './AppointmentCodePill';
+
+/** The subset of a service group this form needs to preview its warnings. */
+export interface RescheduleGroupContext {
+  id: string;
+  timeWindow: string;
+  status: ServiceGroupStatus;
+  code?: string;
+}
 
 interface MapBulkRescheduleFormProps {
   /** Rows the operator ticked in the bulk modal — drives the same-group precheck. */
   checkedAppointments: AppointmentMapItem[];
+  /**
+   * Groups already loaded by the page, used only to preview the window widening
+   * and the accepted-group warning. Absent for CL_ADMIN (the groups list is an
+   * AM/OP endpoint) — the form still submits, just without the preview.
+   */
+  serviceGroups?: RescheduleGroupContext[];
   onCancel: () => void;
   /** Result envelope is the same shape as 025 bulk actions; the modal renders the summary. */
   onComplete: (results: Array<{ appointmentId: string; status: string; error?: { code: string; message: string } }>) => void;
 }
 
 /**
- * 026 §FR-540..545 — Bulk reschedule form for the map flow.
+ * Changes the time of the ticked appointments **without touching their status
+ * or inspector**, via `POST /v1/appointments/bulk-reschedule` (delegates per
+ * item to `UpdateAppointmentUseCase`).
  *
- * Key Regras invariants enforced here:
- *  - Only the time window changes: a free start/end time range
- *    (`newTimeSlotStart` / `newTimeSlotEnd`) entered via the shared
- *    `TimeRangeInput`. The date is NOT editable here — appointments
- *    follow the group date, so `newDate` is derived from the selection's
- *    current `scheduledDate`.
- *  - Same-group only. The submit button is disabled when the selection
- *    spans groups or contains non-grouped items; the tooltip explains
- *    the limitation. Backend ALSO returns INVALID_SCOPE in that case
- *    (defence in depth).
- *  - Posts to `POST /v1/appointments/bulk-reopen-for-reschedule`, which
- *    delegates per-item to `ReopenForRescheduleUseCase` (also revokes
- *    active portal tokens since 026 §FR-543).
+ * This replaces the previous wiring to `bulk-reopen-for-reschedule`, which was
+ * an un-schedule in disguise: it hard-required SCHEDULED and wrote
+ * `status: DRAFT` + `inspectorId: null`. Grouped appointments sit in
+ * AWAITING_INSPECTOR, so every row failed the guard. That destructive path now
+ * lives in `MapBulkReturnToPoolForm` under its own name.
+ *
+ * Only the time changes: the date is derived from the selection, since grouped
+ * appointments follow the group date.
  */
 export function MapBulkRescheduleForm({
   checkedAppointments,
+  serviceGroups,
   onCancel: _onCancel,
   onComplete,
 }: MapBulkRescheduleFormProps) {
   const [newTimeSlotStart, setNewTimeSlotStart] = useState('');
   const [newTimeSlotEnd, setNewTimeSlotEnd] = useState('');
-  const [reason, setReason] = useState('');
   const [timeError, setTimeError] = useState<string | null>(null);
 
   // Date is kept from the selection (same-group ⇒ same group date); date-only normalization.
@@ -44,11 +56,8 @@ export function MapBulkRescheduleForm({
 
   // Sydney-only platform: "today" and the past-time hint follow the platform timezone.
   const today = todayInTzDateString(PLATFORM_TIMEZONE);
-  // UX hint: when the group date is today, discourage picking a past start time.
   const minStartTime = targetDate === today ? currentTimeInTzHHmm(PLATFORM_TIMEZONE) : undefined;
 
-  // Same-group precheck — disable submit when the selection spans
-  // groups or contains a non-grouped item.
   const sameGroupCheck = useMemo<{ ok: boolean; reason?: string }>(() => {
     if (checkedAppointments.length === 0) return { ok: false, reason: 'No appointments selected' };
     const groupIds = new Set(checkedAppointments.map((a) => a.serviceGroupId ?? null));
@@ -64,7 +73,35 @@ export function MapBulkRescheduleForm({
     return { ok: true };
   }, [checkedAppointments]);
 
-  const mutation = useBulkReopenForReschedule();
+  const group = useMemo(() => {
+    const groupId = checkedAppointments[0]?.serviceGroupId;
+    if (!groupId) return null;
+    return serviceGroups?.find((g) => g.id === groupId) ?? null;
+  }, [checkedAppointments, serviceGroups]);
+
+  /**
+   * Preview of the widening the backend will perform. `HH:mm` is zero-padded
+   * 24-hour, so lexicographic comparison is chronological — the same assumption
+   * the ordered-range check below relies on. Display only; the server recomputes.
+   */
+  const windowExpansion = useMemo(() => {
+    if (!group || !newTimeSlotStart || !newTimeSlotEnd) return null;
+    const [groupStart, groupEnd] = group.timeWindow.split('-');
+    if (!groupStart || !groupEnd) return null;
+    if (newTimeSlotStart >= groupStart && newTimeSlotEnd <= groupEnd) return null;
+    const start = newTimeSlotStart < groupStart ? newTimeSlotStart : groupStart;
+    const end = newTimeSlotEnd > groupEnd ? newTimeSlotEnd : groupEnd;
+    return { before: group.timeWindow, after: `${start}-${end}` };
+  }, [group, newTimeSlotStart, newTimeSlotEnd]);
+
+  // Tenants who confirmed the OLD time get a fresh INSPECTION_RESCHEDULED
+  // notification (and a new portal token) from the backend — say so up front.
+  const alreadyConfirmed = useMemo(
+    () => checkedAppointments.filter((a) => a.rentalTenantConfirmationStatus === 'CONFIRMED'),
+    [checkedAppointments],
+  );
+
+  const mutation = useBulkRescheduleAppointments();
   const timeRangeOrdered = newTimeSlotStart.length > 0 && newTimeSlotEnd.length > 0 && newTimeSlotStart < newTimeSlotEnd;
   const canSubmit = sameGroupCheck.ok && targetDate.length === 10 && timeRangeOrdered && !mutation.isPending;
 
@@ -79,19 +116,23 @@ export function MapBulkRescheduleForm({
           return;
         }
         setTimeError(null);
-        const trimmedReason = reason.trim();
         const res = await mutation.mutateAsync({
           appointmentIds: checkedAppointments.map((a) => a.id),
           newDate: targetDate,
           newTimeSlotStart,
           newTimeSlotEnd,
-          ...(trimmedReason.length >= 3 ? { reason: trimmedReason } : {}),
+          // The operator chose the time; the group's shared window follows.
+          expandGroupTimeWindow: true,
         });
         onComplete(res.data.results);
       }}
       className="space-y-3"
       data-testid="map-bulk-reschedule-form"
     >
+      <p className="text-xs text-text-secondary">
+        Changes the time only. Status and assigned inspector are kept.
+      </p>
+
       {!sameGroupCheck.ok && (
         <div
           className="rounded border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800"
@@ -122,20 +163,50 @@ export function MapBulkRescheduleForm({
         )}
       </label>
 
-      <label className="block text-sm font-medium text-text-primary">
-        Reason (optional)
-        <textarea
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          minLength={3}
-          maxLength={500}
-          rows={2}
-          disabled={!sameGroupCheck.ok}
-          placeholder="Why are you rescheduling these appointments?"
-          className="mt-1 block w-full rounded border border-border-subtle p-2 text-sm disabled:bg-gray-50"
-          data-testid="map-bulk-reschedule-reason"
-        />
-      </label>
+      {/* These three banners appear as the operator edits the time inputs and
+          describe side effects of submitting, so they announce themselves. */}
+      {windowExpansion && (
+        <div
+          role="status"
+          className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
+          data-testid="map-bulk-reschedule-window-warning"
+        >
+          The new time falls outside the group&apos;s window. Group{group?.code ? ` ${group.code}` : ''} window{' '}
+          <strong>{windowExpansion.before}</strong> will widen to <strong>{windowExpansion.after}</strong>.
+        </div>
+      )}
+
+      {windowExpansion && group?.status === ServiceGroupStatus.ACCEPTED && (
+        <div
+          role="status"
+          className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
+          data-testid="map-bulk-reschedule-accepted-warning"
+        >
+          An inspector has already accepted this group under the current window. Widening it changes
+          what they committed to.
+        </div>
+      )}
+
+      {alreadyConfirmed.length > 0 && (
+        <div
+          role="status"
+          className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
+          data-testid="map-bulk-reschedule-confirmed-warning"
+        >
+          <p className="mb-1">
+            The tenant already confirmed the current time for
+            {alreadyConfirmed.length === 1 ? ' this appointment' : ' these appointments'}. A new
+            notification with the new time will be sent:
+          </p>
+          <ul className="flex flex-wrap gap-1">
+            {alreadyConfirmed.map((a) => (
+              <li key={a.id}>
+                <AppointmentCodePill code={a.code} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="flex justify-end">
         <button
