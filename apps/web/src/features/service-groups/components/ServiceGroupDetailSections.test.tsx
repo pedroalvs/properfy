@@ -17,6 +17,9 @@ function makeAppointment(overrides: Partial<ServiceGroupAppointment> = {}): Serv
     appointmentNumber: 1001,
     status: 'DRAFT',
     scheduledDate: '2026-03-10',
+    timeSlotStart: '09:00',
+    timeSlotEnd: '10:00',
+    rentalTenantConfirmationStatus: 'PENDING',
     propertyAddress: '123 Main St, Sydney',
     propertyCode: 'PROP-001',
     ...overrides,
@@ -33,6 +36,8 @@ function makeServiceGroup(overrides: Partial<ServiceGroupDetail> = {}): ServiceG
     inspectorName: 'Carlos Silva',
     status: ServiceGroupStatus.PUBLISHED,
     appointmentsCount: 3,
+    scheduledDate: '2026-06-01',
+    timeWindow: '09:00-17:00',
     appointments: [
       makeAppointment({ id: 'apt-01', appointmentNumber: 1001 }),
       makeAppointment({ id: 'apt-02', appointmentNumber: 1002, propertyAddress: '456 Oak Ave, Melbourne' }),
@@ -121,5 +126,28 @@ describe('ServiceGroupDetailSections', () => {
     renderWithRouter(<ServiceGroupDetailSections serviceGroup={makeServiceGroup()} />);
     expect(screen.getByText('Created At')).toBeInTheDocument();
     expect(screen.getByText('Updated At')).toBeInTheDocument();
+  });
+});
+
+describe('ServiceGroupDetailSections schedule', () => {
+  it('shows the group scheduled date and time window', () => {
+    renderWithRouter(<ServiceGroupDetailSections serviceGroup={makeServiceGroup()} />);
+    expect(screen.getByText('Scheduled Date')).toBeInTheDocument();
+    expect(screen.getByText('Time Window')).toBeInTheDocument();
+    expect(screen.getByText('09:00 – 17:00')).toBeInTheDocument();
+  });
+
+  it('shows each member time slot', () => {
+    renderWithRouter(<ServiceGroupDetailSections serviceGroup={makeServiceGroup()} />);
+    expect(screen.getAllByText('09:00–10:00').length).toBeGreaterThan(0);
+  });
+
+  it('falls back to a dash when the group has no schedule yet', () => {
+    renderWithRouter(
+      <ServiceGroupDetailSections
+        serviceGroup={makeServiceGroup({ scheduledDate: null, timeWindow: null })}
+      />,
+    );
+    expect(screen.getByText('Time Window')).toBeInTheDocument();
   });
 });

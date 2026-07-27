@@ -6785,6 +6785,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/service-groups/{groupId}/reassign-inspector": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    groupId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        inspectorId: string;
+                        reason: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                status: string;
+                                /** Format: uuid */
+                                assignedInspectorId: string;
+                                /** Format: uuid */
+                                previousInspectorId: string | null;
+                                appointmentsReassigned: number;
+                                appointmentsScheduled: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/service-groups/{groupId}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    groupId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        scheduledDate?: string;
+                        timeWindow?: string;
+                        /** @enum {string} */
+                        confirmationStrategy: "RESEND" | "NOTIFY_ONLY";
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                status: string;
+                                scheduledDate: string;
+                                timeWindow: string;
+                                applied: {
+                                    total: number;
+                                    dateChanged: number;
+                                    slotClamped: number;
+                                    failed: number;
+                                    confirmationsHandled: number;
+                                    /** @enum {string} */
+                                    confirmationStrategy: "RESEND" | "NOTIFY_ONLY";
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/marketplace/offers": {
         parameters: {
             query?: never;

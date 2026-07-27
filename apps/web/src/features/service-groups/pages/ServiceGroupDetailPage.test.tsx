@@ -365,15 +365,19 @@ describe('ServiceGroupDetailPage', () => {
     expect(screen.getByRole('button', { name: /Cancel Group/ })).toBeInTheDocument();
   });
 
-  it('shows Manual Assign button for PUBLISHED status', () => {
+  it('shows the Change menu for PUBLISHED status', () => {
     renderPage('/service-groups/published');
-    expect(screen.getByRole('button', { name: /Manual Assign/ })).toBeInTheDocument();
+    expect(screen.getByTestId('service-group-change-trigger')).toBeInTheDocument();
   });
 
-  it('shows Manual Assign button for DRAFT status', () => {
-    // Backend allows manual assignment while the group is DRAFT (group.canAssign()).
+  it('shows the Change menu for DRAFT status', () => {
     renderPage();
-    expect(screen.getByRole('button', { name: /Manual Assign/ })).toBeInTheDocument();
+    expect(screen.getByTestId('service-group-change-trigger')).toBeInTheDocument();
+  });
+
+  it('shows the Change menu for ACCEPTED status — plan edits survive acceptance', () => {
+    renderPage('/service-groups/accepted');
+    expect(screen.getByTestId('service-group-change-trigger')).toBeInTheDocument();
   });
 
   it('shows assigned inspector for ACCEPTED status', () => {
@@ -386,8 +390,8 @@ describe('ServiceGroupDetailPage', () => {
     renderPage('/service-groups/cancelled');
     expect(screen.queryByRole('button', { name: /Publish/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Cancel Group/ })).not.toBeInTheDocument();
-    // canAssign is DRAFT/PUBLISHED only — no Manual Assign for CANCELLED.
-    expect(screen.queryByRole('button', { name: /Manual Assign/ })).not.toBeInTheDocument();
+    // A closed group has no schedule left to move and nobody to hand it to.
+    expect(screen.queryByTestId('service-group-change-trigger')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Send portal link/ })).not.toBeInTheDocument();
   });
 
@@ -436,9 +440,31 @@ describe('ServiceGroupDetailPage', () => {
     expect(screen.getByText('Cancel Service Group')).toBeInTheDocument();
   });
 
-  it('opens assign modal on Manual Assign click', () => {
+  it('opens the assign modal from the Change menu', () => {
     renderPage('/service-groups/published');
-    fireEvent.click(screen.getByRole('button', { name: /Manual Assign/ }));
+    fireEvent.click(screen.getByTestId('service-group-change-trigger'));
+    fireEvent.click(screen.getByTestId('group-action-change-inspector'));
     expect(screen.getByText('Assign Inspector')).toBeInTheDocument();
+  });
+
+  it('offers replacement rather than assignment on an ACCEPTED group', () => {
+    renderPage('/service-groups/accepted');
+    fireEvent.click(screen.getByTestId('service-group-change-trigger'));
+    fireEvent.click(screen.getByTestId('group-action-change-inspector'));
+    expect(screen.getByText('Change Inspector')).toBeInTheDocument();
+  });
+
+  it('opens the reschedule modal on Change date', () => {
+    renderPage('/service-groups/published');
+    fireEvent.click(screen.getByTestId('service-group-change-trigger'));
+    fireEvent.click(screen.getByTestId('group-action-change-date'));
+    expect(screen.getByText('Change date')).toBeInTheDocument();
+  });
+
+  it('opens the reschedule modal on Change time window', () => {
+    renderPage('/service-groups/published');
+    fireEvent.click(screen.getByTestId('service-group-change-trigger'));
+    fireEvent.click(screen.getByTestId('group-action-change-time-window'));
+    expect(screen.getByText('Change time window')).toBeInTheDocument();
   });
 });

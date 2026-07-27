@@ -18,6 +18,10 @@ export interface ServiceGroup {
   inspectorName: string | null;
   status: ServiceGroupStatus;
   appointmentsCount: number;
+  /** The group's own day, `YYYY-MM-DD` (or full ISO). Members follow it. */
+  scheduledDate: string | null;
+  /** The group's shared window, `HH:mm-HH:mm`. Members are clamped into it. */
+  timeWindow: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -27,6 +31,11 @@ export interface ServiceGroupAppointment {
   appointmentNumber: number;
   status: string;
   scheduledDate: string | null;
+  /** The member's own slot, `HH:mm`. Drives the reschedule impact preview. */
+  timeSlotStart: string | null;
+  timeSlotEnd: string | null;
+  /** Lets the modal name the tenants who already confirmed the schedule being changed. */
+  rentalTenantConfirmationStatus: string | null;
   propertyAddress: string | null;
   propertyCode: string | null;
 }
