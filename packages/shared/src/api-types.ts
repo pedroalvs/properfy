@@ -1409,88 +1409,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/tenants/{tenantId}/branding/logo/presign": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    tenantId: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        contentType: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/tenants/{tenantId}/branding/logo/confirm": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    tenantId: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        storageKey: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/tenants/{tenantId}/users": {
         parameters: {
             query?: never;
@@ -2182,7 +2100,7 @@ export interface paths {
                     branchId?: string;
                     type?: "APARTMENT" | "HOUSE";
                     search?: string;
-                    hasCoordinates?: boolean;
+                    hasCoordinates?: boolean | "true" | "false" | "1" | "0" | 1 | 0;
                     nearLat?: number;
                     nearLng?: number;
                     nearRadiusKm?: number;
@@ -5027,6 +4945,7 @@ export interface paths {
                             label: string;
                             value: string;
                         }[] | null;
+                        expandGroupTimeWindow?: boolean;
                     };
                 };
             };
@@ -5482,6 +5401,7 @@ export interface paths {
                         newDate: string;
                         newTimeSlotStart?: string;
                         newTimeSlotEnd?: string;
+                        expandGroupTimeWindow?: boolean;
                     };
                 };
             };
@@ -6426,38 +6346,10 @@ export interface paths {
                             data: {
                                 /** Format: uuid */
                                 id: string;
-                                groupNumber?: number;
-                                code?: string;
-                                /** Format: uuid */
-                                tenantId: string | null;
-                                agencies?: {
-                                    /** Format: uuid */
-                                    id: string;
-                                    name: string;
-                                }[];
-                                /** Format: uuid */
-                                serviceTypeId: string;
                                 status: string;
-                                groupSize: number;
-                                offeredCount: number;
-                                confirmedCount: number;
-                                scheduledDate: string;
-                                timeWindow: string;
-                                regionName?: string | null;
-                                description?: string | null;
                                 /** Format: uuid */
-                                assignedInspectorId: string | null;
-                                /** Format: uuid */
-                                serviceRegionId?: string | null;
-                                publishedAt: (string) | null;
-                                assignedAt?: (string) | null;
-                                /** Format: uuid */
-                                createdByUserId?: string;
-                                createdAt: string;
-                                updatedAt?: string;
-                                appointmentsCount?: number;
-                                appointments?: unknown[];
-                                assignedInspector?: unknown;
+                                assignedInspectorId: string;
+                                appointmentsScheduled: number;
                             };
                         };
                     };
@@ -7103,7 +6995,7 @@ export interface paths {
                     fromDate?: string;
                     toDate?: string;
                     q?: string;
-                    includeArchived?: boolean;
+                    includeArchived?: boolean | "true" | "false" | "1" | "0" | 1 | 0;
                 };
                 header?: never;
                 path?: never;
@@ -10531,7 +10423,7 @@ export interface paths {
                     tenantId?: string;
                     templateCode?: string;
                     channel?: "EMAIL" | "SMS";
-                    includeDefaults?: boolean;
+                    includeDefaults?: boolean | "true" | "false" | "1" | "0" | 1 | 0;
                 };
                 header?: never;
                 path?: never;

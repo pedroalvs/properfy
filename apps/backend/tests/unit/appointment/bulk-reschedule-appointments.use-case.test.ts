@@ -82,6 +82,52 @@ describe('BulkRescheduleAppointmentsUseCase', () => {
     });
   });
 
+  it('forwards expandGroupTimeWindow to the delegate when requested', async () => {
+    const useCase = new BulkRescheduleAppointmentsUseCase(
+      mocks.updateAppointment,
+      mocks.idempotency,
+      () => new Date('2026-04-15T12:00:00Z'),
+    );
+
+    await useCase.execute({
+      appointmentIds: [APPT_A],
+      newDate: '2026-06-01',
+      newTimeSlotStart: '09:00', newTimeSlotEnd: '10:00',
+      expandGroupTimeWindow: true,
+      actor,
+    });
+
+    expect(mocks.updateAppointment.execute).toHaveBeenCalledWith({
+      appointmentId: APPT_A,
+      data: { scheduledDate: '2026-06-01', timeSlotStart: '09:00', timeSlotEnd: '10:00' },
+      expandGroupTimeWindow: true,
+      actor,
+    });
+  });
+
+  // The key already covers date + slot; the flag only decides how a rejection
+  // is handled, so an identical re-submit must still replay rather than re-run.
+  it('does not let expandGroupTimeWindow change the idempotency key', async () => {
+    const useCase = new BulkRescheduleAppointmentsUseCase(
+      mocks.updateAppointment,
+      mocks.idempotency,
+      () => new Date('2026-04-15T12:00:00Z'),
+    );
+
+    await useCase.execute({
+      appointmentIds: [APPT_A],
+      newDate: '2026-06-01',
+      newTimeSlotStart: '09:00', newTimeSlotEnd: '10:00',
+      expandGroupTimeWindow: true,
+      actor,
+    });
+
+    expect(mocks.idempotency.getWithHash).toHaveBeenCalledWith(
+      `bulk_reschedule:${APPT_A}:2026-06-01:09:00-10:00`,
+      'bulk_reschedule',
+    );
+  });
+
   it('normalises full ISO datetime to YYYY-MM-DD', async () => {
     const useCase = new BulkRescheduleAppointmentsUseCase(
       mocks.updateAppointment,

@@ -359,6 +359,41 @@ describe('AppointmentFormDrawer', () => {
     expect(end).not.toBeDisabled();
   });
 
+  // Without this flag the backend rejects any grouped time edit that leaves the
+  // group's shared window (422), which is what made per-appointment time
+  // adjustment impossible from the UI.
+  it('grouped appointment: opts into widening the group time window on save', async () => {
+    mockValidate.mockReturnValue({});
+    mockSave.mockResolvedValue({ success: true, id: 'apt-grouped' });
+    renderDrawer({ appointmentId: 'apt-grouped' });
+
+    fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '13:00' } });
+    fireEvent.change(screen.getByLabelText('End time'), { target: { value: '14:00' } });
+    fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+    await waitFor(() => {
+      expect(mockSave).toHaveBeenCalledWith(
+        expect.anything(),
+        'apt-grouped',
+        { expandGroupTimeWindow: true },
+      );
+    });
+  });
+
+  it('ungrouped appointment: does not ask to widen any group window', async () => {
+    mockValidate.mockReturnValue({});
+    mockSave.mockResolvedValue({ success: true, id: 'apt-01' });
+    renderDrawer({ appointmentId: 'apt-01' });
+
+    fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '13:00' } });
+    fireEvent.change(screen.getByLabelText('End time'), { target: { value: '14:00' } });
+    fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+    await waitFor(() => {
+      expect(mockSave).toHaveBeenCalledWith(expect.anything(), 'apt-01', undefined);
+    });
+  });
+
   it('shows inspector assignment section for awaiting inspector appointments', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockUseFormOptions.mockImplementation(((_key: any, path: any) => {

@@ -504,7 +504,13 @@ export function AppointmentFormDrawer({
     let savedAppointment = false;
 
     if (shouldSaveAppointment) {
-      const result = await save(form, appointmentId ?? undefined);
+      // Grouped appointments opt into widening the group's shared time window
+      // rather than being rejected for leaving it — see the banner above.
+      const result = await save(
+        form,
+        appointmentId ?? undefined,
+        isInServiceGroup ? { expandGroupTimeWindow: true } : undefined,
+      );
       if (!result.success) {
         // Backend VALIDATION_ERROR details land inline on the matching fields;
         // unmatched details (or non-validation errors) keep the snackbar.
@@ -677,7 +683,8 @@ export function AppointmentFormDrawer({
                       <div className="md:col-span-2" id="appointment-schedule-group-note">
                         <InfoBanner>
                           This appointment belongs to a service group — its date is managed by
-                          the group. You can still adjust the time slot within the group's window.
+                          the group. You can still change the time slot; if the new time falls
+                          outside the group's window, the window is widened to fit it.
                         </InfoBanner>
                       </div>
                     )}

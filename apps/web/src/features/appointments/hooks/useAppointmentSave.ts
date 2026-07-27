@@ -274,8 +274,18 @@ function toFailureResult(error: unknown, data: AppointmentFormData): SaveResult 
   };
 }
 
+export interface SaveOptions {
+  /**
+   * Widen the service group's shared time window when the new slot falls
+   * outside it, instead of failing with 422. Set by the edit drawer for grouped
+   * appointments — without it, a grouped appointment's time cannot be moved
+   * past the window from the UI at all.
+   */
+  expandGroupTimeWindow?: boolean;
+}
+
 export interface UseAppointmentSaveReturn {
-  save: (data: AppointmentFormData, appointmentId?: string) => Promise<SaveResult>;
+  save: (data: AppointmentFormData, appointmentId?: string, options?: SaveOptions) => Promise<SaveResult>;
   isSaving: boolean;
   validate: (data: AppointmentFormData, mode: 'create' | 'edit') => AppointmentFormErrors;
 }
@@ -347,14 +357,25 @@ export function useAppointmentSave(): UseAppointmentSaveReturn {
     return errors;
   }, []);
 
-  const save = useCallback(async (data: AppointmentFormData, appointmentId?: string): Promise<SaveResult> => {
+  const save = useCallback(async (
+    data: AppointmentFormData,
+    appointmentId?: string,
+    options?: SaveOptions,
+  ): Promise<SaveResult> => {
     setIsSaving(true);
     try {
       if (appointmentId) {
-        const payload = toSchemaPayload(data, 'edit');
+        const payload = {
+          ...toSchemaPayload(data, 'edit'),
+          ...(options?.expandGroupTimeWindow ? { expandGroupTimeWindow: true } : {}),
+        };
         const { error } = await api.PATCH(`/v1/appointments/${appointmentId}` as any, { body: payload as any });
         if (error) return toFailureResult(error, data);
         queryClient.invalidateQueries({ queryKey: ['appointments'] });
+        // A grouped time edit can widen the group's window — keep group views fresh.
+        if (options?.expandGroupTimeWindow) {
+          queryClient.invalidateQueries({ queryKey: ['service-groups'] });
+        }
         return { success: true, id: appointmentId };
       } else {
         const payload = toSchemaPayload(data, 'create');

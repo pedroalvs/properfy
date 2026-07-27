@@ -147,6 +147,12 @@ export const updateAppointmentSchema = z.object({
   appCredentialIds: z.array(z.string().uuid()).max(50).optional(),
   restriction: restrictionSchema.optional(),
   customFields: appointmentCustomFieldsSchema.nullable().optional(),
+  /**
+   * Opt-in: widen the service group's shared time window when the new slot
+   * falls outside it, instead of rejecting with 422. Omitted or false keeps
+   * the rejection, so a shared window never moves as an unasked-for side effect.
+   */
+  expandGroupTimeWindow: z.boolean().optional(),
 }).refine(
   (data) => {
     const hasLegacy = data.contact !== undefined;
@@ -413,6 +419,8 @@ export const bulkRescheduleRequestSchema = z.object({
   newDate: z.union([z.string().datetime(), z.string().date()]),
   newTimeSlotStart: z.string().regex(timeRegex, TIME_FORMAT_MESSAGE).optional(),
   newTimeSlotEnd: z.string().regex(timeRegex, TIME_FORMAT_MESSAGE).optional(),
+  /** See `updateAppointmentSchema.expandGroupTimeWindow` — forwarded per item. */
+  expandGroupTimeWindow: z.boolean().optional(),
 }).refine(
   (data) => (data.newTimeSlotStart === undefined) === (data.newTimeSlotEnd === undefined),
   { message: 'Both newTimeSlotStart and newTimeSlotEnd are required together', path: ['newTimeSlotEnd'] },
