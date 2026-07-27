@@ -475,7 +475,7 @@ describe('PrismaServiceGroupRepository.findPortalEligibleSlots', () => {
     return { repo: new PrismaServiceGroupRepository(prisma as any), queryRaw };
   }
 
-  it('returns mapped groups when rows found', async () => {
+  it('returns mapped group members when rows found', async () => {
     const { repo } = makeRepo([
       {
         group_id: 'sg-1',
@@ -484,7 +484,16 @@ describe('PrismaServiceGroupRepository.findPortalEligibleSlots', () => {
         time_slot_end: '15:00',
         suburb: 'Surry Hills',
         inspector_name: 'John Smith',
-        confirmed_count: BigInt(3),
+        is_own_agency: true,
+      },
+      {
+        group_id: 'sg-1',
+        scheduled_date: new Date('2026-05-30'),
+        time_slot_start: '13:00',
+        time_slot_end: '15:00',
+        suburb: 'Redfern',
+        inspector_name: 'John Smith',
+        is_own_agency: false,
       },
     ]);
 
@@ -495,17 +504,40 @@ describe('PrismaServiceGroupRepository.findPortalEligibleSlots', () => {
       today: TODAY,
     });
 
-    expect(result).toHaveLength(1);
+    // One row per member, not one per time slot — the capacity rule needs them all.
+    expect(result).toHaveLength(2);
     expect(result[0]).toMatchObject({
       groupId: 'sg-1',
       timeSlotStart: '13:00',
       timeSlotEnd: '15:00',
       suburb: 'Surry Hills',
       inspectorName: 'John Smith',
-      confirmedCount: 3,
-      capacityMax: 10,
+      isOwnAgency: true,
     });
+    expect(result[1]).toMatchObject({ suburb: 'Redfern', isOwnAgency: false });
     expect(result[0]!.scheduledDate).toEqual(new Date('2026-05-30'));
+  });
+
+  it('enumerates active members and drops the retired confirmed_count cap', async () => {
+    const { repo, queryRaw } = makeRepo([]);
+    await repo.findPortalEligibleSlots({
+      tenantId: 'tenant-1',
+      serviceTypeId: 'stype-1',
+      propertyId: 'prop-1',
+      today: TODAY,
+    });
+
+    const [strings] = queryRaw.mock.calls[0] as [string[]];
+    const sqlText = strings.join('');
+    expect(sqlText).toContain('is_own_agency');
+    expect(sqlText).toContain("a.status NOT IN ('CANCELLED', 'REJECTED')");
+    // The portal-only cap of 10 is gone; capacity is derived per window instead.
+    expect(sqlText).not.toContain('confirmed_count');
+    // Members are no longer collapsed per time slot.
+    expect(sqlText).not.toContain('GROUP BY');
+    // That the member enumeration is *not* tenant-filtered (so cross-agency
+    // members still count) is proven against real Postgres in
+    // tests/integration/db/portal-eligible-member-slots.integration.test.ts.
   });
 
   it('returns empty array when no rows found', async () => {

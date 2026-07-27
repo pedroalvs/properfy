@@ -341,7 +341,7 @@ describe('PortalPage', () => {
                 timeSlotEnd: '10:00',
                 suburb: 'Surry Hills',
                 inspectorName: 'John Smith',
-                confirmedCount: 3,
+                bookedCount: 3,
                 capacityMax: 10,
               },
             ],

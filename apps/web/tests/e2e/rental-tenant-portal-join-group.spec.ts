@@ -40,7 +40,7 @@ const groupsList = {
       timeWindow: '09:00-12:00',
       suburb: 'Surry Hills',
       inspectorName: 'John Smith',
-      confirmedCount: 3,
+      bookedCount: 3,
       capacityMax: 10,
     },
   ],

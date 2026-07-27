@@ -8,6 +8,7 @@ import type { ExecuteStatusTransitionInput, ExecuteStatusTransitionOutput } from
 import { RentalTenantPortalActivityEntity } from '../../domain/rental-tenant-portal-activity.entity';
 import type { AppointmentEntity } from '../../../appointment/domain/appointment.entity';
 import type { ServiceGroupEntity } from '../../../service-group/domain/service-group.entity';
+import { computeWindowAvailability } from '../../../service-group/domain/portal-slot-capacity';
 import {
   PortalAppointmentInactiveError,
   PortalTokenAlreadyUsedError,
@@ -97,9 +98,6 @@ export class JoinGroupUseCase {
     if (!group.assignedInspectorId || !assignedInspectorName) {
       throw new PortalGroupUnavailableError();
     }
-    if (group.confirmedCount >= 10) {
-      throw new PortalGroupFullError();
-    }
     if (!appointment.propertyId || !appointment.serviceTypeId) {
       throw new PortalGroupSlotUnavailableError();
     }
@@ -109,21 +107,32 @@ export class JoinGroupUseCase {
     }
 
     const now = new Date();
-    const eligibleSlots = await this.serviceGroupRepo.findPortalEligibleSlots({
+    const members = await this.serviceGroupRepo.findPortalEligibleSlots({
       tenantId: appointment.tenantId,
       serviceTypeId: appointment.serviceTypeId,
       propertyId: appointment.propertyId,
       today: now,
       excludeGroupId: appointment.serviceGroupId,
     });
-    const selectedEligibleSlot = eligibleSlots.find((slot) => (
-      slot.groupId === group.id &&
-      slot.scheduledDate.toISOString().slice(0, 10) === input.scheduledDate &&
-      slot.timeSlotStart === input.timeSlotStart &&
-      slot.timeSlotEnd === input.timeSlotEnd
+
+    const selectedWindow = { timeSlotStart: input.timeSlotStart, timeSlotEnd: input.timeSlotEnd };
+    const groupDayMembers = members.filter((member) => (
+      member.groupId === group.id &&
+      member.scheduledDate.toISOString().slice(0, 10) === input.scheduledDate
     ));
-    if (!selectedEligibleSlot) {
+    const isOfferedWindow = groupDayMembers.some((member) => (
+      member.isOwnAgency &&
+      member.timeSlotStart === selectedWindow.timeSlotStart &&
+      member.timeSlotEnd === selectedWindow.timeSlotEnd
+    ));
+    if (!isOfferedWindow) {
       throw new PortalGroupSlotUnavailableError();
+    }
+
+    // Re-run the 2-inspections-per-hour rule server-side: the numbers the picker
+    // rendered can be stale by the time the tenant taps through.
+    if (computeWindowAvailability(groupDayMembers, selectedWindow).remaining <= 0) {
+      throw new PortalGroupFullError();
     }
 
     const hasSelectedSlot = await this.serviceGroupRepo.hasPortalMemberSlot({

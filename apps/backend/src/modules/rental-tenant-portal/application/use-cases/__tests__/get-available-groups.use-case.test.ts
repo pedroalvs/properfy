@@ -22,8 +22,7 @@ function makeUseCase(appointmentOverrides: Record<string, unknown> = {}) {
         timeSlotEnd: '12:00',
         suburb: 'Surry Hills',
         inspectorName: 'John Smith',
-        confirmedCount: 2,
-        capacityMax: 10,
+        isOwnAgency: true,
       },
     ]),
   };
@@ -70,8 +69,8 @@ describe('GetAvailableGroupsUseCase', () => {
         timeSlotEnd: '12:00',
         suburb: 'Surry Hills',
         inspectorName: 'John Smith',
-        confirmedCount: 2,
-        capacityMax: 10,
+        bookedCount: 1,
+        capacityMax: 6,
       },
     ]);
   });

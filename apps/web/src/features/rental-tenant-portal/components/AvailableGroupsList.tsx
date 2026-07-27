@@ -138,7 +138,7 @@ export function AvailableGroupsList({
               </div>
               <div className="mt-0.5 text-xs font-medium text-text-muted">
                 {group.suburb} · with {group.inspectorName} · {formatDate(group.scheduledDate)} ·{' '}
-                {group.confirmedCount}/{group.capacityMax} confirmed
+                {group.bookedCount}/{group.capacityMax} booked
               </div>
             </button>
           );

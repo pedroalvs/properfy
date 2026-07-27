@@ -10,7 +10,7 @@ const GROUP: AvailableGroup = {
   timeSlotEnd: '12:00',
   suburb: 'Surry Hills',
   inspectorName: 'John Smith',
-  confirmedCount: 3,
+  bookedCount: 3,
   capacityMax: 10,
 };
 
@@ -39,6 +39,25 @@ describe('AvailableGroupsList', () => {
     expect(screen.getByText('09:00 – 12:00')).toBeTruthy();
     expect(screen.getByText(/15\/06\/2026/)).toBeTruthy();
     expect(screen.getByText(/John Smith/)).toBeTruthy();
+  });
+
+  it('should label occupancy as booked out of the window capacity', () => {
+    render(<AvailableGroupsList groups={[GROUP]} isLoading={false} onSelect={vi.fn()} />);
+    expect(screen.getByText(/3\/10 booked/)).toBeTruthy();
+    // The old label reported the whole service group's confirmed count, which
+    // read the same on every window of that group.
+    expect(screen.queryByText(/confirmed/i)).toBeNull();
+  });
+
+  it('should show each window its own numbers', () => {
+    const groups: AvailableGroup[] = [
+      { ...GROUP, timeSlotStart: '08:00', timeSlotEnd: '16:00', bookedCount: 3, capacityMax: 16 },
+      { ...GROUP, timeSlotStart: '15:00', timeSlotEnd: '18:00', bookedCount: 1, capacityMax: 6 },
+    ];
+    render(<AvailableGroupsList groups={groups} isLoading={false} onSelect={vi.fn()} />);
+
+    expect(screen.getByText(/3\/16 booked/)).toBeTruthy();
+    expect(screen.getByText(/1\/6 booked/)).toBeTruthy();
   });
 
   it('should call onSelect with slot tuple when a row is clicked', () => {

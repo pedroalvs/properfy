@@ -131,6 +131,7 @@ async function seedAppointment(
     timeSlotStart: string;
     timeSlotEnd: string;
     deleted?: boolean;
+    status?: 'SCHEDULED' | 'CANCELLED' | 'REJECTED' | 'DRAFT';
   },
 ): Promise<string> {
   const appointment = await prisma.appointment.create({
@@ -140,7 +141,7 @@ async function seedAppointment(
       property_id: params.propertyId,
       service_type_id: params.serviceTypeId,
       service_group_id: params.groupId,
-      status: 'SCHEDULED',
+      status: params.status ?? 'SCHEDULED',
       scheduled_date: params.scheduledDate,
       time_slot_start: params.timeSlotStart,
       time_slot_end: params.timeSlotEnd,
@@ -296,36 +297,132 @@ describe('PrismaServiceGroupRepository portal member slots — real DB', () => {
       today: TODAY,
     });
 
+    // One row per member appointment — including the duplicate 09:00-10:00 pair,
+    // which the old per-slot GROUP BY used to collapse. The capacity rule needs
+    // to see both.
     expect(slots.map((slot) => ({
       groupId: slot.groupId,
       scheduledDate: slot.scheduledDate.toISOString().slice(0, 10),
       timeSlotStart: slot.timeSlotStart,
       timeSlotEnd: slot.timeSlotEnd,
+      isOwnAgency: slot.isOwnAgency,
     }))).toEqual([
       {
         groupId: eligibleGroupId,
         scheduledDate: '2026-08-03',
         timeSlotStart: '09:00',
         timeSlotEnd: '10:00',
+        isOwnAgency: true,
+      },
+      {
+        groupId: eligibleGroupId,
+        scheduledDate: '2026-08-03',
+        timeSlotStart: '09:00',
+        timeSlotEnd: '10:00',
+        isOwnAgency: true,
       },
       {
         groupId: eligibleGroupId,
         scheduledDate: '2026-08-04',
         timeSlotStart: '13:00',
         timeSlotEnd: '14:00',
+        isOwnAgency: true,
+      },
+      // Another agency's appointment in the same group: it occupies the
+      // inspector, so it must be returned for counting, flagged not-own so the
+      // domain rule never offers its window.
+      {
+        groupId: eligibleGroupId,
+        scheduledDate: '2026-08-04',
+        timeSlotStart: '16:00',
+        timeSlotEnd: '17:00',
+        isOwnAgency: false,
       },
     ]);
     expect(slots.every((slot) => slot.groupId !== farOnlyGroupId)).toBe(true);
     expect(slots.every((slot) => slot.groupId !== foreignGroupId)).toBe(true);
-    expect(slots.some((slot) => (
-      slot.groupId === eligibleGroupId &&
-      slot.scheduledDate.toISOString().slice(0, 10) === '2026-08-04' &&
-      slot.timeSlotStart === '16:00' &&
-      slot.timeSlotEnd === '17:00'
-    ))).toBe(false);
     expect(slots[0]!.inspectorName).toBe('Slot Inspector');
-    expect(slots[0]!.confirmedCount).toBe(3);
-    expect(slots[0]!.capacityMax).toBe(10);
+    expect(slots[0]!.suburb).toBe('Near Slot');
+  });
+
+  it('excludes cancelled, rejected and soft-deleted members from the member list', async () => {
+    const { tenantId, userId } = await seedTenant(harness.prisma, 'Portal Inactive Members Agency');
+    const branchId = await getBranchId(harness.prisma, tenantId);
+    const serviceTypeId = await seedServiceType(harness.prisma);
+    const { inspectorId } = await seedInspector(harness.prisma, 'Inactive Members Inspector');
+
+    const portalPropertyId = await seedPropertyPoint(harness.prisma, {
+      tenantId, branchId, suburb: 'Inactive Home', lat: -33.865, lng: 151.209,
+    });
+    const nearPropertyId = await seedPropertyPoint(harness.prisma, {
+      tenantId, branchId, suburb: 'Inactive Near', lat: -33.866, lng: 151.210,
+    });
+
+    const groupId = await seedAcceptedGroup(harness.prisma, {
+      serviceTypeId, createdByUserId: userId, inspectorId,
+    });
+
+    const base = {
+      tenantId,
+      branchId,
+      propertyId: nearPropertyId,
+      serviceTypeId,
+      createdByUserId: userId,
+      groupId,
+      scheduledDate: SLOT_ONE_DATE,
+    };
+    await seedAppointment(harness.prisma, { ...base, timeSlotStart: '09:00', timeSlotEnd: '10:00' });
+    await seedAppointment(harness.prisma, { ...base, timeSlotStart: '10:00', timeSlotEnd: '11:00', status: 'CANCELLED' });
+    await seedAppointment(harness.prisma, { ...base, timeSlotStart: '11:00', timeSlotEnd: '12:00', status: 'REJECTED' });
+    await seedAppointment(harness.prisma, { ...base, timeSlotStart: '12:00', timeSlotEnd: '13:00', deleted: true });
+
+    const slots = await repo.findPortalEligibleSlots({
+      tenantId,
+      serviceTypeId,
+      propertyId: portalPropertyId,
+      today: TODAY,
+    });
+
+    // A cancelled visit frees the inspector, so it must not eat into capacity.
+    expect(slots.map((slot) => `${slot.timeSlotStart}-${slot.timeSlotEnd}`)).toEqual(['09:00-10:00']);
+  });
+
+  it('no longer hides a group whose confirmed_count passed the retired cap of 10', async () => {
+    const { tenantId, userId } = await seedTenant(harness.prisma, 'Portal Retired Cap Agency');
+    const branchId = await getBranchId(harness.prisma, tenantId);
+    const serviceTypeId = await seedServiceType(harness.prisma);
+    const { inspectorId } = await seedInspector(harness.prisma, 'Retired Cap Inspector');
+
+    const portalPropertyId = await seedPropertyPoint(harness.prisma, {
+      tenantId, branchId, suburb: 'Retired Home', lat: -33.865, lng: 151.209,
+    });
+    const nearPropertyId = await seedPropertyPoint(harness.prisma, {
+      tenantId, branchId, suburb: 'Retired Near', lat: -33.866, lng: 151.210,
+    });
+
+    const groupId = await seedAcceptedGroup(harness.prisma, {
+      serviceTypeId, createdByUserId: userId, inspectorId, confirmedCount: 12,
+    });
+    await seedAppointment(harness.prisma, {
+      tenantId,
+      branchId,
+      propertyId: nearPropertyId,
+      serviceTypeId,
+      createdByUserId: userId,
+      groupId,
+      scheduledDate: SLOT_ONE_DATE,
+      timeSlotStart: '09:00',
+      timeSlotEnd: '17:00',
+    });
+
+    const slots = await repo.findPortalEligibleSlots({
+      tenantId,
+      serviceTypeId,
+      propertyId: portalPropertyId,
+      today: TODAY,
+    });
+
+    expect(slots.map((slot) => slot.groupId)).toEqual([groupId]);
   });
 
   it('excludes the appointment current group when excludeGroupId is provided', async () => {

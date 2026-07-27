@@ -12,7 +12,7 @@ import type {
   GroupAppointmentConfirmationRow,
   MarketplaceOffer,
   MarketplaceOfferDetail,
-  PortalEligibleSlot,
+  PortalEligibleGroupMember,
 } from '../domain/service-group.repository';
 import type { ServiceGroupStatus } from '@properfy/shared';
 import { resolveCentroid } from '../../../shared/infrastructure/suburb-centroid-resolver';
@@ -888,7 +888,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     propertyId: string;
     today: Date;
     excludeGroupId?: string | null;
-  }): Promise<PortalEligibleSlot[]> {
+  }): Promise<PortalEligibleGroupMember[]> {
     const todayStr = params.today.toISOString().slice(0, 10);
     const excludeClause = params.excludeGroupId
       ? Prisma.sql`AND sg.id <> ${params.excludeGroupId}`
@@ -901,9 +901,13 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       time_slot_end: string;
       suburb: string;
       inspector_name: string;
-      confirmed_count: bigint;
+      is_own_agency: boolean;
     };
 
+    // Rows are per-member, not per-time-slot: how much a window can still take
+    // is an interval-packing question over every sibling window in the group,
+    // so aggregating here would discard the inputs the rule needs. The caller
+    // feeds these to `buildPortalEligibleSlots`.
     const rows = await this.prisma.$queryRaw<Row[]>`
       WITH eligible_groups AS (
         SELECT DISTINCT sg.id
@@ -914,7 +918,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
           AND sg.service_type_id = ${params.serviceTypeId}
           ${excludeClause}
           AND sg.status = 'ACCEPTED'
-          AND sg.confirmed_count < 10
           AND sg.scheduled_date::date > ${todayStr}::date
           AND p.coordinates IS NOT NULL
           AND ST_DWithin(
@@ -928,19 +931,18 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         a.scheduled_date,
         a.time_slot_start,
         a.time_slot_end,
-        MIN(p.suburb) AS suburb,
+        p.suburb,
         i.name AS inspector_name,
-        sg.confirmed_count
+        (a.tenant_id = ${params.tenantId}) AS is_own_agency
       FROM eligible_groups eg
       JOIN service_groups sg ON sg.id = eg.id
       JOIN inspectors i ON i.id = sg.assigned_inspector_id
       JOIN appointments a ON a.service_group_id = sg.id AND a.deleted_at IS NULL
       JOIN properties p ON p.id = a.property_id AND p.deleted_at IS NULL
-      WHERE a.tenant_id = ${params.tenantId}
-        AND a.scheduled_date::date > ${todayStr}::date
+      WHERE a.scheduled_date::date > ${todayStr}::date
+        AND a.status NOT IN ('CANCELLED', 'REJECTED')
         AND a.time_slot_start IS NOT NULL
         AND a.time_slot_end IS NOT NULL
-      GROUP BY sg.id, a.scheduled_date, a.time_slot_start, a.time_slot_end, i.name, sg.confirmed_count
       ORDER BY a.scheduled_date ASC, a.time_slot_start ASC, a.time_slot_end ASC, sg.id ASC
     `;
 
@@ -951,8 +953,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       timeSlotEnd: row.time_slot_end,
       suburb: row.suburb,
       inspectorName: row.inspector_name,
-      confirmedCount: Number(row.confirmed_count),
-      capacityMax: 10 as const,
+      isOwnAgency: row.is_own_agency,
     }));
   }
 

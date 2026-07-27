@@ -52,7 +52,9 @@ export const availableGroupsResponseSchema = z.object({
       timeSlotEnd: z.string().regex(HHMM_REGEX, 'Must be HH:mm'),
       suburb: z.string(),
       inspectorName: z.string(),
-      confirmedCount: z.number().int().min(0),
+      // Occupancy of this window specifically, not of the whole service group:
+      // capacity is the window's duration x 2 inspections per hour.
+      bookedCount: z.number().int().min(0),
       capacityMax: z.number().int().positive(),
     }),
   ).refine(

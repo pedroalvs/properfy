@@ -72,6 +72,20 @@ function makeGroup(overrides: Partial<ConstructorParameters<typeof ServiceGroupE
   });
 }
 
+/** One member appointment of the target group, as the repository now returns it. */
+function makeEligibleMember(overrides: Record<string, unknown> = {}) {
+  return {
+    groupId: 'sg-new',
+    scheduledDate: new Date('2026-06-02T00:00:00.000Z'),
+    timeSlotStart: '13:00',
+    timeSlotEnd: '15:00',
+    suburb: 'Surry Hills',
+    inspectorName: 'John Smith',
+    isOwnAgency: true,
+    ...overrides,
+  };
+}
+
 function makeInput(overrides: Partial<JoinGroupInput> = {}): JoinGroupInput {
   return {
     tokenId: 'token-1',
@@ -122,18 +136,7 @@ describe('JoinGroupUseCase', () => {
         tenantIds: ['tenant-1'],
         appointments: [],
       }),
-      findPortalEligibleSlots: vi.fn().mockResolvedValue([
-        {
-          groupId: 'sg-new',
-          scheduledDate: new Date('2026-06-02T00:00:00.000Z'),
-          timeSlotStart: '13:00',
-          timeSlotEnd: '15:00',
-          suburb: 'Surry Hills',
-          inspectorName: 'John Smith',
-          confirmedCount: 3,
-          capacityMax: 10,
-        },
-      ]),
+      findPortalEligibleSlots: vi.fn().mockResolvedValue([makeEligibleMember()]),
       hasPortalMemberSlot: vi.fn().mockResolvedValue(true),
       decrementConfirmedCount: vi.fn().mockResolvedValue(undefined),
       incrementConfirmedCount: vi.fn().mockResolvedValue(undefined),
@@ -211,13 +214,45 @@ describe('JoinGroupUseCase', () => {
     await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupNotFoundError);
   });
 
-  it('should throw PortalGroupFullError when group confirmedCount >= 10', async () => {
+  it('should throw PortalGroupFullError when the selected window has no room left', async () => {
+    // 13:00-15:00 fits four inspections at two per hour; four members fill it.
+    serviceGroupRepo.findPortalEligibleSlots.mockResolvedValue([
+      makeEligibleMember(), makeEligibleMember(), makeEligibleMember(), makeEligibleMember(),
+    ]);
+
+    await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupFullError);
+    expect(tokenRepo.tryClaim).not.toHaveBeenCalled();
+  });
+
+  it('should throw PortalGroupFullError when an enclosing window is saturated', async () => {
+    // 13:00-15:00 looks half empty, but 13:00-16:00 holds six of its six slots,
+    // so there is nowhere left to actually put the visit.
+    serviceGroupRepo.findPortalEligibleSlots.mockResolvedValue([
+      makeEligibleMember(),
+      ...Array.from({ length: 6 }, () => makeEligibleMember({ timeSlotStart: '13:00', timeSlotEnd: '16:00' })),
+    ]);
+
+    await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupFullError);
+  });
+
+  it('should join a group whose confirmed_count already exceeds the retired cap of 10', async () => {
     serviceGroupRepo.findById.mockResolvedValue({
-      group: makeGroup({ confirmedCount: 10 }),
-      assignedInspectorName: 'John',
+      group: makeGroup({ confirmedCount: 12 }),
+      assignedInspectorName: 'John Smith',
       tenantIds: ['tenant-1'],
       appointments: [],
     });
+
+    const result = await useCase.execute(makeInput());
+    expect(result.appointmentStatus).toBe('SCHEDULED');
+  });
+
+  it('should count another agency towards the window before letting the tenant in', async () => {
+    serviceGroupRepo.findPortalEligibleSlots.mockResolvedValue([
+      makeEligibleMember(),
+      ...Array.from({ length: 3 }, () => makeEligibleMember({ isOwnAgency: false })),
+    ]);
+
     await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupFullError);
   });
 
@@ -273,20 +308,23 @@ describe('JoinGroupUseCase', () => {
 
   it('should throw PortalGroupSlotUnavailableError when selected slot is not eligible for the portal appointment', async () => {
     serviceGroupRepo.findPortalEligibleSlots.mockResolvedValue([
-      {
-        groupId: 'sg-new',
+      makeEligibleMember({
         scheduledDate: new Date('2026-06-03T00:00:00.000Z'),
         timeSlotStart: '16:00',
         timeSlotEnd: '17:00',
-        suburb: 'Surry Hills',
-        inspectorName: 'John Smith',
-        confirmedCount: 3,
-        capacityMax: 10,
-      },
+      }),
     ]);
 
     await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupSlotUnavailableError);
     expect(serviceGroupRepo.hasPortalMemberSlot).not.toHaveBeenCalled();
+  });
+
+  it('should not offer a window held only by another agency', async () => {
+    serviceGroupRepo.findPortalEligibleSlots.mockResolvedValue([
+      makeEligibleMember({ isOwnAgency: false }),
+    ]);
+
+    await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupSlotUnavailableError);
   });
 
   it('should return correct output on happy path', async () => {
