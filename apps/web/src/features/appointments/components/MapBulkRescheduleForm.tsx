@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { TimeRangeInput } from '@/components/forms/TimeRangeInput';
-import { PLATFORM_TIMEZONE, todayInTzDateString, currentTimeInTzHHmm, isTimeStartInPastForDate } from '@properfy/shared';
+import { PLATFORM_TIMEZONE, todayInTzDateString, currentTimeInTzHHmm, isTimeStartInPastForDate, ServiceGroupStatus } from '@properfy/shared';
 import { useBulkRescheduleAppointments } from '../hooks/useBulkRescheduleAppointments';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 import { AppointmentCodePill } from './AppointmentCodePill';
@@ -9,7 +9,7 @@ import { AppointmentCodePill } from './AppointmentCodePill';
 export interface RescheduleGroupContext {
   id: string;
   timeWindow: string;
-  status: string;
+  status: ServiceGroupStatus;
   code?: string;
 }
 
@@ -163,8 +163,11 @@ export function MapBulkRescheduleForm({
         )}
       </label>
 
+      {/* These three banners appear as the operator edits the time inputs and
+          describe side effects of submitting, so they announce themselves. */}
       {windowExpansion && (
         <div
+          role="status"
           className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
           data-testid="map-bulk-reschedule-window-warning"
         >
@@ -173,8 +176,9 @@ export function MapBulkRescheduleForm({
         </div>
       )}
 
-      {windowExpansion && group?.status === 'ACCEPTED' && (
+      {windowExpansion && group?.status === ServiceGroupStatus.ACCEPTED && (
         <div
+          role="status"
           className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
           data-testid="map-bulk-reschedule-accepted-warning"
         >
@@ -185,6 +189,7 @@ export function MapBulkRescheduleForm({
 
       {alreadyConfirmed.length > 0 && (
         <div
+          role="status"
           className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
           data-testid="map-bulk-reschedule-confirmed-warning"
         >

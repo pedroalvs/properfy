@@ -1144,6 +1144,62 @@ describe('UpdateAppointmentUseCase', () => {
         },
       );
 
+      // Ordering guard: the widening must outlive nothing. It is persisted only
+      // after the appointment write succeeds, so a rejection anywhere later
+      // cannot leave a shared window stretched for an edit that never landed.
+      it('does not widen the group window when the appointment write fails', async () => {
+        vi.mocked(appointmentRepo.findById).mockResolvedValue(makeGroupedAppointment());
+        vi.mocked(appointmentRepo.update).mockRejectedValue(new Error('db down'));
+        const serviceGroupRepo = {
+          findById: vi.fn().mockResolvedValue(makeGroupResult('08:00-12:00')),
+          update: vi.fn().mockResolvedValue(undefined),
+        };
+
+        await expect(
+          makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+            appointmentId: 'appt-1',
+            data: { timeSlotStart: '13:00', timeSlotEnd: '14:00' },
+            expandGroupTimeWindow: true,
+            actor: makeActor(),
+          }),
+        ).rejects.toThrow('db down');
+
+        expect(serviceGroupRepo.update).not.toHaveBeenCalled();
+        expect(auditService.log).not.toHaveBeenCalledWith(
+          expect.objectContaining({ action: 'service_group.time_window_expanded' }),
+        );
+      });
+
+      it('does not widen the group window when the new time is in the past', async () => {
+        vi.mocked(appointmentRepo.findById).mockResolvedValue(
+          makeAppointmentWithRelations({
+            status: 'AWAITING_INSPECTOR',
+            serviceGroupId: 'group-1',
+            // Past date: validateEditedSchedule rejects AFTER the group check.
+            scheduledDate: new Date('2020-01-01'),
+            timeSlotStart: '09:00',
+            timeSlotEnd: '10:00',
+          }),
+        );
+        const serviceGroupRepo = {
+          findById: vi.fn().mockResolvedValue(
+            makeGroupResult('08:00-12:00', { scheduledDate: new Date('2020-01-01') }),
+          ),
+          update: vi.fn().mockResolvedValue(undefined),
+        };
+
+        await expect(
+          makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+            appointmentId: 'appt-1',
+            data: { scheduledDate: '2020-01-02', timeSlotStart: '13:00', timeSlotEnd: '14:00' },
+            expandGroupTimeWindow: true,
+            actor: makeActor(),
+          }),
+        ).rejects.toThrow();
+
+        expect(serviceGroupRepo.update).not.toHaveBeenCalled();
+      });
+
       it('does not touch the group when the new slot already fits', async () => {
         vi.mocked(appointmentRepo.findById).mockResolvedValue(makeGroupedAppointment());
         const serviceGroupRepo = {

@@ -198,6 +198,14 @@ export class UpdateAppointmentUseCase {
       (data.timeSlotEnd !== undefined && data.timeSlotEnd !== appointment.timeSlotEnd);
     const scheduleChanged = dateChanged || timeChangedReal;
 
+    // Set when a grouped time edit needs the group's shared window widened.
+    // Held until the appointment write succeeds — see where it is assigned.
+    let pendingGroupExpansion: {
+      groupId: string;
+      expansion: { timeWindow: string; before: string };
+      groupStatus: string;
+    } | null = null;
+
     // Schedule edits on a grouped appointment are validated against the group
     // and fail closed: when the group can't be loaded, the edit is blocked
     // (serviceGroupRepo is always wired in production — container.ts).
@@ -252,24 +260,17 @@ export class UpdateAppointmentUseCase {
             throw new AppointmentTimeSlotOutsideGroupWindowError();
           }
 
-          await this.serviceGroupRepo!.update(appointment.serviceGroupId, {
-            timeWindow: expansion.timeWindow,
-          });
-          this.auditService.log({
-            action: 'service_group.time_window_expanded',
-            actorType: 'USER',
-            actorId: actor.userId,
-            entityType: 'ServiceGroup',
-            entityId: appointment.serviceGroupId,
-            tenantId: appointment.tenantId,
-            before: { timeWindow: expansion.before },
-            after: { timeWindow: expansion.timeWindow },
-            metadata: {
-              appointmentId,
-              initiatedBy: actor.role,
-              groupStatus: groupResult.group.status,
-            },
-          });
+          // Deferred until AFTER the appointment write succeeds. Widening here
+          // would outlive a later rejection (the TZ past-date check and the
+          // appointment update both still run below), leaving a shared window
+          // permanently stretched for an edit that never landed — and the bulk
+          // path hides it, since `mapErrorToResult` turns the throw into a
+          // per-item ERROR the caller cannot tie back to the moved window.
+          pendingGroupExpansion = {
+            groupId: appointment.serviceGroupId,
+            expansion,
+            groupStatus: groupResult.group.status,
+          };
         }
       }
     }
@@ -377,6 +378,27 @@ export class UpdateAppointmentUseCase {
       appointment.tenantId,
       updateData,
     );
+
+    // The appointment now holds the new slot, so the group's shared window can
+    // safely follow it. Ordering is deliberate: a failure here leaves the
+    // window narrower than a member appointment, which the next edit re-detects
+    // and re-widens. The reverse order would strand a widened window behind an
+    // edit that never landed.
+    if (pendingGroupExpansion) {
+      const { groupId, expansion, groupStatus } = pendingGroupExpansion;
+      await this.serviceGroupRepo!.update(groupId, { timeWindow: expansion.timeWindow });
+      this.auditService.log({
+        action: 'service_group.time_window_expanded',
+        actorType: 'USER',
+        actorId: actor.userId,
+        entityType: 'ServiceGroup',
+        entityId: groupId,
+        tenantId: appointment.tenantId,
+        before: { timeWindow: expansion.before },
+        after: { timeWindow: expansion.timeWindow },
+        metadata: { appointmentId, initiatedBy: actor.role, groupStatus },
+      });
+    }
 
     // A schedule edit fires no status transition, so nothing else sends the new
     // date out — notify the rental tenant here, after the update is persisted.

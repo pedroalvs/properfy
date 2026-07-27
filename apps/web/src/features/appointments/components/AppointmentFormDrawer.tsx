@@ -520,8 +520,11 @@ export function AppointmentFormDrawer({
         if (result.error || !result.fieldErrors) {
           const errorMessage = result.error === 'APPOINTMENT_CONTACT_NOT_FOUND'
             ? 'One or more contacts belong to a different agency and cannot be linked to this appointment.'
+            // Grouped edits always ask the backend to widen the window, so this
+            // code now only comes back for a closed (cancelled/rejected) group,
+            // where there is no window left to widen.
             : result.errorCode === 'APPOINTMENT_TIME_SLOT_OUTSIDE_GROUP_WINDOW'
-            ? "This time slot falls outside the service group's time window. Choose a time within the group's window instead."
+            ? "This service group is closed, so its time window cannot be widened. Remove the appointment from the group to change its time."
             : (result.error ?? 'Failed to save');
           showError(errorMessage);
         }

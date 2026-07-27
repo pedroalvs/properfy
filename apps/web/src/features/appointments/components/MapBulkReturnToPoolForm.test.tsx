@@ -47,6 +47,10 @@ function setTime(start: string, end: string) {
   fireEvent.change(screen.getByLabelText('End time'), { target: { value: end } });
 }
 
+function setReason(text: string) {
+  fireEvent.change(screen.getByTestId('map-bulk-return-to-pool-reason'), { target: { value: text } });
+}
+
 describe('MapBulkReturnToPoolForm', () => {
   beforeEach(() => {
     mutateAsync.mockReset();
@@ -56,6 +60,7 @@ describe('MapBulkReturnToPoolForm', () => {
   it('submits the reopen payload for SCHEDULED rows', async () => {
     renderForm([makeAppointment()]);
     setTime('13:00', '16:00');
+    setReason('Inspector unavailable');
     fireEvent.click(screen.getByTestId('map-bulk-return-to-pool-apply'));
 
     await waitFor(() => {
@@ -65,6 +70,7 @@ describe('MapBulkReturnToPoolForm', () => {
           newDate: '2027-06-15',
           newTimeSlotStart: '13:00',
           newTimeSlotEnd: '16:00',
+          reason: 'Inspector unavailable',
         }),
       );
     });
@@ -116,17 +122,29 @@ describe('MapBulkReturnToPoolForm', () => {
     expect(screen.getByTestId('map-bulk-return-to-pool-apply')).toBeDisabled();
   });
 
-  it('passes an optional reason through', async () => {
+  // Root CLAUDE.md §5 — sensitive transitions require a reason, and this one
+  // reverts to DRAFT and drops the inspector.
+  it('blocks submission until a reason is given', () => {
     renderForm([makeAppointment()]);
     setTime('13:00', '16:00');
-    fireEvent.change(screen.getByTestId('map-bulk-return-to-pool-reason'), {
-      target: { value: 'Inspector unavailable' },
-    });
+    expect(screen.getByTestId('map-bulk-return-to-pool-apply')).toBeDisabled();
+
+    setReason('ab'); // below the 3-character minimum
+    expect(screen.getByTestId('map-bulk-return-to-pool-apply')).toBeDisabled();
+
+    setReason('Inspector unavailable');
+    expect(screen.getByTestId('map-bulk-return-to-pool-apply')).toBeEnabled();
+  });
+
+  it('trims the reason before sending it', async () => {
+    renderForm([makeAppointment()]);
+    setTime('13:00', '16:00');
+    setReason('   Client requested a different inspector   ');
     fireEvent.click(screen.getByTestId('map-bulk-return-to-pool-apply'));
 
     await waitFor(() => {
       expect(mutateAsync).toHaveBeenCalledWith(
-        expect.objectContaining({ reason: 'Inspector unavailable' }),
+        expect.objectContaining({ reason: 'Client requested a different inspector' }),
       );
     });
   });

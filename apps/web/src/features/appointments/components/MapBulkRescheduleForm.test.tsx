@@ -10,7 +10,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import { MapBulkRescheduleForm } from './MapBulkRescheduleForm';
+import { MapBulkRescheduleForm, type RescheduleGroupContext } from './MapBulkRescheduleForm';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 
 const mutateAsync = vi.fn();
@@ -27,11 +27,11 @@ function makeAppointment(overrides: Partial<AppointmentMapItem> = {}): Appointme
   };
 }
 
-const GROUP = { id: 'sg-1', timeWindow: '08:00-12:00', status: 'PUBLISHED', code: '42' };
+const GROUP: RescheduleGroupContext = { id: 'sg-1', timeWindow: '08:00-12:00', status: 'PUBLISHED', code: '42' };
 
 function renderForm(
   appointments: AppointmentMapItem[],
-  group: typeof GROUP | null = GROUP,
+  group: RescheduleGroupContext | null = GROUP,
 ) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(

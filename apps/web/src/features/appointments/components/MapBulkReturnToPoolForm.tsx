@@ -70,8 +70,13 @@ export function MapBulkReturnToPoolForm({
 
   const mutation = useBulkReopenForReschedule();
   const timeRangeOrdered = newTimeSlotStart.length > 0 && newTimeSlotEnd.length > 0 && newTimeSlotStart < newTimeSlotEnd;
+  // Root CLAUDE.md §5: sensitive transitions require a reason. Reverting to
+  // DRAFT and dropping the inspector is one, so the rationale is mandatory.
+  const trimmedReason = reason.trim();
+  const hasReason = trimmedReason.length >= 3;
   const canSubmit =
-    sameGroupCheck.ok && notScheduled.length === 0 && targetDate.length === 10 && timeRangeOrdered && !mutation.isPending;
+    sameGroupCheck.ok && notScheduled.length === 0 && targetDate.length === 10 && timeRangeOrdered
+    && hasReason && !mutation.isPending;
 
   return (
     <form
@@ -84,13 +89,12 @@ export function MapBulkReturnToPoolForm({
           return;
         }
         setTimeError(null);
-        const trimmedReason = reason.trim();
         const res = await mutation.mutateAsync({
           appointmentIds: checkedAppointments.map((a) => a.id),
           newDate: targetDate,
           newTimeSlotStart,
           newTimeSlotEnd,
-          ...(trimmedReason.length >= 3 ? { reason: trimmedReason } : {}),
+          reason: trimmedReason,
         });
         onComplete(res.data.results);
       }}
@@ -156,10 +160,11 @@ export function MapBulkReturnToPoolForm({
       </label>
 
       <label className="block text-sm font-medium text-text-primary">
-        Reason (optional)
+        Reason
         <textarea
           value={reason}
           onChange={(e) => setReason(e.target.value)}
+          required
           minLength={3}
           maxLength={500}
           rows={2}
@@ -168,6 +173,11 @@ export function MapBulkReturnToPoolForm({
           className="mt-1 block w-full rounded border border-border-subtle p-2 text-sm disabled:bg-gray-50"
           data-testid="map-bulk-return-to-pool-reason"
         />
+        {!hasReason && (
+          <p className="mt-1 text-xs text-text-secondary">
+            Required — at least 3 characters. This reopen is recorded in the audit trail.
+          </p>
+        )}
       </label>
 
       <div className="flex justify-end">
