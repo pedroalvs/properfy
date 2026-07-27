@@ -6,6 +6,7 @@ import { PropertyEntity } from '../../../src/modules/property/domain/property.en
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { BuildNotificationPayloadService } from '../../../src/modules/notification/domain/build-notification-payload.service';
 import { AppointmentCodeFormatter } from '../../../src/modules/appointment/domain/appointment-code.formatter';
+import { NotificationEntity } from '../../../src/modules/notification/domain/notification.entity';
 
 function makeAppointment(
   overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {},
@@ -126,12 +127,44 @@ const tenantRepo = {
 
 const notificationRepo = {
   existsByAppointmentAndTemplate: vi.fn().mockResolvedValue(false),
+  findLatestByAppointmentAndTemplates: vi.fn().mockResolvedValue(null),
   findById: vi.fn(),
   findAll: vi.fn(),
   count: vi.fn(),
   save: vi.fn(),
   update: vi.fn(),
 };
+
+/**
+ * Previously announced notification, as the occurrence dedupe sees it: only the
+ * template code and the announced date/slot matter.
+ */
+function makeSentNotification(
+  templateCode: string,
+  payloadJson: Record<string, string>,
+): NotificationEntity {
+  return new NotificationEntity({
+    id: 'notif-prev',
+    tenantId: 'tenant-1',
+    appointmentId: 'appt-1',
+    recipient: 'john@example.com',
+    channel: templateCode.endsWith('_SMS') ? 'SMS' : 'EMAIL',
+    templateCode,
+    status: 'SENT',
+    notificationClass: 'OPERATIONAL',
+    providerName: null,
+    providerMessageId: null,
+    sentAt: new Date('2026-03-01'),
+    deliveredAt: null,
+    failedAt: null,
+    failureReason: null,
+    payloadJson,
+    retryCount: 0,
+    nextRetryAt: null,
+    createdAt: new Date('2026-03-01'),
+    updatedAt: new Date('2026-03-01'),
+  });
+}
 
 const mintPortalTokenService = {
   mint: vi.fn().mockResolvedValue({ rawToken: 'test-portal-token', expiresAt: new Date('2026-05-01') }),
@@ -186,6 +219,7 @@ beforeEach(() => {
   propertyRepo.findById.mockResolvedValue(makeProperty());
   tenantRepo.findById.mockResolvedValue(makeTenant());
   notificationRepo.existsByAppointmentAndTemplate.mockResolvedValue(false);
+  notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(null);
   mintPortalTokenService.mint.mockResolvedValue({ rawToken: 'test-portal-token', expiresAt: new Date('2026-05-01') });
   createNotification.execute.mockResolvedValue({ notificationId: 'notif-1' });
 });
@@ -415,19 +449,6 @@ describe('NotifyOnStatusTransitionHandler', () => {
     );
   });
 
-  it('is idempotent: skips if notification already sent', async () => {
-    notificationRepo.existsByAppointmentAndTemplate.mockResolvedValueOnce(true);
-
-    const handler = makeHandler();
-    await handler.execute({
-      appointmentId: 'appt-1',
-      previousStatus: 'AWAITING_INSPECTOR',
-      targetStatus: 'SCHEDULED',
-    });
-
-    expect(createNotification.execute).not.toHaveBeenCalled();
-  });
-
   it('continues sending notification when mint portal token fails', async () => {
     mintPortalTokenService.mint.mockRejectedValueOnce(new Error('Mint failed'));
 
@@ -440,5 +461,197 @@ describe('NotifyOnStatusTransitionHandler', () => {
 
     expect(createNotification.execute).toHaveBeenCalledOnce();
     expect(logger.warn).toHaveBeenCalledOnce();
+  });
+});
+
+/**
+ * The dedupe is scoped to the occurrence, not to the appointment's lifetime: a
+ * rental tenant must hear about every real (re-)entry into SCHEDULED/CANCELLED,
+ * while a replay of the same announcement stays suppressed.
+ */
+describe('NotifyOnStatusTransitionHandler occurrence dedupe', () => {
+  const NOTICE_PAYLOAD = { scheduledDate: '2026-04-01', timeSlot: '09:00-12:00' };
+
+  it('sends when the appointment has never been announced', async () => {
+    notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(null);
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'SCHEDULED',
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(notificationRepo.findLatestByAppointmentAndTemplates).toHaveBeenCalledWith(
+      'appt-1',
+      'tenant-1',
+      expect.arrayContaining([
+        'INSPECTION_NOTICE',
+        'INSPECTION_NOTICE_SMS',
+        'INSPECTION_CANCELLED',
+        'INSPECTION_CANCELLED_SMS',
+      ]),
+    );
+  });
+
+  it('re-sends INSPECTION_NOTICE after a cancellation, even for the same date', async () => {
+    notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(
+      makeSentNotification('INSPECTION_CANCELLED', { scheduledDate: '2026-04-01' }),
+    );
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'SCHEDULED',
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_NOTICE' }),
+    );
+  });
+
+  it('skips when the last announcement was the same notice with the same date and slot', async () => {
+    notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(
+      makeSentNotification('INSPECTION_NOTICE', NOTICE_PAYLOAD),
+    );
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'SCHEDULED',
+    });
+
+    expect(createNotification.execute).not.toHaveBeenCalled();
+  });
+
+  it('re-sends INSPECTION_NOTICE when the scheduled date changed', async () => {
+    notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(
+      makeSentNotification('INSPECTION_NOTICE', {
+        ...NOTICE_PAYLOAD,
+        scheduledDate: '2026-03-15',
+      }),
+    );
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'SCHEDULED',
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledOnce();
+  });
+
+  it('re-sends INSPECTION_NOTICE when the time slot changed', async () => {
+    notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(
+      makeSentNotification('INSPECTION_NOTICE', {
+        ...NOTICE_PAYLOAD,
+        timeSlot: '13:00-16:00',
+      }),
+    );
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'SCHEDULED',
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledOnce();
+  });
+
+  it('treats the SMS variant as the same announcement family', async () => {
+    notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(
+      makeSentNotification('INSPECTION_NOTICE_SMS', { scheduledDate: '2026-04-01' }),
+    );
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'SCHEDULED',
+    });
+
+    expect(createNotification.execute).not.toHaveBeenCalled();
+  });
+
+  it('sends INSPECTION_CANCELLED when the last announcement was the notice', async () => {
+    notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(
+      makeSentNotification('INSPECTION_NOTICE', NOTICE_PAYLOAD),
+    );
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'CANCELLED',
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED' }),
+    );
+  });
+
+  it('skips a repeated cancellation whose stored payload carries no timeSlot', async () => {
+    // INSPECTION_CANCELLED declares no timeSlot variable, so an absent key must
+    // not be read as "the slot changed" and force a re-send.
+    notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(
+      makeSentNotification('INSPECTION_CANCELLED', { scheduledDate: '2026-04-01' }),
+    );
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'CANCELLED',
+    });
+
+    expect(createNotification.execute).not.toHaveBeenCalled();
+  });
+
+  it('does not mint a portal token when the send is skipped', async () => {
+    notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(
+      makeSentNotification('INSPECTION_NOTICE', NOTICE_PAYLOAD),
+    );
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'SCHEDULED',
+    });
+
+    expect(mintPortalTokenService.mint).not.toHaveBeenCalled();
+  });
+
+  it('applies the same single decision to the SMS fallback path', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment(),
+      contact: makeContact({ snapshotEmail: null }),
+      restrictions: [],
+    });
+    notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(
+      makeSentNotification('INSPECTION_CANCELLED', { scheduledDate: '2026-04-01' }),
+    );
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'SCHEDULED',
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_NOTICE_SMS', channel: 'SMS' }),
+    );
+    // The lifetime guard belongs to reminders/escalations, not to this handler.
+    expect(notificationRepo.existsByAppointmentAndTemplate).not.toHaveBeenCalled();
+    expect(notificationRepo.findLatestByAppointmentAndTemplates).toHaveBeenCalledOnce();
   });
 });
