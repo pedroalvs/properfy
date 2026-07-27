@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { PublishServiceGroupUseCase } from '../../../src/modules/service-group/application/use-cases/publish-service-group.use-case';
 import type { IServiceGroupRepository, ServiceGroupWithAppointments } from '../../../src/modules/service-group/domain/service-group.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
@@ -14,6 +14,9 @@ import {
   AppointmentInvalidStatusError,
   ServiceRegionRequiredError,
   ServiceRegionInactiveError,
+  ServiceGroupEmptyError,
+  ServiceGroupDateInPastError,
+  ServiceGroupTimeInPastError,
 } from '../../../src/modules/service-group/domain/service-group.errors';
 import type { IServiceRegionRepository } from '../../../src/modules/service-region/domain/service-region.repository';
 
@@ -77,7 +80,16 @@ describe('PublishServiceGroupUseCase', () => {
   let eventBus: DomainEventBus;
   let useCase: PublishServiceGroupUseCase;
 
+  // Publish now rejects past-dated groups, so the clock has to be pinned: the
+  // shared validator resolves "today" in Australia/Sydney, and a wall-clock
+  // fixture would start failing the day it drifts past the fixture date.
+  // 2026-05-01T00:00:00Z is 2026-05-01 10:00 in Sydney, which makes the base
+  // fixture (2026-06-01) comfortably future-dated. Only Date is faked — timers
+  // stay real so awaited promises resolve normally.
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-05-01T00:00:00Z'));
+
     serviceGroupRepo = {
       findById: vi.fn(),
       findAll: vi.fn(),
@@ -115,6 +127,10 @@ describe('PublishServiceGroupUseCase', () => {
     eventBus = new DomainEventBus();
     const authorizationService = new AuthorizationService(auditService);
     useCase = new PublishServiceGroupUseCase(serviceGroupRepo, auditService, serviceRegionRepo, authorizationService, eventBus);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('should publish a DRAFT group successfully', async () => {
@@ -218,6 +234,74 @@ describe('PublishServiceGroupUseCase', () => {
         actor: makeActor(),
       }),
     ).rejects.toThrow(AppointmentInvalidStatusError);
+  });
+
+  it('should reject a group with no appointments without any side effect', async () => {
+    // Cancelling a group unlinks every appointment and republish does not
+    // re-link them, so a republished group always arrives here empty.
+    const emitSpy = vi.spyOn(eventBus, 'emit');
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments({}, []));
+
+    await expect(
+      useCase.execute({ groupId: 'group-1', actor: makeActor() }),
+    ).rejects.toThrow(ServiceGroupEmptyError);
+
+    expect(serviceGroupRepo.update).not.toHaveBeenCalled();
+    expect(auditService.log).not.toHaveBeenCalled();
+    expect(emitSpy).not.toHaveBeenCalled();
+  });
+
+  it('should reject a group whose scheduled date has passed', async () => {
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
+      makeGroupWithAppointments({ scheduledDate: new Date('2026-04-30') }),
+    );
+
+    await expect(
+      useCase.execute({ groupId: 'group-1', actor: makeActor() }),
+    ).rejects.toThrow(ServiceGroupDateInPastError);
+
+    expect(serviceGroupRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('should reject a group scheduled for today whose time window has already started', async () => {
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
+      makeGroupWithAppointments({
+        scheduledDate: new Date('2026-05-01'),
+        timeWindow: '09:00-12:00', // starts before 10:00 Sydney (the pinned now)
+      }),
+    );
+
+    await expect(
+      useCase.execute({ groupId: 'group-1', actor: makeActor() }),
+    ).rejects.toThrow(ServiceGroupTimeInPastError);
+
+    expect(serviceGroupRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('should publish a group scheduled for today whose time window is still ahead', async () => {
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
+      makeGroupWithAppointments({
+        scheduledDate: new Date('2026-05-01'),
+        timeWindow: '15:00-18:00',
+      }),
+    );
+
+    const result = await useCase.execute({ groupId: 'group-1', actor: makeActor() });
+
+    expect(result.status).toBe('PUBLISHED');
+  });
+
+  it('should stay idempotent for a PUBLISHED group that is now empty and past-dated', async () => {
+    // The already-PUBLISHED short-circuit runs before the new guards, so a
+    // retry against a stale group must never start throwing.
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
+      makeGroupWithAppointments({ status: 'PUBLISHED', scheduledDate: new Date('2026-04-30') }, []),
+    );
+
+    const result = await useCase.execute({ groupId: 'group-1', actor: makeActor() });
+
+    expect(result.status).toBe('PUBLISHED');
+    expect(serviceGroupRepo.update).not.toHaveBeenCalled();
   });
 
   it('should call audit log with correct before/after', async () => {

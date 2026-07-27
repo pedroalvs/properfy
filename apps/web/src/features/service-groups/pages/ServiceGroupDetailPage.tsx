@@ -23,6 +23,10 @@ import { RepublishGroupModal } from '../components/RepublishGroupModal';
 import { EditGroupModal } from '../components/EditGroupModal';
 import { SendPortalLinkDialog } from '../components/SendPortalLinkDialog';
 import { useGoBack } from '@/hooks/useGoBack';
+import { InfoBanner } from '@/components/feedback/InfoBanner';
+import { getPublishBlockReason } from '../lib/publish-block-reason';
+
+const PUBLISH_BLOCK_REASON_ID = 'publish-block-reason';
 
 export function ServiceGroupDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -130,15 +134,23 @@ export function ServiceGroupDetailPage() {
   // exist only in non-terminal groups. Hidden for CANCELLED/REJECTED groups.
   const canSendPortalLinks = isDraft || isPublished || isAccepted;
 
-  // Publish requires every appointment to be AWAITING_INSPECTOR.
-  // Surface blocking appointments so the user knows what to fix before clicking.
-  const blockingAppointments = isDraft
-    ? (serviceGroup.appointments ?? []).filter((a) => a.status !== 'AWAITING_INSPECTOR')
-    : [];
-  const publishBlocked = blockingAppointments.length > 0;
-  const publishBlockReason = publishBlocked
-    ? `Cannot publish: appointment${blockingAppointments.length > 1 ? 's' : ''} ${blockingAppointments.map((a) => `#${a.appointmentNumber} (${a.status})`).join(', ')} must be Awaiting Inspector`
-    : undefined;
+  // Publishing releases the group to the marketplace, so it requires a
+  // non-empty group, a schedule that has not passed and every appointment in
+  // AWAITING_INSPECTOR. Mirrors the backend guards (which stay authoritative)
+  // so the user reads the reason instead of hitting a 422.
+  // `appointmentsCount` (server-derived, already falling back to the array
+  // length in the hook) is the count of record — an absent `appointments`
+  // array means "not in the payload", not "empty group".
+  const publishBlockReason = getPublishBlockReason({
+    status: serviceGroup.status,
+    appointmentCount: serviceGroup.appointmentsCount,
+    scheduledDate: serviceGroup.scheduledDate,
+    timeWindow: serviceGroup.timeWindow,
+    blockingAppointments: (serviceGroup.appointments ?? [])
+      .filter((a) => a.status !== 'AWAITING_INSPECTOR')
+      .map((a) => ({ label: `#${a.appointmentNumber}`, status: a.status })),
+  });
+  const publishBlocked = publishBlockReason !== null;
 
   return (
     <div>
@@ -179,20 +191,27 @@ export function ServiceGroupDetailPage() {
         )}
       </div>
 
+      {/* Why Publish is unavailable, as visible text rather than a tooltip:
+          a disabled button must not communicate its state by appearance alone. */}
+      {isDraft && publishBlockReason && (
+        <InfoBanner variant="warning" className="mt-4">
+          <span id={PUBLISH_BLOCK_REASON_ID}>{publishBlockReason}</span>
+        </InfoBanner>
+      )}
+
       {/* Action buttons */}
       <div className="mt-4 flex flex-wrap gap-3">
         {isDraft && (
-          <span title={publishBlockReason}>
-            <Button
-              variant="primary"
-              loading={isPublishing}
-              disabled={publishBlocked}
-              onClick={publish}
-            >
-              <i className="mdi mdi-publish text-base" aria-hidden="true" />
-              Publish
-            </Button>
-          </span>
+          <Button
+            variant="primary"
+            loading={isPublishing}
+            disabled={publishBlocked}
+            onClick={publish}
+            aria-describedby={publishBlocked ? PUBLISH_BLOCK_REASON_ID : undefined}
+          >
+            <i className="mdi mdi-publish text-base" aria-hidden="true" />
+            Publish
+          </Button>
         )}
         {canAssign && (
           <Button
