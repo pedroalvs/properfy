@@ -8,6 +8,15 @@ export interface ServiceGroupProps {
   groupNumber?: number;
   serviceTypeId: string;
   status: ServiceGroupStatus;
+  /**
+   * Number of appointments linked to the group, excluding soft-deleted ones.
+   *
+   * DERIVED AT READ — there is no `group_size` column. It used to be one,
+   * written once at creation and never maintained, and it drifted on 75% of
+   * production groups because adding appointments never incremented it and
+   * unlinking them on cancel never zeroed it. Do not persist this value; the
+   * repository counts the linked rows on every read.
+   */
   groupSize: number;
   offeredCount: number;
   confirmedCount: number;
@@ -29,6 +38,7 @@ export class ServiceGroupEntity extends BaseEntity {
   groupNumber: number;
   readonly serviceTypeId: string;
   status: ServiceGroupStatus;
+  /** Derived at read from the linked appointments — never persisted. */
   readonly groupSize: number;
   offeredCount: number;
   confirmedCount: number;

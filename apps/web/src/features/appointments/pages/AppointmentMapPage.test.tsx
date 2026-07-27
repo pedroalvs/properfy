@@ -334,6 +334,148 @@ describe('AppointmentMapPage', () => {
   });
 });
 
+// A group's pin position is the centroid of its appointments, and the backend
+// drops appointments whose property has no lat/lng. So a group can match a
+// search, be counted, and still have nothing to plot — which read as "the map is
+// broken" because the header claimed "1 groups" above an empty canvas.
+describe('AppointmentMapPage — un-plottable rows are surfaced, not hidden', () => {
+  const UNGEOCODED_GROUP = {
+    id: 'sg-1',
+    code: '25',
+    status: 'PUBLISHED',
+    // Both are the live number of LINKED appointments — the backend derives
+    // them from the same count. Here: 3 linked, none of them mappable.
+    groupSize: 3,
+    appointmentsCount: 3,
+    scheduledDate: '2026-04-01',
+    appointments: [],
+  };
+
+  function mockGroups(groups: unknown[]) {
+    mockGet.mockImplementation(async (path: string) => {
+      if (path === '/v1/service-groups') {
+        return {
+          data: {
+            data: groups,
+            pagination: { page: 1, pageSize: 100, total: groups.length, totalPages: 1 },
+          },
+        };
+      }
+      return { data: { data: [], pagination: { page: 1, pageSize: 100, total: 0, totalPages: 0 } } };
+    });
+  }
+
+  beforeEach(() => {
+    authState.role = 'AM';
+  });
+
+  it('reports how many matched groups actually reached the map', async () => {
+    mockGroups([UNGEOCODED_GROUP]);
+    renderPageAt(['/map?mode=groups']);
+    fireEvent.click(screen.getByTestId('map-filter-toggle'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/1 group · 0 on map/)).toBeInTheDocument();
+    });
+  });
+
+  it('names the un-plottable group and links to its detail', async () => {
+    mockGroups([UNGEOCODED_GROUP]);
+    renderPageAt(['/map?mode=groups']);
+    fireEvent.click(screen.getByTestId('map-filter-toggle'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('map-unplottable-warning')).toBeInTheDocument();
+    });
+    const warning = screen.getByTestId('map-unplottable-warning');
+    expect(warning).toHaveTextContent(/no map location/i);
+    // The operator needs to know WHY, and the denominator has to be the number
+    // of appointments actually linked to the group.
+    expect(warning).toHaveTextContent(/0 of 3 appointments have a valid map location/i);
+
+    const link = screen.getByRole('link', { name: /Group #25/ });
+    expect(link).toHaveAttribute('href', '/service-groups/sg-1');
+  });
+
+  it('treats a malformed coordinate as unplottable, not as "on map"', async () => {
+    // `!= null` is not enough: computeBounds (which frames the camera) also
+    // rejects non-finite and out-of-range values. If the header used the looser
+    // rule it would claim this group is on the map while the camera silently
+    // ignored it — the exact divergence this feature exists to close.
+    mockGroups([
+      {
+        ...UNGEOCODED_GROUP,
+        appointments: [{ id: 'apt-1', latitude: 999, longitude: 151.2 }],
+      },
+    ]);
+    renderPageAt(['/map?mode=groups']);
+    fireEvent.click(screen.getByTestId('map-filter-toggle'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/1 group · 0 on map/)).toBeInTheDocument();
+    });
+    const warning = screen.getByTestId('map-unplottable-warning');
+    expect(warning).toBeInTheDocument();
+    // The reason must hold for a REJECTED coordinate too — this appointment
+    // has one, it is just out of range. "have coordinates" would be a lie.
+    expect(warning).toHaveTextContent(/0 of 3 appointments have a valid map location/i);
+    expect(warning).not.toHaveTextContent(/have coordinates/i);
+  });
+
+  it('does not claim the group is empty when the count is absent', async () => {
+    // A missing `appointmentsCount` means "the server did not say", which is
+    // not the same as "the server said zero". Reading it as `?? 0` collapsed
+    // the two and made the page assert emptiness it had never measured — so a
+    // renamed or dropped field would silently read as a legitimately empty
+    // group. Say only what is true regardless: nothing could be plotted.
+    const { appointmentsCount: _omitted, ...withoutCount } = UNGEOCODED_GROUP;
+    mockGroups([{ ...withoutCount, appointments: [] }]);
+    renderPageAt(['/map?mode=groups']);
+    fireEvent.click(screen.getByTestId('map-filter-toggle'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('map-unplottable-warning')).toBeInTheDocument();
+    });
+    const warning = screen.getByTestId('map-unplottable-warning');
+    expect(warning).toHaveTextContent(/no appointment with a valid map location/i);
+    expect(warning).not.toHaveTextContent(/group has no appointments/i);
+    expect(warning).not.toHaveTextContent(/0 of/);
+  });
+
+  it('says the group is empty when the server reports zero appointments', async () => {
+    // The reported case: a CANCELLED group whose appointments have all been
+    // unlinked. Quoting a non-zero total here would invent appointments that no
+    // longer exist and send the operator hunting a geocoding problem that isn't
+    // there. Zero linked appointments has its own, different explanation.
+    mockGroups([{ ...UNGEOCODED_GROUP, groupSize: 0, appointmentsCount: 0, appointments: [] }]);
+    renderPageAt(['/map?mode=groups']);
+    fireEvent.click(screen.getByTestId('map-filter-toggle'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('map-unplottable-warning')).toBeInTheDocument();
+    });
+    const warning = screen.getByTestId('map-unplottable-warning');
+    expect(warning).toHaveTextContent(/group has no appointments/i);
+    expect(warning).not.toHaveTextContent(/0 of 3/);
+  });
+
+  it('stays silent when every group is plottable', async () => {
+    mockGroups([
+      {
+        ...UNGEOCODED_GROUP,
+        appointments: [{ id: 'apt-1', latitude: -33.86, longitude: 151.2 }],
+      },
+    ]);
+    renderPageAt(['/map?mode=groups']);
+    fireEvent.click(screen.getByTestId('map-filter-toggle'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/1 group$/)).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('map-unplottable-warning')).toBeNull();
+  });
+});
+
 // Item 13 — the map must aggregate ALL pages, not silently truncate at the
 // backend's 100-row page cap.
 describe('AppointmentMapPage — full pagination fetch', () => {

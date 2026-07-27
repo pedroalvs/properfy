@@ -138,13 +138,11 @@ async function seedPublishedGroup(
   prisma: PrismaClient,
   serviceTypeId: string,
   createdByUserId: string,
-  groupSize: number,
 ): Promise<string> {
   const group = await prisma.serviceGroup.create({
     data: {
       service_type_id: serviceTypeId,
       status: 'PUBLISHED',
-      group_size: groupSize,
       scheduled_date: FUTURE_DATE,
       time_window: '08:00-12:00',
       published_at: new Date(),
@@ -205,7 +203,7 @@ describe('marketplace — GLOBAL service regions (tenant_id IS NULL)', () => {
     await linkInspectorRegion(harness.prisma, inspectorId, regionId);
 
     const propertyId = await seedPropertyInsideSydney(harness.prisma, tenantId, branchId);
-    const groupId = await seedPublishedGroup(harness.prisma, serviceTypeId, userId, 1);
+    const groupId = await seedPublishedGroup(harness.prisma, serviceTypeId, userId);
     await seedAwaitingAppointment(harness.prisma, {
       tenantId,
       branchId,
@@ -234,7 +232,7 @@ describe('marketplace — GLOBAL service regions (tenant_id IS NULL)', () => {
     await linkInspectorRegion(harness.prisma, inspectorId, regionId);
 
     const propertyId = await seedPropertyInsideSydney(harness.prisma, tenantId, branchId);
-    const groupId = await seedPublishedGroup(harness.prisma, serviceTypeId, userId, 1);
+    const groupId = await seedPublishedGroup(harness.prisma, serviceTypeId, userId);
     await seedAwaitingAppointment(harness.prisma, {
       tenantId,
       branchId,
@@ -274,7 +272,7 @@ describe('marketplace — GLOBAL service regions (tenant_id IS NULL)', () => {
     await linkInspectorRegion(harness.prisma, inspectorId, regionId);
 
     const propertyId = await seedPropertyInsideSydney(harness.prisma, tenantB, branchB);
-    const groupId = await seedPublishedGroup(harness.prisma, serviceTypeId, userB, 1);
+    const groupId = await seedPublishedGroup(harness.prisma, serviceTypeId, userB);
     await seedAwaitingAppointment(harness.prisma, {
       tenantId: tenantB,
       branchId: branchB,
@@ -312,7 +310,7 @@ describe('marketplace — GLOBAL service regions (tenant_id IS NULL)', () => {
     await linkInspectorRegion(harness.prisma, inspectorId, regionId);
 
     const propertyId = await seedPropertyInsideSydney(harness.prisma, tenantB, branchB);
-    const groupId = await seedPublishedGroup(harness.prisma, serviceTypeId, userB, 1);
+    const groupId = await seedPublishedGroup(harness.prisma, serviceTypeId, userB);
     await seedAwaitingAppointment(harness.prisma, {
       tenantId: tenantB,
       branchId: branchB,
@@ -339,7 +337,7 @@ describe('marketplace — GLOBAL service regions (tenant_id IS NULL)', () => {
     const { inspectorId } = await seedInspector(harness.prisma, 'Insp Four');
     await linkInspectorRegion(harness.prisma, inspectorId, regionId);
 
-    const groupId = await seedPublishedGroup(harness.prisma, serviceTypeId, userA, 2);
+    const groupId = await seedPublishedGroup(harness.prisma, serviceTypeId, userA);
     const propertyA = await seedPropertyInsideSydney(harness.prisma, tenantA, branchA);
     const propertyB = await seedPropertyInsideSydney(harness.prisma, tenantB, branchB);
     await seedAwaitingAppointment(harness.prisma, {

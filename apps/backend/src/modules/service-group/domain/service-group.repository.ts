@@ -60,8 +60,14 @@ export interface ServiceGroupMapAppointment {
   code: string;
   status: string;
   address: string;
-  latitude: number;
-  longitude: number;
+  /**
+   * Null when the property has not been geocoded. Rows are returned rather
+   * than dropped so callers can distinguish "this group has appointments that
+   * cannot be plotted" from "this group has no appointments at all" — the two
+   * need different fixes and the map has to say which one it is.
+   */
+  latitude: number | null;
+  longitude: number | null;
   scheduledDate: Date;
   inspectorName: string | null;
 }

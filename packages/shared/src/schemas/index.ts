@@ -1,3 +1,4 @@
+export * from './boolean-query';
 export * from './pagination';
 export * from './address';
 export * from './contact';

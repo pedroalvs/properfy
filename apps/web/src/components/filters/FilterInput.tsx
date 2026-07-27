@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type KeyboardEvent } from 'react';
 import { filterContainer, filterInput, filterLabel, filterLabelFocused, filterIcon, filterClearButton } from './filter-styles';
 
 interface FilterInputProps {
@@ -7,6 +7,12 @@ interface FilterInputProps {
   onChange: (value: string) => void;
   placeholder?: string;
   debounceMs?: number;
+  /**
+   * Fired when the operator presses Enter, AFTER any pending debounce has been
+   * flushed — so a consumer that refetches off `onChange` is already acting on
+   * the just-typed term by the time this runs.
+   */
+  onSubmit?: () => void;
 }
 
 export function FilterInput({
@@ -15,10 +21,22 @@ export function FilterInput({
   onChange,
   placeholder,
   debounceMs = 300,
+  onSubmit,
 }: FilterInputProps) {
   const [localValue, setLocalValue] = useState(value);
   const [focused, setFocused] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Callers pass `(v) => onFiltersChange({ ...filters, search: v })` — a fresh
+  // closure per render over that render's `filters`. The debounce timer would
+  // otherwise fire the handler captured at keystroke time, merging into a
+  // snapshot up to `debounceMs` old and silently reverting any sibling filter
+  // changed inside the window. Every notification below goes through this ref so
+  // the rule is uniform: this component always calls the NEWEST handler. The
+  // synchronous paths (Enter flush, clear) are already current — routing them
+  // too keeps the invariant from being reintroduced if either becomes deferred.
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
   useEffect(() => {
     setLocalValue(value);
@@ -28,14 +46,36 @@ export function FilterInput({
     setLocalValue(newValue);
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
-      onChange(newValue);
+      // Clear BEFORE notifying so `timerRef` means "a change is still pending"
+      // and nothing else — a fired timer must not look like a queued one.
+      timerRef.current = undefined;
+      onChangeRef.current(newValue);
     }, debounceMs);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter') return;
+    // With an IME (CJK input), Enter commits the composition candidate rather
+    // than meaning "submit" — acting on it would flush a half-composed term.
+    if (event.nativeEvent.isComposing) return;
+    event.preventDefault();
+    // A live timer is the only reliable "the parent has not seen this keystroke
+    // yet" signal — comparing localValue to value would also fire when the
+    // parent simply ignored or normalised an already-delivered change. Flush
+    // before notifying, or the submit would act on the previous term.
+    if (timerRef.current !== undefined) {
+      clearTimeout(timerRef.current);
+      timerRef.current = undefined;
+      onChangeRef.current(localValue);
+    }
+    onSubmit?.();
   };
 
   const handleClear = () => {
     setLocalValue('');
     clearTimeout(timerRef.current);
-    onChange('');
+    timerRef.current = undefined;
+    onChangeRef.current('');
   };
 
   useEffect(() => {
@@ -58,6 +98,7 @@ export function FilterInput({
           placeholder={showFloatingLabel ? placeholder : label}
           value={localValue}
           onChange={(e) => handleChange(e.target.value)}
+          onKeyDown={handleKeyDown}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           aria-label={label}

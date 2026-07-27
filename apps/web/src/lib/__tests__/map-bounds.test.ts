@@ -1,5 +1,40 @@
 import { describe, it, expect } from 'vitest';
-import { computeBounds, isSinglePointBounds } from '../map-bounds';
+import { computeBounds, isSinglePointBounds, isPlottablePoint } from '../map-bounds';
+
+// Callers filter their own pin collections before rendering markers. They must
+// use THIS predicate, not a looser `!= null` check — otherwise a malformed
+// coordinate counts as "on the map", gets handed to a marker, and is then
+// silently dropped by computeBounds when the camera is framed.
+describe('isPlottablePoint', () => {
+  it('accepts a well-formed coordinate', () => {
+    expect(isPlottablePoint({ latitude: -33.8688, longitude: 151.2093 })).toBe(true);
+    expect(isPlottablePoint({ latitude: 0, longitude: 0 })).toBe(true);
+  });
+
+  it('rejects missing coordinates', () => {
+    expect(isPlottablePoint({ latitude: null, longitude: 151.2 })).toBe(false);
+    expect(isPlottablePoint({ latitude: -33.8, longitude: null })).toBe(false);
+    expect(isPlottablePoint({ latitude: undefined, longitude: undefined })).toBe(false);
+  });
+
+  it('rejects non-finite coordinates', () => {
+    expect(isPlottablePoint({ latitude: NaN, longitude: 151.2 })).toBe(false);
+    expect(isPlottablePoint({ latitude: -33.8, longitude: Infinity })).toBe(false);
+  });
+
+  it('rejects out-of-range coordinates', () => {
+    expect(isPlottablePoint({ latitude: 91, longitude: 151.2 })).toBe(false);
+    expect(isPlottablePoint({ latitude: -91, longitude: 151.2 })).toBe(false);
+    expect(isPlottablePoint({ latitude: -33.8, longitude: 181 })).toBe(false);
+    expect(isPlottablePoint({ latitude: -33.8, longitude: -181 })).toBe(false);
+  });
+
+  it('agrees with computeBounds on what counts', () => {
+    const malformed = { latitude: NaN, longitude: 999 };
+    expect(isPlottablePoint(malformed)).toBe(false);
+    expect(computeBounds([malformed])).toBeNull();
+  });
+});
 
 describe('computeBounds', () => {
   it('returns null for empty array', () => {

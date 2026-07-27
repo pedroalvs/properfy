@@ -106,7 +106,6 @@ async function seedAcceptedGroup(
     data: {
       service_type_id: params.serviceTypeId,
       status: 'ACCEPTED',
-      group_size: 10,
       offered_count: 3,
       confirmed_count: params.confirmedCount ?? 3,
       scheduled_date: GROUP_DATE,

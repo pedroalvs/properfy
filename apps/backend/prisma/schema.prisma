@@ -605,7 +605,9 @@ model ServiceGroup {
   group_number          Int                        @unique @default(autoincrement())
   service_type_id       String
   status                ServiceGroupStatus         @default(DRAFT)
-  group_size            Int
+  // No `group_size` column: the size is counted from `appointments` on every
+  // read. It was a denormalized counter with no invalidation and no
+  // business-logic consumer, and it drifted on most production rows.
   offered_count         Int                        @default(0)
   confirmed_count       Int                        @default(0)
   scheduled_date        DateTime                   @db.Date
