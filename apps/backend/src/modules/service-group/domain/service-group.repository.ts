@@ -44,6 +44,16 @@ export interface ServiceGroupWithAppointments {
     propertyId: string;
     serviceGroupId: string | null;
     scheduledDate: Date;
+    /** Member's own slot, `HH:mm`. Needed to clamp members into a changed group window. */
+    timeSlotStart: string;
+    timeSlotEnd: string;
+    /**
+     * Denormalized confirmation state. Together with `activeConfirmationCycleId`
+     * it answers "was the rental tenant already told about the OLD schedule?" —
+     * the gate a schedule change uses to decide whether to re-notify.
+     */
+    rentalTenantConfirmationStatus: string;
+    activeConfirmationCycleId: string | null;
     propertyAddress: string | null;
     propertyCode: string | null;
   }>;
@@ -231,6 +241,18 @@ export interface IServiceGroupRepository {
   revertScheduledAppointments(groupId: string): Promise<number>;
   /** Atomically transition all group's appointments to SCHEDULED with inspector */
   scheduleAppointments(groupId: string, inspectorId: string): Promise<number>;
+  /**
+   * Swap the inspector across every member in one transaction.
+   *
+   * Unlike `scheduleAppointments`, this also covers members that are already
+   * SCHEDULED: they keep their status and only change hands. Reassigning an
+   * accepted group is `SCHEDULED → SCHEDULED`, which the appointment state
+   * machine rejects, so it cannot go through the transition use case.
+   */
+  assignInspectorToGroupAppointments(
+    groupId: string,
+    inspectorId: string,
+  ): Promise<{ reassigned: number; scheduled: number }>;
   /**
    * Find member appointment slots in ACCEPTED service groups eligible for a tenant to join via the portal.
    * Criteria: same tenant + same service type, confirmed_count < 10, scheduled_date >= today+1,

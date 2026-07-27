@@ -12,11 +12,9 @@ import type { IAvailabilitySlotRepository } from '../../../inspector/domain/avai
 import {
   ServiceGroupNotFoundError,
   ServiceGroupInvalidStatusError,
-  InspectorInactiveError,
-  InspectorIneligibleError,
-  InspectorServiceTypeIneligibleError,
   AssignedInspectorConflictError,
 } from '../../domain/service-group.errors';
+import { assertInspectorEligibleForGroup } from '../assert-inspector-eligible-for-group';
 
 export interface AssignInspectorManuallyInput {
   groupId: string;
@@ -85,30 +83,13 @@ export class AssignInspectorManuallyUseCase {
       throw new NotFoundError('INSPECTOR_NOT_FOUND', 'Inspector not found');
     }
 
-    if (!inspector.isActive()) {
-      throw new InspectorInactiveError();
-    }
-
-    if (!inspector.supportsServiceType(group.serviceTypeId)) {
-      throw new InspectorServiceTypeIneligibleError();
-    }
-
-    // Eligible only when the inspector can serve EVERY agency in the group;
-    // an empty tenant set must not pass (see accept-offer for rationale).
-    if (tenantIds.length === 0 || !tenantIds.every((t) => inspector.isEligibleForTenant(t))) {
-      throw new InspectorIneligibleError();
-    }
-
-    // Validate inspector's regions cover the service group's properties
-    const propertyIds = findResult.appointments.map((a) => a.propertyId);
-    if (propertyIds.length > 0) {
-      const coveredPropertyIds = await this.serviceRegionRepo.findPropertyIdsInInspectorRegions(inspectorId);
-      const coveredSet = new Set(coveredPropertyIds);
-      const uncoveredProperties = propertyIds.filter((pid) => !coveredSet.has(pid));
-      if (uncoveredProperties.length > 0) {
-        throw new InspectorIneligibleError();
-      }
-    }
+    await assertInspectorEligibleForGroup({
+      inspector,
+      serviceTypeId: group.serviceTypeId,
+      tenantIds,
+      propertyIds: findResult.appointments.map((a) => a.propertyId),
+      serviceRegionRepo: this.serviceRegionRepo,
+    });
 
     const now = new Date();
 
