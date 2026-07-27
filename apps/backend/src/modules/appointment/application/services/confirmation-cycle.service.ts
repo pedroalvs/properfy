@@ -158,6 +158,41 @@ export class ConfirmationCycleService {
   }
 
   /**
+   * Moves the active cycle onto a new schedule, keeping its status.
+   *
+   * The counterpart to `rotateOnDateChange` for the case where an operator moves
+   * a group's schedule and explicitly chooses to keep the tenants' confirmations
+   * rather than ask for them again. Without this the confirmation survives but
+   * stays pinned to the old date, so it reads as stale to every later
+   * portal-link plan and the operator's choice quietly decays into a resend.
+   *
+   * No-ops when there is no active cycle — an appointment nobody ever confirmed
+   * has nothing to realign.
+   */
+  async realignActiveCycleSchedule(
+    appointmentId: string,
+    tenantId: string,
+    newDate: Date,
+    newTimeSlot: string | null,
+    tx?: Tx,
+  ): Promise<void> {
+    const active = await this.cycleRepo.findActiveByAppointmentId(appointmentId, tx);
+    if (!active) return;
+
+    await this.cycleRepo.realignSchedule(active.id, newDate, newTimeSlot, tx);
+
+    this.auditService.log({
+      action: 'appointment_confirmation_cycle.updated',
+      actorType: 'SYSTEM',
+      entityType: 'AppointmentConfirmationCycle',
+      entityId: active.id,
+      tenantId,
+      before: { scheduledDate: active.scheduledDate, timeSlot: active.timeSlot },
+      after: { scheduledDate: newDate, timeSlot: newTimeSlot, reason: 'SCHEDULE_REALIGNED' },
+    });
+  }
+
+  /**
    * Supersedes active cycle and creates new CONFIRMED cycle.
    * Used when tenant reschedules via portal (they implicitly confirm the new date).
    */

@@ -62,6 +62,18 @@ export class PrismaConfirmationCycleRepository implements IConfirmationCycleRepo
     });
   }
 
+  async realignSchedule(
+    cycleId: string,
+    scheduledDate: Date,
+    timeSlot: string | null,
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    await this.db(tx).appointmentConfirmationCycle.update({
+      where: { id: cycleId },
+      data: { scheduled_date: scheduledDate, time_slot: timeSlot },
+    });
+  }
+
   async findActiveByAppointmentId(
     appointmentId: string,
     tx?: Prisma.TransactionClient,

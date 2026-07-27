@@ -21,6 +21,8 @@ import {
   sendGroupPortalLinksResponseSchema,
   changeGroupInspectorRequestSchema,
   changeGroupInspectorResponseSchema,
+  changeGroupScheduleRequestSchema,
+  changeGroupScheduleResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
@@ -40,6 +42,7 @@ import type { FindAddableGroupsForAppointmentsUseCase } from '../application/use
 import type { GetGroupPortalLinkPlanUseCase } from '../application/use-cases/get-group-portal-link-plan.use-case';
 import type { SendGroupPortalLinksUseCase } from '../application/use-cases/send-group-portal-links.use-case';
 import type { ChangeGroupInspectorUseCase } from '../application/use-cases/change-group-inspector.use-case';
+import type { ChangeGroupScheduleUseCase } from '../application/use-cases/change-group-schedule.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface ServiceGroupRouteContainer {
@@ -58,6 +61,7 @@ export interface ServiceGroupRouteContainer {
   getGroupPortalLinkPlanUseCase: GetGroupPortalLinkPlanUseCase;
   sendGroupPortalLinksUseCase: SendGroupPortalLinksUseCase;
   changeGroupInspectorUseCase: ChangeGroupInspectorUseCase;
+  changeGroupScheduleUseCase: ChangeGroupScheduleUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
@@ -532,6 +536,46 @@ export async function registerServiceGroupRoutes(
         groupId: params.data.groupId,
         inspectorId: parsed.data.inspectorId,
         reason: parsed.data.reason,
+        actor: auth,
+        idempotencyKey: request.headers['idempotency-key'] as string | undefined,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/service-groups/:groupId/schedule — move the group's date and/or
+  // time window, cascading to its members. Distinct from PATCH, whose
+  // scheduledDate/timeWindow stay DRAFT-only: this is the deliberate action,
+  // and it carries the operator's choice about already-given tenant
+  // confirmations. AM/OP only.
+  app.post(
+    '/v1/service-groups/:groupId/schedule',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ groupId: z.string().uuid() }),
+        body: changeGroupScheduleRequestSchema,
+        response: { 200: successResponseSchema(changeGroupScheduleResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const auth = request.authContext!;
+      if (auth.role !== 'AM' && auth.role !== 'OP') {
+        return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'AM or OP role required' } });
+      }
+      const params = groupIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid group ID', params.error.errors);
+      }
+      const parsed = changeGroupScheduleRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.changeGroupScheduleUseCase.execute({
+        groupId: params.data.groupId,
+        ...(parsed.data.scheduledDate !== undefined ? { scheduledDate: parsed.data.scheduledDate } : {}),
+        ...(parsed.data.timeWindow !== undefined ? { timeWindow: parsed.data.timeWindow } : {}),
+        confirmationStrategy: parsed.data.confirmationStrategy,
         actor: auth,
         idempotencyKey: request.headers['idempotency-key'] as string | undefined,
       });

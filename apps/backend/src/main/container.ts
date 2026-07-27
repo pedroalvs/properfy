@@ -335,6 +335,7 @@ import { FyWebhookSubscriber } from '../modules/fy/application/webhooks/fy-webho
 import { NotifyOnGroupAcceptedSubscriber } from '../modules/notification/application/subscribers/notify-on-group-accepted.subscriber';
 import { NotifyOnGroupInspectorChangeSubscriber } from '../modules/notification/application/subscribers/notify-on-group-inspector-change.subscriber';
 import { ChangeGroupInspectorUseCase } from '../modules/service-group/application/use-cases/change-group-inspector.use-case';
+import { ChangeGroupScheduleUseCase } from '../modules/service-group/application/use-cases/change-group-schedule.use-case';
 import { createApiKeyAuthMiddleware } from '../shared/interfaces/api-key-auth-middleware';
 import { createAuthMiddleware } from '../shared/interfaces/auth-middleware';
 
@@ -958,6 +959,19 @@ export function createContainer(logger: Logger): AppContainer {
     domainEventBus,
   );
 
+  const changeGroupScheduleUseCase = new ChangeGroupScheduleUseCase(
+    serviceGroupRepo,
+    appointmentRepo,
+    auditService,
+    authorizationService,
+    idempotencyService,
+    sendGroupPortalLinksUseCase,
+    confirmationCycleService,
+    notifyOnAdminRescheduleHandler,
+    domainEventBus,
+    logger,
+  );
+
   // Billing use cases (repos + createFinancialEntriesOnDoneUseCase created above)
   const listFinancialEntriesUseCase = new ListFinancialEntriesUseCase(financialEntryRepo, auditService);
   const getFinancialSummaryUseCase = new GetFinancialSummaryUseCase(financialEntryRepo, tenantRepo);
@@ -1384,6 +1398,7 @@ export function createContainer(logger: Logger): AppContainer {
       getGroupPortalLinkPlanUseCase,
       sendGroupPortalLinksUseCase,
       changeGroupInspectorUseCase,
+      changeGroupScheduleUseCase,
       jwtService,
       tenantRepo,
     },

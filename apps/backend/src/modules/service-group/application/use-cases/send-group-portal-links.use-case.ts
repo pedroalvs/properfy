@@ -19,6 +19,13 @@ const ERROR_CODE = 'DISPATCH_FAILED';
 export interface SendGroupPortalLinksInput {
   groupId: string;
   actor: AuthContext;
+  /**
+   * Restrict the send to these members. Used when a schedule change only
+   * invalidated some confirmations — the untouched members must not be mailed.
+   * Omit to send to the whole group, which is what the operator's explicit
+   * "Send portal link" action does.
+   */
+  appointmentIds?: string[];
   /** IANA timezone for per-day idempotency bucketing. See bulk-resend-reminder. */
 }
 
@@ -74,7 +81,10 @@ export class SendGroupPortalLinksUseCase {
 
     const rows = await this.groupRepo.findGroupAppointmentsWithConfirmation(input.groupId);
     // OP acts only on their own tenant's appointments; AM is cross-tenant.
-    const inScope = input.actor.role === 'AM' ? rows : rows.filter((r) => r.tenantId === input.actor.tenantId);
+    const tenantScoped = input.actor.role === 'AM' ? rows : rows.filter((r) => r.tenantId === input.actor.tenantId);
+    const inScope = input.appointmentIds
+      ? tenantScoped.filter((r) => input.appointmentIds!.includes(r.id))
+      : tenantScoped;
 
     const dayKey = dayKeyInTz(this.clock());
     const results: SendGroupPortalLinksResultItem[] = [];
