@@ -146,11 +146,18 @@ describe('getAppointmentRows', () => {
   it('renders dates and time slots in the display format the operator reads', async () => {
     // The XLSX is read by humans, so these columns carry dd/mm/yyyy and 12-hour
     // times rather than the ISO values the database stores.
+    //
+    // Asserted as exact values, not shapes: a /^\d{2}\/\d{2}\/\d{4}$/ regex is
+    // satisfied by both 10/03/2026 and 03/10/2026, so it cannot detect the
+    // day/month inversion this whole change exists to prevent.
     const rows = await reader.getAppointmentRows(baseFilters({ status: 'DONE' }));
-    expect(rows[0].scheduledDate).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+
+    // apt1 is seeded at 2026-03-10T00:00Z — the 10th of March, not the 3rd of October.
+    expect(rows[0].scheduledDate).toBe('10/03/2026');
     expect(rows[0].timeSlot).toBe('9:00 am – 10:00 am');
-    // createdAt used to dump a raw ISO timestamp ('2026-02-01T04:12:33.123Z').
-    expect(rows[0].createdAt).toMatch(/^\d{2}\/\d{2}\/\d{4}, \d{1,2}:\d{2} (am|pm)$/);
+    // Seeded created_at 2026-02-01T00:00Z is 11:00 the same day in Sydney (UTC+11
+    // under DST). Previously this column dumped a raw ISO timestamp.
+    expect(rows[0].createdAt).toBe('01/02/2026, 11:00 am');
   });
 
   it('applies the status filter', async () => {
