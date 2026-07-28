@@ -11,7 +11,8 @@ const GROUP: AvailableGroup = {
   suburb: 'Surry Hills',
   inspectorName: 'John Smith',
   bookedCount: 3,
-  capacityMax: 10,
+  // 09:00-12:00 is three hours, so six inspections at two per hour.
+  capacityMax: 6,
 };
 
 function renderSheet(overrides: Partial<React.ComponentProps<typeof ChangeTimeSheet>> = {}) {

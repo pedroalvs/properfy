@@ -341,8 +341,9 @@ describe('PortalPage', () => {
                 timeSlotEnd: '10:00',
                 suburb: 'Surry Hills',
                 inspectorName: 'John Smith',
-                bookedCount: 3,
-                capacityMax: 10,
+                // 09:00-10:00 holds two inspections at two per hour.
+                bookedCount: 1,
+                capacityMax: 2,
               },
             ],
           },

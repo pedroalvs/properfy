@@ -11,7 +11,8 @@ const GROUP: AvailableGroup = {
   suburb: 'Surry Hills',
   inspectorName: 'John Smith',
   bookedCount: 3,
-  capacityMax: 10,
+  // 09:00-12:00 is three hours, so six inspections at two per hour.
+  capacityMax: 6,
 };
 
 describe('AvailableGroupsList', () => {
@@ -43,7 +44,7 @@ describe('AvailableGroupsList', () => {
 
   it('should label occupancy as booked out of the window capacity', () => {
     render(<AvailableGroupsList groups={[GROUP]} isLoading={false} onSelect={vi.fn()} />);
-    expect(screen.getByText(/3\/10 booked/)).toBeTruthy();
+    expect(screen.getByText(/3\/6 booked/)).toBeTruthy();
     // The old label reported the whole service group's confirmed count, which
     // read the same on every window of that group.
     expect(screen.queryByText(/confirmed/i)).toBeNull();
