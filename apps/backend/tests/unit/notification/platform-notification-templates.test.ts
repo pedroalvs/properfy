@@ -103,9 +103,13 @@ describe('PLATFORM_TEMPLATES appointment email HTML bodies', () => {
 
     it(`${code} paints no background on the body or the layout tables`, () => {
       // Emails must inherit the mail client's own background instead of forcing
-      // one. Only inline call-outs may carry a background of their own.
-      expect(entry!.bodyHtml).not.toMatch(/<body[^>]*background-color/);
-      expect(entry!.bodyHtml).not.toMatch(/<table[^>]*background-color/);
+      // one. Matched loosely on purpose: the `background` shorthand and the
+      // legacy `bgcolor` attribute would reintroduce a canvas just as well as
+      // `background-color`, so a regression cannot slip through a synonym.
+      expect(entry!.bodyHtml).not.toMatch(/<body[^>]*\bbackground/i);
+      expect(entry!.bodyHtml).not.toMatch(/<table[^>]*\bbackground/i);
+      expect(entry!.bodyHtml).not.toMatch(/<(?:body|table)[^>]*\bbgcolor/i);
+      // Only inline call-outs may carry a background of their own.
       expect(entry!.bodyHtml).not.toContain('background-image');
     });
 
@@ -113,8 +117,9 @@ describe('PLATFORM_TEMPLATES appointment email HTML bodies', () => {
       for (const darkColour of ['rgb(47,47,47)', 'rgb(41,41,41)', 'rgb(219,151,255)', 'rgb(94,86,54)']) {
         expect(entry!.bodyHtml, `dark colour ${darkColour} still present`).not.toContain(darkColour);
       }
-      // White text only ever made sense on the dark canvas.
-      expect(entry!.bodyHtml).not.toContain('color:#ffffff');
+      // Pure white only ever made sense as text on the dark canvas. The amber
+      // call-out fill (#FFF8E1) is deliberately not matched by this pattern.
+      expect(entry!.bodyHtml).not.toMatch(/#fff(?:fff)?\b/i);
     });
 
     it(`${code} bodyHtml passes the save-time sanitizer unchanged`, () => {

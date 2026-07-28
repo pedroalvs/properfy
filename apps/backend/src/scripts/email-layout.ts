@@ -9,6 +9,12 @@ import { PROPERFY_LOGO_URL } from '@properfy/shared';
 // (white in practice) instead of forcing one. Text, headings and links are
 // therefore coloured for a light background.
 //
+// Leaving the canvas unset is a deliberate call, not an oversight: pinning
+// background-color:#ffffff would guard against dark-mode clients that darken
+// the canvas while honouring explicit text colours, but no approach controls
+// dark mode across clients, and forcing a canvas is exactly what made the
+// previous dark layout unreadable for everyone else.
+//
 // Everything here must stay within the notification sanitizer allowlist
 // (sanitize-html.service.ts): inline styles, tables and https images only.
 
