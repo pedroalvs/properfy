@@ -116,8 +116,8 @@ describe('GET /v1/rental-tenant-portal/:token/available-groups', () => {
           timeSlotEnd: '15:00',
           suburb: 'Surry Hills',
           inspectorName: 'John Smith',
-          confirmedCount: 3,
-          capacityMax: 10,
+          bookedCount: 3,
+          capacityMax: 4,
         },
       ],
     };

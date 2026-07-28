@@ -126,11 +126,12 @@ async function seedAppointment(
     propertyId: string;
     serviceTypeId: string;
     createdByUserId: string;
-    groupId: string;
+    groupId: string | null;
     scheduledDate: Date;
     timeSlotStart: string;
     timeSlotEnd: string;
     deleted?: boolean;
+    status?: 'SCHEDULED' | 'CANCELLED' | 'REJECTED' | 'DRAFT';
   },
 ): Promise<string> {
   const appointment = await prisma.appointment.create({
@@ -140,7 +141,7 @@ async function seedAppointment(
       property_id: params.propertyId,
       service_type_id: params.serviceTypeId,
       service_group_id: params.groupId,
-      status: 'SCHEDULED',
+      status: params.status ?? 'SCHEDULED',
       scheduled_date: params.scheduledDate,
       time_slot_start: params.timeSlotStart,
       time_slot_end: params.timeSlotEnd,
@@ -296,36 +297,302 @@ describe('PrismaServiceGroupRepository portal member slots — real DB', () => {
       today: TODAY,
     });
 
+    // One row per member appointment — including the duplicate 09:00-10:00 pair,
+    // which the old per-slot GROUP BY used to collapse. The capacity rule needs
+    // to see both.
     expect(slots.map((slot) => ({
       groupId: slot.groupId,
       scheduledDate: slot.scheduledDate.toISOString().slice(0, 10),
       timeSlotStart: slot.timeSlotStart,
       timeSlotEnd: slot.timeSlotEnd,
+      isOwnAgency: slot.isOwnAgency,
     }))).toEqual([
       {
         groupId: eligibleGroupId,
         scheduledDate: '2026-08-03',
         timeSlotStart: '09:00',
         timeSlotEnd: '10:00',
+        isOwnAgency: true,
+      },
+      {
+        groupId: eligibleGroupId,
+        scheduledDate: '2026-08-03',
+        timeSlotStart: '09:00',
+        timeSlotEnd: '10:00',
+        isOwnAgency: true,
       },
       {
         groupId: eligibleGroupId,
         scheduledDate: '2026-08-04',
         timeSlotStart: '13:00',
         timeSlotEnd: '14:00',
+        isOwnAgency: true,
+      },
+      // Another agency's appointment in the same group: it occupies the
+      // inspector, so it must be returned for counting, flagged not-own so the
+      // domain rule never offers its window.
+      {
+        groupId: eligibleGroupId,
+        scheduledDate: '2026-08-04',
+        timeSlotStart: '16:00',
+        timeSlotEnd: '17:00',
+        isOwnAgency: false,
       },
     ]);
     expect(slots.every((slot) => slot.groupId !== farOnlyGroupId)).toBe(true);
     expect(slots.every((slot) => slot.groupId !== foreignGroupId)).toBe(true);
-    expect(slots.some((slot) => (
-      slot.groupId === eligibleGroupId &&
-      slot.scheduledDate.toISOString().slice(0, 10) === '2026-08-04' &&
-      slot.timeSlotStart === '16:00' &&
-      slot.timeSlotEnd === '17:00'
-    ))).toBe(false);
     expect(slots[0]!.inspectorName).toBe('Slot Inspector');
-    expect(slots[0]!.confirmedCount).toBe(3);
-    expect(slots[0]!.capacityMax).toBe(10);
+    expect(slots[0]!.suburb).toBe('Near Slot');
+  });
+
+  it('excludes cancelled, rejected and soft-deleted members from the member list', async () => {
+    const { tenantId, userId } = await seedTenant(harness.prisma, 'Portal Inactive Members Agency');
+    const branchId = await getBranchId(harness.prisma, tenantId);
+    const serviceTypeId = await seedServiceType(harness.prisma);
+    const { inspectorId } = await seedInspector(harness.prisma, 'Inactive Members Inspector');
+
+    const portalPropertyId = await seedPropertyPoint(harness.prisma, {
+      tenantId, branchId, suburb: 'Inactive Home', lat: -33.865, lng: 151.209,
+    });
+    const nearPropertyId = await seedPropertyPoint(harness.prisma, {
+      tenantId, branchId, suburb: 'Inactive Near', lat: -33.866, lng: 151.210,
+    });
+
+    const groupId = await seedAcceptedGroup(harness.prisma, {
+      serviceTypeId, createdByUserId: userId, inspectorId,
+    });
+
+    const base = {
+      tenantId,
+      branchId,
+      propertyId: nearPropertyId,
+      serviceTypeId,
+      createdByUserId: userId,
+      groupId,
+      scheduledDate: SLOT_ONE_DATE,
+    };
+    await seedAppointment(harness.prisma, { ...base, timeSlotStart: '09:00', timeSlotEnd: '10:00' });
+    await seedAppointment(harness.prisma, { ...base, timeSlotStart: '10:00', timeSlotEnd: '11:00', status: 'CANCELLED' });
+    await seedAppointment(harness.prisma, { ...base, timeSlotStart: '11:00', timeSlotEnd: '12:00', status: 'REJECTED' });
+    await seedAppointment(harness.prisma, { ...base, timeSlotStart: '12:00', timeSlotEnd: '13:00', deleted: true });
+
+    const slots = await repo.findPortalEligibleSlots({
+      tenantId,
+      serviceTypeId,
+      propertyId: portalPropertyId,
+      today: TODAY,
+    });
+
+    // A cancelled visit frees the inspector, so it must not eat into capacity.
+    expect(slots.map((slot) => `${slot.timeSlotStart}-${slot.timeSlotEnd}`)).toEqual(['09:00-10:00']);
+  });
+
+  it('no longer hides a group whose confirmed_count passed the retired cap of 10', async () => {
+    const { tenantId, userId } = await seedTenant(harness.prisma, 'Portal Retired Cap Agency');
+    const branchId = await getBranchId(harness.prisma, tenantId);
+    const serviceTypeId = await seedServiceType(harness.prisma);
+    const { inspectorId } = await seedInspector(harness.prisma, 'Retired Cap Inspector');
+
+    const portalPropertyId = await seedPropertyPoint(harness.prisma, {
+      tenantId, branchId, suburb: 'Retired Home', lat: -33.865, lng: 151.209,
+    });
+    const nearPropertyId = await seedPropertyPoint(harness.prisma, {
+      tenantId, branchId, suburb: 'Retired Near', lat: -33.866, lng: 151.210,
+    });
+
+    const groupId = await seedAcceptedGroup(harness.prisma, {
+      serviceTypeId, createdByUserId: userId, inspectorId, confirmedCount: 12,
+    });
+    await seedAppointment(harness.prisma, {
+      tenantId,
+      branchId,
+      propertyId: nearPropertyId,
+      serviceTypeId,
+      createdByUserId: userId,
+      groupId,
+      scheduledDate: SLOT_ONE_DATE,
+      timeSlotStart: '09:00',
+      timeSlotEnd: '17:00',
+    });
+
+    const slots = await repo.findPortalEligibleSlots({
+      tenantId,
+      serviceTypeId,
+      propertyId: portalPropertyId,
+      today: TODAY,
+    });
+
+    expect(slots.map((slot) => slot.groupId)).toEqual([groupId]);
+  });
+
+  // Six contenders rather than two on purpose: with only two, the pair of
+  // transactions interleave rarely enough that this test passed even with the
+  // `FOR UPDATE` removed. Six makes the unlocked version fail reliably, which
+  // is what makes it evidence of the lock rather than decoration.
+  it('lets only one of several concurrent joins take the last opening in a window', async () => {
+    const { tenantId, userId } = await seedTenant(harness.prisma, 'Portal Race Agency');
+    const branchId = await getBranchId(harness.prisma, tenantId);
+    const serviceTypeId = await seedServiceType(harness.prisma);
+    const { inspectorId } = await seedInspector(harness.prisma, 'Race Inspector');
+
+    const nearPropertyId = await seedPropertyPoint(harness.prisma, {
+      tenantId, branchId, suburb: 'Race Near', lat: -33.866, lng: 151.210,
+    });
+
+    const groupId = await seedAcceptedGroup(harness.prisma, {
+      serviceTypeId, createdByUserId: userId, inspectorId,
+    });
+
+    // 09:00-10:00 holds two inspections; one is taken, so exactly one is left.
+    await seedAppointment(harness.prisma, {
+      tenantId, branchId, propertyId: nearPropertyId, serviceTypeId,
+      createdByUserId: userId, groupId,
+      scheduledDate: SLOT_ONE_DATE, timeSlotStart: '09:00', timeSlotEnd: '10:00',
+    });
+
+    // Two tenants, two portal tokens, both outside the group and both about to
+    // claim that single opening.
+    const contenders = await Promise.all([1, 2, 3, 4, 5, 6].map(() => seedAppointment(harness.prisma, {
+      tenantId, branchId, propertyId: nearPropertyId, serviceTypeId,
+      createdByUserId: userId, groupId: null,
+      scheduledDate: SLOT_TWO_DATE, timeSlotStart: '14:00', timeSlotEnd: '15:00',
+    })));
+
+    const reserve = (appointmentId: string) => repo.reservePortalWindow({
+      groupId,
+      appointmentId,
+      tenantId,
+      scheduledDate: SLOT_ONE_DATE.toISOString().slice(0, 10),
+      timeSlotStart: '09:00',
+      timeSlotEnd: '10:00',
+      inspectorId,
+    });
+
+    const results = await Promise.all(contenders.map(reserve));
+
+    // Without the group-row lock several transactions read "one left" and win.
+    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    expect(results.filter((r) => !r.ok && r.reason === 'WINDOW_FULL')).toHaveLength(contenders.length - 1);
+
+    const joined = await harness.prisma.appointment.findMany({
+      where: { id: { in: contenders }, service_group_id: groupId },
+      select: { id: true, time_slot_start: true, rental_tenant_confirmation_status: true },
+    });
+    expect(joined).toHaveLength(1);
+    expect(joined[0]!.time_slot_start).toBe('09:00');
+    expect(joined[0]!.rental_tenant_confirmation_status).toBe('CONFIRMED');
+
+    // The loser is untouched — no half-applied move.
+    const loserId = contenders.find((id) => id !== joined[0]!.id)!;
+    const loser = await harness.prisma.appointment.findUnique({
+      where: { id: loserId },
+      select: { service_group_id: true, time_slot_start: true, inspector_id: true },
+    });
+    expect(loser).toMatchObject({
+      service_group_id: null,
+      time_slot_start: '14:00',
+      inspector_id: null,
+    });
+  });
+
+  it('refuses to reserve a window that is already at capacity', async () => {
+    const { tenantId, userId } = await seedTenant(harness.prisma, 'Portal Full Window Agency');
+    const branchId = await getBranchId(harness.prisma, tenantId);
+    const serviceTypeId = await seedServiceType(harness.prisma);
+    const { inspectorId } = await seedInspector(harness.prisma, 'Full Window Inspector');
+
+    const nearPropertyId = await seedPropertyPoint(harness.prisma, {
+      tenantId, branchId, suburb: 'Full Near', lat: -33.866, lng: 151.210,
+    });
+    const groupId = await seedAcceptedGroup(harness.prisma, {
+      serviceTypeId, createdByUserId: userId, inspectorId,
+    });
+
+    for (let i = 0; i < 2; i += 1) {
+      await seedAppointment(harness.prisma, {
+        tenantId, branchId, propertyId: nearPropertyId, serviceTypeId,
+        createdByUserId: userId, groupId,
+        scheduledDate: SLOT_ONE_DATE, timeSlotStart: '09:00', timeSlotEnd: '10:00',
+      });
+    }
+    const outsiderId = await seedAppointment(harness.prisma, {
+      tenantId, branchId, propertyId: nearPropertyId, serviceTypeId,
+      createdByUserId: userId, groupId: null,
+      scheduledDate: SLOT_TWO_DATE, timeSlotStart: '14:00', timeSlotEnd: '15:00',
+    });
+
+    const reserved = await repo.reservePortalWindow({
+      groupId,
+      appointmentId: outsiderId,
+      tenantId,
+      scheduledDate: SLOT_ONE_DATE.toISOString().slice(0, 10),
+      timeSlotStart: '09:00',
+      timeSlotEnd: '10:00',
+      inspectorId,
+    });
+
+    expect(reserved).toEqual({ ok: false, reason: 'WINDOW_FULL' });
+    const untouched = await harness.prisma.appointment.findUnique({
+      where: { id: outsiderId },
+      select: { service_group_id: true, time_slot_start: true },
+    });
+    expect(untouched).toMatchObject({ service_group_id: null, time_slot_start: '14:00' });
+  });
+
+  it.each([
+    ['cancelled', { status: 'CANCELLED' as const }],
+    ['rejected', { status: 'REJECTED' as const }],
+    ['soft-deleted', { deleted: true }],
+  ])('refuses to move a %s appointment even into a window with room', async (_label, state) => {
+    const { tenantId, userId } = await seedTenant(harness.prisma, `Portal Inactive Target ${rand()}`);
+    const branchId = await getBranchId(harness.prisma, tenantId);
+    const serviceTypeId = await seedServiceType(harness.prisma);
+    const { inspectorId } = await seedInspector(harness.prisma, `Inactive Target Inspector ${rand()}`);
+
+    const nearPropertyId = await seedPropertyPoint(harness.prisma, {
+      tenantId, branchId, suburb: 'Inactive Target Near', lat: -33.866, lng: 151.210,
+    });
+    const groupId = await seedAcceptedGroup(harness.prisma, {
+      serviceTypeId, createdByUserId: userId, inspectorId,
+    });
+    await seedAppointment(harness.prisma, {
+      tenantId, branchId, propertyId: nearPropertyId, serviceTypeId,
+      createdByUserId: userId, groupId,
+      scheduledDate: SLOT_ONE_DATE, timeSlotStart: '08:00', timeSlotEnd: '17:00',
+    });
+
+    // Plenty of room in the window — the only thing wrong is the target itself,
+    // which an operator changed after the portal flow had already checked it.
+    const targetId = await seedAppointment(harness.prisma, {
+      tenantId, branchId, propertyId: nearPropertyId, serviceTypeId,
+      createdByUserId: userId, groupId: null,
+      scheduledDate: SLOT_TWO_DATE, timeSlotStart: '14:00', timeSlotEnd: '15:00',
+      ...state,
+    });
+
+    const reserved = await repo.reservePortalWindow({
+      groupId,
+      appointmentId: targetId,
+      tenantId,
+      scheduledDate: SLOT_ONE_DATE.toISOString().slice(0, 10),
+      timeSlotStart: '08:00',
+      timeSlotEnd: '17:00',
+      inspectorId,
+    });
+
+    // Reported apart from WINDOW_FULL so the caller does not tell the tenant to
+    // pick another time when no time would help.
+    expect(reserved).toEqual({ ok: false, reason: 'APPOINTMENT_INACTIVE' });
+
+    const untouched = await harness.prisma.appointment.findUnique({
+      where: { id: targetId },
+      select: { service_group_id: true, time_slot_start: true, inspector_id: true },
+    });
+    expect(untouched).toMatchObject({
+      service_group_id: null,
+      time_slot_start: '14:00',
+      inspector_id: null,
+    });
   });
 
   it('excludes the appointment current group when excludeGroupId is provided', async () => {

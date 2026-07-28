@@ -18317,7 +18317,7 @@
                           "inspectorName": {
                             "type": "string"
                           },
-                          "confirmedCount": {
+                          "bookedCount": {
                             "type": "integer",
                             "minimum": 0
                           },
@@ -18334,7 +18334,7 @@
                           "timeSlotEnd",
                           "suburb",
                           "inspectorName",
-                          "confirmedCount",
+                          "bookedCount",
                           "capacityMax"
                         ],
                         "additionalProperties": false

@@ -12,9 +12,11 @@ import type {
   GroupAppointmentConfirmationRow,
   MarketplaceOffer,
   MarketplaceOfferDetail,
-  PortalEligibleSlot,
+  PortalEligibleGroupMember,
+  PortalWindowReservation,
 } from '../domain/service-group.repository';
 import type { ServiceGroupStatus } from '@properfy/shared';
+import { computeWindowAvailability } from '../domain/portal-slot-capacity';
 import { resolveCentroid } from '../../../shared/infrastructure/suburb-centroid-resolver';
 
 /**
@@ -888,7 +890,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     propertyId: string;
     today: Date;
     excludeGroupId?: string | null;
-  }): Promise<PortalEligibleSlot[]> {
+  }): Promise<PortalEligibleGroupMember[]> {
     const todayStr = params.today.toISOString().slice(0, 10);
     const excludeClause = params.excludeGroupId
       ? Prisma.sql`AND sg.id <> ${params.excludeGroupId}`
@@ -901,9 +903,13 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       time_slot_end: string;
       suburb: string;
       inspector_name: string;
-      confirmed_count: bigint;
+      is_own_agency: boolean;
     };
 
+    // Rows are per-member, not per-time-slot: how much a window can still take
+    // is an interval-packing question over every sibling window in the group,
+    // so aggregating here would discard the inputs the rule needs. The caller
+    // feeds these to `buildPortalEligibleSlots`.
     const rows = await this.prisma.$queryRaw<Row[]>`
       WITH eligible_groups AS (
         SELECT DISTINCT sg.id
@@ -914,7 +920,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
           AND sg.service_type_id = ${params.serviceTypeId}
           ${excludeClause}
           AND sg.status = 'ACCEPTED'
-          AND sg.confirmed_count < 10
           AND sg.scheduled_date::date > ${todayStr}::date
           AND p.coordinates IS NOT NULL
           AND ST_DWithin(
@@ -928,19 +933,18 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         a.scheduled_date,
         a.time_slot_start,
         a.time_slot_end,
-        MIN(p.suburb) AS suburb,
+        p.suburb,
         i.name AS inspector_name,
-        sg.confirmed_count
+        (a.tenant_id = ${params.tenantId}) AS is_own_agency
       FROM eligible_groups eg
       JOIN service_groups sg ON sg.id = eg.id
       JOIN inspectors i ON i.id = sg.assigned_inspector_id
       JOIN appointments a ON a.service_group_id = sg.id AND a.deleted_at IS NULL
       JOIN properties p ON p.id = a.property_id AND p.deleted_at IS NULL
-      WHERE a.tenant_id = ${params.tenantId}
-        AND a.scheduled_date::date > ${todayStr}::date
+      WHERE a.scheduled_date::date > ${todayStr}::date
+        AND a.status NOT IN ('CANCELLED', 'REJECTED')
         AND a.time_slot_start IS NOT NULL
         AND a.time_slot_end IS NOT NULL
-      GROUP BY sg.id, a.scheduled_date, a.time_slot_start, a.time_slot_end, i.name, sg.confirmed_count
       ORDER BY a.scheduled_date ASC, a.time_slot_start ASC, a.time_slot_end ASC, sg.id ASC
     `;
 
@@ -951,9 +955,79 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       timeSlotEnd: row.time_slot_end,
       suburb: row.suburb,
       inspectorName: row.inspector_name,
-      confirmedCount: Number(row.confirmed_count),
-      capacityMax: 10 as const,
+      isOwnAgency: row.is_own_agency,
     }));
+  }
+
+  async reservePortalWindow(params: {
+    groupId: string;
+    appointmentId: string;
+    tenantId: string;
+    scheduledDate: string;
+    timeSlotStart: string;
+    timeSlotEnd: string;
+    inspectorId: string;
+    rentalTenantNote?: string;
+  }): Promise<PortalWindowReservation> {
+    return this.prisma.$transaction(async (tx) => {
+      // Serializes every concurrent join targeting this group: the next
+      // transaction only gets the lock once this one has committed, so it
+      // recomputes against an appointment list that already includes this join.
+      await tx.$queryRaw`SELECT id FROM service_groups WHERE id = ${params.groupId} FOR UPDATE`;
+
+      type MemberRow = { time_slot_start: string; time_slot_end: string };
+      const members = await tx.$queryRaw<MemberRow[]>`
+        SELECT a.time_slot_start, a.time_slot_end
+        FROM appointments a
+        WHERE a.service_group_id = ${params.groupId}
+          AND a.deleted_at IS NULL
+          AND a.id <> ${params.appointmentId}
+          AND a.scheduled_date::date = ${params.scheduledDate}::date
+          AND a.status NOT IN ('CANCELLED', 'REJECTED')
+          AND a.time_slot_start IS NOT NULL
+          AND a.time_slot_end IS NOT NULL
+      `;
+
+      const availability = computeWindowAvailability(
+        members.map((row) => ({
+          timeSlotStart: row.time_slot_start,
+          timeSlotEnd: row.time_slot_end,
+        })),
+        { timeSlotStart: params.timeSlotStart, timeSlotEnd: params.timeSlotEnd },
+      );
+      if (availability.remaining <= 0) return { ok: false, reason: 'WINDOW_FULL' };
+
+      // Re-assert the target's state here rather than trusting the caller's
+      // earlier read: an operator can cancel or delete the appointment while the
+      // tenant is choosing. Without these predicates the move would land on a
+      // cancelled row and still report success.
+      const { count } = await tx.appointment.updateMany({
+        where: {
+          id: params.appointmentId,
+          tenant_id: params.tenantId,
+          deleted_at: null,
+          status: { notIn: ['CANCELLED', 'DONE', 'REJECTED'] },
+        },
+        data: {
+          scheduled_date: new Date(params.scheduledDate),
+          time_slot_start: params.timeSlotStart,
+          time_slot_end: params.timeSlotEnd,
+          inspector_id: params.inspectorId,
+          rental_tenant_confirmation_status: 'CONFIRMED',
+          service_group_id: params.groupId,
+          ...(params.rentalTenantNote !== undefined
+            ? { rental_tenant_note: params.rentalTenantNote }
+            : {}),
+        },
+      });
+
+      // `updateMany` reports zero rows rather than throwing, so without this
+      // the caller would go on to bump counters, write audit and notify for a
+      // move that never happened.
+      if (count !== 1) return { ok: false, reason: 'APPOINTMENT_INACTIVE' };
+
+      return { ok: true };
+    });
   }
 
   async hasPortalMemberSlot(params: {

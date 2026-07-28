@@ -7985,7 +7985,7 @@ export interface paths {
                                 timeSlotEnd: string;
                                 suburb: string;
                                 inspectorName: string;
-                                confirmedCount: number;
+                                bookedCount: number;
                                 capacityMax: number;
                             }[];
                         };
