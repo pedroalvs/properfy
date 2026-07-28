@@ -10,7 +10,7 @@ export interface AppFormData {
   name: string;
   username: string;
   password: string;
-  /** Display-only flag — the app prompts for a code; none is stored. */
+  /** Whether the app prompts for an out-of-band code; the code itself is not stored. */
   needsAuthCode: boolean;
   appUrl: string;
   instructionsUrl: string;
