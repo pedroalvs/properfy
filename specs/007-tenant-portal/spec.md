@@ -296,10 +296,10 @@ Full schema in [`data-model.md`](./data-model.md). HTTP contracts in [`contracts
 
 | ID | Title | Impact | Context |
 |---|---|---|---|
-| GAP-001 | Reschedule handoff with 006 | ~~Direct repo writes.~~ **IMPLEMENTED** (Wave 1). | Portal reschedule migrated to `ReopenForRescheduleUseCase` from 006#GAP-003. No more direct appointment repo writes. 2 tests. |
-| GAP-002 | Domain events for portal actions | ~~Inline notification handler.~~ **IMPLEMENTED** (Wave 2). | 4 typed events: confirmed, rescheduled, contact_updated, unavailable. Via DomainEventBus. 4 tests. |
+| GAP-001 | Reschedule handoff with 006 | **OBSOLETE** — removed with US4. | Portal reschedule no longer exists, so there is no handoff. `ReopenForRescheduleUseCase` survives for the operator-side reschedule only. |
+| GAP-002 | Domain events for portal actions | **IMPLEMENTED** (Wave 2), partially obsolete. | Now 3 typed events: confirmed, contact_updated, unavailable. Via DomainEventBus. The `rescheduled` event was deleted with US4 — it had no subscriber. |
 | GAP-003 | Token replay detection | ~~Unlimited reuse.~~ **IMPLEMENTED** (Wave 2). | Single-use tokens for mutations. `used_at` column + `markUsed()`. `PortalTokenAlreadyUsedError` (409). GET still works. Migration. 4 tests. |
-| GAP-004 | Auto-generate token on reschedule | ~~Manual token generation.~~ **IMPLEMENTED** (Wave 2). | Calls `GeneratePortalTokenUseCase` after reschedule. Sends new link via notification. Fire-and-forget. 3 tests. |
+| GAP-004 | Auto-generate token on reschedule | **OBSOLETE** — removed with US4. | There is no portal reschedule to re-issue a token after. `GeneratePortalTokenUseCase` is untouched and still used elsewhere. |
 | GAP-005 | Portal activity export | ~~No operator endpoint.~~ **IMPLEMENTED** (Wave 1). | `ListPortalActivitiesUseCase` + `GET /v1/appointments/:id/portal-activities`. AM/OP only. Paginated. 7 tests. |
 | GAP-006 | Expired token UX | ~~Confusing error pages.~~ **IMPLEMENTED** (Wave 4). | `isExpired` + `canRequestNewLink` flags in portal GET response. Frontend CTA deferred. 5 tests. |
 | GAP-007 | Configurable cutoff per tenant | ~~Hardcoded 7 PM.~~ **IMPLEMENTED** (Wave 3). | `portalCutoffHour` + `portalCutoffDaysBefore` in tenant settings. `computeExpiresAt` parameterized. 12 tests. |

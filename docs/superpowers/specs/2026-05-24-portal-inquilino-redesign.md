@@ -1,5 +1,15 @@
 # Design Spec: Portal Inquilino — Redesign Completo (v2)
 
+> **HISTORICAL DESIGN RECORD — partly superseded.** This documents the 2026-05-24
+> redesign as it was decided at the time. Its **B3 decision was reversed**: the
+> "Propose new date" free-reschedule flow (`POST /v1/tenant-portal/:token/reschedule`,
+> `RescheduleForm.tsx`) was **removed entirely**, because it sent a `SCHEDULED`
+> appointment back to `DRAFT` and dropped the assigned inspector with no operator
+> approval. **"Change time" (join-group) is now the only reschedule path in the portal.**
+> Every mention below of "Propose new date" as a live secondary CTA — §1, §2, §3.6,
+> §7 file table, §8 and the SC-01/05/06/07 scenarios — describes the superseded design,
+> not current behaviour. This file is not a contract; it is a record.
+
 **Date**: 2026-05-24
 **Branch**: `patch/portal-inquilino`
 **Status**: v2 — incorporates human decisions on 3 BLOCKERs + 7 MAJORs from `critica-spec-2` (Crítico round 1/2). Ready for round 2/2.

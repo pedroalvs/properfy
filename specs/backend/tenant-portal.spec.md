@@ -639,7 +639,7 @@ All events are emitted to the in-process event bus (and optionally to pg-boss fo
 ### `tenant_portal.reschedule_requested` — REMOVED
 
 > **REMOVED** — the tenant-facing "propose new date" flow no longer exists (see the notice on the reschedule endpoint section). Retained as a record of what was built; not a live requirement.
-
+>
 > The event constant (`TENANT_PORTAL_EVENTS.RESCHEDULED`) was deleted — it had no subscriber.
 
 ```typescript
