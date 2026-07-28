@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { FilterInput } from '@/components/filters/FilterInput';
+import { FormField } from '@/components/forms/FormField';
+import { Textarea } from '@/components/forms/Textarea';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
 import { api } from '@/services/api';
 
@@ -150,17 +152,15 @@ export function ManualAssignModal({
         </div>
 
         {isReplacement && (
-          <label className="block text-sm font-medium text-text-primary">
-            Reason
-            <textarea
+          <FormField label="Reason">
+            <Textarea
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              onChange={setReason}
               rows={2}
               placeholder="Why is this group changing hands?"
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none"
-              data-testid="manual-assign-reason"
+              aria-label="Reason"
             />
-          </label>
+          </FormField>
         )}
       </div>
     </Dialog>

@@ -130,11 +130,14 @@ describe('ServiceGroupDetailSections', () => {
 });
 
 describe('ServiceGroupDetailSections schedule', () => {
+  /** DetailRow renders label and value as siblings, so scope by the label's parent. */
+  const valueFor = (label: string) =>
+    screen.getByText(label).parentElement?.textContent?.replace(label, '').trim();
+
   it('shows the group scheduled date and time window', () => {
     renderWithRouter(<ServiceGroupDetailSections serviceGroup={makeServiceGroup()} />);
-    expect(screen.getByText('Scheduled Date')).toBeInTheDocument();
-    expect(screen.getByText('Time Window')).toBeInTheDocument();
-    expect(screen.getByText('09:00 – 17:00')).toBeInTheDocument();
+    expect(valueFor('Scheduled Date')).toBe('01/06/2026');
+    expect(valueFor('Time Window')).toBe('09:00 – 17:00');
   });
 
   it('shows each member time slot', () => {
@@ -148,6 +151,7 @@ describe('ServiceGroupDetailSections schedule', () => {
         serviceGroup={makeServiceGroup({ scheduledDate: null, timeWindow: null })}
       />,
     );
-    expect(screen.getByText('Time Window')).toBeInTheDocument();
+    expect(valueFor('Scheduled Date')).toBe('—');
+    expect(valueFor('Time Window')).toBe('—');
   });
 });

@@ -126,7 +126,7 @@ describe('ManualAssignModal replacement mode', () => {
 
   it('requires a reason before submitting', () => {
     renderReplacement();
-    expect(screen.getByTestId('manual-assign-reason')).toBeInTheDocument();
+    expect(screen.getByLabelText('Reason')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Replace inspector' })).toBeDisabled();
   });
 
@@ -135,6 +135,6 @@ describe('ManualAssignModal replacement mode', () => {
       <ManualAssignModal open={true} onClose={vi.fn()} onAssign={vi.fn()} serviceGroupId="sg-01" />,
       { wrapper: Wrapper },
     );
-    expect(screen.queryByTestId('manual-assign-reason')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Reason')).not.toBeInTheDocument();
   });
 });

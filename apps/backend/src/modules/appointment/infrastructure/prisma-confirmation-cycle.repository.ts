@@ -64,12 +64,21 @@ export class PrismaConfirmationCycleRepository implements IConfirmationCycleRepo
 
   async realignSchedule(
     cycleId: string,
+    tenantId: string,
     scheduledDate: Date,
     timeSlot: string | null,
     tx?: Prisma.TransactionClient,
   ): Promise<void> {
-    await this.db(tx).appointmentConfirmationCycle.update({
-      where: { id: cycleId },
+    // updateMany, not update: it takes a filter, so the write can be scoped by
+    // the owning appointment's tenant and skipped once the cycle has been
+    // superseded. A no-match is the correct outcome for both — a cycle from
+    // another agency, or one that stopped being active mid-flight.
+    await this.db(tx).appointmentConfirmationCycle.updateMany({
+      where: {
+        id: cycleId,
+        status: { not: 'SUPERSEDED' as never },
+        appointment: { tenant_id: tenantId },
+      },
       data: { scheduled_date: scheduledDate, time_slot: timeSlot },
     });
   }

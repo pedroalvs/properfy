@@ -4,6 +4,27 @@ import { paginationSchema } from './pagination';
 const timeWindowRegex = /^\d{2}:\d{2}-\d{2}:\d{2}$/;
 
 /**
+ * `HH:mm-HH:mm` is zero-padded, so a lexicographic compare is chronological —
+ * the same assumption the backend's window parser makes. A reversed or
+ * zero-length window would clamp every member of a group into a slot that
+ * cannot exist, so the ordering is checked, not just the shape.
+ */
+const isTimeWindowOrdered = (timeWindow: string | undefined): boolean => {
+  if (timeWindow === undefined) return true;
+  const [start, end] = timeWindow.split('-');
+  return start !== undefined && end !== undefined && start < end;
+};
+
+/** Rejects a well-formed but non-existent date such as `2026-02-31`, which `new Date()` would silently roll forward. */
+const isRealCalendarDate = (date: string | undefined): boolean => {
+  if (date === undefined) return true;
+  const [y, m, d] = date.split('-').map(Number);
+  if (y === undefined || m === undefined || d === undefined) return false;
+  const probe = new Date(Date.UTC(y, m - 1, d));
+  return probe.getUTCFullYear() === y && probe.getUTCMonth() === m - 1 && probe.getUTCDate() === d;
+};
+
+/**
  * Schema for creating a service group.
  *
  * A group must contain at least one appointment. There is no upper bound on the
@@ -249,6 +270,14 @@ export const changeGroupScheduleRequestSchema = z
   })
   .refine((v) => v.scheduledDate !== undefined || v.timeWindow !== undefined, {
     message: 'At least one of scheduledDate or timeWindow is required',
+  })
+  .refine((v) => isRealCalendarDate(v.scheduledDate), {
+    message: 'scheduledDate is not a real calendar date',
+    path: ['scheduledDate'],
+  })
+  .refine((v) => isTimeWindowOrdered(v.timeWindow), {
+    message: 'Time window end must be after its start',
+    path: ['timeWindow'],
   });
 export type ChangeGroupScheduleRequest = z.infer<typeof changeGroupScheduleRequestSchema>;
 

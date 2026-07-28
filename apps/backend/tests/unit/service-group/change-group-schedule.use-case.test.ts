@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ChangeGroupScheduleUseCase } from '../../../src/modules/service-group/application/use-cases/change-group-schedule.use-case';
 import type { IServiceGroupRepository, ServiceGroupWithAppointments } from '../../../src/modules/service-group/domain/service-group.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
-import type { AuthContext } from '@properfy/shared';
+import { PLATFORM_TIMEZONE, todayInTzDateString, type AuthContext } from '@properfy/shared';
 import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
 import { deriveTenantFixture } from '../../helpers/service-group-fixtures';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
@@ -12,6 +12,7 @@ import {
   ServiceGroupNotFoundError,
   ServiceGroupInvalidStatusError,
   ServiceGroupDateInPastError,
+  ServiceGroupTimeInPastError,
 } from '../../../src/modules/service-group/domain/service-group.errors';
 
 const FAR_FUTURE_DATE = '2030-06-15';
@@ -147,6 +148,23 @@ describe('ChangeGroupScheduleUseCase', () => {
       await expect(
         useCase.execute({ ...BASE, scheduledDate: '2020-01-01', actor: makeActor() }),
       ).rejects.toThrow(ServiceGroupDateInPastError);
+
+      expect(serviceGroupRepo.update).not.toHaveBeenCalled();
+      expect(appointmentRepo.update).not.toHaveBeenCalled();
+      expect(auditService.log).not.toHaveBeenCalled();
+    });
+
+    it('writes nothing when today\'s new window has already elapsed', async () => {
+      // A same-day group whose new start time is behind the clock: the time
+      // branch of validateEditedSchedule, which the past-date case never reaches.
+      const today = todayInTzDateString(PLATFORM_TIMEZONE);
+      const { useCase, serviceGroupRepo, appointmentRepo, auditService } = setup({
+        group: makeGroupWith({ scheduledDate: new Date(today) }),
+      });
+
+      await expect(
+        useCase.execute({ ...BASE, scheduledDate: today, timeWindow: '00:00-00:01', actor: makeActor() }),
+      ).rejects.toThrow(ServiceGroupTimeInPastError);
 
       expect(serviceGroupRepo.update).not.toHaveBeenCalled();
       expect(appointmentRepo.update).not.toHaveBeenCalled();
@@ -321,6 +339,26 @@ describe('ChangeGroupScheduleUseCase', () => {
       expect(confirmationCycleService.realignActiveCycleSchedule).not.toHaveBeenCalled();
       expect(onAdminRescheduleHandler.execute).not.toHaveBeenCalled();
       expect(result.applied.confirmationsHandled).toBe(0);
+    });
+
+    it('does not fail the request when the portal-link resend throws', async () => {
+      const { useCase, sendGroupPortalLinks, auditService } = setup({
+        group: makeGroupWith({}, [confirmedMember]),
+      });
+      sendGroupPortalLinks.execute.mockRejectedValueOnce(new Error('portal service down'));
+
+      await expect(
+        useCase.execute({
+          groupId: 'group-1',
+          scheduledDate: FAR_FUTURE_DATE,
+          confirmationStrategy: 'RESEND',
+          actor: makeActor(),
+        }),
+      ).resolves.toBeDefined();
+      // The schedule is already written, so the change must still be recorded.
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'service_group.schedule_changed' }),
+      );
     });
 
     it('does not fail the request when a notification throws', async () => {

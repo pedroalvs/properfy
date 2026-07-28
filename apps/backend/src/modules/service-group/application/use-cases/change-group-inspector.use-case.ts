@@ -64,6 +64,14 @@ export class ChangeGroupInspectorUseCase {
   async execute(input: ChangeGroupInspectorInput): Promise<ChangeGroupInspectorOutput> {
     const { actor, groupId, inspectorId, reason } = input;
 
+    // Authorization first: a replay must not become a way to read a result the
+    // caller was never allowed to produce. An idempotency key is not a
+    // capability, so an unauthorized actor holding one still gets a 403.
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
+      action: 'service_group.manage',
+      entityType: 'ServiceGroup',
+    });
+
     // Only an explicit caller-supplied key replays. Synthesizing one from
     // (groupId, inspectorId) — as manual assignment does — would make the
     // sequence A -> B -> A a silent no-op that leaves B assigned.
@@ -74,11 +82,6 @@ export class ChangeGroupInspectorUseCase {
       );
       if (cached) return cached;
     }
-
-    this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
-      action: 'service_group.manage',
-      entityType: 'ServiceGroup',
-    });
 
     const findResult = await this.serviceGroupRepo.findById(groupId, actor.tenantId);
     if (!findResult) {

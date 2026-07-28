@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  changeGroupScheduleRequestSchema,
   createServiceGroupSchema,
   publishServiceGroupSchema,
   assignInspectorSchema,
@@ -334,5 +335,37 @@ describe('group portal-link schemas', () => {
         results: [{ appointmentId: validUuid, status: 'WHATEVER' }],
       }).success,
     ).toBe(false);
+  });
+});
+
+describe('changeGroupScheduleRequestSchema', () => {
+  const base = { confirmationStrategy: 'NOTIFY_ONLY' as const };
+
+  it('accepts a date-only change', () => {
+    expect(changeGroupScheduleRequestSchema.safeParse({ ...base, scheduledDate: '2026-06-15' }).success).toBe(true);
+  });
+
+  it('accepts a window-only change', () => {
+    expect(changeGroupScheduleRequestSchema.safeParse({ ...base, timeWindow: '09:00-17:00' }).success).toBe(true);
+  });
+
+  it('rejects a body that changes neither', () => {
+    expect(changeGroupScheduleRequestSchema.safeParse(base).success).toBe(false);
+  });
+
+  it('requires a confirmation strategy — there is no safe default', () => {
+    expect(changeGroupScheduleRequestSchema.safeParse({ scheduledDate: '2026-06-15' }).success).toBe(false);
+  });
+
+  it.each(['2026-02-31', '2026-13-01', '2027-02-29'])('rejects the non-existent date %s', (scheduledDate) => {
+    expect(changeGroupScheduleRequestSchema.safeParse({ ...base, scheduledDate }).success).toBe(false);
+  });
+
+  it('accepts a real leap day', () => {
+    expect(changeGroupScheduleRequestSchema.safeParse({ ...base, scheduledDate: '2028-02-29' }).success).toBe(true);
+  });
+
+  it.each(['17:00-09:00', '12:00-12:00'])('rejects the unusable window %s', (timeWindow) => {
+    expect(changeGroupScheduleRequestSchema.safeParse({ ...base, timeWindow }).success).toBe(false);
   });
 });

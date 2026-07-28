@@ -14,7 +14,9 @@ function setup(activeCycle: unknown) {
     findMaxCycleNumber: vi.fn(),
   };
   const auditService = { log: vi.fn() } as unknown as AuditService;
-  const service = new ConfirmationCycleService(cycleRepo as never, auditService, {} as never);
+  // Mirrors the real client's $transaction(fn) contract so the atomic path runs.
+  const prisma = { $transaction: async (fn: (c: unknown) => Promise<void>) => fn(prisma) } as never;
+  const service = new ConfirmationCycleService(cycleRepo as never, auditService, prisma);
   return { service, cycleRepo, auditService };
 }
 
@@ -33,7 +35,10 @@ describe('ConfirmationCycleService.realignActiveCycleSchedule', () => {
 
     await service.realignActiveCycleSchedule('appt-1', 'tenant-1', NEW_DATE, '13:00-15:00');
 
-    expect(cycleRepo.realignSchedule).toHaveBeenCalledWith('cycle-1', NEW_DATE, '13:00-15:00', undefined);
+    // tenantId is passed through so the write is scoped to the owning agency.
+    expect(cycleRepo.realignSchedule).toHaveBeenCalledWith(
+      'cycle-1', 'tenant-1', NEW_DATE, '13:00-15:00', expect.anything(),
+    );
   });
 
   it('never touches the status — the operator chose to keep the confirmation', async () => {

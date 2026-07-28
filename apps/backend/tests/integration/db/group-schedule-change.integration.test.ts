@@ -10,10 +10,12 @@
  *   2. Changing the window clamps exactly the members that fall outside it and
  *      leaves the ones already inside untouched.
  *
- * It also proves the confirmation branch really moves rows: RESEND flips a
- * CONFIRMED member back to PENDING, NOTIFY_ONLY keeps the confirmation and
- * realigns its cycle onto the new schedule — the difference between the two
- * options the operator is asked to choose between.
+ * For the confirmation branch it proves what this file can: NOTIFY_ONLY keeps
+ * the confirmation and realigns its cycle onto the new schedule against real
+ * rows. The RESEND side stubs SendGroupPortalLinksUseCase — that use case owns
+ * the CONFIRMED -> PENDING rotation and has its own coverage — so the assertion
+ * here is the narrower one that matters at this seam: exactly the affected
+ * member ids are handed over, and untouched members are not.
  *
  * Both writes are scoped by the member's own tenant, so a cross-agency group is
  * used throughout: a tenant_id WHERE filter that silently matched nothing would
@@ -375,6 +377,33 @@ describe('service group schedule change (real DB)', () => {
     expect(doneRow.scheduled_date.toISOString().slice(0, 10)).toBe(GROUP_DATE);
     expect([doneRow.time_slot_start, doneRow.time_slot_end]).toEqual(['09:30', '10:30']);
     expect(result.applied).toMatchObject({ dateChanged: 1, slotClamped: 1 });
+  }, 60_000);
+
+  it('refuses to realign a confirmation cycle belonging to another agency', async () => {
+    // realignSchedule filters on the owning appointment's tenant_id. A mock
+    // would report success regardless of that WHERE clause, so this is the only
+    // place the scope is actually proved.
+    const groupId = await seedGroup('ACCEPTED');
+    const apptId = await seedMember(
+      prisma, tenantA, serviceTypeId, groupId, GROUP_DATE, { start: '10:00', end: '11:00' }, 'CONFIRMED',
+    );
+    const row = await prisma.appointment.findUniqueOrThrow({ where: { id: apptId } });
+    const cycleId = row.active_confirmation_cycle_id!;
+    const cycleBefore = await prisma.appointmentConfirmationCycle.findUniqueOrThrow({ where: { id: cycleId } });
+
+    const cycleService = new ConfirmationCycleService(
+      new PrismaConfirmationCycleRepository(prisma),
+      silentAuditService(),
+      prisma,
+    );
+    // Same cycle, wrong agency.
+    await cycleService.realignActiveCycleSchedule(
+      apptId, tenantB.tenantId, new Date(futureDateStr(100)), '13:00-14:00',
+    );
+
+    const cycleAfter = await prisma.appointmentConfirmationCycle.findUniqueOrThrow({ where: { id: cycleId } });
+    expect(cycleAfter.scheduled_date.toISOString()).toBe(cycleBefore.scheduled_date.toISOString());
+    expect(cycleAfter.time_slot).toBe(cycleBefore.time_slot);
   }, 60_000);
 
   it('ignores a soft-deleted member', async () => {

@@ -263,6 +263,21 @@ describe('ChangeGroupInspectorUseCase', () => {
       expect(serviceGroupRepo.update).not.toHaveBeenCalled();
     });
 
+    it('checks authorization before replaying — a key is not a capability', async () => {
+      const cached = { id: 'group-1', status: 'ACCEPTED', assignedInspectorId: 'insp-new', previousInspectorId: 'insp-old', appointmentsReassigned: 2, appointmentsScheduled: 0 };
+      const { useCase, idempotencyService } = setup({ cached });
+
+      await expect(
+        useCase.execute({
+          ...INPUT,
+          actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+          idempotencyKey: 'key-1',
+        }),
+      ).rejects.toThrow(ForbiddenError);
+
+      expect(idempotencyService.get).not.toHaveBeenCalled();
+    });
+
     it('never synthesizes a key, so swapping back to a previous inspector still runs', async () => {
       const { useCase, idempotencyService, serviceGroupRepo } = setup();
 

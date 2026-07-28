@@ -19,6 +19,7 @@ export interface IConfirmationCycleRepository {
    */
   realignSchedule(
     cycleId: string,
+    tenantId: string,
     scheduledDate: Date,
     timeSlot: string | null,
     tx?: Prisma.TransactionClient,

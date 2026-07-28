@@ -33,6 +33,13 @@ const CHANGEABLE_STATUSES = ['DRAFT', 'PUBLISHED', 'ACCEPTED'];
  */
 const TERMINAL_MEMBER_STATUSES = ['DONE', 'CANCELLED', 'REJECTED'];
 
+/**
+ * Long enough that a double-submit or a retried request replays instead of
+ * rotating confirmation cycles twice, short enough that a deliberate re-apply
+ * of the same schedule later in the shift still runs.
+ */
+const IDEMPOTENCY_TTL_HOURS = 2;
+
 const toDateString = (date: Date): string => date.toISOString().slice(0, 10);
 
 interface AdminRescheduleNotifier {
@@ -215,12 +222,21 @@ export class ChangeGroupScheduleUseCase {
     if (needsConfirmationHandling.length > 0) {
       if (confirmationStrategy === 'RESEND') {
         // Scoped to the affected members: the rest of the group kept its
-        // schedule and must not be mailed.
-        await this.sendGroupPortalLinks.execute({
-          groupId,
-          actor,
-          appointmentIds: needsConfirmationHandling.map((m) => m.id),
-        });
+        // schedule and must not be mailed. Best-effort for the same reason as
+        // NOTIFY_ONLY below — the schedule is already written, so a dispatch
+        // failure must not report the whole change as rejected.
+        try {
+          await this.sendGroupPortalLinks.execute({
+            groupId,
+            actor,
+            appointmentIds: needsConfirmationHandling.map((m) => m.id),
+          });
+        } catch (err) {
+          this.logger.error(
+            { err, groupId, appointmentIds: needsConfirmationHandling.map((m) => m.id) },
+            'group portal link resend after schedule change failed',
+          );
+        }
       } else {
         for (const moved of needsConfirmationHandling) {
           // Best-effort: a mail failure must not fail a change already written.
@@ -280,7 +296,7 @@ export class ChangeGroupScheduleUseCase {
       },
     };
 
-    await this.idempotencyService.set(idempotencyKey, 'group-schedule', result, 2);
+    await this.idempotencyService.set(idempotencyKey, 'group-schedule', result, IDEMPOTENCY_TTL_HOURS);
 
     this.eventBus?.emit({
       type: SERVICE_GROUP_EVENTS.SCHEDULE_CHANGED,

@@ -176,20 +176,27 @@ export class ConfirmationCycleService {
     newTimeSlot: string | null,
     tx?: Tx,
   ): Promise<void> {
-    const active = await this.cycleRepo.findActiveByAppointmentId(appointmentId, tx);
-    if (!active) return;
+    // Read-then-write, so the pair runs in one transaction like every sibling
+    // here — otherwise a concurrent rotation could supersede the cycle between
+    // the lookup and the update.
+    const run = async (client: Tx): Promise<void> => {
+      const active = await this.cycleRepo.findActiveByAppointmentId(appointmentId, client);
+      if (!active) return;
 
-    await this.cycleRepo.realignSchedule(active.id, newDate, newTimeSlot, tx);
+      await this.cycleRepo.realignSchedule(active.id, tenantId, newDate, newTimeSlot, client);
 
-    this.auditService.log({
-      action: 'appointment_confirmation_cycle.updated',
-      actorType: 'SYSTEM',
-      entityType: 'AppointmentConfirmationCycle',
-      entityId: active.id,
-      tenantId,
-      before: { scheduledDate: active.scheduledDate, timeSlot: active.timeSlot },
-      after: { scheduledDate: newDate, timeSlot: newTimeSlot, reason: 'SCHEDULE_REALIGNED' },
-    });
+      this.auditService.log({
+        action: 'appointment_confirmation_cycle.updated',
+        actorType: 'SYSTEM',
+        entityType: 'AppointmentConfirmationCycle',
+        entityId: active.id,
+        tenantId,
+        before: { scheduledDate: active.scheduledDate, timeSlot: active.timeSlot },
+        after: { scheduledDate: newDate, timeSlot: newTimeSlot, reason: 'SCHEDULE_REALIGNED' },
+      });
+    };
+    if (tx) return await run(tx);
+    return await this.prisma.$transaction(run);
   }
 
   /**

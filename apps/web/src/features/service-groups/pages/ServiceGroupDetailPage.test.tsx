@@ -8,9 +8,13 @@ vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
 }));
 
+const INSPECTOR = { id: 'insp-2', name: 'Ana Costa', email: 'ana@example.com' };
+
 vi.mock('@/services/api', () => ({
   api: {
-    GET: vi.fn(),
+    // ManualAssignModal loads its list through here; everything else in this
+    // page goes through mocked hooks.
+    GET: vi.fn(async () => ({ data: { data: [{ id: 'insp-2', name: 'Ana Costa', email: 'ana@example.com' }] } })),
     POST: vi.fn(),
     PATCH: vi.fn(),
     PUT: vi.fn(),
@@ -52,6 +56,7 @@ vi.mock('@/lib/status-colors', () => ({
 const mockRefetch = vi.fn();
 const mockPublish = vi.fn();
 const mockAssign = vi.fn();
+const mockReassign = vi.fn();
 const mockCancel = vi.fn();
 
 vi.mock('../hooks/useServiceGroupDetail', () => ({
@@ -227,6 +232,13 @@ vi.mock('../hooks/useAssignInspector', () => ({
   useAssignInspector: () => ({
     assign: mockAssign,
     isAssigning: false,
+  }),
+}));
+
+vi.mock('../hooks/useReassignInspector', () => ({
+  useReassignInspector: () => ({
+    reassign: mockReassign,
+    isReassigning: false,
   }),
 }));
 
@@ -452,6 +464,35 @@ describe('ServiceGroupDetailPage', () => {
     fireEvent.click(screen.getByTestId('service-group-change-trigger'));
     fireEvent.click(screen.getByTestId('group-action-change-inspector'));
     expect(screen.getByText('Change Inspector')).toBeInTheDocument();
+  });
+
+  // /assign answers an already-accepted group with a 409 by design, so the page
+  // has to pick the endpoint by status. That choice is the thing under test.
+  it('routes an ACCEPTED group to reassign, never to assign', async () => {
+    renderPage('/service-groups/accepted');
+    fireEvent.click(screen.getByTestId('service-group-change-trigger'));
+    fireEvent.click(screen.getByTestId('group-action-change-inspector'));
+
+    fireEvent.click(await screen.findByText(INSPECTOR.name));
+    fireEvent.change(screen.getByLabelText('Reason'), {
+      target: { value: 'Original inspector unavailable' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Replace inspector' }));
+
+    expect(mockReassign).toHaveBeenCalledWith('insp-2', 'Original inspector unavailable');
+    expect(mockAssign).not.toHaveBeenCalled();
+  });
+
+  it('routes a PUBLISHED group to assign, never to reassign', async () => {
+    renderPage('/service-groups/published');
+    fireEvent.click(screen.getByTestId('service-group-change-trigger'));
+    fireEvent.click(screen.getByTestId('group-action-change-inspector'));
+
+    fireEvent.click(await screen.findByText(INSPECTOR.name));
+    fireEvent.click(screen.getByRole('button', { name: 'Assign' }));
+
+    expect(mockAssign).toHaveBeenCalledWith('insp-2');
+    expect(mockReassign).not.toHaveBeenCalled();
   });
 
   it('opens the reschedule modal on Change date', () => {
