@@ -46,13 +46,19 @@ describe('useAppSave.validate', () => {
     expect(result.current.validate({ ...VALID, needsAuthCode: true }, 'edit')).toEqual({});
   });
 
-  it('sends needsAuthCode but never an auth code value', async () => {
+  // Create and edit build their payloads through separate functions
+  // (toCreatePayload / toUpdatePayload), so both branches are asserted.
+  it.each([
+    ['create', undefined, 'POST'],
+    ['edit', 'cred-1', 'PATCH'],
+  ] as const)('sends needsAuthCode but never an auth code value on %s', async (_mode, appId, method) => {
     const { api } = await import('@/services/api');
     vi.mocked(api.POST).mockResolvedValue({ data: { data: { id: 'new-id' } }, error: undefined } as never);
+    vi.mocked(api.PATCH).mockResolvedValue({ data: { data: { id: 'cred-1' } }, error: undefined } as never);
     const { result } = renderHook(() => useAppSave(), { wrapper: createQueryWrapper() });
 
-    await result.current.save({ ...VALID, needsAuthCode: true });
-    const { body } = vi.mocked(api.POST).mock.calls[0]![1] as unknown as { body: Record<string, unknown> };
+    await result.current.save({ ...VALID, needsAuthCode: true }, appId);
+    const { body } = vi.mocked(api[method]).mock.calls[0]![1] as unknown as { body: Record<string, unknown> };
     expect(body.needsAuthCode).toBe(true);
     expect(body).not.toHaveProperty('authCode');
   });
