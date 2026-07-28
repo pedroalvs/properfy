@@ -135,7 +135,6 @@ export class GetPortalDataUseCase {
         .map((c) => c.effectiveName),
       propertyManager:
         contacts.find((c) => c.role === 'PROPERTY_MANAGER')?.effectiveName ?? null,
-      rescheduleAllowed: serviceType?.flowType === 'ROUTINE',
       tenant: {
         name: tenant?.name ?? null,
         timezone: PLATFORM_TIMEZONE,

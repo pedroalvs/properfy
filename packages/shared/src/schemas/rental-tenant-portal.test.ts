@@ -3,8 +3,6 @@ import {
   portalTokenParam,
   confirmAppointmentPortalSchema,
   confirmAppointmentPortalResponseSchema,
-  rescheduleRequestPortalSchema,
-  rescheduleRequestPortalResponseSchema,
   updateContactPortalSchema,
   reportUnavailabilityPortalSchema,
   reportUnavailabilityPortalResponseSchema,
@@ -67,84 +65,6 @@ describe('confirmAppointmentPortalSchema', () => {
       },
     });
     expect(result.success).toBe(true);
-  });
-});
-
-describe('rescheduleRequestPortalSchema', () => {
-  // Use a dynamic future date so this fixture never turns into a ticking
-  // time bomb when downstream consumers add past-date refines. The shared
-  // schema currently only validates the YYYY-MM-DD shape, but keeping the
-  // convention consistent with the rest of the suite means the fixture
-  // remains safe even if the refine tightens later.
-  const futureDate = (() => {
-    const d = new Date();
-    d.setUTCDate(d.getUTCDate() + 30);
-    return d.toISOString().split('T')[0]!;
-  })();
-  const validInput = {
-    newDate: futureDate,
-    newTimeSlotStart: '08:00',
-    newTimeSlotEnd: '10:00',
-  };
-
-  it('should accept valid input', () => {
-    const result = rescheduleRequestPortalSchema.safeParse(validInput);
-    expect(result.success).toBe(true);
-  });
-
-  it('should accept valid input with restrictions', () => {
-    const result = rescheduleRequestPortalSchema.safeParse({
-      ...validInput,
-      restrictions: { isHome: false, notes: 'Prefer morning' },
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('should reject missing newDate', () => {
-    const { newDate: _newDate, ...rest } = validInput;
-    const result = rescheduleRequestPortalSchema.safeParse(rest);
-    expect(result.success).toBe(false);
-  });
-
-  it('should reject invalid date format', () => {
-    const result = rescheduleRequestPortalSchema.safeParse({
-      ...validInput,
-      newDate: '15/04/2026',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('should reject missing new time window', () => {
-    const { newTimeSlotStart: _s, newTimeSlotEnd: _e, ...rest } = validInput;
-    const result = rescheduleRequestPortalSchema.safeParse(rest);
-    expect(result.success).toBe(false);
-  });
-
-  it('should reject empty new time window', () => {
-    const result = rescheduleRequestPortalSchema.safeParse({
-      ...validInput,
-      newTimeSlotStart: '',
-      newTimeSlotEnd: '',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('should reject a malformed time', () => {
-    const result = rescheduleRequestPortalSchema.safeParse({
-      ...validInput,
-      newTimeSlotStart: '8am',
-      newTimeSlotEnd: '10am',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('should reject end time not after start time', () => {
-    const result = rescheduleRequestPortalSchema.safeParse({
-      ...validInput,
-      newTimeSlotStart: '10:00',
-      newTimeSlotEnd: '08:00',
-    });
-    expect(result.success).toBe(false);
   });
 });
 
@@ -224,18 +144,6 @@ describe('confirmAppointmentPortalResponseSchema', () => {
     const result = confirmAppointmentPortalResponseSchema.safeParse({
       rentalTenantConfirmationStatus: 'CONFIRMED',
       confirmedAt: '2026-03-01T00:00:00.000Z',
-    });
-    expect(result.success).toBe(true);
-  });
-});
-
-describe('rescheduleRequestPortalResponseSchema', () => {
-  it('should accept the real reschedule command response', () => {
-    const result = rescheduleRequestPortalResponseSchema.safeParse({
-      scheduledDate: '2026-05-01',
-      timeSlotStart: '09:00',
-      timeSlotEnd: '10:00',
-      rentalTenantConfirmationStatus: 'PENDING',
     });
     expect(result.success).toBe(true);
   });

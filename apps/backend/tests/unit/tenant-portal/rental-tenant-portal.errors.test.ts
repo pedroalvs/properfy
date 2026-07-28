@@ -4,9 +4,6 @@ import {
   PortalTokenRevokedError,
   PortalActionBlockedError,
   PortalAppointmentInactiveError,
-  PortalRescheduleNotAllowedError,
-  PortalRescheduleWindowExceededError,
-  PortalDateInPastError,
   PortalNoContactFieldsError,
 } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
 import { DomainError, NotFoundError, ForbiddenError, ConflictError } from '../../../src/shared/domain/errors';
@@ -47,30 +44,6 @@ describe('Tenant Portal Errors', () => {
     expect(error).toBeInstanceOf(DomainError);
     expect(error.code).toBe('PORTAL_APPOINTMENT_INACTIVE');
     expect(error.statusCode).toBe(409);
-  });
-
-  it('PortalRescheduleNotAllowedError should be a ForbiddenError with status 403', () => {
-    const error = new PortalRescheduleNotAllowedError();
-
-    expect(error).toBeInstanceOf(ForbiddenError);
-    expect(error.code).toBe('PORTAL_RESCHEDULE_NOT_ALLOWED');
-    expect(error.statusCode).toBe(403);
-  });
-
-  it('PortalRescheduleWindowExceededError should be a DomainError with status 422', () => {
-    const error = new PortalRescheduleWindowExceededError();
-
-    expect(error).toBeInstanceOf(DomainError);
-    expect(error.code).toBe('PORTAL_RESCHEDULE_WINDOW_EXCEEDED');
-    expect(error.statusCode).toBe(422);
-  });
-
-  it('PortalDateInPastError should be a DomainError with status 422', () => {
-    const error = new PortalDateInPastError();
-
-    expect(error).toBeInstanceOf(DomainError);
-    expect(error.code).toBe('PORTAL_DATE_IN_PAST');
-    expect(error.statusCode).toBe(422);
   });
 
   it('PortalNoContactFieldsError should be a DomainError with status 422', () => {

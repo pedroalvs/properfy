@@ -166,7 +166,6 @@ import { TokenService } from '../modules/rental-tenant-portal/domain/token.servi
 import { MintPortalTokenService } from '../modules/rental-tenant-portal/domain/mint-portal-token.service';
 import { GetPortalDataUseCase } from '../modules/rental-tenant-portal/application/use-cases/get-portal-data.use-case';
 import { ConfirmAppointmentUseCase } from '../modules/rental-tenant-portal/application/use-cases/confirm-appointment.use-case';
-import { RescheduleRequestUseCase } from '../modules/rental-tenant-portal/application/use-cases/reschedule-request.use-case';
 import { UpdateContactUseCase } from '../modules/rental-tenant-portal/application/use-cases/update-contact.use-case';
 import { ReportUnavailabilityUseCase } from '../modules/rental-tenant-portal/application/use-cases/report-unavailability.use-case';
 import { GeneratePortalTokenUseCase } from '../modules/rental-tenant-portal/application/use-cases/generate-portal-token.use-case';
@@ -828,8 +827,6 @@ export function createContainer(logger: Logger): AppContainer {
     confirmationCycleService,
   );
 
-  const rescheduleRequestUseCase = new RescheduleRequestUseCase(rentalTenantPortalActivityRepo, rentalTenantPortalTokenRepo, appointmentRepo, serviceTypeRepo, inspectionExecutionRepo, tenantRepo, auditService, reopenForRescheduleUseCase, notifyOnRentalTenantPortalActionHandler, domainEventBus, generatePortalTokenUseCase);
-
   // Inspector execution use cases
   const getInspectorScheduleUseCase = new GetInspectorScheduleUseCase(
     appointmentRepo, inspectionExecutionRepo, authorizationService,
@@ -1412,7 +1409,6 @@ export function createContainer(logger: Logger): AppContainer {
     rentalTenantPortal: {
       getPortalDataUseCase,
       confirmAppointmentUseCase,
-      rescheduleRequestUseCase,
       updateContactUseCase,
       reportUnavailabilityUseCase,
       generatePortalTokenUseCase,

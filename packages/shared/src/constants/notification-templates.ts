@@ -265,7 +265,7 @@ export const SAMPLE_DATA: Record<AllowedVariable, string> = {
   timeSlot: '09:00 - 12:00',
   inspectorName: 'Jane Doe',
   confirmationLink: 'https://app.properfy.com/portal/abc123',
-  rescheduleLink: 'https://app.properfy.com/portal/abc123/reschedule',
+  rescheduleLink: 'https://app.properfy.com/portal/abc123',
   agencyName: 'ABC Realty',
   agencyPhone: '+61 2 9876 5432',
   appointmentCode: 'INS-0042',

@@ -104,30 +104,6 @@ export const confirmAppointmentPortalResponseSchema = z.object({
 });
 export type ConfirmAppointmentPortalResponse = z.infer<typeof confirmAppointmentPortalResponseSchema>;
 
-// POST /reschedule body
-export const rescheduleRequestPortalSchema = z.object({
-  newDate: z.string().regex(DATE_REGEX, 'Must be YYYY-MM-DD'),
-  newTimeSlotStart: z.string().regex(HHMM_REGEX, 'Must be HH:mm'),
-  newTimeSlotEnd: z.string().regex(HHMM_REGEX, 'Must be HH:mm'),
-  restrictions: portalRestrictionsSchema,
-  rentalTenantNote: z.string().max(2000).optional(),
-}).refine(
-  (data) => data.newTimeSlotStart < data.newTimeSlotEnd,
-  { message: 'End time must be after start time', path: ['newTimeSlotEnd'] },
-);
-export type RescheduleRequestPortalInput = z.infer<typeof rescheduleRequestPortalSchema>;
-
-export const rescheduleRequestPortalResponseSchema = z.object({
-  scheduledDate: z.string().regex(DATE_REGEX),
-  timeSlotStart: z.string().regex(HHMM_REGEX),
-  timeSlotEnd: z.string().regex(HHMM_REGEX),
-  rentalTenantConfirmationStatus: z.literal('PENDING'),
-}).refine(
-  (data) => data.timeSlotStart < data.timeSlotEnd,
-  { message: 'End time must be after start time', path: ['timeSlotEnd'] },
-);
-export type RescheduleRequestPortalResponse = z.infer<typeof rescheduleRequestPortalResponseSchema>;
-
 // PATCH /contact body
 export const updateContactPortalSchema = z
   .object({

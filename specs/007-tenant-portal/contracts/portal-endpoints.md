@@ -131,6 +131,12 @@ Idempotent: calling confirm when already `CONFIRMED` returns the same shape with
 
 ## POST `/v1/tenant-portal/:token/reschedule`
 
+> **REMOVED.** The tenant-facing "propose new date" flow no longer exists. It sent a
+> `SCHEDULED` appointment back to `DRAFT` and dropped the assigned inspector with no
+> operator approval. "Change time" (join an existing group slot) is now the only
+> reschedule path in the portal. Kept here as a record of what was built.
+
+
 Renter requests a new date and time slot. Only allowed for `ROUTINE` service types.
 
 - **Auth**: portal token
