@@ -407,7 +407,7 @@ describe('NotifyOnStatusTransitionHandler', () => {
         appointmentId: 'appt-1',
         payloadJson: expect.objectContaining({
           rentalTenantName: 'John Smith',
-          scheduledDate: '2026-04-01',
+          scheduledDate: '01/04/2026',
         }),
       }),
     );
@@ -562,6 +562,88 @@ describe('NotifyOnStatusTransitionHandler occurrence dedupe', () => {
     });
 
     expect(createNotification.execute).toHaveBeenCalledOnce();
+  });
+
+  /**
+   * Payloads stored before the dd/mm/yyyy + 12h rollout hold ISO values
+   * ('2026-04-01', '09:00-12:00'). Without a compatibility arm every one of them
+   * compares unequal to the freshly-formatted value, the handler concludes the
+   * content changed, and every rental tenant with a pre-rollout appointment gets
+   * a duplicate email/SMS on its next status transition.
+   */
+  describe('legacy ISO payload compatibility', () => {
+    it('skips a repeat whose stored payload is in the pre-rollout ISO format', async () => {
+      notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(
+        makeSentNotification('INSPECTION_NOTICE', {
+          scheduledDate: '2026-04-01',
+          timeSlot: '09:00-12:00',
+        }),
+      );
+
+      const handler = makeHandler();
+      await handler.execute({
+        appointmentId: 'appt-1',
+        previousStatus: 'AWAITING_INSPECTOR',
+        targetStatus: 'SCHEDULED',
+      });
+
+      expect(createNotification.execute).not.toHaveBeenCalled();
+    });
+
+    it('skips a repeat whose stored payload is already in the new display format', async () => {
+      notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(
+        makeSentNotification('INSPECTION_NOTICE', {
+          scheduledDate: '01/04/2026',
+          timeSlot: '9:00 am – 12:00 pm',
+        }),
+      );
+
+      const handler = makeHandler();
+      await handler.execute({
+        appointmentId: 'appt-1',
+        previousStatus: 'AWAITING_INSPECTOR',
+        targetStatus: 'SCHEDULED',
+      });
+
+      expect(createNotification.execute).not.toHaveBeenCalled();
+    });
+
+    it('still re-sends when a legacy ISO payload carries a genuinely different date', async () => {
+      // The compatibility arm must not blanket-suppress: a real change still notifies.
+      notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(
+        makeSentNotification('INSPECTION_NOTICE', {
+          scheduledDate: '2026-03-15',
+          timeSlot: '09:00-12:00',
+        }),
+      );
+
+      const handler = makeHandler();
+      await handler.execute({
+        appointmentId: 'appt-1',
+        previousStatus: 'AWAITING_INSPECTOR',
+        targetStatus: 'SCHEDULED',
+      });
+
+      expect(createNotification.execute).toHaveBeenCalledOnce();
+    });
+
+    it('still re-sends when a legacy ISO payload carries a genuinely different slot', async () => {
+      notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(
+        makeSentNotification('INSPECTION_NOTICE', {
+          scheduledDate: '2026-04-01',
+          timeSlot: '13:00-16:00',
+        }),
+      );
+
+      const handler = makeHandler();
+      await handler.execute({
+        appointmentId: 'appt-1',
+        previousStatus: 'AWAITING_INSPECTOR',
+        targetStatus: 'SCHEDULED',
+      });
+
+      expect(createNotification.execute).toHaveBeenCalledOnce();
+    });
   });
 
   it('treats the SMS variant as the same announcement family', async () => {

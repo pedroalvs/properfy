@@ -1,4 +1,4 @@
-import { formatInvoiceNumber } from '@properfy/shared';
+import { formatInvoiceNumber, formatDisplayDate } from '@properfy/shared';
 import type { IInspectorInvoiceRepository } from '../../domain/inspector-invoice.repository';
 import type { IInvoicePdfGenerator } from '../../domain/invoice-pdf-generator';
 import type { IReportStorageService } from '../../../report/domain/report-storage.service';
@@ -40,9 +40,12 @@ export class GenerateInvoiceFileWorker {
       invoiceNumberDisplay: formatInvoiceNumber(invoice.invoiceNumber)!,
       inspectorName: invoice.inspectorName,
       inspectorAbn: invoice.inspectorAbn,
-      periodStart: invoice.periodStart.toISOString().slice(0, 10),
-      periodEnd: invoice.periodEnd.toISOString().slice(0, 10),
-      issuedAt: invoice.issuedAt ? invoice.issuedAt.toISOString().slice(0, 10) : null,
+      // formatDisplayDate resolves the civil day in the platform timezone. The
+      // previous `toISOString().slice(0, 10)` sliced in UTC, so an invoice issued
+      // on a Sydney evening was stamped with the previous day.
+      periodStart: formatDisplayDate(invoice.periodStart),
+      periodEnd: formatDisplayDate(invoice.periodEnd),
+      issuedAt: invoice.issuedAt ? formatDisplayDate(invoice.issuedAt) : null,
       currency: invoice.currency,
       totalAmount: invoice.totalAmount,
       lines: invoice.lineItemsSnapshot,

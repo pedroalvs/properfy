@@ -108,7 +108,7 @@ describe('BuildNotificationPayloadService', () => {
   it('H1: formats scheduledDate in the platform timezone (Sydney), not UTC', () => {
     // scheduledDate = 2026-04-30T23:00:00Z = 2026-05-01 09:00 Australia/Sydney (UTC+10)
     const result = svc.build(baseCtx());
-    expect(result.scheduledDate).toBe('2026-05-01');
+    expect(result.scheduledDate).toBe('01/05/2026');
   });
 
   it('H1: formats in Sydney even when the tenant record carries another timezone', () => {
@@ -118,7 +118,28 @@ describe('BuildNotificationPayloadService', () => {
       scheduledDate: new Date('2026-04-30T23:00:00.000Z'), // 2026-05-01 09:00 Sydney
     });
     const result = svc.build(baseCtx({ tenant, appointment }));
-    expect(result.scheduledDate).toBe('2026-05-01');
+    expect(result.scheduledDate).toBe('01/05/2026');
+  });
+
+  // ── Display format: what the rental tenant actually reads ─────────────────
+
+  it('renders scheduledDate as dd/mm/yyyy, not ISO', () => {
+    // Tenants previously received "Your inspection is on 2026-05-01".
+    const result = svc.build(baseCtx());
+    expect(result.scheduledDate).toBe('01/05/2026');
+    expect(result.scheduledDate).not.toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('renders timeSlot as a 12-hour range, not a 24-hour hyphenated pair', () => {
+    const result = svc.build(baseCtx());
+    expect(result.timeSlot).toBe('9:00 am – 12:00 pm');
+    expect(result.timeSlot).not.toBe('09:00-12:00');
+  });
+
+  it('renders the time slot in lowercase am/pm without seconds', () => {
+    const result = svc.build(baseCtx());
+    expect(result.timeSlot).not.toMatch(/AM|PM/);
+    expect(result.timeSlot).not.toMatch(/\d:\d{2}:\d{2}/);
   });
 
   // ── H2: Required variable enforcement ─────────────────────────────────────

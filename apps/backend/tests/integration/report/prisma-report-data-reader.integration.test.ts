@@ -143,6 +143,16 @@ describe('getAppointmentRows', () => {
     expect(rows).toHaveLength(3);
   });
 
+  it('renders dates and time slots in the display format the operator reads', async () => {
+    // The XLSX is read by humans, so these columns carry dd/mm/yyyy and 12-hour
+    // times rather than the ISO values the database stores.
+    const rows = await reader.getAppointmentRows(baseFilters({ status: 'DONE' }));
+    expect(rows[0].scheduledDate).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+    expect(rows[0].timeSlot).toBe('9:00 am – 10:00 am');
+    // createdAt used to dump a raw ISO timestamp ('2026-02-01T04:12:33.123Z').
+    expect(rows[0].createdAt).toMatch(/^\d{2}\/\d{2}\/\d{4}, \d{1,2}:\d{2} (am|pm)$/);
+  });
+
   it('applies the status filter', async () => {
     const rows = await reader.getAppointmentRows(baseFilters({ status: 'DONE' }));
     expect(rows).toHaveLength(1);

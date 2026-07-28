@@ -268,7 +268,7 @@ describe('DispatchRemindersUseCase', () => {
         templateCode: 'REMINDER_7_DAYS',
         payloadJson: expect.objectContaining({
           rentalTenantName: 'Jane Smith',
-          scheduledDate: '2026-03-24',
+          scheduledDate: '24/03/2026',
         }),
       }),
     );

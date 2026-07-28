@@ -5,9 +5,11 @@ export interface InvoicePdfData {
   invoiceNumberDisplay: string; // e.g. PINV-000123
   inspectorName: string | null;
   inspectorAbn: string | null;
-  periodStart: string; // YYYY-MM-DD
-  periodEnd: string; // YYYY-MM-DD
-  issuedAt: string | null; // YYYY-MM-DD
+  // Pre-formatted for display (dd/mm/yyyy) by the caller, which holds the Date
+  // and can resolve the civil day in the platform timezone.
+  periodStart: string; // dd/mm/yyyy
+  periodEnd: string; // dd/mm/yyyy
+  issuedAt: string | null; // dd/mm/yyyy
   currency: string;
   totalAmount: number;
   lines: InvoiceSnapshotLine[];

@@ -1,4 +1,5 @@
 import PDFDocument from 'pdfkit';
+import { formatDisplayDate } from '@properfy/shared';
 import type { IInvoicePdfGenerator, InvoicePdfData } from '../domain/invoice-pdf-generator';
 
 /**
@@ -79,7 +80,8 @@ export class PdfKitInvoicePdfGenerator implements IInvoicePdfGenerator {
     doc.font('Helvetica').fontSize(9);
     for (const line of data.lines) {
       const cells: Record<string, string> = {
-        serviceDate: line.serviceDate,
+        // Snapshot lines are frozen as YYYY-MM-DD; render them in the display shape.
+        serviceDate: formatDisplayDate(line.serviceDate),
         appointmentCode: line.appointmentCode,
         propertyAddress: line.propertyAddress ?? '-',
         serviceType: line.serviceType ?? '-',

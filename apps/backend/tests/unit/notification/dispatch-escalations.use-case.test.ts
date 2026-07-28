@@ -338,7 +338,7 @@ describe('DispatchEscalationsUseCase', () => {
         templateCode: 'PROPERTY_MANAGER_ESCALATION',
         payloadJson: expect.objectContaining({
           rentalTenantName: 'Jane Smith',
-          scheduledDate: '2026-03-19',
+          scheduledDate: '19/03/2026',
           branchName: 'Main Branch',
         }),
       }),
@@ -366,7 +366,7 @@ describe('DispatchEscalationsUseCase', () => {
         templateCode: 'TENANT_SMS_ALERT',
         payloadJson: expect.objectContaining({
           rentalTenantName: 'Jane Smith',
-          scheduledDate: '2026-03-19',
+          scheduledDate: '19/03/2026',
         }),
       }),
     );
