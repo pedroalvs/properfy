@@ -309,7 +309,9 @@ interface UnavailableModalProps {
 
 ---
 
-### Reschedule Flow — `RescheduleModal`
+### Reschedule Flow — `RescheduleModal` — REMOVED
+
+> **REMOVED** — the tenant-facing "propose new date" flow no longer exists (see the notice on the reschedule endpoint section). Retained as a record of what was built; not a live requirement.
 
 Triggered by "Request a Reschedule" button.
 
@@ -608,7 +610,9 @@ function useTenantContactUpdate(token: string) {
 - Contact update is allowed even after the deadline (for read-only expired mode)
 - Contact update is always available regardless of response status
 
-### Reschedule Date Constraints
+### Reschedule Date Constraints — REMOVED
+
+> **REMOVED** — the tenant-facing "propose new date" flow no longer exists (see the notice on the reschedule endpoint section). Retained as a record of what was built; not a live requirement.
 
 ```typescript
 // Minimum and maximum allowed reschedule dates

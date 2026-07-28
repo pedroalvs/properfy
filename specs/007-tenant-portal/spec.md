@@ -90,7 +90,7 @@ The renter taps "Confirm" on the portal. Optionally they can include restriction
 
 ---
 
-### User Story 4 — Renter requests a reschedule
+### User Story 4 — Renter requests a reschedule — REMOVED
 
 - **Priority**: P1
 - **Status**: **REMOVED** (was IMPLEMENTED)
@@ -222,7 +222,9 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 - **FR-035**: System MUST persist new restrictions with `source = TENANT_PORTAL`.
 - **FR-036**: System MUST audit `tenant_portal.appointment_confirmed` with `actorType = ANONYMOUS`.
 
-#### Reschedule
+#### Reschedule — REMOVED
+
+> **REMOVED** — the tenant-facing "propose new date" flow no longer exists (see the notice on the reschedule endpoint section). Retained as a record of what was built; not a live requirement.
 
 - **FR-040**: System MUST block reschedule when `isReadOnly = true`.
 - **FR-041**: System MUST allow reschedule only for `ROUTINE` service types. `INGOING` and `OUTGOING` fail with `PORTAL_RESCHEDULE_NOT_ALLOWED`.

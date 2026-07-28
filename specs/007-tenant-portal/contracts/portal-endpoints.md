@@ -129,7 +129,7 @@ Idempotent: calling confirm when already `CONFIRMED` returns the same shape with
 
 ---
 
-## POST `/v1/tenant-portal/:token/reschedule`
+## POST `/v1/tenant-portal/:token/reschedule` — REMOVED
 
 > **REMOVED.** The tenant-facing "propose new date" flow no longer exists. It sent a
 > `SCHEDULED` appointment back to `DRAFT` and dropped the assigned inspector with no

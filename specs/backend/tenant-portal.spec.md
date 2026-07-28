@@ -249,7 +249,7 @@ The following fields on `appointments` and related tables are read or written by
 7. Emit domain event `tenant_portal.appointment_confirmed` (picked up by Notifications module).
 8. Return updated confirmation status.
 
-### 3.3 `rescheduleRequest`
+### 3.3 `rescheduleRequest` — REMOVED
 
 > **REMOVED.** The tenant-facing "propose new date" flow no longer exists. It sent a
 > `SCHEDULED` appointment back to `DRAFT` and dropped the assigned inspector with no
@@ -426,7 +426,7 @@ const ConfirmAppointmentSchema = z.object({
 | 403 | `PORTAL_ACTION_BLOCKED` | Past 7:00 PM cutoff (isReadOnly) |
 | 409 | `PORTAL_APPOINTMENT_INACTIVE` | Appointment in CANCELLED/DONE/REJECTED status |
 
-### 4.3 `POST /v1/tenant-portal/:token/reschedule`
+### 4.3 `POST /v1/tenant-portal/:token/reschedule` — REMOVED
 
 > **REMOVED.** The tenant-facing "propose new date" flow no longer exists. It sent a
 > `SCHEDULED` appointment back to `DRAFT` and dropped the assigned inspector with no
@@ -636,7 +636,11 @@ All events are emitted to the in-process event bus (and optionally to pg-boss fo
 
 **Consumers:** Notifications module (send confirmation email to tenant and agency contact).
 
-### `tenant_portal.reschedule_requested`
+### `tenant_portal.reschedule_requested` — REMOVED
+
+> **REMOVED** — the tenant-facing "propose new date" flow no longer exists (see the notice on the reschedule endpoint section). Retained as a record of what was built; not a live requirement.
+
+> The event constant (`TENANT_PORTAL_EVENTS.RESCHEDULED`) was deleted — it had no subscriber.
 
 ```typescript
 {
@@ -775,7 +779,9 @@ This is a safety net. Lazy expiry (at request time) handles most cases.
 - Blocked when `isReadOnly: true`.
 - Blocked when appointment is `CANCELLED`.
 
-#### `rescheduleRequest` use case
+#### `rescheduleRequest` use case — REMOVED
+
+> **REMOVED** — the tenant-facing "propose new date" flow no longer exists (see the notice on the reschedule endpoint section). Retained as a record of what was built; not a live requirement.
 
 - Valid reschedule updates `scheduledDate` and `timeSlot`, resets `tenantConfirmationStatus = PENDING`.
 - Emits `tenant_portal.reschedule_requested`.
@@ -815,7 +821,9 @@ This is a safety net. Lazy expiry (at request time) handles most cases.
 - 409 for cancelled appointment.
 - 200 (idempotent) on second confirm.
 
-#### `POST /v1/tenant-portal/:token/reschedule`
+#### `POST /v1/tenant-portal/:token/reschedule` — REMOVED
+
+> **REMOVED** — the tenant-facing "propose new date" flow no longer exists (see the notice on the reschedule endpoint section). Retained as a record of what was built; not a live requirement.
 
 - 200 with updated dates.
 - 403 for non-ROUTINE service type.
