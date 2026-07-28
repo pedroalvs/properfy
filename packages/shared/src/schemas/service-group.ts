@@ -4,6 +4,27 @@ import { paginationSchema } from './pagination';
 const timeWindowRegex = /^\d{2}:\d{2}-\d{2}:\d{2}$/;
 
 /**
+ * `HH:mm-HH:mm` is zero-padded, so a lexicographic compare is chronological —
+ * the same assumption the backend's window parser makes. A reversed or
+ * zero-length window would clamp every member of a group into a slot that
+ * cannot exist, so the ordering is checked, not just the shape.
+ */
+const isTimeWindowOrdered = (timeWindow: string | undefined): boolean => {
+  if (timeWindow === undefined) return true;
+  const [start, end] = timeWindow.split('-');
+  return start !== undefined && end !== undefined && start < end;
+};
+
+/** Rejects a well-formed but non-existent date such as `2026-02-31`, which `new Date()` would silently roll forward. */
+const isRealCalendarDate = (date: string | undefined): boolean => {
+  if (date === undefined) return true;
+  const [y, m, d] = date.split('-').map(Number);
+  if (y === undefined || m === undefined || d === undefined) return false;
+  const probe = new Date(Date.UTC(y, m - 1, d));
+  return probe.getUTCFullYear() === y && probe.getUTCMonth() === m - 1 && probe.getUTCDate() === d;
+};
+
+/**
  * Schema for creating a service group.
  *
  * A group must contain at least one appointment. There is no upper bound on the
@@ -228,3 +249,78 @@ export const sendGroupPortalLinksResponseSchema = z.object({
   results: z.array(sendGroupPortalLinksResultItemSchema),
 });
 export type SendGroupPortalLinksResponse = z.infer<typeof sendGroupPortalLinksResponseSchema>;
+
+// ─── Group schedule change (date and/or time window) ───────────────────────
+
+/**
+ * What to do with rental tenants who were already told about the OLD schedule.
+ * The operator picks explicitly in the confirm modal — there is no safe default,
+ * so the choice is required and recorded in the audit log.
+ * - RESEND: reset the confirmation to PENDING and send a fresh portal link.
+ * - NOTIFY_ONLY: keep the confirmation, realign its cycle, just inform the tenant.
+ */
+export const groupConfirmationStrategySchema = z.enum(['RESEND', 'NOTIFY_ONLY']);
+export type GroupConfirmationStrategy = z.infer<typeof groupConfirmationStrategySchema>;
+
+export const changeGroupScheduleRequestSchema = z
+  .object({
+    scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    timeWindow: z.string().regex(timeWindowRegex).optional(),
+    confirmationStrategy: groupConfirmationStrategySchema,
+  })
+  .refine((v) => v.scheduledDate !== undefined || v.timeWindow !== undefined, {
+    message: 'At least one of scheduledDate or timeWindow is required',
+  })
+  .refine((v) => isRealCalendarDate(v.scheduledDate), {
+    message: 'scheduledDate is not a real calendar date',
+    path: ['scheduledDate'],
+  })
+  .refine((v) => isTimeWindowOrdered(v.timeWindow), {
+    message: 'Time window end must be after its start',
+    path: ['timeWindow'],
+  });
+export type ChangeGroupScheduleRequest = z.infer<typeof changeGroupScheduleRequestSchema>;
+
+export const changeGroupScheduleResponseSchema = z.object({
+  id: z.string().uuid(),
+  status: z.string(),
+  scheduledDate: z.string(),
+  timeWindow: z.string(),
+  /**
+   * What actually happened, recomputed server-side. The UI previews the change
+   * client-side for speed, so these counts are what corrects a stale preview.
+   */
+  applied: z.object({
+    total: z.number().int(),
+    dateChanged: z.number().int(),
+    slotClamped: z.number().int(),
+    failed: z.number().int(),
+    confirmationsHandled: z.number().int(),
+    confirmationStrategy: groupConfirmationStrategySchema,
+  }),
+});
+export type ChangeGroupScheduleResponse = z.infer<typeof changeGroupScheduleResponseSchema>;
+
+// ─── Group inspector change ────────────────────────────────────────────────
+
+export const changeGroupInspectorRequestSchema = z.object({
+  inspectorId: z.string().uuid(),
+  /**
+   * Root CLAUDE.md §5: sensitive actions require a rationale. Replacing the
+   * inspector on an accepted group revokes a commitment someone already made.
+   */
+  reason: z.string().trim().min(3).max(500),
+});
+export type ChangeGroupInspectorRequest = z.infer<typeof changeGroupInspectorRequestSchema>;
+
+export const changeGroupInspectorResponseSchema = z.object({
+  id: z.string().uuid(),
+  status: z.string(),
+  assignedInspectorId: z.string().uuid(),
+  previousInspectorId: z.string().uuid().nullable(),
+  /** Members that were already SCHEDULED and only changed hands. */
+  appointmentsReassigned: z.number().int(),
+  /** Members that were still awaiting an inspector and are now SCHEDULED. */
+  appointmentsScheduled: z.number().int(),
+});
+export type ChangeGroupInspectorResponse = z.infer<typeof changeGroupInspectorResponseSchema>;

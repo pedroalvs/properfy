@@ -59,7 +59,10 @@ describe('ManualAssignModal', () => {
       />,
       { wrapper: Wrapper },
     );
-    expect(screen.getByPlaceholderText('Search by name or email')).toBeInTheDocument();
+    // FilterInput is the app's only debounced search primitive (apps/web/CLAUDE.md).
+    // At rest it shows the label as placeholder; the hint text takes over once
+    // the floating label lifts.
+    expect(screen.getByPlaceholderText('Search inspectors')).toBeInTheDocument();
   });
 
   it('calls onClose when Cancel is clicked', () => {
@@ -88,5 +91,50 @@ describe('ManualAssignModal', () => {
       { wrapper: Wrapper },
     );
     expect(screen.getByText('Loading inspectors...')).toBeInTheDocument();
+  });
+});
+
+describe('ManualAssignModal replacement mode', () => {
+  const currentInspector = { id: 'insp-old', name: 'Carlos Silva' };
+
+  function renderReplacement(onAssign = vi.fn()) {
+    render(
+      <ManualAssignModal
+        open={true}
+        onClose={vi.fn()}
+        onAssign={onAssign}
+        serviceGroupId="sg-01"
+        currentInspector={currentInspector}
+        isReplacement
+      />,
+      { wrapper: Wrapper },
+    );
+    return onAssign;
+  }
+
+  it('names the action as a replacement', () => {
+    renderReplacement();
+    expect(screen.getByText('Change Inspector')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Replace inspector' })).toBeInTheDocument();
+  });
+
+  it('warns that both inspectors will be notified', () => {
+    renderReplacement();
+    expect(screen.getByText(/will notify/i)).toBeInTheDocument();
+    expect(screen.getByText('Carlos Silva')).toBeInTheDocument();
+  });
+
+  it('requires a reason before submitting', () => {
+    renderReplacement();
+    expect(screen.getByLabelText('Reason')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Replace inspector' })).toBeDisabled();
+  });
+
+  it('does not render the reason field in plain assignment mode', () => {
+    render(
+      <ManualAssignModal open={true} onClose={vi.fn()} onAssign={vi.fn()} serviceGroupId="sg-01" />,
+      { wrapper: Wrapper },
+    );
+    expect(screen.queryByLabelText('Reason')).not.toBeInTheDocument();
   });
 });

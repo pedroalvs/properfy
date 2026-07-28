@@ -31,6 +31,14 @@ export function ServiceGroupDetailSections({ serviceGroup }: ServiceGroupDetailS
           }
         />
         <DetailRow label="Region" value={serviceGroup.regionName} />
+        <DetailRow
+          label="Scheduled Date"
+          value={serviceGroup.scheduledDate ? formatDate(serviceGroup.scheduledDate.slice(0, 10)) : null}
+        />
+        <DetailRow
+          label="Time Window"
+          value={serviceGroup.timeWindow ? serviceGroup.timeWindow.replace('-', ' – ') : null}
+        />
         <DetailRow label="Status" value={<ServiceGroupStatusChip status={serviceGroup.status} />} />
       </FormSection>
 
@@ -62,6 +70,11 @@ export function ServiceGroupDetailSections({ serviceGroup }: ServiceGroupDetailS
                   {apt.scheduledDate && (
                     <span className="text-xs text-text-muted hidden sm:inline">
                       {formatDate(apt.scheduledDate)}
+                    </span>
+                  )}
+                  {apt.timeSlotStart && apt.timeSlotEnd && (
+                    <span className="text-xs text-text-muted hidden sm:inline">
+                      {apt.timeSlotStart}–{apt.timeSlotEnd}
                     </span>
                   )}
                   <AppointmentStatusChip status={apt.status as AppointmentStatus} />

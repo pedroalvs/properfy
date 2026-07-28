@@ -333,6 +333,9 @@ import { ResendFyNoticeUseCase } from '../modules/fy/application/use-cases/resen
 import { FyWebhookDispatcher } from '../modules/fy/infrastructure/fy-webhook-dispatcher';
 import { FyWebhookSubscriber } from '../modules/fy/application/webhooks/fy-webhook-subscriber';
 import { NotifyOnGroupAcceptedSubscriber } from '../modules/notification/application/subscribers/notify-on-group-accepted.subscriber';
+import { NotifyOnGroupInspectorChangeSubscriber } from '../modules/notification/application/subscribers/notify-on-group-inspector-change.subscriber';
+import { ChangeGroupInspectorUseCase } from '../modules/service-group/application/use-cases/change-group-inspector.use-case';
+import { ChangeGroupScheduleUseCase } from '../modules/service-group/application/use-cases/change-group-schedule.use-case';
 import { createApiKeyAuthMiddleware } from '../shared/interfaces/api-key-auth-middleware';
 import { createAuthMiddleware } from '../shared/interfaces/auth-middleware';
 
@@ -946,6 +949,29 @@ export function createContainer(logger: Logger): AppContainer {
     authorizationService,
   );
 
+  const changeGroupInspectorUseCase = new ChangeGroupInspectorUseCase(
+    serviceGroupRepo,
+    inspectorRepo,
+    serviceRegionRepo,
+    auditService,
+    authorizationService,
+    idempotencyService,
+    domainEventBus,
+  );
+
+  const changeGroupScheduleUseCase = new ChangeGroupScheduleUseCase(
+    serviceGroupRepo,
+    appointmentRepo,
+    auditService,
+    authorizationService,
+    idempotencyService,
+    sendGroupPortalLinksUseCase,
+    confirmationCycleService,
+    notifyOnAdminRescheduleHandler,
+    domainEventBus,
+    logger,
+  );
+
   // Billing use cases (repos + createFinancialEntriesOnDoneUseCase created above)
   const listFinancialEntriesUseCase = new ListFinancialEntriesUseCase(financialEntryRepo, auditService);
   const getFinancialSummaryUseCase = new GetFinancialSummaryUseCase(financialEntryRepo, tenantRepo);
@@ -1126,6 +1152,10 @@ export function createContainer(logger: Logger): AppContainer {
   // Rental-tenant notifications for group acceptance paths (marketplace accept
   // + manual assign), which schedule appointments outside the transition use case.
   new NotifyOnGroupAcceptedSubscriber(serviceGroupRepo, notifyOnStatusTransitionHandler, logger).register(domainEventBus);
+
+  // Inspector-directed mail for operator-driven group changes; the bulk member
+  // writes emit no status transition, so nothing else would tell either inspector.
+  new NotifyOnGroupInspectorChangeSubscriber(serviceGroupRepo, inspectorRepo, createNotificationUseCase, logger).register(domainEventBus);
 
   const appointmentImportRowResolver = new AppointmentImportRowResolver(
     propertyRepo, serviceTypeRepo, pricingRuleRepo, contactRepo,
@@ -1367,6 +1397,8 @@ export function createContainer(logger: Logger): AppContainer {
       findAddableGroupsForAppointmentsUseCase,
       getGroupPortalLinkPlanUseCase,
       sendGroupPortalLinksUseCase,
+      changeGroupInspectorUseCase,
+      changeGroupScheduleUseCase,
       jwtService,
       tenantRepo,
     },

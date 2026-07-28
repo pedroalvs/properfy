@@ -8,9 +8,13 @@ vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
 }));
 
+const INSPECTOR = { id: 'insp-2', name: 'Ana Costa', email: 'ana@example.com' };
+
 vi.mock('@/services/api', () => ({
   api: {
-    GET: vi.fn(),
+    // ManualAssignModal loads its list through here; everything else in this
+    // page goes through mocked hooks.
+    GET: vi.fn(async () => ({ data: { data: [{ id: 'insp-2', name: 'Ana Costa', email: 'ana@example.com' }] } })),
     POST: vi.fn(),
     PATCH: vi.fn(),
     PUT: vi.fn(),
@@ -52,6 +56,7 @@ vi.mock('@/lib/status-colors', () => ({
 const mockRefetch = vi.fn();
 const mockPublish = vi.fn();
 const mockAssign = vi.fn();
+const mockReassign = vi.fn();
 const mockCancel = vi.fn();
 
 vi.mock('../hooks/useServiceGroupDetail', () => ({
@@ -230,6 +235,13 @@ vi.mock('../hooks/useAssignInspector', () => ({
   }),
 }));
 
+vi.mock('../hooks/useReassignInspector', () => ({
+  useReassignInspector: () => ({
+    reassign: mockReassign,
+    isReassigning: false,
+  }),
+}));
+
 vi.mock('../hooks/useCancelServiceGroup', () => ({
   useCancelServiceGroup: () => ({
     cancel: mockCancel,
@@ -365,15 +377,19 @@ describe('ServiceGroupDetailPage', () => {
     expect(screen.getByRole('button', { name: /Cancel Group/ })).toBeInTheDocument();
   });
 
-  it('shows Manual Assign button for PUBLISHED status', () => {
+  it('shows the Change menu for PUBLISHED status', () => {
     renderPage('/service-groups/published');
-    expect(screen.getByRole('button', { name: /Manual Assign/ })).toBeInTheDocument();
+    expect(screen.getByTestId('service-group-change-trigger')).toBeInTheDocument();
   });
 
-  it('shows Manual Assign button for DRAFT status', () => {
-    // Backend allows manual assignment while the group is DRAFT (group.canAssign()).
+  it('shows the Change menu for DRAFT status', () => {
     renderPage();
-    expect(screen.getByRole('button', { name: /Manual Assign/ })).toBeInTheDocument();
+    expect(screen.getByTestId('service-group-change-trigger')).toBeInTheDocument();
+  });
+
+  it('shows the Change menu for ACCEPTED status — plan edits survive acceptance', () => {
+    renderPage('/service-groups/accepted');
+    expect(screen.getByTestId('service-group-change-trigger')).toBeInTheDocument();
   });
 
   it('shows assigned inspector for ACCEPTED status', () => {
@@ -386,8 +402,8 @@ describe('ServiceGroupDetailPage', () => {
     renderPage('/service-groups/cancelled');
     expect(screen.queryByRole('button', { name: /Publish/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Cancel Group/ })).not.toBeInTheDocument();
-    // canAssign is DRAFT/PUBLISHED only — no Manual Assign for CANCELLED.
-    expect(screen.queryByRole('button', { name: /Manual Assign/ })).not.toBeInTheDocument();
+    // A closed group has no schedule left to move and nobody to hand it to.
+    expect(screen.queryByTestId('service-group-change-trigger')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Send portal link/ })).not.toBeInTheDocument();
   });
 
@@ -436,9 +452,60 @@ describe('ServiceGroupDetailPage', () => {
     expect(screen.getByText('Cancel Service Group')).toBeInTheDocument();
   });
 
-  it('opens assign modal on Manual Assign click', () => {
+  it('opens the assign modal from the Change menu', () => {
     renderPage('/service-groups/published');
-    fireEvent.click(screen.getByRole('button', { name: /Manual Assign/ }));
+    fireEvent.click(screen.getByTestId('service-group-change-trigger'));
+    fireEvent.click(screen.getByTestId('group-action-change-inspector'));
     expect(screen.getByText('Assign Inspector')).toBeInTheDocument();
+  });
+
+  it('offers replacement rather than assignment on an ACCEPTED group', () => {
+    renderPage('/service-groups/accepted');
+    fireEvent.click(screen.getByTestId('service-group-change-trigger'));
+    fireEvent.click(screen.getByTestId('group-action-change-inspector'));
+    expect(screen.getByText('Change Inspector')).toBeInTheDocument();
+  });
+
+  // /assign answers an already-accepted group with a 409 by design, so the page
+  // has to pick the endpoint by status. That choice is the thing under test.
+  it('routes an ACCEPTED group to reassign, never to assign', async () => {
+    renderPage('/service-groups/accepted');
+    fireEvent.click(screen.getByTestId('service-group-change-trigger'));
+    fireEvent.click(screen.getByTestId('group-action-change-inspector'));
+
+    fireEvent.click(await screen.findByText(INSPECTOR.name));
+    fireEvent.change(screen.getByLabelText('Reason'), {
+      target: { value: 'Original inspector unavailable' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Replace inspector' }));
+
+    expect(mockReassign).toHaveBeenCalledWith('insp-2', 'Original inspector unavailable');
+    expect(mockAssign).not.toHaveBeenCalled();
+  });
+
+  it('routes a PUBLISHED group to assign, never to reassign', async () => {
+    renderPage('/service-groups/published');
+    fireEvent.click(screen.getByTestId('service-group-change-trigger'));
+    fireEvent.click(screen.getByTestId('group-action-change-inspector'));
+
+    fireEvent.click(await screen.findByText(INSPECTOR.name));
+    fireEvent.click(screen.getByRole('button', { name: 'Assign' }));
+
+    expect(mockAssign).toHaveBeenCalledWith('insp-2');
+    expect(mockReassign).not.toHaveBeenCalled();
+  });
+
+  it('opens the reschedule modal on Change date', () => {
+    renderPage('/service-groups/published');
+    fireEvent.click(screen.getByTestId('service-group-change-trigger'));
+    fireEvent.click(screen.getByTestId('group-action-change-date'));
+    expect(screen.getByText('Change date')).toBeInTheDocument();
+  });
+
+  it('opens the reschedule modal on Change time window', () => {
+    renderPage('/service-groups/published');
+    fireEvent.click(screen.getByTestId('service-group-change-trigger'));
+    fireEvent.click(screen.getByTestId('group-action-change-time-window'));
+    expect(screen.getByText('Change time window')).toBeInTheDocument();
   });
 });

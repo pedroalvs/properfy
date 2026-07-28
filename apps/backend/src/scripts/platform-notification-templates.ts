@@ -183,6 +183,37 @@ const STUCK_ALERT_HTML = renderSystemEmailHtml({
     `<p style="${SYSTEM_NOTE_STYLE}"><strong>Action required:</strong> review the execution and follow up with the inspector.</p>`,
 });
 
+const GROUP_JOB_DETAILS_HTML =
+  '<p>Group <strong>{{groupCode}}</strong> — {{jobCount}} job(s)<br>' +
+  'Date: <strong>{{scheduledDate}}</strong><br>' +
+  'Time window: <strong>{{timeWindow}}</strong></p>';
+
+const INSPECTOR_GROUP_ASSIGNED_HTML = renderSystemEmailHtml({
+  heading: 'A group has been assigned to you',
+  contentHtml:
+    '<p>Hi {{inspectorName}}, an operator has assigned the following group to you.</p>' +
+    GROUP_JOB_DETAILS_HTML +
+    `<p style="${SYSTEM_NOTE_STYLE}">Open the Properfy app to see the addresses and plan your route.</p>`,
+});
+
+const INSPECTOR_GROUP_UNASSIGNED_HTML = renderSystemEmailHtml({
+  heading: 'A group is no longer assigned to you',
+  contentHtml:
+    '<p>Hi {{inspectorName}}, an operator has reassigned the following group to another inspector.</p>' +
+    GROUP_JOB_DETAILS_HTML +
+    `<p style="${SYSTEM_NOTE_STYLE}"><strong>No action required</strong> — these jobs have been removed from your schedule.</p>`,
+});
+
+const INSPECTOR_GROUP_RESCHEDULED_HTML = renderSystemEmailHtml({
+  heading: 'A group you accepted has been rescheduled',
+  contentHtml:
+    '<p>Hi {{inspectorName}}, an operator has changed the schedule of a group assigned to you.</p>' +
+    '<p>Group <strong>{{groupCode}}</strong> — {{jobCount}} job(s)<br>' +
+    'Was: {{previousScheduledDate}}, {{previousTimeWindow}}<br>' +
+    'Now: <strong>{{scheduledDate}}</strong>, <strong>{{timeWindow}}</strong></p>' +
+    `<p style="${SYSTEM_NOTE_STYLE}"><strong>Action required:</strong> check the new time fits your schedule and contact the operations team if it does not.</p>`,
+});
+
 export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
   // ── EMAIL templates ────────────────────────────────────────────────────────
   {
@@ -281,6 +312,34 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     subject: 'Reset your Properfy password',
     body: 'Hi {{userName}}, we received a request to reset your Properfy password. Reset it here: {{resetLink}}. This link expires in 1 hour. If you did not request this, you can safely ignore this email.',
     bodyHtml: PASSWORD_RESET_HTML,
+    notificationClass: 'TRANSACTIONAL',
+  },
+  // Inspector-directed operational mail. TRANSACTIONAL so it can never be
+  // consent-blocked, and deliberately absent from MANDATORY_TEMPLATE_CODES:
+  // the recipient is a contractor, not an agency's rental tenant, so these must
+  // not appear in the per-agency template customization UI.
+  {
+    code: 'INSPECTOR_GROUP_ASSIGNED',
+    channel: 'EMAIL',
+    subject: 'Group {{groupCode}} has been assigned to you',
+    body: 'Hi {{inspectorName}}, an operator has assigned group {{groupCode}} ({{jobCount}} job(s)) to you, scheduled for {{scheduledDate}} between {{timeWindow}}. Open the Properfy app to see the addresses.',
+    bodyHtml: INSPECTOR_GROUP_ASSIGNED_HTML,
+    notificationClass: 'TRANSACTIONAL',
+  },
+  {
+    code: 'INSPECTOR_GROUP_UNASSIGNED',
+    channel: 'EMAIL',
+    subject: 'Group {{groupCode}} is no longer assigned to you',
+    body: 'Hi {{inspectorName}}, an operator has reassigned group {{groupCode}} ({{jobCount}} job(s)), scheduled for {{scheduledDate}} between {{timeWindow}}, to another inspector. These jobs have been removed from your schedule.',
+    bodyHtml: INSPECTOR_GROUP_UNASSIGNED_HTML,
+    notificationClass: 'TRANSACTIONAL',
+  },
+  {
+    code: 'INSPECTOR_GROUP_RESCHEDULED',
+    channel: 'EMAIL',
+    subject: 'Group {{groupCode}} has been rescheduled',
+    body: 'Hi {{inspectorName}}, an operator has rescheduled group {{groupCode}} ({{jobCount}} job(s)) from {{previousScheduledDate}} {{previousTimeWindow}} to {{scheduledDate}} {{timeWindow}}. Check the new time fits your schedule and contact the operations team if it does not.',
+    bodyHtml: INSPECTOR_GROUP_RESCHEDULED_HTML,
     notificationClass: 'TRANSACTIONAL',
   },
   // ── SMS templates ─────────────────────────────────────────────────────────

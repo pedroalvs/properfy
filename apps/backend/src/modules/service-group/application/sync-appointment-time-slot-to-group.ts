@@ -17,7 +17,12 @@ export interface SyncAppointmentScheduleToGroupInput {
   appointmentRepo: IAppointmentRepository;
   auditService: AuditService;
   appointment: AppointmentForServiceGroupScheduleSync;
-  groupTimeWindow: string;
+  /**
+   * Omit to leave time slots untouched. A caller that only moved the group's
+   * date must not pass it: a member whose slot already sat outside the current
+   * window would otherwise be clamped by an edit that never mentioned time.
+   */
+  groupTimeWindow?: string;
   groupScheduledDate: Date;
   groupId: string;
   actor: AuthContext;
@@ -32,7 +37,9 @@ export interface SyncAppointmentScheduleToGroupInput {
  * into the group's time window. Both land in a single update + audit entry.
  */
 export async function syncAppointmentScheduleToGroup(input: SyncAppointmentScheduleToGroupInput): Promise<void> {
-  const timeAdjustment = getServiceGroupTimeSlotAdjustment(input.appointment, input.groupTimeWindow);
+  const timeAdjustment = input.groupTimeWindow
+    ? getServiceGroupTimeSlotAdjustment(input.appointment, input.groupTimeWindow)
+    : null;
   const dateAdjustment = getServiceGroupDateAdjustment(input.appointment.scheduledDate, input.groupScheduledDate);
   if (!timeAdjustment && !dateAdjustment) {
     return;

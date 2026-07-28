@@ -15,6 +15,8 @@ function makeServiceGroup(overrides: Partial<ServiceGroup> = {}): ServiceGroup {
     inspectorName: 'Carlos Silva',
     status: ServiceGroupStatus.PUBLISHED,
     appointmentsCount: 5,
+    scheduledDate: '2026-06-01',
+    timeWindow: '09:00-17:00',
     createdAt: '2026-01-10T10:00:00Z',
     updatedAt: '2026-01-10T10:00:00Z',
     ...overrides,

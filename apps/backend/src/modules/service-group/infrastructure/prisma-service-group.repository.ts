@@ -119,6 +119,13 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
             tenant: { select: { name: true } },
             property_id: true,
             service_group_id: true,
+            // A member's own slot and confirmation state: the group's schedule
+            // cascade clamps the former into a changed window, and decides from
+            // the latter whether the rental tenant has to be told.
+            time_slot_start: true,
+            time_slot_end: true,
+            rental_tenant_confirmation_status: true,
+            active_confirmation_cycle_id: true,
             property: {
               select: { street: true, suburb: true, property_code: true },
             },
@@ -152,6 +159,10 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         propertyId: a.property_id,
         serviceGroupId: a.service_group_id,
         scheduledDate: a.scheduled_date,
+        timeSlotStart: a.time_slot_start,
+        timeSlotEnd: a.time_slot_end,
+        rentalTenantConfirmationStatus: a.rental_tenant_confirmation_status,
+        activeConfirmationCycleId: a.active_confirmation_cycle_id ?? null,
         propertyAddress: a.property ? `${a.property.street}, ${a.property.suburb}` : null,
         propertyCode: a.property?.property_code ?? null,
       })),
@@ -768,6 +779,27 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       },
     });
     return result.count;
+  }
+
+  async assignInspectorToGroupAppointments(
+    groupId: string,
+    inspectorId: string,
+  ): Promise<{ reassigned: number; scheduled: number }> {
+    // Soft-deleted appointments keep their `service_group_id`, so without the
+    // `deleted_at` filter a deleted member would be handed to the new
+    // inspector and counted as work they owe.
+    const [reassigned, scheduled] = await this.prisma.$transaction([
+      this.prisma.appointment.updateMany({
+        where: { service_group_id: groupId, status: 'SCHEDULED', deleted_at: null },
+        data: { inspector_id: inspectorId },
+      }),
+      this.prisma.appointment.updateMany({
+        where: { service_group_id: groupId, status: 'AWAITING_INSPECTOR', deleted_at: null },
+        data: { status: 'SCHEDULED', inspector_id: inspectorId },
+      }),
+    ]);
+
+    return { reassigned: reassigned.count, scheduled: scheduled.count };
   }
 
   private buildWhere(filters: ServiceGroupFilters) {

@@ -29,6 +29,7 @@ function makeRepo(): IConfirmationCycleRepository {
     update: vi.fn(),
     findActiveByAppointmentId: vi.fn(),
     findById: vi.fn(),
+    realignSchedule: vi.fn(),
     findMaxCycleNumber: vi.fn().mockResolvedValue(0),
   };
 }
