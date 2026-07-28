@@ -122,6 +122,29 @@ describe('POST /v1/app-credentials', () => {
     expect(res.body.data).not.toHaveProperty('authCode');
   });
 
+  // Deliberately accept-and-ignore rather than fail closed. A browser tab still
+  // running the previous bundle sends `authCode` on EVERY create and update
+  // (it was built unconditionally as `needsAuthCode && authCode ? … : null`),
+  // so rejecting would 400 every write from a stale tab until a hard reload.
+  // Failing closed buys no privacy either: by the time Zod runs, the payload
+  // has already reached the server. Dropping the key is the expand/contract
+  // behaviour for removing a field from a live API.
+  it('ignores a legacy authCode in the payload instead of rejecting it', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockCreate.mockResolvedValueOnce(makeCred({ needsAuthCode: true }));
+    const res = await supertest(app.server)
+      .post('/v1/app-credentials')
+      .set('Authorization', 'Bearer t')
+      .send({
+        tenantId: TENANT_A, name: 'A', username: 'u', password: 'p',
+        needsAuthCode: true, authCode: '123456',
+      })
+      .expect(201);
+    // Never forwarded to the use case, never echoed back.
+    expect(mockCreate).toHaveBeenCalledWith(expect.not.objectContaining({ authCode: expect.anything() }));
+    expect(res.body.data).not.toHaveProperty('authCode');
+  });
+
   it('accepts and echoes the new fields', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
     const branchId = 'bbbbbbbb-0000-4000-8000-000000000001';
