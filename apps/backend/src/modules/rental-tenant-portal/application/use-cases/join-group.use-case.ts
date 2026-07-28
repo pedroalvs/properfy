@@ -155,7 +155,7 @@ export class JoinGroupUseCase {
     }
 
     try {
-      await this.applyJoin(input, appointment, group);
+      await this.applyJoin(input, appointment, group, group.assignedInspectorId);
     } catch (error) {
       // Best-effort release so the tenant can retry with the same link;
       // never mask the original failure.
@@ -181,7 +181,13 @@ export class JoinGroupUseCase {
    * Side-effect sequence (spec §5.2 steps 4-13), executed only after the
    * token claim succeeded.
    */
-  private async applyJoin(input: JoinGroupInput, appointment: AppointmentEntity, group: ServiceGroupEntity): Promise<void> {
+  private async applyJoin(
+    input: JoinGroupInput,
+    appointment: AppointmentEntity,
+    group: ServiceGroupEntity,
+    /** Already narrowed to non-null by the caller's group validation. */
+    inspectorId: string,
+  ): Promise<void> {
     const previousGroupId = appointment.serviceGroupId;
     const previousValues = {
       serviceGroupId: previousGroupId,
@@ -190,21 +196,29 @@ export class JoinGroupUseCase {
       status: appointment.status,
     };
 
-    // 4. Detach from previous group
+    // 4-8. Take the slot. The capacity re-check and the appointment write share
+    // one transaction holding a lock on the group, so two tenants racing for the
+    // last opening cannot both pass — the loser gets `false` and nothing is
+    // written. The token claim above only guards replays of the *same* token.
+    const reserved = await this.serviceGroupRepo.reservePortalWindow({
+      groupId: group.id,
+      appointmentId: input.appointmentId,
+      tenantId: appointment.tenantId,
+      scheduledDate: input.scheduledDate,
+      timeSlotStart: input.timeSlotStart,
+      timeSlotEnd: input.timeSlotEnd,
+      inspectorId,
+      ...(input.rentalTenantNote !== undefined ? { rentalTenantNote: input.rentalTenantNote } : {}),
+    });
+    if (!reserved) {
+      throw new PortalGroupFullError();
+    }
+
+    // Detach from the previous group only once the new slot is actually held,
+    // so a lost race never leaves the tenant decremented out of both groups.
     if (previousGroupId) {
       await this.serviceGroupRepo.decrementConfirmedCount(previousGroupId);
     }
-
-    // 5-8. Update appointment fields
-    await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, {
-      scheduledDate: new Date(input.scheduledDate),
-      timeSlotStart: input.timeSlotStart,
-      timeSlotEnd: input.timeSlotEnd,
-      inspectorId: group.assignedInspectorId,
-      rentalTenantConfirmationStatus: 'CONFIRMED',
-      serviceGroupId: group.id,
-      ...(input.rentalTenantNote !== undefined ? { rentalTenantNote: input.rentalTenantNote } : {}),
-    });
 
     // 6. Transition to SCHEDULED only when not already in that status
     // (AWAITING_INSPECTOR → SCHEDULED is the normal path; SCHEDULED appointments

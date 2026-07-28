@@ -109,6 +109,7 @@ describe('JoinGroupUseCase', () => {
   let serviceGroupRepo: {
     findById: ReturnType<typeof vi.fn>;
     findPortalEligibleSlots: ReturnType<typeof vi.fn>;
+    reservePortalWindow: ReturnType<typeof vi.fn>;
     hasPortalMemberSlot: ReturnType<typeof vi.fn>;
     decrementConfirmedCount: ReturnType<typeof vi.fn>;
     incrementConfirmedCount: ReturnType<typeof vi.fn>;
@@ -137,6 +138,7 @@ describe('JoinGroupUseCase', () => {
         appointments: [],
       }),
       findPortalEligibleSlots: vi.fn().mockResolvedValue([makeEligibleMember()]),
+      reservePortalWindow: vi.fn().mockResolvedValue(true),
       hasPortalMemberSlot: vi.fn().mockResolvedValue(true),
       decrementConfirmedCount: vi.fn().mockResolvedValue(undefined),
       incrementConfirmedCount: vi.fn().mockResolvedValue(undefined),
@@ -341,13 +343,17 @@ describe('JoinGroupUseCase', () => {
 
   it('should update appointment with group details', async () => {
     await useCase.execute(makeInput());
-    expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', expect.objectContaining({
-      scheduledDate: new Date('2026-06-02'),
+    // The write happens inside the reservation so it shares the transaction
+    // that re-checked capacity under a lock.
+    expect(serviceGroupRepo.reservePortalWindow).toHaveBeenCalledWith(expect.objectContaining({
+      groupId: 'sg-new',
+      appointmentId: 'appt-1',
+      tenantId: 'tenant-1',
+      scheduledDate: '2026-06-02',
       timeSlotStart: '13:00', timeSlotEnd: '15:00',
       inspectorId: 'insp-1',
-      rentalTenantConfirmationStatus: 'CONFIRMED',
-      serviceGroupId: 'sg-new',
     }));
+    expect(appointmentRepo.update).not.toHaveBeenCalled();
   });
 
   it('should increment confirmed_count of new group', async () => {
@@ -438,8 +444,41 @@ describe('JoinGroupUseCase', () => {
 
   it('should store rentalTenantNote when provided', async () => {
     await useCase.execute(makeInput({ rentalTenantNote: 'Please ring bell' }));
-    expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', expect.objectContaining({
+    expect(serviceGroupRepo.reservePortalWindow).toHaveBeenCalledWith(expect.objectContaining({
       rentalTenantNote: 'Please ring bell',
     }));
+  });
+
+  describe('losing the capacity race', () => {
+    beforeEach(() => {
+      // The pre-check passed, but another tenant took the last opening before
+      // this transaction got the group lock.
+      serviceGroupRepo.reservePortalWindow.mockResolvedValue(false);
+    });
+
+    it('should throw PortalGroupFullError', async () => {
+      await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupFullError);
+    });
+
+    it('should leave the appointment in its previous group', async () => {
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ status: 'SCHEDULED', serviceGroupId: 'sg-old' }),
+        contact: null,
+        restrictions: [],
+      });
+
+      await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupFullError);
+
+      // Detaching before the slot is held would strand the tenant in neither group.
+      expect(serviceGroupRepo.decrementConfirmedCount).not.toHaveBeenCalled();
+      expect(serviceGroupRepo.incrementConfirmedCount).not.toHaveBeenCalled();
+      expect(statusTransition.execute).not.toHaveBeenCalled();
+      expect(activityRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should release the token so the tenant can pick another time', async () => {
+      await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupFullError);
+      expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
+    });
   });
 });

@@ -126,7 +126,7 @@ async function seedAppointment(
     propertyId: string;
     serviceTypeId: string;
     createdByUserId: string;
-    groupId: string;
+    groupId: string | null;
     scheduledDate: Date;
     timeSlotStart: string;
     timeSlotEnd: string;
@@ -423,6 +423,119 @@ describe('PrismaServiceGroupRepository portal member slots — real DB', () => {
     });
 
     expect(slots.map((slot) => slot.groupId)).toEqual([groupId]);
+  });
+
+  // Six contenders rather than two on purpose: with only two, the pair of
+  // transactions interleave rarely enough that this test passed even with the
+  // `FOR UPDATE` removed. Six makes the unlocked version fail reliably, which
+  // is what makes it evidence of the lock rather than decoration.
+  it('lets only one of several concurrent joins take the last opening in a window', async () => {
+    const { tenantId, userId } = await seedTenant(harness.prisma, 'Portal Race Agency');
+    const branchId = await getBranchId(harness.prisma, tenantId);
+    const serviceTypeId = await seedServiceType(harness.prisma);
+    const { inspectorId } = await seedInspector(harness.prisma, 'Race Inspector');
+
+    const nearPropertyId = await seedPropertyPoint(harness.prisma, {
+      tenantId, branchId, suburb: 'Race Near', lat: -33.866, lng: 151.210,
+    });
+
+    const groupId = await seedAcceptedGroup(harness.prisma, {
+      serviceTypeId, createdByUserId: userId, inspectorId,
+    });
+
+    // 09:00-10:00 holds two inspections; one is taken, so exactly one is left.
+    await seedAppointment(harness.prisma, {
+      tenantId, branchId, propertyId: nearPropertyId, serviceTypeId,
+      createdByUserId: userId, groupId,
+      scheduledDate: SLOT_ONE_DATE, timeSlotStart: '09:00', timeSlotEnd: '10:00',
+    });
+
+    // Two tenants, two portal tokens, both outside the group and both about to
+    // claim that single opening.
+    const contenders = await Promise.all([1, 2, 3, 4, 5, 6].map(() => seedAppointment(harness.prisma, {
+      tenantId, branchId, propertyId: nearPropertyId, serviceTypeId,
+      createdByUserId: userId, groupId: null,
+      scheduledDate: SLOT_TWO_DATE, timeSlotStart: '14:00', timeSlotEnd: '15:00',
+    })));
+
+    const reserve = (appointmentId: string) => repo.reservePortalWindow({
+      groupId,
+      appointmentId,
+      tenantId,
+      scheduledDate: SLOT_ONE_DATE.toISOString().slice(0, 10),
+      timeSlotStart: '09:00',
+      timeSlotEnd: '10:00',
+      inspectorId,
+    });
+
+    const results = await Promise.all(contenders.map(reserve));
+
+    // Without the group-row lock both transactions read "one left" and both win.
+    expect(results.filter(Boolean)).toHaveLength(1);
+
+    const joined = await harness.prisma.appointment.findMany({
+      where: { id: { in: contenders }, service_group_id: groupId },
+      select: { id: true, time_slot_start: true, rental_tenant_confirmation_status: true },
+    });
+    expect(joined).toHaveLength(1);
+    expect(joined[0]!.time_slot_start).toBe('09:00');
+    expect(joined[0]!.rental_tenant_confirmation_status).toBe('CONFIRMED');
+
+    // The loser is untouched — no half-applied move.
+    const loserId = contenders.find((id) => id !== joined[0]!.id)!;
+    const loser = await harness.prisma.appointment.findUnique({
+      where: { id: loserId },
+      select: { service_group_id: true, time_slot_start: true, inspector_id: true },
+    });
+    expect(loser).toMatchObject({
+      service_group_id: null,
+      time_slot_start: '14:00',
+      inspector_id: null,
+    });
+  });
+
+  it('refuses to reserve a window that is already at capacity', async () => {
+    const { tenantId, userId } = await seedTenant(harness.prisma, 'Portal Full Window Agency');
+    const branchId = await getBranchId(harness.prisma, tenantId);
+    const serviceTypeId = await seedServiceType(harness.prisma);
+    const { inspectorId } = await seedInspector(harness.prisma, 'Full Window Inspector');
+
+    const nearPropertyId = await seedPropertyPoint(harness.prisma, {
+      tenantId, branchId, suburb: 'Full Near', lat: -33.866, lng: 151.210,
+    });
+    const groupId = await seedAcceptedGroup(harness.prisma, {
+      serviceTypeId, createdByUserId: userId, inspectorId,
+    });
+
+    for (let i = 0; i < 2; i += 1) {
+      await seedAppointment(harness.prisma, {
+        tenantId, branchId, propertyId: nearPropertyId, serviceTypeId,
+        createdByUserId: userId, groupId,
+        scheduledDate: SLOT_ONE_DATE, timeSlotStart: '09:00', timeSlotEnd: '10:00',
+      });
+    }
+    const outsiderId = await seedAppointment(harness.prisma, {
+      tenantId, branchId, propertyId: nearPropertyId, serviceTypeId,
+      createdByUserId: userId, groupId: null,
+      scheduledDate: SLOT_TWO_DATE, timeSlotStart: '14:00', timeSlotEnd: '15:00',
+    });
+
+    const reserved = await repo.reservePortalWindow({
+      groupId,
+      appointmentId: outsiderId,
+      tenantId,
+      scheduledDate: SLOT_ONE_DATE.toISOString().slice(0, 10),
+      timeSlotStart: '09:00',
+      timeSlotEnd: '10:00',
+      inspectorId,
+    });
+
+    expect(reserved).toBe(false);
+    const untouched = await harness.prisma.appointment.findUnique({
+      where: { id: outsiderId },
+      select: { service_group_id: true, time_slot_start: true },
+    });
+    expect(untouched).toMatchObject({ service_group_id: null, time_slot_start: '14:00' });
   });
 
   it('excludes the appointment current group when excludeGroupId is provided', async () => {

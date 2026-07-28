@@ -283,6 +283,30 @@ export interface IServiceGroupRepository {
     today: Date;
     excludeGroupId?: string | null;
   }): Promise<PortalEligibleGroupMember[]>;
+  /**
+   * Serialize the portal capacity decision with the write that consumes it.
+   *
+   * Locks the group row, recomputes the window's availability from the members
+   * visible inside that transaction, and only then moves the appointment into
+   * the window. Returns false — having written nothing — when the window filled
+   * up in the meantime.
+   *
+   * The check and the write must share one transaction: performed separately,
+   * two portal tokens can both read the last free slot and both take it. The
+   * single-use token guard does not help, because it only serializes retries of
+   * the *same* token, not two different tenants racing for one opening.
+   */
+  reservePortalWindow(params: {
+    groupId: string;
+    appointmentId: string;
+    tenantId: string;
+    /** YYYY-MM-DD */
+    scheduledDate: string;
+    timeSlotStart: string;
+    timeSlotEnd: string;
+    inspectorId: string;
+    rentalTenantNote?: string;
+  }): Promise<boolean>;
   /** Re-check that the selected portal slot still exists on a future member appointment. */
   hasPortalMemberSlot(params: {
     groupId: string;

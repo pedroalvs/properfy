@@ -15,6 +15,7 @@ import type {
   PortalEligibleGroupMember,
 } from '../domain/service-group.repository';
 import type { ServiceGroupStatus } from '@properfy/shared';
+import { computeWindowAvailability } from '../domain/portal-slot-capacity';
 import { resolveCentroid } from '../../../shared/infrastructure/suburb-centroid-resolver';
 
 /**
@@ -955,6 +956,63 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       inspectorName: row.inspector_name,
       isOwnAgency: row.is_own_agency,
     }));
+  }
+
+  async reservePortalWindow(params: {
+    groupId: string;
+    appointmentId: string;
+    tenantId: string;
+    scheduledDate: string;
+    timeSlotStart: string;
+    timeSlotEnd: string;
+    inspectorId: string;
+    rentalTenantNote?: string;
+  }): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      // Serializes every concurrent join targeting this group: the next
+      // transaction only gets the lock once this one has committed, so it
+      // recomputes against an appointment list that already includes this join.
+      await tx.$queryRaw`SELECT id FROM service_groups WHERE id = ${params.groupId} FOR UPDATE`;
+
+      type MemberRow = { time_slot_start: string; time_slot_end: string };
+      const members = await tx.$queryRaw<MemberRow[]>`
+        SELECT a.time_slot_start, a.time_slot_end
+        FROM appointments a
+        WHERE a.service_group_id = ${params.groupId}
+          AND a.deleted_at IS NULL
+          AND a.id <> ${params.appointmentId}
+          AND a.scheduled_date::date = ${params.scheduledDate}::date
+          AND a.status NOT IN ('CANCELLED', 'REJECTED')
+          AND a.time_slot_start IS NOT NULL
+          AND a.time_slot_end IS NOT NULL
+      `;
+
+      const availability = computeWindowAvailability(
+        members.map((row) => ({
+          timeSlotStart: row.time_slot_start,
+          timeSlotEnd: row.time_slot_end,
+        })),
+        { timeSlotStart: params.timeSlotStart, timeSlotEnd: params.timeSlotEnd },
+      );
+      if (availability.remaining <= 0) return false;
+
+      await tx.appointment.updateMany({
+        where: { id: params.appointmentId, tenant_id: params.tenantId },
+        data: {
+          scheduled_date: new Date(params.scheduledDate),
+          time_slot_start: params.timeSlotStart,
+          time_slot_end: params.timeSlotEnd,
+          inspector_id: params.inspectorId,
+          rental_tenant_confirmation_status: 'CONFIRMED',
+          service_group_id: params.groupId,
+          ...(params.rentalTenantNote !== undefined
+            ? { rental_tenant_note: params.rentalTenantNote }
+            : {}),
+        },
+      });
+
+      return true;
+    });
   }
 
   async hasPortalMemberSlot(params: {
