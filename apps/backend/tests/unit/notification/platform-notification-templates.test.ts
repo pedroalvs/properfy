@@ -71,7 +71,7 @@ describe('PLATFORM_TEMPLATES seed data', () => {
   });
 });
 
-// ── Appointment email layout (client-approved dark design) ─────────────────
+// ── Appointment email layout (no background, light text on the client default) ──
 
 const APPOINTMENT_EMAIL_CODES = [
   'INSPECTION_NOTICE',
@@ -95,10 +95,26 @@ describe('PLATFORM_TEMPLATES appointment email HTML bodies', () => {
 
     it(`${code} has a rich HTML body using the shared layout`, () => {
       expect(entry?.bodyHtml).toBeTruthy();
-      // Dark layout markers from the client-approved design
-      expect(entry!.bodyHtml).toContain('rgb(47,47,47)');
+      // Layout markers: readable heading/link colour on the client's own background
+      expect(entry!.bodyHtml).toContain('#21566E');
       // Conditional agency logo footer
       expect(entry!.bodyHtml).toContain('{{#if properfyLogoUrl}}');
+    });
+
+    it(`${code} paints no background on the body or the layout tables`, () => {
+      // Emails must inherit the mail client's own background instead of forcing
+      // one. Only inline call-outs may carry a background of their own.
+      expect(entry!.bodyHtml).not.toMatch(/<body[^>]*background-color/);
+      expect(entry!.bodyHtml).not.toMatch(/<table[^>]*background-color/);
+      expect(entry!.bodyHtml).not.toContain('background-image');
+    });
+
+    it(`${code} carries none of the retired dark-layout colours`, () => {
+      for (const darkColour of ['rgb(47,47,47)', 'rgb(41,41,41)', 'rgb(219,151,255)', 'rgb(94,86,54)']) {
+        expect(entry!.bodyHtml, `dark colour ${darkColour} still present`).not.toContain(darkColour);
+      }
+      // White text only ever made sense on the dark canvas.
+      expect(entry!.bodyHtml).not.toContain('color:#ffffff');
     });
 
     it(`${code} bodyHtml passes the save-time sanitizer unchanged`, () => {

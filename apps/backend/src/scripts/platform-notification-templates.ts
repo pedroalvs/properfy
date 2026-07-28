@@ -38,7 +38,7 @@ const CONTACT_TEAM_SENTENCE =
 
 const SERVICE_LABEL = '{{#if serviceTypeName}}{{serviceTypeName}}{{else}}inspection{{/if}}';
 
-// ── Appointment EMAIL bodies (client-approved dark layout) ──────────────────
+// ── Appointment EMAIL bodies (shared appointment layout) ───────────────────
 
 const INSPECTION_NOTICE_HTML = tenantEmailHtml(
   '<p>I hope this message finds you well.</p>' +
