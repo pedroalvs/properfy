@@ -38,7 +38,6 @@ vi.mock('../../../src/main/container', () => ({
     rentalTenantPortal: {
       getPortalDataUseCase: { execute: vi.fn() },
       confirmAppointmentUseCase: { execute: vi.fn() },
-      rescheduleRequestUseCase: { execute: vi.fn() },
       updateContactUseCase: { execute: mockUpdateContactExecute },
       reportUnavailabilityUseCase: { execute: vi.fn() },
       generatePortalTokenUseCase: { execute: vi.fn() },

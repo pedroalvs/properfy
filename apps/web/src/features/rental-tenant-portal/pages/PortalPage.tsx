@@ -11,7 +11,6 @@ import { BookedSlotCard } from '../components/BookedSlotCard';
 import { ChangeTimeSheet } from '../components/ChangeTimeSheet';
 import { InspectionConfirmationForm } from '../components/InspectionConfirmationForm';
 import { getAvailableGroupSlotKey } from '../components/AvailableGroupsList';
-import { RescheduleForm } from '../components/RescheduleForm';
 import { ContactForm } from '../components/ContactForm';
 import { RentalTenantPortalExpiredView } from '../components/RentalTenantPortalExpiredView';
 import { RentalTenantPortalInvalidView } from '../components/RentalTenantPortalInvalidView';
@@ -37,7 +36,6 @@ export function PortalPage() {
   const unavailableMutation = useReportUnavailability(token ?? '');
 
   const [changeTimeOpen, setChangeTimeOpen] = useState(false);
-  const [proposeNewDateOpen, setProposeNewDateOpen] = useState(false);
 
   const availableGroupsQuery = useAvailableGroups(token ?? '', changeTimeOpen);
   const { refetch: refetchAvailableGroups } = availableGroupsQuery;
@@ -227,8 +225,8 @@ export function PortalPage() {
         {(isPastConfirmCutoff || isReadOnly) && (
           <InfoBanner>
             The confirmation deadline has passed, so this inspection can no longer be
-            confirmed. You can still report that you cannot attend, propose a new date,
-            or change to another available time.
+            confirmed. You can still report that you cannot attend, or change to another
+            available time.
           </InfoBanner>
         )}
 
@@ -301,32 +299,6 @@ export function PortalPage() {
             isSubmitting={confirmMutation.isPending || unavailableMutation.isPending}
             confirmDisabled={isPastConfirmCutoff || isReadOnly}
           />
-        )}
-
-        {/* Propose new date CTA (US3 / §3.6) */}
-        {!isTerminal && data.rescheduleAllowed !== false && (
-          <div className="rounded-xl border border-border-subtle bg-card-bg p-4">
-            {!proposeNewDateOpen ? (
-              <button
-                type="button"
-                onClick={() => setProposeNewDateOpen(true)}
-                className="text-sm font-bold text-text-secondary hover:text-text-primary hover:underline"
-              >
-                Propose new date
-              </button>
-            ) : (
-              <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={() => setProposeNewDateOpen(false)}
-                  className="text-sm text-text-muted hover:text-text-primary"
-                >
-                  ← Back
-                </button>
-                <RescheduleForm appointment={appointment} token={token} />
-              </div>
-            )}
-          </div>
         )}
 
         <ContactForm contact={contact} token={token} isReadOnly={isReadOnly || isTerminal} />

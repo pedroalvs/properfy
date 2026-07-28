@@ -27,7 +27,6 @@ const portalData = {
   contact: null,
   restrictions: [],
   existingResponse: null,
-  rescheduleAllowed: true,
   agencyPhone: null,
   deadline: null,
 };

@@ -161,9 +161,12 @@ describe('BuildNotificationPayloadService', () => {
     expect(result.confirmationLink).not.toContain('//portal');
   });
 
-  it('H3: rescheduleLink appends /reschedule path', () => {
+  // The tenant-facing "propose new date" page was removed, so rescheduleLink no
+  // longer has its own path — it points at the portal, like confirmationLink.
+  it('H3: rescheduleLink points at the portal, with no /reschedule suffix', () => {
     const result = svc.build(baseCtx({ rawPortalToken: 'abc123', portalBaseUrl: 'https://app.properfy.com' }));
-    expect(result.rescheduleLink).toBe('https://app.properfy.com/portal/abc123/reschedule');
+    expect(result.rescheduleLink).toBe('https://app.properfy.com/portal/abc123');
+    expect(result.rescheduleLink).not.toContain('/reschedule');
   });
 
   it('H3: rawToken is URL-encoded in the link', () => {

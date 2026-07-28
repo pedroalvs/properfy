@@ -4,7 +4,6 @@ import { ApiError } from '@/lib/api-error';
 import type {
   PortalData,
   ConfirmInput,
-  RescheduleInput,
   UpdateContactInput,
   ReportUnavailabilityInput,
   AvailableGroupsData,
@@ -57,17 +56,6 @@ export function useConfirmAppointment(token: string) {
 
   return useMutation<unknown, ApiError, ConfirmInput>({
     mutationFn: (data) => portalPost(`/v1/rental-tenant-portal/${token}/confirm`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: portalQueryKey(token) });
-    },
-  });
-}
-
-export function useRescheduleRequest(token: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation<unknown, ApiError, RescheduleInput>({
-    mutationFn: (data) => portalPost(`/v1/rental-tenant-portal/${token}/reschedule`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: portalQueryKey(token) });
     },

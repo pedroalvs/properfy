@@ -1,5 +1,15 @@
 # Design Spec: Portal Inquilino — Redesign Completo (v2)
 
+> **HISTORICAL DESIGN RECORD — partly superseded.** This documents the 2026-05-24
+> redesign as it was decided at the time. Its **B3 decision was reversed**: the
+> "Propose new date" free-reschedule flow (`POST /v1/tenant-portal/:token/reschedule`,
+> `RescheduleForm.tsx`) was **removed entirely**, because it sent a `SCHEDULED`
+> appointment back to `DRAFT` and dropped the assigned inspector with no operator
+> approval. **"Change time" (join-group) is now the only reschedule path in the portal.**
+> Every mention below of "Propose new date" as a live secondary CTA — §1, §2, §3.6,
+> §7 file table, §8 and the SC-01/05/06/07 scenarios — describes the superseded design,
+> not current behaviour. This file is not a contract; it is a record.
+
 **Date**: 2026-05-24
 **Branch**: `patch/portal-inquilino`
 **Status**: v2 — incorporates human decisions on 3 BLOCKERs + 7 MAJORs from `critica-spec-2` (Crítico round 1/2). Ready for round 2/2.
@@ -14,7 +24,7 @@ This v2 reformulation incorporates the human's product decisions (recorded in `h
 
 - **B1 (join-group semantics)**: now explicitly defined — inherits scheduledDate/timeSlot/assignedInspectorId from the ACCEPTED group; transitions appointment AWAITING_INSPECTOR → SCHEDULED via state-machine 006 with SYS actor; sets `tenantConfirmationStatus = CONFIRMED`; marks token as used (no global revoke).
 - **B2 (token/concurrency)**: explicit — join-group blocked after 7 PM cutoff (same as confirm/reschedule), token marked as used after success, new error `PORTAL_GROUP_UNAVAILABLE` for race conditions, retry valid while `used_at IS NULL`.
-- **B3 (reschedule free coexists)**: `RescheduleForm.tsx` is **NOT removed**. "Change time" (join-group) is a primary CTA on the date pill; "Propose new date" (free reschedule per 007 US4) remains as a secondary CTA.
+- **B3 (reschedule free coexists)**: ~~`RescheduleForm.tsx` is **NOT removed**. "Change time" (join-group) is a primary CTA on the date pill; "Propose new date" (free reschedule per 007 US4) remains as a secondary CTA.~~ **SUPERSEDED — "Propose new date" was removed entirely.** It let the rental tenant send a SCHEDULED appointment back to `DRAFT` and drop the assigned inspector with no operator approval, duplicating "Change time" without its safety. `RescheduleForm.tsx`, the `POST /reschedule` endpoint and `rescheduleAllowed` are gone; **"Change time" (join-group) is now the only reschedule path in the portal.**
 - **Cap 10 vs 30**: portal lists groups with `confirmedCount < 10`; the underlying service-group hard cap stays at 30 (admin/marketplace decision 2026-05-06). The 10 is a portal-specific UX floor — not a domain invariant.
 - **NEW scope**: Web admin appointment detail must show a portal activity history (consumes existing `GET /v1/appointments/:id/portal-activities`). Frontend-only addition.
 - **M1/M2/M3/M6/MINOR**: see §4.3, §5.4, §6 for resolutions.

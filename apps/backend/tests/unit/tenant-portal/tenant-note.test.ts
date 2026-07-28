@@ -2,24 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ConfirmAppointmentUseCase } from '../../../src/modules/rental-tenant-portal/application/use-cases/confirm-appointment.use-case';
 import {
   ReportUnavailabilityUseCase,
-  type ReportUnavailabilityInput,
 } from '../../../src/modules/rental-tenant-portal/application/use-cases/report-unavailability.use-case';
-import {
-  RescheduleRequestUseCase,
-  type RescheduleRequestInput,
-} from '../../../src/modules/rental-tenant-portal/application/use-cases/reschedule-request.use-case';
 import type { IRentalTenantPortalActivityRepository } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-activity.repository';
-import type { IRentalTenantPortalTokenRepository } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-token.repository';
 import type { IAppointmentRepository } from '../../../src/modules/appointment/domain/appointment.repository';
-import type { IServiceTypeRepository } from '../../../src/modules/service-type/domain/service-type.repository';
-import type { IInspectionExecutionRepository } from '../../../src/modules/inspector-execution/domain/inspection-execution.repository';
-import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
 import type { PersistentAuditService } from '../../../src/modules/audit/application/services/persistent-audit.service';
-import type { ReopenForRescheduleUseCase } from '../../../src/modules/appointment/application/use-cases/reopen-for-reschedule.use-case';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { AppointmentContactEntity } from '../../../src/modules/appointment/domain/appointment-contact.entity';
-import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
-import { ServiceTypeEntity } from '../../../src/modules/service-type/domain/service-type.entity';
 
 // --- Factories ---
 
@@ -84,43 +72,6 @@ function makeAppointmentWithRelations(
   };
 }
 
-function makeServiceType(overrides: Partial<ConstructorParameters<typeof ServiceTypeEntity>[0]> = {}) {
-  return new ServiceTypeEntity({
-    id: 'svc-type-1',
-    code: 'ROUTINE',
-    name: 'Routine Inspection',
-    flowType: 'ROUTINE',
-    requiresRentalTenantConfirmation: true,
-    status: 'ACTIVE',
-    createdAt: new Date('2026-01-01'),
-    updatedAt: new Date('2026-01-01'),
-    ...overrides,
-  });
-}
-
-function makeTenant(overrides: Partial<ConstructorParameters<typeof TenantEntity>[0]> = {}) {
-  return new TenantEntity({
-    id: 'tenant-1',
-    name: 'Test Agency',
-    legalName: 'Test Agency Pty Ltd',
-    status: 'ACTIVE',
-    timezone: 'Australia/Sydney',
-    currency: 'AUD',
-    settingsJson: {},
-    createdAt: new Date('2026-01-01'),
-    updatedAt: new Date('2026-01-01'),
-    deletedAt: null,
-    ...overrides,
-  });
-}
-
-// Reusable date constants for reschedule tests
-const SCHEDULED_DATE = new Date(Date.now() - 14 * 24 * 3600 * 1000);
-SCHEDULED_DATE.setHours(0, 0, 0, 0);
-
-const FUTURE_DATE = new Date(Date.now() + 14 * 24 * 3600 * 1000)
-  .toISOString()
-  .split('T')[0]!;
 
 // --- Confirm tests ---
 
@@ -269,159 +220,6 @@ describe('ReportUnavailabilityUseCase – rentalTenantNote', () => {
     expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
       rentalTenantConfirmationStatus: 'UNAVAILABLE',
     });
-  });
-});
-
-// --- Reschedule tests ---
-
-describe('RescheduleRequestUseCase – rentalTenantNote', () => {
-  let activityRepo: {
-    save: ReturnType<typeof vi.fn>;
-    findLatestByTokenAndAction: ReturnType<typeof vi.fn>;
-  };
-  let tokenRepo: {
-    findByTokenHash: ReturnType<typeof vi.fn>;
-    findActiveByAppointmentId: ReturnType<typeof vi.fn>;
-    save: ReturnType<typeof vi.fn>;
-    revokeAndSave: ReturnType<typeof vi.fn>;
-    updateStatus: ReturnType<typeof vi.fn>;
-    updateLastAccessedAt: ReturnType<typeof vi.fn>;
-    revokeAllForAppointment: ReturnType<typeof vi.fn>;
-    expireActiveTokens: ReturnType<typeof vi.fn>;
-    tryClaim: ReturnType<typeof vi.fn>;
-    releaseClaim: ReturnType<typeof vi.fn>;
-  };
-  let appointmentRepo: {
-    findById: ReturnType<typeof vi.fn>;
-    update: ReturnType<typeof vi.fn>;
-    deleteRestrictionsByAppointmentId: ReturnType<typeof vi.fn>;
-    saveRestriction: ReturnType<typeof vi.fn>;
-    findAll: ReturnType<typeof vi.fn>;
-    count: ReturnType<typeof vi.fn>;
-    save: ReturnType<typeof vi.fn>;
-    saveContact: ReturnType<typeof vi.fn>;
-    updateContact: ReturnType<typeof vi.fn>;
-  };
-  let serviceTypeRepo: {
-    findById: ReturnType<typeof vi.fn>;
-    findByCode: ReturnType<typeof vi.fn>;
-    findAll: ReturnType<typeof vi.fn>;
-    count: ReturnType<typeof vi.fn>;
-    save: ReturnType<typeof vi.fn>;
-    update: ReturnType<typeof vi.fn>;
-  };
-  let tenantRepo: {
-    findById: ReturnType<typeof vi.fn>;
-    findByLegalName: ReturnType<typeof vi.fn>;
-    findAll: ReturnType<typeof vi.fn>;
-    count: ReturnType<typeof vi.fn>;
-    save: ReturnType<typeof vi.fn>;
-    update: ReturnType<typeof vi.fn>;
-  };
-  let auditService: { log: ReturnType<typeof vi.fn> };
-  let executionRepo: { findByAppointmentId: ReturnType<typeof vi.fn> };
-  let reopenForRescheduleUseCase: { execute: ReturnType<typeof vi.fn> };
-  let useCase: RescheduleRequestUseCase;
-
-  beforeEach(() => {
-    activityRepo = {
-      save: vi.fn().mockResolvedValue(undefined),
-      findLatestByTokenAndAction: vi.fn().mockResolvedValue(null),
-    };
-    tokenRepo = {
-      findByTokenHash: vi.fn(),
-      findActiveByAppointmentId: vi.fn(),
-      save: vi.fn(),
-      revokeAndSave: vi.fn().mockResolvedValue(undefined),
-      updateStatus: vi.fn(),
-      updateLastAccessedAt: vi.fn(),
-      revokeAllForAppointment: vi.fn().mockResolvedValue(undefined),
-      expireActiveTokens: vi.fn(),
-      tryClaim: vi.fn().mockResolvedValue(true),
-      releaseClaim: vi.fn().mockResolvedValue(undefined),
-    };
-    appointmentRepo = {
-      findById: vi.fn().mockResolvedValue(
-        makeAppointmentWithRelations({ scheduledDate: SCHEDULED_DATE }),
-      ),
-      update: vi.fn().mockResolvedValue(undefined),
-      deleteRestrictionsByAppointmentId: vi.fn().mockResolvedValue(undefined),
-      saveRestriction: vi.fn().mockResolvedValue(undefined),
-      findAll: vi.fn(),
-      count: vi.fn(),
-      save: vi.fn(),
-      saveContact: vi.fn(),
-      updateContact: vi.fn(),
-    };
-    serviceTypeRepo = {
-      findById: vi.fn().mockResolvedValue(makeServiceType()),
-      findByCode: vi.fn(),
-      findAll: vi.fn(),
-      count: vi.fn(),
-      save: vi.fn(),
-      update: vi.fn(),
-    };
-    tenantRepo = {
-      findById: vi.fn().mockResolvedValue(makeTenant()),
-      findByLegalName: vi.fn(),
-      findAll: vi.fn(),
-      count: vi.fn(),
-      save: vi.fn(),
-      update: vi.fn(),
-    };
-    auditService = { log: vi.fn() };
-    executionRepo = { findByAppointmentId: vi.fn().mockResolvedValue(null) };
-    reopenForRescheduleUseCase = {
-      execute: vi.fn().mockResolvedValue({
-        id: 'appt-1',
-        previousStatus: 'SCHEDULED',
-        status: 'DRAFT',
-      }),
-    };
-
-    useCase = new RescheduleRequestUseCase(
-      activityRepo as unknown as IRentalTenantPortalActivityRepository,
-      tokenRepo as unknown as IRentalTenantPortalTokenRepository,
-      appointmentRepo as unknown as IAppointmentRepository,
-      serviceTypeRepo as unknown as IServiceTypeRepository,
-      executionRepo as unknown as IInspectionExecutionRepository,
-      tenantRepo as unknown as ITenantRepository,
-      auditService as unknown as PersistentAuditService,
-      reopenForRescheduleUseCase as unknown as ReopenForRescheduleUseCase,
-    );
-  });
-
-  it('should persist rentalTenantNote when provided on reschedule', async () => {
-    const result = await useCase.execute({
-      tokenId: 'token-1',
-      appointmentId: 'appt-1',
-      isUsed: false,
-      newDate: FUTURE_DATE,
-      newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',
-      rentalTenantNote: 'New date works better for me',
-      ipAddress: '127.0.0.1',
-      userAgent: 'TestAgent/1.0',
-    });
-
-    expect(result.rentalTenantConfirmationStatus).toBe('PENDING');
-    expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
-      rentalTenantNote: 'New date works better for me',
-    });
-  });
-
-  it('should not call appointmentRepo.update for rentalTenantNote when not provided on reschedule', async () => {
-    await useCase.execute({
-      tokenId: 'token-1',
-      appointmentId: 'appt-1',
-      isUsed: false,
-      newDate: FUTURE_DATE,
-      newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',
-      ipAddress: '127.0.0.1',
-      userAgent: 'TestAgent/1.0',
-    });
-
-    // appointmentRepo.update should not be called directly — reschedule delegates to ReopenForRescheduleUseCase
-    expect(appointmentRepo.update).not.toHaveBeenCalled();
   });
 });
 

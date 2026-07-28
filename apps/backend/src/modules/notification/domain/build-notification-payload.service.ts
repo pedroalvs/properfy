@@ -64,12 +64,10 @@ export class BuildNotificationPayloadService {
     const confirmationLink = ctx.rawPortalToken
       ? new URL('/portal/' + encodeURIComponent(ctx.rawPortalToken), ctx.portalBaseUrl).toString()
       : '';
-    const rescheduleLink = ctx.rawPortalToken
-      ? new URL(
-          '/portal/' + encodeURIComponent(ctx.rawPortalToken) + '/reschedule',
-          ctx.portalBaseUrl,
-        ).toString()
-      : '';
+    // The tenant-facing "propose new date" page was removed, so this no longer
+    // has a distinct destination — it points at the portal itself, where the
+    // tenant can still change to another available time.
+    const rescheduleLink = confirmationLink;
 
     const allVars: Record<string, string> = {
       rentalTenantName: ctx.contact.effectiveName,

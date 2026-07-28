@@ -581,7 +581,6 @@ export const portalDataResponseSchema = z.object({
   rentalTenantNames: z.array(z.string()).optional(),
   // Display name of the PROPERTY_MANAGER contact, when one is linked.
   propertyManager: z.string().nullable().optional(),
-  rescheduleAllowed: z.boolean().optional(),
   tenant: z.object({ name: z.string().nullable(), timezone: z.string() }).optional(),
 });
 
