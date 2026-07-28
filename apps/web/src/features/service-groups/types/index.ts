@@ -18,7 +18,11 @@ export interface ServiceGroup {
   inspectorName: string | null;
   status: ServiceGroupStatus;
   appointmentsCount: number;
-  /** The group's own day, `YYYY-MM-DD` (or full ISO). Members follow it. */
+  /**
+   * The group's own day, `YYYY-MM-DD` (or a full ISO datetime). Members follow it.
+   * Nullable rather than optional: the detail hook normalises a missing value to
+   * `null`, so an absent field reads as "unknown" and never as a valid date.
+   */
   scheduledDate: string | null;
   /** The group's shared window, `HH:mm-HH:mm`. Members are clamped into it. */
   timeWindow: string | null;
@@ -43,14 +47,6 @@ export interface ServiceGroupAppointment {
 export interface ServiceGroupDetail extends ServiceGroup {
   appointments: ServiceGroupAppointment[];
   description: string | null;
-  /**
-   * Group-level civil date (`YYYY-MM-DD`); appointments are synced to it.
-   * Optional because the hook spreads the raw payload — a response without it
-   * must read as "unknown", never as a valid date.
-   */
-  scheduledDate?: string;
-  /** Group-level window, `HH:mm-HH:mm`. Optional for the same reason. */
-  timeWindow?: string;
 }
 
 export interface ServiceGroupFiltersState {
