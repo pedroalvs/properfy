@@ -17,7 +17,9 @@ const VALID: AppFormData = {
 describe('useAppSave.validate', () => {
   // Several tests assert on `mock.calls[0]`; without this they would read the
   // previous test's request and break on reordering.
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('passes a complete create payload', () => {
     const { result } = renderHook(() => useAppSave(), { wrapper: createQueryWrapper() });
