@@ -9,7 +9,6 @@ function makeApp(overrides: Partial<AppointmentApp> = {}): AppointmentApp {
     username: 'host@example.com',
     password: 's3cr3t',
     needsAuthCode: false,
-    authCode: null,
     appUrl: null,
     instructionsUrl: null,
     instructionsPassword: null,
@@ -43,7 +42,6 @@ describe('AppsSection', () => {
         apps={[
           makeApp({
             needsAuthCode: true,
-            authCode: '123456',
             appUrl: 'https://app.example.com',
             instructionsUrl: 'https://docs.example.com',
             instructionsPassword: 'openme',
@@ -51,7 +49,9 @@ describe('AppsSection', () => {
         ]}
       />,
     );
-    expect(screen.getByTestId('apps-section-auth-code')).toHaveTextContent('123456');
+    expect(screen.getByTestId('apps-section-auth-code-required')).toHaveTextContent(
+      'Requires authentication code',
+    );
     expect(screen.getByTestId('apps-section-instructions-password')).toHaveTextContent('openme');
 
     const openApp = screen.getByTestId('apps-section-open-app');
@@ -65,27 +65,29 @@ describe('AppsSection', () => {
 
   it('hides new rows when the fields are null', () => {
     render(<AppsSection apps={[makeApp()]} />);
-    expect(screen.queryByTestId('apps-section-auth-code')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('apps-section-auth-code-required')).not.toBeInTheDocument();
     expect(screen.queryByTestId('apps-section-instructions-password')).not.toBeInTheDocument();
     expect(screen.queryByTestId('apps-section-open-app')).not.toBeInTheDocument();
     expect(screen.queryByTestId('apps-section-instructions')).not.toBeInTheDocument();
   });
 
-  it('hides the auth code row when authCode is present but needsAuthCode is false', () => {
-    render(<AppsSection apps={[makeApp({ needsAuthCode: false, authCode: '999' })]} />);
-    expect(screen.queryByTestId('apps-section-auth-code')).not.toBeInTheDocument();
+  it('renders the auth code notice as static text, not a tap-to-copy target', () => {
+    render(<AppsSection apps={[makeApp({ needsAuthCode: true })]} />);
+    const notice = screen.getByTestId('apps-section-auth-code-required');
+    expect(notice.tagName).toBe('P');
+    expect(notice.closest('button')).toBeNull();
   });
 
   it('copies the field value to the clipboard when a credential row is tapped', () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });
 
-    render(<AppsSection apps={[makeApp({ needsAuthCode: true, authCode: '123456' })]} />);
+    render(<AppsSection apps={[makeApp({ needsAuthCode: true })]} />);
 
     fireEvent.click(screen.getByTestId('apps-section-password'));
     expect(writeText).toHaveBeenCalledWith('s3cr3t');
 
-    fireEvent.click(screen.getByTestId('apps-section-auth-code'));
-    expect(writeText).toHaveBeenCalledWith('123456');
+    fireEvent.click(screen.getByTestId('apps-section-username'));
+    expect(writeText).toHaveBeenCalledWith('host@example.com');
   });
 });

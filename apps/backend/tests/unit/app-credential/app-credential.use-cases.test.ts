@@ -6,7 +6,6 @@ import { ListAppCredentialsUseCase } from '../../../src/modules/app-credential/a
 import { AppCredentialEntity } from '../../../src/modules/app-credential/domain/app-credential.entity';
 import {
   AppCredentialNotFoundError,
-  AppCredentialAuthCodeRequiredError,
   AppCredentialBranchInvalidError,
 } from '../../../src/modules/app-credential/domain/app-credential.errors';
 
@@ -63,15 +62,15 @@ describe('CreateAppCredentialUseCase', () => {
     expect(JSON.stringify(audit)).not.toContain('secret');
   });
 
-  it('rejects needsAuthCode=true without authCode', async () => {
+  it('accepts needsAuthCode=true — the flag is informational, no code is stored', async () => {
     const sut = new CreateAppCredentialUseCase(repo as any, auditService as any, branchRepo as any);
-    await expect(
-      sut.execute({
-        tenantId: TENANT_ID, name: 'Airbnb', username: 'host', password: 'secret',
-        needsAuthCode: true, actorId: ACTOR_ID,
-      }),
-    ).rejects.toBeInstanceOf(AppCredentialAuthCodeRequiredError);
-    expect(repo.save).not.toHaveBeenCalled();
+    await sut.execute({
+      tenantId: TENANT_ID, name: 'Airbnb', username: 'host', password: 'secret',
+      needsAuthCode: true, actorId: ACTOR_ID,
+    });
+    const saved = repo.save.mock.calls[0][0] as AppCredentialEntity;
+    expect(saved.needsAuthCode).toBe(true);
+    expect(saved).not.toHaveProperty('authCode');
   });
 
   it('validates that branchId belongs to the tenant', async () => {
@@ -87,25 +86,23 @@ describe('CreateAppCredentialUseCase', () => {
     expect(repo.save).not.toHaveBeenCalled();
   });
 
-  it('persists new fields (branch, authCode, urls, instructionsPassword) without leaking secrets', async () => {
+  it('persists new fields (branch, urls, instructionsPassword) without leaking secrets', async () => {
     branchRepo.findById.mockResolvedValueOnce({ id: 'branch-1' });
     const sut = new CreateAppCredentialUseCase(repo as any, auditService as any, branchRepo as any);
     await sut.execute({
       tenantId: TENANT_ID, branchId: 'branch-1',
       name: 'Airbnb', username: 'host', password: 'secret',
-      needsAuthCode: true, authCode: 'code-777',
+      needsAuthCode: true,
       appUrl: 'https://example.com/app', instructionsUrl: 'https://example.com/docs',
       instructionsPassword: 'doc-pass-999', actorId: ACTOR_ID,
     });
     const saved = repo.save.mock.calls[0][0] as AppCredentialEntity;
     expect(saved.branchId).toBe('branch-1');
     expect(saved.needsAuthCode).toBe(true);
-    expect(saved.authCode).toBe('code-777');
     expect(saved.appUrl).toBe('https://example.com/app');
     expect(saved.instructionsUrl).toBe('https://example.com/docs');
     expect(saved.instructionsPassword).toBe('doc-pass-999');
     const audit = JSON.stringify(auditService.log.mock.calls[0][0]);
-    expect(audit).not.toContain('code-777');
     expect(audit).not.toContain('doc-pass-999');
   });
 });
@@ -140,30 +137,19 @@ describe('UpdateAppCredentialUseCase', () => {
     expect(JSON.stringify(audit)).not.toContain('newpass');
   });
 
-  it('rejects enabling needsAuthCode when no authCode is stored or provided', async () => {
-    repo.findById.mockResolvedValueOnce(makeEntity({ needsAuthCode: false, authCode: null }));
-    const sut = new UpdateAppCredentialUseCase(repo as any, auditService as any, branchRepo as any);
-    await expect(
-      sut.execute({ id: 'cred-1', actorId: ACTOR_ID, data: { needsAuthCode: true } }),
-    ).rejects.toBeInstanceOf(AppCredentialAuthCodeRequiredError);
-    expect(repo.update).not.toHaveBeenCalled();
-  });
-
-  it('rejects clearing authCode while needsAuthCode stays true', async () => {
-    repo.findById.mockResolvedValueOnce(makeEntity({ needsAuthCode: true, authCode: 'code' }));
-    const sut = new UpdateAppCredentialUseCase(repo as any, auditService as any, branchRepo as any);
-    await expect(
-      sut.execute({ id: 'cred-1', actorId: ACTOR_ID, data: { authCode: null } }),
-    ).rejects.toBeInstanceOf(AppCredentialAuthCodeRequiredError);
-  });
-
-  it('allows enabling needsAuthCode when an authCode is already stored', async () => {
+  it('toggles needsAuthCode freely in both directions — nothing gates the flag', async () => {
     repo.findById
-      .mockResolvedValueOnce(makeEntity({ needsAuthCode: false, authCode: 'stored-code' }))
-      .mockResolvedValueOnce(makeEntity({ needsAuthCode: true, authCode: 'stored-code' }));
+      .mockResolvedValueOnce(makeEntity({ needsAuthCode: false }))
+      .mockResolvedValueOnce(makeEntity({ needsAuthCode: true }))
+      .mockResolvedValueOnce(makeEntity({ needsAuthCode: true }))
+      .mockResolvedValueOnce(makeEntity({ needsAuthCode: false }));
     const sut = new UpdateAppCredentialUseCase(repo as any, auditService as any, branchRepo as any);
+
     await sut.execute({ id: 'cred-1', actorId: ACTOR_ID, data: { needsAuthCode: true } });
-    expect(repo.update).toHaveBeenCalledWith('cred-1', { needsAuthCode: true });
+    expect(repo.update).toHaveBeenNthCalledWith(1, 'cred-1', { needsAuthCode: true });
+
+    await sut.execute({ id: 'cred-1', actorId: ACTOR_ID, data: { needsAuthCode: false } });
+    expect(repo.update).toHaveBeenNthCalledWith(2, 'cred-1', { needsAuthCode: false });
   });
 
   it('validates a new branchId against the credential tenant', async () => {
@@ -234,12 +220,6 @@ describe('ListAppCredentialsUseCase', () => {
 });
 
 describe('app-credential error codes', () => {
-  it('AppCredentialAuthCodeRequiredError carries APP_CREDENTIAL_AUTH_CODE_REQUIRED with status 400', () => {
-    const err = new AppCredentialAuthCodeRequiredError();
-    expect(err.code).toBe('APP_CREDENTIAL_AUTH_CODE_REQUIRED');
-    expect(err.statusCode).toBe(400);
-  });
-
   it('AppCredentialBranchInvalidError carries APP_CREDENTIAL_BRANCH_INVALID with status 400', () => {
     const err = new AppCredentialBranchInvalidError();
     expect(err.code).toBe('APP_CREDENTIAL_BRANCH_INVALID');

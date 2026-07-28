@@ -39,7 +39,7 @@ const inspContext = { userId: 'insp-1', tenantId: null, role: 'INSP', branchId: 
 function makeCred(overrides: Record<string, unknown> = {}) {
   return {
     id: CRED_ID, tenantId: TENANT_A, branchId: null, name: 'Airbnb', username: 'host', password: 'secret',
-    needsAuthCode: false, authCode: null, appUrl: null, instructionsUrl: null, instructionsPassword: null,
+    needsAuthCode: false, appUrl: null, instructionsUrl: null, instructionsPassword: null,
     isActive: true, isDefault: false,
     createdAt: new Date('2026-01-01T00:00:00.000Z'), updatedAt: new Date('2026-01-01T00:00:00.000Z'),
     ...overrides,
@@ -110,21 +110,23 @@ describe('POST /v1/app-credentials', () => {
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
-  it('rejects needsAuthCode=true without authCode (400)', async () => {
+  it('accepts needsAuthCode=true on its own (201) — no code value required', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
-    await supertest(app.server)
+    mockCreate.mockResolvedValueOnce(makeCred({ needsAuthCode: true }));
+    const res = await supertest(app.server)
       .post('/v1/app-credentials')
       .set('Authorization', 'Bearer t')
       .send({ tenantId: TENANT_A, name: 'A', username: 'u', password: 'p', needsAuthCode: true })
-      .expect(400);
-    expect(mockCreate).not.toHaveBeenCalled();
+      .expect(201);
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ needsAuthCode: true }));
+    expect(res.body.data).not.toHaveProperty('authCode');
   });
 
   it('accepts and echoes the new fields', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
     const branchId = 'bbbbbbbb-0000-4000-8000-000000000001';
     mockCreate.mockResolvedValueOnce(makeCred({
-      branchId, needsAuthCode: true, authCode: '123456',
+      branchId, needsAuthCode: true,
       appUrl: 'https://example.com/app', instructionsUrl: 'https://example.com/docs',
       instructionsPassword: 'doc-pass', isDefault: true,
     }));
@@ -133,14 +135,14 @@ describe('POST /v1/app-credentials', () => {
       .set('Authorization', 'Bearer t')
       .send({
         tenantId: TENANT_A, branchId, name: 'Airbnb', username: 'host', password: 'secret',
-        needsAuthCode: true, authCode: '123456',
+        needsAuthCode: true,
         appUrl: 'https://example.com/app', instructionsUrl: 'https://example.com/docs',
         instructionsPassword: 'doc-pass', isDefault: true,
       })
       .expect(201);
     expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ isDefault: true }));
     expect(res.body.data).toMatchObject({
-      branchId, needsAuthCode: true, authCode: '123456', isDefault: true,
+      branchId, needsAuthCode: true, isDefault: true,
       appUrl: 'https://example.com/app', instructionsUrl: 'https://example.com/docs',
       instructionsPassword: 'doc-pass',
     });

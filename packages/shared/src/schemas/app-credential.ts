@@ -5,9 +5,13 @@ import { z } from 'zod';
 // contacts there is no role, no snapshot and no cross-tenant nullability:
 // every credential belongs to exactly one tenant and is managed by AM/OP only.
 // A credential may optionally be scoped to a single branch (branchId null =
-// agency-wide, visible for every branch). Secrets (password, authCode,
+// agency-wide, visible for every branch). Secrets (password,
 // instructionsPassword) are shown in plaintext in the UI but encrypted at rest
 // (the backend repository handles encrypt-on-save / decrypt-on-read).
+//
+// `needsAuthCode` is a display-only flag: these apps issue rotating/one-time
+// codes, so nothing is stored — it only tells the inspector to expect a code
+// prompt and obtain the code out of band.
 
 const secretSchema = z.string().min(1).max(500);
 // z.string().url() accepts any scheme (javascript:, data:) — these values are
@@ -23,38 +27,25 @@ const urlSchema = z
 
 // --- App credential (create) ---
 
-export const appCredentialCreateSchema = z
-  .object({
-    // AM/OP are cross-tenant, so the owning tenant must be provided explicitly.
-    tenantId: z.string().uuid(),
-    branchId: z.string().uuid().nullable().optional(),
-    name: z.string().trim().min(1).max(200),
-    username: z.string().trim().min(1).max(200),
-    password: secretSchema,
-    needsAuthCode: z.boolean().default(false),
-    authCode: secretSchema.nullable().optional(),
-    appUrl: urlSchema.nullable().optional(),
-    instructionsUrl: urlSchema.nullable().optional(),
-    instructionsPassword: secretSchema.nullable().optional(),
-    // Default credentials are automatically shown on every appointment of the
-    // owning agency (branch-scoped when branchId is set) without an explicit
-    // appointment link.
-    isDefault: z.boolean().default(false),
-  })
-  .superRefine((value, ctx) => {
-    if (value.needsAuthCode && !value.authCode) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['authCode'],
-        message: 'authCode is required when needsAuthCode is true',
-      });
-    }
-  });
+export const appCredentialCreateSchema = z.object({
+  // AM/OP are cross-tenant, so the owning tenant must be provided explicitly.
+  tenantId: z.string().uuid(),
+  branchId: z.string().uuid().nullable().optional(),
+  name: z.string().trim().min(1).max(200),
+  username: z.string().trim().min(1).max(200),
+  password: secretSchema,
+  needsAuthCode: z.boolean().default(false),
+  appUrl: urlSchema.nullable().optional(),
+  instructionsUrl: urlSchema.nullable().optional(),
+  instructionsPassword: secretSchema.nullable().optional(),
+  // Default credentials are automatically shown on every appointment of the
+  // owning agency (branch-scoped when branchId is set) without an explicit
+  // appointment link.
+  isDefault: z.boolean().default(false),
+});
 export type AppCredentialCreateInput = z.infer<typeof appCredentialCreateSchema>;
 
 // --- App credential (update / patch) ---
-// The needsAuthCode/authCode invariant cannot be validated on a partial patch;
-// the backend update use case enforces it against the merged entity state.
 
 export const appCredentialUpdateSchema = z.object({
   branchId: z.string().uuid().nullable().optional(),
@@ -62,7 +53,6 @@ export const appCredentialUpdateSchema = z.object({
   username: z.string().trim().min(1).max(200).optional(),
   password: secretSchema.optional(),
   needsAuthCode: z.boolean().optional(),
-  authCode: secretSchema.nullable().optional(),
   appUrl: urlSchema.nullable().optional(),
   instructionsUrl: urlSchema.nullable().optional(),
   instructionsPassword: secretSchema.nullable().optional(),
@@ -82,7 +72,6 @@ export const appCredentialResponseSchema = z.object({
   username: z.string(),
   password: z.string(),
   needsAuthCode: z.boolean(),
-  authCode: z.string().nullable(),
   appUrl: z.string().nullable(),
   instructionsUrl: z.string().nullable(),
   instructionsPassword: z.string().nullable(),
@@ -111,7 +100,6 @@ export const appointmentAppSchema = z.object({
   username: z.string(),
   password: z.string(),
   needsAuthCode: z.boolean(),
-  authCode: z.string().nullable(),
   appUrl: z.string().nullable(),
   instructionsUrl: z.string().nullable(),
   instructionsPassword: z.string().nullable(),

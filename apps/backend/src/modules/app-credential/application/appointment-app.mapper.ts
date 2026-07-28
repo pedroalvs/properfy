@@ -13,7 +13,6 @@ export function toAppointmentApp(credential: AppCredentialEntity): AppointmentAp
     username: credential.username,
     password: credential.password,
     needsAuthCode: credential.needsAuthCode,
-    authCode: credential.authCode ?? null,
     appUrl: credential.appUrl ?? null,
     instructionsUrl: credential.instructionsUrl ?? null,
     instructionsPassword: credential.instructionsPassword ?? null,

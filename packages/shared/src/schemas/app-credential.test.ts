@@ -39,7 +39,6 @@ describe('appCredentialCreateSchema', () => {
     const parsed = appCredentialCreateSchema.parse(valid);
     expect(parsed.needsAuthCode).toBe(false);
     expect(parsed.branchId).toBeUndefined();
-    expect(parsed.authCode).toBeUndefined();
     expect(parsed.appUrl).toBeUndefined();
     expect(parsed.instructionsUrl).toBeUndefined();
     expect(parsed.instructionsPassword).toBeUndefined();
@@ -58,11 +57,14 @@ describe('appCredentialCreateSchema', () => {
     expect(appCredentialCreateSchema.safeParse({ ...valid, branchId: 'nope' }).success).toBe(false);
   });
 
-  it('requires authCode when needsAuthCode is true', () => {
-    expect(appCredentialCreateSchema.safeParse({ ...valid, needsAuthCode: true }).success).toBe(false);
-    expect(appCredentialCreateSchema.safeParse({ ...valid, needsAuthCode: true, authCode: null }).success).toBe(false);
-    expect(appCredentialCreateSchema.safeParse({ ...valid, needsAuthCode: true, authCode: '123456' }).success).toBe(true);
-    expect(appCredentialCreateSchema.safeParse({ ...valid, needsAuthCode: false, authCode: '123456' }).success).toBe(true);
+  it('accepts needsAuthCode on its own — no code value is stored', () => {
+    expect(appCredentialCreateSchema.safeParse({ ...valid, needsAuthCode: true }).success).toBe(true);
+    expect(appCredentialCreateSchema.parse({ ...valid, needsAuthCode: true }).needsAuthCode).toBe(true);
+    // The code itself is no longer part of the contract: a client still sending
+    // it must not get it persisted, so the schema drops the key silently.
+    expect(appCredentialCreateSchema.parse({ ...valid, needsAuthCode: true, authCode: '123456' })).not.toHaveProperty(
+      'authCode',
+    );
   });
 
   it('validates appUrl and instructionsUrl as urls', () => {
@@ -101,7 +103,6 @@ describe('appCredentialUpdateSchema', () => {
     expect(appCredentialUpdateSchema.safeParse({ branchId: null }).success).toBe(true);
     expect(appCredentialUpdateSchema.safeParse({ branchId: '22222222-2222-2222-2222-222222222222' }).success).toBe(true);
     expect(appCredentialUpdateSchema.safeParse({ needsAuthCode: true }).success).toBe(true);
-    expect(appCredentialUpdateSchema.safeParse({ authCode: null }).success).toBe(true);
     expect(appCredentialUpdateSchema.safeParse({ appUrl: 'https://example.com', instructionsUrl: null }).success).toBe(true);
     expect(appCredentialUpdateSchema.safeParse({ instructionsPassword: 'x' }).success).toBe(true);
   });
@@ -115,7 +116,6 @@ describe('appCredentialUpdateSchema', () => {
   it('rejects invalid urls and empty secrets on update', () => {
     expect(appCredentialUpdateSchema.safeParse({ appUrl: 'nope' }).success).toBe(false);
     expect(appCredentialUpdateSchema.safeParse({ instructionsUrl: 'nope' }).success).toBe(false);
-    expect(appCredentialUpdateSchema.safeParse({ authCode: '' }).success).toBe(false);
     expect(appCredentialUpdateSchema.safeParse({ instructionsPassword: '' }).success).toBe(false);
   });
 });

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { createQueryWrapper } from '@/test-utils/test-wrappers';
 import { useAppSave } from './useAppSave';
@@ -15,6 +15,10 @@ const VALID: AppFormData = {
 };
 
 describe('useAppSave.validate', () => {
+  // Several tests assert on `mock.calls[0]`; without this they would read the
+  // previous test's request and break on reordering.
+  beforeEach(() => vi.clearAllMocks());
+
   it('passes a complete create payload', () => {
     const { result } = renderHook(() => useAppSave(), { wrapper: createQueryWrapper() });
     expect(result.current.validate(VALID, 'create')).toEqual({});
@@ -34,13 +38,21 @@ describe('useAppSave.validate', () => {
     expect(result.current.validate({ ...VALID, tenantId: '' }, 'edit')).toEqual({});
   });
 
-  it('requires authCode when needsAuthCode is checked (create and edit)', () => {
+  it('accepts needsAuthCode on its own — nothing to fill in (create and edit)', () => {
     const { result } = renderHook(() => useAppSave(), { wrapper: createQueryWrapper() });
-    const errors = result.current.validate({ ...VALID, needsAuthCode: true, authCode: '' }, 'create');
-    expect(errors.authCode).toBeDefined();
-    expect(result.current.validate({ ...VALID, needsAuthCode: true, authCode: '123' }, 'create')).toEqual({});
-    expect(result.current.validate({ ...VALID, needsAuthCode: true, authCode: '' }, 'edit').authCode).toBeDefined();
-    expect(result.current.validate({ ...VALID, needsAuthCode: true, authCode: '123' }, 'edit')).toEqual({});
+    expect(result.current.validate({ ...VALID, needsAuthCode: true }, 'create')).toEqual({});
+    expect(result.current.validate({ ...VALID, needsAuthCode: true }, 'edit')).toEqual({});
+  });
+
+  it('sends needsAuthCode but never an auth code value', async () => {
+    const { api } = await import('@/services/api');
+    vi.mocked(api.POST).mockResolvedValue({ data: { data: { id: 'new-id' } }, error: undefined } as never);
+    const { result } = renderHook(() => useAppSave(), { wrapper: createQueryWrapper() });
+
+    await result.current.save({ ...VALID, needsAuthCode: true });
+    const { body } = vi.mocked(api.POST).mock.calls[0]![1] as unknown as { body: Record<string, unknown> };
+    expect(body.needsAuthCode).toBe(true);
+    expect(body).not.toHaveProperty('authCode');
   });
 
   it('rejects invalid urls and accepts valid or empty ones', () => {
