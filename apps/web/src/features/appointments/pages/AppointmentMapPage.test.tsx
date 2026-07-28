@@ -158,6 +158,18 @@ describe('AppointmentMapPage', () => {
     expect(screen.getByTestId('map-screen-layout')).toBeInTheDocument();
   });
 
+  it('fills its parent instead of cancelling the shell padding with negative margins', () => {
+    // The page used to escape AppShell's padding with
+    // `-mx-4 -mt-4 md:-mx-8 md:-mt-6`, which only cancelled the TOP padding —
+    // the leftover bottom padding (and the mobile top bar) pushed the document
+    // past 100vh and made the map screen scroll. Full-height mode in AppShell
+    // now owns this, so the negative margins must not come back.
+    renderPage();
+    const wrapper = screen.getByTestId('map-screen-layout').parentElement;
+    expect(wrapper).toHaveClass('h-full');
+    expect(wrapper?.className).not.toMatch(/-mt-|-mb-|-mx-/);
+  });
+
   // 026 cycle-1 — filter panel is CLOSED by default; only the toggle
   // button is visible. The previous assertions presumed the panel was
   // open on first render and broke when the user smoke caught that the

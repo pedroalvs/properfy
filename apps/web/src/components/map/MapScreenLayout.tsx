@@ -7,6 +7,16 @@ interface MapScreenLayoutProps {
   /** Not used for width — width is managed internally via the resize handle. Kept for API compat. */
   sidePanelWidth?: string;
   sidePanelOpen?: boolean;
+  /**
+   * Fill the parent box (`h-full`) instead of the viewport (`h-screen`).
+   *
+   * Set this when the screen runs inside AppShell's full-height mode, where the
+   * parent already resolves to the viewport minus the shell chrome. Claiming a
+   * hard 100vh there stacks on top of that chrome and makes the page scroll.
+   * Defaults to `false` — a parent with no resolved height would collapse an
+   * `h-full` map to zero.
+   */
+  fillParent?: boolean;
 }
 
 /**
@@ -22,6 +32,7 @@ export function MapScreenLayout({
   sidePanel,
   map,
   sidePanelOpen = true,
+  fillParent = false,
 }: MapScreenLayoutProps) {
   const { widthPx, isDragging, onHandleMouseDown } = useResizableWidth({
     initialPx: 420,
@@ -33,7 +44,7 @@ export function MapScreenLayout({
 
   return (
     <div
-      className="relative h-screen"
+      className={fillParent ? 'relative h-full' : 'relative h-screen'}
       data-testid="map-screen-layout"
     >
       {/* Map always fills the full viewport */}

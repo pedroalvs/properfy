@@ -1304,8 +1304,8 @@ export function AppointmentMapPage() {
   );
 
   return (
-    <div className="relative -mx-4 -mt-4 md:-mx-8 md:-mt-6">
-      <MapScreenLayout sidePanel={sidePanel} map={mapContent} sidePanelOpen={filtersOpen} />
+    <div className="relative h-full">
+      <MapScreenLayout sidePanel={sidePanel} map={mapContent} sidePanelOpen={filtersOpen} fillParent />
         {/* 026 cycle-1 devolução — render the top-left toggle ONLY while
             the panel is closed. When open, the panel's own close `×`
             button is the canonical affordance; the external toggle was

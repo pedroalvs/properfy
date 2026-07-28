@@ -129,6 +129,9 @@ export const router = createBrowserRouter([
           },
           {
             path: 'map',
+            // Fullscreen map — AppShell clamps to the viewport and drops the
+            // page padding so the map does not overflow into a page scroll.
+            handle: { fullHeight: true },
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
                 <AppointmentMapPage />
@@ -263,6 +266,8 @@ export const router = createBrowserRouter([
           },
           {
             path: 'marketplace',
+            // Header + fullscreen map — same clamp as /map.
+            handle: { fullHeight: true },
             element: (
               <AuthGuard roles={[UserRole.INSP]}>
                 <MarketplacePage />

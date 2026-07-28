@@ -28,6 +28,22 @@ describe('MapScreenLayout', () => {
     expect(layout).toHaveClass('h-screen');
   });
 
+  it('fills its parent instead of the viewport when fillParent is set', () => {
+    // Used by screens rendered inside AppShell's full-height mode, where the
+    // parent already resolves to the viewport minus shell chrome. Claiming a
+    // hard 100vh there overflows the document and makes the page scroll.
+    render(
+      <MapScreenLayout
+        sidePanel={<div>Panel</div>}
+        map={<div>Map</div>}
+        fillParent
+      />,
+    );
+    const layout = screen.getByTestId('map-screen-layout');
+    expect(layout).toHaveClass('h-full');
+    expect(layout).not.toHaveClass('h-screen');
+  });
+
   it('renders floating panel with position:fixed left-4 top-4 (cycle 4)', () => {
     // Cycle 4: panel is fixed-positioned, not an absolute overlay with a width prop.
     render(
