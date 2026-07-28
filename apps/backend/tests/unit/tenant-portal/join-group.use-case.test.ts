@@ -138,7 +138,7 @@ describe('JoinGroupUseCase', () => {
         appointments: [],
       }),
       findPortalEligibleSlots: vi.fn().mockResolvedValue([makeEligibleMember()]),
-      reservePortalWindow: vi.fn().mockResolvedValue(true),
+      reservePortalWindow: vi.fn().mockResolvedValue({ ok: true }),
       hasPortalMemberSlot: vi.fn().mockResolvedValue(true),
       decrementConfirmedCount: vi.fn().mockResolvedValue(undefined),
       incrementConfirmedCount: vi.fn().mockResolvedValue(undefined),
@@ -453,7 +453,7 @@ describe('JoinGroupUseCase', () => {
     beforeEach(() => {
       // The pre-check passed, but another tenant took the last opening before
       // this transaction got the group lock.
-      serviceGroupRepo.reservePortalWindow.mockResolvedValue(false);
+      serviceGroupRepo.reservePortalWindow.mockResolvedValue({ ok: false, reason: 'WINDOW_FULL' });
     });
 
     it('should throw PortalGroupFullError', async () => {
@@ -479,6 +479,33 @@ describe('JoinGroupUseCase', () => {
     it('should release the token so the tenant can pick another time', async () => {
       await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupFullError);
       expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
+    });
+  });
+
+  describe('when the appointment goes inactive mid-flight', () => {
+    beforeEach(() => {
+      // Cancelled or deleted between the caller's status check and the
+      // reservation transaction, so there is nothing left to move.
+      serviceGroupRepo.reservePortalWindow.mockResolvedValue({
+        ok: false,
+        reason: 'APPOINTMENT_INACTIVE',
+      });
+    });
+
+    it('should report it as inactive, not as a full window', async () => {
+      // Saying "full" would send the tenant round the picker to fail again.
+      await expect(useCase.execute(makeInput())).rejects.toThrow(PortalAppointmentInactiveError);
+    });
+
+    it('should run no side effect for a move that never happened', async () => {
+      await expect(useCase.execute(makeInput())).rejects.toThrow(PortalAppointmentInactiveError);
+
+      expect(serviceGroupRepo.incrementConfirmedCount).not.toHaveBeenCalled();
+      expect(serviceGroupRepo.decrementConfirmedCount).not.toHaveBeenCalled();
+      expect(statusTransition.execute).not.toHaveBeenCalled();
+      expect(activityRepo.save).not.toHaveBeenCalled();
+      expect(auditService.log).not.toHaveBeenCalled();
+      expect(notificationHandler.execute).not.toHaveBeenCalled();
     });
   });
 });

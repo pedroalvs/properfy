@@ -470,8 +470,9 @@ describe('PrismaServiceGroupRepository portal member slots — real DB', () => {
 
     const results = await Promise.all(contenders.map(reserve));
 
-    // Without the group-row lock both transactions read "one left" and both win.
-    expect(results.filter(Boolean)).toHaveLength(1);
+    // Without the group-row lock several transactions read "one left" and win.
+    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    expect(results.filter((r) => !r.ok && r.reason === 'WINDOW_FULL')).toHaveLength(contenders.length - 1);
 
     const joined = await harness.prisma.appointment.findMany({
       where: { id: { in: contenders }, service_group_id: groupId },
@@ -530,12 +531,68 @@ describe('PrismaServiceGroupRepository portal member slots — real DB', () => {
       inspectorId,
     });
 
-    expect(reserved).toBe(false);
+    expect(reserved).toEqual({ ok: false, reason: 'WINDOW_FULL' });
     const untouched = await harness.prisma.appointment.findUnique({
       where: { id: outsiderId },
       select: { service_group_id: true, time_slot_start: true },
     });
     expect(untouched).toMatchObject({ service_group_id: null, time_slot_start: '14:00' });
+  });
+
+  it.each([
+    ['cancelled', { status: 'CANCELLED' as const }],
+    ['rejected', { status: 'REJECTED' as const }],
+    ['soft-deleted', { deleted: true }],
+  ])('refuses to move a %s appointment even into a window with room', async (_label, state) => {
+    const { tenantId, userId } = await seedTenant(harness.prisma, `Portal Inactive Target ${rand()}`);
+    const branchId = await getBranchId(harness.prisma, tenantId);
+    const serviceTypeId = await seedServiceType(harness.prisma);
+    const { inspectorId } = await seedInspector(harness.prisma, `Inactive Target Inspector ${rand()}`);
+
+    const nearPropertyId = await seedPropertyPoint(harness.prisma, {
+      tenantId, branchId, suburb: 'Inactive Target Near', lat: -33.866, lng: 151.210,
+    });
+    const groupId = await seedAcceptedGroup(harness.prisma, {
+      serviceTypeId, createdByUserId: userId, inspectorId,
+    });
+    await seedAppointment(harness.prisma, {
+      tenantId, branchId, propertyId: nearPropertyId, serviceTypeId,
+      createdByUserId: userId, groupId,
+      scheduledDate: SLOT_ONE_DATE, timeSlotStart: '08:00', timeSlotEnd: '17:00',
+    });
+
+    // Plenty of room in the window — the only thing wrong is the target itself,
+    // which an operator changed after the portal flow had already checked it.
+    const targetId = await seedAppointment(harness.prisma, {
+      tenantId, branchId, propertyId: nearPropertyId, serviceTypeId,
+      createdByUserId: userId, groupId: null,
+      scheduledDate: SLOT_TWO_DATE, timeSlotStart: '14:00', timeSlotEnd: '15:00',
+      ...state,
+    });
+
+    const reserved = await repo.reservePortalWindow({
+      groupId,
+      appointmentId: targetId,
+      tenantId,
+      scheduledDate: SLOT_ONE_DATE.toISOString().slice(0, 10),
+      timeSlotStart: '08:00',
+      timeSlotEnd: '17:00',
+      inspectorId,
+    });
+
+    // Reported apart from WINDOW_FULL so the caller does not tell the tenant to
+    // pick another time when no time would help.
+    expect(reserved).toEqual({ ok: false, reason: 'APPOINTMENT_INACTIVE' });
+
+    const untouched = await harness.prisma.appointment.findUnique({
+      where: { id: targetId },
+      select: { service_group_id: true, time_slot_start: true, inspector_id: true },
+    });
+    expect(untouched).toMatchObject({
+      service_group_id: null,
+      time_slot_start: '14:00',
+      inspector_id: null,
+    });
   });
 
   it('excludes the appointment current group when excludeGroupId is provided', async () => {

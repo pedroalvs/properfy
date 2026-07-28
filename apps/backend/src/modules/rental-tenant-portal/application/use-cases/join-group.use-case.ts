@@ -200,7 +200,7 @@ export class JoinGroupUseCase {
     // one transaction holding a lock on the group, so two tenants racing for the
     // last opening cannot both pass — the loser gets `false` and nothing is
     // written. The token claim above only guards replays of the *same* token.
-    const reserved = await this.serviceGroupRepo.reservePortalWindow({
+    const reservation = await this.serviceGroupRepo.reservePortalWindow({
       groupId: group.id,
       appointmentId: input.appointmentId,
       tenantId: appointment.tenantId,
@@ -210,8 +210,13 @@ export class JoinGroupUseCase {
       inspectorId,
       ...(input.rentalTenantNote !== undefined ? { rentalTenantNote: input.rentalTenantNote } : {}),
     });
-    if (!reserved) {
-      throw new PortalGroupFullError();
+    if (!reservation.ok) {
+      // A full window sends the tenant back to pick another time; an inactive
+      // appointment means there is nothing left to move, so saying "full" would
+      // just send them round the picker to fail again.
+      throw reservation.reason === 'WINDOW_FULL'
+        ? new PortalGroupFullError()
+        : new PortalAppointmentInactiveError();
     }
 
     // Detach from the previous group only once the new slot is actually held,

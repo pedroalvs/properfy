@@ -13,6 +13,7 @@ import type {
   MarketplaceOffer,
   MarketplaceOfferDetail,
   PortalEligibleGroupMember,
+  PortalWindowReservation,
 } from '../domain/service-group.repository';
 import type { ServiceGroupStatus } from '@properfy/shared';
 import { computeWindowAvailability } from '../domain/portal-slot-capacity';
@@ -967,7 +968,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     timeSlotEnd: string;
     inspectorId: string;
     rentalTenantNote?: string;
-  }): Promise<boolean> {
+  }): Promise<PortalWindowReservation> {
     return this.prisma.$transaction(async (tx) => {
       // Serializes every concurrent join targeting this group: the next
       // transaction only gets the lock once this one has committed, so it
@@ -994,10 +995,19 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         })),
         { timeSlotStart: params.timeSlotStart, timeSlotEnd: params.timeSlotEnd },
       );
-      if (availability.remaining <= 0) return false;
+      if (availability.remaining <= 0) return { ok: false, reason: 'WINDOW_FULL' };
 
-      await tx.appointment.updateMany({
-        where: { id: params.appointmentId, tenant_id: params.tenantId },
+      // Re-assert the target's state here rather than trusting the caller's
+      // earlier read: an operator can cancel or delete the appointment while the
+      // tenant is choosing. Without these predicates the move would land on a
+      // cancelled row and still report success.
+      const { count } = await tx.appointment.updateMany({
+        where: {
+          id: params.appointmentId,
+          tenant_id: params.tenantId,
+          deleted_at: null,
+          status: { notIn: ['CANCELLED', 'DONE', 'REJECTED'] },
+        },
         data: {
           scheduled_date: new Date(params.scheduledDate),
           time_slot_start: params.timeSlotStart,
@@ -1011,7 +1021,12 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         },
       });
 
-      return true;
+      // `updateMany` reports zero rows rather than throwing, so without this
+      // the caller would go on to bump counters, write audit and notify for a
+      // move that never happened.
+      if (count !== 1) return { ok: false, reason: 'APPOINTMENT_INACTIVE' };
+
+      return { ok: true };
     });
   }
 

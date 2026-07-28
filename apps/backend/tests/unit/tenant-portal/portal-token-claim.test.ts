@@ -434,7 +434,7 @@ describe('JoinGroupUseCase atomic token claim', () => {
           isOwnAgency: true,
         },
       ]),
-      reservePortalWindow: vi.fn().mockResolvedValue(true),
+      reservePortalWindow: vi.fn().mockResolvedValue({ ok: true }),
       hasPortalMemberSlot: vi.fn().mockResolvedValue(true),
       decrementConfirmedCount: vi.fn().mockResolvedValue(undefined),
       incrementConfirmedCount: vi.fn().mockResolvedValue(undefined),

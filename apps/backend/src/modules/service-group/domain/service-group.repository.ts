@@ -177,6 +177,16 @@ export interface GroupAppointmentConfirmationRow {
   propertyAddress: string | null;
 }
 
+/**
+ * Outcome of `reservePortalWindow`. `WINDOW_FULL` means the slot was taken
+ * while the tenant was deciding; `APPOINTMENT_INACTIVE` means the appointment
+ * itself was cancelled, finished or deleted after the caller last checked, so
+ * there is nothing to move and no side effect should follow.
+ */
+export type PortalWindowReservation =
+  | { ok: true }
+  | { ok: false; reason: 'WINDOW_FULL' | 'APPOINTMENT_INACTIVE' };
+
 export interface IServiceGroupRepository {
   findById(id: string, tenantId: string | null): Promise<ServiceGroupWithAppointments | null>;
   findAll(
@@ -288,13 +298,16 @@ export interface IServiceGroupRepository {
    *
    * Locks the group row, recomputes the window's availability from the members
    * visible inside that transaction, and only then moves the appointment into
-   * the window. Returns false — having written nothing — when the window filled
-   * up in the meantime.
+   * the window. Writes nothing unless it returns `{ ok: true }`.
    *
    * The check and the write must share one transaction: performed separately,
    * two portal tokens can both read the last free slot and both take it. The
    * single-use token guard does not help, because it only serializes retries of
    * the *same* token, not two different tenants racing for one opening.
+   *
+   * The two failure reasons are kept apart because they send the tenant
+   * somewhere different: a full window means "pick another time", an inactive
+   * appointment means there is nothing left to move.
    */
   reservePortalWindow(params: {
     groupId: string;
@@ -306,7 +319,7 @@ export interface IServiceGroupRepository {
     timeSlotEnd: string;
     inspectorId: string;
     rentalTenantNote?: string;
-  }): Promise<boolean>;
+  }): Promise<PortalWindowReservation>;
   /** Re-check that the selected portal slot still exists on a future member appointment. */
   hasPortalMemberSlot(params: {
     groupId: string;
