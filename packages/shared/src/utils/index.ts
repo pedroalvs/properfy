@@ -4,6 +4,13 @@ export { zonedWallTimeToUtc, endOfCivilDayInTz } from './timezone-date';
 export { validateNewSchedule, validateEditedSchedule, type DateValidationResult } from './edit-date-validation';
 export { formatInvoiceNumber, INVOICE_NUMBER_PREFIX } from './format-invoice-number';
 export {
+  formatDisplayDate,
+  formatDisplayTime,
+  formatDisplayTimeRange,
+  formatDisplayTimeWindow,
+  formatDisplayDateTime,
+} from './format-display-date';
+export {
   ApiError,
   NETWORK_ERROR_STATUS,
   toApiError,
