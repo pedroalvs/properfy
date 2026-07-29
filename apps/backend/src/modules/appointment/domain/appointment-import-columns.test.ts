@@ -149,4 +149,25 @@ describe('did-you-mean quality', () => {
     const analysis = analyzeImportHeaders([...REQUIRED_IMPORT_COLUMNS, 'Notez']);
     expect(analysis.unknown).toEqual([{ column: 'Notez', suggestion: 'Notes' }]);
   });
+
+  /**
+   * Swapping two adjacent letters is the most common typo there is, and on a
+   * 4-letter header plain Levenshtein scores it 2 — the same as a genuinely
+   * different word. Counting a transposition as one edit is what lets us keep
+   * the strict short-header threshold AND still catch "Tpye".
+   */
+  it.each([
+    ['Tpye', 'Type'],
+    ['Dtae', 'Date'],
+    ['Sttae', 'State'],
+  ])('suggests %s -> %s (adjacent letters swapped)', (typo, expected) => {
+    const analysis = analyzeImportHeaders([typo]);
+    expect(analysis.unknown).toEqual([{ column: typo, suggestion: expected }]);
+  });
+
+  it('still refuses a short header that is two substitutions away, not a swap', () => {
+    // "Name" vs "Date": n/d and m/t differ — two substitutions, no swap.
+    const analysis = analyzeImportHeaders([...REQUIRED_IMPORT_COLUMNS, 'Name']);
+    expect(analysis.unknown).toEqual([{ column: 'Name', suggestion: null }]);
+  });
 });

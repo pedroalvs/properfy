@@ -71,23 +71,45 @@ export interface HeaderAnalysis {
   missingRequired: string[];
 }
 
-/** Iterative two-row Levenshtein. Small enough not to warrant a dependency,
- * and only ever run over a single header row. */
-function levenshtein(a: string, b: string): number {
+/**
+ * Damerau–Levenshtein (optimal string alignment), counting a swap of two
+ * adjacent characters as ONE edit rather than two.
+ *
+ * That distinction is the whole point: on a 4-letter header, plain Levenshtein
+ * scores the swap "Tpye"→"Type" the same as the unrelated "Name"→"Date", so no
+ * single threshold can accept the typo and reject the different word. Treating
+ * a swap as one edit separates them cleanly — and a swap of adjacent letters is
+ * the most common typo there is.
+ *
+ * Three rolling rows (the transposition term needs row i-2). Small enough not
+ * to warrant a dependency, and only ever run over a single header row.
+ */
+function damerauLevenshtein(a: string, b: string): number {
   if (a === b) return 0;
   if (a.length === 0) return b.length;
   if (b.length === 0) return a.length;
 
+  let beforePrevious = new Array<number>(b.length + 1);
   let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
   let current = new Array<number>(b.length + 1);
 
   for (let i = 1; i <= a.length; i += 1) {
     current[0] = i;
     for (let j = 1; j <= b.length; j += 1) {
-      const substitution = previous[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1);
-      current[j] = Math.min(current[j - 1]! + 1, previous[j]! + 1, substitution);
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      let best = Math.min(
+        current[j - 1]! + 1,          // insertion
+        previous[j]! + 1,             // deletion
+        previous[j - 1]! + cost,      // substitution
+      );
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        best = Math.min(best, beforePrevious[j - 2]! + 1); // transposition
+      }
+      current[j] = best;
     }
-    [previous, current] = [current, previous];
+    // Rotate: row i-1 becomes i-2, row i becomes i-1, and the stale i-2 buffer
+    // is reused as scratch for row i+1.
+    [beforePrevious, previous, current] = [previous, current, beforePrevious];
   }
 
   return previous[b.length]!;
@@ -117,7 +139,7 @@ function nearestHeader(input: string): string | null {
   let bestDistance = Number.POSITIVE_INFINITY;
 
   for (const candidate of Object.keys(APPOINTMENT_IMPORT_HEADER_MAP)) {
-    const distance = levenshtein(needle, candidate.toLowerCase());
+    const distance = damerauLevenshtein(needle, candidate.toLowerCase());
     const closer = distance < bestDistance;
     const betterTie = distance === bestDistance && isRequired(candidate) && !isRequired(best ?? '');
     if (closer || betterTie) {
