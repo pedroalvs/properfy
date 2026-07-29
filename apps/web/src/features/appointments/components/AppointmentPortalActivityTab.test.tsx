@@ -36,6 +36,24 @@ const allActionActivities = [
   createdAt: '2026-03-10T10:00:00Z',
 }));
 
+const unavailableActivity = {
+  id: 'pa-03',
+  appointmentId: 'apt-01',
+  rentalTenantPortalTokenId: 'tok-1',
+  action: 'UNAVAILABLE_REPORTED',
+  previousValuesJson: { rentalTenantConfirmationStatus: 'PENDING' },
+  newValuesJson: {
+    rentalTenantConfirmationStatus: 'UNAVAILABLE',
+    availableSlotsJson: [
+      { dayOfWeek: 'MON', start: '09:00', end: '17:00' },
+      { dayOfWeek: 'WED', start: '10:00', end: '14:00' },
+    ],
+  },
+  ipAddress: null,
+  userAgent: null,
+  createdAt: '2026-03-12T10:00:00Z',
+};
+
 const groupJoinActivity = {
   id: 'pa-02',
   appointmentId: 'apt-01',
@@ -60,6 +78,7 @@ vi.mock('../hooks/usePortalActivities', () => ({
     if (id === 'empty') return { activities: [], isLoading: false, isError: false, refetch: vi.fn() };
     if (id === 'group-join') return { activities: [groupJoinActivity], isLoading: false, isError: false, refetch: vi.fn() };
     if (id === 'all-actions') return { activities: allActionActivities, isLoading: false, isError: false, refetch: vi.fn() };
+    if (id === 'unavailable') return { activities: [unavailableActivity], isLoading: false, isError: false, refetch: vi.fn() };
     return { activities: mockActivities, isLoading: false, isError: false, refetch: vi.fn() };
   },
 }));
@@ -121,5 +140,14 @@ describe('AppointmentPortalActivityTab', () => {
     render(<AppointmentPortalActivityTab appointmentId="group-join" />);
     expect(screen.getByText(/2026-06-01/)).toBeInTheDocument();
     expect(screen.getByText(/09:00-12:00/)).toBeInTheDocument();
+  });
+
+  // report-unavailability writes the tenant's weekly availability into the activity's
+  // newValuesJson, so it is already on the wire here — only the renderer was missing.
+  it('renders the availability the tenant offered on an UNAVAILABLE_REPORTED entry', () => {
+    render(<AppointmentPortalActivityTab appointmentId="unavailable" />);
+    expect(screen.getByText('Unavailable Reported')).toBeInTheDocument();
+    expect(screen.getByText('Mon 09:00 - 17:00')).toBeInTheDocument();
+    expect(screen.getByText('Wed 10:00 - 14:00')).toBeInTheDocument();
   });
 });

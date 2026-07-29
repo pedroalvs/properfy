@@ -1,4 +1,4 @@
-import { type AuthContext, type AppointmentApp, type AppointmentCustomField, type PropertyType, isAppointmentOverdue } from '@properfy/shared';
+import { type AuthContext, type AppointmentApp, type AppointmentCustomField, type AvailableSlot, type PropertyType, isAppointmentOverdue } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../domain/appointment.repository';
@@ -93,6 +93,8 @@ export interface GetAppointmentOutput {
     isHome: boolean;
     unavailableDaysJson: string[] | null;
     unavailableHoursJson: string[] | null;
+    /** Weekly availability the rental tenant offered when declining in the portal. */
+    availableSlotsJson: AvailableSlot[] | null;
     notes: string | null;
     source: string;
   }>;
@@ -182,6 +184,7 @@ function mapToOutput(found: AppointmentWithRelations, apps: AppointmentApp[]): G
       isHome: r.isHome,
       unavailableDaysJson: r.unavailableDaysJson,
       unavailableHoursJson: r.unavailableHoursJson,
+      availableSlotsJson: r.availableSlotsJson,
       notes: r.notes,
       source: r.source,
     })),

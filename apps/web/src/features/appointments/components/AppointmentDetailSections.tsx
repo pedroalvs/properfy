@@ -8,6 +8,7 @@ import { formatDate, formatDateTime } from '@/lib/format-date';
 import { formatArea, formatPropertyType, formatRent } from '@/lib/format-property';
 import type { AppointmentDetail } from '../types';
 import { formatAuPhone } from '@/lib/phone-mask';
+import { TenantAvailabilitySlots } from './TenantAvailabilitySlots';
 
 interface AppointmentDetailSectionsProps {
   appointment: AppointmentDetail;
@@ -17,6 +18,11 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
   const confirmationStyle = RENTAL_TENANT_CONFIRMATION_STATUS_MAP[appointment.rentalTenantConfirmationStatus];
   const isPendingOperationalCrossCheck =
     appointment.status === AppointmentStatus.DONE && !appointment.doneCheckedByUserId;
+  // Find the restriction that carries the availability rather than assuming index 0 —
+  // an operator-created restriction can sit alongside the one written by the portal.
+  const availableSlots = appointment.restrictions?.find(
+    (r) => r.availableSlotsJson?.length,
+  )?.availableSlotsJson;
 
   return (
     <div className="flex flex-col gap-6">
@@ -117,6 +123,12 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
             </span>
           }
         />
+        {!!availableSlots?.length && (
+          <DetailRow
+            label="Availability"
+            value={<TenantAvailabilitySlots slots={availableSlots} />}
+          />
+        )}
       </FormSection>
 
       {(appointment.status === AppointmentStatus.DONE || appointment.doneCheckedByUserId || appointment.doneCheckedAt) && (

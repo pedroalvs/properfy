@@ -248,4 +248,71 @@ describe('AppointmentDetailSections', () => {
     render(<AppointmentDetailSections appointment={makeAppointment({ customFields: [] })} />);
     expect(screen.queryByText('Custom Fields')).not.toBeInTheDocument();
   });
+
+  // When the rental tenant declines in the portal they must pick the times they ARE
+  // available. That availability is the operator's next action, so it belongs next to
+  // the confirmation status rather than buried in the portal activity log.
+  it('renders the availability the tenant offered in the Tenant Confirmation section', () => {
+    render(
+      <AppointmentDetailSections
+        appointment={makeAppointment({
+          rentalTenantConfirmationStatus: RentalTenantConfirmationStatus.UNAVAILABLE,
+          restrictions: [
+            {
+              id: 'res-1',
+              isHome: false,
+              unavailableDaysJson: null,
+              unavailableHoursJson: null,
+              availableSlotsJson: [
+                { dayOfWeek: 'MON', start: '09:00', end: '17:00' },
+                { dayOfWeek: 'THU', start: '13:00', end: '18:00' },
+              ],
+              notes: null,
+              source: 'RENTAL_TENANT_PORTAL',
+            },
+          ],
+        })}
+      />,
+    );
+
+    expect(screen.getByText('Availability')).toBeInTheDocument();
+    expect(screen.getByText('Mon 09:00 - 17:00')).toBeInTheDocument();
+    expect(screen.getByText('Thu 13:00 - 18:00')).toBeInTheDocument();
+  });
+
+  it('reads the availability from whichever restriction carries it', () => {
+    render(
+      <AppointmentDetailSections
+        appointment={makeAppointment({
+          restrictions: [
+            {
+              id: 'res-operator',
+              isHome: true,
+              unavailableDaysJson: null,
+              unavailableHoursJson: null,
+              availableSlotsJson: null,
+              notes: 'Ring the bell',
+              source: 'OPERATOR',
+            },
+            {
+              id: 'res-portal',
+              isHome: false,
+              unavailableDaysJson: null,
+              unavailableHoursJson: null,
+              availableSlotsJson: [{ dayOfWeek: 'FRI', start: '08:00', end: '11:00' }],
+              notes: null,
+              source: 'RENTAL_TENANT_PORTAL',
+            },
+          ],
+        })}
+      />,
+    );
+
+    expect(screen.getByText('Fri 08:00 - 11:00')).toBeInTheDocument();
+  });
+
+  it('hides the Availability row when the tenant offered none', () => {
+    render(<AppointmentDetailSections appointment={makeAppointment({ restrictions: [] })} />);
+    expect(screen.queryByText('Availability')).not.toBeInTheDocument();
+  });
 });

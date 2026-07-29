@@ -7,6 +7,7 @@ import type {
   ContactChannelType,
   AppointmentCustomField,
   AppointmentApp,
+  AvailableSlot,
 } from '@properfy/shared';
 import { CUSTOM_FIELDS_MAX } from '@properfy/shared';
 
@@ -106,6 +107,8 @@ export interface AppointmentDetail extends Omit<Appointment, 'code'> {
     isHome: boolean;
     unavailableDaysJson: string[] | null;
     unavailableHoursJson: string[] | null;
+    /** Weekly availability the rental tenant offered when declining in the portal. */
+    availableSlotsJson?: AvailableSlot[] | null;
     notes: string | null;
     source: string;
   }>;

@@ -2,6 +2,7 @@ import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
 import { BooleanIcon } from '@/components/ui/BooleanIcon';
 import type { AppointmentDetail, AppointmentContactEntry } from '../types';
+import { TenantAvailabilitySlots } from './TenantAvailabilitySlots';
 
 const ROLE_LABELS: Record<string, string> = {
   RENTAL_TENANT: 'Tenant',
@@ -47,6 +48,13 @@ function ContactRow({ contact }: { contact: AppointmentContactEntry }) {
 }
 
 export function AppointmentContactTab({ appointment }: AppointmentContactTabProps) {
+  // Availability the rental tenant offered when declining in the portal. Search for the
+  // restriction that carries it — a portal decline posts isHome:false and notes:null, so
+  // it can sit behind an operator-created restriction.
+  const availableSlots = appointment.restrictions?.find(
+    (r) => r.availableSlotsJson?.length,
+  )?.availableSlotsJson;
+
   // Use new contacts array if available, fall back to legacy single contact
   const contacts: AppointmentContactEntry[] =
     appointment.contacts && appointment.contacts.length > 0
@@ -84,6 +92,12 @@ export function AppointmentContactTab({ appointment }: AppointmentContactTabProp
         <DetailRow label="Meeting Location" value={appointment.meetingLocation} />
         <DetailRow label="Key Location" value={appointment.keyLocation} />
         <DetailRow label="Restriction Notes" value={appointment.restrictions?.[0]?.notes ?? null} />
+        {!!availableSlots?.length && (
+          <DetailRow
+            label="Tenant Availability"
+            value={<TenantAvailabilitySlots slots={availableSlots} />}
+          />
+        )}
       </FormSection>
     </div>
   );
