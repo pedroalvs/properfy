@@ -1,6 +1,6 @@
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
-import { formatDateTime } from '@/lib/format-date';
+import { formatInstantDateTime } from '@/lib/format-date';
 import { formatArea, formatRent, formatYesNo } from '@/lib/format-property';
 import { PropertyTypeChip } from './PropertyTypeChip';
 import { GeocodingStatusBadge } from './GeocodingStatusBadge';
@@ -57,8 +57,8 @@ export function PropertyDetailSections({ property }: PropertyDetailSectionsProps
       )}
 
       <FormSection title="Record">
-        <DetailRow label="Created At" value={formatDateTime(property.createdAt)} />
-        <DetailRow label="Updated At" value={formatDateTime(property.updatedAt)} />
+        <DetailRow label="Created At" value={formatInstantDateTime(property.createdAt)} />
+        <DetailRow label="Updated At" value={formatInstantDateTime(property.updatedAt)} />
       </FormSection>
     </div>
   );

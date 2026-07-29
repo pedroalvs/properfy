@@ -1,4 +1,4 @@
-import { formatDateTime } from '@/lib/format-date';
+import { formatInstantDateTime } from '@/lib/format-date';
 
 interface ResponseData {
   type: string;
@@ -40,7 +40,7 @@ export function ResponseConfirmationCard({
         <div>
           <h3 className="text-base font-bold text-text-primary">{label}</h3>
           <p className="mt-1 text-xs text-text-muted">
-            {formatDateTime(response.createdAt)}
+            {formatInstantDateTime(response.createdAt)}
           </p>
           {response.summary && (
             <p className="mt-2 text-sm text-text-secondary">

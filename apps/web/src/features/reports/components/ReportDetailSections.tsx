@@ -1,6 +1,6 @@
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
-import { formatDateTime } from '@/lib/format-date';
+import { formatInstantDateTime } from '@/lib/format-date';
 import { ReportTypeChip } from './ReportTypeChip';
 import { ReportStatusChip } from './ReportStatusChip';
 import type { ReportDetail } from '../types';
@@ -36,11 +36,11 @@ export function ReportDetailSections({ report }: ReportDetailSectionsProps) {
       </FormSection>
 
       <FormSection title="Record">
-        <DetailRow label="Created At" value={formatDateTime(report.createdAt)} />
-        {report.updatedAt && <DetailRow label="Updated At" value={formatDateTime(report.updatedAt)} />}
-        {report.completedAt && <DetailRow label="Completed At" value={formatDateTime(report.completedAt)} />}
-        {report.failedAt && <DetailRow label="Failed At" value={formatDateTime(report.failedAt)} />}
-        {report.expiresAt && <DetailRow label="Expires At" value={formatDateTime(report.expiresAt)} />}
+        <DetailRow label="Created At" value={formatInstantDateTime(report.createdAt)} />
+        {report.updatedAt && <DetailRow label="Updated At" value={formatInstantDateTime(report.updatedAt)} />}
+        {report.completedAt && <DetailRow label="Completed At" value={formatInstantDateTime(report.completedAt)} />}
+        {report.failedAt && <DetailRow label="Failed At" value={formatInstantDateTime(report.failedAt)} />}
+        {report.expiresAt && <DetailRow label="Expires At" value={formatInstantDateTime(report.expiresAt)} />}
       </FormSection>
     </div>
   );

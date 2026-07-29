@@ -142,7 +142,7 @@ describe('ServiceGroupDetailSections schedule', () => {
 
   it('shows each member time slot', () => {
     renderWithRouter(<ServiceGroupDetailSections serviceGroup={makeServiceGroup()} />);
-    expect(screen.getAllByText('09:00–10:00').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('9:00 am – 10:00 am').length).toBeGreaterThan(0);
   });
 
   it('falls back to a dash when the group has no schedule yet', () => {

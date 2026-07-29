@@ -2,7 +2,7 @@ import { LoadingState } from '@/components/feedback/LoadingState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { getErrorMessage } from '@/lib/api-error';
-import { formatDateTime } from '@/lib/format-date';
+import { formatInstantDateTime } from '@/lib/format-date';
 import { usePortalActivities } from '../hooks/usePortalActivities';
 
 interface AppointmentPortalActivityTabProps {
@@ -79,7 +79,7 @@ export function AppointmentPortalActivityTab({ appointmentId }: AppointmentPorta
                 {formatActionLabel(activity.action)}
               </span>
               <span className="text-xs text-text-muted">
-                {formatDateTime(activity.createdAt)}
+                {formatInstantDateTime(activity.createdAt)}
               </span>
             </div>
             {activity.action === 'GROUP_JOIN' && !!activity.newValuesJson && (

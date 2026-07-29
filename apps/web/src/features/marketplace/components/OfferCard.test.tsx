@@ -11,7 +11,7 @@ const MOCK_OFFER: MarketplaceOffer = {
   serviceTypeName: 'Routine Inspection',
   groupSize: 3,
   scheduledDate: '2026-03-20',
-  timeWindow: '09:00-12:00',
+  timeWindow: '9:00 am – 12:00 pm',
   suburbs: ['Sydney CBD'],
 };
 
@@ -22,7 +22,7 @@ describe('OfferCard', () => {
     expect(screen.getByText('Routine Inspection')).toBeInTheDocument();
     expect(screen.getAllByText('Sydney CBD').length).toBeGreaterThan(0);
     expect(screen.getByText('3')).toBeInTheDocument();
-    expect(screen.getByText('09:00-12:00')).toBeInTheDocument();
+    expect(screen.getByText('9:00 am – 12:00 pm')).toBeInTheDocument();
     expect(screen.getByText('#1057')).toBeInTheDocument();
   });
 

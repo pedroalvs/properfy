@@ -1,6 +1,6 @@
 import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
-import { formatDate } from '@/lib/format-date';
+import { formatInstantDate } from '@/lib/format-date';
 import { FinancialEntryTypeChip } from './FinancialEntryTypeChip';
 import { FinancialStatusChip } from './FinancialStatusChip';
 import type { FinancialEntry } from '../types';
@@ -115,7 +115,7 @@ export function FinancialTable({
       label: 'Effective Date',
       width: '140px',
       sortable: true,
-      render: (row) => <>{formatDate(row.effectiveAt)}</>,
+      render: (row) => <>{formatInstantDate(row.effectiveAt)}</>,
     },
     {
       key: 'actions',

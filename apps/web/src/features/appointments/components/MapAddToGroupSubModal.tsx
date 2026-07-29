@@ -8,10 +8,10 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 import { AppointmentCodePill } from './AppointmentCodePill';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 import type { AddableGroupSummary } from '@properfy/shared';
-import { formatDate } from '@/lib/format-date';
+import { formatCivilDate } from '@/lib/format-date';
 
 function formatGroupDate(scheduledDate: string): string {
-  return formatDate(scheduledDate.slice(0, 10));
+  return formatCivilDate(scheduledDate.slice(0, 10));
 }
 
 interface MapAddToGroupSubModalProps {

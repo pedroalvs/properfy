@@ -7,7 +7,7 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
 import { getErrorMessage } from '@/lib/api-error';
-import { formatDate } from '@/lib/format-date';
+import { formatCivilDate, formatWallTimeRange } from '@/lib/format-date';
 import { getValidTransitions, isReasonRequired } from '@properfy/shared';
 import type { AppointmentStatus, UserRole } from '@properfy/shared';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
@@ -298,7 +298,7 @@ export function MapBulkActionModal({
       width: '160px',
       render: (row) => (
         <span className="text-sm text-text-secondary">
-          {formatDate(row.scheduledDate)} {row.timeSlotStart} - {row.timeSlotEnd}
+          {formatCivilDate(row.scheduledDate)} {formatWallTimeRange(row.timeSlotStart, row.timeSlotEnd)}
         </span>
       ),
     },

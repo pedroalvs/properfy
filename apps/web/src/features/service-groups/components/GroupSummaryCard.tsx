@@ -1,3 +1,5 @@
+import { formatWallTimeWindow } from '@/lib/format-date';
+
 interface GroupSummaryCardProps {
   appointmentCount: number;
   serviceType: string;
@@ -27,7 +29,7 @@ export function GroupSummaryCard({
         <div className="text-sm font-semibold text-text-primary">{scheduledDate || '—'}</div>
 
         <div className="text-sm text-text-secondary">Time Window</div>
-        <div className="text-sm font-semibold text-text-primary">{timeWindow || '—'}</div>
+        <div className="text-sm font-semibold text-text-primary">{formatWallTimeWindow(timeWindow) || '—'}</div>
       </div>
     </div>
   );

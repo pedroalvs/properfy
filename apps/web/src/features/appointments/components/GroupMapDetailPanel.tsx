@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { SERVICE_GROUP_STATUS_MAP } from '@/lib/status-colors';
-import { formatDate } from '@/lib/format-date';
+import { formatCivilDate } from '@/lib/format-date';
 import { ServiceGroupStatus } from '@properfy/shared';
 import { getPublishBlockReason } from '@/features/service-groups/lib/publish-block-reason';
 
@@ -152,7 +152,7 @@ export function GroupMapDetailPanel({
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-text-secondary">
               {statusMeta && <StatusChip label={statusMeta.label} bg={statusMeta.bg} />}
               <span data-testid="group-map-detail-when">
-                {formatDate(group.scheduledDate)}
+                {formatCivilDate(group.scheduledDate)}
                 {isLoadingAppointments && ' …'}
                 {!isLoadingAppointments && timeRange && ` ${timeRange}`}
               </span>

@@ -80,7 +80,7 @@ describe('FinancialTable', () => {
   it('renders formatted date for effectiveAt', () => {
     const entry = makeEntry({ effectiveAt: '2026-03-10T14:00:00Z' });
     render(<FinancialTable data={[entry]} />);
-    expect(screen.getByText('10/03/2026')).toBeInTheDocument();
+    expect(screen.getByText('11/03/2026')).toBeInTheDocument();
   });
 
   it('shows loading state', () => {

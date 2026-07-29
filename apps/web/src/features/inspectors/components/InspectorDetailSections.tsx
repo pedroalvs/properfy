@@ -1,6 +1,6 @@
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
-import { formatDate, formatDateTime, toLocalISODate } from '@/lib/format-date';
+import { formatCivilDate, formatInstantDateTime, toLocalISODate } from '@/lib/format-date';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { useInspectorDocumentDownload } from '../hooks/useInspectorDocumentDownload';
 import type { InspectorDetail } from '../types';
@@ -84,7 +84,7 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
         <DetailRow label="Email" value={inspector.email} />
         <DetailRow label="Phone" value={inspector.phone ? formatAuPhone(inspector.phone) : inspector.phone} />
         <DetailRow label="ABN" value={inspector.abn} />
-        <DetailRow label="Date of Birth" value={inspector.dateOfBirth ? formatDate(inspector.dateOfBirth) : null} />
+        <DetailRow label="Date of Birth" value={inspector.dateOfBirth ? formatCivilDate(inspector.dateOfBirth) : null} />
       </FormSection>
 
       <FormSection title="Insurance &amp; Police Check">
@@ -106,7 +106,7 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
         />
         <DetailRow
           label="Insurance Expiry"
-          value={inspector.insuranceExpiresAt ? formatDate(inspector.insuranceExpiresAt) : null}
+          value={inspector.insuranceExpiresAt ? formatCivilDate(inspector.insuranceExpiresAt) : null}
         />
         <DetailRow
           label="Police Check File"
@@ -126,7 +126,7 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
         />
         <DetailRow
           label="Police Check Expiry"
-          value={inspector.policeCheckExpiresAt ? formatDate(inspector.policeCheckExpiresAt) : null}
+          value={inspector.policeCheckExpiresAt ? formatCivilDate(inspector.policeCheckExpiresAt) : null}
         />
       </FormSection>
 
@@ -148,8 +148,8 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
       </FormSection>
 
       <FormSection title="Record">
-        <DetailRow label="Created At" value={formatDateTime(inspector.createdAt)} />
-        <DetailRow label="Updated At" value={formatDateTime(inspector.updatedAt)} />
+        <DetailRow label="Created At" value={formatInstantDateTime(inspector.createdAt)} />
+        <DetailRow label="Updated At" value={formatInstantDateTime(inspector.updatedAt)} />
       </FormSection>
     </div>
   );

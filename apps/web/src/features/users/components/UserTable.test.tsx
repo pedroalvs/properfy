@@ -70,7 +70,7 @@ describe('UserTable', () => {
   it('renders formatted date for lastLoginAt', () => {
     const user = makeUser({ lastLoginAt: '2026-03-10T14:30:00Z' });
     render(<UserTable data={[user]} />);
-    expect(screen.getByText('10/03/2026')).toBeInTheDocument();
+    expect(screen.getByText('11/03/2026')).toBeInTheDocument();
   });
 
   it('shows loading state', () => {

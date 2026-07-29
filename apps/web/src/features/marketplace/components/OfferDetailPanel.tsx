@@ -1,7 +1,7 @@
 import type { MarketplaceOffer, MarketplaceOfferDetail } from '../types';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/feedback/EmptyState';
-import { formatDate } from '@/lib/format-date';
+import { formatCivilDate, formatWallTimeWindow } from '@/lib/format-date';
 
 interface OfferDetailPanelProps {
   offer: MarketplaceOffer | null;
@@ -54,12 +54,12 @@ export function OfferDetailPanel({ offer, detail, detailLoading, onAccept, isAcc
         </div>
         <div>
           <span className="text-text-muted text-xs">Date</span>
-          <p className="font-medium text-text-primary">{formatDate(offer.scheduledDate)}</p>
+          <p className="font-medium text-text-primary">{formatCivilDate(offer.scheduledDate)}</p>
         </div>
       </div>
 
       <div className="mb-4 rounded bg-[#FAFAFA] p-3 text-sm text-text-primary">
-        <p><span className="text-text-muted">Time window:</span> {offer.timeWindow}</p>
+        <p><span className="text-text-muted">Time window:</span> {formatWallTimeWindow(offer.timeWindow)}</p>
         <p><span className="text-text-muted">Suburbs:</span> {offer.suburbs.length > 0 ? offer.suburbs.join(', ') : 'Not informed'}</p>
       </div>
 

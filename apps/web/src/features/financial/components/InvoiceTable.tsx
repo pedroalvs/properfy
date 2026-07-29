@@ -1,6 +1,6 @@
 import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions, type RowAction } from '@/components/data/RowActions';
-import { formatDate } from '@/lib/format-date';
+import { formatCivilDate } from '@/lib/format-date';
 import { InvoiceStatusChip } from './InvoiceStatusChip';
 import type { Invoice } from '../types';
 
@@ -104,7 +104,7 @@ export function InvoiceTable({
       sortable: true,
       render: (row) => (
         <>
-          {formatDate(row.periodStart)} - {formatDate(row.periodEnd)}
+          {formatCivilDate(row.periodStart)} - {formatCivilDate(row.periodEnd)}
         </>
       ),
     },

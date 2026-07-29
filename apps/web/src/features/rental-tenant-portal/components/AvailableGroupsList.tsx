@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { AvailableGroup } from '@properfy/shared';
-import { formatDate } from '@/lib/format-date';
+import { formatCivilDate } from '@/lib/format-date';
 
 interface AvailableGroupsListProps {
   groups: AvailableGroup[];
@@ -137,7 +137,7 @@ export function AvailableGroupsList({
                 )}
               </div>
               <div className="mt-0.5 text-xs font-medium text-text-muted">
-                {group.suburb} · with {group.inspectorName} · {formatDate(group.scheduledDate)} ·{' '}
+                {group.suburb} · with {group.inspectorName} · {formatCivilDate(group.scheduledDate)} ·{' '}
                 {group.confirmedCount}/{group.capacityMax} confirmed
               </div>
             </button>

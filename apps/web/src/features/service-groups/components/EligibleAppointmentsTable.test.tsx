@@ -2,10 +2,9 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { EligibleAppointmentsTable, type EligibleAppointment } from './EligibleAppointmentsTable';
 
-vi.mock('@/lib/format-date', () => ({
-  formatDate: (d: string) => d,
-  formatDateTime: (d: string) => d,
-}));
+// Not mocked: the formatters are pure and deterministic (no locale or runtime
+// timezone dependence), so exercising the real ones gives genuine coverage of
+// what the user sees rather than an identity pass-through.
 
 vi.mock('@/lib/status-colors', () => ({
   APPOINTMENT_STATUS_MAP: {

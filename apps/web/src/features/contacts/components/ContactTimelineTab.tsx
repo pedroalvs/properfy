@@ -2,7 +2,7 @@ import { LoadingState } from '@/components/feedback/LoadingState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { getErrorMessage } from '@/lib/api-error';
-import { formatDateTime } from '@/lib/format-date';
+import { formatInstantDateTime } from '@/lib/format-date';
 import { useContactTimeline } from '../hooks/useContactTimeline';
 
 const CONTACT_ACTION_LABELS: Record<string, string> = {
@@ -58,7 +58,7 @@ export function ContactTimelineTab({ contactId, enabled }: ContactTimelineTabPro
             <div className="flex flex-col">
               <div className="flex items-baseline justify-between gap-2">
                 <span className="font-semibold">{label}</span>
-                <time className="text-xs text-muted">{formatDateTime(entry.createdAt)}</time>
+                <time className="text-xs text-muted">{formatInstantDateTime(entry.createdAt)}</time>
               </div>
               <span className="text-sm text-muted">
                 by {entry.actorName ?? entry.actorType}

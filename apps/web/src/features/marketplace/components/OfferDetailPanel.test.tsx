@@ -11,7 +11,7 @@ const MOCK_OFFER: MarketplaceOffer = {
   serviceTypeName: 'Routine Inspection',
   groupSize: 2,
   scheduledDate: '2026-03-20',
-  timeWindow: '09:00-12:00',
+  timeWindow: '9:00 am – 12:00 pm',
   suburbs: ['Sydney CBD', 'Surry Hills'],
 };
 
@@ -41,7 +41,7 @@ const MOCK_DETAIL_MIXED: MarketplaceOfferDetail = {
   serviceTypeName: 'Routine Inspection',
   groupSize: 2,
   scheduledDate: '2026-03-20',
-  timeWindow: '09:00-12:00',
+  timeWindow: '9:00 am – 12:00 pm',
   suburbs: ['Sydney CBD', 'Surry Hills'],
   payoutEstimate: 300,
   appointmentCount: 2,
@@ -69,7 +69,7 @@ describe('OfferDetailPanel', () => {
     expect(screen.getByTestId('offer-detail-panel')).toBeInTheDocument();
     expect(screen.getByText('Routine Inspection')).toBeInTheDocument();
     expect(screen.getAllByText('Sydney CBD').length).toBeGreaterThan(0);
-    expect(screen.getByText('09:00-12:00')).toBeInTheDocument();
+    expect(screen.getByText('9:00 am – 12:00 pm')).toBeInTheDocument();
   });
 
   it('shows suburbs summary', () => {

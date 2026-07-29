@@ -14,6 +14,7 @@ import { TimeWindowPicker } from './TimeWindowPicker';
 import { AppointmentCodePill } from '@/features/appointments/components/AppointmentCodePill';
 import { useRescheduleServiceGroup } from '../hooks/useRescheduleServiceGroup';
 import type { ServiceGroupDetail } from '../types';
+import { formatWallTimeRange } from '@/lib/format-date';
 
 interface RescheduleGroupModalProps {
   open: boolean;
@@ -213,7 +214,7 @@ export function RescheduleGroupModal({
               {clamped.map((a) => (
                 <li key={a.id}>
                   <AppointmentCodePill code={a.propertyCode ?? `#${a.appointmentNumber}`} />{' '}
-                  {a.timeSlotStart}–{a.timeSlotEnd} → {startTime}–{endTime}
+                  {formatWallTimeRange(a.timeSlotStart, a.timeSlotEnd)} → {formatWallTimeRange(startTime, endTime)}
                 </li>
               ))}
             </ul>

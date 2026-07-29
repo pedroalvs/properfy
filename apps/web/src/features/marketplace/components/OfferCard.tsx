@@ -1,6 +1,6 @@
 import type { MarketplaceOffer } from '../types';
 import { Button } from '@/components/ui/Button';
-import { formatDate } from '@/lib/format-date';
+import { formatCivilDate, formatWallTimeWindow } from '@/lib/format-date';
 
 interface OfferCardProps {
   offer: MarketplaceOffer;
@@ -48,11 +48,11 @@ export function OfferCard({ offer, selected, onClick, onAccept }: OfferCardProps
         </div>
         <div>
           <span className="text-text-muted">Date</span>
-          <p className="font-semibold text-text-primary">{formatDate(offer.scheduledDate)}</p>
+          <p className="font-semibold text-text-primary">{formatCivilDate(offer.scheduledDate)}</p>
         </div>
         <div className="col-span-2">
           <span className="text-text-muted">Time window</span>
-          <p className="font-semibold text-text-primary">{offer.timeWindow}</p>
+          <p className="font-semibold text-text-primary">{formatWallTimeWindow(offer.timeWindow)}</p>
         </div>
         <div className="col-span-2">
           <span className="text-text-muted">Suburbs</span>

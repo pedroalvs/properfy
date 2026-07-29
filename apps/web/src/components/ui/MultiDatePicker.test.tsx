@@ -37,14 +37,14 @@ describe('MultiDatePicker', () => {
   it('disables past dates', () => {
     render(<MultiDatePicker selectedDates={[]} onChange={() => {}} />);
 
-    const pastDayButton = screen.getByLabelText(/March 17, 2026/);
+    const pastDayButton = screen.getByLabelText(/17 March 2026/);
     expect(pastDayButton).toBeDisabled();
   });
 
   it('enables future dates', () => {
     render(<MultiDatePicker selectedDates={[]} onChange={() => {}} />);
 
-    const futureDayButton = screen.getByLabelText(/March 20, 2026/);
+    const futureDayButton = screen.getByLabelText(/20 March 2026/);
     expect(futureDayButton).not.toBeDisabled();
   });
 
@@ -52,7 +52,7 @@ describe('MultiDatePicker', () => {
     const onChange = vi.fn();
     render(<MultiDatePicker selectedDates={[]} onChange={onChange} />);
 
-    fireEvent.click(screen.getByLabelText(/March 20, 2026/));
+    fireEvent.click(screen.getByLabelText(/20 March 2026/));
 
     expect(onChange).toHaveBeenCalledWith(['2026-03-20']);
   });
@@ -66,7 +66,7 @@ describe('MultiDatePicker', () => {
       />,
     );
 
-    fireEvent.click(screen.getByLabelText(/March 20, 2026/));
+    fireEvent.click(screen.getByLabelText(/20 March 2026/));
 
     expect(onChange).toHaveBeenCalledWith(['2026-03-25']);
   });
@@ -79,7 +79,7 @@ describe('MultiDatePicker', () => {
       />,
     );
 
-    const selectedButton = screen.getByLabelText(/March 20, 2026/);
+    const selectedButton = screen.getByLabelText(/20 March 2026/);
     expect(selectedButton).toHaveAttribute('aria-pressed', 'true');
     expect(selectedButton).toHaveClass('bg-primary');
   });
@@ -93,8 +93,8 @@ describe('MultiDatePicker', () => {
     );
 
     const chipsContainer = screen.getByLabelText('Selected dates');
-    expect(within(chipsContainer).getByText('Mar 20')).toBeInTheDocument();
-    expect(within(chipsContainer).getByText('Mar 25')).toBeInTheDocument();
+    expect(within(chipsContainer).getByText('20 Mar')).toBeInTheDocument();
+    expect(within(chipsContainer).getByText('25 Mar')).toBeInTheDocument();
   });
 
   it('removes a date via chip close button', () => {
@@ -106,7 +106,7 @@ describe('MultiDatePicker', () => {
       />,
     );
 
-    fireEvent.click(screen.getByLabelText('Remove Mar 20'));
+    fireEvent.click(screen.getByLabelText('Remove 20 Mar'));
 
     expect(onChange).toHaveBeenCalledWith(['2026-03-25']);
   });
@@ -164,10 +164,10 @@ describe('MultiDatePicker', () => {
       />,
     );
 
-    const withinRange = screen.getByLabelText(/March 25, 2026/);
+    const withinRange = screen.getByLabelText(/25 March 2026/);
     expect(withinRange).not.toBeDisabled();
 
-    const beyondRange = screen.getByLabelText(/March 26, 2026/);
+    const beyondRange = screen.getByLabelText(/26 March 2026/);
     expect(beyondRange).toBeDisabled();
   });
 
@@ -181,10 +181,10 @@ describe('MultiDatePicker', () => {
     );
 
     // March 20 is after today (18th) but before minDate (22nd), so disabled
-    const beforeMin = screen.getByLabelText(/March 20, 2026/);
+    const beforeMin = screen.getByLabelText(/20 March 2026/);
     expect(beforeMin).toBeDisabled();
 
-    const atMin = screen.getByLabelText(/March 22, 2026/);
+    const atMin = screen.getByLabelText(/22 March 2026/);
     expect(atMin).not.toBeDisabled();
   });
 
@@ -197,7 +197,7 @@ describe('MultiDatePicker', () => {
       />,
     );
 
-    fireEvent.click(screen.getByLabelText(/March 20, 2026/));
+    fireEvent.click(screen.getByLabelText(/20 March 2026/));
 
     expect(onChange).toHaveBeenCalledWith(['2026-03-20', '2026-03-25']);
   });

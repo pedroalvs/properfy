@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AvailabilitySlotStatus } from '@properfy/shared';
-import { formatDate, toLocalISODate } from '@/lib/format-date';
+import { formatCivilDate, toLocalISODate } from '@/lib/format-date';
 import { FilterSelect } from '@/components/filters/FilterSelect';
 import type { AvailabilitySlot } from '../types';
 
@@ -258,7 +258,7 @@ export function SlotCalendarView({
         >
           <div className="text-sm font-semibold text-text-primary">{tooltip.slot.inspectorName}</div>
           <div className="text-xs text-text-secondary">
-            {formatDate(tooltip.slot.date)} | {tooltip.slot.startTime} - {tooltip.slot.endTime}
+            {formatCivilDate(tooltip.slot.date)} | {tooltip.slot.startTime} - {tooltip.slot.endTime}
           </div>
           <div className="text-xs text-text-secondary">
             Region: {tooltip.slot.region}
