@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PrismaAppointmentRepository } from '../../../src/modules/appointment/infrastructure/prisma-appointment.repository';
+import { AppointmentRestrictionEntity } from '../../../src/modules/appointment/domain/appointment-restriction.entity';
 
 describe('PrismaAppointmentRepository date filters', () => {
   const findMany = vi.fn();
@@ -333,5 +334,70 @@ describe('PrismaAppointmentRepository overdueOnly + status composition', () => {
         where: expect.objectContaining({ status: { in: ['AWAITING_INSPECTOR'] } }),
       }),
     );
+  });
+});
+
+describe('PrismaAppointmentRepository.replaceRestrictions', () => {
+  const deleteMany = vi.fn();
+  const create = vi.fn();
+  const $transaction = vi.fn();
+
+  const prisma = {
+    appointmentRestriction: { deleteMany, create },
+    $transaction,
+  } as any;
+
+  const restriction = new AppointmentRestrictionEntity({
+    id: 'restriction-1',
+    appointmentId: 'appt-1',
+    isHome: true,
+    unavailableDaysJson: null,
+    unavailableHoursJson: null,
+    availableSlotsJson: [{ dayOfWeek: 'WED', start: '09:00', end: '17:00' }],
+    notes: 'Ring the bell',
+    source: 'OPERATOR',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    deleteMany.mockReturnValue({ op: 'delete' });
+    create.mockReturnValue({ op: 'create' });
+    $transaction.mockResolvedValue([]);
+  });
+
+  // Restriction upserts are delete-then-create. Issued as two separate round trips, a
+  // failure in between leaves zero rows and permanently loses the availability a rental
+  // tenant submitted — so both operations must go through one $transaction call.
+  it('performs the delete and the create in a single transaction', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.replaceRestrictions('appt-1', restriction);
+
+    expect($transaction).toHaveBeenCalledTimes(1);
+    expect($transaction.mock.calls[0][0]).toEqual([{ op: 'delete' }, { op: 'create' }]);
+    expect(deleteMany).toHaveBeenCalledWith({ where: { appointment_id: 'appt-1' } });
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          appointment_id: 'appt-1',
+          is_home: true,
+          notes: 'Ring the bell',
+          source: 'OPERATOR',
+          available_slots_json: [{ dayOfWeek: 'WED', start: '09:00', end: '17:00' }],
+        }),
+      }),
+    );
+  });
+
+  it('transacts a delete alone when clearing', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.replaceRestrictions('appt-1', null);
+
+    expect($transaction).toHaveBeenCalledTimes(1);
+    expect($transaction.mock.calls[0][0]).toEqual([{ op: 'delete' }]);
+    expect(create).not.toHaveBeenCalled();
   });
 });

@@ -103,6 +103,7 @@ function makeAppointmentRepo(appointmentOverrides: Partial<ConstructorParameters
     deleteContactsByAppointmentId: vi.fn().mockResolvedValue(undefined),
     saveRestriction: vi.fn().mockResolvedValue(undefined),
     deleteRestrictionsByAppointmentId: vi.fn().mockResolvedValue(undefined),
+    replaceRestrictions: vi.fn().mockResolvedValue(undefined),
   };
 }
 

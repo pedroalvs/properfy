@@ -123,6 +123,7 @@ describe('GetAppointmentUseCase – rentalTenantNote in response', () => {
       updateContact: vi.fn(),
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
+      replaceRestrictions: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
     useCase = new GetAppointmentUseCase(appointmentRepo, new AuthorizationService(auditService));
@@ -171,6 +172,7 @@ describe('ListAppointmentsUseCase – hasRentalTenantNote in response', () => {
       updateContact: vi.fn(),
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
+      replaceRestrictions: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
     useCase = new ListAppointmentsUseCase(appointmentRepo, new AuthorizationService(auditService));

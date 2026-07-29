@@ -192,8 +192,24 @@ export interface IAppointmentRepository {
   ): Promise<void>;
   /** Delete all contact junction rows for an appointment (used by contact replacement flow). */
   deleteContactsByAppointmentId(appointmentId: string): Promise<void>;
+  /** Insert a restriction for an appointment that has none yet (create flow). */
   saveRestriction(restriction: AppointmentRestrictionEntity): Promise<void>;
+  /**
+   * @deprecated No production callers remain — every upsert path moved to
+   * `replaceRestrictions`, which does the delete and the create in one transaction.
+   * Kept only so removing it (and the ~31 test doubles that declare it) can be its own
+   * change; drop it on the next touch of this port.
+   */
   deleteRestrictionsByAppointmentId(appointmentId: string): Promise<void>;
+  /**
+   * Atomically swap an appointment's restrictions for `restriction` (or none when null).
+   * Restriction upserts are delete-then-create; done as two calls, a failure between them
+   * leaves zero rows and permanently loses the availability a rental tenant submitted.
+   */
+  replaceRestrictions(
+    appointmentId: string,
+    restriction: AppointmentRestrictionEntity | null,
+  ): Promise<void>;
   findScheduledOnDate(date: Date): Promise<AppointmentWithRelations[]>;
   findDuplicateForImport(
     propertyId: string,

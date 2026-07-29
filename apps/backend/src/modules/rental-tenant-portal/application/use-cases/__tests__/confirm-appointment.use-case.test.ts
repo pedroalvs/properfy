@@ -20,6 +20,7 @@ function makeUseCase(appointment: ReturnType<typeof makeAppointment>) {
     findById: vi.fn().mockResolvedValue({ appointment, contact: null, contacts: [], restrictions: [] }),
     update: vi.fn(),
     deleteRestrictionsByAppointmentId: vi.fn(),
+    replaceRestrictions: vi.fn(),
     saveRestriction: vi.fn(),
   };
   const auditService = { log: vi.fn() };

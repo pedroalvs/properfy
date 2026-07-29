@@ -148,6 +148,7 @@ describe('CreateAppointmentUseCase', () => {
       updateContact: vi.fn(),
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
+      replaceRestrictions: vi.fn(),
     };
     branchRepo = {
       findById: vi.fn(),

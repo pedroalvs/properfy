@@ -95,6 +95,7 @@ describe('ReportUnavailabilityUseCase', () => {
       deleteRestrictionsByAppointmentId: vi.fn().mockResolvedValue(undefined),
       findScheduledOnDate: vi.fn(),
       saveRestriction: vi.fn().mockResolvedValue(undefined),
+      replaceRestrictions: vi.fn().mockResolvedValue(undefined),
       findAll: vi.fn(),
       count: vi.fn(),
       save: vi.fn(),
@@ -233,9 +234,9 @@ describe('ReportUnavailabilityUseCase', () => {
 
     await useCase.execute(makeInput({ restrictions }));
 
-    expect(appointmentRepo.deleteRestrictionsByAppointmentId).toHaveBeenCalledWith('appt-1');
-    expect(appointmentRepo.saveRestriction).toHaveBeenCalledTimes(1);
-    const savedRestriction = appointmentRepo.saveRestriction.mock.calls[0][0];
+    expect(appointmentRepo.replaceRestrictions).toHaveBeenCalledTimes(1);
+    expect(appointmentRepo.deleteRestrictionsByAppointmentId).not.toHaveBeenCalled();
+    const savedRestriction = appointmentRepo.replaceRestrictions.mock.calls[0][1];
     expect(savedRestriction.isHome).toBe(false);
     expect(savedRestriction.notes).toBe('Away on holiday');
     expect(savedRestriction.source).toBe('RENTAL_TENANT_PORTAL');
@@ -311,7 +312,7 @@ describe('ReportUnavailabilityUseCase', () => {
       }),
     );
 
-    const savedActivity = appointmentRepo.saveRestriction.mock.calls[0]?.[0];
+    const savedActivity = appointmentRepo.replaceRestrictions.mock.calls[0]?.[1];
     expect(savedActivity?.availableSlotsJson).toEqual(slots);
 
     const activityCall = activityRepo.save.mock.calls[0]?.[0];

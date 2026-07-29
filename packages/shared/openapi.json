@@ -12215,7 +12215,8 @@
                       "isHome",
                       "source"
                     ],
-                    "additionalProperties": false
+                    "additionalProperties": false,
+                    "nullable": true
                   },
                   "customFields": {
                     "type": "array",

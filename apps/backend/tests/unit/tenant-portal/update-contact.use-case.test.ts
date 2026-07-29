@@ -115,6 +115,7 @@ describe('UpdateContactUseCase', () => {
       deleteContactsByAppointmentId: vi.fn(),
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
+      replaceRestrictions: vi.fn(),
     };
     auditService = {
       log: vi.fn(),

@@ -152,6 +152,22 @@ const MOCK_APPOINTMENT = {
   restrictions: [{ id: 'res-1', isHome: true, unavailableDaysJson: null, unavailableHoursJson: null, notes: 'Ring bell', source: 'OPERATOR' }],
 };
 
+// A restriction row written by the rental tenant portal on decline: it exists only to
+// carry availableSlotsJson, and holds nothing the operator authored.
+const MOCK_APPOINTMENT_PORTAL_RESTRICTION = {
+  ...MOCK_APPOINTMENT,
+  id: 'apt-portal-restriction',
+  restrictions: [{
+    id: 'res-portal',
+    isHome: false,
+    unavailableDaysJson: null,
+    unavailableHoursJson: null,
+    availableSlotsJson: [{ dayOfWeek: 'WED', start: '09:00', end: '17:00' }],
+    notes: null,
+    source: 'RENTAL_TENANT_PORTAL',
+  }],
+};
+
 // Same appointment, but belonging to a service group — used to verify the
 // date field stays disabled while the time-slot fields remain editable.
 const MOCK_APPOINTMENT_GROUPED = {
@@ -188,6 +204,9 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
     }
     if (id === 'apt-reviewed') {
       return { appointment: MOCK_APPOINTMENT_REVIEWED, isLoading: false, isError: false, refetch: mockRefetchDetail };
+    }
+    if (id === 'apt-portal-restriction') {
+      return { appointment: MOCK_APPOINTMENT_PORTAL_RESTRICTION, isLoading: false, isError: false, refetch: mockRefetchDetail };
     }
     return { appointment: MOCK_APPOINTMENT, isLoading: false, isError: false, refetch: mockRefetchDetail };
   },
@@ -229,6 +248,28 @@ function renderDrawer(props: Partial<Parameters<typeof AppointmentFormDrawer>[0]
     { wrapper: createWrapper() },
   );
 }
+
+describe('AppointmentFormDrawer — restriction toggle reflects only operator restrictions', () => {
+  // A portal-written row exists purely to carry the tenant's availability. Deriving the
+  // toggle from `restrictions.length` turns it on for those rows, so switching it off
+  // never sticks: the row survives the save and the toggle comes back on.
+  it('leaves the toggle off when the only restriction came from the portal', async () => {
+    renderDrawer({ appointmentId: 'apt-portal-restriction' });
+
+    const toggle = await screen.findByRole('checkbox', { name: 'Add access restriction' });
+    expect(toggle).not.toBeChecked();
+    // The operator-only fields stay hidden behind the toggle.
+    expect(screen.queryByRole('checkbox', { name: 'Tenant will be home' })).not.toBeInTheDocument();
+  });
+
+  it('turns the toggle on for an operator-authored restriction', async () => {
+    renderDrawer({ appointmentId: 'apt-01' });
+
+    const toggle = await screen.findByRole('checkbox', { name: 'Add access restriction' });
+    expect(toggle).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Tenant will be home' })).toBeChecked();
+  });
+});
 
 describe('AppointmentFormDrawer', () => {
   const mockPost = api.POST as ReturnType<typeof vi.fn>;

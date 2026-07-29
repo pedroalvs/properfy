@@ -144,8 +144,6 @@ export class ReportUnavailabilityUseCase {
 
     // 6. Save restrictions if provided
     if (input.restrictions) {
-      await this.appointmentRepo.deleteRestrictionsByAppointmentId(input.appointmentId);
-
       const restriction = new AppointmentRestrictionEntity({
         id: crypto.randomUUID(),
         appointmentId: input.appointmentId,
@@ -158,7 +156,7 @@ export class ReportUnavailabilityUseCase {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      await this.appointmentRepo.saveRestriction(restriction);
+      await this.appointmentRepo.replaceRestrictions(input.appointmentId, restriction);
     }
 
     // 7. Record UNAVAILABLE_REPORTED activity — include availableSlotsJson when present (M6)

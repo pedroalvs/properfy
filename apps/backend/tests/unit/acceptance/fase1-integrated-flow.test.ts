@@ -281,6 +281,17 @@ class InMemoryAppointmentRepo implements IAppointmentRepository {
     this.restrictions.delete(appointmentId);
   }
 
+  async replaceRestrictions(
+    appointmentId: string,
+    restriction: AppointmentRestrictionEntity | null,
+  ): Promise<void> {
+    if (restriction === null) {
+      this.restrictions.delete(appointmentId);
+      return;
+    }
+    this.restrictions.set(appointmentId, [restriction]);
+  }
+
   async findScheduledOnDate(date: Date): Promise<AppointmentWithRelations[]> {
     const targetDate = date.toISOString().slice(0, 10);
     const items = await this.findAll(

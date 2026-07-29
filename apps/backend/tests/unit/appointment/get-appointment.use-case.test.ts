@@ -116,6 +116,7 @@ describe('GetAppointmentUseCase', () => {
       updateContact: vi.fn(),
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
+      replaceRestrictions: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
     useCase = new GetAppointmentUseCase(appointmentRepo, new AuthorizationService(auditService));
