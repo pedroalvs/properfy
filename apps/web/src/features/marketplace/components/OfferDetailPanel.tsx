@@ -58,7 +58,7 @@ export function OfferDetailPanel({ offer, detail, detailLoading, onAccept, isAcc
         </div>
       </div>
 
-      <div className="mb-4 rounded bg-[#FAFAFA] p-3 text-sm text-text-primary">
+      <div className="mb-4 rounded bg-app-bg p-3 text-sm text-text-primary">
         <p><span className="text-text-muted">Time window:</span> {formatWallTimeWindow(offer.timeWindow)}</p>
         <p><span className="text-text-muted">Suburbs:</span> {offer.suburbs.length > 0 ? offer.suburbs.join(', ') : 'Not informed'}</p>
       </div>

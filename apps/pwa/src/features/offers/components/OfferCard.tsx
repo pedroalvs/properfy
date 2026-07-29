@@ -16,14 +16,16 @@ function isToday(dateStr: string): boolean {
   return dateStr.slice(0, 10) === todayInTzDateString(PLATFORM_TIMEZONE);
 }
 
+/**
+ * Device-independent despite the toISOString(): the anchor is the platform-tz
+ * calendar day and the arithmetic is UTC-on-UTC, so the device offset never
+ * enters. Anchoring on `new Date()` instead WOULD make it device-dependent and
+ * disagree with isToday above.
+ */
 function isTomorrow(dateStr: string): boolean {
   const tomorrow = new Date(`${todayInTzDateString(PLATFORM_TIMEZONE)}T00:00:00Z`);
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
   return dateStr.slice(0, 10) === tomorrow.toISOString().slice(0, 10);
-}
-
-function formatTimeWindow(timeWindow: string): string {
-  return formatWallTimeWindow(timeWindow);
 }
 
 function usePriorityCountdown(expiresAt: string | null): { label: string; isUrgent: boolean } | null {
@@ -90,7 +92,7 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
           </span>
         </div>
         <span className="shrink-0 text-xs font-bold text-text-primary">
-          {formatTimeWindow(offer.timeWindow)}
+          {formatWallTimeWindow(offer.timeWindow)}
         </span>
       </div>
 
