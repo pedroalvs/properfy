@@ -460,7 +460,11 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
         tenant_id: tenantId,
         status: 'APPROVED',
         effective_at: { gte: periodStart, lte: periodEnd },
-        entry_type: { in: ['TENANT_DEBIT', 'REFUND', 'MANUAL_ADJUSTMENT'] },
+        // Agency-facing aggregation: same allowlist + inspector-leg exclusion as
+        // every other agency read. Currently uncalled, but it reads as a
+        // ready-made agency total, so it must not ship the summary bug in wait.
+        entry_type: { in: [...AGENCY_VISIBLE_ENTRY_TYPES] },
+        inspector_id: null,
       },
       _sum: { amount: true },
     });
