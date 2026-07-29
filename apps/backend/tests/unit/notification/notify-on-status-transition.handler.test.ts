@@ -557,6 +557,44 @@ describe('NotifyOnStatusTransitionHandler occurrence dedupe', () => {
     expect(createNotification.execute).not.toHaveBeenCalled();
   });
 
+  // Dual-channel writes the SMS leg last, so the SMS row — not the email one —
+  // is what findLatest returns. Its payload is filtered to the template spec, so
+  // if that spec omits a key the dedupe compares on, the comparison is silently
+  // skipped and a genuine change is suppressed. Mocking the EMAIL variant here
+  // (as the sibling tests do) would hide exactly that.
+  it('re-sends when only the time slot changed and the latest row is the SMS leg', async () => {
+    notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(
+      // Built through the real service so the payload carries exactly the keys
+      // INSPECTION_NOTICE_SMS declares — no hand-written key list that could
+      // drift from the spec and paper over the gap being tested.
+      makeSentNotification(
+        'INSPECTION_NOTICE_SMS',
+        buildNotificationPayload.build({
+          templateCode: 'INSPECTION_NOTICE_SMS',
+          tenant: makeTenant(),
+          // Same date, EARLIER slot than the current appointment (09:00-12:00):
+          // only the time slot moved, which must still re-announce.
+          appointment: makeAppointment({ timeSlotStart: '08:00', timeSlotEnd: '10:00' }),
+          contact: makeContact(),
+          propertyAddress: '123 Main St, Sydney',
+          serviceTypeName: null,
+          rawPortalToken: null,
+          portalBaseUrl: 'http://localhost:5173',
+          appointmentCodeFormatter,
+        }),
+      ),
+    );
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'SCHEDULED',
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledTimes(2);
+  });
+
   it('re-sends INSPECTION_NOTICE when the scheduled date changed', async () => {
     notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(
       makeSentNotification('INSPECTION_NOTICE', {
