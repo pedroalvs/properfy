@@ -147,7 +147,14 @@ export const TEMPLATE_VARIABLES: Record<
   },
   INSPECTION_NOTICE_SMS: {
     required: ['rentalTenantName', 'scheduledDate'],
-    optional: ['propertyAddress', 'confirmationLink', 'appointmentCode'],
+    // `timeSlot` is load-bearing beyond the copy: the status-transition dedupe
+    // compares scheduledDate + timeSlot against the LATEST row of the
+    // announcement family, and dual-channel writes the SMS leg last. A key
+    // absent from the stored payload is skipped in that comparison, so dropping
+    // timeSlot here would silently suppress a slot-only re-announcement.
+    // Pinned by "email and SMS legs agree on the dedupe comparison keys" in
+    // notify-on-status-transition.handler.test.ts.
+    optional: ['propertyAddress', 'confirmationLink', 'appointmentCode', 'timeSlot'],
   },
   REMINDER_7_DAYS: {
     required: ['rentalTenantName', 'scheduledDate'],

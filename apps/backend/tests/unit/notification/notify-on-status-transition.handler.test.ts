@@ -233,7 +233,7 @@ describe('NotifyOnStatusTransitionHandler', () => {
       targetStatus: 'SCHEDULED',
     });
 
-    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).toHaveBeenCalledTimes(2);
     expect(createNotification.execute).toHaveBeenCalledWith(
       expect.objectContaining({
         templateCode: 'INSPECTION_NOTICE',
@@ -251,7 +251,7 @@ describe('NotifyOnStatusTransitionHandler', () => {
       targetStatus: 'CANCELLED',
     });
 
-    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).toHaveBeenCalledTimes(2);
     expect(createNotification.execute).toHaveBeenCalledWith(
       expect.objectContaining({
         templateCode: 'INSPECTION_CANCELLED',
@@ -277,7 +277,36 @@ describe('NotifyOnStatusTransitionHandler', () => {
     expect(createNotification.execute).not.toHaveBeenCalled();
   });
 
-  it('sends SMS fallback when primaryEmail is null but phone exists', async () => {
+  it('sends INSPECTION_NOTICE on both channels when the contact has an email and a phone', async () => {
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'SCHEDULED',
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledTimes(2);
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL' }),
+    );
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_NOTICE_SMS', channel: 'SMS' }),
+    );
+  });
+
+  it('mints the portal token once and shares it across both legs', async () => {
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'SCHEDULED',
+    });
+
+    // A second mint would revoke the link the first message already carried.
+    expect(mintPortalTokenService.mint).toHaveBeenCalledOnce();
+  });
+
+  it('sends only SMS when the contact has no email', async () => {
     appointmentRepo.findById.mockResolvedValue({
       appointment: makeAppointment(),
       contact: makeContact({ snapshotEmail: null }),
@@ -459,7 +488,7 @@ describe('NotifyOnStatusTransitionHandler', () => {
       targetStatus: 'SCHEDULED',
     });
 
-    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).toHaveBeenCalledTimes(2);
     expect(logger.warn).toHaveBeenCalledOnce();
   });
 });
@@ -482,7 +511,7 @@ describe('NotifyOnStatusTransitionHandler occurrence dedupe', () => {
       targetStatus: 'SCHEDULED',
     });
 
-    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).toHaveBeenCalledTimes(2);
     expect(notificationRepo.findLatestByAppointmentAndTemplates).toHaveBeenCalledWith(
       'appt-1',
       'tenant-1',
@@ -507,7 +536,7 @@ describe('NotifyOnStatusTransitionHandler occurrence dedupe', () => {
       targetStatus: 'SCHEDULED',
     });
 
-    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).toHaveBeenCalledTimes(2);
     expect(createNotification.execute).toHaveBeenCalledWith(
       expect.objectContaining({ templateCode: 'INSPECTION_NOTICE' }),
     );
@@ -528,6 +557,44 @@ describe('NotifyOnStatusTransitionHandler occurrence dedupe', () => {
     expect(createNotification.execute).not.toHaveBeenCalled();
   });
 
+  // Dual-channel writes the SMS leg last, so the SMS row — not the email one —
+  // is what findLatest returns. Its payload is filtered to the template spec, so
+  // if that spec omits a key the dedupe compares on, the comparison is silently
+  // skipped and a genuine change is suppressed. Mocking the EMAIL variant here
+  // (as the sibling tests do) would hide exactly that.
+  it('re-sends when only the time slot changed and the latest row is the SMS leg', async () => {
+    notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(
+      // Built through the real service so the payload carries exactly the keys
+      // INSPECTION_NOTICE_SMS declares — no hand-written key list that could
+      // drift from the spec and paper over the gap being tested.
+      makeSentNotification(
+        'INSPECTION_NOTICE_SMS',
+        buildNotificationPayload.build({
+          templateCode: 'INSPECTION_NOTICE_SMS',
+          tenant: makeTenant(),
+          // Same date, EARLIER slot than the current appointment (09:00-12:00):
+          // only the time slot moved, which must still re-announce.
+          appointment: makeAppointment({ timeSlotStart: '08:00', timeSlotEnd: '10:00' }),
+          contact: makeContact(),
+          propertyAddress: '123 Main St, Sydney',
+          serviceTypeName: null,
+          rawPortalToken: null,
+          portalBaseUrl: 'http://localhost:5173',
+          appointmentCodeFormatter,
+        }),
+      ),
+    );
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'SCHEDULED',
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledTimes(2);
+  });
+
   it('re-sends INSPECTION_NOTICE when the scheduled date changed', async () => {
     notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(
       makeSentNotification('INSPECTION_NOTICE', {
@@ -543,7 +610,7 @@ describe('NotifyOnStatusTransitionHandler occurrence dedupe', () => {
       targetStatus: 'SCHEDULED',
     });
 
-    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).toHaveBeenCalledTimes(2);
   });
 
   it('re-sends INSPECTION_NOTICE when the time slot changed', async () => {
@@ -561,7 +628,7 @@ describe('NotifyOnStatusTransitionHandler occurrence dedupe', () => {
       targetStatus: 'SCHEDULED',
     });
 
-    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).toHaveBeenCalledTimes(2);
   });
 
   /**
@@ -624,7 +691,7 @@ describe('NotifyOnStatusTransitionHandler occurrence dedupe', () => {
         targetStatus: 'SCHEDULED',
       });
 
-      expect(createNotification.execute).toHaveBeenCalledOnce();
+      expect(createNotification.execute).toHaveBeenCalledTimes(2);
     });
 
     it('still re-sends when a legacy ISO payload carries a genuinely different slot', async () => {
@@ -642,7 +709,7 @@ describe('NotifyOnStatusTransitionHandler occurrence dedupe', () => {
         targetStatus: 'SCHEDULED',
       });
 
-      expect(createNotification.execute).toHaveBeenCalledOnce();
+      expect(createNotification.execute).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -673,7 +740,7 @@ describe('NotifyOnStatusTransitionHandler occurrence dedupe', () => {
       targetStatus: 'CANCELLED',
     });
 
-    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).toHaveBeenCalledTimes(2);
     expect(createNotification.execute).toHaveBeenCalledWith(
       expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED' }),
     );
