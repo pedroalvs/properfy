@@ -148,8 +148,10 @@ describe('ListPortalActivitiesUseCase', () => {
       pageSize: 20,
     });
 
+    // Assert on the issues rather than the boolean, so a future drift reports which
+    // field diverged instead of a bare "expected false to be true".
     const parsed = portalActivitiesResponseSchema.safeParse(result);
-    expect(parsed.success).toBe(true);
+    expect(parsed.success ? [] : parsed.error.issues).toEqual([]);
   });
 
   it('should serialize createdAt as ISO string', async () => {
