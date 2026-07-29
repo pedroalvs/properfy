@@ -6,8 +6,13 @@
  * unscoped by tenant, so running the real thing against a shared database would
  * cancel every overdue appointment in it, not just a seeded fixture.
  *
- * Usage (from apps/backend, with a .env present):
+ * Usage — locally, from apps/backend with a .env present:
  *   pnpm exec tsx --env-file=.env src/scripts/dry-run-auto-cancel.ts
+ *
+ * Usage — against a deployed environment, without copying its credentials
+ * anywhere (bundled into the image via the tsup entry map):
+ *   fly ssh console -a properfy-prod -C \
+ *     "cd /app/apps/backend && node dist/dry-run-auto-cancel.js"
  */
 import { PrismaClient } from '@prisma/client';
 import { isTerminalAppointmentStatus } from '@properfy/shared';
