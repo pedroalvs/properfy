@@ -12,6 +12,7 @@ import {
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
 import { normalizeClUserPermissions } from '../../../shared/domain/cl-user-permissions';
+import { REPORT_ROLES } from '../application/report-access';
 import { success, paginated } from '../../../shared/interfaces/response';
 import type { AuthorizationService } from '../../../shared/domain/authorization.service';
 import type { AuthContext } from '@properfy/shared';
@@ -55,7 +56,7 @@ export async function registerReportRoutes(
   // also own the agency scoping); this layer exists so a CL_USER missing the
   // `view_financials` flag is denied *and* the denial is audit-logged.
   function assertReportAccess(actor: AuthContext, action: string): void {
-    container.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN', 'CL_USER'], {
+    container.authorizationService.assertRoles(actor, [...REPORT_ROLES], {
       action,
       entityType: 'Report',
     });

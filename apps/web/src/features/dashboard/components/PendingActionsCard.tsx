@@ -37,6 +37,8 @@ const ACTIONS = [
 ] as const;
 
 const FINANCIAL_ROLES = new Set(['AM', 'OP']);
+/** Mirrors the /reports AuthGuard. CL_USER additionally needs `view_financials`. */
+const REPORT_ROLES = new Set(['AM', 'OP', 'CL_ADMIN', 'CL_USER']);
 
 export function PendingActionsCard({
   noResponseRentalTenants,
@@ -48,7 +50,11 @@ export function PendingActionsCard({
   const { hasClUserFlag } = usePermissions();
   // Reports are agency-visible, but a CL_USER without `view_financials` would be
   // sent to a page that only shows a no-permission state — hide the shortcut.
-  const canViewReports = hasClUserFlag('view_financials');
+  // The role check is explicit because `hasClUserFlag` is a no-op (true) for every
+  // non-CL_USER role, INSP included, which the route guard rejects.
+  const canViewReports =
+    REPORT_ROLES.has(user?.role ?? '') &&
+    (user?.role !== 'CL_USER' || hasClUserFlag('view_financials'));
   const visibleActions = ACTIONS.filter((a) => {
     if (a.key === 'pendingFinancialEntries') return FINANCIAL_ROLES.has(user?.role ?? '');
     if (a.key === 'processingReports') return canViewReports;

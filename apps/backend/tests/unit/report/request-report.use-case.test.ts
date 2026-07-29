@@ -7,6 +7,7 @@ import {
   ReportForbiddenError,
   ReportDateRangeExceededError,
   ReportConcurrentLimitExceededError,
+  ReportTenantScopeViolationError,
 } from '../../../src/modules/report/domain/report.errors';
 import type { AuthContext, RequestReportInput } from '@properfy/shared';
 
@@ -196,7 +197,9 @@ describe('RequestReportUseCase', () => {
 
   // The reader treats a falsy tenantId as "no filter" → a platform-wide export.
   it('fails closed when an agency actor has no tenant in the JWT', async () => {
-    await expect(useCase.execute(makeInput(), makeAuth({ role: 'CL_ADMIN', tenantId: null }))).rejects.toThrow();
+    await expect(useCase.execute(makeInput(), makeAuth({ role: 'CL_ADMIN', tenantId: null }))).rejects.toThrow(
+      ReportTenantScopeViolationError,
+    );
     expect(reportRepo.save).not.toHaveBeenCalled();
   });
 

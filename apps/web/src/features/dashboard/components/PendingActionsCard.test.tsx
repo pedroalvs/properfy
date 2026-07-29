@@ -3,8 +3,9 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { PendingActionsCard } from './PendingActionsCard';
 
+const mockUser = vi.fn(() => ({ id: 'user-1', role: 'AM', tenantId: null } as Record<string, unknown>));
 vi.mock('@/hooks/useAuth', () => ({
-  useAuth: () => ({ user: { id: 'user-1', role: 'AM', tenantId: null } }),
+  useAuth: () => ({ user: mockUser() }),
 }));
 
 describe('PendingActionsCard', () => {
@@ -76,5 +77,34 @@ describe('PendingActionsCard', () => {
     );
     const zeros = screen.getAllByText('0');
     expect(zeros).toHaveLength(4);
+  });
+
+  // `hasClUserFlag` is a no-op (true) for every non-CL_USER role, INSP included,
+  // so the Reports shortcut needs an explicit role check — the /reports route
+  // guard rejects INSP, and a visible shortcut would just bounce them.
+  describe('Reports shortcut visibility', () => {
+    it.each(['AM', 'OP', 'CL_ADMIN'])('shows it to %s', (role) => {
+      mockUser.mockReturnValue({ id: 'u', role, tenantId: 'tenant-1' });
+      render(<MemoryRouter><PendingActionsCard {...defaultProps} /></MemoryRouter>);
+      expect(screen.getByText('Reports processing')).toBeInTheDocument();
+    });
+
+    it('hides it from INSP', () => {
+      mockUser.mockReturnValue({ id: 'u', role: 'INSP', tenantId: null });
+      render(<MemoryRouter><PendingActionsCard {...defaultProps} /></MemoryRouter>);
+      expect(screen.queryByText('Reports processing')).not.toBeInTheDocument();
+    });
+
+    it('hides it from a CL_USER without view_financials', () => {
+      mockUser.mockReturnValue({ id: 'u', role: 'CL_USER', tenantId: 'tenant-1', clUserPermissions: [] });
+      render(<MemoryRouter><PendingActionsCard {...defaultProps} /></MemoryRouter>);
+      expect(screen.queryByText('Reports processing')).not.toBeInTheDocument();
+    });
+
+    it('shows it to a CL_USER holding view_financials', () => {
+      mockUser.mockReturnValue({ id: 'u', role: 'CL_USER', tenantId: 'tenant-1', clUserPermissions: ['view_financials'] });
+      render(<MemoryRouter><PendingActionsCard {...defaultProps} /></MemoryRouter>);
+      expect(screen.getByText('Reports processing')).toBeInTheDocument();
+    });
   });
 });

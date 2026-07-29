@@ -117,6 +117,31 @@ describe('ProcessReportJobUseCase', () => {
       });
     });
 
+    // The persisted column is canonical: filtersJson is a blob and could be stale
+    // or tampered with, so the row's tenant_id wins for an agency run.
+    it('overrides a conflicting filtersJson tenantId with the row tenant for an agency run', async () => {
+      const report = makeReport({
+        agencyScoped: true,
+        tenantId: 'tenant-1',
+        filtersJson: { fromDate: '2026-03-01', toDate: '2026-03-15', dateAxis: 'SCHEDULED', tenantId: 'other-tenant' },
+      });
+      vi.mocked(reportRepo.findById).mockResolvedValue(report);
+      await useCase.execute('report-1');
+      expect(dataReader.getAppointmentRows).toHaveBeenCalledWith(
+        expect.objectContaining({ tenantId: 'tenant-1', agencyScoped: true }),
+      );
+    });
+
+    // The reader treats a falsy tenantId as "apply no filter" — a platform-wide export.
+    it('fails the job rather than exporting platform-wide when an agency run has no tenant', async () => {
+      const report = makeReport({ agencyScoped: true, tenantId: null });
+      vi.mocked(reportRepo.findById).mockResolvedValue(report);
+      await useCase.execute('report-1');
+      expect(dataReader.getAppointmentRows).not.toHaveBeenCalled();
+      expect(report.status).toBe('FAILED');
+      expect(report.errorMessage).toContain('missing its tenant scope');
+    });
+
     // The worker has no auth context — `agency_scoped` is the only channel telling
     // the reader that this run must be shaped for an agency audience.
     it('passes agencyScoped through to the reader', async () => {

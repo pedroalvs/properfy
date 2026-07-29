@@ -43,11 +43,17 @@ export class ProcessReportJobUseCase {
       report.markProcessing();
       await this.reportRepo.update(report);
 
-      // 3. Build data filters from filtersJson. `agencyScoped` comes from the row,
-      //    not the JSON blob — it is an access-control fact, and the worker has no
-      //    auth context of its own to re-derive it from.
+      // 3. Build data filters from filtersJson. `agencyScoped` and `tenantId` come
+      //    from the ROW, not the JSON blob — they are access-control facts, and the
+      //    worker has no auth context of its own to re-derive them from. The reader
+      //    treats a falsy tenantId as "no filter", so an agency run without one
+      //    would export the whole platform: refuse instead.
+      if (report.agencyScoped && !report.tenantId) {
+        throw new Error('Agency-scoped report is missing its tenant scope');
+      }
       const filters: ReportDataFilters = {
         ...(report.filtersJson as unknown as ReportDataFilters),
+        ...(report.agencyScoped ? { tenantId: report.tenantId! } : {}),
         agencyScoped: report.agencyScoped,
       };
 

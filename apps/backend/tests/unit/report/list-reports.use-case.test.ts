@@ -3,7 +3,10 @@ import { ListReportsUseCase } from '../../../src/modules/report/application/use-
 import type { IReportRepository } from '../../../src/modules/report/domain/report.repository';
 import { ReportEntity, type ReportProps } from '../../../src/modules/report/domain/report.entity';
 import type { ListReportsInput, AuthContext } from '../../../src/modules/report/application/use-cases/list-reports.use-case';
-import { ReportForbiddenError } from '../../../src/modules/report/domain/report.errors';
+import {
+  ReportForbiddenError,
+  ReportTenantScopeViolationError,
+} from '../../../src/modules/report/domain/report.errors';
 
 function makeReport(overrides: Partial<ReportProps> = {}): ReportEntity {
   const now = new Date('2026-03-16T10:00:00.000Z');
@@ -134,7 +137,7 @@ describe('ListReportsUseCase', () => {
   it('should fail closed when an agency actor has no tenant', async () => {
     await expect(
       useCase.execute(makeInput(), makeAuth({ role: 'CL_ADMIN', userId: 'u', tenantId: null })),
-    ).rejects.toThrow();
+    ).rejects.toThrow(ReportTenantScopeViolationError);
     expect(reportRepo.findAll).not.toHaveBeenCalled();
   });
 

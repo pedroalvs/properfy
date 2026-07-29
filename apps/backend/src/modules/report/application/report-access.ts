@@ -2,8 +2,8 @@ import type { AuthContext, ReportType } from '@properfy/shared';
 import type { ReportEntity } from '../domain/report.entity';
 import { ReportForbiddenError, ReportTenantScopeViolationError } from '../domain/report.errors';
 
-/** Roles admitted on any report surface. */
-const REPORT_ROLES = ['AM', 'OP', 'CL_ADMIN', 'CL_USER'] as const;
+/** Roles admitted on any report surface. Also consumed by the route-layer guard. */
+export const REPORT_ROLES = ['AM', 'OP', 'CL_ADMIN', 'CL_USER'] as const;
 
 /** Roles that read the whole platform and may target any agency (or none). */
 const OPERATOR_ROLES = ['AM', 'OP'] as const;
