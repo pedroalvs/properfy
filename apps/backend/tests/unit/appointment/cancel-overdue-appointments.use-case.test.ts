@@ -133,15 +133,21 @@ describe('CancelOverdueAppointmentsUseCase', () => {
   it('treats a second expiry of the same appointment on a new date as a new operation', async () => {
     // Reopened, re-dated, went stale again — an id-only key would collide with the
     // first cancellation still in the 24h idempotency cache and silently skip it.
+    // Two separate sweeps, because one repository result can never repeat an id.
+    const uc = makeUseCase();
+
     appointmentRepo.findOverdueActive.mockResolvedValue([
       makeAppointment({ id: 'a-1', scheduledDate: new Date('2026-07-20T00:00:00.000Z') }),
+    ]);
+    await uc.execute();
+
+    appointmentRepo.findOverdueActive.mockResolvedValue([
       makeAppointment({ id: 'a-1', scheduledDate: new Date('2026-07-25T00:00:00.000Z') }),
     ]);
-
-    await makeUseCase().execute();
+    await uc.execute();
 
     const keys = transitionUseCase.execute.mock.calls.map((c) => c[0].idempotencyKey);
-    expect(new Set(keys).size).toBe(2);
+    expect(keys).toEqual(['expire_overdue:a-1:2026-07-20', 'expire_overdue:a-1:2026-07-25']);
   });
 
   it('keeps going when one appointment fails, and counts the failure', async () => {

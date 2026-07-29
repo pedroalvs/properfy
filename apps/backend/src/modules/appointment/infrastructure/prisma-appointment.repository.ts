@@ -690,6 +690,8 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
   }
 
   async findOverdueActive(beforeDate: Date, limit: number): Promise<AppointmentEntity[]> {
+    // Cross-tenant: background job processes all tenants, so there is deliberately
+    // no tenant_id filter here. The caller is the scheduled sweep, not a request.
     // scheduled_date is a @db.Date pinned to UTC midnight; callers must pass UTC
     // midnight of the *Sydney* civil date that counts as "today" (startOfPlatformToday).
     const rows = await this.prisma.appointment.findMany({

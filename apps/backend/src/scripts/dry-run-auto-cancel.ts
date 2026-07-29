@@ -13,7 +13,7 @@ import { PrismaClient } from '@prisma/client';
 import { isTerminalAppointmentStatus } from '@properfy/shared';
 import { formatDate, startOfPlatformToday, PLATFORM_TIMEZONE } from '../shared/domain/timezone-date';
 import { PrismaAppointmentRepository } from '../modules/appointment/infrastructure/prisma-appointment.repository';
-import { CANCELLABLE_GROUP_STATUSES } from '../modules/service-group/application/services/cancel-empty-group.service';
+import { CANCELLABLE_GROUP_STATUSES, isServiceGroupDead } from '../modules/service-group/application/services/cancel-empty-group.service';
 
 const prisma = new PrismaClient();
 
@@ -55,15 +55,13 @@ async function main(): Promise<void> {
     },
   });
 
-  const dead = groups.filter((g) => {
-    const hasLive = g.appointments.some((a) => !isTerminalAppointmentStatus(a.status));
-    const hasDone = g.appointments.some((a) => a.status === 'DONE');
-    return !hasLive && !hasDone;
-  });
-  const skippedForDone = groups.filter((g) => {
-    const hasLive = g.appointments.some((a) => !isTerminalAppointmentStatus(a.status));
-    return !hasLive && g.appointments.some((a) => a.status === 'DONE');
-  });
+  // Same predicate the sweep uses, so this report cannot disagree with it.
+  const dead = groups.filter((g) => isServiceGroupDead(g.appointments));
+  const skippedForDone = groups.filter(
+    (g) =>
+      !isServiceGroupDead(g.appointments) &&
+      !g.appointments.some((a) => !isTerminalAppointmentStatus(a.status)),
+  );
 
   console.log(`Released groups examined: ${groups.length}`);
   console.log(`WOULD CANCEL ${dead.length} group(s) with nothing left to execute`);
@@ -84,4 +82,4 @@ main()
     console.error(err);
     process.exitCode = 1;
   })
-  .finally(() => void prisma.$disconnect());
+  .finally(() => prisma.$disconnect());

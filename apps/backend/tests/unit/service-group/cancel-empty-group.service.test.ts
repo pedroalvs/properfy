@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { CancelEmptyGroupService } from '../../../src/modules/service-group/application/services/cancel-empty-group.service';
+import { CancelEmptyGroupService, isServiceGroupDead } from '../../../src/modules/service-group/application/services/cancel-empty-group.service';
 import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
 import { DomainEventBus, SERVICE_GROUP_EVENTS } from '../../../src/shared/application/events/domain-event-bus';
 
@@ -71,6 +71,31 @@ beforeEach(() => {
   serviceGroupRepo.update.mockResolvedValue(undefined);
   // 1 = this caller claimed the transition.
   serviceGroupRepo.cancelOptimistic.mockResolvedValue(1);
+});
+
+// The predicate is exported so the dry-run report classifies groups with the same
+// rule instead of restating it. Pinning it directly keeps both honest.
+describe('isServiceGroupDead', () => {
+  const s = (...statuses: string[]) => statuses.map((status) => ({ status }));
+
+  it('is dead with no members at all', () => {
+    expect(isServiceGroupDead([])).toBe(true);
+  });
+
+  it('is dead when every member is CANCELLED or REJECTED', () => {
+    expect(isServiceGroupDead(s('CANCELLED', 'REJECTED'))).toBe(true);
+  });
+
+  it('is NOT dead when any member is DONE — the work happened', () => {
+    expect(isServiceGroupDead(s('DONE'))).toBe(false);
+    expect(isServiceGroupDead(s('DONE', 'CANCELLED'))).toBe(false);
+  });
+
+  it('is NOT dead while any member is still live', () => {
+    for (const live of ['DRAFT', 'AWAITING_INSPECTOR', 'SCHEDULED']) {
+      expect(isServiceGroupDead(s('CANCELLED', live))).toBe(false);
+    }
+  });
 });
 
 describe('CancelEmptyGroupService.cancelIfDead', () => {

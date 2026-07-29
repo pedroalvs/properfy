@@ -122,8 +122,8 @@ Official statuses:
 
 **Key transitions:**
 
-| From | To | Actor | Reason required |
-|---|---|---|---|
+| From | To | Actor | Reason required | Notes |
+|---|---|---|---|---|
 | `DRAFT` | `AWAITING_INSPECTOR` | OP, SYS | No |
 | `DRAFT` | `REJECTED` | OP, AM | Yes |
 | `DRAFT` | `CANCELLED` | OP, CL, AM | Yes |

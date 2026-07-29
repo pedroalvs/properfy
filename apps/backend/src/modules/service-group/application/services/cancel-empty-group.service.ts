@@ -18,6 +18,23 @@ export const CANCELLABLE_GROUP_STATUSES = ['PUBLISHED', 'ACCEPTED'] as const;
 const CANCELLABLE_STATUSES: ReadonlySet<string> = new Set(CANCELLABLE_GROUP_STATUSES);
 
 /**
+ * Whether a group has nothing left to execute, judged purely from its members.
+ *
+ * "Nothing left" needs both halves: no live member, AND no `DONE` member. `DONE` is
+ * a terminal status, so the live check alone would also match a group whose
+ * inspections all *succeeded* — and there is no `COMPLETED` group status to
+ * distinguish them, so a finished group legitimately rests at `ACCEPTED`.
+ *
+ * Exported so the dry-run report classifies groups with this exact rule instead of
+ * restating it — a second copy would silently drift from the real behaviour.
+ * Callers must pass members already filtered to `deleted_at IS NULL`.
+ */
+export function isServiceGroupDead(members: ReadonlyArray<{ status: string }>): boolean {
+  if (members.some((m) => !isTerminalAppointmentStatus(m.status))) return false;
+  return !members.some((m) => m.status === 'DONE');
+}
+
+/**
  * Cancels a released service group once nothing is left in it to execute.
  *
  * "Nothing left" means no live members **and** no `DONE` members. The `DONE` part
@@ -48,11 +65,7 @@ export class CancelEmptyGroupService {
 
     // findById already filters soft-deleted appointments out, so a group whose only
     // member was deleted correctly reads as empty here.
-    const hasLiveMember = appointments.some((a) => !isTerminalAppointmentStatus(a.status));
-    if (hasLiveMember) return false;
-
-    const hasDoneMember = appointments.some((a) => a.status === 'DONE');
-    if (hasDoneMember) return false;
+    if (!isServiceGroupDead(appointments)) return false;
 
     const previousStatus = group.status;
 

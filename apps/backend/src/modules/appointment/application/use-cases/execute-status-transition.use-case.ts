@@ -135,6 +135,17 @@ export class ExecuteStatusTransitionUseCase {
 
     const rule = validation.rule!;
 
+    // 3a-bis. EXPIRED means "the system cancelled this because its date passed".
+    // The web dialog hides it, but the API validates against the whole enum, so a
+    // human actor could otherwise hand-label a cancellation as auto-expired and
+    // destroy the distinction this code exists to make in reports.
+    if (cancellationReasonCode === 'EXPIRED' && !isSystemActor) {
+      throw new ForbiddenError(
+        'CANCELLATION_REASON_CODE_SYSTEM_ONLY',
+        'The EXPIRED cancellation reason is assigned by the system only',
+      );
+    }
+
     // 3b. CL_USER permission check — configurable permissions per tenant
     if (actor.role === 'CL_USER') {
       if (targetStatus === 'CANCELLED') {

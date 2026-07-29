@@ -1105,6 +1105,61 @@ describe('ExecuteStatusTransitionUseCase – SYS actor attribution', () => {
     expect(transitionCall[0].actorId).toBeUndefined();
   });
 
+  // EXPIRED marks "the system cancelled this because its date passed". It is hidden
+  // from the web dropdown, but the API accepts any CancellationReasonCode, so without
+  // this guard an operator could hand-label a cancellation as auto-expired and
+  // corrupt the very distinction the code exists to make.
+  it('rejects the EXPIRED reason code from a human actor', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    const uc = makeUseCase();
+
+    await expect(uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'CANCELLED',
+      reason: 'Client request',
+      cancellationReasonCode: 'EXPIRED',
+      actor: makeActor('AM'),
+    })).rejects.toThrow(ForbiddenError);
+
+    expect(appointmentRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('allows the EXPIRED reason code for the system actor', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    const uc = makeUseCase();
+
+    const result = await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'CANCELLED',
+      reason: 'Appointment date passed',
+      cancellationReasonCode: 'EXPIRED',
+      actor: makeActor('SYS'),
+    });
+
+    expect(result.status).toBe('CANCELLED');
+  });
+
+  it('still accepts ordinary reason codes from a human actor', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    const uc = makeUseCase();
+
+    const result = await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'CANCELLED',
+      reason: 'Client request',
+      cancellationReasonCode: 'CLIENT_REQUEST',
+      actor: makeActor('AM'),
+    });
+
+    expect(result.status).toBe('CANCELLED');
+  });
+
   it('keeps USER attribution for a human actor', async () => {
     appointmentRepo.findById.mockResolvedValue(
       makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
