@@ -183,6 +183,24 @@ describe('POST /v1/app-credentials', () => {
   });
 });
 
+describe('PATCH /v1/app-credentials/:id', () => {
+  // The update path needs the same accept-and-ignore pin as create: a stale
+  // browser bundle sends authCode on every EDIT too, not just on create.
+  it('ignores a legacy authCode in the payload instead of rejecting it', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockUpdate.mockResolvedValueOnce(makeCred({ needsAuthCode: true }));
+    const res = await supertest(app.server)
+      .patch('/v1/app-credentials/dddddddd-0000-4000-8000-000000000001')
+      .set('Authorization', 'Bearer t')
+      .send({ needsAuthCode: true, authCode: '123456' })
+      .expect(200);
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.not.objectContaining({ authCode: expect.anything() }) }),
+    );
+    expect(res.body.data).not.toHaveProperty('authCode');
+  });
+});
+
 describe('GET /v1/app-credentials', () => {
   it('AM lists', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
