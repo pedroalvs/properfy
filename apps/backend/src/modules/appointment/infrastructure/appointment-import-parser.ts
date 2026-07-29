@@ -172,6 +172,14 @@ function firstNonEmptyRow(worksheet: ExcelJS.Worksheet): HeaderRow | null {
     row.eachCell((cell, colNumber) => {
       headers[colNumber - 1] = String(cell.value ?? '').trim();
     });
+    // `eachCell` SKIPS absent cells, so a header row with a gap (B1 cleared
+    // while B2 still holds data) leaves holes in this array. A hole reads back
+    // as `undefined`, and `for...of` in analyzeImportHeaders does not skip it —
+    // `undefined.trim()` would throw a raw TypeError, i.e. exactly the 500 this
+    // module exists to prevent. TypeScript cannot catch it: holes are not
+    // representable in `string[]`.
+    for (let i = 0; i < headers.length; i += 1) headers[i] ??= '';
+
     if (headers.some((header) => header)) {
       found = { headers, rowNumber };
     }
@@ -212,14 +220,17 @@ function selectWorksheet(workbook: ExcelJS.Workbook): SelectedWorksheet {
     }
   }
 
-  const fallback = workbook.worksheets[0]!;
+  // Prefer a visible sheet even here: the resulting missing-columns message
+  // lists the headers of whichever sheet we picked, and naming a hidden sheet
+  // the user cannot open makes that message useless.
+  const fallback = candidates[0]!;
   const headerRow = firstNonEmptyRow(fallback);
   if (!headerRow) throw new ImportFileNoHeaderRowError();
 
   return {
     worksheet: fallback,
     ...headerRow,
-    ignored: workbook.worksheets.slice(1).map((ws) => ws.name),
+    ignored: workbook.worksheets.filter((ws) => ws !== fallback).map((ws) => ws.name),
   };
 }
 

@@ -121,3 +121,32 @@ describe('isRecognizableHeaderRow', () => {
     expect(isRecognizableHeaderRow(['Notes', 'Random', 'Stuff'])).toBe(false);
   });
 });
+
+describe('did-you-mean quality', () => {
+  // A wrong suggestion sitting next to a missing-columns block is actively
+  // misleading — worse than no suggestion at all.
+  it('does not guess for a short header that merely rhymes with a real one', () => {
+    // "Name" is edit-distance 2 from "Date"; with a floor of 2 that used to
+    // pass as a suggestion.
+    const analysis = analyzeImportHeaders([...REQUIRED_IMPORT_COLUMNS, 'Name']);
+    expect(analysis.unknown).toEqual([{ column: 'Name', suggestion: null }]);
+  });
+
+  it('still suggests a genuine one-character typo on a short header', () => {
+    const analysis = analyzeImportHeaders(['Type', 'Steet', 'Suburb', 'State', 'Postcode']);
+    expect(analysis.unknown).toEqual([{ column: 'Steet', suggestion: 'Street' }]);
+  });
+
+  // "Sate" is distance 1 from BOTH "Date" and "State"; declaration order used
+  // to hand back "Date", the one the user plainly did not mean.
+  it('breaks a tie in favour of a required column', () => {
+    const analysis = analyzeImportHeaders(['Type', 'Street', 'Suburb', 'Sate', 'Postcode']);
+    expect(analysis.unknown).toEqual([{ column: 'Sate', suggestion: 'State' }]);
+    expect(analysis.missingRequired).toEqual(['State']);
+  });
+
+  it('still suggests a non-required column when nothing required is as close', () => {
+    const analysis = analyzeImportHeaders([...REQUIRED_IMPORT_COLUMNS, 'Notez']);
+    expect(analysis.unknown).toEqual([{ column: 'Notez', suggestion: 'Notes' }]);
+  });
+});

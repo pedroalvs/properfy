@@ -93,22 +93,34 @@ function levenshtein(a: string, b: string): number {
   return previous[b.length]!;
 }
 
+const isRequired = (header: string): boolean =>
+  (REQUIRED_IMPORT_COLUMNS as readonly string[]).includes(header);
+
 /**
  * Closest recognized header, or null when nothing is close enough to be worth
  * suggesting. Compared case-insensitively so a miscased header suggests its
  * correct casing — we suggest only, and never auto-map, because auto-mapping
  * would silently change the exact-match contract the header map documents.
+ *
+ * A wrong guess is worse than none: it sits right next to a missing-columns
+ * error and sends the user to rename the wrong thing. Hence two rules —
+ * short headers get no slack (edit-distance 2 out of 4 characters is a
+ * different word, not a typo: "Name" is not "Date"), and ties go to a required
+ * column rather than to whichever happens to be declared first ("Sate" is one
+ * edit from both "Date" and "State"; only one of those is plausible).
  */
 function nearestHeader(input: string): string | null {
   const needle = input.toLowerCase();
-  const tolerance = Math.max(2, Math.floor(needle.length / 4));
+  const tolerance = needle.length <= 4 ? 1 : Math.max(2, Math.floor(needle.length / 4));
 
   let best: string | null = null;
   let bestDistance = Number.POSITIVE_INFINITY;
 
   for (const candidate of Object.keys(APPOINTMENT_IMPORT_HEADER_MAP)) {
     const distance = levenshtein(needle, candidate.toLowerCase());
-    if (distance < bestDistance) {
+    const closer = distance < bestDistance;
+    const betterTie = distance === bestDistance && isRequired(candidate) && !isRequired(best ?? '');
+    if (closer || betterTie) {
       bestDistance = distance;
       best = candidate;
     }

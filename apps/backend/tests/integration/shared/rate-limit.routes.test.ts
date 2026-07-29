@@ -65,25 +65,29 @@ afterAll(async () => { await app.close(); });
 
 beforeEach(() => { vi.clearAllMocks(); });
 
+function send() {
+  mockJwtVerify.mockResolvedValueOnce(amContext);
+  mockPreviewExecute.mockRejectedValueOnce(new Error('irrelevant to this test'));
+  return supertest(app.server)
+    .post('/v1/appointments/import/preview')
+    .set('Authorization', 'Bearer valid-token')
+    .field('branchId', BRANCH_ID)
+    .attach('file', Buffer.from('Type,Street\nRoutine Inspection,1 Main St\n'), 'import.csv');
+}
+
+/** Sends until the limiter answers, so each test stands alone regardless of
+ * order or of what a previous test already spent. */
+async function sendUntilRateLimited() {
+  for (let i = 0; i <= PREVIEW_RATE_LIMIT; i += 1) {
+    const res = await send();
+    if (res.status === 429) return res;
+  }
+  throw new Error(`Route was not rate limited within ${PREVIEW_RATE_LIMIT + 1} requests`);
+}
+
 describe('HTTP rate limiting', () => {
   it('answers a request over the limit with 429 and a usable envelope, not a 500', async () => {
-    const send = () => {
-      mockJwtVerify.mockResolvedValueOnce(amContext);
-      return supertest(app.server)
-        .post('/v1/appointments/import/preview')
-        .set('Authorization', 'Bearer valid-token')
-        .field('branchId', BRANCH_ID)
-        .attach('file', Buffer.from('Type,Street\nRoutine Inspection,1 Main St\n'), 'import.csv');
-    };
-
-    // Burn the route's budget. These may succeed or 4xx on their own merits —
-    // either way they count against the limiter.
-    for (let i = 0; i < PREVIEW_RATE_LIMIT; i += 1) {
-      mockPreviewExecute.mockRejectedValueOnce(new Error('irrelevant to this test'));
-      await send();
-    }
-
-    const res = await send();
+    const res = await sendUntilRateLimited();
 
     expect(res.status).toBe(429);
     expect(res.body.error.code).toBe('RATE_LIMIT_EXCEEDED');
@@ -98,17 +102,7 @@ describe('HTTP rate limiting', () => {
    * suppress the real value — worse than sending nothing.
    */
   it('reports retryAfter as seconds, agreeing with the Retry-After header', async () => {
-    const send = () => {
-      mockJwtVerify.mockResolvedValueOnce(amContext);
-      return supertest(app.server)
-        .post('/v1/appointments/import/preview')
-        .set('Authorization', 'Bearer valid-token')
-        .field('branchId', BRANCH_ID)
-        .attach('file', Buffer.from('Type,Street\nRoutine Inspection,1 Main St\n'), 'import.csv');
-    };
-
-    // The previous test already exhausted this route's budget for the window.
-    const res = await send();
+    const res = await sendUntilRateLimited();
 
     expect(res.status).toBe(429);
     expect(typeof res.body.error.retryAfter).toBe('number');

@@ -551,6 +551,29 @@ describe('useAppointmentImport', () => {
       expect(result.current.importStatus?.failure).toBeNull();
     });
 
+    // A partial payload must come back complete, so ImportFileIssues can
+    // dereference the arrays without guarding every one.
+    it('fills schema defaults for a file issue that omits the optional payload', () => {
+      const err = toApiError({
+        error: {
+          code: 'IMPORT_FILE_CORRUPT_XLSX',
+          message: 'Corrupt.',
+          details: [{ code: 'IMPORT_FILE_CORRUPT_XLSX', severity: 'error', message: 'Corrupt.' }],
+        },
+      }, 400);
+
+      expect(fileIssuesFromApiError(err)).toEqual([{
+        code: 'IMPORT_FILE_CORRUPT_XLSX',
+        severity: 'error',
+        message: 'Corrupt.',
+        missingColumns: [],
+        foundColumns: [],
+        unknownColumns: [],
+        sheetUsed: null,
+        sheetsIgnored: [],
+      }]);
+    });
+
     it('ignores detail entries that are not known file-issue codes', () => {
       const err = toApiError({
         error: { code: 'VALIDATION_ERROR', message: 'x', details: [{ field: 'branchId', message: 'Required' }] },

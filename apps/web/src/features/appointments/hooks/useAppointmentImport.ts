@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { getErrorMessage, toApiError, type ApiError } from '@/lib/api-error';
-import { IMPORT_FILE_ISSUE_CODES } from '@properfy/shared';
+import { importFileIssueSchema } from '@properfy/shared';
 import type { AppointmentImportPreviewResponse, ImportFileIssue } from '@properfy/shared';
 
 const FAST_POLL_INTERVAL_MS = 3000;
@@ -79,18 +79,18 @@ function normalizeFailure(errorsJson: unknown): ImportFailure | null {
 }
 
 /** Narrows an API error's `details` to the structured file issues the backend
- * attaches to a blocking import rejection. */
+ * attaches to a blocking import rejection. Validates with the shared schema
+ * rather than sniffing `code`: entries that are not file issues (a plain
+ * `{ field, message }` from a VALIDATION_ERROR) drop out, and a partial
+ * payload gets the schema's defaults, so the renderer can dereference
+ * `missingColumns` and friends without guarding each one. */
 export function fileIssuesFromApiError(err: ApiError | null): ImportFileIssue[] {
   if (!err || !Array.isArray(err.details)) return [];
 
-  const codes = new Set<string>(IMPORT_FILE_ISSUE_CODES);
-  return err.details.filter(
-    (detail): detail is ImportFileIssue =>
-      !!detail
-      && typeof detail === 'object'
-      && typeof (detail as ImportFileIssue).code === 'string'
-      && codes.has((detail as ImportFileIssue).code),
-  );
+  return err.details.flatMap((detail) => {
+    const parsed = importFileIssueSchema.safeParse(detail);
+    return parsed.success ? [parsed.data] : [];
+  });
 }
 
 function normalizeStatus(data: BackendImportStatusResponse): ImportStatus {

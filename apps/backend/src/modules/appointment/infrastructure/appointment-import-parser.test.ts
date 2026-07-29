@@ -372,3 +372,70 @@ describe('parseAppointmentImportFile — headers', () => {
     expect(parsed.rows).toEqual([]);
   });
 });
+
+describe('parseAppointmentImportFile — gapped header row', () => {
+  /**
+   * exceljs `eachCell` SKIPS absent cells, so a header row with a gap (someone
+   * cleared B1 while B2 still holds data) yields a sparse array with a hole.
+   * `for...of` in analyzeImportHeaders then hands `undefined` to `.trim()` —
+   * a raw TypeError, i.e. the exact 500 this whole feature exists to remove.
+   */
+  async function buildGappedHeaderXlsx(): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Data');
+    sheet.getCell('A1').value = 'Type';
+    // B1 deliberately left empty.
+    sheet.getCell('C1').value = 'Street';
+    sheet.getCell('D1').value = 'Suburb';
+    sheet.getCell('E1').value = 'State';
+    sheet.getCell('F1').value = 'Postcode';
+    sheet.getCell('A2').value = 'Routine Inspection';
+    sheet.getCell('B2').value = 'orphan value under the empty header';
+    sheet.getCell('C2').value = '1 Main St';
+    sheet.getCell('D2').value = 'Kogarah';
+    sheet.getCell('E2').value = 'NSW';
+    sheet.getCell('F2').value = '2217';
+    return Buffer.from(await workbook.xlsx.writeBuffer());
+  }
+
+  it('parses a header row with an empty column instead of throwing', async () => {
+    const parsed = await parseAppointmentImportFile(await buildGappedHeaderXlsx(), 'xlsx');
+    expect(parsed.rows).toHaveLength(1);
+    expect(parsed.rows[0]!.serviceTypeName).toBe('Routine Inspection');
+    expect(parsed.rows[0]!.street).toBe('1 Main St');
+  });
+
+  it('returns a dense header array, so consumers can iterate it safely', async () => {
+    const parsed = await parseAppointmentImportFile(await buildGappedHeaderXlsx(), 'xlsx');
+
+    expect(parsed.headers).toEqual(['Type', '', 'Street', 'Suburb', 'State', 'Postcode']);
+    // No holes: every index is an own property.
+    for (let i = 0; i < parsed.headers.length; i += 1) {
+      expect(i in parsed.headers).toBe(true);
+      expect(typeof parsed.headers[i]).toBe('string');
+    }
+    expect(() => parsed.headers.forEach((h) => h.trim())).not.toThrow();
+  });
+});
+
+describe('parseAppointmentImportFile — fallback sheet visibility', () => {
+  // When no sheet has recognizable headers we still have to pick one, so the
+  // user can be told which columns their file DOES have. Naming a hidden sheet
+  // they cannot open makes that message useless.
+  it('falls back to the first VISIBLE sheet, not a hidden one that happens to be first', async () => {
+    const workbook = new ExcelJS.Workbook();
+    const hidden = workbook.addWorksheet('Lookup');
+    hidden.state = 'hidden';
+    hidden.addRow(['Ref', 'Value']);
+    hidden.addRow(['a', 'b']);
+    const visible = workbook.addWorksheet('Sheet1');
+    visible.addRow(['Property', 'Owner']);
+    visible.addRow(['x', 'y']);
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+
+    const parsed = await parseAppointmentImportFile(buffer, 'xlsx');
+
+    expect(parsed.sheetUsed).toBe('Sheet1');
+    expect(parsed.headers).toEqual(['Property', 'Owner']);
+  });
+});
