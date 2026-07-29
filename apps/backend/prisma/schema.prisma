@@ -1308,6 +1308,13 @@ enum ReportStatus {
 model Report {
   id                   String       @id @default(uuid())
   tenant_id            String?
+  // Discriminates an agency-run report (CL_ADMIN / CL_USER, always scoped to
+  // its own tenant) from an operator run that merely *targets* one agency.
+  // `tenant_id` alone cannot answer that — both cases set it — yet the two
+  // differ in what the sheet may contain and in who may list/download it.
+  // A column rather than a `filters_json` key because access control must be a
+  // real WHERE predicate, not JSON introspection.
+  agency_scoped        Boolean      @default(false)
   report_type          ReportType
   filters_json         Json
   status               ReportStatus @default(PENDING)

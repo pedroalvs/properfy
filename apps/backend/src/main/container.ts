@@ -1466,6 +1466,7 @@ export function createContainer(logger: Logger): AppContainer {
       downloadReportUseCase,
       listReportsUseCase,
       jwtService,
+      authorizationService,
       tenantRepo,
     },
     notification: {

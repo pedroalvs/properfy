@@ -172,4 +172,20 @@ describe('GenerateReportDialog', () => {
 
     expect(screen.queryByLabelText('Agency')).not.toBeInTheDocument();
   });
+
+  // AGENCIES compares agencies against one another; the backend 403s it for a
+  // tenant-scoped actor, so it must not be offered either.
+  it('does not offer the Agencies report type to tenant-scoped roles', () => {
+    mockUseAuth.mockReturnValue({ user: { id: 'u-1', role: 'CL_ADMIN', tenantId: 'tenant-1' } });
+
+    render(
+      <GenerateReportDialog open onClose={() => {}} onSubmit={vi.fn()} isSubmitting={false} />,
+    );
+
+    fireEvent.click(screen.getByLabelText('Report Type'));
+    expect(screen.queryByRole('option', { name: 'Agencies' })).not.toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Appointments' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Financial' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Performance' })).toBeInTheDocument();
+  });
 });

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface PendingActionsCardProps {
   noResponseRentalTenants: number;
@@ -44,9 +45,15 @@ export function PendingActionsCard({
   processingReports,
 }: PendingActionsCardProps) {
   const { user } = useAuth();
-  const visibleActions = ACTIONS.filter(
-    (a) => a.key !== 'pendingFinancialEntries' || FINANCIAL_ROLES.has(user?.role ?? ''),
-  );
+  const { hasClUserFlag } = usePermissions();
+  // Reports are agency-visible, but a CL_USER without `view_financials` would be
+  // sent to a page that only shows a no-permission state — hide the shortcut.
+  const canViewReports = hasClUserFlag('view_financials');
+  const visibleActions = ACTIONS.filter((a) => {
+    if (a.key === 'pendingFinancialEntries') return FINANCIAL_ROLES.has(user?.role ?? '');
+    if (a.key === 'processingReports') return canViewReports;
+    return true;
+  });
   const counts: Record<string, number> = {
     noResponseRentalTenants,
     pendingOperatorCrossChecks,

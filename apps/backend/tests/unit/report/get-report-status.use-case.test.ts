@@ -4,12 +4,17 @@ import type { AuthContext } from '../../../src/modules/report/application/use-ca
 import type { IReportRepository } from '../../../src/modules/report/domain/report.repository';
 import { ReportEntity } from '../../../src/modules/report/domain/report.entity';
 import type { ReportProps } from '../../../src/modules/report/domain/report.entity';
-import { ReportNotFoundError, ReportForbiddenError } from '../../../src/modules/report/domain/report.errors';
+import {
+  ReportNotFoundError,
+  ReportForbiddenError,
+  ReportTenantScopeViolationError,
+} from '../../../src/modules/report/domain/report.errors';
 
 function makeReport(overrides: Partial<ReportProps> = {}): ReportEntity {
   return new ReportEntity({
     id: 'report-1',
     tenantId: 'tenant-1',
+    agencyScoped: false,
     reportType: 'APPOINTMENTS',
     filtersJson: { fromDate: '2026-03-01', toDate: '2026-03-15' },
     status: 'READY',
@@ -72,13 +77,42 @@ describe('GetReportStatusUseCase', () => {
     expect(result.errorMessage).toBe('timeout');
   });
 
-  it.each(['CL_ADMIN', 'CL_USER', 'INSP'] as const)('%s is forbidden', async (role) => {
+  it.each(['INSP', 'TNT'] as const)('%s is forbidden', async (role) => {
     const report = makeReport();
     vi.mocked(repo.findById).mockResolvedValue(report);
 
     const auth: AuthContext = { userId: 'user-1', tenantId: 'tenant-1', role, branchId: null, inspectorId: null };
 
     await expect(useCase.execute('report-1', auth)).rejects.toThrow(ReportForbiddenError);
+  });
+
+  it.each(['CL_ADMIN', 'CL_USER'] as const)('%s can read its own agency-scoped report', async (role) => {
+    const report = makeReport({ tenantId: 'tenant-1', agencyScoped: true });
+    vi.mocked(repo.findById).mockResolvedValue(report);
+
+    const auth: AuthContext = { userId: 'user-1', tenantId: 'tenant-1', role, branchId: null, inspectorId: null };
+
+    await expect(useCase.execute('report-1', auth)).resolves.toMatchObject({ id: 'report-1' });
+  });
+
+  it('CL_ADMIN cannot read another agency report', async () => {
+    const report = makeReport({ tenantId: 'tenant-2', agencyScoped: true });
+    vi.mocked(repo.findById).mockResolvedValue(report);
+
+    const auth: AuthContext = { userId: 'user-1', tenantId: 'tenant-1', role: 'CL_ADMIN', branchId: null, inspectorId: null };
+
+    await expect(useCase.execute('report-1', auth)).rejects.toThrow(ReportTenantScopeViolationError);
+  });
+
+  // An operator run targeting this agency carries the SAME tenant_id but may hold
+  // platform-only data (inspector payouts, margin) — tenant match alone is not enough.
+  it('CL_ADMIN cannot read an operator run targeting its own agency', async () => {
+    const report = makeReport({ tenantId: 'tenant-1', agencyScoped: false });
+    vi.mocked(repo.findById).mockResolvedValue(report);
+
+    const auth: AuthContext = { userId: 'user-1', tenantId: 'tenant-1', role: 'CL_ADMIN', branchId: null, inspectorId: null };
+
+    await expect(useCase.execute('report-1', auth)).rejects.toThrow(ReportTenantScopeViolationError);
   });
 
   it('throws ReportNotFoundError when report does not exist', async () => {

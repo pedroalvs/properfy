@@ -187,6 +187,26 @@ describe('financial.agency_export (031)', () => {
   });
 });
 
+// Reports are an agency-visible surface: AM/OP (platform, cross-agency) plus
+// CL_ADMIN (own agency); CL_USER is in the base list but gated by the
+// `view_financials` cl_user_flag at runtime, exactly like the agency financial
+// surfaces above.
+describe('report.view', () => {
+  it.each<UserRole>(['AM', 'OP', 'CL_ADMIN', 'CL_USER'])('allows %s (base)', (role) => {
+    expect(can(role, 'report.view')).toBe(true);
+  });
+
+  it.each<UserRole>(['INSP', 'TNT'])('denies %s', (role) => {
+    expect(can(role, 'report.view')).toBe(false);
+  });
+
+  it('is gated by the view_financials cl_user_flag', () => {
+    const entry = getMatrixEntry('report.view');
+    expect(entry?.condition).toBe('cl_user_flag');
+    expect(entry?.conditionKey).toBe('view_financials');
+  });
+});
+
 // Backoffice financial actions stay AM/OP-only (unchanged by 031).
 describe('financial.view / approve (backoffice, unchanged)', () => {
   it.each<UserRole>(['AM', 'OP'])('allows %s', (role) => {

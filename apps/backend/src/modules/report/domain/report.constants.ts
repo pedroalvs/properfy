@@ -57,6 +57,21 @@ export const FINANCIAL_COLUMNS: ReportColumn[] = [
   { key: 'currency', label: 'Currency', width: 10 },
 ];
 
+/**
+ * Agency variant: the platform↔inspector leg is filtered out of the rows, so the
+ * Inspector / Expense columns have nothing to show and Revenue collapses to a
+ * single signed Amount. No NET row either — without expenses it would restate
+ * the TOTAL.
+ */
+export const FINANCIAL_AGENCY_COLUMNS: ReportColumn[] = [
+  { key: 'entryDate', label: 'Entry Date', width: 15 },
+  { key: 'entryType', label: 'Entry Type', width: 20 },
+  { key: 'appointmentNumber', label: 'Appointment #', width: 14 },
+  { key: 'description', label: 'Description', width: 40 },
+  { key: 'amount', label: 'Amount', width: 14 },
+  { key: 'currency', label: 'Currency', width: 10 },
+];
+
 export const PERFORMANCE_COLUMNS: ReportColumn[] = [
   { key: 'inspectorName', label: 'Inspector', width: 25 },
   { key: 'inspectorEmail', label: 'Email', width: 30 },
@@ -78,9 +93,26 @@ export const AGENCIES_COLUMNS: ReportColumn[] = [
   { key: 'activeProperties', label: 'Active Properties', width: 16 },
 ];
 
+/** Agency variant: an inspector's personal email is not the agency's data. */
+export const PERFORMANCE_AGENCY_COLUMNS: ReportColumn[] = PERFORMANCE_COLUMNS.filter(
+  (c) => c.key !== 'inspectorEmail',
+);
+
 export const REPORT_COLUMNS: Record<ReportType, ReportColumn[]> = {
   APPOINTMENTS: APPOINTMENTS_COLUMNS,
   FINANCIAL: FINANCIAL_COLUMNS,
   PERFORMANCE: PERFORMANCE_COLUMNS,
   AGENCIES: AGENCIES_COLUMNS,
 };
+
+/**
+ * Column set for a report, narrowed when the run belongs to an agency.
+ * `APPOINTMENTS` is unchanged — its `Agency` column is simply a constant for an
+ * agency run, not a disclosure. `AGENCIES` never reaches an agency actor.
+ */
+export function resolveReportColumns(reportType: ReportType, agencyScoped: boolean): ReportColumn[] {
+  if (!agencyScoped) return REPORT_COLUMNS[reportType];
+  if (reportType === 'FINANCIAL') return FINANCIAL_AGENCY_COLUMNS;
+  if (reportType === 'PERFORMANCE') return PERFORMANCE_AGENCY_COLUMNS;
+  return REPORT_COLUMNS[reportType];
+}

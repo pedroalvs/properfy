@@ -6,8 +6,8 @@ import { ReportEntity } from '../../domain/report.entity';
 import {
   ReportDateRangeExceededError,
   ReportConcurrentLimitExceededError,
-  ReportForbiddenError,
 } from '../../domain/report.errors';
+import { assertReportRole, assertReportTypeAllowed, isAgencyActor, resolveReportTenantScope } from '../report-access';
 import { MAX_DATE_RANGE_MONTHS, MAX_CONCURRENT_REPORTS, REPORT_DATE_AXIS_FIELD } from '../../domain/report.constants';
 import type { AuthContext, RequestReportInput } from '@properfy/shared';
 
@@ -29,10 +29,9 @@ export class RequestReportUseCase {
     const { reportType, filters } = input;
     const { userId, role } = auth;
 
-    // 1. Reports are restricted to operators (AM/OP) only.
-    if (role !== 'AM' && role !== 'OP') {
-      throw new ReportForbiddenError();
-    }
+    // 1. Operators (AM/OP) and agencies (CL_ADMIN/CL_USER); AGENCIES stays operator-only.
+    assertReportRole(auth);
+    assertReportTypeAllowed(auth, reportType);
 
     // 2. Validate the Period span for this report type.
     const fromDate = new Date(filters.fromDate);
@@ -46,8 +45,10 @@ export class RequestReportUseCase {
       }
     }
 
-    // 3. Agency scope: AM/OP may target one agency or run cross-agency (null).
-    const effectiveTenantId: string | null = filters.tenantId ?? null;
+    // 3. Agency scope: AM/OP may target one agency or run cross-agency (null); an
+    //    agency actor is pinned to its own tenant, whatever `filters.tenantId` said.
+    const effectiveTenantId: string | null = resolveReportTenantScope(auth, filters.tenantId);
+    const agencyScoped = isAgencyActor(auth);
 
     // 4. Per-user concurrent-report guard.
     const activeCount = await this.reportRepo.countByUserAndStatuses(userId, ['PENDING', 'PROCESSING']);
@@ -68,6 +69,7 @@ export class RequestReportUseCase {
     const report = new ReportEntity({
       id: reportId,
       tenantId: effectiveTenantId,
+      agencyScoped,
       reportType,
       filtersJson,
       status: 'PENDING',
@@ -102,6 +104,8 @@ export class RequestReportUseCase {
       action: 'reportRequested',
       metadata: {
         reportType,
+        agencyScoped,
+        actorRole: role,
         filters: { ...filters, tenantId: effectiveTenantId, dateAxisField },
       },
     });
