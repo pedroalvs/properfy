@@ -1,5 +1,5 @@
-import { formatInstantDate } from '@properfy/shared';
-import type { AuthContext, FinancialEntryType } from '@properfy/shared';
+import { formatInstantDate, AGENCY_VISIBLE_ENTRY_TYPES } from '@properfy/shared';
+import type { AuthContext } from '@properfy/shared';
 import type {
   IFinancialEntryRepository,
   FinancialEntryFilters,
@@ -9,9 +9,6 @@ import type { IXlsxGenerator, ReportColumn } from '../../../report/domain/xlsx-g
 import { ValidationError } from '../../../../shared/domain/errors';
 import { TenantNotFoundError } from '../../../tenant/domain/tenant.errors';
 import { requireAgencyTenantScope } from '../agency-scope';
-
-/** Agency-visible entry types (never INSPECTOR_PAYOUT). Mirrors the extrato read. */
-const AGENCY_ENTRY_TYPES: FinancialEntryType[] = ['TENANT_DEBIT', 'REFUND', 'MANUAL_ADJUSTMENT'];
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
@@ -75,7 +72,10 @@ export class ExportAgencyFinancialUseCase {
 
     const filters: FinancialEntryFilters = {
       tenantId,
-      entryTypeIn: [...AGENCY_ENTRY_TYPES],
+      entryTypeIn: [...AGENCY_VISIBLE_ENTRY_TYPES],
+      // Mirrors the extrato read: an inspector-scoped MANUAL_ADJUSTMENT passes the
+      // type allowlist but is still the platform<->inspector leg.
+      excludeInspectorScoped: true,
     };
     if (input.fromDate) filters.fromDate = input.fromDate;
     if (input.toDate) filters.toDate = input.toDate;

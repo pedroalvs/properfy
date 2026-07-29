@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import type { FinancialEntryType, FinancialEntryStatus, InvoiceSnapshotLine } from '@properfy/shared';
+import { type FinancialEntryType, type FinancialEntryStatus, type InvoiceSnapshotLine, AGENCY_VISIBLE_ENTRY_TYPES } from '@properfy/shared';
 import { FinancialEntryEntity } from '../domain/financial-entry.entity';
 import { AppointmentCodeFormatter } from '../../appointment/domain/appointment-code.formatter';
 import type {
@@ -50,6 +50,9 @@ function buildWhereClause(filters: FinancialEntryFilters): Record<string, unknow
   if (filters.inspectorId) where.inspector_id = filters.inspectorId;
   if (filters.entryType) where.entry_type = filters.entryType;
   else if (filters.entryTypeIn) where.entry_type = { in: filters.entryTypeIn };
+  // Set after inspectorId so an agency read can never be widened by an
+  // inspectorId filter — agencies do not get to query the inspector leg.
+  if (filters.excludeInspectorScoped) where.inspector_id = null;
   if (filters.status) where.status = filters.status;
 
   if (filters.fromDate || filters.toDate) {
@@ -65,9 +68,19 @@ function buildWhereClause(filters: FinancialEntryFilters): Record<string, unknow
 export class PrismaFinancialEntryRepository implements IFinancialEntryRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async getSummary(tenantId?: string, dateRange?: { effectiveFrom?: string; effectiveTo?: string }): Promise<FinancialEntrySummary> {
+  async getSummary(
+    tenantId?: string,
+    dateRange?: { effectiveFrom?: string; effectiveTo?: string },
+    options?: { agencyScoped?: boolean },
+  ): Promise<FinancialEntrySummary> {
     const where: Record<string, unknown> = {};
     if (tenantId) where.tenant_id = tenantId;
+    // Applied to `where` (not just the approved branch) so BOTH the groupBy
+    // aggregates and the PENDING count exclude the platform↔inspector leg.
+    if (options?.agencyScoped) {
+      where.entry_type = { in: [...AGENCY_VISIBLE_ENTRY_TYPES] };
+      where.inspector_id = null;
+    }
 
     if (dateRange?.effectiveFrom || dateRange?.effectiveTo) {
       const effectiveAt: Record<string, Date> = {};

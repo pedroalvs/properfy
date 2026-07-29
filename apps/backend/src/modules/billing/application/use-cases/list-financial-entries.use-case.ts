@@ -1,4 +1,4 @@
-import type { AuthContext, FinancialEntryType } from '@properfy/shared';
+import { type AuthContext, type FinancialEntryType, AGENCY_VISIBLE_ENTRY_TYPES } from '@properfy/shared';
 import type {
   IFinancialEntryRepository,
   FinancialEntryFilters,
@@ -7,12 +7,6 @@ import type {
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import { requireAgencyTenantScope } from '../agency-scope';
-
-/**
- * Entry types an Agency (CL_ADMIN / CL_USER) may see in its financial statement.
- * INSPECTOR_PAYOUT is deliberately excluded — it is the platform↔inspector leg.
- */
-const AGENCY_ENTRY_TYPES: FinancialEntryType[] = ['TENANT_DEBIT', 'REFUND', 'MANUAL_ADJUSTMENT'];
 
 export interface ListFinancialEntriesInput {
   type?: string;
@@ -115,13 +109,17 @@ export class ListFinancialEntriesUseCase {
       // Fail closed: never fall back to an unscoped read when the JWT lacks a
       // tenant (the repository skips the tenant filter for a falsy tenantId).
       filters.tenantId = requireAgencyTenantScope(actor);
+      // The entry-type allowlist is necessary but not sufficient: an
+      // inspector-scoped MANUAL_ADJUSTMENT passes it yet is still the
+      // platform↔inspector leg. Exclude it by inspector_id in both branches.
+      filters.excludeInspectorScoped = true;
       if (input.type) {
-        if (!AGENCY_ENTRY_TYPES.includes(input.type as FinancialEntryType)) {
+        if (!AGENCY_VISIBLE_ENTRY_TYPES.includes(input.type as FinancialEntryType)) {
           throw new ForbiddenError('FORBIDDEN', 'Agencies cannot view this entry type');
         }
         filters.entryType = input.type as FinancialEntryFilters['entryType'];
       } else {
-        filters.entryTypeIn = [...AGENCY_ENTRY_TYPES];
+        filters.entryTypeIn = [...AGENCY_VISIBLE_ENTRY_TYPES];
       }
       if (input.status) filters.status = input.status as FinancialEntryFilters['status'];
       // Note: an inspectorId filter is intentionally NOT honored for agencies.

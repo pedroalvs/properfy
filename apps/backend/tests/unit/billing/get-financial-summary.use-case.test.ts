@@ -88,12 +88,16 @@ describe('GetFinancialSummaryUseCase', () => {
     });
   });
 
+  // The inspector leg must be excluded by the QUERY, not patched out of the result.
+  // Zeroing `totalPayouts` afterwards left every sibling aggregate from the same
+  // groupBy unscoped: `totalAdjustments` still summed inspector-scoped adjustments
+  // and `pendingCount` still counted pending payouts.
   it.each(['CL_ADMIN', 'CL_USER'] as const)(
-    'hides inspector payouts (totalPayouts=0) from %s while keeping own-tenant totals',
+    'scopes the summary query itself for %s, not just the payout total',
     async (role) => {
       vi.mocked(entryRepo.getSummary).mockResolvedValue({
         totalDebits: 5000,
-        totalPayouts: 3000,
+        totalPayouts: 0,
         totalAdjustments: 200,
         totalRefunds: 150,
         pendingCount: 7,
@@ -105,16 +109,38 @@ describe('GetFinancialSummaryUseCase', () => {
         actor: makeActor({ role, tenantId: 'tenant-1' }),
       });
 
-      // own-tenant scope enforced
-      expect(entryRepo.getSummary).toHaveBeenCalledWith('tenant-1', undefined);
-      // payouts hidden; agency-relevant totals preserved
+      // own-tenant scope AND inspector-leg exclusion pushed into the query
+      expect(entryRepo.getSummary).toHaveBeenCalledWith('tenant-1', undefined, { agencyScoped: true });
       expect(result.totalPayouts).toBe(0);
       expect(result.totalDebits).toBe(5000);
       expect(result.totalRefunds).toBe(150);
       expect(result.totalAdjustments).toBe(200);
+      expect(result.pendingCount).toBe(7);
       expect(result.currency).toBe('USD');
     },
   );
+
+  // Without query-level scoping this passes only because the use case overwrites
+  // the value — which is exactly what hid the other two aggregates.
+  it('does not silently rewrite a non-zero payout total for an agency', async () => {
+    vi.mocked(entryRepo.getSummary).mockResolvedValue({
+      totalDebits: 5000,
+      totalPayouts: 3000,
+      totalAdjustments: 200,
+      totalRefunds: 150,
+      pendingCount: 7,
+      currency: null,
+    });
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
+
+    const result = await useCase.execute({
+      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    });
+
+    // The repository is the single source of truth; a non-zero value here would
+    // mean the query was NOT scoped, and masking it would hide the bug.
+    expect(result.totalPayouts).toBe(3000);
+  });
 
   it.each(['CL_ADMIN', 'CL_USER'] as const)(
     'fails closed (403) for %s without a tenant scope instead of an unscoped read',
@@ -185,7 +211,7 @@ describe('GetFinancialSummaryUseCase', () => {
     expect(entryRepo.getSummary).toHaveBeenCalledWith('tenant-1', {
       effectiveFrom: '2026-03-01',
       effectiveTo: '2026-03-31',
-    });
+    }, undefined);
     expect(result.totalDebits).toBe(1000);
     expect(result.currency).toBe('USD');
   });
@@ -208,7 +234,7 @@ describe('GetFinancialSummaryUseCase', () => {
     expect(entryRepo.getSummary).toHaveBeenCalledWith(undefined, {
       effectiveFrom: '2026-04-01',
       effectiveTo: undefined,
-    });
+    }, undefined);
     expect(result.totalDebits).toBe(200);
   });
 
@@ -226,6 +252,6 @@ describe('GetFinancialSummaryUseCase', () => {
       actor: makeActor(),
     });
 
-    expect(entryRepo.getSummary).toHaveBeenCalledWith(undefined, undefined);
+    expect(entryRepo.getSummary).toHaveBeenCalledWith(undefined, undefined, undefined);
   });
 });

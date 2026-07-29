@@ -183,6 +183,9 @@ describe('ListFinancialEntriesUseCase', () => {
     const [filtersArg] = vi.mocked(entryRepo.findAllEnriched).mock.calls[0];
     expect(filtersArg.entryTypeIn).toEqual(['TENANT_DEBIT', 'REFUND', 'MANUAL_ADJUSTMENT']);
     expect(filtersArg.entryTypeIn).not.toContain('INSPECTOR_PAYOUT');
+    // The type allowlist admits MANUAL_ADJUSTMENT, but an inspector-scoped one is
+    // still the platform<->inspector leg — it must be excluded by inspector_id too.
+    expect(filtersArg.excludeInspectorScoped).toBe(true);
   });
 
   it('should forbid a CL role requesting INSPECTOR_PAYOUT explicitly', async () => {
@@ -194,6 +197,31 @@ describe('ListFinancialEntriesUseCase', () => {
       }),
     ).rejects.toThrow(ForbiddenError);
     expect(entryRepo.findAllEnriched).not.toHaveBeenCalled();
+  });
+
+  it('should exclude inspector-scoped entries even when a CL role filters by MANUAL_ADJUSTMENT', async () => {
+    vi.mocked(entryRepo.findAllEnriched).mockResolvedValue([]);
+    vi.mocked(entryRepo.count).mockResolvedValue(0);
+
+    await useCase.execute({
+      ...defaultInput,
+      type: 'MANUAL_ADJUSTMENT',
+      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    });
+
+    const filtersArg = vi.mocked(entryRepo.findAllEnriched).mock.calls[0][0];
+    expect(filtersArg.entryType).toBe('MANUAL_ADJUSTMENT');
+    expect(filtersArg.excludeInspectorScoped).toBe(true);
+  });
+
+  it.each(['AM', 'OP'] as const)('should NOT exclude inspector-scoped entries for %s', async (role) => {
+    vi.mocked(entryRepo.findAllEnriched).mockResolvedValue([]);
+    vi.mocked(entryRepo.count).mockResolvedValue(0);
+
+    await useCase.execute({ ...defaultInput, actor: makeActor({ role, tenantId: 'tenant-1' }) });
+
+    const filtersArg = vi.mocked(entryRepo.findAllEnriched).mock.calls[0][0];
+    expect(filtersArg.excludeInspectorScoped).toBeUndefined();
   });
 
   it('should honor an agency-visible type filter for a CL role (no entryTypeIn)', async () => {
