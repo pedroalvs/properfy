@@ -1,7 +1,13 @@
 import { z } from 'zod';
 import { additionalChannelSchema } from './contact';
 import { customFieldSchema, CUSTOM_FIELDS_MAX, HHMM_REGEX } from './appointment';
-import { importPropertyPlanSchema, importRowIssueSchema, importSummarySchema, IMPORT_ROW_SEVERITY } from './import';
+import {
+  importPropertyPlanSchema,
+  importRowIssueSchema,
+  importSummarySchema,
+  importFileIssueSchema,
+  IMPORT_ROW_SEVERITY,
+} from './import';
 
 /**
  * Single source of truth for the appointment-import preview/commit contract.
@@ -15,9 +21,12 @@ import { importPropertyPlanSchema, importRowIssueSchema, importSummarySchema, IM
 
 export {
   IMPORT_ROW_SEVERITY,
+  IMPORT_FILE_ISSUE_CODES,
   importRowIssueSchema,
   importPropertyPlanSchema,
   importSummarySchema,
+  importFileIssueSchema,
+  importFileUnknownColumnSchema,
   geocodeVerificationSchema,
 } from './import';
 export type {
@@ -25,6 +34,9 @@ export type {
   ImportRowIssue,
   ImportPropertyPlan,
   ImportSummary,
+  ImportFileIssue,
+  ImportFileIssueCode,
+  ImportFileUnknownColumn,
   GeocodeVerification,
 } from './import';
 
@@ -85,5 +97,10 @@ export const appointmentImportPreviewResponseSchema = z.object({
   tenantId: z.string().uuid(),
   summary: importSummarySchema,
   rows: z.array(resolvedImportRowSchema),
+  /** Whole-file diagnostics: which sheet was read, which columns were ignored.
+   * Only ever non-blocking warnings — a blocking file problem is thrown as a
+   * 400 and never reaches a preview response. Defaulted, not required: see the
+   * note on `importFileIssueSchema`. */
+  fileIssues: z.array(importFileIssueSchema).default([]),
 });
 export type AppointmentImportPreviewResponse = z.infer<typeof appointmentImportPreviewResponseSchema>;

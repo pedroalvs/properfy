@@ -177,6 +177,28 @@ describe('LoginUseCase', () => {
     ).rejects.toThrow(AccountLockedError);
   });
 
+  /**
+   * `retryAfter` must be a NUMBER OF SECONDS, per the shared contract
+   * (`retryAfter?: number`). It used to be an ISO timestamp, which the web
+   * cannot use: `withRetryAfter` only parses the `Retry-After` header when the
+   * envelope omits the field, so a non-numeric value suppresses the real one.
+   */
+  it('reports how many seconds remain on the lock, not a timestamp', async () => {
+    vi.mocked(userRepo.findByEmail).mockResolvedValue(
+      makeUser({ status: 'LOCKED', lockedUntil: new Date(Date.now() + 15 * 60 * 1000) })
+    );
+
+    const error = await useCase
+      .execute({ email: 'test@example.com', password: 'ValidPass1!' })
+      .then(() => null)
+      .catch((e: unknown) => e as AccountLockedError);
+
+    expect(typeof error?.retryAfter).toBe('number');
+    // 15 minutes, allowing a second of drift for a slow test machine.
+    expect(error?.retryAfter).toBeGreaterThan(15 * 60 - 2);
+    expect(error?.retryAfter).toBeLessThanOrEqual(15 * 60);
+  });
+
   it('should auto-unlock account when locked_until has passed', async () => {
     const user = makeUser({ status: 'LOCKED', lockedUntil: new Date(Date.now() - 1000) });
     vi.mocked(userRepo.findByEmail).mockResolvedValue(user);

@@ -253,4 +253,42 @@ describe('appointmentImportPreviewResponseSchema', () => {
     });
     expect(result.success).toBe(false);
   });
+
+  // `fileIssues` must default rather than be required: the Fastify zod
+  // serializer safeParses the response and throws a 500 on a missing key —
+  // after the storage upload and the DB save have already committed. The same
+  // default is what lets `previewJson` blobs persisted before the field
+  // existed still parse on the status endpoint.
+  it('defaults fileIssues to an empty array when absent (legacy previewJson)', () => {
+    const result = appointmentImportPreviewResponseSchema.safeParse({
+      importId: '44444444-4444-4444-4444-444444444444',
+      branchId: '55555555-5555-5555-5555-555555555555',
+      tenantId: '66666666-6666-6666-6666-666666666666',
+      summary: { totalRows: 1, importable: 1, withWarnings: 1, withErrors: 0 },
+      rows: [VALID_ROW],
+    });
+    expect(result.success).toBe(true);
+    expect(result.success && result.data.fileIssues).toEqual([]);
+  });
+
+  it('round-trips file issues when present', () => {
+    const result = appointmentImportPreviewResponseSchema.safeParse({
+      importId: '44444444-4444-4444-4444-444444444444',
+      branchId: '55555555-5555-5555-5555-555555555555',
+      tenantId: '66666666-6666-6666-6666-666666666666',
+      summary: { totalRows: 1, importable: 1, withWarnings: 1, withErrors: 0 },
+      rows: [VALID_ROW],
+      fileIssues: [
+        {
+          code: 'IMPORT_FILE_MULTIPLE_SHEETS',
+          severity: 'warning',
+          message: 'This workbook has 2 sheets.',
+          sheetUsed: 'Appointments',
+          sheetsIgnored: ['Instructions'],
+        },
+      ],
+    });
+    expect(result.success).toBe(true);
+    expect(result.success && result.data.fileIssues[0]?.sheetsIgnored).toEqual(['Instructions']);
+  });
 });
