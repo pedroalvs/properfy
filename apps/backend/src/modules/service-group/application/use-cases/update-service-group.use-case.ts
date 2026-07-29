@@ -9,7 +9,7 @@ import {
   ServiceGroupDateInPastError,
   ServiceGroupTimeInPastError,
 } from '../../domain/service-group.errors';
-import { validateEditedSchedule, PLATFORM_TIMEZONE } from '@properfy/shared';
+import { validateEditedSchedule, PLATFORM_TIMEZONE, isTerminalAppointmentStatus } from '@properfy/shared';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import {
   trySyncAppointmentScheduleToGroup,
@@ -127,6 +127,15 @@ export class UpdateServiceGroupUseCase {
     if (updateData.scheduledDate !== undefined) {
       const groupScheduledDate = updateData.scheduledDate;
       for (const appt of result.appointments) {
+        // Cancelling or rejecting an appointment does not unlink it from its
+        // group — ExecuteStatusTransitionUseCase never touches serviceGroupId —
+        // so a settled member can still be sitting here, and moving its date
+        // would rewrite a record rather than plan work. The guard lives at this
+        // caller rather than inside the helper because the group-join paths
+        // sync while an appointment is still REJECTED, just before promoting it
+        // to AWAITING_INSPECTOR.
+        if (isTerminalAppointmentStatus(appt.status)) continue;
+
         // No time window: a date edit must leave every slot alone.
         await trySyncAppointmentScheduleToGroup({
           appointmentRepo: this.appointmentRepo,

@@ -5,6 +5,7 @@ import {
   isTimeStartInPastForDate,
   PLATFORM_TIMEZONE,
   ServiceGroupStatus,
+  isTerminalAppointmentStatus,
   type GroupConfirmationStrategy,
 } from '@properfy/shared';
 import { Dialog } from '@/components/ui/Dialog';
@@ -23,13 +24,6 @@ interface RescheduleGroupModalProps {
   mode: 'date' | 'time-window';
   onSaved: () => void;
 }
-
-/**
- * A DONE inspection happened at a real time and a CANCELLED/REJECTED one never
- * will, so neither moves with the group — the preview must not promise
- * otherwise. Mirrors TERMINAL_MEMBER_STATUSES in the use case.
- */
-const TERMINAL_MEMBER_STATUSES = ['DONE', 'CANCELLED', 'REJECTED'];
 
 const splitWindow = (timeWindow: string | null): [string, string] => {
   const [start, end] = (timeWindow ?? '').split('-');
@@ -81,7 +75,9 @@ export function RescheduleGroupModal({
   const windowChanged = newWindow !== '' && newWindow !== serviceGroup.timeWindow;
 
   const appointments = useMemo(
-    () => (serviceGroup.appointments ?? []).filter((a) => !TERMINAL_MEMBER_STATUSES.includes(a.status)),
+    // Settled members do not move with the group, so the preview must not
+    // promise otherwise. Same predicate the backend cascade uses.
+    () => (serviceGroup.appointments ?? []).filter((a) => !isTerminalAppointmentStatus(a.status)),
     [serviceGroup.appointments],
   );
 
