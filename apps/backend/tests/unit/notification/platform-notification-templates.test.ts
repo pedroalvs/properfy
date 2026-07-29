@@ -71,7 +71,7 @@ describe('PLATFORM_TEMPLATES seed data', () => {
   });
 });
 
-// ── Appointment email layout (no background, light text on the client default) ──
+// ── Appointment email layout (no background, dark text on the client canvas) ──
 
 const APPOINTMENT_EMAIL_CODES = [
   'INSPECTION_NOTICE',
@@ -120,6 +120,9 @@ describe('PLATFORM_TEMPLATES appointment email HTML bodies', () => {
       // Pure white only ever made sense as text on the dark canvas. The amber
       // call-out fill (#FFF8E1) is deliberately not matched by this pattern.
       expect(entry!.bodyHtml).not.toMatch(/#fff(?:fff)?\b/i);
+      // Same colour by keyword rather than hex. Anchored on the CSS property so
+      // prose like "Note: white walls" in a future template cannot trip it.
+      expect(entry!.bodyHtml).not.toMatch(/(?:color|background)\s*:\s*white\b/i);
     });
 
     it(`${code} bodyHtml passes the save-time sanitizer unchanged`, () => {
