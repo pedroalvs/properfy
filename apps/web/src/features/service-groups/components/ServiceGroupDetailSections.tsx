@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
-import { formatCivilDate, formatInstantDateTime, formatWallTimeRange } from '@/lib/format-date';
+import { formatCivilDate, formatInstantDateTime, formatWallTimeRange , formatWallTimeWindow } from '@/lib/format-date';
 import { AppointmentStatusChip } from '@/features/appointments/components/AppointmentStatusChip';
 import { ServiceGroupStatusChip } from './ServiceGroupStatusChip';
 import type { AppointmentStatus } from '@properfy/shared';
@@ -37,7 +37,7 @@ export function ServiceGroupDetailSections({ serviceGroup }: ServiceGroupDetailS
         />
         <DetailRow
           label="Time Window"
-          value={serviceGroup.timeWindow ? serviceGroup.timeWindow.replace('-', ' – ') : null}
+          value={serviceGroup.timeWindow ? formatWallTimeWindow(serviceGroup.timeWindow) : null}
         />
         <DetailRow label="Status" value={<ServiceGroupStatusChip status={serviceGroup.status} />} />
       </FormSection>

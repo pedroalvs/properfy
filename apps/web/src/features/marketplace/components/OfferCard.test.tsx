@@ -11,7 +11,7 @@ const MOCK_OFFER: MarketplaceOffer = {
   serviceTypeName: 'Routine Inspection',
   groupSize: 3,
   scheduledDate: '2026-03-20',
-  timeWindow: '9:00 am – 12:00 pm',
+  timeWindow: '09:00-12:00',
   suburbs: ['Sydney CBD'],
 };
 
