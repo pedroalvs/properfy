@@ -105,6 +105,34 @@ describe('AuditTimeline', () => {
     expect(container.querySelector('.mdi-alert-circle')).toBeTruthy();
   });
 
+  // The backend writes these under the `rental_tenant_portal.` prefix. The timeline
+  // used to key on `tenant_portal.`, so every portal event fell through to the raw
+  // action string and the default icon.
+  it('renders friendly labels for rental tenant portal actions', () => {
+    const entries: AuditLogEntry[] = [
+      { ...MOCK_ENTRIES[0]!, id: 'p1', action: 'rental_tenant_portal.appointment_confirmed' },
+      { ...MOCK_ENTRIES[0]!, id: 'p2', action: 'rental_tenant_portal.unavailability_reported' },
+      { ...MOCK_ENTRIES[0]!, id: 'p3', action: 'rental_tenant_portal.contact_updated' },
+      { ...MOCK_ENTRIES[0]!, id: 'p4', action: 'rental_tenant_portal.group_joined' },
+    ];
+    render(<AuditTimeline entries={entries} />);
+
+    expect(screen.getByText('Tenant Confirmed')).toBeInTheDocument();
+    expect(screen.getByText('Tenant Reported Unavailable')).toBeInTheDocument();
+    expect(screen.getByText('Tenant Contact Updated')).toBeInTheDocument();
+    expect(screen.getByText('Tenant Joined Group')).toBeInTheDocument();
+  });
+
+  it('gives rental tenant portal actions their own icons', () => {
+    const entries: AuditLogEntry[] = [
+      { ...MOCK_ENTRIES[0]!, id: 'p1', action: 'rental_tenant_portal.unavailability_reported' },
+    ];
+    const { container } = render(<AuditTimeline entries={entries} />);
+
+    expect(container.querySelector('.mdi-account-cancel')).toBeTruthy();
+    expect(container.querySelector('.mdi-circle-small')).toBeFalsy();
+  });
+
   it('returns null for empty entries', () => {
     const { container } = render(<AuditTimeline entries={[]} />);
     expect(container.innerHTML).toBe('');
