@@ -328,6 +328,39 @@ describe('auto-cancel overdue appointments and dead groups (real DB)', () => {
       expect((await prisma().serviceGroup.findUnique({ where: { id: groupId } }))?.status)
         .toBe('ACCEPTED');
     });
+
+    // The emptiness check must live in the same statement as the write. Otherwise an
+    // appointment linked into the group between the read and the write is orphaned
+    // onto a CANCELLED group — worse than a duplicate audit row.
+    it('refuses to cancel a group that gained a live member after it was read', async () => {
+      const groupId = await createGroup('PUBLISHED');
+      await createAppointment({ date: '2026-08-12', status: 'CANCELLED', groupId });
+
+      // Simulates add-appointments-to-group landing between findById and the write.
+      await createAppointment({ date: '2026-08-12', status: 'AWAITING_INSPECTOR', groupId });
+
+      expect(await groupRepo.cancelOptimistic(groupId, 'PUBLISHED')).toBe(0);
+      expect((await prisma().serviceGroup.findUnique({ where: { id: groupId } }))?.status)
+        .toBe('PUBLISHED');
+    });
+
+    it('refuses to cancel a group that gained a DONE member after it was read', async () => {
+      const groupId = await createGroup('ACCEPTED');
+      await createAppointment({ date: '2026-08-12', status: 'DONE', groupId });
+
+      expect(await groupRepo.cancelOptimistic(groupId, 'ACCEPTED')).toBe(0);
+      expect((await prisma().serviceGroup.findUnique({ where: { id: groupId } }))?.status)
+        .toBe('ACCEPTED');
+    });
+
+    it('still cancels when the only member is soft-deleted', async () => {
+      const groupId = await createGroup('PUBLISHED');
+      await createAppointment({
+        date: '2026-08-12', status: 'AWAITING_INSPECTOR', groupId, deleted: true,
+      });
+
+      expect(await groupRepo.cancelOptimistic(groupId, 'PUBLISHED')).toBe(1);
+    });
   });
 
   describe('findIdsByStatuses', () => {

@@ -308,13 +308,15 @@ export class JoinGroupUseCase {
 
     // 14. The move may have emptied the group the tenant left. The transition event
     // carries the *new* group, so the empty-group subscriber cannot see this case —
-    // check it explicitly. Fire-and-forget: the join is committed and must stand.
+    // check it explicitly.
+    //
+    // Genuinely not awaited: the join is already committed and must stand, and this
+    // cleanup is best-effort, so the tenant's response must not wait on it. The daily
+    // sweep is the backstop if it fails or never finishes.
     if (previousGroupId && this.cancelEmptyGroup) {
-      try {
-        await this.cancelEmptyGroup.cancelIfDead(previousGroupId);
-      } catch {
-        // the daily sweep will pick the group up
-      }
+      void this.cancelEmptyGroup.cancelIfDead(previousGroupId).catch(() => {
+        // swallowed by design — see above
+      });
     }
   }
 }

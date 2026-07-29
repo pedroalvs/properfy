@@ -1,3 +1,4 @@
+import { isAppointmentOverdue } from '@properfy/shared';
 import { SYSTEM_ACTOR } from '../../../../shared/domain/constants';
 import { formatDate, startOfPlatformToday } from '../../../../shared/domain/timezone-date';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
@@ -15,6 +16,8 @@ const DEFAULT_BATCH_LIMIT = 500;
 export interface CancelOverdueAppointmentsOutput {
   cancelledCount: number;
   failedCount: number;
+  /** Selected by the query but no longer eligible when re-read. */
+  skippedCount: number;
   /** True when the run filled its batch, so more may remain. */
   batchCapped: boolean;
 }
@@ -42,14 +45,35 @@ export class CancelOverdueAppointmentsUseCase {
 
     if (appointments.length === 0) {
       this.logger.info({ cutoff }, 'No overdue appointments to cancel');
-      return { cancelledCount: 0, failedCount: 0, batchCapped: false };
+      return { cancelledCount: 0, failedCount: 0, skippedCount: 0, batchCapped: false };
     }
 
     let cancelledCount = 0;
     let failedCount = 0;
+    let skippedCount = 0;
 
-    for (const appointment of appointments) {
+    for (const candidate of appointments) {
       try {
+        // Re-read before acting. An operator can reschedule or finish an appointment
+        // after the query selected it, and the transition use case re-validates status
+        // but not the date — so acting on the stale snapshot could cancel a
+        // now-future appointment as EXPIRED. `isAppointmentOverdue` is the same
+        // predicate the query and the UI badge use.
+        const fresh = await this.appointmentRepo.findById(candidate.id, candidate.tenantId);
+        if (!fresh) {
+          skippedCount++;
+          continue;
+        }
+        const appointment = fresh.appointment;
+        if (!isAppointmentOverdue(appointment.status, appointment.scheduledDate)) {
+          skippedCount++;
+          this.logger.info(
+            { appointmentId: appointment.id, status: appointment.status },
+            'Overdue candidate changed before it could be cancelled — skipping',
+          );
+          continue;
+        }
+
         await this.transitionUseCase.execute({
           appointmentId: appointment.id,
           targetStatus: 'CANCELLED',
@@ -70,7 +94,7 @@ export class CancelOverdueAppointmentsUseCase {
         // One unprocessable appointment must not abort the sweep.
         failedCount++;
         this.logger.error(
-          { appointmentId: appointment.id, status: appointment.status, err },
+          { appointmentId: candidate.id, status: candidate.status, err },
           'Failed to cancel overdue appointment',
         );
       }
@@ -85,10 +109,10 @@ export class CancelOverdueAppointmentsUseCase {
     }
 
     this.logger.info(
-      { cancelledCount, failedCount, batchCapped },
+      { cancelledCount, failedCount, skippedCount, batchCapped },
       'Overdue appointment cancellation completed',
     );
 
-    return { cancelledCount, failedCount, batchCapped };
+    return { cancelledCount, failedCount, skippedCount, batchCapped };
   }
 }

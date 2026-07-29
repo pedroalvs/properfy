@@ -40,7 +40,7 @@ function makeAppointment(
   });
 }
 
-const appointmentRepo = { findOverdueActive: vi.fn() };
+const appointmentRepo = { findOverdueActive: vi.fn(), findById: vi.fn() };
 const transitionUseCase = { execute: vi.fn() };
 const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
 
@@ -57,6 +57,13 @@ beforeEach(() => {
   vi.clearAllMocks();
   transitionUseCase.execute.mockResolvedValue({ status: 'CANCELLED' });
   appointmentRepo.findOverdueActive.mockResolvedValue([]);
+  // By default the re-read confirms whatever the sweep selected.
+  appointmentRepo.findById.mockImplementation(async (id: string) => {
+    const found = (appointmentRepo.findOverdueActive.mock.results.at(-1)?.value as any);
+    const list = found instanceof Promise ? await found : found;
+    const appointment = (list ?? []).find((a: any) => a.id === id);
+    return appointment ? { appointment, contact: null, restrictions: [] } : null;
+  });
   // Fake only Date so real timers still resolve promises.
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-07-29T02:00:00.000Z')); // midday 29 Jul in Sydney
@@ -166,10 +173,65 @@ describe('CancelOverdueAppointmentsUseCase', () => {
     expect(logger.error).toHaveBeenCalled();
   });
 
+  // An operator can reschedule an appointment after findOverdueActive() has already
+  // selected it. The transition use case re-checks status but not the date, so
+  // without a re-read the sweep would cancel a now-future appointment as EXPIRED.
+  it('skips an appointment that was rescheduled into the future mid-sweep', async () => {
+    appointmentRepo.findOverdueActive.mockResolvedValue([
+      makeAppointment({ id: 'a-1', scheduledDate: new Date('2026-07-20T00:00:00.000Z') }),
+    ]);
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment({
+        id: 'a-1',
+        scheduledDate: new Date('2026-08-15T00:00:00.000Z'), // moved to the future
+      }),
+      contact: null,
+      restrictions: [],
+    });
+
+    const result = await makeUseCase().execute();
+
+    expect(transitionUseCase.execute).not.toHaveBeenCalled();
+    expect(result.cancelledCount).toBe(0);
+    expect(result.skippedCount).toBe(1);
+  });
+
+  it('skips an appointment that already left an active status mid-sweep', async () => {
+    appointmentRepo.findOverdueActive.mockResolvedValue([
+      makeAppointment({ id: 'a-1', scheduledDate: new Date('2026-07-20T00:00:00.000Z') }),
+    ]);
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment({
+        id: 'a-1',
+        scheduledDate: new Date('2026-07-20T00:00:00.000Z'),
+        status: 'DONE',
+      }),
+      contact: null,
+      restrictions: [],
+    });
+
+    const result = await makeUseCase().execute();
+
+    expect(transitionUseCase.execute).not.toHaveBeenCalled();
+    expect(result.skippedCount).toBe(1);
+  });
+
+  it('skips an appointment that vanished mid-sweep', async () => {
+    appointmentRepo.findOverdueActive.mockResolvedValue([makeAppointment({ id: 'a-1' })]);
+    appointmentRepo.findById.mockResolvedValue(null);
+
+    const result = await makeUseCase().execute();
+
+    expect(transitionUseCase.execute).not.toHaveBeenCalled();
+    expect(result.skippedCount).toBe(1);
+  });
+
   it('does nothing and reports zero when there is nothing overdue', async () => {
     const result = await makeUseCase().execute();
 
-    expect(result).toEqual({ cancelledCount: 0, failedCount: 0, batchCapped: false });
+    expect(result).toEqual({
+      cancelledCount: 0, failedCount: 0, skippedCount: 0, batchCapped: false,
+    });
     expect(transitionUseCase.execute).not.toHaveBeenCalled();
   });
 

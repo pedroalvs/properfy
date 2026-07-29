@@ -124,19 +124,19 @@ Official statuses:
 
 | From | To | Actor | Reason required | Notes |
 |---|---|---|---|---|
-| `DRAFT` | `AWAITING_INSPECTOR` | OP, SYS | No |
-| `DRAFT` | `REJECTED` | OP, AM | Yes |
-| `DRAFT` | `CANCELLED` | OP, CL, AM | Yes |
-| `AWAITING_INSPECTOR` | `SCHEDULED` | SYS, OP | No |
+| `DRAFT` | `AWAITING_INSPECTOR` | OP, SYS | No | |
+| `DRAFT` | `REJECTED` | OP, AM | Yes | |
+| `DRAFT` | `CANCELLED` | OP, CL, AM | Yes | |
+| `AWAITING_INSPECTOR` | `SCHEDULED` | SYS, OP | No | |
 | `AWAITING_INSPECTOR` | `CANCELLED` | OP, CL, AM, SYS | Yes | System-triggered daily for appointments whose date has passed (reason code `EXPIRED`) |
-| `SCHEDULED` | `DONE` | INSP, OP | No |
+| `SCHEDULED` | `DONE` | INSP, OP | No | |
 | `SCHEDULED` | `CANCELLED` | OP, CL, AM, SYS | Yes | System-triggered daily for appointments whose date has passed (reason code `EXPIRED`) |
-| `SCHEDULED` | `REJECTED` | OP, SYS | Yes |
-| `REJECTED` | `DRAFT` | OP, AM | Yes |
+| `SCHEDULED` | `REJECTED` | OP, SYS | Yes | |
+| `REJECTED` | `DRAFT` | OP, AM | Yes | |
 | `REJECTED` | `AWAITING_INSPECTOR` | OP, AM | Yes | System-triggered when appointment is added to a service group |
-| `REJECTED` | `CANCELLED` | OP, CL, AM | Yes |
-| `CANCELLED` | `DRAFT` | OP, AM | Yes |
-| `DONE` | `DRAFT` | AM only | Yes |
+| `REJECTED` | `CANCELLED` | OP, CL, AM | Yes | |
+| `CANCELLED` | `DRAFT` | OP, AM | Yes | |
+| `DONE` | `DRAFT` | AM only | Yes | |
 | `DONE` | `REJECTED` | AM only | Yes | Emits `DONE_REJECTED` for financial compensation |
 
 **Rules:**
