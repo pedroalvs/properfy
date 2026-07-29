@@ -3,9 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useAuth } from '@/hooks/useAuth';
 import { useFormOptions } from '@/hooks/useFormOptions';
-import { useSnackbar } from '@/hooks/useSnackbar';
 import { AppointmentFilters } from '../components/AppointmentFilters';
 import { AppointmentBoardColumn } from '../components/AppointmentBoardColumn';
 import { AppointmentBulkActionBar } from '../components/AppointmentBulkActionBar';
@@ -16,7 +14,7 @@ import { StatusTransitionDialog } from '../components/StatusTransitionDialog';
 import type { BoardCardAction } from '../components/AppointmentBoardCard';
 import { useAppointmentBoard } from '../hooks/useAppointmentBoard';
 import { useAppointmentTransition } from '../hooks/useAppointmentTransition';
-import { useBulkResendReminder } from '../hooks/useBulkResendReminder';
+import { useBulkResendHandler } from '../hooks/useBulkResendHandler';
 import { getAvailableTransitions } from '../lib/transitions';
 import { DEFAULT_FILTERS } from '../types';
 import type { Appointment } from '../types';
@@ -31,10 +29,7 @@ export function AppointmentBoardPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { canPerform, hasRole, role } = usePermissions();
-  const { user } = useAuth();
-  const { showSuccess, showError } = useSnackbar();
   const isGlobalRole = hasRole('AM', 'OP');
-  const tenantId = user?.tenantId ?? null;
 
   const { columns, allItems, filters, setFilters, refetchAll } = useAppointmentBoard();
 
@@ -45,13 +40,14 @@ export function AppointmentBoardPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
 
+  const clearSelection = useCallback(() => setSelectedIds([]), []);
+
   const canCreate = canPerform('appointment.create');
   const canBulkEdit = canPerform('appointment.cancel');
   const canBulkResend = canPerform('appointment.bulk_resend_reminder');
 
-  // Same option sources as the list screen. For AM/OP the branch list is derived
-  // from loaded rows (no tenant selector on this screen) — the board loads five
-  // columns, so the dropdown ends up richer here than on the list.
+  // Service types are global (not tenant-scoped). Stable query key → cached,
+  // never refetched on filter change. Same source as the list screen.
   const { options: serviceTypeApiOptions } = useFormOptions<{ id: string; name: string }>(
     ['service-types', 'appointment-list-filter'],
     '/v1/service-types',
@@ -63,24 +59,19 @@ export function AppointmentBoardPage() {
     [serviceTypeApiOptions],
   );
 
-  const { options: branchApiOptions } = useFormOptions<{ id: string; name: string }>(
-    ['branches', 'appointment-list-filter', tenantId ?? ''],
-    '/v1/branches',
-    (item) => ({ value: item.id, label: item.name }),
-    { ...(tenantId ? { tenantId } : {}), status: 'ACTIVE' },
-    { enabled: !isGlobalRole && !!tenantId },
-  );
+  // Unlike the list, this route is AM/OP-only, so there is no CL branch of this
+  // logic: branches are always derived from the loaded rows. AM/OP have no
+  // tenant selector here, so /v1/branches cannot be called reliably
+  // cross-tenant — same acknowledged limitation as the list screen, except the
+  // board loads five columns so the dropdown ends up richer.
   const branchOptions = useMemo(() => {
-    if (!isGlobalRole) {
-      return [{ label: 'All', value: '' }, ...branchApiOptions];
-    }
     const seen = new Map<string, string>();
     for (const apt of allItems) seen.set(apt.branchId, apt.branchName);
     return [
       { label: 'All', value: '' },
       ...Array.from(seen.entries()).map(([value, label]) => ({ label, value })),
     ];
-  }, [isGlobalRole, branchApiOptions, allItems]);
+  }, [allItems]);
 
   const hasActiveFilters = useMemo(
     () =>
@@ -106,7 +97,7 @@ export function AppointmentBoardPage() {
 
   const cancelTransition = useAppointmentTransition(cancelTarget?.id ?? null, () => {
     setCancelTarget(null);
-    setSelectedIds([]);
+    clearSelection();
   });
 
   const buildCardActions = useCallback(
@@ -150,23 +141,7 @@ export function AppointmentBoardPage() {
     [isGlobalRole, role, canPerform],
   );
 
-  const bulkResend = useBulkResendReminder();
-  const handleBulkResend = async () => {
-    if (selectedIds.length === 0) return;
-    try {
-      const response = await bulkResend.mutateAsync({ appointmentIds: selectedIds });
-      const sent = response.data.results.filter((r) => r.status === 'SENT').length;
-      const noPrimary = response.data.results.filter((r) => r.status === 'NO_PRIMARY_CONTACT').length;
-      const replays = response.data.results.filter((r) => r.status === 'IDEMPOTENT_REPLAY').length;
-      const errors = response.data.results.filter((r) => r.status === 'ERROR').length;
-      showSuccess(
-        `${sent} sent · ${noPrimary} no primary · ${replays} already sent today · ${errors} errors`,
-      );
-      setSelectedIds([]);
-    } catch (e) {
-      showError(e instanceof Error ? e.message : 'Failed to re-send reminders');
-    }
-  };
+  const bulkResend = useBulkResendHandler(selectedIds, clearSelection);
 
   return (
     <div className="flex h-full min-h-0 flex-col px-4 py-2 md:px-8 md:py-6">
@@ -230,10 +205,10 @@ export function AppointmentBoardPage() {
       {canBulkEdit && (
         <AppointmentBulkActionBar
           selectedCount={selectedIds.length}
-          onClearSelection={() => setSelectedIds([])}
+          onClearSelection={clearSelection}
           onBulkEdit={() => setBulkEditOpen(true)}
           canBulkResend={canBulkResend}
-          onBulkResend={handleBulkResend}
+          onBulkResend={bulkResend.resend}
           resendPending={bulkResend.isPending}
         />
       )}

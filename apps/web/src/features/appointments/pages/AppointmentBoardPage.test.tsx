@@ -192,6 +192,9 @@ describe('AppointmentBoardPage', () => {
 
       expect(screen.getByRole('link', { name: 'INS-0142' })).toBeInTheDocument();
       expect(screen.getByText('Entry Report')).toBeInTheDocument();
+      // AU civil date (DD/MM/YYYY) plus the 12-hour wall-clock slot, one line.
+      expect(screen.getByText(/12\/08\/2026/)).toBeInTheDocument();
+      expect(screen.getByText(/9:00 am – 11:00 am/)).toBeInTheDocument();
       expect(screen.getByText('J. Smith')).toBeInTheDocument();
       expect(screen.getByText('21 King St, Sydney NSW 2000')).toBeInTheDocument();
       expect(screen.getByText('82 m²')).toBeInTheDocument();
@@ -295,6 +298,25 @@ describe('AppointmentBoardPage', () => {
 
       const healthy = screen.getByRole('region', { name: 'Scheduled column' });
       expect(within(healthy).getByRole('link', { name: 'INS-0142' })).toBeInTheDocument();
+    });
+
+    it('lets the user retry just the failing column', () => {
+      // apps/web/CLAUDE.md §8.3 — a recoverable error must offer a retry, and
+      // retrying one column must not disturb the other four.
+      const refetch = vi.fn();
+      const otherRefetch = vi.fn();
+      setBoard([
+        makeColumn({ isError: true, errorMessage: 'Upstream exploded', refetch }),
+        makeColumn({ status: 'SCHEDULED', label: 'Scheduled', refetch: otherRefetch }),
+        ...DEFAULT_COLUMNS.slice(2),
+      ]);
+      renderBoard();
+
+      const failing = screen.getByRole('region', { name: 'Awaiting Inspector column' });
+      fireEvent.click(within(failing).getByRole('button', { name: /try again/i }));
+
+      expect(refetch).toHaveBeenCalledTimes(1);
+      expect(otherRefetch).not.toHaveBeenCalled();
     });
 
     it('shows a load-more control only while cards remain', () => {

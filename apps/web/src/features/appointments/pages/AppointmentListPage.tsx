@@ -1,17 +1,16 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/hooks/useAuth';
 import { useFormOptions } from '@/hooks/useFormOptions';
-import { useSnackbar } from '@/hooks/useSnackbar';
 import { AppointmentFilters } from '../components/AppointmentFilters';
 import { AppointmentTable } from '../components/AppointmentTable';
 import { AppointmentFormDrawer } from '../components/AppointmentFormDrawer';
 import { AppointmentBulkActionBar } from '../components/AppointmentBulkActionBar';
 import { BulkEditModal } from '../components/BulkEditModal';
 import { useAppointmentList } from '../hooks/useAppointmentList';
-import { useBulkResendReminder } from '../hooks/useBulkResendReminder';
+import { useBulkResendHandler } from '../hooks/useBulkResendHandler';
 
 export function AppointmentListPage() {
   const navigate = useNavigate();
@@ -99,28 +98,8 @@ export function AppointmentListPage() {
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams, canCreate]);
 
-  const { showSuccess, showError } = useSnackbar();
-  const bulkResend = useBulkResendReminder();
-  const handleBulkResend = async () => {
-    if (selectedIds.length === 0) return;
-    try {
-      // The backend buckets the per-day idempotency key in the platform
-      // timezone (Sydney); no client timezone is sent.
-      const response = await bulkResend.mutateAsync({
-        appointmentIds: selectedIds,
-      });
-      const sent = response.data.results.filter((r) => r.status === 'SENT').length;
-      const noPrimary = response.data.results.filter((r) => r.status === 'NO_PRIMARY_CONTACT').length;
-      const replays = response.data.results.filter((r) => r.status === 'IDEMPOTENT_REPLAY').length;
-      const errors = response.data.results.filter((r) => r.status === 'ERROR').length;
-      showSuccess(
-        `${sent} sent · ${noPrimary} no primary · ${replays} already sent today · ${errors} errors`,
-      );
-      setSelectedIds([]);
-    } catch (e) {
-      showError(e instanceof Error ? e.message : 'Failed to re-send reminders');
-    }
-  };
+  const clearSelection = useCallback(() => setSelectedIds([]), []);
+  const bulkResend = useBulkResendHandler(selectedIds, clearSelection);
 
   return (
     <>
@@ -166,10 +145,10 @@ export function AppointmentListPage() {
       {canBulkEdit && (
         <AppointmentBulkActionBar
           selectedCount={selectedIds.length}
-          onClearSelection={() => setSelectedIds([])}
+          onClearSelection={clearSelection}
           onBulkEdit={() => setBulkEditOpen(true)}
           canBulkResend={canBulkResend}
-          onBulkResend={handleBulkResend}
+          onBulkResend={bulkResend.resend}
           resendPending={bulkResend.isPending}
         />
       )}
