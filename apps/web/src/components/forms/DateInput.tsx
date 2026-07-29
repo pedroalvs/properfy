@@ -1,4 +1,4 @@
-import { useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import {
   DATE_PLACEHOLDER,
   backspaceDateText,
@@ -7,12 +7,16 @@ import {
   maskDateText,
   maskedToIsoDate,
 } from '@properfy/shared';
+import { CalendarPanel } from '@/components/ui/CalendarPanel';
 import {
+  formDropdown,
+  formDropdownAbove,
   formInput,
   formInputContainer,
   formInputContainerError,
   formInputContainerDisabled,
 } from './form-styles';
+import { clippingRect, resolveDropdownPlacement, type DropdownPlacement } from './dropdown-placement';
 import { useMaskedField } from './useMaskedField';
 
 interface DateInputProps {
@@ -55,7 +59,10 @@ export function DateInput({
   'aria-describedby': ariaDescribedBy,
 }: DateInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const hintId = useId();
+  const [open, setOpen] = useState(false);
+  const [placement, setPlacement] = useState<DropdownPlacement>('below');
 
   const field = useMaskedField({
     value,
@@ -85,6 +92,47 @@ export function DateInput({
     }
     event.preventDefault();
     field.setText(backspaceDateText(field.text));
+  };
+
+  /**
+   * Placement is measured once at open time, against whatever actually clips the
+   * popover — without this it is swallowed by a `DrawerPanel`'s overflow. Same
+   * approach as SelectInput.
+   */
+  const openCalendar = () => {
+    if (containerRef.current) {
+      const trigger = containerRef.current.getBoundingClientRect();
+      const clip = clippingRect(containerRef.current);
+      setPlacement(
+        resolveDropdownPlacement({
+          triggerTop: trigger.top,
+          triggerBottom: trigger.bottom,
+          clipTop: clip.top,
+          clipBottom: clip.bottom,
+        }).placement,
+      );
+    }
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
+
+  const handleContainerKeyDown = (event: React.KeyboardEvent) => {
+    if (open && event.key === 'Escape') {
+      // Stop the host Dialog from closing along with the popover.
+      event.stopPropagation();
+      setOpen(false);
+      inputRef.current?.focus();
+    }
   };
 
   const containerClass = disabled
@@ -119,7 +167,45 @@ export function DateInput({
     </>
   );
 
+  // The filter shell supplies its own chrome and has no room for a popover.
   if (variant === 'bare') return input;
 
-  return <div className={containerClass}>{input}</div>;
+  return (
+    <div ref={containerRef} className={containerClass} onKeyDown={handleContainerKeyDown}>
+      <div className="flex items-center">
+        <div className="min-w-0 flex-1">{input}</div>
+        {!disabled && (
+          <button
+            type="button"
+            onClick={() => (open ? setOpen(false) : openCalendar())}
+            aria-label="Open calendar"
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            className="mr-1 shrink-0 rounded p-1 text-text-secondary hover:bg-primary/10 hover:text-primary"
+          >
+            <i className="mdi mdi-calendar text-base" aria-hidden="true" />
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <div
+          role="dialog"
+          aria-label="Choose date"
+          className={`${placement === 'above' ? formDropdownAbove : formDropdown} w-[19rem] max-h-none overflow-visible`}
+        >
+          <CalendarPanel
+            selected={value}
+            min={min}
+            max={max}
+            onSelect={(next) => {
+              field.setText(isoDateToMasked(next));
+              setOpen(false);
+              inputRef.current?.focus();
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
 }

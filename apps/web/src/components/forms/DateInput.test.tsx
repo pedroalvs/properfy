@@ -203,6 +203,87 @@ describe('DateInput wholesale replacement', () => {
   });
 });
 
+describe('DateInput calendar popover', () => {
+  it('opens a dialog from the calendar button', async () => {
+    const user = userEvent.setup();
+    render(<ControlledDateInput initial="2026-06-15" />);
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Open calendar' }));
+
+    expect(screen.getByRole('dialog', { name: 'Choose date' })).toBeInTheDocument();
+    expect(screen.getByText('June 2026')).toBeInTheDocument();
+  });
+
+  it('picking a day sets the value and closes', async () => {
+    const user = userEvent.setup();
+    const onValue = vi.fn();
+    render(<ControlledDateInput initial="2026-06-15" onValue={onValue} />);
+
+    await user.click(screen.getByRole('button', { name: 'Open calendar' }));
+    await user.click(screen.getByRole('button', { name: 'Wednesday 24 June 2026' }));
+
+    expect(onValue).toHaveBeenLastCalledWith('2026-06-24');
+    expect(getInput().value).toBe('24/06/2026');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('disables days outside min/max', async () => {
+    const user = userEvent.setup();
+    render(<ControlledDateInput initial="2026-06-15" min="2026-06-10" max="2026-06-20" />);
+
+    await user.click(screen.getByRole('button', { name: 'Open calendar' }));
+
+    expect(screen.getByRole('button', { name: 'Monday 1 June 2026' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Friday 12 June 2026' })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Thursday 25 June 2026' })).toBeDisabled();
+  });
+
+  it('does not clamp min to today, so past dates stay selectable', async () => {
+    // MultiDatePicker clamps to today, which would make date-of-birth unusable.
+    const user = userEvent.setup();
+    render(<ControlledDateInput initial="1986-03-18" />);
+
+    await user.click(screen.getByRole('button', { name: 'Open calendar' }));
+
+    expect(screen.getByText('March 1986')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tuesday 18 March 1986' })).not.toBeDisabled();
+  });
+
+  it('navigates months', async () => {
+    const user = userEvent.setup();
+    render(<ControlledDateInput initial="2026-06-15" />);
+
+    await user.click(screen.getByRole('button', { name: 'Open calendar' }));
+    await user.click(screen.getByRole('button', { name: 'Next month' }));
+    expect(screen.getByText('July 2026')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Previous month' }));
+    expect(screen.getByText('June 2026')).toBeInTheDocument();
+  });
+
+  it('closes on Escape without bubbling to a host dialog', async () => {
+    const user = userEvent.setup();
+    const onHostEscape = vi.fn();
+    render(
+      <div onKeyDown={onHostEscape}>
+        <ControlledDateInput initial="2026-06-15" />
+      </div>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Open calendar' }));
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(onHostEscape).not.toHaveBeenCalled();
+  });
+
+  it('offers no calendar button when disabled', () => {
+    render(<ControlledDateInput disabled />);
+    expect(screen.queryByRole('button', { name: 'Open calendar' })).toBeNull();
+  });
+});
+
 describe('DateInput accessibility and states', () => {
   it('exposes a format hint to screen readers', () => {
     render(<ControlledDateInput />);
