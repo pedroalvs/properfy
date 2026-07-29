@@ -119,7 +119,14 @@ export class ImportFileNoHeaderRowError extends ImportFileError {
  * unreadable, while two scannable lists below it are not.
  */
 export class ImportFileMissingColumnsError extends ImportFileError {
-  constructor(missingColumns: string[], foundColumns: string[]) {
+  constructor(
+    missingColumns: string[],
+    foundColumns: string[],
+    /** Unrecognized headers, carried so a typo can be matched to the column it
+     * was meant to be. This is the common case — a file missing "Postcode"
+     * usually has "Postcodee" sitting right there. */
+    unknownColumns: ImportFileUnknownColumn[] = [],
+  ) {
     const message = missingColumns.length === 1
       ? `This file is missing the required column "${missingColumns[0]}".`
       : `This file is missing ${missingColumns.length} required columns.`;
@@ -129,6 +136,7 @@ export class ImportFileMissingColumnsError extends ImportFileError {
       message,
       missingColumns,
       foundColumns,
+      unknownColumns,
     }));
   }
 }

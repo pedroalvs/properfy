@@ -90,4 +90,26 @@ describe('ImportFileIssues', () => {
     expect(screen.getByTestId('import-file-issue-IMPORT_FILE_MULTIPLE_SHEETS')).toBeInTheDocument();
     expect(screen.getByTestId('import-file-issue-IMPORT_FILE_UNKNOWN_COLUMNS')).toBeInTheDocument();
   });
+  it('omits the message when an ErrorState above already shows it', () => {
+    render(<ImportFileIssues showMessage={false} issues={[issue({
+      code: 'IMPORT_FILE_MISSING_COLUMNS',
+      severity: 'error',
+      message: 'This file is missing the required column "Postcode".',
+      missingColumns: ['Postcode'],
+    })]} />);
+
+    expect(screen.queryByText('This file is missing the required column "Postcode".')).not.toBeInTheDocument();
+    expect(screen.getByText('Postcode')).toBeInTheDocument();
+  });
+
+  it('renders nothing at all when the message is hidden and there is no detail to add', () => {
+    const { container } = render(
+      <ImportFileIssues showMessage={false} issues={[issue({
+        code: 'IMPORT_FILE_CORRUPT_XLSX',
+        severity: 'error',
+        message: 'This .xlsx file could not be opened.',
+      })]} />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
 });

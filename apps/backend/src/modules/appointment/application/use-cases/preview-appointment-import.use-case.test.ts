@@ -378,6 +378,24 @@ describe('PreviewAppointmentImportUseCase', () => {
 
       expect(error?.issue.missingColumns).toEqual(['Suburb', 'State', 'Postcode']);
       expect(error?.issue.foundColumns).toEqual(['Type', 'Street']);
+
+    });
+
+    it('points a misspelled header at the required column it was meant to be', async () => {
+      const deps = buildDeps();
+      deps.branchRepo.findById.mockResolvedValue(buildBranch());
+      const uc = buildUseCase(deps);
+      const csv = Buffer.from('Type,Street,Suburb,State,Postcodee\nRoutine Inspection,1 Main St,Kogarah,NSW,2217\n');
+
+      let error: ImportFileMissingColumnsError | undefined;
+      try {
+        await uc.execute({ fileBuffer: csv, filename: 'x.csv', branchId: 'branch-1', actor: AM });
+      } catch (e) {
+        error = e as ImportFileMissingColumnsError;
+      }
+
+      expect(error?.issue.missingColumns).toEqual(['Postcode']);
+      expect(error?.issue.unknownColumns).toEqual([{ column: 'Postcodee', suggestion: 'Postcode' }]);
     });
 
     it('surfaces a corrupted file as a 400 rather than an unhandled error', async () => {

@@ -100,10 +100,13 @@ export class PreviewAppointmentImportUseCase {
     if (analysis.missingRequired.length > 0) {
       // One precise message naming the columns, instead of the same per-row
       // error repeated once per data row.
-      throw new ImportFileMissingColumnsError(analysis.missingRequired, [
-        ...analysis.recognized,
-        ...analysis.custom.map((label) => `CUSTOM: ${label}`),
-      ]);
+      throw new ImportFileMissingColumnsError(
+        analysis.missingRequired,
+        [...analysis.recognized, ...analysis.custom.map((label) => `CUSTOM: ${label}`)],
+        // A file missing "Postcode" usually has "Postcodee" right there; the
+        // suggestion turns the block into a rename.
+        analysis.unknown,
+      );
     }
 
     const rawRows = parsed.rows;

@@ -3,6 +3,17 @@ import { InfoBanner } from '@/components/feedback/InfoBanner';
 
 interface ImportFileIssuesProps {
   issues: ImportFileIssue[];
+  /** Set false when an ErrorState above already shows the same sentence; the
+   * banner then contributes only the structured detail, and an issue with no
+   * detail to add renders nothing at all rather than an empty box. */
+  showMessage?: boolean;
+}
+
+function hasDetail(issue: ImportFileIssue): boolean {
+  return issue.missingColumns.length > 0
+    || issue.foundColumns.length > 0
+    || issue.unknownColumns.length > 0
+    || issue.sheetsIgnored.length > 0;
 }
 
 /**
@@ -11,18 +22,19 @@ interface ImportFileIssuesProps {
  * owns the structured lists underneath it, because the names are unreadable
  * crammed into a single line in the ErrorState or the snackbar.
  */
-export function ImportFileIssues({ issues }: ImportFileIssuesProps) {
-  if (issues.length === 0) return null;
+export function ImportFileIssues({ issues, showMessage = true }: ImportFileIssuesProps) {
+  const visible = showMessage ? issues : issues.filter(hasDetail);
+  if (visible.length === 0) return null;
 
   return (
     <div className="space-y-3">
-      {issues.map((issue, index) => (
+      {visible.map((issue, index) => (
         <InfoBanner
           key={`${issue.code}-${index}`}
           variant={issue.severity === 'error' ? 'error' : 'warning'}
         >
           <div data-testid={`import-file-issue-${issue.code}`}>
-            <p className="font-semibold">{issue.message}</p>
+            {showMessage && <p className="font-semibold">{issue.message}</p>}
 
             {issue.missingColumns.length > 0 && (
               <div className="mt-2">

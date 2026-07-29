@@ -228,7 +228,7 @@ export function AppointmentImportPage() {
                   message={getErrorMessage(previewError, 'Could not read this file')}
                   onRetry={runPreview}
                 />
-                <ImportFileIssues issues={fileIssuesFromApiError(previewError)} />
+                <ImportFileIssues issues={fileIssuesFromApiError(previewError)} showMessage={false} />
               </div>
             )}
 

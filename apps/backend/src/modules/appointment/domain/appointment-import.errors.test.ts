@@ -123,6 +123,18 @@ describe('ImportFileMissingColumnsError', () => {
     const error = new ImportFileMissingColumnsError(['Suburb', 'Postcode'], ['Type', 'Street']);
     expect(error.issue.missingColumns).toEqual(['Suburb', 'Postcode']);
     expect(error.issue.foundColumns).toEqual(['Type', 'Street']);
+    expect(error.issue.unknownColumns).toEqual([]);
+  });
+
+  // The whole point: a file missing "Postcode" usually has "Postcodee" in it,
+  // and connecting the two turns a blocked import into a rename.
+  it('carries the unrecognized headers so a typo can be matched to what it meant', () => {
+    const error = new ImportFileMissingColumnsError(
+      ['Postcode'],
+      ['Type', 'Street'],
+      [{ column: 'Postcodee', suggestion: 'Postcode' }],
+    );
+    expect(error.issue.unknownColumns).toEqual([{ column: 'Postcodee', suggestion: 'Postcode' }]);
   });
 });
 
