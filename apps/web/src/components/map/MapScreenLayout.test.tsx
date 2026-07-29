@@ -25,7 +25,10 @@ describe('MapScreenLayout', () => {
     );
     const layout = screen.getByTestId('map-screen-layout');
     expect(layout).toBeInTheDocument();
-    expect(layout).toHaveClass('h-screen');
+    // `h-dvh` rather than `h-screen` — 100vh overshoots the visible viewport on
+    // mobile browsers with a retractable URL bar.
+    expect(layout).toHaveClass('h-dvh');
+    expect(layout).not.toHaveClass('h-screen');
   });
 
   it('fills its parent instead of the viewport when fillParent is set', () => {
@@ -42,6 +45,7 @@ describe('MapScreenLayout', () => {
     const layout = screen.getByTestId('map-screen-layout');
     expect(layout).toHaveClass('h-full');
     expect(layout).not.toHaveClass('h-screen');
+    expect(layout).not.toHaveClass('h-dvh');
   });
 
   it('renders floating panel with position:fixed left-4 top-4 (cycle 4)', () => {

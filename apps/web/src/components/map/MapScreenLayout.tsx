@@ -44,7 +44,7 @@ export function MapScreenLayout({
 
   return (
     <div
-      className={fillParent ? 'relative h-full' : 'relative h-screen'}
+      className={fillParent ? 'relative h-full' : 'relative h-dvh'}
       data-testid="map-screen-layout"
     >
       {/* Map always fills the full viewport */}
@@ -59,7 +59,7 @@ export function MapScreenLayout({
       {sidePanelOpen && (
         <div
           className={`fixed left-4 top-4 z-40 flex flex-col overflow-hidden rounded-lg border border-border-subtle bg-card-bg/85 shadow-xl backdrop-blur-sm md:left-[91px]${isDragging ? ' select-none' : ''}`}
-          style={{ width: widthPx, maxHeight: 'calc(100vh - 32px)' }}
+          style={{ width: widthPx, maxHeight: 'calc(100dvh - 32px)' }}
           data-testid="map-side-panel"
         >
           {sidePanel}

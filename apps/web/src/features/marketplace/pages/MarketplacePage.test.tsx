@@ -102,6 +102,34 @@ describe('MarketplacePage', () => {
     expect(screen.getByTestId('map-screen-layout')).toBeInTheDocument();
   });
 
+  // Regression guard: this page runs in AppShell's full-height mode, so the map
+  // must fill the parent box instead of claiming its own viewport height. A
+  // `h-screen`/`h-dvh` map stacked under the PageHeader overflows the document
+  // and brings back the page scroll that full-height mode exists to remove.
+  it('fills the parent instead of claiming its own viewport height', () => {
+    renderPage();
+    const layout = screen.getByTestId('map-screen-layout');
+    expect(layout).toHaveClass('h-full');
+    expect(layout).not.toHaveClass('h-screen');
+    expect(layout).not.toHaveClass('h-dvh');
+
+    // Column shell: padded header on top, map taking the remainder. `min-h-0`
+    // is load-bearing — without it the flex item refuses to shrink below its
+    // content and the clamp leaks.
+    const mapSlot = layout.parentElement;
+    expect(mapSlot).toHaveClass('flex-1');
+    expect(mapSlot).toHaveClass('min-h-0');
+
+    const pageRoot = mapSlot?.parentElement;
+    expect(pageRoot).toHaveClass('flex');
+    expect(pageRoot).toHaveClass('h-full');
+    expect(pageRoot).toHaveClass('flex-col');
+    // Full-height mode strips the shell padding; the header restores it locally.
+    expect(pageRoot?.className).not.toMatch(/-mt-|-mb-|-mx-/);
+    expect(screen.getByText('Marketplace').closest('div')?.parentElement)
+      .toHaveClass('px-4');
+  });
+
   it('renders offer list after data loads', async () => {
     renderPage();
 

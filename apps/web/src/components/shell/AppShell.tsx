@@ -12,6 +12,10 @@ import { OfflineBanner } from '@/components/feedback/OfflineBanner';
  * clamp, no page padding, and the shell chrome (offline banner, mobile top bar)
  * accounted for as flex siblings so the content gets only the leftover space.
  * Without this, a `100vh` child plus the shell's `py-6` overflows the document.
+ *
+ * The clamp uses `h-dvh`, not `h-screen`: on mobile browsers `100vh` is the
+ * URL-bar-collapsed height, so it overshoots the visible viewport while the bar
+ * is expanded and leaves a residual scroll. `dvh` tracks the live viewport.
  */
 interface FullHeightHandle {
   fullHeight?: boolean;
@@ -27,7 +31,7 @@ export function AppShell() {
   return (
     <div
       className={`flex w-full max-w-full overflow-x-hidden bg-app-bg ${
-        fullHeight ? 'h-screen overflow-hidden' : 'min-h-screen'
+        fullHeight ? 'h-dvh overflow-hidden' : 'min-h-screen'
       }`}
     >
       {/* Sidebar — hidden on mobile */}
@@ -44,7 +48,7 @@ export function AppShell() {
         <main
           className={`min-w-0 max-w-full overflow-x-hidden bg-card-bg md:rounded-tl-[20px] md:shadow-[0_6px_12px_0_rgba(0,0,0,0.1)] ${
             fullHeight
-              ? 'flex h-screen flex-col overflow-hidden'
+              ? 'flex h-dvh flex-col overflow-hidden'
               : 'min-h-screen'
           }`}
           data-testid="main-content"

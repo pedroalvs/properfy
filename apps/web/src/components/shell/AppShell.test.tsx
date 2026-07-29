@@ -83,7 +83,11 @@ describe('AppShell', () => {
     it('clamps main to the viewport on a route with handle.fullHeight', () => {
       renderWithRouter('/map');
       const main = screen.getByTestId('main-content');
-      expect(main).toHaveClass('h-screen');
+      // `h-dvh`, not `h-screen`: on mobile Safari/Chrome 100vh is the URL-bar-
+      // collapsed height, so it exceeds the visible viewport while the bar is
+      // expanded and leaves a residual scroll. `dvh` tracks the live viewport.
+      expect(main).toHaveClass('h-dvh');
+      expect(main).not.toHaveClass('h-screen');
       expect(main).toHaveClass('overflow-hidden');
       expect(main).toHaveClass('flex');
       expect(main).toHaveClass('flex-col');
@@ -104,6 +108,7 @@ describe('AppShell', () => {
       const main = screen.getByTestId('main-content');
       expect(main).toHaveClass('min-h-screen');
       expect(main).not.toHaveClass('h-screen');
+      expect(main).not.toHaveClass('h-dvh');
       expect(main).not.toHaveClass('overflow-hidden');
 
       const inner = screen.getByTestId('main-content-inner');
