@@ -151,7 +151,12 @@ export function MapGroupCreateModal({
         </FormField>
 
         <FormField label="Scheduled Date" required>
-          <DateInput value={scheduledDate} onChange={setScheduledDate} min={today} />
+          <DateInput
+            value={scheduledDate}
+            onChange={setScheduledDate}
+            min={today}
+            aria-label="Scheduled date"
+          />
         </FormField>
 
         <FormField label="Time Window" required>

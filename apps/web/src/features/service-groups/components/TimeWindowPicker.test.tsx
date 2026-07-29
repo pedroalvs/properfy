@@ -25,8 +25,8 @@ describe('TimeWindowPicker', () => {
         onEndTimeChange={vi.fn()}
       />,
     );
-    expect((screen.getByLabelText('Start time') as HTMLInputElement).value).toBe('09:00');
-    expect((screen.getByLabelText('End time') as HTMLInputElement).value).toBe('18:00');
+    expect((screen.getByLabelText('Start time') as HTMLInputElement).value).toBe('9:00 am');
+    expect((screen.getByLabelText('End time') as HTMLInputElement).value).toBe('6:00 pm');
   });
 
   it('calls onStartTimeChange when start time changes', () => {
@@ -84,7 +84,7 @@ describe('TimeWindowPicker', () => {
     expect(startInput.min).toBe('');
   });
 
-  it('adds min attribute to start-time input when minStartTime is provided', () => {
+  it('exposes minStartTime on the start-time field', () => {
     render(
       <TimeWindowPicker
         startTime="09:00"
@@ -94,7 +94,9 @@ describe('TimeWindowPicker', () => {
         minStartTime="14:30"
       />,
     );
+    // `min` is not a valid attribute on a text input, so the bound is mirrored as
+    // a data attribute; the field marks itself invalid rather than blocking input.
     const startInput = screen.getByLabelText('Start time') as HTMLInputElement;
-    expect(startInput.min).toBe('14:30');
+    expect(startInput).toHaveAttribute('data-min', '14:30');
   });
 });

@@ -14,6 +14,7 @@ import { TimeWindowPicker } from './TimeWindowPicker';
 import { AppointmentCodePill } from '@/features/appointments/components/AppointmentCodePill';
 import { useRescheduleServiceGroup } from '../hooks/useRescheduleServiceGroup';
 import type { ServiceGroupDetail } from '../types';
+import { DateInput } from '@/components/forms/DateInput';
 
 interface RescheduleGroupModalProps {
   open: boolean;
@@ -159,13 +160,10 @@ export function RescheduleGroupModal({
         </p>
 
         <FormField label="Scheduled Date">
-          <input
-            type="date"
+          <DateInput
             value={scheduledDate}
-            onChange={(e) => setScheduledDate(e.target.value)}
-            onClick={(e) => e.currentTarget.showPicker?.()}
+            onChange={setScheduledDate}
             min={today}
-            className="w-full rounded border border-border-subtle bg-white px-3 py-2 text-sm text-text-primary outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             aria-label="Scheduled date"
           />
         </FormField>

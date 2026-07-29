@@ -1,62 +1,221 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { fireEvent } from '@testing-library/react';
+import { useState } from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { DateInput } from './DateInput';
 
-describe('DateInput', () => {
-  it('renders input with value', () => {
-    render(<DateInput value="2026-03-16" onChange={() => {}} aria-label="Data" />);
-    expect(screen.getByDisplayValue('2026-03-16')).toBeInTheDocument();
+function getInput(): HTMLInputElement {
+  return screen.getByLabelText('Scheduled date') as HTMLInputElement;
+}
+
+/** A realistic parent: controlled value plus a fresh inline lambda each render. */
+function ControlledDateInput({
+  initial = '',
+  onValue,
+  ...rest
+}: { initial?: string; onValue?: (v: string) => void } & Record<string, unknown>) {
+  const [value, setValue] = useState(initial);
+  return (
+    <DateInput
+      value={value}
+      onChange={(v) => {
+        setValue(v);
+        onValue?.(v);
+      }}
+      aria-label="Scheduled date"
+      {...rest}
+    />
+  );
+}
+
+describe('DateInput masking', () => {
+  it('renders dd/mm/yyyy as digits are typed', async () => {
+    const user = userEvent.setup();
+    render(<ControlledDateInput />);
+
+    await user.type(getInput(), '15062026');
+
+    expect(getInput().value).toBe('15/06/2026');
   });
 
-  it('calls onChange on date change', () => {
-    const onChange = vi.fn();
-    render(<DateInput value="" onChange={onChange} aria-label="Data" />);
-    fireEvent.change(screen.getByLabelText('Data'), { target: { value: '2026-04-01' } });
-    expect(onChange).toHaveBeenCalledWith('2026-04-01');
+  it('emits the canonical ISO value, not the displayed text', async () => {
+    const user = userEvent.setup();
+    const onValue = vi.fn();
+    render(<ControlledDateInput onValue={onValue} />);
+
+    await user.type(getInput(), '15062026');
+
+    expect(onValue).toHaveBeenLastCalledWith('2026-06-15');
   });
 
-  it('respects min and max attributes', () => {
-    render(
-      <DateInput value="" onChange={() => {}} min="2026-01-01" max="2026-12-31" aria-label="Data" />,
+  it('shows an existing value in masked form', () => {
+    render(<ControlledDateInput initial="2026-06-15" />);
+    expect(getInput().value).toBe('15/06/2026');
+  });
+
+  it('is a text input, so the browser locale cannot change its format', () => {
+    // The whole point: <input type="date"> renders in the OS locale.
+    render(<ControlledDateInput initial="2026-06-15" />);
+    expect(getInput().type).toBe('text');
+  });
+});
+
+describe('DateInput validity', () => {
+  it('does not emit a complete value while the date is incomplete', async () => {
+    const user = userEvent.setup();
+    const onValue = vi.fn();
+    render(<ControlledDateInput onValue={onValue} />);
+
+    await user.type(getInput(), '1506');
+
+    expect(onValue).not.toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-/));
+    expect(getInput()).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('marks an impossible calendar date invalid without discarding what was typed', async () => {
+    const user = userEvent.setup();
+    render(<ControlledDateInput />);
+
+    await user.type(getInput(), '31022026');
+
+    // The user fixes this by editing one digit; the text must survive.
+    expect(getInput().value).toBe('31/02/2026');
+    expect(getInput()).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('emits an out-of-range date and flags it, rather than clamping or blocking', async () => {
+    const user = userEvent.setup();
+    const onValue = vi.fn();
+    render(<ControlledDateInput onValue={onValue} min="2026-06-20" />);
+
+    await user.type(getInput(), '15062026');
+
+    // Consumers render their own "date is in the past" message and need the value.
+    expect(onValue).toHaveBeenLastCalledWith('2026-06-15');
+    expect(getInput()).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('clears back to an empty canonical value', async () => {
+    const user = userEvent.setup();
+    const onValue = vi.fn();
+    render(<ControlledDateInput initial="2026-06-15" onValue={onValue} />);
+
+    await user.clear(getInput());
+
+    expect(onValue).toHaveBeenLastCalledWith('');
+  });
+});
+
+describe('DateInput backspace', () => {
+  it('deletes through the separator instead of appearing dead', async () => {
+    const user = userEvent.setup();
+    render(<ControlledDateInput />);
+    const input = getInput();
+
+    await user.type(input, '1506');
+    expect(input.value).toBe('15/06/');
+
+    await user.type(input, '{Backspace}');
+    expect(input.value).toBe('15/0');
+
+    await user.type(input, '{Backspace}');
+    expect(input.value).toBe('15/');
+  });
+});
+
+/**
+ * These pin the render-loop hazard described in useMaskedField: a naive
+ * `useEffect(..., [value])` sync steals the caret on every keystroke and resets
+ * the draft whenever an unstable parent re-renders.
+ */
+describe('DateInput controlled-value reconciliation', () => {
+  it('does not move the caret when the parent echoes the value back', async () => {
+    const user = userEvent.setup();
+    render(<ControlledDateInput />);
+    const input = getInput();
+
+    await user.type(input, '15062026');
+
+    // A full round-trip through the parent has happened by now.
+    expect(input.selectionStart).toBe(input.value.length);
+    expect(input.value).toBe('15/06/2026');
+  });
+
+  it('keeps a partial draft when an unstable parent re-renders mid-typing', async () => {
+    const user = userEvent.setup();
+
+    function UnstableParent() {
+      const [value, setValue] = useState('');
+      const [, forceRender] = useState(0);
+      return (
+        <>
+          <button type="button" onClick={() => forceRender((n) => n + 1)}>
+            re-render
+          </button>
+          {/* A brand-new lambda on every render, as every real consumer passes. */}
+          <DateInput value={value} onChange={(v) => setValue(v)} aria-label="Scheduled date" />
+        </>
+      );
+    }
+
+    render(<UnstableParent />);
+    await user.type(getInput(), '1506');
+
+    for (let i = 0; i < 5; i++) {
+      await user.click(screen.getByRole('button', { name: 're-render' }));
+    }
+
+    // The half-typed draft emits '' — a dependency-driven effect would wipe it.
+    expect(getInput().value).toBe('15/06/');
+  });
+
+  it('re-syncs when the value genuinely changes from outside', () => {
+    const { rerender } = render(
+      <DateInput value="2026-06-15" onChange={() => {}} aria-label="Scheduled date" />,
     );
-    const input = screen.getByLabelText('Data');
-    expect(input).toHaveAttribute('min', '2026-01-01');
-    expect(input).toHaveAttribute('max', '2026-12-31');
+    expect(getInput().value).toBe('15/06/2026');
+
+    rerender(<DateInput value="2026-07-20" onChange={() => {}} aria-label="Scheduled date" />);
+    expect(getInput().value).toBe('20/07/2026');
+  });
+});
+
+describe('DateInput wholesale replacement', () => {
+  it('accepts a canonical ISO value set in one shot', () => {
+    // Playwright fill(), browser autofill and pasting a spreadsheet cell all
+    // replace the entire value rather than typing it.
+    const onValue = vi.fn();
+    render(<ControlledDateInput onValue={onValue} />);
+
+    fireEvent.change(getInput(), { target: { value: '2026-06-15' } });
+
+    expect(getInput().value).toBe('15/06/2026');
+    expect(onValue).toHaveBeenLastCalledWith('2026-06-15');
   });
 
-  it('renders disabled state', () => {
-    render(<DateInput value="" onChange={() => {}} disabled aria-label="Data" />);
-    expect(screen.getByLabelText('Data')).toBeDisabled();
+  it('accepts a pasted masked date', () => {
+    const onValue = vi.fn();
+    render(<ControlledDateInput onValue={onValue} />);
+
+    fireEvent.change(getInput(), { target: { value: '15/06/2026' } });
+
+    expect(onValue).toHaveBeenLastCalledWith('2026-06-15');
+  });
+});
+
+describe('DateInput accessibility and states', () => {
+  it('exposes a format hint to screen readers', () => {
+    render(<ControlledDateInput />);
+    expect(getInput()).toHaveAccessibleDescription(/day slash month slash year/i);
   });
 
-  it('applies error styling when error is true', () => {
-    const { container } = render(<DateInput value="" onChange={() => {}} error aria-label="Data" />);
+  it('disables the field', () => {
+    render(<ControlledDateInput disabled />);
+    expect(getInput()).toBeDisabled();
+  });
+
+  it('applies the error ring when the consumer flags an error', () => {
+    const { container } = render(<ControlledDateInput error />);
     expect(container.firstChild).toHaveClass('shadow-[0_0_0_2px_var(--color-error)]');
-  });
-
-  it('calls showPicker() on the input when the container is clicked', () => {
-    render(<DateInput value="" onChange={vi.fn()} aria-label="Data" />);
-    const input = screen.getByLabelText('Data') as HTMLInputElement;
-    const showPickerSpy = vi.fn();
-    (input as any).showPicker = showPickerSpy;
-    fireEvent.click(input.parentElement!);
-    expect(showPickerSpy).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not call showPicker() when disabled', () => {
-    render(<DateInput value="" onChange={vi.fn()} disabled aria-label="Data" />);
-    const input = screen.getByLabelText('Data') as HTMLInputElement;
-    const showPickerSpy = vi.fn();
-    (input as any).showPicker = showPickerSpy;
-    fireEvent.click(input.parentElement!);
-    expect(showPickerSpy).not.toHaveBeenCalled();
-  });
-
-  it('is safe when showPicker is undefined (older browsers)', () => {
-    render(<DateInput value="" onChange={vi.fn()} aria-label="Data" />);
-    const input = screen.getByLabelText('Data') as HTMLInputElement;
-    // showPicker is undefined by default in jsdom — should not throw
-    expect(() => fireEvent.click(input.parentElement!)).not.toThrow();
   });
 });
