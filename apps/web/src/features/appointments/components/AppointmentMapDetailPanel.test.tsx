@@ -96,7 +96,7 @@ describe('AppointmentMapDetailPanel (content)', () => {
     mockDetail = {
       apps: [{
         id: 'app-1', name: 'Airbnb', username: 'host', password: 'secret',
-        needsAuthCode: true, authCode: '654321',
+        needsAuthCode: true,
         appUrl: 'https://example.com/app', instructionsUrl: 'https://example.com/docs',
         instructionsPassword: 'doc-pass',
       }],
@@ -105,7 +105,8 @@ describe('AppointmentMapDetailPanel (content)', () => {
     fireEvent.click(screen.getByTestId('map-detail-section-apps'));
     expect(screen.getByText('Airbnb')).toBeInTheDocument();
     expect(screen.getByText('host')).toBeInTheDocument();
-    expect(screen.getByLabelText('auth code')).toBeInTheDocument();
+    // The code itself is never stored — only the warning that one is needed.
+    expect(screen.getByText('Requires authentication code')).toBeInTheDocument();
     const openApp = screen.getByRole('link', { name: /open app/i });
     expect(openApp).toHaveAttribute('href', 'https://example.com/app');
     expect(openApp).toHaveAttribute('target', '_blank');
@@ -117,14 +118,14 @@ describe('AppointmentMapDetailPanel (content)', () => {
     mockDetail = {
       apps: [{
         id: 'app-1', name: 'Legacy', username: 'u', password: 'p',
-        needsAuthCode: false, authCode: null, appUrl: null, instructionsUrl: null, instructionsPassword: null,
+        needsAuthCode: false, appUrl: null, instructionsUrl: null, instructionsPassword: null,
       }],
     };
     renderPanel();
     fireEvent.click(screen.getByTestId('map-detail-section-apps'));
     expect(screen.getByText('Legacy')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /open app/i })).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('auth code')).not.toBeInTheDocument();
+    expect(screen.queryByText('Requires authentication code')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('instructions password')).not.toBeInTheDocument();
   });
 

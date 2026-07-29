@@ -1,4 +1,4 @@
-import { formatInvoiceNumber } from '@properfy/shared';
+import { formatInvoiceNumber, formatCivilDate, formatInstantDate } from '@properfy/shared';
 import type { IInspectorInvoiceRepository } from '../../domain/inspector-invoice.repository';
 import type { IInvoicePdfGenerator } from '../../domain/invoice-pdf-generator';
 import type { IReportStorageService } from '../../../report/domain/report-storage.service';
@@ -40,9 +40,13 @@ export class GenerateInvoiceFileWorker {
       invoiceNumberDisplay: formatInvoiceNumber(invoice.invoiceNumber)!,
       inspectorName: invoice.inspectorName,
       inspectorAbn: invoice.inspectorAbn,
-      periodStart: invoice.periodStart.toISOString().slice(0, 10),
-      periodEnd: invoice.periodEnd.toISOString().slice(0, 10),
-      issuedAt: invoice.issuedAt ? invoice.issuedAt.toISOString().slice(0, 10) : null,
+      // The period bounds are @db.Date calendar days, so they carry no timezone.
+      periodStart: formatCivilDate(invoice.periodStart),
+      periodEnd: formatCivilDate(invoice.periodEnd),
+      // issuedAt IS a DateTime instant, and this is where the old
+      // `toISOString().slice(0, 10)` was genuinely wrong: it sliced in UTC, so an
+      // invoice issued on a Sydney evening was stamped with the previous day.
+      issuedAt: invoice.issuedAt ? formatInstantDate(invoice.issuedAt) : null,
       currency: invoice.currency,
       totalAmount: invoice.totalAmount,
       lines: invoice.lineItemsSnapshot,

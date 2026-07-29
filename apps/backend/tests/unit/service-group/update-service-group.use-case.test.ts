@@ -59,6 +59,28 @@ function makeGroupWithAppointments(
   };
 }
 
+/** Same shape as above, but lets a test seed members with specific statuses. */
+function makeGroupWithMembers(
+  members: Array<{ id: string; status: string; scheduledDate?: Date }>,
+  overrides: Partial<ServiceGroupProps> = {},
+): ServiceGroupWithAppointments {
+  const appointments = members.map((m) => ({
+    id: m.id,
+    status: m.status,
+    serviceTypeId: 'svc-type-1',
+    tenantId: 'tenant-1',
+    propertyId: 'property-1',
+    serviceGroupId: 'group-1',
+    scheduledDate: m.scheduledDate ?? new Date('2026-06-01'),
+  }));
+  return {
+    group: new ServiceGroupEntity(makeGroupProps(overrides)),
+    assignedInspectorName: null,
+    appointments,
+    ...deriveTenantFixture(appointments),
+  } as unknown as ServiceGroupWithAppointments;
+}
+
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
   return {
     userId: 'user-1',
@@ -293,5 +315,51 @@ describe('UpdateServiceGroupUseCase', () => {
         tenantId: 'tenant-1',
       }),
     );
+  });
+});
+
+describe('UpdateServiceGroupUseCase date cascade — settled members', () => {
+  let serviceGroupRepo: IServiceGroupRepository;
+  let appointmentRepo: { update: ReturnType<typeof vi.fn> };
+  let useCase: UpdateServiceGroupUseCase;
+
+  beforeEach(() => {
+    serviceGroupRepo = makeRepo();
+    appointmentRepo = { update: vi.fn() };
+    const auditService = { log: vi.fn() } as unknown as AuditService;
+    useCase = new UpdateServiceGroupUseCase(
+      serviceGroupRepo,
+      auditService,
+      new AuthorizationService(auditService),
+      appointmentRepo as any,
+      { error: vi.fn() },
+    );
+  });
+
+  // Cancelling an appointment does not clear service_group_id, so a DRAFT group
+  // really can be holding one of these when its date is edited.
+  it.each(['DONE', 'CANCELLED', 'REJECTED'])('never moves a %s member', async (status) => {
+    const groupData = makeGroupWithMembers([{ id: 'settled', status }], { status: 'DRAFT' });
+    (serviceGroupRepo.findById as any).mockResolvedValue(groupData);
+
+    await useCase.execute({ groupId: 'group-1', scheduledDate: '2030-07-20', actor: makeActor() });
+
+    expect(appointmentRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('moves the live member of a group that also holds a cancelled one', async () => {
+    const groupData = makeGroupWithMembers(
+      [
+        { id: 'cancelled', status: 'CANCELLED' },
+        { id: 'live', status: 'AWAITING_INSPECTOR' },
+      ],
+      { status: 'DRAFT' },
+    );
+    (serviceGroupRepo.findById as any).mockResolvedValue(groupData);
+
+    await useCase.execute({ groupId: 'group-1', scheduledDate: '2030-07-20', actor: makeActor() });
+
+    expect(appointmentRepo.update).toHaveBeenCalledTimes(1);
+    expect(appointmentRepo.update).toHaveBeenCalledWith('live', 'tenant-1', expect.anything());
   });
 });

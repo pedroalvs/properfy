@@ -57,7 +57,7 @@ async function selectGroupAndAdd(appts: AppointmentMapItem[]) {
   render(<MapAddToGroupSubModal open onClose={() => {}} appointments={appts} />);
   await waitFor(() => expect(screen.getByLabelText('Service group')).toBeInTheDocument());
   fireEvent.click(screen.getByLabelText('Service group'));
-  fireEvent.click(screen.getByText('Group 7 · 01/08/2026 · 09:00-12:00 (3 appts)'));
+  fireEvent.click(screen.getByText('Group 7 · 01/08/2026 · 9:00 am – 12:00 pm (3 appts)'));
   const confirm = await screen.findByTestId('map-add-to-group-confirm');
   await waitFor(() => expect(confirm).not.toBeDisabled());
   fireEvent.click(confirm);
@@ -69,14 +69,14 @@ describe('MapAddToGroupSubModal', () => {
     render(<MapAddToGroupSubModal open onClose={() => {}} appointments={appointments} />);
     await waitFor(() => expect(screen.getByLabelText('Service group')).toBeInTheDocument());
     fireEvent.click(screen.getByLabelText('Service group'));
-    expect(screen.getByText('Group 7 · 01/08/2026 · 09:00-12:00 (3 appts)')).toBeInTheDocument();
+    expect(screen.getByText('Group 7 · 01/08/2026 · 9:00 am – 12:00 pm (3 appts)')).toBeInTheDocument();
   });
 
   it('shows a date-sync banner when a group is selected', async () => {
     render(<MapAddToGroupSubModal open onClose={() => {}} appointments={appointments} />);
     await waitFor(() => expect(screen.getByLabelText('Service group')).toBeInTheDocument());
     fireEvent.click(screen.getByLabelText('Service group'));
-    fireEvent.click(screen.getByText('Group 7 · 01/08/2026 · 09:00-12:00 (3 appts)'));
+    fireEvent.click(screen.getByText('Group 7 · 01/08/2026 · 9:00 am – 12:00 pm (3 appts)'));
 
     const banner = await screen.findByTestId('map-add-to-group-date-sync-banner');
     expect(banner.textContent).toContain("moved to the group's date (01/08/2026)");
@@ -86,7 +86,7 @@ describe('MapAddToGroupSubModal', () => {
     render(<MapAddToGroupSubModal open onClose={() => {}} appointments={sameDayAppointments} />);
     await waitFor(() => expect(screen.getByLabelText('Service group')).toBeInTheDocument());
     fireEvent.click(screen.getByLabelText('Service group'));
-    fireEvent.click(screen.getByText('Group 7 · 01/08/2026 · 09:00-12:00 (3 appts)'));
+    fireEvent.click(screen.getByText('Group 7 · 01/08/2026 · 9:00 am – 12:00 pm (3 appts)'));
 
     await waitFor(() => expect(mockEligibility).toHaveBeenCalled());
     expect(screen.queryByTestId('map-add-to-group-date-sync-banner')).not.toBeInTheDocument();

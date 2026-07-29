@@ -3,6 +3,7 @@ import { GetFinancialEntryUseCase } from '../../../src/modules/billing/applicati
 import type { IFinancialEntryRepository } from '../../../src/modules/billing/domain/financial-entry.repository';
 import { FinancialEntryEntity, type FinancialEntryProps } from '../../../src/modules/billing/domain/financial-entry.entity';
 import { EntryNotFoundError } from '../../../src/modules/billing/domain/billing.errors';
+import { ForbiddenError } from '../../../src/shared/domain/errors';
 import type { AuthContext } from '@properfy/shared';
 import type { FinancialEntryEnriched } from '../../../src/modules/billing/domain/financial-entry.repository';
 
@@ -107,7 +108,9 @@ describe('GetFinancialEntryUseCase', () => {
   });
 
   it('should return entry for CL_ADMIN when tenantId matches', async () => {
-    vi.mocked(entryRepo.findByIdEnriched).mockResolvedValue(makeEnriched({ tenantId: 'tenant-1' }));
+    // A real TENANT_DEBIT never carries an inspector_id (see
+    // create-financial-entries-on-done.use-case.ts) — keep the fixture faithful.
+    vi.mocked(entryRepo.findByIdEnriched).mockResolvedValue(makeEnriched({ tenantId: 'tenant-1', inspectorId: null }));
 
     const result = await useCase.execute({
       entryId: 'entry-1',
@@ -139,6 +142,77 @@ describe('GetFinancialEntryUseCase', () => {
         actor: makeActor({ role: 'CL_USER', tenantId: 'tenant-1' }),
       }),
     ).rejects.toThrow(EntryNotFoundError);
+  });
+
+  // 031 intent: INSPECTOR_PAYOUT is the platform<->inspector leg and must never reach
+  // an agency. The list endpoint already excluded it; this detail endpoint did not,
+  // so an agency could read a payout — amount, inspector name and all — by its id.
+  it('should throw EntryNotFoundError when CL_ADMIN fetches an own-tenant INSPECTOR_PAYOUT', async () => {
+    vi.mocked(entryRepo.findByIdEnriched).mockResolvedValue(
+      makeEnriched({ tenantId: 'tenant-1', entryType: 'INSPECTOR_PAYOUT', inspectorId: 'insp-1' }),
+    );
+
+    await expect(
+      useCase.execute({
+        entryId: 'entry-1',
+        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+      }),
+    ).rejects.toThrow(EntryNotFoundError);
+  });
+
+  it('should throw EntryNotFoundError when CL_USER fetches an own-tenant INSPECTOR_PAYOUT', async () => {
+    vi.mocked(entryRepo.findByIdEnriched).mockResolvedValue(
+      makeEnriched({ tenantId: 'tenant-1', entryType: 'INSPECTOR_PAYOUT', inspectorId: 'insp-1' }),
+    );
+
+    await expect(
+      useCase.execute({
+        entryId: 'entry-1',
+        actor: makeActor({ role: 'CL_USER', tenantId: 'tenant-1' }),
+      }),
+    ).rejects.toThrow(EntryNotFoundError);
+  });
+
+  // An inspector-scoped MANUAL_ADJUSTMENT passes the entry-type allowlist but is
+  // still part of the inspector leg.
+  it('should throw EntryNotFoundError when CL_ADMIN fetches an inspector-scoped MANUAL_ADJUSTMENT', async () => {
+    vi.mocked(entryRepo.findByIdEnriched).mockResolvedValue(
+      makeEnriched({ tenantId: 'tenant-1', entryType: 'MANUAL_ADJUSTMENT', inspectorId: 'insp-1' }),
+    );
+
+    await expect(
+      useCase.execute({
+        entryId: 'entry-1',
+        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+      }),
+    ).rejects.toThrow(EntryNotFoundError);
+  });
+
+  it('should still return an agency-visible REFUND to CL_ADMIN', async () => {
+    vi.mocked(entryRepo.findByIdEnriched).mockResolvedValue(
+      makeEnriched({ tenantId: 'tenant-1', entryType: 'REFUND', inspectorId: null }),
+    );
+
+    const result = await useCase.execute({
+      entryId: 'entry-1',
+      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    });
+
+    expect(result.entryType).toBe('REFUND');
+  });
+
+  // AM/OP are the platform side — the payout detail stays visible to them.
+  it.each(['AM', 'OP'] as const)('should return an INSPECTOR_PAYOUT to %s', async (role) => {
+    vi.mocked(entryRepo.findByIdEnriched).mockResolvedValue(
+      makeEnriched({ tenantId: 'tenant-1', entryType: 'INSPECTOR_PAYOUT', inspectorId: 'insp-1' }),
+    );
+
+    const result = await useCase.execute({
+      entryId: 'entry-1',
+      actor: makeActor({ role, tenantId: role === 'OP' ? 'tenant-1' : null }),
+    });
+
+    expect(result.entryType).toBe('INSPECTOR_PAYOUT');
   });
 
   it('should return entry for INSP when inspectorId matches and entryType is INSPECTOR_PAYOUT', async () => {
@@ -221,7 +295,7 @@ describe('GetFinancialEntryUseCase', () => {
   });
 
   it('should pass tenantId to findById for CL_ADMIN (defense-in-depth)', async () => {
-    vi.mocked(entryRepo.findByIdEnriched).mockResolvedValue(makeEnriched({ tenantId: 'tenant-1' }));
+    vi.mocked(entryRepo.findByIdEnriched).mockResolvedValue(makeEnriched({ tenantId: 'tenant-1', inspectorId: null }));
 
     await useCase.execute({
       entryId: 'entry-1',
@@ -232,7 +306,7 @@ describe('GetFinancialEntryUseCase', () => {
   });
 
   it('should pass tenantId to findById for CL_USER (defense-in-depth)', async () => {
-    vi.mocked(entryRepo.findByIdEnriched).mockResolvedValue(makeEnriched({ tenantId: 'tenant-1' }));
+    vi.mocked(entryRepo.findByIdEnriched).mockResolvedValue(makeEnriched({ tenantId: 'tenant-1', inspectorId: null }));
 
     await useCase.execute({
       entryId: 'entry-1',
@@ -286,5 +360,17 @@ describe('GetFinancialEntryUseCase', () => {
     expect(result.approvedByUserId).toBeNull();
     expect(result.approvedAt).toBeNull();
     expect(result.approvedByName).toBeNull();
+  });
+
+  // The platform side must be an allowlist: previously any role that was neither
+  // CL nor INSP fell through the chain to full access.
+  it.each(['TNT', 'SYS'] as const)('fails closed for %s instead of granting full access', async (role) => {
+    vi.mocked(entryRepo.findByIdEnriched).mockResolvedValue(
+      makeEnriched({ tenantId: 'tenant-1', entryType: 'INSPECTOR_PAYOUT', inspectorId: 'insp-1' }),
+    );
+
+    await expect(
+      useCase.execute({ entryId: 'entry-1', actor: makeActor({ role, tenantId: 'tenant-1' }) }),
+    ).rejects.toThrow(ForbiddenError);
   });
 });

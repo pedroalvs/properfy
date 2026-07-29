@@ -101,6 +101,37 @@ describe('AppointmentContactTab', () => {
     expect(screen.getByText('Ring the bell')).toBeInTheDocument();
   });
 
+  it('renders the availability the tenant offered in the access restrictions section', () => {
+    const apt: AppointmentDetail = {
+      ...MOCK_APPOINTMENT,
+      restrictions: [
+        {
+          id: 'res-1',
+          isHome: false,
+          unavailableDaysJson: null,
+          unavailableHoursJson: null,
+          availableSlotsJson: [
+            { dayOfWeek: 'TUE', start: '09:00', end: '12:00' },
+            { dayOfWeek: 'SAT', start: '14:00', end: '18:00' },
+          ],
+          notes: null,
+          source: 'RENTAL_TENANT_PORTAL',
+        },
+      ],
+    };
+
+    render(<AppointmentContactTab appointment={apt} />);
+
+    expect(screen.getByText('Tenant Availability')).toBeInTheDocument();
+    expect(screen.getByText('Tue 09:00 - 12:00')).toBeInTheDocument();
+    expect(screen.getByText('Sat 14:00 - 18:00')).toBeInTheDocument();
+  });
+
+  it('hides the availability row when the tenant offered none', () => {
+    render(<AppointmentContactTab appointment={MOCK_APPOINTMENT} />);
+    expect(screen.queryByText('Tenant Availability')).not.toBeInTheDocument();
+  });
+
   it('shows dash for null contact values in legacy mode', () => {
     const apt: AppointmentDetail = {
       ...MOCK_APPOINTMENT,

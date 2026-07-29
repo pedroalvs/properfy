@@ -1,5 +1,6 @@
 import type { PrismaClient, Prisma, AppointmentStatus } from '@prisma/client';
-import { civilDateInTimezone, nextCivilDay, parseDateInTimezone, PLATFORM_TIMEZONE } from '../../../shared/domain/timezone-date';
+import { formatCivilDate, formatInstantDate, formatInstantDateTime, formatWallTimeRange, AGENCY_VISIBLE_ENTRY_TYPES } from '@properfy/shared';
+import { nextCivilDay, parseDateInTimezone, PLATFORM_TIMEZONE } from '../../../shared/domain/timezone-date';
 import type { IReportDataReader, ReportDataFilters } from '../domain/report-data-reader';
 
 /**
@@ -39,8 +40,8 @@ export class PrismaReportDataReader implements IReportDataReader {
         suburb: a.property?.suburb ?? '',
         postcode: a.property?.postcode ?? '',
         state: a.property?.state ?? '',
-        scheduledDate: a.scheduled_date ? a.scheduled_date.toISOString().split('T')[0] : '',
-        timeSlot: `${a.time_slot_start}-${a.time_slot_end}`,
+        scheduledDate: formatCivilDate(a.scheduled_date),
+        timeSlot: formatWallTimeRange(a.time_slot_start, a.time_slot_end),
         status: a.status,
         rentalTenant: contact?.snapshot_name ?? '',
         email: contact?.snapshot_email ?? '',
@@ -48,7 +49,8 @@ export class PrismaReportDataReader implements IReportDataReader {
         inspector: a.inspector?.name ?? '',
         confirmationStatus: a.rental_tenant_confirmation_status,
         keyRequired: a.key_required ? 'Yes' : 'No',
-        createdAt: a.created_at ? a.created_at.toISOString() : '',
+        // A raw ISO timestamp ('2026-07-28T04:12:33.123Z') was landing in the sheet.
+        createdAt: formatInstantDateTime(a.created_at),
       };
     });
   }
@@ -79,7 +81,8 @@ export class PrismaReportDataReader implements IReportDataReader {
 
         return {
           inspectorName: i.name,
-          inspectorEmail: i.email,
+          // An inspector's personal email is platform data, not the agency's.
+          ...(filters.agencyScoped ? {} : { inspectorEmail: i.email }),
           totalAppointments: total,
           completed,
           cancelled,
@@ -146,6 +149,13 @@ export class PrismaReportDataReader implements IReportDataReader {
       effective_at: this.sydneyTimestampRange(filters),
     };
     if (filters.tenantId) where.tenant_id = filters.tenantId;
+    // An agency never sees the platform↔inspector leg. The type allowlist alone is
+    // not enough: an inspector-scoped MANUAL_ADJUSTMENT passes it yet still belongs
+    // to that leg, so pair it with `inspector_id IS NULL`.
+    if (filters.agencyScoped) {
+      where.entry_type = { in: [...AGENCY_VISIBLE_ENTRY_TYPES] };
+      where.inspector_id = null;
+    }
     // Branch/suburb are appointment-scoped: applied via the (nullable) appointment relation,
     // which necessarily excludes appointment-less ledger entries when either is set.
     if (filters.branchId || filters.suburb) {
@@ -164,6 +174,11 @@ export class PrismaReportDataReader implements IReportDataReader {
     // Amounts are 2-decimal money; round at the export boundary so summed
     // floating-point values don't surface artifacts like 90.00000000001.
     const round2 = (n: number) => Math.round(n * 100) / 100;
+
+    if (filters.agencyScoped) {
+      return this.buildAgencyFinancialRows(entries, round2);
+    }
+
     let totalRevenue = 0;
     let totalExpense = 0;
     const rows: Record<string, unknown>[] = entries.map((e) => {
@@ -190,7 +205,7 @@ export class PrismaReportDataReader implements IReportDataReader {
       totalRevenue += revenue;
       totalExpense += expense;
       return {
-        entryDate: e.effective_at ? civilDateInTimezone(e.effective_at, PLATFORM_TIMEZONE) : '',
+        entryDate: formatInstantDate(e.effective_at),
         agency: e.tenant?.name ?? '',
         entryType: e.entry_type,
         appointmentNumber: e.appointment?.appointment_number ?? '',
@@ -206,6 +221,43 @@ export class PrismaReportDataReader implements IReportDataReader {
       const blank = { entryDate: '', agency: '', entryType: '', appointmentNumber: '', inspector: '', currency: '' };
       rows.push({ ...blank, description: 'TOTAL', revenue: round2(totalRevenue), expense: round2(totalExpense) });
       rows.push({ ...blank, description: 'NET (revenue − expenses)', revenue: round2(totalRevenue - totalExpense), expense: '' });
+    }
+    return rows;
+  }
+
+  /**
+   * Agency variant of the Financial rows. The query has already excluded the
+   * platform↔inspector leg, so there is no expense side: revenue collapses to a
+   * single signed `amount` (debit positive, refund negative) and the sheet ends at
+   * TOTAL — a NET row would merely restate it.
+   */
+  private buildAgencyFinancialRows(
+    entries: { effective_at: Date; entry_type: string; amount: unknown; description: string | null; currency: string; appointment: { appointment_number: number } | null }[],
+    round2: (n: number) => number,
+  ): Record<string, unknown>[] {
+    let total = 0;
+    const rows: Record<string, unknown>[] = entries.map((e) => {
+      const amount = e.entry_type === 'REFUND' ? -Number(e.amount) : Number(e.amount);
+      total += amount;
+      return {
+        entryDate: formatInstantDate(e.effective_at),
+        entryType: e.entry_type,
+        appointmentNumber: e.appointment?.appointment_number ?? '',
+        description: e.description ?? '',
+        amount: round2(amount),
+        currency: e.currency,
+      };
+    });
+
+    if (rows.length > 0) {
+      rows.push({
+        entryDate: '',
+        entryType: '',
+        appointmentNumber: '',
+        description: 'TOTAL',
+        amount: round2(total),
+        currency: '',
+      });
     }
     return rows;
   }

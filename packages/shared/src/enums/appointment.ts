@@ -8,6 +8,27 @@ export const AppointmentStatus = {
 } as const;
 export type AppointmentStatus = (typeof AppointmentStatus)[keyof typeof AppointmentStatus];
 
+/**
+ * Appointments whose schedule is settled: a DONE inspection happened at a real
+ * time, and a CANCELLED or REJECTED one will never happen at all. Editing a
+ * service group's date or time window must leave them where they are.
+ *
+ * NOT usable as a group-join filter. `CreateServiceGroupUseCase` and
+ * `AddAppointmentsToGroupUseCase` deliberately sync an appointment's schedule
+ * while it is still REJECTED, immediately before transitioning it to
+ * AWAITING_INSPECTOR — filtering on this set there would skip exactly the
+ * appointments being revived into a group.
+ */
+export const TERMINAL_APPOINTMENT_STATUSES: readonly AppointmentStatus[] = [
+  AppointmentStatus.DONE,
+  AppointmentStatus.CANCELLED,
+  AppointmentStatus.REJECTED,
+];
+
+/** True when the appointment's schedule is settled — see `TERMINAL_APPOINTMENT_STATUSES`. */
+export const isTerminalAppointmentStatus = (status: string): boolean =>
+  (TERMINAL_APPOINTMENT_STATUSES as readonly string[]).includes(status);
+
 export const RentalTenantConfirmationStatus = {
   PENDING: 'PENDING',
   CONFIRMED: 'CONFIRMED',

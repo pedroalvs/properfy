@@ -60,13 +60,19 @@ export class NotifyOnRentalTenantPortalActionHandler {
             ? 'INSPECTION_UNAVAILABILITY_REPORTED'
             : null;
     if (!emailCode) return;
+    const smsCode = `${emailCode}_SMS`;
 
-    // H5: Check idempotency before expensive repo loads
-    const emailAlreadySent = await this.notificationRepo.existsByAppointmentAndTemplate(
-      input.appointmentId,
-      emailCode,
-    );
-    if (emailAlreadySent) return;
+    // H5: Check idempotency before expensive repo loads.
+    //
+    // Per leg, not per event. This used to be a single early return on the EMAIL
+    // code, which was correct while SMS was only a fallback — but now that both
+    // channels can fire, that return would permanently suppress the SMS for any
+    // appointment whose email had already gone out.
+    const [emailAlreadySent, smsAlreadySent] = await Promise.all([
+      this.notificationRepo.existsByAppointmentAndTemplate(input.appointmentId, emailCode),
+      this.notificationRepo.existsByAppointmentAndTemplate(input.appointmentId, smsCode),
+    ]);
+    if (emailAlreadySent && smsAlreadySent) return;
 
     // H6: Scope repository call by tenantId when available
     const result = await this.appointmentRepo.findById(
@@ -98,8 +104,10 @@ export class NotifyOnRentalTenantPortalActionHandler {
     const recipientEmail = contact.effectiveEmail;
     const recipientPhone = contact.effectivePhone;
 
-    if (recipientEmail) {
-      // Idempotency already confirmed above — send directly
+    // Independent legs: a tenant with both an email and a phone gets both.
+    // Email first so that if the SMS leg throws, the email is already recorded
+    // and the per-leg guard above stops it being resent on retry.
+    if (recipientEmail && !emailAlreadySent) {
       await this.createNotification.execute({
         tenantId: appointment.tenantId,
         appointmentId: appointment.id,
@@ -108,24 +116,18 @@ export class NotifyOnRentalTenantPortalActionHandler {
         templateCode: emailCode,
         payloadJson: this.buildNotificationPayload.build(payloadCtx),
       });
-    } else {
-      const smsCode = `${emailCode}_SMS` as string;
-      if (recipientPhone) {
-        const smsAlreadySent = await this.notificationRepo.existsByAppointmentAndTemplate(
-          appointment.id,
-          smsCode,
-        );
-        if (!smsAlreadySent) {
-          await this.createNotification.execute({
-            tenantId: appointment.tenantId,
-            appointmentId: appointment.id,
-            recipient: recipientPhone,
-            channel: 'SMS' as NotificationChannel,
-            templateCode: smsCode,
-            payloadJson: this.buildNotificationPayload.build({ ...payloadCtx, templateCode: smsCode }),
-          });
-        }
-      }
     }
+
+    if (recipientPhone && !smsAlreadySent) {
+      await this.createNotification.execute({
+        tenantId: appointment.tenantId,
+        appointmentId: appointment.id,
+        recipient: recipientPhone,
+        channel: 'SMS' as NotificationChannel,
+        templateCode: smsCode,
+        payloadJson: this.buildNotificationPayload.build({ ...payloadCtx, templateCode: smsCode }),
+      });
+    }
+    // No email and no phone: skip silently
   }
 }

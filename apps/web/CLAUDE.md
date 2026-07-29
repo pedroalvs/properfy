@@ -323,7 +323,12 @@ Follow this order strictly – do not start with final pages:
 
 ## 12. Decisions already closed
 
-1. **Board/Kanban:** now IN SCOPE — explicitly requested by the client (see `escopo-pendencias-execucao.md` item 09, "Service Dashboard" in the client scope doc §4.3). Column-per-status board for AM/OP.
+1. **Board/Kanban:** now IN SCOPE and **shipped** — explicitly requested by the client (see `escopo-pendencias-execucao.md` item 09, "Service Dashboard" in the client scope doc §4.3). Column-per-status board for AM/OP at `/appointments/board`, reachable from the "Board" action on the appointments list.
+   - **Columns:** `AWAITING_INSPECTOR`, `SCHEDULED`, `REJECTED`, `CANCELLED`, `DONE` — exactly the five in the client doc. `DRAFT` is deliberately excluded and the board shows a notice pointing at the list view.
+   - **No drag & drop.** The client doc never asked for it, and the moves that matter are not raw transitions anyway (`AWAITING_INSPECTOR → SCHEDULED` requires assigning an inspector; cancel/reject require a reason). Cards change status through the same dialogs as everywhere else, so the state machine keeps a single enforcement path. Do not add DnD without re-deciding this.
+   - **Filters are shared with the list**, not re-implemented: both screens read `APPOINTMENT_FILTER_SCHEMA` (`features/appointments/hooks/useAppointmentList.ts`) through `useUrlFilters`, which is what makes filters survive the List ⇄ Board jump. The board hides `status` (its column axis) and `showCancelled` via `AppointmentFilters`' `hiddenFilters` prop.
+   - **One query per column** (`useAppointmentBoard`), so each column gets its own true total and its own "Load more". They share the `['appointments']` query-key prefix, so existing mutations that invalidate it refresh the board for free.
+   - **`overdueOnly` caveat:** server-side that filter *replaces* the status filter with `(SCHEDULED, AWAITING_INSPECTOR)`. The board therefore skips the other three column queries while it is on — they genuinely contain no overdue rows. Forwarding it blindly would scatter scheduled work into the Done/Cancelled/Rejected columns.
 2. **SVG assets:** Do not reuse legacy branding. Only neutral/functional icons validated for Properfy.
 3. **TableSwitch:** Opt-in per page, not global.
 4. **Snackbar:** No raw JSON in production.

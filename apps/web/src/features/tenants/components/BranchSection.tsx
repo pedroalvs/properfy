@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
-import { formatDate } from '@/lib/format-date';
+import { formatInstantDate } from '@/lib/format-date';
 import { TenantStatusChip } from './TenantStatusChip';
 import { BranchFormDrawer } from './BranchFormDrawer';
 import { DeactivateBranchModal } from './DeactivateBranchModal';
@@ -90,7 +90,7 @@ export function BranchSection({ tenantId }: BranchSectionProps) {
       key: 'createdAt',
       label: 'Created',
       width: '140px',
-      render: (row) => <>{formatDate(row.createdAt)}</>,
+      render: (row) => <>{formatInstantDate(row.createdAt)}</>,
     },
     {
       key: 'actions',

@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
-import { currentTimeInTzHHmm, todayInTzDateString, PLATFORM_TIMEZONE } from '@properfy/shared';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/forms/Textarea';
 import { FormField } from '@/components/forms/FormField';
-import { TimeWindowPicker } from './TimeWindowPicker';
 import { RegionSelector } from './RegionSelector';
 import { useUpdateServiceGroup } from '../hooks/useUpdateServiceGroup';
 import type { ServiceGroupDetail } from '../types';
@@ -20,9 +18,6 @@ interface EditGroupModalProps {
 export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGroupModalProps) {
   const [description, setDescription] = useState('');
   const [serviceRegionId, setServiceRegionId] = useState('');
-  const [scheduledDate, setScheduledDate] = useState('');
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
 
   const { update, isUpdating } = useUpdateServiceGroup(serviceGroup.id, () => {
     onSaved();
@@ -33,9 +28,6 @@ export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGro
     if (open) {
       setDescription(serviceGroup.description ?? '');
       setServiceRegionId(serviceGroup.serviceRegionId ?? '');
-      setScheduledDate('');
-      setStartTime('');
-      setEndTime('');
     }
   }, [open, serviceGroup]);
 
@@ -52,14 +44,9 @@ export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGro
       data.serviceRegionId = serviceRegionId || null;
     }
 
-    if (scheduledDate) {
-      data.scheduledDate = scheduledDate;
-    }
-
-    if (startTime && endTime) {
-      data.timeWindow = `${startTime}-${endTime}`;
-    }
-
+    // Date and time window are NOT edited here — they cascade to every member,
+    // so they live in RescheduleGroupModal where the impact is previewed and
+    // the operator decides what happens to existing tenant confirmations.
     update(data);
   };
 
@@ -103,35 +90,6 @@ export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGro
           hint="Change the target region for this group. Required before publishing."
         />
 
-        {serviceGroup.status === 'DRAFT' && (
-          <>
-            <FormField label="Scheduled Date">
-              <input
-                type="date"
-                value={scheduledDate}
-                onChange={(e) => setScheduledDate(e.target.value)}
-                onClick={(e) => e.currentTarget.showPicker?.()}
-                // Edit-conditional: always enforce min when editing (service groups start fresh).
-                min={todayInTzDateString(PLATFORM_TIMEZONE)}
-                className="w-full rounded border border-border-subtle bg-white px-3 py-2 text-sm text-text-primary outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                aria-label="Scheduled date"
-              />
-              <p className="mt-1 text-xs text-text-muted">
-                Changing the date re-schedules all appointments in this group to the new date.
-              </p>
-            </FormField>
-
-            <FormField label="Time Window">
-              <TimeWindowPicker
-                startTime={startTime}
-                endTime={endTime}
-                onStartTimeChange={setStartTime}
-                onEndTimeChange={setEndTime}
-                minStartTime={scheduledDate === todayInTzDateString(PLATFORM_TIMEZONE) ? currentTimeInTzHHmm(PLATFORM_TIMEZONE) : undefined}
-              />
-            </FormField>
-          </>
-        )}
       </div>
     </Dialog>
   );

@@ -3,13 +3,17 @@ import { ListReportsUseCase } from '../../../src/modules/report/application/use-
 import type { IReportRepository } from '../../../src/modules/report/domain/report.repository';
 import { ReportEntity, type ReportProps } from '../../../src/modules/report/domain/report.entity';
 import type { ListReportsInput, AuthContext } from '../../../src/modules/report/application/use-cases/list-reports.use-case';
-import { ReportForbiddenError } from '../../../src/modules/report/domain/report.errors';
+import {
+  ReportForbiddenError,
+  ReportTenantScopeViolationError,
+} from '../../../src/modules/report/domain/report.errors';
 
 function makeReport(overrides: Partial<ReportProps> = {}): ReportEntity {
   const now = new Date('2026-03-16T10:00:00.000Z');
   const defaults: ReportProps = {
     id: 'report-1',
     tenantId: 'tenant-1',
+    agencyScoped: false,
     reportType: 'APPOINTMENTS',
     filtersJson: { fromDate: '2026-01-01', toDate: '2026-03-01' },
     status: 'READY',
@@ -91,10 +95,49 @@ describe('ListReportsUseCase', () => {
     expect(calledFilters).not.toHaveProperty('requestedByUserId');
   });
 
-  it.each(['CL_ADMIN', 'CL_USER', 'INSP'] as const)('should forbid %s from listing reports', async (role) => {
+  it.each(['INSP', 'TNT'] as const)('should forbid %s from listing reports', async (role) => {
     await expect(
       useCase.execute(makeInput(), makeAuth({ role, userId: 'u', tenantId: 'tenant-1' })),
     ).rejects.toThrow(ReportForbiddenError);
+    expect(reportRepo.findAll).not.toHaveBeenCalled();
+  });
+
+  // The listing was unscoped while it was AM/OP-only. An agency must see only its
+  // OWN agency-scoped runs — `tenantId` alone would also match operator runs that
+  // merely target this agency and may hold platform-only data.
+  it.each(['CL_ADMIN', 'CL_USER'] as const)('should scope %s to its own agency-scoped reports', async (role) => {
+    vi.mocked(reportRepo.findAll).mockResolvedValue([]);
+    vi.mocked(reportRepo.count).mockResolvedValue(0);
+
+    await useCase.execute(makeInput(), makeAuth({ role, userId: 'u', tenantId: 'tenant-1' }));
+
+    expect(vi.mocked(reportRepo.findAll).mock.calls[0][0]).toMatchObject({
+      tenantId: 'tenant-1',
+      agencyScoped: true,
+    });
+    expect(vi.mocked(reportRepo.count).mock.calls[0][0]).toMatchObject({
+      tenantId: 'tenant-1',
+      agencyScoped: true,
+    });
+  });
+
+  it('should not constrain agency scope for AM', async () => {
+    vi.mocked(reportRepo.findAll).mockResolvedValue([]);
+    vi.mocked(reportRepo.count).mockResolvedValue(0);
+
+    await useCase.execute(makeInput(), makeAuth({ role: 'AM' }));
+
+    const calledFilters = vi.mocked(reportRepo.findAll).mock.calls[0][0];
+    expect(calledFilters).not.toHaveProperty('agencyScoped');
+    expect(calledFilters).not.toHaveProperty('tenantId');
+  });
+
+  // The repository skips the tenant filter for a falsy tenantId, so a tenantless
+  // agency JWT would otherwise list every report on the platform.
+  it('should fail closed when an agency actor has no tenant', async () => {
+    await expect(
+      useCase.execute(makeInput(), makeAuth({ role: 'CL_ADMIN', userId: 'u', tenantId: null })),
+    ).rejects.toThrow(ReportTenantScopeViolationError);
     expect(reportRepo.findAll).not.toHaveBeenCalled();
   });
 

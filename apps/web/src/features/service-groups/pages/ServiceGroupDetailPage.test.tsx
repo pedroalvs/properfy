@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -8,9 +8,13 @@ vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
 }));
 
+const INSPECTOR = { id: 'insp-2', name: 'Ana Costa', email: 'ana@example.com' };
+
 vi.mock('@/services/api', () => ({
   api: {
-    GET: vi.fn(),
+    // ManualAssignModal loads its list through here; everything else in this
+    // page goes through mocked hooks.
+    GET: vi.fn(async () => ({ data: { data: [{ id: 'insp-2', name: 'Ana Costa', email: 'ana@example.com' }] } })),
     POST: vi.fn(),
     PATCH: vi.fn(),
     PUT: vi.fn(),
@@ -27,10 +31,9 @@ vi.mock('@/lib/auth-storage', () => ({
   },
 }));
 
-vi.mock('@/lib/format-date', () => ({
-  formatDate: (d: string) => d,
-  formatDateTime: (d: string) => d,
-}));
+// Not mocked: the formatters are pure and deterministic (no locale or runtime
+// timezone dependence), so exercising the real ones gives genuine coverage of
+// what the user sees rather than an identity pass-through.
 
 vi.mock('@/lib/status-colors', () => ({
   SERVICE_GROUP_STATUS_MAP: {
@@ -52,6 +55,7 @@ vi.mock('@/lib/status-colors', () => ({
 const mockRefetch = vi.fn();
 const mockPublish = vi.fn();
 const mockAssign = vi.fn();
+const mockReassign = vi.fn();
 const mockCancel = vi.fn();
 
 vi.mock('../hooks/useServiceGroupDetail', () => ({
@@ -101,6 +105,74 @@ vi.mock('../hooks/useServiceGroupDetail', () => ({
       isError: false,
       refetch: mockRefetch,
     };
+    // Republished groups arrive empty: cancelling unlinks every appointment.
+    if (id === 'empty') return {
+      serviceGroup: {
+        id: 'empty',
+        code: '9',
+        status: 'DRAFT',
+        tenantId: 't-1',
+        regionName: 'Region D',
+        inspectorId: null,
+        inspectorName: null,
+        appointmentsCount: 0,
+        appointments: [],
+        scheduledDate: '2026-06-01',
+        timeWindow: '09:00-12:00',
+        description: null,
+        createdAt: '2026-03-01T10:00:00Z',
+        updatedAt: '2026-03-01T10:00:00Z',
+      },
+      isLoading: false,
+      isError: false,
+      refetch: mockRefetch,
+    };
+    if (id === 'past-date') return {
+      serviceGroup: {
+        id: 'past-date',
+        code: '10',
+        status: 'DRAFT',
+        tenantId: 't-1',
+        regionName: 'Region E',
+        inspectorId: null,
+        inspectorName: null,
+        appointmentsCount: 1,
+        appointments: [
+          { id: 'apt-past-01', appointmentNumber: 4001, status: 'AWAITING_INSPECTOR', scheduledDate: '2026-04-30', propertyAddress: '1 Past St', propertyCode: 'VST-010' },
+        ],
+        scheduledDate: '2026-04-30',
+        timeWindow: '09:00-12:00',
+        description: null,
+        createdAt: '2026-03-01T10:00:00Z',
+        updatedAt: '2026-03-01T10:00:00Z',
+      },
+      isLoading: false,
+      isError: false,
+      refetch: mockRefetch,
+    };
+    if (id === 'blocking-status') return {
+      serviceGroup: {
+        id: 'blocking-status',
+        code: '11',
+        status: 'DRAFT',
+        tenantId: 't-1',
+        regionName: 'Region F',
+        inspectorId: null,
+        inspectorName: null,
+        appointmentsCount: 1,
+        appointments: [
+          { id: 'apt-blk-01', appointmentNumber: 5001, status: 'CANCELLED', scheduledDate: '2026-06-01', propertyAddress: '2 Blocked St', propertyCode: 'VST-011' },
+        ],
+        scheduledDate: '2026-06-01',
+        timeWindow: '09:00-12:00',
+        description: null,
+        createdAt: '2026-03-01T10:00:00Z',
+        updatedAt: '2026-03-01T10:00:00Z',
+      },
+      isLoading: false,
+      isError: false,
+      refetch: mockRefetch,
+    };
     if (id === 'cancelled') return {
       serviceGroup: {
         id: 'cancelled',
@@ -132,9 +204,11 @@ vi.mock('../hooks/useServiceGroupDetail', () => ({
         inspectorName: null,
         appointmentsCount: 12,
         appointments: [
-          { id: 'apt-01', appointmentNumber: 1001, status: 'AWAITING_INSPECTOR', scheduledDate: '2026-03-10', propertyAddress: '123 Main St', propertyCode: 'VST-001' },
-          { id: 'apt-02', appointmentNumber: 1002, status: 'AWAITING_INSPECTOR', scheduledDate: '2026-03-11', propertyAddress: '456 Oak Ave', propertyCode: 'VST-002' },
+          { id: 'apt-01', appointmentNumber: 1001, status: 'AWAITING_INSPECTOR', scheduledDate: '2026-06-01', propertyAddress: '123 Main St', propertyCode: 'VST-001' },
+          { id: 'apt-02', appointmentNumber: 1002, status: 'AWAITING_INSPECTOR', scheduledDate: '2026-06-01', propertyAddress: '456 Oak Ave', propertyCode: 'VST-002' },
         ],
+        scheduledDate: '2026-06-01',
+        timeWindow: '09:00-12:00',
         description: 'Some notes',
         createdAt: '2026-03-01T10:00:00Z',
         updatedAt: '2026-03-01T10:00:00Z',
@@ -153,10 +227,20 @@ vi.mock('../hooks/usePublishServiceGroup', () => ({
   }),
 }));
 
+let mockIsAssigning = false;
+let mockIsReassigning = false;
+
 vi.mock('../hooks/useAssignInspector', () => ({
   useAssignInspector: () => ({
     assign: mockAssign,
-    isAssigning: false,
+    isAssigning: mockIsAssigning,
+  }),
+}));
+
+vi.mock('../hooks/useReassignInspector', () => ({
+  useReassignInspector: () => ({
+    reassign: mockReassign,
+    isReassigning: mockIsReassigning,
   }),
 }));
 
@@ -224,6 +308,15 @@ function renderPage(initialEntry?: string) {
 describe('ServiceGroupDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Publish is gated on the group schedule, which the shared validator
+    // resolves against "now" in Sydney. Pin it (Date only, timers stay real)
+    // so the fixtures below keep the same meaning on any day.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-05-01T00:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('renders group code in header', () => {
@@ -248,20 +341,57 @@ describe('ServiceGroupDetailPage', () => {
     expect(mockPublish).toHaveBeenCalled();
   });
 
+  it('blocks Publish for a group with no appointments', () => {
+    renderPage('/service-groups/empty');
+    const button = screen.getByRole('button', { name: /Publish/ });
+    expect(button).toBeDisabled();
+    // Scoped to the banner copy — the appointments section has its own
+    // "No appointments" empty state.
+    const banner = screen.getByText(/this group has no appointments/i);
+    expect(banner).toBeInTheDocument();
+    // The reason must be announced, not just shown next to the button.
+    expect(button).toHaveAttribute('aria-describedby', banner.id);
+    fireEvent.click(button);
+    expect(mockPublish).not.toHaveBeenCalled();
+  });
+
+  it('blocks Publish for a group whose scheduled date has passed', () => {
+    renderPage('/service-groups/past-date');
+    expect(screen.getByRole('button', { name: /Publish/ })).toBeDisabled();
+    expect(screen.getByText(/scheduled date is in the past/i)).toBeInTheDocument();
+  });
+
+  it('blocks Publish while an appointment is not awaiting inspector', () => {
+    renderPage('/service-groups/blocking-status');
+    expect(screen.getByRole('button', { name: /Publish/ })).toBeDisabled();
+    expect(screen.getByText(/#5001 \(CANCELLED\)/)).toBeInTheDocument();
+  });
+
+  it('enables Publish for a valid future group and describes nothing', () => {
+    renderPage();
+    const button = screen.getByRole('button', { name: /Publish/ });
+    expect(button).toBeEnabled();
+    expect(button).not.toHaveAttribute('aria-describedby');
+  });
+
   it('shows Cancel Group button for DRAFT status', () => {
     renderPage();
     expect(screen.getByRole('button', { name: /Cancel Group/ })).toBeInTheDocument();
   });
 
-  it('shows Manual Assign button for PUBLISHED status', () => {
+  it('shows the Change menu for PUBLISHED status', () => {
     renderPage('/service-groups/published');
-    expect(screen.getByRole('button', { name: /Manual Assign/ })).toBeInTheDocument();
+    expect(screen.getByTestId('service-group-change-trigger')).toBeInTheDocument();
   });
 
-  it('shows Manual Assign button for DRAFT status', () => {
-    // Backend allows manual assignment while the group is DRAFT (group.canAssign()).
+  it('shows the Change menu for DRAFT status', () => {
     renderPage();
-    expect(screen.getByRole('button', { name: /Manual Assign/ })).toBeInTheDocument();
+    expect(screen.getByTestId('service-group-change-trigger')).toBeInTheDocument();
+  });
+
+  it('shows the Change menu for ACCEPTED status — plan edits survive acceptance', () => {
+    renderPage('/service-groups/accepted');
+    expect(screen.getByTestId('service-group-change-trigger')).toBeInTheDocument();
   });
 
   it('shows assigned inspector for ACCEPTED status', () => {
@@ -274,8 +404,8 @@ describe('ServiceGroupDetailPage', () => {
     renderPage('/service-groups/cancelled');
     expect(screen.queryByRole('button', { name: /Publish/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Cancel Group/ })).not.toBeInTheDocument();
-    // canAssign is DRAFT/PUBLISHED only — no Manual Assign for CANCELLED.
-    expect(screen.queryByRole('button', { name: /Manual Assign/ })).not.toBeInTheDocument();
+    // A closed group has no schedule left to move and nobody to hand it to.
+    expect(screen.queryByTestId('service-group-change-trigger')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Send portal link/ })).not.toBeInTheDocument();
   });
 
@@ -324,9 +454,100 @@ describe('ServiceGroupDetailPage', () => {
     expect(screen.getByText('Cancel Service Group')).toBeInTheDocument();
   });
 
-  it('opens assign modal on Manual Assign click', () => {
+  it('opens the assign modal from the Change menu', () => {
     renderPage('/service-groups/published');
-    fireEvent.click(screen.getByRole('button', { name: /Manual Assign/ }));
+    fireEvent.click(screen.getByTestId('service-group-change-trigger'));
+    fireEvent.click(screen.getByTestId('group-action-change-inspector'));
     expect(screen.getByText('Assign Inspector')).toBeInTheDocument();
+  });
+
+  it('offers replacement rather than assignment on an ACCEPTED group', () => {
+    renderPage('/service-groups/accepted');
+    fireEvent.click(screen.getByTestId('service-group-change-trigger'));
+    fireEvent.click(screen.getByTestId('group-action-change-inspector'));
+    expect(screen.getByText('Change Inspector')).toBeInTheDocument();
+  });
+
+  // /assign answers an already-accepted group with a 409 by design, so the page
+  // has to pick the endpoint by status. That choice is the thing under test.
+  it('routes an ACCEPTED group to reassign, never to assign', async () => {
+    renderPage('/service-groups/accepted');
+    fireEvent.click(screen.getByTestId('service-group-change-trigger'));
+    fireEvent.click(screen.getByTestId('group-action-change-inspector'));
+
+    fireEvent.click(await screen.findByText(INSPECTOR.name));
+    fireEvent.change(screen.getByLabelText('Reason'), {
+      target: { value: 'Original inspector unavailable' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Replace inspector' }));
+
+    expect(mockReassign).toHaveBeenCalledWith('insp-2', 'Original inspector unavailable');
+    expect(mockAssign).not.toHaveBeenCalled();
+  });
+
+  it('blocks a second submit while the assignment is in flight', async () => {
+    mockIsAssigning = true;
+    try {
+      renderPage('/service-groups/published');
+      fireEvent.click(screen.getByTestId('service-group-change-trigger'));
+      fireEvent.click(screen.getByTestId('group-action-change-inspector'));
+      fireEvent.click(await screen.findByText(INSPECTOR.name));
+
+      // The name of this test is a behaviour claim, so assert the behaviour:
+      // clicking must not fire a second assignment, not merely look disabled.
+      const confirm = screen.getByRole('button', { name: 'Assign' });
+      expect(confirm).toBeDisabled();
+      fireEvent.click(confirm);
+      expect(mockAssign).not.toHaveBeenCalled();
+    } finally {
+      mockIsAssigning = false;
+    }
+  });
+
+  it('blocks a second submit while the replacement is in flight', async () => {
+    mockIsReassigning = true;
+    try {
+      renderPage('/service-groups/accepted');
+      fireEvent.click(screen.getByTestId('service-group-change-trigger'));
+      fireEvent.click(screen.getByTestId('group-action-change-inspector'));
+      fireEvent.click(await screen.findByText(INSPECTOR.name));
+      fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Inspector unavailable' } });
+
+      // Everything the form needs is filled in; only the in-flight request
+      // should be holding the button back — and holding it back must mean no
+      // second call, not just a greyed-out button.
+      const confirm = screen.getByRole('button', { name: 'Replace inspector' });
+      expect(confirm).toBeDisabled();
+      fireEvent.click(confirm);
+      expect(mockReassign).not.toHaveBeenCalled();
+    } finally {
+      mockIsReassigning = false;
+    }
+  });
+
+  it('routes a PUBLISHED group to assign, never to reassign', async () => {
+    renderPage('/service-groups/published');
+    fireEvent.click(screen.getByTestId('service-group-change-trigger'));
+    fireEvent.click(screen.getByTestId('group-action-change-inspector'));
+
+    fireEvent.click(await screen.findByText(INSPECTOR.name));
+    fireEvent.click(screen.getByRole('button', { name: 'Assign' }));
+
+    expect(mockAssign).toHaveBeenCalledWith('insp-2');
+    expect(mockReassign).not.toHaveBeenCalled();
+  });
+
+  it('opens the reschedule modal on Change date', () => {
+    renderPage('/service-groups/published');
+    fireEvent.click(screen.getByTestId('service-group-change-trigger'));
+    fireEvent.click(screen.getByTestId('group-action-change-date'));
+    expect(screen.getByText('Change date')).toBeInTheDocument();
+  });
+
+  it('opens the reschedule modal on Change time window', () => {
+    renderPage('/service-groups/published');
+    fireEvent.click(screen.getByTestId('service-group-change-trigger'));
+    fireEvent.click(screen.getByTestId('group-action-change-time-window'));
+    expect(screen.getByText('Change time window')).toBeInTheDocument();
   });
 });

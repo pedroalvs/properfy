@@ -507,6 +507,37 @@ describe('ListAppointmentsUseCase', () => {
     });
   });
 
+  describe('property total area in list output', () => {
+    it('exposes propertyTotalAreaM2 so the board card can render square metres', async () => {
+      const item = makeAppointmentListItem();
+      item.propertyTotalAreaM2 = 82.5;
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([item]);
+      vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+
+      const result = await useCase.execute({
+        filters: {},
+        pagination: defaultPagination,
+        actor: makeActor({ role: 'AM' }),
+      });
+
+      expect(result.data[0]!.propertyTotalAreaM2).toBe(82.5);
+    });
+
+    it('returns null propertyTotalAreaM2 when the property has no recorded area', async () => {
+      // Legacy properties predate the area columns — the card omits the m² segment.
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([makeAppointmentListItem()]);
+      vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+
+      const result = await useCase.execute({
+        filters: {},
+        pagination: defaultPagination,
+        actor: makeActor({ role: 'AM' }),
+      });
+
+      expect(result.data[0]!.propertyTotalAreaM2).toBeNull();
+    });
+  });
+
   describe('confirmationStatus filter', () => {
     it('passes confirmationStatus filter to repository', async () => {
       vi.mocked(appointmentRepo.findAll).mockResolvedValue([]);

@@ -2,7 +2,9 @@ import { describe, it, expect, vi } from 'vitest';
 import { GetAppointmentUseCase } from '../get-appointment.use-case';
 import { AppointmentEntity } from '../../../domain/appointment.entity';
 import { AuthorizationService } from '../../../../../shared/domain/authorization.service';
+import { AppointmentRestrictionEntity } from '../../../domain/appointment-restriction.entity';
 import type { AppointmentWithRelations } from '../../../domain/appointment.repository';
+import type { AvailableSlot } from '@properfy/shared';
 
 /**
  * Unit tests for GetAppointmentUseCase — hasActivePortalToken proxy removal (T020)
@@ -57,12 +59,13 @@ function makeAppointment(activeConfirmationCycleId: string | null = null): Appoi
 function makeFoundResult(opts: {
   hasActivePortalToken: boolean;
   activeConfirmationCycleId?: string | null;
+  restrictions?: AppointmentRestrictionEntity[];
 }): AppointmentWithRelations {
   return {
     appointment: makeAppointment(opts.activeConfirmationCycleId ?? null),
     contact: null,
     contacts: [],
-    restrictions: [],
+    restrictions: opts.restrictions ?? [],
     propertyCode: 'PROP-001',
     propertyAddress: '1 Test St, Sydney NSW 2000',
     propertySuburb: 'Sydney',
@@ -138,6 +141,66 @@ describe('GetAppointmentUseCase — hasActivePortalToken must come from found.ha
     const result = await uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR });
 
     expect(result.hasActivePortalToken).toBe(false);
+  });
+});
+
+describe('GetAppointmentUseCase — restrictions must carry the availability the tenant offered', () => {
+  const SLOTS: AvailableSlot[] = [
+    { dayOfWeek: 'MON', start: '09:00', end: '17:00' },
+    { dayOfWeek: 'WED', start: '10:00', end: '14:00' },
+  ];
+
+  function makeRestriction(availableSlotsJson: AvailableSlot[] | null): AppointmentRestrictionEntity {
+    return new AppointmentRestrictionEntity({
+      id: 'restriction-1',
+      appointmentId: 'appt-1',
+      isHome: false,
+      unavailableDaysJson: null,
+      unavailableHoursJson: null,
+      availableSlotsJson,
+      notes: null,
+      source: 'RENTAL_TENANT_PORTAL',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }
+
+  async function runWith(restrictions: AppointmentRestrictionEntity[]) {
+    const { auth } = makeUseCase();
+    const appointmentRepo = {
+      findById: vi.fn().mockResolvedValue(
+        makeFoundResult({ hasActivePortalToken: false, restrictions }),
+      ),
+    };
+    const uc = new GetAppointmentUseCase(appointmentRepo as any, auth);
+    return uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR });
+  }
+
+  // When the rental tenant answers "No" in the portal, the weekly availability they
+  // pick is persisted to appointment_restrictions.available_slots_json. The presenter
+  // used to rebuild each restriction field-by-field and silently drop this one, so the
+  // operator never saw what the tenant offered.
+  it('should expose availableSlotsJson so the operator can see the tenant availability', async () => {
+    const result = await runWith([makeRestriction(SLOTS)]);
+
+    expect(result.restrictions[0]?.availableSlotsJson).toEqual(SLOTS);
+  });
+
+  it('should return availableSlotsJson as null when the tenant offered no availability', async () => {
+    const result = await runWith([makeRestriction(null)]);
+
+    expect(result.restrictions[0]?.availableSlotsJson).toBeNull();
+  });
+
+  it('should keep mapping the remaining restriction fields', async () => {
+    const result = await runWith([makeRestriction(SLOTS)]);
+
+    expect(result.restrictions[0]).toMatchObject({
+      id: 'restriction-1',
+      isHome: false,
+      notes: null,
+      source: 'RENTAL_TENANT_PORTAL',
+    });
   });
 });
 

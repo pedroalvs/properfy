@@ -90,11 +90,20 @@ The renter taps "Confirm" on the portal. Optionally they can include restriction
 
 ---
 
-### User Story 4 — Renter requests a reschedule
+### User Story 4 — Renter requests a reschedule — REMOVED
 
 - **Priority**: P1
-- **Status**: IMPLEMENTED
+- **Status**: **REMOVED** (was IMPLEMENTED)
 - **Source**: code
+
+> **Removed.** This flow let the rental tenant unilaterally send a `SCHEDULED`
+> appointment back to `DRAFT` and drop the assigned inspector, with no operator
+> approval step — despite the "propose" wording. `POST /reschedule`, its use case,
+> the `rescheduleAllowed` flag and the `portalRescheduleWindowDays` setting (GAP-008)
+> are all gone. **US7 "Change time" (join an existing group slot) is now the only
+> reschedule path in the portal.** Everything below is kept as a record of what was
+> built; none of it is live. Historical `RESCHEDULE` portal-activity rows are still
+> readable, so that enum value is retained in the schema.
 
 The renter proposes a new date and time slot through the portal. The platform validates that (a) the service type is `ROUTINE` (only routine inspections are reschedulable by the renter — INGOING and OUTGOING follow operator flows), (b) there is no active inspection execution in progress, (c) the new date is not in the past, (d) the new date is within 30 days of the original. On success, the appointment's `scheduledDate` and `timeSlot` are updated, `tenantConfirmationStatus` is reset to `PENDING` (restart of the confirmation cycle), existing tokens are **revoked** so the operator must generate a new link for the new date, and restrictions are optionally replaced.
 
@@ -213,7 +222,9 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 - **FR-035**: System MUST persist new restrictions with `source = TENANT_PORTAL`.
 - **FR-036**: System MUST audit `tenant_portal.appointment_confirmed` with `actorType = ANONYMOUS`.
 
-#### Reschedule
+#### Reschedule — REMOVED
+
+> **REMOVED** — the tenant-facing "propose new date" flow no longer exists (see the notice on the reschedule endpoint section). Retained as a record of what was built; not a live requirement.
 
 - **FR-040**: System MUST block reschedule when `isReadOnly = true`.
 - **FR-041**: System MUST allow reschedule only for `ROUTINE` service types. `INGOING` and `OUTGOING` fail with `PORTAL_RESCHEDULE_NOT_ALLOWED`.
@@ -285,13 +296,13 @@ Full schema in [`data-model.md`](./data-model.md). HTTP contracts in [`contracts
 
 | ID | Title | Impact | Context |
 |---|---|---|---|
-| GAP-001 | Reschedule handoff with 006 | ~~Direct repo writes.~~ **IMPLEMENTED** (Wave 1). | Portal reschedule migrated to `ReopenForRescheduleUseCase` from 006#GAP-003. No more direct appointment repo writes. 2 tests. |
-| GAP-002 | Domain events for portal actions | ~~Inline notification handler.~~ **IMPLEMENTED** (Wave 2). | 4 typed events: confirmed, rescheduled, contact_updated, unavailable. Via DomainEventBus. 4 tests. |
+| GAP-001 | Reschedule handoff with 006 | **OBSOLETE** — removed with US4. | Portal reschedule no longer exists, so there is no handoff. `ReopenForRescheduleUseCase` survives for the operator-side reschedule only. |
+| GAP-002 | Domain events for portal actions | **IMPLEMENTED** (Wave 2), partially obsolete. | Now 3 typed events: confirmed, contact_updated, unavailable. Via DomainEventBus. The `rescheduled` event was deleted with US4 — it had no subscriber. |
 | GAP-003 | Token replay detection | ~~Unlimited reuse.~~ **IMPLEMENTED** (Wave 2). | Single-use tokens for mutations. `used_at` column + `markUsed()`. `PortalTokenAlreadyUsedError` (409). GET still works. Migration. 4 tests. |
-| GAP-004 | Auto-generate token on reschedule | ~~Manual token generation.~~ **IMPLEMENTED** (Wave 2). | Calls `GeneratePortalTokenUseCase` after reschedule. Sends new link via notification. Fire-and-forget. 3 tests. |
+| GAP-004 | Auto-generate token on reschedule | **OBSOLETE** — removed with US4. | There is no portal reschedule to re-issue a token after. `GeneratePortalTokenUseCase` is untouched and still used elsewhere. |
 | GAP-005 | Portal activity export | ~~No operator endpoint.~~ **IMPLEMENTED** (Wave 1). | `ListPortalActivitiesUseCase` + `GET /v1/appointments/:id/portal-activities`. AM/OP only. Paginated. 7 tests. |
 | GAP-006 | Expired token UX | ~~Confusing error pages.~~ **IMPLEMENTED** (Wave 4). | `isExpired` + `canRequestNewLink` flags in portal GET response. Frontend CTA deferred. 5 tests. |
 | GAP-007 | Configurable cutoff per tenant | ~~Hardcoded 7 PM.~~ **IMPLEMENTED** (Wave 3). | `portalCutoffHour` + `portalCutoffDaysBefore` in tenant settings. `computeExpiresAt` parameterized. 12 tests. |
-| GAP-008 | Configurable reschedule window | ~~Hardcoded 30 days.~~ **IMPLEMENTED** (Wave 3). | `portalRescheduleWindowDays` in tenant settings. Default 30. 4 tests. |
+| GAP-008 | Configurable reschedule window | **REMOVED** with US4. | `portalRescheduleWindowDays` dropped from tenant settings — nothing reads it now that portal reschedule is gone. |
 | GAP-009 | Telemetry dashboard | ~~No engagement metrics.~~ **IMPLEMENTED** (Wave 4). | Design doc `portal-telemetry-design.md` with 5 metrics, SQL patterns, 011-reports-audit integration spec. |
 | GAP-010 | Cross-DST correctness | ~~No DST tests.~~ **IMPLEMENTED** (Wave 1). | 12 fixture-based tests for April + October DST boundaries. Bug fix: two-pass offset computation. |

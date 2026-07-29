@@ -339,7 +339,7 @@ describe('contactAppointmentItemSchema', () => {
     appointmentId: '550e8400-e29b-41d4-a716-446655440000',
     appointmentNumber: 1042,
     status: 'SCHEDULED',
-    scheduledDate: '2026-05-09T10:00:00.000Z',
+    scheduledDate: '2026-05-09',
     role: 'RENTAL_TENANT' as const,
     isPrimary: true,
     propertyId: '550e8400-e29b-41d4-a716-446655440001',

@@ -4,7 +4,7 @@ import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import type { AppointmentStatus } from '@properfy/shared';
 import { AppointmentStatusChip } from '@/features/appointments/components/AppointmentStatusChip';
-import { formatDate } from '@/lib/format-date';
+import { formatCivilDate, formatWallTimeRange } from '@/lib/format-date';
 import { usePropertyAppointments, type PropertyAppointment } from '../hooks/usePropertyAppointments';
 
 interface PropertyAppointmentsTabProps {
@@ -47,13 +47,13 @@ export function PropertyAppointmentsTab({ propertyId }: PropertyAppointmentsTabP
       label: 'Date',
       width: '120px',
       sortable: true,
-      render: (row) => <>{formatDate(row.scheduledDate)}</>,
+      render: (row) => <>{formatCivilDate(row.scheduledDate)}</>,
     },
     {
       key: 'timeSlotStart',
       label: 'Time',
       width: '120px',
-      render: (row) => <>{`${row.timeSlotStart} - ${row.timeSlotEnd}`}</>,
+      render: (row) => <>{formatWallTimeRange(row.timeSlotStart, row.timeSlotEnd)}</>,
     },
     {
       key: 'inspectorName',

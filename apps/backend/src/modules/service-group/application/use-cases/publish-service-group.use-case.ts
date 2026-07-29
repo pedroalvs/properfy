@@ -1,4 +1,4 @@
-import type { AuthContext } from '@properfy/shared';
+import { validateNewSchedule, PLATFORM_TIMEZONE, type AuthContext } from '@properfy/shared';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
@@ -12,6 +12,9 @@ import {
   AppointmentInvalidStatusError,
   ServiceRegionRequiredError,
   ServiceRegionInactiveError,
+  ServiceGroupEmptyError,
+  ServiceGroupDateInPastError,
+  ServiceGroupTimeInPastError,
 } from '../../domain/service-group.errors';
 
 export interface PublishServiceGroupInput {
@@ -68,6 +71,35 @@ export class PublishServiceGroupUseCase {
 
     if (!group.canPublish()) {
       throw new ServiceGroupInvalidStatusError('DRAFT', group.status);
+    }
+
+    // Publishing is the moment the group becomes a live marketplace offer, so
+    // the two invariants an offer cannot violate are asserted here rather than
+    // on the way back to DRAFT — republish stays unrestricted precisely so the
+    // operator can land in DRAFT and repair the group.
+    //
+    // An empty group is reachable in one click: cancelling unlinks every
+    // appointment and republish does not re-link them, so every republished
+    // group starts empty. The status loop below is vacuous in that case, which
+    // is exactly why this needs its own guard. Soft-deleted appointments are
+    // already excluded by the repository, so the count is trustworthy.
+    if (appointments.length === 0) {
+      throw new ServiceGroupEmptyError();
+    }
+
+    // `validateNewSchedule` (not the edited variant) because publishing is a
+    // release, not an edit: there is no unchanged field to grandfather. Same
+    // Sydney-based rule used by create/update — past day, or today with a
+    // window that has already started.
+    const scheduleCheck = validateNewSchedule({
+      date: group.scheduledDate.toISOString().slice(0, 10),
+      timeSlot: group.timeWindow,
+      tz: PLATFORM_TIMEZONE,
+    });
+    if (!scheduleCheck.ok) {
+      throw scheduleCheck.code === 'TIME_IN_PAST'
+        ? new ServiceGroupTimeInPastError()
+        : new ServiceGroupDateInPastError();
     }
 
     // Single-agency groups must carry an active region to publish (spec 005

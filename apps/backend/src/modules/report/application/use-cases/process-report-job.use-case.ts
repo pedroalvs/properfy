@@ -2,7 +2,7 @@ import type { IReportRepository } from '../../domain/report.repository';
 import type { IReportStorageService } from '../../domain/report-storage.service';
 import type { IXlsxGenerator } from '../../domain/xlsx-generator';
 import type { IReportDataReader, ReportDataFilters } from '../../domain/report-data-reader';
-import { REPORT_COLUMNS } from '../../domain/report.constants';
+import { resolveReportColumns } from '../../domain/report.constants';
 
 export interface ReportNotificationSender {
   execute(input: {
@@ -43,8 +43,19 @@ export class ProcessReportJobUseCase {
       report.markProcessing();
       await this.reportRepo.update(report);
 
-      // 3. Build data filters from filtersJson
-      const filters = report.filtersJson as unknown as ReportDataFilters;
+      // 3. Build data filters from filtersJson. `agencyScoped` and `tenantId` come
+      //    from the ROW, not the JSON blob — they are access-control facts, and the
+      //    worker has no auth context of its own to re-derive them from. The reader
+      //    treats a falsy tenantId as "no filter", so an agency run without one
+      //    would export the whole platform: refuse instead.
+      if (report.agencyScoped && !report.tenantId) {
+        throw new Error('Agency-scoped report is missing its tenant scope');
+      }
+      const filters: ReportDataFilters = {
+        ...(report.filtersJson as unknown as ReportDataFilters),
+        ...(report.agencyScoped ? { tenantId: report.tenantId! } : {}),
+        agencyScoped: report.agencyScoped,
+      };
 
       // 4. Dispatch to the reader for the report type
       let rows: Record<string, unknown>[];
@@ -70,7 +81,7 @@ export class ProcessReportJobUseCase {
       }
 
       // 5. Generate the XLSX (the only supported output format)
-      const columns = REPORT_COLUMNS[report.reportType];
+      const columns = resolveReportColumns(report.reportType, report.agencyScoped);
       const buffer = await this.xlsxGenerator.generate(columns, rows);
 
       // 6. Upload to storage

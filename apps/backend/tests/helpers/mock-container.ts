@@ -178,6 +178,8 @@ export function createMockContainer(
       checkAppointmentsEligibilityForGroupUseCase: { execute: vi.fn() },
       getGroupPortalLinkPlanUseCase: { execute: vi.fn() },
       sendGroupPortalLinksUseCase: { execute: vi.fn() },
+      changeGroupInspectorUseCase: { execute: vi.fn() },
+      changeGroupScheduleUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
       tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['serviceGroup'],
@@ -190,7 +192,6 @@ export function createMockContainer(
     rentalTenantPortal: {
       getPortalDataUseCase: { execute: vi.fn() },
       confirmAppointmentUseCase: { execute: vi.fn() },
-      rescheduleRequestUseCase: { execute: vi.fn() },
       updateContactUseCase: { execute: vi.fn() },
       reportUnavailabilityUseCase: { execute: vi.fn() },
       generatePortalTokenUseCase: { execute: vi.fn() },
@@ -256,6 +257,7 @@ export function createMockContainer(
       downloadReportUseCase: { execute: vi.fn() },
       listReportsUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
+      authorizationService: new AuthorizationService({ log: vi.fn() } as never),
       tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['report'],
     notification: {
@@ -266,6 +268,7 @@ export function createMockContainer(
       getNotificationUseCase: { execute: vi.fn() },
       upsertNotificationTemplateUseCase: { execute: vi.fn() },
       renderTemplatePreviewUseCase: { execute: vi.fn() },
+      getTemplateDefaultUseCase: { execute: vi.fn() },
       listNotificationTemplatesUseCase: { execute: vi.fn() },
       createNotificationUseCase: { execute: vi.fn() },
       pollRetryableNotificationsUseCase: { execute: vi.fn() },

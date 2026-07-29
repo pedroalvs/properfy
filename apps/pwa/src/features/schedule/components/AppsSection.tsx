@@ -5,7 +5,7 @@ interface AppsSectionProps {
   apps: AppointmentApp[] | undefined;
 }
 
-/** Tap-to-copy row for a single credential field (username / password / auth code). */
+/** Tap-to-copy row for a single credential field (username / password). */
 function CredentialRow({ label, value, testId }: { label: string; value: string; testId?: string }) {
   const [copied, setCopied] = useState(false);
 
@@ -52,6 +52,23 @@ function LinkRow({ label, url, testId }: { label: string; url: string; testId?: 
   );
 }
 
+/**
+ * Notice that the app prompts for a rotating authentication code. There is no
+ * value to copy — rendered as static text, not a tap row, so it cannot read as
+ * a dead touch target.
+ */
+function AuthCodeNotice() {
+  return (
+    <p
+      className="flex min-h-touch items-center gap-2 px-4 py-2.5 text-sm text-text-muted"
+      data-testid="apps-section-auth-code-required"
+    >
+      <i className="mdi mdi-key-alert-outline text-base" aria-hidden="true" />
+      Requires authentication code
+    </p>
+  );
+}
+
 function hasValue(value: string | null | undefined): value is string {
   return value != null && value.trim() !== '';
 }
@@ -83,9 +100,7 @@ export function AppsSection({ apps }: AppsSectionProps) {
             <div className="divide-y divide-black/[0.04]">
               <CredentialRow label="Username" value={app.username} testId="apps-section-username" />
               <CredentialRow label="Password" value={app.password} testId="apps-section-password" />
-              {app.needsAuthCode && hasValue(app.authCode) && (
-                <CredentialRow label="Auth code" value={app.authCode} testId="apps-section-auth-code" />
-              )}
+              {app.needsAuthCode && <AuthCodeNotice />}
               {hasValue(app.instructionsPassword) && (
                 <CredentialRow
                   label="Instructions password"

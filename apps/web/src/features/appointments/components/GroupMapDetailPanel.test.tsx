@@ -7,12 +7,13 @@
  *     its own (the page supplies `appointments`).
  *   - Close button and ESC call onClose.
  *   - VIEW GROUP links to /service-groups/{id} (same tab).
- *   - PUBLISH calls onPublish and is enabled only for DRAFT groups.
+ *   - PUBLISH calls onPublish and is enabled only for DRAFT groups that are
+ *     non-empty and not past-dated (mirrors the backend publish guards).
  *   - Focus moves into the dialog on open.
  *   - Renders nothing when group is null.
  */
 
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { GroupMapDetailPanel } from './GroupMapDetailPanel';
@@ -39,7 +40,15 @@ function renderPanel(props: Partial<Parameters<typeof GroupMapDetailPanel>[0]> =
   );
 }
 
+// PUBLISH is gated on the group schedule, resolved against "now" in Sydney.
+// Pin the clock (Date only) so `sampleGroup` stays future-dated forever.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-07-01T00:00:00Z'));
+});
+
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -90,7 +99,7 @@ describe('GroupMapDetailPanel', () => {
         { timeSlotStart: '13:00', timeSlotEnd: '14:15' },
       ],
     });
-    expect(screen.getByTestId('group-map-detail-when')).toHaveTextContent('08:30 - 14:15');
+    expect(screen.getByTestId('group-map-detail-when')).toHaveTextContent('8:30 am – 2:15 pm');
   });
 
   it('omits the time range when appointments are missing or empty', () => {
@@ -135,6 +144,72 @@ describe('GroupMapDetailPanel', () => {
     expect(btn).toBeEnabled();
     fireEvent.click(btn);
     expect(onPublish).toHaveBeenCalledTimes(1);
+  });
+
+  it('PUBLISH is disabled for an empty DRAFT group and explains why', () => {
+    const onPublish = vi.fn();
+    renderPanel({
+      onPublish,
+      group: { ...sampleGroup, status: ServiceGroupStatus.DRAFT, groupSize: 0 },
+    });
+    const btn = screen.getByTestId('group-map-detail-publish');
+    expect(btn).toBeDisabled();
+    fireEvent.click(btn);
+    expect(onPublish).not.toHaveBeenCalled();
+    expect(screen.getByTestId('group-map-detail-publish-reason')).toHaveTextContent(
+      /no appointments/i,
+    );
+  });
+
+  it('PUBLISH is disabled for a past-dated DRAFT group', () => {
+    const onPublish = vi.fn();
+    renderPanel({
+      onPublish,
+      group: { ...sampleGroup, status: ServiceGroupStatus.DRAFT, scheduledDate: '2026-06-30' },
+    });
+    const btn = screen.getByTestId('group-map-detail-publish');
+    expect(btn).toBeDisabled();
+    fireEvent.click(btn);
+    expect(onPublish).not.toHaveBeenCalled();
+    expect(screen.getByTestId('group-map-detail-publish-reason')).toHaveTextContent(/past/i);
+  });
+
+  it('PUBLISH is disabled when today’s time window has already started', () => {
+    renderPanel({
+      group: {
+        ...sampleGroup,
+        status: ServiceGroupStatus.DRAFT,
+        // 2026-07-01T00:00:00Z is 10:00 in Sydney.
+        scheduledDate: '2026-07-01',
+        timeWindow: '08:00-11:00',
+      },
+    });
+    expect(screen.getByTestId('group-map-detail-publish')).toBeDisabled();
+  });
+
+  it('PUBLISH is disabled while an appointment is not awaiting inspector', () => {
+    const onPublish = vi.fn();
+    renderPanel({
+      onPublish,
+      group: { ...sampleGroup, status: ServiceGroupStatus.DRAFT },
+      appointments: [
+        { code: 'INS-0001', status: 'AWAITING_INSPECTOR', timeSlotStart: '09:00', timeSlotEnd: '12:00' },
+        { code: 'INS-0002', status: 'CANCELLED', timeSlotStart: '09:00', timeSlotEnd: '12:00' },
+      ],
+    });
+    const btn = screen.getByTestId('group-map-detail-publish');
+    expect(btn).toBeDisabled();
+    fireEvent.click(btn);
+    expect(onPublish).not.toHaveBeenCalled();
+    expect(screen.getByTestId('group-map-detail-publish-reason')).toHaveTextContent(
+      /#INS-0002 \(CANCELLED\)/,
+    );
+  });
+
+  it('does not point aria-describedby at an unrendered reason for non-DRAFT groups', () => {
+    renderPanel();
+    expect(screen.getByTestId('group-map-detail-publish')).not.toHaveAttribute('aria-describedby');
+    expect(screen.queryByTestId('group-map-detail-publish-reason')).toBeNull();
   });
 
   it('PUBLISH shows the in-flight state while publishing', () => {

@@ -345,7 +345,9 @@ export async function registerContactRoutes(
             appointmentId: a.appointmentId,
             appointmentNumber: a.appointmentNumber,
             status: a.status,
-            scheduledDate: a.scheduledDate.toISOString(),
+            // @db.Date calendar day — emit the bare day, not a UTC-stamped
+            // timestamp, matching every other scheduledDate on the wire.
+            scheduledDate: a.scheduledDate.toISOString().slice(0, 10),
             role: a.role,
             isPrimary: a.isPrimary,
             propertyId: a.propertyId,

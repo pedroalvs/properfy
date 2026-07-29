@@ -31,6 +31,9 @@ vi.mock('../hooks/useBulkAssignInspector', () => ({
 vi.mock('../hooks/useBulkResendReminder', () => ({
   useBulkResendReminder: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
+vi.mock('../hooks/useBulkReopenForReschedule', () => ({
+  useBulkReopenForReschedule: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
 vi.mock('@/hooks/useFormOptions', () => ({
   useFormOptions: () => ({ options: [] }),
 }));
@@ -143,6 +146,43 @@ describe('MapBulkActionModal', () => {
     expect(screen.getByTestId('bulk-actions-toggle')).toBeInTheDocument();
     expect(screen.getByTestId('bulk-modal-footer-add-to-group')).toBeInTheDocument();
     expect(screen.getByTestId('bulk-modal-footer-create-group')).toBeInTheDocument();
+  });
+
+  /**
+   * Reschedule (status-preserving) and Return to pool (SCHEDULED→DRAFT, inspector
+   * cleared) are separate actions. They used to be one entry wired to the
+   * destructive endpoint, which is why changing a time failed on grouped rows.
+   */
+  it('offers Reschedule and Return to pool as distinct actions', () => {
+    renderModal();
+    fireEvent.click(screen.getByTestId(`bulk-modal-row-${sampleAppointments[0]!.code}`));
+    fireEvent.click(screen.getByTestId('bulk-actions-toggle'));
+
+    expect(screen.getByTestId('bulk-action-reschedule')).toHaveTextContent('Reschedule');
+    expect(screen.getByTestId('bulk-action-return_to_pool')).toHaveTextContent('Return to pool');
+  });
+
+  it('opens the status-preserving form for Reschedule and the reopen form for Return to pool', () => {
+    // Both actions derive their target date from the selection, so they are
+    // same-group-only — an ungrouped selection keeps them disabled.
+    const grouped = sampleAppointments.map((a) => ({
+      ...a, serviceGroupId: 'sg-1', scheduledDate: '2026-06-01',
+    }));
+
+    const { unmount } = renderModal({ appointments: grouped });
+    fireEvent.click(screen.getByTestId(`bulk-modal-row-${grouped[0]!.code}`));
+    fireEvent.click(screen.getByTestId('bulk-actions-toggle'));
+    fireEvent.click(screen.getByTestId('bulk-action-reschedule'));
+    expect(screen.getByTestId('map-bulk-reschedule-form')).toBeInTheDocument();
+    expect(screen.queryByTestId('map-bulk-return-to-pool-form')).toBeNull();
+    unmount();
+
+    renderModal({ appointments: grouped });
+    fireEvent.click(screen.getByTestId(`bulk-modal-row-${grouped[0]!.code}`));
+    fireEvent.click(screen.getByTestId('bulk-actions-toggle'));
+    fireEvent.click(screen.getByTestId('bulk-action-return_to_pool'));
+    expect(screen.getByTestId('map-bulk-return-to-pool-form')).toBeInTheDocument();
+    expect(screen.queryByTestId('map-bulk-reschedule-form')).toBeNull();
   });
 
   it('T-C4-1: disables Add/Create group when selection contains a non-groupable status', () => {

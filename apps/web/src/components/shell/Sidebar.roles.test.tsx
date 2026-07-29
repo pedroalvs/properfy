@@ -98,3 +98,43 @@ describe('Sidebar IA — unified Contacts registry (spec 023)', () => {
     expect(screen.queryByText('Contacts')).not.toBeInTheDocument();
   });
 });
+
+// Reports became an agency-visible surface: CL_ADMIN unconditionally, CL_USER
+// only when the agency enables `view_financials` (same flag as /my-financial).
+describe('Sidebar role-based visibility — Reports', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it.each(['AM', 'OP', 'CL_ADMIN'])('shows Reports to %s', (role) => {
+    renderSidebar(role);
+    expect(screen.getByText('Reports')).toBeInTheDocument();
+  });
+
+  it('hides Reports from a CL_USER without view_financials', () => {
+    mockUseAuth.mockReturnValue({ user: { role: 'CL_USER', name: 'Test', clUserPermissions: [] } });
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <Sidebar />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByText('Reports')).not.toBeInTheDocument();
+  });
+
+  it('shows Reports to a CL_USER holding view_financials', () => {
+    mockUseAuth.mockReturnValue({
+      user: { role: 'CL_USER', name: 'Test', clUserPermissions: ['view_financials'] },
+    });
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <Sidebar />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('Reports')).toBeInTheDocument();
+  });
+
+  it('hides Reports from INSP', () => {
+    renderSidebar('INSP');
+    expect(screen.queryByText('Reports')).not.toBeInTheDocument();
+  });
+});

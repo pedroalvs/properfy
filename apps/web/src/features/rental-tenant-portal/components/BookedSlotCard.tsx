@@ -1,4 +1,4 @@
-import { formatDate } from '@/lib/format-date';
+import { formatCivilDate, formatWallTimeRange } from '@/lib/format-date';
 import type { PortalAppointment } from '../types';
 
 interface BookedSlotCardProps {
@@ -19,10 +19,10 @@ export function BookedSlotCard({ appointment, onChangeTime }: BookedSlotCardProp
       </p>
       <div className="mt-2 rounded-xl border border-[color-mix(in_srgb,var(--color-real-estate)_45%,white)] bg-[color-mix(in_srgb,var(--color-real-estate)_12%,white)] px-4 py-4">
         <p className="text-sm font-bold text-secondary">
-          {formatDate(appointment.scheduledDate)}
+          {formatCivilDate(appointment.scheduledDate)}
         </p>
         <p className="mt-0.5 text-xl font-extrabold text-[color-mix(in_srgb,var(--color-real-estate)_85%,black)]">
-          {appointment.timeSlotStart} – {appointment.timeSlotEnd}
+          {formatWallTimeRange(appointment.timeSlotStart, appointment.timeSlotEnd)}
         </p>
         {onChangeTime && (
           <button

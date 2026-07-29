@@ -3,8 +3,6 @@ import { z } from 'zod';
 import {
   confirmAppointmentPortalSchema,
   confirmAppointmentPortalResponseSchema,
-  rescheduleRequestPortalSchema,
-  rescheduleRequestPortalResponseSchema,
   updateContactPortalSchema,
   reportUnavailabilityPortalSchema,
   reportUnavailabilityPortalResponseSchema,
@@ -24,7 +22,6 @@ import { createPortalTokenMiddleware } from './portal-token-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
 import type { GetPortalDataUseCase } from '../application/use-cases/get-portal-data.use-case';
 import type { ConfirmAppointmentUseCase } from '../application/use-cases/confirm-appointment.use-case';
-import type { RescheduleRequestUseCase } from '../application/use-cases/reschedule-request.use-case';
 import type { UpdateContactUseCase } from '../application/use-cases/update-contact.use-case';
 import type { ReportUnavailabilityUseCase } from '../application/use-cases/report-unavailability.use-case';
 import type { GeneratePortalTokenUseCase } from '../application/use-cases/generate-portal-token.use-case';
@@ -38,7 +35,6 @@ import type { JwtService } from '../../auth/application/services/jwt.service';
 export interface RentalTenantPortalRouteContainer {
   getPortalDataUseCase: GetPortalDataUseCase;
   confirmAppointmentUseCase: ConfirmAppointmentUseCase;
-  rescheduleRequestUseCase: RescheduleRequestUseCase;
   updateContactUseCase: UpdateContactUseCase;
   reportUnavailabilityUseCase: ReportUnavailabilityUseCase;
   generatePortalTokenUseCase: GeneratePortalTokenUseCase;
@@ -119,49 +115,6 @@ export async function registerRentalTenantPortalRoutes(
         isReadOnly: ctx.isReadOnly,
         isPastConfirmCutoff: ctx.isPastConfirmCutoff,
         isUsed: ctx.isUsed,
-        restrictions: parsed.data.restrictions
-          ? {
-              isHome: parsed.data.restrictions.isHome ?? false,
-              unavailableDaysJson: parsed.data.restrictions.unavailableDaysJson ?? null,
-              unavailableHoursJson: parsed.data.restrictions.unavailableHoursJson
-                ? parsed.data.restrictions.unavailableHoursJson.map((h) => `${h.start}-${h.end}`)
-                : null,
-              availableSlotsJson: parsed.data.restrictions.availableSlotsJson ?? null,
-              notes: parsed.data.restrictions.notes ?? null,
-            }
-          : undefined,
-        rentalTenantNote: parsed.data.rentalTenantNote,
-        ipAddress,
-        userAgent,
-      });
-      return reply.status(200).send(result);
-    },
-  );
-
-  // POST /v1/rental-tenant-portal/:token/reschedule
-  app.post(
-    '/v1/rental-tenant-portal/:token/reschedule',
-    { preHandler: portalAuth, config: { rateLimit: { max: 30, timeWindow: '1 minute' } }, schema: { params: z.object({ token: z.string() }), body: rescheduleRequestPortalSchema, response: { 200: rescheduleRequestPortalResponseSchema } } },
-    async (request, reply) => {
-      const ctx = request.portalContext!;
-      const parsed = rescheduleRequestPortalSchema.safeParse(request.body);
-      if (!parsed.success) {
-        throw new ValidationError('Request payload is invalid', parsed.error.errors);
-      }
-
-      const ipAddress =
-        (request.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ??
-        request.ip ??
-        null;
-      const userAgent = request.headers['user-agent'] ?? null;
-
-      const result = await container.rescheduleRequestUseCase.execute({
-        tokenId: ctx.tokenId,
-        appointmentId: ctx.appointmentId,
-        isUsed: ctx.isUsed,
-        newDate: parsed.data.newDate,
-        newTimeSlotStart: parsed.data.newTimeSlotStart,
-        newTimeSlotEnd: parsed.data.newTimeSlotEnd,
         restrictions: parsed.data.restrictions
           ? {
               isHome: parsed.data.restrictions.isHome ?? false,

@@ -42,31 +42,20 @@ export class DispatchRemindersUseCase {
       const appointments = await this.appointmentRepo.findScheduledOnDate(targetDate);
 
       for (const { appointment, contact, propertyAddress, serviceTypeName } of appointments) {
-        let channel: NotificationChannel;
-        let recipient: string;
-        let effectiveTemplateCode: string;
-
         const effectiveEmail = contact?.effectiveEmail;
         const effectivePhone = contact?.effectivePhone;
 
+        // Independent legs: a tenant with both an email and a phone gets both.
+        // Email first so the more detailed message lands before the SMS nudge.
+        const legs: Array<{ channel: NotificationChannel; recipient: string; code: string }> = [];
         if (effectiveEmail) {
-          channel = 'EMAIL';
-          recipient = effectiveEmail;
-          effectiveTemplateCode = templateCode;
-        } else if (effectivePhone) {
-          channel = 'SMS';
-          recipient = effectivePhone;
-          effectiveTemplateCode = `${templateCode}_SMS`;
-        } else {
-          skipped++;
-          continue;
+          legs.push({ channel: 'EMAIL', recipient: effectiveEmail, code: templateCode });
+        }
+        if (effectivePhone) {
+          legs.push({ channel: 'SMS', recipient: effectivePhone, code: `${templateCode}_SMS` });
         }
 
-        const alreadySent = await this.notificationRepo.existsByAppointmentAndTemplate(
-          appointment.id,
-          effectiveTemplateCode,
-        );
-        if (alreadySent) {
+        if (legs.length === 0) {
           skipped++;
           continue;
         }
@@ -77,27 +66,40 @@ export class DispatchRemindersUseCase {
           continue;
         }
 
-        const payloadJson = this.buildNotificationPayload.build({
-          templateCode: effectiveTemplateCode,
-          tenant,
-          appointment,
-          contact,
-          propertyAddress: propertyAddress ?? '',
-          serviceTypeName: serviceTypeName ?? null,
-          rawPortalToken: null,
-          portalBaseUrl: this.rentalTenantPortalBaseUrl,
-          appointmentCodeFormatter: this.appointmentCodeFormatter,
-        });
+        for (const leg of legs) {
+          // Keyed on the exact template code, so each channel dedupes on its own
+          // and a previously sent email never suppresses the SMS.
+          const alreadySent = await this.notificationRepo.existsByAppointmentAndTemplate(
+            appointment.id,
+            leg.code,
+          );
+          if (alreadySent) {
+            skipped++;
+            continue;
+          }
 
-        await this.createNotification.execute({
-          tenantId: appointment.tenantId,
-          appointmentId: appointment.id,
-          recipient,
-          channel,
-          templateCode: effectiveTemplateCode,
-          payloadJson,
-        });
-        dispatched++;
+          const payloadJson = this.buildNotificationPayload.build({
+            templateCode: leg.code,
+            tenant,
+            appointment,
+            contact,
+            propertyAddress: propertyAddress ?? '',
+            serviceTypeName: serviceTypeName ?? null,
+            rawPortalToken: null,
+            portalBaseUrl: this.rentalTenantPortalBaseUrl,
+            appointmentCodeFormatter: this.appointmentCodeFormatter,
+          });
+
+          await this.createNotification.execute({
+            tenantId: appointment.tenantId,
+            appointmentId: appointment.id,
+            recipient: leg.recipient,
+            channel: leg.channel,
+            templateCode: leg.code,
+            payloadJson,
+          });
+          dispatched++;
+        }
       }
     }
 

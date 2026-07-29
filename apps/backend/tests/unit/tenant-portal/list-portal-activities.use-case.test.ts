@@ -3,7 +3,7 @@ import { ListPortalActivitiesUseCase } from '../../../src/modules/rental-tenant-
 import { RentalTenantPortalActivityEntity } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-activity.entity';
 import type { IRentalTenantPortalActivityRepository } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-activity.repository';
 import type { IAppointmentRepository } from '../../../src/modules/appointment/domain/appointment.repository';
-import type { AuthContext } from '@properfy/shared';
+import { portalActivitiesResponseSchema, type AuthContext } from '@properfy/shared';
 
 function createMockActivityRepo(): IRentalTenantPortalActivityRepository {
   return {
@@ -119,6 +119,39 @@ describe('ListPortalActivitiesUseCase', () => {
 
     expect(result.data).toEqual([]);
     expect(result.total).toBe(0);
+  });
+
+  /**
+   * Contract guard: the route binds `portalActivitiesResponseSchema` as its 200 response,
+   * and fastify-type-provider-zod hard-parses the payload AFTER the handler returns —
+   * a mismatch surfaces as an opaque 500, never as a type error. Asserting the real
+   * use-case output against the real schema pins the two together regardless of any
+   * mock, which is what a field rename on only one side needs to trip over.
+   */
+  it('should emit a payload that satisfies the bound response schema', async () => {
+    const activities = [
+      buildActivity({
+        id: '3f1a0b2c-0000-4000-8000-000000000001',
+        appointmentId: '3f1a0b2c-0000-4000-8000-000000000002',
+        rentalTenantPortalTokenId: '3f1a0b2c-0000-4000-8000-000000000003',
+        action: 'GROUP_JOIN',
+        newValuesJson: { scheduledDate: '2026-04-02', timeSlot: '09:00 - 12:00' },
+      }),
+    ];
+    (appointmentRepo.findById as any).mockResolvedValue({ appointment: { id: 'appt-1', tenantId: 't1' } });
+    (activityRepo.findByAppointmentId as any).mockResolvedValue({ activities, total: 1 });
+
+    const result = await useCase.execute({
+      appointmentId: '3f1a0b2c-0000-4000-8000-000000000002',
+      actor: amActor,
+      page: 1,
+      pageSize: 20,
+    });
+
+    // Assert on the issues rather than the boolean, so a future drift reports which
+    // field diverged instead of a bare "expected false to be true".
+    const parsed = portalActivitiesResponseSchema.safeParse(result);
+    expect(parsed.success ? [] : parsed.error.issues).toEqual([]);
   });
 
   it('should serialize createdAt as ISO string', async () => {

@@ -2,10 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { UpdateAppointmentUseCase } from '../../../src/modules/appointment/application/use-cases/update-appointment.use-case';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
-import type { AuthContext } from '@properfy/shared';
+import type { AuthContext, AvailableSlot } from '@properfy/shared';
 import { PLATFORM_TIMEZONE, zonedWallTimeToUtc } from '@properfy/shared';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { AppointmentContactEntity } from '../../../src/modules/appointment/domain/appointment-contact.entity';
+import { AppointmentRestrictionEntity } from '../../../src/modules/appointment/domain/appointment-restriction.entity';
 import {
   AppointmentNotFoundError,
   AppointmentUpdateNotAllowedError,
@@ -68,12 +69,29 @@ function makeContact(): AppointmentContactEntity {
 function makeAppointmentWithRelations(
   appointmentOverrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {},
   withContact = false,
+  restrictions: AppointmentRestrictionEntity[] = [],
 ): AppointmentWithRelations {
   return {
     appointment: makeAppointmentEntity(appointmentOverrides),
     contact: withContact ? makeContact() : null,
-    restrictions: [],
+    restrictions,
   };
+}
+
+/** A restriction row as written by the portal when the rental tenant declines. */
+function makePortalRestriction(availableSlotsJson: AvailableSlot[]): AppointmentRestrictionEntity {
+  return new AppointmentRestrictionEntity({
+    id: 'restriction-portal',
+    appointmentId: 'appt-1',
+    isHome: false,
+    unavailableDaysJson: null,
+    unavailableHoursJson: null,
+    availableSlotsJson,
+    notes: null,
+    source: 'RENTAL_TENANT_PORTAL',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
 }
 
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
@@ -294,6 +312,68 @@ describe('UpdateAppointmentUseCase', () => {
 
     expect(appointmentRepo.deleteRestrictionsByAppointmentId).toHaveBeenCalledWith('appt-1');
     expect(appointmentRepo.saveRestriction).not.toHaveBeenCalled();
+  });
+
+  // The weekly availability a rental tenant offers when declining in the portal lives on
+  // the restriction row but is not part of the operator's restriction form. The
+  // delete-then-recreate below must not silently discard it.
+  describe('rental tenant availability preservation', () => {
+    const SLOTS: AvailableSlot[] = [
+      { dayOfWeek: 'WED', start: '09:00', end: '17:00' },
+      { dayOfWeek: 'FRI', start: '10:00', end: '14:00' },
+    ];
+
+    it('should carry the tenant availability onto the operator-edited restriction', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({}, false, [makePortalRestriction(SLOTS)]),
+      );
+
+      await useCase.execute({
+        appointmentId: 'appt-1',
+        data: {
+          restriction: { isHome: true, source: 'OPERATOR', notes: 'Ring the bell' },
+        },
+        actor: makeActor(),
+      });
+
+      const saved = vi.mocked(appointmentRepo.saveRestriction).mock.calls[0]?.[0];
+      expect(saved?.availableSlotsJson).toEqual(SLOTS);
+      // The operator's own edits must still land.
+      expect(saved?.isHome).toBe(true);
+      expect(saved?.notes).toBe('Ring the bell');
+    });
+
+    it('should keep the tenant availability when the operator removes their restriction', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({}, false, [makePortalRestriction(SLOTS)]),
+      );
+
+      await useCase.execute({
+        appointmentId: 'appt-1',
+        data: { restriction: null },
+        actor: makeActor(),
+      });
+
+      const saved = vi.mocked(appointmentRepo.saveRestriction).mock.calls[0]?.[0];
+      expect(saved?.availableSlotsJson).toEqual(SLOTS);
+      // Nothing operator-authored survives — only the tenant's own contribution.
+      expect(saved?.isHome).toBe(false);
+      expect(saved?.notes).toBeNull();
+      expect(saved?.source).toBe('RENTAL_TENANT_PORTAL');
+    });
+
+    it('should leave availableSlotsJson null when the tenant never offered any', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+
+      await useCase.execute({
+        appointmentId: 'appt-1',
+        data: { restriction: { isHome: true, source: 'OPERATOR' } },
+        actor: makeActor(),
+      });
+
+      const saved = vi.mocked(appointmentRepo.saveRestriction).mock.calls[0]?.[0];
+      expect(saved?.availableSlotsJson).toBeNull();
+    });
   });
 
   it('should not touch restrictions when restriction field is absent', async () => {
@@ -841,6 +921,69 @@ describe('UpdateAppointmentUseCase', () => {
       expect(notifyHandler.execute).not.toHaveBeenCalled();
     });
 
+    // The schedule change revokes the tenant's portal tokens unconditionally.
+    // Gating the replacement notification on SCHEDULED alone left every other
+    // already-notified status (notably grouped AWAITING_INSPECTOR rows) holding
+    // a dead link and a stale time, silently.
+    it('notifies a non-SCHEDULED appointment whose tenant had already confirmed', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({
+          status: 'AWAITING_INSPECTOR',
+          rentalTenantConfirmationStatus: 'CONFIRMED',
+        }),
+      );
+
+      await makeUseCase().execute({
+        appointmentId: 'appt-1',
+        data: { scheduledDate: '2099-04-10' },
+        actor: makeActor(),
+      });
+
+      expect(notifyHandler.execute).toHaveBeenCalledWith({
+        appointmentId: 'appt-1',
+        tenantId: 'tenant-1',
+      });
+    });
+
+    it('notifies a non-SCHEDULED appointment that has an active confirmation cycle', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({
+          status: 'AWAITING_INSPECTOR',
+          activeConfirmationCycleId: 'cycle-1',
+          rentalTenantConfirmationStatus: 'PENDING',
+        }),
+      );
+
+      await makeUseCase().execute({
+        appointmentId: 'appt-1',
+        data: { scheduledDate: '2099-04-10' },
+        actor: makeActor(),
+      });
+
+      expect(notifyHandler.execute).toHaveBeenCalledWith({
+        appointmentId: 'appt-1',
+        tenantId: 'tenant-1',
+      });
+    });
+
+    it('stays silent for an AWAITING_INSPECTOR appointment the tenant was never told about', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({
+          status: 'AWAITING_INSPECTOR',
+          activeConfirmationCycleId: null,
+          rentalTenantConfirmationStatus: 'PENDING',
+        }),
+      );
+
+      await makeUseCase().execute({
+        appointmentId: 'appt-1',
+        data: { scheduledDate: '2099-04-10' },
+        actor: makeActor(),
+      });
+
+      expect(notifyHandler.execute).not.toHaveBeenCalled();
+    });
+
     it('does not fail the update when the notification handler throws', async () => {
       vi.mocked(appointmentRepo.findById).mockResolvedValue(
         makeAppointmentWithRelations({ status: 'SCHEDULED' }),
@@ -908,7 +1051,10 @@ describe('UpdateAppointmentUseCase', () => {
   });
 
   describe('schedule edits on a grouped appointment', () => {
-    function makeUseCaseWithGroupRepo(serviceGroupRepo: { findById: ReturnType<typeof vi.fn> }) {
+    function makeUseCaseWithGroupRepo(serviceGroupRepo: {
+      findById: ReturnType<typeof vi.fn>;
+      update?: ReturnType<typeof vi.fn>;
+    }) {
       return new UpdateAppointmentUseCase(
         appointmentRepo,
         auditService,
@@ -967,6 +1113,269 @@ describe('UpdateAppointmentUseCase', () => {
         'tenant-1',
         expect.objectContaining({ timeSlotStart: '09:30', timeSlotEnd: '11:00' }),
       );
+    });
+
+    // `expandGroupTimeWindow` opt-in: the operator asked for the time, so the
+    // group's shared window follows instead of rejecting. Status and inspector
+    // must survive untouched — that is the whole point of routing reschedules
+    // here rather than through ReopenForRescheduleUseCase.
+    describe('expandGroupTimeWindow', () => {
+      function makeGroupedAppointment(status = 'AWAITING_INSPECTOR') {
+        return makeAppointmentWithRelations({
+          status,
+          inspectorId: 'inspector-1',
+          serviceGroupId: 'group-1',
+          scheduledDate: new Date('2099-04-01'),
+          timeSlotStart: '09:00',
+          timeSlotEnd: '10:00',
+        });
+      }
+
+      it('widens the group window and leaves status and inspector untouched', async () => {
+        vi.mocked(appointmentRepo.findById).mockResolvedValue(makeGroupedAppointment());
+        const serviceGroupRepo = {
+          findById: vi.fn().mockResolvedValue(makeGroupResult('08:00-12:00')),
+          update: vi.fn().mockResolvedValue(undefined),
+        };
+
+        const result = await makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+          appointmentId: 'appt-1',
+          data: { timeSlotStart: '13:00', timeSlotEnd: '14:00' },
+          expandGroupTimeWindow: true,
+          actor: makeActor(),
+        });
+
+        expect(serviceGroupRepo.update).toHaveBeenCalledWith('group-1', { timeWindow: '08:00-14:00' });
+        expect(appointmentRepo.update).toHaveBeenCalledWith(
+          'appt-1',
+          'tenant-1',
+          expect.objectContaining({ timeSlotStart: '13:00', timeSlotEnd: '14:00' }),
+        );
+        // The appointment write must not carry a status or inspector change.
+        const updatePayload = vi.mocked(appointmentRepo.update).mock.calls[0]![2];
+        expect(updatePayload).not.toHaveProperty('status');
+        expect(updatePayload).not.toHaveProperty('inspectorId');
+        expect(result.status).toBe('AWAITING_INSPECTOR');
+        expect(result.inspectorId).toBe('inspector-1');
+      });
+
+      it('audits the widening with the before and after windows', async () => {
+        vi.mocked(appointmentRepo.findById).mockResolvedValue(makeGroupedAppointment());
+        const serviceGroupRepo = {
+          findById: vi.fn().mockResolvedValue(makeGroupResult('08:00-12:00')),
+          update: vi.fn().mockResolvedValue(undefined),
+        };
+
+        await makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+          appointmentId: 'appt-1',
+          data: { timeSlotStart: '07:00', timeSlotEnd: '09:30' },
+          expandGroupTimeWindow: true,
+          actor: makeActor(),
+        });
+
+        expect(auditService.log).toHaveBeenCalledWith(
+          expect.objectContaining({
+            action: 'service_group.time_window_expanded',
+            entityType: 'ServiceGroup',
+            entityId: 'group-1',
+            before: { timeWindow: '08:00-12:00' },
+            after: { timeWindow: '07:00-12:00' },
+            metadata: expect.objectContaining({ appointmentId: 'appt-1', initiatedBy: 'CL_ADMIN' }),
+          }),
+        );
+      });
+
+      it('widens the window of an ACCEPTED group', async () => {
+        vi.mocked(appointmentRepo.findById).mockResolvedValue(makeGroupedAppointment());
+        const serviceGroupRepo = {
+          findById: vi.fn().mockResolvedValue(makeGroupResult('08:00-12:00', { status: 'ACCEPTED' })),
+          update: vi.fn().mockResolvedValue(undefined),
+        };
+
+        await makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+          appointmentId: 'appt-1',
+          data: { timeSlotStart: '13:00', timeSlotEnd: '14:00' },
+          expandGroupTimeWindow: true,
+          actor: makeActor(),
+        });
+
+        expect(serviceGroupRepo.update).toHaveBeenCalledWith('group-1', { timeWindow: '08:00-14:00' });
+      });
+
+      it.each(['CANCELLED', 'REJECTED'])(
+        'still rejects the edit when the group is %s — there is nothing to widen',
+        async (groupStatus) => {
+          vi.mocked(appointmentRepo.findById).mockResolvedValue(makeGroupedAppointment());
+          const serviceGroupRepo = {
+            findById: vi.fn().mockResolvedValue(makeGroupResult('08:00-12:00', { status: groupStatus })),
+            update: vi.fn().mockResolvedValue(undefined),
+          };
+
+          await expect(
+            makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+              appointmentId: 'appt-1',
+              data: { timeSlotStart: '13:00', timeSlotEnd: '14:00' },
+              expandGroupTimeWindow: true,
+              actor: makeActor(),
+            }),
+          ).rejects.toThrow(AppointmentTimeSlotOutsideGroupWindowError);
+          expect(serviceGroupRepo.update).not.toHaveBeenCalled();
+          expect(appointmentRepo.update).not.toHaveBeenCalled();
+        },
+      );
+
+      // Ordering guard: the widening must outlive nothing. It is persisted only
+      // after the appointment write succeeds, so a rejection anywhere later
+      // cannot leave a shared window stretched for an edit that never landed.
+      it('does not widen the group window when the appointment write fails', async () => {
+        vi.mocked(appointmentRepo.findById).mockResolvedValue(makeGroupedAppointment());
+        vi.mocked(appointmentRepo.update).mockRejectedValue(new Error('db down'));
+        const serviceGroupRepo = {
+          findById: vi.fn().mockResolvedValue(makeGroupResult('08:00-12:00')),
+          update: vi.fn().mockResolvedValue(undefined),
+        };
+
+        await expect(
+          makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+            appointmentId: 'appt-1',
+            data: { timeSlotStart: '13:00', timeSlotEnd: '14:00' },
+            expandGroupTimeWindow: true,
+            actor: makeActor(),
+          }),
+        ).rejects.toThrow('db down');
+
+        expect(serviceGroupRepo.update).not.toHaveBeenCalled();
+        expect(auditService.log).not.toHaveBeenCalledWith(
+          expect.objectContaining({ action: 'service_group.time_window_expanded' }),
+        );
+      });
+
+      it('does not widen the group window when the new time is in the past', async () => {
+        vi.mocked(appointmentRepo.findById).mockResolvedValue(
+          makeAppointmentWithRelations({
+            status: 'AWAITING_INSPECTOR',
+            serviceGroupId: 'group-1',
+            // Past date: validateEditedSchedule rejects AFTER the group check.
+            scheduledDate: new Date('2020-01-01'),
+            timeSlotStart: '09:00',
+            timeSlotEnd: '10:00',
+          }),
+        );
+        const serviceGroupRepo = {
+          findById: vi.fn().mockResolvedValue(
+            makeGroupResult('08:00-12:00', { scheduledDate: new Date('2020-01-01') }),
+          ),
+          update: vi.fn().mockResolvedValue(undefined),
+        };
+
+        await expect(
+          makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+            appointmentId: 'appt-1',
+            data: { scheduledDate: '2020-01-02', timeSlotStart: '13:00', timeSlotEnd: '14:00' },
+            expandGroupTimeWindow: true,
+            actor: makeActor(),
+          }),
+        ).rejects.toThrow();
+
+        expect(serviceGroupRepo.update).not.toHaveBeenCalled();
+      });
+
+      it('does not touch the group when the new slot already fits', async () => {
+        vi.mocked(appointmentRepo.findById).mockResolvedValue(makeGroupedAppointment());
+        const serviceGroupRepo = {
+          findById: vi.fn().mockResolvedValue(makeGroupResult('08:00-12:00')),
+          update: vi.fn().mockResolvedValue(undefined),
+        };
+
+        await makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+          appointmentId: 'appt-1',
+          data: { timeSlotStart: '10:30', timeSlotEnd: '11:30' },
+          expandGroupTimeWindow: true,
+          actor: makeActor(),
+        });
+
+        expect(serviceGroupRepo.update).not.toHaveBeenCalled();
+        expect(auditService.log).not.toHaveBeenCalledWith(
+          expect.objectContaining({ action: 'service_group.time_window_expanded' }),
+        );
+      });
+
+      // Opt-in only: callers that never asked (e.g. the list page's bulk edit)
+      // keep the pre-existing 422 rather than silently widening a shared window.
+      it('keeps rejecting when the caller did not opt in', async () => {
+        vi.mocked(appointmentRepo.findById).mockResolvedValue(makeGroupedAppointment());
+        const serviceGroupRepo = {
+          findById: vi.fn().mockResolvedValue(makeGroupResult('08:00-12:00')),
+          update: vi.fn().mockResolvedValue(undefined),
+        };
+
+        await expect(
+          makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+            appointmentId: 'appt-1',
+            data: { timeSlotStart: '13:00', timeSlotEnd: '14:00' },
+            actor: makeActor(),
+          }),
+        ).rejects.toThrow(AppointmentTimeSlotOutsideGroupWindowError);
+        expect(serviceGroupRepo.update).not.toHaveBeenCalled();
+      });
+
+      it('does not widen the window for a date-only realignment', async () => {
+        vi.mocked(appointmentRepo.findById).mockResolvedValue(
+          makeAppointmentWithRelations({
+            status: 'AWAITING_INSPECTOR',
+            serviceGroupId: 'group-1',
+            scheduledDate: new Date('2099-04-05'),
+            timeSlotStart: '09:00',
+            timeSlotEnd: '10:00',
+          }),
+        );
+        const serviceGroupRepo = {
+          findById: vi.fn().mockResolvedValue(
+            makeGroupResult('08:00-12:00', { status: 'DRAFT', scheduledDate: new Date('2099-04-01') }),
+          ),
+          update: vi.fn().mockResolvedValue(undefined),
+        };
+
+        await makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+          appointmentId: 'appt-1',
+          data: { scheduledDate: '2099-04-01' },
+          expandGroupTimeWindow: true,
+          actor: makeActor(),
+        });
+
+        expect(serviceGroupRepo.update).not.toHaveBeenCalled();
+      });
+    });
+
+    // Service groups are cross-tenant, so the map's group reschedule can hand
+    // this use case an appointment from any agency. OP tokens carry
+    // `tenantId: null` by design (see auth-middleware.ts), which makes the
+    // repository lookup platform-wide. Pinned here because the map flow depends
+    // on it: assigning OP users a tenant_id would silently 404 mixed groups.
+    it('lets an OP reschedule an appointment in another agency (cross-tenant group)', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({
+          tenantId: 'tenant-2',
+          status: 'AWAITING_INSPECTOR',
+          serviceGroupId: 'group-1',
+          scheduledDate: new Date('2099-04-01'),
+          timeSlotStart: '09:00',
+          timeSlotEnd: '10:00',
+        }),
+      );
+      const serviceGroupRepo = {
+        findById: vi.fn().mockResolvedValue(makeGroupResult('08:00-12:00')),
+        update: vi.fn().mockResolvedValue(undefined),
+      };
+
+      const result = await makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+        appointmentId: 'appt-1',
+        data: { timeSlotStart: '10:30', timeSlotEnd: '11:30' },
+        actor: makeActor({ role: 'OP', tenantId: null }),
+      });
+
+      expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', null);
+      expect(result.tenantId).toBe('tenant-2');
     });
 
     it('rejects a time-slot change that falls outside the group time window', async () => {

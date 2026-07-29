@@ -63,7 +63,6 @@ vi.mock('../../../../main/container', () => ({
     rentalTenantPortal: {
       getPortalDataUseCase: { execute: vi.fn() },
       confirmAppointmentUseCase: { execute: vi.fn() },
-      rescheduleRequestUseCase: { execute: vi.fn() },
       updateContactUseCase: { execute: vi.fn() },
       reportUnavailabilityUseCase: { execute: vi.fn() },
       generatePortalTokenUseCase: { execute: vi.fn() },
@@ -115,7 +114,7 @@ vi.mock('../../../../main/container', () => ({
 }));
 
 /** Minimal valid appointment output (all required schema fields). */
-function makeAppointmentOutput(hasActivePortalToken: boolean) {
+function makeAppointmentOutput(hasActivePortalToken: boolean, restrictions: unknown[] = []) {
   return {
     id: APPT_ID,
     appointmentNumber: 1,
@@ -160,7 +159,7 @@ function makeAppointmentOutput(hasActivePortalToken: boolean) {
     activeConfirmationCycleId: null,
     contact: null,
     contacts: [],
-    restrictions: [],
+    restrictions,
     hasActivePortalToken,
   };
 }
@@ -215,6 +214,39 @@ describe('GET /v1/appointments/:appointmentId — hasActivePortalToken field con
     expect(res.body.data).toHaveProperty('hasActivePortalToken');
     expect(typeof res.body.data.hasActivePortalToken).toBe('boolean');
     expect(res.body.data.hasActivePortalToken).toBe(false);
+  });
+});
+
+describe('GET /v1/appointments/:appointmentId — restriction availability survives the response serializer', () => {
+  // The weekly availability a rental tenant offers when declining in the portal is
+  // persisted to appointment_restrictions.available_slots_json. It reaches the
+  // operator only if it survives BOTH the presenter mapper and Fastify's Zod
+  // response serializer — this guards the serializer half.
+  it('should keep availableSlotsJson on the serialized restriction', async () => {
+    const slots = [
+      { dayOfWeek: 'MON', start: '09:00', end: '17:00' },
+      { dayOfWeek: 'WED', start: '10:00', end: '14:00' },
+    ];
+    mockGetAppointmentExecute.mockResolvedValue(
+      makeAppointmentOutput(false, [
+        {
+          id: 'cccccccc-3333-4000-8000-cccccccccccc',
+          isHome: false,
+          unavailableDaysJson: null,
+          unavailableHoursJson: null,
+          availableSlotsJson: slots,
+          notes: null,
+          source: 'RENTAL_TENANT_PORTAL',
+        },
+      ]),
+    );
+
+    const res = await supertest(app.server)
+      .get(`/v1/appointments/${APPT_ID}`)
+      .set('Authorization', 'Bearer token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.restrictions[0].availableSlotsJson).toEqual(slots);
   });
 });
 

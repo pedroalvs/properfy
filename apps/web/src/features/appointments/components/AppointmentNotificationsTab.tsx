@@ -1,7 +1,7 @@
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { NOTIFICATION_STATUS_MAP } from '@/lib/status-colors';
-import { formatDateTime } from '@/lib/format-date';
+import { formatInstantDateTime } from '@/lib/format-date';
 import { useAppointmentNotifications, type AppointmentNotification } from '../hooks/useAppointmentNotifications';
 
 interface AppointmentNotificationsTabProps {
@@ -10,7 +10,7 @@ interface AppointmentNotificationsTabProps {
 
 function formatDateTimeOrDash(iso: string | null): string {
   if (!iso) return '\u2014';
-  return formatDateTime(iso);
+  return formatInstantDateTime(iso);
 }
 
 const columns: DataTableColumn<AppointmentNotification>[] = [

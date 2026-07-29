@@ -344,9 +344,10 @@ describe('AppointmentFormDrawer', () => {
     const end = screen.getByLabelText('End time') as HTMLInputElement;
     expect(start).not.toBeDisabled();
     expect(end).not.toBeDisabled();
-    // Pre-populated from the loaded appointment's start/end.
-    expect(start.value).toBe('09:00');
-    expect(end.value).toBe('12:00');
+    // Pre-populated from the loaded appointment's start/end. The field shows the
+    // masked 12-hour text; the value it emits stays canonical 24-hour HH:mm.
+    expect(start.value).toBe('9:00 am');
+    expect(end.value).toBe('12:00 pm');
   });
 
   it('grouped appointment: date field disabled, time-slot fields remain editable', () => {
@@ -357,6 +358,41 @@ describe('AppointmentFormDrawer', () => {
     expect(date).toBeDisabled();
     expect(start).not.toBeDisabled();
     expect(end).not.toBeDisabled();
+  });
+
+  // Without this flag the backend rejects any grouped time edit that leaves the
+  // group's shared window (422), which is what made per-appointment time
+  // adjustment impossible from the UI.
+  it('grouped appointment: opts into widening the group time window on save', async () => {
+    mockValidate.mockReturnValue({});
+    mockSave.mockResolvedValue({ success: true, id: 'apt-grouped' });
+    renderDrawer({ appointmentId: 'apt-grouped' });
+
+    fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '13:00' } });
+    fireEvent.change(screen.getByLabelText('End time'), { target: { value: '14:00' } });
+    fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+    await waitFor(() => {
+      expect(mockSave).toHaveBeenCalledWith(
+        expect.anything(),
+        'apt-grouped',
+        { expandGroupTimeWindow: true },
+      );
+    });
+  });
+
+  it('ungrouped appointment: does not ask to widen any group window', async () => {
+    mockValidate.mockReturnValue({});
+    mockSave.mockResolvedValue({ success: true, id: 'apt-01' });
+    renderDrawer({ appointmentId: 'apt-01' });
+
+    fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '13:00' } });
+    fireEvent.change(screen.getByLabelText('End time'), { target: { value: '14:00' } });
+    fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+    await waitFor(() => {
+      expect(mockSave).toHaveBeenCalledWith(expect.anything(), 'apt-01', undefined);
+    });
   });
 
   it('shows inspector assignment section for awaiting inspector appointments', () => {

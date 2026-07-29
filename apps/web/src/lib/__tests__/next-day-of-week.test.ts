@@ -15,7 +15,7 @@ function addDays(date: Date, n: number): Date {
   return result;
 }
 
-function formatDate(date: Date): string {
+function toIsoDay(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
@@ -33,7 +33,7 @@ describe('nextOccurrence', () => {
       expect(today.getDay()).toBe(dayIndex);
 
       const result = nextOccurrence(day, today);
-      const expected = formatDate(addDays(today, 7));
+      const expected = toIsoDay(addDays(today, 7));
       expect(result).toBe(expected);
     });
   });
@@ -82,7 +82,7 @@ describe('nextOccurrence', () => {
 
     it('result is always strictly in the future (> today)', () => {
       const today = new Date();
-      const todayStr = formatDate(today);
+      const todayStr = toIsoDay(today);
       for (const day of DAY_NAMES) {
         const result = nextOccurrence(day);
         expect(result > todayStr).toBe(true);

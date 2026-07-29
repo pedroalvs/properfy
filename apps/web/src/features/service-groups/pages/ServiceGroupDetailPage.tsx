@@ -10,6 +10,7 @@ import { ServiceGroupStatus } from '@properfy/shared';
 import { useServiceGroupDetail } from '../hooks/useServiceGroupDetail';
 import { usePublishServiceGroup } from '../hooks/usePublishServiceGroup';
 import { useAssignInspector } from '../hooks/useAssignInspector';
+import { useReassignInspector } from '../hooks/useReassignInspector';
 import { useCancelServiceGroup } from '../hooks/useCancelServiceGroup';
 import { useRejectServiceGroup } from '../hooks/useRejectServiceGroup';
 import { useRepublishServiceGroup } from '../hooks/useRepublishServiceGroup';
@@ -17,19 +18,27 @@ import { useSendGroupPortalLinks } from '../hooks/useSendGroupPortalLinks';
 import { ServiceGroupStatusChip } from '../components/ServiceGroupStatusChip';
 import { ServiceGroupDetailSections } from '../components/ServiceGroupDetailSections';
 import { ManualAssignModal } from '../components/ManualAssignModal';
+import { ServiceGroupActionsMenu } from '../components/ServiceGroupActionsMenu';
+import { RescheduleGroupModal } from '../components/RescheduleGroupModal';
 import { CancelGroupModal } from '../components/CancelGroupModal';
 import { RejectGroupModal } from '../components/RejectGroupModal';
 import { RepublishGroupModal } from '../components/RepublishGroupModal';
 import { EditGroupModal } from '../components/EditGroupModal';
 import { SendPortalLinkDialog } from '../components/SendPortalLinkDialog';
 import { useGoBack } from '@/hooks/useGoBack';
+import { InfoBanner } from '@/components/feedback/InfoBanner';
+import { getPublishBlockReason } from '../lib/publish-block-reason';
+
+const PUBLISH_BLOCK_REASON_ID = 'publish-block-reason';
 
 export function ServiceGroupDetailPage() {
   const { id } = useParams<{ id: string }>();
   const handleBack = useGoBack('/service-groups');
   const { serviceGroup, isLoading, isError, refetch } = useServiceGroupDetail(id ?? null);
   const { publish, isPublishing } = usePublishServiceGroup(id ?? null, refetch);
-  const { assign } = useAssignInspector(id ?? null, refetch);
+  const { assign, isAssigning } = useAssignInspector(id ?? null, refetch);
+  const { reassign, isReassigning } = useReassignInspector(id ?? null, refetch);
+  const [rescheduleMode, setRescheduleMode] = useState<'date' | 'time-window' | null>(null);
   const { cancel } = useCancelServiceGroup(id ?? null, refetch);
   const { reject } = useRejectServiceGroup(id ?? null, refetch);
   const { republish } = useRepublishServiceGroup(id ?? null, refetch);
@@ -51,11 +60,14 @@ export function ServiceGroupDetailPage() {
   }, [sendPortalLinks]);
 
   const handleAssign = useCallback(
-    (inspectorId: string) => {
-      assign(inspectorId);
+    (inspectorId: string, reason: string) => {
+      // An accepted group already has an inspector, and /assign answers that
+      // with a 409 by design — replacement is its own endpoint.
+      if (serviceGroup?.status === ServiceGroupStatus.ACCEPTED) reassign(inspectorId, reason);
+      else assign(inspectorId);
       setAssignOpen(false);
     },
-    [assign],
+    [assign, reassign, serviceGroup?.status],
   );
 
   const handleCancel = useCallback(
@@ -124,21 +136,30 @@ export function ServiceGroupDetailPage() {
   const canCancel = isDraft || isPublished || isAccepted;
   const canReject = isPublished || isAccepted;
   const canEdit = !isAccepted;
-  // Backend allows manual assignment while the group is DRAFT or PUBLISHED (group.canAssign()).
-  const canAssign = isDraft || isPublished;
+  // Plan edits (inspector, date, time window) are allowed on any live group;
+  // a closed one has no schedule left to move and nobody to hand it to.
+  const canChangePlan = isDraft || isPublished || isAccepted;
   // Portal links can only go to AWAITING_INSPECTOR/SCHEDULED appointments, which
   // exist only in non-terminal groups. Hidden for CANCELLED/REJECTED groups.
   const canSendPortalLinks = isDraft || isPublished || isAccepted;
 
-  // Publish requires every appointment to be AWAITING_INSPECTOR.
-  // Surface blocking appointments so the user knows what to fix before clicking.
-  const blockingAppointments = isDraft
-    ? (serviceGroup.appointments ?? []).filter((a) => a.status !== 'AWAITING_INSPECTOR')
-    : [];
-  const publishBlocked = blockingAppointments.length > 0;
-  const publishBlockReason = publishBlocked
-    ? `Cannot publish: appointment${blockingAppointments.length > 1 ? 's' : ''} ${blockingAppointments.map((a) => `#${a.appointmentNumber} (${a.status})`).join(', ')} must be Awaiting Inspector`
-    : undefined;
+  // Publishing releases the group to the marketplace, so it requires a
+  // non-empty group, a schedule that has not passed and every appointment in
+  // AWAITING_INSPECTOR. Mirrors the backend guards (which stay authoritative)
+  // so the user reads the reason instead of hitting a 422.
+  // `appointmentsCount` (server-derived, already falling back to the array
+  // length in the hook) is the count of record — an absent `appointments`
+  // array means "not in the payload", not "empty group".
+  const publishBlockReason = getPublishBlockReason({
+    status: serviceGroup.status,
+    appointmentCount: serviceGroup.appointmentsCount,
+    scheduledDate: serviceGroup.scheduledDate,
+    timeWindow: serviceGroup.timeWindow,
+    blockingAppointments: (serviceGroup.appointments ?? [])
+      .filter((a) => a.status !== 'AWAITING_INSPECTOR')
+      .map((a) => ({ label: `#${a.appointmentNumber}`, status: a.status })),
+  });
+  const publishBlocked = publishBlockReason !== null;
 
   return (
     <div>
@@ -179,29 +200,35 @@ export function ServiceGroupDetailPage() {
         )}
       </div>
 
+      {/* Why Publish is unavailable, as visible text rather than a tooltip:
+          a disabled button must not communicate its state by appearance alone. */}
+      {isDraft && publishBlockReason && (
+        <InfoBanner variant="warning" className="mt-4">
+          <span id={PUBLISH_BLOCK_REASON_ID}>{publishBlockReason}</span>
+        </InfoBanner>
+      )}
+
       {/* Action buttons */}
       <div className="mt-4 flex flex-wrap gap-3">
         {isDraft && (
-          <span title={publishBlockReason}>
-            <Button
-              variant="primary"
-              loading={isPublishing}
-              disabled={publishBlocked}
-              onClick={publish}
-            >
-              <i className="mdi mdi-publish text-base" aria-hidden="true" />
-              Publish
-            </Button>
-          </span>
-        )}
-        {canAssign && (
           <Button
-            variant="outlined"
-            onClick={() => setAssignOpen(true)}
+            variant="primary"
+            loading={isPublishing}
+            disabled={publishBlocked}
+            onClick={publish}
+            aria-describedby={publishBlocked ? PUBLISH_BLOCK_REASON_ID : undefined}
           >
-            <i className="mdi mdi-account-arrow-right text-base" aria-hidden="true" />
-            Manual Assign
+            <i className="mdi mdi-publish text-base" aria-hidden="true" />
+            Publish
           </Button>
+        )}
+        {canChangePlan && (
+          <ServiceGroupActionsMenu
+            isReplacement={isAccepted}
+            onChangeInspector={() => setAssignOpen(true)}
+            onChangeDate={() => setRescheduleMode('date')}
+            onChangeTimeWindow={() => setRescheduleMode('time-window')}
+          />
         )}
         {canReject && (
           <Button
@@ -249,7 +276,26 @@ export function ServiceGroupDetailPage() {
         onClose={() => setAssignOpen(false)}
         onAssign={handleAssign}
         serviceGroupId={id ?? ''}
+        currentInspector={
+          isAccepted && serviceGroup.inspectorId
+            ? { id: serviceGroup.inspectorId, name: serviceGroup.inspectorName ?? 'Unknown' }
+            : null
+        }
+        isReplacement={isAccepted}
+        // Without this the confirm button stays live while the request is in
+        // flight and a second click fires a duplicate assignment.
+        loading={isAssigning || isReassigning}
       />
+      {/* Mounted on demand so each open starts from the group's current schedule. */}
+      {rescheduleMode && (
+        <RescheduleGroupModal
+          open
+          mode={rescheduleMode}
+          onClose={() => setRescheduleMode(null)}
+          serviceGroup={serviceGroup}
+          onSaved={refetch}
+        />
+      )}
       <CancelGroupModal
         open={cancelOpen}
         onClose={() => setCancelOpen(false)}

@@ -2,8 +2,10 @@ import type { IReportRepository, ReportFilters } from '../../domain/report.repos
 import type { ReportEntity } from '../../domain/report.entity';
 import type { IReportStorageService } from '../../domain/report-storage.service';
 import { PRESIGNED_URL_TTL_SECONDS } from '../../domain/report.constants';
-import { ReportForbiddenError } from '../../domain/report.errors';
-import type { ReportType, ReportStatus } from '@properfy/shared';
+import { assertReportRole, isAgencyActor, resolveReportTenantScope } from '../report-access';
+import type { ReportType, ReportStatus, AuthContext } from '@properfy/shared';
+
+export type { AuthContext };
 
 export interface ListReportsInput {
   reportType?: ReportType;
@@ -12,12 +14,6 @@ export interface ListReportsInput {
   toDate?: string;
   page: number;
   pageSize: number;
-}
-
-export interface AuthContext {
-  userId: string;
-  tenantId: string | null;
-  role: string;
 }
 
 interface UserReader {
@@ -55,14 +51,17 @@ export class ListReportsUseCase {
 
   async execute(input: ListReportsInput, auth: AuthContext): Promise<ListReportsOutput> {
     const { reportType, status, fromDate, toDate, page, pageSize } = input;
-    const { role } = auth;
 
-    // Reports are restricted to operators (AM/OP).
-    if (role !== 'AM' && role !== 'OP') {
-      throw new ReportForbiddenError();
-    }
+    assertReportRole(auth);
 
     const filters: ReportFilters = {};
+    // An agency sees only its own agency-scoped runs. Both halves matter: an
+    // operator run targeting this agency shares the tenant_id but may contain
+    // platform-only data. Operators are left unfiltered (cross-agency listing).
+    if (isAgencyActor(auth)) {
+      filters.tenantId = resolveReportTenantScope(auth);
+      filters.agencyScoped = true;
+    }
     if (reportType) filters.reportType = reportType;
     if (status) filters.status = status;
     if (fromDate) filters.fromDate = fromDate;

@@ -726,8 +726,6 @@ export interface paths {
                             /** @default 1 */
                             portalCutoffDaysBefore?: number;
                             /** @default 30 */
-                            portalRescheduleWindowDays?: number;
-                            /** @default 30 */
                             inspectionWindowBeforeMinutes?: number;
                             /** @default 30 */
                             inspectionWindowAfterMinutes?: number;
@@ -914,8 +912,6 @@ export interface paths {
                             portalCutoffHour?: number;
                             /** @default 1 */
                             portalCutoffDaysBefore?: number;
-                            /** @default 30 */
-                            portalRescheduleWindowDays?: number;
                             /** @default 30 */
                             inspectionWindowBeforeMinutes?: number;
                             /** @default 30 */
@@ -1393,88 +1389,6 @@ export interface paths {
                 cookie?: never;
             };
             requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/tenants/{tenantId}/branding/logo/presign": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    tenantId: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        contentType: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/tenants/{tenantId}/branding/logo/confirm": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    tenantId: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        storageKey: string;
-                    };
-                };
-            };
             responses: {
                 /** @description Default Response */
                 200: {
@@ -2182,7 +2096,7 @@ export interface paths {
                     branchId?: string;
                     type?: "APARTMENT" | "HOUSE";
                     search?: string;
-                    hasCoordinates?: boolean;
+                    hasCoordinates?: boolean | "true" | "false" | "1" | "0" | 1 | 0;
                     nearLat?: number;
                     nearLng?: number;
                     nearRadiusKm?: number;
@@ -3127,11 +3041,11 @@ export interface paths {
                                 fullName?: string | null;
                                 address?: unknown;
                                 abn?: string | null;
-                                dateOfBirth?: (string) | null;
+                                dateOfBirth?: string | null;
                                 insuranceFileKey?: string | null;
-                                insuranceExpiresAt?: (string) | null;
+                                insuranceExpiresAt?: string | null;
                                 policeCheckFileKey?: string | null;
-                                policeCheckExpiresAt?: (string) | null;
+                                policeCheckExpiresAt?: string | null;
                                 photoStorageKey?: string | null;
                                 insuranceMetaJson?: unknown;
                                 policeCheckMetaJson?: unknown;
@@ -3226,11 +3140,11 @@ export interface paths {
                                 fullName?: string | null;
                                 address?: unknown;
                                 abn?: string | null;
-                                dateOfBirth?: (string) | null;
+                                dateOfBirth?: string | null;
                                 insuranceFileKey?: string | null;
-                                insuranceExpiresAt?: (string) | null;
+                                insuranceExpiresAt?: string | null;
                                 policeCheckFileKey?: string | null;
-                                policeCheckExpiresAt?: (string) | null;
+                                policeCheckExpiresAt?: string | null;
                                 photoStorageKey?: string | null;
                                 insuranceMetaJson?: unknown;
                                 policeCheckMetaJson?: unknown;
@@ -3287,11 +3201,11 @@ export interface paths {
                                 fullName?: string | null;
                                 address?: unknown;
                                 abn?: string | null;
-                                dateOfBirth?: (string) | null;
+                                dateOfBirth?: string | null;
                                 insuranceFileKey?: string | null;
-                                insuranceExpiresAt?: (string) | null;
+                                insuranceExpiresAt?: string | null;
                                 policeCheckFileKey?: string | null;
-                                policeCheckExpiresAt?: (string) | null;
+                                policeCheckExpiresAt?: string | null;
                                 photoStorageKey?: string | null;
                                 insuranceMetaJson?: unknown;
                                 policeCheckMetaJson?: unknown;
@@ -3383,11 +3297,11 @@ export interface paths {
                                 fullName?: string | null;
                                 address?: unknown;
                                 abn?: string | null;
-                                dateOfBirth?: (string) | null;
+                                dateOfBirth?: string | null;
                                 insuranceFileKey?: string | null;
-                                insuranceExpiresAt?: (string) | null;
+                                insuranceExpiresAt?: string | null;
                                 policeCheckFileKey?: string | null;
-                                policeCheckExpiresAt?: (string) | null;
+                                policeCheckExpiresAt?: string | null;
                                 photoStorageKey?: string | null;
                                 insuranceMetaJson?: unknown;
                                 policeCheckMetaJson?: unknown;
@@ -4598,7 +4512,6 @@ export interface paths {
                                     username: string;
                                     password: string;
                                     needsAuthCode: boolean;
-                                    authCode: string | null;
                                     appUrl: string | null;
                                     instructionsUrl: string | null;
                                     instructionsPassword: string | null;
@@ -4795,7 +4708,6 @@ export interface paths {
                                     username: string;
                                     password: string;
                                     needsAuthCode: boolean;
-                                    authCode: string | null;
                                     appUrl: string | null;
                                     instructionsUrl: string | null;
                                     instructionsPassword: string | null;
@@ -4917,7 +4829,6 @@ export interface paths {
                                     username: string;
                                     password: string;
                                     needsAuthCode: boolean;
-                                    authCode: string | null;
                                     appUrl: string | null;
                                     instructionsUrl: string | null;
                                     instructionsPassword: string | null;
@@ -5027,6 +4938,7 @@ export interface paths {
                             label: string;
                             value: string;
                         }[] | null;
+                        expandGroupTimeWindow?: boolean;
                     };
                 };
             };
@@ -5113,7 +5025,6 @@ export interface paths {
                                     username: string;
                                     password: string;
                                     needsAuthCode: boolean;
-                                    authCode: string | null;
                                     appUrl: string | null;
                                     instructionsUrl: string | null;
                                     instructionsPassword: string | null;
@@ -5200,7 +5111,7 @@ export interface paths {
                         targetStatus: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
                         reason?: string;
                         /** @enum {string} */
-                        cancellationReasonCode?: "CLIENT_REQUEST" | "TENANT_UNAVAILABLE" | "SCHEDULING_CONFLICT" | "INSPECTOR_UNAVAILABLE" | "DUPLICATE" | "OTHER";
+                        cancellationReasonCode?: "CLIENT_REQUEST" | "TENANT_UNAVAILABLE" | "SCHEDULING_CONFLICT" | "INSPECTOR_UNAVAILABLE" | "DUPLICATE" | "EXPIRED" | "OTHER";
                         /** @enum {string} */
                         rejectionReasonCode?: "INVALID_ADDRESS" | "PROPERTY_INACCESSIBLE" | "SAFETY_CONCERN" | "INSUFFICIENT_INFO" | "SERVICE_NOT_AVAILABLE" | "TENANT_NO_RESPONSE" | "OTHER";
                         /** Format: uuid */
@@ -5482,6 +5393,7 @@ export interface paths {
                         newDate: string;
                         newTimeSlotStart?: string;
                         newTimeSlotEnd?: string;
+                        expandGroupTimeWindow?: boolean;
                     };
                 };
             };
@@ -5805,6 +5717,27 @@ export interface paths {
                                         severity: "warning" | "error";
                                         message: string;
                                     }[];
+                                }[];
+                                /** @default [] */
+                                fileIssues: {
+                                    /** @enum {string} */
+                                    code: "IMPORT_FILE_EMPTY" | "IMPORT_FILE_CONTENT_MISMATCH" | "IMPORT_FILE_CORRUPT_XLSX" | "IMPORT_FILE_CORRUPT_CSV" | "IMPORT_FILE_NO_WORKSHEETS" | "IMPORT_FILE_NO_HEADER_ROW" | "IMPORT_FILE_MISSING_COLUMNS" | "IMPORT_FILE_MULTIPLE_SHEETS" | "IMPORT_FILE_UNKNOWN_COLUMNS" | "IMPORT_FILE_NO_DATA_ROWS";
+                                    /** @enum {string} */
+                                    severity: "warning" | "error";
+                                    message: string;
+                                    /** @default [] */
+                                    missingColumns: string[];
+                                    /** @default [] */
+                                    foundColumns: string[];
+                                    /** @default [] */
+                                    unknownColumns: {
+                                        column: string;
+                                        suggestion: string | null;
+                                    }[];
+                                    /** @default null */
+                                    sheetUsed: string | null;
+                                    /** @default [] */
+                                    sheetsIgnored: string[];
                                 }[];
                             };
                         };
@@ -6426,38 +6359,10 @@ export interface paths {
                             data: {
                                 /** Format: uuid */
                                 id: string;
-                                groupNumber?: number;
-                                code?: string;
-                                /** Format: uuid */
-                                tenantId: string | null;
-                                agencies?: {
-                                    /** Format: uuid */
-                                    id: string;
-                                    name: string;
-                                }[];
-                                /** Format: uuid */
-                                serviceTypeId: string;
                                 status: string;
-                                groupSize: number;
-                                offeredCount: number;
-                                confirmedCount: number;
-                                scheduledDate: string;
-                                timeWindow: string;
-                                regionName?: string | null;
-                                description?: string | null;
                                 /** Format: uuid */
-                                assignedInspectorId: string | null;
-                                /** Format: uuid */
-                                serviceRegionId?: string | null;
-                                publishedAt: (string) | null;
-                                assignedAt?: (string) | null;
-                                /** Format: uuid */
-                                createdByUserId?: string;
-                                createdAt: string;
-                                updatedAt?: string;
-                                appointmentsCount?: number;
-                                appointments?: unknown[];
-                                assignedInspector?: unknown;
+                                assignedInspectorId: string;
+                                appointmentsScheduled: number;
                             };
                         };
                     };
@@ -6893,6 +6798,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/service-groups/{groupId}/reassign-inspector": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    groupId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        inspectorId: string;
+                        reason: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                status: string;
+                                /** Format: uuid */
+                                assignedInspectorId: string;
+                                /** Format: uuid */
+                                previousInspectorId: string | null;
+                                appointmentsReassigned: number;
+                                appointmentsScheduled: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/service-groups/{groupId}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    groupId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        scheduledDate?: string;
+                        timeWindow?: string;
+                        /** @enum {string} */
+                        confirmationStrategy: "RESEND" | "NOTIFY_ONLY";
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                status: string;
+                                scheduledDate: string;
+                                timeWindow: string;
+                                applied: {
+                                    total: number;
+                                    dateChanged: number;
+                                    slotClamped: number;
+                                    failed: number;
+                                    confirmationsHandled: number;
+                                    /** @enum {string} */
+                                    confirmationStrategy: "RESEND" | "NOTIFY_ONLY";
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/marketplace/offers": {
         parameters: {
             query?: never;
@@ -7103,7 +7128,7 @@ export interface paths {
                     fromDate?: string;
                     toDate?: string;
                     q?: string;
-                    includeArchived?: boolean;
+                    includeArchived?: boolean | "true" | "false" | "1" | "0" | 1 | 0;
                 };
                 header?: never;
                 path?: never;
@@ -7683,7 +7708,6 @@ export interface paths {
                             deadline?: string;
                             rentalTenantNames?: string[];
                             propertyManager?: string | null;
-                            rescheduleAllowed?: boolean;
                             tenant?: {
                                 name: string | null;
                                 timezone: string;
@@ -7753,73 +7777,6 @@ export interface paths {
                             rentalTenantConfirmationStatus: "CONFIRMED";
                             /** Format: date-time */
                             confirmedAt: string;
-                        };
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/rental-tenant-portal/{token}/reschedule": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    token: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        newDate: string;
-                        newTimeSlotStart: string;
-                        newTimeSlotEnd: string;
-                        restrictions?: {
-                            isHome?: boolean | null;
-                            unavailableDaysJson?: string[] | null;
-                            unavailableHoursJson?: {
-                                start: string;
-                                end: string;
-                            }[] | null;
-                            notes?: string | null;
-                            availableSlotsJson?: {
-                                /** @enum {string} */
-                                dayOfWeek: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
-                                start: string;
-                                end: string;
-                            }[] | null;
-                        };
-                        rentalTenantNote?: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            scheduledDate: string;
-                            timeSlotStart: string;
-                            timeSlotEnd: string;
-                            /** @enum {string} */
-                            rentalTenantConfirmationStatus: "PENDING";
                         };
                     };
                 };
@@ -7973,7 +7930,7 @@ export interface paths {
                                 timeSlotEnd: string;
                                 suburb: string;
                                 inspectorName: string;
-                                confirmedCount: number;
+                                bookedCount: number;
                                 capacityMax: number;
                             }[];
                         };
@@ -8137,7 +8094,7 @@ export interface paths {
                                 /** Format: uuid */
                                 appointmentId: string;
                                 /** Format: uuid */
-                                tenantPortalTokenId: string;
+                                rentalTenantPortalTokenId: string;
                                 action: string;
                                 previousValuesJson?: unknown;
                                 newValuesJson?: unknown;
@@ -8449,7 +8406,6 @@ export interface paths {
                                     username: string;
                                     password: string;
                                     needsAuthCode: boolean;
-                                    authCode: string | null;
                                     appUrl: string | null;
                                     instructionsUrl: string | null;
                                     instructionsPassword: string | null;
@@ -10531,7 +10487,7 @@ export interface paths {
                     tenantId?: string;
                     templateCode?: string;
                     channel?: "EMAIL" | "SMS";
-                    includeDefaults?: boolean;
+                    includeDefaults?: boolean | "true" | "false" | "1" | "0" | 1 | 0;
                 };
                 header?: never;
                 path?: never;
@@ -10841,6 +10797,53 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notification-templates/{templateCode}/{channel}/default": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    tenantId?: string;
+                };
+                header?: never;
+                path: {
+                    templateCode: string;
+                    channel: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                subject: string | null;
+                                body: string;
+                                /** @enum {string} */
+                                source: "PLATFORM_DEFAULT" | "FACTORY";
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -11333,7 +11336,7 @@ export interface paths {
                                         appointmentId: string;
                                         appointmentNumber: number;
                                         status: string;
-                                        /** Format: date-time */
+                                        /** Format: date */
                                         scheduledDate: string;
                                         /** @enum {string} */
                                         role: "RENTAL_TENANT" | "RENTAL_TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
@@ -11553,7 +11556,6 @@ export interface paths {
                                 username: string;
                                 password: string;
                                 needsAuthCode: boolean;
-                                authCode: string | null;
                                 appUrl: string | null;
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;
@@ -11597,7 +11599,6 @@ export interface paths {
                         password: string;
                         /** @default false */
                         needsAuthCode?: boolean;
-                        authCode?: string | null;
                         /** Format: uri */
                         appUrl?: string | null;
                         /** Format: uri */
@@ -11627,7 +11628,6 @@ export interface paths {
                                 username: string;
                                 password: string;
                                 needsAuthCode: boolean;
-                                authCode: string | null;
                                 appUrl: string | null;
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;
@@ -11685,7 +11685,6 @@ export interface paths {
                                 username: string;
                                 password: string;
                                 needsAuthCode: boolean;
-                                authCode: string | null;
                                 appUrl: string | null;
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;
@@ -11724,7 +11723,6 @@ export interface paths {
                         username?: string;
                         password?: string;
                         needsAuthCode?: boolean;
-                        authCode?: string | null;
                         /** Format: uri */
                         appUrl?: string | null;
                         /** Format: uri */
@@ -11754,7 +11752,6 @@ export interface paths {
                                 username: string;
                                 password: string;
                                 needsAuthCode: boolean;
-                                authCode: string | null;
                                 appUrl: string | null;
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;
@@ -11810,7 +11807,6 @@ export interface paths {
                                 username: string;
                                 password: string;
                                 needsAuthCode: boolean;
-                                authCode: string | null;
                                 appUrl: string | null;
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;

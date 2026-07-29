@@ -82,6 +82,11 @@ interface ServiceGroupMapItem {
    */
   appointmentsCount?: number;
   scheduledDate: string;
+  /**
+   * `HH:mm-HH:mm`. Drives the bulk-reschedule window-widening preview and
+   * gates PUBLISH on same-day groups.
+   */
+  timeWindow: string;
   appointments: ServiceGroupMapAppointment[];
 }
 
@@ -434,6 +439,19 @@ export function AppointmentMapPage() {
   // Memoised per apps/web/CLAUDE.md §13.11 — several memos and an effect key off
   // this array, and a fresh identity every render would defeat all of them.
   const groupData = useMemo(() => groupResponse?.data ?? [], [groupResponse]);
+
+  // Minimal group context for the bulk-reschedule window-widening preview.
+  // Empty for client roles (the groups list is AM/OP-only) — the form degrades
+  // to submitting without a preview. Memoised for the same reason as above.
+  const rescheduleGroupContexts = useMemo(
+    () => groupData.map((g) => ({
+      id: g.id,
+      timeWindow: g.timeWindow,
+      status: g.status,
+      ...(g.code ? { code: g.code } : {}),
+    })),
+    [groupData],
+  );
 
   // Group drill-down: when a group pin is clicked, fetch that group's FULL
   // appointments (same shape as the lasso bulk modal) so the modal renders the
@@ -1286,8 +1304,8 @@ export function AppointmentMapPage() {
   );
 
   return (
-    <div className="relative -mx-4 -mt-4 md:-mx-8 md:-mt-6">
-      <MapScreenLayout sidePanel={sidePanel} map={mapContent} sidePanelOpen={filtersOpen} />
+    <div className="relative h-full">
+      <MapScreenLayout sidePanel={sidePanel} map={mapContent} sidePanelOpen={filtersOpen} fillParent />
         {/* 026 cycle-1 devolução — render the top-left toggle ONLY while
             the panel is closed. When open, the panel's own close `×`
             button is the canonical affordance; the external toggle was
@@ -1319,6 +1337,7 @@ export function AppointmentMapPage() {
         onClose={handleBulkModalClose}
         actorRole={actorRole}
         clUserFlags={clUserFlags}
+        serviceGroups={rescheduleGroupContexts}
         onAddToGroup={handleOpenAddToGroup}
         onCreateGroup={handleOpenCreateGroup}
         // T-C4-4 — track modal width so flyTo right-padding stays in sync
@@ -1367,6 +1386,7 @@ export function AppointmentMapPage() {
         onClose={() => { setSelectedGroupItem(null); setSelectedItem(null); }}
         actorRole={actorRole}
         clUserFlags={clUserFlags}
+        serviceGroups={rescheduleGroupContexts}
         onResize={setGroupModalWidth}
         // Hidden in this context, but the props are required.
         onAddToGroup={() => {}}
@@ -1386,7 +1406,10 @@ export function AppointmentMapPage() {
         }}
         onActionComplete={() => {
           queryClient.invalidateQueries({ queryKey: ['appointments-by-group'] });
+          // Reschedule can widen the group's time window — refetch so the next
+          // widening preview is computed against the CURRENT window.
           queryClient.invalidateQueries({ queryKey: ['service-groups-map'] });
+          queryClient.invalidateQueries({ queryKey: ['service-groups'] });
           // Also refresh the Appointments-mode list so its pins/statuses
           // repaint after a group bulk action (cancel / status / reschedule).
           queryClient.invalidateQueries({ queryKey: ['appointments-map'] });

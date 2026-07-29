@@ -167,3 +167,171 @@ describe('PrismaAppointmentRepository date filters', () => {
     );
   });
 });
+
+describe('PrismaAppointmentRepository property total area', () => {
+  const findMany = vi.fn();
+  const prisma = { appointment: { findMany, count: vi.fn() } } as any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    findMany.mockResolvedValue([]);
+  });
+
+  function makeRow(totalAreaM2: unknown) {
+    return {
+      id: 'appt-1',
+      tenant_id: 'tenant-1',
+      branch_id: 'branch-1',
+      property_id: 'property-1',
+      service_type_id: 'svc-1',
+      inspector_id: null,
+      status: 'DRAFT',
+      scheduled_date: new Date('2026-04-01'),
+      time_slot_start: '09:00',
+      time_slot_end: '10:00',
+      key_required: false,
+      meeting_location: null,
+      key_location: null,
+      rental_tenant_confirmation_status: 'PENDING',
+      price_amount: null,
+      payout_amount: null,
+      pricing_rule_snapshot_json: {},
+      notes: null,
+      custom_fields_json: null,
+      reason: null,
+      created_by_user_id: 'user-1',
+      done_marked_by_user_id: null,
+      done_checked_by_user_id: null,
+      done_checked_at: null,
+      service_group_id: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+      deleted_at: null,
+      contacts: [],
+      property: {
+        property_code: 'PROP-001',
+        street: '21 King St',
+        suburb: 'Sydney',
+        state: 'NSW',
+        postcode: '2000',
+        lat: null,
+        lng: null,
+        total_area_m2: totalAreaM2,
+      },
+      tenant: { name: 'Agency', appointment_code_prefix: 'INS' },
+      branch: { name: 'Main' },
+      service_type: { name: 'Routine', flow_type: 'ROUTINE' },
+      inspector: null,
+      service_group: null,
+    };
+  }
+
+  it('selects total_area_m2 on the property relation', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll({}, { page: 1, pageSize: 10, sortOrder: 'asc' });
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          property: { select: expect.objectContaining({ total_area_m2: true }) },
+        }),
+      }),
+    );
+  });
+
+  it('converts the Prisma Decimal to a JS number', async () => {
+    // Prisma returns Decimal for @db.Decimal columns; without Number() the value
+    // serializes as an object and the m² card segment renders "[object Object]".
+    const decimalLike = { toString: () => '82.5', toNumber: () => 82.5 };
+    findMany.mockResolvedValue([makeRow(decimalLike)]);
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    const rows = await repo.findAll({}, { page: 1, pageSize: 10, sortOrder: 'asc' });
+
+    expect(rows[0]!.propertyTotalAreaM2).toBe(82.5);
+    expect(typeof rows[0]!.propertyTotalAreaM2).toBe('number');
+  });
+
+  it('maps a missing area to null', async () => {
+    findMany.mockResolvedValue([makeRow(null)]);
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    const rows = await repo.findAll({}, { page: 1, pageSize: 10, sortOrder: 'asc' });
+
+    expect(rows[0]!.propertyTotalAreaM2).toBeNull();
+  });
+});
+
+describe('PrismaAppointmentRepository overdueOnly + status composition', () => {
+  const findMany = vi.fn();
+  const count = vi.fn();
+  const prisma = { appointment: { findMany, count } } as any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    findMany.mockResolvedValue([]);
+    count.mockResolvedValue(0);
+  });
+
+  function whereOf() {
+    return findMany.mock.calls[0][0].where;
+  }
+
+  it('intersects an explicit status filter with the overdue statuses', async () => {
+    // Without the intersection the overdue branch discards `status` entirely, so
+    // a board column asking for AWAITING_INSPECTOR would receive SCHEDULED rows
+    // too — every overdue card would appear in two columns at once.
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll(
+      { overdueOnly: true, status: ['AWAITING_INSPECTOR'] },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    expect(whereOf().status).toEqual({ in: ['AWAITING_INSPECTOR'] });
+  });
+
+  it('matches nothing when the requested status can never be overdue', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll(
+      { overdueOnly: true, status: ['DONE'] },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    // Empty `in` matches no rows — DONE is never overdue.
+    expect(whereOf().status).toEqual({ in: [] });
+  });
+
+  it('keeps both overdue statuses when no status filter is supplied', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll({ overdueOnly: true }, { page: 1, pageSize: 10, sortOrder: 'asc' });
+
+    expect(whereOf().status).toEqual({ in: ['SCHEDULED', 'AWAITING_INSPECTOR'] });
+  });
+
+  it('drops a partially-overdue status selection down to the overdue subset', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll(
+      { overdueOnly: true, status: ['SCHEDULED', 'CANCELLED'] },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    expect(whereOf().status).toEqual({ in: ['SCHEDULED'] });
+  });
+
+  it('applies the same intersection to count so totals match the rows', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.count({ overdueOnly: true, status: ['AWAITING_INSPECTOR'] });
+
+    expect(count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: { in: ['AWAITING_INSPECTOR'] } }),
+      }),
+    );
+  });
+});

@@ -77,7 +77,6 @@ export interface PortalData {
   rentalTenantNames?: string[];
   /** Display name of the PROPERTY_MANAGER contact, when one is linked. */
   propertyManager?: string | null;
-  rescheduleAllowed?: boolean;
   tenant?: PortalTenantInfo;
 }
 
@@ -89,14 +88,6 @@ export interface ConfirmInput {
     availableSlotsJson?: AvailableSlot[] | null;
     notes?: string | null;
   };
-  rentalTenantNote?: string;
-}
-
-export interface RescheduleInput {
-  newDate: string;
-  newTimeSlotStart: string;
-  newTimeSlotEnd: string;
-  restrictions?: ConfirmInput['restrictions'];
   rentalTenantNote?: string;
 }
 

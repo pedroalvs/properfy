@@ -72,7 +72,6 @@ export function AppFormDrawer({ open, onClose, app, defaultTenantId, onSaved }: 
             username: app.username,
             password: app.password,
             needsAuthCode: app.needsAuthCode,
-            authCode: app.authCode ?? '',
             appUrl: app.appUrl ?? '',
             instructionsUrl: app.instructionsUrl ?? '',
             instructionsPassword: app.instructionsPassword ?? '',
@@ -178,16 +177,11 @@ export function AppFormDrawer({ open, onClose, app, defaultTenantId, onSaved }: 
                     onChange={(checked) => updateField('needsAuthCode', checked)}
                     label="Needs authentication code"
                   />
+                  <p className="mt-1 text-xs text-text-secondary">
+                    These codes rotate, so none is stored. The inspector is told to expect a
+                    code prompt and obtains it out of band.
+                  </p>
                 </div>
-                {form.needsAuthCode && (
-                  <FormField label="Authentication code" required error={errors.authCode}>
-                    <TextInput
-                      value={form.authCode}
-                      onChange={(v) => updateField('authCode', v)}
-                      aria-label="Authentication code"
-                    />
-                  </FormField>
-                )}
               </FormSection>
               <p className="-mt-3 text-xs text-text-secondary">
                 Secrets are stored encrypted and shown in plaintext to operators and the

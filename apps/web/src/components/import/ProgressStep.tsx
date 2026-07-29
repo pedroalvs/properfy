@@ -4,6 +4,9 @@ interface ProgressStepProps {
   successCount: number;
   errorCount: number;
   errors: { row: number; field?: string; message: string }[];
+  /** Whole-file reason the commit failed, when the backend recorded one.
+   * Without it a failed import shows a bare "Import failed" with no cause. */
+  failureMessage?: string;
 }
 
 export function ProgressStep({
@@ -12,6 +15,7 @@ export function ProgressStep({
   successCount,
   errorCount,
   errors,
+  failureMessage,
 }: ProgressStepProps) {
   return (
     <div className="space-y-6">
@@ -53,6 +57,11 @@ export function ProgressStep({
             <p className="text-sm font-semibold text-[var(--color-error)]">
               Import failed
             </p>
+            {failureMessage && (
+              <p className="max-w-md text-center text-sm text-[var(--color-text-secondary)]">
+                {failureMessage}
+              </p>
+            )}
           </>
         )}
       </div>

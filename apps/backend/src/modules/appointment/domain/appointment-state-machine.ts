@@ -40,7 +40,9 @@ export const TRANSITION_RULES: TransitionRule[] = [
   {
     from: 'AWAITING_INSPECTOR',
     to: 'CANCELLED',
-    allowedActors: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'],
+    // SYS: the daily sweep cancels appointments whose date has passed. DRAFT is
+    // deliberately excluded from that sweep, so DRAFT → CANCELLED stays user-only.
+    allowedActors: ['AM', 'OP', 'CL_ADMIN', 'CL_USER', 'SYS'],
     requiresReason: true,
     requiresDoneCheckedBy: false,
   },
@@ -61,7 +63,8 @@ export const TRANSITION_RULES: TransitionRule[] = [
   {
     from: 'SCHEDULED',
     to: 'CANCELLED',
-    allowedActors: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'],
+    // SYS: see AWAITING_INSPECTOR → CANCELLED above.
+    allowedActors: ['AM', 'OP', 'CL_ADMIN', 'CL_USER', 'SYS'],
     requiresReason: true,
     requiresDoneCheckedBy: false,
   },

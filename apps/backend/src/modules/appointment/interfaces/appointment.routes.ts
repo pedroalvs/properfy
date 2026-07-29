@@ -236,9 +236,13 @@ export async function registerAppointmentRoutes(
       if (!parsed.success) {
         throw new ValidationError('Request payload is invalid', parsed.error.errors);
       }
+      // `expandGroupTimeWindow` is a control flag, not an appointment field —
+      // lift it out of the patch body so it never reaches the update payload.
+      const { expandGroupTimeWindow, ...appointmentData } = parsed.data;
       const result = await container.updateAppointmentUseCase.execute({
         appointmentId: params.data.appointmentId,
-        data: parsed.data,
+        data: appointmentData,
+        ...(expandGroupTimeWindow ? { expandGroupTimeWindow: true } : {}),
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
@@ -444,6 +448,7 @@ export async function registerAppointmentRoutes(
         ...(parsed.data.newTimeSlotStart && parsed.data.newTimeSlotEnd
           ? { newTimeSlotStart: parsed.data.newTimeSlotStart, newTimeSlotEnd: parsed.data.newTimeSlotEnd }
           : {}),
+        ...(parsed.data.expandGroupTimeWindow ? { expandGroupTimeWindow: true } : {}),
         actor: auth,
       });
       return reply.status(200).send(success(result));

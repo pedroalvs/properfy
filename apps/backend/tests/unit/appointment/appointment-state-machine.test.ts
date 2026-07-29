@@ -14,6 +14,30 @@ describe('AppointmentStateMachine', () => {
     });
   });
 
+  describe('SYS actor — automated cancellation of appointments whose date passed', () => {
+    it('lets SYS cancel from the two active statuses the sweep targets', () => {
+      expect(machine.validateTransition('AWAITING_INSPECTOR', 'CANCELLED', 'SYS').valid).toBe(true);
+      expect(machine.validateTransition('SCHEDULED', 'CANCELLED', 'SYS').valid).toBe(true);
+    });
+
+    it('does NOT let SYS cancel a DRAFT — drafts are deliberately out of scope', () => {
+      const result = machine.validateTransition('DRAFT', 'CANCELLED', 'SYS');
+      expect(result.valid).toBe(false);
+      // The rule exists, so this is a permission failure, not an unknown transition.
+      expect(result.rule).not.toBeNull();
+    });
+
+    it('still requires a reason for the transitions SYS may perform', () => {
+      expect(machine.getTransitionRule('AWAITING_INSPECTOR', 'CANCELLED')?.requiresReason).toBe(true);
+      expect(machine.getTransitionRule('SCHEDULED', 'CANCELLED')?.requiresReason).toBe(true);
+    });
+
+    it('does not widen cancellation for INSP or TNT', () => {
+      expect(machine.validateTransition('SCHEDULED', 'CANCELLED', 'INSP').valid).toBe(false);
+      expect(machine.validateTransition('SCHEDULED', 'CANCELLED', 'TNT').valid).toBe(false);
+    });
+  });
+
   describe('getTransitionRule()', () => {
     it('returns the rule for a valid transition', () => {
       const rule = machine.getTransitionRule('DRAFT', 'AWAITING_INSPECTOR');

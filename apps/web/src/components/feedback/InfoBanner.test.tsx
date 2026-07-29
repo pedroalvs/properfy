@@ -12,4 +12,17 @@ describe('InfoBanner', () => {
     render(<InfoBanner>Info message</InfoBanner>);
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
+  it('uses the alert role and error styling for the error variant', () => {
+    render(<InfoBanner variant="error">Something broke</InfoBanner>);
+    const banner = screen.getByRole('alert');
+    expect(banner).toHaveTextContent('Something broke');
+    expect(banner.className).toContain('text-error');
+  });
+
+  it('keeps the status role for info and warning', () => {
+    const { rerender } = render(<InfoBanner variant="info">Info</InfoBanner>);
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    rerender(<InfoBanner variant="warning">Warn</InfoBanner>);
+    expect(screen.getByRole('status')).toBeInTheDocument();
+  });
 });

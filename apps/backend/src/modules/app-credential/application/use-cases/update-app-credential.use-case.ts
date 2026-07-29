@@ -7,7 +7,6 @@ import type { IBranchRepository } from '../../../tenant/domain/branch.repository
 import type { AppCredentialEntity } from '../../domain/app-credential.entity';
 import {
   AppCredentialNotFoundError,
-  AppCredentialAuthCodeRequiredError,
   AppCredentialBranchInvalidError,
 } from '../../domain/app-credential.errors';
 
@@ -29,15 +28,6 @@ export class UpdateAppCredentialUseCase {
     const existing = await this.repo.findById(input.id);
     if (!existing) {
       throw new AppCredentialNotFoundError();
-    }
-
-    // The needsAuthCode ⇒ authCode invariant must hold on the MERGED state —
-    // a partial patch cannot be validated by the input schema alone.
-    const mergedNeedsAuthCode = input.data.needsAuthCode ?? existing.needsAuthCode;
-    const mergedAuthCode =
-      input.data.authCode !== undefined ? input.data.authCode : existing.authCode;
-    if (mergedNeedsAuthCode && !mergedAuthCode) {
-      throw new AppCredentialAuthCodeRequiredError();
     }
 
     // Multi-tenant safety: a new branch must belong to the credential's tenant.
@@ -82,7 +72,6 @@ export class UpdateAppCredentialUseCase {
         isActive: updated.isActive,
         isDefault: updated.isDefault,
         passwordChanged: input.data.password !== undefined,
-        authCodeChanged: input.data.authCode !== undefined,
         instructionsPasswordChanged: input.data.instructionsPassword !== undefined,
       },
     });

@@ -130,7 +130,9 @@ describe('POST /v1/appointments/import/preview', () => {
       .attach('file', Buffer.from('Type,Street\nRoutine Inspection,1 Main St\n'), 'import.csv');
 
     expect(res.status).toBe(200);
-    expect(res.body.data).toEqual(previewResult);
+    // `fileIssues` is defaulted by the response schema, so a use case that
+    // omits it still serializes cleanly (see the dedicated test below).
+    expect(res.body.data).toEqual({ ...previewResult, fileIssues: [] });
     expect(mockPreviewExecute).toHaveBeenCalledWith(expect.objectContaining({
       branchId: BRANCH_ID, filename: 'import.csv', actor: amContext,
     }));

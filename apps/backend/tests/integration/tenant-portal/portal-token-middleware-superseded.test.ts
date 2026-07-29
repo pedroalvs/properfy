@@ -52,7 +52,6 @@ vi.mock('../../../src/main/container', () => ({
     rentalTenantPortal: {
       getPortalDataUseCase: { execute: vi.fn() },
       confirmAppointmentUseCase: { execute: vi.fn() },
-      rescheduleRequestUseCase: { execute: vi.fn() },
       updateContactUseCase: { execute: vi.fn() },
       reportUnavailabilityUseCase: { execute: vi.fn() },
       generatePortalTokenUseCase: { execute: vi.fn() },
@@ -132,17 +131,6 @@ describe('Portal middleware — SUPERSEDED token → 410', () => {
     const res = await supertest(app.server)
       .post(`/v1/rental-tenant-portal/${RAW_TOKEN}/confirm`)
       .send({ confirmedByTenant: true });
-
-    expect(res.status).toBe(410);
-    expect(res.body.error.code).toBe('PORTAL_TOKEN_SUPERSEDED');
-  });
-
-  it('POST /v1/rental-tenant-portal/:token/reschedule returns 410 for SUPERSEDED token', async () => {
-    mockFindByTokenHash.mockResolvedValueOnce(makeSupersededToken());
-
-    const res = await supertest(app.server)
-      .post(`/v1/rental-tenant-portal/${RAW_TOKEN}/reschedule`)
-      .send({ newDate: '2026-09-01', newTimeSlotStart: '09:00', newTimeSlotEnd: '12:00' });
 
     expect(res.status).toBe(410);
     expect(res.body.error.code).toBe('PORTAL_TOKEN_SUPERSEDED');

@@ -6,17 +6,6 @@ export class AppCredentialNotFoundError extends NotFoundError {
   }
 }
 
-/** Thrown when needsAuthCode is true but no authCode is present (merged state). */
-export class AppCredentialAuthCodeRequiredError extends ValidationError {
-  constructor() {
-    super(
-      'authCode is required when needsAuthCode is true',
-      [{ field: 'authCode', message: 'authCode is required when needsAuthCode is true' }],
-      'APP_CREDENTIAL_AUTH_CODE_REQUIRED',
-    );
-  }
-}
-
 /** Thrown when the given branch does not exist within the credential's tenant. */
 export class AppCredentialBranchInvalidError extends ValidationError {
   constructor() {

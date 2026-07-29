@@ -80,6 +80,8 @@ export interface ListAppointmentsOutput {
     rentalTenantNote: string | null;
     latitude: number | null;
     longitude: number | null;
+    /** Property total area in m²; null when the property has no recorded area. */
+    propertyTotalAreaM2: number | null;
   }>;
   total: number;
   page: number;
@@ -113,11 +115,12 @@ export class ListAppointmentsUseCase {
         ? filters.tenantId
         : actor.tenantId ?? undefined;
 
-    // When the search term looks like an appointment code (e.g. "INS-0042"),
-    // extract the appointment number so the repository can add an OR condition
-    // on appointment_number in addition to the regular text search.
+    // When the search term looks like an appointment code — either fully
+    // formatted ("INS-0042") or the bare number the operator reads off the
+    // screen ("0042", "42") — extract the appointment number so the repository
+    // can add an OR condition on appointment_number alongside the text search.
     const searchAppointmentNumber = filters.search
-      ? AppointmentCodeFormatter.parse(filters.search) ?? undefined
+      ? AppointmentCodeFormatter.parseSearchTerm(filters.search) ?? undefined
       : undefined;
 
     const repoFilters: AppointmentFilters = {
@@ -194,6 +197,7 @@ export class ListAppointmentsUseCase {
         rentalTenantNote: item.appointment.rentalTenantNote ?? null,
         latitude: item.propertyLatitude,
         longitude: item.propertyLongitude,
+        propertyTotalAreaM2: item.propertyTotalAreaM2 ?? null,
       };
       }),
       total,

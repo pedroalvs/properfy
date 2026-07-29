@@ -37,6 +37,11 @@ export interface GetServiceGroupOutput {
     status: string;
     propertyId: string;
     scheduledDate: Date;
+    /** Member's own slot — the detail screen previews a window change against it. */
+    timeSlotStart: string;
+    timeSlotEnd: string;
+    /** Lets the UI warn which tenants already confirmed the schedule being changed. */
+    rentalTenantConfirmationStatus: string;
     propertyAddress: string | null;
     propertyCode: string | null;
   }>;
@@ -89,6 +94,9 @@ export class GetServiceGroupUseCase {
         status: a.status,
         propertyId: a.propertyId,
         scheduledDate: a.scheduledDate,
+        timeSlotStart: a.timeSlotStart,
+        timeSlotEnd: a.timeSlotEnd,
+        rentalTenantConfirmationStatus: a.rentalTenantConfirmationStatus,
         propertyAddress: a.propertyAddress,
         propertyCode: a.propertyCode,
       })),

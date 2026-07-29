@@ -26,7 +26,7 @@ describe('RestrictionsSection', () => {
     expect(screen.getByTestId('restrictions-section')).toBeInTheDocument();
     expect(screen.getByText('Tenant will be home')).toBeInTheDocument();
     expect(screen.getByText(/Monday, Tuesday/)).toBeInTheDocument();
-    expect(screen.getByText(/08:00-09:00/)).toBeInTheDocument();
+    expect(screen.getByText(/8:00 am – 9:00 am/)).toBeInTheDocument();
     expect(screen.getByText('Dog in backyard')).toBeInTheDocument();
   });
 

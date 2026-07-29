@@ -5,7 +5,7 @@ import { toApiError, type ApiError } from '@/lib/api-error';
 export interface PortalActivity {
   id: string;
   appointmentId: string;
-  tenantPortalTokenId: string;
+  rentalTenantPortalTokenId: string;
   action: string;
   previousValuesJson: unknown | null;
   newValuesJson: unknown | null;

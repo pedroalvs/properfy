@@ -1,6 +1,6 @@
 import { PageHeader } from '@/components/layout/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
-import { formatDateTime } from '@/lib/format-date';
+import { formatInstantDateTime } from '@/lib/format-date';
 import { ChangePasswordForm } from '../components/ChangePasswordForm';
 import { USER_ROLE_MAP } from '@/lib/status-colors';
 import { formatAuPhone } from '@/lib/phone-mask';
@@ -37,7 +37,7 @@ export function AccountSettingsPage() {
             <div>
               <p className="text-xs text-text-muted">Last Login</p>
               <p className="text-sm font-medium">
-                {user?.lastLoginAt ? formatDateTime(user.lastLoginAt) : '—'}
+                {user?.lastLoginAt ? formatInstantDateTime(user.lastLoginAt) : '—'}
               </p>
             </div>
           </div>

@@ -3,6 +3,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { env } from '@/config/env';
 import { computeBounds, isSinglePointBounds } from '@/lib/map-bounds';
 import type { MarketplaceOffer } from '../types';
+import { formatWallTimeRange } from '@/lib/format-date';
 
 export interface ExpandedGroupAppointment {
   /** Marker identity only — never rendered in the UI. */
@@ -305,7 +306,7 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
             </p>
             <p className="truncate text-xs text-text-secondary">{selectedAppointment.suburb}</p>
             <p className="mt-0.5 text-xs font-semibold text-primary">
-              {selectedAppointment.timeSlotStart}–{selectedAppointment.timeSlotEnd}
+              {formatWallTimeRange(selectedAppointment.timeSlotStart, selectedAppointment.timeSlotEnd)}
             </p>
           </div>
           <button

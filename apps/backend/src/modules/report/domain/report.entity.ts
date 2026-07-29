@@ -4,6 +4,16 @@ import type { ReportType, ReportStatus } from '@properfy/shared';
 export interface ReportProps {
   id: string;
   tenantId: string | null;
+  /**
+   * True when the report was requested *by* an agency (CL_ADMIN / CL_USER), as
+   * opposed to an operator run that merely targets one agency — `tenantId` is
+   * set in both cases and so cannot distinguish them.
+   *
+   * Required rather than defaulted: it decides both who may read the report and
+   * what the generated sheet may contain, and a silent `false` would widen the
+   * output of an agency run instead of failing loudly.
+   */
+  agencyScoped: boolean;
   reportType: ReportType;
   filtersJson: Record<string, unknown>;
   status: ReportStatus;
@@ -21,6 +31,7 @@ export interface ReportProps {
 
 export class ReportEntity extends BaseEntity {
   readonly tenantId: string | null;
+  readonly agencyScoped: boolean;
   readonly reportType: ReportType;
   readonly filtersJson: Record<string, unknown>;
   status: ReportStatus;
@@ -36,6 +47,7 @@ export class ReportEntity extends BaseEntity {
   constructor(props: ReportProps) {
     super(props.id, props.createdAt, props.updatedAt);
     this.tenantId = props.tenantId;
+    this.agencyScoped = props.agencyScoped;
     this.reportType = props.reportType;
     this.filtersJson = props.filtersJson;
     this.status = props.status;

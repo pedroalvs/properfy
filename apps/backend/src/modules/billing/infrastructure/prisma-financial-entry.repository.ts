@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import type { FinancialEntryType, FinancialEntryStatus, InvoiceSnapshotLine } from '@properfy/shared';
+import { type FinancialEntryType, type FinancialEntryStatus, type InvoiceSnapshotLine, AGENCY_VISIBLE_ENTRY_TYPES } from '@properfy/shared';
 import { FinancialEntryEntity } from '../domain/financial-entry.entity';
 import { AppointmentCodeFormatter } from '../../appointment/domain/appointment-code.formatter';
 import type {
@@ -12,6 +12,7 @@ import type {
 } from '../domain/financial-entry.repository';
 import { InvalidEntryStatusTransitionError } from '../domain/billing.errors';
 import { formatMonthKey } from '../domain/month-key';
+import { civilDateInTimezone, PLATFORM_TIMEZONE } from '../../../shared/domain/timezone-date';
 
 function mapToEntity(row: any): FinancialEntryEntity {
   return new FinancialEntryEntity({
@@ -49,6 +50,9 @@ function buildWhereClause(filters: FinancialEntryFilters): Record<string, unknow
   if (filters.inspectorId) where.inspector_id = filters.inspectorId;
   if (filters.entryType) where.entry_type = filters.entryType;
   else if (filters.entryTypeIn) where.entry_type = { in: filters.entryTypeIn };
+  // Set after inspectorId so an agency read can never be widened by an
+  // inspectorId filter — agencies do not get to query the inspector leg.
+  if (filters.excludeInspectorScoped) where.inspector_id = null;
   if (filters.status) where.status = filters.status;
 
   if (filters.fromDate || filters.toDate) {
@@ -64,9 +68,19 @@ function buildWhereClause(filters: FinancialEntryFilters): Record<string, unknow
 export class PrismaFinancialEntryRepository implements IFinancialEntryRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async getSummary(tenantId?: string, dateRange?: { effectiveFrom?: string; effectiveTo?: string }): Promise<FinancialEntrySummary> {
+  async getSummary(
+    tenantId?: string,
+    dateRange?: { effectiveFrom?: string; effectiveTo?: string },
+    options?: { agencyScoped?: boolean },
+  ): Promise<FinancialEntrySummary> {
     const where: Record<string, unknown> = {};
     if (tenantId) where.tenant_id = tenantId;
+    // Applied to `where` (not just the approved branch) so BOTH the groupBy
+    // aggregates and the PENDING count exclude the platform↔inspector leg.
+    if (options?.agencyScoped) {
+      where.entry_type = { in: [...AGENCY_VISIBLE_ENTRY_TYPES] };
+      where.inspector_id = null;
+    }
 
     if (dateRange?.effectiveFrom || dateRange?.effectiveTo) {
       const effectiveAt: Record<string, Date> = {};
@@ -403,7 +417,11 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
       const appt = row.appointment!;
       const p = appt.property;
       return {
-        serviceDate: row.effective_at.toISOString().slice(0, 10),
+        // Stays canonical YYYY-MM-DD: this is a PERSISTED snapshot field, and
+        // display formatting happens at the render edge (PDF / PWA). Only the
+        // timezone is corrected — slicing toISOString() dated a Sydney-evening
+        // service on the previous day.
+        serviceDate: civilDateInTimezone(row.effective_at, PLATFORM_TIMEZONE),
         appointmentId: appt.id,
         appointmentCode: AppointmentCodeFormatter.formatParts(appt.appointment_number, appt.tenant?.appointment_code_prefix ?? null),
         propertyAddress: p ? `${p.street}, ${p.suburb} ${p.state} ${p.postcode}` : null,
@@ -442,7 +460,11 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
         tenant_id: tenantId,
         status: 'APPROVED',
         effective_at: { gte: periodStart, lte: periodEnd },
-        entry_type: { in: ['TENANT_DEBIT', 'REFUND', 'MANUAL_ADJUSTMENT'] },
+        // Agency-facing aggregation: same allowlist + inspector-leg exclusion as
+        // every other agency read. Currently uncalled, but it reads as a
+        // ready-made agency total, so it must not ship the summary bug in wait.
+        entry_type: { in: [...AGENCY_VISIBLE_ENTRY_TYPES] },
+        inspector_id: null,
       },
       _sum: { amount: true },
     });

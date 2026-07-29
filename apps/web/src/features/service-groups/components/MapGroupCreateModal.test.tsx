@@ -131,7 +131,7 @@ describe('MapGroupCreateModal', () => {
     fireEvent.click(screen.getByText('Routine Inspection'));
 
     // Fill scheduled date via the type="date" input (unique in the modal).
-    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+    const dateInput = screen.getByLabelText('Scheduled date') as HTMLInputElement;
     fireEvent.change(dateInput, { target: { value: '2026-07-01' } });
 
     // Region is still empty — button must be enabled.
@@ -175,7 +175,7 @@ describe('MapGroupCreateModal', () => {
 
   async function submitModal() {
     renderModal({ selectedAppointments: fiveAppointments });
-    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+    const dateInput = screen.getByLabelText('Scheduled date') as HTMLInputElement;
     // Dynamic future date — a hardcoded one becomes a time bomb once the
     // universal past-date guard applies (see ServiceGroupCreatePage.test.tsx).
     const futureDate = new Date(Date.now() + 14 * 24 * 3600 * 1000)
@@ -234,7 +234,7 @@ describe('MapGroupCreateModal', () => {
 
     renderModal({ selectedAppointments: five });
 
-    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+    const dateInput = screen.getByLabelText('Scheduled date') as HTMLInputElement;
     fireEvent.change(dateInput, { target: { value: '2026-07-15' } });
 
     await act(async () => {

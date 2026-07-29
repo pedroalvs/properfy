@@ -44,7 +44,8 @@ export function RepublishGroupModal({ open, onClose, onRepublish, serviceGroupId
         <i className="mdi mdi-information-outline text-lg text-info" aria-hidden="true" />
         <p className="text-sm text-text-primary">
           This will move the service group back to DRAFT status and clear the inspector assignment.
-          You can then edit and re-publish it.
+          The appointments removed when the group was cancelled are <strong>not</strong> restored —
+          add appointments and check the date before publishing it again.
         </p>
       </div>
       <FormField label="Reason">

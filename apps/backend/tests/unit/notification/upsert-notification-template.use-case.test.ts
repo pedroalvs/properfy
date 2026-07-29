@@ -248,6 +248,141 @@ describe('UpsertNotificationTemplateUseCase', () => {
       expect(result.notificationClass).toBe('TRANSACTIONAL');
     });
   });
+
+  // ─── Empty-content guards ────────────────────────────────────────────────
+  //
+  // z.string().min(1) on the wire accepts "   ", and nothing required a subject,
+  // so a template could be saved with no deliverable content at all.
+  describe('empty content', () => {
+    it('rejects a whitespace-only body', async () => {
+      await expect(useCase.execute(makeInput({ bodyHtml: '   \n\t  ' }))).rejects.toThrow(
+        ValidationError,
+      );
+    });
+
+    it('reports the empty body against the body field so the form shows it inline', async () => {
+      // The frontend reads `field` (getFieldErrors in @properfy/shared), not `path`.
+      await expect(useCase.execute(makeInput({ bodyHtml: '  ' }))).rejects.toMatchObject({
+        details: [expect.objectContaining({ field: 'bodyHtml' })],
+      });
+    });
+
+    it('rejects an EMAIL template with no subject', async () => {
+      await expect(
+        useCase.execute(makeInput({ subject: undefined })),
+      ).rejects.toThrow(ValidationError);
+    });
+
+    it('rejects an EMAIL template whose subject is only whitespace', async () => {
+      await expect(useCase.execute(makeInput({ subject: '   ' }))).rejects.toMatchObject({
+        details: [expect.objectContaining({ field: 'subject' })],
+      });
+    });
+
+    it('allows an SMS template with no subject — SMS has no subject line', async () => {
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+
+      const result = await useCase.execute(
+        makeInput({
+          templateCode: 'INSPECTION_NOTICE_SMS',
+          channel: 'SMS',
+          subject: undefined,
+          bodyHtml: 'Properfy: your inspection is scheduled.',
+        }),
+      );
+
+      expect(result.subject).toBeNull();
+    });
+  });
+
+  // ─── SMS storage normalization ──────────────────────────────────────────
+  //
+  // SMS bodies are plain text and MUST live in body_text with body_html NULL,
+  // matching what the platform seeder writes. Storing the text in body_html too
+  // made the send path derive the SMS from HTML (sanitize → html-to-text), so the
+  // delivered message was word-wrapped at 120 chars with hrefs expanded, while
+  // the test-send rendered body_text raw. Same template, two different messages.
+  describe('SMS storage normalization', () => {
+    function makeHtmlToText() {
+      return { convert: vi.fn().mockReturnValue('CONVERTED FROM HTML') };
+    }
+
+    function makeUseCase(htmlToText?: { convert: ReturnType<typeof vi.fn> }) {
+      const authorizationService = new AuthorizationService(auditService);
+      return new UpsertNotificationTemplateUseCase(
+        templateRepo,
+        templateRenderer,
+        auditService,
+        authorizationService,
+        undefined,
+        htmlToText,
+      );
+    }
+
+    const smsInput = {
+      templateCode: 'INSPECTION_NOTICE_SMS',
+      channel: 'SMS',
+      bodyHtml: 'Properfy: Hi {{rentalTenantName}}, inspection on {{scheduledDate}}.',
+      isActive: true,
+      actor: makeActor(),
+    };
+
+    it('stores an SMS body in bodyText and leaves bodyHtml null', async () => {
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+
+      await makeUseCase(makeHtmlToText()).execute(smsInput);
+
+      const entity = vi.mocked(templateRepo.upsert).mock.calls[0][0];
+      expect(entity.bodyHtml).toBeNull();
+      expect(entity.bodyText).toBe(smsInput.bodyHtml);
+    });
+
+    it('never runs an SMS body through html-to-text', async () => {
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+      const htmlToText = makeHtmlToText();
+
+      await makeUseCase(htmlToText).execute(smsInput);
+
+      expect(htmlToText.convert).not.toHaveBeenCalled();
+    });
+
+    it('still stores EMAIL bodies in both columns, with bodyText derived from HTML', async () => {
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+      const htmlToText = makeHtmlToText();
+
+      await makeUseCase(htmlToText).execute(makeInput());
+
+      const entity = vi.mocked(templateRepo.upsert).mock.calls[0][0];
+      expect(entity.bodyHtml).toBe('<p>Hello {{rentalTenantName}}</p>');
+      expect(entity.bodyText).toBe('CONVERTED FROM HTML');
+      expect(htmlToText.convert).toHaveBeenCalledWith('<p>Hello {{rentalTenantName}}</p>');
+    });
+
+    it('forces subject to null on SMS even if the client still sends one', async () => {
+      // A legacy SMS row can hold a subject from before the field was hidden, and
+      // the form re-sends whatever it holds. Nulling here is what actually makes
+      // "SMS has no subject" true, rather than just documented.
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+
+      const result = await makeUseCase(makeHtmlToText()).execute({
+        ...smsInput,
+        subject: 'Stale subject from a legacy row',
+      });
+
+      expect(vi.mocked(templateRepo.upsert).mock.calls[0][0].subject).toBeNull();
+      expect(result.subject).toBeNull();
+    });
+
+    it('extracts variables from an SMS body even though bodyHtml is null', async () => {
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+
+      await makeUseCase(makeHtmlToText()).execute(smsInput);
+
+      const entity = vi.mocked(templateRepo.upsert).mock.calls[0][0];
+      expect(entity.variablesJson).toContain('rentalTenantName');
+      expect(entity.variablesJson).toContain('scheduledDate');
+    });
+  });
 });
 
 describe('notification error codes', () => {

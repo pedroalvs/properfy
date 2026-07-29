@@ -103,6 +103,7 @@ describe('Notification recipient resolution from snapshot fields (T047)', () => 
     };
     notificationRepo = {
       existsByAppointmentAndTemplate: vi.fn().mockResolvedValue(false),
+      findLatestByAppointmentAndTemplates: vi.fn().mockResolvedValue(null),
     };
     mintPortalTokenService = {
       mint: vi.fn().mockResolvedValue({ rawToken: 'portal-token-abc', expiresAt: new Date('2026-07-31T09:00:00Z') }),

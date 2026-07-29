@@ -5,9 +5,52 @@ import { bonusRuleSchema } from './pricing-rule';
 import { appointmentAppSchema } from './app-credential';
 import { AppointmentStatus, ServiceTypeFlowType } from '../enums';
 
-/** Accepts Date objects or ISO strings, coerces to string */
-const dateStr = () => z.union([z.string(), z.date().transform(d => d.toISOString())]);
-const dateStrNullable = () => dateStr().nullable();
+/**
+ * Two kinds of temporal value cross the wire, and they are NOT interchangeable.
+ *
+ * A single permissive `dateStr()` used to serve both, which meant a `@db.Date`
+ * calendar day was stamped with UTC by `toISOString()` and arrived
+ * byte-indistinguishable from a real timestamp. Consumers then had to guess
+ * which kind they held, and guessed wrong for any instant falling after ~14:00Z
+ * (the previous Sydney day). Keep these two separate.
+ */
+
+const CIVIL_DATE_PREFIX = /^\d{4}-\d{2}-\d{2}/;
+
+/**
+ * A **calendar day** (`@db.Date`: `scheduled_date`, `period_start`,
+ * `date_of_birth`, …). Timezone-free — the 28th is the 28th in every agency's
+ * timezone — so it always crosses the wire as bare `YYYY-MM-DD`, never as a
+ * timestamp.
+ *
+ * Prisma anchors `@db.Date` at UTC midnight, so reading UTC components recovers
+ * the stored day exactly. (The same `toISOString().slice(0, 10)` applied to a
+ * genuine instant WOULD be a bug — which is precisely why the two are split.)
+ *
+ * Modelled as `preprocess -> string` rather than a `union([string, date])` so
+ * the generated OpenAPI advertises a plain `string`. A union reflects its INPUT
+ * members, which would republish the very `anyOf: [string, date-time]` ambiguity
+ * this split exists to remove — the contract consumers read must state one shape.
+ */
+const civilDateStr = () =>
+  z.preprocess(
+    (value) => {
+      if (value instanceof Date) return value.toISOString().slice(0, 10);
+      if (typeof value === 'string' && CIVIL_DATE_PREFIX.test(value)) return value.slice(0, 10);
+      return value;
+    },
+    z.string(),
+  );
+
+/**
+ * A **point in time** (`DateTime`: `created_at`, `effective_at`, …). Meaningless
+ * without a timezone, so it always crosses the wire as a full ISO-8601 timestamp
+ * with offset, and is rendered via `formatInstantDate` / `formatInstantDateTime`.
+ */
+const instantStr = () => z.union([z.string(), z.date().transform(d => d.toISOString())]);
+
+const civilDateStrNullable = () => civilDateStr().nullable();
+const instantStrNullable = () => instantStr().nullable();
 
 // ─── Common ────────────────────────────────────────────────────────────────
 
@@ -65,8 +108,8 @@ export const meResponseSchema = z.object({
   totpEnabled: z.boolean(),
   phone: z.string().nullable(),
   status: z.string(),
-  lastLoginAt: dateStrNullable(),
-  createdAt: dateStr(),
+  lastLoginAt: instantStrNullable(),
+  createdAt: instantStr(),
   inspectorId: z.string().uuid().nullable().optional(),
   inspectorPhotoUrl: z.string().nullable().optional(),
   // 031 — CL_USER granular permission flags (tenant-cohort), so the web can
@@ -88,8 +131,8 @@ export const tenantResponseSchema = z.object({
   appointmentCodePrefix: z.string().nullable(),
   settingsJson: z.unknown(),
   branchCount: z.number().optional(),
-  createdAt: dateStr(),
-  updatedAt: dateStr(),
+  createdAt: instantStr(),
+  updatedAt: instantStr(),
 });
 
 export const branchResponseSchema = z.object({
@@ -99,8 +142,8 @@ export const branchResponseSchema = z.object({
   addressJson: z.unknown().nullable(),
   contactEmail: z.string().nullable(),
   status: z.string(),
-  createdAt: dateStr(),
-  updatedAt: dateStr(),
+  createdAt: instantStr(),
+  updatedAt: instantStr(),
 });
 
 // ─── User ──────────────────────────────────────────────────────────────────
@@ -115,9 +158,9 @@ export const userResponseSchema = z.object({
   phone: z.string().nullable(),
   status: z.string(),
   totpEnabled: z.boolean().optional(),
-  lastLoginAt: dateStrNullable().optional(),
-  createdAt: dateStr(),
-  updatedAt: dateStr().optional(),
+  lastLoginAt: instantStrNullable().optional(),
+  createdAt: instantStr(),
+  updatedAt: instantStr().optional(),
 });
 
 // ─── Property ──────────────────────────────────────────────────────────────
@@ -147,8 +190,8 @@ export const propertyResponseSchema = z.object({
   rentAmount: z.number().nullable().optional(),
   notes: z.string().nullable(),
   rulesJson: propertyRulesSchema.optional(),
-  createdAt: dateStr(),
-  updatedAt: dateStr(),
+  createdAt: instantStr(),
+  updatedAt: instantStr(),
 });
 
 // ─── Service Type ──────────────────────────────────────────────────────────
@@ -160,8 +203,8 @@ export const serviceTypeResponseSchema = z.object({
   flowType: z.string(),
   requiresRentalTenantConfirmation: z.boolean(),
   status: z.string(),
-  createdAt: dateStr(),
-  updatedAt: dateStr(),
+  createdAt: instantStr(),
+  updatedAt: instantStr(),
 });
 
 // ─── Pricing Rule ──────────────────────────────────────────────────────────
@@ -177,8 +220,8 @@ export const pricingRuleResponseSchema = z.object({
   payoutValue: z.number(),
   bonusRuleJson: bonusRuleSchema.nullable(),
   status: z.string(),
-  createdAt: dateStr(),
-  updatedAt: dateStr(),
+  createdAt: instantStr(),
+  updatedAt: instantStr(),
 });
 
 // ─── Inspector ─────────────────────────────────────────────────────────────
@@ -197,16 +240,16 @@ export const inspectorResponseSchema = z.object({
   fullName: z.string().nullable().optional(),
   address: z.unknown().optional(),
   abn: z.string().nullable().optional(),
-  dateOfBirth: dateStrNullable().optional(),
+  dateOfBirth: civilDateStrNullable().optional(),
   insuranceFileKey: z.string().nullable().optional(),
-  insuranceExpiresAt: dateStrNullable().optional(),
+  insuranceExpiresAt: civilDateStrNullable().optional(),
   policeCheckFileKey: z.string().nullable().optional(),
-  policeCheckExpiresAt: dateStrNullable().optional(),
+  policeCheckExpiresAt: civilDateStrNullable().optional(),
   photoStorageKey: z.string().nullable().optional(),
   insuranceMetaJson: z.unknown().optional(),
   policeCheckMetaJson: z.unknown().optional(),
-  createdAt: dateStr(),
-  updatedAt: dateStr(),
+  createdAt: instantStr(),
+  updatedAt: instantStr(),
 });
 
 export const availabilitySlotResponseSchema = z.object({
@@ -223,8 +266,8 @@ export const availabilitySlotResponseSchema = z.object({
   status: z.string(),
   /** True when the slot was created/managed by an operator (immutable to inspectors). */
   isOperatorOverride: z.boolean().optional(),
-  createdAt: dateStr(),
-  updatedAt: dateStr(),
+  createdAt: instantStr(),
+  updatedAt: instantStr(),
 });
 
 // ─── Appointment ───────────────────────────────────────────────────────────
@@ -240,7 +283,7 @@ export const appointmentResponseSchema = z.object({
   /** Human-friendly service group code (String(group_number)); null/absent when ungrouped. */
   serviceGroupCode: z.string().nullable().optional(),
   status: z.string(),
-  scheduledDate: dateStr(),
+  scheduledDate: civilDateStr(),
   timeSlotStart: z.string(),
   timeSlotEnd: z.string(),
   keyRequired: z.boolean().optional(),
@@ -261,9 +304,9 @@ export const appointmentResponseSchema = z.object({
   rejectionReasonCode: z.string().nullable().optional(),
   createdByUserId: z.string().uuid(),
   doneCheckedByUserId: z.string().uuid().nullable().optional(),
-  doneCheckedAt: dateStrNullable().optional(),
-  createdAt: dateStr(),
-  updatedAt: dateStr(),
+  doneCheckedAt: instantStrNullable().optional(),
+  createdAt: instantStr(),
+  updatedAt: instantStr(),
   appointmentNumber: z.number().optional(),
   // Flat enriched fields for list and detail views
   /** Formatted appointment code (tenant prefix + padded number, e.g. "INS-0042"). Populated by the detail endpoint. */
@@ -283,7 +326,9 @@ export const appointmentResponseSchema = z.object({
   // Geographic coordinates propagated from the appointment's property (for map views)
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
-  // Property detail attributes (detail endpoint; nullable — legacy properties have no values)
+  // Property detail attributes (nullable — legacy properties have no values).
+  // Detail endpoint only, except `propertyTotalAreaM2`, which the list endpoint also
+  // returns so the appointments board card can render square metres.
   propertyType: z.enum(PROPERTY_TYPE_VALUES).nullable().optional(),
   propertyAddressLine2: z.string().nullable().optional(),
   propertyPrivateAreaM2: z.number().nullable().optional(),
@@ -451,17 +496,17 @@ export const serviceGroupResponseSchema = z.object({
   groupSize: z.number(),
   offeredCount: z.number(),
   confirmedCount: z.number(),
-  scheduledDate: dateStr(),
+  scheduledDate: civilDateStr(),
   timeWindow: z.string(),
   regionName: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   assignedInspectorId: z.string().uuid().nullable(),
   serviceRegionId: z.string().uuid().nullable().optional(),
-  publishedAt: dateStrNullable(),
-  assignedAt: dateStrNullable().optional(),
+  publishedAt: instantStrNullable(),
+  assignedAt: instantStrNullable().optional(),
   createdByUserId: z.string().uuid().optional(),
-  createdAt: dateStr(),
-  updatedAt: dateStr().optional(),
+  createdAt: instantStr(),
+  updatedAt: instantStr().optional(),
   appointmentsCount: z.number().optional(),
   appointments: z.array(z.unknown()).optional(),
   assignedInspector: z.unknown().nullable().optional(),
@@ -480,7 +525,7 @@ export const marketplaceOfferResponseSchema = z.object({
   tenantName: z.string(),
   serviceTypeName: z.string(),
   groupSize: z.number(),
-  scheduledDate: dateStr(),
+  scheduledDate: civilDateStr(),
   timeWindow: z.string(),
   suburbs: z.array(z.string()),
   payoutEstimate: z.number().nullable(),
@@ -523,7 +568,7 @@ export const marketplaceOfferAcceptResponseSchema = z.object({
   status: z.string(),
   assignedInspectorId: z.string().uuid(),
   appointmentsScheduled: z.number(),
-  acceptedAt: dateStr(),
+  acceptedAt: instantStr(),
 });
 
 // ─── Audit Log ─────────────────────────────────────────────────────────────
@@ -544,7 +589,7 @@ export const auditLogResponseSchema = z.object({
   requestId: z.string().nullable(),
   ipAddress: z.string().nullable(),
   metadataJson: z.unknown().nullable(),
-  createdAt: dateStr(),
+  createdAt: instantStr(),
   // Feature 020: retention + redaction + cold-storage lifecycle markers
   retentionCategory: z
     .enum(['FINANCIAL', 'OPERATIONAL_CRITICAL', 'OPERATIONAL_GENERAL'])
@@ -565,23 +610,22 @@ export const portalDataResponseSchema = z.object({
     isPastConfirmCutoff: z.boolean().optional(),
     isExpired: z.boolean(),
     canRequestNewLink: z.boolean(),
-    expiresAt: dateStr(),
+    expiresAt: instantStr(),
   }),
   appointment: z.unknown(),
   contact: z.unknown().nullable(),
   restrictions: z.unknown().nullable(),
   existingResponse: z.object({
     type: z.string(),
-    createdAt: dateStr(),
+    createdAt: instantStr(),
     summary: z.string().optional(),
   }).optional(),
   agencyPhone: z.string().optional(),
-  deadline: dateStr().optional(),
+  deadline: instantStr().optional(),
   // All RENTAL_TENANT contact names (primary first) — portal Details section.
   rentalTenantNames: z.array(z.string()).optional(),
   // Display name of the PROPERTY_MANAGER contact, when one is linked.
   propertyManager: z.string().nullable().optional(),
-  rescheduleAllowed: z.boolean().optional(),
   tenant: z.object({ name: z.string().nullable(), timezone: z.string() }).optional(),
 });
 
@@ -604,7 +648,7 @@ export const portalDataResponseSchema = z.object({
  */
 export const portalTokenResponseSchema = z.object({
   token: z.string(),
-  expiresAt: dateStr(),
+  expiresAt: instantStr(),
   dispatched: z.boolean().optional(),
   reason: z.enum(['NO_PRIMARY_CONTACT', 'DISPATCH_FAILED', 'NOTIFY_DISABLED']).optional(),
 });
@@ -623,13 +667,13 @@ export const generatePortalTokenBodySchema = z
 export const portalActivityItemSchema = z.object({
   id: z.string().uuid(),
   appointmentId: z.string().uuid(),
-  tenantPortalTokenId: z.string().uuid(),
+  rentalTenantPortalTokenId: z.string().uuid(),
   action: z.string(),
   previousValuesJson: z.unknown().nullable(),
   newValuesJson: z.unknown().nullable(),
   ipAddress: z.string().nullable(),
   userAgent: z.string().nullable(),
-  createdAt: dateStr(),
+  createdAt: instantStr(),
 });
 
 export const portalActivitiesResponseSchema = z.object({
@@ -645,7 +689,7 @@ export const inspectorScheduleItemSchema = z.object({
   id: z.string(),
   appointmentCode: z.string().optional(),
   status: z.string(),
-  scheduledDate: dateStr(),
+  scheduledDate: civilDateStr(),
   timeSlotStart: z.string().regex(HHMM_REGEX),
   timeSlotEnd: z.string().regex(HHMM_REGEX),
   serviceTypeId: z.string().uuid(),
@@ -658,7 +702,7 @@ export const inspectorScheduleItemSchema = z.object({
 });
 
 export const inspectorScheduleResponseSchema = z.object({
-  date: dateStr(),
+  date: civilDateStr(),
   appointments: z.array(inspectorScheduleItemSchema),
 });
 
@@ -673,15 +717,15 @@ export const inspectorScheduleMonthItemSchema = inspectorScheduleItemSchema.exte
 });
 
 export const inspectorScheduleMonthDaySchema = z.object({
-  date: dateStr(),
+  date: civilDateStr(),
   count: z.number().int().min(0),
   hasUrgent: z.boolean(),
 });
 
 export const inspectorScheduleMonthResponseSchema = z.object({
-  today: dateStr(),
-  from: dateStr(),
-  to: dateStr(),
+  today: civilDateStr(),
+  from: civilDateStr(),
+  to: civilDateStr(),
   days: z.array(inspectorScheduleMonthDaySchema),
   appointments: z.array(inspectorScheduleMonthItemSchema),
   overdueAppointments: z.array(inspectorScheduleMonthItemSchema),
@@ -691,9 +735,9 @@ export const inspectionExecutionResponseSchema = z.object({
   id: z.string().uuid(),
   appointmentId: z.string().uuid(),
   inspectorId: z.string().uuid(),
-  startedAt: dateStr(),
-  finishedAt: dateStrNullable(),
-  resumedAt: dateStrNullable(),
+  startedAt: instantStr(),
+  finishedAt: instantStrNullable(),
+  resumedAt: instantStrNullable(),
   startLatitude: z.number(),
   startLongitude: z.number(),
   finishLatitude: z.number().nullable(),
@@ -701,8 +745,8 @@ export const inspectionExecutionResponseSchema = z.object({
   geolocationDistanceMeters: z.number().nullable(),
   checklistJson: z.unknown().nullable(),
   notes: z.string().nullable(),
-  createdAt: dateStr(),
-  updatedAt: dateStr(),
+  createdAt: instantStr(),
+  updatedAt: instantStr(),
 });
 
 // ─── Financial Entry ───────────────────────────────────────────────────────
@@ -717,14 +761,14 @@ export const financialEntryResponseSchema = z.object({
   currency: z.string(),
   status: z.string(),
   description: z.string(),
-  effectiveAt: dateStr(),
+  effectiveAt: instantStr(),
   initiatedByUserId: z.string().uuid(),
   approvedByUserId: z.string().uuid().nullable(),
-  approvedAt: dateStrNullable(),
+  approvedAt: instantStrNullable(),
   referenceEntryId: z.string().uuid().nullable(),
   reason: z.string().nullable(),
-  createdAt: dateStr(),
-  updatedAt: dateStr().optional(),
+  createdAt: instantStr(),
+  updatedAt: instantStr().optional(),
   // Enriched fields (name-resolved for UI display)
   appointmentCode: z.string().nullable().optional(),
   relatedEntityName: z.string().nullable().optional(),
@@ -737,7 +781,7 @@ export const financialEntryResponseSchema = z.object({
 // branch are line-level attributes only (never invoice ownership). Join-derived display
 // fields are nullable so the response serializer never throws if a relation is absent.
 export const invoiceSnapshotLineSchema = z.object({
-  serviceDate: dateStr(),
+  serviceDate: civilDateStr(),
   appointmentId: z.string().uuid(),
   appointmentCode: z.string(),
   propertyAddress: z.string().nullable(),
@@ -757,8 +801,8 @@ export const invoiceResponseSchema = z.object({
   invoiceNumberDisplay: z.string().nullable().optional(),
   inspectorId: z.string().uuid(),
   inspectorName: z.string().nullable().optional(),
-  periodStart: dateStr(),
-  periodEnd: dateStr(),
+  periodStart: civilDateStr(),
+  periodEnd: civilDateStr(),
   periodType: z.string(),
   status: z.string(),
   totalAmount: z.number(),
@@ -767,19 +811,19 @@ export const invoiceResponseSchema = z.object({
   lineItemsSnapshot: z.array(invoiceSnapshotLineSchema).nullable().optional(),
   fileKey: z.string().nullable().optional(),
   generatedByUserId: z.string().uuid().nullable().optional(),
-  issuedAt: dateStrNullable(),
-  paidAt: dateStrNullable(),
+  issuedAt: instantStrNullable(),
+  paidAt: instantStrNullable(),
   // Payment reconciliation fields (feature 017) — populated when invoice transitions to PAID
   paidByUserId: z.string().uuid().nullable().optional(),
   paymentReference: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
-  createdAt: dateStr(),
-  updatedAt: dateStr().optional(),
+  createdAt: instantStr(),
+  updatedAt: instantStr().optional(),
 });
 
 export const invoiceDownloadResponseSchema = z.object({
   downloadUrl: z.string(),
-  expiresAt: dateStr(),
+  expiresAt: instantStr(),
 });
 
 // ─── Inspector Property Invoice request flow (spec 032) ───────────────────
@@ -855,14 +899,14 @@ export const notificationResponseSchema = z.object({
   notificationClass: z.enum(['TRANSACTIONAL', 'OPERATIONAL', 'MARKETING']).nullable().optional(),
   providerName: z.string().nullable(),
   providerMessageId: z.string().nullable().optional(),
-  sentAt: dateStrNullable(),
-  deliveredAt: dateStrNullable(),
-  failedAt: dateStrNullable(),
+  sentAt: instantStrNullable(),
+  deliveredAt: instantStrNullable(),
+  failedAt: instantStrNullable(),
   failureReason: z.string().nullable(),
   retryCount: z.number(),
-  nextRetryAt: dateStrNullable().optional(),
-  createdAt: dateStr(),
-  updatedAt: dateStr().optional(),
+  nextRetryAt: instantStrNullable().optional(),
+  createdAt: instantStr(),
+  updatedAt: instantStr().optional(),
 });
 
 export const notificationTemplateResponseSchema = z.object({
@@ -880,8 +924,8 @@ export const notificationTemplateResponseSchema = z.object({
   variables: z.unknown().optional(),
   isActive: z.boolean(),
   notificationClass: z.enum(['TRANSACTIONAL', 'OPERATIONAL', 'MARKETING']).optional(),
-  createdAt: dateStr(),
-  updatedAt: dateStr(),
+  createdAt: instantStr(),
+  updatedAt: instantStr(),
 });
 
 // ─── Report ────────────────────────────────────────────────────────────────
@@ -897,19 +941,19 @@ export const reportResponseSchema = z.object({
   fileUrl: z.string().nullable().optional(),
   requestedByUserId: z.string().uuid().optional(),
   requestedBy: z.unknown().optional(),
-  startedAt: dateStrNullable().optional(),
-  completedAt: dateStrNullable(),
-  failedAt: dateStrNullable().optional(),
+  startedAt: instantStrNullable().optional(),
+  completedAt: instantStrNullable(),
+  failedAt: instantStrNullable().optional(),
   errorMessage: z.string().nullable().optional(),
   rowCount: z.number().nullable().optional(),
-  expiresAt: dateStrNullable().optional(),
-  createdAt: dateStr(),
-  updatedAt: dateStr().optional(),
+  expiresAt: instantStrNullable().optional(),
+  createdAt: instantStr(),
+  updatedAt: instantStr().optional(),
 });
 
 export const reportDownloadResponseSchema = z.object({
   downloadUrl: z.string(),
-  expiresAt: dateStr(),
+  expiresAt: instantStr(),
 });
 
 export const reportRequestedResponseSchema = z.object({
@@ -917,7 +961,7 @@ export const reportRequestedResponseSchema = z.object({
     reportId: z.string().uuid(),
     status: z.string(),
     reportType: z.string(),
-    createdAt: dateStr(),
+    createdAt: instantStr(),
   }),
   message: z.string(),
 });
@@ -954,7 +998,7 @@ export const dashboardStatsResponseSchema = z.object({
     status: z.string(),
     doneMarkedByUserId: z.string().uuid().nullable().optional(),
     doneCheckedByUserId: z.string().uuid().nullable().optional(),
-    scheduledDate: dateStr(),
+    scheduledDate: civilDateStr(),
   })),
   pendingActions: z.object({
     noResponseRentalTenants: z.number(),

@@ -185,11 +185,11 @@ beforeEach(() => {
 });
 
 describe('NotifyOnRentalTenantPortalActionHandler', () => {
-  it('sends INSPECTION_CONFIRMED email on CONFIRM action', async () => {
+  it('sends INSPECTION_CONFIRMED on both channels when the contact has an email and a phone', async () => {
     const handler = makeHandler();
     await handler.execute({ appointmentId: 'appt-1', action: 'CONFIRM' });
 
-    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).toHaveBeenCalledTimes(2);
     expect(createNotification.execute).toHaveBeenCalledWith(
       expect.objectContaining({
         templateCode: 'INSPECTION_CONFIRMED',
@@ -197,17 +197,38 @@ describe('NotifyOnRentalTenantPortalActionHandler', () => {
         recipient: 'john@example.com',
       }),
     );
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        templateCode: 'INSPECTION_CONFIRMED_SMS',
+        channel: 'SMS',
+        recipient: '+61400000000',
+      }),
+    );
+  });
+
+  it('sends the email leg before the SMS leg', async () => {
+    const handler = makeHandler();
+    await handler.execute({ appointmentId: 'appt-1', action: 'CONFIRM' });
+
+    const channels = createNotification.execute.mock.calls.map((c: any[]) => c[0].channel);
+    expect(channels).toEqual(['EMAIL', 'SMS']);
   });
 
   it('sends INSPECTION_RESCHEDULED email on RESCHEDULE action', async () => {
     const handler = makeHandler();
     await handler.execute({ appointmentId: 'appt-1', action: 'RESCHEDULE' });
 
-    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).toHaveBeenCalledTimes(2);
     expect(createNotification.execute).toHaveBeenCalledWith(
       expect.objectContaining({
         templateCode: 'INSPECTION_RESCHEDULED',
         channel: 'EMAIL',
+      }),
+    );
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        templateCode: 'INSPECTION_RESCHEDULED_SMS',
+        channel: 'SMS',
       }),
     );
   });
@@ -216,12 +237,18 @@ describe('NotifyOnRentalTenantPortalActionHandler', () => {
     const handler = makeHandler();
     await handler.execute({ appointmentId: 'appt-1', action: 'UNAVAILABLE' });
 
-    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).toHaveBeenCalledTimes(2);
     expect(createNotification.execute).toHaveBeenCalledWith(
       expect.objectContaining({
         templateCode: 'INSPECTION_UNAVAILABILITY_REPORTED',
         channel: 'EMAIL',
         recipient: 'john@example.com',
+      }),
+    );
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        templateCode: 'INSPECTION_UNAVAILABILITY_REPORTED_SMS',
+        channel: 'SMS',
       }),
     );
   });
@@ -239,7 +266,7 @@ describe('NotifyOnRentalTenantPortalActionHandler', () => {
     expect(createNotification.execute).not.toHaveBeenCalled();
   });
 
-  it('sends SMS fallback on CONFIRM when primaryEmail is null but phone exists', async () => {
+  it('sends only SMS when the contact has no email', async () => {
     appointmentRepo.findById.mockResolvedValue({
       appointment: makeAppointment(),
       contact: makeContact({ snapshotEmail: null }),
@@ -319,7 +346,7 @@ describe('NotifyOnRentalTenantPortalActionHandler', () => {
         appointmentId: 'appt-1',
         payloadJson: expect.objectContaining({
           rentalTenantName: 'John Smith',
-          scheduledDate: '2026-04-01',
+          scheduledDate: '01/04/2026',
         }),
       }),
     );
@@ -338,12 +365,43 @@ describe('NotifyOnRentalTenantPortalActionHandler', () => {
     );
   });
 
-  it('is idempotent: skips if notification already sent', async () => {
-    notificationRepo.existsByAppointmentAndTemplate.mockResolvedValueOnce(true);
+  it('is idempotent: sends nothing when both legs were already sent', async () => {
+    notificationRepo.existsByAppointmentAndTemplate.mockResolvedValue(true);
 
     const handler = makeHandler();
     await handler.execute({ appointmentId: 'appt-1', action: 'CONFIRM' });
 
     expect(createNotification.execute).not.toHaveBeenCalled();
+  });
+
+  // The guard used to be a single early return on the EMAIL code. Once SMS
+  // became an independent leg that return would have suppressed it forever for
+  // any appointment whose email had already gone out.
+  it('still sends the SMS leg when only the email was already sent', async () => {
+    notificationRepo.existsByAppointmentAndTemplate.mockImplementation(
+      async (_id: string, code: string) => code === 'INSPECTION_CONFIRMED',
+    );
+
+    const handler = makeHandler();
+    await handler.execute({ appointmentId: 'appt-1', action: 'CONFIRM' });
+
+    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_CONFIRMED_SMS', channel: 'SMS' }),
+    );
+  });
+
+  it('does not resend the email when only the SMS was already sent', async () => {
+    notificationRepo.existsByAppointmentAndTemplate.mockImplementation(
+      async (_id: string, code: string) => code === 'INSPECTION_CONFIRMED_SMS',
+    );
+
+    const handler = makeHandler();
+    await handler.execute({ appointmentId: 'appt-1', action: 'CONFIRM' });
+
+    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_CONFIRMED', channel: 'EMAIL' }),
+    );
   });
 });

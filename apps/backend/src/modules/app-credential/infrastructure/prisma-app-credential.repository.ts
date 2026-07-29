@@ -18,7 +18,6 @@ interface AppCredentialRow {
   username: string;
   password_encrypted: string;
   needs_auth_code: boolean;
-  auth_code_encrypted: string | null;
   app_url: string | null;
   instructions_url: string | null;
   instructions_password_encrypted: string | null;
@@ -49,7 +48,6 @@ export class PrismaAppCredentialRepository implements IAppCredentialRepository {
       username: row.username,
       password: this.aes.decrypt(row.password_encrypted),
       needsAuthCode: row.needs_auth_code,
-      authCode: row.auth_code_encrypted ? this.aes.decrypt(row.auth_code_encrypted) : null,
       appUrl: row.app_url,
       instructionsUrl: row.instructions_url,
       instructionsPassword: row.instructions_password_encrypted
@@ -144,7 +142,6 @@ export class PrismaAppCredentialRepository implements IAppCredentialRepository {
         username: credential.username,
         password_encrypted: this.aes.encrypt(credential.password),
         needs_auth_code: credential.needsAuthCode,
-        auth_code_encrypted: credential.authCode ? this.aes.encrypt(credential.authCode) : null,
         app_url: credential.appUrl,
         instructions_url: credential.instructionsUrl,
         instructions_password_encrypted: credential.instructionsPassword
@@ -165,9 +162,6 @@ export class PrismaAppCredentialRepository implements IAppCredentialRepository {
     if (data.username !== undefined) updateData.username = data.username;
     if (data.password !== undefined) updateData.password_encrypted = this.aes.encrypt(data.password);
     if (data.needsAuthCode !== undefined) updateData.needs_auth_code = data.needsAuthCode;
-    if (data.authCode !== undefined) {
-      updateData.auth_code_encrypted = data.authCode ? this.aes.encrypt(data.authCode) : null;
-    }
     if (data.appUrl !== undefined) updateData.app_url = data.appUrl;
     if (data.instructionsUrl !== undefined) updateData.instructions_url = data.instructionsUrl;
     if (data.instructionsPassword !== undefined) {

@@ -4,6 +4,12 @@ export const CancellationReasonCode = {
   SCHEDULING_CONFLICT: 'SCHEDULING_CONFLICT',
   INSPECTOR_UNAVAILABLE: 'INSPECTOR_UNAVAILABLE',
   DUPLICATE: 'DUPLICATE',
+  /**
+   * System-assigned only: the appointment's date passed while it was still in an
+   * active status. Never offered as a manual choice — see `CANCELLATION_OPTIONS`
+   * in the web `StatusTransitionDialog`.
+   */
+  EXPIRED: 'EXPIRED',
   OTHER: 'OTHER',
 } as const;
 export type CancellationReasonCode = (typeof CancellationReasonCode)[keyof typeof CancellationReasonCode];

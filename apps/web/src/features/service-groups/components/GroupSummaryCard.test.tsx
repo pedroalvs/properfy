@@ -36,7 +36,7 @@ describe('GroupSummaryCard', () => {
         timeWindow="09:00 - 18:00"
       />,
     );
-    expect(screen.getByText('09:00 - 18:00')).toBeInTheDocument();
+    expect(screen.getByText('9:00 am – 6:00 pm')).toBeInTheDocument();
   });
 
   it('shows title', () => {

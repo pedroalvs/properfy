@@ -8,7 +8,8 @@ import { IntegrationWarnings } from '../components/IntegrationWarnings';
 function computeTomorrowLabel(): string {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const dateStr = Intl.DateTimeFormat('en-US', { weekday: 'short', day: 'numeric', month: 'short' }).format(tomorrow);
+  // en-AU orders this day-then-month ('Wed, 29 Jul'); en-US would render 'Wed, Jul 29'.
+  const dateStr = Intl.DateTimeFormat('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }).format(tomorrow);
   return `Tomorrow — ${dateStr}`;
 }
 

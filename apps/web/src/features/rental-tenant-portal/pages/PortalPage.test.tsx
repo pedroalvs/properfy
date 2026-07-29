@@ -98,7 +98,7 @@ describe('PortalPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Details')).toBeInTheDocument();
     });
-    expect(screen.getAllByText('09:00 – 11:00').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('9:00 am – 11:00 am').length).toBeGreaterThan(0);
   });
 
   it('shows confirm section when status is PENDING', async () => {
@@ -106,7 +106,7 @@ describe('PortalPage', () => {
     renderPortal();
 
     await waitFor(() => {
-      expect(screen.getByText('Do you confirm the inspection?')).toBeInTheDocument();
+      expect(screen.getByText('Will you attend the appointment?')).toBeInTheDocument();
     });
   });
 
@@ -189,17 +189,19 @@ describe('PortalPage', () => {
     expect(screen.getAllByText('John Tenant').length).toBeGreaterThan(0);
   });
 
-  it('shows reschedule form when not read-only and not terminal', async () => {
+  it('never offers the removed "propose new date" action', async () => {
     mockGet.mockResolvedValue({ data: MOCK_PORTAL_DATA });
     renderPortal();
 
-    // The RescheduleForm is now behind the "Propose new date" CTA button
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Propose new date' })).toBeInTheDocument();
+      expect(screen.getByText('Contact Information')).toBeInTheDocument();
     });
+    expect(screen.queryByRole('button', { name: /propose new date/i })).not.toBeInTheDocument();
+    // "Change time" is the only remaining way to move the appointment.
+    expect(screen.getByRole('button', { name: /change time/i })).toBeInTheDocument();
   });
 
-  it('keeps the propose-new-date action when token is expired (read-only)', async () => {
+  it('past the cutoff, offers unavailability and change time but not propose new date', async () => {
     mockGet.mockResolvedValue({ data: {
       ...MOCK_PORTAL_DATA,
       token: { status: 'EXPIRED', isReadOnly: true },
@@ -209,7 +211,10 @@ describe('PortalPage', () => {
     await waitFor(() => {
       expect(screen.getAllByText(/confirmation deadline has passed/i).length).toBeGreaterThan(0);
     });
-    expect(screen.getByRole('button', { name: /propose new date/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /propose new date/i })).not.toBeInTheDocument();
+    // The cutoff banner must not advertise the removed action either.
+    expect(screen.queryByText(/propose a new date/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /change time/i })).toBeInTheDocument();
   });
 
   it('shows unavailability section when token is expired but confirmation is not CONFIRMED', async () => {
@@ -273,7 +278,7 @@ describe('PortalPage', () => {
       expect(screen.getByText('Attendance Confirmed')).toBeInTheDocument();
     });
     // Unified form is not shown when already CONFIRMED and not in read-only mode
-    expect(screen.queryByText('Do you confirm the inspection?')).not.toBeInTheDocument();
+    expect(screen.queryByText('Will you attend the appointment?')).not.toBeInTheDocument();
   });
 
   it('shows ResponseConfirmationCard when existingResponse is present', async () => {
@@ -293,41 +298,6 @@ describe('PortalPage', () => {
     expect(screen.getByText('Confirmed by tenant')).toBeInTheDocument();
   });
 
-  it('clicking "Propose new date" expands the reschedule form', async () => {
-    const user = userEvent.setup();
-    mockGet.mockResolvedValue({ data: MOCK_PORTAL_DATA });
-    renderPortal();
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Propose new date' })).toBeInTheDocument();
-    });
-    await user.click(screen.getByRole('button', { name: 'Propose new date' }));
-    expect(screen.getByRole('button', { name: '← Back' })).toBeInTheDocument();
-  });
-
-  it('clicking "← Back" in propose new date panel collapses the form', async () => {
-    const user = userEvent.setup();
-    mockGet.mockResolvedValue({ data: MOCK_PORTAL_DATA });
-    renderPortal();
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Propose new date' })).toBeInTheDocument();
-    });
-    await user.click(screen.getByRole('button', { name: 'Propose new date' }));
-    const backButton = screen.getByRole('button', { name: '← Back' });
-    await user.click(backButton);
-    expect(screen.getByRole('button', { name: 'Propose new date' })).toBeInTheDocument();
-  });
-
-  it('hides "Propose new date" when rescheduleAllowed is false', async () => {
-    mockGet.mockResolvedValue({ data: { ...MOCK_PORTAL_DATA, rescheduleAllowed: false } });
-    renderPortal();
-
-    await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'Propose new date' })).not.toBeInTheDocument();
-    });
-  });
-
   function mockPortalDataWithAvailableGroups() {
     mockGet.mockImplementation((path: string) => {
       if (path.endsWith('/available-groups')) {
@@ -341,8 +311,9 @@ describe('PortalPage', () => {
                 timeSlotEnd: '10:00',
                 suburb: 'Surry Hills',
                 inspectorName: 'John Smith',
-                confirmedCount: 3,
-                capacityMax: 10,
+                // 09:00-10:00 holds two inspections at two per hour.
+                bookedCount: 1,
+                capacityMax: 2,
               },
             ],
           },
@@ -417,15 +388,14 @@ describe('PortalPage', () => {
       expect(screen.getByRole('button', { name: /no/i })).not.toBeDisabled();
     });
 
-    it('keeps "Change time" and "Propose new date" available past the cutoff', async () => {
+    it('keeps "Change time" available past the cutoff', async () => {
       mockGet.mockResolvedValue({ data: PAST_CUTOFF_DATA });
       renderPortal();
       await screen.findByText(/confirmation deadline has passed/i);
       expect(screen.getByRole('button', { name: /change time/i })).toBeTruthy();
-      expect(screen.getByRole('button', { name: /propose new date/i })).toBeTruthy();
     });
 
-    it('keeps reschedule actions available when the token is expired (active appointment)', async () => {
+    it('keeps change time available when the token is expired (active appointment)', async () => {
       mockGet.mockResolvedValue({
         data: {
           ...MOCK_PORTAL_DATA,
@@ -438,22 +408,6 @@ describe('PortalPage', () => {
       expect(yesButton).toBeDisabled();
       expect(yesButton).toHaveAttribute('title', 'The confirmation deadline has passed');
       expect(screen.getByRole('button', { name: /change time/i })).toBeTruthy();
-      expect(screen.getByRole('button', { name: /propose new date/i })).toBeTruthy();
-    });
-
-    it('lets an expired token open the reschedule form with enabled fields', async () => {
-      const user = userEvent.setup();
-      mockGet.mockResolvedValue({
-        data: {
-          ...MOCK_PORTAL_DATA,
-          token: { status: 'EXPIRED', isReadOnly: true, isPastConfirmCutoff: true },
-        },
-      });
-      renderPortal();
-      await user.click(await screen.findByRole('button', { name: /propose new date/i }));
-      expect(
-        screen.getByRole('button', { name: /request reschedule/i }),
-      ).not.toBeDisabled();
     });
   });
 

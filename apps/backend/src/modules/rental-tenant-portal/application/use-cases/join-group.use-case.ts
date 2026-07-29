@@ -1,4 +1,4 @@
-import { UserRole } from '@properfy/shared';
+import { SYSTEM_ACTOR } from '../../../../shared/domain/constants';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { IServiceGroupRepository } from '../../../service-group/domain/service-group.repository';
 import type { IRentalTenantPortalActivityRepository } from '../../domain/rental-tenant-portal-activity.repository';
@@ -8,6 +8,7 @@ import type { ExecuteStatusTransitionInput, ExecuteStatusTransitionOutput } from
 import { RentalTenantPortalActivityEntity } from '../../domain/rental-tenant-portal-activity.entity';
 import type { AppointmentEntity } from '../../../appointment/domain/appointment.entity';
 import type { ServiceGroupEntity } from '../../../service-group/domain/service-group.entity';
+import { computeWindowAvailability } from '../../../service-group/domain/portal-slot-capacity';
 import {
   PortalAppointmentInactiveError,
   PortalTokenAlreadyUsedError,
@@ -23,6 +24,10 @@ interface IStatusTransitionUseCase {
 
 interface INotificationHandler {
   execute(input: { appointmentId: string; tenantId?: string | null; action: string }): Promise<unknown>;
+}
+
+interface ICancelEmptyGroupService {
+  cancelIfDead(groupId: string): Promise<boolean>;
 }
 
 export interface JoinGroupInput {
@@ -59,6 +64,8 @@ export class JoinGroupUseCase {
     private readonly auditService: AuditService,
     private readonly statusTransition: IStatusTransitionUseCase,
     private readonly onNotificationHandler?: INotificationHandler,
+    /** Optional: cancels the group the tenant left when it ends up with nothing to execute. */
+    private readonly cancelEmptyGroup?: ICancelEmptyGroupService,
   ) {}
 
   /**
@@ -97,9 +104,6 @@ export class JoinGroupUseCase {
     if (!group.assignedInspectorId || !assignedInspectorName) {
       throw new PortalGroupUnavailableError();
     }
-    if (group.confirmedCount >= 10) {
-      throw new PortalGroupFullError();
-    }
     if (!appointment.propertyId || !appointment.serviceTypeId) {
       throw new PortalGroupSlotUnavailableError();
     }
@@ -109,21 +113,32 @@ export class JoinGroupUseCase {
     }
 
     const now = new Date();
-    const eligibleSlots = await this.serviceGroupRepo.findPortalEligibleSlots({
+    const members = await this.serviceGroupRepo.findPortalEligibleSlots({
       tenantId: appointment.tenantId,
       serviceTypeId: appointment.serviceTypeId,
       propertyId: appointment.propertyId,
       today: now,
       excludeGroupId: appointment.serviceGroupId,
     });
-    const selectedEligibleSlot = eligibleSlots.find((slot) => (
-      slot.groupId === group.id &&
-      slot.scheduledDate.toISOString().slice(0, 10) === input.scheduledDate &&
-      slot.timeSlotStart === input.timeSlotStart &&
-      slot.timeSlotEnd === input.timeSlotEnd
+
+    const selectedWindow = { timeSlotStart: input.timeSlotStart, timeSlotEnd: input.timeSlotEnd };
+    const groupDayMembers = members.filter((member) => (
+      member.groupId === group.id &&
+      member.scheduledDate.toISOString().slice(0, 10) === input.scheduledDate
     ));
-    if (!selectedEligibleSlot) {
+    const isOfferedWindow = groupDayMembers.some((member) => (
+      member.isOwnAgency &&
+      member.timeSlotStart === selectedWindow.timeSlotStart &&
+      member.timeSlotEnd === selectedWindow.timeSlotEnd
+    ));
+    if (!isOfferedWindow) {
       throw new PortalGroupSlotUnavailableError();
+    }
+
+    // Re-run the 2-inspections-per-hour rule server-side: the numbers the picker
+    // rendered can be stale by the time the tenant taps through.
+    if (computeWindowAvailability(groupDayMembers, selectedWindow).remaining <= 0) {
+      throw new PortalGroupFullError();
     }
 
     const hasSelectedSlot = await this.serviceGroupRepo.hasPortalMemberSlot({
@@ -146,7 +161,7 @@ export class JoinGroupUseCase {
     }
 
     try {
-      await this.applyJoin(input, appointment, group);
+      await this.applyJoin(input, appointment, group, group.assignedInspectorId);
     } catch (error) {
       // Best-effort release so the tenant can retry with the same link;
       // never mask the original failure.
@@ -172,7 +187,13 @@ export class JoinGroupUseCase {
    * Side-effect sequence (spec §5.2 steps 4-13), executed only after the
    * token claim succeeded.
    */
-  private async applyJoin(input: JoinGroupInput, appointment: AppointmentEntity, group: ServiceGroupEntity): Promise<void> {
+  private async applyJoin(
+    input: JoinGroupInput,
+    appointment: AppointmentEntity,
+    group: ServiceGroupEntity,
+    /** Already narrowed to non-null by the caller's group validation. */
+    inspectorId: string,
+  ): Promise<void> {
     const previousGroupId = appointment.serviceGroupId;
     const previousValues = {
       serviceGroupId: previousGroupId,
@@ -181,21 +202,34 @@ export class JoinGroupUseCase {
       status: appointment.status,
     };
 
-    // 4. Detach from previous group
+    // 4-8. Take the slot. The capacity re-check and the appointment write share
+    // one transaction holding a lock on the group, so two tenants racing for the
+    // last opening cannot both pass — the loser gets `false` and nothing is
+    // written. The token claim above only guards replays of the *same* token.
+    const reservation = await this.serviceGroupRepo.reservePortalWindow({
+      groupId: group.id,
+      appointmentId: input.appointmentId,
+      tenantId: appointment.tenantId,
+      scheduledDate: input.scheduledDate,
+      timeSlotStart: input.timeSlotStart,
+      timeSlotEnd: input.timeSlotEnd,
+      inspectorId,
+      ...(input.rentalTenantNote !== undefined ? { rentalTenantNote: input.rentalTenantNote } : {}),
+    });
+    if (!reservation.ok) {
+      // A full window sends the tenant back to pick another time; an inactive
+      // appointment means there is nothing left to move, so saying "full" would
+      // just send them round the picker to fail again.
+      throw reservation.reason === 'WINDOW_FULL'
+        ? new PortalGroupFullError()
+        : new PortalAppointmentInactiveError();
+    }
+
+    // Detach from the previous group only once the new slot is actually held,
+    // so a lost race never leaves the tenant decremented out of both groups.
     if (previousGroupId) {
       await this.serviceGroupRepo.decrementConfirmedCount(previousGroupId);
     }
-
-    // 5-8. Update appointment fields
-    await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, {
-      scheduledDate: new Date(input.scheduledDate),
-      timeSlotStart: input.timeSlotStart,
-      timeSlotEnd: input.timeSlotEnd,
-      inspectorId: group.assignedInspectorId,
-      rentalTenantConfirmationStatus: 'CONFIRMED',
-      serviceGroupId: group.id,
-      ...(input.rentalTenantNote !== undefined ? { rentalTenantNote: input.rentalTenantNote } : {}),
-    });
 
     // 6. Transition to SCHEDULED only when not already in that status
     // (AWAITING_INSPECTOR → SCHEDULED is the normal path; SCHEDULED appointments
@@ -205,13 +239,7 @@ export class JoinGroupUseCase {
         appointmentId: input.appointmentId,
         targetStatus: 'SCHEDULED',
         reason: `Tenant joined service group ${group.id} via portal`,
-        actor: {
-          userId: 'system',
-          tenantId: appointment.tenantId,
-          role: UserRole.SYS,
-          branchId: null,
-          inspectorId: null,
-        },
+        actor: { ...SYSTEM_ACTOR, tenantId: appointment.tenantId },
       });
     }
 
@@ -276,6 +304,19 @@ export class JoinGroupUseCase {
       } catch {
         // notification failure must not affect the join
       }
+    }
+
+    // 14. The move may have emptied the group the tenant left. The transition event
+    // carries the *new* group, so the empty-group subscriber cannot see this case —
+    // check it explicitly.
+    //
+    // Genuinely not awaited: the join is already committed and must stand, and this
+    // cleanup is best-effort, so the tenant's response must not wait on it. The daily
+    // sweep is the backstop if it fails or never finishes.
+    if (previousGroupId && this.cancelEmptyGroup) {
+      void this.cancelEmptyGroup.cancelIfDead(previousGroupId).catch(() => {
+        // swallowed by design — see above
+      });
     }
   }
 }

@@ -132,7 +132,9 @@ export function TemplateCreateDrawer({
     if (!selectedCode) nextErrors.code = 'Select a template';
     if (isGlobalRole && !selectedTenantId) nextErrors.tenantId = 'Please select an agency';
 
-    const fieldErrors = selectedCode ? validate(form, canonicalRequired, canonicalAllowed) : {};
+    const fieldErrors = selectedCode
+      ? validate(form, canonicalRequired, canonicalAllowed, channel ?? 'EMAIL')
+      : {};
     const merged = { ...nextErrors, ...fieldErrors };
     if (Object.keys(merged).length > 0) {
       setErrors(merged);

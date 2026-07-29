@@ -83,6 +83,66 @@ export const importPropertyPlanSchema = z.object({
 });
 export type ImportPropertyPlan = z.infer<typeof importPropertyPlanSchema>;
 
+/**
+ * Stable identifiers for problems with the FILE itself, as opposed to a row.
+ * Doubles as the `error.code` on the 4xx envelope for the blocking cases, so a
+ * consumer branches on one enum whether the issue arrived as a thrown error or
+ * as a warning riding on a successful preview.
+ *
+ * Every blocking case MUST map to a 4xx: `getErrorMessage` (utils/api-error)
+ * replaces the message of anything >= 500 with a generic string, so a 500 can
+ * never tell the user what is wrong with their file.
+ */
+export const IMPORT_FILE_ISSUE_CODES = [
+  // Blocking — thrown, HTTP 400.
+  'IMPORT_FILE_EMPTY',
+  'IMPORT_FILE_CONTENT_MISMATCH',
+  'IMPORT_FILE_CORRUPT_XLSX',
+  'IMPORT_FILE_CORRUPT_CSV',
+  'IMPORT_FILE_NO_WORKSHEETS',
+  'IMPORT_FILE_NO_HEADER_ROW',
+  'IMPORT_FILE_MISSING_COLUMNS',
+  // Non-blocking — collected and returned on the 200 preview response.
+  'IMPORT_FILE_MULTIPLE_SHEETS',
+  'IMPORT_FILE_UNKNOWN_COLUMNS',
+  'IMPORT_FILE_NO_DATA_ROWS',
+] as const;
+export type ImportFileIssueCode = (typeof IMPORT_FILE_ISSUE_CODES)[number];
+
+/** An ignored spreadsheet column, with the closest recognized header when the
+ * two are near enough to be a typo (`null` when nothing is close). */
+export const importFileUnknownColumnSchema = z.object({
+  column: z.string(),
+  suggestion: z.string().nullable(),
+});
+export type ImportFileUnknownColumn = z.infer<typeof importFileUnknownColumnSchema>;
+
+/**
+ * A problem with the file as a whole. Deliberately a FLAT object with a
+ * `.default()` on every payload field rather than a discriminated union:
+ *
+ * 1. the Fastify zod serializer `safeParse`s the response and throws a 500 on
+ *    a missing required key — and it does so AFTER the storage upload and the
+ *    DB save have committed. Defaults make that unreachable.
+ * 2. `previewJson` blobs persisted before this field existed must still parse
+ *    (same precedent as `importPropertyPlanSchema.apartmentNumber` above).
+ * 3. a union serializes badly through `jsonSchemaTransform` into openapi.json.
+ *
+ * `message` is built on the backend and rendered verbatim — one producer for
+ * the HTTP envelope, the preview payload and the persisted commit failure.
+ */
+export const importFileIssueSchema = z.object({
+  code: z.enum(IMPORT_FILE_ISSUE_CODES),
+  severity: z.enum(['warning', 'error']),
+  message: z.string(),
+  missingColumns: z.array(z.string()).default([]),
+  foundColumns: z.array(z.string()).default([]),
+  unknownColumns: z.array(importFileUnknownColumnSchema).default([]),
+  sheetUsed: z.string().nullable().default(null),
+  sheetsIgnored: z.array(z.string()).default([]),
+});
+export type ImportFileIssue = z.infer<typeof importFileIssueSchema>;
+
 export const importSummarySchema = z.object({
   totalRows: z.number().int().nonnegative(),
   importable: z.number().int().nonnegative(),

@@ -97,6 +97,9 @@ export class NotifyOnAdminRescheduleHandler {
     const recipientEmail = contact.effectiveEmail;
     const recipientPhone = contact.effectivePhone;
 
+    // Independent legs: a tenant with both an email and a phone gets both.
+    // Email first, sharing the single portal token minted above — minting again
+    // per leg would revoke the link the first message already carried.
     if (recipientEmail) {
       await this.createNotification.execute({
         tenantId: appointment.tenantId,
@@ -106,7 +109,9 @@ export class NotifyOnAdminRescheduleHandler {
         templateCode: emailCode,
         payloadJson: this.buildNotificationPayload.build(payloadCtx),
       });
-    } else if (recipientPhone) {
+    }
+
+    if (recipientPhone) {
       const smsCode = `${emailCode}_SMS`;
       await this.createNotification.execute({
         tenantId: appointment.tenantId,

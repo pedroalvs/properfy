@@ -3,6 +3,7 @@ import type { FyAvailableDates } from '@properfy/shared';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import { AppointmentNotFoundError } from '../../../appointment/domain/appointment.errors';
 import type { IServiceGroupRepository } from '../../../service-group/domain/service-group.repository';
+import { buildPortalEligibleSlots } from '../../../service-group/domain/portal-slot-capacity';
 import { NoticePeriodViolationError } from '../../domain/fy.errors';
 
 export interface GetFyAvailableDatesInput {
@@ -44,12 +45,15 @@ export class GetFyAvailableDatesUseCase {
     }
 
     const today = new Date();
-    const rows = await this.serviceGroupRepo.findPortalEligibleSlots({
+    const members = await this.serviceGroupRepo.findPortalEligibleSlots({
       tenantId: appointment.tenantId,
       serviceTypeId: appointment.serviceTypeId,
       propertyId: appointment.propertyId,
       today,
     });
+    // Same rule as the portal picker, so the agent never quotes a window the
+    // tenant would then be refused on.
+    const rows = buildPortalEligibleSlots(members);
 
     const noticeFloor = new Date(today.getTime());
     noticeFloor.setUTCDate(noticeFloor.getUTCDate() + NOTICE_PERIOD_DAYS);
