@@ -12,6 +12,28 @@ export {
   formatInstantDateTime,
 } from './format-display-date';
 export {
+  DATE_PLACEHOLDER,
+  TIME_PLACEHOLDER,
+  isValidYmd,
+  expandTwoDigitYear,
+  maskDateText,
+  backspaceDateText,
+  isoDateToMasked,
+  maskedToIsoDate,
+  coerceIsoDate,
+  maskTimeText,
+  parseTimeParts,
+  renderTimeParts,
+  backspaceTimeText,
+  applyMeridiem,
+  wallTimeToMasked,
+  maskedToWallTime,
+  coerceWallTime,
+  to24h,
+  type Meridiem,
+  type TimeParts,
+} from './date-time-mask';
+export {
   ApiError,
   NETWORK_ERROR_STATUS,
   toApiError,
