@@ -106,7 +106,7 @@ describe('PortalPage', () => {
     renderPortal();
 
     await waitFor(() => {
-      expect(screen.getByText('Do you confirm the inspection?')).toBeInTheDocument();
+      expect(screen.getByText('Will you attend the appointment?')).toBeInTheDocument();
     });
   });
 
@@ -278,7 +278,7 @@ describe('PortalPage', () => {
       expect(screen.getByText('Attendance Confirmed')).toBeInTheDocument();
     });
     // Unified form is not shown when already CONFIRMED and not in read-only mode
-    expect(screen.queryByText('Do you confirm the inspection?')).not.toBeInTheDocument();
+    expect(screen.queryByText('Will you attend the appointment?')).not.toBeInTheDocument();
   });
 
   it('shows ResponseConfirmationCard when existingResponse is present', async () => {

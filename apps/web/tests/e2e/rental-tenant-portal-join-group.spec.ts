@@ -111,7 +111,7 @@ test.describe('Portal — Join Group (US2)', () => {
     await mockJoinGroup(page, 200);
 
     await page.goto(`/rental-tenant-portal/${TOKEN}`);
-    await expect(page.getByText('Do you confirm the inspection?')).toBeVisible();
+    await expect(page.getByText('Will you attend the appointment?')).toBeVisible();
 
     await page.getByRole('button', { name: 'Change time' }).click();
     await expect(page.getByRole('heading', { name: 'Pick a time for your booking' })).toBeVisible();

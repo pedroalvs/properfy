@@ -91,7 +91,7 @@ export function InspectionConfirmationForm({
       <div>
         <h2 className="mb-1 text-base font-extrabold text-text-primary">Your response</h2>
         <p className="mb-3 text-sm font-semibold text-text-primary">
-          Do you confirm the inspection?
+          Will you attend the appointment?
         </p>
         <div className="flex overflow-hidden rounded-full border-[1.5px] border-border-subtle">
           <button
