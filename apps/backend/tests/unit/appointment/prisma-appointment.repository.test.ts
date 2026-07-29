@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PrismaAppointmentRepository } from '../../../src/modules/appointment/infrastructure/prisma-appointment.repository';
+import { startOfPlatformToday } from '../../../src/shared/domain/timezone-date';
 
 describe('PrismaAppointmentRepository date filters', () => {
   const findMany = vi.fn();
@@ -333,5 +334,117 @@ describe('PrismaAppointmentRepository overdueOnly + status composition', () => {
         where: expect.objectContaining({ status: { in: ['AWAITING_INSPECTOR'] } }),
       }),
     );
+  });
+});
+
+describe('PrismaAppointmentRepository overdueOnly + date range composition', () => {
+  const findMany = vi.fn();
+  const count = vi.fn();
+  const prisma = { appointment: { findMany, count } } as any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    findMany.mockResolvedValue([]);
+    count.mockResolvedValue(0);
+  });
+
+  function whereOf() {
+    return findMany.mock.calls[0][0].where;
+  }
+
+  /** The overdue cut-off the repository uses — same helper, so no clock coupling. */
+  function today() {
+    return startOfPlatformToday();
+  }
+
+  it('keeps the caller fromDate instead of discarding it', async () => {
+    // Previously the overdue branch overwrote scheduled_date outright, so
+    // "overdue appointments scheduled in August" silently returned every
+    // overdue appointment ever.
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll(
+      { overdueOnly: true, fromDate: '2026-08-01' },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    expect(whereOf().scheduled_date).toEqual({
+      gte: new Date('2026-08-01T00:00:00.000Z'),
+      lt: today(),
+    });
+  });
+
+  it('uses the caller toDate when it is tighter than the overdue cut-off', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll(
+      { overdueOnly: true, toDate: '2020-01-01' },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    // Exclusive upper bound is the day AFTER toDate, and it is well before today.
+    expect(whereOf().scheduled_date).toEqual({ lt: new Date('2020-01-02T00:00:00.000Z') });
+  });
+
+  it('keeps the overdue cut-off when the caller toDate is in the future', async () => {
+    // An appointment scheduled tomorrow is not overdue, however wide the range.
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll(
+      { overdueOnly: true, toDate: '2999-01-01' },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    expect(whereOf().scheduled_date).toEqual({ lt: today() });
+  });
+
+  it('composes both bounds at once', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll(
+      { overdueOnly: true, fromDate: '2026-01-01', toDate: '2999-01-01' },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    expect(whereOf().scheduled_date).toEqual({
+      gte: new Date('2026-01-01T00:00:00.000Z'),
+      lt: today(),
+    });
+  });
+
+  it('still caps at today when no range is given', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll({ overdueOnly: true }, { page: 1, pageSize: 10, sortOrder: 'asc' });
+
+    expect(whereOf().scheduled_date).toEqual({ lt: today() });
+  });
+
+  it('applies the same composition to count so totals match the rows', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.count({ overdueOnly: true, fromDate: '2026-08-01' });
+
+    expect(count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          scheduled_date: { gte: new Date('2026-08-01T00:00:00.000Z'), lt: today() },
+        }),
+      }),
+    );
+  });
+
+  it('leaves the non-overdue date filter untouched', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll(
+      { fromDate: '2026-08-01', toDate: '2026-08-31' },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    expect(whereOf().scheduled_date).toEqual({
+      gte: new Date('2026-08-01T00:00:00.000Z'),
+      lt: new Date('2026-09-01T00:00:00.000Z'),
+    });
   });
 });

@@ -485,6 +485,13 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
   private buildWhere(filters: AppointmentFilters) {
     const where: Record<string, unknown> = { deleted_at: null };
     if (filters.tenantId) where['tenant_id'] = filters.tenantId;
+
+    // The caller's date range, built once so BOTH branches honour it. `toDate` is
+    // inclusive, hence the exclusive bound on the following day.
+    const dateFilter: Record<string, unknown> = {};
+    if (filters.fromDate) dateFilter['gte'] = parseDateOnlyToUtcStart(filters.fromDate);
+    if (filters.toDate) dateFilter['lt'] = nextUtcDay(parseDateOnlyToUtcStart(filters.toDate));
+
     if (filters.overdueOnly) {
       // INTERSECT the overdue-eligible statuses with an explicit status filter
       // rather than replacing it: callers that slice by status (the board sends
@@ -497,7 +504,18 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
             ? filters.status.filter((status) => OVERDUE_STATUS_SET.has(status))
             : [...OVERDUE_ELIGIBLE_STATUSES],
       };
-      where['scheduled_date'] = { lt: startOfPlatformToday() };
+      // "Overdue" means strictly before today, which is an upper bound like any
+      // other — so INTERSECT it with the caller's range rather than replacing it.
+      // The tighter upper bound wins; `fromDate` passes straight through. Without
+      // this, "overdue appointments scheduled in August" silently returned every
+      // overdue appointment ever, and the Period filter looked broken.
+      const overdueCutOff = startOfPlatformToday();
+      const callerCutOff = dateFilter['lt'] as Date | undefined;
+      dateFilter['lt'] =
+        callerCutOff && callerCutOff.getTime() < overdueCutOff.getTime()
+          ? callerCutOff
+          : overdueCutOff;
+      where['scheduled_date'] = dateFilter;
     } else {
       if (filters.status && filters.status.length > 0) {
         where['status'] = { in: filters.status };
@@ -508,12 +526,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         // and the modal count would disagree with the group pin.
         where['status'] = { notIn: ['CANCELLED', 'REJECTED'] };
       }
-      if (filters.fromDate || filters.toDate) {
-        const dateFilter: Record<string, unknown> = {};
-        if (filters.fromDate) dateFilter['gte'] = parseDateOnlyToUtcStart(filters.fromDate);
-        if (filters.toDate) dateFilter['lt'] = nextUtcDay(parseDateOnlyToUtcStart(filters.toDate));
-        where['scheduled_date'] = dateFilter;
-      }
+      if (Object.keys(dateFilter).length > 0) where['scheduled_date'] = dateFilter;
     }
     if (filters.serviceTypeId) where['service_type_id'] = filters.serviceTypeId;
     if (filters.branchId) where['branch_id'] = filters.branchId;

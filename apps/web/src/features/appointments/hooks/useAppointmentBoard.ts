@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { AppointmentStatus } from '@properfy/shared';
+import { OVERDUE_ELIGIBLE_STATUSES, type AppointmentStatus } from '@properfy/shared';
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
 import { useUrlFilters } from '@/hooks/useUrlFilters';
 import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
@@ -23,12 +23,16 @@ export type BoardColumnStatus = (typeof BOARD_COLUMN_STATUSES)[number];
 
 /**
  * `overdueOnly` is defined server-side as "status IN (SCHEDULED,
- * AWAITING_INSPECTOR) AND scheduled_date < today". `buildWhere` intersects it
- * with the per-column status, so a terminal column would correctly come back
- * empty — we skip those three requests outright rather than pay for three
+ * AWAITING_INSPECTOR) AND scheduled_date < today", intersected with whatever
+ * status and date range the caller sent. A terminal column would therefore come
+ * back empty — we skip those three requests outright rather than pay for
  * round-trips that can only ever return nothing.
+ *
+ * The status list is imported, never re-listed: it is the same definition behind
+ * `isAppointmentOverdue`, the repository filter and the daily auto-cancel sweep.
  */
-const OVERDUE_ELIGIBLE_STATUSES: ReadonlyArray<BoardColumnStatus> = ['AWAITING_INSPECTOR', 'SCHEDULED'];
+const isOverdueEligible = (status: BoardColumnStatus): boolean =>
+  (OVERDUE_ELIGIBLE_STATUSES as readonly string[]).includes(status);
 
 /** Cards fetched per column initially, and added by each "Load more". */
 export const BOARD_COLUMN_PAGE_SIZE = 20;
@@ -91,7 +95,7 @@ function buildSharedParams(filters: AppointmentFiltersState): ListParams {
 function useBoardColumn(status: BoardColumnStatus, filters: AppointmentFiltersState): BoardColumn {
   const [pageSize, setPageSize] = useState(BOARD_COLUMN_PAGE_SIZE);
 
-  const enabled = !filters.overdueOnly || OVERDUE_ELIGIBLE_STATUSES.includes(status);
+  const enabled = !filters.overdueOnly || isOverdueEligible(status);
 
   const params: ListParams = {
     ...buildSharedParams(filters),
