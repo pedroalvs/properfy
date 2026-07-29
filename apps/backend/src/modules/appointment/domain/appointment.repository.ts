@@ -95,6 +95,16 @@ export interface AppointmentListItem {
   propertySuburb?: string;
   propertyLatitude: number | null;
   propertyLongitude: number | null;
+  /**
+   * Property total area in m²; null when the property has no recorded area.
+   *
+   * `findAll` is the sole producer and always populates it (so does
+   * `findVisibleForInspector`, which delegates to it). It stays optional only so
+   * the pre-existing test fixtures that build this type need not enumerate it —
+   * `ListAppointmentsUseCase` normalises a missing value to null. Do not read an
+   * omission here as "this row has no area".
+   */
+  propertyTotalAreaM2?: number | null;
   tenantName: string;
   /** Tenant's appointment code prefix (e.g. "INS"), used to format appointment codes. */
   tenantAppointmentCodePrefix: string | null;

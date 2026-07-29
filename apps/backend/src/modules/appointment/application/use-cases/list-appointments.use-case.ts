@@ -80,6 +80,8 @@ export interface ListAppointmentsOutput {
     rentalTenantNote: string | null;
     latitude: number | null;
     longitude: number | null;
+    /** Property total area in m²; null when the property has no recorded area. */
+    propertyTotalAreaM2: number | null;
   }>;
   total: number;
   page: number;
@@ -195,6 +197,7 @@ export class ListAppointmentsUseCase {
         rentalTenantNote: item.appointment.rentalTenantNote ?? null,
         latitude: item.propertyLatitude,
         longitude: item.propertyLongitude,
+        propertyTotalAreaM2: item.propertyTotalAreaM2 ?? null,
       };
       }),
       total,

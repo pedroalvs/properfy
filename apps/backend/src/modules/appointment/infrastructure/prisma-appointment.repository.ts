@@ -30,6 +30,14 @@ import type {
   ServiceTypeFlowType,
 } from '@properfy/shared';
 
+/**
+ * Membership view of the shared `OVERDUE_ELIGIBLE_STATUSES` — `AppointmentFilters.status`
+ * is a loose `string[]`, so the intersection has to match on strings. Derived from the
+ * shared constant, never re-listed, so this cannot drift from `isAppointmentOverdue`
+ * or the daily auto-cancel sweep.
+ */
+const OVERDUE_STATUS_SET: ReadonlySet<string> = new Set<string>(OVERDUE_ELIGIBLE_STATUSES);
+
 function toSnakeCase(s: string): string {
   return s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 }
@@ -224,7 +232,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
           // (mirrors findById's in-memory sort). Without this, contacts[0] below is arbitrary.
           orderBy: [{ is_primary: 'desc' }, { created_at: 'asc' }],
         },
-        property: { select: { property_code: true, street: true, suburb: true, state: true, postcode: true, lat: true, lng: true } },
+        property: { select: { property_code: true, street: true, suburb: true, state: true, postcode: true, lat: true, lng: true, total_area_m2: true } },
         tenant: { select: { name: true, appointment_code_prefix: true } },
         branch: { select: { name: true } },
         service_type: { select: { name: true, flow_type: true } },
@@ -245,6 +253,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         propertySuburb: row.property?.suburb ?? '',
         propertyLatitude: row.property?.lat != null ? Number(row.property.lat) : null,
         propertyLongitude: row.property?.lng != null ? Number(row.property.lng) : null,
+        propertyTotalAreaM2: row.property?.total_area_m2 != null ? Number(row.property.total_area_m2) : null,
         tenantName: row.tenant?.name ?? '',
         tenantAppointmentCodePrefix,
         branchName: row.branch?.name ?? '',
@@ -477,7 +486,17 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     const where: Record<string, unknown> = { deleted_at: null };
     if (filters.tenantId) where['tenant_id'] = filters.tenantId;
     if (filters.overdueOnly) {
-      where['status'] = { in: [...OVERDUE_ELIGIBLE_STATUSES] };
+      // INTERSECT the overdue-eligible statuses with an explicit status filter
+      // rather than replacing it: callers that slice by status (the board sends
+      // one status per column) would otherwise get both statuses back and render
+      // the same appointment in two columns. An empty intersection is
+      // intentional — it matches no rows.
+      where['status'] = {
+        in:
+          filters.status && filters.status.length > 0
+            ? filters.status.filter((status) => OVERDUE_STATUS_SET.has(status))
+            : [...OVERDUE_ELIGIBLE_STATUSES],
+      };
       where['scheduled_date'] = { lt: startOfPlatformToday() };
     } else {
       if (filters.status && filters.status.length > 0) {

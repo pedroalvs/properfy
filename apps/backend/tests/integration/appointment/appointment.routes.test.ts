@@ -202,6 +202,24 @@ describe('GET /v1/appointments', () => {
     expect(res.body.data[0].hasActivePortalToken).toBe(false);
   });
 
+  it('should keep propertyTotalAreaM2 through response serialization', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    // Fastify serializes list rows through appointmentResponseSchema — a field absent
+    // from that schema is silently stripped off the wire even though the use case
+    // returned it. The board card renders m², so assert it actually survives.
+    mockListAppointmentsExecute.mockResolvedValueOnce({
+      data: [{ ...appointmentResult, propertyTotalAreaM2: 82.5 }],
+      total: 1,
+    });
+
+    const res = await supertest(app.server)
+      .get('/v1/appointments')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].propertyTotalAreaM2).toBe(82.5);
+  });
+
   it('should return 400 with invalid query params (invalid status)', async () => {
     mockJwtVerify.mockResolvedValueOnce(clAdminContext);
 
