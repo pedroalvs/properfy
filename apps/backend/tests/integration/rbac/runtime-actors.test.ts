@@ -3,7 +3,7 @@
  *
  * TNT (Tenant/Inquilino) actor:
  *   - Accesses portal via unique link token (not JWT)
- *   - Can: confirm, reschedule, report unavailability (within token scope)
+ *   - Can: confirm, report unavailability, change time (within token scope)
  *   - Cannot: perform any JWT-authenticated action
  *   - Token-based endpoints return 401/invalid-token when no valid token
  *
@@ -48,7 +48,6 @@ const mockStatusTransition = vi.fn();
 const mockCrossCheck = vi.fn();
 const mockGetPortalData = vi.fn();
 const mockConfirmAppointment = vi.fn();
-const mockRescheduleRequest = vi.fn();
 const mockTokenRepo = {
   findByTokenHash: vi.fn(),
   findActiveByAppointmentId: vi.fn(),
@@ -86,7 +85,6 @@ vi.mock('../../../src/main/container', () => ({
       jwtService: { verify: mockJwtVerify },
       getPortalDataUseCase: { execute: mockGetPortalData },
       confirmAppointmentUseCase: { execute: mockConfirmAppointment },
-      rescheduleRequestUseCase: { execute: mockRescheduleRequest },
       tokenRepo: mockTokenRepo,
       tokenService: { generateRawToken: vi.fn(), hashToken: vi.fn().mockReturnValue('hashed-token') },
     },
@@ -148,13 +146,6 @@ describe('TNT actor: portal routes — token-based access control', () => {
     expect(res.status).toBe(404);
   });
 
-  it('POST /v1/rental-tenant-portal/:token/reschedule — no valid token → 404', async () => {
-    mockTokenRepo.findByTokenHash.mockResolvedValue(null);
-    const res = await supertest(app.server)
-      .post('/v1/rental-tenant-portal/invalid-raw-token/reschedule')
-      .send({ newDate: futureDate, newTimeSlotStart: '09:00', newTimeSlotEnd: '10:00' });
-    expect(res.status).toBe(404);
-  });
 });
 
 // ── TNT actor: JWT-authenticated routes are inaccessible ─────────────────────

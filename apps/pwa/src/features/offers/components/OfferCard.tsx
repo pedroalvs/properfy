@@ -1,7 +1,7 @@
 import { memo, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { PLATFORM_TIMEZONE, todayInTzDateString } from '@properfy/shared';
-import { formatCivilDate } from '@/lib/format-date';
+import { formatCivilDate, formatWallTimeWindow } from '@/lib/format-date';
 import { formatCurrency } from '@/lib/format-currency';
 import type { MarketplaceOffer, OfferAcceptState } from '../types';
 
@@ -23,7 +23,7 @@ function isTomorrow(dateStr: string): boolean {
 }
 
 function formatTimeWindow(timeWindow: string): string {
-  return timeWindow.replace('-', ' – ');
+  return formatWallTimeWindow(timeWindow);
 }
 
 function usePriorityCountdown(expiresAt: string | null): { label: string; isUrgent: boolean } | null {

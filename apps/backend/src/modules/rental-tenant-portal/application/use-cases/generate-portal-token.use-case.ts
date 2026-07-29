@@ -180,10 +180,9 @@ export class GeneratePortalTokenUseCase {
         '/portal/' + encodeURIComponent(rawToken),
         this.rentalTenantPortalBaseUrl,
       ).toString();
-      const rescheduleLink = new URL(
-        '/portal/' + encodeURIComponent(rawToken) + '/reschedule',
-        this.rentalTenantPortalBaseUrl,
-      ).toString();
+      // The tenant-facing "propose new date" page was removed; this now points
+      // at the portal itself. Mirrors BuildNotificationPayloadService.
+      const rescheduleLink = confirmationLink;
       const tenantSettings: Record<string, unknown> = tenant.settingsJson ?? {};
       const payloadJson = {
         confirmationLink,

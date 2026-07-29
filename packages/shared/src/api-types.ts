@@ -726,8 +726,6 @@ export interface paths {
                             /** @default 1 */
                             portalCutoffDaysBefore?: number;
                             /** @default 30 */
-                            portalRescheduleWindowDays?: number;
-                            /** @default 30 */
                             inspectionWindowBeforeMinutes?: number;
                             /** @default 30 */
                             inspectionWindowAfterMinutes?: number;
@@ -914,8 +912,6 @@ export interface paths {
                             portalCutoffHour?: number;
                             /** @default 1 */
                             portalCutoffDaysBefore?: number;
-                            /** @default 30 */
-                            portalRescheduleWindowDays?: number;
                             /** @default 30 */
                             inspectionWindowBeforeMinutes?: number;
                             /** @default 30 */
@@ -4516,7 +4512,6 @@ export interface paths {
                                     username: string;
                                     password: string;
                                     needsAuthCode: boolean;
-                                    authCode: string | null;
                                     appUrl: string | null;
                                     instructionsUrl: string | null;
                                     instructionsPassword: string | null;
@@ -4713,7 +4708,6 @@ export interface paths {
                                     username: string;
                                     password: string;
                                     needsAuthCode: boolean;
-                                    authCode: string | null;
                                     appUrl: string | null;
                                     instructionsUrl: string | null;
                                     instructionsPassword: string | null;
@@ -4835,7 +4829,6 @@ export interface paths {
                                     username: string;
                                     password: string;
                                     needsAuthCode: boolean;
-                                    authCode: string | null;
                                     appUrl: string | null;
                                     instructionsUrl: string | null;
                                     instructionsPassword: string | null;
@@ -5032,7 +5025,6 @@ export interface paths {
                                     username: string;
                                     password: string;
                                     needsAuthCode: boolean;
-                                    authCode: string | null;
                                     appUrl: string | null;
                                     instructionsUrl: string | null;
                                     instructionsPassword: string | null;
@@ -7695,7 +7687,6 @@ export interface paths {
                             deadline?: string;
                             rentalTenantNames?: string[];
                             propertyManager?: string | null;
-                            rescheduleAllowed?: boolean;
                             tenant?: {
                                 name: string | null;
                                 timezone: string;
@@ -7765,73 +7756,6 @@ export interface paths {
                             rentalTenantConfirmationStatus: "CONFIRMED";
                             /** Format: date-time */
                             confirmedAt: string;
-                        };
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/rental-tenant-portal/{token}/reschedule": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    token: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        newDate: string;
-                        newTimeSlotStart: string;
-                        newTimeSlotEnd: string;
-                        restrictions?: {
-                            isHome?: boolean | null;
-                            unavailableDaysJson?: string[] | null;
-                            unavailableHoursJson?: {
-                                start: string;
-                                end: string;
-                            }[] | null;
-                            notes?: string | null;
-                            availableSlotsJson?: {
-                                /** @enum {string} */
-                                dayOfWeek: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
-                                start: string;
-                                end: string;
-                            }[] | null;
-                        };
-                        rentalTenantNote?: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            scheduledDate: string;
-                            timeSlotStart: string;
-                            timeSlotEnd: string;
-                            /** @enum {string} */
-                            rentalTenantConfirmationStatus: "PENDING";
                         };
                     };
                 };
@@ -7985,7 +7909,7 @@ export interface paths {
                                 timeSlotEnd: string;
                                 suburb: string;
                                 inspectorName: string;
-                                confirmedCount: number;
+                                bookedCount: number;
                                 capacityMax: number;
                             }[];
                         };
@@ -8149,7 +8073,7 @@ export interface paths {
                                 /** Format: uuid */
                                 appointmentId: string;
                                 /** Format: uuid */
-                                tenantPortalTokenId: string;
+                                rentalTenantPortalTokenId: string;
                                 action: string;
                                 previousValuesJson?: unknown;
                                 newValuesJson?: unknown;
@@ -8461,7 +8385,6 @@ export interface paths {
                                     username: string;
                                     password: string;
                                     needsAuthCode: boolean;
-                                    authCode: string | null;
                                     appUrl: string | null;
                                     instructionsUrl: string | null;
                                     instructionsPassword: string | null;
@@ -11565,7 +11488,6 @@ export interface paths {
                                 username: string;
                                 password: string;
                                 needsAuthCode: boolean;
-                                authCode: string | null;
                                 appUrl: string | null;
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;
@@ -11609,7 +11531,6 @@ export interface paths {
                         password: string;
                         /** @default false */
                         needsAuthCode?: boolean;
-                        authCode?: string | null;
                         /** Format: uri */
                         appUrl?: string | null;
                         /** Format: uri */
@@ -11639,7 +11560,6 @@ export interface paths {
                                 username: string;
                                 password: string;
                                 needsAuthCode: boolean;
-                                authCode: string | null;
                                 appUrl: string | null;
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;
@@ -11697,7 +11617,6 @@ export interface paths {
                                 username: string;
                                 password: string;
                                 needsAuthCode: boolean;
-                                authCode: string | null;
                                 appUrl: string | null;
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;
@@ -11736,7 +11655,6 @@ export interface paths {
                         username?: string;
                         password?: string;
                         needsAuthCode?: boolean;
-                        authCode?: string | null;
                         /** Format: uri */
                         appUrl?: string | null;
                         /** Format: uri */
@@ -11766,7 +11684,6 @@ export interface paths {
                                 username: string;
                                 password: string;
                                 needsAuthCode: boolean;
-                                authCode: string | null;
                                 appUrl: string | null;
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;
@@ -11822,7 +11739,6 @@ export interface paths {
                                 username: string;
                                 password: string;
                                 needsAuthCode: boolean;
-                                authCode: string | null;
                                 appUrl: string | null;
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;

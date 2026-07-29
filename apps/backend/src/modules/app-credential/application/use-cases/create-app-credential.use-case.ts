@@ -2,10 +2,7 @@ import type { IAppCredentialRepository } from '../../domain/app-credential.repos
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
 import { AppCredentialEntity } from '../../domain/app-credential.entity';
-import {
-  AppCredentialAuthCodeRequiredError,
-  AppCredentialBranchInvalidError,
-} from '../../domain/app-credential.errors';
+import { AppCredentialBranchInvalidError } from '../../domain/app-credential.errors';
 
 export interface CreateAppCredentialInput {
   tenantId: string;
@@ -14,7 +11,6 @@ export interface CreateAppCredentialInput {
   username: string;
   password: string;
   needsAuthCode?: boolean;
-  authCode?: string | null;
   appUrl?: string | null;
   instructionsUrl?: string | null;
   instructionsPassword?: string | null;
@@ -32,11 +28,6 @@ export class CreateAppCredentialUseCase {
   ) {}
 
   async execute(input: CreateAppCredentialInput): Promise<AppCredentialEntity> {
-    const needsAuthCode = input.needsAuthCode ?? false;
-    if (needsAuthCode && !input.authCode) {
-      throw new AppCredentialAuthCodeRequiredError();
-    }
-
     // Multi-tenant safety: the branch (when given) must belong to the owning
     // tenant. findById is tenant-scoped, so a cross-tenant id resolves to null.
     if (input.branchId) {
@@ -54,8 +45,7 @@ export class CreateAppCredentialUseCase {
       name: input.name,
       username: input.username,
       password: input.password,
-      needsAuthCode,
-      authCode: input.authCode ?? null,
+      needsAuthCode: input.needsAuthCode ?? false,
       appUrl: input.appUrl ?? null,
       instructionsUrl: input.instructionsUrl ?? null,
       instructionsPassword: input.instructionsPassword ?? null,
@@ -75,7 +65,7 @@ export class CreateAppCredentialUseCase {
       entityId: credential.id,
       tenantId: input.tenantId,
       metadata: { actor_tenant_id: input.actorTenantId ?? null },
-      // Never log secret values (password, authCode, instructionsPassword).
+      // Never log secret values (password, instructionsPassword).
       after: {
         name: credential.name,
         username: credential.username,

@@ -624,7 +624,6 @@ export const portalDataResponseSchema = z.object({
   rentalTenantNames: z.array(z.string()).optional(),
   // Display name of the PROPERTY_MANAGER contact, when one is linked.
   propertyManager: z.string().nullable().optional(),
-  rescheduleAllowed: z.boolean().optional(),
   tenant: z.object({ name: z.string().nullable(), timezone: z.string() }).optional(),
 });
 
@@ -666,7 +665,7 @@ export const generatePortalTokenBodySchema = z
 export const portalActivityItemSchema = z.object({
   id: z.string().uuid(),
   appointmentId: z.string().uuid(),
-  tenantPortalTokenId: z.string().uuid(),
+  rentalTenantPortalTokenId: z.string().uuid(),
   action: z.string(),
   previousValuesJson: z.unknown().nullable(),
   newValuesJson: z.unknown().nullable(),
@@ -722,9 +721,9 @@ export const inspectorScheduleMonthDaySchema = z.object({
 });
 
 export const inspectorScheduleMonthResponseSchema = z.object({
-  today: instantStr(),
-  from: instantStr(),
-  to: instantStr(),
+  today: civilDateStr(),
+  from: civilDateStr(),
+  to: civilDateStr(),
   days: z.array(inspectorScheduleMonthDaySchema),
   appointments: z.array(inspectorScheduleMonthItemSchema),
   overdueAppointments: z.array(inspectorScheduleMonthItemSchema),
@@ -780,7 +779,7 @@ export const financialEntryResponseSchema = z.object({
 // branch are line-level attributes only (never invoice ownership). Join-derived display
 // fields are nullable so the response serializer never throws if a relation is absent.
 export const invoiceSnapshotLineSchema = z.object({
-  serviceDate: instantStr(),
+  serviceDate: civilDateStr(),
   appointmentId: z.string().uuid(),
   appointmentCode: z.string(),
   propertyAddress: z.string().nullable(),

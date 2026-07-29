@@ -1,10 +1,10 @@
 import { Button } from '@/components/ui/Button';
-import { formatCivilDate } from '@/lib/format-date';
+import { formatCivilDate, formatWallTimeWindow } from '@/lib/format-date';
 import { formatCurrency } from '@/lib/format-currency';
 import type { MarketplaceOffer, OfferAcceptState } from '../types';
 
 function formatTimeWindow(timeWindow: string): string {
-  return timeWindow.replace('-', ' – ');
+  return formatWallTimeWindow(timeWindow);
 }
 
 interface AcceptOfferModalProps {

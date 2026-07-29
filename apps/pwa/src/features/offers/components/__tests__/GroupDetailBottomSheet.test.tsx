@@ -153,7 +153,7 @@ describe('GroupDetailBottomSheet', () => {
     mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
     render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
     const times = screen.getAllByTestId('appointment-time').map((el) => el.textContent);
-    expect(times).toEqual(['08:00–09:00', '11:30–12:30']);
+    expect(times).toEqual(['8:00 am – 9:00 am', '11:30 am – 12:30 pm']);
   });
 
   it('renders the group date formatted, not the raw ISO string', () => {
@@ -167,7 +167,7 @@ describe('GroupDetailBottomSheet', () => {
     mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
     render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
     expect(screen.getByText('Routine Inspection')).toBeInTheDocument();
-    expect(screen.getByText('08:00-13:00')).toBeInTheDocument();
+    expect(screen.getByText('8:00 am – 1:00 pm')).toBeInTheDocument();
   });
 
   it('does not render Accept button when onAccept is not provided', () => {

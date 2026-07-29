@@ -6,8 +6,8 @@ const mockActivities = [
   {
     id: 'pa-01',
     appointmentId: 'apt-01',
-    tenantPortalTokenId: 'tok-1',
-    action: 'CONFIRMED',
+    rentalTenantPortalTokenId: 'tok-1',
+    action: 'CONFIRM',
     previousValuesJson: null,
     newValuesJson: null,
     ipAddress: '192.168.1.1',
@@ -16,10 +16,30 @@ const mockActivities = [
   },
 ];
 
+/** Every value the backend can actually store — see RentalTenantPortalAction. */
+const allActionActivities = [
+  'VIEW',
+  'CONFIRM',
+  'RESCHEDULE',
+  'CONTACT_UPDATED',
+  'UNAVAILABLE_REPORTED',
+  'GROUP_JOIN',
+].map((action, i) => ({
+  id: `pa-all-${i}`,
+  appointmentId: 'apt-01',
+  rentalTenantPortalTokenId: 'tok-1',
+  action,
+  previousValuesJson: null,
+  newValuesJson: null,
+  ipAddress: null,
+  userAgent: null,
+  createdAt: '2026-03-10T10:00:00Z',
+}));
+
 const groupJoinActivity = {
   id: 'pa-02',
   appointmentId: 'apt-01',
-  tenantPortalTokenId: 'tok-1',
+  rentalTenantPortalTokenId: 'tok-1',
   action: 'GROUP_JOIN',
   previousValuesJson: null,
   newValuesJson: {
@@ -39,6 +59,7 @@ vi.mock('../hooks/usePortalActivities', () => ({
     if (id === 'error') return { activities: [], isLoading: false, isError: true, refetch: vi.fn() };
     if (id === 'empty') return { activities: [], isLoading: false, isError: false, refetch: vi.fn() };
     if (id === 'group-join') return { activities: [groupJoinActivity], isLoading: false, isError: false, refetch: vi.fn() };
+    if (id === 'all-actions') return { activities: allActionActivities, isLoading: false, isError: false, refetch: vi.fn() };
     return { activities: mockActivities, isLoading: false, isError: false, refetch: vi.fn() };
   },
 }));
@@ -46,9 +67,33 @@ vi.mock('../hooks/usePortalActivities', () => ({
 describe('AppointmentPortalActivityTab', () => {
   it('renders activity entry', () => {
     render(<AppointmentPortalActivityTab appointmentId="apt-01" />);
-    expect(screen.getByText('Confirmed')).toBeInTheDocument();
+    expect(screen.getByText('Confirm')).toBeInTheDocument();
     expect(screen.getByText(/192\.168\.1\.1/)).toBeInTheDocument();
     expect(screen.getByText('Chrome/120')).toBeInTheDocument();
+  });
+
+  /**
+   * The badge map used to be keyed on invented values (CONFIRMED / RESCHEDULED /
+   * UNAVAILABLE) that the backend never emits, so four of the six real action types
+   * silently fell through to the generic grey `mdi-account` badge.
+   */
+  it('gives every real action type its own icon, never the generic fallback', () => {
+    const { container } = render(<AppointmentPortalActivityTab appointmentId="all-actions" />);
+
+    const icons = Array.from(container.querySelectorAll('i.mdi')).map((el) =>
+      Array.from(el.classList).find((c) => c.startsWith('mdi-')),
+    );
+
+    expect(icons).toHaveLength(6);
+    expect(icons).not.toContain('mdi-account');
+    expect(new Set(icons).size).toBe(6);
+  });
+
+  it('labels every real action type readably', () => {
+    render(<AppointmentPortalActivityTab appointmentId="all-actions" />);
+    ['View', 'Confirm', 'Reschedule', 'Contact Updated', 'Unavailable Reported', 'Group Join'].forEach(
+      (label) => expect(screen.getByText(label)).toBeInTheDocument(),
+    );
   });
 
   it('shows loading state', () => {

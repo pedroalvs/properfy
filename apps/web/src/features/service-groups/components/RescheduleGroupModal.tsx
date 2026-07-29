@@ -5,6 +5,7 @@ import {
   isTimeStartInPastForDate,
   PLATFORM_TIMEZONE,
   ServiceGroupStatus,
+  isTerminalAppointmentStatus,
   type GroupConfirmationStrategy,
 } from '@properfy/shared';
 import { Dialog } from '@/components/ui/Dialog';
@@ -14,6 +15,7 @@ import { TimeWindowPicker } from './TimeWindowPicker';
 import { AppointmentCodePill } from '@/features/appointments/components/AppointmentCodePill';
 import { useRescheduleServiceGroup } from '../hooks/useRescheduleServiceGroup';
 import type { ServiceGroupDetail } from '../types';
+import { DateInput } from '@/components/forms/DateInput';
 import { formatWallTimeRange } from '@/lib/format-date';
 
 interface RescheduleGroupModalProps {
@@ -24,13 +26,6 @@ interface RescheduleGroupModalProps {
   mode: 'date' | 'time-window';
   onSaved: () => void;
 }
-
-/**
- * A DONE inspection happened at a real time and a CANCELLED/REJECTED one never
- * will, so neither moves with the group — the preview must not promise
- * otherwise. Mirrors TERMINAL_MEMBER_STATUSES in the use case.
- */
-const TERMINAL_MEMBER_STATUSES = ['DONE', 'CANCELLED', 'REJECTED'];
 
 const splitWindow = (timeWindow: string | null): [string, string] => {
   const [start, end] = (timeWindow ?? '').split('-');
@@ -82,7 +77,9 @@ export function RescheduleGroupModal({
   const windowChanged = newWindow !== '' && newWindow !== serviceGroup.timeWindow;
 
   const appointments = useMemo(
-    () => (serviceGroup.appointments ?? []).filter((a) => !TERMINAL_MEMBER_STATUSES.includes(a.status)),
+    // Settled members do not move with the group, so the preview must not
+    // promise otherwise. Same predicate the backend cascade uses.
+    () => (serviceGroup.appointments ?? []).filter((a) => !isTerminalAppointmentStatus(a.status)),
     [serviceGroup.appointments],
   );
 
@@ -160,13 +157,10 @@ export function RescheduleGroupModal({
         </p>
 
         <FormField label="Scheduled Date">
-          <input
-            type="date"
+          <DateInput
             value={scheduledDate}
-            onChange={(e) => setScheduledDate(e.target.value)}
-            onClick={(e) => e.currentTarget.showPicker?.()}
+            onChange={setScheduledDate}
             min={today}
-            className="w-full rounded border border-border-subtle bg-white px-3 py-2 text-sm text-text-primary outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             aria-label="Scheduled date"
           />
         </FormField>

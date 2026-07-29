@@ -47,9 +47,15 @@ export function useJoinGroupFlow(
       onJoined();
     } catch (err) {
       const apiError = err instanceof ApiError ? err : null;
-      if (apiError?.code === 'PORTAL_GROUP_SLOT_UNAVAILABLE') {
+      // Both mean "pick again", so both reset the selection and refresh the
+      // list; they differ only in why the slot went away.
+      if (apiError?.code === 'PORTAL_GROUP_SLOT_UNAVAILABLE' || apiError?.code === 'PORTAL_GROUP_FULL') {
         setSelectedSlot(null);
-        setJoinErrorMessage('This time slot is no longer available. Please pick another one.');
+        setJoinErrorMessage(
+          apiError.code === 'PORTAL_GROUP_FULL'
+            ? 'This time was just filled up. Please pick another one.'
+            : 'This time slot is no longer available. Please pick another one.',
+        );
         onSlotUnavailable();
         return;
       }

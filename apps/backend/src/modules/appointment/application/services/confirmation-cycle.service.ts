@@ -200,54 +200,6 @@ export class ConfirmationCycleService {
   }
 
   /**
-   * Supersedes active cycle and creates new CONFIRMED cycle.
-   * Used when tenant reschedules via portal (they implicitly confirm the new date).
-   */
-  async rotateOnTenantReschedule(
-    appointmentId: string,
-    tenantId: string,
-    newDate: Date,
-    newTimeSlot: string | null,
-    tx?: Tx,
-  ): Promise<ConfirmationCycleEntity> {
-    const run = async (client: Tx): Promise<ConfirmationCycleEntity> => {
-      await this.supersedeCurrent(appointmentId, tenantId, 'RENTAL_TENANT_RESCHEDULE', client);
-
-      const maxCycleNumber = await this.cycleRepo.findMaxCycleNumber(appointmentId, client);
-      const now = new Date();
-      const cycle = new ConfirmationCycleEntity({
-        id: crypto.randomUUID(),
-        appointmentId,
-        cycleNumber: maxCycleNumber + 1,
-        scheduledDate: newDate,
-        timeSlot: newTimeSlot,
-        status: 'CONFIRMED',
-        confirmationSource: 'RENTAL_TENANT_RESCHEDULE',
-        confirmedAt: now,
-        invalidatedAt: null,
-        invalidatedReason: null,
-        portalTokenId: null,
-        createdAt: now,
-      });
-      await this.cycleRepo.save(cycle, client);
-      await this.setAppointmentActiveCycle(appointmentId, tenantId, cycle.id, 'CONFIRMED', client);
-
-      this.auditService.log({
-        action: 'appointment_confirmation_cycle.rotated',
-        actorType: 'ANONYMOUS',
-        entityType: 'AppointmentConfirmationCycle',
-        entityId: cycle.id,
-        tenantId,
-        after: { cycleNumber: cycle.cycleNumber, status: 'CONFIRMED', source: 'RENTAL_TENANT_RESCHEDULE' },
-      });
-
-      return cycle;
-    };
-    if (tx) return await run(tx);
-    return await this.prisma.$transaction(run);
-  }
-
-  /**
    * Marks active cycle CONFIRMED and updates the denorm cache.
    * Idempotent if cycle is already CONFIRMED.
    */

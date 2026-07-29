@@ -319,7 +319,7 @@ describe('NotifyOnRentalTenantPortalActionHandler', () => {
         appointmentId: 'appt-1',
         payloadJson: expect.objectContaining({
           rentalTenantName: 'John Smith',
-          scheduledDate: '2026-04-01',
+          scheduledDate: '01/04/2026',
         }),
       }),
     );

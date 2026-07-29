@@ -13,6 +13,8 @@ export interface AvailableGroup {
   timeSlotEnd: string;
   suburb: string;
   inspectorName: string;
-  confirmedCount: number;
+  /** Inspections already promised inside this window. */
+  bookedCount: number;
+  /** What the window holds under the 2-inspections-per-hour rule: duration x 2. */
   capacityMax: number;
 }

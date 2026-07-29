@@ -1,4 +1,5 @@
 import { filterContainer, filterLabel, filterIcon } from './filter-styles';
+import { DateInput } from '@/components/forms/DateInput';
 
 interface FilterDateRangeProps {
   label: string;
@@ -29,23 +30,23 @@ export function FilterDateRange({
           <div className="hidden items-center gap-2 sm:flex">
             <i className={`mdi mdi-calendar ${filterIcon}`} />
           </div>
-          <input
-            type="date"
-            className="min-w-0 flex-1 bg-transparent text-sm text-text-primary outline-none"
-            value={startDate}
-            onChange={(e) => onStartChange(e.target.value)}
-            onClick={(e) => e.currentTarget.showPicker?.()}
-            aria-label={`${label} - start`}
-          />
+          <div className="min-w-0 flex-1">
+            <DateInput
+              variant="bare"
+              value={startDate}
+              onChange={onStartChange}
+              aria-label={`${label} - start`}
+            />
+          </div>
           <span className="px-1 text-xs text-text-muted sm:px-0">to</span>
-          <input
-            type="date"
-            className="min-w-0 flex-1 bg-transparent text-sm text-text-primary outline-none"
-            value={endDate}
-            onChange={(e) => onEndChange(e.target.value)}
-            onClick={(e) => e.currentTarget.showPicker?.()}
-            aria-label={`${label} - end`}
-          />
+          <div className="min-w-0 flex-1">
+            <DateInput
+              variant="bare"
+              value={endDate}
+              onChange={onEndChange}
+              aria-label={`${label} - end`}
+            />
+          </div>
         </div>
       </div>
     </div>

@@ -1,3 +1,4 @@
+import { RentalTenantPortalAction } from '@properfy/shared';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -9,13 +10,28 @@ interface AppointmentPortalActivityTabProps {
   appointmentId: string;
 }
 
-const ACTION_COLORS: Record<string, { bg: string; text: string; icon: string }> = {
-  CONFIRMED: { bg: '#C8E6C9', text: '#2E7D32', icon: 'mdi-check-circle' },
-  RESCHEDULED: { bg: '#B3E5FC', text: '#0277BD', icon: 'mdi-calendar-clock' },
+/**
+ * Keyed on RentalTenantPortalAction so a future enum change fails typecheck instead of
+ * silently degrading to the grey fallback — which is exactly how CONFIRMED/RESCHEDULED/
+ * UNAVAILABLE (values the backend never emits) went unnoticed here.
+ */
+type ActionStyle = { bg: string; text: string; icon: string };
+
+const ACTION_COLORS: Record<RentalTenantPortalAction, ActionStyle> = {
+  VIEW: { bg: '#CFD8DC', text: '#455A64', icon: 'mdi-eye' },
+  CONFIRM: { bg: '#C8E6C9', text: '#2E7D32', icon: 'mdi-check-circle' },
+  RESCHEDULE: { bg: '#B3E5FC', text: '#0277BD', icon: 'mdi-calendar-clock' },
   CONTACT_UPDATED: { bg: '#FFE0B2', text: '#E65100', icon: 'mdi-account-edit' },
-  UNAVAILABLE: { bg: '#FFCDD2', text: '#C62828', icon: 'mdi-calendar-remove' },
+  UNAVAILABLE_REPORTED: { bg: '#FFCDD2', text: '#C62828', icon: 'mdi-calendar-remove' },
   GROUP_JOIN: { bg: '#E8F5E9', text: '#388E3C', icon: 'mdi-account-group' },
 };
+
+/** `action` arrives as a plain string from the API; unknown values keep a neutral badge. */
+const UNKNOWN_ACTION_STYLE: ActionStyle = { bg: '#E0E0E0', text: '#333', icon: 'mdi-account' };
+
+function actionStyle(action: string) {
+  return ACTION_COLORS[action as RentalTenantPortalAction] ?? UNKNOWN_ACTION_STYLE;
+}
 
 function GroupJoinSummary({ values }: { values: Record<string, string> }) {
   return (
@@ -61,40 +77,44 @@ export function AppointmentPortalActivityTab({ appointmentId }: AppointmentPorta
 
   return (
     <div className="space-y-4">
-      {activities.map((activity) => (
-        <div key={activity.id} className="flex gap-3 rounded border border-black/5 bg-app-bg p-3">
-          <div
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-            style={{ backgroundColor: ACTION_COLORS[activity.action]?.bg ?? '#E0E0E0' }}
-          >
-            <i
-              className={`mdi ${ACTION_COLORS[activity.action]?.icon ?? 'mdi-account'} text-base`}
-              style={{ color: ACTION_COLORS[activity.action]?.text ?? '#333' }}
-              aria-hidden="true"
-            />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-text-primary">
-                {formatActionLabel(activity.action)}
-              </span>
-              <span className="text-xs text-text-muted">
-                {formatInstantDateTime(activity.createdAt)}
-              </span>
+      {activities.map((activity) => {
+        const style = actionStyle(activity.action);
+        return (
+          <div key={activity.id} className="flex gap-3 rounded border border-black/5 bg-app-bg p-3">
+            <div
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+              style={{ backgroundColor: style.bg }}
+            >
+              <i
+                className={`mdi ${style.icon} text-base`}
+                style={{ color: style.text }}
+                aria-hidden="true"
+              />
             </div>
-            {activity.action === 'GROUP_JOIN' && !!activity.newValuesJson && (
-              <GroupJoinSummary values={activity.newValuesJson as Record<string, string>} />
-            )}
-            {(activity.ipAddress || activity.userAgent) && (
-              <p className="mt-1 truncate text-xs text-text-muted">
-                {activity.ipAddress && <span>IP: {activity.ipAddress}</span>}
-                {activity.ipAddress && activity.userAgent && <span> · </span>}
-                {activity.userAgent && <span>{activity.userAgent}</span>}
-              </p>
-            )}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-text-primary">
+                  {formatActionLabel(activity.action)}
+                </span>
+                <span className="text-xs text-text-muted">
+                  {formatInstantDateTime(activity.createdAt)}
+                </span>
+              </div>
+              {activity.action === RentalTenantPortalAction.GROUP_JOIN &&
+                !!activity.newValuesJson && (
+                  <GroupJoinSummary values={activity.newValuesJson as Record<string, string>} />
+                )}
+              {(activity.ipAddress || activity.userAgent) && (
+                <p className="mt-1 truncate text-xs text-text-muted">
+                  {activity.ipAddress && <span>IP: {activity.ipAddress}</span>}
+                  {activity.ipAddress && activity.userAgent && <span> · </span>}
+                  {activity.userAgent && <span>{activity.userAgent}</span>}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

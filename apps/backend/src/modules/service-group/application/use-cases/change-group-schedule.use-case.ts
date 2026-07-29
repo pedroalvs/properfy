@@ -1,5 +1,5 @@
 import type { AuthContext, GroupConfirmationStrategy } from '@properfy/shared';
-import { validateEditedSchedule, PLATFORM_TIMEZONE } from '@properfy/shared';
+import { validateEditedSchedule, PLATFORM_TIMEZONE, isTerminalAppointmentStatus } from '@properfy/shared';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
@@ -24,14 +24,6 @@ import type { SendGroupPortalLinksUseCase } from './send-group-portal-links.use-
 
 /** A closed group's schedule is history; only a live one can still move. */
 const CHANGEABLE_STATUSES = ['DRAFT', 'PUBLISHED', 'ACCEPTED'];
-
-/**
- * Members whose schedule is already settled. A DONE inspection happened at a
- * real time and a CANCELLED/REJECTED one will never happen at all — moving
- * either would rewrite a record rather than plan work. An accepted group can
- * hold completed members, so this is reachable in practice.
- */
-const TERMINAL_MEMBER_STATUSES = ['DONE', 'CANCELLED', 'REJECTED'];
 
 /**
  * Long enough that a double-submit or a retried request replays instead of
@@ -161,7 +153,9 @@ export class ChangeGroupScheduleUseCase {
     const movedMembers: Array<{ id: string; tenantId: string; timeSlot: string }> = [];
 
     for (const member of findResult.appointments) {
-      if (TERMINAL_MEMBER_STATUSES.includes(member.status)) continue;
+      // An accepted group can hold completed members; moving them would rewrite
+      // a record rather than plan work.
+      if (isTerminalAppointmentStatus(member.status)) continue;
 
       const memberDateMoves = dateChanged
         ? getServiceGroupDateAdjustment(member.scheduledDate, groupScheduledDate) !== null

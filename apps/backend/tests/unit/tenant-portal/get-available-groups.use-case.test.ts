@@ -4,7 +4,7 @@ import {
   type GetAvailableGroupsInput,
 } from '../../../src/modules/rental-tenant-portal/application/use-cases/get-available-groups.use-case';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
-import type { PortalEligibleSlot } from '../../../src/modules/service-group/domain/service-group.repository';
+import type { PortalEligibleGroupMember } from '../../../src/modules/service-group/domain/service-group.repository';
 
 function makeAppointment() {
   return new AppointmentEntity({
@@ -38,16 +38,20 @@ function makeAppointment() {
   });
 }
 
-const ELIGIBLE_SLOT: PortalEligibleSlot = {
-  groupId: 'sg-1',
-  scheduledDate: new Date('2026-05-31'),
-  timeSlotStart: '13:00',
-  timeSlotEnd: '15:00',
-  suburb: 'Surry Hills',
-  inspectorName: 'John Smith',
-  confirmedCount: 3,
-  capacityMax: 10,
-};
+function makeMember(overrides: Partial<PortalEligibleGroupMember> = {}): PortalEligibleGroupMember {
+  return {
+    groupId: 'sg-1',
+    scheduledDate: new Date('2026-05-31'),
+    timeSlotStart: '13:00',
+    timeSlotEnd: '15:00',
+    suburb: 'Surry Hills',
+    inspectorName: 'John Smith',
+    isOwnAgency: true,
+    ...overrides,
+  };
+}
+
+const ELIGIBLE_MEMBER = makeMember();
 
 function makeInput(overrides: Partial<GetAvailableGroupsInput> = {}): GetAvailableGroupsInput {
   return {
@@ -70,7 +74,7 @@ describe('GetAvailableGroupsUseCase', () => {
       }),
     };
     serviceGroupRepo = {
-      findPortalEligibleSlots: vi.fn().mockResolvedValue([ELIGIBLE_SLOT]),
+      findPortalEligibleSlots: vi.fn().mockResolvedValue([ELIGIBLE_MEMBER]),
     };
     useCase = new GetAvailableGroupsUseCase(
       appointmentRepo as any,
@@ -88,9 +92,50 @@ describe('GetAvailableGroupsUseCase', () => {
       timeSlotEnd: '15:00',
       suburb: 'Surry Hills',
       inspectorName: 'John Smith',
-      confirmedCount: 3,
-      capacityMax: 10,
+      // 13:00-15:00 is two hours, so four inspections fit; the member holding
+      // the window is the one already booked.
+      bookedCount: 1,
+      capacityMax: 4,
     });
+  });
+
+  it('should give each window of the same group its own numbers', async () => {
+    serviceGroupRepo.findPortalEligibleSlots.mockResolvedValue([
+      makeMember({ timeSlotStart: '08:00', timeSlotEnd: '16:00' }),
+      makeMember({ timeSlotStart: '08:00', timeSlotEnd: '16:00' }),
+      makeMember({ timeSlotStart: '08:00', timeSlotEnd: '16:00' }),
+      makeMember({ timeSlotStart: '15:00', timeSlotEnd: '18:00' }),
+    ]);
+
+    const result = await useCase.execute(makeInput());
+
+    expect(result.groups).toEqual([
+      expect.objectContaining({ timeSlotStart: '08:00', timeSlotEnd: '16:00', bookedCount: 3, capacityMax: 16 }),
+      expect.objectContaining({ timeSlotStart: '15:00', timeSlotEnd: '18:00', bookedCount: 1, capacityMax: 6 }),
+    ]);
+  });
+
+  it('should not offer a window with no room left', async () => {
+    serviceGroupRepo.findPortalEligibleSlots.mockResolvedValue([
+      makeMember({ timeSlotStart: '08:00', timeSlotEnd: '09:00' }),
+      makeMember({ timeSlotStart: '08:00', timeSlotEnd: '09:00' }),
+    ]);
+
+    const result = await useCase.execute(makeInput());
+    expect(result.groups).toEqual([]);
+  });
+
+  it('should count another agency towards capacity without offering its window', async () => {
+    serviceGroupRepo.findPortalEligibleSlots.mockResolvedValue([
+      makeMember({ timeSlotStart: '08:00', timeSlotEnd: '10:00' }),
+      makeMember({ timeSlotStart: '11:00', timeSlotEnd: '12:00', isOwnAgency: false }),
+    ]);
+
+    const result = await useCase.execute(makeInput());
+
+    expect(result.groups).toEqual([
+      expect.objectContaining({ timeSlotStart: '08:00', timeSlotEnd: '10:00', bookedCount: 1, capacityMax: 4 }),
+    ]);
   });
 
   it('should return groups even after the portal token expired (isReadOnly)', async () => {

@@ -262,6 +262,35 @@ describe('AddAppointmentsToGroupUseCase', () => {
     }));
   });
 
+  // A REJECTED appointment is explicitly groupable and is revived to
+  // AWAITING_INSPECTOR on join — but the sync runs BEFORE that transition, with
+  // the stale status still on the object. Adding REJECTED to a terminal-status
+  // guard inside syncAppointmentScheduleToGroup would therefore stop syncing
+  // exactly the appointments being revived. This test is what makes that
+  // mistake fail loudly.
+  it('still syncs the schedule of a REJECTED appointment being revived into the group', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+      makeAppointmentWithRelations({
+        id: 'appt-1',
+        status: 'REJECTED',
+        scheduledDate: new Date('2026-08-05T00:00:00.000Z'),
+        timeSlotStart: '09:30',
+        timeSlotEnd: '10:30',
+      }),
+    );
+
+    const result = await useCase.execute({
+      groupId: 'group-1',
+      appointmentIds: ['appt-1'],
+      actor: makeActor(),
+    });
+
+    expect(result.results).toEqual([{ appointmentId: 'appt-1', status: 'OK' }]);
+    expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
+      scheduledDate: new Date('2026-08-01T00:00:00.000Z'),
+    });
+  });
+
   it('syncs date and time slot in a single update when both differ from the group', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
       makeAppointmentWithRelations({

@@ -157,18 +157,28 @@ describe('ChangeGroupScheduleUseCase', () => {
     it('writes nothing when today\'s new window has already elapsed', async () => {
       // A same-day group whose new start time is behind the clock: the time
       // branch of validateEditedSchedule, which the past-date case never reaches.
-      const today = todayInTzDateString(PLATFORM_TIMEZONE);
-      const { useCase, serviceGroupRepo, appointmentRepo, auditService } = setup({
-        group: makeGroupWith({ scheduledDate: new Date(today) }),
-      });
+      //
+      // The clock is pinned because the assertion needs "now" to be strictly
+      // after the window. Reading the real clock made this fail whenever the
+      // run landed inside the first minute of the day.
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2030-06-15T02:00:00.000Z')); // 12:00 in Sydney
+      try {
+        const today = todayInTzDateString(PLATFORM_TIMEZONE);
+        const { useCase, serviceGroupRepo, appointmentRepo, auditService } = setup({
+          group: makeGroupWith({ scheduledDate: new Date(today) }),
+        });
 
-      await expect(
-        useCase.execute({ ...BASE, scheduledDate: today, timeWindow: '00:00-00:01', actor: makeActor() }),
-      ).rejects.toThrow(ServiceGroupTimeInPastError);
+        await expect(
+          useCase.execute({ ...BASE, scheduledDate: today, timeWindow: '09:00-10:00', actor: makeActor() }),
+        ).rejects.toThrow(ServiceGroupTimeInPastError);
 
-      expect(serviceGroupRepo.update).not.toHaveBeenCalled();
-      expect(appointmentRepo.update).not.toHaveBeenCalled();
-      expect(auditService.log).not.toHaveBeenCalled();
+        expect(serviceGroupRepo.update).not.toHaveBeenCalled();
+        expect(appointmentRepo.update).not.toHaveBeenCalled();
+        expect(auditService.log).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 

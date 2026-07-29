@@ -7,7 +7,13 @@
 
 ## 1. Overview
 
-The Tenant Portal is the public-facing interface accessed by property tenants via a unique, time-limited link sent by SMS and/or email. There is NO traditional authentication — access is gated entirely by the token embedded in the URL. Tenants can confirm their availability, report unavailability, or request a reschedule for an upcoming inspection.
+The Tenant Portal is the public-facing interface accessed by property tenants via a unique, time-limited link sent by SMS and/or email. There is NO traditional authentication — access is gated entirely by the token embedded in the URL. Tenants can confirm their availability, report unavailability, or change to another available inspection time.
+
+> **REMOVED:** the free-form "propose new date" reschedule flow (`POST /v1/tenant-portal/:token/reschedule`)
+> no longer exists — it sent a `SCHEDULED` appointment back to `DRAFT` and dropped the assigned
+> inspector with no operator approval. "Change time" (join an existing group slot) is now the only
+> reschedule path. Sections below that describe the reschedule modal, its payload and its date
+> pickers are kept as a record of what was built and are no longer live.
 
 **Portal:** Tenant Portal (TNT role, token-based)
 **No sidebar, no main nav, no login.** This is a standalone experience.
@@ -303,7 +309,9 @@ interface UnavailableModalProps {
 
 ---
 
-### Reschedule Flow — `RescheduleModal`
+### Reschedule Flow — `RescheduleModal` — REMOVED
+
+> **REMOVED** — the tenant-facing "propose new date" flow no longer exists (see the notice on the reschedule endpoint section). Retained as a record of what was built; not a live requirement.
 
 Triggered by "Request a Reschedule" button.
 
@@ -341,7 +349,7 @@ interface RescheduleModalProps {
 
 **Submit button:** "Submit Reschedule Request"
 
-**POST:** `POST /v1/tenant-portal/:token/reschedule` with `TenantReschedulePayload`
+**POST:** ~~`POST /v1/tenant-portal/:token/reschedule` with `TenantReschedulePayload`~~ — **REMOVED**, see the note in §1.
 
 **On success:** Modal closes, `ResponseConfirmationCard` (blue) appears, toast "Your reschedule request has been sent."
 
@@ -602,7 +610,9 @@ function useTenantContactUpdate(token: string) {
 - Contact update is allowed even after the deadline (for read-only expired mode)
 - Contact update is always available regardless of response status
 
-### Reschedule Date Constraints
+### Reschedule Date Constraints — REMOVED
+
+> **REMOVED** — the tenant-facing "propose new date" flow no longer exists (see the notice on the reschedule endpoint section). Retained as a record of what was built; not a live requirement.
 
 ```typescript
 // Minimum and maximum allowed reschedule dates

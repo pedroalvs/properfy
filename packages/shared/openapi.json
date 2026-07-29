@@ -891,12 +891,6 @@
                         "maximum": 7,
                         "default": 1
                       },
-                      "portalRescheduleWindowDays": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 90,
-                        "default": 30
-                      },
                       "inspectionWindowBeforeMinutes": {
                         "type": "integer",
                         "minimum": 0,
@@ -1561,12 +1555,6 @@
                         "minimum": 0,
                         "maximum": 7,
                         "default": 1
-                      },
-                      "portalRescheduleWindowDays": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 90,
-                        "default": 30
                       },
                       "inspectionWindowBeforeMinutes": {
                         "type": "integer",
@@ -10958,10 +10946,6 @@
                               "needsAuthCode": {
                                 "type": "boolean"
                               },
-                              "authCode": {
-                                "type": "string",
-                                "nullable": true
-                              },
                               "appUrl": {
                                 "type": "string",
                                 "nullable": true
@@ -10981,7 +10965,6 @@
                               "username",
                               "password",
                               "needsAuthCode",
-                              "authCode",
                               "appUrl",
                               "instructionsUrl",
                               "instructionsPassword"
@@ -11534,10 +11517,6 @@
                                 "needsAuthCode": {
                                   "type": "boolean"
                                 },
-                                "authCode": {
-                                  "type": "string",
-                                  "nullable": true
-                                },
                                 "appUrl": {
                                   "type": "string",
                                   "nullable": true
@@ -11557,7 +11536,6 @@
                                 "username",
                                 "password",
                                 "needsAuthCode",
-                                "authCode",
                                 "appUrl",
                                 "instructionsUrl",
                                 "instructionsPassword"
@@ -11913,10 +11891,6 @@
                               "needsAuthCode": {
                                 "type": "boolean"
                               },
-                              "authCode": {
-                                "type": "string",
-                                "nullable": true
-                              },
                               "appUrl": {
                                 "type": "string",
                                 "nullable": true
@@ -11936,7 +11910,6 @@
                               "username",
                               "password",
                               "needsAuthCode",
-                              "authCode",
                               "appUrl",
                               "instructionsUrl",
                               "instructionsPassword"
@@ -12554,10 +12527,6 @@
                               "needsAuthCode": {
                                 "type": "boolean"
                               },
-                              "authCode": {
-                                "type": "string",
-                                "nullable": true
-                              },
                               "appUrl": {
                                 "type": "string",
                                 "nullable": true
@@ -12577,7 +12546,6 @@
                               "username",
                               "password",
                               "needsAuthCode",
-                              "authCode",
                               "appUrl",
                               "instructionsUrl",
                               "instructionsPassword"
@@ -17569,9 +17537,6 @@
                       "type": "string",
                       "nullable": true
                     },
-                    "rescheduleAllowed": {
-                      "type": "boolean"
-                    },
                     "tenant": {
                       "type": "object",
                       "properties": {
@@ -17728,170 +17693,6 @@
                   "required": [
                     "rentalTenantConfirmationStatus",
                     "confirmedAt"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/rental-tenant-portal/{token}/reschedule": {
-      "post": {
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "newDate": {
-                    "type": "string",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                  },
-                  "newTimeSlotStart": {
-                    "type": "string",
-                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
-                  },
-                  "newTimeSlotEnd": {
-                    "type": "string",
-                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
-                  },
-                  "restrictions": {
-                    "type": "object",
-                    "properties": {
-                      "isHome": {
-                        "type": "boolean",
-                        "nullable": true
-                      },
-                      "unavailableDaysJson": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        },
-                        "nullable": true
-                      },
-                      "unavailableHoursJson": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "start": {
-                              "type": "string"
-                            },
-                            "end": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "start",
-                            "end"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "nullable": true
-                      },
-                      "notes": {
-                        "type": "string",
-                        "maxLength": 1000,
-                        "nullable": true
-                      },
-                      "availableSlotsJson": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "dayOfWeek": {
-                              "type": "string",
-                              "enum": [
-                                "MON",
-                                "TUE",
-                                "WED",
-                                "THU",
-                                "FRI",
-                                "SAT",
-                                "SUN"
-                              ]
-                            },
-                            "start": {
-                              "type": "string",
-                              "pattern": "^\\d{2}:\\d{2}$"
-                            },
-                            "end": {
-                              "type": "string",
-                              "pattern": "^\\d{2}:\\d{2}$"
-                            }
-                          },
-                          "required": [
-                            "dayOfWeek",
-                            "start",
-                            "end"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "nullable": true
-                      }
-                    },
-                    "additionalProperties": false
-                  },
-                  "rentalTenantNote": {
-                    "type": "string",
-                    "maxLength": 2000
-                  }
-                },
-                "required": [
-                  "newDate",
-                  "newTimeSlotStart",
-                  "newTimeSlotEnd"
-                ],
-                "additionalProperties": false
-              }
-            }
-          },
-          "required": true
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "token",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "scheduledDate": {
-                      "type": "string",
-                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                    },
-                    "timeSlotStart": {
-                      "type": "string",
-                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
-                    },
-                    "timeSlotEnd": {
-                      "type": "string",
-                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
-                    },
-                    "rentalTenantConfirmationStatus": {
-                      "type": "string",
-                      "enum": [
-                        "PENDING"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "scheduledDate",
-                    "timeSlotStart",
-                    "timeSlotEnd",
-                    "rentalTenantConfirmationStatus"
                   ],
                   "additionalProperties": false
                 }
@@ -18133,7 +17934,7 @@
                           "inspectorName": {
                             "type": "string"
                           },
-                          "confirmedCount": {
+                          "bookedCount": {
                             "type": "integer",
                             "minimum": 0
                           },
@@ -18150,7 +17951,7 @@
                           "timeSlotEnd",
                           "suburb",
                           "inspectorName",
-                          "confirmedCount",
+                          "bookedCount",
                           "capacityMax"
                         ],
                         "additionalProperties": false
@@ -18452,7 +18253,7 @@
                             "type": "string",
                             "format": "uuid"
                           },
-                          "tenantPortalTokenId": {
+                          "rentalTenantPortalTokenId": {
                             "type": "string",
                             "format": "uuid"
                           },
@@ -18488,7 +18289,7 @@
                         "required": [
                           "id",
                           "appointmentId",
-                          "tenantPortalTokenId",
+                          "rentalTenantPortalTokenId",
                           "action",
                           "ipAddress",
                           "userAgent",
@@ -18535,37 +18336,13 @@
                       "type": "object",
                       "properties": {
                         "today": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "from": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "to": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "days": {
                           "type": "array",
@@ -19413,10 +19190,6 @@
                               "needsAuthCode": {
                                 "type": "boolean"
                               },
-                              "authCode": {
-                                "type": "string",
-                                "nullable": true
-                              },
                               "appUrl": {
                                 "type": "string",
                                 "nullable": true
@@ -19436,7 +19209,6 @@
                               "username",
                               "password",
                               "needsAuthCode",
-                              "authCode",
                               "appUrl",
                               "instructionsUrl",
                               "instructionsPassword"
@@ -21869,15 +21641,7 @@
                               "type": "object",
                               "properties": {
                                 "serviceDate": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string"
-                                    },
-                                    {
-                                      "type": "string",
-                                      "format": "date-time"
-                                    }
-                                  ]
+                                  "type": "string"
                                 },
                                 "appointmentId": {
                                   "type": "string",
@@ -22122,15 +21886,7 @@
                             "type": "object",
                             "properties": {
                               "serviceDate": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ]
+                                "type": "string"
                               },
                               "appointmentId": {
                                 "type": "string",
@@ -26104,12 +25860,6 @@
                     "type": "boolean",
                     "default": false
                   },
-                  "authCode": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 500,
-                    "nullable": true
-                  },
                   "appUrl": {
                     "type": "string",
                     "format": "uri",
@@ -26181,10 +25931,6 @@
                         "needsAuthCode": {
                           "type": "boolean"
                         },
-                        "authCode": {
-                          "type": "string",
-                          "nullable": true
-                        },
                         "appUrl": {
                           "type": "string",
                           "nullable": true
@@ -26220,7 +25966,6 @@
                         "username",
                         "password",
                         "needsAuthCode",
-                        "authCode",
                         "appUrl",
                         "instructionsUrl",
                         "instructionsPassword",
@@ -26369,10 +26114,6 @@
                           "needsAuthCode": {
                             "type": "boolean"
                           },
-                          "authCode": {
-                            "type": "string",
-                            "nullable": true
-                          },
                           "appUrl": {
                             "type": "string",
                             "nullable": true
@@ -26416,7 +26157,6 @@
                           "username",
                           "password",
                           "needsAuthCode",
-                          "authCode",
                           "appUrl",
                           "instructionsUrl",
                           "instructionsPassword",
@@ -26498,12 +26238,6 @@
                   "needsAuthCode": {
                     "type": "boolean"
                   },
-                  "authCode": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 500,
-                    "nullable": true
-                  },
                   "appUrl": {
                     "type": "string",
                     "format": "uri",
@@ -26581,10 +26315,6 @@
                         "needsAuthCode": {
                           "type": "boolean"
                         },
-                        "authCode": {
-                          "type": "string",
-                          "nullable": true
-                        },
                         "appUrl": {
                           "type": "string",
                           "nullable": true
@@ -26620,7 +26350,6 @@
                         "username",
                         "password",
                         "needsAuthCode",
-                        "authCode",
                         "appUrl",
                         "instructionsUrl",
                         "instructionsPassword",
@@ -26690,10 +26419,6 @@
                         "needsAuthCode": {
                           "type": "boolean"
                         },
-                        "authCode": {
-                          "type": "string",
-                          "nullable": true
-                        },
                         "appUrl": {
                           "type": "string",
                           "nullable": true
@@ -26729,7 +26454,6 @@
                         "username",
                         "password",
                         "needsAuthCode",
-                        "authCode",
                         "appUrl",
                         "instructionsUrl",
                         "instructionsPassword",
@@ -26801,10 +26525,6 @@
                         "needsAuthCode": {
                           "type": "boolean"
                         },
-                        "authCode": {
-                          "type": "string",
-                          "nullable": true
-                        },
                         "appUrl": {
                           "type": "string",
                           "nullable": true
@@ -26840,7 +26560,6 @@
                         "username",
                         "password",
                         "needsAuthCode",
-                        "authCode",
                         "appUrl",
                         "instructionsUrl",
                         "instructionsPassword",

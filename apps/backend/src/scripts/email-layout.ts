@@ -1,27 +1,36 @@
 import { PROPERFY_LOGO_URL } from '@properfy/shared';
 
-// Shared HTML layout for appointment-related platform email templates.
-// Ported from the client-approved reference email: dark background, wide
-// greeting header, 460px content column, pink links, amber call-out box and
-// the Properfy logo footer ({{properfyLogoUrl}}). The header artwork of the
-// original is reproduced with a pure-CSS gradient so the layout has no other
-// external asset dependency.
+// Shared HTML layout for appointment-related platform email templates:
+// wide greeting header, 520px content column, amber call-out box and the
+// Properfy logo footer ({{properfyLogoUrl}}).
+//
+// The layout paints no background of its own — neither on <body> nor on the
+// wrapper tables — so every email inherits the mail client's own canvas
+// (white in practice) instead of forcing one. Text, headings and links are
+// therefore coloured for a light background.
+//
+// Leaving the canvas unset is a deliberate call, not an oversight: pinning
+// background-color:#ffffff would guard against dark-mode clients that darken
+// the canvas while honouring explicit text colours, but no approach controls
+// dark mode across clients, and forcing a canvas is exactly what made the
+// previous dark layout unreadable for everyone else.
 //
 // Everything here must stay within the notification sanitizer allowlist
 // (sanitize-html.service.ts): inline styles, tables and https images only.
 
-export const EMAIL_LINK_STYLE = 'color:rgb(219,151,255);text-decoration:underline;';
+/** Deep blue (--color-secondary): ~8:1 on white, unlike the coral CTA tone. */
+const HEADING_COLOR = '#21566E';
+
+const TEXT_COLOR = 'rgba(0,0,0,0.87)';
+
+export const EMAIL_LINK_STYLE = `color:${HEADING_COLOR};text-decoration:underline;`;
 
 export const EMAIL_CALLOUT_STYLE =
-  'background-color:rgb(94,86,54);padding:12px;border-left:4px solid rgb(255,193,7);';
+  `background-color:#FFF8E1;color:${TEXT_COLOR};padding:12px;border-left:4px solid rgb(255,193,7);`;
 
 const BODY_STYLE =
-  'margin:0;padding:0;background-color:rgb(47,47,47);color:#ffffff;' +
+  `margin:0;padding:0;color:${TEXT_COLOR};` +
   'font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;';
-
-const HEADER_STYLE =
-  'background-color:rgb(41,41,41);' +
-  'background-image:linear-gradient(115deg,rgba(233,74,111,0.45) 0%,rgba(233,74,111,0.12) 38%,rgba(41,41,41,0) 62%);';
 
 const FOOTER_LOGO_BLOCK =
   '{{#if properfyLogoUrl}}' +
@@ -42,17 +51,17 @@ export function renderAppointmentEmailHtml(content: AppointmentEmailContent): st
   return (
     '<html lang="en"><body style="' + BODY_STYLE + '">' +
     '<table width="100%" cellpadding="0" cellspacing="0" border="0" ' +
-    'style="background-color:rgb(47,47,47);border-collapse:collapse;">' +
+    'style="border-collapse:collapse;">' +
     '<tr><td align="center" style="padding:0;">' +
     '<table width="520" cellpadding="0" cellspacing="0" border="0" ' +
-    'style="max-width:520px;width:100%;background-color:rgb(47,47,47);border-collapse:collapse;text-align:left;">' +
+    'style="max-width:520px;width:100%;border-collapse:collapse;text-align:left;">' +
     // Header
-    '<tr><td style="' + HEADER_STYLE + 'padding:30px;">' +
-    '<h1 style="margin:0;font-size:32px;font-family:Arial,Helvetica,sans-serif;font-weight:700;color:#ffffff;">' +
+    '<tr><td style="padding:30px;">' +
+    '<h1 style="margin:0;font-size:32px;font-family:Arial,Helvetica,sans-serif;font-weight:700;color:' + HEADING_COLOR + ';">' +
     content.heading +
     '</h1></td></tr>' +
     // Content column
-    '<tr><td style="padding:20px 30px 0 30px;color:#ffffff;">' +
+    '<tr><td style="padding:20px 30px 0 30px;color:' + TEXT_COLOR + ';">' +
     content.contentHtml +
     '</td></tr>' +
     // Footer logo (Properfy)

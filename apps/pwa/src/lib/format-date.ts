@@ -1,31 +1,27 @@
-import { PLATFORM_TIMEZONE } from '@properfy/shared';
-
-const LOCALE = 'en-AU';
-
 /**
- * Formats a date-only value ('YYYY-MM-DD', tolerant of the legacy
- * 'YYYY-MM-DDT00:00:00.000Z' form) as a civil date. The Date object is built
- * from the date parts purely for locale formatting — no timezone shifting.
+ * Date/time display formatting for the inspector app.
+ *
+ * The formatters live in `@properfy/shared` so the inspector, the agency web app
+ * and the rental tenant read identical strings for the same appointment. They
+ * are re-exported here so consumers keep one import path.
+ *
+ * Pick the one matching the KIND of value you hold; none of them guess:
+ *
+ *   formatCivilDate        a calendar day (`scheduledDate`, `periodStart`,
+ *                          `serviceDate`) — carries no timezone
+ *   formatWallTime*        a local clock reading (`timeSlotStart`) — no timezone
+ *   formatInstantDate      the day an instant falls on (`effectiveAt`) —
+ *                          resolved in the platform timezone
+ *   formatInstantDateTime  an instant with its time of day
+ *
+ * Passing an instant to `formatCivilDate` reads its UTC day, which in Sydney is
+ * the PREVIOUS day for roughly ten hours out of every day.
  */
-export function formatCivilDate(dateStr: string): string {
-  const [year, month, day] = dateStr.slice(0, 10).split('-').map(Number) as [
-    number,
-    number,
-    number,
-  ];
-  return new Date(year, month - 1, day).toLocaleDateString(LOCALE);
-}
-
-/** Formats a real UTC instant as Sydney date + time. */
-export function formatSydneyDateTime(iso: string): string {
-  return new Date(iso).toLocaleString(LOCALE, { timeZone: PLATFORM_TIMEZONE });
-}
-
-/** Formats a real UTC instant as Sydney wall-clock time. */
-export function formatSydneyTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString(LOCALE, {
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: PLATFORM_TIMEZONE,
-  });
-}
+export {
+  formatCivilDate,
+  formatWallTime,
+  formatWallTimeRange,
+  formatWallTimeWindow,
+  formatInstantDate,
+  formatInstantDateTime,
+} from '@properfy/shared';

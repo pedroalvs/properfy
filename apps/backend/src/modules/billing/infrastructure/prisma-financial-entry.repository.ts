@@ -12,6 +12,7 @@ import type {
 } from '../domain/financial-entry.repository';
 import { InvalidEntryStatusTransitionError } from '../domain/billing.errors';
 import { formatMonthKey } from '../domain/month-key';
+import { civilDateInTimezone, PLATFORM_TIMEZONE } from '../../../shared/domain/timezone-date';
 
 function mapToEntity(row: any): FinancialEntryEntity {
   return new FinancialEntryEntity({
@@ -403,7 +404,11 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
       const appt = row.appointment!;
       const p = appt.property;
       return {
-        serviceDate: row.effective_at.toISOString().slice(0, 10),
+        // Stays canonical YYYY-MM-DD: this is a PERSISTED snapshot field, and
+        // display formatting happens at the render edge (PDF / PWA). Only the
+        // timezone is corrected — slicing toISOString() dated a Sydney-evening
+        // service on the previous day.
+        serviceDate: civilDateInTimezone(row.effective_at, PLATFORM_TIMEZONE),
         appointmentId: appt.id,
         appointmentCode: AppointmentCodeFormatter.formatParts(appt.appointment_number, appt.tenant?.appointment_code_prefix ?? null),
         propertyAddress: p ? `${p.street}, ${p.suburb} ${p.state} ${p.postcode}` : null,

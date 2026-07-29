@@ -133,15 +133,27 @@ export interface ServiceGroupListItem {
   agencies: AgencyRef[];
 }
 
-export interface PortalEligibleSlot {
+/**
+ * One appointment inside a portal-eligible group, on the day it is scheduled.
+ *
+ * Rows are per-member rather than pre-aggregated per time slot because a
+ * window's capacity is an interval-packing computation over the whole group —
+ * see `domain/portal-slot-capacity.ts`. Aggregating in SQL would throw away the
+ * sibling windows the computation needs.
+ */
+export interface PortalEligibleGroupMember {
   groupId: string;
   scheduledDate: Date;
   timeSlotStart: string;
   timeSlotEnd: string;
   suburb: string;
   inspectorName: string;
-  confirmedCount: number;
-  capacityMax: 10;
+  /**
+   * Whether the appointment belongs to the agency asking for slots. Groups are
+   * cross-agency: every member consumes the inspector's time, but only the
+   * caller's own windows are offered back to the tenant.
+   */
+  isOwnAgency: boolean;
 }
 
 /**
@@ -164,6 +176,16 @@ export interface GroupAppointmentConfirmationRow {
   propertyCode: string | null;
   propertyAddress: string | null;
 }
+
+/**
+ * Outcome of `reservePortalWindow`. `WINDOW_FULL` means the slot was taken
+ * while the tenant was deciding; `APPOINTMENT_INACTIVE` means the appointment
+ * itself was cancelled, finished or deleted after the caller last checked, so
+ * there is nothing to move and no side effect should follow.
+ */
+export type PortalWindowReservation =
+  | { ok: true }
+  | { ok: false; reason: 'WINDOW_FULL' | 'APPOINTMENT_INACTIVE' };
 
 export interface IServiceGroupRepository {
   findById(id: string, tenantId: string | null): Promise<ServiceGroupWithAppointments | null>;
@@ -254,10 +276,15 @@ export interface IServiceGroupRepository {
     inspectorId: string,
   ): Promise<{ reassigned: number; scheduled: number }>;
   /**
-   * Find member appointment slots in ACCEPTED service groups eligible for a tenant to join via the portal.
-   * Criteria: same tenant + same service type, confirmed_count < 10, scheduled_date >= today+1,
-   * and at least one appointment in the group has a property within 2 km of `propertyId`.
-   * `excludeGroupId` drops the appointment's current group from the results.
+   * Find the member appointments of ACCEPTED service groups a tenant may join
+   * via the portal. Group eligibility: same agency + same service type,
+   * scheduled_date >= today+1, and at least one appointment in the group has a
+   * property within 2 km of `propertyId`. `excludeGroupId` drops the
+   * appointment's current group from the results.
+   *
+   * Returns *every* active member of each eligible group, including other
+   * agencies' — they occupy the inspector all the same, and leaving them out
+   * would under-count capacity. `isOwnAgency` marks which ones may be offered.
    */
   findPortalEligibleSlots(params: {
     tenantId: string;
@@ -265,7 +292,34 @@ export interface IServiceGroupRepository {
     propertyId: string;
     today: Date;
     excludeGroupId?: string | null;
-  }): Promise<PortalEligibleSlot[]>;
+  }): Promise<PortalEligibleGroupMember[]>;
+  /**
+   * Serialize the portal capacity decision with the write that consumes it.
+   *
+   * Locks the group row, recomputes the window's availability from the members
+   * visible inside that transaction, and only then moves the appointment into
+   * the window. Writes nothing unless it returns `{ ok: true }`.
+   *
+   * The check and the write must share one transaction: performed separately,
+   * two portal tokens can both read the last free slot and both take it. The
+   * single-use token guard does not help, because it only serializes retries of
+   * the *same* token, not two different tenants racing for one opening.
+   *
+   * The two failure reasons are kept apart because they send the tenant
+   * somewhere different: a full window means "pick another time", an inactive
+   * appointment means there is nothing left to move.
+   */
+  reservePortalWindow(params: {
+    groupId: string;
+    appointmentId: string;
+    tenantId: string;
+    /** YYYY-MM-DD */
+    scheduledDate: string;
+    timeSlotStart: string;
+    timeSlotEnd: string;
+    inspectorId: string;
+    rentalTenantNote?: string;
+  }): Promise<PortalWindowReservation>;
   /** Re-check that the selected portal slot still exists on a future member appointment. */
   hasPortalMemberSlot(params: {
     groupId: string;
