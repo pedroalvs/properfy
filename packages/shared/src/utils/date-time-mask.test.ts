@@ -58,6 +58,21 @@ describe('maskDateText', () => {
   });
 
   describe('paste and wholesale replacement', () => {
+    it('closes a single-digit segment on an explicit separator', () => {
+      // Regression: the pad heuristic only fired for day 4-9, so a day of 1-3
+      // never completed and everything after it was dropped.
+      expect(maskDateText('1/6/2026')).toBe('01/06/2026');
+      expect(maskDateText('2/12/2026')).toBe('02/12/2026');
+      expect(maskDateText('3/6/26')).toBe('03/06/26');
+    });
+
+    it('advances when the user presses the separator key', () => {
+      // '1' alone waits (it could become 15), but '/' says the day is finished.
+      expect(maskDateText('1')).toBe('1');
+      expect(maskDateText('1/')).toBe('01/');
+      expect(maskDateText('15/6/')).toBe('15/06/');
+    });
+
     it('accepts a pasted date with any separator', () => {
       expect(maskDateText('15/06/2026')).toBe('15/06/2026');
       expect(maskDateText('15-06-2026')).toBe('15/06/2026');

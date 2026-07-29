@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { DateInput } from './DateInput';
 import { TimeInput } from './TimeInput';
 
@@ -30,10 +31,36 @@ export function DateTimeInput({
   'aria-label': ariaLabel,
   'aria-describedby': ariaDescribedBy,
 }: DateTimeInputProps) {
-  const [datePart = '', timePart = ''] = value.split('T');
+  /**
+   * Each half keeps its own draft.
+   *
+   * Deriving both from `value` looks simpler but erases work: completing one
+   * half while the other is empty emits `''`, and re-splitting that empty
+   * canonical value on the next render wipes the half just entered. The halves
+   * only re-sync when the value changes from OUTSIDE — the same render-phase
+   * reconciliation `useMaskedField` uses, for the same reason.
+   */
+  const split = (composite: string): [string, string] => {
+    const [date = '', time = ''] = composite.split('T');
+    return [date, time];
+  };
+
+  const [parts, setParts] = useState<[string, string]>(() => split(value));
+  const syncedFrom = useRef(value);
+
+  if (value !== syncedFrom.current) {
+    syncedFrom.current = value;
+    setParts(split(value));
+  }
+
+  const [datePart, timePart] = parts;
 
   const emit = (nextDate: string, nextTime: string) => {
-    onChange(nextDate && nextTime ? `${nextDate}T${nextTime}` : '');
+    setParts([nextDate, nextTime]);
+    const composite = nextDate && nextTime ? `${nextDate}T${nextTime}` : '';
+    if (composite === syncedFrom.current) return;
+    syncedFrom.current = composite;
+    onChange(composite);
   };
 
   return (

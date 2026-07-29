@@ -81,9 +81,17 @@ export function maskDateText(raw: string): string {
     day = (segments[0] ?? '').replace(/\D/g, '').slice(0, 2);
     month = (segments[1] ?? '').replace(/\D/g, '').slice(0, 2);
     year = (segments[2] ?? '').replace(/\D/g, '').slice(0, 4);
+
+    // A separator the user typed (or the mask already inserted) closes the
+    // segment before it, so a single digit there is complete. Without this a
+    // pasted '1/6/2026' collapses to '1' — the day never reaches two digits, so
+    // everything after it is dropped — and pressing '/' after '1' looks dead.
+    if (day.length === 1) day = pad2(day);
+    if (segments.length > 2 && month.length === 1) month = pad2(month);
   }
 
-  // 4-9 cannot start a two-digit day, 2-9 cannot start a two-digit month.
+  // Otherwise infer: 4-9 cannot start a two-digit day, 2-9 cannot start a
+  // two-digit month, so those complete their segment on the first keystroke.
   if (day.length === 1 && day >= '4') day = pad2(day);
   if (day.length === 2 && month.length === 1 && month >= '2') month = pad2(month);
 

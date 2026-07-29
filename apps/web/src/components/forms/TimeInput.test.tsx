@@ -122,6 +122,34 @@ describe('TimeInput never guesses the meridiem', () => {
   });
 });
 
+describe('TimeInput keyboard shortcuts do not hijack browser modifiers', () => {
+  it('leaves Ctrl/Cmd+A as select-all instead of setting am', async () => {
+    // event.key is 'a' for Ctrl+A too; without a modifier guard the standard way
+    // to replace the field's contents is swallowed and the meridiem flips.
+    const user = userEvent.setup();
+    render(<ControlledTimeInput initial="13:30" />);
+    const input = getInput();
+    input.focus();
+
+    await user.keyboard('{Control>}a{/Control}');
+
+    expect(input.value).toBe('1:30 pm');
+    expect(input.selectionStart).toBe(0);
+    expect(input.selectionEnd).toBe(input.value.length);
+  });
+
+  it('leaves Ctrl+P alone instead of setting pm', async () => {
+    const user = userEvent.setup();
+    render(<ControlledTimeInput initial="09:30" />);
+    const input = getInput();
+    input.focus();
+
+    await user.keyboard('{Control>}p{/Control}');
+
+    expect(input.value).toBe('9:30 am');
+  });
+});
+
 describe('TimeInput 12-hour boundaries', () => {
   it.each([
     ['1200a', '12:00 am', '00:00'],

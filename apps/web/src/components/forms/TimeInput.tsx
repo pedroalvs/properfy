@@ -86,10 +86,15 @@ export function TimeInput({
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     const key = event.key.toLowerCase();
+    // `event.key` is 'a' for Ctrl/Cmd+A too, so without this guard select-all is
+    // swallowed and silently flips the meridiem instead — removing the standard
+    // way to replace the field, which the mid-string edit path relies on.
+    // Ctrl+P (print) has the same problem.
+    const hasModifier = event.ctrlKey || event.metaKey || event.altKey;
 
     // a/p set the meridiem from anywhere in the field, so the user never has to
     // position the caret to finish the value.
-    if (key === 'a' || key === 'p') {
+    if (!hasModifier && (key === 'a' || key === 'p')) {
       event.preventDefault();
       field.setText(applyMeridiem(field.text, key === 'p' ? 'pm' : 'am'));
       return;
