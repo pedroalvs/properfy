@@ -4,15 +4,12 @@ import {
   ReportNotFoundError,
   ReportNotReadyError,
   ReportExpiredError,
-  ReportForbiddenError,
 } from '../../domain/report.errors';
 import { PRESIGNED_URL_TTL_SECONDS } from '../../domain/report.constants';
+import { assertReportRole, assertReportReadable } from '../report-access';
+import type { AuthContext } from '@properfy/shared';
 
-export interface AuthContext {
-  userId: string;
-  tenantId: string | null;
-  role: string;
-}
+export type { AuthContext };
 
 export interface DownloadReportOutput {
   downloadUrl: string;
@@ -33,10 +30,9 @@ export class DownloadReportUseCase {
       throw new ReportNotFoundError();
     }
 
-    // Access control: reports are restricted to operators (AM/OP).
-    if (auth.role !== 'AM' && auth.role !== 'OP') {
-      throw new ReportForbiddenError();
-    }
+    // Access control. Kept after the 404 so a missing id never leaks as a 403.
+    assertReportRole(auth);
+    assertReportReadable(auth, report);
 
     // Must be READY
     if (!report.isReady()) {

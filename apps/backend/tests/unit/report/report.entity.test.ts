@@ -6,6 +6,7 @@ function makeReport(overrides: Partial<ReportProps> = {}): ReportEntity {
   return new ReportEntity({
     id: 'report-1',
     tenantId: 'tenant-1',
+    agencyScoped: false,
     reportType: 'APPOINTMENTS',
     filtersJson: { fromDate: '2026-01-01', toDate: '2026-03-01' },
     status: 'PENDING',
@@ -38,6 +39,7 @@ describe('ReportEntity', () => {
       const props: ReportProps = {
         id: 'report-42',
         tenantId: 'tenant-5',
+        agencyScoped: true,
         reportType: 'FINANCIAL',
         filtersJson: { branchId: 'b-1' },
         status: 'READY',
@@ -57,6 +59,7 @@ describe('ReportEntity', () => {
 
       expect(report.id).toBe('report-42');
       expect(report.tenantId).toBe('tenant-5');
+      expect(report.agencyScoped).toBe(true);
       expect(report.reportType).toBe('FINANCIAL');
       expect(report.filtersJson).toEqual({ branchId: 'b-1' });
       expect(report.status).toBe('READY');

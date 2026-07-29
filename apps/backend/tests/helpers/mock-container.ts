@@ -257,6 +257,7 @@ export function createMockContainer(
       downloadReportUseCase: { execute: vi.fn() },
       listReportsUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
+      authorizationService: new AuthorizationService({ log: vi.fn() } as never),
       tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['report'],
     notification: {

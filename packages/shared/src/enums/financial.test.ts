@@ -4,7 +4,18 @@ import {
   FinancialEntryStatus,
   BillingPeriodType,
   InspectorInvoiceStatus,
+  AGENCY_VISIBLE_ENTRY_TYPES,
 } from './financial';
+
+describe('AGENCY_VISIBLE_ENTRY_TYPES', () => {
+  it('excludes INSPECTOR_PAYOUT — the platform↔inspector leg', () => {
+    expect(AGENCY_VISIBLE_ENTRY_TYPES).not.toContain('INSPECTOR_PAYOUT');
+  });
+
+  it('contains the three agency-facing entry types', () => {
+    expect(AGENCY_VISIBLE_ENTRY_TYPES).toEqual(['TENANT_DEBIT', 'REFUND', 'MANUAL_ADJUSTMENT']);
+  });
+});
 
 describe('FinancialEntryType', () => {
   it('should have TENANT_DEBIT, INSPECTOR_PAYOUT, REFUND, MANUAL_ADJUSTMENT values', () => {

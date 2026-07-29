@@ -37,8 +37,8 @@ export class ReportConcurrentLimitExceededError extends TooManyRequestsError {
 }
 
 export class ReportForbiddenError extends ForbiddenError {
-  constructor() {
-    super('FORBIDDEN', 'Reports are restricted to operators (AM/OP)');
+  constructor(message = 'Not authorized to access reports') {
+    super('FORBIDDEN', message);
   }
 }
 

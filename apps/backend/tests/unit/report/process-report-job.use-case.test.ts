@@ -15,6 +15,7 @@ function makeReport(overrides: Partial<ConstructorParameters<typeof ReportEntity
   return new ReportEntity({
     id: 'report-1',
     tenantId: 'tenant-1',
+    agencyScoped: false,
     reportType: 'APPOINTMENTS',
     filtersJson: { fromDate: '2026-03-01', toDate: '2026-03-15', dateAxis: 'SCHEDULED', tenantId: 'tenant-1' },
     status: 'PENDING',
@@ -110,7 +111,46 @@ describe('ProcessReportJobUseCase', () => {
       const report = makeReport();
       vi.mocked(reportRepo.findById).mockResolvedValue(report);
       await useCase.execute('report-1');
-      expect(dataReader.getAppointmentRows).toHaveBeenCalledWith(report.filtersJson);
+      expect(dataReader.getAppointmentRows).toHaveBeenCalledWith({
+        ...report.filtersJson,
+        agencyScoped: false,
+      });
+    });
+
+    // The persisted column is canonical: filtersJson is a blob and could be stale
+    // or tampered with, so the row's tenant_id wins for an agency run.
+    it('overrides a conflicting filtersJson tenantId with the row tenant for an agency run', async () => {
+      const report = makeReport({
+        agencyScoped: true,
+        tenantId: 'tenant-1',
+        filtersJson: { fromDate: '2026-03-01', toDate: '2026-03-15', dateAxis: 'SCHEDULED', tenantId: 'other-tenant' },
+      });
+      vi.mocked(reportRepo.findById).mockResolvedValue(report);
+      await useCase.execute('report-1');
+      expect(dataReader.getAppointmentRows).toHaveBeenCalledWith(
+        expect.objectContaining({ tenantId: 'tenant-1', agencyScoped: true }),
+      );
+    });
+
+    // The reader treats a falsy tenantId as "apply no filter" — a platform-wide export.
+    it('fails the job rather than exporting platform-wide when an agency run has no tenant', async () => {
+      const report = makeReport({ agencyScoped: true, tenantId: null });
+      vi.mocked(reportRepo.findById).mockResolvedValue(report);
+      await useCase.execute('report-1');
+      expect(dataReader.getAppointmentRows).not.toHaveBeenCalled();
+      expect(report.status).toBe('FAILED');
+      expect(report.errorMessage).toContain('missing its tenant scope');
+    });
+
+    // The worker has no auth context — `agency_scoped` is the only channel telling
+    // the reader that this run must be shaped for an agency audience.
+    it('passes agencyScoped through to the reader', async () => {
+      const report = makeReport({ agencyScoped: true });
+      vi.mocked(reportRepo.findById).mockResolvedValue(report);
+      await useCase.execute('report-1');
+      expect(dataReader.getAppointmentRows).toHaveBeenCalledWith(
+        expect.objectContaining({ agencyScoped: true }),
+      );
     });
 
     it('generates the XLSX with the fixed column set', async () => {
@@ -156,7 +196,10 @@ describe('ProcessReportJobUseCase', () => {
       const report = makeReport({ reportType: reportType as ReportType });
       vi.mocked(reportRepo.findById).mockResolvedValue(report);
       await useCase.execute('report-1');
-      expect(dataReader[method]).toHaveBeenCalledWith(report.filtersJson);
+      expect(dataReader[method]).toHaveBeenCalledWith({
+        ...report.filtersJson,
+        agencyScoped: report.agencyScoped,
+      });
       expect(report.status).toBe('READY');
     });
   });
@@ -197,6 +240,40 @@ describe('ProcessReportJobUseCase', () => {
       expect(xlsxGenerator.generate).toHaveBeenCalledWith(REPORT_COLUMNS.FINANCIAL, []);
       expect(report.status).toBe('READY');
       expect(report.rowCount).toBe(0);
+    });
+  });
+
+  describe('agency-scoped column sets', () => {
+    it('drops Inspector / Expense / NET columns from an agency FINANCIAL sheet', async () => {
+      const report = makeReport({ reportType: 'FINANCIAL', agencyScoped: true });
+      vi.mocked(reportRepo.findById).mockResolvedValue(report);
+      vi.mocked(dataReader.getFinancialRows).mockResolvedValue([]);
+      await useCase.execute('report-1');
+
+      const columns = vi.mocked(xlsxGenerator.generate).mock.calls[0][0];
+      const keys = columns.map((c) => c.key);
+      expect(keys).not.toContain('inspector');
+      expect(keys).not.toContain('expense');
+      expect(keys).toContain('amount');
+    });
+
+    it('keeps the full FINANCIAL column set for an operator run', async () => {
+      const report = makeReport({ reportType: 'FINANCIAL', agencyScoped: false });
+      vi.mocked(reportRepo.findById).mockResolvedValue(report);
+      vi.mocked(dataReader.getFinancialRows).mockResolvedValue([]);
+      await useCase.execute('report-1');
+      expect(xlsxGenerator.generate).toHaveBeenCalledWith(REPORT_COLUMNS.FINANCIAL, []);
+    });
+
+    it('drops the inspector email column from an agency PERFORMANCE sheet', async () => {
+      const report = makeReport({ reportType: 'PERFORMANCE', agencyScoped: true });
+      vi.mocked(reportRepo.findById).mockResolvedValue(report);
+      vi.mocked(dataReader.getPerformanceRows).mockResolvedValue([]);
+      await useCase.execute('report-1');
+
+      const keys = vi.mocked(xlsxGenerator.generate).mock.calls[0][0].map((c) => c.key);
+      expect(keys).not.toContain('inspectorEmail');
+      expect(keys).toContain('inspectorName');
     });
   });
 

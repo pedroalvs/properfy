@@ -340,9 +340,12 @@ export const router = createBrowserRouter([
             ),
           },
           {
+            // Agency-visible surface: AM/OP run cross-agency, CL_ADMIN is scoped to
+            // its own agency server-side. CL_USER is admitted at the route level and
+            // gated in-page by the `view_financials` flag, mirroring /my-financial.
             path: 'reports',
             element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
+              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
                 <ReportListPage />
               </AuthGuard>
             ),
