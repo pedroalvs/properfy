@@ -722,9 +722,9 @@ export const inspectorScheduleMonthDaySchema = z.object({
 });
 
 export const inspectorScheduleMonthResponseSchema = z.object({
-  today: instantStr(),
-  from: instantStr(),
-  to: instantStr(),
+  today: civilDateStr(),
+  from: civilDateStr(),
+  to: civilDateStr(),
   days: z.array(inspectorScheduleMonthDaySchema),
   appointments: z.array(inspectorScheduleMonthItemSchema),
   overdueAppointments: z.array(inspectorScheduleMonthItemSchema),
@@ -780,7 +780,7 @@ export const financialEntryResponseSchema = z.object({
 // branch are line-level attributes only (never invoice ownership). Join-derived display
 // fields are nullable so the response serializer never throws if a relation is absent.
 export const invoiceSnapshotLineSchema = z.object({
-  serviceDate: instantStr(),
+  serviceDate: civilDateStr(),
   appointmentId: z.string().uuid(),
   appointmentCode: z.string(),
   propertyAddress: z.string().nullable(),

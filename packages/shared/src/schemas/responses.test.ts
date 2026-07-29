@@ -13,6 +13,7 @@ import {
   inspectorEarningsSummaryResponseSchema,
   marketplaceOfferDetailAppointmentSchema,
   invoiceResponseSchema,
+  inspectorResponseSchema,
 } from './responses';
 
 describe('appointmentResponseSchema — appointmentCode / code', () => {
@@ -887,6 +888,40 @@ describe('response contract — civil dates vs instants', () => {
       });
 
       expect(parsed.createdAt).toBe('2026-07-28T20:00:00.000Z');
+    });
+  });
+
+  describe('nullable and optional civil dates', () => {
+    // The riskiest composition: Zod's Nullable/Optional wrappers must
+    // short-circuit BEFORE preprocess runs, or a null date-of-birth would reach
+    // the coercion and throw.
+    const inspectorBase = {
+      id: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee301',
+      name: 'Ivy Inspector',
+      email: 'ivy@example.com',
+      phone: null,
+      status: 'ACTIVE',
+      paymentSettingsJson: {},
+      createdAt: '2026-07-01T00:00:00.000Z',
+      updatedAt: '2026-07-01T00:00:00.000Z',
+    };
+
+    it('accepts null', () => {
+      const parsed = inspectorResponseSchema.parse({ ...inspectorBase, dateOfBirth: null });
+      expect(parsed.dateOfBirth).toBeNull();
+    });
+
+    it('accepts the field being absent', () => {
+      const parsed = inspectorResponseSchema.parse(inspectorBase);
+      expect(parsed.dateOfBirth).toBeUndefined();
+    });
+
+    it('still strips the UTC stamp when a value IS present', () => {
+      const parsed = inspectorResponseSchema.parse({
+        ...inspectorBase,
+        dateOfBirth: new Date('1986-03-18T00:00:00.000Z'),
+      });
+      expect(parsed.dateOfBirth).toBe('1986-03-18');
     });
   });
 

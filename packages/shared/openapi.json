@@ -18535,37 +18535,13 @@
                       "type": "object",
                       "properties": {
                         "today": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "from": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "to": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "days": {
                           "type": "array",
@@ -21869,15 +21845,7 @@
                               "type": "object",
                               "properties": {
                                 "serviceDate": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string"
-                                    },
-                                    {
-                                      "type": "string",
-                                      "format": "date-time"
-                                    }
-                                  ]
+                                  "type": "string"
                                 },
                                 "appointmentId": {
                                   "type": "string",
@@ -22122,15 +22090,7 @@
                             "type": "object",
                             "properties": {
                               "serviceDate": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ]
+                                "type": "string"
                               },
                               "appointmentId": {
                                 "type": "string",
