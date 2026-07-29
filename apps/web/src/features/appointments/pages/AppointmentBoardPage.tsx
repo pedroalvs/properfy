@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useFormOptions } from '@/hooks/useFormOptions';
 import { AppointmentFilters } from '../components/AppointmentFilters';
 import { AppointmentBoardColumn } from '../components/AppointmentBoardColumn';
 import { AppointmentBulkActionBar } from '../components/AppointmentBulkActionBar';
@@ -13,6 +12,7 @@ import { BulkEditModal } from '../components/BulkEditModal';
 import { StatusTransitionDialog } from '../components/StatusTransitionDialog';
 import type { BoardCardAction } from '../components/AppointmentBoardCard';
 import { useAppointmentBoard } from '../hooks/useAppointmentBoard';
+import { useServiceTypeFilterOptions, useBranchOptionsFromAppointments } from '../hooks/useAppointmentFilterOptions';
 import { useAppointmentTransition } from '../hooks/useAppointmentTransition';
 import { useBulkResendHandler } from '../hooks/useBulkResendHandler';
 import { getAvailableTransitions } from '../lib/transitions';
@@ -46,32 +46,10 @@ export function AppointmentBoardPage() {
   const canBulkEdit = canPerform('appointment.cancel');
   const canBulkResend = canPerform('appointment.bulk_resend_reminder');
 
-  // Service types are global (not tenant-scoped). Stable query key → cached,
-  // never refetched on filter change. Same source as the list screen.
-  const { options: serviceTypeApiOptions } = useFormOptions<{ id: string; name: string }>(
-    ['service-types', 'appointment-list-filter'],
-    '/v1/service-types',
-    (item) => ({ value: item.id, label: item.name }),
-    { status: 'ACTIVE' },
-  );
-  const serviceTypeOptions = useMemo(
-    () => [{ label: 'All', value: '' }, ...serviceTypeApiOptions],
-    [serviceTypeApiOptions],
-  );
-
-  // Unlike the list, this route is AM/OP-only, so there is no CL branch of this
-  // logic: branches are always derived from the loaded rows. AM/OP have no
-  // tenant selector here, so /v1/branches cannot be called reliably
-  // cross-tenant — same acknowledged limitation as the list screen, except the
-  // board loads five columns so the dropdown ends up richer.
-  const branchOptions = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const apt of allItems) seen.set(apt.branchId, apt.branchName);
-    return [
-      { label: 'All', value: '' },
-      ...Array.from(seen.entries()).map(([value, label]) => ({ label, value })),
-    ];
-  }, [allItems]);
+  const serviceTypeOptions = useServiceTypeFilterOptions();
+  // AM/OP-only route, so unlike the list there is no CL branch of this logic:
+  // branches always come from the loaded rows.
+  const branchOptions = useBranchOptionsFromAppointments(allItems);
 
   const hasActiveFilters = useMemo(
     () =>
@@ -96,8 +74,13 @@ export function AppointmentBoardPage() {
   }, []);
 
   const cancelTransition = useAppointmentTransition(cancelTarget?.id ?? null, () => {
+    // Per-card cancel is independent of the bulk workflow: drop only the card
+    // that was cancelled, never the user's whole selection.
+    const cancelledId = cancelTarget?.id;
     setCancelTarget(null);
-    clearSelection();
+    if (cancelledId) {
+      setSelectedIds((current) => current.filter((id) => id !== cancelledId));
+    }
   });
 
   const buildCardActions = useCallback(

@@ -53,19 +53,17 @@ export function AppointmentBoardCard({
           {appointment.code}
         </Link>
         <div className="ml-auto flex shrink-0 items-center gap-1">
+          {/* `role="img"` on the wrapper, not aria-label on the <i>: a bare <i>
+              has no role, so assistive tech may drop the label entirely. */}
           {appointment.isOverdue && (
-            <i
-              className="mdi mdi-alert-circle-outline text-base text-warning"
-              aria-label="Overdue"
-              title="Overdue"
-            />
+            <span role="img" aria-label="Overdue" title="Overdue">
+              <i className="mdi mdi-alert-circle-outline text-base text-warning" aria-hidden="true" />
+            </span>
           )}
           {appointment.hasRentalTenantNote && (
-            <i
-              className="mdi mdi-note-text-outline text-base text-text-secondary"
-              aria-label="Tenant left a note"
-              title="Tenant left a note"
-            />
+            <span role="img" aria-label="Tenant left a note" title="Tenant left a note">
+              <i className="mdi mdi-note-text-outline text-base text-text-secondary" aria-hidden="true" />
+            </span>
           )}
           <RentalTenantConfirmationChip status={appointment.rentalTenantConfirmationStatus} />
         </div>

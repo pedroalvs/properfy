@@ -10,6 +10,7 @@ import { AppointmentFormDrawer } from '../components/AppointmentFormDrawer';
 import { AppointmentBulkActionBar } from '../components/AppointmentBulkActionBar';
 import { BulkEditModal } from '../components/BulkEditModal';
 import { useAppointmentList } from '../hooks/useAppointmentList';
+import { useServiceTypeFilterOptions, useBranchOptionsFromAppointments } from '../hooks/useAppointmentFilterOptions';
 import { useBulkResendHandler } from '../hooks/useBulkResendHandler';
 
 export function AppointmentListPage() {
@@ -31,24 +32,11 @@ export function AppointmentListPage() {
     pagination,
   } = useAppointmentList();
 
-  // Service types are global (not tenant-scoped) — always fetched from the
-  // canonical endpoint. Stable query key → cached, never refetched on filter change.
-  const { options: serviceTypeApiOptions } = useFormOptions<{ id: string; name: string }>(
-    ['service-types', 'appointment-list-filter'],
-    '/v1/service-types',
-    (item) => ({ value: item.id, label: item.name }),
-    { status: 'ACTIVE' },
-  );
-  const serviceTypeOptions = useMemo(
-    () => [{ label: 'All', value: '' }, ...serviceTypeApiOptions],
-    [serviceTypeApiOptions],
-  );
+  const serviceTypeOptions = useServiceTypeFilterOptions();
 
-  // Branches are tenant-scoped on the backend. CL roles get them from the API
-  // pinned to their JWT tenantId (stable, cached). AM/OP have no tenant selector
-  // on this screen → fall back to deriving from the loaded appointments so the
-  // dropdown still shows something. Either way: stable query key → no refetch
-  // when other filters change.
+  // Branches are tenant-scoped on the backend. CL roles get the real list from
+  // the API pinned to their JWT tenantId (stable query key → cached). AM/OP have
+  // no tenant selector here, so they fall back to deriving from loaded rows.
   const { options: branchApiOptions } = useFormOptions<{ id: string; name: string }>(
     ['branches', 'appointment-list-filter', tenantId ?? ''],
     '/v1/branches',
@@ -56,20 +44,11 @@ export function AppointmentListPage() {
     { ...(tenantId ? { tenantId } : {}), status: 'ACTIVE' },
     { enabled: !isGlobalRole && !!tenantId },
   );
-  const branchOptions = useMemo(() => {
-    if (!isGlobalRole) {
-      return [{ label: 'All', value: '' }, ...branchApiOptions];
-    }
-    // AM/OP fallback: derive from the loaded appointments. Acknowledged
-    // limitation — without a tenant filter on this screen we can't reliably
-    // call /v1/branches cross-tenant. Tracked as follow-up.
-    const seen = new Map<string, string>();
-    for (const apt of data) seen.set(apt.branchId, apt.branchName);
-    return [
-      { label: 'All', value: '' },
-      ...Array.from(seen.entries()).map(([value, label]) => ({ label, value })),
-    ];
-  }, [isGlobalRole, branchApiOptions, data]);
+  const derivedBranchOptions = useBranchOptionsFromAppointments(data);
+  const branchOptions = useMemo(
+    () => (isGlobalRole ? derivedBranchOptions : [{ label: 'All', value: '' }, ...branchApiOptions]),
+    [isGlobalRole, derivedBranchOptions, branchApiOptions],
+  );
 
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);

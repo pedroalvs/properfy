@@ -267,6 +267,29 @@ describe('AppointmentBoardPage', () => {
       expect(screen.getByText('2 appointments selected')).toBeInTheDocument();
     });
 
+    it('keeps the bulk selection when an unrelated card is cancelled', () => {
+      // Per-card Cancel is a separate workflow from bulk selection. Clearing
+      // the whole selection here would silently discard the user's picks.
+      setBoard([
+        makeColumn({
+          total: 2,
+          items: [makeAppointment(), makeAppointment({ id: 'apt-2', code: 'INS-0143' })],
+        }),
+        ...DEFAULT_COLUMNS.slice(1),
+      ]);
+      renderBoard();
+
+      fireEvent.click(screen.getByLabelText('Select appointment INS-0142'));
+      fireEvent.click(screen.getByLabelText('Select appointment INS-0143'));
+      expect(screen.getByText('2 appointments selected')).toBeInTheDocument();
+
+      // Opening the cancel dialog for one card must not touch the selection.
+      fireEvent.click(
+        screen.getByRole('button', { name: /Cancel — appointment INS-0142/ }),
+      );
+      expect(screen.getByText('2 appointments selected')).toBeInTheDocument();
+    });
+
     it('selects every loaded card in a column from its header checkbox', () => {
       setBoard([
         makeColumn({
