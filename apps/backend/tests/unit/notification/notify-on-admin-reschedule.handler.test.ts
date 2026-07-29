@@ -130,6 +130,38 @@ describe('NotifyOnAdminRescheduleHandler', () => {
     );
   });
 
+  it('notifies on both channels when the contact has an email and a phone', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment(),
+      contact: makeContact(),
+      restrictions: [],
+    });
+    tenantRepo.findById.mockResolvedValue(makeTenant());
+
+    await makeHandler().execute({ appointmentId: 'appt-1', tenantId: 'tenant-1' });
+
+    expect(createNotification.execute).toHaveBeenCalledTimes(2);
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_RESCHEDULED', channel: 'EMAIL' }),
+    );
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_RESCHEDULED_SMS', channel: 'SMS' }),
+    );
+  });
+
+  it('mints the portal token once so both legs carry the same link', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment(),
+      contact: makeContact(),
+      restrictions: [],
+    });
+    tenantRepo.findById.mockResolvedValue(makeTenant());
+
+    await makeHandler().execute({ appointmentId: 'appt-1', tenantId: 'tenant-1' });
+
+    expect(mintPortalTokenService.mint).toHaveBeenCalledOnce();
+  });
+
   it('does NOT dedupe by template — a second reschedule notifies again', async () => {
     appointmentRepo.findById.mockResolvedValue({
       appointment: makeAppointment(),
@@ -142,10 +174,11 @@ describe('NotifyOnAdminRescheduleHandler', () => {
     await handler.execute({ appointmentId: 'appt-1', tenantId: 'tenant-1' });
     await handler.execute({ appointmentId: 'appt-1', tenantId: 'tenant-1' });
 
-    expect(createNotification.execute).toHaveBeenCalledTimes(2);
+    // Two runs x two channel legs.
+    expect(createNotification.execute).toHaveBeenCalledTimes(4);
   });
 
-  it('falls back to SMS when the contact has no email', async () => {
+  it('sends only SMS when the contact has no email', async () => {
     appointmentRepo.findById.mockResolvedValue({
       appointment: makeAppointment(),
       contact: makeContact({ snapshotEmail: null }),

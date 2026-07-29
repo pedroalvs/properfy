@@ -199,8 +199,15 @@ export class NotifyOnStatusTransitionHandler {
     const recipientEmail = contact.effectiveEmail;
     const recipientPhone = contact.effectivePhone;
 
+    // Independent legs: a tenant with both an email and a phone gets both.
+    // The dedupe above is a single decision for the whole announcement — its
+    // template set covers the _SMS codes and templateFamily() folds them onto
+    // the email code — so it governs both legs without being re-evaluated here.
+    //
+    // Email first: it carries the same freshly minted portal token, and minting
+    // happens once above precisely because a second mint would revoke the link
+    // the first message already went out with.
     if (recipientEmail) {
-      // Dedupe already decided above — send directly
       await this.createNotification.execute({
         tenantId: appointment.tenantId,
         appointmentId: appointment.id,
@@ -209,9 +216,9 @@ export class NotifyOnStatusTransitionHandler {
         templateCode: emailCode,
         payloadJson: this.buildNotificationPayload.build(payloadCtx),
       });
-    } else if (recipientPhone) {
-      // SMS fallback: use ${CODE}_SMS template when no email is available. The
-      // dedupe set covers the _SMS codes, so the decision above governs it too.
+    }
+
+    if (recipientPhone) {
       const smsCode = `${emailCode}_SMS` as string;
       await this.createNotification.execute({
         tenantId: appointment.tenantId,
