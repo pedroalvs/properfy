@@ -12,6 +12,7 @@ import {
   appointmentResponseSchema,
   inspectorEarningsSummaryResponseSchema,
   marketplaceOfferDetailAppointmentSchema,
+  invoiceResponseSchema,
 } from './responses';
 
 describe('appointmentResponseSchema — appointmentCode / code', () => {
@@ -780,5 +781,126 @@ describe('marketplaceOfferDetailAppointmentSchema — coordinates / street', () 
       coordinates: { lat: '-33.89', lng: 151.27 },
     });
     expect(result.success).toBe(false);
+  });
+});
+
+// ─── Civil date vs instant: the wire contract ─────────────────────────────
+
+/**
+ * A `@db.Date` calendar day and a `DateTime` instant are different kinds and
+ * must not share a wire shape. When both went through one permissive helper,
+ * `toISOString()` stamped every calendar day with UTC, so consumers received two
+ * indistinguishable strings and had to guess which they held — guessing wrong
+ * for any instant after ~14:00Z, which renders as the previous Sydney day.
+ */
+describe('response contract — civil dates vs instants', () => {
+  const appointmentBase = {
+    id: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee111',
+    tenantId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee112',
+    branchId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee113',
+    propertyId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee114',
+    serviceTypeId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee115',
+    inspectorId: null,
+    status: 'SCHEDULED',
+    timeSlotStart: '09:00',
+    timeSlotEnd: '12:00',
+    rentalTenantConfirmationStatus: 'PENDING',
+    priceAmount: 100,
+    payoutAmount: 80,
+    notes: null,
+    createdByUserId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee116',
+    updatedAt: '2026-07-01T00:00:00.000Z',
+  };
+
+  describe('a civil date crosses the wire as bare YYYY-MM-DD', () => {
+    it('strips the UTC-midnight stamp Prisma puts on a @db.Date', () => {
+      const parsed = appointmentResponseSchema.parse({
+        ...appointmentBase,
+        scheduledDate: new Date('2026-07-28T00:00:00.000Z'), // what Prisma hands us
+        createdAt: new Date('2026-07-28T04:12:33.123Z'),
+      });
+
+      expect(parsed.scheduledDate).toBe('2026-07-28');
+      expect(parsed.scheduledDate).not.toContain('T');
+    });
+
+    it('normalises an already-stringified datetime down to the calendar day', () => {
+      // Some use cases pre-serialise; the contract must still emit a bare day.
+      const parsed = appointmentResponseSchema.parse({
+        ...appointmentBase,
+        scheduledDate: '2026-07-28T00:00:00.000Z',
+        createdAt: '2026-07-28T04:12:33.123Z',
+      });
+
+      expect(parsed.scheduledDate).toBe('2026-07-28');
+    });
+
+    it('passes a bare YYYY-MM-DD through untouched', () => {
+      const parsed = appointmentResponseSchema.parse({
+        ...appointmentBase,
+        scheduledDate: '2026-07-28',
+        createdAt: '2026-07-28T04:12:33.123Z',
+      });
+
+      expect(parsed.scheduledDate).toBe('2026-07-28');
+    });
+
+    it('applies to invoice billing periods too', () => {
+      const parsed = invoiceResponseSchema.parse({
+        id: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee201',
+        inspectorId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee202',
+        periodStart: new Date('2026-07-01T00:00:00.000Z'),
+        periodEnd: new Date('2026-07-15T00:00:00.000Z'),
+        periodType: 'FORTNIGHTLY',
+        status: 'DRAFT',
+        totalAmount: 100,
+        currency: 'AUD',
+        issuedAt: null,
+        paidAt: null,
+        createdAt: new Date('2026-07-16T04:12:33.123Z'),
+      });
+
+      expect(parsed.periodStart).toBe('2026-07-01');
+      expect(parsed.periodEnd).toBe('2026-07-15');
+    });
+  });
+
+  describe('an instant keeps its full timestamp', () => {
+    it('serialises a DateTime as a complete ISO-8601 string', () => {
+      const parsed = appointmentResponseSchema.parse({
+        ...appointmentBase,
+        scheduledDate: new Date('2026-07-28T00:00:00.000Z'),
+        createdAt: new Date('2026-07-28T04:12:33.123Z'),
+      });
+
+      // The time component is load-bearing: rendering it requires a timezone.
+      expect(parsed.createdAt).toBe('2026-07-28T04:12:33.123Z');
+    });
+
+    it('preserves an instant that falls on a different day in Sydney', () => {
+      // 2026-07-28T20:00Z is 2026-07-29 06:00 in Sydney. Truncating it here
+      // would destroy the information needed to render the correct day.
+      const parsed = appointmentResponseSchema.parse({
+        ...appointmentBase,
+        scheduledDate: new Date('2026-07-28T00:00:00.000Z'),
+        createdAt: new Date('2026-07-28T20:00:00.000Z'),
+      });
+
+      expect(parsed.createdAt).toBe('2026-07-28T20:00:00.000Z');
+    });
+  });
+
+  it('emits distinguishable shapes for the two kinds', () => {
+    const parsed = appointmentResponseSchema.parse({
+      ...appointmentBase,
+      scheduledDate: new Date('2026-07-28T00:00:00.000Z'),
+      createdAt: new Date('2026-07-28T00:00:00.000Z'),
+    });
+
+    // Identical input Date, deliberately different output shapes: a consumer can
+    // now tell which kind it holds instead of inferring it.
+    expect(parsed.scheduledDate).toBe('2026-07-28');
+    expect(parsed.createdAt).toBe('2026-07-28T00:00:00.000Z');
+    expect(parsed.scheduledDate).not.toBe(parsed.createdAt);
   });
 });

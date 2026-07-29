@@ -3045,11 +3045,11 @@ export interface paths {
                                 fullName?: string | null;
                                 address?: unknown;
                                 abn?: string | null;
-                                dateOfBirth?: (string) | null;
+                                dateOfBirth?: string | null;
                                 insuranceFileKey?: string | null;
-                                insuranceExpiresAt?: (string) | null;
+                                insuranceExpiresAt?: string | null;
                                 policeCheckFileKey?: string | null;
-                                policeCheckExpiresAt?: (string) | null;
+                                policeCheckExpiresAt?: string | null;
                                 photoStorageKey?: string | null;
                                 insuranceMetaJson?: unknown;
                                 policeCheckMetaJson?: unknown;
@@ -3144,11 +3144,11 @@ export interface paths {
                                 fullName?: string | null;
                                 address?: unknown;
                                 abn?: string | null;
-                                dateOfBirth?: (string) | null;
+                                dateOfBirth?: string | null;
                                 insuranceFileKey?: string | null;
-                                insuranceExpiresAt?: (string) | null;
+                                insuranceExpiresAt?: string | null;
                                 policeCheckFileKey?: string | null;
-                                policeCheckExpiresAt?: (string) | null;
+                                policeCheckExpiresAt?: string | null;
                                 photoStorageKey?: string | null;
                                 insuranceMetaJson?: unknown;
                                 policeCheckMetaJson?: unknown;
@@ -3205,11 +3205,11 @@ export interface paths {
                                 fullName?: string | null;
                                 address?: unknown;
                                 abn?: string | null;
-                                dateOfBirth?: (string) | null;
+                                dateOfBirth?: string | null;
                                 insuranceFileKey?: string | null;
-                                insuranceExpiresAt?: (string) | null;
+                                insuranceExpiresAt?: string | null;
                                 policeCheckFileKey?: string | null;
-                                policeCheckExpiresAt?: (string) | null;
+                                policeCheckExpiresAt?: string | null;
                                 photoStorageKey?: string | null;
                                 insuranceMetaJson?: unknown;
                                 policeCheckMetaJson?: unknown;
@@ -3301,11 +3301,11 @@ export interface paths {
                                 fullName?: string | null;
                                 address?: unknown;
                                 abn?: string | null;
-                                dateOfBirth?: (string) | null;
+                                dateOfBirth?: string | null;
                                 insuranceFileKey?: string | null;
-                                insuranceExpiresAt?: (string) | null;
+                                insuranceExpiresAt?: string | null;
                                 policeCheckFileKey?: string | null;
-                                policeCheckExpiresAt?: (string) | null;
+                                policeCheckExpiresAt?: string | null;
                                 photoStorageKey?: string | null;
                                 insuranceMetaJson?: unknown;
                                 policeCheckMetaJson?: unknown;
@@ -11345,7 +11345,7 @@ export interface paths {
                                         appointmentId: string;
                                         appointmentNumber: number;
                                         status: string;
-                                        /** Format: date-time */
+                                        /** Format: date */
                                         scheduledDate: string;
                                         /** @enum {string} */
                                         role: "RENTAL_TENANT" | "RENTAL_TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
