@@ -49,7 +49,8 @@ vi.mock('@/hooks/useSnackbar', async () => {
 });
 
 import { api } from '@/services/api';
-import { useAppointmentImport } from './useAppointmentImport';
+import { useAppointmentImport, fileIssuesFromApiError } from './useAppointmentImport';
+import { toApiError } from '@/lib/api-error';
 
 const mockPost = api.POST as ReturnType<typeof vi.fn>;
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
@@ -447,6 +448,115 @@ describe('useAppointmentImport', () => {
 
       expect(result.current.importStatus?.status).toBe('COMPLETED');
       expect(mockShowError).not.toHaveBeenCalled();
+    });
+  });
+  describe('file diagnostics', () => {
+    it('exposes the preview rejection so the page can render its detail', async () => {
+      mockPost.mockResolvedValue({
+        error: {
+          error: {
+            code: 'IMPORT_FILE_MISSING_COLUMNS',
+            message: 'This file is missing 2 required columns.',
+            details: [{
+              code: 'IMPORT_FILE_MISSING_COLUMNS',
+              severity: 'error',
+              message: 'This file is missing 2 required columns.',
+              missingColumns: ['Suburb', 'Postcode'],
+              foundColumns: ['Type'],
+              unknownColumns: [],
+              sheetUsed: null,
+              sheetsIgnored: [],
+            }],
+          },
+        },
+        response: { status: 400 },
+      });
+      const { result } = renderHook(() => useAppointmentImport(), { wrapper: createWrapper() });
+
+      await act(async () => {
+        await result.current.preview(new File(['x'], 'a.csv'), 'branch-1');
+      });
+
+      expect(result.current.previewError?.code).toBe('IMPORT_FILE_MISSING_COLUMNS');
+      expect(mockShowError).toHaveBeenCalledWith('This file is missing 2 required columns.');
+      expect(fileIssuesFromApiError(result.current.previewError)[0]?.missingColumns)
+        .toEqual(['Suburb', 'Postcode']);
+    });
+
+    it('clears the previous rejection when the preview is retried', async () => {
+      mockPost.mockResolvedValueOnce({
+        error: { error: { code: 'IMPORT_FILE_CORRUPT_XLSX', message: 'Corrupt.' } },
+        response: { status: 400 },
+      });
+      const { result } = renderHook(() => useAppointmentImport(), { wrapper: createWrapper() });
+
+      await act(async () => {
+        await result.current.preview(new File(['x'], 'a.xlsx'), 'branch-1');
+      });
+      expect(result.current.previewError).not.toBeNull();
+
+      mockPost.mockResolvedValueOnce({ data: { data: { importId: 'i-1', rows: [], summary: {}, fileIssues: [] } } });
+      await act(async () => {
+        await result.current.preview(new File(['x'], 'a.xlsx'), 'branch-1');
+      });
+      expect(result.current.previewError).toBeNull();
+    });
+
+    it('maps the commit worker failure reason onto the import status', async () => {
+      mockPost.mockResolvedValue({ data: { data: { importId: 'import-123', status: 'PROCESSING' } } });
+      mockGet.mockResolvedValue({
+        data: {
+          data: {
+            id: 'import-123', branchId: 'branch-1', status: 'FAILED',
+            totalRows: 0, successCount: 0, errorCount: 0, resultsJson: [],
+            errorsJson: [{
+              scope: 'file',
+              code: 'IMPORT_FILE_CORRUPT_XLSX',
+              message: 'This .xlsx file could not be opened.',
+            }],
+          },
+        },
+      });
+      const { result } = renderHook(() => useAppointmentImport(), { wrapper: createWrapper() });
+
+      await act(async () => {
+        await result.current.commit('import-123', { skipInvalidRows: true });
+      });
+
+      await waitFor(() => expect(result.current.importStatus?.status).toBe('FAILED'));
+      expect(result.current.importStatus?.failure).toEqual({
+        code: 'IMPORT_FILE_CORRUPT_XLSX',
+        message: 'This .xlsx file could not be opened.',
+      });
+    });
+
+    it('leaves failure null when errorsJson is absent or malformed', async () => {
+      mockPost.mockResolvedValue({ data: { data: { importId: 'import-123', status: 'PROCESSING' } } });
+      mockGet.mockResolvedValue({
+        data: {
+          data: {
+            id: 'import-123', branchId: 'branch-1', status: 'FAILED',
+            totalRows: 0, successCount: 0, errorCount: 0, resultsJson: [],
+            errorsJson: [{ row: 2, message: 'legacy per-row entry' }],
+          },
+        },
+      });
+      const { result } = renderHook(() => useAppointmentImport(), { wrapper: createWrapper() });
+
+      await act(async () => {
+        await result.current.commit('import-123', { skipInvalidRows: true });
+      });
+
+      await waitFor(() => expect(result.current.importStatus?.status).toBe('FAILED'));
+      expect(result.current.importStatus?.failure).toBeNull();
+    });
+
+    it('ignores detail entries that are not known file-issue codes', () => {
+      const err = toApiError({
+        error: { code: 'VALIDATION_ERROR', message: 'x', details: [{ field: 'branchId', message: 'Required' }] },
+      }, 400);
+      expect(fileIssuesFromApiError(err)).toEqual([]);
+      expect(fileIssuesFromApiError(null)).toEqual([]);
     });
   });
 });

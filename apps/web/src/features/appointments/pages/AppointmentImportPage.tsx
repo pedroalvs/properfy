@@ -15,8 +15,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { api } from '@/services/api';
-import { useAppointmentImport } from '../hooks/useAppointmentImport';
+import { getErrorMessage } from '@/lib/api-error';
+import { useAppointmentImport, fileIssuesFromApiError } from '../hooks/useAppointmentImport';
 import { AppointmentImportPreview } from '../components/AppointmentImportPreview';
+import { ImportFileIssues } from '../components/ImportFileIssues';
 
 const STEPS = ['Upload', 'Preview', 'Confirm', 'Progress'];
 
@@ -86,7 +88,7 @@ export function AppointmentImportPage() {
     setBranchId('');
   }, [isGlobalRole, selectedTenantId]);
 
-  const { preview, isPreviewing, commit, isCommitting, importStatus } = useAppointmentImport();
+  const { preview, isPreviewing, previewError, commit, isCommitting, importStatus } = useAppointmentImport();
 
   const canPreview = !!selectedFile && !!branchId && !requiresTenantSelection;
 
@@ -199,7 +201,7 @@ export function AppointmentImportPage() {
             <FileUploadStep
               onFileSelect={handleFileSelect}
               acceptedTypes={['.csv', '.xlsx']}
-              maxSizeMB={5}
+              maxSizeMB={10}
               selectedFile={selectedFile}
               onRemove={handleRemoveFile}
             />
@@ -217,12 +219,17 @@ export function AppointmentImportPage() {
 
             {isPreviewing && <LoadingState variant="card" rows={4} />}
 
+            {/* The headline is the backend's own sentence ("This file is
+                missing 2 required columns."), with the column names rendered
+                as scannable lists below rather than crammed into it. */}
             {!isPreviewing && previewFailed && (
-              <ErrorState
-                message="Could not generate a preview"
-                detail="Check that the file matches the expected columns and try again."
-                onRetry={runPreview}
-              />
+              <div className="space-y-3">
+                <ErrorState
+                  message={getErrorMessage(previewError, 'Could not read this file')}
+                  onRetry={runPreview}
+                />
+                <ImportFileIssues issues={fileIssuesFromApiError(previewError)} />
+              </div>
             )}
 
             {!isPreviewing && !previewFailed && previewResult && previewResult.summary.importable === 0 && (
@@ -234,7 +241,10 @@ export function AppointmentImportPage() {
             )}
 
             {!isPreviewing && !previewFailed && previewResult && (
-              <AppointmentImportPreview rows={previewResult.rows} summary={previewResult.summary} />
+              <>
+                <ImportFileIssues issues={previewResult.fileIssues ?? []} />
+                <AppointmentImportPreview rows={previewResult.rows} summary={previewResult.summary} />
+              </>
             )}
 
             <div className="flex items-center justify-between pt-2">
@@ -312,6 +322,7 @@ export function AppointmentImportPage() {
                   errors={importStatus.results
                     .filter((r) => r.status === 'error')
                     .map((r) => ({ row: r.rowNumber, message: r.message ?? 'Unknown error' }))}
+                  {...(importStatus.failure ? { failureMessage: importStatus.failure.message } : {})}
                 />
                 {(importStatus.status === 'COMPLETED' || importStatus.status === 'FAILED') && (
                   <div className="flex flex-col items-center gap-3 pt-4">
