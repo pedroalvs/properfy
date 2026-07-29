@@ -21,7 +21,8 @@ function makeAppointment(overrides: Partial<ConstructorParameters<typeof Appoint
     serviceTypeId: 'st-1',
     inspectorId: null,
     status: 'SCHEDULED',
-    scheduledDate: new Date('2026-04-30T23:00:00.000Z'), // 2026-05-01 09:00 Sydney time
+    // scheduled_date is @db.Date, which Prisma always hands back at UTC midnight.
+    scheduledDate: new Date('2026-05-01T00:00:00.000Z'),
     timeSlotStart: '09:00', timeSlotEnd: '12:00',
     keyRequired: false,
     meetingLocation: null,
@@ -103,22 +104,37 @@ describe('BuildNotificationPayloadService', () => {
     svc = new BuildNotificationPayloadService();
   });
 
-  // ── H1: Timezone-correct date formatting ──────────────────────────────────
+  // ── H1: the scheduled date is a calendar day, not an instant ──────────────
+  //
+  // These originally guarded against a UTC day-boundary error, on the premise
+  // that scheduledDate was a timezone-sensitive instant. It is not:
+  // `scheduled_date` is @db.Date, so it denotes a calendar day and Prisma hands
+  // it back at UTC midnight. Rendering it therefore involves no timezone at all,
+  // which makes the day-boundary class of bug structurally impossible rather
+  // than merely handled.
 
-  it('H1: formats scheduledDate in the platform timezone (Sydney), not UTC', () => {
-    // scheduledDate = 2026-04-30T23:00:00Z = 2026-05-01 09:00 Australia/Sydney (UTC+10)
+  it('H1: renders the stored calendar day exactly, with no timezone applied', () => {
     const result = svc.build(baseCtx());
     expect(result.scheduledDate).toBe('01/05/2026');
   });
 
-  it('H1: formats in Sydney even when the tenant record carries another timezone', () => {
-    // tenant.timezone is ignored — the platform is Sydney-only.
+  it('H1: is unaffected by the timezone on the tenant record', () => {
+    // Nothing about a calendar day depends on a timezone — this holds for any
+    // agency, which is what makes per-agency timezones a non-issue here.
     const tenant = makeTenant({ timezone: 'UTC' });
-    const appointment = makeAppointment({
-      scheduledDate: new Date('2026-04-30T23:00:00.000Z'), // 2026-05-01 09:00 Sydney
-    });
-    const result = svc.build(baseCtx({ tenant, appointment }));
+    const result = svc.build(baseCtx({ tenant }));
     expect(result.scheduledDate).toBe('01/05/2026');
+  });
+
+  it('H1: renders the same day for every date in the month, including boundaries', () => {
+    for (const [iso, expected] of [
+      ['2026-01-01T00:00:00.000Z', '01/01/2026'],
+      ['2026-12-31T00:00:00.000Z', '31/12/2026'],
+      ['2024-02-29T00:00:00.000Z', '29/02/2024'],
+    ] as const) {
+      const appointment = makeAppointment({ scheduledDate: new Date(iso) });
+      expect(svc.build(baseCtx({ appointment })).scheduledDate).toBe(expected);
+    }
   });
 
   // ── Display format: what the rental tenant actually reads ─────────────────

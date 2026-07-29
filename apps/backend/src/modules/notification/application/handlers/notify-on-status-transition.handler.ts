@@ -41,8 +41,13 @@ function templateFamily(templateCode: string): string {
  * Accepts the current display shape OR the pre-rollout ISO shape: payloads
  * written before the dd/mm/yyyy + 12h change hold `2026-04-01` / `09:00-12:00`,
  * and treating those as "changed" would re-announce every historical
- * appointment once. Drop the `legacy` arm once stored notifications predating
- * the rollout have aged past the retention window.
+ * appointment once.
+ *
+ * There is no notification purge job, so there is no date after which the legacy
+ * arm is provably unreachable: it stops mattering only once every appointment
+ * whose latest announcement predates the rollout has been superseded. Keeping it
+ * indefinitely is harmless — the two shapes are lexically disjoint, so the extra
+ * arm can never match a value the current formatter would not also have matched.
  */
 function storedValueMatches(stored: string, current: string, legacy: string): boolean {
   return stored === current || stored === legacy;

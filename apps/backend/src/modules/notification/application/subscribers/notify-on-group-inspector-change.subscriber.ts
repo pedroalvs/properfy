@@ -1,3 +1,4 @@
+import { formatCivilDate, formatWallTimeWindow } from '@properfy/shared';
 import type {
   DomainEvent,
   DomainEventBus,
@@ -99,8 +100,10 @@ export class NotifyOnGroupInspectorChangeSubscriber {
     return {
       tenantId,
       groupCode: String(result.group.groupNumber),
-      scheduledDate: result.group.scheduledDate.toISOString().slice(0, 10),
-      timeWindow: result.group.timeWindow,
+      // Rendered straight into the inspector's email/SMS body, so these carry the
+      // same display format the rental tenant sees rather than raw ISO.
+      scheduledDate: formatCivilDate(result.group.scheduledDate),
+      timeWindow: formatWallTimeWindow(result.group.timeWindow),
       jobCount: String(result.appointments.length),
     };
   }

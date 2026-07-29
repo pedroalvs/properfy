@@ -2,8 +2,8 @@ import {
   TEMPLATE_VARIABLES,
   PLATFORM_TIMEZONE,
   PROPERFY_LOGO_URL,
-  formatDisplayDate,
-  formatDisplayTimeRange,
+  formatCivilDate,
+  formatWallTimeRange,
 } from '@properfy/shared';
 import type { AppointmentEntity } from '../../appointment/domain/appointment.entity';
 import type { AppointmentContactEntity } from '../../appointment/domain/appointment-contact.entity';
@@ -43,12 +43,12 @@ export interface NotificationPayloadContext {
  * produce the exact same string this service writes.
  */
 export function formatScheduledDate(date: Date): string {
-  return formatDisplayDate(date);
+  return formatCivilDate(date);
 }
 
 /** Renders the appointment window as `9:00 am – 12:00 pm`. */
 export function formatTimeSlot(start: string, end: string): string {
-  return formatDisplayTimeRange(start, end);
+  return formatWallTimeRange(start, end);
 }
 
 /**
@@ -61,8 +61,8 @@ export function formatTimeSlot(start: string, end: string): string {
  * pre-rollout appointment receives a duplicate email/SMS on its next status
  * transition.
  *
- * Removable once every stored notification predating the rollout has aged past
- * the retention window.
+ * No purge job exists for notifications, so these have no provable expiry date;
+ * see `alreadyAnnounced` for why keeping them indefinitely is harmless.
  */
 export function legacyIsoScheduledDate(date: Date): string {
   return new Intl.DateTimeFormat('en-CA', {

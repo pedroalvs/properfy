@@ -471,7 +471,10 @@ describe('GetPortalDataUseCase', () => {
     expect(result.existingResponse).toEqual({
       type: 'RESCHEDULE',
       createdAt: '2026-03-22T09:00:00.000Z',
-      summary: 'Tenant requested reschedule to 2026-04-10 13:00-15:00',
+      // Formatted at composition: the values sit mid-sentence, so a consumer
+      // could not format them at the render edge without parsing the prose.
+      // The stored activity record itself stays canonical ISO.
+      summary: 'Tenant requested reschedule to 10/04/2026 1:00 pm – 3:00 pm',
     });
   });
 

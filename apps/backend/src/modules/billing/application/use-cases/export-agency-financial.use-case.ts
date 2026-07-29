@@ -1,4 +1,4 @@
-import { formatDisplayDate } from '@properfy/shared';
+import { formatInstantDate } from '@properfy/shared';
 import type { AuthContext, FinancialEntryType } from '@properfy/shared';
 import type {
   IFinancialEntryRepository,
@@ -101,7 +101,7 @@ export class ExportAgencyFinancialUseCase {
 
     const rows = enriched.map(({ entity, appointmentCode }) => ({
       // Previously sliced in UTC, so a Sydney-evening entry was dated a day early.
-      date: formatDisplayDate(entity.effectiveAt),
+      date: formatInstantDate(entity.effectiveAt),
       type: entity.entryType,
       property: appointmentCode ?? '',
       description: entity.description,
