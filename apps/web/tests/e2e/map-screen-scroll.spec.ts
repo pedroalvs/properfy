@@ -27,21 +27,25 @@ async function blockMapbox(page: Page) {
   await page.route('**://*.mapbox.com/**', (route) => route.abort());
 }
 
+/**
+ * Only `service-groups` — `inspectors` and `service-types` are owned by
+ * `mockFormOptions`, which serves populated fixtures. Playwright matches routes
+ * in REVERSE registration order, so re-registering them here would shadow those
+ * fixtures with empty lists and leave the filter panel unpopulated.
+ */
 async function mockMapData(page: Page) {
   // No `?` in the glob: `**/v1/x?**` only matches requests that carry a query
   // string, so a bare `/v1/service-groups` would fall through to the network.
-  for (const path of ['service-groups', 'inspectors', 'service-types']) {
-    await page.route(`**/v1/${path}**`, async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          data: [],
-          pagination: { page: 1, pageSize: 100, total: 0, totalPages: 1 },
-        }),
-      });
+  await page.route('**/v1/service-groups**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: [],
+        pagination: { page: 1, pageSize: 100, total: 0, totalPages: 1 },
+      }),
     });
-  }
+  });
 }
 
 /** Vertical overflow of the document beyond the viewport, in CSS pixels. */
