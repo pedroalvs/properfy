@@ -60,7 +60,11 @@ export const DEFAULT_APPOINTMENT_FILTERS: AppointmentModeFilters = {
 
 export const DEFAULT_GROUP_FILTERS: GroupModeFilters = {
   search: '',
-  statuses: ['DRAFT', 'PUBLISHED', 'ACCEPTED', 'CANCELLED'],
+  // Active groups only. A cancelled or rejected group has had its appointments
+  // unlinked, so it has no centroid to plot and every one of them showed up in the
+  // un-plottable warning as a row nobody can act on. Operators can still tick the
+  // other statuses; the count and the warning then honestly describe what they asked for.
+  statuses: ['PUBLISHED', 'ACCEPTED'],
   contactSearch: '',
   branchId: '',
   dateFrom: '',

@@ -6,10 +6,19 @@ import { FormField } from '@/components/forms/FormField';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { Textarea } from '@/components/forms/Textarea';
 
-const CANCELLATION_OPTIONS = Object.values(CancellationReasonCode).map((code) => ({
-  value: code,
-  label: code.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-}));
+/**
+ * Assigned only by the daily auto-cancel sweep, never chosen by a person — an
+ * operator cancelling by hand always has a real reason. Excluded explicitly because
+ * the option list is derived from the enum and would otherwise pick it up.
+ */
+const SYSTEM_ONLY_CANCELLATION_CODES: CancellationReasonCode[] = [CancellationReasonCode.EXPIRED];
+
+const CANCELLATION_OPTIONS = Object.values(CancellationReasonCode)
+  .filter((code) => !SYSTEM_ONLY_CANCELLATION_CODES.includes(code))
+  .map((code) => ({
+    value: code,
+    label: code.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+  }));
 
 const REJECTION_OPTIONS = Object.values(RejectionReasonCode).map((code) => ({
   value: code,

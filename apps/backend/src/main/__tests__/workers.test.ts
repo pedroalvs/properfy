@@ -68,6 +68,8 @@ async function callRegisterWorkers(logger: ReturnType<typeof makeLogger>) {
     makeWorkerMock() as any,   // notifyStuckInspectionsWorker
     makeWorkerMock() as any,   // auditRetentionWorker
     makeWorkerMock() as any,   // rejectUnconfirmedWorker
+    makeWorkerMock() as any,   // cancelOverdueWorker
+    makeWorkerMock() as any,   // cancelEmptyGroupsWorker
     { deliver: vi.fn().mockResolvedValue(undefined) } as any, // fyWebhookDispatcher
     logger as any,
   );
@@ -95,6 +97,8 @@ describe('registerWorkers — cron schedules anchored to Australia/Sydney', () =
     ['inspection-execution.notify-not-started', '0 * * * *'],
     ['audit.retention', '30 3 * * *'],
     ['appointment.reject-unconfirmed', '0 19 * * *'],
+    ['appointment.cancel-overdue', '10 0 * * *'],
+    ['service-group.cancel-empty', '20 0 * * *'],
     ['system.dlq-monitor', '*/5 * * * *'],
   ];
 

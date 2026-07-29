@@ -5,6 +5,8 @@ import type {
   RestrictionSource as PrismaRestrictionSource,
   Prisma,
 } from '@prisma/client';
+import { OVERDUE_ELIGIBLE_STATUSES } from '@properfy/shared';
+import { startOfPlatformToday } from '../../../shared/domain/timezone-date';
 import { AppointmentEntity } from '../domain/appointment.entity';
 import { AppointmentContactEntity } from '../domain/appointment-contact.entity';
 import { AppointmentRestrictionEntity } from '../domain/appointment-restriction.entity';
@@ -475,10 +477,8 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     const where: Record<string, unknown> = { deleted_at: null };
     if (filters.tenantId) where['tenant_id'] = filters.tenantId;
     if (filters.overdueOnly) {
-      where['status'] = { in: ['SCHEDULED', 'AWAITING_INSPECTOR'] };
-      const todayUtc = new Date();
-      todayUtc.setUTCHours(0, 0, 0, 0);
-      where['scheduled_date'] = { lt: todayUtc };
+      where['status'] = { in: [...OVERDUE_ELIGIBLE_STATUSES] };
+      where['scheduled_date'] = { lt: startOfPlatformToday() };
     } else {
       if (filters.status && filters.status.length > 0) {
         where['status'] = { in: filters.status };
@@ -684,6 +684,25 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         status: { notIn: ['DONE', 'CANCELLED', 'REJECTED'] },
         deleted_at: null,
       },
+    });
+
+    return rows.map(mapToEntity);
+  }
+
+  async findOverdueActive(beforeDate: Date, limit: number): Promise<AppointmentEntity[]> {
+    // Cross-tenant: background job processes all tenants, so there is deliberately
+    // no tenant_id filter here. The caller is the scheduled sweep, not a request.
+    // scheduled_date is a @db.Date pinned to UTC midnight; callers must pass UTC
+    // midnight of the *Sydney* civil date that counts as "today" (startOfPlatformToday).
+    const rows = await this.prisma.appointment.findMany({
+      where: {
+        scheduled_date: { lt: beforeDate },
+        status: { in: [...OVERDUE_ELIGIBLE_STATUSES] },
+        deleted_at: null,
+      },
+      // Oldest first: the longest-dead appointments drain out of a backlog first.
+      orderBy: { scheduled_date: 'asc' },
+      take: limit,
     });
 
     return rows.map(mapToEntity);

@@ -93,6 +93,16 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     private readonly prisma: PrismaClient,
   ) {}
 
+  async findIdsByStatuses(statuses: string[]): Promise<string[]> {
+    const rows = await this.prisma.serviceGroup.findMany({
+      where: { status: { in: statuses as PrismaServiceGroupStatus[] } },
+      select: { id: true },
+      // Oldest schedule first so a backlog is worked through in a stable order.
+      orderBy: { scheduled_date: 'asc' },
+    });
+    return rows.map((r) => r.id);
+  }
+
   async findById(
     id: string,
     _tenantId: string | null,
@@ -411,6 +421,32 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       },
     });
     return result.count;
+  }
+
+  async cancelOptimistic(id: string, expectedStatus: string): Promise<number> {
+    // Both preconditions must be evaluated in the same statement as the write:
+    //
+    //  - status unchanged, so two concurrent cleanups cannot both claim the group;
+    //  - still nothing to execute, so an appointment linked in between the caller's
+    //    read and this write is not orphaned onto a CANCELLED group.
+    //
+    // The NOT EXISTS expresses `isServiceGroupDead` exactly: a group is dead iff no
+    // live member and no DONE member, which collapses to "no non-deleted member
+    // outside {CANCELLED, REJECTED}". Raw SQL because Prisma's updateMany cannot
+    // express NOT EXISTS. Returns the affected row count, like acceptOptimistic.
+    return this.prisma.$executeRaw`
+      UPDATE service_groups sg
+         SET status = 'CANCELLED', updated_at = NOW()
+       WHERE sg.id = ${id}
+         AND sg.status::text = ${expectedStatus}
+         AND NOT EXISTS (
+               SELECT 1
+                 FROM appointments a
+                WHERE a.service_group_id = sg.id
+                  AND a.deleted_at IS NULL
+                  AND a.status NOT IN ('CANCELLED', 'REJECTED')
+             )
+    `;
   }
 
   async findPublishedForInspector(

@@ -119,6 +119,7 @@ describe('JoinGroupUseCase', () => {
   let auditService: { log: ReturnType<typeof vi.fn> };
   let statusTransition: { execute: ReturnType<typeof vi.fn> };
   let notificationHandler: { execute: ReturnType<typeof vi.fn> };
+  let cancelEmptyGroup: { cancelIfDead: ReturnType<typeof vi.fn> };
   let useCase: JoinGroupUseCase;
 
   beforeEach(() => {
@@ -159,6 +160,7 @@ describe('JoinGroupUseCase', () => {
       }),
     };
     notificationHandler = { execute: vi.fn().mockResolvedValue(undefined) };
+    cancelEmptyGroup = { cancelIfDead: vi.fn().mockResolvedValue(false) };
 
     useCase = new JoinGroupUseCase(
       appointmentRepo as any,
@@ -168,7 +170,61 @@ describe('JoinGroupUseCase', () => {
       auditService as any,
       statusTransition as any,
       notificationHandler,
+      cancelEmptyGroup,
     );
+  });
+
+  // The tenant moving groups can leave the old one with nothing to execute. The
+  // transition event carries the NEW group id, so the empty-group subscriber cannot
+  // see this case — this flow has to check the vacated group itself.
+  describe('vacated group cleanup', () => {
+    it('checks the group the tenant left', async () => {
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ serviceGroupId: 'old-group' }),
+        contact: null,
+        restrictions: [],
+      });
+
+      await useCase.execute(makeInput());
+
+      expect(cancelEmptyGroup.cancelIfDead).toHaveBeenCalledWith('old-group');
+    });
+
+    it('does not check anything when the appointment had no group', async () => {
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ serviceGroupId: null }),
+        contact: null,
+        restrictions: [],
+      });
+
+      await useCase.execute(makeInput());
+
+      expect(cancelEmptyGroup.cancelIfDead).not.toHaveBeenCalled();
+    });
+
+    it('still completes the join when the cleanup rejects', async () => {
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ serviceGroupId: 'old-group' }),
+        contact: null,
+        restrictions: [],
+      });
+      cancelEmptyGroup.cancelIfDead.mockRejectedValue(new Error('db down'));
+
+      await expect(useCase.execute(makeInput())).resolves.toBeDefined();
+    });
+
+    it('does not make the tenant wait on the cleanup', async () => {
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ serviceGroupId: 'old-group' }),
+        contact: null,
+        restrictions: [],
+      });
+      // A cleanup that never settles must not hold the join response open.
+      cancelEmptyGroup.cancelIfDead.mockReturnValue(new Promise(() => {}));
+
+      await expect(useCase.execute(makeInput())).resolves.toBeDefined();
+      expect(cancelEmptyGroup.cancelIfDead).toHaveBeenCalledWith('old-group');
+    });
   });
 
   it('should allow joining a group after the portal token expired (isReadOnly)', async () => {
