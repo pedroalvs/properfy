@@ -3,6 +3,7 @@ import { TopBar } from '@/components/shell/TopBar';
 import { useMyInvoices } from '../hooks/useInspectorInvoices';
 import { invoiceStatusBadge, formatInvoiceCurrency } from '../lib/invoiceStatus';
 import { getErrorMessage } from '@/lib/api-error';
+import { formatCivilDate } from '@/lib/format-date';
 
 export function InvoiceListScreen() {
   const navigate = useNavigate();
@@ -50,7 +51,7 @@ export function InvoiceListScreen() {
             >
               <div>
                 <p className="text-sm font-semibold text-text-primary">{inv.invoiceNumberDisplay ?? 'Awaiting number'}</p>
-                <p className="mt-0.5 text-xs text-text-secondary">{inv.periodStart} → {inv.periodEnd}</p>
+                <p className="mt-0.5 text-xs text-text-secondary">{formatCivilDate(inv.periodStart)} → {formatCivilDate(inv.periodEnd)}</p>
                 <p className="mt-1 text-base font-bold text-text-primary">{formatInvoiceCurrency(inv.totalAmount, inv.currency)}</p>
               </div>
               <div className="flex flex-col items-end gap-1">

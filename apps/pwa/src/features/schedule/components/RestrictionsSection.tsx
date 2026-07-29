@@ -1,4 +1,5 @@
 import type { AppointmentRestrictionDetail } from '../types';
+import { formatWallTimeWindow } from '@/lib/format-date';
 
 interface RestrictionsSectionProps {
   restrictions: AppointmentRestrictionDetail[];
@@ -36,7 +37,7 @@ export function RestrictionsSection({ restrictions, summary }: RestrictionsSecti
               {restriction.unavailableHours.length > 0 && (
                 <p className="mt-1 text-sm text-text-primary">
                   <span className="font-semibold">Unavailable hours:</span>{' '}
-                  {restriction.unavailableHours.join(', ')}
+                  {restriction.unavailableHours.map(formatWallTimeWindow).join(', ')}
                 </p>
               )}
               {restriction.notes && (
