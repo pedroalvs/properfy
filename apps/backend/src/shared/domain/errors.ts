@@ -47,7 +47,12 @@ export class ValidationError extends DomainError {
 }
 
 export class TooManyRequestsError extends DomainError {
-  constructor(code: string, message: string, public readonly retryAfter?: string) {
+  /** Prefer a number of seconds — that is what the shared client types
+   * (`retryAfter?: number`) and what it would otherwise parse out of the
+   * `Retry-After` header. A non-numeric string here is worse than omitting it:
+   * `withRetryAfter` on the web only falls back to the header when this is
+   * undefined, so a value like "1 minute" silently suppresses the real one. */
+  constructor(code: string, message: string, public readonly retryAfter?: string | number) {
     super(code, message, 429);
     this.name = 'TooManyRequestsError';
   }
