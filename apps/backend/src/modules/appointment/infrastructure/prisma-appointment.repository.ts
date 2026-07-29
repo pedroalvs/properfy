@@ -222,7 +222,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
           // (mirrors findById's in-memory sort). Without this, contacts[0] below is arbitrary.
           orderBy: [{ is_primary: 'desc' }, { created_at: 'asc' }],
         },
-        property: { select: { property_code: true, street: true, suburb: true, state: true, postcode: true, lat: true, lng: true } },
+        property: { select: { property_code: true, street: true, suburb: true, state: true, postcode: true, lat: true, lng: true, total_area_m2: true } },
         tenant: { select: { name: true, appointment_code_prefix: true } },
         branch: { select: { name: true } },
         service_type: { select: { name: true, flow_type: true } },
@@ -243,6 +243,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         propertySuburb: row.property?.suburb ?? '',
         propertyLatitude: row.property?.lat != null ? Number(row.property.lat) : null,
         propertyLongitude: row.property?.lng != null ? Number(row.property.lng) : null,
+        propertyTotalAreaM2: row.property?.total_area_m2 != null ? Number(row.property.total_area_m2) : null,
         tenantName: row.tenant?.name ?? '',
         tenantAppointmentCodePrefix,
         branchName: row.branch?.name ?? '',

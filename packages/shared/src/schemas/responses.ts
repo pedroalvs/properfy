@@ -326,7 +326,9 @@ export const appointmentResponseSchema = z.object({
   // Geographic coordinates propagated from the appointment's property (for map views)
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
-  // Property detail attributes (detail endpoint; nullable — legacy properties have no values)
+  // Property detail attributes (nullable — legacy properties have no values).
+  // Detail endpoint only, except `propertyTotalAreaM2`, which the list endpoint also
+  // returns so the appointments board card can render square metres.
   propertyType: z.enum(PROPERTY_TYPE_VALUES).nullable().optional(),
   propertyAddressLine2: z.string().nullable().optional(),
   propertyPrivateAreaM2: z.number().nullable().optional(),

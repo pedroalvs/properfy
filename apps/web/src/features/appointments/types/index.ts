@@ -44,6 +44,8 @@ export interface Appointment {
   serviceGroupCode?: string | null;
   isOverdue: boolean;
   hasRentalTenantNote: boolean;
+  /** Property total area in m²; null for legacy properties with no recorded area. */
+  propertyTotalAreaM2?: number | null;
   createdAt: string;
   updatedAt: string;
 }

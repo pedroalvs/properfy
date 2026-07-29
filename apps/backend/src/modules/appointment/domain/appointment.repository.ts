@@ -95,6 +95,11 @@ export interface AppointmentListItem {
   propertySuburb?: string;
   propertyLatitude: number | null;
   propertyLongitude: number | null;
+  /**
+   * Property total area in m². Optional because `findVisibleForInspector` builds
+   * `AppointmentListItem`s from a narrower select that does not join the column.
+   */
+  propertyTotalAreaM2?: number | null;
   tenantName: string;
   /** Tenant's appointment code prefix (e.g. "INS"), used to format appointment codes. */
   tenantAppointmentCodePrefix: string | null;

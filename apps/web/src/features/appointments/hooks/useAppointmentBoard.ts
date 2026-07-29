@@ -1,0 +1,161 @@
+import { useCallback, useMemo, useState } from 'react';
+import type { AppointmentStatus } from '@properfy/shared';
+import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
+import { useUrlFilters } from '@/hooks/useUrlFilters';
+import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
+import { APPOINTMENT_FILTER_SCHEMA } from './useAppointmentList';
+import type { Appointment, AppointmentFiltersState } from '../types';
+
+/**
+ * Columns of the "Service Dashboard" board, in the order defined by the client
+ * scope doc §4.3. `DRAFT` is deliberately absent — draft appointments are only
+ * reachable from the list view, and the board surfaces a notice saying so.
+ */
+export const BOARD_COLUMN_STATUSES = [
+  'AWAITING_INSPECTOR',
+  'SCHEDULED',
+  'REJECTED',
+  'CANCELLED',
+  'DONE',
+] as const satisfies ReadonlyArray<AppointmentStatus>;
+
+export type BoardColumnStatus = (typeof BOARD_COLUMN_STATUSES)[number];
+
+/**
+ * `overdueOnly` is defined server-side as "status IN (SCHEDULED,
+ * AWAITING_INSPECTOR) AND scheduled_date < today", and that branch REPLACES any
+ * status filter. Forwarding it to the other three columns would fill them with
+ * scheduled work; those columns genuinely hold zero overdue rows, so we skip
+ * their requests entirely instead.
+ */
+const OVERDUE_ELIGIBLE_STATUSES: ReadonlyArray<BoardColumnStatus> = ['AWAITING_INSPECTOR', 'SCHEDULED'];
+
+/** Cards fetched per column initially, and added by each "Load more". */
+export const BOARD_COLUMN_PAGE_SIZE = 20;
+
+export interface BoardColumn {
+  status: BoardColumnStatus;
+  label: string;
+  /** Cards currently loaded (never more than `total`). */
+  items: Appointment[];
+  /** True per-status total from the server, independent of how many are loaded. */
+  total: number;
+  isLoading: boolean;
+  isError: boolean;
+  errorMessage: string | null;
+  hasMore: boolean;
+  loadMore: () => void;
+  refetch: () => void;
+}
+
+export interface UseAppointmentBoardReturn {
+  columns: BoardColumn[];
+  /** Every loaded card across all columns — backs cross-column bulk selection. */
+  allItems: Appointment[];
+  filters: AppointmentFiltersState;
+  setFilters: (filters: AppointmentFiltersState) => void;
+  refetchAll: () => void;
+}
+
+/** Shared filter params sent by every column (each adds its own `status`). */
+function buildSharedParams(filters: AppointmentFiltersState): ListParams {
+  return {
+    rentalTenantConfirmationStatus: filters.rentalTenantConfirmationStatus || undefined,
+    tenantId: filters.tenantId || undefined,
+    branchId: filters.branchId || undefined,
+    serviceTypeId: filters.serviceTypeId || undefined,
+    search: filters.search || undefined,
+    fromDate: filters.startDate || undefined,
+    toDate: filters.endDate || undefined,
+    overdueOnly: filters.overdueOnly ? 'true' : undefined,
+    // `showCancelled` is intentionally omitted: the backend only applies it when
+    // no explicit status filter is present, and every column always sends one.
+  };
+}
+
+/**
+ * One column's data. Called an unconditional, fixed number of times from
+ * `useAppointmentBoard`, so the rules of hooks hold.
+ */
+function useBoardColumn(status: BoardColumnStatus, filters: AppointmentFiltersState): BoardColumn {
+  const [pageSize, setPageSize] = useState(BOARD_COLUMN_PAGE_SIZE);
+
+  const enabled = !filters.overdueOnly || OVERDUE_ELIGIBLE_STATUSES.includes(status);
+
+  const params: ListParams = {
+    ...buildSharedParams(filters),
+    status,
+    page: 1,
+    pageSize,
+  };
+
+  // Shares the ['appointments'] key prefix with the list, so every existing
+  // mutation hook that invalidates ['appointments'] refreshes the board too.
+  const { data, isLoading, isError, error, refetch } = usePaginatedQuery<Appointment>(
+    ['appointments'],
+    '/v1/appointments',
+    params,
+    { enabled },
+  );
+
+  const items = useMemo(() => (enabled ? (data?.data ?? []) : []), [enabled, data]);
+  const total = enabled ? (data?.pagination.total ?? 0) : 0;
+
+  const loadMore = useCallback(() => {
+    setPageSize((current) => current + BOARD_COLUMN_PAGE_SIZE);
+  }, []);
+
+  return useMemo(
+    () => ({
+      status,
+      label: APPOINTMENT_STATUS_MAP[status].label,
+      items,
+      total,
+      isLoading: enabled && isLoading,
+      isError: enabled && isError,
+      errorMessage: error?.message ?? null,
+      hasMore: items.length < total,
+      loadMore,
+      refetch,
+    }),
+    [status, items, total, enabled, isLoading, isError, error, loadMore, refetch],
+  );
+}
+
+/**
+ * Board data: five independent per-status queries sharing one set of URL
+ * filters with the list screen. Separate queries (rather than one multi-status
+ * query) are what give each column its own true total and its own "Load more".
+ */
+export function useAppointmentBoard(): UseAppointmentBoardReturn {
+  const [urlFilters, setFilter] = useUrlFilters(APPOINTMENT_FILTER_SCHEMA);
+  const filters = urlFilters as AppointmentFiltersState;
+
+  const setFilters = useCallback(
+    (next: AppointmentFiltersState) => {
+      for (const key of Object.keys(APPOINTMENT_FILTER_SCHEMA) as (keyof typeof APPOINTMENT_FILTER_SCHEMA)[]) {
+        if (next[key] !== filters[key]) setFilter(key, next[key]);
+      }
+    },
+    [filters, setFilter],
+  );
+
+  const awaitingInspector = useBoardColumn('AWAITING_INSPECTOR', filters);
+  const scheduled = useBoardColumn('SCHEDULED', filters);
+  const rejected = useBoardColumn('REJECTED', filters);
+  const cancelled = useBoardColumn('CANCELLED', filters);
+  const done = useBoardColumn('DONE', filters);
+
+  const columns = useMemo(
+    () => [awaitingInspector, scheduled, rejected, cancelled, done],
+    [awaitingInspector, scheduled, rejected, cancelled, done],
+  );
+
+  const allItems = useMemo(() => columns.flatMap((column) => column.items), [columns]);
+
+  const refetchAll = useCallback(() => {
+    for (const column of columns) column.refetch();
+  }, [columns]);
+
+  return { columns, allItems, filters, setFilters, refetchAll };
+}

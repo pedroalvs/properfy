@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/hooks/useAuth';
@@ -8,12 +8,14 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 import { AppointmentFilters } from '../components/AppointmentFilters';
 import { AppointmentTable } from '../components/AppointmentTable';
 import { AppointmentFormDrawer } from '../components/AppointmentFormDrawer';
+import { AppointmentBulkActionBar } from '../components/AppointmentBulkActionBar';
 import { BulkEditModal } from '../components/BulkEditModal';
 import { useAppointmentList } from '../hooks/useAppointmentList';
 import { useBulkResendReminder } from '../hooks/useBulkResendReminder';
 
 export function AppointmentListPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { canPerform, hasRole } = usePermissions();
   const { user } = useAuth();
@@ -80,6 +82,8 @@ export function AppointmentListPage() {
   const canBulkEdit = canPerform('appointment.cancel');
   const canBulkResend = canPerform('appointment.bulk_resend_reminder');
   const canViewMap = true;
+  // Board is the admin "Service Dashboard" (client scope §4.3) — AM/OP only.
+  const canViewBoard = isGlobalRole;
 
   // `/appointments/new` redirects here with `?new=1` — the create form lives in
   // this drawer only, so there is no second copy to drift. The param is dropped
@@ -125,6 +129,8 @@ export function AppointmentListPage() {
         primaryAction={canCreate ? { label: 'New Appointment', icon: 'mdi-plus', onClick: () => { setEditId(null); setFormOpen(true); } } : undefined}
         secondaryActions={[
           ...(canMapImport ? [{ label: 'Import', icon: 'mdi-upload', onClick: () => navigate('/appointments/import') }] : []),
+          // Carry the active filters across — both screens read the same URL params.
+          ...(canViewBoard ? [{ label: 'Board', icon: 'mdi-view-column-outline', onClick: () => navigate({ pathname: '/appointments/board', search: location.search }) }] : []),
           ...(canViewMap ? [{ label: 'Map View', icon: 'mdi-map-outline', onClick: () => navigate('/map') }] : []),
         ]}
       >
@@ -157,37 +163,15 @@ export function AppointmentListPage() {
           refetch();
         }}
       />
-      {canBulkEdit && selectedIds.length > 0 && (
-        <div className="fixed bottom-0 left-[75px] right-0 z-40 flex items-center justify-between border-t border-border-subtle bg-card-bg px-6 py-3 shadow-lg">
-          <span className="text-sm font-medium text-text-primary">
-            {selectedIds.length} appointment{selectedIds.length !== 1 ? 's' : ''} selected
-          </span>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSelectedIds([])}
-              className="text-sm text-text-secondary hover:text-text-primary"
-            >
-              Clear selection
-            </button>
-            {canBulkResend ? (
-              <button
-                onClick={handleBulkResend}
-                disabled={bulkResend.isPending}
-                className="inline-flex h-9 items-center gap-2 rounded border border-real-estate px-4 text-sm font-semibold text-real-estate hover:bg-real-estate/10 disabled:opacity-60"
-              >
-                <i className="mdi mdi-email-send-outline text-base" />
-                Re-send reminder ({selectedIds.length})
-              </button>
-            ) : null}
-            <button
-              onClick={() => setBulkEditOpen(true)}
-              className="inline-flex h-9 items-center gap-2 rounded bg-real-estate px-4 text-sm font-semibold text-white hover:brightness-95 active:brightness-90"
-            >
-              <i className="mdi mdi-pencil-outline text-base" />
-              Bulk Edit ({selectedIds.length})
-            </button>
-          </div>
-        </div>
+      {canBulkEdit && (
+        <AppointmentBulkActionBar
+          selectedCount={selectedIds.length}
+          onClearSelection={() => setSelectedIds([])}
+          onBulkEdit={() => setBulkEditOpen(true)}
+          canBulkResend={canBulkResend}
+          onBulkResend={handleBulkResend}
+          resendPending={bulkResend.isPending}
+        />
       )}
       <BulkEditModal
         selectedAppointments={data.filter((a) => selectedIds.includes(a.id))}

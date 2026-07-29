@@ -22,6 +22,7 @@ const ForgotPasswordPage = Loadable(lazyRetry(() => import('@/features/auth/page
 const ResetPasswordPage = Loadable(lazyRetry(() => import('@/features/auth/pages/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage }))));
 const AppointmentListPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentListPage').then(m => ({ default: m.AppointmentListPage }))));
 const AppointmentDetailPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentDetailPage').then(m => ({ default: m.AppointmentDetailPage }))));
+const AppointmentBoardPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentBoardPage').then(m => ({ default: m.AppointmentBoardPage }))));
 const AppointmentImportPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentImportPage').then(m => ({ default: m.AppointmentImportPage }))));
 const PropertyListPage = Loadable(lazyRetry(() => import('@/features/properties/pages/PropertyListPage').then(m => ({ default: m.PropertyListPage }))));
 const PropertyCreatePage = Loadable(lazyRetry(() => import('@/features/properties/pages/PropertyCreatePage').then(m => ({ default: m.PropertyCreatePage }))));
@@ -161,6 +162,18 @@ export const router = createBrowserRouter([
             // Back-compat: the map moved from /appointments to /map.
             path: 'appointments/map',
             element: <Navigate to="/map" replace />,
+          },
+          {
+            // "Service Dashboard" board (client scope §4.3). Admin-only per the
+            // approved backlog. Full-height so the five columns scroll
+            // independently inside the viewport instead of the page scrolling.
+            path: 'appointments/board',
+            handle: { fullHeight: true },
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
+                <AppointmentBoardPage />
+              </AuthGuard>
+            ),
           },
           {
             path: 'appointments/:id',

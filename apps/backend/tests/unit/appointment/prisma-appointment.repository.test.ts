@@ -167,3 +167,98 @@ describe('PrismaAppointmentRepository date filters', () => {
     );
   });
 });
+
+describe('PrismaAppointmentRepository property total area', () => {
+  const findMany = vi.fn();
+  const prisma = { appointment: { findMany, count: vi.fn() } } as any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    findMany.mockResolvedValue([]);
+  });
+
+  function makeRow(totalAreaM2: unknown) {
+    return {
+      id: 'appt-1',
+      tenant_id: 'tenant-1',
+      branch_id: 'branch-1',
+      property_id: 'property-1',
+      service_type_id: 'svc-1',
+      inspector_id: null,
+      status: 'DRAFT',
+      scheduled_date: new Date('2026-04-01'),
+      time_slot_start: '09:00',
+      time_slot_end: '10:00',
+      key_required: false,
+      meeting_location: null,
+      key_location: null,
+      rental_tenant_confirmation_status: 'PENDING',
+      price_amount: null,
+      payout_amount: null,
+      pricing_rule_snapshot_json: {},
+      notes: null,
+      custom_fields_json: null,
+      reason: null,
+      created_by_user_id: 'user-1',
+      done_marked_by_user_id: null,
+      done_checked_by_user_id: null,
+      done_checked_at: null,
+      service_group_id: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+      deleted_at: null,
+      contacts: [],
+      property: {
+        property_code: 'PROP-001',
+        street: '21 King St',
+        suburb: 'Sydney',
+        state: 'NSW',
+        postcode: '2000',
+        lat: null,
+        lng: null,
+        total_area_m2: totalAreaM2,
+      },
+      tenant: { name: 'Agency', appointment_code_prefix: 'INS' },
+      branch: { name: 'Main' },
+      service_type: { name: 'Routine', flow_type: 'ROUTINE' },
+      inspector: null,
+      service_group: null,
+    };
+  }
+
+  it('selects total_area_m2 on the property relation', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll({}, { page: 1, pageSize: 10, sortOrder: 'asc' });
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          property: { select: expect.objectContaining({ total_area_m2: true }) },
+        }),
+      }),
+    );
+  });
+
+  it('converts the Prisma Decimal to a JS number', async () => {
+    // Prisma returns Decimal for @db.Decimal columns; without Number() the value
+    // serializes as an object and the m² card segment renders "[object Object]".
+    const decimalLike = { toString: () => '82.5', toNumber: () => 82.5 };
+    findMany.mockResolvedValue([makeRow(decimalLike)]);
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    const rows = await repo.findAll({}, { page: 1, pageSize: 10, sortOrder: 'asc' });
+
+    expect(rows[0]!.propertyTotalAreaM2).toBe(82.5);
+    expect(typeof rows[0]!.propertyTotalAreaM2).toBe('number');
+  });
+
+  it('maps a missing area to null', async () => {
+    findMany.mockResolvedValue([makeRow(null)]);
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    const rows = await repo.findAll({}, { page: 1, pageSize: 10, sortOrder: 'asc' });
+
+    expect(rows[0]!.propertyTotalAreaM2).toBeNull();
+  });
+});
