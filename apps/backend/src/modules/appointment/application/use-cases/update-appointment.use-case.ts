@@ -565,19 +565,40 @@ export class UpdateAppointmentUseCase {
       await this.appCredentialRepo.replaceAppointmentLinks(appointmentId, ids);
     }
 
-    // Upsert restriction: delete existing, create new if provided
+    // Upsert restriction: delete existing, create new if provided.
+    // The weekly availability a rental tenant offers when declining in the portal is
+    // stored on this same row but is not part of the operator's restriction form, so the
+    // delete-then-recreate below must carry it forward instead of dropping it.
     if (data.restriction !== undefined) {
+      const tenantAvailability = found.restrictions.find((r) => r.availableSlotsJson?.length);
       await this.appointmentRepo.deleteRestrictionsByAppointmentId(appointmentId);
+      const now = this.clock.now();
       if (data.restriction !== null) {
-        const now = this.clock.now();
         const restriction = new AppointmentRestrictionEntity({
           id: crypto.randomUUID(),
           appointmentId,
           isHome: data.restriction.isHome,
           unavailableDaysJson: data.restriction.unavailableDays ?? null,
           unavailableHoursJson: data.restriction.unavailableHours ?? null,
+          availableSlotsJson: tenantAvailability?.availableSlotsJson ?? null,
           notes: data.restriction.notes ?? null,
           source: data.restriction.source,
+          createdAt: now,
+          updatedAt: now,
+        });
+        await this.appointmentRepo.saveRestriction(restriction);
+      } else if (tenantAvailability) {
+        // Clearing the operator's own restriction is not licence to delete what the
+        // rental tenant submitted: keep a row carrying only their availability.
+        const restriction = new AppointmentRestrictionEntity({
+          id: crypto.randomUUID(),
+          appointmentId,
+          isHome: false,
+          unavailableDaysJson: null,
+          unavailableHoursJson: null,
+          availableSlotsJson: tenantAvailability.availableSlotsJson,
+          notes: null,
+          source: tenantAvailability.source,
           createdAt: now,
           updatedAt: now,
         });
