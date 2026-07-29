@@ -10,8 +10,8 @@ export interface AppFormData {
   name: string;
   username: string;
   password: string;
+  /** Whether the app prompts for an out-of-band code; the code itself is not stored. */
   needsAuthCode: boolean;
-  authCode: string;
   appUrl: string;
   instructionsUrl: string;
   instructionsPassword: string;
@@ -28,7 +28,6 @@ export const EMPTY_APP_FORM: AppFormData = {
   username: '',
   password: '',
   needsAuthCode: false,
-  authCode: '',
   appUrl: '',
   instructionsUrl: '',
   instructionsPassword: '',

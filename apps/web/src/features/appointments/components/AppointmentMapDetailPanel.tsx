@@ -321,10 +321,8 @@ function renderSectionContent(key: SectionKey, ctx: SectionCtx): ReactNode {
               <div className="text-text-muted">
                 Password: <SecretValue value={a.password} maskable label="password" />
               </div>
-              {a.needsAuthCode && a.authCode && (
-                <div className="text-text-muted">
-                  Auth code: <SecretValue value={a.authCode} maskable label="auth code" />
-                </div>
+              {a.needsAuthCode && (
+                <div className="text-text-muted">Requires authentication code</div>
               )}
               {(a.appUrl || a.instructionsUrl) && (
                 <div className="flex gap-3 text-text-muted">

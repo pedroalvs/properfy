@@ -4512,7 +4512,6 @@ export interface paths {
                                     username: string;
                                     password: string;
                                     needsAuthCode: boolean;
-                                    authCode: string | null;
                                     appUrl: string | null;
                                     instructionsUrl: string | null;
                                     instructionsPassword: string | null;
@@ -4709,7 +4708,6 @@ export interface paths {
                                     username: string;
                                     password: string;
                                     needsAuthCode: boolean;
-                                    authCode: string | null;
                                     appUrl: string | null;
                                     instructionsUrl: string | null;
                                     instructionsPassword: string | null;
@@ -4831,7 +4829,6 @@ export interface paths {
                                     username: string;
                                     password: string;
                                     needsAuthCode: boolean;
-                                    authCode: string | null;
                                     appUrl: string | null;
                                     instructionsUrl: string | null;
                                     instructionsPassword: string | null;
@@ -5028,7 +5025,6 @@ export interface paths {
                                     username: string;
                                     password: string;
                                     needsAuthCode: boolean;
-                                    authCode: string | null;
                                     appUrl: string | null;
                                     instructionsUrl: string | null;
                                     instructionsPassword: string | null;
@@ -8389,7 +8385,6 @@ export interface paths {
                                     username: string;
                                     password: string;
                                     needsAuthCode: boolean;
-                                    authCode: string | null;
                                     appUrl: string | null;
                                     instructionsUrl: string | null;
                                     instructionsPassword: string | null;
@@ -11493,7 +11488,6 @@ export interface paths {
                                 username: string;
                                 password: string;
                                 needsAuthCode: boolean;
-                                authCode: string | null;
                                 appUrl: string | null;
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;
@@ -11537,7 +11531,6 @@ export interface paths {
                         password: string;
                         /** @default false */
                         needsAuthCode?: boolean;
-                        authCode?: string | null;
                         /** Format: uri */
                         appUrl?: string | null;
                         /** Format: uri */
@@ -11567,7 +11560,6 @@ export interface paths {
                                 username: string;
                                 password: string;
                                 needsAuthCode: boolean;
-                                authCode: string | null;
                                 appUrl: string | null;
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;
@@ -11625,7 +11617,6 @@ export interface paths {
                                 username: string;
                                 password: string;
                                 needsAuthCode: boolean;
-                                authCode: string | null;
                                 appUrl: string | null;
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;
@@ -11664,7 +11655,6 @@ export interface paths {
                         username?: string;
                         password?: string;
                         needsAuthCode?: boolean;
-                        authCode?: string | null;
                         /** Format: uri */
                         appUrl?: string | null;
                         /** Format: uri */
@@ -11694,7 +11684,6 @@ export interface paths {
                                 username: string;
                                 password: string;
                                 needsAuthCode: boolean;
-                                authCode: string | null;
                                 appUrl: string | null;
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;
@@ -11750,7 +11739,6 @@ export interface paths {
                                 username: string;
                                 password: string;
                                 needsAuthCode: boolean;
-                                authCode: string | null;
                                 appUrl: string | null;
                                 instructionsUrl: string | null;
                                 instructionsPassword: string | null;

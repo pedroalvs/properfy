@@ -12,10 +12,11 @@ export interface AppCredentialProps {
    * by the repository (encrypt-on-save / decrypt-on-read).
    */
   password: string;
-  /** When true, the app requires an authentication code (authCode must be set). */
+  /**
+   * Display-only flag: the app prompts for a rotating/one-time authentication
+   * code. No code is stored — the inspector obtains it out of band.
+   */
   needsAuthCode?: boolean;
-  /** Plaintext auth code — encrypted at rest by the repository, like password. */
-  authCode?: string | null;
   /** Link to download or access the app. */
   appUrl?: string | null;
   /** Link to usage instructions. */
@@ -41,7 +42,6 @@ export class AppCredentialEntity {
   readonly username: string;
   readonly password: string;
   readonly needsAuthCode: boolean;
-  readonly authCode: string | null;
   readonly appUrl: string | null;
   readonly instructionsUrl: string | null;
   readonly instructionsPassword: string | null;
@@ -58,7 +58,6 @@ export class AppCredentialEntity {
     this.username = props.username;
     this.password = props.password;
     this.needsAuthCode = props.needsAuthCode ?? false;
-    this.authCode = props.authCode ?? null;
     this.appUrl = props.appUrl ?? null;
     this.instructionsUrl = props.instructionsUrl ?? null;
     this.instructionsPassword = props.instructionsPassword ?? null;

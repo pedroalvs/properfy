@@ -11050,10 +11050,6 @@
                               "needsAuthCode": {
                                 "type": "boolean"
                               },
-                              "authCode": {
-                                "type": "string",
-                                "nullable": true
-                              },
                               "appUrl": {
                                 "type": "string",
                                 "nullable": true
@@ -11073,7 +11069,6 @@
                               "username",
                               "password",
                               "needsAuthCode",
-                              "authCode",
                               "appUrl",
                               "instructionsUrl",
                               "instructionsPassword"
@@ -11634,10 +11629,6 @@
                                 "needsAuthCode": {
                                   "type": "boolean"
                                 },
-                                "authCode": {
-                                  "type": "string",
-                                  "nullable": true
-                                },
                                 "appUrl": {
                                   "type": "string",
                                   "nullable": true
@@ -11657,7 +11648,6 @@
                                 "username",
                                 "password",
                                 "needsAuthCode",
-                                "authCode",
                                 "appUrl",
                                 "instructionsUrl",
                                 "instructionsPassword"
@@ -12021,10 +12011,6 @@
                               "needsAuthCode": {
                                 "type": "boolean"
                               },
-                              "authCode": {
-                                "type": "string",
-                                "nullable": true
-                              },
                               "appUrl": {
                                 "type": "string",
                                 "nullable": true
@@ -12044,7 +12030,6 @@
                               "username",
                               "password",
                               "needsAuthCode",
-                              "authCode",
                               "appUrl",
                               "instructionsUrl",
                               "instructionsPassword"
@@ -12670,10 +12655,6 @@
                               "needsAuthCode": {
                                 "type": "boolean"
                               },
-                              "authCode": {
-                                "type": "string",
-                                "nullable": true
-                              },
                               "appUrl": {
                                 "type": "string",
                                 "nullable": true
@@ -12693,7 +12674,6 @@
                               "username",
                               "password",
                               "needsAuthCode",
-                              "authCode",
                               "appUrl",
                               "instructionsUrl",
                               "instructionsPassword"
@@ -19466,10 +19446,6 @@
                               "needsAuthCode": {
                                 "type": "boolean"
                               },
-                              "authCode": {
-                                "type": "string",
-                                "nullable": true
-                              },
                               "appUrl": {
                                 "type": "string",
                                 "nullable": true
@@ -19489,7 +19465,6 @@
                               "username",
                               "password",
                               "needsAuthCode",
-                              "authCode",
                               "appUrl",
                               "instructionsUrl",
                               "instructionsPassword"
@@ -26205,12 +26180,6 @@
                     "type": "boolean",
                     "default": false
                   },
-                  "authCode": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 500,
-                    "nullable": true
-                  },
                   "appUrl": {
                     "type": "string",
                     "format": "uri",
@@ -26282,10 +26251,6 @@
                         "needsAuthCode": {
                           "type": "boolean"
                         },
-                        "authCode": {
-                          "type": "string",
-                          "nullable": true
-                        },
                         "appUrl": {
                           "type": "string",
                           "nullable": true
@@ -26321,7 +26286,6 @@
                         "username",
                         "password",
                         "needsAuthCode",
-                        "authCode",
                         "appUrl",
                         "instructionsUrl",
                         "instructionsPassword",
@@ -26470,10 +26434,6 @@
                           "needsAuthCode": {
                             "type": "boolean"
                           },
-                          "authCode": {
-                            "type": "string",
-                            "nullable": true
-                          },
                           "appUrl": {
                             "type": "string",
                             "nullable": true
@@ -26517,7 +26477,6 @@
                           "username",
                           "password",
                           "needsAuthCode",
-                          "authCode",
                           "appUrl",
                           "instructionsUrl",
                           "instructionsPassword",
@@ -26599,12 +26558,6 @@
                   "needsAuthCode": {
                     "type": "boolean"
                   },
-                  "authCode": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 500,
-                    "nullable": true
-                  },
                   "appUrl": {
                     "type": "string",
                     "format": "uri",
@@ -26682,10 +26635,6 @@
                         "needsAuthCode": {
                           "type": "boolean"
                         },
-                        "authCode": {
-                          "type": "string",
-                          "nullable": true
-                        },
                         "appUrl": {
                           "type": "string",
                           "nullable": true
@@ -26721,7 +26670,6 @@
                         "username",
                         "password",
                         "needsAuthCode",
-                        "authCode",
                         "appUrl",
                         "instructionsUrl",
                         "instructionsPassword",
@@ -26791,10 +26739,6 @@
                         "needsAuthCode": {
                           "type": "boolean"
                         },
-                        "authCode": {
-                          "type": "string",
-                          "nullable": true
-                        },
                         "appUrl": {
                           "type": "string",
                           "nullable": true
@@ -26830,7 +26774,6 @@
                         "username",
                         "password",
                         "needsAuthCode",
-                        "authCode",
                         "appUrl",
                         "instructionsUrl",
                         "instructionsPassword",
@@ -26902,10 +26845,6 @@
                         "needsAuthCode": {
                           "type": "boolean"
                         },
-                        "authCode": {
-                          "type": "string",
-                          "nullable": true
-                        },
                         "appUrl": {
                           "type": "string",
                           "nullable": true
@@ -26941,7 +26880,6 @@
                         "username",
                         "password",
                         "needsAuthCode",
-                        "authCode",
                         "appUrl",
                         "instructionsUrl",
                         "instructionsPassword",
