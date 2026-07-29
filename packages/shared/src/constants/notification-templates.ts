@@ -1,4 +1,5 @@
 import type { NotificationClass } from '../enums';
+import { formatCivilDate, formatWallTimeRange } from '../utils/format-display-date';
 
 /**
  * Canonical https URL of the Properfy logo used in email templates via the
@@ -265,11 +266,21 @@ export const ALLOWED_VARIABLES = [
 
 export type AllowedVariable = (typeof ALLOWED_VARIABLES)[number];
 
+/**
+ * Placeholder values the template editor substitutes to render its live preview.
+ *
+ * The temporal entries are produced by the same formatters that build the real
+ * outgoing payload (`buildNotificationPayload` calls `formatCivilDate` and
+ * `formatWallTimeRange`) rather than written out by hand. An operator tunes the
+ * wording against this preview and ships it, so a preview showing a shape the
+ * send never produces is worse than no preview. Deriving them means the two can
+ * not drift apart the next time the display format moves.
+ */
 export const SAMPLE_DATA: Record<AllowedVariable, string> = {
   rentalTenantName: 'John Smith',
   propertyAddress: '123 Main St, Sydney NSW 2000',
-  scheduledDate: '2026-04-15',
-  timeSlot: '09:00 - 12:00',
+  scheduledDate: formatCivilDate('2026-04-15'),
+  timeSlot: formatWallTimeRange('09:00', '12:00'),
   inspectorName: 'Jane Doe',
   confirmationLink: 'https://app.properfy.com/portal/abc123',
   rescheduleLink: 'https://app.properfy.com/portal/abc123',
