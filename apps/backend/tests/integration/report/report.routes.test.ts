@@ -11,6 +11,9 @@ const mockListReportsExecute = vi.fn();
 const mockProcessReportJobExecute = vi.fn();
 const mockJwtVerify = vi.fn();
 const mockAuditLog = vi.fn();
+// The auth middleware re-reads CL_USER flags from tenant settings rather than
+// trusting the JWT, so `view_financials` tests drive this rather than the token.
+const mockTenantFindById = vi.fn().mockResolvedValue({ isActive: () => true });
 
 vi.mock('../../../src/main/container', () => ({
   createContainer: () => createMockContainer({
@@ -36,6 +39,7 @@ vi.mock('../../../src/main/container', () => ({
       listReportsUseCase: { execute: mockListReportsExecute },
       processReportJobUseCase: { execute: mockProcessReportJobExecute },
       jwtService: { verify: mockJwtVerify },
+      tenantRepo: { findById: mockTenantFindById },
     },
     notification: { jwtService: { verify: mockJwtVerify } },
   }),
@@ -44,6 +48,8 @@ vi.mock('../../../src/main/container', () => ({
 const REPORT_ID = 'a1eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 const amContext = { userId: 'am-1', tenantId: null, role: 'AM', branchId: null, inspectorId: null };
 const clAdminContext = { userId: 'cl-1', tenantId: 'tenant-1', role: 'CL_ADMIN', branchId: null, inspectorId: null };
+const clUserContext = { userId: 'cl-2', tenantId: 'tenant-1', role: 'CL_USER', branchId: null, inspectorId: null, clUserPermissions: [] as string[] };
+const inspContext = { userId: 'insp-1', tenantId: 'tenant-1', role: 'INSP', branchId: null, inspectorId: 'i-1' };
 
 let app: FastifyInstance;
 
@@ -56,7 +62,11 @@ beforeAll(async () => {
 
 afterAll(async () => { await app.close(); });
 
-beforeEach(() => { vi.clearAllMocks(); });
+beforeEach(() => {
+  vi.clearAllMocks();
+  // clearAllMocks wipes the implementation too — restore the default active tenant.
+  mockTenantFindById.mockResolvedValue({ isActive: () => true });
+});
 
 const fullReport = {
   id: REPORT_ID,
@@ -114,13 +124,11 @@ describe('POST /v1/reports', () => {
     expect(res.body.message).toBe('Report generation request accepted');
   });
 
-  it('should return 403 when a non-operator requests a report', async () => {
-    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
-
-    const { ReportForbiddenError } = await import(
-      '../../../src/modules/report/domain/report.errors'
-    );
-    mockRequestReportExecute.mockRejectedValueOnce(new ReportForbiddenError());
+  // Denied at the route layer, so the use case is never reached. Deliberately
+  // queues NO `mockRejectedValueOnce`: an unconsumed Once value survives
+  // `clearAllMocks` and would leak into the next test in this file.
+  it('should return 403 when a disallowed role requests a report', async () => {
+    mockJwtVerify.mockResolvedValueOnce(inspContext);
 
     // Uses a valid new report type so the request reaches auth (body validation runs first).
     const res = await supertest(app.server)
@@ -129,6 +137,72 @@ describe('POST /v1/reports', () => {
       .send({ reportType: 'APPOINTMENTS', filters: { fromDate: '2026-01-01', toDate: '2026-03-01' } });
 
     expect(res.status).toBe(403);
+    expect(mockRequestReportExecute).not.toHaveBeenCalled();
+  });
+
+  it('should accept a report requested by CL_ADMIN', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    mockRequestReportExecute.mockResolvedValueOnce({
+      reportId: REPORT_ID,
+      status: 'PENDING',
+      reportType: 'APPOINTMENTS',
+      createdAt: new Date('2026-03-16T09:00:00.000Z'),
+    });
+
+    const res = await supertest(app.server)
+      .post('/v1/reports')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ reportType: 'APPOINTMENTS', filters: { fromDate: '2026-01-01', toDate: '2026-03-01' } });
+
+    expect(res.status).toBe(202);
+    expect(mockRequestReportExecute).toHaveBeenCalled();
+  });
+
+  // CL_USER reaches reports only when the agency enables `view_financials`, the
+  // same flag that unlocks /my-financial. Enforced at the route layer so the
+  // denial is audit-logged.
+  it('should return 403 for a CL_USER without the view_financials flag', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clUserContext);
+
+    const res = await supertest(app.server)
+      .post('/v1/reports')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ reportType: 'APPOINTMENTS', filters: { fromDate: '2026-01-01', toDate: '2026-03-01' } });
+
+    expect(res.status).toBe(403);
+    expect(mockRequestReportExecute).not.toHaveBeenCalled();
+  });
+
+  it('should accept a report requested by a CL_USER holding view_financials', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clUserContext);
+    mockTenantFindById.mockResolvedValue({
+      isActive: () => true,
+      settingsJson: { clUserPermissions: ['view_financials'] },
+    });
+    mockRequestReportExecute.mockResolvedValueOnce({
+      reportId: REPORT_ID,
+      status: 'PENDING',
+      reportType: 'APPOINTMENTS',
+      createdAt: new Date('2026-03-16T09:00:00.000Z'),
+    });
+
+    const res = await supertest(app.server)
+      .post('/v1/reports')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ reportType: 'APPOINTMENTS', filters: { fromDate: '2026-01-01', toDate: '2026-03-01' } });
+
+    expect(res.status).toBe(202);
+  });
+
+  it('should return 403 on GET /v1/reports for a CL_USER without the flag', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clUserContext);
+
+    const res = await supertest(app.server)
+      .get('/v1/reports')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(403);
+    expect(mockListReportsExecute).not.toHaveBeenCalled();
   });
 
   it('should return 400 for a removed legacy report type', async () => {

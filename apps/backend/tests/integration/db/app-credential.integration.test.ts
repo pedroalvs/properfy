@@ -129,12 +129,12 @@ describe('PrismaAppCredentialRepository (real DB)', () => {
     expect(await repo.findByAppointmentId(seed.appointmentA)).toHaveLength(0);
   });
 
-  it('encrypts authCode and instructionsPassword at rest and decrypts on read', async () => {
+  it('encrypts instructionsPassword at rest and decrypts on read', async () => {
     const now = new Date();
     const cred = new AppCredentialEntity({
       id: crypto.randomUUID(), tenantId: seed.tenantA, branchId: seed.branchA,
       name: 'Secure', username: 'sec', password: 'pw',
-      needsAuthCode: true, authCode: 'auth-code-1234',
+      needsAuthCode: true,
       appUrl: 'https://example.com/app', instructionsUrl: 'https://example.com/docs',
       instructionsPassword: 'instr-pass-999',
       isActive: true, createdAt: now, updatedAt: now,
@@ -142,22 +142,31 @@ describe('PrismaAppCredentialRepository (real DB)', () => {
     await repo.save(cred);
 
     const raw = await harness.prisma.appCredential.findUnique({ where: { id: cred.id } });
-    expect(raw!.auth_code_encrypted).not.toBe('auth-code-1234');
     expect(raw!.instructions_password_encrypted).not.toBe('instr-pass-999');
     expect(raw!.app_url).toBe('https://example.com/app');
     expect(raw!.branch_id).toBe(seed.branchA);
 
     const loaded = await repo.findById(cred.id);
-    expect(loaded!.authCode).toBe('auth-code-1234');
     expect(loaded!.instructionsPassword).toBe('instr-pass-999');
     expect(loaded!.needsAuthCode).toBe(true);
     expect(loaded!.instructionsUrl).toBe('https://example.com/docs');
 
-    // Clearing a secret nulls the stored column.
-    await repo.update(cred.id, { needsAuthCode: false, authCode: null, instructionsPassword: null });
+    // Clearing a secret nulls the stored column. needsAuthCode is a plain flag
+    // now — toggling it off no longer has a secret to clear alongside it.
+    await repo.update(cred.id, { needsAuthCode: false, instructionsPassword: null });
     const cleared = await repo.findById(cred.id);
-    expect(cleared!.authCode).toBeNull();
+    expect(cleared!.needsAuthCode).toBe(false);
     expect(cleared!.instructionsPassword).toBeNull();
+  });
+
+  it('no longer has an auth_code_encrypted column', async () => {
+    const columns = await harness.prisma.$queryRaw<{ column_name: string }[]>`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'app_credentials'
+    `;
+    const names = columns.map((c) => c.column_name);
+    expect(names).toContain('needs_auth_code');
+    expect(names).not.toContain('auth_code_encrypted');
   });
 
   it('legacy rows (null new columns) load with safe defaults', async () => {
@@ -166,7 +175,6 @@ describe('PrismaAppCredentialRepository (real DB)', () => {
     const loaded = await repo.findById(cred.id);
     expect(loaded!.branchId).toBeNull();
     expect(loaded!.needsAuthCode).toBe(false);
-    expect(loaded!.authCode).toBeNull();
     expect(loaded!.appUrl).toBeNull();
     expect(loaded!.instructionsUrl).toBeNull();
     expect(loaded!.instructionsPassword).toBeNull();

@@ -9,10 +9,12 @@ import {
   ServiceGroupDateInPastError,
   ServiceGroupTimeInPastError,
 } from '../../domain/service-group.errors';
-import { validateEditedSchedule, PLATFORM_TIMEZONE } from '@properfy/shared';
+import { validateEditedSchedule, PLATFORM_TIMEZONE, isTerminalAppointmentStatus } from '@properfy/shared';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
-import { getServiceGroupDateAdjustment } from '../../domain/service-group-date-sync';
-import type { ServiceGroupTimeSyncLogger } from '../sync-appointment-time-slot-to-group';
+import {
+  trySyncAppointmentScheduleToGroup,
+  type ServiceGroupTimeSyncLogger,
+} from '../sync-appointment-time-slot-to-group';
 
 /** Fields that can only be updated when the group is in DRAFT status. */
 const DRAFT_ONLY_FIELDS = [
@@ -123,29 +125,28 @@ export class UpdateServiceGroupUseCase {
     // changes, re-schedule every linked appointment to the new date.
     // Best-effort per member — the group update is already committed.
     if (updateData.scheduledDate !== undefined) {
+      const groupScheduledDate = updateData.scheduledDate;
       for (const appt of result.appointments) {
-        const adjustment = getServiceGroupDateAdjustment(appt.scheduledDate, updateData.scheduledDate);
-        if (!adjustment) continue;
-        try {
-          await this.appointmentRepo.update(appt.id, appt.tenantId, { scheduledDate: adjustment.scheduledDate });
-          this.auditService.log({
-            action: 'appointment.updated',
-            actorType: 'SYSTEM',
-            actorId: actor.userId,
-            entityType: 'Appointment',
-            entityId: appt.id,
-            tenantId: appt.tenantId,
-            before: adjustment.before,
-            after: { scheduledDate: adjustment.scheduledDate },
-            reason: 'Service group date changed',
-            metadata: { groupId, automaticDateSync: true },
-          });
-        } catch (err) {
-          this.logger.error(
-            { err, appointmentId: appt.id, tenantId: appt.tenantId, groupId },
-            'appointment schedule sync to group failed',
-          );
-        }
+        // Cancelling or rejecting an appointment does not unlink it from its
+        // group — ExecuteStatusTransitionUseCase never touches serviceGroupId —
+        // so a settled member can still be sitting here, and moving its date
+        // would rewrite a record rather than plan work. The guard lives at this
+        // caller rather than inside the helper because the group-join paths
+        // sync while an appointment is still REJECTED, just before promoting it
+        // to AWAITING_INSPECTOR.
+        if (isTerminalAppointmentStatus(appt.status)) continue;
+
+        // No time window: a date edit must leave every slot alone.
+        await trySyncAppointmentScheduleToGroup({
+          appointmentRepo: this.appointmentRepo,
+          auditService: this.auditService,
+          appointment: appt,
+          groupScheduledDate,
+          groupId,
+          actor,
+          logger: this.logger,
+          reason: 'Service group date changed',
+        });
       }
     }
 

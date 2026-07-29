@@ -695,6 +695,10 @@ model AppointmentContact {
 // needs on site. Managed by AM/OP only. `password_encrypted` holds the
 // base64(iv‖authTag‖ciphertext) produced by Aes256GcmService; the plaintext
 // password is shown in the UI but never stored in clear.
+//
+// `needs_auth_code` is a display-only flag: these apps issue rotating/one-time
+// codes, so no code is stored — it only tells the inspector to expect a code
+// prompt and obtain the code out of band.
 model AppCredential {
   id                              String   @id @default(uuid())
   tenant_id                       String
@@ -703,7 +707,6 @@ model AppCredential {
   username                        String   @db.VarChar(200)
   password_encrypted              String
   needs_auth_code                 Boolean  @default(false)
-  auth_code_encrypted             String?
   app_url                         String?  @db.VarChar(1000)
   instructions_url                String?  @db.VarChar(1000)
   instructions_password_encrypted String?
@@ -1305,6 +1308,13 @@ enum ReportStatus {
 model Report {
   id                   String       @id @default(uuid())
   tenant_id            String?
+  // Discriminates an agency-run report (CL_ADMIN / CL_USER, always scoped to
+  // its own tenant) from an operator run that merely *targets* one agency.
+  // `tenant_id` alone cannot answer that — both cases set it — yet the two
+  // differ in what the sheet may contain and in who may list/download it.
+  // A column rather than a `filters_json` key because access control must be a
+  // real WHERE predicate, not JSON introspection.
+  agency_scoped        Boolean      @default(false)
   report_type          ReportType
   filters_json         Json
   status               ReportStatus @default(PENDING)

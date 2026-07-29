@@ -1,6 +1,6 @@
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
-import { formatDateTime } from '@/lib/format-date';
+import { formatInstantDateTime } from '@/lib/format-date';
 import { ContactTypeChip } from './ContactTypeChip';
 import { ContactStatusBadge } from './ContactStatusBadge';
 import type { ContactDetail } from '../types';
@@ -44,8 +44,8 @@ export function ContactDetailSections({ contact }: ContactDetailSectionsProps) {
       )}
 
       <FormSection title="Record">
-        <DetailRow label="Created at" value={formatDateTime(contact.createdAt)} />
-        <DetailRow label="Updated at" value={formatDateTime(contact.updatedAt)} />
+        <DetailRow label="Created at" value={formatInstantDateTime(contact.createdAt)} />
+        <DetailRow label="Updated at" value={formatInstantDateTime(contact.updatedAt)} />
       </FormSection>
     </div>
   );

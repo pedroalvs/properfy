@@ -21,6 +21,7 @@ import { useBulkCrossCheckDone } from '../hooks/useBulkCrossCheckDone';
 import { useBulkStatusTransition } from '../hooks/useBulkStatusTransition';
 import type { ContactSearchResult } from '../hooks/useContactSearch';
 import type { Appointment } from '../types';
+import { DateInput } from '@/components/forms/DateInput';
 
 /** Toggle keys (one checkbox per row). The single `timeSlot` toggle drives a
  *  free start/end time range that emits BOTH `timeSlotStart` and `timeSlotEnd`
@@ -494,15 +495,12 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
             onToggle={() => toggleField('scheduledDate')}
             disabled={reviewed || changeStatus}
           >
-            <input
+            <DateInput
               id="bulk-scheduled-date"
               aria-label="Set scheduled date"
-              type="date"
               value={values.scheduledDate ?? ''}
-              onChange={(e) => setFieldValue('scheduledDate', e.target.value)}
-              onClick={(e) => e.currentTarget.showPicker?.()}
+              onChange={(v) => setFieldValue('scheduledDate', v)}
               min={todayInTzDateString(PLATFORM_TIMEZONE)}
-              className="w-full rounded border border-border-subtle bg-card-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-primary"
             />
           </FieldRow>
 

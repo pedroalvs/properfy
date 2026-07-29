@@ -1,5 +1,15 @@
 # Design Spec: Portal Inquilino — Redesign Completo (v2)
 
+> **HISTORICAL DESIGN RECORD — partly superseded.** This documents the 2026-05-24
+> redesign as it was decided at the time. Its **B3 decision was reversed**: the
+> "Propose new date" free-reschedule flow (`POST /v1/tenant-portal/:token/reschedule`,
+> `RescheduleForm.tsx`) was **removed entirely**, because it sent a `SCHEDULED`
+> appointment back to `DRAFT` and dropped the assigned inspector with no operator
+> approval. **"Change time" (join-group) is now the only reschedule path in the portal.**
+> Every mention below of "Propose new date" as a live secondary CTA — §1, §2, §3.6,
+> §7 file table, §8 and the SC-01/05/06/07 scenarios — describes the superseded design,
+> not current behaviour. This file is not a contract; it is a record.
+
 **Date**: 2026-05-24
 **Branch**: `patch/portal-inquilino`
 **Status**: v2 — incorporates human decisions on 3 BLOCKERs + 7 MAJORs from `critica-spec-2` (Crítico round 1/2). Ready for round 2/2.
@@ -14,7 +24,7 @@ This v2 reformulation incorporates the human's product decisions (recorded in `h
 
 - **B1 (join-group semantics)**: now explicitly defined — inherits scheduledDate/timeSlot/assignedInspectorId from the ACCEPTED group; transitions appointment AWAITING_INSPECTOR → SCHEDULED via state-machine 006 with SYS actor; sets `tenantConfirmationStatus = CONFIRMED`; marks token as used (no global revoke).
 - **B2 (token/concurrency)**: explicit — join-group blocked after 7 PM cutoff (same as confirm/reschedule), token marked as used after success, new error `PORTAL_GROUP_UNAVAILABLE` for race conditions, retry valid while `used_at IS NULL`.
-- **B3 (reschedule free coexists)**: `RescheduleForm.tsx` is **NOT removed**. "Change time" (join-group) is a primary CTA on the date pill; "Propose new date" (free reschedule per 007 US4) remains as a secondary CTA.
+- **B3 (reschedule free coexists)**: ~~`RescheduleForm.tsx` is **NOT removed**. "Change time" (join-group) is a primary CTA on the date pill; "Propose new date" (free reschedule per 007 US4) remains as a secondary CTA.~~ **SUPERSEDED — "Propose new date" was removed entirely.** It let the rental tenant send a SCHEDULED appointment back to `DRAFT` and drop the assigned inspector with no operator approval, duplicating "Change time" without its safety. `RescheduleForm.tsx`, the `POST /reschedule` endpoint and `rescheduleAllowed` are gone; **"Change time" (join-group) is now the only reschedule path in the portal.**
 - **Cap 10 vs 30**: portal lists groups with `confirmedCount < 10`; the underlying service-group hard cap stays at 30 (admin/marketplace decision 2026-05-06). The 10 is a portal-specific UX floor — not a domain invariant.
 - **NEW scope**: Web admin appointment detail must show a portal activity history (consumes existing `GET /v1/appointments/:id/portal-activities`). Frontend-only addition.
 - **M1/M2/M3/M6/MINOR**: see §4.3, §5.4, §6 for resolutions.
@@ -299,7 +309,7 @@ Errors:
    - **Decrement** `service_groups.confirmed_count` of the previous group by 1 (atomic SQL update).
    - Audit `appointment.detached_from_group` with `metadata = { previousGroupId, reason: 'tenant_portal_join_other_group' }`.
    - If the previous group's `status = 'ACCEPTED'` AND the appointment was already `SCHEDULED` (i.e. the previous inspector had already accepted this work), **fire-and-forget notification** to the previous group's `assignedInspector` and the operator: "Appointment {code} left your service group {previousGroupId} via tenant portal (joined another group)". Match the existing notification pattern in `report-unavailability.use-case.ts`.
-   - If the previous group transitions to empty (`confirmed_count = 0`) after detach, the group is NOT auto-cancelled by this flow — that decision remains with the operator (consistent with how the 19:00 cleanup job handles empty groups: empty groups are cancelled only by an explicit operator/system action, not by individual detachments).
+   - ~~If the previous group transitions to empty (`confirmed_count = 0`) after detach, the group is NOT auto-cancelled by this flow — that decision remains with the operator (consistent with how the 19:00 cleanup job handles empty groups: empty groups are cancelled only by an explicit operator/system action, not by individual detachments).~~ **SUPERSEDED (2026-07-29):** the flow now calls `CancelEmptyGroupService.cancelIfDead(previousGroupId)` after the join commits, so a released group left with nothing to execute is cancelled here too. One rule now governs every path that empties a group, rather than one exception per flow. The cleanup is fire-and-forget — the join is already committed and must stand — and a group is only cancelled when it has no live members **and** no `DONE` member, so a finished group is never touched.
 5. **Inherit scheduledDate, timeSlot, assignedInspectorId** from the new group: update appointment fields to match the group's.
 6. **Transition appointment status to SCHEDULED via state-machine 006**: call `ExecuteStatusTransitionUseCase` with `actorType = SYSTEM` (system-triggered by portal join), `reason = "Tenant joined service group ${groupId} via portal"`. The transition validates `AWAITING_INSPECTOR → SCHEDULED` (rule SYS/OP). If the appointment is already SCHEDULED (already in a group), the state machine returns idempotent success.
 7. **Link appointment to new group**: set `appointment.service_group_id = newGroupId`; bump `service_groups.confirmed_count` by 1.

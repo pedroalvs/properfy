@@ -238,8 +238,20 @@ describe('GetFyAvailableDatesUseCase', () => {
     return d;
   }
 
+  /**
+   * The repository now returns raw group members; each slot gets its own group
+   * so the capacity rule treats the windows independently, as before.
+   */
   function groupRepo(slots: Array<{ scheduledDate: Date; timeSlotStart: string; timeSlotEnd: string }>) {
-    return { findPortalEligibleSlots: vi.fn(async () => slots) } as any;
+    return {
+      findPortalEligibleSlots: vi.fn(async () => slots.map((slot, index) => ({
+        groupId: `sg-${index}`,
+        suburb: 'Surry Hills',
+        inspectorName: 'John Smith',
+        isOwnAgency: true,
+        ...slot,
+      }))),
+    } as any;
   }
 
   it('filters weekends, out-of-window hours, and groups by date', async () => {

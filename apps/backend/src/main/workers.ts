@@ -23,6 +23,8 @@ import type { ExpireTokensWorker } from '../modules/rental-tenant-portal/infrast
 import type { NotifyStuckInspectionsWorker } from '../modules/inspector-execution/infrastructure/workers/notify-stuck.worker';
 import type { AuditRetentionWorker } from '../modules/audit/infrastructure/workers/audit-retention.worker';
 import type { RejectUnconfirmedWorker } from '../modules/appointment/infrastructure/workers/reject-unconfirmed.worker';
+import type { CancelOverdueWorker } from '../modules/appointment/infrastructure/workers/cancel-overdue.worker';
+import type { CancelEmptyGroupsWorker } from '../modules/service-group/infrastructure/workers/cancel-empty-groups.worker';
 import type { Logger } from '../shared/infrastructure/logger';
 import { DlqMonitor } from '../shared/infrastructure/dlq-monitor';
 import { prisma } from '../shared/infrastructure/prisma';
@@ -70,6 +72,8 @@ export async function registerWorkers(
   notifyStuckInspectionsWorker: NotifyStuckInspectionsWorker,
   auditRetentionWorker: AuditRetentionWorker,
   rejectUnconfirmedWorker: RejectUnconfirmedWorker,
+  cancelOverdueWorker: CancelOverdueWorker,
+  cancelEmptyGroupsWorker: CancelEmptyGroupsWorker,
   fyWebhookDispatcher: FyWebhookDispatcher,
   logger: Logger,
 ): Promise<void> {
@@ -251,6 +255,42 @@ export async function registerWorkers(
     );
   }));
 
+  // Auto-cancel appointments whose date passed — daily just after Sydney midnight,
+  // since the cutoff is "scheduled_date < today": yesterday qualifies the moment the
+  // civil date rolls over.
+  await boss.schedule('appointment.cancel-overdue', '10 0 * * *', {}, SYDNEY_TZ);
+  await boss.work('appointment.cancel-overdue', withJobMetrics('appointment.cancel-overdue', async (job) => {
+    logger.info({ jobId: job.id }, 'Processing appointment.cancel-overdue job');
+    const result = await cancelOverdueWorker.execute();
+    logger.info(
+      {
+        jobId: job.id,
+        cancelledCount: result.cancelledCount,
+        failedCount: result.failedCount,
+        batchCapped: result.batchCapped,
+      },
+      'Overdue appointment cancellation completed',
+    );
+  }));
+
+  // Backstop sweep for released groups left with nothing to execute. Runs after the
+  // overdue sweep, though order is not load-bearing: cancellations made above already
+  // reach the empty-group subscriber synchronously.
+  await boss.schedule('service-group.cancel-empty', '20 0 * * *', {}, SYDNEY_TZ);
+  await boss.work('service-group.cancel-empty', withJobMetrics('service-group.cancel-empty', async (job) => {
+    logger.info({ jobId: job.id }, 'Processing service-group.cancel-empty job');
+    const result = await cancelEmptyGroupsWorker.execute();
+    logger.info(
+      {
+        jobId: job.id,
+        checkedCount: result.checkedCount,
+        cancelledCount: result.cancelledCount,
+        failedCount: result.failedCount,
+      },
+      'Empty service group sweep completed',
+    );
+  }));
+
   // DLQ monitor — alert on accumulated failed jobs
   const dlqMonitor = new DlqMonitor(prisma, logger, { threshold: 10, schema: resolvePgBossSchema() });
   await boss.schedule('system.dlq-monitor', '*/5 * * * *', {}, SYDNEY_TZ);
@@ -260,7 +300,7 @@ export async function registerWorkers(
     logger.info({ jobId: job.id, alertedQueues: result.alertedQueues }, 'DLQ monitor completed');
   }));
 
-  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.sms-delivery-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.notify-not-started, audit.retention, appointment.reject-unconfirmed, system.dlq-monitor');
+  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.sms-delivery-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.notify-not-started, audit.retention, appointment.reject-unconfirmed, appointment.cancel-overdue, service-group.cancel-empty, system.dlq-monitor');
 
   // On startup: re-enqueue geocoding for all PENDING/FAILED properties that have no coordinates
   const pendingProperties = await prisma.property.findMany({

@@ -30,6 +30,8 @@ const mockServiceGroup = {
   inspectorName: null,
   status: 'DRAFT' as const,
   appointmentsCount: 3,
+  scheduledDate: '2026-06-01',
+  timeWindow: '09:00-17:00',
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
   appointments: [
@@ -38,6 +40,9 @@ const mockServiceGroup = {
       appointmentNumber: 1,
       status: 'AWAITING_INSPECTOR',
       scheduledDate: null,
+      timeSlotStart: null,
+      timeSlotEnd: null,
+      rentalTenantConfirmationStatus: null,
       propertyAddress: null,
       propertyCode: null,
     },
@@ -170,7 +175,25 @@ describe('EditGroupModal', () => {
     expect(mockUpdate.mock.calls[0][0]).not.toHaveProperty('serviceRegionId');
   });
 
-  it('shows draft-only fields when status is DRAFT', () => {
+  // Date and time window moved to RescheduleGroupModal: they cascade to every
+  // member, so they belong where the impact is previewed and the operator
+  // decides what happens to existing tenant confirmations. Asserted here so
+  // nobody quietly adds them back and reintroduces a second, unpreviewed path.
+  it.each(['DRAFT', 'PUBLISHED'] as const)('never edits the schedule, %s included', (status) => {
+    render(
+      <EditGroupModal
+        open={true}
+        onClose={vi.fn()}
+        serviceGroup={{ ...mockServiceGroup, status }}
+        onSaved={vi.fn()}
+      />,
+    );
+    expect(screen.queryByLabelText('Scheduled date')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Start time')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('End time')).not.toBeInTheDocument();
+  });
+
+  it('never sends schedule fields to the update endpoint', () => {
     render(
       <EditGroupModal
         open={true}
@@ -179,29 +202,10 @@ describe('EditGroupModal', () => {
         onSaved={vi.fn()}
       />,
     );
-    expect(screen.getByLabelText('Scheduled date')).toBeInTheDocument();
-    expect(screen.getByLabelText('Start time')).toBeInTheDocument();
-    expect(screen.getByLabelText('End time')).toBeInTheDocument();
-    expect(screen.queryByText('Priority Mode')).not.toBeInTheDocument();
-  });
-
-  it('hides draft-only fields when status is not DRAFT', () => {
-    const scheduledGroup = {
-      ...mockServiceGroup,
-      status: 'PUBLISHED' as const,
-    };
-    render(
-      <EditGroupModal
-        open={true}
-        onClose={vi.fn()}
-        serviceGroup={scheduledGroup}
-        onSaved={vi.fn()}
-      />,
-    );
-    expect(screen.queryByLabelText('Scheduled date')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Start time')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('End time')).not.toBeInTheDocument();
-    expect(screen.queryByText('Priority Mode')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+    const payload = mockUpdate.mock.calls[0][0];
+    expect(payload).not.toHaveProperty('scheduledDate');
+    expect(payload).not.toHaveProperty('timeWindow');
   });
 
   it('calls onClose when Cancel is clicked', () => {
@@ -218,32 +222,4 @@ describe('EditGroupModal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('opens the native picker when the scheduled date input is clicked', () => {
-    render(
-      <EditGroupModal
-        open={true}
-        onClose={vi.fn()}
-        serviceGroup={mockServiceGroup}
-        onSaved={vi.fn()}
-      />,
-    );
-    const input = screen.getByLabelText('Scheduled date') as HTMLInputElement;
-    const showPickerSpy = vi.fn();
-    input.showPicker = showPickerSpy;
-    fireEvent.click(input);
-    expect(showPickerSpy).toHaveBeenCalledTimes(1);
-  });
-
-  it('is safe when showPicker is undefined (older browsers)', () => {
-    render(
-      <EditGroupModal
-        open={true}
-        onClose={vi.fn()}
-        serviceGroup={mockServiceGroup}
-        onSaved={vi.fn()}
-      />,
-    );
-    // showPicker is undefined by default in jsdom — should not throw
-    expect(() => fireEvent.click(screen.getByLabelText('Scheduled date'))).not.toThrow();
-  });
 });

@@ -58,3 +58,58 @@ describe('PrismaDashboardRepository — recent appointments code', () => {
     expect(stats.recentAppointments[0]!.code).toBe('INS-0042');
   });
 });
+
+// The "Reports processing" tile became visible to agencies, so its count must
+// match what /reports actually lists: own tenant AND agency-scoped runs only.
+// Without the second predicate an operator run targeting this agency would be
+// counted but never listed.
+describe('PrismaDashboardRepository — pending financial entries scope', () => {
+  // The count alone would reveal pending payout activity to an agency, which is
+  // the same leak class the list/summary/export already exclude.
+  it('excludes the inspector leg for a tenant-scoped actor', async () => {
+    const prisma = buildPrismaMock([]);
+    const repo = new PrismaDashboardRepository(prisma);
+
+    await repo.getStats('tenant-1', false, new Date('2026-07-04T10:00:00Z'));
+
+    expect(prisma.financialEntry.count).toHaveBeenCalledWith({
+      where: {
+        tenant_id: 'tenant-1',
+        entry_type: { in: ['TENANT_DEBIT', 'REFUND', 'MANUAL_ADJUSTMENT'] },
+        inspector_id: null,
+        status: 'PENDING',
+      },
+    });
+  });
+
+  it('counts every pending entry for an operator (no tenant scope)', async () => {
+    const prisma = buildPrismaMock([]);
+    const repo = new PrismaDashboardRepository(prisma);
+
+    await repo.getStats(undefined, true, new Date('2026-07-04T10:00:00Z'));
+
+    expect(prisma.financialEntry.count).toHaveBeenCalledWith({ where: { status: 'PENDING' } });
+  });
+});
+
+describe('PrismaDashboardRepository — processing reports scope', () => {
+  it('counts only agency-scoped reports for a tenant-scoped actor', async () => {
+    const prisma = buildPrismaMock([]);
+    const repo = new PrismaDashboardRepository(prisma);
+
+    await repo.getStats('tenant-1', false, new Date('2026-07-04T10:00:00Z'));
+
+    expect(prisma.report.count).toHaveBeenCalledWith({
+      where: { tenant_id: 'tenant-1', agency_scoped: true, status: 'PROCESSING' },
+    });
+  });
+
+  it('counts every processing report for an operator (no tenant scope)', async () => {
+    const prisma = buildPrismaMock([]);
+    const repo = new PrismaDashboardRepository(prisma);
+
+    await repo.getStats(undefined, true, new Date('2026-07-04T10:00:00Z'));
+
+    expect(prisma.report.count).toHaveBeenCalledWith({ where: { status: 'PROCESSING' } });
+  });
+});

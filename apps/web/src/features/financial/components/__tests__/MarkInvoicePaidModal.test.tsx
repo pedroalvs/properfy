@@ -88,7 +88,9 @@ describe('MarkInvoicePaidModal', () => {
       </Wrapper>,
     );
 
-    fireEvent.change(screen.getByLabelText('Payment Date'), { target: { value: '' } });
+    // The field is now a date + time pair under a "Payment Date" group; clearing
+    // either half empties the composite value, as a native datetime-local did.
+    fireEvent.change(screen.getByLabelText('Payment Date - date'), { target: { value: '' } });
     fireEvent.click(screen.getByText('Confirm Payment'));
 
     await waitFor(() => {
@@ -182,17 +184,4 @@ describe('MarkInvoicePaidModal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('opens the native picker when the payment date input is clicked', () => {
-    const Wrapper = createWrapper();
-    render(
-      <Wrapper>
-        <MarkInvoicePaidModal open={true} onClose={onClose} onSuccess={onSuccess} invoiceIds={[INVOICE_ID]} />
-      </Wrapper>,
-    );
-    const input = screen.getByLabelText('Payment Date') as HTMLInputElement;
-    const showPickerSpy = vi.fn();
-    input.showPicker = showPickerSpy;
-    fireEvent.click(input);
-    expect(showPickerSpy).toHaveBeenCalledTimes(1);
-  });
 });

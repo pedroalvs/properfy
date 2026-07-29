@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSessions, type Session } from '../hooks/useSessions';
 import { Button } from '@/components/ui/Button';
+import { formatInstantDateTime } from '@/lib/format-date';
 
 function formatDevice(userAgent: string | null): string {
   if (!userAgent) return 'Unknown device';
@@ -10,9 +11,7 @@ function formatDevice(userAgent: string | null): string {
 }
 
 function formatTime(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '\u2014';
-  return new Intl.DateTimeFormat('en-US', { dateStyle: 'short', timeStyle: 'short' }).format(d);
+  return formatInstantDateTime(iso) || '\u2014';
 }
 
 export function SessionsSection() {

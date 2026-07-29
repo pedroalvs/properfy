@@ -1,13 +1,11 @@
 import type { IReportRepository } from '../../domain/report.repository';
 import type { IReportStorageService } from '../../domain/report-storage.service';
 import { PRESIGNED_URL_TTL_SECONDS } from '../../domain/report.constants';
-import { ReportNotFoundError, ReportForbiddenError } from '../../domain/report.errors';
+import { ReportNotFoundError } from '../../domain/report.errors';
+import { assertReportRole, assertReportReadable } from '../report-access';
+import type { AuthContext } from '@properfy/shared';
 
-export interface AuthContext {
-  userId: string;
-  tenantId: string | null;
-  role: string;
-}
+export type { AuthContext };
 
 interface UserReader {
   findById(id: string): Promise<{ id: string; name: string } | null>;
@@ -43,10 +41,9 @@ export class GetReportStatusUseCase {
       throw new ReportNotFoundError();
     }
 
-    // Access control: reports are restricted to operators (AM/OP).
-    if (auth.role !== 'AM' && auth.role !== 'OP') {
-      throw new ReportForbiddenError();
-    }
+    // Access control. Kept after the 404 so a missing id never leaks as a 403.
+    assertReportRole(auth);
+    assertReportReadable(auth, report);
 
     // Resolve user name for requestedBy
     let userName = 'Unknown';

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { TEMPLATE_VARIABLES, SAMPLE_DATA } from '@properfy/shared';
-import { PLATFORM_TEMPLATES } from '../../../src/scripts/platform-notification-templates';
+import { PLATFORM_TEMPLATES } from '../../../src/modules/notification/domain/platform-notification-templates';
 import { STUCK_ALERT_PAYLOAD_KEYS } from '../../../src/modules/inspector-execution/infrastructure/workers/notify-stuck.worker';
 import { SanitizeHtmlService } from '../../../src/modules/notification/infrastructure/sanitize-html.service';
 import { TemplateRendererService } from '../../../src/modules/notification/domain/template-renderer.service';
@@ -71,7 +71,7 @@ describe('PLATFORM_TEMPLATES seed data', () => {
   });
 });
 
-// ── Appointment email layout (client-approved dark design) ─────────────────
+// ── Appointment email layout (no background, dark text on the client canvas) ──
 
 const APPOINTMENT_EMAIL_CODES = [
   'INSPECTION_NOTICE',
@@ -95,10 +95,34 @@ describe('PLATFORM_TEMPLATES appointment email HTML bodies', () => {
 
     it(`${code} has a rich HTML body using the shared layout`, () => {
       expect(entry?.bodyHtml).toBeTruthy();
-      // Dark layout markers from the client-approved design
-      expect(entry!.bodyHtml).toContain('rgb(47,47,47)');
+      // Layout markers: readable heading/link colour on the client's own background
+      expect(entry!.bodyHtml).toContain('#21566E');
       // Conditional agency logo footer
       expect(entry!.bodyHtml).toContain('{{#if properfyLogoUrl}}');
+    });
+
+    it(`${code} paints no background on the body or the layout tables`, () => {
+      // Emails must inherit the mail client's own background instead of forcing
+      // one. Matched loosely on purpose: the `background` shorthand and the
+      // legacy `bgcolor` attribute would reintroduce a canvas just as well as
+      // `background-color`, so a regression cannot slip through a synonym.
+      expect(entry!.bodyHtml).not.toMatch(/<body[^>]*\bbackground/i);
+      expect(entry!.bodyHtml).not.toMatch(/<table[^>]*\bbackground/i);
+      expect(entry!.bodyHtml).not.toMatch(/<(?:body|table)[^>]*\bbgcolor/i);
+      // Only inline call-outs may carry a background of their own.
+      expect(entry!.bodyHtml).not.toContain('background-image');
+    });
+
+    it(`${code} carries none of the retired dark-layout colours`, () => {
+      for (const darkColour of ['rgb(47,47,47)', 'rgb(41,41,41)', 'rgb(219,151,255)', 'rgb(94,86,54)']) {
+        expect(entry!.bodyHtml, `dark colour ${darkColour} still present`).not.toContain(darkColour);
+      }
+      // Pure white only ever made sense as text on the dark canvas. The amber
+      // call-out fill (#FFF8E1) is deliberately not matched by this pattern.
+      expect(entry!.bodyHtml).not.toMatch(/#fff(?:fff)?\b/i);
+      // Same colour by keyword rather than hex. Anchored on the CSS property so
+      // prose like "Note: white walls" in a future template cannot trip it.
+      expect(entry!.bodyHtml).not.toMatch(/(?:color|background)\s*:\s*white\b/i);
     });
 
     it(`${code} bodyHtml passes the save-time sanitizer unchanged`, () => {

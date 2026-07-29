@@ -22,11 +22,20 @@ const RENTAL_TENANT_CONFIRMATION_OPTIONS: FilterSelectOption[] = [
   })),
 ];
 
+/** Filters a screen can opt out of. The board hides both: status is its column axis. */
+export type HideableAppointmentFilter = 'status' | 'showCancelled';
+
 interface AppointmentFiltersProps {
   filters: AppointmentFiltersState;
   onFiltersChange: (filters: AppointmentFiltersState) => void;
   branchOptions: FilterSelectOption[];
   serviceTypeOptions: FilterSelectOption[];
+  /**
+   * Controls this screen renders instead of the filter bar. The board owns status
+   * (one column per status) and always includes cancelled rows in its Cancelled
+   * column, so both controls would contradict what the user sees.
+   */
+  hiddenFilters?: ReadonlyArray<HideableAppointmentFilter>;
 }
 
 export function AppointmentFilters({
@@ -34,7 +43,10 @@ export function AppointmentFilters({
   onFiltersChange,
   branchOptions,
   serviceTypeOptions,
+  hiddenFilters = [],
 }: AppointmentFiltersProps) {
+  const isHidden = (name: HideableAppointmentFilter) => hiddenFilters.includes(name);
+
   return (
     <FilterBar>
       <FilterInput
@@ -43,12 +55,14 @@ export function AppointmentFilters({
         value={filters.search}
         onChange={(search) => onFiltersChange({ ...filters, search })}
       />
-      <FilterSelect
-        label="Status"
-        value={filters.status}
-        onChange={(status) => onFiltersChange({ ...filters, status })}
-        options={STATUS_OPTIONS}
-      />
+      {!isHidden('status') && (
+        <FilterSelect
+          label="Status"
+          value={filters.status}
+          onChange={(status) => onFiltersChange({ ...filters, status })}
+          options={STATUS_OPTIONS}
+        />
+      )}
       <FilterSelect
         label="Service Type"
         value={filters.serviceTypeId}
@@ -74,11 +88,13 @@ export function AppointmentFilters({
         onStartChange={(startDate) => onFiltersChange({ ...filters, startDate })}
         onEndChange={(endDate) => onFiltersChange({ ...filters, endDate })}
       />
-      <FilterBoolean
-        label="Show cancelled"
-        value={filters.showCancelled}
-        onChange={(showCancelled) => onFiltersChange({ ...filters, showCancelled })}
-      />
+      {!isHidden('showCancelled') && (
+        <FilterBoolean
+          label="Show cancelled"
+          value={filters.showCancelled}
+          onChange={(showCancelled) => onFiltersChange({ ...filters, showCancelled })}
+        />
+      )}
       <FilterBoolean
         label="Overdue only"
         value={filters.overdueOnly}

@@ -14,6 +14,8 @@ import {
   AU_E164_REGEX,
   templatePreviewRequestSchema,
   templatePreviewResponseSchema,
+  templateDefaultQuerySchema,
+  templateDefaultResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
@@ -28,6 +30,7 @@ import type { GetNotificationUseCase } from '../application/use-cases/get-notifi
 import type { UpsertNotificationTemplateUseCase } from '../application/use-cases/upsert-notification-template.use-case';
 import type { DeleteNotificationTemplateUseCase } from '../application/use-cases/delete-notification-template.use-case';
 import type { RenderTemplatePreviewUseCase } from '../application/use-cases/render-template-preview.use-case';
+import type { GetTemplateDefaultUseCase } from '../application/use-cases/get-template-default.use-case';
 import type { SendTestNotificationUseCase } from '../application/use-cases/send-test-notification.use-case';
 import type { ListNotificationTemplatesUseCase } from '../application/use-cases/list-notification-templates.use-case';
 import type { CreateNotificationUseCase } from '../application/use-cases/create-notification.use-case';
@@ -62,6 +65,7 @@ export interface NotificationRouteContainer {
   upsertNotificationTemplateUseCase: UpsertNotificationTemplateUseCase;
   deleteNotificationTemplateUseCase: DeleteNotificationTemplateUseCase;
   renderTemplatePreviewUseCase: RenderTemplatePreviewUseCase;
+  getTemplateDefaultUseCase: GetTemplateDefaultUseCase;
   sendTestNotificationUseCase: SendTestNotificationUseCase;
   listNotificationTemplatesUseCase: ListNotificationTemplatesUseCase;
   createNotificationUseCase: CreateNotificationUseCase;
@@ -414,6 +418,34 @@ export async function registerNotificationRoutes(
       }
       const result = await container.renderTemplatePreviewUseCase.execute({
         ...parsed.data,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // GET /v1/notification-templates/:templateCode/:channel/default
+  //
+  // The content this template would revert to — the platform default row when a
+  // tenantId is given (i.e. an agency override is being edited), otherwise the
+  // factory catalog. Read-only: resetting is applied by the normal PUT once the
+  // operator saves.
+  app.get(
+    '/v1/notification-templates/:templateCode/:channel/default',
+    { preHandler: authenticate, schema: { params: z.object({ templateCode: z.string(), channel: z.string() }), querystring: templateDefaultQuerySchema, response: { 200: successResponseSchema(templateDefaultResponseSchema) } } },
+    async (request, reply) => {
+      const params = templateParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid template parameters', params.error.errors);
+      }
+      const query = templateDefaultQuerySchema.safeParse(request.query);
+      if (!query.success) {
+        throw new ValidationError('Invalid query parameters', query.error.errors);
+      }
+      const result = await container.getTemplateDefaultUseCase.execute({
+        templateCode: params.data.templateCode,
+        channel: params.data.channel,
+        ...(query.data.tenantId ? { tenantId: query.data.tenantId } : {}),
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));

@@ -891,12 +891,6 @@
                         "maximum": 7,
                         "default": 1
                       },
-                      "portalRescheduleWindowDays": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 90,
-                        "default": 30
-                      },
                       "inspectionWindowBeforeMinutes": {
                         "type": "integer",
                         "minimum": 0,
@@ -1561,12 +1555,6 @@
                         "minimum": 0,
                         "maximum": 7,
                         "default": 1
-                      },
-                      "portalRescheduleWindowDays": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 90,
-                        "default": 30
                       },
                       "inspectionWindowBeforeMinutes": {
                         "type": "integer",
@@ -7145,15 +7133,7 @@
                           "nullable": true
                         },
                         "dateOfBirth": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
+                          "type": "string",
                           "nullable": true
                         },
                         "insuranceFileKey": {
@@ -7161,15 +7141,7 @@
                           "nullable": true
                         },
                         "insuranceExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
+                          "type": "string",
                           "nullable": true
                         },
                         "policeCheckFileKey": {
@@ -7177,15 +7149,7 @@
                           "nullable": true
                         },
                         "policeCheckExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
+                          "type": "string",
                           "nullable": true
                         },
                         "photoStorageKey": {
@@ -7385,15 +7349,7 @@
                             "nullable": true
                           },
                           "dateOfBirth": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ],
+                            "type": "string",
                             "nullable": true
                           },
                           "insuranceFileKey": {
@@ -7401,15 +7357,7 @@
                             "nullable": true
                           },
                           "insuranceExpiresAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ],
+                            "type": "string",
                             "nullable": true
                           },
                           "policeCheckFileKey": {
@@ -7417,15 +7365,7 @@
                             "nullable": true
                           },
                           "policeCheckExpiresAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ],
+                            "type": "string",
                             "nullable": true
                           },
                           "photoStorageKey": {
@@ -7571,15 +7511,7 @@
                           "nullable": true
                         },
                         "dateOfBirth": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
+                          "type": "string",
                           "nullable": true
                         },
                         "insuranceFileKey": {
@@ -7587,15 +7519,7 @@
                           "nullable": true
                         },
                         "insuranceExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
+                          "type": "string",
                           "nullable": true
                         },
                         "policeCheckFileKey": {
@@ -7603,15 +7527,7 @@
                           "nullable": true
                         },
                         "policeCheckExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
+                          "type": "string",
                           "nullable": true
                         },
                         "photoStorageKey": {
@@ -7872,15 +7788,7 @@
                           "nullable": true
                         },
                         "dateOfBirth": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
+                          "type": "string",
                           "nullable": true
                         },
                         "insuranceFileKey": {
@@ -7888,15 +7796,7 @@
                           "nullable": true
                         },
                         "insuranceExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
+                          "type": "string",
                           "nullable": true
                         },
                         "policeCheckFileKey": {
@@ -7904,15 +7804,7 @@
                           "nullable": true
                         },
                         "policeCheckExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
+                          "type": "string",
                           "nullable": true
                         },
                         "photoStorageKey": {
@@ -10838,15 +10730,7 @@
                           "type": "string"
                         },
                         "scheduledDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "timeSlotStart": {
                           "type": "string"
@@ -11062,10 +10946,6 @@
                               "needsAuthCode": {
                                 "type": "boolean"
                               },
-                              "authCode": {
-                                "type": "string",
-                                "nullable": true
-                              },
                               "appUrl": {
                                 "type": "string",
                                 "nullable": true
@@ -11085,7 +10965,6 @@
                               "username",
                               "password",
                               "needsAuthCode",
-                              "authCode",
                               "appUrl",
                               "instructionsUrl",
                               "instructionsPassword"
@@ -11422,15 +11301,7 @@
                             "type": "string"
                           },
                           "scheduledDate": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
+                            "type": "string"
                           },
                           "timeSlotStart": {
                             "type": "string"
@@ -11646,10 +11517,6 @@
                                 "needsAuthCode": {
                                   "type": "boolean"
                                 },
-                                "authCode": {
-                                  "type": "string",
-                                  "nullable": true
-                                },
                                 "appUrl": {
                                   "type": "string",
                                   "nullable": true
@@ -11669,7 +11536,6 @@
                                 "username",
                                 "password",
                                 "needsAuthCode",
-                                "authCode",
                                 "appUrl",
                                 "instructionsUrl",
                                 "instructionsPassword"
@@ -11809,15 +11675,7 @@
                           "type": "string"
                         },
                         "scheduledDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "timeSlotStart": {
                           "type": "string"
@@ -12033,10 +11891,6 @@
                               "needsAuthCode": {
                                 "type": "boolean"
                               },
-                              "authCode": {
-                                "type": "string",
-                                "nullable": true
-                              },
                               "appUrl": {
                                 "type": "string",
                                 "nullable": true
@@ -12056,7 +11910,6 @@
                               "username",
                               "password",
                               "needsAuthCode",
-                              "authCode",
                               "appUrl",
                               "instructionsUrl",
                               "instructionsPassword"
@@ -12458,15 +12311,7 @@
                           "type": "string"
                         },
                         "scheduledDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "timeSlotStart": {
                           "type": "string"
@@ -12682,10 +12527,6 @@
                               "needsAuthCode": {
                                 "type": "boolean"
                               },
-                              "authCode": {
-                                "type": "string",
-                                "nullable": true
-                              },
                               "appUrl": {
                                 "type": "string",
                                 "nullable": true
@@ -12705,7 +12546,6 @@
                               "username",
                               "password",
                               "needsAuthCode",
-                              "authCode",
                               "appUrl",
                               "instructionsUrl",
                               "instructionsPassword"
@@ -12857,6 +12697,7 @@
                       "SCHEDULING_CONFLICT",
                       "INSPECTOR_UNAVAILABLE",
                       "DUPLICATE",
+                      "EXPIRED",
                       "OTHER"
                     ]
                   },
@@ -14224,6 +14065,93 @@
                             ],
                             "additionalProperties": false
                           }
+                        },
+                        "fileIssues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string",
+                                "enum": [
+                                  "IMPORT_FILE_EMPTY",
+                                  "IMPORT_FILE_CONTENT_MISMATCH",
+                                  "IMPORT_FILE_CORRUPT_XLSX",
+                                  "IMPORT_FILE_CORRUPT_CSV",
+                                  "IMPORT_FILE_NO_WORKSHEETS",
+                                  "IMPORT_FILE_NO_HEADER_ROW",
+                                  "IMPORT_FILE_MISSING_COLUMNS",
+                                  "IMPORT_FILE_MULTIPLE_SHEETS",
+                                  "IMPORT_FILE_UNKNOWN_COLUMNS",
+                                  "IMPORT_FILE_NO_DATA_ROWS"
+                                ]
+                              },
+                              "severity": {
+                                "type": "string",
+                                "enum": [
+                                  "warning",
+                                  "error"
+                                ]
+                              },
+                              "message": {
+                                "type": "string"
+                              },
+                              "missingColumns": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "default": []
+                              },
+                              "foundColumns": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "default": []
+                              },
+                              "unknownColumns": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "column": {
+                                      "type": "string"
+                                    },
+                                    "suggestion": {
+                                      "type": "string",
+                                      "nullable": true
+                                    }
+                                  },
+                                  "required": [
+                                    "column",
+                                    "suggestion"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "default": []
+                              },
+                              "sheetUsed": {
+                                "type": "string",
+                                "nullable": true,
+                                "default": null
+                              },
+                              "sheetsIgnored": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "default": []
+                              }
+                            },
+                            "required": [
+                              "code",
+                              "severity",
+                              "message"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "default": []
                         }
                       },
                       "required": [
@@ -14532,15 +14460,7 @@
                           "type": "number"
                         },
                         "scheduledDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "timeWindow": {
                           "type": "string"
@@ -14867,15 +14787,7 @@
                             "type": "number"
                           },
                           "scheduledDate": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
+                            "type": "string"
                           },
                           "timeWindow": {
                             "type": "string"
@@ -15089,15 +15001,7 @@
                           "type": "number"
                         },
                         "scheduledDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "timeWindow": {
                           "type": "string"
@@ -15312,15 +15216,7 @@
                           "type": "number"
                         },
                         "scheduledDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "timeWindow": {
                           "type": "string"
@@ -15508,15 +15404,7 @@
                           "type": "number"
                         },
                         "scheduledDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "timeWindow": {
                           "type": "string"
@@ -16448,6 +16336,227 @@
         }
       }
     },
+    "/v1/service-groups/{groupId}/reassign-inspector": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "inspectorId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "inspectorId",
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "groupId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "assignedInspectorId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "previousInspectorId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "appointmentsReassigned": {
+                          "type": "integer"
+                        },
+                        "appointmentsScheduled": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "status",
+                        "assignedInspectorId",
+                        "previousInspectorId",
+                        "appointmentsReassigned",
+                        "appointmentsScheduled"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/service-groups/{groupId}/schedule": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "scheduledDate": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "timeWindow": {
+                    "type": "string",
+                    "pattern": "^\\d{2}:\\d{2}-\\d{2}:\\d{2}$"
+                  },
+                  "confirmationStrategy": {
+                    "type": "string",
+                    "enum": [
+                      "RESEND",
+                      "NOTIFY_ONLY"
+                    ]
+                  }
+                },
+                "required": [
+                  "confirmationStrategy"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "groupId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "scheduledDate": {
+                          "type": "string"
+                        },
+                        "timeWindow": {
+                          "type": "string"
+                        },
+                        "applied": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "integer"
+                            },
+                            "dateChanged": {
+                              "type": "integer"
+                            },
+                            "slotClamped": {
+                              "type": "integer"
+                            },
+                            "failed": {
+                              "type": "integer"
+                            },
+                            "confirmationsHandled": {
+                              "type": "integer"
+                            },
+                            "confirmationStrategy": {
+                              "type": "string",
+                              "enum": [
+                                "RESEND",
+                                "NOTIFY_ONLY"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "total",
+                            "dateChanged",
+                            "slotClamped",
+                            "failed",
+                            "confirmationsHandled",
+                            "confirmationStrategy"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "status",
+                        "scheduledDate",
+                        "timeWindow",
+                        "applied"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/marketplace/offers": {
       "get": {
         "parameters": [
@@ -16527,15 +16636,7 @@
                             "type": "number"
                           },
                           "scheduledDate": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
+                            "type": "string"
                           },
                           "timeWindow": {
                             "type": "string"
@@ -16669,15 +16770,7 @@
                           "type": "number"
                         },
                         "scheduledDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "timeWindow": {
                           "type": "string"
@@ -17532,9 +17625,6 @@
                       "type": "string",
                       "nullable": true
                     },
-                    "rescheduleAllowed": {
-                      "type": "boolean"
-                    },
                     "tenant": {
                       "type": "object",
                       "properties": {
@@ -17691,170 +17781,6 @@
                   "required": [
                     "rentalTenantConfirmationStatus",
                     "confirmedAt"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/rental-tenant-portal/{token}/reschedule": {
-      "post": {
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "newDate": {
-                    "type": "string",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                  },
-                  "newTimeSlotStart": {
-                    "type": "string",
-                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
-                  },
-                  "newTimeSlotEnd": {
-                    "type": "string",
-                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
-                  },
-                  "restrictions": {
-                    "type": "object",
-                    "properties": {
-                      "isHome": {
-                        "type": "boolean",
-                        "nullable": true
-                      },
-                      "unavailableDaysJson": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        },
-                        "nullable": true
-                      },
-                      "unavailableHoursJson": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "start": {
-                              "type": "string"
-                            },
-                            "end": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "start",
-                            "end"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "nullable": true
-                      },
-                      "notes": {
-                        "type": "string",
-                        "maxLength": 1000,
-                        "nullable": true
-                      },
-                      "availableSlotsJson": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "dayOfWeek": {
-                              "type": "string",
-                              "enum": [
-                                "MON",
-                                "TUE",
-                                "WED",
-                                "THU",
-                                "FRI",
-                                "SAT",
-                                "SUN"
-                              ]
-                            },
-                            "start": {
-                              "type": "string",
-                              "pattern": "^\\d{2}:\\d{2}$"
-                            },
-                            "end": {
-                              "type": "string",
-                              "pattern": "^\\d{2}:\\d{2}$"
-                            }
-                          },
-                          "required": [
-                            "dayOfWeek",
-                            "start",
-                            "end"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "nullable": true
-                      }
-                    },
-                    "additionalProperties": false
-                  },
-                  "rentalTenantNote": {
-                    "type": "string",
-                    "maxLength": 2000
-                  }
-                },
-                "required": [
-                  "newDate",
-                  "newTimeSlotStart",
-                  "newTimeSlotEnd"
-                ],
-                "additionalProperties": false
-              }
-            }
-          },
-          "required": true
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "token",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "scheduledDate": {
-                      "type": "string",
-                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                    },
-                    "timeSlotStart": {
-                      "type": "string",
-                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
-                    },
-                    "timeSlotEnd": {
-                      "type": "string",
-                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
-                    },
-                    "rentalTenantConfirmationStatus": {
-                      "type": "string",
-                      "enum": [
-                        "PENDING"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "scheduledDate",
-                    "timeSlotStart",
-                    "timeSlotEnd",
-                    "rentalTenantConfirmationStatus"
                   ],
                   "additionalProperties": false
                 }
@@ -18096,7 +18022,7 @@
                           "inspectorName": {
                             "type": "string"
                           },
-                          "confirmedCount": {
+                          "bookedCount": {
                             "type": "integer",
                             "minimum": 0
                           },
@@ -18113,7 +18039,7 @@
                           "timeSlotEnd",
                           "suburb",
                           "inspectorName",
-                          "confirmedCount",
+                          "bookedCount",
                           "capacityMax"
                         ],
                         "additionalProperties": false
@@ -18415,7 +18341,7 @@
                             "type": "string",
                             "format": "uuid"
                           },
-                          "tenantPortalTokenId": {
+                          "rentalTenantPortalTokenId": {
                             "type": "string",
                             "format": "uuid"
                           },
@@ -18451,7 +18377,7 @@
                         "required": [
                           "id",
                           "appointmentId",
-                          "tenantPortalTokenId",
+                          "rentalTenantPortalTokenId",
                           "action",
                           "ipAddress",
                           "userAgent",
@@ -18498,37 +18424,13 @@
                       "type": "object",
                       "properties": {
                         "today": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "from": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "to": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "days": {
                           "type": "array",
@@ -18536,15 +18438,7 @@
                             "type": "object",
                             "properties": {
                               "date": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ]
+                                "type": "string"
                               },
                               "count": {
                                 "type": "integer",
@@ -18585,15 +18479,7 @@
                                 ]
                               },
                               "scheduledDate": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ]
+                                "type": "string"
                               },
                               "timeSlotStart": {
                                 "type": "string",
@@ -18698,15 +18584,7 @@
                                 ]
                               },
                               "scheduledDate": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ]
+                                "type": "string"
                               },
                               "timeSlotStart": {
                                 "type": "string",
@@ -18888,15 +18766,7 @@
                           "type": "object",
                           "properties": {
                             "date": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "string",
-                                  "format": "date-time"
-                                }
-                              ]
+                              "type": "string"
                             },
                             "appointments": {
                               "type": "array",
@@ -18913,15 +18783,7 @@
                                     "type": "string"
                                   },
                                   "scheduledDate": {
-                                    "anyOf": [
-                                      {
-                                        "type": "string"
-                                      },
-                                      {
-                                        "type": "string",
-                                        "format": "date-time"
-                                      }
-                                    ]
+                                    "type": "string"
                                   },
                                   "timeSlotStart": {
                                     "type": "string",
@@ -19017,15 +18879,7 @@
                                 ]
                               },
                               "scheduledDate": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ]
+                                "type": "string"
                               },
                               "timeSlotStart": {
                                 "type": "string",
@@ -19424,10 +19278,6 @@
                               "needsAuthCode": {
                                 "type": "boolean"
                               },
-                              "authCode": {
-                                "type": "string",
-                                "nullable": true
-                              },
                               "appUrl": {
                                 "type": "string",
                                 "nullable": true
@@ -19447,7 +19297,6 @@
                               "username",
                               "password",
                               "needsAuthCode",
-                              "authCode",
                               "appUrl",
                               "instructionsUrl",
                               "instructionsPassword"
@@ -20202,15 +20051,7 @@
                             "type": "number"
                           },
                           "scheduledDate": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
+                            "type": "string"
                           },
                           "timeWindow": {
                             "type": "string"
@@ -21865,26 +21706,10 @@
                             "nullable": true
                           },
                           "periodStart": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
+                            "type": "string"
                           },
                           "periodEnd": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
+                            "type": "string"
                           },
                           "periodType": {
                             "type": "string"
@@ -21904,15 +21729,7 @@
                               "type": "object",
                               "properties": {
                                 "serviceDate": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string"
-                                    },
-                                    {
-                                      "type": "string",
-                                      "format": "date-time"
-                                    }
-                                  ]
+                                  "type": "string"
                                 },
                                 "appointmentId": {
                                   "type": "string",
@@ -22134,26 +21951,10 @@
                           "nullable": true
                         },
                         "periodStart": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "periodEnd": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "periodType": {
                           "type": "string"
@@ -22173,15 +21974,7 @@
                             "type": "object",
                             "properties": {
                               "serviceDate": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ]
+                                "type": "string"
                               },
                               "appointmentId": {
                                 "type": "string",
@@ -24586,6 +24379,80 @@
         }
       }
     },
+    "/v1/notification-templates/{templateCode}/{channel}/default": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "tenantId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "templateCode",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "channel",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "subject": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "body": {
+                          "type": "string"
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "PLATFORM_DEFAULT",
+                            "FACTORY"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "subject",
+                        "body",
+                        "source"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/dashboard/stats": {
       "get": {
         "responses": {
@@ -24664,15 +24531,7 @@
                                 "nullable": true
                               },
                               "scheduledDate": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ]
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -25821,7 +25680,7 @@
                                   },
                                   "scheduledDate": {
                                     "type": "string",
-                                    "format": "date-time"
+                                    "format": "date"
                                   },
                                   "role": {
                                     "type": "string",
@@ -26163,12 +26022,6 @@
                     "type": "boolean",
                     "default": false
                   },
-                  "authCode": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 500,
-                    "nullable": true
-                  },
                   "appUrl": {
                     "type": "string",
                     "format": "uri",
@@ -26240,10 +26093,6 @@
                         "needsAuthCode": {
                           "type": "boolean"
                         },
-                        "authCode": {
-                          "type": "string",
-                          "nullable": true
-                        },
                         "appUrl": {
                           "type": "string",
                           "nullable": true
@@ -26279,7 +26128,6 @@
                         "username",
                         "password",
                         "needsAuthCode",
-                        "authCode",
                         "appUrl",
                         "instructionsUrl",
                         "instructionsPassword",
@@ -26428,10 +26276,6 @@
                           "needsAuthCode": {
                             "type": "boolean"
                           },
-                          "authCode": {
-                            "type": "string",
-                            "nullable": true
-                          },
                           "appUrl": {
                             "type": "string",
                             "nullable": true
@@ -26475,7 +26319,6 @@
                           "username",
                           "password",
                           "needsAuthCode",
-                          "authCode",
                           "appUrl",
                           "instructionsUrl",
                           "instructionsPassword",
@@ -26557,12 +26400,6 @@
                   "needsAuthCode": {
                     "type": "boolean"
                   },
-                  "authCode": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 500,
-                    "nullable": true
-                  },
                   "appUrl": {
                     "type": "string",
                     "format": "uri",
@@ -26640,10 +26477,6 @@
                         "needsAuthCode": {
                           "type": "boolean"
                         },
-                        "authCode": {
-                          "type": "string",
-                          "nullable": true
-                        },
                         "appUrl": {
                           "type": "string",
                           "nullable": true
@@ -26679,7 +26512,6 @@
                         "username",
                         "password",
                         "needsAuthCode",
-                        "authCode",
                         "appUrl",
                         "instructionsUrl",
                         "instructionsPassword",
@@ -26749,10 +26581,6 @@
                         "needsAuthCode": {
                           "type": "boolean"
                         },
-                        "authCode": {
-                          "type": "string",
-                          "nullable": true
-                        },
                         "appUrl": {
                           "type": "string",
                           "nullable": true
@@ -26788,7 +26616,6 @@
                         "username",
                         "password",
                         "needsAuthCode",
-                        "authCode",
                         "appUrl",
                         "instructionsUrl",
                         "instructionsPassword",
@@ -26860,10 +26687,6 @@
                         "needsAuthCode": {
                           "type": "boolean"
                         },
-                        "authCode": {
-                          "type": "string",
-                          "nullable": true
-                        },
                         "appUrl": {
                           "type": "string",
                           "nullable": true
@@ -26899,7 +26722,6 @@
                         "username",
                         "password",
                         "needsAuthCode",
-                        "authCode",
                         "appUrl",
                         "instructionsUrl",
                         "instructionsPassword",

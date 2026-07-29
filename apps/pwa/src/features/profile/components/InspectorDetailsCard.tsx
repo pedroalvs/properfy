@@ -1,5 +1,14 @@
 import { useDetailQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/hooks/useAuth';
+import { PLATFORM_TIMEZONE, todayInTzDateString } from '@properfy/shared';
+import { formatCivilDate } from '@/lib/format-date';
+
+/** Local calendar day of a Date, as YYYY-MM-DD. */
+function toIsoDay(date: Date): string {
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${m}-${d}`;
+}
 
 interface InspectorDetail {
   id: string;
@@ -14,21 +23,30 @@ interface InspectorDetail {
   policeCheckMetaJson: { fileName?: string | null } | null;
 }
 
+/**
+ * Date of birth and the two expiry dates are @db.Date calendar days.
+ *
+ * The previous implementation parsed them with `new Date('2026-03-18')` — which
+ * is UTC midnight — and then formatted in the RUNTIME's timezone, so a browser
+ * behind UTC rendered the previous day. A calendar day carries no timezone, so
+ * formatCivilDate reads it verbatim.
+ */
 function formatDate(value: string | null | undefined): string {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return new Intl.DateTimeFormat('en-AU', { dateStyle: 'medium' }).format(date);
+  return formatCivilDate(value) || '—';
 }
 
 function ExpiryBadge({ expiry }: { expiry: string | null }) {
   if (!expiry) return <span className="text-xs text-text-muted">No expiry set</span>;
 
-  const expiryDate = new Date(expiry);
-  const now = new Date();
-  const isExpired = expiryDate < now;
-  const thirtyDays = 30 * 24 * 60 * 60 * 1000;
-  const isExpiringSoon = !isExpired && expiryDate.getTime() - now.getTime() < thirtyDays;
+  // Compared as calendar days, not instants. `new Date('2026-03-18')` is UTC
+  // midnight, which is 10-11am Sydney, so comparing it against `new Date()`
+  // flipped the badge to "Expired" mid-morning ON the expiry day.
+  const today = todayInTzDateString(PLATFORM_TIMEZONE);
+  const expiryDay = expiry.slice(0, 10);
+  const isExpired = expiryDay < today;
+  const soonCutoff = new Date(`${today}T12:00:00`);
+  soonCutoff.setDate(soonCutoff.getDate() + 30);
+  const isExpiringSoon = !isExpired && expiryDay <= toIsoDay(soonCutoff);
 
   if (isExpired) {
     return (

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { SERVICE_GROUP_STATUS_MAP } from '@/lib/status-colors';
-import { formatDate } from '@/lib/format-date';
+import { formatCivilDate , formatWallTimeRange } from '@/lib/format-date';
 import { ServiceGroupStatus } from '@properfy/shared';
 import { getPublishBlockReason } from '@/features/service-groups/lib/publish-block-reason';
 
@@ -107,7 +107,10 @@ export function GroupMapDetailPanel({
     const starts = (appointments ?? []).map((a) => a.timeSlotStart).filter(Boolean) as string[];
     const ends = (appointments ?? []).map((a) => a.timeSlotEnd).filter(Boolean) as string[];
     if (starts.length === 0 || ends.length === 0) return null;
-    return `${starts.reduce((m, v) => (v < m ? v : m))} - ${ends.reduce((m, v) => (v > m ? v : m))}`;
+    return formatWallTimeRange(
+      starts.reduce((m, v) => (v < m ? v : m)),
+      ends.reduce((m, v) => (v > m ? v : m)),
+    );
   }, [appointments]);
 
   if (!group) return null;
@@ -152,7 +155,7 @@ export function GroupMapDetailPanel({
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-text-secondary">
               {statusMeta && <StatusChip label={statusMeta.label} bg={statusMeta.bg} />}
               <span data-testid="group-map-detail-when">
-                {formatDate(group.scheduledDate)}
+                {formatCivilDate(group.scheduledDate)}
                 {isLoadingAppointments && ' …'}
                 {!isLoadingAppointments && timeRange && ` ${timeRange}`}
               </span>

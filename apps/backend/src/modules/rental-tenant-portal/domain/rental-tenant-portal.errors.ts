@@ -25,36 +25,10 @@ export class PortalAppointmentInactiveError extends ConflictError {
   }
 }
 
-export class PortalRescheduleNotAllowedError extends ForbiddenError {
-  constructor() {
-    super('PORTAL_RESCHEDULE_NOT_ALLOWED', 'Reschedule not allowed for this service type');
-  }
-}
-
-export class PortalRescheduleWindowExceededError extends DomainError {
-  constructor() {
-    super('PORTAL_RESCHEDULE_WINDOW_EXCEEDED', 'New date exceeds the 30-day reschedule window', 422);
-    this.name = 'PortalRescheduleWindowExceededError';
-  }
-}
-
-export class PortalDateInPastError extends DomainError {
-  constructor() {
-    super('PORTAL_DATE_IN_PAST', 'New date cannot be in the past', 422);
-    this.name = 'PortalDateInPastError';
-  }
-}
-
 export class PortalNoContactFieldsError extends DomainError {
   constructor() {
     super('PORTAL_NO_CONTACT_FIELDS', 'At least one contact field must be provided', 422);
     this.name = 'PortalNoContactFieldsError';
-  }
-}
-
-export class PortalInspectionInProgressError extends ConflictError {
-  constructor() {
-    super('PORTAL_INSPECTION_IN_PROGRESS', 'Reschedule is not allowed while the inspection is in progress');
   }
 }
 

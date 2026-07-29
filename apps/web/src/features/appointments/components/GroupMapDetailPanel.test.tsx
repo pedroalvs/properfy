@@ -99,7 +99,7 @@ describe('GroupMapDetailPanel', () => {
         { timeSlotStart: '13:00', timeSlotEnd: '14:15' },
       ],
     });
-    expect(screen.getByTestId('group-map-detail-when')).toHaveTextContent('08:30 - 14:15');
+    expect(screen.getByTestId('group-map-detail-when')).toHaveTextContent('8:30 am – 2:15 pm');
   });
 
   it('omits the time range when appointments are missing or empty', () => {

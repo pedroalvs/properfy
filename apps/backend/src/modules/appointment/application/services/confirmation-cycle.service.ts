@@ -158,48 +158,42 @@ export class ConfirmationCycleService {
   }
 
   /**
-   * Supersedes active cycle and creates new CONFIRMED cycle.
-   * Used when tenant reschedules via portal (they implicitly confirm the new date).
+   * Moves the active cycle onto a new schedule, keeping its status.
+   *
+   * The counterpart to `rotateOnDateChange` for the case where an operator moves
+   * a group's schedule and explicitly chooses to keep the tenants' confirmations
+   * rather than ask for them again. Without this the confirmation survives but
+   * stays pinned to the old date, so it reads as stale to every later
+   * portal-link plan and the operator's choice quietly decays into a resend.
+   *
+   * No-ops when there is no active cycle — an appointment nobody ever confirmed
+   * has nothing to realign.
    */
-  async rotateOnTenantReschedule(
+  async realignActiveCycleSchedule(
     appointmentId: string,
     tenantId: string,
     newDate: Date,
     newTimeSlot: string | null,
     tx?: Tx,
-  ): Promise<ConfirmationCycleEntity> {
-    const run = async (client: Tx): Promise<ConfirmationCycleEntity> => {
-      await this.supersedeCurrent(appointmentId, tenantId, 'RENTAL_TENANT_RESCHEDULE', client);
+  ): Promise<void> {
+    // Read-then-write, so the pair runs in one transaction like every sibling
+    // here — otherwise a concurrent rotation could supersede the cycle between
+    // the lookup and the update.
+    const run = async (client: Tx): Promise<void> => {
+      const active = await this.cycleRepo.findActiveByAppointmentId(appointmentId, client);
+      if (!active) return;
 
-      const maxCycleNumber = await this.cycleRepo.findMaxCycleNumber(appointmentId, client);
-      const now = new Date();
-      const cycle = new ConfirmationCycleEntity({
-        id: crypto.randomUUID(),
-        appointmentId,
-        cycleNumber: maxCycleNumber + 1,
-        scheduledDate: newDate,
-        timeSlot: newTimeSlot,
-        status: 'CONFIRMED',
-        confirmationSource: 'RENTAL_TENANT_RESCHEDULE',
-        confirmedAt: now,
-        invalidatedAt: null,
-        invalidatedReason: null,
-        portalTokenId: null,
-        createdAt: now,
-      });
-      await this.cycleRepo.save(cycle, client);
-      await this.setAppointmentActiveCycle(appointmentId, tenantId, cycle.id, 'CONFIRMED', client);
+      await this.cycleRepo.realignSchedule(active.id, tenantId, newDate, newTimeSlot, client);
 
       this.auditService.log({
-        action: 'appointment_confirmation_cycle.rotated',
-        actorType: 'ANONYMOUS',
+        action: 'appointment_confirmation_cycle.updated',
+        actorType: 'SYSTEM',
         entityType: 'AppointmentConfirmationCycle',
-        entityId: cycle.id,
+        entityId: active.id,
         tenantId,
-        after: { cycleNumber: cycle.cycleNumber, status: 'CONFIRMED', source: 'RENTAL_TENANT_RESCHEDULE' },
+        before: { scheduledDate: active.scheduledDate, timeSlot: active.timeSlot },
+        after: { scheduledDate: newDate, timeSlot: newTimeSlot, reason: 'SCHEDULE_REALIGNED' },
       });
-
-      return cycle;
     };
     if (tx) return await run(tx);
     return await this.prisma.$transaction(run);

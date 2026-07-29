@@ -10,7 +10,6 @@ const TOKEN_ID = '00000000-0000-0000-0000-000000000002';
 
 const mockGetPortalDataExecute = vi.fn();
 const mockConfirmAppointmentExecute = vi.fn();
-const mockRescheduleRequestExecute = vi.fn();
 const mockUpdateContactExecute = vi.fn();
 const mockReportUnavailabilityExecute = vi.fn();
 const mockGeneratePortalTokenExecute = vi.fn();
@@ -34,7 +33,6 @@ vi.mock('../../../src/main/container', () => ({
     rentalTenantPortal: {
       getPortalDataUseCase: { execute: mockGetPortalDataExecute },
       confirmAppointmentUseCase: { execute: mockConfirmAppointmentExecute },
-      rescheduleRequestUseCase: { execute: mockRescheduleRequestExecute },
       updateContactUseCase: { execute: mockUpdateContactExecute },
       reportUnavailabilityUseCase: { execute: mockReportUnavailabilityExecute },
       generatePortalTokenUseCase: { execute: mockGeneratePortalTokenExecute },
@@ -174,30 +172,18 @@ describe('POST /v1/rental-tenant-portal/:token/confirm', () => {
   });
 });
 
-describe('POST /v1/rental-tenant-portal/:token/reschedule', () => {
-  it('should return 200 on successful reschedule request', async () => {
+// The tenant-facing "propose new date" flow was removed: it let the rental tenant
+// unilaterally send a SCHEDULED appointment back to DRAFT and drop the inspector.
+// "Change time" (join-group) is the only remaining reschedule path in the portal.
+describe('POST /v1/rental-tenant-portal/:token/reschedule — removed', () => {
+  it('no longer exists', async () => {
     setupPortalAuth();
-    const mockResult = {
-      scheduledDate: '2026-05-01',
-      timeSlotStart: '09:00', timeSlotEnd: '10:00',
-      rentalTenantConfirmationStatus: 'PENDING',
-    };
-    mockRescheduleRequestExecute.mockResolvedValueOnce(mockResult);
 
     const res = await supertest(app.server)
       .post('/v1/rental-tenant-portal/valid-raw-token/reschedule')
       .send({ newDate: '2026-05-01', newTimeSlotStart: '09:00', newTimeSlotEnd: '10:00' });
 
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual(mockResult);
-    expect(mockRescheduleRequestExecute).toHaveBeenCalledWith(
-      expect.objectContaining({
-        tokenId: TOKEN_ID,
-        appointmentId: APPOINTMENT_ID,
-        newDate: '2026-05-01',
-        newTimeSlotStart: '09:00', newTimeSlotEnd: '10:00',
-      }),
-    );
+    expect(res.status).toBe(404);
   });
 });
 
@@ -304,18 +290,17 @@ describe('POST /v1/appointments/:appointmentId/portal-token', () => {
   });
 });
 
-// BUG-1 regression: rescheduleAllowed + tenant must survive Fastify serialisation
-// Without these fields declared in portalDataResponseSchema the whitelist serialiser
-// silently strips them, so rescheduleAllowed=undefined and tenant.timezone is missing.
-describe('GET /v1/rental-tenant-portal/:token — BUG-1 regression: rescheduleAllowed + tenant', () => {
-  it('preserves rescheduleAllowed and tenant in the response', async () => {
+// BUG-1 regression: tenant must survive Fastify serialisation
+// Without the field declared in portalDataResponseSchema the whitelist serialiser
+// silently strips it, so tenant.timezone is missing.
+describe('GET /v1/rental-tenant-portal/:token — BUG-1 regression: tenant', () => {
+  it('preserves tenant in the response', async () => {
     setupPortalAuth();
     const mockResult = {
       token: { status: 'ACTIVE', isReadOnly: false, isExpired: false, canRequestNewLink: false, expiresAt: '2026-04-01T00:00:00.000Z' },
       appointment: {},
       contact: null,
       restrictions: null,
-      rescheduleAllowed: false,
       tenant: { name: 'Jane Tenant', timezone: 'Australia/Sydney' },
     };
     mockGetPortalDataExecute.mockResolvedValueOnce(mockResult);
@@ -323,7 +308,6 @@ describe('GET /v1/rental-tenant-portal/:token — BUG-1 regression: rescheduleAl
     const res = await supertest(app.server).get('/v1/rental-tenant-portal/valid-raw-token');
 
     expect(res.status).toBe(200);
-    expect(res.body.rescheduleAllowed).toBe(false);
     expect(res.body.tenant).toEqual({ name: 'Jane Tenant', timezone: 'Australia/Sydney' });
   });
 
@@ -336,7 +320,6 @@ describe('GET /v1/rental-tenant-portal/:token — BUG-1 regression: rescheduleAl
       restrictions: null,
       rentalTenantNames: ['Daniel Anderson', 'Hiranya Koehler'],
       propertyManager: 'Belle Property Randwick',
-      rescheduleAllowed: true,
       tenant: { name: 'Belle Property', timezone: 'Australia/Sydney' },
     };
     mockGetPortalDataExecute.mockResolvedValueOnce(mockResult);
@@ -366,28 +349,6 @@ describe('POST /v1/rental-tenant-portal/:token/confirm — BUG-2 regression: ava
       .send({ restrictions: { availableSlotsJson: slots } });
 
     expect(mockConfirmAppointmentExecute).toHaveBeenCalledWith(
-      expect.objectContaining({
-        restrictions: expect.objectContaining({ availableSlotsJson: slots }),
-      }),
-    );
-  });
-});
-
-describe('POST /v1/rental-tenant-portal/:token/reschedule — BUG-2 regression: availableSlotsJson forwarded', () => {
-  it('forwards availableSlotsJson to rescheduleRequestUseCase', async () => {
-    setupPortalAuth();
-    mockRescheduleRequestExecute.mockResolvedValueOnce({
-      scheduledDate: '2026-05-01',
-      timeSlotStart: '09:00', timeSlotEnd: '10:00',
-      rentalTenantConfirmationStatus: 'PENDING',
-    });
-    const slots = [{ dayOfWeek: 'FRI' as const, start: '14:00', end: '16:00' }];
-
-    await supertest(app.server)
-      .post('/v1/rental-tenant-portal/valid-raw-token/reschedule')
-      .send({ newDate: '2026-05-01', newTimeSlotStart: '09:00', newTimeSlotEnd: '10:00', restrictions: { availableSlotsJson: slots } });
-
-    expect(mockRescheduleRequestExecute).toHaveBeenCalledWith(
       expect.objectContaining({
         restrictions: expect.objectContaining({ availableSlotsJson: slots }),
       }),

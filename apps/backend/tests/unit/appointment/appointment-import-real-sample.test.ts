@@ -14,18 +14,42 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { parseAppointmentImportFile } from '../../../src/modules/appointment/infrastructure/appointment-import-parser';
+import {
+  parseAppointmentImportFile,
+  type ParsedImportFile,
+} from '../../../src/modules/appointment/infrastructure/appointment-import-parser';
+import { analyzeImportHeaders } from '../../../src/modules/appointment/domain/appointment-import-columns';
 import { normalizeImportRow, type RawImportRow } from '../../../src/modules/appointment/domain/appointment-import-normalize';
 
 const FIXTURE_PATH = resolve(__dirname, '../../fixtures/appointment-import/sample-agency-export.xlsx');
 const IMPORT_DAY = '2027-01-01';
 
 describe('real sample agency export', () => {
+  let parsed: ParsedImportFile;
   let rawRows: RawImportRow[];
 
   beforeAll(async () => {
     const buffer = readFileSync(FIXTURE_PATH);
-    rawRows = await parseAppointmentImportFile(buffer, 'xlsx');
+    parsed = await parseAppointmentImportFile(buffer, 'xlsx');
+    rawRows = parsed.rows;
+  });
+
+  /**
+   * Behaviour freeze for the file-diagnostics work: the sheet-selection
+   * heuristic and the required-column gate must both be no-ops for the export
+   * that motivated the importer. If this fails, a real agency file that
+   * imports cleanly today has started being second-guessed or rejected.
+   */
+  it('is read from its only sheet, with the header on row 1 and nothing ignored', () => {
+    expect(parsed.sheetUsed).toBe('Sample Export');
+    expect(parsed.sheetsIgnored).toEqual([]);
+    expect(parsed.headerRowNumber).toBe(1);
+  });
+
+  it('passes the column analysis with nothing missing and nothing unrecognized', () => {
+    const analysis = analyzeImportHeaders(parsed.headers);
+    expect(analysis.missingRequired).toEqual([]);
+    expect(analysis.unknown).toEqual([]);
   });
 
   it('parses every data row (48-row sheet = 1 header + 47 data rows)', () => {

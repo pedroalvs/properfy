@@ -1,7 +1,7 @@
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import { FinancialEntryTypeChip } from '@/features/financial/components/FinancialEntryTypeChip';
 import { FinancialStatusChip } from '@/features/financial/components/FinancialStatusChip';
-import { formatDate } from '@/lib/format-date';
+import { formatInstantDate } from '@/lib/format-date';
 import { useAppointmentFinancialEntries, type AppointmentFinancialEntry } from '../hooks/useAppointmentFinancialEntries';
 import type { FinancialEntryType, FinancialEntryStatus } from '@properfy/shared';
 
@@ -56,7 +56,7 @@ const columns: DataTableColumn<AppointmentFinancialEntry>[] = [
     key: 'effectiveAt',
     label: 'Effective Date',
     width: '140px',
-    render: (row) => formatDate(row.effectiveAt),
+    render: (row) => formatInstantDate(row.effectiveAt),
   },
   {
     key: 'reason',

@@ -4,8 +4,10 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AuthGuard } from '@/app/AuthGuard';
 import { UserRole } from '@properfy/shared';
 
-// Route guard is the access control for the reports page. Reports were realigned
-// to be AM/OP-only (report.view → [AM, OP]); CL_USER/CL_ADMIN/INSP have no access.
+// Route guard is the first access control for the reports page. Reports are an
+// agency-visible surface (report.view → [AM, OP, CL_ADMIN, CL_USER]); CL_USER is
+// admitted at the route level and gated in-page by the `view_financials` flag,
+// mirroring /my-financial. INSP has no access.
 
 const mockUseAuth = vi.fn();
 vi.mock('@/hooks/useAuth', () => ({
@@ -25,7 +27,7 @@ function renderReportsRoute() {
         <Route
           path="/reports"
           element={
-            <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
+            <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
               <div>Reports Page</div>
             </AuthGuard>
           }
@@ -57,26 +59,26 @@ describe('reports route guard', () => {
     expect(screen.getByText('Reports Page')).toBeInTheDocument();
   });
 
-  it('redirects CL_USER to dashboard', () => {
-    mockUseAuth.mockReturnValue({
-      user: { id: 'user-clu', name: 'Client User', email: 'clu@test.com', role: 'CL_USER', tenantId: 'tenant-1' },
-      isLoading: false,
-    });
-
-    renderReportsRoute();
-    expect(screen.getByText('Dashboard Redirect')).toBeInTheDocument();
-    expect(screen.queryByText('Reports Page')).not.toBeInTheDocument();
-  });
-
-  it('redirects CL_ADMIN to dashboard', () => {
+  it('renders the reports page for CL_ADMIN', () => {
     mockUseAuth.mockReturnValue({
       user: { id: 'user-cla', name: 'Client Admin', email: 'cla@test.com', role: 'CL_ADMIN', tenantId: 'tenant-1' },
       isLoading: false,
     });
 
     renderReportsRoute();
-    expect(screen.getByText('Dashboard Redirect')).toBeInTheDocument();
-    expect(screen.queryByText('Reports Page')).not.toBeInTheDocument();
+    expect(screen.getByText('Reports Page')).toBeInTheDocument();
+  });
+
+  // The route admits CL_USER; the `view_financials` flag is enforced in-page
+  // (see ReportListPage) so the user gets an explanation instead of a bounce.
+  it('admits CL_USER at the route level', () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'user-clu', name: 'Client User', email: 'clu@test.com', role: 'CL_USER', tenantId: 'tenant-1' },
+      isLoading: false,
+    });
+
+    renderReportsRoute();
+    expect(screen.getByText('Reports Page')).toBeInTheDocument();
   });
 
   it('redirects INSP to dashboard', () => {

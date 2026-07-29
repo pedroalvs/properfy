@@ -14,6 +14,8 @@ import type { NotificationEntity } from '../../domain/notification.entity';
 import {
   formatScheduledDate,
   formatTimeSlot,
+  legacyIsoScheduledDate,
+  legacyIsoTimeSlot,
 } from '../../domain/build-notification-payload.service';
 
 /**
@@ -34,6 +36,24 @@ function templateFamily(templateCode: string): string {
 }
 
 /**
+ * True when a stored payload value still describes the current appointment.
+ *
+ * Accepts the current display shape OR the pre-rollout ISO shape: payloads
+ * written before the dd/mm/yyyy + 12h change hold `2026-04-01` / `09:00-12:00`,
+ * and treating those as "changed" would re-announce every historical
+ * appointment once.
+ *
+ * There is no notification purge job, so there is no date after which the legacy
+ * arm is provably unreachable: it stops mattering only once every appointment
+ * whose latest announcement predates the rollout has been superseded. Keeping it
+ * indefinitely is harmless — the two shapes are lexically disjoint, so the extra
+ * arm can never match a value the current formatter would not also have matched.
+ */
+function storedValueMatches(stored: string, current: string, legacy: string): boolean {
+  return stored === current || stored === legacy;
+}
+
+/**
  * True when `latest` already told the tenant what we are about to send — same
  * announcement, same date and slot. Keys absent from the stored payload are not
  * compared: INSPECTION_CANCELLED declares no timeSlot, so requiring it would
@@ -49,13 +69,21 @@ function alreadyAnnounced(
   const payload = latest.payloadJson;
   if (
     payload.scheduledDate !== undefined &&
-    payload.scheduledDate !== formatScheduledDate(appointment.scheduledDate)
+    !storedValueMatches(
+      payload.scheduledDate,
+      formatScheduledDate(appointment.scheduledDate),
+      legacyIsoScheduledDate(appointment.scheduledDate),
+    )
   ) {
     return false;
   }
   if (
     payload.timeSlot !== undefined &&
-    payload.timeSlot !== formatTimeSlot(appointment.timeSlotStart, appointment.timeSlotEnd)
+    !storedValueMatches(
+      payload.timeSlot,
+      formatTimeSlot(appointment.timeSlotStart, appointment.timeSlotEnd),
+      legacyIsoTimeSlot(appointment.timeSlotStart, appointment.timeSlotEnd),
+    )
   ) {
     return false;
   }
@@ -171,8 +199,15 @@ export class NotifyOnStatusTransitionHandler {
     const recipientEmail = contact.effectiveEmail;
     const recipientPhone = contact.effectivePhone;
 
+    // Independent legs: a tenant with both an email and a phone gets both.
+    // The dedupe above is a single decision for the whole announcement — its
+    // template set covers the _SMS codes and templateFamily() folds them onto
+    // the email code — so it governs both legs without being re-evaluated here.
+    //
+    // Email first: it carries the same freshly minted portal token, and minting
+    // happens once above precisely because a second mint would revoke the link
+    // the first message already went out with.
     if (recipientEmail) {
-      // Dedupe already decided above — send directly
       await this.createNotification.execute({
         tenantId: appointment.tenantId,
         appointmentId: appointment.id,
@@ -181,9 +216,9 @@ export class NotifyOnStatusTransitionHandler {
         templateCode: emailCode,
         payloadJson: this.buildNotificationPayload.build(payloadCtx),
       });
-    } else if (recipientPhone) {
-      // SMS fallback: use ${CODE}_SMS template when no email is available. The
-      // dedupe set covers the _SMS codes, so the decision above governs it too.
+    }
+
+    if (recipientPhone) {
       const smsCode = `${emailCode}_SMS` as string;
       await this.createNotification.execute({
         tenantId: appointment.tenantId,

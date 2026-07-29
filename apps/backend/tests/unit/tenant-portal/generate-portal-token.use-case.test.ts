@@ -442,7 +442,7 @@ describe('GeneratePortalTokenUseCase', () => {
         channel: 'EMAIL',
         payloadJson: expect.objectContaining({
           confirmationLink: `${PORTAL_BASE_URL}/portal/${RAW_TOKEN}`,
-          rescheduleLink: `${PORTAL_BASE_URL}/portal/${RAW_TOKEN}/reschedule`,
+          rescheduleLink: `${PORTAL_BASE_URL}/portal/${RAW_TOKEN}`,
         }),
       }),
     );

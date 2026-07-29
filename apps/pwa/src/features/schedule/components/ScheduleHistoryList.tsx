@@ -3,13 +3,14 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { AppointmentCard } from './AppointmentCard';
 import type { InspectorAppointment } from '../types';
 import type { HistoryItem } from '../hooks/useScheduleHistory';
+import { parseScheduleDate } from '../lib/time-slot';
 
 interface ScheduleHistoryListProps {
   items: HistoryItem[];
 }
 
 function formatDateHeader(dateStr: string): string {
-  const date = new Date(`${dateStr}T12:00:00`);
+  const date = parseScheduleDate(dateStr);
   return date.toLocaleDateString('en-AU', {
     weekday: 'short',
     day: 'numeric',

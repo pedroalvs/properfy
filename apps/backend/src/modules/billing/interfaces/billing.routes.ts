@@ -206,6 +206,10 @@ export async function registerBillingRoutes(
     '/v1/financial/entries/:entryId',
     { preHandler: authenticate, schema: { params: z.object({ entryId: z.string().uuid() }), response: { 200: successResponseSchema(financialEntryResponseSchema) } } },
     async (request, reply) => {
+      // INSP reads its own payouts here, so this route cannot use assertAgencyRead.
+      // The CL_USER flag still applies: list / summary / export all enforce it, and
+      // without it a flagless CL_USER could read entries one id at a time.
+      container.authorizationService.assertClUserPermission(request.authContext!, 'view_financials');
       const params = entryIdParam.safeParse(request.params);
       if (!params.success) {
         throw new ValidationError('Invalid entry ID', params.error.errors);

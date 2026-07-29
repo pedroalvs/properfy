@@ -1,6 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
 import { PLATFORM_TIMEZONE } from '@properfy/shared';
-import type { AppointmentImportPreviewResponse } from '@properfy/shared';
+import type { AppointmentImportPreviewResponse, ImportFileIssue } from '@properfy/shared';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { ValidationError, ForbiddenError } from '../../../../shared/domain/errors';
 import type { IAppointmentImportRepository } from '../../domain/appointment-import.repository';
@@ -14,6 +14,13 @@ import {
   type IImportGeocodeVerifier,
 } from '../../../property/application/services/apply-geocode-verification';
 import { parseAppointmentImportFile } from '../../infrastructure/appointment-import-parser';
+import { analyzeImportHeaders } from '../../domain/appointment-import-columns';
+import {
+  ImportFileMissingColumnsError,
+  multipleSheetsWarning,
+  unknownColumnsWarning,
+  noDataRowsWarning,
+} from '../../domain/appointment-import.errors';
 import {
   AppointmentBranchNotFoundError,
   AppointmentBranchInactiveError,
@@ -83,11 +90,43 @@ export class PreviewAppointmentImportUseCase {
       if (!branch.isActive()) throw new AppointmentBranchInactiveError();
     }
 
-    const rawRows = await parseAppointmentImportFile(fileBuffer, ext);
+    // Parse and vet the file BEFORE the upload and the DB save below: a file
+    // that can never be committed must not leave an orphan blob or import row
+    // behind. `parseAppointmentImportFile` throws an ImportFileError (400) for
+    // anything unreadable — corrupt, empty, or not what its extension claims.
+    const parsed = await parseAppointmentImportFile(fileBuffer, ext);
+
+    const analysis = analyzeImportHeaders(parsed.headers);
+    if (analysis.missingRequired.length > 0) {
+      // One precise message naming the columns, instead of the same per-row
+      // error repeated once per data row.
+      throw new ImportFileMissingColumnsError(
+        analysis.missingRequired,
+        [...analysis.recognized, ...analysis.custom.map((label) => `CUSTOM: ${label}`)],
+        // A file missing "Postcode" usually has "Postcodee" right there; the
+        // suggestion turns the block into a rename.
+        analysis.unknown,
+      );
+    }
+
+    const rawRows = parsed.rows;
     if (rawRows.length > MAX_PREVIEW_ROWS) {
       throw new ValidationError(
         `Import file has ${rawRows.length} rows; the maximum for preview is ${MAX_PREVIEW_ROWS}. Split it into smaller files.`,
       );
+    }
+
+    // Non-blocking diagnostics: the import proceeds, but the user is told what
+    // was skipped and why.
+    const fileIssues: ImportFileIssue[] = [];
+    if (parsed.sheetUsed && parsed.sheetsIgnored.length > 0) {
+      fileIssues.push(multipleSheetsWarning(parsed.sheetUsed, parsed.sheetsIgnored));
+    }
+    if (analysis.unknown.length > 0) {
+      fileIssues.push(unknownColumnsWarning(analysis.unknown));
+    }
+    if (rawRows.length === 0) {
+      fileIssues.push(noDataRowsWarning());
     }
 
     const id = crypto.randomUUID();
@@ -98,7 +137,12 @@ export class PreviewAppointmentImportUseCase {
     await this.storageService.upload(fileKey, fileBuffer, contentType);
 
     const tz = PLATFORM_TIMEZONE;
-    const { rows } = await this.resolver.resolve(rawRows, { tenantId, branchId, tz });
+    const { rows } = await this.resolver.resolve(rawRows, {
+      tenantId,
+      branchId,
+      tz,
+      firstDataRowNumber: parsed.headerRowNumber + 1,
+    });
     // Geocode-verify unique new-property addresses AFTER resolution (the
     // resolver stays pure DB lookups, so the commit worker's re-resolve never
     // re-geocodes — commit reads the verification back from previewJson) and
@@ -118,7 +162,7 @@ export class PreviewAppointmentImportUseCase {
       successCount: 0,
       errorCount: 0,
       errorsJson: null,
-      previewJson: { summary, rows },
+      previewJson: { summary, rows, fileIssues },
       resultsJson: null,
       createdByUserId: actor.userId,
       createdAt: now,
@@ -126,6 +170,6 @@ export class PreviewAppointmentImportUseCase {
     });
     await this.importRepo.save(entity);
 
-    return { importId: id, branchId, tenantId, summary, rows };
+    return { importId: id, branchId, tenantId, summary, rows, fileIssues };
   }
 }

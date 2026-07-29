@@ -35,24 +35,6 @@ describe('FilterTimeRange', () => {
     expect(onEndChange).toHaveBeenCalledWith('17:00');
   });
 
-  it('opens the native picker when either input is clicked', () => {
-    render(
-      <FilterTimeRange
-        label="Time"
-        startTime=""
-        endTime=""
-        onStartChange={() => {}}
-        onEndChange={() => {}}
-      />,
-    );
-    for (const name of ['Time - start', 'Time - end']) {
-      const input = screen.getByLabelText(name) as HTMLInputElement;
-      const showPickerSpy = vi.fn();
-      input.showPicker = showPickerSpy;
-      fireEvent.click(input);
-      expect(showPickerSpy).toHaveBeenCalledTimes(1);
-    }
-  });
 
   it('is safe when showPicker is undefined (older browsers)', () => {
     render(

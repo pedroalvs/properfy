@@ -102,6 +102,7 @@ export class SendTestNotificationUseCase {
     if (input.channel === 'EMAIL') {
       const { renderedSubject, renderedBodyHtml, renderedBodyText } = renderEmailBody(
         {
+          channel: 'EMAIL',
           bodyHtmlSource: template.bodyHtml ?? '',
           bodyTextSource: template.bodyText,
           subject: template.subject,

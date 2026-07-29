@@ -265,9 +265,11 @@ export class SendNotificationUseCase {
       this.metrics.incrementMissingVariableCount(missingVars.length);
     }
 
-    // Shared render pipeline (Handlebars → sanitize → html-to-text)
+    // Shared render pipeline. EMAIL: Handlebars → sanitize → html-to-text.
+    // SMS: Handlebars over body_text only — see renderEmailBody.
     const { renderedSubject, renderedBodyHtml, renderedBodyText } = renderEmailBody(
       {
+        channel: notification.channel,
         bodyHtmlSource: template.bodyHtml ?? '',
         bodyTextSource: template.bodyText,
         subject: template.subject,

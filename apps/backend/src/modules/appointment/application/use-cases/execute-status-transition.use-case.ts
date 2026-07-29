@@ -36,6 +36,12 @@ export interface ExecuteStatusTransitionInput {
   crossCheckByUserId?: string;
   inspectorId?: string;
   idempotencyKey?: string;
+  /**
+   * Skips the transition notification. Set by automated sweeps: telling a rental
+   * tenant their long-past inspection was "cancelled" is noise, and the first run
+   * of a sweep would otherwise notify the entire historical backlog at once.
+   */
+  suppressNotifications?: boolean;
   actor: AuthContext;
 }
 
@@ -78,7 +84,12 @@ export class ExecuteStatusTransitionUseCase {
   ) {}
 
   async execute(input: ExecuteStatusTransitionInput): Promise<ExecuteStatusTransitionOutput> {
-    const { appointmentId, targetStatus, reason, cancellationReasonCode, rejectionReasonCode, doneCheckedByUserId, crossCheckByUserId, inspectorId, idempotencyKey, actor } = input;
+    const { appointmentId, targetStatus, reason, cancellationReasonCode, rejectionReasonCode, doneCheckedByUserId, crossCheckByUserId, inspectorId, idempotencyKey, suppressNotifications, actor } = input;
+
+    // Automated flows act as SYS. Attribute their audit trail and events to the
+    // system rather than filing them under a synthetic user id.
+    const isSystemActor = actor.role === 'SYS';
+    const actorType = isSystemActor ? 'SYSTEM' : 'USER';
 
     // 0. Idempotency check
     if (idempotencyKey) {
@@ -123,6 +134,17 @@ export class ExecuteStatusTransitionUseCase {
     }
 
     const rule = validation.rule!;
+
+    // 3a-bis. EXPIRED means "the system cancelled this because its date passed".
+    // The web dialog hides it, but the API validates against the whole enum, so a
+    // human actor could otherwise hand-label a cancellation as auto-expired and
+    // destroy the distinction this code exists to make in reports.
+    if (cancellationReasonCode === 'EXPIRED' && !isSystemActor) {
+      throw new ForbiddenError(
+        'CANCELLATION_REASON_CODE_SYSTEM_ONLY',
+        'The EXPIRED cancellation reason is assigned by the system only',
+      );
+    }
 
     // 3b. CL_USER permission check — configurable permissions per tenant
     if (actor.role === 'CL_USER') {
@@ -295,8 +317,8 @@ export class ExecuteStatusTransitionUseCase {
 
     this.auditService.log({
       action: 'appointment.status_transition',
-      actorType: 'USER',
-      actorId: actor.userId,
+      actorType,
+      actorId: isSystemActor ? undefined : actor.userId,
       entityType: 'Appointment',
       entityId: appointmentId,
       tenantId: appointment.tenantId,
@@ -392,7 +414,7 @@ export class ExecuteStatusTransitionUseCase {
     }
 
     // 9f. Side effect: notifications on transition
-    if (this.onTransitionHandler) {
+    if (this.onTransitionHandler && !suppressNotifications) {
       try {
         await this.onTransitionHandler.execute({
           appointmentId,
@@ -413,9 +435,10 @@ export class ExecuteStatusTransitionUseCase {
         fromStatus: appointment.status,
         toStatus: targetStatus,
         actorId: actor.userId,
-        actorType: 'USER',
+        actorType,
         reason: reason ?? undefined,
         metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+        serviceGroupId: appointment.serviceGroupId,
       };
       this.domainEventBus.emit({
         type: APPOINTMENT_EVENTS.STATUS_TRANSITION,

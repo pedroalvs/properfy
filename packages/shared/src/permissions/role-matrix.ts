@@ -263,8 +263,14 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
   },
 
   // ── Reports & Audit ──────────────────────────────────────────────────
+  // Agency-visible surface: AM/OP run cross-agency, CL_ADMIN is scoped to its
+  // own agency server-side. CL_USER follows the same `view_financials` gating as
+  // the agency financial surfaces, since the Financial report is one of the
+  // types it can generate.
   'report.view': {
-    roles: ['AM', 'OP'],
+    roles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'],
+    condition: 'cl_user_flag',
+    conditionKey: 'view_financials',
   },
   'audit.view': {
     roles: ['AM', 'OP', 'CL_ADMIN'],

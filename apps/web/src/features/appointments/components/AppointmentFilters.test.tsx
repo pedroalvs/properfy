@@ -107,6 +107,47 @@ describe('AppointmentFilters', () => {
     expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, status: 'SCHEDULED' });
   });
 
+  describe('hiddenFilters', () => {
+    function renderWithHidden(hiddenFilters: ReadonlyArray<'status' | 'showCancelled'>) {
+      render(
+        <AppointmentFilters
+          filters={DEFAULT_FILTERS}
+          onFiltersChange={() => {}}
+          branchOptions={branchOptions}
+          serviceTypeOptions={[]}
+          hiddenFilters={hiddenFilters}
+        />,
+      );
+    }
+
+    it('omits both controls the board opts out of', () => {
+      // Status is the board's column axis, and cancelled rows always show in
+      // the Cancelled column — either control would contradict what is on screen.
+      renderWithHidden(['status', 'showCancelled']);
+
+      expect(screen.queryByLabelText('Status')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Show cancelled')).not.toBeInTheDocument();
+    });
+
+    it('keeps every other control when some are hidden', () => {
+      renderWithHidden(['status', 'showCancelled']);
+
+      expect(screen.getByLabelText('Search')).toBeInTheDocument();
+      expect(screen.getByLabelText('Branch')).toBeInTheDocument();
+      expect(screen.getByLabelText('Confirmation')).toBeInTheDocument();
+      expect(screen.getByLabelText('Period - start')).toBeInTheDocument();
+      expect(screen.getByLabelText('Period - end')).toBeInTheDocument();
+      expect(screen.getByLabelText('Overdue only')).toBeInTheDocument();
+    });
+
+    it('hides one control without hiding the other', () => {
+      renderWithHidden(['status']);
+
+      expect(screen.queryByLabelText('Status')).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Show cancelled')).toBeInTheDocument();
+    });
+  });
+
   it('calls onFiltersChange when tenant response is selected', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

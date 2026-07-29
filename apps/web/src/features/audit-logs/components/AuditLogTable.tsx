@@ -1,7 +1,7 @@
 import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import { StatusChip } from '@/components/ui/StatusChip';
-import { formatDateTime } from '@/lib/format-date';
+import { formatInstantDateTime } from '@/lib/format-date';
 import { formatAuditAction, formatAuditActor, formatAuditTenant, summarizeAuditChanges } from '../lib/audit-log-display';
 import type { AuditLog } from '../types';
 
@@ -41,7 +41,7 @@ export function AuditLogTable({
       label: 'Timestamp',
       width: '180px',
       sortable: true,
-      render: (row) => <>{formatDateTime(row.createdAt)}</>,
+      render: (row) => <>{formatInstantDateTime(row.createdAt)}</>,
     },
     {
       key: 'actorType',

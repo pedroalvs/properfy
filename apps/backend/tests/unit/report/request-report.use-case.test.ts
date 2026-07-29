@@ -7,6 +7,7 @@ import {
   ReportForbiddenError,
   ReportDateRangeExceededError,
   ReportConcurrentLimitExceededError,
+  ReportTenantScopeViolationError,
 } from '../../../src/modules/report/domain/report.errors';
 import type { AuthContext, RequestReportInput } from '@properfy/shared';
 
@@ -116,7 +117,7 @@ describe('RequestReportUseCase', () => {
     );
   });
 
-  // --- RBAC: AM/OP only ---
+  // --- RBAC: operators (AM/OP) + agencies (CL_ADMIN/CL_USER) ---
   it('allows AM', async () => {
     const result = await useCase.execute(makeInput(), makeAuth({ role: 'AM' }));
     expect(result.status).toBe('PENDING');
@@ -127,10 +128,32 @@ describe('RequestReportUseCase', () => {
     expect(result.status).toBe('PENDING');
   });
 
-  it.each(['CL_ADMIN', 'CL_USER', 'INSP'] as const)('forbids %s', async (role) => {
+  it.each(['CL_ADMIN', 'CL_USER'] as const)('allows %s', async (role) => {
+    const result = await useCase.execute(makeInput(), makeAuth({ role, tenantId: 'tenant-1' }));
+    expect(result.status).toBe('PENDING');
+  });
+
+  it.each(['INSP', 'TNT'] as const)('forbids %s', async (role) => {
     await expect(useCase.execute(makeInput(), makeAuth({ role, tenantId: 'tenant-1' }))).rejects.toThrow(
       ReportForbiddenError,
     );
+  });
+
+  // AGENCIES compares agencies against each other — inherently cross-agency.
+  it('forbids CL_ADMIN from requesting the AGENCIES report', async () => {
+    await expect(
+      useCase.execute(makeInput({ reportType: 'AGENCIES' }), makeAuth({ role: 'CL_ADMIN', tenantId: 'tenant-1' })),
+    ).rejects.toThrow(ReportForbiddenError);
+  });
+
+  it.each(['APPOINTMENTS', 'FINANCIAL', 'PERFORMANCE'] as const)('allows CL_ADMIN to request %s', async (reportType) => {
+    const result = await useCase.execute(makeInput({ reportType }), makeAuth({ role: 'CL_ADMIN', tenantId: 'tenant-1' }));
+    expect(result.status).toBe('PENDING');
+  });
+
+  it('still allows AM to request the AGENCIES report', async () => {
+    const result = await useCase.execute(makeInput({ reportType: 'AGENCIES' }), makeAuth({ role: 'AM' }));
+    expect(result.status).toBe('PENDING');
   });
 
   // --- Agency scope ---
@@ -145,6 +168,39 @@ describe('RequestReportUseCase', () => {
       makeAuth({ role: 'OP', tenantId: null }),
     );
     expect(vi.mocked(reportRepo.save).mock.calls[0][0].tenantId).toBe('tenant-42');
+  });
+
+  it('marks an operator run as not agency-scoped', async () => {
+    await useCase.execute(makeInput(), makeAuth({ role: 'AM' }));
+    expect(vi.mocked(reportRepo.save).mock.calls[0][0].agencyScoped).toBe(false);
+  });
+
+  it('marks a CL_ADMIN run as agency-scoped and pins it to the actor tenant', async () => {
+    await useCase.execute(makeInput(), makeAuth({ role: 'CL_ADMIN', tenantId: 'tenant-1' }));
+    const saved = vi.mocked(reportRepo.save).mock.calls[0][0];
+    expect(saved.agencyScoped).toBe(true);
+    expect(saved.tenantId).toBe('tenant-1');
+    expect(saved.filtersJson.tenantId).toBe('tenant-1');
+  });
+
+  // The persisted filtersJson is the ONLY scope the generation worker ever sees,
+  // so a spoofed tenantId must be overwritten before the row is saved.
+  it('ignores a tenantId spoofed by an agency actor', async () => {
+    await useCase.execute(
+      makeInput({ filters: { fromDate: '2026-01-01', toDate: '2026-03-01', dateAxis: 'SCHEDULED', groupProperties: false, tenantId: 'other-tenant' } }),
+      makeAuth({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    );
+    const saved = vi.mocked(reportRepo.save).mock.calls[0][0];
+    expect(saved.tenantId).toBe('tenant-1');
+    expect(saved.filtersJson.tenantId).toBe('tenant-1');
+  });
+
+  // The reader treats a falsy tenantId as "no filter" → a platform-wide export.
+  it('fails closed when an agency actor has no tenant in the JWT', async () => {
+    await expect(useCase.execute(makeInput(), makeAuth({ role: 'CL_ADMIN', tenantId: null }))).rejects.toThrow(
+      ReportTenantScopeViolationError,
+    );
+    expect(reportRepo.save).not.toHaveBeenCalled();
   });
 
   // --- Date range ---

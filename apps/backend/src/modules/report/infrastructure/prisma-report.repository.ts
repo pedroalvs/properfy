@@ -57,6 +57,7 @@ export class PrismaReportRepository implements IReportRepository {
       data: {
         id: entity.id,
         tenant_id: entity.tenantId,
+        agency_scoped: entity.agencyScoped,
         report_type: entity.reportType as PrismaReportType,
         filters_json: entity.filtersJson as Prisma.InputJsonValue,
         status: entity.status as PrismaReportStatus,
@@ -76,7 +77,8 @@ export class PrismaReportRepository implements IReportRepository {
     await this.prisma.report.update({
       where: { id: entity.id },
       data: {
-        tenant_id: entity.tenantId,
+        // `tenant_id` / `agency_scoped` are set once at request time and are
+        // deliberately not re-written here — the worker only advances status.
         report_type: entity.reportType as PrismaReportType,
         filters_json: entity.filtersJson as Prisma.InputJsonValue,
         status: entity.status as PrismaReportStatus,
@@ -93,7 +95,13 @@ export class PrismaReportRepository implements IReportRepository {
 
   private buildWhere(filters: ReportFilters) {
     const where: Record<string, unknown> = {};
+    // An agency listing without a tenant would return every agency's reports.
+    // Fail loudly rather than silently widening the scope.
+    if (filters.agencyScoped === true && !filters.tenantId) {
+      throw new Error('agencyScoped report filter requires a tenantId');
+    }
     if (filters.tenantId !== undefined) where.tenant_id = filters.tenantId;
+    if (filters.agencyScoped !== undefined) where.agency_scoped = filters.agencyScoped;
     if (filters.requestedByUserId) where.requested_by_user_id = filters.requestedByUserId;
     if (filters.reportType) where.report_type = filters.reportType;
     if (filters.status) where.status = filters.status;
@@ -114,6 +122,7 @@ export class PrismaReportRepository implements IReportRepository {
     return new ReportEntity({
       id: row.id,
       tenantId: row.tenant_id,
+      agencyScoped: row.agency_scoped,
       reportType: row.report_type,
       filtersJson: row.filters_json as Record<string, unknown>,
       status: row.status,

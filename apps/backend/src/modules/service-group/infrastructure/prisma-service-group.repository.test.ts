@@ -475,7 +475,7 @@ describe('PrismaServiceGroupRepository.findPortalEligibleSlots', () => {
     return { repo: new PrismaServiceGroupRepository(prisma as any), queryRaw };
   }
 
-  it('returns mapped groups when rows found', async () => {
+  it('returns mapped group members when rows found', async () => {
     const { repo } = makeRepo([
       {
         group_id: 'sg-1',
@@ -484,7 +484,16 @@ describe('PrismaServiceGroupRepository.findPortalEligibleSlots', () => {
         time_slot_end: '15:00',
         suburb: 'Surry Hills',
         inspector_name: 'John Smith',
-        confirmed_count: BigInt(3),
+        is_own_agency: true,
+      },
+      {
+        group_id: 'sg-1',
+        scheduled_date: new Date('2026-05-30'),
+        time_slot_start: '13:00',
+        time_slot_end: '15:00',
+        suburb: 'Redfern',
+        inspector_name: 'John Smith',
+        is_own_agency: false,
       },
     ]);
 
@@ -495,17 +504,40 @@ describe('PrismaServiceGroupRepository.findPortalEligibleSlots', () => {
       today: TODAY,
     });
 
-    expect(result).toHaveLength(1);
+    // One row per member, not one per time slot — the capacity rule needs them all.
+    expect(result).toHaveLength(2);
     expect(result[0]).toMatchObject({
       groupId: 'sg-1',
       timeSlotStart: '13:00',
       timeSlotEnd: '15:00',
       suburb: 'Surry Hills',
       inspectorName: 'John Smith',
-      confirmedCount: 3,
-      capacityMax: 10,
+      isOwnAgency: true,
     });
+    expect(result[1]).toMatchObject({ suburb: 'Redfern', isOwnAgency: false });
     expect(result[0]!.scheduledDate).toEqual(new Date('2026-05-30'));
+  });
+
+  it('enumerates active members and drops the retired confirmed_count cap', async () => {
+    const { repo, queryRaw } = makeRepo([]);
+    await repo.findPortalEligibleSlots({
+      tenantId: 'tenant-1',
+      serviceTypeId: 'stype-1',
+      propertyId: 'prop-1',
+      today: TODAY,
+    });
+
+    const [strings] = queryRaw.mock.calls[0] as [string[]];
+    const sqlText = strings.join('');
+    expect(sqlText).toContain('is_own_agency');
+    expect(sqlText).toContain("a.status NOT IN ('CANCELLED', 'REJECTED')");
+    // The portal-only cap of 10 is gone; capacity is derived per window instead.
+    expect(sqlText).not.toContain('confirmed_count');
+    // Members are no longer collapsed per time slot.
+    expect(sqlText).not.toContain('GROUP BY');
+    // That the member enumeration is *not* tenant-filtered (so cross-agency
+    // members still count) is proven against real Postgres in
+    // tests/integration/db/portal-eligible-member-slots.integration.test.ts.
   });
 
   it('returns empty array when no rows found', async () => {
@@ -575,5 +607,131 @@ describe('PrismaServiceGroupRepository.findPortalEligibleSlots', () => {
 
     const sqlText = fullSqlText(queryRaw.mock.calls[0]);
     expect(sqlText).not.toContain('sg.id <>');
+  });
+});
+
+describe('PrismaServiceGroupRepository.findById schedule projection', () => {
+  const GROUP_ROW = {
+    id: 'sg-1',
+    group_number: 42,
+    service_type_id: 'stype-1',
+    status: 'PUBLISHED',
+    offered_count: 0,
+    confirmed_count: 0,
+    scheduled_date: new Date('2026-05-01'),
+    time_window: '08:00-16:00',
+    region_name: null,
+    description: null,
+    assigned_inspector_id: null,
+    service_region_id: null,
+    published_at: null,
+    assigned_at: null,
+    created_by_user_id: 'user-1',
+    created_at: new Date('2026-04-01'),
+    updated_at: new Date('2026-04-01'),
+    assigned_inspector: null,
+    appointments: [
+      {
+        id: 'apt-1',
+        appointment_number: 1001,
+        status: 'AWAITING_INSPECTOR',
+        service_type_id: 'stype-1',
+        tenant_id: 'tenant-1',
+        property_id: 'prop-1',
+        service_group_id: 'sg-1',
+        scheduled_date: new Date('2026-05-01'),
+        time_slot_start: '07:00',
+        time_slot_end: '08:30',
+        rental_tenant_confirmation_status: 'CONFIRMED',
+        active_confirmation_cycle_id: 'cycle-1',
+        property: { street: '10 Main St', suburb: 'Bondi', property_code: 'AG-PROP-0001' },
+      },
+    ],
+  };
+
+  function makeRepo() {
+    const findFirst = vi.fn().mockResolvedValue(GROUP_ROW);
+    const repo = new PrismaServiceGroupRepository({ serviceGroup: { findFirst } } as any);
+    return { repo, findFirst };
+  }
+
+  it('selects the time slot and confirmation columns member appointments need', async () => {
+    const { repo, findFirst } = makeRepo();
+
+    await repo.findById('sg-1', null);
+
+    const select = findFirst.mock.calls[0][0].include.appointments.select;
+    expect(select).toMatchObject({
+      time_slot_start: true,
+      time_slot_end: true,
+      rental_tenant_confirmation_status: true,
+      active_confirmation_cycle_id: true,
+    });
+  });
+
+  it('keeps excluding soft-deleted members from the projection', async () => {
+    const { repo, findFirst } = makeRepo();
+
+    await repo.findById('sg-1', null);
+
+    expect(findFirst.mock.calls[0][0].include.appointments.where).toEqual({ deleted_at: null });
+  });
+
+  it('maps the schedule and confirmation fields onto each member', async () => {
+    const { repo } = makeRepo();
+
+    const result = await repo.findById('sg-1', null);
+
+    expect(result!.appointments[0]).toMatchObject({
+      id: 'apt-1',
+      timeSlotStart: '07:00',
+      timeSlotEnd: '08:30',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
+      activeConfirmationCycleId: 'cycle-1',
+    });
+  });
+});
+
+describe('PrismaServiceGroupRepository.assignInspectorToGroupAppointments', () => {
+  function makeRepo(counts: number[]) {
+    const updateMany = vi.fn();
+    counts.forEach((count) => updateMany.mockResolvedValueOnce({ count }));
+    const $transaction = vi.fn(async (ops: unknown[]) => Promise.all(ops as Promise<unknown>[]));
+    const repo = new PrismaServiceGroupRepository({
+      appointment: { updateMany },
+      $transaction,
+    } as any);
+    return { repo, updateMany, $transaction };
+  }
+
+  it('swaps the inspector on SCHEDULED members without touching their status', async () => {
+    const { repo, updateMany } = makeRepo([3, 0]);
+
+    await repo.assignInspectorToGroupAppointments('sg-1', 'insp-new');
+
+    expect(updateMany).toHaveBeenNthCalledWith(1, {
+      where: { service_group_id: 'sg-1', status: 'SCHEDULED', deleted_at: null },
+      data: { inspector_id: 'insp-new' },
+    });
+  });
+
+  it('schedules members still waiting for an inspector', async () => {
+    const { repo, updateMany } = makeRepo([0, 2]);
+
+    await repo.assignInspectorToGroupAppointments('sg-1', 'insp-new');
+
+    expect(updateMany).toHaveBeenNthCalledWith(2, {
+      where: { service_group_id: 'sg-1', status: 'AWAITING_INSPECTOR', deleted_at: null },
+      data: { status: 'SCHEDULED', inspector_id: 'insp-new' },
+    });
+  });
+
+  it('runs both writes in one transaction and returns each count', async () => {
+    const { repo, $transaction } = makeRepo([3, 2]);
+
+    const result = await repo.assignInspectorToGroupAppointments('sg-1', 'insp-new');
+
+    expect($transaction).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ reassigned: 3, scheduled: 2 });
   });
 });

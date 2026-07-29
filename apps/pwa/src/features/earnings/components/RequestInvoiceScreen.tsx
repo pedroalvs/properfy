@@ -9,6 +9,7 @@ import {
   type AvailablePeriod,
 } from '../hooks/useInspectorInvoices';
 import { formatInvoiceCurrency } from '../lib/invoiceStatus';
+import { formatCivilDate } from '@/lib/format-date';
 
 const ERROR_MESSAGES: Record<string, string> = {
   INVOICE_EMPTY_PERIOD: 'No approved payouts found for the selected period.',
@@ -51,7 +52,7 @@ export function RequestInvoiceScreen() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">Request submitted</p>
             <p className="mt-3 text-2xl font-bold tracking-tight">{formatInvoiceCurrency(request.data.totalAmount, request.data.currency)}</p>
             <p className="mt-1 text-sm text-white/80">{request.data.payoutCount} payout{request.data.payoutCount === 1 ? '' : 's'} · awaiting review</p>
-            <p className="mt-1 text-xs text-white/60">Period: {request.data.periodStart} to {request.data.periodEnd}</p>
+            <p className="mt-1 text-xs text-white/60">Period: {formatCivilDate(request.data.periodStart)} to {formatCivilDate(request.data.periodEnd)}</p>
             <div className="mt-4 flex gap-2">
               <Button onClick={() => navigate('/earnings/invoices')} className="!rounded-2xl bg-white/20">View my invoices</Button>
             </div>
@@ -86,7 +87,7 @@ export function RequestInvoiceScreen() {
                       }`}
                       data-testid="period-option"
                     >
-                      <span>{p.periodStart} → {p.periodEnd}</span>
+                      <span>{formatCivilDate(p.periodStart)} → {formatCivilDate(p.periodEnd)}</span>
                       {isSelected && <i className="mdi mdi-check-circle text-lg" aria-hidden="true" />}
                     </button>
                   );

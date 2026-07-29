@@ -1,6 +1,6 @@
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
-import { formatDateTime } from '@/lib/format-date';
+import { formatInstantDateTime } from '@/lib/format-date';
 import { formatAuditAction, formatAuditActor, formatAuditTenant, summarizeAuditChanges } from '../lib/audit-log-display';
 import type { AuditLog } from '../types';
 
@@ -34,7 +34,7 @@ export function AuditLogDetailDrawer({ log, open, onClose }: AuditLogDetailDrawe
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-xs text-text-muted">Timestamp</p>
-                  <p className="text-sm font-medium">{formatDateTime(log.createdAt)}</p>
+                  <p className="text-sm font-medium">{formatInstantDateTime(log.createdAt)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-text-muted">Actor</p>

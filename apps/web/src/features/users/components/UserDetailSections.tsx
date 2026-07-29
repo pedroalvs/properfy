@@ -1,7 +1,7 @@
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
 import { BooleanIcon } from '@/components/ui/BooleanIcon';
-import { formatDateTime } from '@/lib/format-date';
+import { formatInstantDateTime } from '@/lib/format-date';
 import { UserRoleChip } from './UserRoleChip';
 import { UserStatusChip } from './UserStatusChip';
 import type { UserDetail } from '../types';
@@ -28,13 +28,13 @@ export function UserDetailSections({ user }: UserDetailSectionsProps) {
       </FormSection>
 
       <FormSection title="Activity">
-        <DetailRow label="Last Login" value={user.lastLoginAt ? formatDateTime(user.lastLoginAt) : null} />
+        <DetailRow label="Last Login" value={user.lastLoginAt ? formatInstantDateTime(user.lastLoginAt) : null} />
         <DetailRow label="2FA" value={<BooleanIcon value={user.twoFactorEnabled} />} />
       </FormSection>
 
       <FormSection title="Record">
-        <DetailRow label="Created At" value={formatDateTime(user.createdAt)} />
-        <DetailRow label="Updated At" value={formatDateTime(user.updatedAt)} />
+        <DetailRow label="Created At" value={formatInstantDateTime(user.createdAt)} />
+        <DetailRow label="Updated At" value={formatInstantDateTime(user.updatedAt)} />
       </FormSection>
     </div>
   );

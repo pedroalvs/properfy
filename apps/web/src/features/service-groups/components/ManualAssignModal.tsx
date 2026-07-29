@@ -1,7 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
+import { FilterInput } from '@/components/filters/FilterInput';
+import { FormField } from '@/components/forms/FormField';
+import { Textarea } from '@/components/forms/Textarea';
+import { InfoBanner } from '@/components/feedback/InfoBanner';
 import { api } from '@/services/api';
 
 interface Inspector {
@@ -13,13 +17,40 @@ interface Inspector {
 interface ManualAssignModalProps {
   open: boolean;
   onClose: () => void;
-  onAssign: (inspectorId: string) => void;
+  /** `reason` is only populated in replacement mode. */
+  onAssign: (inspectorId: string, reason: string) => void;
   serviceGroupId: string;
+  /** The group's current assignee. Drives the replacement copy and warning. */
+  currentInspector?: { id: string; name: string } | null;
+  /**
+   * Replacing means revoking a commitment the outgoing inspector already made,
+   * so a reason is mandatory (root CLAUDE.md 5) and both parties get notified.
+   */
+  isReplacement?: boolean;
+  loading?: boolean;
 }
 
-export function ManualAssignModal({ open, onClose, onAssign }: ManualAssignModalProps) {
+const MIN_REASON_LENGTH = 3;
+
+export function ManualAssignModal({
+  open,
+  onClose,
+  onAssign,
+  currentInspector = null,
+  isReplacement = false,
+  loading = false,
+}: ManualAssignModalProps) {
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [reason, setReason] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      setSearch('');
+      setSelectedId(null);
+      setReason('');
+    }
+  }, [open]);
 
   const { data, isLoading } = useQuery({
     queryKey: ['inspectors', 'active', search],
@@ -35,54 +66,50 @@ export function ManualAssignModal({ open, onClose, onAssign }: ManualAssignModal
     enabled: open,
   });
 
-  const inspectors = data ?? [];
+  // You cannot replace someone with themselves, so the current assignee is not
+  // offered — which also keeps "a selection exists" a sufficient submit guard.
+  const inspectors = (data ?? []).filter((i) => i.id !== currentInspector?.id);
+
+  const trimmedReason = reason.trim();
+  const canSubmit =
+    !!selectedId && !loading && (!isReplacement || trimmedReason.length >= MIN_REASON_LENGTH);
 
   const handleAssign = () => {
-    if (selectedId) {
-      onAssign(selectedId);
-      setSearch('');
-      setSelectedId(null);
-    }
-  };
-
-  const handleClose = () => {
-    setSearch('');
-    setSelectedId(null);
-    onClose();
+    if (!canSubmit) return;
+    onAssign(selectedId!, trimmedReason);
   };
 
   return (
     <Dialog
       open={open}
-      onClose={handleClose}
-      title="Assign Inspector"
+      onClose={onClose}
+      title={isReplacement ? 'Change Inspector' : 'Assign Inspector'}
       maxWidth="520px"
       actions={
         <>
-          <Button variant="secondary" onClick={handleClose}>
+          <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            variant="primary"
-            onClick={handleAssign}
-            disabled={!selectedId}
-          >
-            Assign
+          <Button variant="primary" onClick={handleAssign} disabled={!canSubmit}>
+            {isReplacement ? 'Replace inspector' : 'Assign'}
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-3">
-        <div className="relative">
-          <i className="mdi mdi-magnify absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" aria-hidden="true" />
-          <input
-            type="text"
-            placeholder="Search by name or email"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded border border-black/15 py-2 pl-9 pr-3 text-sm text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none"
-          />
-        </div>
+        {currentInspector && (
+          <InfoBanner variant="warning">
+            Currently assigned to <strong>{currentInspector.name}</strong>. Replacing will notify
+            both {currentInspector.name} and the new inspector.
+          </InfoBanner>
+        )}
+
+        <FilterInput
+          label="Search inspectors"
+          value={search}
+          onChange={setSearch}
+          placeholder="Name or email"
+        />
 
         <div className="max-h-64 overflow-y-auto rounded border border-black/10">
           {isLoading && (
@@ -123,6 +150,18 @@ export function ManualAssignModal({ open, onClose, onAssign }: ManualAssignModal
             </button>
           ))}
         </div>
+
+        {isReplacement && (
+          <FormField label="Reason">
+            <Textarea
+              value={reason}
+              onChange={setReason}
+              rows={2}
+              placeholder="Why is this group changing hands?"
+              aria-label="Reason"
+            />
+          </FormField>
+        )}
       </div>
     </Dialog>
   );

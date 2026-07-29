@@ -1,7 +1,7 @@
 import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import { BooleanIcon } from '@/components/ui/BooleanIcon';
-import { formatDate } from '@/lib/format-date';
+import { formatCivilDate } from '@/lib/format-date';
 import { AppointmentStatusChip } from './AppointmentStatusChip';
 import { RentalTenantConfirmationChip } from './RentalTenantConfirmationChip';
 import type { Appointment } from '../types';
@@ -159,7 +159,7 @@ export function AppointmentTable({
       label: 'Scheduled Date',
       width: '140px',
       sortable: true,
-      render: (row) => <>{formatDate(row.scheduledDate)}</>,
+      render: (row) => <>{formatCivilDate(row.scheduledDate)}</>,
     },
     {
       key: 'doneCheckedByUserId',

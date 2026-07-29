@@ -69,6 +69,12 @@ describe('registerWorkers', () => {
   const mockAuditRetentionWorker = { execute: mockAuditRetentionExecute } as any;
   const mockRejectUnconfirmedExecute = vi.fn().mockResolvedValue({ rejectedCount: 0, groupsClosedCount: 0, groupsUpdatedCount: 0 });
   const mockRejectUnconfirmedWorker = { execute: mockRejectUnconfirmedExecute } as any;
+  const mockCancelOverdueWorker = {
+    execute: vi.fn().mockResolvedValue({ cancelledCount: 0, failedCount: 0, batchCapped: false }),
+  } as any;
+  const mockCancelEmptyGroupsWorker = {
+    execute: vi.fn().mockResolvedValue({ checkedCount: 0, cancelledCount: 0, failedCount: 0 }),
+  } as any;
   const mockFyWebhookDispatcher = { deliver: vi.fn().mockResolvedValue(undefined) } as any;
   const mockLogger = {
     info: vi.fn(),
@@ -100,6 +106,8 @@ describe('registerWorkers', () => {
       mockNotifyStuckWorker,
       mockAuditRetentionWorker,
       mockRejectUnconfirmedWorker,
+      mockCancelOverdueWorker,
+      mockCancelEmptyGroupsWorker,
       mockFyWebhookDispatcher,
       mockLogger,
     );
@@ -112,7 +120,7 @@ describe('registerWorkers', () => {
   it('registers all workers and schedules', async () => {
     await callRegister();
 
-    expect(mockWork).toHaveBeenCalledTimes(20);
+    expect(mockWork).toHaveBeenCalledTimes(22);
     expect(mockWork).toHaveBeenCalledWith('fy.webhook.deliver', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('report.generate', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.send', expect.any(Function));
@@ -132,10 +140,12 @@ describe('registerWorkers', () => {
     expect(mockWork).toHaveBeenCalledWith('inspection-execution.notify-not-started', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('audit.retention', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('appointment.reject-unconfirmed', expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('appointment.cancel-overdue', expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('service-group.cancel-empty', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('system.dlq-monitor', expect.any(Function));
     // All recurring jobs are anchored to the platform timezone (Sydney).
     const sydneyTz = { tz: 'Australia/Sydney' };
-    expect(mockSchedule).toHaveBeenCalledTimes(14);
+    expect(mockSchedule).toHaveBeenCalledTimes(16);
     expect(mockSchedule).toHaveBeenCalledWith('notification.retry-poll', '*/5 * * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('notification.sms-delivery-poll', '*/10 * * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('notification.dispatch-reminders', '0 18 * * *', {}, sydneyTz);
@@ -148,6 +158,10 @@ describe('registerWorkers', () => {
     expect(mockSchedule).toHaveBeenCalledWith('inspection-execution.notify-not-started', '0 * * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('audit.retention', '30 3 * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('appointment.reject-unconfirmed', '0 19 * * *', {}, sydneyTz);
+    // Just after Sydney midnight: the cutoff is "scheduled_date < today", so
+    // yesterday becomes eligible the moment the civil date rolls over.
+    expect(mockSchedule).toHaveBeenCalledWith('appointment.cancel-overdue', '10 0 * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('service-group.cancel-empty', '20 0 * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('appointment.import.sweep-abandoned', '0 * * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('system.dlq-monitor', '*/5 * * * *', {}, sydneyTz);
   });

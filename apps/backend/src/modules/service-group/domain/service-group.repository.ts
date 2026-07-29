@@ -44,6 +44,16 @@ export interface ServiceGroupWithAppointments {
     propertyId: string;
     serviceGroupId: string | null;
     scheduledDate: Date;
+    /** Member's own slot, `HH:mm`. Needed to clamp members into a changed group window. */
+    timeSlotStart: string;
+    timeSlotEnd: string;
+    /**
+     * Denormalized confirmation state. Together with `activeConfirmationCycleId`
+     * it answers "was the rental tenant already told about the OLD schedule?" —
+     * the gate a schedule change uses to decide whether to re-notify.
+     */
+    rentalTenantConfirmationStatus: string;
+    activeConfirmationCycleId: string | null;
     propertyAddress: string | null;
     propertyCode: string | null;
   }>;
@@ -123,15 +133,27 @@ export interface ServiceGroupListItem {
   agencies: AgencyRef[];
 }
 
-export interface PortalEligibleSlot {
+/**
+ * One appointment inside a portal-eligible group, on the day it is scheduled.
+ *
+ * Rows are per-member rather than pre-aggregated per time slot because a
+ * window's capacity is an interval-packing computation over the whole group —
+ * see `domain/portal-slot-capacity.ts`. Aggregating in SQL would throw away the
+ * sibling windows the computation needs.
+ */
+export interface PortalEligibleGroupMember {
   groupId: string;
   scheduledDate: Date;
   timeSlotStart: string;
   timeSlotEnd: string;
   suburb: string;
   inspectorName: string;
-  confirmedCount: number;
-  capacityMax: 10;
+  /**
+   * Whether the appointment belongs to the agency asking for slots. Groups are
+   * cross-agency: every member consumes the inspector's time, but only the
+   * caller's own windows are offered back to the tenant.
+   */
+  isOwnAgency: boolean;
 }
 
 /**
@@ -155,8 +177,23 @@ export interface GroupAppointmentConfirmationRow {
   propertyAddress: string | null;
 }
 
+/**
+ * Outcome of `reservePortalWindow`. `WINDOW_FULL` means the slot was taken
+ * while the tenant was deciding; `APPOINTMENT_INACTIVE` means the appointment
+ * itself was cancelled, finished or deleted after the caller last checked, so
+ * there is nothing to move and no side effect should follow.
+ */
+export type PortalWindowReservation =
+  | { ok: true }
+  | { ok: false; reason: 'WINDOW_FULL' | 'APPOINTMENT_INACTIVE' };
+
 export interface IServiceGroupRepository {
   findById(id: string, tenantId: string | null): Promise<ServiceGroupWithAppointments | null>;
+  /**
+   * Ids of every group in the given statuses, cross-tenant and unpaginated — the
+   * candidate list for the empty-group sweep. Rides `@@index([status])`.
+   */
+  findIdsByStatuses(statuses: string[]): Promise<string[]>;
   findAll(
     filters: ServiceGroupFilters,
     pagination: PaginationParams,
@@ -198,6 +235,12 @@ export interface IServiceGroupRepository {
   /** Optimistic lock: updates status from PUBLISHED to ACCEPTED atomically. Returns count of updated rows (0 means race lost). */
   acceptOptimistic(id: string, inspectorId: string, assignedAt: Date): Promise<number>;
   /**
+   * Optimistic lock: sets status to CANCELLED only if it is still `expectedStatus`.
+   * Returns count of updated rows (0 means another writer got there first, so the
+   * caller must skip its audit log and domain event rather than duplicating them).
+   */
+  cancelOptimistic(id: string, expectedStatus: string): Promise<number>;
+  /**
    * `inspectorBlockedClients` is the list of tenant IDs the inspector is blocked
    * from. Empty list means eligible for all tenants. Mirrors the denylist model
    * enforced by `AcceptOfferUseCase` via `Inspector.isEligibleForTenant`.
@@ -232,10 +275,27 @@ export interface IServiceGroupRepository {
   /** Atomically transition all group's appointments to SCHEDULED with inspector */
   scheduleAppointments(groupId: string, inspectorId: string): Promise<number>;
   /**
-   * Find member appointment slots in ACCEPTED service groups eligible for a tenant to join via the portal.
-   * Criteria: same tenant + same service type, confirmed_count < 10, scheduled_date >= today+1,
-   * and at least one appointment in the group has a property within 2 km of `propertyId`.
-   * `excludeGroupId` drops the appointment's current group from the results.
+   * Swap the inspector across every member in one transaction.
+   *
+   * Unlike `scheduleAppointments`, this also covers members that are already
+   * SCHEDULED: they keep their status and only change hands. Reassigning an
+   * accepted group is `SCHEDULED → SCHEDULED`, which the appointment state
+   * machine rejects, so it cannot go through the transition use case.
+   */
+  assignInspectorToGroupAppointments(
+    groupId: string,
+    inspectorId: string,
+  ): Promise<{ reassigned: number; scheduled: number }>;
+  /**
+   * Find the member appointments of ACCEPTED service groups a tenant may join
+   * via the portal. Group eligibility: same agency + same service type,
+   * scheduled_date >= today+1, and at least one appointment in the group has a
+   * property within 2 km of `propertyId`. `excludeGroupId` drops the
+   * appointment's current group from the results.
+   *
+   * Returns *every* active member of each eligible group, including other
+   * agencies' — they occupy the inspector all the same, and leaving them out
+   * would under-count capacity. `isOwnAgency` marks which ones may be offered.
    */
   findPortalEligibleSlots(params: {
     tenantId: string;
@@ -243,7 +303,34 @@ export interface IServiceGroupRepository {
     propertyId: string;
     today: Date;
     excludeGroupId?: string | null;
-  }): Promise<PortalEligibleSlot[]>;
+  }): Promise<PortalEligibleGroupMember[]>;
+  /**
+   * Serialize the portal capacity decision with the write that consumes it.
+   *
+   * Locks the group row, recomputes the window's availability from the members
+   * visible inside that transaction, and only then moves the appointment into
+   * the window. Writes nothing unless it returns `{ ok: true }`.
+   *
+   * The check and the write must share one transaction: performed separately,
+   * two portal tokens can both read the last free slot and both take it. The
+   * single-use token guard does not help, because it only serializes retries of
+   * the *same* token, not two different tenants racing for one opening.
+   *
+   * The two failure reasons are kept apart because they send the tenant
+   * somewhere different: a full window means "pick another time", an inactive
+   * appointment means there is nothing left to move.
+   */
+  reservePortalWindow(params: {
+    groupId: string;
+    appointmentId: string;
+    tenantId: string;
+    /** YYYY-MM-DD */
+    scheduledDate: string;
+    timeSlotStart: string;
+    timeSlotEnd: string;
+    inspectorId: string;
+    rentalTenantNote?: string;
+  }): Promise<PortalWindowReservation>;
   /** Re-check that the selected portal slot still exists on a future member appointment. */
   hasPortalMemberSlot(params: {
     groupId: string;

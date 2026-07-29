@@ -34,7 +34,6 @@ export type AppCredentialUpdateData = Partial<{
   username: string;
   password: string;
   needsAuthCode: boolean;
-  authCode: string | null;
   appUrl: string | null;
   instructionsUrl: string | null;
   instructionsPassword: string | null;

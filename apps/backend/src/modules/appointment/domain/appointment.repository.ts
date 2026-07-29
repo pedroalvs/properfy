@@ -95,6 +95,16 @@ export interface AppointmentListItem {
   propertySuburb?: string;
   propertyLatitude: number | null;
   propertyLongitude: number | null;
+  /**
+   * Property total area in m²; null when the property has no recorded area.
+   *
+   * `findAll` is the sole producer and always populates it (so does
+   * `findVisibleForInspector`, which delegates to it). It stays optional only so
+   * the pre-existing test fixtures that build this type need not enumerate it —
+   * `ListAppointmentsUseCase` normalises a missing value to null. Do not read an
+   * omission here as "this row has no area".
+   */
+  propertyTotalAreaM2?: number | null;
   tenantName: string;
   /** Tenant's appointment code prefix (e.g. "INS"), used to format appointment codes. */
   tenantAppointmentCodePrefix: string | null;
@@ -201,4 +211,16 @@ export interface IAppointmentRepository {
    *  - deletedAt IS NULL
    */
   findUnconfirmedForDate(date: Date): Promise<AppointmentEntity[]>;
+
+  /**
+   * Find appointments still awaiting execution whose scheduled date has passed —
+   * the input to the daily auto-cancel sweep. Returns appointments where:
+   *  - scheduledDate < beforeDate (pass UTC midnight of today's Sydney civil date)
+   *  - status IN OVERDUE_ELIGIBLE_STATUSES (AWAITING_INSPECTOR, SCHEDULED)
+   *  - deletedAt IS NULL
+   *
+   * Capped by `limit` so a large historical backlog drains over several runs
+   * instead of holding one job open.
+   */
+  findOverdueActive(beforeDate: Date, limit: number): Promise<AppointmentEntity[]>;
 }

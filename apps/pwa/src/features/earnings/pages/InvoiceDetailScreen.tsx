@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { useMyInvoiceDetail, downloadInvoice } from '../hooks/useInspectorInvoices';
 import { invoiceStatusBadge, isApproved, formatInvoiceCurrency } from '../lib/invoiceStatus';
 import { getErrorMessage } from '@/lib/api-error';
+import { formatCivilDate } from '@/lib/format-date';
 
 export function InvoiceDetailScreen() {
   const { invoiceId } = useParams<{ invoiceId: string }>();
@@ -53,7 +54,7 @@ export function InvoiceDetailScreen() {
                   {invoiceStatusBadge(invoice.status).label}
                 </span>
               </div>
-              <p className="mt-2 text-xs text-text-secondary">{invoice.periodStart} → {invoice.periodEnd}</p>
+              <p className="mt-2 text-xs text-text-secondary">{formatCivilDate(invoice.periodStart)} → {formatCivilDate(invoice.periodEnd)}</p>
               <p className="mt-2 text-2xl font-bold text-text-primary">{formatInvoiceCurrency(invoice.totalAmount, invoice.currency)}</p>
               {invoice.status === 'VOID' && invoice.notes && (
                 <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-800">Rejected: {invoice.notes}</p>
@@ -72,7 +73,7 @@ export function InvoiceDetailScreen() {
                       </div>
                       <p className="text-xs text-text-secondary">{line.propertyAddress ?? '—'}</p>
                       <p className="text-[11px] text-text-muted">
-                        {line.serviceDate} · {line.serviceType ?? '—'} · {line.agencyName ?? '—'}{line.branchName ? ` / ${line.branchName}` : ''}
+                        {formatCivilDate(line.serviceDate)} · {line.serviceType ?? '—'} · {line.agencyName ?? '—'}{line.branchName ? ` / ${line.branchName}` : ''}
                       </p>
                     </div>
                   ))}

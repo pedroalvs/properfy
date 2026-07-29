@@ -149,7 +149,10 @@ export class ListServiceGroupsUseCase {
                     address: a.address,
                     latitude: a.latitude,
                     longitude: a.longitude,
-                    scheduledDate: a.scheduledDate.toISOString(),
+                    // @db.Date calendar day. This nested list travels through an
+                    // untyped z.array(z.unknown()), so the schema cannot enforce
+                    // the shape — emit the bare day so no UTC stamp survives.
+                    scheduledDate: a.scheduledDate.toISOString().slice(0, 10),
                     inspectorName: a.inspectorName,
                   })),
               }

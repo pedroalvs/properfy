@@ -147,7 +147,14 @@ export const TEMPLATE_VARIABLES: Record<
   },
   INSPECTION_NOTICE_SMS: {
     required: ['rentalTenantName', 'scheduledDate'],
-    optional: ['propertyAddress', 'confirmationLink', 'appointmentCode'],
+    // `timeSlot` is load-bearing beyond the copy: the status-transition dedupe
+    // compares scheduledDate + timeSlot against the LATEST row of the
+    // announcement family, and dual-channel writes the SMS leg last. A key
+    // absent from the stored payload is skipped in that comparison, so dropping
+    // timeSlot here would silently suppress a slot-only re-announcement.
+    // Pinned by "email and SMS legs agree on the dedupe comparison keys" in
+    // notify-on-status-transition.handler.test.ts.
+    optional: ['propertyAddress', 'confirmationLink', 'appointmentCode', 'timeSlot'],
   },
   REMINDER_7_DAYS: {
     required: ['rentalTenantName', 'scheduledDate'],
@@ -265,7 +272,7 @@ export const SAMPLE_DATA: Record<AllowedVariable, string> = {
   timeSlot: '09:00 - 12:00',
   inspectorName: 'Jane Doe',
   confirmationLink: 'https://app.properfy.com/portal/abc123',
-  rescheduleLink: 'https://app.properfy.com/portal/abc123/reschedule',
+  rescheduleLink: 'https://app.properfy.com/portal/abc123',
   agencyName: 'ABC Realty',
   agencyPhone: '+61 2 9876 5432',
   appointmentCode: 'INS-0042',

@@ -62,7 +62,7 @@ describe('ReportTable', () => {
   it('renders formatted date for createdAt', () => {
     const report = makeReport({ createdAt: '2026-03-15T14:00:00Z' });
     render(<ReportTable data={[report]} />);
-    expect(screen.getByText('15/03/2026')).toBeInTheDocument();
+    expect(screen.getByText('16/03/2026')).toBeInTheDocument();
   });
 
   it('shows download action when status is READY', () => {

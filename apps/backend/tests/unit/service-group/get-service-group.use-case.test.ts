@@ -199,3 +199,40 @@ describe('GetServiceGroupUseCase', () => {
     expect(result.createdByUserId).toBe('user-1');
   });
 });
+
+describe('GetServiceGroupUseCase member schedule fields', () => {
+  it('exposes each member time slot and confirmation status', async () => {
+    const repo = {
+      findById: vi.fn().mockResolvedValue(
+        makeGroupWithAppointments({}, [
+          {
+            id: 'appt-1',
+            appointmentNumber: 1001,
+            status: 'AWAITING_INSPECTOR',
+            serviceTypeId: 'svc-type-1',
+            tenantId: 'tenant-1',
+            propertyId: 'property-1',
+            serviceGroupId: 'group-1',
+            scheduledDate: new Date('2026-06-01'),
+            timeSlotStart: '07:00',
+            timeSlotEnd: '08:30',
+            rentalTenantConfirmationStatus: 'CONFIRMED',
+            activeConfirmationCycleId: 'cycle-1',
+            propertyAddress: '10 Main St, Bondi',
+            propertyCode: 'AG-PROP-0001',
+          },
+        ]),
+      ),
+    } as unknown as IServiceGroupRepository;
+
+    const useCase = new GetServiceGroupUseCase(repo, new AuthorizationService({ log: vi.fn() } as unknown as AuditService));
+    const result = await useCase.execute({ groupId: 'group-1', actor: makeActor() });
+
+    expect(result.appointments[0]).toMatchObject({
+      id: 'appt-1',
+      timeSlotStart: '07:00',
+      timeSlotEnd: '08:30',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
+    });
+  });
+});

@@ -10,6 +10,7 @@ import { ServiceGroupStatus } from '@properfy/shared';
 import { useServiceGroupDetail } from '../hooks/useServiceGroupDetail';
 import { usePublishServiceGroup } from '../hooks/usePublishServiceGroup';
 import { useAssignInspector } from '../hooks/useAssignInspector';
+import { useReassignInspector } from '../hooks/useReassignInspector';
 import { useCancelServiceGroup } from '../hooks/useCancelServiceGroup';
 import { useRejectServiceGroup } from '../hooks/useRejectServiceGroup';
 import { useRepublishServiceGroup } from '../hooks/useRepublishServiceGroup';
@@ -17,6 +18,8 @@ import { useSendGroupPortalLinks } from '../hooks/useSendGroupPortalLinks';
 import { ServiceGroupStatusChip } from '../components/ServiceGroupStatusChip';
 import { ServiceGroupDetailSections } from '../components/ServiceGroupDetailSections';
 import { ManualAssignModal } from '../components/ManualAssignModal';
+import { ServiceGroupActionsMenu } from '../components/ServiceGroupActionsMenu';
+import { RescheduleGroupModal } from '../components/RescheduleGroupModal';
 import { CancelGroupModal } from '../components/CancelGroupModal';
 import { RejectGroupModal } from '../components/RejectGroupModal';
 import { RepublishGroupModal } from '../components/RepublishGroupModal';
@@ -33,7 +36,9 @@ export function ServiceGroupDetailPage() {
   const handleBack = useGoBack('/service-groups');
   const { serviceGroup, isLoading, isError, refetch } = useServiceGroupDetail(id ?? null);
   const { publish, isPublishing } = usePublishServiceGroup(id ?? null, refetch);
-  const { assign } = useAssignInspector(id ?? null, refetch);
+  const { assign, isAssigning } = useAssignInspector(id ?? null, refetch);
+  const { reassign, isReassigning } = useReassignInspector(id ?? null, refetch);
+  const [rescheduleMode, setRescheduleMode] = useState<'date' | 'time-window' | null>(null);
   const { cancel } = useCancelServiceGroup(id ?? null, refetch);
   const { reject } = useRejectServiceGroup(id ?? null, refetch);
   const { republish } = useRepublishServiceGroup(id ?? null, refetch);
@@ -55,11 +60,14 @@ export function ServiceGroupDetailPage() {
   }, [sendPortalLinks]);
 
   const handleAssign = useCallback(
-    (inspectorId: string) => {
-      assign(inspectorId);
+    (inspectorId: string, reason: string) => {
+      // An accepted group already has an inspector, and /assign answers that
+      // with a 409 by design — replacement is its own endpoint.
+      if (serviceGroup?.status === ServiceGroupStatus.ACCEPTED) reassign(inspectorId, reason);
+      else assign(inspectorId);
       setAssignOpen(false);
     },
-    [assign],
+    [assign, reassign, serviceGroup?.status],
   );
 
   const handleCancel = useCallback(
@@ -128,8 +136,9 @@ export function ServiceGroupDetailPage() {
   const canCancel = isDraft || isPublished || isAccepted;
   const canReject = isPublished || isAccepted;
   const canEdit = !isAccepted;
-  // Backend allows manual assignment while the group is DRAFT or PUBLISHED (group.canAssign()).
-  const canAssign = isDraft || isPublished;
+  // Plan edits (inspector, date, time window) are allowed on any live group;
+  // a closed one has no schedule left to move and nobody to hand it to.
+  const canChangePlan = isDraft || isPublished || isAccepted;
   // Portal links can only go to AWAITING_INSPECTOR/SCHEDULED appointments, which
   // exist only in non-terminal groups. Hidden for CANCELLED/REJECTED groups.
   const canSendPortalLinks = isDraft || isPublished || isAccepted;
@@ -213,14 +222,13 @@ export function ServiceGroupDetailPage() {
             Publish
           </Button>
         )}
-        {canAssign && (
-          <Button
-            variant="outlined"
-            onClick={() => setAssignOpen(true)}
-          >
-            <i className="mdi mdi-account-arrow-right text-base" aria-hidden="true" />
-            Manual Assign
-          </Button>
+        {canChangePlan && (
+          <ServiceGroupActionsMenu
+            isReplacement={isAccepted}
+            onChangeInspector={() => setAssignOpen(true)}
+            onChangeDate={() => setRescheduleMode('date')}
+            onChangeTimeWindow={() => setRescheduleMode('time-window')}
+          />
         )}
         {canReject && (
           <Button
@@ -268,7 +276,26 @@ export function ServiceGroupDetailPage() {
         onClose={() => setAssignOpen(false)}
         onAssign={handleAssign}
         serviceGroupId={id ?? ''}
+        currentInspector={
+          isAccepted && serviceGroup.inspectorId
+            ? { id: serviceGroup.inspectorId, name: serviceGroup.inspectorName ?? 'Unknown' }
+            : null
+        }
+        isReplacement={isAccepted}
+        // Without this the confirm button stays live while the request is in
+        // flight and a second click fires a duplicate assignment.
+        loading={isAssigning || isReassigning}
       />
+      {/* Mounted on demand so each open starts from the group's current schedule. */}
+      {rescheduleMode && (
+        <RescheduleGroupModal
+          open
+          mode={rescheduleMode}
+          onClose={() => setRescheduleMode(null)}
+          serviceGroup={serviceGroup}
+          onSaved={refetch}
+        />
+      )}
       <CancelGroupModal
         open={cancelOpen}
         onClose={() => setCancelOpen(false)}

@@ -268,7 +268,7 @@ describe('DispatchRemindersUseCase', () => {
         templateCode: 'REMINDER_7_DAYS',
         payloadJson: expect.objectContaining({
           rentalTenantName: 'Jane Smith',
-          scheduledDate: '2026-03-24',
+          scheduledDate: '24/03/2026',
         }),
       }),
     );
@@ -342,7 +342,7 @@ describe('DispatchRemindersUseCase', () => {
       expect(mockCreateNotification.execute).not.toHaveBeenCalled();
     });
 
-    it('uses EMAIL when email is present (no SMS fallback needed)', async () => {
+    it('sends both legs when the contact has an email and a phone', async () => {
       mockAppointmentRepo.findScheduledOnDate
         .mockResolvedValueOnce([
           makeRelation(
@@ -355,13 +355,44 @@ describe('DispatchRemindersUseCase', () => {
 
       const result = await useCase.execute(today);
 
-      expect(result).toEqual({ dispatched: 1, skipped: 0 });
+      // Each delivered notification counts, so a two-channel reminder is two.
+      expect(result).toEqual({ dispatched: 2, skipped: 0 });
       expect(mockCreateNotification.execute).toHaveBeenCalledWith(
         expect.objectContaining({
           channel: 'EMAIL',
           recipient: 'test@example.com',
           templateCode: 'REMINDER_7_DAYS',
         }),
+      );
+      expect(mockCreateNotification.execute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          channel: 'SMS',
+          recipient: '+61400000000',
+          templateCode: 'REMINDER_7_DAYS_SMS',
+        }),
+      );
+    });
+
+    it('dedupes each leg independently — a sent email does not block the SMS', async () => {
+      mockAppointmentRepo.findScheduledOnDate
+        .mockResolvedValueOnce([
+          makeRelation(
+            { id: 'appt-partial' },
+            { snapshotEmail: 'test@example.com', snapshotPhone: '+61400000000' },
+          ),
+        ])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+      mockNotificationRepo.existsByAppointmentAndTemplate.mockImplementation(
+        async (_id: string, code: string) => code === 'REMINDER_7_DAYS',
+      );
+
+      const result = await useCase.execute(today);
+
+      expect(result).toEqual({ dispatched: 1, skipped: 1 });
+      expect(mockCreateNotification.execute).toHaveBeenCalledOnce();
+      expect(mockCreateNotification.execute).toHaveBeenCalledWith(
+        expect.objectContaining({ templateCode: 'REMINDER_7_DAYS_SMS', channel: 'SMS' }),
       );
     });
 

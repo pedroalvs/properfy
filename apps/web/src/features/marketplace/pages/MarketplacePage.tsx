@@ -111,14 +111,21 @@ export function MarketplacePage() {
   );
 
   return (
-    <div>
-      <PageHeader title="Marketplace" />
+    <div className="flex h-full flex-col">
+      {/* Full-height mode strips the shell's page padding, and PageHeader has
+          none of its own — restore it locally so the title keeps its spacing. */}
+      <div className="px-4 pt-2 md:px-8 md:pt-6">
+        <PageHeader title="Marketplace" />
+      </div>
 
-      <MapScreenLayout
-        sidePanel={sidePanel}
-        map={mapContent}
-        sidePanelWidth="400px"
-      />
+      <div className="min-h-0 flex-1">
+        <MapScreenLayout
+          sidePanel={sidePanel}
+          map={mapContent}
+          sidePanelWidth="400px"
+          fillParent
+        />
+      </div>
 
       {/* Confirm Accept Dialog */}
       {confirmGroupId && (

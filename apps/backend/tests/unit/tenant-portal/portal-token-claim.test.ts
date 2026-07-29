@@ -1,20 +1,13 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { ConfirmAppointmentUseCase } from '../../../src/modules/rental-tenant-portal/application/use-cases/confirm-appointment.use-case';
-import { RescheduleRequestUseCase } from '../../../src/modules/rental-tenant-portal/application/use-cases/reschedule-request.use-case';
 import { ReportUnavailabilityUseCase } from '../../../src/modules/rental-tenant-portal/application/use-cases/report-unavailability.use-case';
 import { JoinGroupUseCase } from '../../../src/modules/rental-tenant-portal/application/use-cases/join-group.use-case';
 import type { IRentalTenantPortalActivityRepository } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-activity.repository';
 import type { IRentalTenantPortalTokenRepository } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-token.repository';
 import type { IAppointmentRepository } from '../../../src/modules/appointment/domain/appointment.repository';
-import type { IServiceTypeRepository } from '../../../src/modules/service-type/domain/service-type.repository';
-import type { IInspectionExecutionRepository } from '../../../src/modules/inspector-execution/domain/inspection-execution.repository';
-import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
 import type { PersistentAuditService } from '../../../src/modules/audit/application/services/persistent-audit.service';
-import type { ReopenForRescheduleUseCase } from '../../../src/modules/appointment/application/use-cases/reopen-for-reschedule.use-case';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
-import { ServiceTypeEntity } from '../../../src/modules/service-type/domain/service-type.entity';
-import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { PortalTokenAlreadyUsedError } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
 
 // Freeze "now" so the mock scheduledDate stays in the future and the 30-day
@@ -274,116 +267,6 @@ describe('ReportUnavailabilityUseCase atomic token claim', () => {
 });
 
 // =========================================================================
-// RescheduleRequestUseCase
-// =========================================================================
-
-describe('RescheduleRequestUseCase atomic token claim', () => {
-  function makeServiceType() {
-    return new ServiceTypeEntity({
-      id: 'stype-1',
-      code: 'ROUTINE',
-      name: 'Routine Inspection',
-      flowType: 'ROUTINE',
-      requiresRentalTenantConfirmation: true,
-      status: 'ACTIVE',
-      createdAt: new Date('2026-01-01'),
-      updatedAt: new Date('2026-01-01'),
-    });
-  }
-
-  function makeTenant() {
-    return new TenantEntity({
-      id: 'tenant-1',
-      name: 'Test Agency',
-      legalName: 'Test Agency Pty Ltd',
-      status: 'ACTIVE',
-      timezone: 'Australia/Sydney',
-      currency: 'AUD',
-      settingsJson: {},
-      createdAt: new Date('2026-01-01'),
-      updatedAt: new Date('2026-01-01'),
-      deletedAt: null,
-    });
-  }
-
-  function build() {
-    const activityRepo = makeActivityRepo();
-    const tokenRepo = makeTokenRepo();
-    const appointmentRepo = makeAppointmentRepo({ status: 'SCHEDULED', inspectorId: 'insp-1' });
-    const serviceTypeRepo = { findById: vi.fn().mockResolvedValue(makeServiceType()) };
-    const executionRepo = { findByAppointmentId: vi.fn().mockResolvedValue(null) };
-    const tenantRepo = { findById: vi.fn().mockResolvedValue(makeTenant()) };
-    const reopenForReschedule = {
-      execute: vi.fn().mockResolvedValue({
-        id: 'appt-1', previousStatus: 'SCHEDULED', status: 'DRAFT',
-        scheduledDate: '2026-04-20', timeSlotStart: '14:00', timeSlotEnd: '17:00',
-        rentalTenantConfirmationStatus: 'PENDING',
-      }),
-    };
-    const useCase = new RescheduleRequestUseCase(
-      activityRepo as unknown as IRentalTenantPortalActivityRepository,
-      tokenRepo as unknown as IRentalTenantPortalTokenRepository,
-      appointmentRepo as unknown as IAppointmentRepository,
-      serviceTypeRepo as unknown as IServiceTypeRepository,
-      executionRepo as unknown as IInspectionExecutionRepository,
-      tenantRepo as unknown as ITenantRepository,
-      auditService(),
-      reopenForReschedule as unknown as ReopenForRescheduleUseCase,
-    );
-    const input = {
-      tokenId: 'token-1',
-      appointmentId: 'appt-1',
-      isUsed: false,
-      newDate: '2026-04-17',
-      newTimeSlotStart: '14:00', newTimeSlotEnd: '17:00',
-      ipAddress: '127.0.0.1',
-      userAgent: 'Test/1.0',
-    };
-    return { useCase, activityRepo, appointmentRepo, tokenRepo, reopenForReschedule, input };
-  }
-
-  it('claims the token atomically before delegating to reopen-for-reschedule', async () => {
-    const { useCase, tokenRepo, input } = build();
-    await useCase.execute(input);
-    expect(tokenRepo.tryClaim).toHaveBeenCalledTimes(1);
-    expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1', 'appt-1');
-    expect(tokenRepo.releaseClaim).not.toHaveBeenCalled();
-    // Reschedule still revokes all active tokens to restart the confirmation cycle
-    expect(tokenRepo.revokeAllForAppointment).toHaveBeenCalledWith('appt-1');
-  });
-
-  it('throws PortalTokenAlreadyUsedError and performs no side effect when the claim loses the race', async () => {
-    const { useCase, activityRepo, tokenRepo, reopenForReschedule, input } = build();
-    tokenRepo.tryClaim.mockResolvedValue(false);
-
-    await expect(useCase.execute(input)).rejects.toThrow(PortalTokenAlreadyUsedError);
-
-    expect(reopenForReschedule.execute).not.toHaveBeenCalled();
-    expect(activityRepo.save).not.toHaveBeenCalled();
-    expect(tokenRepo.revokeAllForAppointment).not.toHaveBeenCalled();
-    expect(tokenRepo.releaseClaim).not.toHaveBeenCalled();
-  });
-
-  it('releases the claim and propagates the original error when reopen-for-reschedule fails', async () => {
-    const { useCase, tokenRepo, reopenForReschedule, input } = build();
-    reopenForReschedule.execute.mockRejectedValue(new Error('transition failed'));
-
-    await expect(useCase.execute(input)).rejects.toThrow('transition failed');
-
-    expect(tokenRepo.releaseClaim).toHaveBeenCalledTimes(1);
-    expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
-  });
-
-  it('propagates the original error even when releaseClaim itself fails', async () => {
-    const { useCase, tokenRepo, reopenForReschedule, input } = build();
-    reopenForReschedule.execute.mockRejectedValue(new Error('transition failed'));
-    tokenRepo.releaseClaim.mockRejectedValue(new Error('release failed'));
-
-    await expect(useCase.execute(input)).rejects.toThrow('transition failed');
-  });
-});
-
-// =========================================================================
 // JoinGroupUseCase
 // =========================================================================
 
@@ -431,10 +314,10 @@ describe('JoinGroupUseCase atomic token claim', () => {
           timeSlotEnd: '15:00',
           suburb: 'Surry Hills',
           inspectorName: 'John Smith',
-          confirmedCount: 3,
-          capacityMax: 10,
+          isOwnAgency: true,
         },
       ]),
+      reservePortalWindow: vi.fn().mockResolvedValue({ ok: true }),
       hasPortalMemberSlot: vi.fn().mockResolvedValue(true),
       decrementConfirmedCount: vi.fn().mockResolvedValue(undefined),
       incrementConfirmedCount: vi.fn().mockResolvedValue(undefined),

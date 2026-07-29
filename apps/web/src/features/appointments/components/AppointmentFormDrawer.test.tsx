@@ -344,9 +344,10 @@ describe('AppointmentFormDrawer', () => {
     const end = screen.getByLabelText('End time') as HTMLInputElement;
     expect(start).not.toBeDisabled();
     expect(end).not.toBeDisabled();
-    // Pre-populated from the loaded appointment's start/end.
-    expect(start.value).toBe('09:00');
-    expect(end.value).toBe('12:00');
+    // Pre-populated from the loaded appointment's start/end. The field shows the
+    // masked 12-hour text; the value it emits stays canonical 24-hour HH:mm.
+    expect(start.value).toBe('9:00 am');
+    expect(end.value).toBe('12:00 pm');
   });
 
   it('grouped appointment: date field disabled, time-slot fields remain editable', () => {

@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { formatDateTime } from '@/lib/format-date';
+import { formatInstantDateTime } from '@/lib/format-date';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useSessionList } from '../hooks/useSessionList';
 import { useSessionRevoke } from '../hooks/useSessionRevoke';
@@ -44,7 +44,7 @@ export function SessionTable() {
       key: 'createdAt',
       label: 'Started At',
       width: '160px',
-      render: (row) => <>{formatDateTime(row.createdAt)}</>,
+      render: (row) => <>{formatInstantDateTime(row.createdAt)}</>,
     },
     {
       key: 'isCurrent',

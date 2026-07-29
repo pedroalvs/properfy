@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { AGENCY_VISIBLE_ENTRY_TYPES } from '@properfy/shared';
 import { AppointmentCodeFormatter } from '../../appointment/domain/appointment-code.formatter';
 import type { DashboardRepository } from '../domain/dashboard.repository';
 import type { DashboardStatsOutput, InspectorBreakdowns, InspectorDayCount } from '../application/use-cases/get-dashboard-stats.use-case';
@@ -151,18 +152,27 @@ export class PrismaDashboardRepository implements DashboardRepository {
         },
       }),
 
-      // Pending financial entries
+      // Pending financial entries. `tenantId` is set only for CL_ADMIN/CL_USER
+      // (get-dashboard-stats.use-case.ts), so when it is present this is an agency
+      // read and must exclude the platform↔inspector leg like every other one —
+      // otherwise the count alone reveals pending payout activity.
       this.prisma.financialEntry.count({
         where: {
           ...tenantFilter,
+          ...(tenantId
+            ? { entry_type: { in: [...AGENCY_VISIBLE_ENTRY_TYPES] }, inspector_id: null }
+            : {}),
           status: 'PENDING',
         },
       }),
 
-      // Processing reports
+      // Processing reports. `tenantId` is set only for CL_ADMIN/CL_USER, who can
+      // only ever list their own agency-scoped runs — so the count must apply the
+      // same `agency_scoped` predicate the report list does, or the tile would
+      // count an operator's run against this agency that /reports never shows.
       this.prisma.report.count({
         where: {
-          ...(tenantId ? { tenant_id: tenantId } : {}),
+          ...(tenantId ? { tenant_id: tenantId, agency_scoped: true } : {}),
           status: 'PROCESSING',
         },
       }),

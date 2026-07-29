@@ -1,4 +1,4 @@
-import type { AuthContext } from '@properfy/shared';
+import { type AuthContext, AGENCY_VISIBLE_ENTRY_TYPES } from '@properfy/shared';
 import type { IFinancialEntryRepository } from '../../domain/financial-entry.repository';
 import type { FinancialEntryOutputItem } from './list-financial-entries.use-case';
 import { EntryNotFoundError } from '../../domain/billing.errors';
@@ -28,7 +28,14 @@ export class GetFinancialEntryUseCase {
 
     // Scope check based on role
     if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
+      // 031 — an agency sees its own tenant AND only agency-visible entries. The
+      // entry-type allowlist alone is not enough: an inspector-scoped
+      // MANUAL_ADJUSTMENT passes it yet still belongs to the platform<->inspector
+      // leg. 404 rather than 403 — a 403 would confirm the entry exists.
       if (entry.tenantId !== actor.tenantId) {
+        throw new EntryNotFoundError();
+      }
+      if (!AGENCY_VISIBLE_ENTRY_TYPES.includes(entry.entryType) || entry.inspectorId !== null) {
         throw new EntryNotFoundError();
       }
     } else if (actor.role === 'INSP') {
@@ -38,8 +45,13 @@ export class GetFinancialEntryUseCase {
       if (entry.inspectorId !== actor.inspectorId || entry.entryType !== 'INSPECTOR_PAYOUT') {
         throw new EntryNotFoundError();
       }
+    } else if (actor.role !== 'AM' && actor.role !== 'OP') {
+      // Fail closed for any other role rather than falling through to full access,
+      // matching the sibling list use case. No TNT/SYS token is issued today, but
+      // the platform side must be an allowlist, not the default branch.
+      throw new ForbiddenError('FORBIDDEN', 'Not authorized to view financial entries');
     }
-    // AM/OP can see any entry
+    // AM/OP (platform) can see any entry
 
     const approval =
       entry.status === 'APPROVED'

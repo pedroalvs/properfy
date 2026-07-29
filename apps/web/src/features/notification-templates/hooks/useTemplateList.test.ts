@@ -165,6 +165,95 @@ describe('useTemplateList', () => {
     });
   });
 
+  // The list endpoint flattens a NULL body_html to '' (see
+  // list-notification-templates.use-case.ts). Because '' is NOT nullish, the old
+  // `raw.bodyHtml ?? raw.bodyText` never reached bodyText, so every SMS template
+  // rendered with an empty Body while the seeded copy still went out over the
+  // wire. The fixtures above omit bodyHtml entirely, which lets `??` fall through
+  // — that mismatch with the real payload is why the bug shipped. These use the
+  // shape the API actually returns.
+  describe('channel-aware body mapping', () => {
+    function mockRows(rows: Record<string, unknown>[]) {
+      mockGet.mockResolvedValue({
+        data: { data: rows, pagination: { page: 1, pageSize: 10, total: rows.length, totalPages: 1 } },
+      });
+    }
+
+    const SMS_COPY = 'Properfy: Hi {{rentalTenantName}}, inspection on {{scheduledDate}}.';
+
+    it('reads an SMS body from bodyText when the API sends bodyHtml as an empty string', async () => {
+      mockRows([
+        {
+          id: 'tpl-sms',
+          tenantId: null,
+          templateCode: 'INSPECTION_NOTICE_SMS',
+          channel: 'SMS',
+          subject: null,
+          bodyHtml: '',
+          bodyText: SMS_COPY,
+          isActive: true,
+          variables: [],
+          createdAt: '2026-01-01T00:00:00Z',
+          updatedAt: '2026-01-01T00:00:00Z',
+        },
+      ]);
+
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useTemplateList(), { wrapper });
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.data[0]?.body).toBe(SMS_COPY);
+    });
+
+    it('prefers bodyText for SMS even when a legacy row still carries bodyHtml', async () => {
+      mockRows([
+        {
+          id: 'tpl-sms-legacy',
+          tenantId: 'tenant-1',
+          templateCode: 'INSPECTION_NOTICE_SMS',
+          channel: 'SMS',
+          subject: null,
+          bodyHtml: '<p>stale html copy</p>',
+          bodyText: SMS_COPY,
+          isActive: true,
+          variables: [],
+          createdAt: '2026-01-01T00:00:00Z',
+          updatedAt: '2026-01-01T00:00:00Z',
+        },
+      ]);
+
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useTemplateList(), { wrapper });
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.data[0]?.body).toBe(SMS_COPY);
+    });
+
+    it('reads an EMAIL body from bodyHtml, not the derived plain-text alternative', async () => {
+      mockRows([
+        {
+          id: 'tpl-email',
+          tenantId: null,
+          templateCode: 'INSPECTION_NOTICE',
+          channel: 'EMAIL',
+          subject: 'Inspection Scheduled',
+          bodyHtml: '<p>Hello {{rentalTenantName}}</p>',
+          bodyText: 'Hello {{rentalTenantName}}',
+          isActive: true,
+          variables: [],
+          createdAt: '2026-01-01T00:00:00Z',
+          updatedAt: '2026-01-01T00:00:00Z',
+        },
+      ]);
+
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useTemplateList(), { wrapper });
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.data[0]?.body).toBe('<p>Hello {{rentalTenantName}}</p>');
+    });
+  });
+
   it('keeps a stable data array reference across re-renders with unchanged data', async () => {
     // Regression guard for the PR #961 bug class: an unstable reference here
     // can feed a consumer effect (e.g. deps [isEditMode, entity]) whose

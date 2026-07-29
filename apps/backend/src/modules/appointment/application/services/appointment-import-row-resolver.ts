@@ -17,6 +17,10 @@ export interface ResolveContext {
   branchId: string;
   /** IANA timezone used to compute "today" for defaulting and the past-date check. */
   tz: string;
+  /** Spreadsheet row number of the first data row, so reported row numbers
+   * match what the user sees when the header is not on row 1 (e.g. a sheet
+   * padded with blank rows). Defaults to 2 — header on row 1. */
+  firstDataRowNumber?: number;
 }
 
 function errorIssue(field: string, code: string, message: string): ImportRowIssue {
@@ -97,7 +101,7 @@ export class AppointmentImportRowResolver {
 
     const rows: ResolvedImportRow[] = [];
     for (let i = 0; i < normalizedRows.length; i++) {
-      const rowNumber = i + 2; // 1-indexed + header row
+      const rowNumber = i + (ctx.firstDataRowNumber ?? 2); // 1-indexed + header row
       rows.push(
         await this.resolveRow(
           normalizedRows[i]!, rowNumber, ctx, today,

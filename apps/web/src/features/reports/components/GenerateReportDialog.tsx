@@ -24,6 +24,12 @@ const REPORT_TYPE_OPTIONS = [
   { value: ReportType.AGENCIES, label: 'Agencies' },
 ];
 
+// Agencies compares agencies against one another, so it is operator-only — the
+// backend rejects it for a tenant-scoped actor regardless of what the UI offers.
+const AGENCY_REPORT_TYPE_OPTIONS = REPORT_TYPE_OPTIONS.filter(
+  (o) => o.value !== ReportType.AGENCIES,
+);
+
 const DATE_AXIS_OPTIONS = [
   { value: ReportDateAxis.SCHEDULED, label: 'Scheduled' },
   { value: ReportDateAxis.CREATED, label: 'Created' },
@@ -202,7 +208,7 @@ export function GenerateReportDialog({
               setReportType(v);
               setErrors((prev) => ({ ...prev, reportType: undefined }));
             }}
-            options={REPORT_TYPE_OPTIONS}
+            options={isGlobalRole ? REPORT_TYPE_OPTIONS : AGENCY_REPORT_TYPE_OPTIONS}
             placeholder="Select report type"
             error={!!errors.reportType}
             aria-label="Report Type"

@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
-import { formatDate, formatDateTime } from '@/lib/format-date';
+import { formatCivilDate, formatInstantDateTime, formatWallTimeRange , formatWallTimeWindow } from '@/lib/format-date';
 import { AppointmentStatusChip } from '@/features/appointments/components/AppointmentStatusChip';
 import { ServiceGroupStatusChip } from './ServiceGroupStatusChip';
 import type { AppointmentStatus } from '@properfy/shared';
@@ -31,6 +31,14 @@ export function ServiceGroupDetailSections({ serviceGroup }: ServiceGroupDetailS
           }
         />
         <DetailRow label="Region" value={serviceGroup.regionName} />
+        <DetailRow
+          label="Scheduled Date"
+          value={serviceGroup.scheduledDate ? formatCivilDate(serviceGroup.scheduledDate.slice(0, 10)) : null}
+        />
+        <DetailRow
+          label="Time Window"
+          value={serviceGroup.timeWindow ? formatWallTimeWindow(serviceGroup.timeWindow) : null}
+        />
         <DetailRow label="Status" value={<ServiceGroupStatusChip status={serviceGroup.status} />} />
       </FormSection>
 
@@ -61,7 +69,12 @@ export function ServiceGroupDetailSections({ serviceGroup }: ServiceGroupDetailS
                 <div className="flex items-center gap-3 shrink-0">
                   {apt.scheduledDate && (
                     <span className="text-xs text-text-muted hidden sm:inline">
-                      {formatDate(apt.scheduledDate)}
+                      {formatCivilDate(apt.scheduledDate)}
+                    </span>
+                  )}
+                  {apt.timeSlotStart && apt.timeSlotEnd && (
+                    <span className="text-xs text-text-muted hidden sm:inline">
+                      {formatWallTimeRange(apt.timeSlotStart, apt.timeSlotEnd)}
                     </span>
                   )}
                   <AppointmentStatusChip status={apt.status as AppointmentStatus} />
@@ -80,8 +93,8 @@ export function ServiceGroupDetailSections({ serviceGroup }: ServiceGroupDetailS
       )}
 
       <FormSection title="Record">
-        <DetailRow label="Created At" value={formatDateTime(serviceGroup.createdAt)} />
-        <DetailRow label="Updated At" value={formatDateTime(serviceGroup.updatedAt)} />
+        <DetailRow label="Created At" value={formatInstantDateTime(serviceGroup.createdAt)} />
+        <DetailRow label="Updated At" value={formatInstantDateTime(serviceGroup.updatedAt)} />
       </FormSection>
     </div>
   );

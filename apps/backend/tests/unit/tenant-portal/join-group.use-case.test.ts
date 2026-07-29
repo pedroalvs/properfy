@@ -72,6 +72,20 @@ function makeGroup(overrides: Partial<ConstructorParameters<typeof ServiceGroupE
   });
 }
 
+/** One member appointment of the target group, as the repository now returns it. */
+function makeEligibleMember(overrides: Record<string, unknown> = {}) {
+  return {
+    groupId: 'sg-new',
+    scheduledDate: new Date('2026-06-02T00:00:00.000Z'),
+    timeSlotStart: '13:00',
+    timeSlotEnd: '15:00',
+    suburb: 'Surry Hills',
+    inspectorName: 'John Smith',
+    isOwnAgency: true,
+    ...overrides,
+  };
+}
+
 function makeInput(overrides: Partial<JoinGroupInput> = {}): JoinGroupInput {
   return {
     tokenId: 'token-1',
@@ -95,6 +109,7 @@ describe('JoinGroupUseCase', () => {
   let serviceGroupRepo: {
     findById: ReturnType<typeof vi.fn>;
     findPortalEligibleSlots: ReturnType<typeof vi.fn>;
+    reservePortalWindow: ReturnType<typeof vi.fn>;
     hasPortalMemberSlot: ReturnType<typeof vi.fn>;
     decrementConfirmedCount: ReturnType<typeof vi.fn>;
     incrementConfirmedCount: ReturnType<typeof vi.fn>;
@@ -104,6 +119,7 @@ describe('JoinGroupUseCase', () => {
   let auditService: { log: ReturnType<typeof vi.fn> };
   let statusTransition: { execute: ReturnType<typeof vi.fn> };
   let notificationHandler: { execute: ReturnType<typeof vi.fn> };
+  let cancelEmptyGroup: { cancelIfDead: ReturnType<typeof vi.fn> };
   let useCase: JoinGroupUseCase;
 
   beforeEach(() => {
@@ -122,18 +138,8 @@ describe('JoinGroupUseCase', () => {
         tenantIds: ['tenant-1'],
         appointments: [],
       }),
-      findPortalEligibleSlots: vi.fn().mockResolvedValue([
-        {
-          groupId: 'sg-new',
-          scheduledDate: new Date('2026-06-02T00:00:00.000Z'),
-          timeSlotStart: '13:00',
-          timeSlotEnd: '15:00',
-          suburb: 'Surry Hills',
-          inspectorName: 'John Smith',
-          confirmedCount: 3,
-          capacityMax: 10,
-        },
-      ]),
+      findPortalEligibleSlots: vi.fn().mockResolvedValue([makeEligibleMember()]),
+      reservePortalWindow: vi.fn().mockResolvedValue({ ok: true }),
       hasPortalMemberSlot: vi.fn().mockResolvedValue(true),
       decrementConfirmedCount: vi.fn().mockResolvedValue(undefined),
       incrementConfirmedCount: vi.fn().mockResolvedValue(undefined),
@@ -154,6 +160,7 @@ describe('JoinGroupUseCase', () => {
       }),
     };
     notificationHandler = { execute: vi.fn().mockResolvedValue(undefined) };
+    cancelEmptyGroup = { cancelIfDead: vi.fn().mockResolvedValue(false) };
 
     useCase = new JoinGroupUseCase(
       appointmentRepo as any,
@@ -163,7 +170,61 @@ describe('JoinGroupUseCase', () => {
       auditService as any,
       statusTransition as any,
       notificationHandler,
+      cancelEmptyGroup,
     );
+  });
+
+  // The tenant moving groups can leave the old one with nothing to execute. The
+  // transition event carries the NEW group id, so the empty-group subscriber cannot
+  // see this case — this flow has to check the vacated group itself.
+  describe('vacated group cleanup', () => {
+    it('checks the group the tenant left', async () => {
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ serviceGroupId: 'old-group' }),
+        contact: null,
+        restrictions: [],
+      });
+
+      await useCase.execute(makeInput());
+
+      expect(cancelEmptyGroup.cancelIfDead).toHaveBeenCalledWith('old-group');
+    });
+
+    it('does not check anything when the appointment had no group', async () => {
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ serviceGroupId: null }),
+        contact: null,
+        restrictions: [],
+      });
+
+      await useCase.execute(makeInput());
+
+      expect(cancelEmptyGroup.cancelIfDead).not.toHaveBeenCalled();
+    });
+
+    it('still completes the join when the cleanup rejects', async () => {
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ serviceGroupId: 'old-group' }),
+        contact: null,
+        restrictions: [],
+      });
+      cancelEmptyGroup.cancelIfDead.mockRejectedValue(new Error('db down'));
+
+      await expect(useCase.execute(makeInput())).resolves.toBeDefined();
+    });
+
+    it('does not make the tenant wait on the cleanup', async () => {
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ serviceGroupId: 'old-group' }),
+        contact: null,
+        restrictions: [],
+      });
+      // A cleanup that never settles must not hold the join response open.
+      cancelEmptyGroup.cancelIfDead.mockReturnValue(new Promise(() => {}));
+
+      await expect(useCase.execute(makeInput())).resolves.toBeDefined();
+      expect(cancelEmptyGroup.cancelIfDead).toHaveBeenCalledWith('old-group');
+    });
   });
 
   it('should allow joining a group after the portal token expired (isReadOnly)', async () => {
@@ -211,13 +272,45 @@ describe('JoinGroupUseCase', () => {
     await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupNotFoundError);
   });
 
-  it('should throw PortalGroupFullError when group confirmedCount >= 10', async () => {
+  it('should throw PortalGroupFullError when the selected window has no room left', async () => {
+    // 13:00-15:00 fits four inspections at two per hour; four members fill it.
+    serviceGroupRepo.findPortalEligibleSlots.mockResolvedValue([
+      makeEligibleMember(), makeEligibleMember(), makeEligibleMember(), makeEligibleMember(),
+    ]);
+
+    await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupFullError);
+    expect(tokenRepo.tryClaim).not.toHaveBeenCalled();
+  });
+
+  it('should throw PortalGroupFullError when an enclosing window is saturated', async () => {
+    // 13:00-15:00 looks half empty, but 13:00-16:00 holds six of its six slots,
+    // so there is nowhere left to actually put the visit.
+    serviceGroupRepo.findPortalEligibleSlots.mockResolvedValue([
+      makeEligibleMember(),
+      ...Array.from({ length: 6 }, () => makeEligibleMember({ timeSlotStart: '13:00', timeSlotEnd: '16:00' })),
+    ]);
+
+    await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupFullError);
+  });
+
+  it('should join a group whose confirmed_count already exceeds the retired cap of 10', async () => {
     serviceGroupRepo.findById.mockResolvedValue({
-      group: makeGroup({ confirmedCount: 10 }),
-      assignedInspectorName: 'John',
+      group: makeGroup({ confirmedCount: 12 }),
+      assignedInspectorName: 'John Smith',
       tenantIds: ['tenant-1'],
       appointments: [],
     });
+
+    const result = await useCase.execute(makeInput());
+    expect(result.appointmentStatus).toBe('SCHEDULED');
+  });
+
+  it('should count another agency towards the window before letting the tenant in', async () => {
+    serviceGroupRepo.findPortalEligibleSlots.mockResolvedValue([
+      makeEligibleMember(),
+      ...Array.from({ length: 3 }, () => makeEligibleMember({ isOwnAgency: false })),
+    ]);
+
     await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupFullError);
   });
 
@@ -273,20 +366,23 @@ describe('JoinGroupUseCase', () => {
 
   it('should throw PortalGroupSlotUnavailableError when selected slot is not eligible for the portal appointment', async () => {
     serviceGroupRepo.findPortalEligibleSlots.mockResolvedValue([
-      {
-        groupId: 'sg-new',
+      makeEligibleMember({
         scheduledDate: new Date('2026-06-03T00:00:00.000Z'),
         timeSlotStart: '16:00',
         timeSlotEnd: '17:00',
-        suburb: 'Surry Hills',
-        inspectorName: 'John Smith',
-        confirmedCount: 3,
-        capacityMax: 10,
-      },
+      }),
     ]);
 
     await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupSlotUnavailableError);
     expect(serviceGroupRepo.hasPortalMemberSlot).not.toHaveBeenCalled();
+  });
+
+  it('should not offer a window held only by another agency', async () => {
+    serviceGroupRepo.findPortalEligibleSlots.mockResolvedValue([
+      makeEligibleMember({ isOwnAgency: false }),
+    ]);
+
+    await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupSlotUnavailableError);
   });
 
   it('should return correct output on happy path', async () => {
@@ -303,13 +399,17 @@ describe('JoinGroupUseCase', () => {
 
   it('should update appointment with group details', async () => {
     await useCase.execute(makeInput());
-    expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', expect.objectContaining({
-      scheduledDate: new Date('2026-06-02'),
+    // The write happens inside the reservation so it shares the transaction
+    // that re-checked capacity under a lock.
+    expect(serviceGroupRepo.reservePortalWindow).toHaveBeenCalledWith(expect.objectContaining({
+      groupId: 'sg-new',
+      appointmentId: 'appt-1',
+      tenantId: 'tenant-1',
+      scheduledDate: '2026-06-02',
       timeSlotStart: '13:00', timeSlotEnd: '15:00',
       inspectorId: 'insp-1',
-      rentalTenantConfirmationStatus: 'CONFIRMED',
-      serviceGroupId: 'sg-new',
     }));
+    expect(appointmentRepo.update).not.toHaveBeenCalled();
   });
 
   it('should increment confirmed_count of new group', async () => {
@@ -400,8 +500,68 @@ describe('JoinGroupUseCase', () => {
 
   it('should store rentalTenantNote when provided', async () => {
     await useCase.execute(makeInput({ rentalTenantNote: 'Please ring bell' }));
-    expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', expect.objectContaining({
+    expect(serviceGroupRepo.reservePortalWindow).toHaveBeenCalledWith(expect.objectContaining({
       rentalTenantNote: 'Please ring bell',
     }));
+  });
+
+  describe('losing the capacity race', () => {
+    beforeEach(() => {
+      // The pre-check passed, but another tenant took the last opening before
+      // this transaction got the group lock.
+      serviceGroupRepo.reservePortalWindow.mockResolvedValue({ ok: false, reason: 'WINDOW_FULL' });
+    });
+
+    it('should throw PortalGroupFullError', async () => {
+      await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupFullError);
+    });
+
+    it('should leave the appointment in its previous group', async () => {
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ status: 'SCHEDULED', serviceGroupId: 'sg-old' }),
+        contact: null,
+        restrictions: [],
+      });
+
+      await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupFullError);
+
+      // Detaching before the slot is held would strand the tenant in neither group.
+      expect(serviceGroupRepo.decrementConfirmedCount).not.toHaveBeenCalled();
+      expect(serviceGroupRepo.incrementConfirmedCount).not.toHaveBeenCalled();
+      expect(statusTransition.execute).not.toHaveBeenCalled();
+      expect(activityRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should release the token so the tenant can pick another time', async () => {
+      await expect(useCase.execute(makeInput())).rejects.toThrow(PortalGroupFullError);
+      expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
+    });
+  });
+
+  describe('when the appointment goes inactive mid-flight', () => {
+    beforeEach(() => {
+      // Cancelled or deleted between the caller's status check and the
+      // reservation transaction, so there is nothing left to move.
+      serviceGroupRepo.reservePortalWindow.mockResolvedValue({
+        ok: false,
+        reason: 'APPOINTMENT_INACTIVE',
+      });
+    });
+
+    it('should report it as inactive, not as a full window', async () => {
+      // Saying "full" would send the tenant round the picker to fail again.
+      await expect(useCase.execute(makeInput())).rejects.toThrow(PortalAppointmentInactiveError);
+    });
+
+    it('should run no side effect for a move that never happened', async () => {
+      await expect(useCase.execute(makeInput())).rejects.toThrow(PortalAppointmentInactiveError);
+
+      expect(serviceGroupRepo.incrementConfirmedCount).not.toHaveBeenCalled();
+      expect(serviceGroupRepo.decrementConfirmedCount).not.toHaveBeenCalled();
+      expect(statusTransition.execute).not.toHaveBeenCalled();
+      expect(activityRepo.save).not.toHaveBeenCalled();
+      expect(auditService.log).not.toHaveBeenCalled();
+      expect(notificationHandler.execute).not.toHaveBeenCalled();
+    });
   });
 });

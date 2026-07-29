@@ -16,7 +16,7 @@ import { useServiceRegionDetail } from '../hooks/useServiceRegionDetail';
 import { useServiceRegionSave } from '../hooks/useServiceRegionSave';
 import { useServiceRegionDeactivate } from '../hooks/useServiceRegionDeactivate';
 import { RegionMap } from './RegionMap';
-import { formatDateTime } from '@/lib/format-date';
+import { formatInstantDateTime } from '@/lib/format-date';
 import type { ServiceRegionFormData, ServiceRegionFormErrors } from '../types';
 import { EMPTY_SERVICE_REGION_FORM } from '../types';
 
@@ -236,13 +236,13 @@ export function ServiceRegionFormDrawer({
                         <div>
                           <span className="text-text-muted">Created at</span>
                           <p className="font-medium text-text-primary">
-                            {formatDateTime(serviceRegion.createdAt)}
+                            {formatInstantDateTime(serviceRegion.createdAt)}
                           </p>
                         </div>
                         <div>
                           <span className="text-text-muted">Last updated</span>
                           <p className="font-medium text-text-primary">
-                            {formatDateTime(serviceRegion.updatedAt)}
+                            {formatInstantDateTime(serviceRegion.updatedAt)}
                           </p>
                         </div>
                       </div>

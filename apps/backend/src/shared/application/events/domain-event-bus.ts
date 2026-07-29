@@ -57,11 +57,14 @@ export const SERVICE_GROUP_EVENTS = {
   CANCELLED: 'service_group.cancelled.v1',
   REJECTED: 'service_group.rejected.v1',
   MANUALLY_ASSIGNED: 'service_group.manually_assigned.v1',
+  /** The group changed hands. Carries `previousInspectorId` so both parties can be told. */
+  INSPECTOR_CHANGED: 'service_group.inspector_changed.v1',
+  /** The group's date and/or time window moved; members were cascaded to match. */
+  SCHEDULE_CHANGED: 'service_group.schedule_changed.v1',
 } as const;
 
 export const TENANT_PORTAL_EVENTS = {
   CONFIRMED: 'rental_tenant_portal.confirmed.v1',
-  RESCHEDULED: 'rental_tenant_portal.rescheduled.v1',
   CONTACT_UPDATED: 'rental_tenant_portal.contact_updated.v1',
   UNAVAILABLE: 'rental_tenant_portal.unavailable.v1',
 } as const;

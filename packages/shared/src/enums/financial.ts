@@ -6,6 +6,24 @@ export const FinancialEntryType = {
 } as const;
 export type FinancialEntryType = (typeof FinancialEntryType)[keyof typeof FinancialEntryType];
 
+/**
+ * Ledger entry types an Agency (CL_ADMIN / CL_USER) is allowed to see.
+ *
+ * `INSPECTOR_PAYOUT` is deliberately excluded — it is the platform↔inspector
+ * leg, and thus the platform's margin. Shared because both the agency financial
+ * surfaces (extrato / summary / export) and the agency-scoped Financial report
+ * must apply the same allowlist; keeping one copy stops the two from drifting.
+ *
+ * Note this is a *type* allowlist only. An inspector-scoped `MANUAL_ADJUSTMENT`
+ * is also part of the inspector leg, so agency reads pair this with an
+ * `inspector_id IS NULL` predicate.
+ */
+export const AGENCY_VISIBLE_ENTRY_TYPES: readonly FinancialEntryType[] = [
+  'TENANT_DEBIT',
+  'REFUND',
+  'MANUAL_ADJUSTMENT',
+] as const;
+
 export const FinancialEntryStatus = {
   PENDING: 'PENDING',
   APPROVED: 'APPROVED',

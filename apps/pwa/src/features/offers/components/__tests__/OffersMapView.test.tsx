@@ -231,7 +231,7 @@ describe('OffersMapView — expanded group (drill-down)', () => {
     const chip = screen.getByTestId('map-appointment-chip');
     expect(chip).toHaveTextContent('10 Main St');
     expect(chip).toHaveTextContent('Sydney NSW');
-    expect(chip).toHaveTextContent('08:00–09:00');
+    expect(chip).toHaveTextContent('8:00 am – 9:00 am');
     expect(chip.textContent).not.toMatch(/[0-9a-f]{8}-/i);
     expect(chip.textContent).not.toContain('a001');
   });
