@@ -16,6 +16,7 @@ function makeTemplateRenderer(): TemplateRendererService {
 
 describe('renderEmailBody', () => {
   const baseInput: RenderEmailBodyInput = {
+    channel: 'EMAIL',
     bodyHtmlSource: '<p>Hello {{name}}</p>',
     bodyTextSource: 'Hello {{name}}',
     subject: 'Hi {{name}}',
@@ -76,5 +77,39 @@ describe('renderEmailBody', () => {
     );
 
     expect(result.renderedBodyText).toBe('Hello Alice');
+  });
+
+  // SMS is plain text end to end. Gating on the channel — rather than on
+  // bodyHtmlSource happening to be empty — is what keeps the real send and the
+  // test send byte-identical, including for legacy rows that still carry HTML.
+  describe('SMS channel', () => {
+    const smsInput: RenderEmailBodyInput = {
+      channel: 'SMS',
+      bodyHtmlSource: '',
+      bodyTextSource: 'Properfy: Hi {{name}}, confirm at {{link}}',
+      subject: null,
+      variables: { name: 'Alice', link: 'https://p.example/x' },
+    };
+
+    it('renders the SMS body from bodyTextSource verbatim', () => {
+      const result = renderEmailBody(smsInput, { templateRenderer: makeTemplateRenderer() });
+
+      expect(result.renderedBodyText).toBe('Properfy: Hi Alice, confirm at https://p.example/x');
+      expect(result.renderedBodyHtml).toBe('');
+    });
+
+    it('never derives the SMS body from HTML, even if a legacy row still has bodyHtml', () => {
+      const htmlToText = { convert: vi.fn().mockReturnValue('WRAPPED AND EXPANDED') };
+      const htmlSanitizer = { validateForSave: vi.fn(), sanitizeForRender: vi.fn((s: string) => s) };
+
+      const result = renderEmailBody(
+        { ...smsInput, bodyHtmlSource: '<p>Properfy: Hi {{name}}</p>' },
+        { templateRenderer: makeTemplateRenderer(), htmlToText, htmlSanitizer },
+      );
+
+      expect(htmlToText.convert).not.toHaveBeenCalled();
+      expect(htmlSanitizer.sanitizeForRender).not.toHaveBeenCalled();
+      expect(result.renderedBodyText).toBe('Properfy: Hi Alice, confirm at https://p.example/x');
+    });
   });
 });

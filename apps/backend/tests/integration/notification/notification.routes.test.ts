@@ -12,6 +12,7 @@ const mockGetNotificationExecute = vi.fn();
 const mockUpsertNotificationTemplateExecute = vi.fn();
 const mockDeleteNotificationTemplateExecute = vi.fn();
 const mockListNotificationTemplatesExecute = vi.fn();
+const mockGetTemplateDefaultExecute = vi.fn();
 const mockJwtVerify = vi.fn();
 const mockAuditLog = vi.fn();
 
@@ -42,6 +43,7 @@ vi.mock('../../../src/main/container', () => ({
       upsertNotificationTemplateUseCase: { execute: mockUpsertNotificationTemplateExecute },
       deleteNotificationTemplateUseCase: { execute: mockDeleteNotificationTemplateExecute },
       listNotificationTemplatesUseCase: { execute: mockListNotificationTemplatesExecute },
+      getTemplateDefaultUseCase: { execute: mockGetTemplateDefaultExecute },
       jwtService: { verify: mockJwtVerify },
       webhookSignatureValidator: {
         validateResend: vi.fn().mockReturnValue(true),
@@ -255,6 +257,70 @@ describe('PUT /v1/notification-templates/:templateCode/:channel', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.templateCode).toBe('INSPECTION_NOTICE');
+  });
+});
+
+describe('GET /v1/notification-templates/:templateCode/:channel/default', () => {
+  const PATH = '/v1/notification-templates/INSPECTION_NOTICE_SMS/SMS/default';
+
+  it('should return 401 without auth', async () => {
+    const res = await supertest(app.server).get(PATH);
+    expect(res.status).toBe(401);
+  });
+
+  it('should return 200 with the default content for AM', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockGetTemplateDefaultExecute.mockResolvedValueOnce({
+      subject: null,
+      body: 'Properfy: Hi {{rentalTenantName}}, inspection on {{scheduledDate}}.',
+      source: 'FACTORY',
+    });
+
+    const res = await supertest(app.server).get(PATH).set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({
+      subject: null,
+      body: 'Properfy: Hi {{rentalTenantName}}, inspection on {{scheduledDate}}.',
+      source: 'FACTORY',
+    });
+  });
+
+  it('should forward tenantId so an agency override resets to the platform default', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockGetTemplateDefaultExecute.mockResolvedValueOnce({
+      subject: null,
+      body: 'platform copy',
+      source: 'PLATFORM_DEFAULT',
+    });
+
+    const res = await supertest(app.server)
+      .get(`${PATH}?tenantId=a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(mockGetTemplateDefaultExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        templateCode: 'INSPECTION_NOTICE_SMS',
+        channel: 'SMS',
+        tenantId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      }),
+    );
+  });
+
+  it('should reject a malformed tenantId', async () => {
+    // No mockJwtVerify.mockResolvedValueOnce here on purpose: Fastify validates
+    // the querystring BEFORE the auth preHandler, so this 400s without ever
+    // calling jwtVerify. Queueing a `Once` that is never consumed leaves it in
+    // the queue for whichever later test calls the mock next — vi.clearAllMocks()
+    // does not drain Once queues.
+    const res = await supertest(app.server)
+      .get(`${PATH}?tenantId=not-a-uuid`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(400);
+    expect(mockGetTemplateDefaultExecute).not.toHaveBeenCalled();
+    expect(mockJwtVerify).not.toHaveBeenCalled();
   });
 });
 

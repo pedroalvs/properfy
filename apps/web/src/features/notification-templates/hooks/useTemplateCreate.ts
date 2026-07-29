@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useTemplateSave, type SaveResult } from './useTemplateSave';
+import { useTemplateSave, type SaveResult, type UseTemplateSaveReturn } from './useTemplateSave';
 import {
   EMPTY_TEMPLATE_CREATE_FORM,
   inferChannelFromCode,
@@ -27,7 +27,8 @@ export interface UseTemplateCreateReturn {
   save: (code: string, tenantId: string, data: TemplateFormData) => Promise<SaveResult>;
   isSaving: boolean;
   validationErrors: TemplateFormErrors;
-  validate: (data: TemplateFormData, requiredVariables: string[], allowedVariables?: readonly string[]) => TemplateFormErrors;
+  /** Re-exported from useTemplateSave — see there for the `channel` default. */
+  validate: UseTemplateSaveReturn['validate'];
 }
 
 export function useTemplateCreate(): UseTemplateCreateReturn {
