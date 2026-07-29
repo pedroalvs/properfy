@@ -12,18 +12,26 @@ interface OfferCardProps {
   onViewDetail?: () => void;
 }
 
-function isToday(dateStr: string): boolean {
-  return dateStr.slice(0, 10) === todayInTzDateString(PLATFORM_TIMEZONE);
-}
+/**
+ * Which of TODAY / TOMORROW (if either) an offer's date falls on.
+ *
+ * Both answers come from ONE reading of the platform-timezone day. Reading it
+ * twice lets Sydney's midnight roll over between the two calls, which drops the
+ * badge a render early — the date is no longer today, and is no longer the new
+ * anchor plus one either.
+ *
+ * Device-independent despite the toISOString(): the anchor is the platform-tz
+ * calendar day and the arithmetic is UTC-on-UTC, so the device offset never
+ * enters. Anchoring on `new Date()` instead WOULD make it device-dependent.
+ */
+function relativeDayLabel(dateStr: string): 'TODAY' | 'TOMORROW' | null {
+  const day = dateStr.slice(0, 10);
+  const today = todayInTzDateString(PLATFORM_TIMEZONE);
+  if (day === today) return 'TODAY';
 
-function isTomorrow(dateStr: string): boolean {
-  const tomorrow = new Date(`${todayInTzDateString(PLATFORM_TIMEZONE)}T00:00:00Z`);
+  const tomorrow = new Date(`${today}T00:00:00Z`);
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-  return dateStr.slice(0, 10) === tomorrow.toISOString().slice(0, 10);
-}
-
-function formatTimeWindow(timeWindow: string): string {
-  return formatWallTimeWindow(timeWindow);
+  return day === tomorrow.toISOString().slice(0, 10) ? 'TOMORROW' : null;
 }
 
 function usePriorityCountdown(expiresAt: string | null): { label: string; isUrgent: boolean } | null {
@@ -53,8 +61,7 @@ const stateLabels: Partial<Record<OfferAcceptState, { label: string; className: 
 };
 
 export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onViewDetail }: OfferCardProps) {
-  const today = isToday(offer.scheduledDate);
-  const tomorrow = isTomorrow(offer.scheduledDate);
+  const dayLabel = relativeDayLabel(offer.scheduledDate);
   const resolved = stateLabels[state];
   const [faded, setFaded] = useState(false);
   const countdown = usePriorityCountdown(offer.priorityExpiresAt);
@@ -67,8 +74,6 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
     setFaded(false);
   }, [state]);
 
-  const dayLabel = today ? 'TODAY' : tomorrow ? 'TOMORROW' : null;
-
   return (
     <div
       className={`overflow-hidden rounded-[20px] border border-black/[0.06] bg-white shadow-[0_8px_24px_rgba(15,23,42,0.07)] transition-opacity duration-500 ${faded ? 'opacity-40' : ''}`}
@@ -79,7 +84,7 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
           {dayLabel && (
             <span
-              className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white ${today ? 'bg-warning' : 'bg-primary'}`}
+              className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white ${dayLabel === 'TODAY' ? 'bg-warning' : 'bg-primary'}`}
               data-testid="day-badge"
             >
               {dayLabel}
@@ -90,7 +95,7 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
           </span>
         </div>
         <span className="shrink-0 text-xs font-bold text-text-primary">
-          {formatTimeWindow(offer.timeWindow)}
+          {formatWallTimeWindow(offer.timeWindow)}
         </span>
       </div>
 
