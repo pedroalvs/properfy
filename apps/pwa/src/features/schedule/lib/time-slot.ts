@@ -2,7 +2,12 @@ import { ServiceTypeFlowType, RentalTenantConfirmationStatus, formatWallTimeRang
 import type { InspectorAppointment } from '../types';
 
 export function parseScheduleDate(dateStr: string): Date {
-  return new Date(`${dateStr}T12:00:00`);
+  // Slice first: the service worker caches /v1/inspector/schedule for 24h, so
+  // after an update a still-offline device can be served a pre-contract body
+  // where scheduledDate is a full ISO stamp. Concatenating 'T12:00:00' onto
+  // that yields an Invalid Date and the schedule headers render "Invalid Date".
+  // Noon anchor keeps the day stable against any device UTC offset.
+  return new Date(`${dateStr.slice(0, 10)}T12:00:00`);
 }
 
 export function formatScheduleDate(dateStr: string): string {

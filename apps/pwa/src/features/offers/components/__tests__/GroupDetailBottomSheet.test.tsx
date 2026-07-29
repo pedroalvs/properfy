@@ -31,7 +31,7 @@ const mockDetail: MarketplaceOfferDetail = {
   serviceTypeName: 'Routine Inspection',
   groupSize: 2,
   scheduledDate: '2026-06-01',
-  timeWindow: '8:00 am – 1:00 pm',
+  timeWindow: '08:00-13:00',
   priorityMode: 'STANDARD',
   priorityExpiresAt: null,
   suburbs: ['Bondi', 'Manly'],
