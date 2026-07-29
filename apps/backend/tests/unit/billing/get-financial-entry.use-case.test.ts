@@ -3,6 +3,7 @@ import { GetFinancialEntryUseCase } from '../../../src/modules/billing/applicati
 import type { IFinancialEntryRepository } from '../../../src/modules/billing/domain/financial-entry.repository';
 import { FinancialEntryEntity, type FinancialEntryProps } from '../../../src/modules/billing/domain/financial-entry.entity';
 import { EntryNotFoundError } from '../../../src/modules/billing/domain/billing.errors';
+import { ForbiddenError } from '../../../src/shared/domain/errors';
 import type { AuthContext } from '@properfy/shared';
 import type { FinancialEntryEnriched } from '../../../src/modules/billing/domain/financial-entry.repository';
 
@@ -359,5 +360,17 @@ describe('GetFinancialEntryUseCase', () => {
     expect(result.approvedByUserId).toBeNull();
     expect(result.approvedAt).toBeNull();
     expect(result.approvedByName).toBeNull();
+  });
+
+  // The platform side must be an allowlist: previously any role that was neither
+  // CL nor INSP fell through the chain to full access.
+  it.each(['TNT', 'SYS'] as const)('fails closed for %s instead of granting full access', async (role) => {
+    vi.mocked(entryRepo.findByIdEnriched).mockResolvedValue(
+      makeEnriched({ tenantId: 'tenant-1', entryType: 'INSPECTOR_PAYOUT', inspectorId: 'insp-1' }),
+    );
+
+    await expect(
+      useCase.execute({ entryId: 'entry-1', actor: makeActor({ role, tenantId: 'tenant-1' }) }),
+    ).rejects.toThrow(ForbiddenError);
   });
 });

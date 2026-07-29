@@ -45,8 +45,13 @@ export class GetFinancialEntryUseCase {
       if (entry.inspectorId !== actor.inspectorId || entry.entryType !== 'INSPECTOR_PAYOUT') {
         throw new EntryNotFoundError();
       }
+    } else if (actor.role !== 'AM' && actor.role !== 'OP') {
+      // Fail closed for any other role rather than falling through to full access,
+      // matching the sibling list use case. No TNT/SYS token is issued today, but
+      // the platform side must be an allowlist, not the default branch.
+      throw new ForbiddenError('FORBIDDEN', 'Not authorized to view financial entries');
     }
-    // AM/OP can see any entry
+    // AM/OP (platform) can see any entry
 
     const approval =
       entry.status === 'APPROVED'
