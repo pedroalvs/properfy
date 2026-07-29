@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/forms/Checkbox';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useTemplateSave } from '../hooks/useTemplateSave';
 import { useTemplatePreview } from '../hooks/useTemplatePreview';
+import { useTemplateDefault } from '../hooks/useTemplateDefault';
 import { SendTestEmailDialog } from './SendTestEmailDialog';
 import { SendTestSmsDialog } from './SendTestSmsDialog';
 import { VariableInsertToolbar } from './VariableInsertToolbar';
@@ -32,6 +33,7 @@ export function TemplateFormDrawer({
   onSaved,
 }: TemplateFormDrawerProps) {
   const { save, isSaving, validate } = useTemplateSave();
+  const { fetchDefault, isLoading: isResetting } = useTemplateDefault();
   const { showSuccess, showError } = useSnackbar();
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
@@ -39,6 +41,7 @@ export function TemplateFormDrawer({
   const [initialData, setInitialData] = useState<TemplateFormData>({ subject: '', body: '', active: true });
   const [errors, setErrors] = useState<TemplateFormErrors>({});
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showTestDialog, setShowTestDialog] = useState(false);
   const [showTestSmsDialog, setShowTestSmsDialog] = useState(false);
 
@@ -56,6 +59,30 @@ export function TemplateFormDrawer({
   }, [template, open]);
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialData);
+
+  // Never show an empty editor. A blank Body means the row carries no content
+  // for this channel, so fall back to the standard copy rather than presenting a
+  // box that would silently save nothing.
+  //
+  // The ref keys on template id so this fires at most once per template even
+  // though setForm re-renders — an effect that could re-trigger its own
+  // dependency is the PR #961 freeze pattern.
+  const autoFilledRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!open || !template) return;
+    if (template.body.trim()) return;
+    if (autoFilledRef.current === template.id) return;
+
+    autoFilledRef.current = template.id;
+    let cancelled = false;
+    void fetchDefault(template.code, template.channel, template.tenantId).then((result) => {
+      if (cancelled || !result) return;
+      setForm((prev) => ({ ...prev, subject: result.subject ?? '', body: result.body }));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, template, fetchDefault]);
 
   const updateField = useCallback(
     <K extends keyof TemplateFormData>(field: K, value: TemplateFormData[K]) => {
@@ -117,7 +144,7 @@ export function TemplateFormDrawer({
   const handleSubmit = useCallback(async () => {
     if (!template) return;
 
-    const validationErrors = validate(form, canonicalRequired, canonicalAllowed);
+    const validationErrors = validate(form, canonicalRequired, canonicalAllowed, template.channel);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
@@ -136,6 +163,26 @@ export function TemplateFormDrawer({
       }
     }
   }, [template, form, validate, save, showSuccess, showError, onSaved]);
+
+  /**
+   * Load the standard content into the form. Deliberately does NOT touch
+   * `initialData`, so the change registers as dirty and both the Save button and
+   * the discard guard behave as they would for a hand edit — a reset is staged,
+   * never persisted on its own.
+   */
+  const applyDefault = useCallback(async () => {
+    setShowResetConfirm(false);
+    if (!template) return;
+
+    const result = await fetchDefault(template.code, template.channel, template.tenantId);
+    if (!result) {
+      showError('Could not load the default template. Your changes were kept.');
+      return;
+    }
+
+    setForm((prev) => ({ ...prev, subject: result.subject ?? '', body: result.body }));
+    setErrors({});
+  }, [template, fetchDefault, showError]);
 
   const handleClose = useCallback(() => {
     if (isDirty) {
@@ -191,15 +238,20 @@ export function TemplateFormDrawer({
               )}
 
               <FormSection title="Template Content">
-                <FormField label="Subject" error={errors.subject}>
-                  <TextInput
-                    value={form.subject}
-                    onChange={(v) => updateField('subject', v)}
-                    placeholder="Email subject line"
-                    error={!!errors.subject}
-                    aria-label="Subject"
-                  />
-                </FormField>
+                {/* SMS has no subject line — the column stays null for those
+                    templates, so showing an "Email subject line" box on an SMS
+                    row only invited input that would be discarded. */}
+                {isEmailChannel && (
+                  <FormField label="Subject" error={errors.subject}>
+                    <TextInput
+                      value={form.subject}
+                      onChange={(v) => updateField('subject', v)}
+                      placeholder="Email subject line"
+                      error={!!errors.subject}
+                      aria-label="Subject"
+                    />
+                  </FormField>
+                )}
 
                 <div className="flex flex-col gap-2">
                   <VariableInsertToolbar
@@ -214,8 +266,12 @@ export function TemplateFormDrawer({
                         value={form.body}
                         onChange={(e) => updateField('body', e.target.value)}
                         className="w-full resize-none bg-transparent px-3 py-2 font-mono text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
-                        placeholder="<table>...</table>  Use {{variable}} for dynamic values"
-                        rows={12}
+                        placeholder={
+                          isEmailChannel
+                            ? '<table>...</table>  Use {{variable}} for dynamic values'
+                            : 'Plain text only. Use {{variable}} for dynamic values.'
+                        }
+                        rows={isEmailChannel ? 12 : 5}
                         aria-label="Body"
                         spellCheck={false}
                       />
@@ -247,6 +303,13 @@ export function TemplateFormDrawer({
             <FormActions>
               <Button variant="secondary" onClick={handleClose}>
                 Cancel
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setShowResetConfirm(true)}
+                disabled={isSaving || isResetting}
+              >
+                Reset to default
               </Button>
               {isEmailChannel && (
                 <Button variant="secondary" onClick={() => setShowTestDialog(true)} disabled={isSaving}>
@@ -282,6 +345,24 @@ export function TemplateFormDrawer({
           channel={template.channel}
         />
       )}
+
+      {/* Copy names the level being restored: an agency override reverts to the
+          platform default, while the platform default reverts to the template
+          Properfy ships. */}
+      <ConfirmDialog
+        open={showResetConfirm}
+        title="Reset to default?"
+        message={
+          template?.tenantId
+            ? 'This replaces the content below with the platform default template. Your changes are only discarded once you save.'
+            : 'This replaces the content below with the standard Properfy template. Your changes are only discarded once you save.'
+        }
+        confirmLabel="Reset"
+        cancelLabel="Keep editing"
+        variant="warning"
+        onConfirm={applyDefault}
+        onClose={() => setShowResetConfirm(false)}
+      />
 
       <ConfirmDialog
         open={showConfirm}

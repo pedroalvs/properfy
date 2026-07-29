@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { TEMPLATE_VARIABLES, SAMPLE_DATA } from '@properfy/shared';
-import { PLATFORM_TEMPLATES } from '../../../src/scripts/platform-notification-templates';
+import { PLATFORM_TEMPLATES } from '../../../src/modules/notification/domain/platform-notification-templates';
 import { STUCK_ALERT_PAYLOAD_KEYS } from '../../../src/modules/inspector-execution/infrastructure/workers/notify-stuck.worker';
 import { SanitizeHtmlService } from '../../../src/modules/notification/infrastructure/sanitize-html.service';
 import { TemplateRendererService } from '../../../src/modules/notification/domain/template-renderer.service';

@@ -23,7 +23,17 @@ export const listNotificationsQuerySchema = paginationSchema.extend({
 export type ListNotificationsQuery = z.infer<typeof listNotificationsQuerySchema>;
 
 export const upsertNotificationTemplateSchema = z.object({
+  /** Required for EMAIL (enforced in the use case); always null for SMS. */
   subject: z.string().min(1).max(255).optional(),
+  /**
+   * The body as typed in the editor. Despite the name this carries PLAIN TEXT on
+   * the SMS channel — the use case routes it to body_text (leaving body_html
+   * NULL) or to body_html depending on the channel. The name is kept for wire
+   * compatibility with the generated OpenAPI client.
+   *
+   * `.min(1)` still admits "   ", so the use case additionally rejects a
+   * whitespace-only body.
+   */
   bodyHtml: z.string().min(1),
   isActive: z.boolean(),
   notificationClass: notificationClassSchema.optional(),
@@ -89,3 +99,25 @@ export const templatePreviewResponseSchema = z.object({
   htmlRendered: z.string(),
 });
 export type TemplatePreviewResponse = z.infer<typeof templatePreviewResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// Template default (reset-to-default) schemas
+// ---------------------------------------------------------------------------
+
+export const templateDefaultQuerySchema = z.object({
+  /**
+   * Present when resetting an agency override — the answer is then the platform
+   * default row. Omit it to reset the platform default itself, which returns the
+   * factory catalog shipped in code.
+   */
+  tenantId: z.string().uuid().optional(),
+});
+export type TemplateDefaultQuery = z.infer<typeof templateDefaultQuerySchema>;
+
+export const templateDefaultResponseSchema = z.object({
+  subject: z.string().nullable(),
+  /** Plain text on SMS, HTML on EMAIL — matches the editor's Body field. */
+  body: z.string(),
+  source: z.enum(['PLATFORM_DEFAULT', 'FACTORY']),
+});
+export type TemplateDefaultResponse = z.infer<typeof templateDefaultResponseSchema>;

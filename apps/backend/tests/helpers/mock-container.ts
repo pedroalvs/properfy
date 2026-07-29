@@ -267,6 +267,7 @@ export function createMockContainer(
       getNotificationUseCase: { execute: vi.fn() },
       upsertNotificationTemplateUseCase: { execute: vi.fn() },
       renderTemplatePreviewUseCase: { execute: vi.fn() },
+      getTemplateDefaultUseCase: { execute: vi.fn() },
       listNotificationTemplatesUseCase: { execute: vi.fn() },
       createNotificationUseCase: { execute: vi.fn() },
       pollRetryableNotificationsUseCase: { execute: vi.fn() },

@@ -259,6 +259,7 @@ import { createWebhookSignatureValidator } from '../modules/notification/infrast
 import { SanitizeHtmlService } from '../modules/notification/infrastructure/sanitize-html.service';
 import { HtmlToTextService } from '../modules/notification/infrastructure/html-to-text.service';
 import { RenderTemplatePreviewUseCase } from '../modules/notification/application/use-cases/render-template-preview.use-case';
+import { GetTemplateDefaultUseCase } from '../modules/notification/application/use-cases/get-template-default.use-case';
 
 // Notification handlers
 import { NotifyOnStatusTransitionHandler } from '../modules/notification/application/handlers/notify-on-status-transition.handler';
@@ -1074,6 +1075,9 @@ export function createContainer(logger: Logger): AppContainer {
   const renderTemplatePreviewUseCase = new RenderTemplatePreviewUseCase(
     templateRenderer, htmlSanitizer, authorizationService,
   );
+  const getTemplateDefaultUseCase = new GetTemplateDefaultUseCase(
+    notificationTemplateRepo, authorizationService,
+  );
 
   const sendTestNotificationUseCase = new SendTestNotificationUseCase(
     notificationTemplateRepo, templateRenderer, emailProvider, smsProvider, auditService, authorizationService,
@@ -1477,6 +1481,7 @@ export function createContainer(logger: Logger): AppContainer {
       upsertNotificationTemplateUseCase,
       deleteNotificationTemplateUseCase,
       renderTemplatePreviewUseCase,
+      getTemplateDefaultUseCase,
       sendTestNotificationUseCase,
       listNotificationTemplatesUseCase,
       createNotificationUseCase,

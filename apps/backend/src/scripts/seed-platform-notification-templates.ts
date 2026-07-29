@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { PLATFORM_TEMPLATES } from './platform-notification-templates';
+import { PLATFORM_TEMPLATES } from '../modules/notification/domain/platform-notification-templates';
 import { TemplateRendererService } from '../modules/notification/domain/template-renderer.service';
 
 const prisma = new PrismaClient();

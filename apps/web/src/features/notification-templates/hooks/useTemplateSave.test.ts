@@ -155,6 +155,92 @@ describe('useTemplateSave', () => {
     expect(errors.body).toContain('scheduled_date');
   });
 
+  // Previously only BOTH fields being empty was an error, so a template could be
+  // saved with no body at all — which then fails at send time (EMPTY_SMS_BODY)
+  // long after the operator has left the screen.
+  describe('empty content', () => {
+    it('requires a body even when the subject is filled in', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+      const errors = result.current.validate(
+        { subject: 'Valid subject', body: '', active: true },
+        [],
+        undefined,
+        'EMAIL',
+      );
+
+      expect(errors.body).toBe('Body is required');
+    });
+
+    it('treats a whitespace-only body as empty', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+      const errors = result.current.validate(
+        { subject: 'Valid subject', body: '   \n  ', active: true },
+        [],
+        undefined,
+        'EMAIL',
+      );
+
+      expect(errors.body).toBe('Body is required');
+    });
+
+    it('requires a subject on EMAIL templates', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+      const errors = result.current.validate(
+        { subject: '', body: 'Some body', active: true },
+        [],
+        undefined,
+        'EMAIL',
+      );
+
+      expect(errors.subject).toBe('Subject is required');
+    });
+
+    it('does not require a subject on SMS templates — SMS has no subject line', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+      const errors = result.current.validate(
+        { subject: '', body: 'Properfy: your inspection is scheduled.', active: true },
+        [],
+        undefined,
+        'SMS',
+      );
+
+      expect(errors.subject).toBeUndefined();
+      expect(errors.body).toBeUndefined();
+    });
+
+    it('still requires a body on SMS templates', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+      const errors = result.current.validate(
+        { subject: '', body: '', active: true },
+        [],
+        undefined,
+        'SMS',
+      );
+
+      expect(errors.body).toBe('Body is required');
+    });
+
+    it('defaults to the stricter EMAIL rules when no channel is passed', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+      const errors = result.current.validate({ subject: '', body: '', active: true }, []);
+
+      expect(errors.subject).toBe('Subject is required');
+      expect(errors.body).toBe('Body is required');
+    });
+  });
+
   it('returns no errors for valid data with required variables', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useTemplateSave(), { wrapper });

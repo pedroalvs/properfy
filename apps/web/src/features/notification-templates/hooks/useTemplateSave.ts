@@ -23,7 +23,17 @@ export interface UseTemplateSaveReturn {
   save: (code: string, channel: NotificationChannel, data: TemplateFormData, tenantId?: string | null) => Promise<SaveResult>;
   isSaving: boolean;
   validationErrors: TemplateFormErrors;
-  validate: (data: TemplateFormData, requiredVariables: string[], allowedVariables?: readonly string[]) => TemplateFormErrors;
+  /**
+   * `channel` defaults to EMAIL deliberately: EMAIL carries the stricter rule
+   * (it also requires a subject), so a caller that forgets to pass it fails
+   * closed rather than silently skipping validation.
+   */
+  validate: (
+    data: TemplateFormData,
+    requiredVariables: string[],
+    allowedVariables?: readonly string[],
+    channel?: NotificationChannel,
+  ) => TemplateFormErrors;
 }
 
 const VARIABLE_PATTERN = /\{\{(\w+)\}\}/g;
@@ -44,12 +54,23 @@ function validateTemplate(
   data: TemplateFormData,
   requiredVariables: string[],
   allowedVariables?: readonly string[],
+  channel: NotificationChannel = 'EMAIL',
 ): TemplateFormErrors {
   const errors: TemplateFormErrors = {};
 
-  if (!data.subject.trim() && !data.body.trim()) {
-    errors.subject = 'Subject is required';
+  // A body is always required. The previous rule only fired when subject AND
+  // body were both empty, so a template could be saved with nothing to deliver —
+  // an empty SMS then failed at send time (EMPTY_SMS_BODY), far from the editor.
+  if (!data.body.trim()) {
     errors.body = 'Body is required';
+  }
+
+  // SMS has no subject line; the column stays null for those templates.
+  if (channel === 'EMAIL' && !data.subject.trim()) {
+    errors.subject = 'Subject is required';
+  }
+
+  if (errors.body || errors.subject) {
     return errors;
   }
 
@@ -85,8 +106,13 @@ export function useTemplateSave(): UseTemplateSaveReturn {
   const [validationErrors, setValidationErrors] = useState<TemplateFormErrors>({});
   const queryClient = useQueryClient();
 
-  const validate = useCallback((data: TemplateFormData, requiredVariables: string[], allowedVariables?: readonly string[]): TemplateFormErrors => {
-    return validateTemplate(data, requiredVariables, allowedVariables);
+  const validate = useCallback((
+    data: TemplateFormData,
+    requiredVariables: string[],
+    allowedVariables?: readonly string[],
+    channel?: NotificationChannel,
+  ): TemplateFormErrors => {
+    return validateTemplate(data, requiredVariables, allowedVariables, channel);
   }, []);
 
   const save = useCallback(async (

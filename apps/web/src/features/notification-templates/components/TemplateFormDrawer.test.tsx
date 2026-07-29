@@ -92,6 +92,179 @@ function renderDrawer(template: NotificationTemplate | null = MOCK_TEMPLATE) {
   };
 }
 
+const MOCK_SMS_TEMPLATE: NotificationTemplate = {
+  id: 'tpl-02',
+  tenantId: null,
+  rentalTenantName: null,
+  code: 'INSPECTION_NOTICE_SMS',
+  channel: 'SMS',
+  subject: '',
+  body: 'Properfy: Hi {{rentalTenantName}}, inspection on {{scheduledDate}}.',
+  active: true,
+  notificationClass: 'OPERATIONAL',
+  requiredVariables: ['rentalTenantName', 'scheduledDate'],
+  createdAt: '2026-01-01T00:00:00Z',
+  updatedAt: '2026-01-01T00:00:00Z',
+};
+
+describe('TemplateFormDrawer — SMS channel', () => {
+  it('shows the stored SMS copy in the Body field', () => {
+    renderDrawer(MOCK_SMS_TEMPLATE);
+    expect(screen.getByLabelText('Body')).toHaveValue(
+      'Properfy: Hi {{rentalTenantName}}, inspection on {{scheduledDate}}.',
+    );
+  });
+
+  it('hides the Subject field — an SMS has no subject line', () => {
+    renderDrawer(MOCK_SMS_TEMPLATE);
+    expect(screen.queryByLabelText('Subject')).not.toBeInTheDocument();
+  });
+
+  it('keeps the Subject field for EMAIL templates', () => {
+    renderDrawer(MOCK_TEMPLATE);
+    expect(screen.getByLabelText('Subject')).toBeInTheDocument();
+  });
+
+  it('blocks saving an SMS template with an empty body', async () => {
+    const user = userEvent.setup();
+    renderDrawer(MOCK_SMS_TEMPLATE);
+
+    await user.clear(screen.getByLabelText('Body'));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText('Body is required')).toBeInTheDocument();
+    expect(mockPut).not.toHaveBeenCalled();
+  });
+});
+
+describe('TemplateFormDrawer — reset to default', () => {
+  const mockGet = api.GET as ReturnType<typeof vi.fn>;
+
+  const OVERRIDE_TEMPLATE: NotificationTemplate = {
+    ...MOCK_TEMPLATE,
+    id: 'tpl-override',
+    tenantId: 'tenant-1',
+    rentalTenantName: 'Acme Realty',
+    subject: 'Edited subject',
+    body: 'Edited body {{rentalTenantName}} {{propertyAddress}} {{scheduledDate}} {{timeSlot}}',
+  };
+
+  beforeEach(() => {
+    mockGet.mockReset();
+    mockGet.mockResolvedValue({
+      data: {
+        data: {
+          subject: 'Platform subject {{propertyAddress}}',
+          body: 'Platform body {{rentalTenantName}} {{scheduledDate}} {{timeSlot}}',
+          source: 'PLATFORM_DEFAULT',
+        },
+      },
+      error: undefined,
+    });
+  });
+
+  it('replaces the form content with the fetched default after confirming', async () => {
+    const user = userEvent.setup();
+    renderDrawer(OVERRIDE_TEMPLATE);
+
+    await user.click(screen.getByRole('button', { name: 'Reset to default' }));
+    await user.click(await screen.findByRole('button', { name: 'Reset' }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Body')).toHaveValue(
+        'Platform body {{rentalTenantName}} {{scheduledDate}} {{timeSlot}}',
+      );
+    });
+    expect(screen.getByLabelText('Subject')).toHaveValue('Platform subject {{propertyAddress}}');
+  });
+
+  it('asks for confirmation before discarding the operator edits', async () => {
+    const user = userEvent.setup();
+    renderDrawer(OVERRIDE_TEMPLATE);
+
+    await user.click(screen.getByRole('button', { name: 'Reset to default' }));
+
+    // Nothing is fetched or replaced until the operator confirms.
+    expect(mockGet).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Body')).toHaveValue(OVERRIDE_TEMPLATE.body);
+  });
+
+  it('does not persist anything — reset only stages the change for Save', async () => {
+    const user = userEvent.setup();
+    renderDrawer(OVERRIDE_TEMPLATE);
+
+    await user.click(screen.getByRole('button', { name: 'Reset to default' }));
+    await user.click(await screen.findByRole('button', { name: 'Reset' }));
+
+    await waitFor(() => expect(mockGet).toHaveBeenCalled());
+    expect(mockPut).not.toHaveBeenCalled();
+  });
+
+  it('sends tenantId when resetting an agency override', async () => {
+    const user = userEvent.setup();
+    renderDrawer(OVERRIDE_TEMPLATE);
+
+    await user.click(screen.getByRole('button', { name: 'Reset to default' }));
+    await user.click(await screen.findByRole('button', { name: 'Reset' }));
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith(
+        '/v1/notification-templates/INSPECTION_NOTICE/EMAIL/default',
+        { params: { query: { tenantId: 'tenant-1' } } },
+      );
+    });
+  });
+
+  it('omits tenantId when resetting the platform default itself', async () => {
+    const user = userEvent.setup();
+    renderDrawer(MOCK_TEMPLATE);
+
+    await user.click(screen.getByRole('button', { name: 'Reset to default' }));
+    await user.click(await screen.findByRole('button', { name: 'Reset' }));
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith(
+        '/v1/notification-templates/INSPECTION_NOTICE/EMAIL/default',
+        { params: { query: {} } },
+      );
+    });
+  });
+
+  // Safety net for the class of bug this work fixed: if a row ever arrives with
+  // an empty body, the editor shows the standard content rather than a blank box
+  // that silently saves nothing.
+  it('auto-fills from the default when the loaded template has an empty body', async () => {
+    renderDrawer({ ...MOCK_TEMPLATE, body: '' });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Body')).toHaveValue(
+        'Platform body {{rentalTenantName}} {{scheduledDate}} {{timeSlot}}',
+      );
+    });
+  });
+
+  it('does not auto-fill when the template already has a body', async () => {
+    renderDrawer(OVERRIDE_TEMPLATE);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Body')).toHaveValue(OVERRIDE_TEMPLATE.body);
+    });
+    expect(mockGet).not.toHaveBeenCalled();
+  });
+
+  it('leaves the form untouched when the fetch fails', async () => {
+    mockGet.mockResolvedValueOnce({ data: undefined, error: { error: { message: 'boom' } } });
+    const user = userEvent.setup();
+    renderDrawer(OVERRIDE_TEMPLATE);
+
+    await user.click(screen.getByRole('button', { name: 'Reset to default' }));
+    await user.click(await screen.findByRole('button', { name: 'Reset' }));
+
+    await waitFor(() => expect(mockGet).toHaveBeenCalled());
+    expect(screen.getByLabelText('Body')).toHaveValue(OVERRIDE_TEMPLATE.body);
+  });
+});
+
 describe('TemplateFormDrawer', () => {
   it('renders form fields', () => {
     renderDrawer();

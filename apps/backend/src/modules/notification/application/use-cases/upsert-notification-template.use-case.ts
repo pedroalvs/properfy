@@ -81,7 +81,30 @@ export class UpsertNotificationTemplateUseCase {
       throw new ValidationError('Invalid notification channel');
     }
 
-    // 5. Resolve notification classification (FR-004, FR-005)
+    // 5. Reject content that would deliver nothing.
+    //
+    // The wire schema's z.string().min(1) accepts "   ", and a subject was never
+    // required, so a template could be saved with no deliverable content. An
+    // empty SMS body in particular fails silently at send time (EMPTY_SMS_BODY),
+    // long after the operator has left the screen — refuse it at save instead.
+    //
+    // `field` (not `path`) is the key the web form maps to an inline error; see
+    // getFieldErrors in @properfy/shared. NOTE: the sanitizer 422 below still
+    // uses `path`, so it only ever surfaces as a snackbar — pre-existing, and
+    // pinned by tests/integration/notification/upsert-template-raw-html.test.ts.
+    if (input.bodyHtml.trim().length === 0) {
+      throw new ValidationError('Body is required', [
+        { code: 'custom', message: 'Body is required', field: 'bodyHtml' },
+      ]);
+    }
+    // SMS has no subject line — the column stays null for those templates.
+    if (input.channel.toUpperCase() === 'EMAIL' && !input.subject?.trim()) {
+      throw new ValidationError('Subject is required', [
+        { code: 'custom', message: 'Subject is required', field: 'subject' },
+      ]);
+    }
+
+    // 6. Resolve notification classification (FR-004, FR-005)
     const protectedClass = getProtectedClass(input.templateCode);
     let resolvedClass: NotificationClass;
     if (protectedClass) {
@@ -93,7 +116,7 @@ export class UpsertNotificationTemplateUseCase {
       resolvedClass = input.notificationClass ?? getDefaultClass(input.templateCode);
     }
 
-    // 6. Sanitizer save-profile validation (EMAIL channel only — SMS uses plain text)
+    // 7. Sanitizer save-profile validation (EMAIL channel only — SMS uses plain text)
     if (input.channel.toUpperCase() === 'EMAIL' && this.htmlSanitizer) {
       const sanitizeResult = this.htmlSanitizer.validateForSave(input.bodyHtml);
       if (!sanitizeResult.safe) {
@@ -104,13 +127,19 @@ export class UpsertNotificationTemplateUseCase {
       }
     }
 
-    // 7. Derive bodyText from HTML (EMAIL channel)
-    const bodyText =
-      input.channel.toUpperCase() === 'EMAIL' && this.htmlToText
-        ? this.htmlToText.convert(input.bodyHtml)
-        : input.bodyHtml;
+    // 8. Route the edited body to the column that channel actually reads.
+    //
+    // EMAIL keeps the HTML in body_html and derives a plain-text alternative part.
+    // SMS is plain text and belongs in body_text ONLY, with body_html left NULL —
+    // the same shape the platform seeder writes. Storing it in body_html too made
+    // the send path derive the message from HTML (sanitize → html-to-text), so the
+    // delivered SMS was word-wrapped at 120 chars with hrefs expanded while the
+    // test-send rendered body_text raw. One template, two different messages.
+    const isEmail = input.channel.toUpperCase() === 'EMAIL';
+    const bodyHtml = isEmail ? input.bodyHtml : null;
+    const bodyText = isEmail && this.htmlToText ? this.htmlToText.convert(input.bodyHtml) : input.bodyHtml;
 
-    // 8. Extract Handlebars variables (from bodyHtml + subject)
+    // 9. Extract Handlebars variables (from bodyHtml + subject)
     const allVariables = new Set<string>();
     for (const variable of this.templateRenderer.extractVariables(input.bodyHtml)) {
       allVariables.add(variable);
@@ -122,14 +151,14 @@ export class UpsertNotificationTemplateUseCase {
     }
     const variablesJson = [...allVariables];
 
-    // 9. Load existing template for audit before-state
+    // 10. Load existing template for audit before-state
     const existing = await this.templateRepo.findByTenantCodeChannel(
       tenantId,
       input.templateCode,
       input.channel as NotificationChannel,
     );
 
-    // 10. Build entity
+    // 11. Build entity
     const now = new Date();
     const template = new NotificationTemplateEntity({
       id: existing?.id ?? crypto.randomUUID(),
@@ -137,7 +166,7 @@ export class UpsertNotificationTemplateUseCase {
       templateCode: input.templateCode,
       channel: input.channel as NotificationChannel,
       subject: input.subject ?? null,
-      bodyHtml: input.bodyHtml,
+      bodyHtml,
       bodyText,
       variablesJson,
       isActive: input.isActive,
@@ -148,7 +177,7 @@ export class UpsertNotificationTemplateUseCase {
 
     await this.templateRepo.upsert(template);
 
-    // 11. Audit with before/after body (FR-011)
+    // 12. Audit with before/after body (FR-011)
     this.auditService.log({
       action: 'NOTIFICATION_TEMPLATE_UPSERTED',
       actorType: 'USER',
