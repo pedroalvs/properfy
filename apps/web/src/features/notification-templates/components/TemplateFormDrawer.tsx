@@ -17,7 +17,7 @@ import { SendTestSmsDialog } from './SendTestSmsDialog';
 import { VariableInsertToolbar } from './VariableInsertToolbar';
 import { TemplatePreview } from './TemplatePreview';
 import type { NotificationTemplate, TemplateFormData, TemplateFormErrors } from '../types';
-import { TEMPLATE_VARIABLES } from '../types';
+import { TEMPLATE_VARIABLES, MANDATORY_TEMPLATE_CODES } from '../types';
 
 interface TemplateFormDrawerProps {
   open: boolean;
@@ -64,20 +64,40 @@ export function TemplateFormDrawer({
   // for this channel, so fall back to the standard copy rather than presenting a
   // box that would silently save nothing.
   //
-  // The ref keys on template id so this fires at most once per template even
-  // though setForm re-renders — an effect that could re-trigger its own
-  // dependency is the PR #961 freeze pattern.
-  const autoFilledRef = useRef<string | null>(null);
+  // The ref claims the template id before fetching, which stops a re-render from
+  // firing a second request — an effect that can re-trigger its own dependency is
+  // the PR #961 freeze pattern. It is cleared when the drawer closes (this
+  // component stays mounted across open/close, so a ref that only ever grew
+  // would auto-fill once and show a blank box on every later visit) and released
+  // on failure so a transient error does not disable auto-fill until reload.
+  const autoFillRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!open || !template) return;
-    if (template.body.trim()) return;
-    if (autoFilledRef.current === template.id) return;
+    if (!open) {
+      autoFillRef.current = null;
+      return;
+    }
+    if (!template || template.body.trim()) return;
+    if (autoFillRef.current === template.id) return;
 
-    autoFilledRef.current = template.id;
+    autoFillRef.current = template.id;
     let cancelled = false;
     void fetchDefault(template.code, template.channel, template.tenantId).then((result) => {
-      if (cancelled || !result) return;
-      setForm((prev) => ({ ...prev, subject: result.subject ?? '', body: result.body }));
+      if (cancelled) return;
+      if (!result) {
+        autoFillRef.current = null;
+        return;
+      }
+      // Only the empty field is filled — an operator's saved subject is content,
+      // not a gap to paper over.
+      const applied = (prev: TemplateFormData): TemplateFormData => ({
+        ...prev,
+        subject: prev.subject.trim() ? prev.subject : result.subject ?? '',
+        body: result.body,
+      });
+      // initialData moves too: filling a blank field with the standard content is
+      // not an operator edit, so closing untouched must not prompt to discard.
+      setForm(applied);
+      setInitialData(applied);
     });
     return () => {
       cancelled = true;
@@ -124,6 +144,13 @@ export function TemplateFormDrawer({
   // Single source of truth for channel-based conditions — Preview and Send Test
   // depend on this. Avoids divergence if code is later refactored.
   const isEmailChannel = template?.channel === 'EMAIL';
+
+  // The list also shows platform rows for codes outside the mandatory catalog
+  // (PASSWORD_RESET, INSPECTION_STUCK_ALERT, ...). GetTemplateDefaultUseCase
+  // rejects those, so the button would only ever produce an error.
+  const canResetToDefault =
+    template !== null &&
+    (MANDATORY_TEMPLATE_CODES as readonly string[]).includes(template.code);
 
   // Fall back to template.body until the useEffect syncs form state, so the preview
   // starts fetching on the first render when the drawer opens.
@@ -304,13 +331,15 @@ export function TemplateFormDrawer({
               <Button variant="secondary" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button
-                variant="secondary"
-                onClick={() => setShowResetConfirm(true)}
-                disabled={isSaving || isResetting}
-              >
-                Reset to default
-              </Button>
+              {canResetToDefault && (
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowResetConfirm(true)}
+                  disabled={isSaving || isResetting}
+                >
+                  Reset to default
+                </Button>
+              )}
               {isEmailChannel && (
                 <Button variant="secondary" onClick={() => setShowTestDialog(true)} disabled={isSaving}>
                   Send Test Email

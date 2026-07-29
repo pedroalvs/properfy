@@ -252,6 +252,116 @@ describe('TemplateFormDrawer — reset to default', () => {
     expect(mockGet).not.toHaveBeenCalled();
   });
 
+  it('auto-fills again when the drawer is reopened on the same empty template', async () => {
+    // The drawer is mounted persistently by the list page, so a ref keyed on
+    // template.id survives close/reopen while the init effect resets the body
+    // back to '' — leaving the operator staring at a blank box on every visit
+    // after the first.
+    const user = userEvent.setup();
+    const Wrapper = createWrapper();
+    const empty = { ...MOCK_TEMPLATE, body: '' };
+
+    const { rerender } = render(
+      <Wrapper>
+        <TemplateFormDrawer open={true} onClose={vi.fn()} template={empty} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+    await waitFor(() => expect(screen.getByLabelText('Body')).toHaveValue(
+      'Platform body {{rentalTenantName}} {{scheduledDate}} {{timeSlot}}',
+    ));
+
+    rerender(
+      <Wrapper>
+        <TemplateFormDrawer open={false} onClose={vi.fn()} template={empty} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+    rerender(
+      <Wrapper>
+        <TemplateFormDrawer open={true} onClose={vi.fn()} template={empty} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+
+    await waitFor(() => expect(screen.getByLabelText('Body')).toHaveValue(
+      'Platform body {{rentalTenantName}} {{scheduledDate}} {{timeSlot}}',
+    ));
+    expect(user).toBeDefined();
+  });
+
+  it('re-arms auto-fill after a failed fetch instead of disabling it for good', async () => {
+    mockGet.mockResolvedValueOnce({ data: undefined, error: { error: { message: 'boom' } } });
+    const Wrapper = createWrapper();
+    const empty = { ...MOCK_TEMPLATE, body: '' };
+
+    const { rerender } = render(
+      <Wrapper>
+        <TemplateFormDrawer open={true} onClose={vi.fn()} template={empty} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+    await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(1));
+    expect(screen.getByLabelText('Body')).toHaveValue('');
+
+    rerender(
+      <Wrapper>
+        <TemplateFormDrawer open={false} onClose={vi.fn()} template={empty} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+    rerender(
+      <Wrapper>
+        <TemplateFormDrawer open={true} onClose={vi.fn()} template={empty} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+
+    await waitFor(() => expect(screen.getByLabelText('Body')).toHaveValue(
+      'Platform body {{rentalTenantName}} {{scheduledDate}} {{timeSlot}}',
+    ));
+  });
+
+  it('does not prompt to discard after an untouched auto-fill', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const Wrapper = createWrapper();
+
+    render(
+      <Wrapper>
+        <TemplateFormDrawer
+          open={true}
+          onClose={onClose}
+          template={{ ...MOCK_TEMPLATE, body: '' }}
+          onSaved={vi.fn()}
+        />
+      </Wrapper>,
+    );
+    await waitFor(() => expect(screen.getByLabelText('Body')).not.toHaveValue(''));
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    // Filling a blank field with the standard content is not an operator edit.
+    expect(screen.queryByText('Discard changes?')).not.toBeInTheDocument();
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('does not overwrite a saved subject when auto-filling an empty body', async () => {
+    renderDrawer({ ...MOCK_TEMPLATE, subject: 'Operator subject', body: '' });
+
+    await waitFor(() => expect(screen.getByLabelText('Body')).not.toHaveValue(''));
+    expect(screen.getByLabelText('Subject')).toHaveValue('Operator subject');
+  });
+
+  it('hides Reset for codes the default endpoint does not serve', async () => {
+    // The list shows platform rows for codes outside MANDATORY_TEMPLATE_CODES
+    // (PASSWORD_RESET, INSPECTION_STUCK_ALERT, ...). GetTemplateDefaultUseCase
+    // rejects those, so offering the button there is a dead action.
+    renderDrawer({ ...MOCK_TEMPLATE, id: 'tpl-pw', code: 'PASSWORD_RESET' });
+
+    expect(screen.queryByRole('button', { name: 'Reset to default' })).not.toBeInTheDocument();
+  });
+
+  it('shows Reset for a mandatory code', () => {
+    renderDrawer(MOCK_TEMPLATE);
+
+    expect(screen.getByRole('button', { name: 'Reset to default' })).toBeInTheDocument();
+  });
+
   it('leaves the form untouched when the fetch fails', async () => {
     mockGet.mockResolvedValueOnce({ data: undefined, error: { error: { message: 'boom' } } });
     const user = userEvent.setup();

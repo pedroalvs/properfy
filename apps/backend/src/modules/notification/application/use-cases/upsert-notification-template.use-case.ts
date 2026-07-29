@@ -165,7 +165,9 @@ export class UpsertNotificationTemplateUseCase {
       tenantId,
       templateCode: input.templateCode,
       channel: input.channel as NotificationChannel,
-      subject: input.subject ?? null,
+      // Enforced, not assumed: a legacy SMS row can still hold a subject from
+      // before the field was hidden, and the form re-sends whatever it loaded.
+      subject: isEmail ? input.subject ?? null : null,
       bodyHtml,
       bodyText,
       variablesJson,

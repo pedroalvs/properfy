@@ -150,7 +150,7 @@ describe('GetTemplateDefaultUseCase', () => {
     ).rejects.toThrow(ForbiddenError);
   });
 
-  it('pins CL_ADMIN to its own tenant, ignoring a foreign tenantId in the query', async () => {
+  it('never reads another agency\'s override, whatever tenantId a CL_ADMIN passes', async () => {
     vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(makePlatformRow());
 
     const result = await useCase.execute({
@@ -160,8 +160,10 @@ describe('GetTemplateDefaultUseCase', () => {
       actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-own' }),
     });
 
-    // Whatever tenant it resolves to, the answer is the platform default, which
-    // is tenant-agnostic — a CL_ADMIN must never read another agency's override.
+    // There is no tenant pinning here and none is needed: tenantId only selects
+    // WHICH level to return, it is never used as a lookup key. The query is
+    // hard-coded to the platform row (tenant_id IS NULL), which is
+    // tenant-agnostic, so a foreign tenantId cannot reach another agency's data.
     expect(templateRepo.findByTenantCodeChannel).toHaveBeenCalledWith(null, 'INSPECTION_NOTICE', 'EMAIL');
     expect(result.source).toBe('PLATFORM_DEFAULT');
   });

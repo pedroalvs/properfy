@@ -358,6 +358,21 @@ describe('UpsertNotificationTemplateUseCase', () => {
       expect(htmlToText.convert).toHaveBeenCalledWith('<p>Hello {{rentalTenantName}}</p>');
     });
 
+    it('forces subject to null on SMS even if the client still sends one', async () => {
+      // A legacy SMS row can hold a subject from before the field was hidden, and
+      // the form re-sends whatever it holds. Nulling here is what actually makes
+      // "SMS has no subject" true, rather than just documented.
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+
+      const result = await makeUseCase(makeHtmlToText()).execute({
+        ...smsInput,
+        subject: 'Stale subject from a legacy row',
+      });
+
+      expect(vi.mocked(templateRepo.upsert).mock.calls[0][0].subject).toBeNull();
+      expect(result.subject).toBeNull();
+    });
+
     it('extracts variables from an SMS body even though bodyHtml is null', async () => {
       vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
 
