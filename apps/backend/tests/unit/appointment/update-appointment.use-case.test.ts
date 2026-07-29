@@ -2,10 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { UpdateAppointmentUseCase } from '../../../src/modules/appointment/application/use-cases/update-appointment.use-case';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
-import type { AuthContext } from '@properfy/shared';
+import type { AuthContext, AvailableSlot } from '@properfy/shared';
 import { PLATFORM_TIMEZONE, zonedWallTimeToUtc } from '@properfy/shared';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { AppointmentContactEntity } from '../../../src/modules/appointment/domain/appointment-contact.entity';
+import { AppointmentRestrictionEntity } from '../../../src/modules/appointment/domain/appointment-restriction.entity';
 import {
   AppointmentNotFoundError,
   AppointmentUpdateNotAllowedError,
@@ -68,12 +69,29 @@ function makeContact(): AppointmentContactEntity {
 function makeAppointmentWithRelations(
   appointmentOverrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {},
   withContact = false,
+  restrictions: AppointmentRestrictionEntity[] = [],
 ): AppointmentWithRelations {
   return {
     appointment: makeAppointmentEntity(appointmentOverrides),
     contact: withContact ? makeContact() : null,
-    restrictions: [],
+    restrictions,
   };
+}
+
+/** A restriction row as written by the portal when the rental tenant declines. */
+function makePortalRestriction(availableSlotsJson: AvailableSlot[]): AppointmentRestrictionEntity {
+  return new AppointmentRestrictionEntity({
+    id: 'restriction-portal',
+    appointmentId: 'appt-1',
+    isHome: false,
+    unavailableDaysJson: null,
+    unavailableHoursJson: null,
+    availableSlotsJson,
+    notes: null,
+    source: 'RENTAL_TENANT_PORTAL',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
 }
 
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
@@ -294,6 +312,68 @@ describe('UpdateAppointmentUseCase', () => {
 
     expect(appointmentRepo.deleteRestrictionsByAppointmentId).toHaveBeenCalledWith('appt-1');
     expect(appointmentRepo.saveRestriction).not.toHaveBeenCalled();
+  });
+
+  // The weekly availability a rental tenant offers when declining in the portal lives on
+  // the restriction row but is not part of the operator's restriction form. The
+  // delete-then-recreate below must not silently discard it.
+  describe('rental tenant availability preservation', () => {
+    const SLOTS: AvailableSlot[] = [
+      { dayOfWeek: 'WED', start: '09:00', end: '17:00' },
+      { dayOfWeek: 'FRI', start: '10:00', end: '14:00' },
+    ];
+
+    it('should carry the tenant availability onto the operator-edited restriction', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({}, false, [makePortalRestriction(SLOTS)]),
+      );
+
+      await useCase.execute({
+        appointmentId: 'appt-1',
+        data: {
+          restriction: { isHome: true, source: 'OPERATOR', notes: 'Ring the bell' },
+        },
+        actor: makeActor(),
+      });
+
+      const saved = vi.mocked(appointmentRepo.saveRestriction).mock.calls[0]?.[0];
+      expect(saved?.availableSlotsJson).toEqual(SLOTS);
+      // The operator's own edits must still land.
+      expect(saved?.isHome).toBe(true);
+      expect(saved?.notes).toBe('Ring the bell');
+    });
+
+    it('should keep the tenant availability when the operator removes their restriction', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({}, false, [makePortalRestriction(SLOTS)]),
+      );
+
+      await useCase.execute({
+        appointmentId: 'appt-1',
+        data: { restriction: null },
+        actor: makeActor(),
+      });
+
+      const saved = vi.mocked(appointmentRepo.saveRestriction).mock.calls[0]?.[0];
+      expect(saved?.availableSlotsJson).toEqual(SLOTS);
+      // Nothing operator-authored survives — only the tenant's own contribution.
+      expect(saved?.isHome).toBe(false);
+      expect(saved?.notes).toBeNull();
+      expect(saved?.source).toBe('RENTAL_TENANT_PORTAL');
+    });
+
+    it('should leave availableSlotsJson null when the tenant never offered any', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+
+      await useCase.execute({
+        appointmentId: 'appt-1',
+        data: { restriction: { isHome: true, source: 'OPERATOR' } },
+        actor: makeActor(),
+      });
+
+      const saved = vi.mocked(appointmentRepo.saveRestriction).mock.calls[0]?.[0];
+      expect(saved?.availableSlotsJson).toBeNull();
+    });
   });
 
   it('should not touch restrictions when restriction field is absent', async () => {
