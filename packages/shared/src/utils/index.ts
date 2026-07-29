@@ -4,11 +4,12 @@ export { zonedWallTimeToUtc, endOfCivilDayInTz } from './timezone-date';
 export { validateNewSchedule, validateEditedSchedule, type DateValidationResult } from './edit-date-validation';
 export { formatInvoiceNumber, INVOICE_NUMBER_PREFIX } from './format-invoice-number';
 export {
-  formatDisplayDate,
-  formatDisplayTime,
-  formatDisplayTimeRange,
-  formatDisplayTimeWindow,
-  formatDisplayDateTime,
+  formatCivilDate,
+  formatWallTime,
+  formatWallTimeRange,
+  formatWallTimeWindow,
+  formatInstantDate,
+  formatInstantDateTime,
 } from './format-display-date';
 export {
   ApiError,

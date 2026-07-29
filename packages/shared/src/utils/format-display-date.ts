@@ -4,35 +4,96 @@ import { PLATFORM_TIMEZONE } from '../constants/timezone';
  * Canonical user-facing date/time rendering for the whole platform.
  *
  * Shapes (Australian convention, matching `toLocaleTimeString('en-AU')`):
- *   date      28/07/2026
- *   time      9:00 am           (hour not zero-padded, meridiem lowercase, no seconds)
- *   range     9:00 am – 11:00 am
- *   date-time 28/07/2026, 2:12 pm
+ *   civil date  28/07/2026
+ *   wall time   9:00 am            (hour not zero-padded, meridiem lowercase, no seconds)
+ *   range       9:00 am – 11:00 am
+ *   instant     28/07/2026, 2:12 pm
  *
- * THE DISTINCTION THAT MATTERS — these take two different kinds of input and it
- * is deliberate that they are not unified:
+ * ## Three distinct types, three distinct functions
  *
- *   `formatDisplayTime` takes a bare HH:mm WALL-CLOCK string and performs NO
- *   timezone conversion. Appointment time slots (`time_slot_start`/`time_slot_end`)
- *   are already Sydney wall time; passing them through a timezone converter would
- *   shift them by the UTC offset.
+ * The API deliberately refuses to guess. Every value the product displays is one
+ * of exactly three things, and the caller declares which by choosing a function:
  *
- *   `formatDisplayDateTime` takes an INSTANT (Date or ISO timestamp) and DOES
- *   convert it to `PLATFORM_TIMEZONE`.
+ * | Kind           | Example fields                        | Timezone |
+ * |----------------|---------------------------------------|----------|
+ * | **Civil date** | `scheduledDate`, `periodStart`, `dateOfBirth` (`@db.Date`) | none — ever |
+ * | **Wall time**  | `timeSlotStart`, `timeSlotEnd` (`HH:mm`)                    | none — ever |
+ * | **Instant**    | `createdAt`, `effectiveAt` (`DateTime`)                     | required  |
  *
- * Getting those backwards silently moves appointments by 10-11 hours, so the
- * distinction is pinned by tests named after it.
+ * A civil date is a calendar day: an inspection on the 28th is on the 28th in
+ * every timezone. Converting it is the bug, not the fix. A wall time is the same
+ * — 9:00 am local is 9:00 am local. Only an **instant** denotes a point in time
+ * and therefore needs a timezone to render.
  *
- * All formatters degrade gracefully instead of throwing: nullish/empty input
- * yields `''`, and unparseable input is returned unchanged so bad data stays
- * visible rather than silently blanking a field mid-render.
+ * An earlier version of this module took `string | Date` and inferred the kind
+ * from the input type. That inference was unsound: the same instant rendered as
+ * two different days depending on whether it arrived as a string or a `Date`,
+ * and since every frontend receives JSON, instants are *always* strings there.
+ * The kind now comes from the function name, so the ambiguity cannot recur.
+ *
+ * ## Multi-timezone
+ *
+ * `timeZone` is a parameter, not a constant, defaulting to `PLATFORM_TIMEZONE`.
+ * Per-agency timezone support therefore means threading a value into the two
+ * instant formatters; civil dates and wall times are already correct for every
+ * agency because they carry no timezone at all.
+ *
+ * ## Error behaviour
+ *
+ * These run in render paths, so they never throw: nullish/empty input yields
+ * `''`, and unparseable input is returned unchanged so bad data stays visible
+ * rather than silently blanking a field.
  */
 
 /** Spaced en-dash (U+2013) — the range separator used across the product. */
 const RANGE_SEPARATOR = ' – ';
 
-const CIVIL_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})/;
-const TIME_RE = /^(\d{1,2}):(\d{2})(?::\d{2})?$/;
+/**
+ * A leading `YYYY-MM-DD`, anchored so a trailing time (or nothing) is accepted
+ * but arbitrary junk is not: `'2026-07-28garbage'` must fall through to the
+ * unparseable branch rather than silently rendering as the 28th.
+ */
+const CIVIL_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})(?=$|[T ])/;
+
+const WALL_TIME_RE = /^(\d{1,2}):(\d{2})(?::\d{2})?$/;
+
+/**
+ * `Intl.DateTimeFormat` construction is comparatively expensive and these
+ * formatters render one row at a time in tables and lists, so instances are
+ * memoised per timezone.
+ */
+const civilPartsFormatters = new Map<string, Intl.DateTimeFormat>();
+const wallTimeFormatters = new Map<string, Intl.DateTimeFormat>();
+
+function civilPartsFormatter(timeZone: string): Intl.DateTimeFormat {
+  let formatter = civilPartsFormatters.get(timeZone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    civilPartsFormatters.set(timeZone, formatter);
+  }
+  return formatter;
+}
+
+function wallTimeFormatter(timeZone: string): Intl.DateTimeFormat {
+  let formatter = wallTimeFormatters.get(timeZone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-GB', {
+      timeZone,
+      hour: '2-digit',
+      minute: '2-digit',
+      // h23 pins 00..23. `hour12: false` was historically allowed to resolve to
+      // h24, which renders midnight as '24:00' on older ICU builds.
+      hourCycle: 'h23',
+    });
+    wallTimeFormatters.set(timeZone, formatter);
+  }
+  return formatter;
+}
 
 function pad2(n: number): string {
   return String(n).padStart(2, '0');
@@ -45,64 +106,61 @@ function isValidYmd(year: number, month: number, day: number): boolean {
   return day <= new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
-/** Extracts the civil date parts of a `Date` as seen in the platform timezone. */
-function civilPartsInPlatformTz(date: Date): { year: string; month: string; day: string } {
-  // en-CA yields YYYY-MM-DD, which is trivial to split.
-  const iso = new Intl.DateTimeFormat('en-CA', {
-    timeZone: PLATFORM_TIMEZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(date);
-  const [year = '', month = '', day = ''] = iso.split('-');
-  return { year, month, day };
+/**
+ * Reads formatted parts by name rather than splitting the formatted string,
+ * which keeps this immune to locale-data drift across the different ICU builds
+ * the four workspaces run on.
+ */
+function partsOf(formatter: Intl.DateTimeFormat, date: Date): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const part of formatter.formatToParts(date)) out[part.type] = part.value;
+  return out;
 }
 
 /**
- * Formats a calendar day as `dd/mm/yyyy`.
+ * Formats a **civil date** (a calendar day) as `dd/mm/yyyy`. Never applies a
+ * timezone — the result is identical for every agency.
  *
- * Strings are treated as CIVIL dates: only the leading `YYYY-MM-DD` is read and
- * any time suffix is ignored, so a `@db.Date` arriving as
- * `'2026-07-28T00:00:00.000Z'` never shifts a day in a runtime behind UTC.
- *
- * `Date` instances are resolved to the calendar day they fall on in
- * `PLATFORM_TIMEZONE`. Use `formatDisplayDateTime` when the time of day matters.
+ * Accepts the `YYYY-MM-DD` wire shape, or a `Date` originating from a Prisma
+ * `@db.Date` column, which Prisma anchors at UTC midnight. Passing a genuine
+ * instant here interprets its **UTC** calendar day; use `formatInstantDate` when
+ * the value denotes a point in time.
  */
-export function formatDisplayDate(input: string | Date | null | undefined): string {
-  if (input == null) return '';
+export function formatCivilDate(value: string | Date | null | undefined): string {
+  if (value == null) return '';
 
-  if (input instanceof Date) {
-    if (Number.isNaN(input.getTime())) return '';
-    const { year, month, day } = civilPartsInPlatformTz(input);
-    return `${day}/${month}/${year}`;
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return '';
+    // @db.Date is UTC-midnight anchored, so UTC components ARE the civil date.
+    return `${pad2(value.getUTCDate())}/${pad2(value.getUTCMonth() + 1)}/${value.getUTCFullYear()}`;
   }
 
-  if (input === '') return '';
+  if (value === '') return '';
 
-  const match = CIVIL_DATE_RE.exec(input);
-  if (!match) return input;
+  const match = CIVIL_DATE_RE.exec(value);
+  if (!match) return value;
 
   const [, year = '', month = '', day = ''] = match;
-  if (!isValidYmd(Number(year), Number(month), Number(day))) return input;
+  if (!isValidYmd(Number(year), Number(month), Number(day))) return value;
 
   return `${day}/${month}/${year}`;
 }
 
 /**
- * Formats a bare `HH:mm` (or `HH:mm:ss`) wall-clock string as `9:00 am`.
+ * Formats a **wall time** (`HH:mm`, optionally `HH:mm:ss`) as `9:00 am`.
  *
- * Performs NO timezone conversion — the input is already platform-local wall
- * time. Seconds, if present, are dropped.
+ * Never applies a timezone: appointment time slots are already local wall time,
+ * and converting them would shift every appointment by the UTC offset.
  */
-export function formatDisplayTime(input: string | null | undefined): string {
-  if (input == null || input === '') return '';
+export function formatWallTime(value: string | null | undefined): string {
+  if (value == null || value === '') return '';
 
-  const match = TIME_RE.exec(input.trim());
-  if (!match) return input;
+  const match = WALL_TIME_RE.exec(value.trim());
+  if (!match) return value;
 
   const hour = Number(match[1]);
   const minute = Number(match[2]);
-  if (hour > 23 || minute > 59) return input;
+  if (hour > 23 || minute > 59) return value;
 
   const meridiem = hour < 12 ? 'am' : 'pm';
   // 0 and 12 both display as 12 on a 12-hour clock.
@@ -111,67 +169,100 @@ export function formatDisplayTime(input: string | null | undefined): string {
   return `${hour12}:${pad2(minute)} ${meridiem}`;
 }
 
+/** Internal: formats a wall time, or reports that it could not be parsed. */
+function tryFormatWallTime(value: string): string | null {
+  const formatted = formatWallTime(value);
+  // formatWallTime echoes its input verbatim when it cannot parse it.
+  return formatted === value && !WALL_TIME_RE.test(value.trim()) ? null : formatted;
+}
+
 /**
- * Formats a start/end pair as `9:00 am – 11:00 am`.
+ * Formats a start/end wall-time pair as `9:00 am – 11:00 am`.
  *
  * When only one end is present, that end is returned alone rather than emitting
  * a dangling separator.
  */
-export function formatDisplayTimeRange(
+export function formatWallTimeRange(
   start: string | null | undefined,
   end: string | null | undefined,
 ): string {
-  const formattedStart = formatDisplayTime(start);
-  const formattedEnd = formatDisplayTime(end);
+  const formattedStart = formatWallTime(start);
+  const formattedEnd = formatWallTime(end);
 
   if (formattedStart && formattedEnd) return `${formattedStart}${RANGE_SEPARATOR}${formattedEnd}`;
   return formattedStart || formattedEnd;
 }
 
 /**
- * Formats a combined window string (`'08:00-13:00'`) as `8:00 am – 1:00 pm`.
+ * Formats a pre-joined window string (`'08:00-13:00'`) as `8:00 am – 1:00 pm`.
  *
- * Several APIs hand back the window pre-joined. Splitting and re-formatting is
- * correct; string-replacing the separator is not, since it leaves 24-hour times.
+ * Several APIs hand the window back already joined. Both ends must parse; if
+ * either fails the raw input is returned untouched, so a half-formatted result
+ * like `'8:00 am – lunch'` can never reach a user.
  */
-export function formatDisplayTimeWindow(input: string | null | undefined): string {
-  if (input == null || input === '') return '';
+export function formatWallTimeWindow(value: string | null | undefined): string {
+  if (value == null || value === '') return '';
 
-  const parts = input.split(/\s*[-–]\s*/);
-  if (parts.length !== 2) return input;
+  const parts = value.split(/\s*[-–]\s*/);
+  if (parts.length !== 2) return value;
 
   const [start = '', end = ''] = parts;
-  const formatted = formatDisplayTimeRange(start, end);
+  const formattedStart = tryFormatWallTime(start);
+  const formattedEnd = tryFormatWallTime(end);
+  if (formattedStart == null || formattedEnd == null) return value;
 
-  // If neither end parsed, hand back the original rather than a mangled echo.
-  return formatted === `${start}${RANGE_SEPARATOR}${end}` ? input : formatted;
+  return `${formattedStart}${RANGE_SEPARATOR}${formattedEnd}`;
+}
+
+/** Resolves an instant argument to a `Date`, or null when unusable. */
+function toInstant(value: string | Date): Date | null {
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 /**
- * Formats an instant as `28/07/2026, 2:12 pm` in `PLATFORM_TIMEZONE`.
+ * Formats the calendar day an **instant** falls on, in `timeZone`, as `dd/mm/yyyy`.
  *
- * Unlike `formatDisplayTime`, this DOES convert timezones — the input is a point
- * in time (a `created_at`, an `effective_at`), not a wall-clock string.
+ * Use this for `DateTime` columns (`createdAt`, `effectiveAt`) rendered as a
+ * date. For a `@db.Date` calendar day use `formatCivilDate` instead — running a
+ * civil date through here would shift it.
+ *
+ * ISO strings should carry an offset (`Z` or `±hh:mm`); a zone-less string is
+ * parsed as runtime-local per the ECMAScript spec and will differ by machine.
  */
-export function formatDisplayDateTime(input: string | Date | null | undefined): string {
-  if (input == null || input === '') return '';
+export function formatInstantDate(
+  value: string | Date | null | undefined,
+  timeZone: string = PLATFORM_TIMEZONE,
+): string {
+  if (value == null || value === '') return '';
 
-  const date = input instanceof Date ? input : new Date(input);
-  if (Number.isNaN(date.getTime())) return input instanceof Date ? '' : input;
+  const date = toInstant(value);
+  if (!date) return value instanceof Date ? '' : value;
 
-  const { year, month, day } = civilPartsInPlatformTz(date);
+  const parts = partsOf(civilPartsFormatter(timeZone), date);
+  return `${parts.day}/${parts.month}/${parts.year}`;
+}
 
-  // en-GB with hour12:false gives a plain 24h HH:mm we can reuse the wall-clock
-  // formatter on, keeping one implementation of the 12-hour conversion.
-  const wallTime = new Intl.DateTimeFormat('en-GB', {
-    timeZone: PLATFORM_TIMEZONE,
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(date);
+/**
+ * Formats an **instant** as `28/07/2026, 2:12 pm` in `timeZone`.
+ *
+ * @see formatInstantDate for the zoned-input requirement.
+ */
+export function formatInstantDateTime(
+  value: string | Date | null | undefined,
+  timeZone: string = PLATFORM_TIMEZONE,
+): string {
+  if (value == null || value === '') return '';
 
-  // en-GB renders midnight as '24:00' in some ICU versions; normalise to '00:00'.
-  const normalised = wallTime.startsWith('24:') ? `00:${wallTime.slice(3)}` : wallTime;
+  const date = toInstant(value);
+  if (!date) return value instanceof Date ? '' : value;
 
-  return `${day}/${month}/${year}, ${formatDisplayTime(normalised)}`;
+  const dateParts = partsOf(civilPartsFormatter(timeZone), date);
+  const timeParts = partsOf(wallTimeFormatter(timeZone), date);
+
+  // Belt-and-braces: h23 yields 00..23, but older ICU could emit '24' for midnight.
+  const hour = timeParts.hour === '24' ? '00' : (timeParts.hour ?? '00');
+  const wallTime = `${hour}:${timeParts.minute ?? '00'}`;
+
+  return `${dateParts.day}/${dateParts.month}/${dateParts.year}, ${formatWallTime(wallTime)}`;
 }
