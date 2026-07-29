@@ -41,8 +41,18 @@ const ACTION_STYLES: Record<string, { icon: string; color: string }> = {
 
 const DEFAULT_STYLE = { icon: 'mdi-circle-small', color: 'border-primary' };
 
+/**
+ * Portal actions were audited as `tenant_portal.*` until the RentalTenant rename
+ * (2026-06-30). That migration renamed tables but never rewrote `audit_logs.action`,
+ * so pre-rename rows keep the legacy prefix and must still resolve to a label/icon.
+ */
+function normalizeAction(action: string): string {
+  return action.replace(/^tenant_portal\./, 'rental_tenant_portal.');
+}
+
 function formatAction(action: string): string {
-  return ACTION_LABELS[action] ?? action
+  // Fall back to the action as actually stored — never invent a prefix it lacks.
+  return ACTION_LABELS[normalizeAction(action)] ?? action
     .replace(/[._]/g, ' ')
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
@@ -110,7 +120,7 @@ export function AuditTimeline({ entries }: AuditTimelineProps) {
       <div className="absolute left-2 top-0 bottom-0 w-0.5 bg-[#E0E0E0]" />
       <ul className="flex flex-col gap-4">
         {entries.map((entry) => {
-          const style = ACTION_STYLES[entry.action] ?? DEFAULT_STYLE;
+          const style = ACTION_STYLES[normalizeAction(entry.action)] ?? DEFAULT_STYLE;
           const changeSummary = summarizeChanges(entry.beforeJson, entry.afterJson);
           const badges = getMetadataBadges(entry.metadataJson);
 

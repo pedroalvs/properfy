@@ -123,6 +123,32 @@ describe('AuditTimeline', () => {
     expect(screen.getByText('Tenant Joined Group')).toBeInTheDocument();
   });
 
+  // Portal audit actions were written under `tenant_portal.` until the RentalTenant
+  // rename (2026-06-30). No migration rewrote audit_logs.action, so those rows are still
+  // in the database and must keep their labels.
+  it('still labels legacy tenant_portal.* rows written before the rename', () => {
+    const entries: AuditLogEntry[] = [
+      { ...MOCK_ENTRIES[0]!, id: 'l1', action: 'tenant_portal.appointment_confirmed' },
+      { ...MOCK_ENTRIES[0]!, id: 'l2', action: 'tenant_portal.unavailability_reported' },
+      { ...MOCK_ENTRIES[0]!, id: 'l3', action: 'tenant_portal.contact_updated' },
+    ];
+    render(<AuditTimeline entries={entries} />);
+
+    expect(screen.getByText('Tenant Confirmed')).toBeInTheDocument();
+    expect(screen.getByText('Tenant Reported Unavailable')).toBeInTheDocument();
+    expect(screen.getByText('Tenant Contact Updated')).toBeInTheDocument();
+  });
+
+  it('gives legacy tenant_portal.* rows their icons too', () => {
+    const entries: AuditLogEntry[] = [
+      { ...MOCK_ENTRIES[0]!, id: 'l4', action: 'tenant_portal.unavailability_reported' },
+    ];
+    const { container } = render(<AuditTimeline entries={entries} />);
+
+    expect(container.querySelector('.mdi-account-cancel')).toBeTruthy();
+    expect(container.querySelector('.mdi-circle-small')).toBeFalsy();
+  });
+
   it('gives rental tenant portal actions their own icons', () => {
     const entries: AuditLogEntry[] = [
       { ...MOCK_ENTRIES[0]!, id: 'p1', action: 'rental_tenant_portal.unavailability_reported' },
