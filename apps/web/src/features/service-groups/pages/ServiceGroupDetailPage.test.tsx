@@ -494,8 +494,12 @@ describe('ServiceGroupDetailPage', () => {
       fireEvent.click(screen.getByTestId('group-action-change-inspector'));
       fireEvent.click(await screen.findByText(INSPECTOR.name));
 
-      // Selected but pending: the confirm must not accept another click.
-      expect(screen.getByRole('button', { name: 'Assign' })).toBeDisabled();
+      // The name of this test is a behaviour claim, so assert the behaviour:
+      // clicking must not fire a second assignment, not merely look disabled.
+      const confirm = screen.getByRole('button', { name: 'Assign' });
+      expect(confirm).toBeDisabled();
+      fireEvent.click(confirm);
+      expect(mockAssign).not.toHaveBeenCalled();
     } finally {
       mockIsAssigning = false;
     }
@@ -511,8 +515,12 @@ describe('ServiceGroupDetailPage', () => {
       fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Inspector unavailable' } });
 
       // Everything the form needs is filled in; only the in-flight request
-      // should be holding the button back.
-      expect(screen.getByRole('button', { name: 'Replace inspector' })).toBeDisabled();
+      // should be holding the button back — and holding it back must mean no
+      // second call, not just a greyed-out button.
+      const confirm = screen.getByRole('button', { name: 'Replace inspector' });
+      expect(confirm).toBeDisabled();
+      fireEvent.click(confirm);
+      expect(mockReassign).not.toHaveBeenCalled();
     } finally {
       mockIsReassigning = false;
     }

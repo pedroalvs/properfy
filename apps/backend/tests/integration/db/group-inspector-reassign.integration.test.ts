@@ -134,7 +134,7 @@ describe('assignInspectorToGroupAppointments (real DB)', () => {
   async function seedMember(
     fx: TenantFixture,
     groupId: string,
-    status: 'SCHEDULED' | 'AWAITING_INSPECTOR',
+    status: 'SCHEDULED' | 'AWAITING_INSPECTOR' | 'DONE' | 'CANCELLED' | 'REJECTED',
     inspectorId: string | null,
   ): Promise<string> {
     const appt = await prisma.appointment.create({
@@ -144,7 +144,7 @@ describe('assignInspectorToGroupAppointments (real DB)', () => {
         property_id: fx.propertyId,
         service_type_id: serviceTypeId,
         service_group_id: groupId,
-        status,
+        status: status as never,
         inspector_id: inspectorId,
         scheduled_date: new Date(GROUP_DATE),
         time_slot_start: '10:00',
@@ -211,6 +211,31 @@ describe('assignInspectorToGroupAppointments (real DB)', () => {
     // Counting it would tell the inspector they owe work that no longer exists.
     expect(result).toEqual({ reassigned: 1, scheduled: 0 });
   }, 60_000);
+
+  // The method's status predicate is the other half of its contract: it names
+  // SCHEDULED and AWAITING_INSPECTOR explicitly, so a settled member must fall
+  // outside it. Widening that predicate would otherwise hand a completed
+  // inspection to the incoming inspector with nothing to catch it.
+  it.each(['DONE', 'CANCELLED', 'REJECTED'] as const)(
+    'never hands a %s member to the new inspector',
+    async (terminalStatus) => {
+      const groupId = await seedGroup();
+      const eligible = await seedMember(tenantA, groupId, 'SCHEDULED', oldInspectorId);
+      const settled = await seedMember(tenantB, groupId, terminalStatus, oldInspectorId);
+
+      const result = await repo.assignInspectorToGroupAppointments(groupId, newInspectorId);
+
+      const [eligibleRow, settledRow] = await Promise.all([
+        prisma.appointment.findUniqueOrThrow({ where: { id: eligible } }),
+        prisma.appointment.findUniqueOrThrow({ where: { id: settled } }),
+      ]);
+      expect(eligibleRow.inspector_id).toBe(newInspectorId);
+      expect(settledRow.inspector_id).toBe(oldInspectorId);
+      expect(settledRow.status).toBe(terminalStatus);
+      expect(result).toEqual({ reassigned: 1, scheduled: 0 });
+    },
+    60_000,
+  );
 
   it('leaves members of other groups untouched', async () => {
     const groupId = await seedGroup();
