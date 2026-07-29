@@ -231,7 +231,8 @@ export const contactAppointmentItemSchema = z.object({
   appointmentId: z.string().uuid(),
   appointmentNumber: z.number().int(),
   status: z.string(),
-  scheduledDate: z.string().datetime(),
+  // A @db.Date calendar day, so a bare YYYY-MM-DD — not a UTC-stamped timestamp.
+  scheduledDate: z.string().date(),
   role: z.nativeEnum(AppointmentContactRole),
   isPrimary: z.boolean(),
   propertyId: z.string().uuid(),

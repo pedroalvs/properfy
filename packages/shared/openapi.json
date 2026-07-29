@@ -7133,15 +7133,7 @@
                           "nullable": true
                         },
                         "dateOfBirth": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
+                          "type": "string",
                           "nullable": true
                         },
                         "insuranceFileKey": {
@@ -7149,15 +7141,7 @@
                           "nullable": true
                         },
                         "insuranceExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
+                          "type": "string",
                           "nullable": true
                         },
                         "policeCheckFileKey": {
@@ -7165,15 +7149,7 @@
                           "nullable": true
                         },
                         "policeCheckExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
+                          "type": "string",
                           "nullable": true
                         },
                         "photoStorageKey": {
@@ -7373,15 +7349,7 @@
                             "nullable": true
                           },
                           "dateOfBirth": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ],
+                            "type": "string",
                             "nullable": true
                           },
                           "insuranceFileKey": {
@@ -7389,15 +7357,7 @@
                             "nullable": true
                           },
                           "insuranceExpiresAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ],
+                            "type": "string",
                             "nullable": true
                           },
                           "policeCheckFileKey": {
@@ -7405,15 +7365,7 @@
                             "nullable": true
                           },
                           "policeCheckExpiresAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ],
+                            "type": "string",
                             "nullable": true
                           },
                           "photoStorageKey": {
@@ -7559,15 +7511,7 @@
                           "nullable": true
                         },
                         "dateOfBirth": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
+                          "type": "string",
                           "nullable": true
                         },
                         "insuranceFileKey": {
@@ -7575,15 +7519,7 @@
                           "nullable": true
                         },
                         "insuranceExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
+                          "type": "string",
                           "nullable": true
                         },
                         "policeCheckFileKey": {
@@ -7591,15 +7527,7 @@
                           "nullable": true
                         },
                         "policeCheckExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
+                          "type": "string",
                           "nullable": true
                         },
                         "photoStorageKey": {
@@ -7860,15 +7788,7 @@
                           "nullable": true
                         },
                         "dateOfBirth": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
+                          "type": "string",
                           "nullable": true
                         },
                         "insuranceFileKey": {
@@ -7876,15 +7796,7 @@
                           "nullable": true
                         },
                         "insuranceExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
+                          "type": "string",
                           "nullable": true
                         },
                         "policeCheckFileKey": {
@@ -7892,15 +7804,7 @@
                           "nullable": true
                         },
                         "policeCheckExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
+                          "type": "string",
                           "nullable": true
                         },
                         "photoStorageKey": {
@@ -10826,15 +10730,7 @@
                           "type": "string"
                         },
                         "scheduledDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "timeSlotStart": {
                           "type": "string"
@@ -11405,15 +11301,7 @@
                             "type": "string"
                           },
                           "scheduledDate": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
+                            "type": "string"
                           },
                           "timeSlotStart": {
                             "type": "string"
@@ -11787,15 +11675,7 @@
                           "type": "string"
                         },
                         "scheduledDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "timeSlotStart": {
                           "type": "string"
@@ -12431,15 +12311,7 @@
                           "type": "string"
                         },
                         "scheduledDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "timeSlotStart": {
                           "type": "string"
@@ -14500,15 +14372,7 @@
                           "type": "number"
                         },
                         "scheduledDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "timeWindow": {
                           "type": "string"
@@ -14835,15 +14699,7 @@
                             "type": "number"
                           },
                           "scheduledDate": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
+                            "type": "string"
                           },
                           "timeWindow": {
                             "type": "string"
@@ -15057,15 +14913,7 @@
                           "type": "number"
                         },
                         "scheduledDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "timeWindow": {
                           "type": "string"
@@ -15280,15 +15128,7 @@
                           "type": "number"
                         },
                         "scheduledDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "timeWindow": {
                           "type": "string"
@@ -15476,15 +15316,7 @@
                           "type": "number"
                         },
                         "scheduledDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "timeWindow": {
                           "type": "string"
@@ -16716,15 +16548,7 @@
                             "type": "number"
                           },
                           "scheduledDate": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
+                            "type": "string"
                           },
                           "timeWindow": {
                             "type": "string"
@@ -16858,15 +16682,7 @@
                           "type": "number"
                         },
                         "scheduledDate": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "timeWindow": {
                           "type": "string"
@@ -18520,37 +18336,13 @@
                       "type": "object",
                       "properties": {
                         "today": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "from": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "to": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "days": {
                           "type": "array",
@@ -18558,15 +18350,7 @@
                             "type": "object",
                             "properties": {
                               "date": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ]
+                                "type": "string"
                               },
                               "count": {
                                 "type": "integer",
@@ -18607,15 +18391,7 @@
                                 ]
                               },
                               "scheduledDate": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ]
+                                "type": "string"
                               },
                               "timeSlotStart": {
                                 "type": "string",
@@ -18720,15 +18496,7 @@
                                 ]
                               },
                               "scheduledDate": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ]
+                                "type": "string"
                               },
                               "timeSlotStart": {
                                 "type": "string",
@@ -18910,15 +18678,7 @@
                           "type": "object",
                           "properties": {
                             "date": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "string",
-                                  "format": "date-time"
-                                }
-                              ]
+                              "type": "string"
                             },
                             "appointments": {
                               "type": "array",
@@ -18935,15 +18695,7 @@
                                     "type": "string"
                                   },
                                   "scheduledDate": {
-                                    "anyOf": [
-                                      {
-                                        "type": "string"
-                                      },
-                                      {
-                                        "type": "string",
-                                        "format": "date-time"
-                                      }
-                                    ]
+                                    "type": "string"
                                   },
                                   "timeSlotStart": {
                                     "type": "string",
@@ -19039,15 +18791,7 @@
                                 ]
                               },
                               "scheduledDate": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ]
+                                "type": "string"
                               },
                               "timeSlotStart": {
                                 "type": "string",
@@ -20219,15 +19963,7 @@
                             "type": "number"
                           },
                           "scheduledDate": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
+                            "type": "string"
                           },
                           "timeWindow": {
                             "type": "string"
@@ -21882,26 +21618,10 @@
                             "nullable": true
                           },
                           "periodStart": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
+                            "type": "string"
                           },
                           "periodEnd": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "string",
-                                "format": "date-time"
-                              }
-                            ]
+                            "type": "string"
                           },
                           "periodType": {
                             "type": "string"
@@ -21921,15 +21641,7 @@
                               "type": "object",
                               "properties": {
                                 "serviceDate": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string"
-                                    },
-                                    {
-                                      "type": "string",
-                                      "format": "date-time"
-                                    }
-                                  ]
+                                  "type": "string"
                                 },
                                 "appointmentId": {
                                   "type": "string",
@@ -22151,26 +21863,10 @@
                           "nullable": true
                         },
                         "periodStart": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "periodEnd": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                          "type": "string"
                         },
                         "periodType": {
                           "type": "string"
@@ -22190,15 +21886,7 @@
                             "type": "object",
                             "properties": {
                               "serviceDate": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ]
+                                "type": "string"
                               },
                               "appointmentId": {
                                 "type": "string",
@@ -24681,15 +24369,7 @@
                                 "nullable": true
                               },
                               "scheduledDate": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ]
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -25838,7 +25518,7 @@
                                   },
                                   "scheduledDate": {
                                     "type": "string",
-                                    "format": "date-time"
+                                    "format": "date"
                                   },
                                   "role": {
                                     "type": "string",
