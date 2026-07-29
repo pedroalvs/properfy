@@ -67,6 +67,24 @@ describe('NotifyOnGroupInspectorChangeSubscriber', () => {
     );
   });
 
+  it('renders the date and window in the display format, not raw ISO', async () => {
+    // These land directly in the inspector's email/SMS body ("scheduled for
+    // {{scheduledDate}} at {{timeWindow}}"), so they must match what the rental
+    // tenant sees — this surface was still sending '2026-06-01' / '09:00-12:00'.
+    const { handlers, createNotification } = setup();
+
+    await handlers[SERVICE_GROUP_EVENTS.INSPECTOR_CHANGED]!(CHANGED_EVENT);
+
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payloadJson: expect.objectContaining({
+          scheduledDate: '01/06/2026',
+          timeWindow: '9:00 am – 12:00 pm',
+        }),
+      }),
+    );
+  });
+
   it('tells the outgoing inspector the group left their schedule', async () => {
     const { handlers, createNotification } = setup();
 
@@ -138,8 +156,9 @@ describe('NotifyOnGroupInspectorChangeSubscriber', () => {
         recipient: 'new@example.com',
         templateCode: 'INSPECTOR_GROUP_RESCHEDULED',
         payloadJson: expect.objectContaining({
-          previousScheduledDate: '2026-05-20',
-          previousTimeWindow: '08:00-16:00',
+          // Formatted like the new values they sit beside in the message body.
+          previousScheduledDate: '20/05/2026',
+          previousTimeWindow: '8:00 am – 4:00 pm',
         }),
       }),
     );

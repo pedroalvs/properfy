@@ -74,11 +74,26 @@ describe('ExportAgencyFinancialUseCase', () => {
 
     const [, rows] = vi.mocked(sut.xlsxGenerator.generate).mock.calls[0];
     expect(rows).toEqual([
-      { date: '2026-05-10', type: 'TENANT_DEBIT', property: 'PROP-001', description: 'Inspection service debit', amount: 250, currency: 'AUD', status: 'APPROVED' },
+      { date: '10/05/2026', type: 'TENANT_DEBIT', property: 'PROP-001', description: 'Inspection service debit', amount: 250, currency: 'AUD', status: 'APPROVED' },
     ]);
     expect(result.contentType).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     expect(result.contentBase64).toBe(Buffer.from('XLSXDATA').toString('base64'));
     expect(result.filename).toBe('financial-statement-2026-05-01_2026-05-31.xlsx');
+  });
+
+  it('dates an entry by its Sydney civil day, not its UTC day', async () => {
+    // 2026-05-10T15:00Z is 2026-05-11 01:00 in Sydney (UTC+10). Slicing
+    // toISOString() dated this entry 10/05 — a day early for the agency reading
+    // the statement.
+    vi.mocked(sut.entryRepo.count).mockResolvedValue(1);
+    vi.mocked(sut.entryRepo.findAllEnriched).mockResolvedValue([
+      makeEnriched({ effectiveAt: new Date('2026-05-10T15:00:00.000Z') }),
+    ]);
+
+    await sut.useCase.execute({ actor: makeActor() });
+
+    const [, rows] = vi.mocked(sut.xlsxGenerator.generate).mock.calls[0];
+    expect((rows[0] as { date: string }).date).toBe('11/05/2026');
   });
 
   it('generates an empty sheet (no findAllEnriched) when there are no entries', async () => {

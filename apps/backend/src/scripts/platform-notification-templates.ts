@@ -46,7 +46,7 @@ const INSPECTION_NOTICE_HTML = tenantEmailHtml(
   `we will be conducting the <strong>${SERVICE_LABEL}</strong>` +
   '{{#if appointmentCode}} <strong>#{{appointmentCode}}</strong>{{/if}} of ' +
   '<strong>{{propertyAddress}}</strong>{{#if agencyName}} on behalf of <strong>{{agencyName}}</strong>{{/if}}.</p>' +
-  '<p>The scheduled date for the visit is <strong>{{scheduledDate}} between {{timeSlot}}</strong>. ' +
+  '<p>The scheduled date for the visit is <strong>{{scheduledDate}} at {{timeSlot}}</strong>. ' +
   'If you are available during this time, kindly reply to this email or click on the link below.</p>' +
   `<p><a href="{{confirmationLink}}" target="_blank" style="${EMAIL_LINK_STYLE}">Confirm Availability</a></p>` +
   '<p><b>Important:</b></p>' +
@@ -74,7 +74,7 @@ function reminderHtml(days: number): string {
     `<p>This is a friendly reminder that the <strong>${SERVICE_LABEL}</strong>` +
     '{{#if appointmentCode}} <strong>#{{appointmentCode}}</strong>{{/if}}' +
     '{{#if propertyAddress}} of <strong>{{propertyAddress}}</strong>{{/if}} is in ' +
-    `<strong>${days} days</strong>, on <strong>{{scheduledDate}}{{#if timeSlot}} between {{timeSlot}}{{/if}}</strong>.</p>` +
+    `<strong>${days} days</strong>, on <strong>{{scheduledDate}}{{#if timeSlot}} at {{timeSlot}}{{/if}}</strong>.</p>` +
     '{{#if confirmationLink}}' +
     '<p>If you have not confirmed your attendance yet, please do so via the link below.</p>' +
     `<p><a href="{{confirmationLink}}" target="_blank" style="${EMAIL_LINK_STYLE}">Confirm Availability</a></p>` +
@@ -92,7 +92,7 @@ const ESCALATION_HTML = renderAppointmentEmailHtml({
     '<p>The tenant <strong>{{rentalTenantName}}</strong> at <strong>{{propertyAddress}}</strong> ' +
     `has not responded to the notice for the <strong>${SERVICE_LABEL}</strong>` +
     '{{#if appointmentCode}} <strong>#{{appointmentCode}}</strong>{{/if}} scheduled for ' +
-    '<strong>{{scheduledDate}} between {{timeSlot}}</strong>.</p>' +
+    '<strong>{{scheduledDate}} at {{timeSlot}}</strong>.</p>' +
     `<p style="${EMAIL_CALLOUT_STYLE}"><strong>Action Required:</strong> ` +
     'Please follow up with the tenant to secure access to the property.</p>' +
     CLOSING_PARAGRAPHS,
@@ -102,7 +102,7 @@ const CONFIRMED_HTML = tenantEmailHtml(
   `<p>Thank you — your attendance for the <strong>${SERVICE_LABEL}</strong>` +
   '{{#if appointmentCode}} <strong>#{{appointmentCode}}</strong>{{/if}} of ' +
   '<strong>{{propertyAddress}}</strong> has been <strong>confirmed</strong>.</p>' +
-  '<p>The visit will take place on <strong>{{scheduledDate}} between {{timeSlot}}</strong>.</p>' +
+  '<p>The visit will take place on <strong>{{scheduledDate}} at {{timeSlot}}</strong>.</p>' +
   '<p>We highly encourage you to be present during the inspection, as it will only take approximately ' +
   '10 minutes of your time.</p>' +
   CLOSING_PARAGRAPHS,
@@ -112,7 +112,7 @@ const RESCHEDULED_HTML = tenantEmailHtml(
   `<p>The <strong>${SERVICE_LABEL}</strong>` +
   '{{#if appointmentCode}} <strong>#{{appointmentCode}}</strong>{{/if}} of ' +
   '<strong>{{propertyAddress}}</strong> has been <strong>rescheduled</strong>.</p>' +
-  '<p>The new visit date is <strong>{{scheduledDate}} between {{timeSlot}}</strong>.</p>' +
+  '<p>The new visit date is <strong>{{scheduledDate}} at {{timeSlot}}</strong>.</p>' +
   `<p>If this new time does not suit you, ${CONTACT_TEAM_SENTENCE}</p>` +
   CLOSING_PARAGRAPHS,
 );
@@ -138,7 +138,7 @@ const PORTAL_LINK_HTML = tenantEmailHtml(
   `<p>You can confirm, reschedule or update your contact details for the <strong>${SERVICE_LABEL}</strong>` +
   '{{#if appointmentCode}} <strong>#{{appointmentCode}}</strong>{{/if}}' +
   '{{#if propertyAddress}} of <strong>{{propertyAddress}}</strong>{{/if}} scheduled for ' +
-  '<strong>{{scheduledDate}}{{#if timeSlot}} between {{timeSlot}}{{/if}}</strong> using your secure portal link below.</p>' +
+  '<strong>{{scheduledDate}}{{#if timeSlot}} at {{timeSlot}}{{/if}}</strong> using your secure portal link below.</p>' +
   `<p><a href="{{confirmationLink}}" target="_blank" style="${EMAIL_LINK_STYLE}">Open your inspection portal</a></p>` +
   `<p style="${EMAIL_CALLOUT_STYLE}"><strong>Please note:</strong> this link is unique to you — do not share it.</p>` +
   CLOSING_PARAGRAPHS,
@@ -220,7 +220,7 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     code: 'INSPECTION_NOTICE',
     channel: 'EMAIL',
     subject: '{{#if serviceTypeName}}{{serviceTypeName}}{{else}}Inspection{{/if}} at {{propertyAddress}}',
-    body: `Dear {{rentalTenantName}}, an inspection has been scheduled for {{propertyAddress}} on {{scheduledDate}} between {{timeSlot}}. Confirm or reschedule: {{confirmationLink}}.`,
+    body: `Dear {{rentalTenantName}}, an inspection has been scheduled for {{propertyAddress}} on {{scheduledDate}} at {{timeSlot}}. Confirm or reschedule: {{confirmationLink}}.`,
     bodyHtml: INSPECTION_NOTICE_HTML,
   },
   {
@@ -322,7 +322,7 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     code: 'INSPECTOR_GROUP_ASSIGNED',
     channel: 'EMAIL',
     subject: 'Group {{groupCode}} has been assigned to you',
-    body: 'Hi {{inspectorName}}, an operator has assigned group {{groupCode}} ({{jobCount}} job(s)) to you, scheduled for {{scheduledDate}} between {{timeWindow}}. Open the Properfy app to see the addresses.',
+    body: 'Hi {{inspectorName}}, an operator has assigned group {{groupCode}} ({{jobCount}} job(s)) to you, scheduled for {{scheduledDate}} at {{timeWindow}}. Open the Properfy app to see the addresses.',
     bodyHtml: INSPECTOR_GROUP_ASSIGNED_HTML,
     notificationClass: 'TRANSACTIONAL',
   },
@@ -330,7 +330,7 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     code: 'INSPECTOR_GROUP_UNASSIGNED',
     channel: 'EMAIL',
     subject: 'Group {{groupCode}} is no longer assigned to you',
-    body: 'Hi {{inspectorName}}, an operator has reassigned group {{groupCode}} ({{jobCount}} job(s)), scheduled for {{scheduledDate}} between {{timeWindow}}, to another inspector. These jobs have been removed from your schedule.',
+    body: 'Hi {{inspectorName}}, an operator has reassigned group {{groupCode}} ({{jobCount}} job(s)), scheduled for {{scheduledDate}} at {{timeWindow}}, to another inspector. These jobs have been removed from your schedule.',
     bodyHtml: INSPECTOR_GROUP_UNASSIGNED_HTML,
     notificationClass: 'TRANSACTIONAL',
   },

@@ -1,5 +1,5 @@
 import type { IRentalTenantPortalTokenRepository } from '../../domain/rental-tenant-portal-token.repository';
-import { PLATFORM_TIMEZONE } from '@properfy/shared';
+import { PLATFORM_TIMEZONE, formatCivilDate, formatWallTimeWindow } from '@properfy/shared';
 import type { IRentalTenantPortalActivityRepository } from '../../domain/rental-tenant-portal-activity.repository';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { IPropertyRepository } from '../../../property/domain/property.repository';
@@ -190,7 +190,11 @@ export class GetPortalDataUseCase {
       : null;
 
     if (scheduledDate && timeSlot) {
-      return `Tenant requested reschedule to ${scheduledDate} ${timeSlot}`;
+      // Formatted here, at composition, rather than at the render edge: the
+      // values are embedded mid-sentence, so a consumer would have to parse the
+      // prose back apart to format them. The activity record itself stays
+      // canonical ISO — only this human-readable summary is formatted.
+      return `Tenant requested reschedule to ${formatCivilDate(scheduledDate)} ${formatWallTimeWindow(timeSlot)}`;
     }
 
     return 'Tenant requested reschedule';

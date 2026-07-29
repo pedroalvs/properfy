@@ -1,5 +1,6 @@
 import type { PrismaClient, Prisma, AppointmentStatus } from '@prisma/client';
-import { civilDateInTimezone, nextCivilDay, parseDateInTimezone, PLATFORM_TIMEZONE } from '../../../shared/domain/timezone-date';
+import { formatCivilDate, formatInstantDate, formatInstantDateTime, formatWallTimeRange } from '@properfy/shared';
+import { nextCivilDay, parseDateInTimezone, PLATFORM_TIMEZONE } from '../../../shared/domain/timezone-date';
 import type { IReportDataReader, ReportDataFilters } from '../domain/report-data-reader';
 
 /**
@@ -39,8 +40,8 @@ export class PrismaReportDataReader implements IReportDataReader {
         suburb: a.property?.suburb ?? '',
         postcode: a.property?.postcode ?? '',
         state: a.property?.state ?? '',
-        scheduledDate: a.scheduled_date ? a.scheduled_date.toISOString().split('T')[0] : '',
-        timeSlot: `${a.time_slot_start}-${a.time_slot_end}`,
+        scheduledDate: formatCivilDate(a.scheduled_date),
+        timeSlot: formatWallTimeRange(a.time_slot_start, a.time_slot_end),
         status: a.status,
         rentalTenant: contact?.snapshot_name ?? '',
         email: contact?.snapshot_email ?? '',
@@ -48,7 +49,8 @@ export class PrismaReportDataReader implements IReportDataReader {
         inspector: a.inspector?.name ?? '',
         confirmationStatus: a.rental_tenant_confirmation_status,
         keyRequired: a.key_required ? 'Yes' : 'No',
-        createdAt: a.created_at ? a.created_at.toISOString() : '',
+        // A raw ISO timestamp ('2026-07-28T04:12:33.123Z') was landing in the sheet.
+        createdAt: formatInstantDateTime(a.created_at),
       };
     });
   }
@@ -190,7 +192,7 @@ export class PrismaReportDataReader implements IReportDataReader {
       totalRevenue += revenue;
       totalExpense += expense;
       return {
-        entryDate: e.effective_at ? civilDateInTimezone(e.effective_at, PLATFORM_TIMEZONE) : '',
+        entryDate: formatInstantDate(e.effective_at),
         agency: e.tenant?.name ?? '',
         entryType: e.entry_type,
         appointmentNumber: e.appointment?.appointment_number ?? '',
