@@ -1,9 +1,7 @@
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
 import type { CancelEmptyGroupService } from '../services/cancel-empty-group.service';
+import { CANCELLABLE_GROUP_STATUSES } from '../services/cancel-empty-group.service';
 import type { Logger } from '../../../../shared/infrastructure/logger';
-
-/** Released groups only — DRAFT is the repair state, and terminal groups are done. */
-const SWEEPABLE_STATUSES = ['PUBLISHED', 'ACCEPTED'];
 
 export interface CancelEmptyServiceGroupsOutput {
   checkedCount: number;
@@ -26,7 +24,9 @@ export class CancelEmptyServiceGroupsUseCase {
   ) {}
 
   async execute(): Promise<CancelEmptyServiceGroupsOutput> {
-    const groupIds = await this.serviceGroupRepo.findIdsByStatuses(SWEEPABLE_STATUSES);
+    // Same statuses the cleanup service will accept — asking for any others would
+    // just make it reject them one by one.
+    const groupIds = await this.serviceGroupRepo.findIdsByStatuses([...CANCELLABLE_GROUP_STATUSES]);
 
     let cancelledCount = 0;
     let failedCount = 0;

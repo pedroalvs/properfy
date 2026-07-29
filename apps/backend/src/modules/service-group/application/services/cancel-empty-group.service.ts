@@ -7,8 +7,15 @@ import type { Logger } from '../../../../shared/infrastructure/logger';
 
 const CANCEL_REASON = 'Group has no remaining appointments to execute';
 
-/** Released groups only. DRAFT is the repair state operators republish into. */
-const CANCELLABLE_STATUSES = new Set(['PUBLISHED', 'ACCEPTED']);
+/**
+ * Released groups only. DRAFT is the repair state operators republish into, and
+ * terminal groups are already settled.
+ *
+ * Single definition: the empty-group sweep imports this rather than restating it.
+ */
+export const CANCELLABLE_GROUP_STATUSES = ['PUBLISHED', 'ACCEPTED'] as const;
+
+const CANCELLABLE_STATUSES: ReadonlySet<string> = new Set(CANCELLABLE_GROUP_STATUSES);
 
 /**
  * Cancels a released service group once nothing is left in it to execute.
@@ -49,7 +56,13 @@ export class CancelEmptyGroupService {
 
     const previousStatus = group.status;
 
-    await this.serviceGroupRepo.update(groupId, { status: 'CANCELLED' });
+    // Optimistic claim on the status we just read. Bulk-cancelling a group's members
+    // fires one transition event each and the subscriber runs fire-and-forget, so
+    // several calls can reach here concurrently for the same group. Without this
+    // guard every one of them would write, audit and emit — duplicate audit rows and
+    // duplicate domain events for a single cancellation. Mirrors `acceptOptimistic`.
+    const claimed = await this.serviceGroupRepo.cancelOptimistic(groupId, previousStatus);
+    if (claimed === 0) return false;
 
     // Deliberately no unlinkAppointments: every member is terminal, so nothing
     // needs re-grouping, and clearing service_group_id would erase which group the

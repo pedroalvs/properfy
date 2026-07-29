@@ -50,6 +50,7 @@ function found(group: ServiceGroupEntity, memberStatuses: MemberStatus[]) {
 const serviceGroupRepo = {
   findById: vi.fn(),
   update: vi.fn(),
+  cancelOptimistic: vi.fn(),
   unlinkAppointments: vi.fn(),
   revertScheduledAppointments: vi.fn(),
 };
@@ -68,6 +69,8 @@ function makeService(eventBus?: DomainEventBus) {
 beforeEach(() => {
   vi.clearAllMocks();
   serviceGroupRepo.update.mockResolvedValue(undefined);
+  // 1 = this caller claimed the transition.
+  serviceGroupRepo.cancelOptimistic.mockResolvedValue(1);
 });
 
 describe('CancelEmptyGroupService.cancelIfDead', () => {
@@ -77,7 +80,7 @@ describe('CancelEmptyGroupService.cancelIfDead', () => {
     const cancelled = await makeService().cancelIfDead('group-1');
 
     expect(cancelled).toBe(true);
-    expect(serviceGroupRepo.update).toHaveBeenCalledWith('group-1', { status: 'CANCELLED' });
+    expect(serviceGroupRepo.cancelOptimistic).toHaveBeenCalledWith('group-1', 'PUBLISHED');
   });
 
   it('cancels an ACCEPTED group whose every member is CANCELLED or REJECTED', async () => {
@@ -86,7 +89,8 @@ describe('CancelEmptyGroupService.cancelIfDead', () => {
     );
 
     expect(await makeService().cancelIfDead('group-1')).toBe(true);
-    expect(serviceGroupRepo.update).toHaveBeenCalledWith('group-1', { status: 'CANCELLED' });
+    // Guarded on the status we actually read, not a hardcoded one.
+    expect(serviceGroupRepo.cancelOptimistic).toHaveBeenCalledWith('group-1', 'ACCEPTED');
   });
 
   it('leaves a group alone when ANY member is DONE — the work actually happened', async () => {
@@ -95,7 +99,7 @@ describe('CancelEmptyGroupService.cancelIfDead', () => {
     );
 
     expect(await makeService().cancelIfDead('group-1')).toBe(false);
-    expect(serviceGroupRepo.update).not.toHaveBeenCalled();
+    expect(serviceGroupRepo.cancelOptimistic).not.toHaveBeenCalled();
   });
 
   it('leaves a group alone when a member is still live', async () => {
@@ -104,14 +108,14 @@ describe('CancelEmptyGroupService.cancelIfDead', () => {
     );
 
     expect(await makeService().cancelIfDead('group-1')).toBe(false);
-    expect(serviceGroupRepo.update).not.toHaveBeenCalled();
+    expect(serviceGroupRepo.cancelOptimistic).not.toHaveBeenCalled();
   });
 
   it('never touches a DRAFT group — DRAFT is the repair state for republishing', async () => {
     serviceGroupRepo.findById.mockResolvedValue(found(makeGroup({ status: 'DRAFT' }), []));
 
     expect(await makeService().cancelIfDead('group-1')).toBe(false);
-    expect(serviceGroupRepo.update).not.toHaveBeenCalled();
+    expect(serviceGroupRepo.cancelOptimistic).not.toHaveBeenCalled();
   });
 
   it('is a no-op for an already terminal group', async () => {
@@ -120,7 +124,7 @@ describe('CancelEmptyGroupService.cancelIfDead', () => {
       serviceGroupRepo.findById.mockResolvedValue(found(makeGroup({ status }), []));
 
       expect(await makeService().cancelIfDead('group-1')).toBe(false);
-      expect(serviceGroupRepo.update).not.toHaveBeenCalled();
+      expect(serviceGroupRepo.cancelOptimistic).not.toHaveBeenCalled();
     }
   });
 
@@ -128,7 +132,7 @@ describe('CancelEmptyGroupService.cancelIfDead', () => {
     serviceGroupRepo.findById.mockResolvedValue(null);
 
     expect(await makeService().cancelIfDead('nope')).toBe(false);
-    expect(serviceGroupRepo.update).not.toHaveBeenCalled();
+    expect(serviceGroupRepo.cancelOptimistic).not.toHaveBeenCalled();
   });
 
   it('does NOT unlink the terminal members — that would erase their group history', async () => {
@@ -173,6 +177,45 @@ describe('CancelEmptyGroupService.cancelIfDead', () => {
 
     expect(received).toHaveLength(1);
     expect(received[0].payload).toMatchObject({ groupId: 'group-1', tenantId: 'tenant-1' });
+  });
+
+  // Bulk-cancelling a group's appointments fires one transition event per member,
+  // and the subscriber is invoked fire-and-forget — so several calls can race for
+  // the same group. Only the writer that actually claims the row may log and emit.
+  it('skips audit and event when another writer already cancelled the group', async () => {
+    serviceGroupRepo.findById.mockResolvedValue(found(makeGroup({ status: 'PUBLISHED' }), []));
+    serviceGroupRepo.cancelOptimistic.mockResolvedValue(0); // race lost
+    const bus = new DomainEventBus();
+    const received: any[] = [];
+    bus.subscribe(SERVICE_GROUP_EVENTS.CANCELLED, async (e) => { received.push(e); });
+
+    expect(await makeService(bus).cancelIfDead('group-1')).toBe(false);
+
+    expect(auditService.log).not.toHaveBeenCalled();
+    expect(received).toHaveLength(0);
+  });
+
+  it('produces exactly one audit row and one event across concurrent callers', async () => {
+    serviceGroupRepo.findById.mockResolvedValue(found(makeGroup({ status: 'PUBLISHED' }), []));
+    // Only the first caller claims the row; the rest see 0 rows updated.
+    let claimed = false;
+    serviceGroupRepo.cancelOptimistic.mockImplementation(async () => {
+      if (claimed) return 0;
+      claimed = true;
+      return 1;
+    });
+    const bus = new DomainEventBus();
+    const received: any[] = [];
+    bus.subscribe(SERVICE_GROUP_EVENTS.CANCELLED, async (e) => { received.push(e); });
+
+    const service = makeService(bus);
+    const results = await Promise.all(
+      Array.from({ length: 6 }, () => service.cancelIfDead('group-1')),
+    );
+
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect(auditService.log).toHaveBeenCalledOnce();
+    expect(received).toHaveLength(1);
   });
 
   it('reads the group cross-tenant — groups are tenant-agnostic', async () => {

@@ -423,6 +423,15 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     return result.count;
   }
 
+  async cancelOptimistic(id: string, expectedStatus: string): Promise<number> {
+    // Optimistic lock: only cancel if nobody has moved the group since we read it.
+    const result = await this.prisma.serviceGroup.updateMany({
+      where: { id, status: expectedStatus as PrismaServiceGroupStatus },
+      data: { status: 'CANCELLED' },
+    });
+    return result.count;
+  }
+
   async findPublishedForInspector(
     inspectorId: string,
     inspectorServiceTypes: string[],

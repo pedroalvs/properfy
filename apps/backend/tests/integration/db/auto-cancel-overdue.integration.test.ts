@@ -294,6 +294,42 @@ describe('auto-cancel overdue appointments and dead groups (real DB)', () => {
     });
   });
 
+  describe('cancelOptimistic — the guard against duplicate cancellation', () => {
+    /**
+     * Bulk-cancelling a group's members fires one transition event each and the
+     * subscriber runs fire-and-forget, so several callers can read the group as
+     * still-cancellable and then all write. Only the one that actually claims the
+     * row may log and emit.
+     *
+     * This asserts the repository primitive rather than driving
+     * `CancelEmptyGroupService` concurrently: at the service level the reads and
+     * writes interleave non-deterministically, and later callers often bail on the
+     * in-memory status check before reaching the database — so that version of the
+     * test passes even with the predicate removed, which makes it worthless as a
+     * guard. Drop `status: expectedStatus` from the `updateMany` and this fails.
+     */
+    it('lets exactly one of 6 concurrent claimants win', async () => {
+      const groupId = await createGroup('PUBLISHED');
+
+      const counts = await Promise.all(
+        Array.from({ length: 6 }, () => groupRepo.cancelOptimistic(groupId, 'PUBLISHED')),
+      );
+
+      expect(counts.filter((c) => c === 1)).toHaveLength(1);
+      expect(counts.filter((c) => c === 0)).toHaveLength(5);
+      expect((await prisma().serviceGroup.findUnique({ where: { id: groupId } }))?.status)
+        .toBe('CANCELLED');
+    });
+
+    it('refuses to cancel when the group already moved on', async () => {
+      const groupId = await createGroup('ACCEPTED');
+
+      expect(await groupRepo.cancelOptimistic(groupId, 'PUBLISHED')).toBe(0);
+      expect((await prisma().serviceGroup.findUnique({ where: { id: groupId } }))?.status)
+        .toBe('ACCEPTED');
+    });
+  });
+
   describe('findIdsByStatuses', () => {
     it('returns only groups in the requested statuses', async () => {
       const published = await createGroup('PUBLISHED');

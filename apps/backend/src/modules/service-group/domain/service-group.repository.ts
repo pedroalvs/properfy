@@ -235,6 +235,12 @@ export interface IServiceGroupRepository {
   /** Optimistic lock: updates status from PUBLISHED to ACCEPTED atomically. Returns count of updated rows (0 means race lost). */
   acceptOptimistic(id: string, inspectorId: string, assignedAt: Date): Promise<number>;
   /**
+   * Optimistic lock: sets status to CANCELLED only if it is still `expectedStatus`.
+   * Returns count of updated rows (0 means another writer got there first, so the
+   * caller must skip its audit log and domain event rather than duplicating them).
+   */
+  cancelOptimistic(id: string, expectedStatus: string): Promise<number>;
+  /**
    * `inspectorBlockedClients` is the list of tenant IDs the inspector is blocked
    * from. Empty list means eligible for all tenants. Mirrors the denylist model
    * enforced by `AcceptOfferUseCase` via `Inspector.isEligibleForTenant`.

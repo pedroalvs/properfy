@@ -11,7 +11,7 @@ import { Textarea } from '@/components/forms/Textarea';
  * operator cancelling by hand always has a real reason. Excluded explicitly because
  * the option list is derived from the enum and would otherwise pick it up.
  */
-const SYSTEM_ONLY_CANCELLATION_CODES: string[] = [CancellationReasonCode.EXPIRED];
+const SYSTEM_ONLY_CANCELLATION_CODES: CancellationReasonCode[] = [CancellationReasonCode.EXPIRED];
 
 const CANCELLATION_OPTIONS = Object.values(CancellationReasonCode)
   .filter((code) => !SYSTEM_ONLY_CANCELLATION_CODES.includes(code))
