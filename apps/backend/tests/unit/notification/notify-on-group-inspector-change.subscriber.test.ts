@@ -156,8 +156,9 @@ describe('NotifyOnGroupInspectorChangeSubscriber', () => {
         recipient: 'new@example.com',
         templateCode: 'INSPECTOR_GROUP_RESCHEDULED',
         payloadJson: expect.objectContaining({
-          previousScheduledDate: '2026-05-20',
-          previousTimeWindow: '08:00-16:00',
+          // Formatted like the new values they sit beside in the message body.
+          previousScheduledDate: '20/05/2026',
+          previousTimeWindow: '8:00 am – 4:00 pm',
         }),
       }),
     );

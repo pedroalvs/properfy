@@ -73,8 +73,11 @@ export class NotifyOnGroupInspectorChangeSubscriber {
       if (!context) return;
 
       await this.notify(context, inspectorId, 'INSPECTOR_GROUP_RESCHEDULED', groupId, {
-        previousScheduledDate: previousScheduledDate ?? '',
-        previousTimeWindow: previousTimeWindow ?? '',
+        // Rendered alongside the new values in the same sentence, so they need
+        // the same formatting — otherwise the reschedule notice reads
+        // "moved from 2026-05-20 08:00-16:00 to 28/07/2026 at 9:00 am".
+        previousScheduledDate: formatCivilDate(previousScheduledDate),
+        previousTimeWindow: formatWallTimeWindow(previousTimeWindow),
       });
     } catch (err) {
       this.logger?.warn({ err, eventType: event.type }, 'Group reschedule notification failed');
