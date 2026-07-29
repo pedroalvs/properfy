@@ -1,10 +1,11 @@
-import { RentalTenantPortalAction } from '@properfy/shared';
+import { RentalTenantPortalAction, type AvailableSlot } from '@properfy/shared';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { getErrorMessage } from '@/lib/api-error';
 import { formatInstantDateTime } from '@/lib/format-date';
 import { usePortalActivities } from '../hooks/usePortalActivities';
+import { TenantAvailabilitySlots } from './TenantAvailabilitySlots';
 
 interface AppointmentPortalActivityTabProps {
   appointmentId: string;
@@ -38,6 +39,17 @@ function GroupJoinSummary({ values }: { values: Record<string, string> }) {
     <p className="mt-0.5 text-xs text-text-secondary">
       {values.scheduledDate} {values.timeSlot}
     </p>
+  );
+}
+
+function UnavailableSummary({ values }: { values: Record<string, unknown> }) {
+  const slots = values['availableSlotsJson'] as AvailableSlot[] | undefined;
+  if (!slots?.length) return null;
+  return (
+    <div className="mt-1">
+      <p className="mb-1 text-xs text-text-secondary">Availability offered</p>
+      <TenantAvailabilitySlots slots={slots} />
+    </div>
   );
 }
 
@@ -103,6 +115,10 @@ export function AppointmentPortalActivityTab({ appointmentId }: AppointmentPorta
               {activity.action === RentalTenantPortalAction.GROUP_JOIN &&
                 !!activity.newValuesJson && (
                   <GroupJoinSummary values={activity.newValuesJson as Record<string, string>} />
+                )}
+              {activity.action === RentalTenantPortalAction.UNAVAILABLE_REPORTED &&
+                !!activity.newValuesJson && (
+                  <UnavailableSummary values={activity.newValuesJson as Record<string, unknown>} />
                 )}
               {(activity.ipAddress || activity.userAgent) && (
                 <p className="mt-1 truncate text-xs text-text-muted">
