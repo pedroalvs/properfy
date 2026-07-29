@@ -3,9 +3,23 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ManualAssignModal } from './ManualAssignModal';
 
-const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+const INSPECTOR = { id: 'insp-9', name: 'Ana Costa', email: 'ana@example.com' };
+
+// The modal loads its list through the generated client; without this the list
+// is empty and a "submit is disabled" assertion proves nothing.
+vi.mock('@/services/api', () => ({
+  api: {
+    GET: vi.fn(async () => ({
+      data: { data: [{ id: 'insp-9', name: 'Ana Costa', email: 'ana@example.com' }] },
+    })),
+  },
+}));
+
+// A client per render: a shared one carries the inspector list between tests,
+// so whichever test ran first would silently rob the next of its loading state.
 function Wrapper({ children }: { children: React.ReactNode }) {
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
 describe('ManualAssignModal', () => {
@@ -124,10 +138,34 @@ describe('ManualAssignModal replacement mode', () => {
     expect(screen.getByText('Carlos Silva')).toBeInTheDocument();
   });
 
-  it('requires a reason before submitting', () => {
+  it('requires a reason even once an inspector is chosen', async () => {
     renderReplacement();
-    expect(screen.getByLabelText('Reason')).toBeInTheDocument();
+
+    // Select first, so the only thing still missing is the reason — otherwise
+    // this passes on the empty selection alone and would survive deleting the
+    // reason requirement entirely.
+    fireEvent.click(await screen.findByText(INSPECTOR.name));
     expect(screen.getByRole('button', { name: 'Replace inspector' })).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Inspector unavailable' } });
+    expect(screen.getByRole('button', { name: 'Replace inspector' })).toBeEnabled();
+  });
+
+  it('rejects a whitespace-only reason', async () => {
+    renderReplacement();
+    fireEvent.click(await screen.findByText(INSPECTOR.name));
+    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: '   ' } });
+
+    expect(screen.getByRole('button', { name: 'Replace inspector' })).toBeDisabled();
+  });
+
+  it('passes the trimmed reason to the caller', async () => {
+    const onAssign = renderReplacement();
+    fireEvent.click(await screen.findByText(INSPECTOR.name));
+    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: '  Inspector unavailable  ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Replace inspector' }));
+
+    expect(onAssign).toHaveBeenCalledWith(INSPECTOR.id, 'Inspector unavailable');
   });
 
   it('does not render the reason field in plain assignment mode', () => {

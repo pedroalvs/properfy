@@ -228,17 +228,20 @@ vi.mock('../hooks/usePublishServiceGroup', () => ({
   }),
 }));
 
+let mockIsAssigning = false;
+let mockIsReassigning = false;
+
 vi.mock('../hooks/useAssignInspector', () => ({
   useAssignInspector: () => ({
     assign: mockAssign,
-    isAssigning: false,
+    isAssigning: mockIsAssigning,
   }),
 }));
 
 vi.mock('../hooks/useReassignInspector', () => ({
   useReassignInspector: () => ({
     reassign: mockReassign,
-    isReassigning: false,
+    isReassigning: mockIsReassigning,
   }),
 }));
 
@@ -481,6 +484,46 @@ describe('ServiceGroupDetailPage', () => {
 
     expect(mockReassign).toHaveBeenCalledWith('insp-2', 'Original inspector unavailable');
     expect(mockAssign).not.toHaveBeenCalled();
+  });
+
+  it('blocks a second submit while the assignment is in flight', async () => {
+    mockIsAssigning = true;
+    try {
+      renderPage('/service-groups/published');
+      fireEvent.click(screen.getByTestId('service-group-change-trigger'));
+      fireEvent.click(screen.getByTestId('group-action-change-inspector'));
+      fireEvent.click(await screen.findByText(INSPECTOR.name));
+
+      // The name of this test is a behaviour claim, so assert the behaviour:
+      // clicking must not fire a second assignment, not merely look disabled.
+      const confirm = screen.getByRole('button', { name: 'Assign' });
+      expect(confirm).toBeDisabled();
+      fireEvent.click(confirm);
+      expect(mockAssign).not.toHaveBeenCalled();
+    } finally {
+      mockIsAssigning = false;
+    }
+  });
+
+  it('blocks a second submit while the replacement is in flight', async () => {
+    mockIsReassigning = true;
+    try {
+      renderPage('/service-groups/accepted');
+      fireEvent.click(screen.getByTestId('service-group-change-trigger'));
+      fireEvent.click(screen.getByTestId('group-action-change-inspector'));
+      fireEvent.click(await screen.findByText(INSPECTOR.name));
+      fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Inspector unavailable' } });
+
+      // Everything the form needs is filled in; only the in-flight request
+      // should be holding the button back — and holding it back must mean no
+      // second call, not just a greyed-out button.
+      const confirm = screen.getByRole('button', { name: 'Replace inspector' });
+      expect(confirm).toBeDisabled();
+      fireEvent.click(confirm);
+      expect(mockReassign).not.toHaveBeenCalled();
+    } finally {
+      mockIsReassigning = false;
+    }
   });
 
   it('routes a PUBLISHED group to assign, never to reassign', async () => {

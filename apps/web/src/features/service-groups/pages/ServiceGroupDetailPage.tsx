@@ -36,8 +36,8 @@ export function ServiceGroupDetailPage() {
   const handleBack = useGoBack('/service-groups');
   const { serviceGroup, isLoading, isError, refetch } = useServiceGroupDetail(id ?? null);
   const { publish, isPublishing } = usePublishServiceGroup(id ?? null, refetch);
-  const { assign } = useAssignInspector(id ?? null, refetch);
-  const { reassign } = useReassignInspector(id ?? null, refetch);
+  const { assign, isAssigning } = useAssignInspector(id ?? null, refetch);
+  const { reassign, isReassigning } = useReassignInspector(id ?? null, refetch);
   const [rescheduleMode, setRescheduleMode] = useState<'date' | 'time-window' | null>(null);
   const { cancel } = useCancelServiceGroup(id ?? null, refetch);
   const { reject } = useRejectServiceGroup(id ?? null, refetch);
@@ -282,6 +282,9 @@ export function ServiceGroupDetailPage() {
             : null
         }
         isReplacement={isAccepted}
+        // Without this the confirm button stays live while the request is in
+        // flight and a second click fires a duplicate assignment.
+        loading={isAssigning || isReassigning}
       />
       {/* Mounted on demand so each open starts from the group's current schedule. */}
       {rescheduleMode && (
