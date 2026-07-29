@@ -40,4 +40,11 @@ export interface AppointmentTransitionEvent {
   actorType: 'USER' | 'SYSTEM';
   reason?: string;
   metadata?: Record<string, unknown>;
+  /**
+   * The group the appointment belonged to at transition time, so subscribers
+   * reacting to a group emptying do not need a second query. Note this is the
+   * appointment's group *after* the update — a flow that moves an appointment
+   * between groups must handle the vacated group itself.
+   */
+  serviceGroupId?: string | null;
 }

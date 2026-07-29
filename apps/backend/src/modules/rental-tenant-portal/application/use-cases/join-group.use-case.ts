@@ -1,4 +1,4 @@
-import { UserRole } from '@properfy/shared';
+import { SYSTEM_ACTOR } from '../../../../shared/domain/constants';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { IServiceGroupRepository } from '../../../service-group/domain/service-group.repository';
 import type { IRentalTenantPortalActivityRepository } from '../../domain/rental-tenant-portal-activity.repository';
@@ -24,6 +24,10 @@ interface IStatusTransitionUseCase {
 
 interface INotificationHandler {
   execute(input: { appointmentId: string; tenantId?: string | null; action: string }): Promise<unknown>;
+}
+
+interface ICancelEmptyGroupService {
+  cancelIfDead(groupId: string): Promise<boolean>;
 }
 
 export interface JoinGroupInput {
@@ -60,6 +64,8 @@ export class JoinGroupUseCase {
     private readonly auditService: AuditService,
     private readonly statusTransition: IStatusTransitionUseCase,
     private readonly onNotificationHandler?: INotificationHandler,
+    /** Optional: cancels the group the tenant left when it ends up with nothing to execute. */
+    private readonly cancelEmptyGroup?: ICancelEmptyGroupService,
   ) {}
 
   /**
@@ -233,13 +239,7 @@ export class JoinGroupUseCase {
         appointmentId: input.appointmentId,
         targetStatus: 'SCHEDULED',
         reason: `Tenant joined service group ${group.id} via portal`,
-        actor: {
-          userId: 'system',
-          tenantId: appointment.tenantId,
-          role: UserRole.SYS,
-          branchId: null,
-          inspectorId: null,
-        },
+        actor: { ...SYSTEM_ACTOR, tenantId: appointment.tenantId },
       });
     }
 
@@ -303,6 +303,17 @@ export class JoinGroupUseCase {
         });
       } catch {
         // notification failure must not affect the join
+      }
+    }
+
+    // 14. The move may have emptied the group the tenant left. The transition event
+    // carries the *new* group, so the empty-group subscriber cannot see this case —
+    // check it explicitly. Fire-and-forget: the join is committed and must stand.
+    if (previousGroupId && this.cancelEmptyGroup) {
+      try {
+        await this.cancelEmptyGroup.cancelIfDead(previousGroupId);
+      } catch {
+        // the daily sweep will pick the group up
       }
     }
   }

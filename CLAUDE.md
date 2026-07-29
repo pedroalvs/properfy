@@ -128,9 +128,9 @@ Official statuses:
 | `DRAFT` | `REJECTED` | OP, AM | Yes |
 | `DRAFT` | `CANCELLED` | OP, CL, AM | Yes |
 | `AWAITING_INSPECTOR` | `SCHEDULED` | SYS, OP | No |
-| `AWAITING_INSPECTOR` | `CANCELLED` | OP, CL, AM | Yes |
+| `AWAITING_INSPECTOR` | `CANCELLED` | OP, CL, AM, SYS | Yes | System-triggered daily for appointments whose date has passed (reason code `EXPIRED`) |
 | `SCHEDULED` | `DONE` | INSP, OP | No |
-| `SCHEDULED` | `CANCELLED` | OP, CL, AM | Yes |
+| `SCHEDULED` | `CANCELLED` | OP, CL, AM, SYS | Yes | System-triggered daily for appointments whose date has passed (reason code `EXPIRED`) |
 | `SCHEDULED` | `REJECTED` | OP, SYS | Yes |
 | `REJECTED` | `DRAFT` | OP, AM | Yes |
 | `REJECTED` | `AWAITING_INSPECTOR` | OP, AM | Yes | System-triggered when appointment is added to a service group |

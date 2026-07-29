@@ -97,6 +97,8 @@ Every transition MUST:
 
 Reopening a `DONE` appointment is restricted to AM only. `SCHEDULED → REJECTED` requires OP or SYS with reason.
 
+`AWAITING_INSPECTOR → CANCELLED` and `SCHEDULED → CANCELLED` also admit SYS: a daily sweep cancels appointments whose scheduled date has passed, with cancellation reason code `EXPIRED`. `DRAFT → CANCELLED` remains user-only. The sweep goes through the sovereign transition use case like any other actor; a SYS transition is audited with `actorType: 'SYSTEM'` and no actor ID.
+
 ### Financial Rules
 
 - Tenant debit and inspector payout occur when an appointment reaches `DONE`.

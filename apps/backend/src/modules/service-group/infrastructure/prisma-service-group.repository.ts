@@ -93,6 +93,16 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     private readonly prisma: PrismaClient,
   ) {}
 
+  async findIdsByStatuses(statuses: string[]): Promise<string[]> {
+    const rows = await this.prisma.serviceGroup.findMany({
+      where: { status: { in: statuses as PrismaServiceGroupStatus[] } },
+      select: { id: true },
+      // Oldest schedule first so a backlog is worked through in a stable order.
+      orderBy: { scheduled_date: 'asc' },
+    });
+    return rows.map((r) => r.id);
+  }
+
   async findById(
     id: string,
     _tenantId: string | null,

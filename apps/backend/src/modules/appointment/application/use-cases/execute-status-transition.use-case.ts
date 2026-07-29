@@ -36,6 +36,12 @@ export interface ExecuteStatusTransitionInput {
   crossCheckByUserId?: string;
   inspectorId?: string;
   idempotencyKey?: string;
+  /**
+   * Skips the transition notification. Set by automated sweeps: telling a rental
+   * tenant their long-past inspection was "cancelled" is noise, and the first run
+   * of a sweep would otherwise notify the entire historical backlog at once.
+   */
+  suppressNotifications?: boolean;
   actor: AuthContext;
 }
 
@@ -78,7 +84,12 @@ export class ExecuteStatusTransitionUseCase {
   ) {}
 
   async execute(input: ExecuteStatusTransitionInput): Promise<ExecuteStatusTransitionOutput> {
-    const { appointmentId, targetStatus, reason, cancellationReasonCode, rejectionReasonCode, doneCheckedByUserId, crossCheckByUserId, inspectorId, idempotencyKey, actor } = input;
+    const { appointmentId, targetStatus, reason, cancellationReasonCode, rejectionReasonCode, doneCheckedByUserId, crossCheckByUserId, inspectorId, idempotencyKey, suppressNotifications, actor } = input;
+
+    // Automated flows act as SYS. Attribute their audit trail and events to the
+    // system rather than filing them under a synthetic user id.
+    const isSystemActor = actor.role === 'SYS';
+    const actorType = isSystemActor ? 'SYSTEM' : 'USER';
 
     // 0. Idempotency check
     if (idempotencyKey) {
@@ -295,8 +306,8 @@ export class ExecuteStatusTransitionUseCase {
 
     this.auditService.log({
       action: 'appointment.status_transition',
-      actorType: 'USER',
-      actorId: actor.userId,
+      actorType,
+      actorId: isSystemActor ? undefined : actor.userId,
       entityType: 'Appointment',
       entityId: appointmentId,
       tenantId: appointment.tenantId,
@@ -392,7 +403,7 @@ export class ExecuteStatusTransitionUseCase {
     }
 
     // 9f. Side effect: notifications on transition
-    if (this.onTransitionHandler) {
+    if (this.onTransitionHandler && !suppressNotifications) {
       try {
         await this.onTransitionHandler.execute({
           appointmentId,
@@ -413,9 +424,10 @@ export class ExecuteStatusTransitionUseCase {
         fromStatus: appointment.status,
         toStatus: targetStatus,
         actorId: actor.userId,
-        actorType: 'USER',
+        actorType,
         reason: reason ?? undefined,
         metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+        serviceGroupId: appointment.serviceGroupId,
       };
       this.domainEventBus.emit({
         type: APPOINTMENT_EVENTS.STATUS_TRANSITION,

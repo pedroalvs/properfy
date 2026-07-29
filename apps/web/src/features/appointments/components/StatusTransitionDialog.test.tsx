@@ -75,6 +75,21 @@ describe('StatusTransitionDialog', () => {
     expect(screen.queryByLabelText('Reason Code')).not.toBeInTheDocument();
   });
 
+  // EXPIRED is assigned only by the daily auto-cancel sweep. The options list is
+  // derived from the enum, so a new code would otherwise appear here automatically.
+  it('does not offer EXPIRED as a manual cancellation reason', () => {
+    render(<StatusTransitionDialog {...defaultProps} targetStatus="CANCELLED" />);
+
+    // SelectInput renders its options only while open.
+    fireEvent.click(screen.getByLabelText('Reason Code'));
+    const labels = screen.getAllByRole('option').map((o) => o.textContent);
+
+    expect(labels).not.toContain('EXPIRED');
+    expect(labels).toContain('CLIENT REQUEST');
+    expect(labels).toContain('OTHER');
+    expect(labels).toHaveLength(6);
+  });
+
   it('hides free text when reason code dropdown is shown without OTHER selected', () => {
     render(<StatusTransitionDialog {...defaultProps} targetStatus="CANCELLED" />);
     // When a reason code dropdown is shown but no code is selected yet,

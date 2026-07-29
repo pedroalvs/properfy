@@ -7,8 +7,10 @@
  * Intl.DateTimeFormat.
  */
 
+import { PLATFORM_TIMEZONE } from '@properfy/shared';
+
 /** The platform timezone every business rule is anchored to (re-exported from shared). */
-export { PLATFORM_TIMEZONE } from '@properfy/shared';
+export { PLATFORM_TIMEZONE };
 
 /**
  * Parse a YYYY-MM-DD date string as the start of that day (00:00:00) in the given IANA timezone,
@@ -85,6 +87,19 @@ export function endOfCivilDayInTimezone(dateStr: string, timezone: string): Date
 /** UTC-Date → YYYY-MM-DD. */
 export function formatDate(value: Date): string {
   return value.toISOString().slice(0, 10);
+}
+
+/**
+ * UTC midnight of *today's* civil date in the platform timezone — the canonical
+ * lower bound for "is this scheduled_date in the past?".
+ *
+ * `scheduled_date` is a `@db.Date` pinned to UTC midnight of a Sydney civil date.
+ * Deriving the cutoff from UTC midnight of the server clock instead (`new Date()`
+ * + `setUTCHours(0,0,0,0)`) is off by a day for the ~10 hours each day where
+ * Sydney has already rolled over but UTC has not.
+ */
+export function startOfPlatformToday(now: Date = new Date()): Date {
+  return new Date(`${civilDateInTimezone(now, PLATFORM_TIMEZONE)}T00:00:00.000Z`);
 }
 
 /** The current civil date (YYYY-MM-DD) in the given timezone. */

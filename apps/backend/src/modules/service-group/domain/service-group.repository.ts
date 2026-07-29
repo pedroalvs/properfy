@@ -189,6 +189,11 @@ export type PortalWindowReservation =
 
 export interface IServiceGroupRepository {
   findById(id: string, tenantId: string | null): Promise<ServiceGroupWithAppointments | null>;
+  /**
+   * Ids of every group in the given statuses, cross-tenant and unpaginated — the
+   * candidate list for the empty-group sweep. Rides `@@index([status])`.
+   */
+  findIdsByStatuses(statuses: string[]): Promise<string[]>;
   findAll(
     filters: ServiceGroupFilters,
     pagination: PaginationParams,

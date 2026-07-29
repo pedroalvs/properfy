@@ -1,4 +1,4 @@
-export { isAppointmentOverdue } from './overdue';
+export { isAppointmentOverdue, OVERDUE_ELIGIBLE_STATUSES } from './overdue';
 export { todayInTzDateString, currentTimeInTzHHmm, isTimeStartInPastForDate } from './local-date';
 export { zonedWallTimeToUtc, endOfCivilDayInTz } from './timezone-date';
 export { validateNewSchedule, validateEditedSchedule, type DateValidationResult } from './edit-date-validation';

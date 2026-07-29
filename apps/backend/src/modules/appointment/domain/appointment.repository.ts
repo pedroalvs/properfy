@@ -201,4 +201,16 @@ export interface IAppointmentRepository {
    *  - deletedAt IS NULL
    */
   findUnconfirmedForDate(date: Date): Promise<AppointmentEntity[]>;
+
+  /**
+   * Find appointments still awaiting execution whose scheduled date has passed —
+   * the input to the daily auto-cancel sweep. Returns appointments where:
+   *  - scheduledDate < beforeDate (pass UTC midnight of today's Sydney civil date)
+   *  - status IN OVERDUE_ELIGIBLE_STATUSES (AWAITING_INSPECTOR, SCHEDULED)
+   *  - deletedAt IS NULL
+   *
+   * Capped by `limit` so a large historical backlog drains over several runs
+   * instead of holding one job open.
+   */
+  findOverdueActive(beforeDate: Date, limit: number): Promise<AppointmentEntity[]>;
 }
