@@ -15,8 +15,12 @@ export class UserInactiveError extends ForbiddenError {
 }
 
 export class AccountLockedError extends TooManyRequestsError {
-  constructor(retryAfter: string) {
-    super('AUTH_ACCOUNT_LOCKED', 'Account temporarily locked', retryAfter);
+  /** @param retryAfterSeconds seconds left on the lock. Seconds, not a
+   * timestamp: the shared contract types `retryAfter?: number`, and the web's
+   * `withRetryAfter` only falls back to the `Retry-After` header when this is
+   * undefined — so a non-numeric value here suppresses the real one. */
+  constructor(retryAfterSeconds: number) {
+    super('AUTH_ACCOUNT_LOCKED', 'Account temporarily locked', retryAfterSeconds);
     this.name = 'AccountLockedError';
   }
 }
@@ -101,7 +105,7 @@ export class PasswordSameAsCurrentError extends DomainError {
 export class SessionRefreshRateLimitError extends TooManyRequestsError {
   constructor(retryAfterMs: number) {
     const retryAfterSeconds = Math.ceil(retryAfterMs / 1000);
-    super('AUTH_SESSION_REFRESH_RATE_LIMIT', 'Too many refresh requests for this session', `${retryAfterSeconds}`);
+    super('AUTH_SESSION_REFRESH_RATE_LIMIT', 'Too many refresh requests for this session', retryAfterSeconds);
     this.name = 'SessionRefreshRateLimitError';
   }
 }
@@ -115,7 +119,7 @@ export class InvalidPasswordResetTokenError extends DomainError {
 
 export class PasswordResetRateLimitError extends TooManyRequestsError {
   constructor() {
-    super('AUTH_PASSWORD_RESET_RATE_LIMIT', 'Too many password reset requests. Please try again later.', '3600');
+    super('AUTH_PASSWORD_RESET_RATE_LIMIT', 'Too many password reset requests. Please try again later.', 3600);
     this.name = 'PasswordResetRateLimitError';
   }
 }

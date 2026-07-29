@@ -61,7 +61,9 @@ export class LoginUseCase {
     }
 
     if (user.isLocked()) {
-      throw new AccountLockedError(user.lockedUntil!.toISOString());
+      throw new AccountLockedError(
+        Math.max(0, Math.ceil((user.lockedUntil!.getTime() - Date.now()) / 1000)),
+      );
     }
 
     const passwordMatch = await bcrypt.compare(input.password, user.passwordHash);

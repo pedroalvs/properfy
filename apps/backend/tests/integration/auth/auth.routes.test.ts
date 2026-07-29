@@ -107,7 +107,7 @@ describe('POST /v1/auth/login', () => {
 
   it('should return 429 with AUTH_ACCOUNT_LOCKED error including retryAfter', async () => {
     const { AccountLockedError } = await import('../../../src/modules/auth/domain/auth.errors');
-    mockLoginExecute.mockRejectedValueOnce(new AccountLockedError('2026-03-17T00:00:00.000Z'));
+    mockLoginExecute.mockRejectedValueOnce(new AccountLockedError(900));
 
     const res = await supertest(app.server)
       .post('/v1/auth/login')
@@ -115,6 +115,9 @@ describe('POST /v1/auth/login', () => {
 
     expect(res.status).toBe(429);
     expect(res.body.error.code).toBe('AUTH_ACCOUNT_LOCKED');
+    // Seconds, per the shared `retryAfter?: number` contract — an ISO
+    // timestamp here would be unusable by the client.
+    expect(res.body.error.retryAfter).toBe(900);
   });
 
   it('should return 403 for inactive user', async () => {
