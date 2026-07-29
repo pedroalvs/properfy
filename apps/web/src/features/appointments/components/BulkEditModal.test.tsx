@@ -260,15 +260,6 @@ describe('BulkEditModal', () => {
     });
   });
 
-  it('opens the native picker when the scheduled date input is clicked', () => {
-    renderModal([makeAppointment()]);
-    fireEvent.click(screen.getByLabelText('Scheduled Date'));
-    const input = screen.getByLabelText('Set scheduled date') as HTMLInputElement;
-    const showPickerSpy = vi.fn();
-    input.showPicker = showPickerSpy;
-    fireEvent.click(input);
-    expect(showPickerSpy).toHaveBeenCalledTimes(1);
-  });
 
   describe('Mark as Reviewed', () => {
     it('shows the toggle for AM/OP and hides it without the cross_check permission', () => {

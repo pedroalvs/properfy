@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { TimeInput } from '@/components/forms/TimeInput';
 
 interface TimeWindowPickerProps {
   startTime: string;
@@ -16,8 +16,6 @@ export function TimeWindowPicker({
   onEndTimeChange,
   minStartTime,
 }: TimeWindowPickerProps) {
-  const startRef = useRef<HTMLInputElement>(null);
-  const endRef = useRef<HTMLInputElement>(null);
 
   return (
     <div className="flex items-center gap-3">
@@ -25,14 +23,10 @@ export function TimeWindowPicker({
         <label htmlFor="sg-start-time" className="text-sm text-text-secondary">
           Start Time
         </label>
-        <input
-          ref={startRef}
+        <TimeInput
           id="sg-start-time"
-          type="time"
           value={startTime}
-          onChange={(e) => onStartTimeChange(e.target.value)}
-          onClick={() => (startRef.current as any)?.showPicker?.()}
-          className="rounded border border-border-subtle bg-white px-3 py-2 text-sm text-text-primary outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+          onChange={onStartTimeChange}
           aria-label="Start time"
           {...(minStartTime ? { min: minStartTime } : {})}
         />
@@ -42,14 +36,10 @@ export function TimeWindowPicker({
         <label htmlFor="sg-end-time" className="text-sm text-text-secondary">
           End Time
         </label>
-        <input
-          ref={endRef}
+        <TimeInput
           id="sg-end-time"
-          type="time"
           value={endTime}
-          onChange={(e) => onEndTimeChange(e.target.value)}
-          onClick={() => (endRef.current as any)?.showPicker?.()}
-          className="rounded border border-border-subtle bg-white px-3 py-2 text-sm text-text-primary outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+          onChange={onEndTimeChange}
           aria-label="End time"
         />
       </div>

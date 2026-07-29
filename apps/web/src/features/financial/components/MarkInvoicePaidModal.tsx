@@ -5,14 +5,10 @@ import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/forms/FormField';
 import { TextInput } from '@/components/forms/TextInput';
-import {
-  formInput,
-  formInputContainer,
-  formInputContainerError,
-} from '@/components/forms/form-styles';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
 import { getErrorMessage, toApiError, type ApiError } from '@/lib/api-error';
+import { DateTimeInput } from '@/components/forms/DateTimeInput';
 
 interface MarkInvoicePaidModalProps {
   open: boolean;
@@ -43,7 +39,7 @@ interface BatchResponseData {
 
 /**
  * Produce a `YYYY-MM-DDTHH:mm` string of the CURRENT SYDNEY WALL TIME for
- * `<input type="datetime-local">`. The platform is Sydney-only: the value the
+ * the masked DateTimeInput. The platform is Sydney-only: the value the
  * operator sees and edits is Sydney wall time, and on submit it is converted
  * back to UTC via `zonedWallTimeToUtc` — so the round-trip is offset-safe
  * regardless of the operator's location. (Supersedes Bug B-7, which was about
@@ -51,7 +47,7 @@ interface BatchResponseData {
  */
 function defaultPaidAt(): string {
   // en-CA formats as YYYY-MM-DD; combined with hour12:false this yields the
-  // exact `YYYY-MM-DDTHH:mm` shape datetime-local expects.
+  // canonical `YYYY-MM-DDTHH:mm` shape the field round-trips.
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: PLATFORM_TIMEZONE,
     year: 'numeric',
@@ -226,16 +222,12 @@ export function MarkInvoicePaidModal({
           </p>
         )}
         <FormField label="Payment Date" required error={errors.paidAt}>
-          <div className={errors.paidAt ? formInputContainerError : formInputContainer}>
-            <input
-              type="datetime-local"
-              className={formInput}
-              value={form.paidAt}
-              onChange={(e) => updateField('paidAt', e.target.value)}
-              onClick={(e) => e.currentTarget.showPicker?.()}
-              aria-label="Payment Date"
-            />
-          </div>
+          <DateTimeInput
+            value={form.paidAt}
+            onChange={(v) => updateField('paidAt', v)}
+            error={!!errors.paidAt}
+            aria-label="Payment Date"
+          />
         </FormField>
         <FormField
           label="Payment Reference"

@@ -7,6 +7,7 @@ import {
   useInspectorPayoutHistory,
 } from '../hooks/useInspectorEarnings';
 import { EarningsChart, type ChartBar } from '../components/EarningsChart';
+import { DateField } from '@/components/ui/DateField';
 
 type Segment = 'earnings' | 'history';
 
@@ -91,22 +92,18 @@ export function EarningsPage() {
     <div className="flex items-end gap-2 rounded-[20px] bg-white px-4 py-3 shadow-sm">
       <label className="flex flex-1 flex-col gap-1">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">From</span>
-        <input
-          type="date"
+        <DateField
           value={fromDate}
-          onChange={(e) => setFromDate(e.target.value)}
-          onClick={(e) => e.currentTarget.showPicker?.()}
+          onChange={setFromDate}
           className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
           aria-label="From date"
         />
       </label>
       <label className="flex flex-1 flex-col gap-1">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">To</span>
-        <input
-          type="date"
+        <DateField
           value={toDate}
-          onChange={(e) => setToDate(e.target.value)}
-          onClick={(e) => e.currentTarget.showPicker?.()}
+          onChange={setToDate}
           className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
           aria-label="To date"
         />

@@ -1,4 +1,5 @@
 import { filterContainer, filterLabel, filterIcon } from './filter-styles';
+import { TimeInput } from '@/components/forms/TimeInput';
 
 interface FilterTimeRangeProps {
   label: string;
@@ -29,23 +30,23 @@ export function FilterTimeRange({
           <div className="hidden items-center gap-2 sm:flex">
             <i className={`mdi mdi-clock-outline ${filterIcon}`} />
           </div>
-          <input
-            type="time"
-            className="min-w-0 flex-1 bg-transparent text-sm text-text-primary outline-none"
-            value={startTime}
-            onChange={(e) => onStartChange(e.target.value)}
-            onClick={(e) => e.currentTarget.showPicker?.()}
-            aria-label={`${label} - start`}
-          />
+          <div className="min-w-0 flex-1">
+            <TimeInput
+              variant="bare"
+              value={startTime}
+              onChange={onStartChange}
+              aria-label={`${label} - start`}
+            />
+          </div>
           <span className="px-1 text-xs text-text-muted sm:px-0">to</span>
-          <input
-            type="time"
-            className="min-w-0 flex-1 bg-transparent text-sm text-text-primary outline-none"
-            value={endTime}
-            onChange={(e) => onEndChange(e.target.value)}
-            onClick={(e) => e.currentTarget.showPicker?.()}
-            aria-label={`${label} - end`}
-          />
+          <div className="min-w-0 flex-1">
+            <TimeInput
+              variant="bare"
+              value={endTime}
+              onChange={onEndChange}
+              aria-label={`${label} - end`}
+            />
+          </div>
         </div>
       </div>
     </div>

@@ -67,9 +67,9 @@ describe('RescheduleGroupModal', () => {
 
   it('prefills the group current date and window', () => {
     renderModal();
-    expect(dateInput().value).toBe('2030-06-01');
-    expect(startInput().value).toBe('09:00');
-    expect(endInput().value).toBe('17:00');
+    expect(dateInput().value).toBe('01/06/2030');
+    expect(startInput().value).toBe('9:00 am');
+    expect(endInput().value).toBe('5:00 pm');
   });
 
   it('titles itself by the entry point but keeps both fields editable', () => {
