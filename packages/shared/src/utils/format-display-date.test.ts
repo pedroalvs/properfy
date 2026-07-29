@@ -241,6 +241,29 @@ describe('formatInstantDate', () => {
     });
   });
 
+  describe('an unusable timezone falls back instead of throwing', () => {
+    // timeZone is a parameter meant to carry a per-agency setting, and
+    // Intl.DateTimeFormat throws RangeError on a malformed zone. These run in
+    // render paths, so a bad config value must not take down the tree.
+    const iso = '2026-07-28T20:00:00.000Z';
+
+    it('does not throw on a malformed zone', () => {
+      expect(() => formatInstantDate(iso, 'Australia/Sydne')).not.toThrow();
+      expect(() => formatInstantDateTime(iso, 'Not/AZone')).not.toThrow();
+    });
+
+    it('falls back to the platform timezone', () => {
+      expect(formatInstantDate(iso, 'Australia/Sydne')).toBe(formatInstantDate(iso));
+      expect(formatInstantDateTime(iso, 'Not/AZone')).toBe(formatInstantDateTime(iso));
+    });
+
+    it('still honours a valid zone after a bad one was seen', () => {
+      // The bad key is cached separately, so it must not poison the good one.
+      formatInstantDate(iso, 'Not/AZone');
+      expect(formatInstantDate(iso, 'UTC')).toBe('28/07/2026');
+    });
+  });
+
   describe('degenerate input', () => {
     it('returns an empty string for empty/nullish input', () => {
       expect(formatInstantDate('')).toBe('');

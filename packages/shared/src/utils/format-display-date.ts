@@ -65,15 +65,36 @@ const WALL_TIME_RE = /^(\d{1,2}):(\d{2})(?::\d{2})?$/;
 const civilPartsFormatters = new Map<string, Intl.DateTimeFormat>();
 const wallTimeFormatters = new Map<string, Intl.DateTimeFormat>();
 
+/**
+ * Builds a formatter, falling back to `PLATFORM_TIMEZONE` if the zone is not a
+ * usable IANA name.
+ *
+ * `Intl.DateTimeFormat` throws `RangeError` on a malformed zone. Since
+ * `timeZone` is a parameter — and is intended to carry a per-agency setting
+ * later — a bad config value would otherwise crash a render, breaking the
+ * never-throws contract these formatters rely on. The result is memoised under
+ * the requested key either way, so the probe happens once per distinct value.
+ */
+function buildFormatter(
+  timeZone: string,
+  options: Intl.DateTimeFormatOptions,
+  locale: string,
+): Intl.DateTimeFormat {
+  try {
+    return new Intl.DateTimeFormat(locale, { ...options, timeZone });
+  } catch {
+    return new Intl.DateTimeFormat(locale, { ...options, timeZone: PLATFORM_TIMEZONE });
+  }
+}
+
 function civilPartsFormatter(timeZone: string): Intl.DateTimeFormat {
   let formatter = civilPartsFormatters.get(timeZone);
   if (!formatter) {
-    formatter = new Intl.DateTimeFormat('en-CA', {
+    formatter = buildFormatter(
       timeZone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
+      { year: 'numeric', month: '2-digit', day: '2-digit' },
+      'en-CA',
+    );
     civilPartsFormatters.set(timeZone, formatter);
   }
   return formatter;
@@ -82,14 +103,17 @@ function civilPartsFormatter(timeZone: string): Intl.DateTimeFormat {
 function wallTimeFormatter(timeZone: string): Intl.DateTimeFormat {
   let formatter = wallTimeFormatters.get(timeZone);
   if (!formatter) {
-    formatter = new Intl.DateTimeFormat('en-GB', {
+    formatter = buildFormatter(
       timeZone,
-      hour: '2-digit',
-      minute: '2-digit',
-      // h23 pins 00..23. `hour12: false` was historically allowed to resolve to
-      // h24, which renders midnight as '24:00' on older ICU builds.
-      hourCycle: 'h23',
-    });
+      {
+        hour: '2-digit',
+        minute: '2-digit',
+        // h23 pins 00..23. `hour12: false` was historically allowed to resolve
+        // to h24, which renders midnight as '24:00' on older ICU builds.
+        hourCycle: 'h23',
+      },
+      'en-GB',
+    );
     wallTimeFormatters.set(timeZone, formatter);
   }
   return formatter;
