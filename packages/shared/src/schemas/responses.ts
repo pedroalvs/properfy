@@ -622,7 +622,7 @@ export const generatePortalTokenBodySchema = z
 export const portalActivityItemSchema = z.object({
   id: z.string().uuid(),
   appointmentId: z.string().uuid(),
-  tenantPortalTokenId: z.string().uuid(),
+  rentalTenantPortalTokenId: z.string().uuid(),
   action: z.string(),
   previousValuesJson: z.unknown().nullable(),
   newValuesJson: z.unknown().nullable(),

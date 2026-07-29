@@ -8073,7 +8073,7 @@ export interface paths {
                                 /** Format: uuid */
                                 appointmentId: string;
                                 /** Format: uuid */
-                                tenantPortalTokenId: string;
+                                rentalTenantPortalTokenId: string;
                                 action: string;
                                 previousValuesJson?: unknown;
                                 newValuesJson?: unknown;

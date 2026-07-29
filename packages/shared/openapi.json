@@ -18437,7 +18437,7 @@
                             "type": "string",
                             "format": "uuid"
                           },
-                          "tenantPortalTokenId": {
+                          "rentalTenantPortalTokenId": {
                             "type": "string",
                             "format": "uuid"
                           },
@@ -18473,7 +18473,7 @@
                         "required": [
                           "id",
                           "appointmentId",
-                          "tenantPortalTokenId",
+                          "rentalTenantPortalTokenId",
                           "action",
                           "ipAddress",
                           "userAgent",
