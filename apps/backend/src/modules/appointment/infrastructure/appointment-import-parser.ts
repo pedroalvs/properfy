@@ -1,43 +1,24 @@
 import { parse } from 'csv-parse/sync';
 import ExcelJS from 'exceljs';
 import type { RawCell, RawCustomFieldCandidate, RawImportRow } from '../domain/appointment-import-normalize';
+import {
+  APPOINTMENT_IMPORT_HEADER_MAP,
+  CUSTOM_HEADER_RE,
+  isRecognizableHeaderRow,
+} from '../domain/appointment-import-columns';
+import {
+  ImportFileEmptyError,
+  ImportFileContentMismatchError,
+  ImportFileCorruptXlsxError,
+  ImportFileCorruptCsvError,
+  ImportFileNoWorksheetsError,
+  ImportFileNoHeaderRowError,
+} from '../domain/appointment-import.errors';
+import { sniffFileKind } from '../../../shared/domain/file-signature';
 
-/**
- * Exact spreadsheet header (trimmed) -> internal field name. Everything NOT
- * in this map is either a dynamic `CUSTOM: {name}` candidate (see
- * `CUSTOM_HEADER_RE`) or silently ignored (unknown header, e.g. a stray
- * export column an agency's tool adds).
- */
-export const APPOINTMENT_IMPORT_HEADER_MAP: Record<string, Exclude<keyof RawImportRow, 'customFieldCandidates'>> = {
-  'Type': 'serviceTypeName',
-  'Date': 'scheduledDate',
-  'Start Time': 'timeSlotStart',
-  'End Time': 'timeSlotEnd',
-  'Street': 'street',
-  'Suburb': 'suburb',
-  'State': 'state',
-  'Postcode': 'postcode',
-  'Country': 'country',
-  'Address line 2': 'addressLine2',
-  'Apartment': 'apartmentNumber',
-  'Notes': 'notes',
-  'Realty description': 'realtyDescription',
-  'Tenant name': 'primaryContactName',
-  'Tenant mail': 'primaryContactEmail',
-  'Tenant phone': 'primaryContactPhone',
-  'EMAIL: Tenant secondary mail': 'secondaryEmail',
-  'PHONE: Tenant secondary phone': 'secondaryPhone',
-  'EMAIL: Tenant tertiary mail': 'tertiaryEmail',
-  'PHONE: Tenant tertiary phone': 'tertiaryPhone',
-  'EMAIL: Tenant quaternary mail': 'quaternaryEmail',
-  'PHONE: Tenant quaternary phone': 'quaternaryPhone',
-};
-
-/** Any header not in the static map matching this becomes a custom-field
- * candidate — this is how the real sample file's own `CUSTOM: Complete
- * Property Address` column is picked up with zero special-casing, and how
- * an agency can add up to 4 (see CUSTOM_FIELDS_MAX) of their own. */
-const CUSTOM_HEADER_RE = /^CUSTOM:\s*(.+)$/i;
+/** Re-exported for the consumers that grew up importing it from here. The map
+ * itself now lives in the domain, next to the required-column policy. */
+export { APPOINTMENT_IMPORT_HEADER_MAP };
 
 const EMPTY_ROW: Omit<RawImportRow, 'customFieldCandidates'> = {
   serviceTypeName: null, scheduledDate: null, timeSlotStart: null, timeSlotEnd: null,
@@ -48,6 +29,22 @@ const EMPTY_ROW: Omit<RawImportRow, 'customFieldCandidates'> = {
   tertiaryEmail: null, tertiaryPhone: null,
   quaternaryEmail: null, quaternaryPhone: null,
 };
+
+/** Everything the caller needs to explain the file back to the user: the rows,
+ * the headers actually found, where they were found, and which worksheet they
+ * came from. */
+export interface ParsedImportFile {
+  rows: RawImportRow[];
+  /** Header labels of the selected sheet / CSV, trimmed, in column order. */
+  headers: string[];
+  /** Spreadsheet row the headers came from — 1 for CSV and for every
+   * well-formed workbook. Threaded into the resolver so the row numbers in
+   * per-row messages stay honest when a sheet has leading blank rows. */
+  headerRowNumber: number;
+  /** xlsx only: the worksheet actually read, and every one skipped. */
+  sheetUsed: string | null;
+  sheetsIgnored: string[];
+}
 
 /** Builds one `RawImportRow` from a header->cell-value record, preserving
  * column order for CUSTOM: candidates (both `Object.entries` on a
@@ -68,19 +65,65 @@ function buildRawImportRow(record: Record<string, RawCell>): RawImportRow {
     if (customMatch) {
       customFieldCandidates.push({ label: customMatch[1]!.trim(), rawValue: value });
     }
-    // else: unknown header, ignored.
+    // else: unknown header. Dropped here, reported by analyzeImportHeaders.
   }
 
   return { ...(row as Omit<RawImportRow, 'customFieldCandidates'>), customFieldCandidates };
 }
 
-function parseCsv(buffer: Buffer): RawImportRow[] {
-  const records: Array<Record<string, string>> = parse(buffer, {
-    columns: true,
-    skip_empty_lines: true,
-    trim: true,
-  });
-  return records.map(buildRawImportRow);
+/** Rejects a file whose leading bytes contradict its extension, before either
+ * format parser gets a chance to fail with an opaque low-level error. */
+function assertFileMatchesExtension(buffer: Buffer, ext: 'xlsx' | 'csv'): void {
+  const kind = sniffFileKind(buffer);
+  if (kind === 'empty') throw new ImportFileEmptyError();
+
+  if (ext === 'xlsx' && kind !== 'zip') {
+    throw new ImportFileContentMismatchError('xlsx', kind);
+  }
+  if (ext === 'csv' && kind !== 'text') {
+    throw new ImportFileContentMismatchError('csv', kind);
+  }
+}
+
+/** csv-parse reports the offending line on its `CsvError`; surface that, never
+ * the raw error text (which would leak internals into a user-facing message). */
+function csvErrorLine(err: unknown): number | undefined {
+  if (typeof err !== 'object' || err === null) return undefined;
+  const lines = (err as { lines?: unknown }).lines;
+  return typeof lines === 'number' ? lines : undefined;
+}
+
+function parseCsv(buffer: Buffer): ParsedImportFile {
+  let headers: string[] = [];
+  let records: Array<Record<string, string>>;
+
+  try {
+    records = parse(buffer, {
+      // Capture the header row as it is consumed, so a header-only file can
+      // still report which columns it has.
+      columns: (raw: string[]) => {
+        headers = raw.map((header) => String(header ?? '').trim());
+        return raw;
+      },
+      skip_empty_lines: true,
+      trim: true,
+      // Excel-for-Windows "CSV UTF-8" prefixes a BOM, which without this makes
+      // the first header U+FEFF + "Type" — silently dropping that column.
+      bom: true,
+    });
+  } catch (err) {
+    throw new ImportFileCorruptCsvError(csvErrorLine(err), err);
+  }
+
+  if (headers.length === 0) throw new ImportFileNoHeaderRowError();
+
+  return {
+    rows: records.map(buildRawImportRow),
+    headers,
+    headerRowNumber: 1,
+    sheetUsed: null,
+    sheetsIgnored: [],
+  };
 }
 
 /** Extracts a type-preserving value from an exceljs cell. Simple cells
@@ -114,22 +157,87 @@ function extractCellValue(cell: ExcelJS.Cell): RawCell {
   return String(value);
 }
 
-async function parseXlsx(buffer: Buffer): Promise<RawImportRow[]> {
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
-  const worksheet = workbook.worksheets[0];
-  if (!worksheet) return [];
+interface HeaderRow {
+  headers: string[];
+  rowNumber: number;
+}
 
-  const headers: string[] = [];
+/** First non-empty row of a worksheet, trimmed. `eachRow` already skips blank
+ * rows, so this naturally tolerates padding above the header. */
+function firstNonEmptyRow(worksheet: ExcelJS.Worksheet): HeaderRow | null {
+  let found: HeaderRow | null = null;
+  worksheet.eachRow((row, rowNumber) => {
+    if (found) return;
+    const headers: string[] = [];
+    row.eachCell((cell, colNumber) => {
+      headers[colNumber - 1] = String(cell.value ?? '').trim();
+    });
+    if (headers.some((header) => header)) {
+      found = { headers, rowNumber };
+    }
+  });
+  return found;
+}
+
+interface SelectedWorksheet extends HeaderRow {
+  worksheet: ExcelJS.Worksheet;
+  ignored: string[];
+}
+
+/**
+ * Picks the worksheet to read. Visible sheets are considered before hidden
+ * ones, so a hidden lookup/template tab can never beat a visible data tab, and
+ * the first sheet whose top row looks like headers wins — that is what stops a
+ * cover or instructions tab being read as data.
+ *
+ * When nothing qualifies we fall back to the first sheet on purpose: the user
+ * then gets a precise missing-columns message naming what IS in their file,
+ * which is far more actionable than "no sheet matched".
+ */
+function selectWorksheet(workbook: ExcelJS.Workbook): SelectedWorksheet {
+  const hidden = (ws: ExcelJS.Worksheet) => ws.state === 'hidden' || ws.state === 'veryHidden';
+  const candidates = [
+    ...workbook.worksheets.filter((ws) => !hidden(ws)),
+    ...workbook.worksheets.filter(hidden),
+  ];
+
+  for (const worksheet of candidates) {
+    const headerRow = firstNonEmptyRow(worksheet);
+    if (headerRow && isRecognizableHeaderRow(headerRow.headers)) {
+      return {
+        worksheet,
+        ...headerRow,
+        ignored: workbook.worksheets.filter((ws) => ws !== worksheet).map((ws) => ws.name),
+      };
+    }
+  }
+
+  const fallback = workbook.worksheets[0]!;
+  const headerRow = firstNonEmptyRow(fallback);
+  if (!headerRow) throw new ImportFileNoHeaderRowError();
+
+  return {
+    worksheet: fallback,
+    ...headerRow,
+    ignored: workbook.worksheets.slice(1).map((ws) => ws.name),
+  };
+}
+
+async function parseXlsx(buffer: Buffer): Promise<ParsedImportFile> {
+  const workbook = new ExcelJS.Workbook();
+  try {
+    await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
+  } catch (err) {
+    throw new ImportFileCorruptXlsxError(err);
+  }
+
+  if (workbook.worksheets.length === 0) throw new ImportFileNoWorksheetsError();
+
+  const { worksheet, headers, rowNumber: headerRowNumber, ignored } = selectWorksheet(workbook);
   const rows: RawImportRow[] = [];
 
   worksheet.eachRow((row, rowNumber) => {
-    if (rowNumber === 1) {
-      row.eachCell((cell, colNumber) => {
-        headers[colNumber - 1] = String(cell.value ?? '').trim();
-      });
-      return;
-    }
+    if (rowNumber <= headerRowNumber) return;
 
     const record: Record<string, RawCell> = {};
     row.eachCell((cell, colNumber) => {
@@ -139,15 +247,19 @@ async function parseXlsx(buffer: Buffer): Promise<RawImportRow[]> {
     rows.push(buildRawImportRow(record));
   });
 
-  return rows;
+  return { rows, headers, headerRowNumber, sheetUsed: worksheet.name, sheetsIgnored: ignored };
 }
 
-/** Parses an uploaded appointment-import file into `RawImportRow[]`, already
- * keyed by internal field name (header mapping happens here, not in the
- * resolver). `.xlsx` preserves cell types; `.csv` has none to preserve. */
+/** Parses an uploaded appointment-import file, already keyed by internal field
+ * name (header mapping happens here, not in the resolver), alongside the
+ * diagnostics needed to explain the file back to the user. `.xlsx` preserves
+ * cell types; `.csv` has none to preserve.
+ *
+ * Throws an `ImportFileError` (400) for any file that cannot be read at all. */
 export async function parseAppointmentImportFile(
   buffer: Buffer,
   ext: 'xlsx' | 'csv',
-): Promise<RawImportRow[]> {
+): Promise<ParsedImportFile> {
+  assertFileMatchesExtension(buffer, ext);
   return ext === 'csv' ? parseCsv(buffer) : parseXlsx(buffer);
 }

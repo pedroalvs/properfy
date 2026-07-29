@@ -5718,6 +5718,27 @@ export interface paths {
                                         message: string;
                                     }[];
                                 }[];
+                                /** @default [] */
+                                fileIssues: {
+                                    /** @enum {string} */
+                                    code: "IMPORT_FILE_EMPTY" | "IMPORT_FILE_CONTENT_MISMATCH" | "IMPORT_FILE_CORRUPT_XLSX" | "IMPORT_FILE_CORRUPT_CSV" | "IMPORT_FILE_NO_WORKSHEETS" | "IMPORT_FILE_NO_HEADER_ROW" | "IMPORT_FILE_MISSING_COLUMNS" | "IMPORT_FILE_MULTIPLE_SHEETS" | "IMPORT_FILE_UNKNOWN_COLUMNS" | "IMPORT_FILE_NO_DATA_ROWS";
+                                    /** @enum {string} */
+                                    severity: "warning" | "error";
+                                    message: string;
+                                    /** @default [] */
+                                    missingColumns: string[];
+                                    /** @default [] */
+                                    foundColumns: string[];
+                                    /** @default [] */
+                                    unknownColumns: {
+                                        column: string;
+                                        suggestion: string | null;
+                                    }[];
+                                    /** @default null */
+                                    sheetUsed: string | null;
+                                    /** @default [] */
+                                    sheetsIgnored: string[];
+                                }[];
                             };
                         };
                     };
