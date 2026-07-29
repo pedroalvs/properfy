@@ -100,6 +100,13 @@ export function AppointmentBoardColumn({
                 Load more ({column.items.length} of {column.total})
               </button>
             )}
+            {/* Never silently truncate: say so when the cap hides rows. */}
+            {column.atLoadLimit && (
+              <p className="rounded bg-card-bg px-3 py-2 text-xs text-text-secondary">
+                Showing the first {column.items.length} of {column.total}. Narrow the filters to
+                see the rest.
+              </p>
+            )}
           </>
         )}
       </div>

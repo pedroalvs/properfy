@@ -93,6 +93,7 @@ function makeColumn(overrides: Partial<BoardColumn> = {}): BoardColumn {
     isError: false,
     errorMessage: null,
     hasMore: false,
+    atLoadLimit: false,
     loadMore: vi.fn(),
     refetch: vi.fn(),
     ...overrides,
@@ -244,6 +245,51 @@ describe('AppointmentBoardPage', () => {
     });
   });
 
+  describe('edit gating', () => {
+    it('does not offer Edit on cards the backend refuses to edit', () => {
+      // isScheduleEditable blocks CANCELLED and DONE — offering the pencil there
+      // opens a drawer whose Save can only ever fail.
+      setBoard([
+        makeColumn({ items: [makeAppointment()], total: 1 }),
+        ...DEFAULT_COLUMNS.slice(1, 3),
+        makeColumn({
+          status: 'CANCELLED',
+          label: 'Cancelled',
+          total: 1,
+          items: [makeAppointment({ id: 'apt-c', code: 'INS-0200', status: 'CANCELLED' })],
+        }),
+        makeColumn({
+          status: 'DONE',
+          label: 'Done',
+          total: 1,
+          items: [makeAppointment({ id: 'apt-d', code: 'INS-0201', status: 'DONE' })],
+        }),
+      ]);
+      renderBoard();
+
+      expect(screen.getByRole('button', { name: /Edit — appointment INS-0142/ })).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /Edit — appointment INS-0200/ }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /Edit — appointment INS-0201/ }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  describe('empty state vs inert filters', () => {
+    it('does not blame filters for a status value the board ignores', () => {
+      // `status` is hidden on the board and inert server-side, but it can arrive
+      // in the URL from the list. Counting it would tell the user to clear a
+      // filter that has no visible control.
+      setBoard(DEFAULT_COLUMNS, { status: 'DRAFT', showCancelled: true });
+      renderBoard();
+
+      const column = screen.getByRole('region', { name: 'Awaiting Inspector column' });
+      expect(within(column).getByText('No awaiting inspector appointments.')).toBeInTheDocument();
+    });
+  });
+
   describe('selection', () => {
     it('drives the bulk bar from cards selected across different columns', () => {
       setBoard([
@@ -288,6 +334,35 @@ describe('AppointmentBoardPage', () => {
         screen.getByRole('button', { name: /Cancel — appointment INS-0142/ }),
       );
       expect(screen.getByText('2 appointments selected')).toBeInTheDocument();
+    });
+
+    it('drops selected cards that are no longer loaded', () => {
+      // A filter change (or a column going idle) unloads rows while the raw
+      // selection persists. If the bar kept counting them, "Bulk Edit (3)" would
+      // open over zero appointments and re-send would fire at invisible rows.
+      const twoLoaded = [
+        makeColumn({
+          total: 2,
+          items: [makeAppointment(), makeAppointment({ id: 'apt-2', code: 'INS-0143' })],
+        }),
+        ...DEFAULT_COLUMNS.slice(1),
+      ];
+      setBoard(twoLoaded);
+      const { rerender } = renderBoard();
+
+      fireEvent.click(screen.getByLabelText('Select appointment INS-0142'));
+      fireEvent.click(screen.getByLabelText('Select appointment INS-0143'));
+      expect(screen.getByText('2 appointments selected')).toBeInTheDocument();
+
+      // The second card leaves the loaded set — selection must follow.
+      setBoard([makeColumn({ total: 1, items: [makeAppointment()] }), ...DEFAULT_COLUMNS.slice(1)]);
+      rerender(
+        <MemoryRouter initialEntries={['/appointments/board']}>
+          <AppointmentBoardPage />
+        </MemoryRouter>,
+      );
+
+      expect(screen.getByText('1 appointment selected')).toBeInTheDocument();
     });
 
     it('selects every loaded card in a column from its header checkbox', () => {
@@ -354,6 +429,19 @@ describe('AppointmentBoardPage', () => {
 
       const done = screen.getByRole('region', { name: 'Done column' });
       expect(within(done).queryByRole('button', { name: /Load more/ })).not.toBeInTheDocument();
+    });
+
+    it('says so out loud when the load cap hides rows', () => {
+      // Silent truncation reads as "that is everything" when it is not.
+      setBoard([
+        makeColumn({ items: [makeAppointment()], total: 250, hasMore: false, atLoadLimit: true }),
+        ...DEFAULT_COLUMNS.slice(1),
+      ]);
+      renderBoard();
+
+      const column = screen.getByRole('region', { name: 'Awaiting Inspector column' });
+      expect(within(column).getByText(/Showing the first 1 of 250/)).toBeInTheDocument();
+      expect(within(column).queryByRole('button', { name: /Load more/ })).not.toBeInTheDocument();
     });
 
     it('says the column is simply empty when no filter is applied', () => {

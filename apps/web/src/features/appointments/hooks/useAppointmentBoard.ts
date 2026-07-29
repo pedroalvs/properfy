@@ -23,15 +23,24 @@ export type BoardColumnStatus = (typeof BOARD_COLUMN_STATUSES)[number];
 
 /**
  * `overdueOnly` is defined server-side as "status IN (SCHEDULED,
- * AWAITING_INSPECTOR) AND scheduled_date < today", and that branch REPLACES any
- * status filter. Forwarding it to the other three columns would fill them with
- * scheduled work; those columns genuinely hold zero overdue rows, so we skip
- * their requests entirely instead.
+ * AWAITING_INSPECTOR) AND scheduled_date < today". `buildWhere` intersects it
+ * with the per-column status, so a terminal column would correctly come back
+ * empty — we skip those three requests outright rather than pay for three
+ * round-trips that can only ever return nothing.
  */
 const OVERDUE_ELIGIBLE_STATUSES: ReadonlyArray<BoardColumnStatus> = ['AWAITING_INSPECTOR', 'SCHEDULED'];
 
 /** Cards fetched per column initially, and added by each "Load more". */
 export const BOARD_COLUMN_PAGE_SIZE = 20;
+
+/**
+ * Hard ceiling on how many cards one column can load.
+ *
+ * The shared `paginationSchema` caps `pageSize` at 100, so growing past it is a
+ * 400 that would replace an already-populated column with an error state. Past
+ * this point the user narrows the filters instead.
+ */
+export const BOARD_COLUMN_MAX_LOADED = 100;
 
 export interface BoardColumn {
   status: BoardColumnStatus;
@@ -44,6 +53,8 @@ export interface BoardColumn {
   isError: boolean;
   errorMessage: string | null;
   hasMore: boolean;
+  /** More rows exist but the column has hit BOARD_COLUMN_MAX_LOADED. */
+  atLoadLimit: boolean;
   loadMore: () => void;
   refetch: () => void;
 }
@@ -102,11 +113,12 @@ function useBoardColumn(status: BoardColumnStatus, filters: AppointmentFiltersSt
   const total = enabled ? (data?.pagination.total ?? 0) : 0;
 
   const loadMore = useCallback(() => {
-    setPageSize((current) => current + BOARD_COLUMN_PAGE_SIZE);
+    setPageSize((current) => Math.min(current + BOARD_COLUMN_PAGE_SIZE, BOARD_COLUMN_MAX_LOADED));
   }, []);
 
-  return useMemo(
-    () => ({
+  return useMemo(() => {
+    const moreExist = items.length < total;
+    return {
       status,
       label: APPOINTMENT_STATUS_MAP[status].label,
       items,
@@ -114,12 +126,14 @@ function useBoardColumn(status: BoardColumnStatus, filters: AppointmentFiltersSt
       isLoading: enabled && isLoading,
       isError: enabled && isError,
       errorMessage: error?.message ?? null,
-      hasMore: items.length < total,
+      // Never offer Load more once the cap is reached — the button would issue
+      // the same request forever, or a 400 if the cap were lifted naively.
+      hasMore: moreExist && pageSize < BOARD_COLUMN_MAX_LOADED,
+      atLoadLimit: moreExist && pageSize >= BOARD_COLUMN_MAX_LOADED,
       loadMore,
       refetch,
-    }),
-    [status, items, total, enabled, isLoading, isError, error, loadMore, refetch],
-  );
+    };
+  }, [status, items, total, enabled, isLoading, isError, error, pageSize, loadMore, refetch]);
 }
 
 /**

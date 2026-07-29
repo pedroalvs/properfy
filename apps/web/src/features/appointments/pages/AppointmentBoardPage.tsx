@@ -16,8 +16,15 @@ import { useServiceTypeFilterOptions, useBranchOptionsFromAppointments } from '.
 import { useAppointmentTransition } from '../hooks/useAppointmentTransition';
 import { useBulkResendHandler } from '../hooks/useBulkResendHandler';
 import { getAvailableTransitions } from '../lib/transitions';
+import { isAppointmentScheduleEditable } from '../lib/editability';
 import { DEFAULT_FILTERS } from '../types';
 import type { Appointment } from '../types';
+
+/**
+ * Filters the board hides. They may still sit in the URL (carried over from the
+ * list) but are inert here, so they must not make the board claim it is filtered.
+ */
+const BOARD_HIDDEN_FILTERS = ['status', 'showCancelled'] as const;
 
 /**
  * "Service Dashboard" — the column-per-status board from the client scope §4.3.
@@ -53,10 +60,25 @@ export function AppointmentBoardPage() {
 
   const hasActiveFilters = useMemo(
     () =>
-      (Object.keys(DEFAULT_FILTERS) as (keyof typeof DEFAULT_FILTERS)[]).some(
-        (key) => filters[key] !== DEFAULT_FILTERS[key],
-      ),
+      (Object.keys(DEFAULT_FILTERS) as (keyof typeof DEFAULT_FILTERS)[])
+        .filter((key) => !BOARD_HIDDEN_FILTERS.includes(key as never))
+        .some((key) => filters[key] !== DEFAULT_FILTERS[key]),
     [filters],
+  );
+
+  // Selected ids can outlive the cards that produced them: changing a filter, or
+  // a column going idle, unloads rows while the selection persists. Every bulk
+  // surface must agree, so they all read the selection intersected with what is
+  // actually on screen.
+  const loadedIds = useMemo(() => new Set(allItems.map((item) => item.id)), [allItems]);
+  const effectiveSelectedIds = useMemo(
+    () => selectedIds.filter((id) => loadedIds.has(id)),
+    [selectedIds, loadedIds],
+  );
+  // Derived from allItems, so already limited to what is loaded.
+  const selectedAppointments = useMemo(
+    () => allItems.filter((item) => selectedIds.includes(item.id)),
+    [allItems, selectedIds],
   );
 
   const toggleSelect = useCallback((id: string) => {
@@ -97,7 +119,9 @@ export function AppointmentBoardPage() {
         });
       }
 
-      if (isGlobalRole) {
+      // CANCELLED and DONE are not editable (backend `isScheduleEditable`), so
+      // offering the pencil there would open a drawer whose Save always fails.
+      if (isGlobalRole && isAppointmentScheduleEditable(appointment.status)) {
         actions.push({
           icon: 'mdi-pencil-outline',
           label: 'Edit',
@@ -124,7 +148,7 @@ export function AppointmentBoardPage() {
     [isGlobalRole, role, canPerform],
   );
 
-  const bulkResend = useBulkResendHandler(selectedIds, clearSelection);
+  const bulkResend = useBulkResendHandler(effectiveSelectedIds, clearSelection);
 
   return (
     <div className="flex h-full min-h-0 flex-col px-4 py-2 md:px-8 md:py-6">
@@ -158,7 +182,7 @@ export function AppointmentBoardPage() {
         onFiltersChange={setFilters}
         branchOptions={branchOptions}
         serviceTypeOptions={serviceTypeOptions}
-        hiddenFilters={['status', 'showCancelled']}
+        hiddenFilters={BOARD_HIDDEN_FILTERS}
       />
 
       <InfoBanner className="mt-2">
@@ -169,13 +193,13 @@ export function AppointmentBoardPage() {
         .
       </InfoBanner>
 
-      <div className={`mt-3 min-h-0 flex-1 overflow-x-auto ${selectedIds.length > 0 ? 'pb-16' : ''}`}>
+      <div className={`mt-3 min-h-0 flex-1 overflow-x-auto ${effectiveSelectedIds.length > 0 ? 'pb-16' : ''}`}>
         <div className="flex h-full gap-3">
           {columns.map((column) => (
             <AppointmentBoardColumn
               key={column.status}
               column={column}
-              selectedIds={selectedIds}
+              selectedIds={effectiveSelectedIds}
               onToggleSelect={canBulkEdit ? toggleSelect : undefined}
               onToggleSelectAll={canBulkEdit ? toggleSelectAll : undefined}
               buildCardActions={buildCardActions}
@@ -187,7 +211,7 @@ export function AppointmentBoardPage() {
 
       {canBulkEdit && (
         <AppointmentBulkActionBar
-          selectedCount={selectedIds.length}
+          selectedCount={effectiveSelectedIds.length}
           onClearSelection={clearSelection}
           onBulkEdit={() => setBulkEditOpen(true)}
           canBulkResend={canBulkResend}
@@ -234,7 +258,7 @@ export function AppointmentBoardPage() {
       />
 
       <BulkEditModal
-        selectedAppointments={allItems.filter((a) => selectedIds.includes(a.id))}
+        selectedAppointments={selectedAppointments}
         open={bulkEditOpen}
         onClose={() => setBulkEditOpen(false)}
         onSuccess={() => {

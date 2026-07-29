@@ -28,6 +28,14 @@ import type {
   ServiceTypeFlowType,
 } from '@properfy/shared';
 
+/**
+ * The only statuses an appointment can be "overdue" in — a terminal appointment
+ * is never overdue. Used to intersect `overdueOnly` with an explicit status filter.
+ */
+const OVERDUE_STATUSES: readonly AppointmentStatus[] = ['SCHEDULED', 'AWAITING_INSPECTOR'];
+/** `AppointmentFilters.status` is a loose `string[]`, so match on strings. */
+const OVERDUE_STATUS_SET: ReadonlySet<string> = new Set<string>(OVERDUE_STATUSES);
+
 function toSnakeCase(s: string): string {
   return s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 }
@@ -476,7 +484,17 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     const where: Record<string, unknown> = { deleted_at: null };
     if (filters.tenantId) where['tenant_id'] = filters.tenantId;
     if (filters.overdueOnly) {
-      where['status'] = { in: ['SCHEDULED', 'AWAITING_INSPECTOR'] };
+      // Only these two statuses can be overdue. INTERSECT with an explicit
+      // status filter rather than replacing it: callers that slice by status
+      // (the board sends one status per column) would otherwise silently get
+      // both statuses back and render the same appointment in two columns.
+      // An empty intersection is intentional — it matches no rows.
+      where['status'] = {
+        in:
+          filters.status && filters.status.length > 0
+            ? filters.status.filter((status) => OVERDUE_STATUS_SET.has(status))
+            : [...OVERDUE_STATUSES],
+      };
       const todayUtc = new Date();
       todayUtc.setUTCHours(0, 0, 0, 0);
       where['scheduled_date'] = { lt: todayUtc };

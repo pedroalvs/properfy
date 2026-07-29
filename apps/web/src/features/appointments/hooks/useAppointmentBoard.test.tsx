@@ -2,7 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
-import { useAppointmentBoard, BOARD_COLUMN_STATUSES, BOARD_COLUMN_PAGE_SIZE } from './useAppointmentBoard';
+import { act } from '@testing-library/react';
+import {
+  useAppointmentBoard,
+  BOARD_COLUMN_STATUSES,
+  BOARD_COLUMN_PAGE_SIZE,
+  BOARD_COLUMN_MAX_LOADED,
+} from './useAppointmentBoard';
 
 const usePaginatedQueryMock = vi.fn();
 
@@ -168,6 +174,99 @@ describe('useAppointmentBoard', () => {
     });
 
     expect(result.current.allItems).toHaveLength(BOARD_COLUMN_STATUSES.length);
+  });
+
+  describe('load more', () => {
+    /** Mock a column that always has far more rows than are loaded. */
+    function mockLargeColumn() {
+      usePaginatedQueryMock.mockImplementation((_key, _path, params: any) => ({
+        data: {
+          data: Array.from({ length: params.pageSize }, (_, i) => ({ id: `a${i}` })),
+          pagination: { page: 1, pageSize: params.pageSize, total: 500, totalPages: 25 },
+        },
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      }));
+    }
+
+    it('actually grows the requested pageSize by one step', () => {
+      // Without this, a no-op loadMore would still pass every other test.
+      mockLargeColumn();
+      const { result } = renderHook(() => useAppointmentBoard(), {
+        wrapper: wrapper(['/appointments/board']),
+      });
+
+      act(() => result.current.columns[0]!.loadMore());
+
+      expect(paramsByStatus()['AWAITING_INSPECTOR'].pageSize).toBe(BOARD_COLUMN_PAGE_SIZE * 2);
+    });
+
+    it('grows only the column that was asked to load more', () => {
+      mockLargeColumn();
+      const { result } = renderHook(() => useAppointmentBoard(), {
+        wrapper: wrapper(['/appointments/board']),
+      });
+
+      act(() => result.current.columns[0]!.loadMore());
+
+      expect(paramsByStatus()['SCHEDULED'].pageSize).toBe(BOARD_COLUMN_PAGE_SIZE);
+    });
+
+    it('never requests a pageSize above the server cap', () => {
+      // paginationSchema caps pageSize at 100 — exceeding it is a 400 that would
+      // wipe an already-populated column and leave Retry looping on it.
+      mockLargeColumn();
+      const { result } = renderHook(() => useAppointmentBoard(), {
+        wrapper: wrapper(['/appointments/board']),
+      });
+
+      for (let i = 0; i < 12; i += 1) {
+        act(() => result.current.columns[0]!.loadMore());
+      }
+
+      const requested = usePaginatedQueryMock.mock.calls
+        .map((call) => (call[2] as { pageSize: number }).pageSize)
+        .filter((size) => size !== undefined);
+      expect(Math.max(...requested)).toBe(BOARD_COLUMN_MAX_LOADED);
+    });
+
+    it('stops offering load more at the cap and flags the truncation instead', () => {
+      mockLargeColumn();
+      const { result } = renderHook(() => useAppointmentBoard(), {
+        wrapper: wrapper(['/appointments/board']),
+      });
+
+      expect(result.current.columns[0]!.hasMore).toBe(true);
+      expect(result.current.columns[0]!.atLoadLimit).toBe(false);
+
+      for (let i = 0; i < 12; i += 1) {
+        act(() => result.current.columns[0]!.loadMore());
+      }
+
+      expect(result.current.columns[0]!.hasMore).toBe(false);
+      expect(result.current.columns[0]!.atLoadLimit).toBe(true);
+    });
+
+    it('reports neither hasMore nor a limit when everything is loaded', () => {
+      usePaginatedQueryMock.mockReturnValue({
+        data: {
+          data: [{ id: 'a1' }, { id: 'a2' }],
+          pagination: { page: 1, pageSize: 20, total: 2, totalPages: 1 },
+        },
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+      const { result } = renderHook(() => useAppointmentBoard(), {
+        wrapper: wrapper(['/appointments/board']),
+      });
+
+      expect(result.current.columns[0]!.hasMore).toBe(false);
+      expect(result.current.columns[0]!.atLoadLimit).toBe(false);
+    });
   });
 
   it('surfaces the API error message on the failing column', () => {

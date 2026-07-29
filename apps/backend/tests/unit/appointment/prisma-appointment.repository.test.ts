@@ -262,3 +262,76 @@ describe('PrismaAppointmentRepository property total area', () => {
     expect(rows[0]!.propertyTotalAreaM2).toBeNull();
   });
 });
+
+describe('PrismaAppointmentRepository overdueOnly + status composition', () => {
+  const findMany = vi.fn();
+  const count = vi.fn();
+  const prisma = { appointment: { findMany, count } } as any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    findMany.mockResolvedValue([]);
+    count.mockResolvedValue(0);
+  });
+
+  function whereOf() {
+    return findMany.mock.calls[0][0].where;
+  }
+
+  it('intersects an explicit status filter with the overdue statuses', async () => {
+    // Without the intersection the overdue branch discards `status` entirely, so
+    // a board column asking for AWAITING_INSPECTOR would receive SCHEDULED rows
+    // too — every overdue card would appear in two columns at once.
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll(
+      { overdueOnly: true, status: ['AWAITING_INSPECTOR'] },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    expect(whereOf().status).toEqual({ in: ['AWAITING_INSPECTOR'] });
+  });
+
+  it('matches nothing when the requested status can never be overdue', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll(
+      { overdueOnly: true, status: ['DONE'] },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    // Empty `in` matches no rows — DONE is never overdue.
+    expect(whereOf().status).toEqual({ in: [] });
+  });
+
+  it('keeps both overdue statuses when no status filter is supplied', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll({ overdueOnly: true }, { page: 1, pageSize: 10, sortOrder: 'asc' });
+
+    expect(whereOf().status).toEqual({ in: ['SCHEDULED', 'AWAITING_INSPECTOR'] });
+  });
+
+  it('drops a partially-overdue status selection down to the overdue subset', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll(
+      { overdueOnly: true, status: ['SCHEDULED', 'CANCELLED'] },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    expect(whereOf().status).toEqual({ in: ['SCHEDULED'] });
+  });
+
+  it('applies the same intersection to count so totals match the rows', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.count({ overdueOnly: true, status: ['AWAITING_INSPECTOR'] });
+
+    expect(count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: { in: ['AWAITING_INSPECTOR'] } }),
+      }),
+    );
+  });
+});
