@@ -4,7 +4,7 @@ import { DetailRow } from '@/components/data/DetailRow';
 import { BooleanIcon } from '@/components/ui/BooleanIcon';
 import { AppointmentStatus } from '@properfy/shared';
 import { RENTAL_TENANT_CONFIRMATION_STATUS_MAP } from '@/lib/status-colors';
-import { formatDate, formatDateTime } from '@/lib/format-date';
+import { formatCivilDate, formatInstantDateTime, formatWallTimeRange } from '@/lib/format-date';
 import { formatArea, formatPropertyType, formatRent } from '@/lib/format-property';
 import type { AppointmentDetail } from '../types';
 import { formatAuPhone } from '@/lib/phone-mask';
@@ -28,7 +28,7 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
           <i className="mdi mdi-alert-circle mt-0.5 text-lg" aria-hidden="true" />
           <div>
             <span className="font-semibold">This appointment is overdue.</span>
-            {' '}The scheduled date ({formatDate(appointment.scheduledDate)}) has passed and no action was taken.
+            {' '}The scheduled date ({formatCivilDate(appointment.scheduledDate)}) has passed and no action was taken.
             Consider rescheduling, cancelling, or marking as done.
           </div>
         </div>
@@ -36,8 +36,8 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
       <FormSection title="Inspection Details">
         <DetailRow label="Service Type" value={appointment.serviceTypeName} />
         <DetailRow label="Branch" value={appointment.branchName} />
-        <DetailRow label="Scheduled Date" value={formatDate(appointment.scheduledDate)} />
-        <DetailRow label="Time Slot" value={`${appointment.timeSlotStart} - ${appointment.timeSlotEnd}`} />
+        <DetailRow label="Scheduled Date" value={formatCivilDate(appointment.scheduledDate)} />
+        <DetailRow label="Time Slot" value={formatWallTimeRange(appointment.timeSlotStart, appointment.timeSlotEnd)} />
         <DetailRow label="Inspector" value={appointment.inspectorName} />
         <DetailRow
           label="Service Group"
@@ -135,7 +135,7 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
           />
           <DetailRow
             label="Validated At"
-            value={appointment.doneCheckedAt ? formatDateTime(appointment.doneCheckedAt) : null}
+            value={appointment.doneCheckedAt ? formatInstantDateTime(appointment.doneCheckedAt) : null}
           />
         </FormSection>
       )}
@@ -164,8 +164,8 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
       )}
 
       <FormSection title="Record">
-        <DetailRow label="Created At" value={formatDateTime(appointment.createdAt)} />
-        <DetailRow label="Updated At" value={formatDateTime(appointment.updatedAt)} />
+        <DetailRow label="Created At" value={formatInstantDateTime(appointment.createdAt)} />
+        <DetailRow label="Updated At" value={formatInstantDateTime(appointment.updatedAt)} />
         {appointment.cancellationReason && (
           <DetailRow label="Cancellation/Rejection Reason" value={appointment.cancellationReason} />
         )}

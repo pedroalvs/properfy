@@ -8,7 +8,7 @@ import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
 import { useInvoiceDetail } from '../hooks/useInvoiceDetail';
 import { useInvoiceDownload } from '../hooks/useInvoiceDownload';
-import { formatDateTime, formatDate } from '@/lib/format-date';
+import { formatCivilDate, formatInstantDateTime } from '@/lib/format-date';
 import { InvoiceStatusChip } from './InvoiceStatusChip';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useSnackbar } from '@/hooks/useSnackbar';
@@ -182,7 +182,7 @@ export function InvoiceDetailDrawer({
                 <FormSection title="Invoice Details">
                   <DetailRow label="Number" value={invoice.invoiceNumberDisplay ?? '—'} />
                   <DetailRow label="Inspector" value={inspectorLabel} />
-                  <DetailRow label="Period" value={`${formatDate(invoice.periodStart)} - ${formatDate(invoice.periodEnd)}`} />
+                  <DetailRow label="Period" value={`${formatCivilDate(invoice.periodStart)} - ${formatCivilDate(invoice.periodEnd)}`} />
                   <DetailRow label="Period Type" value={FREQUENCY_LABELS[invoice.periodType] ?? invoice.periodType} />
                   <DetailRow label="Total Amount" value={formatCurrency(invoice.totalAmount, invoice.currency)} />
                   <DetailRow label="Status" value={<InvoiceStatusChip status={invoice.status} />} />
@@ -212,7 +212,7 @@ export function InvoiceDetailDrawer({
                         <tbody>
                           {invoice.lineItemsSnapshot.map((line) => (
                             <tr key={line.appointmentId} className="border-t border-black/5">
-                              <td className="py-1 pr-3">{formatDate(line.serviceDate)}</td>
+                              <td className="py-1 pr-3">{formatCivilDate(line.serviceDate)}</td>
                               <td className="py-1 pr-3">{line.appointmentCode}</td>
                               <td className="py-1 pr-3">{line.propertyAddress ?? '—'}</td>
                               <td className="py-1 pr-3">{line.serviceType ?? '—'}</td>
@@ -234,9 +234,9 @@ export function InvoiceDetailDrawer({
                 )}
 
                 <FormSection title="Record">
-                  <DetailRow label="Created at" value={formatDateTime(invoice.createdAt)} />
-                  <DetailRow label="Issued at" value={invoice.issuedAt ? formatDateTime(invoice.issuedAt) : 'Pending generation'} />
-                  <DetailRow label="Paid at" value={invoice.paidAt ? formatDateTime(invoice.paidAt) : 'Not paid'} />
+                  <DetailRow label="Created at" value={formatInstantDateTime(invoice.createdAt)} />
+                  <DetailRow label="Issued at" value={invoice.issuedAt ? formatInstantDateTime(invoice.issuedAt) : 'Pending generation'} />
+                  <DetailRow label="Paid at" value={invoice.paidAt ? formatInstantDateTime(invoice.paidAt) : 'Not paid'} />
                   {invoice.status === 'PAID' && (
                     <>
                       <DetailRow
@@ -249,7 +249,7 @@ export function InvoiceDetailDrawer({
                       />
                     </>
                   )}
-                  <DetailRow label="Updated at" value={formatDateTime(invoice.updatedAt ?? invoice.createdAt)} />
+                  <DetailRow label="Updated at" value={formatInstantDateTime(invoice.updatedAt ?? invoice.createdAt)} />
                 </FormSection>
               </div>
             </div>

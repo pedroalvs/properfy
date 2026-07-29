@@ -1,6 +1,6 @@
 import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
-import { formatDate } from '@/lib/format-date';
+import { formatInstantDate } from '@/lib/format-date';
 import { UserRoleChip } from './UserRoleChip';
 import { UserStatusChip } from './UserStatusChip';
 import type { User } from '../types';
@@ -62,7 +62,7 @@ export function UserTable({
       render: (row) => (
         <>
           {row.lastLoginAt
-            ? formatDate(row.lastLoginAt)
+            ? formatInstantDate(row.lastLoginAt)
             : '—'}
         </>
       ),

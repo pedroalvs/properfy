@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
-import { formatDate } from '@/lib/format-date';
+import { formatCivilDate, formatInstantDate, formatWallTimeRange } from '@/lib/format-date';
 import type { AppointmentStatus } from '@properfy/shared';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
@@ -158,7 +158,7 @@ export function AppointmentMapDetailPanel({
             </h2>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-text-secondary">
               {statusMeta && <StatusChip label={statusMeta.label} bg={statusMeta.bg} />}
-              <span>{formatDate(appointment.scheduledDate)} {appointment.timeSlotStart} - {appointment.timeSlotEnd}</span>
+              <span>{formatCivilDate(appointment.scheduledDate)} {formatWallTimeRange(appointment.timeSlotStart, appointment.timeSlotEnd)}</span>
               <AppointmentCodePill code={appointment.code} />
             </div>
           </div>
@@ -386,9 +386,9 @@ function renderSectionContent(key: SectionKey, ctx: SectionCtx): ReactNode {
     case 'history':
       return (
         <p>
-          Created {detail?.createdAt ? formatDate(detail.createdAt) : '—'}
+          Created {detail?.createdAt ? formatInstantDate(detail.createdAt) : '—'}
           {' · '}
-          updated {detail?.updatedAt ? formatDate(detail.updatedAt) : '—'}
+          updated {detail?.updatedAt ? formatInstantDate(detail.updatedAt) : '—'}
         </p>
       );
     case 'financials':

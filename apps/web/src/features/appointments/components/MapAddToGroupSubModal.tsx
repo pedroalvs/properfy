@@ -8,10 +8,10 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 import { AppointmentCodePill } from './AppointmentCodePill';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 import type { AddableGroupSummary } from '@properfy/shared';
-import { formatDate } from '@/lib/format-date';
+import { formatCivilDate, formatWallTimeWindow } from '@/lib/format-date';
 
 function formatGroupDate(scheduledDate: string): string {
-  return formatDate(scheduledDate.slice(0, 10));
+  return formatCivilDate(scheduledDate.slice(0, 10));
 }
 
 interface MapAddToGroupSubModalProps {
@@ -98,7 +98,7 @@ export function MapAddToGroupSubModal({
         // Include code + time window + count so similar groups stay distinguishable.
         // Include date + time window + count so the operator sees where the
         // appointments will be re-scheduled to.
-        label: `Group ${g.code} · ${formatGroupDate(g.scheduledDate)} · ${g.timeWindow} (${g.currentSize} appts)`,
+        label: `Group ${g.code} · ${formatGroupDate(g.scheduledDate)} · ${formatWallTimeWindow(g.timeWindow)} (${g.currentSize} appts)`,
       }))
     : [];
 

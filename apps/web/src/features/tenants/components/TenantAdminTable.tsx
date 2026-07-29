@@ -1,6 +1,6 @@
 import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
-import { formatDate } from '@/lib/format-date';
+import { formatInstantDate } from '@/lib/format-date';
 import { TenantStatusChip } from './TenantStatusChip';
 import type { TenantAdmin } from '../types';
 
@@ -50,7 +50,7 @@ export function TenantAdminTable({
       label: 'Created',
       width: '140px',
       sortable: true,
-      render: (row) => <>{formatDate(row.createdAt)}</>,
+      render: (row) => <>{formatInstantDate(row.createdAt)}</>,
     },
     {
       key: 'actions',

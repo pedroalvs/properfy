@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { geocodeVerificationToStatus } from '@/lib/geocode-verification';
 import { GeocodingStatusBadge } from '@/features/properties/components/GeocodingStatusBadge';
 import { formatAuPhone } from '@/lib/phone-mask';
+import { formatWallTimeRange } from '@/lib/format-date';
 
 const PAGE_SIZE = 20;
 
@@ -138,7 +139,7 @@ export function AppointmentImportPreview({ rows, summary }: AppointmentImportPre
                 <div className="text-xs text-text-secondary">
                   {row.serviceTypeName ?? '—'} &middot; {row.scheduledDate}
                   {row.scheduledDateDefaulted && <span className="ml-1 italic text-text-muted">(defaulted)</span>}
-                  {' '}&middot; {row.timeSlotStart}–{row.timeSlotEnd}
+                  {' '}&middot; {formatWallTimeRange(row.timeSlotStart, row.timeSlotEnd)}
                   {row.timeDefaulted && <span className="ml-1 italic text-text-muted">(defaulted)</span>}
                 </div>
               </div>

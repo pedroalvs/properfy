@@ -1,6 +1,6 @@
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
-import { formatDate, formatDateTime } from '@/lib/format-date';
+import { formatInstantDate, formatInstantDateTime } from '@/lib/format-date';
 import { FinancialEntryTypeChip } from './FinancialEntryTypeChip';
 import { FinancialStatusChip } from './FinancialStatusChip';
 import type { FinancialEntryDetail } from '../types';
@@ -33,11 +33,11 @@ export function FinancialEntryDetailSections({ entry }: FinancialEntryDetailSect
       <FormSection title="Details">
         <DetailRow label="Description" value={entry.description} />
         <DetailRow label="Entity" value={entry.relatedEntityName} />
-        <DetailRow label="Effective Date" value={formatDate(entry.effectiveAt)} />
+        <DetailRow label="Effective Date" value={formatInstantDate(entry.effectiveAt)} />
         {showApprovalDetails ? (
           <>
             <DetailRow label="Approved By" value={entry.approvedByName} />
-            <DetailRow label="Approved At" value={entry.approvedAt ? formatDateTime(entry.approvedAt) : null} />
+            <DetailRow label="Approved At" value={entry.approvedAt ? formatInstantDateTime(entry.approvedAt) : null} />
           </>
         ) : entry.status === 'PENDING' ? (
           <DetailRow label="Approval" value="Pending financial approval" />
@@ -51,8 +51,8 @@ export function FinancialEntryDetailSections({ entry }: FinancialEntryDetailSect
       )}
 
       <FormSection title="Record">
-        <DetailRow label="Created at" value={formatDateTime(entry.createdAt)} />
-        <DetailRow label="Updated at" value={formatDateTime(entry.updatedAt)} />
+        <DetailRow label="Created at" value={formatInstantDateTime(entry.createdAt)} />
+        <DetailRow label="Updated at" value={formatInstantDateTime(entry.updatedAt)} />
       </FormSection>
     </div>
   );

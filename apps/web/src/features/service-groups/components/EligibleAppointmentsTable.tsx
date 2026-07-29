@@ -1,7 +1,7 @@
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import type { AppointmentStatus } from '@properfy/shared';
 import { AppointmentStatusChip } from '@/features/appointments/components/AppointmentStatusChip';
-import { formatDate } from '@/lib/format-date';
+import { formatCivilDate } from '@/lib/format-date';
 
 export interface EligibleAppointment {
   id: string;
@@ -71,7 +71,7 @@ export function EligibleAppointmentsTable({
       key: 'scheduledDate',
       label: 'Scheduled Date',
       width: '150px',
-      render: (row) => <>{formatDate(row.scheduledDate)}</>,
+      render: (row) => <>{formatCivilDate(row.scheduledDate)}</>,
     },
     {
       key: 'status',

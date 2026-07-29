@@ -137,12 +137,12 @@ describe('ServiceGroupDetailSections schedule', () => {
   it('shows the group scheduled date and time window', () => {
     renderWithRouter(<ServiceGroupDetailSections serviceGroup={makeServiceGroup()} />);
     expect(valueFor('Scheduled Date')).toBe('01/06/2026');
-    expect(valueFor('Time Window')).toBe('09:00 – 17:00');
+    expect(valueFor('Time Window')).toBe('9:00 am – 5:00 pm');
   });
 
   it('shows each member time slot', () => {
     renderWithRouter(<ServiceGroupDetailSections serviceGroup={makeServiceGroup()} />);
-    expect(screen.getAllByText('09:00–10:00').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('9:00 am – 10:00 am').length).toBeGreaterThan(0);
   });
 
   it('falls back to a dash when the group has no schedule yet', () => {

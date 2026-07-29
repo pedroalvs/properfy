@@ -21,9 +21,12 @@ function parseDate(dateStr: string): Date {
   return new Date(parts[0]!, parts[1]! - 1, parts[2]!);
 }
 
+/** AU convention: day before month, matching every other date in the product. */
+const CALENDAR_LOCALE = 'en-AU';
+
 function getMonthLabel(year: number, month: number): string {
   const date = new Date(year, month, 1);
-  return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  return date.toLocaleDateString(CALENDAR_LOCALE, { month: 'long', year: 'numeric' });
 }
 
 function getCalendarDays(year: number, month: number): Array<Date | null> {
@@ -180,7 +183,7 @@ export function MultiDatePicker({
               type="button"
               disabled={disabled}
               onClick={() => toggleDate(dateStr)}
-              aria-label={date.toLocaleDateString('en-US', {
+              aria-label={date.toLocaleDateString(CALENDAR_LOCALE, {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
@@ -206,7 +209,7 @@ export function MultiDatePicker({
         <div className="mt-3 flex flex-wrap gap-2" aria-label="Selected dates">
           {selectedDates.map((dateStr) => {
             const date = parseDate(dateStr);
-            const chipLabel = date.toLocaleDateString('en-US', {
+            const chipLabel = date.toLocaleDateString(CALENDAR_LOCALE, {
               month: 'short',
               day: 'numeric',
             });

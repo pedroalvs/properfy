@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ApiKeyResponse } from '@properfy/shared';
+import { formatInstantDate } from '@/lib/format-date';
 
 import { Button } from '@/components/ui';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -21,8 +22,9 @@ export function keyStatus(key: ApiKeyResponse): { label: string; className: stri
   return { label: 'Active', className: 'bg-success/10 text-success' };
 }
 
-function formatDate(value: string | null): string {
-  return value ? new Date(value).toLocaleDateString() : '—';
+/** Both fields are timestamps, so they resolve to a day in the platform timezone. */
+function formatKeyDate(value: string | null): string {
+  return value ? formatInstantDate(value) : '—';
 }
 
 /**
@@ -105,8 +107,8 @@ export function ApiKeysTab() {
                       )}
                     </td>
                     <td className="px-4 py-3 font-mono text-xs">{key.prefix}…</td>
-                    <td className="px-4 py-3">{formatDate(key.expiresAt)}</td>
-                    <td className="px-4 py-3">{formatDate(key.lastUsedAt)}</td>
+                    <td className="px-4 py-3">{formatKeyDate(key.expiresAt)}</td>
+                    <td className="px-4 py-3">{formatKeyDate(key.lastUsedAt)}</td>
                     <td className="px-4 py-3">
                       <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${status.className}`}>
                         {status.label}

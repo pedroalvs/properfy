@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsNav } from '@/components/layout/TabsNav';
 import { LoadingState } from '@/components/feedback/LoadingState';
-import { formatDate } from '@/lib/format-date';
+import { formatInstantDate } from '@/lib/format-date';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { DetailRow } from '@/components/data/DetailRow';
 import { FormSection } from '@/components/forms/FormSection';
@@ -145,11 +145,11 @@ export function TenantDetailPage() {
               <DetailRow label="Notes" value={tenant.notes} />
               <DetailRow
                 label="Created"
-                value={formatDate(tenant.createdAt)}
+                value={formatInstantDate(tenant.createdAt)}
               />
               <DetailRow
                 label="Updated"
-                value={formatDate(tenant.updatedAt)}
+                value={formatInstantDate(tenant.updatedAt)}
               />
             </FormSection>
           </div>

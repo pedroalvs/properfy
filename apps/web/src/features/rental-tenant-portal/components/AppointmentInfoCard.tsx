@@ -1,6 +1,6 @@
 import { AppointmentStatusChip } from '@/features/appointments/components/AppointmentStatusChip';
 import { buildAddressLabel } from '@/lib/address';
-import { formatDate } from '@/lib/format-date';
+import { formatCivilDate, formatWallTimeRange } from '@/lib/format-date';
 import { RENTAL_TENANT_CONFIRMATION_STATUS_MAP } from '@/lib/status-colors';
 import { useCountdown } from '../hooks/useCountdown';
 import type { PortalAppointment } from '../types';
@@ -57,10 +57,10 @@ export function AppointmentInfoCard({
           <DetailItem label="Service type">{appointment.serviceType.name}</DetailItem>
         )}
 
-        <DetailItem label="Scheduled date">{formatDate(appointment.scheduledDate)}</DetailItem>
+        <DetailItem label="Scheduled date">{formatCivilDate(appointment.scheduledDate)}</DetailItem>
 
         <DetailItem label="Time slot">
-          {`${appointment.timeSlotStart} – ${appointment.timeSlotEnd}`}
+          {formatWallTimeRange(appointment.timeSlotStart, appointment.timeSlotEnd)}
         </DetailItem>
 
         <DetailItem label="Status">

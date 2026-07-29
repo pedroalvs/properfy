@@ -1,4 +1,4 @@
-import { formatDateTime } from '@/lib/format-date';
+import { formatInstantDateTime } from '@/lib/format-date';
 import type { AuditLogEntry } from '../hooks/useAppointmentAuditLog';
 
 interface AuditTimelineProps {
@@ -120,7 +120,7 @@ export function AuditTimeline({ entries }: AuditTimelineProps) {
               <div className="ml-3">
                 <p className="text-sm font-semibold text-text-primary">{formatAction(entry.action)}</p>
                 <p className="text-xs text-text-secondary">
-                  by {formatActor(entry)} &middot; {formatDateTime(entry.createdAt)}
+                  by {formatActor(entry)} &middot; {formatInstantDateTime(entry.createdAt)}
                 </p>
                 {entry.reason && (
                   <p className="mt-1 text-xs text-text-secondary italic">

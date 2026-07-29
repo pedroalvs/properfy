@@ -69,7 +69,7 @@ describe('OfferDetailPanel', () => {
     expect(screen.getByTestId('offer-detail-panel')).toBeInTheDocument();
     expect(screen.getByText('Routine Inspection')).toBeInTheDocument();
     expect(screen.getAllByText('Sydney CBD').length).toBeGreaterThan(0);
-    expect(screen.getByText('09:00-12:00')).toBeInTheDocument();
+    expect(screen.getByText('9:00 am – 12:00 pm')).toBeInTheDocument();
   });
 
   it('shows suburbs summary', () => {
