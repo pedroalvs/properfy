@@ -21,11 +21,16 @@
  * regardless of the predicate and would hide every one of them. Hence a real
  * PostgreSQL database.
  *
- * Fixture (one tenant): TENANT_DEBIT 100 (agency-visible), REFUND 20
+ * Fixture — agency A: TENANT_DEBIT 100 (agency-visible), REFUND 20
  * (agency-visible), MANUAL_ADJUSTMENT 10 with no inspector (agency-visible),
  * INSPECTOR_PAYOUT 80 (inspector leg), MANUAL_ADJUSTMENT 15 scoped to the
  * inspector (inspector leg), plus one PENDING INSPECTOR_PAYOUT to prove
  * `pendingCount` is scoped too.
+ *
+ * Agency B holds a single TENANT_DEBIT 777 — agency-visible *by type*. It is the
+ * control for the second half of the invariant: the new inspector-leg predicate
+ * must narrow the agency read without disturbing the tenant predicate. A
+ * type-only filter would surface that row in A's list, summary or detail.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -64,9 +69,11 @@ const listInput = (actor: AuthContext) => ({
 describe('Agency financial reads exclude the inspector leg (real DB)', () => {
   let harness: DbHarness | undefined;
   let tenantId: string;
+  let otherTenantId: string;
   let payoutEntryId: string;
   let inspectorAdjustmentId: string;
   let tenantDebitId: string;
+  let otherTenantDebitId: string;
   let listUseCase: ListFinancialEntriesUseCase;
   let getUseCase: GetFinancialEntryUseCase;
   let summaryUseCase: GetFinancialSummaryUseCase;
@@ -126,6 +133,47 @@ describe('Agency financial reads exclude the inspector leg (real DB)', () => {
     // Pending payout — proves `pendingCount` is scoped, not only the approved sums.
     await entry({ entry_type: 'INSPECTOR_PAYOUT', amount: '40.00', inspector_id: inspector.id, status: 'PENDING' });
 
+    // Second agency with an entry that IS agency-visible by type. The new
+    // inspector-leg predicate must narrow the agency read without disturbing the
+    // tenant predicate — a type-only filter would let this row through.
+    const otherTenant = await prisma.tenant.create({
+      data: {
+        name: 'Other Agency',
+        legal_name: `Other Agency LLC ${rnd()}`,
+        status: 'ACTIVE',
+        currency: 'AUD',
+      },
+    });
+    otherTenantId = otherTenant.id;
+    const otherBranch = await prisma.branch.create({
+      data: { tenant_id: otherTenant.id, name: 'Other Branch', status: 'ACTIVE' },
+    });
+    const otherUser = await prisma.user.create({
+      data: {
+        tenant_id: otherTenant.id,
+        branch_id: otherBranch.id,
+        role: 'OP',
+        name: 'Other Actor',
+        email: `other-${rnd()}@test.local`,
+        password_hash: '$2a$10$fakehashfakehashfakehashfakehashfake',
+        status: 'ACTIVE',
+      },
+    });
+    otherTenantDebitId = (
+      await prisma.financialEntry.create({
+        data: {
+          tenant_id: otherTenant.id,
+          currency: 'AUD',
+          status: 'APPROVED',
+          description: 'other-tenant fixture',
+          initiated_by_user_id: otherUser.id,
+          effective_at: new Date('2026-05-10T00:00:00.000Z'),
+          entry_type: 'TENANT_DEBIT',
+          amount: '777.00',
+        } as never,
+      })
+    ).id;
+
     const entryRepo = new PrismaFinancialEntryRepository(prisma);
     const tenantRepo = new PrismaTenantRepository(prisma);
     listUseCase = new ListFinancialEntriesUseCase(entryRepo, silentAuditService());
@@ -146,6 +194,35 @@ describe('Agency financial reads exclude the inspector leg (real DB)', () => {
     expect(result.data.every((e) => e.inspectorId === null)).toBe(true);
   });
 
+  // The new inspector-leg predicate must ADD to the tenant predicate, never replace
+  // it: the other agency's row is agency-visible by type, so a type-only filter
+  // would surface it.
+  it('does not leak the other agency entry into the CL_ADMIN list', async () => {
+    const result = await listUseCase.execute(listInput(clAdminActor(tenantId)));
+    expect(result.data.every((e) => e.tenantId === tenantId)).toBe(true);
+    expect(result.data.some((e) => Number(e.amount) === 777)).toBe(false);
+  });
+
+  it('does not leak the other agency entry into the CL_ADMIN summary', async () => {
+    const summary = await summaryUseCase.execute({ actor: clAdminActor(tenantId) });
+    // 100 only — the other agency's 777 debit must not be summed in.
+    expect(summary.totalDebits).toBe(100);
+  });
+
+  it('refuses to return the other agency entry to CL_ADMIN by id', async () => {
+    await expect(
+      getUseCase.execute({ entryId: otherTenantDebitId, actor: clAdminActor(tenantId) }),
+    ).rejects.toThrow(EntryNotFoundError);
+  });
+
+  it('returns the other agency entry to its OWN agency (fixture is genuinely readable)', async () => {
+    const result = await getUseCase.execute({
+      entryId: otherTenantDebitId,
+      actor: clAdminActor(otherTenantId),
+    });
+    expect(Number(result.amount)).toBe(777);
+  });
+
   it('excludes the inspector-scoped adjustment even when CL_ADMIN filters by MANUAL_ADJUSTMENT', async () => {
     const result = await listUseCase.execute({
       ...listInput(clAdminActor(tenantId)),
@@ -157,10 +234,11 @@ describe('Agency financial reads exclude the inspector leg (real DB)', () => {
     expect(Number(result.data[0]!.amount)).toBe(10);
   });
 
-  it('still shows the whole ledger to AM', async () => {
+  it('still shows the whole ledger to AM, across agencies', async () => {
     const result = await listUseCase.execute(listInput(amActor()));
-    // 5 approved + 1 pending
-    expect(result.total).toBe(6);
+    // tenant A: 5 approved + 1 pending; tenant B: 1 approved
+    expect(result.total).toBe(7);
+    expect(result.data.some((e) => e.tenantId === otherTenantId)).toBe(true);
   });
 
   it('refuses to return an own-tenant INSPECTOR_PAYOUT to CL_ADMIN by id', async () => {
