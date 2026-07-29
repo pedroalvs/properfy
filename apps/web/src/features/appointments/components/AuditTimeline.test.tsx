@@ -163,4 +163,50 @@ describe('AuditTimeline', () => {
     const { container } = render(<AuditTimeline entries={[]} />);
     expect(container.innerHTML).toBe('');
   });
+
+  it('labels notification failures so they read as incidents on the timeline', () => {
+    const entries: AuditLogEntry[] = [
+      {
+        id: 'log-notif-1',
+        tenantId: 'ten-1',
+        actorType: 'SYSTEM',
+        actorId: null,
+        actorName: null,
+        entityType: 'Appointment',
+        entityId: 'apt-01',
+        action: 'notification.send_failed',
+        reason: null,
+        beforeJson: null,
+        afterJson: { templateCode: 'INSPECTION_NOTICE_SMS', channel: 'SMS', failureReason: 'EMPTY_SMS_BODY' },
+        requestId: null,
+        ipAddress: null,
+        metadataJson: null,
+        createdAt: '2026-03-12T09:00:00Z',
+      },
+      {
+        id: 'log-notif-2',
+        tenantId: 'ten-1',
+        actorType: 'SYSTEM',
+        actorId: null,
+        actorName: null,
+        entityType: 'Appointment',
+        entityId: 'apt-01',
+        action: 'notification.dispatch_failed',
+        reason: null,
+        beforeJson: null,
+        afterJson: { targetStatus: 'SCHEDULED', error: 'sms provider exploded' },
+        requestId: null,
+        ipAddress: null,
+        metadataJson: null,
+        createdAt: '2026-03-12T09:01:00Z',
+      },
+    ];
+
+    const { container } = render(<AuditTimeline entries={entries} />);
+
+    expect(screen.getByText('Notification Failed to Send')).toBeInTheDocument();
+    expect(screen.getByText('Notification Dispatch Failed')).toBeInTheDocument();
+    // Both must read as errors, not as neutral activity.
+    expect(container.querySelectorAll('.border-error').length).toBe(2);
+  });
 });

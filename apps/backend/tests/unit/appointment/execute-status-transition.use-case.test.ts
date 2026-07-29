@@ -991,6 +991,75 @@ describe('ExecuteStatusTransitionUseCase – onTransitionHandler', () => {
     });
   });
 
+  // The catch around this handler used to be `catch {}` — it did not even bind
+  // the error, so a dispatch failure left nothing behind but the handler's own
+  // log line while the transition itself was audited as perfectly healthy.
+  describe('when the notification dispatch fails', () => {
+    it('still completes the transition', async () => {
+      appointmentRepo.findById.mockResolvedValue(
+        makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null }),
+      );
+      onTransitionHandler.execute.mockRejectedValueOnce(new Error('sms provider exploded'));
+      const uc = makeUseCase({ withOnTransitionHandler: true });
+
+      await expect(
+        uc.execute({
+          appointmentId: 'appt-1',
+          targetStatus: 'SCHEDULED',
+          inspectorId: 'insp-1',
+          actor: makeActor('OP'),
+        }),
+      ).resolves.toBeDefined();
+      expect(appointmentRepo.update).toHaveBeenCalled();
+    });
+
+    it('records the failure against the appointment so it lands on the timeline', async () => {
+      appointmentRepo.findById.mockResolvedValue(
+        makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null }),
+      );
+      onTransitionHandler.execute.mockRejectedValueOnce(new Error('sms provider exploded'));
+      const uc = makeUseCase({ withOnTransitionHandler: true });
+
+      await uc.execute({
+        appointmentId: 'appt-1',
+        targetStatus: 'SCHEDULED',
+        inspectorId: 'insp-1',
+        actor: makeActor('OP'),
+      });
+
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'notification.dispatch_failed',
+          entityType: 'Appointment',
+          entityId: 'appt-1',
+          tenantId: 'tenant-1',
+          after: expect.objectContaining({
+            targetStatus: 'SCHEDULED',
+            error: 'sms provider exploded',
+          }),
+        }),
+      );
+    });
+
+    it('writes no dispatch-failure audit when the handler succeeds', async () => {
+      appointmentRepo.findById.mockResolvedValue(
+        makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null }),
+      );
+      const uc = makeUseCase({ withOnTransitionHandler: true });
+
+      await uc.execute({
+        appointmentId: 'appt-1',
+        targetStatus: 'SCHEDULED',
+        inspectorId: 'insp-1',
+        actor: makeActor('OP'),
+      });
+
+      expect(auditService.log).not.toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'notification.dispatch_failed' }),
+      );
+    });
+  });
+
   it('calls onTransitionHandler with correct args when transitioning to CANCELLED', async () => {
     appointmentRepo.findById.mockResolvedValue(
       makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),

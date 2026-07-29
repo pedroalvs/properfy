@@ -1073,6 +1073,7 @@ export function createContainer(logger: Logger): AppContainer {
     getTenantSettings,
     htmlSanitizer,
     htmlToText,
+    auditService,
   });
   const retryNotificationUseCase = new RetryNotificationUseCase(notificationRepo, auditService, authorizationService);
   const handleProviderWebhookUseCase = new HandleProviderWebhookUseCase(notificationRepo, logger);

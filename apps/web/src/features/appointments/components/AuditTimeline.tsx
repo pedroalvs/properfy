@@ -20,6 +20,8 @@ const ACTION_LABELS: Record<string, string> = {
   'rental_tenant_portal.group_joined': 'Tenant Joined Group',
   'inspection.started': 'Inspection Started',
   'inspection.finished': 'Inspection Finished',
+  'notification.send_failed': 'Notification Failed to Send',
+  'notification.dispatch_failed': 'Notification Dispatch Failed',
 };
 
 const ACTION_STYLES: Record<string, { icon: string; color: string }> = {
@@ -37,6 +39,8 @@ const ACTION_STYLES: Record<string, { icon: string; color: string }> = {
   'rental_tenant_portal.group_joined': { icon: 'mdi-account-group', color: 'border-success' },
   'inspection.started': { icon: 'mdi-play-circle', color: 'border-success' },
   'inspection.finished': { icon: 'mdi-flag-checkered', color: 'border-success' },
+  'notification.send_failed': { icon: 'mdi-email-alert', color: 'border-error' },
+  'notification.dispatch_failed': { icon: 'mdi-bell-alert', color: 'border-error' },
 };
 
 const DEFAULT_STYLE = { icon: 'mdi-circle-small', color: 'border-primary' };
