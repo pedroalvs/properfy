@@ -12697,6 +12697,7 @@
                       "SCHEDULING_CONFLICT",
                       "INSPECTOR_UNAVAILABLE",
                       "DUPLICATE",
+                      "EXPIRED",
                       "OTHER"
                     ]
                   },
@@ -14064,6 +14065,93 @@
                             ],
                             "additionalProperties": false
                           }
+                        },
+                        "fileIssues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string",
+                                "enum": [
+                                  "IMPORT_FILE_EMPTY",
+                                  "IMPORT_FILE_CONTENT_MISMATCH",
+                                  "IMPORT_FILE_CORRUPT_XLSX",
+                                  "IMPORT_FILE_CORRUPT_CSV",
+                                  "IMPORT_FILE_NO_WORKSHEETS",
+                                  "IMPORT_FILE_NO_HEADER_ROW",
+                                  "IMPORT_FILE_MISSING_COLUMNS",
+                                  "IMPORT_FILE_MULTIPLE_SHEETS",
+                                  "IMPORT_FILE_UNKNOWN_COLUMNS",
+                                  "IMPORT_FILE_NO_DATA_ROWS"
+                                ]
+                              },
+                              "severity": {
+                                "type": "string",
+                                "enum": [
+                                  "warning",
+                                  "error"
+                                ]
+                              },
+                              "message": {
+                                "type": "string"
+                              },
+                              "missingColumns": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "default": []
+                              },
+                              "foundColumns": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "default": []
+                              },
+                              "unknownColumns": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "column": {
+                                      "type": "string"
+                                    },
+                                    "suggestion": {
+                                      "type": "string",
+                                      "nullable": true
+                                    }
+                                  },
+                                  "required": [
+                                    "column",
+                                    "suggestion"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "default": []
+                              },
+                              "sheetUsed": {
+                                "type": "string",
+                                "nullable": true,
+                                "default": null
+                              },
+                              "sheetsIgnored": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "default": []
+                              }
+                            },
+                            "required": [
+                              "code",
+                              "severity",
+                              "message"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "default": []
                         }
                       },
                       "required": [

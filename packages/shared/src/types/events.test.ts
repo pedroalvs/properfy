@@ -69,6 +69,30 @@ describe('DomainEvent types', () => {
     expect(event.metadata).toEqual({ inspectorId: 'insp-1' });
   });
 
+  it('carries the appointment service group so subscribers need no extra lookup', () => {
+    const grouped: AppointmentTransitionEvent = {
+      appointmentId: 'apt-1',
+      tenantId: 'tenant-1',
+      fromStatus: 'SCHEDULED',
+      toStatus: 'CANCELLED',
+      actorId: 'user-1',
+      actorType: 'USER',
+      serviceGroupId: 'sg-1',
+    };
+    expect(grouped.serviceGroupId).toBe('sg-1');
+
+    const ungrouped: AppointmentTransitionEvent = {
+      appointmentId: 'apt-2',
+      tenantId: 'tenant-1',
+      fromStatus: 'DRAFT',
+      toStatus: 'CANCELLED',
+      actorId: 'user-1',
+      actorType: 'USER',
+      serviceGroupId: null,
+    };
+    expect(ungrouped.serviceGroupId).toBeNull();
+  });
+
   it('can construct AppointmentTransitionEvent without optional fields', () => {
     const event: AppointmentTransitionEvent = {
       appointmentId: 'apt-1',

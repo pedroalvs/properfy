@@ -49,8 +49,9 @@ function ContactRow({ contact }: { contact: AppointmentContactEntry }) {
 
 export function AppointmentContactTab({ appointment }: AppointmentContactTabProps) {
   // Availability the rental tenant offered when declining in the portal. Search for the
-  // restriction that carries it — a portal decline posts isHome:false and notes:null, so
-  // it can sit behind an operator-created restriction.
+  // restriction that carries it. Defensive: every writer currently replaces all
+  // restrictions with a single row, so this and the isHome/notes rows below always read
+  // the same record — but searching by content keeps it correct if that ever changes.
   const availableSlots = appointment.restrictions?.find(
     (r) => r.availableSlotsJson?.length,
   )?.availableSlotsJson;

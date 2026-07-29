@@ -52,7 +52,9 @@ const NAV_ITEMS: NavItem[] = [
   { icon: 'mdi-bank-outline', label: 'Financial', to: '/financial', roles: [UserRole.AM, UserRole.OP] },
   // 031 — Agency financial surface: CL_ADMIN always; CL_USER gated by `view_financials`.
   { icon: 'mdi-bank-outline', label: 'Financial', to: '/my-financial', roles: [UserRole.CL_ADMIN, UserRole.CL_USER], flag: 'view_financials' },
-  { icon: 'mdi-chart-bar', label: 'Reports', to: '/reports', roles: [UserRole.AM, UserRole.OP] },
+  // Agency-visible surface: CL_ADMIN always; CL_USER gated by `view_financials`
+  // (the Financial report is one of the types an agency can generate).
+  { icon: 'mdi-chart-bar', label: 'Reports', to: '/reports', roles: [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER], flag: 'view_financials' },
   {
     icon: 'mdi-cog-outline',
     label: 'Configuration',

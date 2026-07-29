@@ -5111,7 +5111,7 @@ export interface paths {
                         targetStatus: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
                         reason?: string;
                         /** @enum {string} */
-                        cancellationReasonCode?: "CLIENT_REQUEST" | "TENANT_UNAVAILABLE" | "SCHEDULING_CONFLICT" | "INSPECTOR_UNAVAILABLE" | "DUPLICATE" | "OTHER";
+                        cancellationReasonCode?: "CLIENT_REQUEST" | "TENANT_UNAVAILABLE" | "SCHEDULING_CONFLICT" | "INSPECTOR_UNAVAILABLE" | "DUPLICATE" | "EXPIRED" | "OTHER";
                         /** @enum {string} */
                         rejectionReasonCode?: "INVALID_ADDRESS" | "PROPERTY_INACCESSIBLE" | "SAFETY_CONCERN" | "INSUFFICIENT_INFO" | "SERVICE_NOT_AVAILABLE" | "TENANT_NO_RESPONSE" | "OTHER";
                         /** Format: uuid */
@@ -5717,6 +5717,27 @@ export interface paths {
                                         severity: "warning" | "error";
                                         message: string;
                                     }[];
+                                }[];
+                                /** @default [] */
+                                fileIssues: {
+                                    /** @enum {string} */
+                                    code: "IMPORT_FILE_EMPTY" | "IMPORT_FILE_CONTENT_MISMATCH" | "IMPORT_FILE_CORRUPT_XLSX" | "IMPORT_FILE_CORRUPT_CSV" | "IMPORT_FILE_NO_WORKSHEETS" | "IMPORT_FILE_NO_HEADER_ROW" | "IMPORT_FILE_MISSING_COLUMNS" | "IMPORT_FILE_MULTIPLE_SHEETS" | "IMPORT_FILE_UNKNOWN_COLUMNS" | "IMPORT_FILE_NO_DATA_ROWS";
+                                    /** @enum {string} */
+                                    severity: "warning" | "error";
+                                    message: string;
+                                    /** @default [] */
+                                    missingColumns: string[];
+                                    /** @default [] */
+                                    foundColumns: string[];
+                                    /** @default [] */
+                                    unknownColumns: {
+                                        column: string;
+                                        suggestion: string | null;
+                                    }[];
+                                    /** @default null */
+                                    sheetUsed: string | null;
+                                    /** @default [] */
+                                    sheetsIgnored: string[];
                                 }[];
                             };
                         };

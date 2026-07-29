@@ -159,10 +159,13 @@ export class PrismaDashboardRepository implements DashboardRepository {
         },
       }),
 
-      // Processing reports
+      // Processing reports. `tenantId` is set only for CL_ADMIN/CL_USER, who can
+      // only ever list their own agency-scoped runs — so the count must apply the
+      // same `agency_scoped` predicate the report list does, or the tile would
+      // count an operator's run against this agency that /reports never shows.
       this.prisma.report.count({
         where: {
-          ...(tenantId ? { tenant_id: tenantId } : {}),
+          ...(tenantId ? { tenant_id: tenantId, agency_scoped: true } : {}),
           status: 'PROCESSING',
         },
       }),

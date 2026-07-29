@@ -12,6 +12,7 @@ import {
 } from 'fastify-type-provider-zod';
 import { getEnv } from './env';
 import { metrics } from '../shared/infrastructure/metrics';
+import { TooManyRequestsError, ForbiddenError } from '../shared/domain/errors';
 
 export async function registerPlugins(app: FastifyInstance): Promise<void> {
   const env = getEnv();
@@ -65,12 +66,31 @@ export async function registerPlugins(app: FastifyInstance): Promise<void> {
   await app.register(rateLimit, {
     max: 200,
     timeWindow: '1 minute',
-    errorResponseBuilder: (_request, context) => ({
-      error: {
-        code: 'RATE_LIMIT_EXCEEDED',
-        message: `Rate limit exceeded. Retry after ${context.after}`,
-      },
-    }),
+    // @fastify/rate-limit THROWS whatever this returns (index.js:261), and the
+    // thrown value lands in the global error handler. Returning a plain
+    // `{ error: {...} }` object here is what made every rate-limited request a
+    // 500 "Unhandled error": with no `statusCode` it matched none of the
+    // handler's branches. Return a DomainError instead, so the handler renders
+    // the envelope, honours the status, and surfaces `retryAfter`.
+    errorResponseBuilder: (_request, context) => {
+      // The plugin answers a banned key with 403 rather than 429 (it sets
+      // `statusCode = 403` exactly when `ban` is set). No route enables `ban`
+      // today; this keeps the two in step if one ever does.
+      if (context.ban) {
+        return new ForbiddenError(
+          'RATE_LIMIT_BANNED',
+          'Too many requests. Access has been temporarily blocked.',
+        );
+      }
+      return new TooManyRequestsError(
+        'RATE_LIMIT_EXCEEDED',
+        `Rate limit exceeded. Retry after ${context.after}`,
+        // Seconds, matching the `Retry-After` header the plugin already set
+        // (it uses the same Math.ceil(ttl / 1000)). `context.after` is a human
+        // string like "1 minute" and must not go here — see TooManyRequestsError.
+        Math.ceil(context.ttl / 1000),
+      );
+    },
   });
 
   // OpenAPI spec generation

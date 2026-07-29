@@ -10,6 +10,12 @@ export interface ReportDataFilters {
   dateAxis: ReportDateAxis;
   /** Agency scope (SaaS tenant). */
   tenantId?: string;
+  /**
+   * The run belongs to an agency rather than an operator. Narrows what the rows
+   * may contain: the Financial report drops the platform↔inspector leg and the
+   * Performance report drops the inspector's personal email.
+   */
+  agencyScoped?: boolean;
   branchId?: string;
   /** Case-insensitive match against `property.suburb`. */
   suburb?: string;

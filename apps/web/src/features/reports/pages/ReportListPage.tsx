@@ -8,6 +8,8 @@ import { GenerateReportDialog } from '../components/GenerateReportDialog';
 import { useReportList } from '../hooks/useReportList';
 import { useReportGenerate } from '../hooks/useReportGenerate';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import { usePermissions } from '@/hooks/usePermissions';
+import { NoPermissionState } from '@/components/feedback/NoPermissionState';
 import { api } from '@/services/api';
 import type { paths } from '@properfy/shared';
 import { unwrapSuccessData } from '@/lib/api-envelope';
@@ -30,6 +32,10 @@ export function ReportListPage() {
   } = useReportList();
 
   const { showError } = useSnackbar();
+  const { hasClUserFlag } = usePermissions();
+  // CL_USER needs the agency's `view_financials` flag (no-op for other roles);
+  // the backend enforces the same gate on every /v1/reports route.
+  const canView = hasClUserFlag('view_financials');
   const { generate, isGenerating } = useReportGenerate();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -93,6 +99,14 @@ export function ReportListPage() {
       { onSuccess: () => refetch() },
     );
   }, [generate, refetch, showError]);
+
+  if (!canView) {
+    return (
+      <ListFilterTableTemplate title="Reports">
+        <NoPermissionState message="You don't have permission to view reports." />
+      </ListFilterTableTemplate>
+    );
+  }
 
   return (
     <ListFilterTableTemplate

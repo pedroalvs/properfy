@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '@/hooks/useAuth';
+import type * as UseAuthModule from '@/hooks/useAuth';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
 vi.mock('@/config/env', () => ({
@@ -27,6 +28,20 @@ vi.mock('@/lib/auth-storage', () => ({
     clearTokens: vi.fn(),
   },
 }));
+
+// The page is only reachable behind AuthGuard, so an authenticated actor is the
+// realistic baseline. It also drives the in-page `view_financials` gate, which
+// treats an absent user as no permission.
+const AM_USER = { id: 'u-am', name: 'Admin Principal', email: 'am@test.com', role: 'AM', tenantId: null };
+let mockUser: Record<string, unknown> = AM_USER;
+
+vi.mock('@/hooks/useAuth', async () => {
+  const actual = await vi.importActual<typeof UseAuthModule>('@/hooks/useAuth');
+  return {
+    ...actual,
+    useAuth: () => ({ user: mockUser, isLoading: false }),
+  };
+});
 
 import { api } from '@/services/api';
 import { ReportListPage } from './ReportListPage';
@@ -57,6 +72,7 @@ function createWrapper() {
 }
 
 beforeEach(() => {
+  mockUser = AM_USER;
   mockGet.mockReset();
   mockPost.mockReset();
   mockGet.mockResolvedValue({ data: {
@@ -166,5 +182,24 @@ describe('ReportListPage', () => {
         },
       });
     });
+  });
+
+  // CL_USER reaches the route (AuthGuard admits it) but needs the agency's
+  // `view_financials` flag — it gets an explanation rather than a silent bounce.
+  it('shows a no-permission state for a CL_USER without view_financials', async () => {
+    mockUser = { id: 'u-clu', name: 'Client User', email: 'clu@test.com', role: 'CL_USER', tenantId: 'tenant-1', clUserPermissions: [] };
+
+    render(<ReportListPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText(/don't have permission/i)).toBeInTheDocument();
+    expect(screen.queryByText('Generate Report')).not.toBeInTheDocument();
+  });
+
+  it('renders the page for a CL_USER holding view_financials', async () => {
+    mockUser = { id: 'u-clu', name: 'Client User', email: 'clu@test.com', role: 'CL_USER', tenantId: 'tenant-1', clUserPermissions: ['view_financials'] };
+
+    render(<ReportListPage />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Generate Report')).toBeInTheDocument();
   });
 });

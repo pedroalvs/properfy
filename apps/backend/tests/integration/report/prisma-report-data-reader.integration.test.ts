@@ -233,6 +233,28 @@ describe('getFinancialRows', () => {
     // The PENDING debit (999) must not appear.
     expect(rows.some((r) => r.revenue === 999)).toBe(false);
   });
+
+  // An agency must never see the platform↔inspector leg. Asserted against real
+  // Postgres because this is a WHERE-clause behaviour a stubbed repo would fake.
+  it('excludes the inspector leg entirely when agency-scoped', async () => {
+    const rows = await reader.getFinancialRows({ ...baseFilters(), agencyScoped: true });
+
+    // debit(100) + refund(20) + tenant-adjustment(10) = 3 detail rows + TOTAL
+    expect(rows).toHaveLength(4);
+    expect(rows.some((r) => r.entryType === 'INSPECTOR_PAYOUT')).toBe(false);
+    // The inspector-scoped MANUAL_ADJUSTMENT (15) is part of the inspector leg too.
+    expect(rows.some((r) => r.amount === 15 || r.amount === -15)).toBe(false);
+
+    const total = rows.find((r) => r.description === 'TOTAL')!;
+    expect(total.amount).toBe(90); // 100 - 20 + 10
+
+    // No NET row and no inspector/expense columns to populate.
+    expect(rows.some((r) => String(r.description).startsWith('NET'))).toBe(false);
+    for (const row of rows) {
+      expect(row).not.toHaveProperty('inspector');
+      expect(row).not.toHaveProperty('expense');
+    }
+  });
 });
 
 describe('getAgencyRows', () => {
@@ -259,5 +281,13 @@ describe('getPerformanceRows', () => {
     expect(r.totalAppointments).toBe(2); // apt1 + apt2 carry the inspector
     expect(r.completed).toBe(1);
     expect(r.completionRate).toBe(50);
+    expect(r.inspectorEmail).toBeDefined();
+  });
+
+  it('omits the inspector email when agency-scoped', async () => {
+    const rows = await reader.getPerformanceRows({ ...baseFilters(), agencyScoped: true });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].inspectorName).toBe('Ivy');
+    expect(rows[0]).not.toHaveProperty('inspectorEmail');
   });
 });

@@ -11,8 +11,12 @@ describe('CancellationReasonCode', () => {
     expect(CancellationReasonCode.OTHER).toBe('OTHER');
   });
 
-  it('has exactly 6 codes', () => {
-    expect(Object.keys(CancellationReasonCode)).toHaveLength(6);
+  it('has EXPIRED for appointments auto-cancelled after their date passed', () => {
+    expect(CancellationReasonCode.EXPIRED).toBe('EXPIRED');
+  });
+
+  it('has exactly 7 codes', () => {
+    expect(Object.keys(CancellationReasonCode)).toHaveLength(7);
   });
 });
 

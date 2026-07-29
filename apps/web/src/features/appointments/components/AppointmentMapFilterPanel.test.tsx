@@ -108,17 +108,30 @@ describe('AppointmentMapFilterPanel', () => {
     expect(scheduledButton.getAttribute('aria-pressed')).toBe('false');
   });
 
-  it('group mode shows correct default status selections', () => {
+  // Non-active groups are off by default. A cancelled group has had all its
+  // appointments unlinked, so it always reports "no map location" and dominated the
+  // un-plottable warning with rows nobody can act on. PUBLISHED is labelled
+  // "Awaiting Inspector".
+  it('group mode defaults to active groups only', () => {
     renderPanel({ mode: 'groups' });
-    const draftGroup = screen.getByRole('button', { name: 'Draft' });
-    const awaitingInspector = screen.getByRole('button', { name: 'Awaiting Inspector' });
-    const accepted = screen.getByRole('button', { name: 'Accepted' });
-    const canceled = screen.getByRole('button', { name: 'Canceled' });
 
-    expect(draftGroup.getAttribute('aria-pressed')).toBe('true');
-    expect(awaitingInspector.getAttribute('aria-pressed')).toBe('true');
-    expect(accepted.getAttribute('aria-pressed')).toBe('true');
-    expect(canceled.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Awaiting Inspector' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Accepted' }).getAttribute('aria-pressed')).toBe('true');
+
+    expect(screen.getByRole('button', { name: 'Draft' }).getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByRole('button', { name: 'Canceled' }).getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByRole('button', { name: 'Rejected' }).getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('still lets an operator opt into non-active groups', () => {
+    const onChange = vi.fn();
+    renderPanel({ mode: 'groups', onGroupFiltersChange: onChange });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Canceled' }));
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ statuses: expect.arrayContaining(['CANCELLED']) }),
+    );
   });
 
   it('toggles status on click', () => {

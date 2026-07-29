@@ -14,12 +14,34 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import { parseAppointmentImportFile } from '../appointment-import-parser';
 import { buildNormalizedAddressKey } from '../../../../shared/domain/normalize-address';
+import { DomainError } from '../../../../shared/domain/errors';
 
 interface ImportRowResult {
   rowNumber: number;
   status: 'created' | 'error';
   appointmentId?: string;
   message?: string;
+}
+
+/** Whole-file reason a commit failed, persisted to `errorsJson` so the
+ * progress screen can explain itself instead of showing a bare "Failed". */
+interface ImportFileFailure {
+  scope: 'file';
+  code: string;
+  message: string;
+}
+
+const GENERIC_COMMIT_FAILURE =
+  'The import could not be completed. Please try again, or contact support if it keeps failing.';
+
+/** Only a DomainError message is safe to show a user; anything else (Prisma
+ * text, a provider payload, a stack) gets the generic line — the same policy
+ * `getErrorMessage` applies to 5xx responses on the HTTP side. */
+function importFailure(err: unknown): ImportFileFailure {
+  if (err instanceof DomainError) {
+    return { scope: 'file', code: err.code, message: err.message };
+  }
+  return { scope: 'file', code: 'IMPORT_COMMIT_FAILED', message: GENERIC_COMMIT_FAILURE };
 }
 
 export interface AppointmentImportCommitJobData {
@@ -63,7 +85,14 @@ export class AppointmentImportCommitWorker {
     }
     if (!importRecord.branchId) {
       // Defensive guard — preview always sets branchId; this should be unreachable.
-      await this.importRepo.update(importId, { status: 'FAILED' });
+      await this.importRepo.update(importId, {
+        status: 'FAILED',
+        errorsJson: [{
+          scope: 'file',
+          code: 'IMPORT_MISSING_BRANCH',
+          message: GENERIC_COMMIT_FAILURE,
+        }],
+      });
       this.logger.error({ importId }, 'Appointment import missing branchId; cannot commit');
       return;
     }
@@ -92,12 +121,16 @@ export class AppointmentImportCommitWorker {
     try {
       const fileBuffer = await this.storageService.download(importRecord.fileKey);
       const ext = importRecord.originalFilename.toLowerCase().endsWith('.csv') ? 'csv' : 'xlsx';
-      const rawRows = await parseAppointmentImportFile(fileBuffer, ext);
+      // No required-column re-check here on purpose: this same stored blob
+      // already passed that gate at preview, and a second verdict at commit
+      // time would only confuse.
+      const parsed = await parseAppointmentImportFile(fileBuffer, ext);
 
-      const { rows } = await this.resolver.resolve(rawRows, {
+      const { rows } = await this.resolver.resolve(parsed.rows, {
         tenantId: importRecord.tenantId,
         branchId: importRecord.branchId,
         tz,
+        firstDataRowNumber: parsed.headerRowNumber + 1,
       });
 
       const createdPropertyIds = new Map<string, string>();
@@ -155,7 +188,10 @@ export class AppointmentImportCommitWorker {
 
       this.logger.info({ importId, totalRows: rows.length, successCount, errorCount }, 'Appointment import commit completed');
     } catch (err) {
-      await this.importRepo.update(importId, { status: 'FAILED' });
+      await this.importRepo.update(importId, {
+        status: 'FAILED',
+        errorsJson: [importFailure(err)],
+      });
       this.logger.error({ importId, error: err }, 'Appointment import commit failed');
       throw err;
     }

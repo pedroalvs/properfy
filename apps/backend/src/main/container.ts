@@ -379,6 +379,12 @@ import { SweepAbandonedAppointmentImportsWorker } from '../modules/appointment/i
 import { ImportGeocodeVerifier } from '../modules/property/application/services/import-geocode-verifier';
 import { RejectUnconfirmedAppointmentsUseCase } from '../modules/appointment/application/use-cases/reject-unconfirmed-appointments.use-case';
 import { RejectUnconfirmedWorker } from '../modules/appointment/infrastructure/workers/reject-unconfirmed.worker';
+import { CancelOverdueAppointmentsUseCase } from '../modules/appointment/application/use-cases/cancel-overdue-appointments.use-case';
+import { CancelOverdueWorker } from '../modules/appointment/infrastructure/workers/cancel-overdue.worker';
+import { CancelEmptyGroupService } from '../modules/service-group/application/services/cancel-empty-group.service';
+import { CancelEmptyGroupOnTransitionSubscriber } from '../modules/service-group/application/subscribers/cancel-empty-group-on-transition.subscriber';
+import { CancelEmptyServiceGroupsUseCase } from '../modules/service-group/application/use-cases/cancel-empty-service-groups.use-case';
+import { CancelEmptyGroupsWorker } from '../modules/service-group/infrastructure/workers/cancel-empty-groups.worker';
 import { GetPortalLinkUseCase } from '../modules/rental-tenant-portal/application/use-cases/get-portal-link.use-case';
 import { PrismaConfirmationCycleRepository } from '../modules/appointment/infrastructure/prisma-confirmation-cycle.repository';
 import { ConfirmationCycleService } from '../modules/appointment/application/services/confirmation-cycle.service';
@@ -438,6 +444,8 @@ export interface AppContainer {
   notifyStuckInspectionsWorker: NotifyStuckInspectionsWorker;
   auditRetentionWorker: AuditRetentionWorker;
   rejectUnconfirmedWorker: RejectUnconfirmedWorker;
+  cancelOverdueWorker: CancelOverdueWorker;
+  cancelEmptyGroupsWorker: CancelEmptyGroupsWorker;
 }
 
 export function createContainer(logger: Logger): AppContainer {
@@ -902,6 +910,13 @@ export function createContainer(logger: Logger): AppContainer {
   const republishServiceGroupUseCase = new RepublishServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService);
 
   const getAvailableGroupsUseCase = new GetAvailableGroupsUseCase(appointmentRepo, serviceGroupRepo);
+  // A released group whose last appointment dies has nothing left to execute. Declared
+  // here because both the portal group-move (below) and the transition subscriber
+  // (registered later) consume it.
+  const cancelEmptyGroupService = new CancelEmptyGroupService(
+    serviceGroupRepo, auditService, logger, domainEventBus,
+  );
+
   const joinGroupUseCase = new JoinGroupUseCase(
     appointmentRepo,
     serviceGroupRepo,
@@ -910,6 +925,7 @@ export function createContainer(logger: Logger): AppContainer {
     auditService,
     executeStatusTransitionUseCase,
     notifyOnRentalTenantPortalActionHandler,
+    cancelEmptyGroupService,
   );
 
   // 026 — Add appointments to existing group + read-only eligibility preview.
@@ -1154,6 +1170,8 @@ export function createContainer(logger: Logger): AppContainer {
   // writes emit no status transition, so nothing else would tell either inspector.
   new NotifyOnGroupInspectorChangeSubscriber(serviceGroupRepo, inspectorRepo, createNotificationUseCase, logger).register(domainEventBus);
 
+  new CancelEmptyGroupOnTransitionSubscriber(cancelEmptyGroupService, logger).register(domainEventBus);
+
   const appointmentImportRowResolver = new AppointmentImportRowResolver(
     propertyRepo, serviceTypeRepo, pricingRuleRepo, contactRepo,
   );
@@ -1198,6 +1216,18 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentRepo, serviceGroupRepo, auditService, logger, confirmationCycleService, prisma,
   );
   const rejectUnconfirmedWorker = new RejectUnconfirmedWorker(rejectUnconfirmedAppointmentsUseCase);
+
+  // Auto-cancel appointments whose date passed while still active, and released
+  // groups left with nothing to execute. The overdue sweep routes through the
+  // transition use case, so its cancellations reach cancelEmptyGroupSubscriber too.
+  const cancelOverdueAppointmentsUseCase = new CancelOverdueAppointmentsUseCase(
+    appointmentRepo, executeStatusTransitionUseCase, logger,
+  );
+  const cancelOverdueWorker = new CancelOverdueWorker(cancelOverdueAppointmentsUseCase);
+  const cancelEmptyServiceGroupsUseCase = new CancelEmptyServiceGroupsUseCase(
+    serviceGroupRepo, cancelEmptyGroupService, logger,
+  );
+  const cancelEmptyGroupsWorker = new CancelEmptyGroupsWorker(cancelEmptyServiceGroupsUseCase);
 
   // Feature 020 US5: operator control use cases
   const upsertRetentionCategoryUseCase = new UpsertRetentionCategoryUseCase(
@@ -1466,6 +1496,7 @@ export function createContainer(logger: Logger): AppContainer {
       downloadReportUseCase,
       listReportsUseCase,
       jwtService,
+      authorizationService,
       tenantRepo,
     },
     notification: {
@@ -1578,5 +1609,7 @@ export function createContainer(logger: Logger): AppContainer {
     notifyStuckInspectionsWorker,
     auditRetentionWorker,
     rejectUnconfirmedWorker,
+    cancelOverdueWorker,
+    cancelEmptyGroupsWorker,
   };
 }

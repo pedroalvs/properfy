@@ -2,7 +2,14 @@ import type { ReportEntity } from './report.entity';
 import type { ReportStatus, ReportType } from '@properfy/shared';
 
 export interface ReportFilters {
+  /** `null` narrows to cross-agency (platform-wide) runs; a uuid narrows to one agency. */
   tenantId?: string | null;
+  /**
+   * Narrows to agency runs (`true`) or operator runs (`false`). An agency listing
+   * must set `true` alongside `tenantId`: an operator-run report carries the same
+   * `tenant_id` but may contain platform-only columns the agency must not see.
+   */
+  agencyScoped?: boolean;
   requestedByUserId?: string;
   reportType?: ReportType;
   status?: ReportStatus;

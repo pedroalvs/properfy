@@ -11,7 +11,11 @@ import {
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
+import { normalizeClUserPermissions } from '../../../shared/domain/cl-user-permissions';
+import { REPORT_ROLES } from '../application/report-access';
 import { success, paginated } from '../../../shared/interfaces/response';
+import type { AuthorizationService } from '../../../shared/domain/authorization.service';
+import type { AuthContext } from '@properfy/shared';
 import type { RequestReportUseCase } from '../application/use-cases/request-report.use-case';
 import type { GetReportStatusUseCase } from '../application/use-cases/get-report-status.use-case';
 import type { DownloadReportUseCase } from '../application/use-cases/download-report.use-case';
@@ -24,6 +28,7 @@ export interface ReportRouteContainer {
   downloadReportUseCase: DownloadReportUseCase;
   listReportsUseCase: ListReportsUseCase;
   jwtService: JwtService;
+  authorizationService: AuthorizationService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean; settingsJson?: Record<string, unknown> } | null> };
 }
 
@@ -39,17 +44,31 @@ export async function registerReportRoutes(
       const tenant = await container.tenantRepo.findById(tenantId);
       return tenant?.isActive() ?? false;
     },
+    // Resolve CL_USER permission flags so the routes below can enforce
+    // `view_financials`. settingsJson is free-form JSON — normalize before use.
     async (tenantId) => {
       const tenant = await container.tenantRepo.findById(tenantId);
-      return (tenant?.settingsJson?.clUserPermissions as string[] | undefined) ?? [];
+      return normalizeClUserPermissions(tenant?.settingsJson?.clUserPermissions);
     },
   );
+
+  // Gate every report surface. Roles are re-checked inside the use cases (which
+  // also own the agency scoping); this layer exists so a CL_USER missing the
+  // `view_financials` flag is denied *and* the denial is audit-logged.
+  function assertReportAccess(actor: AuthContext, action: string): void {
+    container.authorizationService.assertRoles(actor, [...REPORT_ROLES], {
+      action,
+      entityType: 'Report',
+    });
+    container.authorizationService.assertClUserPermission(actor, 'view_financials');
+  }
 
   // POST /v1/reports
   app.post(
     '/v1/reports',
     { preHandler: authenticate, schema: { body: requestReportSchema, response: { 202: reportRequestedResponseSchema } } },
     async (request, reply) => {
+      assertReportAccess(request.authContext!, 'report.request');
       const parsed = requestReportSchema.safeParse(request.body);
       if (!parsed.success) {
         throw new ValidationError('Request payload is invalid', parsed.error.errors);
@@ -75,6 +94,7 @@ export async function registerReportRoutes(
     '/v1/reports',
     { preHandler: authenticate, schema: { querystring: listReportsQuerySchema, response: { 200: paginatedResponseSchema(reportResponseSchema) } } },
     async (request, reply) => {
+      assertReportAccess(request.authContext!, 'report.view');
       const parsed = listReportsQuerySchema.safeParse(request.query);
       if (!parsed.success) {
         throw new ValidationError('Invalid query parameters', parsed.error.errors);
@@ -93,6 +113,7 @@ export async function registerReportRoutes(
     '/v1/reports/:reportId',
     { preHandler: authenticate, schema: { params: z.object({ reportId: z.string().uuid() }), response: { 200: successResponseSchema(reportResponseSchema) } } },
     async (request, reply) => {
+      assertReportAccess(request.authContext!, 'report.view');
       const params = reportIdParam.safeParse(request.params);
       if (!params.success) {
         throw new ValidationError('Invalid report ID', params.error.errors);
@@ -110,6 +131,7 @@ export async function registerReportRoutes(
     '/v1/reports/:reportId/download',
     { preHandler: authenticate, schema: { params: z.object({ reportId: z.string().uuid() }), response: { 200: successResponseSchema(reportDownloadResponseSchema) } } },
     async (request, reply) => {
+      assertReportAccess(request.authContext!, 'report.download');
       const params = reportIdParam.safeParse(request.params);
       if (!params.success) {
         throw new ValidationError('Invalid report ID', params.error.errors);

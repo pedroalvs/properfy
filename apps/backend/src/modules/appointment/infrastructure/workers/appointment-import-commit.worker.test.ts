@@ -487,4 +487,56 @@ describe('AppointmentImportCommitWorker', () => {
     await worker.execute({ importId: 'import-1', actor: ACTOR });
     expect(deps.createAppointmentUseCase.execute.mock.calls[0]![0].customFields).toEqual([{ label: 'Alarm Code', value: '1234' }]);
   });
+  describe('failure reason', () => {
+    it('persists a corrupt-file reason so the progress screen can explain itself', async () => {
+      const deps = buildDeps();
+      deps.importRepo.findById.mockResolvedValue(buildRecord({ originalFilename: 'x.xlsx' }));
+      // Valid zip magic, garbage inside: the byte sniff passes and exceljs fails.
+      deps.storageService.download.mockResolvedValue(
+        Buffer.concat([Buffer.from([0x50, 0x4b, 0x03, 0x04]), Buffer.from('x'.repeat(256))]),
+      );
+      const worker = buildWorker(deps);
+
+      await expect(worker.execute({ importId: 'import-1', actor: ACTOR })).rejects.toThrow();
+
+      const failed = deps.importRepo.update.mock.calls.find((c: unknown[]) => (c[1] as any)?.status === 'FAILED');
+      expect(failed![1].errorsJson).toEqual([
+        {
+          scope: 'file',
+          code: 'IMPORT_FILE_CORRUPT_XLSX',
+          message: expect.stringContaining('could not be opened'),
+        },
+      ]);
+    });
+
+    // Only a DomainError message is safe to show a user; a raw infrastructure
+    // error must never reach the UI.
+    it('replaces a non-domain error with a generic message instead of leaking it', async () => {
+      const deps = buildDeps();
+      deps.importRepo.findById.mockResolvedValue(buildRecord());
+      deps.resolver.resolve.mockRejectedValue(new Error('connect ECONNREFUSED 10.0.0.1:5432'));
+      const worker = buildWorker(deps);
+
+      await expect(worker.execute({ importId: 'import-1', actor: ACTOR })).rejects.toThrow();
+
+      const failed = deps.importRepo.update.mock.calls.find((c: unknown[]) => (c[1] as any)?.status === 'FAILED');
+      const [failure] = failed![1].errorsJson as Array<{ code: string; message: string }>;
+      expect(failure!.code).toBe('IMPORT_COMMIT_FAILED');
+      expect(failure!.message).not.toContain('ECONNREFUSED');
+      expect(failure!.message).toContain('could not be completed');
+    });
+
+    it('records a reason on the defensive missing-branch guard too', async () => {
+      const deps = buildDeps();
+      deps.importRepo.findById.mockResolvedValue(buildRecord({ branchId: null }));
+      const worker = buildWorker(deps);
+
+      await worker.execute({ importId: 'import-1', actor: ACTOR });
+
+      const failed = deps.importRepo.update.mock.calls.find((c: unknown[]) => (c[1] as any)?.status === 'FAILED');
+      expect(failed![1].errorsJson).toEqual([
+        { scope: 'file', code: 'IMPORT_MISSING_BRANCH', message: expect.any(String) },
+      ]);
+    });
+  });
 });

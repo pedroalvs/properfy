@@ -273,6 +273,92 @@ describe('AppointmentImportPage', () => {
     expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
   });
 
+  it('shows the backend explanation and the missing columns, not a generic message', async () => {
+    setRole('CL_ADMIN', 'tenant-1');
+    mockGet.mockImplementation((path: string) => {
+      if (path === '/v1/branches') return list([{ id: 'branch-9', name: 'Branch Nine' }]);
+      return list([]);
+    });
+    mockPost.mockResolvedValue({
+      error: {
+        error: {
+          code: 'IMPORT_FILE_MISSING_COLUMNS',
+          message: 'This file is missing 2 required columns.',
+          details: [{
+            code: 'IMPORT_FILE_MISSING_COLUMNS',
+            severity: 'error',
+            message: 'This file is missing 2 required columns.',
+            missingColumns: ['Suburb', 'Postcode'],
+            foundColumns: ['Type', 'Street'],
+            unknownColumns: [],
+            sheetUsed: null,
+            sheetsIgnored: [],
+          }],
+        },
+      },
+      response: { status: 400 },
+    });
+    renderPage();
+
+    fireEvent.click(screen.getByLabelText('Branch'));
+    fireEvent.click(await screen.findByText('Branch Nine'));
+    const file = new File(['data'], 'import.csv', { type: 'text/csv' });
+    fireEvent.change(screen.getByTestId('file-input'), { target: { files: [file] } });
+    await waitFor(() => expect(screen.getByText('Next')).not.toBeDisabled());
+    fireEvent.click(screen.getByText('Next'));
+
+    await waitFor(() =>
+      expect(screen.getAllByText('This file is missing 2 required columns.').length).toBeGreaterThan(0),
+    );
+    // The old hardcoded copy must be gone.
+    expect(screen.queryByText('Could not generate a preview')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Check that the file matches the expected columns/)).not.toBeInTheDocument();
+    // And the column names are rendered as scannable lists.
+    expect(screen.getByText('Missing required columns')).toBeInTheDocument();
+    expect(screen.getByText('Suburb')).toBeInTheDocument();
+    expect(screen.getByText(/Type, Street/)).toBeInTheDocument();
+  });
+
+  it('warns which sheet was imported without blocking the preview', async () => {
+    setRole('CL_ADMIN', 'tenant-1');
+    mockGet.mockImplementation((path: string) => {
+      if (path === '/v1/branches') return list([{ id: 'branch-9', name: 'Branch Nine' }]);
+      return list([]);
+    });
+    mockPost.mockResolvedValue({
+      data: {
+        data: {
+          ...PREVIEW_RESPONSE,
+          fileIssues: [{
+            code: 'IMPORT_FILE_MULTIPLE_SHEETS',
+            severity: 'warning',
+            message: 'This workbook has 2 sheets. Only "Data" was imported; "Instructions" was ignored.',
+            missingColumns: [],
+            foundColumns: [],
+            unknownColumns: [],
+            sheetUsed: 'Data',
+            sheetsIgnored: ['Instructions'],
+          }],
+        },
+      },
+    });
+    renderPage();
+
+    fireEvent.click(screen.getByLabelText('Branch'));
+    fireEvent.click(await screen.findByText('Branch Nine'));
+    const file = new File(['data'], 'import.xlsx', { type: 'application/vnd.ms-excel' });
+    fireEvent.change(screen.getByTestId('file-input'), { target: { files: [file] } });
+    await waitFor(() => expect(screen.getByText('Next')).not.toBeDisabled());
+    fireEvent.click(screen.getByText('Next'));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('import-file-issue-IMPORT_FILE_MULTIPLE_SHEETS')).toBeInTheDocument(),
+    );
+    expect(screen.getByText(/Only "Data" was imported/)).toBeInTheDocument();
+    // A warning must not block the user from continuing.
+    expect(screen.getByText('Next')).not.toBeDisabled();
+  });
+
   it('commits directly (no confirm dialog) when the preview has no errors', async () => {
     setRole('CL_ADMIN', 'tenant-1');
     mockGet.mockImplementation((path: string) => {

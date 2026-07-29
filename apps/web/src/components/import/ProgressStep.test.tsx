@@ -89,4 +89,24 @@ describe('ProgressStep', () => {
 
     expect(screen.queryByText('Imported Successfully')).not.toBeInTheDocument();
   });
+  it('explains why a failed import failed when the backend recorded a reason', () => {
+    render(
+      <ProgressStep
+        status="FAILED"
+        progress={100}
+        successCount={0}
+        errorCount={0}
+        errors={[]}
+        failureMessage="This .xlsx file could not be opened — it looks corrupted or incomplete."
+      />,
+    );
+    expect(screen.getByText('Import failed')).toBeInTheDocument();
+    expect(screen.getByText(/could not be opened/)).toBeInTheDocument();
+  });
+
+  it('shows only the bare failed state when no reason was recorded', () => {
+    render(<ProgressStep status="FAILED" progress={100} successCount={0} errorCount={0} errors={[]} />);
+    expect(screen.getByText('Import failed')).toBeInTheDocument();
+    expect(screen.queryByText(/could not be opened/)).not.toBeInTheDocument();
+  });
 });

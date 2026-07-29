@@ -1043,6 +1043,199 @@ describe('ExecuteStatusTransitionUseCase – onTransitionHandler', () => {
 
     expect(onTransitionHandler.execute).not.toHaveBeenCalled();
   });
+
+  it('skips onTransitionHandler when suppressNotifications is set', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    const uc = makeUseCase({ withOnTransitionHandler: true });
+    const result = await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'CANCELLED',
+      reason: 'Appointment date passed',
+      cancellationReasonCode: 'EXPIRED',
+      suppressNotifications: true,
+      actor: makeActor('SYS'),
+    });
+
+    expect(result.status).toBe('CANCELLED');
+    expect(onTransitionHandler.execute).not.toHaveBeenCalled();
+  });
+
+  it('still notifies when suppressNotifications is absent or false', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    const uc = makeUseCase({ withOnTransitionHandler: true });
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'CANCELLED',
+      reason: 'Client request',
+      suppressNotifications: false,
+      actor: makeActor('AM'),
+    });
+
+    expect(onTransitionHandler.execute).toHaveBeenCalledOnce();
+  });
+});
+
+// =============================================================================
+// SYS actor attribution
+// =============================================================================
+
+describe('ExecuteStatusTransitionUseCase – SYS actor attribution', () => {
+  it('audits a SYS transition as SYSTEM with no actor id', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    const uc = makeUseCase();
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'CANCELLED',
+      reason: 'Appointment date passed',
+      cancellationReasonCode: 'EXPIRED',
+      actor: makeActor('SYS'),
+    });
+
+    const transitionCall = (auditService.log as any).mock.calls.find(
+      (c: any[]) => c[0].action === 'appointment.status_transition',
+    );
+    expect(transitionCall).toBeDefined();
+    expect(transitionCall[0].actorType).toBe('SYSTEM');
+    expect(transitionCall[0].actorId).toBeUndefined();
+  });
+
+  // EXPIRED marks "the system cancelled this because its date passed". It is hidden
+  // from the web dropdown, but the API accepts any CancellationReasonCode, so without
+  // this guard an operator could hand-label a cancellation as auto-expired and
+  // corrupt the very distinction the code exists to make.
+  it('rejects the EXPIRED reason code from a human actor', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    const uc = makeUseCase();
+
+    await expect(uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'CANCELLED',
+      reason: 'Client request',
+      cancellationReasonCode: 'EXPIRED',
+      actor: makeActor('AM'),
+    })).rejects.toThrow(ForbiddenError);
+
+    expect(appointmentRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('allows the EXPIRED reason code for the system actor', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    const uc = makeUseCase();
+
+    const result = await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'CANCELLED',
+      reason: 'Appointment date passed',
+      cancellationReasonCode: 'EXPIRED',
+      actor: makeActor('SYS'),
+    });
+
+    expect(result.status).toBe('CANCELLED');
+  });
+
+  it('still accepts ordinary reason codes from a human actor', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    const uc = makeUseCase();
+
+    const result = await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'CANCELLED',
+      reason: 'Client request',
+      cancellationReasonCode: 'CLIENT_REQUEST',
+      actor: makeActor('AM'),
+    });
+
+    expect(result.status).toBe('CANCELLED');
+  });
+
+  it('keeps USER attribution for a human actor', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    const uc = makeUseCase();
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'CANCELLED',
+      reason: 'Client request',
+      actor: makeActor('AM'),
+    });
+
+    const transitionCall = (auditService.log as any).mock.calls.find(
+      (c: any[]) => c[0].action === 'appointment.status_transition',
+    );
+    expect(transitionCall[0].actorType).toBe('USER');
+    expect(transitionCall[0].actorId).toBe('actor-1');
+  });
+
+  it('emits the transition event with SYSTEM actorType for a SYS actor', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    const bus = new DomainEventBus();
+    const received: any[] = [];
+    bus.subscribe(APPOINTMENT_EVENTS.STATUS_TRANSITION, async (e) => { received.push(e); });
+
+    const uc = makeUseCase({ domainEventBus: bus });
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'CANCELLED',
+      reason: 'Appointment date passed',
+      actor: makeActor('SYS'),
+    });
+
+    expect(received).toHaveLength(1);
+    expect(received[0].payload.actorType).toBe('SYSTEM');
+  });
+
+  it('carries serviceGroupId on the transition event so group cleanup needs no lookup', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1', serviceGroupId: 'sg-9' }),
+    );
+    const bus = new DomainEventBus();
+    const received: any[] = [];
+    bus.subscribe(APPOINTMENT_EVENTS.STATUS_TRANSITION, async (e) => { received.push(e); });
+
+    const uc = makeUseCase({ domainEventBus: bus });
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'CANCELLED',
+      reason: 'Client request',
+      actor: makeActor('AM'),
+    });
+
+    expect(received[0].payload.serviceGroupId).toBe('sg-9');
+  });
+
+  it('reports a null serviceGroupId for an ungrouped appointment', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1', serviceGroupId: null }),
+    );
+    const bus = new DomainEventBus();
+    const received: any[] = [];
+    bus.subscribe(APPOINTMENT_EVENTS.STATUS_TRANSITION, async (e) => { received.push(e); });
+
+    const uc = makeUseCase({ domainEventBus: bus });
+    await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'CANCELLED',
+      reason: 'Client request',
+      actor: makeActor('AM'),
+    });
+
+    expect(received[0].payload.serviceGroupId).toBeNull();
+  });
 });
 
 // =============================================================================

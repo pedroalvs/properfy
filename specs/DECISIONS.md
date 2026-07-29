@@ -131,7 +131,13 @@ These unit tests cover every FR cited in T028 (FR-007, FR-008, FR-009, FR-019, F
 
 **Trigger for revision**: Product team decides on EXPIRED status vs auto-cancel approach.
 
-**Affects**: `specs/005-service-groups-marketplace/tasks.md` T120, T121, T122, T123, T124 — deferred (DEC-039).
+**RESOLVED 2026-07-29 — auto-cancel with a system reason.** No new `EXPIRED` group status: a dead group is `CANCELLED`, which needs no migration and no marketplace filter changes (terminal groups are already excluded). Implemented as:
+
+- A released group (`PUBLISHED`/`ACCEPTED`) with no live members **and** no `DONE` member is cancelled. `DRAFT` is excluded because `republish` returns groups to `DRAFT` empty — sweeping it would re-cancel every group an operator is repairing. The `DONE` exclusion prevents cancelling groups whose inspections all succeeded.
+- Reactive via a subscriber on `appointment.status_transition.v1`, plus a daily `service-group.cancel-empty` sweep as the backstop for paths that emit no event (chiefly appointment soft-delete).
+- Companion behaviour: appointments left in `AWAITING_INSPECTOR`/`SCHEDULED` after their date passes are auto-cancelled daily with cancellation reason code `EXPIRED` (`appointment.cancel-overdue`). This is where the "expiry" notion landed — on the appointment, not the group.
+
+**Affects**: `specs/005-service-groups-marketplace/tasks.md` T120, T121, T122, T123, T124 — the expiry decision is resolved; the sweep is daily (not hourly) because the cutoff is a civil date.
 
 ---
 

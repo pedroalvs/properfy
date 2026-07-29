@@ -18,8 +18,9 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
   const confirmationStyle = RENTAL_TENANT_CONFIRMATION_STATUS_MAP[appointment.rentalTenantConfirmationStatus];
   const isPendingOperationalCrossCheck =
     appointment.status === AppointmentStatus.DONE && !appointment.doneCheckedByUserId;
-  // Find the restriction that carries the availability rather than assuming index 0 —
-  // an operator-created restriction can sit alongside the one written by the portal.
+  // Defensive: every writer currently replaces all restrictions with a single row, so
+  // index 0 would do. Search by content anyway, so a future multi-row model surfaces the
+  // availability instead of whichever row happens to come first.
   const availableSlots = appointment.restrictions?.find(
     (r) => r.availableSlotsJson?.length,
   )?.availableSlotsJson;

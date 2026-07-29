@@ -3,10 +3,6 @@ import { formatCivilDate, formatWallTimeWindow } from '@/lib/format-date';
 import { formatCurrency } from '@/lib/format-currency';
 import type { MarketplaceOffer, OfferAcceptState } from '../types';
 
-function formatTimeWindow(timeWindow: string): string {
-  return formatWallTimeWindow(timeWindow);
-}
-
 interface AcceptOfferModalProps {
   offer: MarketplaceOffer;
   state: OfferAcceptState;
@@ -36,7 +32,7 @@ export function AcceptOfferModal({ offer, state, onConfirm, onCancel }: AcceptOf
             <Row label="Service" value={offer.serviceTypeName} />
             <Row label="Agency" value={offer.tenantName} />
             <Row label="Date" value={formatCivilDate(offer.scheduledDate)} />
-            <Row label="Time window" value={formatTimeWindow(offer.timeWindow)} />
+            <Row label="Time window" value={formatWallTimeWindow(offer.timeWindow)} />
             <Row
               label="Inspections"
               value={`${offer.appointmentCount} ${offer.appointmentCount === 1 ? 'inspection' : 'inspections'}`}
