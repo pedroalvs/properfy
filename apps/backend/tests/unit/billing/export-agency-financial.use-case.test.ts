@@ -64,6 +64,9 @@ describe('ExportAgencyFinancialUseCase', () => {
     const [filters] = vi.mocked(sut.entryRepo.findAllEnriched).mock.calls[0];
     expect(filters.tenantId).toBe('tenant-1');
     expect(filters.entryTypeIn).toEqual(['TENANT_DEBIT', 'REFUND', 'MANUAL_ADJUSTMENT']);
+    // Inspector-scoped MANUAL_ADJUSTMENT passes the type allowlist but belongs to
+    // the platform<->inspector leg — the export must exclude it too.
+    expect(filters.excludeInspectorScoped).toBe(true);
   });
 
   it('builds rows from entries and returns a base64 XLSX payload', async () => {

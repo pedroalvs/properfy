@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { AGENCY_VISIBLE_ENTRY_TYPES } from '@properfy/shared';
 import { AppointmentCodeFormatter } from '../../appointment/domain/appointment-code.formatter';
 import type { DashboardRepository } from '../domain/dashboard.repository';
 import type { DashboardStatsOutput, InspectorBreakdowns, InspectorDayCount } from '../application/use-cases/get-dashboard-stats.use-case';
@@ -151,10 +152,16 @@ export class PrismaDashboardRepository implements DashboardRepository {
         },
       }),
 
-      // Pending financial entries
+      // Pending financial entries. `tenantId` is set only for CL_ADMIN/CL_USER
+      // (get-dashboard-stats.use-case.ts), so when it is present this is an agency
+      // read and must exclude the platform↔inspector leg like every other one —
+      // otherwise the count alone reveals pending payout activity.
       this.prisma.financialEntry.count({
         where: {
           ...tenantFilter,
+          ...(tenantId
+            ? { entry_type: { in: [...AGENCY_VISIBLE_ENTRY_TYPES] }, inspector_id: null }
+            : {}),
           status: 'PENDING',
         },
       }),

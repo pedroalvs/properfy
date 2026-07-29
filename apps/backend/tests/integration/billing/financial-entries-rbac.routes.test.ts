@@ -14,7 +14,10 @@ import { createMockContainer } from '../../helpers/mock-container';
 
 const mockListFinancialEntriesExecute = vi.fn();
 const mockApproveFinancialEntryExecute = vi.fn();
+const mockGetFinancialEntryExecute = vi.fn();
 const mockJwtVerify = vi.fn();
+// The auth middleware re-reads CL_USER flags from tenant settings, not the JWT.
+const mockTenantFindById = vi.fn().mockResolvedValue({ isActive: () => true });
 
 vi.mock('../../../src/main/container', () => ({
   createContainer: () =>
@@ -35,7 +38,9 @@ vi.mock('../../../src/main/container', () => ({
       billing: {
         listFinancialEntriesUseCase: { execute: mockListFinancialEntriesExecute },
         approveFinancialEntryUseCase: { execute: mockApproveFinancialEntryExecute },
+        getFinancialEntryUseCase: { execute: mockGetFinancialEntryExecute },
         jwtService: { verify: mockJwtVerify },
+        tenantRepo: { findById: mockTenantFindById },
       },
       report: { jwtService: { verify: mockJwtVerify } },
       notification: { jwtService: { verify: mockJwtVerify } },
@@ -226,4 +231,54 @@ describe('QA-015-HIGH-002 — POST /v1/financial/entries/:entryId/approve role e
 
     expect(mockApproveFinancialEntryExecute).toHaveBeenCalledOnce();
   });
+});
+
+// The detail-by-id route was the only agency read without the `view_financials`
+// gate that list / summary / export all enforce, so a flagless CL_USER could read
+// entries one id at a time. INSP still reaches it for its own payouts, so the
+// route gates the flag directly rather than via assertAgencyRead.
+describe('GET /v1/financial/entries/:entryId — view_financials gate', () => {
+  beforeEach(() => {
+    mockTenantFindById.mockResolvedValue({ isActive: () => true });
+  });
+
+  it('returns 403 for a CL_USER without the flag', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clUserContext);
+
+    const res = await supertest(app.server)
+      .get(`/v1/financial/entries/${ENTRY_ID}`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(403);
+    expect(mockGetFinancialEntryExecute).not.toHaveBeenCalled();
+  });
+
+  it('allows a CL_USER holding the flag', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clUserContext);
+    mockTenantFindById.mockResolvedValue({
+      isActive: () => true,
+      settingsJson: { clUserPermissions: ['view_financials'] },
+    });
+    mockGetFinancialEntryExecute.mockResolvedValueOnce(approvedEntry);
+
+    const res = await supertest(app.server)
+      .get(`/v1/financial/entries/${ENTRY_ID}`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+  });
+
+  it.each([['CL_ADMIN', () => clAdminContext], ['INSP', () => inspContext], ['AM', () => amContext]] as const)(
+    'is unaffected for %s (flag is a CL_USER-only condition)',
+    async (_role, ctx) => {
+      mockJwtVerify.mockResolvedValueOnce(ctx());
+      mockGetFinancialEntryExecute.mockResolvedValueOnce(approvedEntry);
+
+      const res = await supertest(app.server)
+        .get(`/v1/financial/entries/${ENTRY_ID}`)
+        .set('Authorization', 'Bearer valid-token');
+
+      expect(res.status).toBe(200);
+    },
+  );
 });

@@ -12,6 +12,12 @@ export interface FinancialEntryFilters {
    * specific `entryType` takes precedence over `entryTypeIn`.
    */
   entryTypeIn?: FinancialEntryType[];
+  /**
+   * Restrict to entries with no inspector (WHERE inspector_id IS NULL). Pairs with
+   * `entryTypeIn` for agency reads: an inspector-scoped MANUAL_ADJUSTMENT passes the
+   * entry-type allowlist yet still belongs to the platform↔inspector leg.
+   */
+  excludeInspectorScoped?: boolean;
   status?: FinancialEntryStatus;
   fromDate?: string;
   toDate?: string;
@@ -57,7 +63,16 @@ export interface IFinancialEntryRepository {
   findById(id: string, tenantId?: string): Promise<FinancialEntryEntity | null>;
   findByIdEnriched(id: string, tenantId?: string): Promise<FinancialEntryEnriched | null>;
   findAllEnriched(filters: FinancialEntryFilters, pagination: FinancialEntryPagination): Promise<FinancialEntryEnriched[]>;
-  getSummary(tenantId?: string, dateRange?: { effectiveFrom?: string; effectiveTo?: string }): Promise<FinancialEntrySummary>;
+  /**
+   * `options.agencyScoped` excludes the platform↔inspector leg from EVERY aggregate
+   * (all of them derive from one groupBy), so an agency's totals and pending count
+   * are correct rather than patched after the fact.
+   */
+  getSummary(
+    tenantId?: string,
+    dateRange?: { effectiveFrom?: string; effectiveTo?: string },
+    options?: { agencyScoped?: boolean },
+  ): Promise<FinancialEntrySummary>;
   /** Own-payout aggregates for the inspector earnings screen (see InspectorEarningsSummary). */
   getInspectorEarningsSummary(inspectorId: string, monthlyFrom: Date): Promise<InspectorEarningsSummary>;
   findByAppointmentAndType(appointmentId: string, entryType: FinancialEntryType): Promise<FinancialEntryEntity | null>;

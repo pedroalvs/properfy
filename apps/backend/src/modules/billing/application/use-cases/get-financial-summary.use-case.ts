@@ -40,12 +40,16 @@ export class GetFinancialSummaryUseCase {
       ? { effectiveFrom: input.effectiveFrom, effectiveTo: input.effectiveTo }
       : undefined;
 
-    const summary = await this.entryRepo.getSummary(tenantId, dateRange);
-
-    // 031 — Agencies must not see inspector payouts (the platform↔inspector leg
-    // and thus the platform's margin). Hide the aggregate from CL roles.
+    // 031 — Agencies must not see the platform↔inspector leg. Push the exclusion
+    // into the query rather than zeroing `totalPayouts` afterwards: every aggregate
+    // comes from one groupBy, so a post-hoc patch left `totalAdjustments` summing
+    // inspector-scoped adjustments and `pendingCount` counting pending payouts.
     const isAgency = actor.role === 'CL_ADMIN' || actor.role === 'CL_USER';
-    const scoped = isAgency ? { ...summary, totalPayouts: 0 } : summary;
+    const scoped = await this.entryRepo.getSummary(
+      tenantId,
+      dateRange,
+      isAgency ? { agencyScoped: true } : undefined,
+    );
 
     if (!tenantId) {
       return scoped;
