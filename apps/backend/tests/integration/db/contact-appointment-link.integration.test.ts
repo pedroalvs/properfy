@@ -261,6 +261,7 @@ function makeAppointmentRepoMock(): IAppointmentRepository {
     deleteContactsByAppointmentId: vi.fn(),
     saveRestriction: vi.fn(),
     deleteRestrictionsByAppointmentId: vi.fn(),
+    replaceRestrictions: vi.fn(),
     findScheduledOnDate: vi.fn(),
     findAllContacts: vi.fn(),
     countContacts: vi.fn(),

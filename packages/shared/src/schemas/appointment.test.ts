@@ -383,6 +383,26 @@ describe('appointment customFields (repeatable label/value, max 4)', () => {
     });
     expect(result.success).toBe(false);
   });
+
+  // The edit drawer sends `restriction: null` when the operator switches "Add access
+  // restriction" off. While this was `.optional()` the request was rejected at the
+  // Fastify validator, so clearing a restriction was impossible from the web.
+  it('update: accepts null to clear the restriction', () => {
+    const result = updateAppointmentSchema.safeParse({ restriction: null });
+    expect(result.success).toBe(true);
+  });
+
+  it('update: still accepts an omitted restriction (leave untouched)', () => {
+    const result = updateAppointmentSchema.safeParse({ notes: 'only notes' });
+    expect(result.success).toBe(true);
+  });
+
+  it('update: still validates the restriction shape when one is provided', () => {
+    const result = updateAppointmentSchema.safeParse({
+      restriction: { isHome: 'nope', source: 'OPERATOR' },
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('normalizeCustomFields', () => {

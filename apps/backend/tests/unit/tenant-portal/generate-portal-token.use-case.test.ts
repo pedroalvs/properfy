@@ -119,6 +119,7 @@ describe('GeneratePortalTokenUseCase', () => {
     updateContact: ReturnType<typeof vi.fn>;
     saveRestriction: ReturnType<typeof vi.fn>;
     deleteRestrictionsByAppointmentId: ReturnType<typeof vi.fn>;
+    replaceRestrictions: ReturnType<typeof vi.fn>;
   };
   let tenantRepo: {
     findById: ReturnType<typeof vi.fn>;
@@ -159,6 +160,7 @@ describe('GeneratePortalTokenUseCase', () => {
       updateContact: vi.fn(),
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
+      replaceRestrictions: vi.fn(),
       findScheduledOnDate: vi.fn(),
     };
     tenantRepo = {

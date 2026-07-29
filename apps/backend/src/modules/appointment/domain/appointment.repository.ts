@@ -194,6 +194,15 @@ export interface IAppointmentRepository {
   deleteContactsByAppointmentId(appointmentId: string): Promise<void>;
   saveRestriction(restriction: AppointmentRestrictionEntity): Promise<void>;
   deleteRestrictionsByAppointmentId(appointmentId: string): Promise<void>;
+  /**
+   * Atomically swap an appointment's restrictions for `restriction` (or none when null).
+   * Restriction upserts are delete-then-create; done as two calls, a failure between them
+   * leaves zero rows and permanently loses the availability a rental tenant submitted.
+   */
+  replaceRestrictions(
+    appointmentId: string,
+    restriction: AppointmentRestrictionEntity | null,
+  ): Promise<void>;
   findScheduledOnDate(date: Date): Promise<AppointmentWithRelations[]>;
   findDuplicateForImport(
     propertyId: string,

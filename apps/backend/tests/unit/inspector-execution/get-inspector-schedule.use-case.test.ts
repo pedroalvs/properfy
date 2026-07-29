@@ -107,6 +107,7 @@ describe('GetInspectorScheduleUseCase', () => {
       updateContact: vi.fn(),
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
+      replaceRestrictions: vi.fn(),
       findScheduledOnDate: vi.fn(),
       findDuplicateForImport: vi.fn(),
       findAllContacts: vi.fn(),

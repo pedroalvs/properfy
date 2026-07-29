@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { AppointmentStatus, AppointmentContactRole, ContactType, ContactChannelType, PLATFORM_TIMEZONE, todayInTzDateString, currentTimeInTzHHmm, isTimeStartInPastForDate, validateEditedSchedule, CUSTOM_FIELD_LABEL_MAX, CUSTOM_FIELD_VALUE_MAX } from '@properfy/shared';
+import { AppointmentStatus, AppointmentContactRole, ContactType, ContactChannelType, RestrictionSource, PLATFORM_TIMEZONE, todayInTzDateString, currentTimeInTzHHmm, isTimeStartInPastForDate, validateEditedSchedule, CUSTOM_FIELD_LABEL_MAX, CUSTOM_FIELD_VALUE_MAX } from '@properfy/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
@@ -203,6 +203,10 @@ export function AppointmentFormDrawer({
               },
             ];
 
+      const operatorRestriction = (appointment.restrictions ?? []).find(
+        (r) => r.source !== RestrictionSource.RENTAL_TENANT_PORTAL,
+      );
+
       const data: AppointmentFormData = {
         branchId: appointment.branchId,
         propertyId: appointment.propertyId,
@@ -225,9 +229,13 @@ export function AppointmentFormDrawer({
         keyLocation: appointment.keyLocation ?? '',
         notes: appointment.notes ?? '',
         observation: appointment.observation ?? '',
-        hasRestriction: (appointment.restrictions?.length ?? 0) > 0,
-        restrictionIsHome: appointment.restrictions?.[0]?.isHome ?? false,
-        restrictionNotes: appointment.restrictions?.[0]?.notes ?? '',
+        // A portal-written row exists only to carry the tenant's availability, which this
+        // form cannot edit. Counting it as an operator restriction would turn the toggle
+        // on for every declined appointment — and switching it off would never stick,
+        // because the row survives the save and turns it back on.
+        hasRestriction: operatorRestriction != null,
+        restrictionIsHome: operatorRestriction?.isHome ?? false,
+        restrictionNotes: operatorRestriction?.notes ?? '',
         restrictionTouched: false,
       };
       setForm(data);

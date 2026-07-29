@@ -145,7 +145,12 @@ export const updateAppointmentSchema = z.object({
   contacts: appointmentContactsArraySchema.optional(),
   /** App credentials linked to this appointment. When present, replaces all links (empty array clears). */
   appCredentialIds: z.array(z.string().uuid()).max(50).optional(),
-  restriction: restrictionSchema.optional(),
+  /**
+   * Omitted leaves the restriction untouched; `null` clears it. Nullable because the
+   * edit drawer sends `null` when the operator switches "Add access restriction" off —
+   * while this was `.optional()` that request was rejected at the validator.
+   */
+  restriction: restrictionSchema.nullish(),
   customFields: appointmentCustomFieldsSchema.nullable().optional(),
   /**
    * Opt-in: widen the service group's shared time window when the new slot

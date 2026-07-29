@@ -4933,7 +4933,7 @@ export interface paths {
                             notes?: string;
                             /** @enum {string} */
                             source: "RENTAL_TENANT_PORTAL" | "OPERATOR" | "IMPORT";
-                        };
+                        } | null;
                         customFields?: {
                             label: string;
                             value: string;

@@ -422,18 +422,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
 
   async saveRestriction(restriction: AppointmentRestrictionEntity): Promise<void> {
     await this.prisma.appointmentRestriction.create({
-      data: {
-        id: restriction.id,
-        appointment_id: restriction.appointmentId,
-        is_home: restriction.isHome,
-        unavailable_days_json: restriction.unavailableDaysJson ?? undefined,
-        unavailable_hours_json: restriction.unavailableHoursJson ?? undefined,
-        available_slots_json: restriction.availableSlotsJson != null
-          ? (restriction.availableSlotsJson as unknown as Prisma.InputJsonValue)
-          : undefined,
-        notes: restriction.notes,
-        source: restriction.source as PrismaRestrictionSource,
-      },
+      data: this.toRestrictionCreateData(restriction),
     });
   }
 
@@ -480,6 +469,40 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     await this.prisma.appointmentRestriction.deleteMany({
       where: { appointment_id: appointmentId },
     });
+  }
+
+  async replaceRestrictions(
+    appointmentId: string,
+    restriction: AppointmentRestrictionEntity | null,
+  ): Promise<void> {
+    const deletion = this.prisma.appointmentRestriction.deleteMany({
+      where: { appointment_id: appointmentId },
+    });
+    if (restriction === null) {
+      await this.prisma.$transaction([deletion]);
+      return;
+    }
+    await this.prisma.$transaction([
+      deletion,
+      this.prisma.appointmentRestriction.create({
+        data: this.toRestrictionCreateData(restriction),
+      }),
+    ]);
+  }
+
+  private toRestrictionCreateData(restriction: AppointmentRestrictionEntity) {
+    return {
+      id: restriction.id,
+      appointment_id: restriction.appointmentId,
+      is_home: restriction.isHome,
+      unavailable_days_json: restriction.unavailableDaysJson ?? undefined,
+      unavailable_hours_json: restriction.unavailableHoursJson ?? undefined,
+      available_slots_json: restriction.availableSlotsJson != null
+        ? (restriction.availableSlotsJson as unknown as Prisma.InputJsonValue)
+        : undefined,
+      notes: restriction.notes,
+      source: restriction.source as PrismaRestrictionSource,
+    };
   }
 
   private buildWhere(filters: AppointmentFilters) {

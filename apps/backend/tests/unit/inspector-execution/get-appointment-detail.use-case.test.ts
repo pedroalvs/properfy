@@ -171,6 +171,7 @@ describe('GetAppointmentDetailUseCase', () => {
       updateContact: vi.fn(),
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
+      replaceRestrictions: vi.fn(),
     };
 
     executionRepo = {

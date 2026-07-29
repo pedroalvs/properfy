@@ -5,6 +5,7 @@ import type { IAppointmentRepository, AppointmentWithRelations } from '../../../
 import type { PersistentAuditService } from '../../../src/modules/audit/application/services/persistent-audit.service';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { AppointmentContactEntity } from '../../../src/modules/appointment/domain/appointment-contact.entity';
+import { AppointmentRestrictionEntity } from '../../../src/modules/appointment/domain/appointment-restriction.entity';
 import {
   PortalActionBlockedError,
   PortalAppointmentInactiveError,
@@ -59,12 +60,31 @@ function makeContact(): AppointmentContactEntity {
 
 function makeAppointmentWithRelations(
   appointmentOverrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {},
+  restrictions: AppointmentRestrictionEntity[] = [],
 ): AppointmentWithRelations {
   return {
     appointment: makeAppointmentEntity(appointmentOverrides),
     contact: makeContact(),
-    restrictions: [],
+    restrictions,
   };
+}
+
+function makeRestriction(
+  overrides: Partial<ConstructorParameters<typeof AppointmentRestrictionEntity>[0]> = {},
+): AppointmentRestrictionEntity {
+  return new AppointmentRestrictionEntity({
+    id: 'restriction-1',
+    appointmentId: 'appt-1',
+    isHome: false,
+    unavailableDaysJson: null,
+    unavailableHoursJson: null,
+    availableSlotsJson: null,
+    notes: null,
+    source: 'OPERATOR',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  });
 }
 
 function makeInput(overrides: Partial<Parameters<ConfirmAppointmentUseCase['execute']>[0]> = {}) {
@@ -100,6 +120,7 @@ describe('ConfirmAppointmentUseCase', () => {
       updateContact: vi.fn(),
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
+      replaceRestrictions: vi.fn(),
     };
     auditService = {
       log: vi.fn(),
@@ -117,7 +138,7 @@ describe('ConfirmAppointmentUseCase', () => {
     expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
       rentalTenantConfirmationStatus: 'CONFIRMED',
     });
-    expect(appointmentRepo.deleteRestrictionsByAppointmentId).toHaveBeenCalledWith('appt-1');
+    expect(appointmentRepo.replaceRestrictions).toHaveBeenCalledWith('appt-1', null);
   });
 
   it('should throw PortalActionBlockedError when token is read-only', async () => {
@@ -216,9 +237,8 @@ describe('ConfirmAppointmentUseCase', () => {
 
     await useCase.execute(makeInput({ restrictions }));
 
-    expect(appointmentRepo.deleteRestrictionsByAppointmentId).toHaveBeenCalledWith('appt-1');
-    expect(appointmentRepo.saveRestriction).toHaveBeenCalledOnce();
-    const savedRestriction = vi.mocked(appointmentRepo.saveRestriction).mock.calls[0][0];
+    expect(appointmentRepo.replaceRestrictions).toHaveBeenCalledOnce();
+    const savedRestriction = vi.mocked(appointmentRepo.replaceRestrictions).mock.calls[0][1]!;
     expect(savedRestriction.appointmentId).toBe('appt-1');
     expect(savedRestriction.isHome).toBe(true);
     expect(savedRestriction.unavailableDaysJson).toEqual(['Monday', 'Tuesday']);
@@ -227,13 +247,89 @@ describe('ConfirmAppointmentUseCase', () => {
     expect(savedRestriction.source).toBe('RENTAL_TENANT_PORTAL');
   });
 
-  it('should clear stale restrictions even when no new restrictions are provided', async () => {
+  it('should clear stale portal restrictions when no new restrictions are provided', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
 
     await useCase.execute(makeInput());
 
-    expect(appointmentRepo.deleteRestrictionsByAppointmentId).toHaveBeenCalledWith('appt-1');
-    expect(appointmentRepo.saveRestriction).not.toHaveBeenCalled();
+    expect(appointmentRepo.replaceRestrictions).toHaveBeenCalledWith('appt-1', null);
+    expect(appointmentRepo.deleteRestrictionsByAppointmentId).not.toHaveBeenCalled();
+  });
+
+  // Confirming used to delete EVERY restriction row unconditionally, so a tenant
+  // confirming destroyed the access restriction the operator had entered — the mirror
+  // image of an operator edit wiping the tenant's availability.
+  describe('operator restriction preservation', () => {
+    it('should keep the operator restriction when the tenant confirms', async () => {
+      const operatorRestriction = makeRestriction({
+        isHome: true,
+        notes: 'Ring the bell twice',
+        unavailableDaysJson: ['2026-06-01'],
+      });
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({}, [operatorRestriction]),
+      );
+
+      await useCase.execute(makeInput());
+
+      const saved = vi.mocked(appointmentRepo.replaceRestrictions).mock.calls[0]?.[1];
+      expect(saved?.isHome).toBe(true);
+      expect(saved?.notes).toBe('Ring the bell twice');
+      expect(saved?.unavailableDaysJson).toEqual(['2026-06-01']);
+      expect(saved?.source).toBe('OPERATOR');
+    });
+
+    it('should drop the availability the tenant offered earlier, now that they are attending', async () => {
+      const operatorRestriction = makeRestriction({
+        isHome: true,
+        availableSlotsJson: [{ dayOfWeek: 'WED', start: '09:00', end: '17:00' }],
+      });
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({}, [operatorRestriction]),
+      );
+
+      await useCase.execute(makeInput());
+
+      const saved = vi.mocked(appointmentRepo.replaceRestrictions).mock.calls[0]?.[1];
+      expect(saved?.availableSlotsJson).toBeNull();
+      expect(saved?.isHome).toBe(true);
+    });
+
+    it('should clear a portal-owned restriction outright', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({}, [
+          makeRestriction({
+            source: 'RENTAL_TENANT_PORTAL',
+            availableSlotsJson: [{ dayOfWeek: 'FRI', start: '09:00', end: '12:00' }],
+          }),
+        ]),
+      );
+
+      await useCase.execute(makeInput());
+
+      expect(appointmentRepo.replaceRestrictions).toHaveBeenCalledWith('appt-1', null);
+    });
+
+    it('should still let a tenant-submitted restriction replace the operator one', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({}, [makeRestriction({ isHome: true, notes: 'operator note' })]),
+      );
+
+      await useCase.execute(
+        makeInput({
+          restrictions: {
+            isHome: false,
+            unavailableDaysJson: null,
+            unavailableHoursJson: null,
+            notes: 'tenant note',
+          },
+        }),
+      );
+
+      const saved = vi.mocked(appointmentRepo.replaceRestrictions).mock.calls[0]?.[1];
+      expect(saved?.notes).toBe('tenant note');
+      expect(saved?.source).toBe('RENTAL_TENANT_PORTAL');
+    });
   });
 
   it('should allow confirmation for DRAFT status', async () => {
@@ -278,6 +374,7 @@ describe('ConfirmAppointmentUseCase – onNotificationHandler', () => {
       updateContact: vi.fn(),
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
+      replaceRestrictions: vi.fn(),
     };
     auditService = {
       log: vi.fn(),

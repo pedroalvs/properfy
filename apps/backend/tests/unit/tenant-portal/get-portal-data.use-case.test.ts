@@ -211,6 +211,7 @@ describe('GetPortalDataUseCase', () => {
       updateContact: vi.fn(),
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
+      replaceRestrictions: vi.fn(),
     };
     propertyRepo = {
       findById: vi.fn(),
