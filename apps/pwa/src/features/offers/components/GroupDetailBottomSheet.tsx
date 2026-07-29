@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { formatCurrency } from '@/lib/format-currency';
-import { formatCivilDate } from '@/lib/format-date';
+import { formatCivilDate, formatWallTimeRange, formatWallTimeWindow } from '@/lib/format-date';
 import { useIsOnline } from '@/hooks/useIsOnline';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useMarketplaceOfferDetail } from '../hooks/useMarketplaceOfferDetail';
@@ -121,7 +121,7 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept, accepting }
               {/* Group-level info */}
               <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-gray-100 pb-3">
                 <span className="text-sm font-semibold text-text-primary">{data.serviceTypeName}</span>
-                <span className="text-sm text-text-secondary">{data.timeWindow}</span>
+                <span className="text-sm text-text-secondary">{formatWallTimeWindow(data.timeWindow)}</span>
                 <span className="text-xs text-text-muted">{formatCivilDate(data.scheduledDate)}</span>
               </div>
 
@@ -137,7 +137,7 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept, accepting }
                         )}
                         <p className="font-medium text-secondary">{appt.suburb}</p>
                         <p data-testid="appointment-time" className="text-xs font-semibold text-text-primary">
-                          {appt.timeSlotStart}–{appt.timeSlotEnd}
+                          {formatWallTimeRange(appt.timeSlotStart, appt.timeSlotEnd)}
                         </p>
                         {appt.tenantName && (
                           <p data-testid="appointment-agency" className="text-xs text-text-muted">{appt.tenantName}</p>

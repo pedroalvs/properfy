@@ -1,4 +1,6 @@
 import { useRef, useEffect } from 'react';
+import { PLATFORM_TIMEZONE, todayInTzDateString } from '@properfy/shared';
+import { parseScheduleDate } from '../lib/time-slot';
 
 interface DaySelectorStripProps {
   days: string[];
@@ -9,12 +11,10 @@ interface DaySelectorStripProps {
 }
 
 function formatDayLabel(dateStr: string): { weekday: string; day: string; isToday: boolean } {
-  const date = new Date(dateStr + 'T12:00:00');
-  const today = new Date();
-  const isToday =
-    date.getDate() === today.getDate() &&
-    date.getMonth() === today.getMonth() &&
-    date.getFullYear() === today.getFullYear();
+  const date = parseScheduleDate(dateStr);
+  // Compared in the platform timezone, like every other today-check in the app;
+  // a device-local comparison highlights the wrong day abroad.
+  const isToday = dateStr === todayInTzDateString(PLATFORM_TIMEZONE);
 
   return {
     weekday: isToday ? 'Today' : date.toLocaleDateString('en-AU', { weekday: 'short' }),

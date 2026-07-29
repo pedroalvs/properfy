@@ -3,6 +3,6 @@ import { formatTimeWindow } from '../time-slot';
 
 describe('formatTimeWindow', () => {
   it('joins bare HH:mm start and end with an en-dash', () => {
-    expect(formatTimeWindow('09:00', '11:00')).toBe('09:00 – 11:00');
+    expect(formatTimeWindow('09:00', '11:00')).toBe('9:00 am – 11:00 am');
   });
 });

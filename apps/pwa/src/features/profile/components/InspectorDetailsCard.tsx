@@ -1,5 +1,6 @@
 import { useDetailQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/hooks/useAuth';
+import { formatCivilDate } from '@/lib/format-date';
 
 interface InspectorDetail {
   id: string;
@@ -14,11 +15,16 @@ interface InspectorDetail {
   policeCheckMetaJson: { fileName?: string | null } | null;
 }
 
+/**
+ * Date of birth and the two expiry dates are @db.Date calendar days.
+ *
+ * The previous implementation parsed them with `new Date('2026-03-18')` — which
+ * is UTC midnight — and then formatted in the RUNTIME's timezone, so a browser
+ * behind UTC rendered the previous day. A calendar day carries no timezone, so
+ * formatCivilDate reads it verbatim.
+ */
 function formatDate(value: string | null | undefined): string {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return new Intl.DateTimeFormat('en-AU', { dateStyle: 'medium' }).format(date);
+  return formatCivilDate(value) || '—';
 }
 
 function ExpiryBadge({ expiry }: { expiry: string | null }) {

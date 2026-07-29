@@ -1,4 +1,4 @@
-import { ServiceTypeFlowType, RentalTenantConfirmationStatus } from '@properfy/shared';
+import { ServiceTypeFlowType, RentalTenantConfirmationStatus, formatWallTimeRange } from '@properfy/shared';
 import type { InspectorAppointment } from '../types';
 
 export function parseScheduleDate(dateStr: string): Date {
@@ -14,7 +14,7 @@ export function formatScheduleDate(dateStr: string): string {
 }
 
 export function formatTimeWindow(start: string, end: string): string {
-  return `${start} – ${end}`;
+  return formatWallTimeRange(start, end);
 }
 
 export function isScheduleRisk(appointment: Pick<

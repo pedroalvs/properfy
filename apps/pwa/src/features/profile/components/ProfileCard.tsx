@@ -1,4 +1,6 @@
 
+import { formatInstantDateTime } from '@/lib/format-date';
+
 interface ProfileCardProps {
   name: string;
   email: string;
@@ -20,13 +22,7 @@ const roleLabelMap: Record<string, string> = {
 };
 
 function formatLastLogin(value: string | null | undefined): string {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return new Intl.DateTimeFormat('en-US', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date);
+  return formatInstantDateTime(value) || '—';
 }
 
 function formatStatus(value: string | null | undefined): string {
