@@ -57,7 +57,13 @@ describe('appointment search filter (real DB)', () => {
     prisma = harness.prisma;
     repo = new PrismaAppointmentRepository(prisma);
 
-    const suffix = Math.random().toString(36).slice(2, 10);
+    // Hex, not base-36. The suffix is baked into `property_code`, which the search
+    // matches with `contains`, so any letter it can produce is a letter the negative
+    // assertions below can collide with. Base-36 could emit "ns" (~0.5% of runs),
+    // which made `search('NS')` match both seeded rows and fail an assertion that
+    // expects 0 — a flake unrelated to what that test is checking. Hex cannot
+    // produce 'n' or 's' at all.
+    const suffix = Math.random().toString(16).slice(2, 10);
     const tenant = await prisma.tenant.create({
       data: { name: 'APSF Tenant', legal_name: `APSF LLC ${suffix}`, status: 'ACTIVE' },
     });
