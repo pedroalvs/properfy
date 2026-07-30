@@ -6,14 +6,23 @@
  * unscoped by tenant, so running the real thing against a shared database would
  * cancel every overdue appointment in it, not just a seeded fixture.
  *
- * Usage (from apps/backend, with a .env present):
+ * Usage — locally, from apps/backend with a .env present:
  *   pnpm exec tsx --env-file=.env src/scripts/dry-run-auto-cancel.ts
+ *
+ * Usage — against a deployed environment, without copying its credentials
+ * anywhere (bundled into the image via the tsup entry map):
+ *   fly ssh console -a properfy-prod -C \
+ *     "cd /app/apps/backend && node dist/dry-run-auto-cancel.js"
  */
 import { PrismaClient } from '@prisma/client';
 import { isTerminalAppointmentStatus } from '@properfy/shared';
 import { formatDate, startOfPlatformToday, PLATFORM_TIMEZONE } from '../shared/domain/timezone-date';
 import { PrismaAppointmentRepository } from '../modules/appointment/infrastructure/prisma-appointment.repository';
+import { DEFAULT_BATCH_LIMIT } from '../modules/appointment/application/use-cases/cancel-overdue-appointments.use-case';
 import { CANCELLABLE_GROUP_STATUSES, isServiceGroupDead } from '../modules/service-group/application/services/cancel-empty-group.service';
+
+/** How many groups to itemise per section; the counts beside them are never capped. */
+const LIST_LIMIT = 20;
 
 const prisma = new PrismaClient();
 
@@ -34,6 +43,15 @@ async function main(): Promise<void> {
   }, {});
 
   console.log(`WOULD CANCEL ${overdue.length} overdue appointment(s): ${JSON.stringify(byStatus)}`);
+  // This report is unbounded, but one sweep run is capped. Without saying so, an
+  // operator who sees a big number here, runs the sweep once and finds most rows
+  // still active would reasonably conclude the sweep is broken.
+  if (overdue.length > DEFAULT_BATCH_LIMIT) {
+    const runs = Math.ceil(overdue.length / DEFAULT_BATCH_LIMIT);
+    console.log(
+      `  NOTE: one sweep run cancels at most ${DEFAULT_BATCH_LIMIT}, so this backlog drains over ~${runs} daily runs`,
+    );
+  }
   if (overdue.length > 0) {
     const oldest = overdue[0]!;
     const newest = overdue[overdue.length - 1]!;
@@ -63,16 +81,18 @@ async function main(): Promise<void> {
       !g.appointments.some((a) => !isTerminalAppointmentStatus(a.status)),
   );
 
+  // Itemised lists are capped, but the counts above them are always complete, and
+  // any elision is stated — a silently truncated list reads as "that was all".
+  const listGroups = (rows: typeof groups, describe: (g: (typeof groups)[number]) => string): void => {
+    for (const g of rows.slice(0, LIST_LIMIT)) console.log(`  #${g.group_number} (${g.status}) — ${describe(g)}`);
+    if (rows.length > LIST_LIMIT) console.log(`  ... and ${rows.length - LIST_LIMIT} more`);
+  };
+
   console.log(`Released groups examined: ${groups.length}`);
   console.log(`WOULD CANCEL ${dead.length} group(s) with nothing left to execute`);
-  for (const g of dead.slice(0, 20)) {
-    console.log(`  #${g.group_number} (${g.status}) — ${g.appointments.length} linked member(s), none live, none DONE`);
-  }
-  if (dead.length > 20) console.log(`  ... and ${dead.length - 20} more`);
+  listGroups(dead, (g) => `${g.appointments.length} linked member(s), none live, none DONE`);
   console.log(`PROTECTED by the DONE rule (would be wrongly cancelled without it): ${skippedForDone.length}`);
-  for (const g of skippedForDone.slice(0, 10)) {
-    console.log(`  #${g.group_number} (${g.status}) — has a DONE member, left alone`);
-  }
+  listGroups(skippedForDone, () => 'has a DONE member, left alone');
 
   console.log('\nNo writes performed.');
 }
