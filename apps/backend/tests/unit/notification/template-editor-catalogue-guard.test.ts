@@ -33,9 +33,12 @@ describe('shipped templates satisfy the template editor', () => {
       const spec = TEMPLATE_VARIABLES[template.code as keyof typeof TEMPLATE_VARIABLES];
       const allowed = spec ? [...spec.required, ...spec.optional] : ALLOWED_VARIABLES;
       const required = spec ? [...spec.required] : [];
-      // The editor validates subject + body together, and the body an operator sees
-      // is bodyHtml for EMAIL and the plain body for SMS.
-      const content = [template.subject ?? '', template.body ?? '', template.bodyHtml ?? ''].join(' ');
+      // Exactly what the editor validates: subject plus the one body an operator
+      // can actually see and edit. Feeding it both fields would let a required
+      // variable that appears only in the unused one count as used, so the guard
+      // would pass while the editor still refused the save.
+      const body = template.channel === 'EMAIL' ? template.bodyHtml ?? '' : template.body ?? '';
+      const content = [template.subject ?? '', body].join(' ');
 
       expect(findTemplateVariableIssues(content, { required, allowed })).toEqual({
         invalid: [],
