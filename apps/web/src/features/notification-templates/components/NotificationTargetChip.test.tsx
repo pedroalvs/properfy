@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { NotificationTargetChip } from './NotificationTargetChip';
+import { NOTIFICATION_TARGETS } from '../types';
 
 describe('NotificationTargetChip', () => {
   it('labels the rental tenant target as Tenant', () => {
@@ -48,12 +49,24 @@ describe('NotificationTargetChip', () => {
     expect(screen.getByText('Properfy Ops').getAttribute('title')).toContain('internal');
   });
 
-  it('gives each target a distinct style', () => {
-    const { container: tenant } = render(<NotificationTargetChip templateCode="INSPECTION_NOTICE" />);
-    const { container: manager } = render(
-      <NotificationTargetChip templateCode="PROPERTY_MANAGER_ESCALATION" />,
+  it('gives every target a distinct style', () => {
+    // One code per target. Comparing only two would let a duplicated colour among the
+    // others slip through while the test still claimed to cover "each target".
+    const oneCodePerTarget = [
+      'INSPECTION_NOTICE', // RENTAL_TENANT
+      'PROPERTY_MANAGER_ESCALATION', // PROPERTY_MANAGER
+      'INSPECTOR_GROUP_ASSIGNED', // INSPECTOR
+      'REPORT_READY', // USER_ACCOUNT
+      'INSPECTION_STUCK_ALERT', // PLATFORM_OPS
+    ];
+    expect(oneCodePerTarget).toHaveLength(NOTIFICATION_TARGETS.length);
+
+    const classNames = oneCodePerTarget.map(
+      (templateCode) =>
+        render(<NotificationTargetChip templateCode={templateCode} />).container.firstElementChild
+          ?.className,
     );
-    expect(tenant.firstElementChild?.className).not.toBe(manager.firstElementChild?.className);
+    expect(new Set(classNames).size).toBe(oneCodePerTarget.length);
   });
 
   it('accepts a custom className', () => {
