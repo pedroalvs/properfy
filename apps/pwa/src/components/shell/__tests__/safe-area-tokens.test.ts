@@ -13,12 +13,12 @@ import tailwindConfig from '../../../../tailwind.config';
 describe('safe-area spacing tokens', () => {
   const spacing = (tailwindConfig.theme?.extend?.spacing ?? {}) as Record<string, string>;
 
-  it.each(['safe-b', 'nav-clear'])('defines the %s spacing token', (token) => {
+  it.each(['safe-b', 'safe-b-6', 'nav-clear'])('defines the %s spacing token', (token) => {
     expect(spacing[token]).toBeDefined();
   });
 
   it('derives every safe-area token from the same custom property', () => {
-    for (const token of ['safe-b', 'nav-clear']) {
+    for (const token of ['safe-b', 'safe-b-6', 'nav-clear']) {
       expect(spacing[token]).toContain('var(--safe-area-bottom)');
     }
   });

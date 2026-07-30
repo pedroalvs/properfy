@@ -53,8 +53,13 @@ const config: Config = {
       spacing: {
         'page-x': '16px',
         'page-y': '16px',
-        // iOS home-indicator inset; see --safe-area-bottom in styles/tokens.css.
+        // iOS home-indicator inset; see --safe-area-bottom in styles/tokens.css. Use the
+        // bare token where the element has no padding-bottom of its own, and the `-6`
+        // variant where it does — the inset has to stack on top of the existing padding,
+        // not replace it. Because the inset is dead space, adding it leaves the *visible*
+        // spacing unchanged on devices without an indicator.
         'safe-b': 'var(--safe-area-bottom)',
+        'safe-b-6': 'calc(1.5rem + var(--safe-area-bottom))',
         // Clearance for content sitting under the fixed bottom nav: the 68px bar plus
         // the inset the bar pads itself with. Keep the 5rem base in sync with the nav's
         // rendered height if its contents ever change.
