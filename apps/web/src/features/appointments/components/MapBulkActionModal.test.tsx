@@ -25,8 +25,9 @@ vi.mock('../hooks/useBulkCancelAppointments', () => ({
 vi.mock('../hooks/useBulkRescheduleAppointments', () => ({
   useBulkRescheduleAppointments: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
+const bulkStatusMock = vi.hoisted(() => vi.fn());
 vi.mock('../hooks/useBulkStatusTransition', () => ({
-  useBulkStatusTransition: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useBulkStatusTransition: () => ({ mutateAsync: bulkStatusMock, isPending: false }),
 }));
 vi.mock('../hooks/useBulkAssignInspector', () => ({
   useBulkAssignInspector: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -155,6 +156,29 @@ describe('MapBulkActionModal', () => {
 
       expect(bulkCancelMock).toHaveBeenCalledWith(
         expect.objectContaining({ notifyRentalTenant: false }),
+      );
+    });
+
+    it('forwards the opt-in through the change-status action, not just the cancel one', async () => {
+      // The change-status submit had no payload assertion on either side of the
+      // wire, so the flag could have been dropped there with every test green.
+      bulkStatusMock.mockResolvedValue({ data: { results: [] } });
+      renderModal();
+      fireEvent.click(screen.getByTestId('bulk-modal-row-INS-0002'));
+      fireEvent.click(screen.getByTestId('bulk-actions-toggle'));
+      fireEvent.click(screen.getByTestId('bulk-action-change_status'));
+
+      fireEvent.change(screen.getByTestId('bulk-change-status-target'), {
+        target: { value: 'CANCELLED' },
+      });
+      fireEvent.change(screen.getByTestId('bulk-change-status-reason'), {
+        target: { value: 'Agency withdrew the request' },
+      });
+      fireEvent.click(screen.getByText('Notify the tenants who confirmed'));
+      fireEvent.click(screen.getByTestId('bulk-change-status-apply'));
+
+      expect(bulkStatusMock).toHaveBeenCalledWith(
+        expect.objectContaining({ targetStatus: 'CANCELLED', notifyRentalTenant: true }),
       );
     });
 

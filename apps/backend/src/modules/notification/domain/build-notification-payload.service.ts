@@ -24,7 +24,14 @@ export interface NotificationPayloadContext {
   templateCode: string;
   tenant: TenantEntity;
   appointment: AppointmentEntity;
-  contact: AppointmentContactEntity;
+  /**
+   * Null only for recipients that are not the rental tenant: an imported
+   * appointment can legitimately have no contact at all (CONTACT_INCOMPLETE is a
+   * warning, not an error), and the agency still has to be told when it is
+   * cancelled. Templates that *require* `rentalTenantName` still throw
+   * MissingRequiredVariableError in that case — see the conditional spread below.
+   */
+  contact: AppointmentContactEntity | null;
   propertyAddress?: string;
   branchName?: string;
   inspectorName?: string | null;
@@ -100,7 +107,11 @@ export class BuildNotificationPayloadService {
     const rescheduleLink = confirmationLink;
 
     const allVars: Record<string, string> = {
-      rentalTenantName: ctx.contact.effectiveName,
+      // Conditional, not `?? ''`: leaving the key ABSENT is what preserves the
+      // required-variable guard below. A template that requires rentalTenantName
+      // still throws when there is no contact, while one that lists it as
+      // optional (the agency cancellation notice) renders it empty.
+      ...(ctx.contact ? { rentalTenantName: ctx.contact.effectiveName } : {}),
       propertyAddress: ctx.propertyAddress ?? '',
       scheduledDate,
       timeSlot: formatTimeSlot(ctx.appointment.timeSlotStart, ctx.appointment.timeSlotEnd),

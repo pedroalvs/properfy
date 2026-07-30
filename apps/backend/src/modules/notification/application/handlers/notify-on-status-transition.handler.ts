@@ -171,18 +171,7 @@ export class NotifyOnStatusTransitionHandler {
       input.appointmentId,
       input.tenantId ?? null,
     );
-    if (!result?.contact) {
-      // Known limitation, logged rather than silent: the agency notice is built
-      // from the same payload context as the tenant one, which requires a
-      // contact. Every current creation path attaches a primary contact.
-      if (result && isCancellation) {
-        this.logger?.warn(
-          { appointmentId: input.appointmentId },
-          'Cancelled appointment has no primary contact; agency notice skipped too',
-        );
-      }
-      return;
-    }
+    if (!result) return;
 
     const { appointment, contact } = result;
 
@@ -195,7 +184,10 @@ export class NotifyOnStatusTransitionHandler {
     // member of a group, so anything loaded before this point multiplies across
     // the group. A cancellation defers the check, because the agency leg below
     // must run whether or not the TENANT's announcement is a replay.
-    if (!isCancellation && (await this.isReplay(appointment, emailCode))) return;
+    if (!isCancellation) {
+      if (!contact) return;
+      if (await this.isReplay(appointment, emailCode)) return;
+    }
 
     const tenant = await this.tenantRepo.findById(appointment.tenantId);
     if (!tenant) return;
@@ -203,6 +195,13 @@ export class NotifyOnStatusTransitionHandler {
     const property = await this.propertyRepo.findById(appointment.propertyId, appointment.tenantId);
 
     if (isCancellation) {
+      // Deliberately BEFORE the contact guard. Import creates appointments with
+      // no contact at all (CONTACT_INCOMPLETE is a warning, not an error — see
+      // appointment-import-commit.worker.ts), and those are exactly the ones
+      // nobody accepts and the overdue sweep cancels. Skipping the agency there
+      // would lose the notice in this feature's core scenario. The agency
+      // template only needs the address, date and code; the contact contributes
+      // the optional rentalTenantName.
       await this.announceCancellationToAgency({
         appointment,
         contact,
@@ -216,10 +215,26 @@ export class NotifyOnStatusTransitionHandler {
       const tenantOptedIn =
         input.notifyRentalTenant === true &&
         appointment.rentalTenantConfirmationStatus === 'CONFIRMED';
-      if (!tenantOptedIn) return;
+      if (!tenantOptedIn) {
+        if (input.notifyRentalTenant === true) {
+          // An explicit request we refuse must leave a trace; otherwise a direct
+          // API caller gets a 200 and debugs a notification that never existed.
+          this.logger?.info(
+            {
+              appointmentId: appointment.id,
+              rentalTenantConfirmationStatus: appointment.rentalTenantConfirmationStatus,
+            },
+            'Rental-tenant opt-in discarded: the tenant has not confirmed this appointment',
+          );
+        }
+        return;
+      }
 
       if (await this.isReplay(appointment, emailCode)) return;
     }
+
+    // Everything below addresses the rental tenant, so it needs a recipient.
+    if (!contact) return;
 
     // Mint a portal token for SCHEDULED so confirmationLink/rescheduleLink are populated.
     // Failure must not block the notification — links will render empty.
@@ -309,7 +324,7 @@ export class NotifyOnStatusTransitionHandler {
    */
   private async announceCancellationToAgency(ctx: {
     appointment: AppointmentEntity;
-    contact: AppointmentContactEntity;
+    contact: AppointmentContactEntity | null;
     tenant: TenantEntity;
     propertyAddress: string;
     serviceTypeName: string | null;
@@ -320,10 +335,14 @@ export class NotifyOnStatusTransitionHandler {
         ctx.appointment.tenantId,
       );
       if (!branch?.contactEmail) {
+        // Counted, not just logged: `branches.contact_email` is nullable and
+        // optional at creation, so this is a steady-state population rather than
+        // an edge case, and it defeats "the agency is always told" silently.
         this.logger?.warn(
           { appointmentId: ctx.appointment.id, branchId: ctx.appointment.branchId },
           'Branch has no contact email; agency cancellation notice skipped',
         );
+        this.metrics?.incrementNotificationHandlerErrorCount();
         return;
       }
 

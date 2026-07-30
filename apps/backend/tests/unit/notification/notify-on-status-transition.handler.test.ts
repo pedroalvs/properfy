@@ -337,6 +337,117 @@ describe('NotifyOnStatusTransitionHandler', () => {
     },
   );
 
+  it('still tells the agency when the appointment has no contact at all', async () => {
+    // Import creates appointments with no contact on purpose (CONTACT_INCOMPLETE is
+    // a warning, not an error — see appointment-import-commit.worker.ts). Those are
+    // precisely the ones nobody accepts and the overdue sweep cancels, so skipping
+    // the agency here would lose the notice in this feature's own core scenario.
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment(),
+      contact: null,
+      restrictions: [],
+    });
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'CANCELLED',
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        templateCode: 'INSPECTION_CANCELLED_AGENCY',
+        recipient: 'bookings@agency.example',
+        // rentalTenantName is optional on this template, so an absent contact
+        // renders it empty rather than throwing MissingRequiredVariableError.
+        payloadJson: expect.objectContaining({ rentalTenantName: '' }),
+      }),
+    );
+  });
+
+  it('sends nothing to the tenant when there is no contact, even when opted in', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment(),
+      contact: null,
+      restrictions: [],
+    });
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'CANCELLED',
+      notifyRentalTenant: true,
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).not.toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED' }),
+    );
+  });
+
+  it('keeps the SCHEDULED path silent when there is no contact', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment(),
+      contact: null,
+      restrictions: [],
+    });
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'SCHEDULED',
+    });
+
+    expect(createNotification.execute).not.toHaveBeenCalled();
+    // The cheap replay path must stay cheap: nothing loaded before the bail-out.
+    expect(tenantRepo.findById).not.toHaveBeenCalled();
+  });
+
+  it('does not let a branch lookup failure kill the tenant announcement', async () => {
+    // Guards against hoisting the branch fetch out of the agency leg's try/catch.
+    branchRepo.findById.mockRejectedValue(new Error('branch lookup exploded'));
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'CANCELLED',
+      notifyRentalTenant: true,
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED', channel: 'EMAIL' }),
+    );
+  });
+
+  it('logs when an explicit opt-in is discarded because the tenant never confirmed', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment({ rentalTenantConfirmationStatus: 'PENDING' }),
+      contact: makeContact(),
+      restrictions: [],
+    });
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'CANCELLED',
+      notifyRentalTenant: true,
+    });
+
+    // A caller asking for something we refuse must leave a trace; every other
+    // skip in this handler logs, and a direct API integrator otherwise gets a
+    // 200 and debugs a missing email.
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ appointmentId: 'appt-1' }),
+      expect.stringContaining('opt-in'),
+    );
+  });
+
   it('skips the agency notice when the branch has no contact email', async () => {
     branchRepo.findById.mockResolvedValue(makeBranch(null));
 
