@@ -44,7 +44,7 @@ export interface INotificationRepository {
    */
   scrubPayload(
     id: string,
-    tenantId: string,
+    tenantId: string | null,
     keys: readonly string[],
     replacement: string,
   ): Promise<void>;
@@ -60,5 +60,5 @@ export interface INotificationRepository {
     tenantId: string,
     templateCodes: readonly string[],
   ): Promise<NotificationEntity | null>;
-  countByTenantChannelSince(tenantId: string, channel: NotificationChannel, since: Date): Promise<number>;
+  countByTenantChannelSince(tenantId: string | null, channel: NotificationChannel, since: Date): Promise<number>;
 }

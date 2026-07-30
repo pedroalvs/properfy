@@ -186,7 +186,7 @@ export class PrismaNotificationRepository implements INotificationRepository {
   }
 
   async countByTenantChannelSince(
-    tenantId: string,
+    tenantId: string | null,
     channel: string,
     since: Date,
   ): Promise<number> {
@@ -219,12 +219,17 @@ export class PrismaNotificationRepository implements INotificationRepository {
 
   async scrubPayload(
     id: string,
-    tenantId: string,
+    tenantId: string | null,
     keys: readonly string[],
     replacement: string,
   ): Promise<void> {
     // Atomic jsonb merge: only keys that exist in the payload are overwritten,
     // preserving the payload shape for operators inspecting the notification.
+    //
+    // The tenant guard is IS NOT DISTINCT FROM, not `=`: platform-scoped
+    // notifications carry tenant_id NULL, and `tenant_id = NULL` evaluates to
+    // UNKNOWN, so a plain `=` would match zero rows *without throwing* and leave
+    // the secret (e.g. a password reset link) in payload_json forever.
     await this.prisma.$executeRaw`
       UPDATE notifications
       SET payload_json = payload_json || (
@@ -232,7 +237,7 @@ export class PrismaNotificationRepository implements INotificationRepository {
         FROM jsonb_object_keys(payload_json) AS k
         WHERE k = ANY(${[...keys]}::text[])
       )
-      WHERE id = ${id} AND tenant_id = ${tenantId}
+      WHERE id = ${id} AND tenant_id IS NOT DISTINCT FROM ${tenantId}::text
     `;
   }
 }

@@ -236,6 +236,7 @@ import { PrismaNotificationRepository } from '../modules/notification/infrastruc
 import { PrismaNotificationTemplateRepository } from '../modules/notification/infrastructure/prisma-notification-template.repository';
 import { PrismaNotificationAttemptRepository } from '../modules/notification/infrastructure/prisma-notification-attempt.repository';
 import { PrismaNotificationConsentRepository } from '../modules/notification/infrastructure/prisma-notification-consent.repository';
+import { createTenantSettingsReader } from '../modules/notification/infrastructure/prisma-tenant-settings.reader';
 import { TemplateRendererService } from '../modules/notification/domain/template-renderer.service';
 import { SendNotificationUseCase } from '../modules/notification/application/use-cases/send-notification.use-case';
 import { RetryNotificationUseCase } from '../modules/notification/application/use-cases/retry-notification.use-case';
@@ -1057,10 +1058,7 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Notification use cases
   const consentRepo = new PrismaNotificationConsentRepository(prisma);
-  const getTenantSettings = async (tenantId: string): Promise<Record<string, unknown>> => {
-    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { settings_json: true } });
-    return (tenant?.settings_json as Record<string, unknown>) ?? {};
-  };
+  const getTenantSettings = createTenantSettingsReader(prisma);
 
   const sendNotificationUseCase = new SendNotificationUseCase({
     notificationRepo,
