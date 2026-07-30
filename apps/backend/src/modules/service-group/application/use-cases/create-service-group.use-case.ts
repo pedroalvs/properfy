@@ -155,7 +155,9 @@ export class CreateServiceGroupUseCase {
     // 6. Save group
     await this.serviceGroupRepo.save(group);
 
-    // 7. Link appointments to group and transition DRAFT ones to AWAITING_INSPECTOR
+    // 7. Link appointments to group and transition DRAFT ones to AWAITING_INSPECTOR.
+    // The group was just saved as DRAFT, so the link's addable-status guard always
+    // passes here; this is the create path, not the racy add-to-existing one.
     await this.serviceGroupRepo.linkAppointments(input.appointmentIds, groupId);
 
     for (const appt of appointments) {

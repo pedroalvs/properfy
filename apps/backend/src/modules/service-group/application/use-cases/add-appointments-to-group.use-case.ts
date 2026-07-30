@@ -105,7 +105,23 @@ export class AddAppointmentsToGroupUseCase {
       }
 
       try {
-        await this.groupRepo.linkAppointments([apptId], input.groupId);
+        // `validation` above judged the group from a snapshot read before the loop.
+        // The link itself re-checks the group's status atomically, so a group
+        // cancelled in between (e.g. by the empty-group cleanup, once this
+        // appointment's predecessor was cancelled) reports 0 rows instead of
+        // stranding a live appointment on a group nobody will ever offer.
+        const linked = await this.groupRepo.linkAppointments([apptId], input.groupId);
+        if (linked === 0) {
+          results.push({
+            appointmentId: apptId,
+            status: 'GROUP_IN_TERMINAL_STATE',
+            error: {
+              code: 'GROUP_IN_TERMINAL_STATE',
+              message: reasonMessage('GROUP_IN_TERMINAL_STATE'),
+            },
+          });
+          continue;
+        }
         currentSize += 1;
 
         await trySyncAppointmentScheduleToGroup({

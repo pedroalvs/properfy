@@ -111,7 +111,7 @@ describe('auto-cancel overdue appointments and dead groups (real DB)', () => {
   }
 
   async function createGroup(
-    status: 'DRAFT' | 'PUBLISHED' | 'ACCEPTED' | 'CANCELLED' = 'PUBLISHED',
+    status: 'DRAFT' | 'PUBLISHED' | 'ACCEPTED' | 'CANCELLED' | 'REJECTED' = 'PUBLISHED',
   ): Promise<string> {
     const group = await prisma().serviceGroup.create({
       data: {
@@ -360,6 +360,50 @@ describe('auto-cancel overdue appointments and dead groups (real DB)', () => {
       });
 
       expect(await groupRepo.cancelOptimistic(groupId, 'PUBLISHED')).toBe(1);
+    });
+  });
+
+  describe('linkAppointments — the mirror guard on the link side', () => {
+    /**
+     * `cancelOptimistic` stops a cancel from racing a link. This is the other half:
+     * `add-appointments-to-group` validates the group's status from a snapshot read
+     * before its loop, so a group cancelled in between (by the empty-group cleanup,
+     * once the previous member was cancelled) must not receive live appointments —
+     * they would be invisible to the marketplace and un-regroupable.
+     * Remove the `EXISTS` clause from the UPDATE and the CANCELLED case here fails.
+     */
+    it('links into an addable group', async () => {
+      for (const status of ['DRAFT', 'PUBLISHED'] as const) {
+        const groupId = await createGroup(status);
+        const apptId = await createAppointment({ date: '2026-08-12', status: 'AWAITING_INSPECTOR' });
+
+        expect(await groupRepo.linkAppointments([apptId], groupId)).toBe(1);
+        expect((await prisma().appointment.findUnique({ where: { id: apptId } }))?.service_group_id)
+          .toBe(groupId);
+      }
+    });
+
+    it('refuses to link into a CANCELLED or REJECTED group', async () => {
+      for (const status of ['CANCELLED', 'REJECTED'] as const) {
+        const groupId = await createGroup(status);
+        const apptId = await createAppointment({ date: '2026-08-12', status: 'AWAITING_INSPECTOR' });
+
+        expect(await groupRepo.linkAppointments([apptId], groupId)).toBe(0);
+        expect((await prisma().appointment.findUnique({ where: { id: apptId } }))?.service_group_id)
+          .toBeNull();
+      }
+    });
+
+    it('refuses to link into an ACCEPTED group — it is locked, not addable', async () => {
+      const groupId = await createGroup('ACCEPTED');
+      const apptId = await createAppointment({ date: '2026-08-12', status: 'AWAITING_INSPECTOR' });
+
+      expect(await groupRepo.linkAppointments([apptId], groupId)).toBe(0);
+    });
+
+    it('reports 0 for an empty id list without touching the database', async () => {
+      const groupId = await createGroup('DRAFT');
+      expect(await groupRepo.linkAppointments([], groupId)).toBe(0);
     });
   });
 

@@ -58,7 +58,22 @@ export type AppointmentForAddValidation = AppointmentForValidation;
  * Group statuses that still accept new members. ACCEPTED locks the
  * group (inspector committed); CANCELLED/REJECTED are terminal.
  */
-const ADDABLE_GROUP_STATUSES = new Set<ServiceGroupStatus>(['DRAFT', 'PUBLISHED']);
+/**
+ * Statuses a group can still accept members in. Exported so the repository's
+ * conditional link uses the same set rather than restating it in SQL.
+ */
+export const ADDABLE_GROUP_STATUSES = new Set<ServiceGroupStatus>(['DRAFT', 'PUBLISHED']);
+
+/**
+ * A group that will never run again. Membership of a terminal group is dead
+ * weight: the marketplace only offers PUBLISHED groups, so an appointment linked
+ * to one is invisible there and cannot be re-grouped (`canAddToGroup` rejects any
+ * non-null link). Callers reviving an appointment must drop such a link.
+ */
+export const TERMINAL_GROUP_STATUSES = new Set<string>(['CANCELLED', 'REJECTED']);
+
+export const isTerminalGroupStatus = (status: string): boolean =>
+  TERMINAL_GROUP_STATUSES.has(status);
 
 /**
  * Maximum number of appointments an existing group can hold. Enforced only when
