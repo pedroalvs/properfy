@@ -47,6 +47,15 @@ jobs:
       - name: Lint web
         run: pnpm --filter web lint
 
+      # The PWA had no CI coverage at all until 2026-07-30: no lint, typecheck,
+      # test or build ran on any PR, and its only build happened in
+      # pages-deploy.yml *after* merge. That gap let `h-18` — a Tailwind spacing
+      # class the config never defined, so silently dropped — sit in the bottom
+      # nav for four months, alongside a complete absence of safe-area handling
+      # despite index.html opting into `viewport-fit=cover`.
+      - name: Lint pwa
+        run: pnpm --filter pwa lint
+
       - name: Typecheck shared
         run: pnpm --filter shared typecheck
 
@@ -55,6 +64,9 @@ jobs:
 
       - name: Typecheck web
         run: pnpm --filter web typecheck
+
+      - name: Typecheck pwa
+        run: pnpm --filter pwa typecheck
 
   test-shared:
     name: Test shared
@@ -123,6 +135,25 @@ jobs:
       - name: Test web
         run: pnpm --filter web test
 
+  test-pwa:
+    name: Test pwa
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - name: Build shared (required for @properfy/shared resolution)
+        run: pnpm --filter shared build
+      - name: Test pwa
+        run: pnpm --filter pwa test
+
   test-web-e2e:
     name: E2E web (Playwright)
     runs-on: ubuntu-latest
@@ -172,9 +203,9 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    # All four `needs` jobs are hard gates. (test-web was restored to a
-    # blocking check once the single-file web-suite OOM was fixed.)
-    needs: [lint-typecheck, test-shared, test-backend, test-web]
+    # All `needs` jobs are hard gates. (test-web was restored to a blocking
+    # check once the single-file web-suite OOM was fixed.)
+    needs: [lint-typecheck, test-shared, test-backend, test-web, test-pwa]
     steps:
       - uses: actions/checkout@v4
 
@@ -199,6 +230,12 @@ jobs:
 
       - name: Build web
         run: pnpm --filter web build
+
+      # No env needed: apps/pwa/src/config/env.ts falls back to localhost when
+      # VITE_API_BASE_URL is absent. This job proves the bundle compiles; the
+      # real values are injected by pages-deploy.yml.
+      - name: Build pwa
+        run: pnpm --filter pwa build
 
   prisma-validate:
     name: Prisma schema validation (syntax)
