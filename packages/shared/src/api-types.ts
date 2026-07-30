@@ -10235,7 +10235,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
                                 /** Format: uuid */
                                 appointmentId: string | null;
                                 recipient: string;
@@ -10303,7 +10303,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
                                 /** Format: uuid */
                                 appointmentId: string | null;
                                 recipient: string;
@@ -10367,7 +10367,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
                                 /** Format: uuid */
                                 appointmentId: string | null;
                                 recipient: string;

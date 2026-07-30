@@ -147,6 +147,21 @@ describe('GET /v1/notifications/:notificationId', () => {
     expect(res.status).toBe(200);
     expect(res.body.data.id).toBe(NOTIFICATION_ID);
   });
+
+  // The Zod response serializer throws AFTER the handler commits, so a platform
+  // notification (tenantId null) would surface as a 500 if the schema said
+  // `z.string().uuid()` without `.nullable()`.
+  it('should return 200 for a platform-scoped notification with a null tenantId', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockGetNotificationExecute.mockResolvedValueOnce({ ...fullNotification, tenantId: null });
+
+    const res = await supertest(app.server)
+      .get(`/v1/notifications/${NOTIFICATION_ID}`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.tenantId).toBeNull();
+  });
 });
 
 describe('POST /v1/notifications/:notificationId/retry', () => {

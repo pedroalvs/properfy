@@ -1220,7 +1220,9 @@ model InspectorInvoice {
 
 model Notification {
   id                  String              @id @default(uuid())
-  tenant_id           String
+  /// NULL = platform-scoped notification (no owning agency), e.g. the password
+  /// reset email for an AM/OP/INSP user. Mirrors notification_templates.tenant_id.
+  tenant_id           String?
   appointment_id      String?
   recipient           String              @db.VarChar(320)
   channel             NotificationChannel
@@ -1239,7 +1241,7 @@ model Notification {
   created_at          DateTime            @default(now())
   updated_at          DateTime            @updatedAt
 
-  tenant      Tenant                @relation(fields: [tenant_id], references: [id])
+  tenant      Tenant?               @relation(fields: [tenant_id], references: [id])
   appointment Appointment?          @relation(fields: [appointment_id], references: [id])
   attempts    NotificationAttempt[]
 

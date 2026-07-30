@@ -44,7 +44,7 @@ export interface SendNotificationDeps {
   templateRenderer: TemplateRendererService;
   logger: Logger;
   metrics: MetricsCollector;
-  getTenantSettings: (tenantId: string) => Promise<Record<string, unknown>>;
+  getTenantSettings: (tenantId: string | null) => Promise<Record<string, unknown>>;
   /** Render-profile HTML sanitizer (defense-in-depth) */
   htmlSanitizer?: IHtmlSanitizerService;
   /** HTML → plain text derivation */
@@ -61,7 +61,7 @@ export class SendNotificationUseCase {
   private readonly templateRenderer: TemplateRendererService;
   private readonly logger: Logger;
   private readonly metrics: MetricsCollector;
-  private readonly getTenantSettings: (tenantId: string) => Promise<Record<string, unknown>>;
+  private readonly getTenantSettings: (tenantId: string | null) => Promise<Record<string, unknown>>;
   private readonly htmlSanitizer?: IHtmlSanitizerService;
   private readonly htmlToText?: IHtmlToTextService;
 

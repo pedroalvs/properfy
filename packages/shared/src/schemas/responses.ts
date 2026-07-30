@@ -889,7 +889,8 @@ export const agencyFinancialExportResponseSchema = z.object({
 
 export const notificationResponseSchema = z.object({
   id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  /** null = platform-scoped notification (recipient belongs to no agency). */
+  tenantId: z.string().uuid().nullable(),
   appointmentId: z.string().uuid().nullable(),
   recipient: z.string(),
   channel: z.string(),

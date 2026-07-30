@@ -6,7 +6,11 @@ import type { NotificationChannel, NotificationClass } from '@properfy/shared';
  * consent is tracked per (tenant, recipient, channel, notificationClass).
  */
 export interface ConsentScope {
-  tenantId: string;
+  /**
+   * null = platform-scoped notification. `notification_consents.tenant_id` is
+   * NOT NULL, so such a lookup correctly resolves to "no consent record".
+   */
+  tenantId: string | null;
   recipient: string;
   channel: NotificationChannel;
   notificationClass: NotificationClass;

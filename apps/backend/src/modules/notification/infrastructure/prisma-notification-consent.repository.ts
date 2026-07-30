@@ -50,6 +50,10 @@ export class PrismaNotificationConsentRepository implements INotificationConsent
   }
 
   async findByScope(scope: ConsentScope): Promise<NotificationConsentEntity | null> {
+    // A platform-scoped notification has no agency, and notification_consents
+    // is keyed on a NOT NULL tenant_id — so no consent record can exist for it.
+    // Answer that directly instead of asking Prisma for an impossible row.
+    if (scope.tenantId === null) return null;
     const row = await this.prisma.notificationConsent.findFirst({
       where: {
         recipient: scope.recipient,

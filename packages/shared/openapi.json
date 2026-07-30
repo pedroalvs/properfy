@@ -23263,7 +23263,8 @@
                           },
                           "tenantId": {
                             "type": "string",
-                            "format": "uuid"
+                            "format": "uuid",
+                            "nullable": true
                           },
                           "appointmentId": {
                             "type": "string",
@@ -23463,7 +23464,8 @@
                         },
                         "tenantId": {
                           "type": "string",
-                          "format": "uuid"
+                          "format": "uuid",
+                          "nullable": true
                         },
                         "appointmentId": {
                           "type": "string",
@@ -23637,7 +23639,8 @@
                         },
                         "tenantId": {
                           "type": "string",
-                          "format": "uuid"
+                          "format": "uuid",
+                          "nullable": true
                         },
                         "appointmentId": {
                           "type": "string",
