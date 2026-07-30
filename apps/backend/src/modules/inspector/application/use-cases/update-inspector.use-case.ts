@@ -87,29 +87,32 @@ export class UpdateInspectorUseCase {
       throw new InspectorNotFoundError();
     }
 
-    // Compared case-insensitively: the schema lowercases incoming emails while
-    // legacy rows may still hold mixed case, and the edit drawer resubmits the
-    // prefilled email on every save — so a raw compare would treat a phone-only
-    // edit as an email change and collide with the inspector's own account.
-    const emailChanged = Boolean(
-      data.email && data.email.toLowerCase() !== inspector.email.toLowerCase(),
-    );
-    // Diff-gated: this lookup has no self-exclusion, so running it on an
-    // unchanged email would 409 the inspector against its own row.
-    if (emailChanged) {
-      const existing = await this.inspectorRepo.findByEmail(data.email!);
-      if (existing) {
+    // Both uniqueness checks below are payload-gated with a self-exclusion, on
+    // purpose: two different gate shapes on adjacent checks is what produced a
+    // run of "fix one cell, break another" regressions here. Keep them symmetric.
+    //
+    // inspectors.email is @unique, so a diff gate let a legacy mixed-case row
+    // resubmit its own normalised address, read as unchanged, skip the check and
+    // drive the write into a P2002 — a 500 on a phone-only edit rather than a 409.
+    if (data.email !== undefined) {
+      const existing = await this.inspectorRepo.findByEmail(data.email);
+      if (existing && existing.id !== inspectorId) {
         throw new InspectorEmailConflictError();
       }
     }
 
-    // Payload-gated, matching the write below. Gating this on `emailChanged`
-    // instead left a hole: for a legacy mixed-case row the normalised email reads
-    // as unchanged, so the check was skipped while the write still stamped it onto
-    // the users row — manufacturing two accounts sharing one login identity, which
-    // findByEmail (a findFirst) then resolves at random. The self-match exclusion
-    // is what makes running this unconditionally safe.
-    if (data.email !== undefined) {
+    // Gated exactly like the sync write below — payload-driven, and only when
+    // there is a login account to protect. Both halves matter:
+    //   - payload rather than diff, because for a legacy mixed-case row the
+    //     normalised email reads as unchanged, so a diff gate would skip the check
+    //     while the write still stamped the address onto the users row, leaving
+    //     two accounts on one login identity for findByEmail (a findFirst) to
+    //     resolve at random;
+    //   - only when linked, because the self-match exclusion keys on
+    //     inspector.userId, so for an unlinked row it can never match and any
+    //     unrelated user holding that address would 409 every future edit — with
+    //     no sync happening that could have caused a conflict in the first place.
+    if (data.email !== undefined && inspector.userId) {
       const existingUser = await this.userManagementRepo?.findByEmail(data.email);
       if (existingUser && existingUser.id !== inspector.userId) {
         throw new InspectorEmailConflictError();

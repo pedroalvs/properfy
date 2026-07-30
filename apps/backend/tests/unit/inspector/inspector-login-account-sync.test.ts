@@ -299,6 +299,41 @@ describe('UpdateInspectorUseCase — login account email sync', () => {
     ).resolves.toBeDefined();
   });
 
+  it('409s instead of 500ing when another inspector already holds the resubmitted email', async () => {
+    // inspectors.email is @unique. With the inspector-level check diff-gated, a
+    // legacy mixed-case row resubmitting its normalised email read as unchanged,
+    // skipped the check, and drove the write straight into a P2002 — surfacing as
+    // a 500 on a phone-only edit instead of a clean conflict.
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(
+      makeInspector({ email: 'John@Example.com' }),
+    );
+    vi.mocked(inspectorRepo.findByEmail).mockResolvedValue(
+      makeInspector({ id: 'other-inspector', email: 'john@example.com' }),
+    );
+
+    await expect(
+      useCase.execute({
+        inspectorId: 'inspector-1',
+        data: { email: 'john@example.com', phone: '+61400000001' },
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(InspectorEmailConflictError);
+
+    expect(inspectorRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('excludes itself when the inspector-level lookup returns its own row', async () => {
+    vi.mocked(inspectorRepo.findByEmail).mockResolvedValue(makeInspector());
+
+    await expect(
+      useCase.execute({
+        inspectorId: 'inspector-1',
+        data: { email: 'john@example.com', phone: '+61400000001' },
+        actor: makeActor(),
+      }),
+    ).resolves.toBeDefined();
+  });
+
   it('still rejects a foreign login account holding the email when nothing changed', async () => {
     // The write is payload-driven while the collision check used to be gated on
     // "did it change". For a legacy mixed-case row that gap let a phone-only edit
@@ -392,5 +427,44 @@ describe('DeactivateInspectorUseCase — login account lockout', () => {
     expect(result.status).toBe('INACTIVE');
     expect(userManagementRepo.revokeAllSessions).not.toHaveBeenCalled();
     expect(userManagementRepo.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('UpdateInspectorUseCase — unlinked legacy inspector', () => {
+  let inspectorRepo: IInspectorRepository;
+  let userManagementRepo: IUserManagementRepository;
+  let auditService: AuditService;
+  let useCase: UpdateInspectorUseCase;
+
+  beforeEach(() => {
+    inspectorRepo = makeInspectorRepo();
+    userManagementRepo = makeUserRepo();
+    auditService = { log: vi.fn() } as unknown as AuditService;
+    useCase = new UpdateInspectorUseCase(
+      inspectorRepo,
+      auditService,
+      undefined,
+      new AuthorizationService(auditService),
+      userManagementRepo,
+    );
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector({ userId: null }));
+    vi.mocked(inspectorRepo.findByEmail).mockResolvedValue(null);
+  });
+
+  it('does not wedge an unlinked inspector whose email matches an unrelated user', async () => {
+    // userId is null, so the self-match exclusion (id !== inspector.userId) can
+    // never match. Running the collision check on an UNCHANGED email would 409
+    // every future edit of such a row, with no sync to protect in the first place.
+    vi.mocked(userManagementRepo.findByEmail).mockResolvedValue(
+      makeUser({ id: 'unrelated-user', email: 'john@example.com' }),
+    );
+
+    await expect(
+      useCase.execute({
+        inspectorId: 'inspector-1',
+        data: { email: 'john@example.com', phone: '+61400000001' },
+        actor: makeActor(),
+      }),
+    ).resolves.toBeDefined();
   });
 });
