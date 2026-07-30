@@ -211,6 +211,12 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
     [targetStatus, selectedAppointments],
   );
 
+  // Off is the deliberate default, so a tick must not survive a change of target and
+  // reappear pre-checked when the operator comes back to CANCELLED.
+  useEffect(() => {
+    setNotifyRentalTenant(false);
+  }, [targetStatus]);
+
   // The row sits last in a scrolling dialog, so the controls it reveals land
   // below the fold and its dropdown would open into the clipped region. Bring
   // the row into view on check. Keyed on the boolean, so it fires once per

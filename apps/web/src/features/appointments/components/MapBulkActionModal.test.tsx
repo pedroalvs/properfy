@@ -158,6 +158,24 @@ describe('MapBulkActionModal', () => {
       );
     });
 
+    it('drops the tick when the target status changes, so off stays the default', () => {
+      renderModal();
+      fireEvent.click(screen.getByTestId('bulk-modal-row-INS-0002'));
+      fireEvent.click(screen.getByTestId('bulk-actions-toggle'));
+      fireEvent.click(screen.getByTestId('bulk-action-change_status'));
+
+      const target = screen.getByTestId('bulk-change-status-target');
+      fireEvent.change(target, { target: { value: 'CANCELLED' } });
+      fireEvent.click(screen.getByText('Notify the tenants who confirmed'));
+      expect(screen.getByLabelText('Notify the tenants who confirmed')).toBeChecked();
+
+      // Away from CANCELLED the control disappears; coming back it must be unticked.
+      fireEvent.change(target, { target: { value: 'REJECTED' } });
+      expect(screen.queryByTestId('bulk-change-status-notify-block')).not.toBeInTheDocument();
+      fireEvent.change(target, { target: { value: 'CANCELLED' } });
+      expect(screen.getByLabelText('Notify the tenants who confirmed')).not.toBeChecked();
+    });
+
     it('sends notifyRentalTenant:true once the box is ticked', async () => {
       bulkCancelMock.mockResolvedValue({ data: { results: [] } });
       openCancelForm(['INS-0002']);

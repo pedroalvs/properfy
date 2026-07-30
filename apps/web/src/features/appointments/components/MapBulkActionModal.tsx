@@ -905,6 +905,12 @@ function ChangeStatusForm({ checkedAppointments, actorRole, clUserFlags, loading
     [target, checkedAppointments],
   );
 
+  // Off is the deliberate default, so a tick must not survive a change of target and
+  // reappear pre-checked when the operator comes back to CANCELLED.
+  useEffect(() => {
+    setNotifyRentalTenant(false);
+  }, [target]);
+
   // Look up reason requirement from the shared matrix when we have a
   // reasonable "from" status (use the first checked row — same row pinned
   // by the intersection above).
