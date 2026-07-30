@@ -1134,6 +1134,22 @@ describe('ExecuteStatusTransitionUseCase – terminal service-group links', () =
     expect(appointmentRepo.update.mock.calls[0]![2].serviceGroupId).toBeNull();
   });
 
+  it('drops the link when the linked group no longer exists', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'CANCELLED', serviceGroupId: 'sg-gone' }),
+    );
+    serviceGroupRepo.findStatusById.mockResolvedValue(null);
+
+    await makeUseCase({ withServiceGroupRepo: true }).execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DRAFT',
+      reason: 'Reopen',
+      actor: makeActor('OP'),
+    });
+
+    expect(appointmentRepo.update.mock.calls[0]![2].serviceGroupId).toBeNull();
+  });
+
   it('keeps the link when the group is still live', async () => {
     appointmentRepo.findById.mockResolvedValue(
       makeWithRelations({ status: 'CANCELLED', serviceGroupId: 'sg-live' }),

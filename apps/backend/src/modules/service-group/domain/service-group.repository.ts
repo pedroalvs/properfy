@@ -285,6 +285,12 @@ export interface IServiceGroupRepository {
   linkAppointments(appointmentIds: string[], groupId: string): Promise<number>;
   /** Just the group's status, or null if it does not exist. Cheap membership check. */
   findStatusById(id: string): Promise<string | null>;
+  /**
+   * Statuses for several groups at once, keyed by id; missing ids are absent from
+   * the result. Lets the add-to-group flows judge each appointment's *existing*
+   * link in one query instead of one per appointment.
+   */
+  findStatusesByIds(ids: string[]): Promise<Record<string, string>>;
   /** Clear service_group_id on appointments */
   unlinkAppointments(groupId: string): Promise<void>;
   /** Revert all SCHEDULED appointments in a group back to AWAITING_INSPECTOR and clear inspector_id */

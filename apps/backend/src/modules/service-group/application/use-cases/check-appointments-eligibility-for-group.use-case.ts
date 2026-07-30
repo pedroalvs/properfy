@@ -82,6 +82,12 @@ export class CheckAppointmentsEligibilityForGroupUseCase {
           // GROUP_CAPACITY_EXCEEDED for items beyond slot 30.
           currentSize: currentSize + eligibleAppointmentIds.length,
         },
+        // Must match what the add itself will judge, or the preview would call an
+        // appointment ineligible that the add then accepts (or vice versa). A link
+        // to a terminal group is replaceable — see `canAddToGroup`.
+        appointment.serviceGroupId
+          ? await this.groupRepo.findStatusById(appointment.serviceGroupId)
+          : undefined,
       );
       if (validation.ok) {
         eligibleAppointmentIds.push(appointment.id);

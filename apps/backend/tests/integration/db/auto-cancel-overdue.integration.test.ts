@@ -405,6 +405,62 @@ describe('auto-cancel overdue appointments and dead groups (real DB)', () => {
       const groupId = await createGroup('DRAFT');
       expect(await groupRepo.linkAppointments([], groupId)).toBe(0);
     });
+
+    // Appointment-side precondition. Without it, two concurrent adds both read the
+    // appointment as ungrouped and the later write silently steals it.
+    it('refuses to steal an appointment out of a live group', async () => {
+      const owningGroup = await createGroup('PUBLISHED');
+      const targetGroup = await createGroup('DRAFT');
+      const apptId = await createAppointment({
+        date: '2026-08-12', status: 'AWAITING_INSPECTOR', groupId: owningGroup,
+      });
+
+      expect(await groupRepo.linkAppointments([apptId], targetGroup)).toBe(0);
+      expect((await prisma().appointment.findUnique({ where: { id: apptId } }))?.service_group_id)
+        .toBe(owningGroup);
+    });
+
+    // ...but a link to a DEAD group is dead weight, and replacing it is the repair
+    // that un-strands an appointment the cleanup left behind.
+    it('rescues an appointment linked to a terminal group', async () => {
+      for (const deadStatus of ['CANCELLED', 'REJECTED'] as const) {
+        const deadGroup = await createGroup(deadStatus);
+        const targetGroup = await createGroup('DRAFT');
+        const apptId = await createAppointment({
+          date: '2026-08-12', status: 'DRAFT', groupId: deadGroup,
+        });
+
+        expect(await groupRepo.linkAppointments([apptId], targetGroup)).toBe(1);
+        expect((await prisma().appointment.findUnique({ where: { id: apptId } }))?.service_group_id)
+          .toBe(targetGroup);
+      }
+    });
+
+    it('is idempotent when the appointment is already in the target group', async () => {
+      const groupId = await createGroup('PUBLISHED');
+      const apptId = await createAppointment({
+        date: '2026-08-12', status: 'AWAITING_INSPECTOR', groupId,
+      });
+
+      expect(await groupRepo.linkAppointments([apptId], groupId)).toBe(1);
+    });
+  });
+
+  describe('findStatusesByIds', () => {
+    it('returns statuses keyed by id and omits unknown ids', async () => {
+      const a = await createGroup('PUBLISHED');
+      const b = await createGroup('CANCELLED');
+
+      const statuses = await groupRepo.findStatusesByIds([a, b, '00000000-0000-0000-0000-000000000000']);
+
+      expect(statuses[a]).toBe('PUBLISHED');
+      expect(statuses[b]).toBe('CANCELLED');
+      expect(Object.keys(statuses)).toHaveLength(2);
+    });
+
+    it('returns an empty map for no ids', async () => {
+      expect(await groupRepo.findStatusesByIds([])).toEqual({});
+    });
   });
 
   describe('findIdsByStatuses', () => {
