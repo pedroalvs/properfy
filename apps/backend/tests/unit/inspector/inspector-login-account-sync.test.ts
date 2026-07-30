@@ -231,6 +231,21 @@ describe('UpdateInspectorUseCase — login account email sync', () => {
     expect(userManagementRepo.revokeAllSessions).not.toHaveBeenCalled();
   });
 
+  it('re-revokes sessions on a retry after the first revoke failed', async () => {
+    // The status write is payload-driven and self-healing; gating the revoke on a
+    // diff instead left it stranded — the retry sees status already INACTIVE and
+    // never retries the revoke, leaving live sessions on a locked account.
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector({ status: 'INACTIVE' }));
+
+    await useCase.execute({
+      inspectorId: 'inspector-1',
+      data: { status: 'INACTIVE' },
+      actor: makeActor(),
+    });
+
+    expect(userManagementRepo.revokeAllSessions).toHaveBeenCalledWith('user-insp-1');
+  });
+
   it('does not revoke sessions when the status is resubmitted unchanged', async () => {
     // The drawer resubmits the prefilled status on every save, so a name-only
     // edit must not log the inspector out of the PWA.
@@ -265,7 +280,30 @@ describe('UpdateInspectorUseCase — login account email sync', () => {
 
   it('does not 409 a legacy inspector whose stored email differs only in case', async () => {
     // The drawer resubmits the prefilled email on every edit, so a mixed-case
-    // legacy row would collide with its own login account on a phone-only change.
+    // legacy row must not collide with its OWN login account on a phone-only
+    // change — hence the self-match exclusion, keyed on the inspector's userId.
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(
+      makeInspector({ email: 'John@Example.com' }),
+    );
+    vi.mocked(inspectorRepo.findByEmail).mockResolvedValue(null);
+    vi.mocked(userManagementRepo.findByEmail).mockResolvedValue(
+      makeUser({ id: 'user-insp-1', email: 'john@example.com', role: 'INSP', tenantId: null }),
+    );
+
+    await expect(
+      useCase.execute({
+        inspectorId: 'inspector-1',
+        data: { email: 'john@example.com', phone: '+61400000001' },
+        actor: makeActor(),
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it('still rejects a foreign login account holding the email when nothing changed', async () => {
+    // The write is payload-driven while the collision check used to be gated on
+    // "did it change". For a legacy mixed-case row that gap let a phone-only edit
+    // stamp a foreign account's email onto this inspector's users row — two rows
+    // sharing a login identity, which findByEmail (findFirst) resolves at random.
     vi.mocked(inspectorRepo.findById).mockResolvedValue(
       makeInspector({ email: 'John@Example.com' }),
     );
@@ -280,7 +318,9 @@ describe('UpdateInspectorUseCase — login account email sync', () => {
         data: { email: 'john@example.com', phone: '+61400000001' },
         actor: makeActor(),
       }),
-    ).resolves.toBeDefined();
+    ).rejects.toThrow(InspectorEmailConflictError);
+
+    expect(userManagementRepo.update).not.toHaveBeenCalled();
   });
 
   it('ignores a self-match when re-saving the inspector own login account', async () => {

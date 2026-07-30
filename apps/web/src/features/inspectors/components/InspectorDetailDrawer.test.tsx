@@ -216,7 +216,7 @@ describe('InspectorDetailDrawer', () => {
 
   it('hides reset password button when inspector is INACTIVE', () => {
     // The reset also reactivates the login account, so the API refuses it with
-    // INSPECTOR_INACTIVE — offering the button would only produce a dead end.
+    // INSPECTOR_DEACTIVATED — offering the button would only produce a dead end.
     mockUserRole = 'AM';
     renderDrawer({ inspectorId: 'inactive', open: true });
     expect(screen.queryByLabelText('Reset Password')).not.toBeInTheDocument();

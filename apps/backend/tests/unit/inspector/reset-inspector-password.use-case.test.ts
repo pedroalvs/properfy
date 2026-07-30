@@ -8,7 +8,7 @@ import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector
 import {
   InspectorNotFoundError,
   InspectorNoLoginAccountError,
-  InspectorInactiveError,
+  InspectorDeactivatedError,
 } from '../../../src/modules/inspector/domain/inspector.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
@@ -205,7 +205,7 @@ describe('ResetInspectorPasswordUseCase', () => {
         newPassword: NEW_PASSWORD,
         actor: makeActor(),
       }),
-    ).rejects.toThrow(InspectorInactiveError);
+    ).rejects.toThrow(InspectorDeactivatedError);
 
     expect(resetUserPasswordUseCase.execute).not.toHaveBeenCalled();
   });

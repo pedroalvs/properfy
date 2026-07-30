@@ -13,12 +13,13 @@ export class InspectorEmailConflictError extends ConflictError {
 }
 
 /**
- * Deliberately not the existing `INSPECTOR_INACTIVE` code: the PWA redirects to
- * /deactivated on a 403 carrying that code, and it is already mapped to FORBIDDEN
- * by the bulk-action layer. A distinct code keeps this operator-facing conflict
- * from ever being mistaken for that inspector-facing signal.
+ * Deliberately neither the name nor the code of the service-group module's
+ * `InspectorInactiveError` (`INSPECTOR_INACTIVE`, 422): the PWA redirects to
+ * /deactivated on a 403 carrying that code and the bulk-action layer maps it to
+ * FORBIDDEN, so this operator-facing conflict must not be mistaken for that
+ * inspector-facing signal — nor for the other class when grepping.
  */
-export class InspectorInactiveError extends ConflictError {
+export class InspectorDeactivatedError extends ConflictError {
   constructor() {
     super(
       'INSPECTOR_DEACTIVATED',

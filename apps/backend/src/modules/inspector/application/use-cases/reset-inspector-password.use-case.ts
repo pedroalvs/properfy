@@ -6,7 +6,7 @@ import type { ResetUserPasswordUseCase } from '../../../user/application/use-cas
 import {
   InspectorNotFoundError,
   InspectorNoLoginAccountError,
-  InspectorInactiveError,
+  InspectorDeactivatedError,
 } from '../../domain/inspector.errors';
 
 export interface ResetInspectorPasswordInput {
@@ -55,7 +55,7 @@ export class ResetInspectorPasswordUseCase {
     // sets users.status = ACTIVE, so resetting a deactivated inspector would hand
     // their PWA access back without any reactivation step.
     if (inspector.status !== 'ACTIVE') {
-      throw new InspectorInactiveError();
+      throw new InspectorDeactivatedError();
     }
 
     // Inspector accounts created here are cross-tenant (tenant_id IS NULL), which

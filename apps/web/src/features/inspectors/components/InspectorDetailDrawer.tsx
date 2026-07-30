@@ -55,7 +55,7 @@ export function InspectorDetailDrawer({
   const isAmOp = user?.role === 'AM' || user?.role === 'OP';
   const canDeactivate = isAmOp && inspector?.status === 'ACTIVE';
   // Gated on ACTIVE because the reset also reactivates the login account, so the
-  // API refuses it for a deactivated inspector (INSPECTOR_INACTIVE).
+  // API refuses it for a deactivated inspector (INSPECTOR_DEACTIVATED).
   const canResetPassword = isAmOp && inspector?.status === 'ACTIVE';
 
   const tabs = isAmOp

@@ -94,21 +94,27 @@ export class UpdateInspectorUseCase {
     const emailChanged = Boolean(
       data.email && data.email.toLowerCase() !== inspector.email.toLowerCase(),
     );
+    // Diff-gated: this lookup has no self-exclusion, so running it on an
+    // unchanged email would 409 the inspector against its own row.
     if (emailChanged) {
       const existing = await this.inspectorRepo.findByEmail(data.email!);
       if (existing) {
         throw new InspectorEmailConflictError();
       }
+    }
 
-      // The email doubles as the login identity, so it must also be free among
-      // users. A self-match is fine — that is this inspector's own account.
-      const existingUser = await this.userManagementRepo?.findByEmail(data.email!);
+    // Payload-gated, matching the write below. Gating this on `emailChanged`
+    // instead left a hole: for a legacy mixed-case row the normalised email reads
+    // as unchanged, so the check was skipped while the write still stamped it onto
+    // the users row — manufacturing two accounts sharing one login identity, which
+    // findByEmail (a findFirst) then resolves at random. The self-match exclusion
+    // is what makes running this unconditionally safe.
+    if (data.email !== undefined) {
+      const existingUser = await this.userManagementRepo?.findByEmail(data.email);
       if (existingUser && existingUser.id !== inspector.userId) {
         throw new InspectorEmailConflictError();
       }
     }
-
-    const statusChanged = Boolean(data.status && data.status !== inspector.status);
 
     const before = {
       name: inspector.name,
@@ -168,7 +174,11 @@ export class UpdateInspectorUseCase {
         await this.requireUserManagementRepo().update(inspector.userId, null, userUpdate);
       }
 
-      if (statusChanged && data.status === 'INACTIVE') {
+      // Payload-gated like the write above, not diff-gated: revoking is idempotent
+      // (it only touches sessions with revoked_at IS NULL), and a diff gate left
+      // the revoke stranded on a retry — the status write would heal while live
+      // sessions survived on an account already marked INACTIVE.
+      if (userUpdate.status === 'INACTIVE') {
         await this.requireUserManagementRepo().revokeAllSessions(inspector.userId);
       }
     }
