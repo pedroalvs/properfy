@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { TEMPLATE_VARIABLES, SAMPLE_DATA } from '@properfy/shared';
+import {
+  TEMPLATE_VARIABLES,
+  SAMPLE_DATA,
+  getTemplateCodeLabel,
+  getTemplateTarget,
+} from '@properfy/shared';
 import { PLATFORM_TEMPLATES } from '../../../src/modules/notification/domain/platform-notification-templates';
 import { STUCK_ALERT_PAYLOAD_KEYS } from '../../../src/modules/inspector-execution/infrastructure/workers/notify-stuck.worker';
 import { SanitizeHtmlService } from '../../../src/modules/notification/infrastructure/sanitize-html.service';
@@ -224,6 +229,27 @@ describe('PLATFORM_TEMPLATES system email HTML bodies', () => {
     expect(stuck.bodyHtml).toContain('{{appointmentId}}');
     expect(stuck.bodyHtml).toContain('{{hoursStuck}}');
   });
+});
+
+describe('every seeded template is presentable on the templates list', () => {
+  // The seeded catalog is larger than MANDATORY_TEMPLATE_CODES, and AM/OP see all of it.
+  // These guards fail when a template is added to PLATFORM_TEMPLATES without also declaring
+  // who receives it and how it should read in the UI.
+  const seededCodes = [...new Set(PLATFORM_TEMPLATES.map((t) => t.code))];
+
+  it('covers the whole seeded catalog, not just a sample', () => {
+    expect(seededCodes.length).toBeGreaterThanOrEqual(26);
+  });
+
+  for (const code of seededCodes) {
+    it(`${code} declares a notification target`, () => {
+      expect(getTemplateTarget(code)).toBeDefined();
+    });
+
+    it(`${code} resolves to a human-readable label`, () => {
+      expect(getTemplateCodeLabel(code)).not.toBe(code);
+    });
+  }
 });
 
 describe('legacy INSPECTION_NOTICE assertions', () => {

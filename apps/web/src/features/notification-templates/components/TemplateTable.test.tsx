@@ -50,6 +50,7 @@ describe('TemplateTable', () => {
     expect(screen.getByText('Scope')).toBeInTheDocument();
     expect(screen.getByText('Agency')).toBeInTheDocument();
     expect(screen.getByText('Channel')).toBeInTheDocument();
+    expect(screen.getByText('Target')).toBeInTheDocument();
     expect(screen.getByText('Subject')).toBeInTheDocument();
     expect(screen.getByText('Active')).toBeInTheDocument();
   });
@@ -77,8 +78,10 @@ describe('TemplateTable', () => {
   it('shows em dash in the Agency column for platform defaults', () => {
     const template = makeTemplate({ tenantId: null, rentalTenantName: null, subject: 'Has subject' });
     render(<TemplateTable data={[template]} />);
-    // Subject is present, so the only em dash comes from the Agency column.
-    expect(screen.getByText('—')).toBeInTheDocument();
+    // Subject is filled and INSPECTION_NOTICE has a declared target, so Agency is the only
+    // column that can render a dash. Asserting the count keeps this honest if a future column
+    // gains its own fallback — a bare getByText would then pass on the wrong dash.
+    expect(screen.getAllByText('—')).toHaveLength(1);
   });
 
   it('shows channel chips with correct text', () => {
@@ -90,6 +93,31 @@ describe('TemplateTable', () => {
     render(<TemplateTable data={templates} />);
     expect(screen.getByText('EMAIL')).toBeInTheDocument();
     expect(screen.getAllByText('SMS').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('shows who each template is sent to', () => {
+    const templates = [
+      makeTemplate({ id: 'tpl-1', code: 'INSPECTION_NOTICE' }),
+      makeTemplate({ id: 'tpl-2', code: 'PROPERTY_MANAGER_ESCALATION' }),
+      makeTemplate({ id: 'tpl-3', code: 'INSPECTOR_GROUP_ASSIGNED' }),
+      makeTemplate({ id: 'tpl-4', code: 'INSPECTION_STUCK_ALERT' }),
+    ];
+    render(<TemplateTable data={templates} />);
+    expect(screen.getByText('Tenant')).toBeInTheDocument();
+    expect(screen.getByText('Property Manager')).toBeInTheDocument();
+    expect(screen.getByText('Inspector')).toBeInTheDocument();
+    expect(screen.getByText('Properfy Ops')).toBeInTheDocument();
+  });
+
+  it('labels platform-only codes instead of showing the raw code', () => {
+    const templates = [
+      makeTemplate({ id: 'tpl-1', code: 'INSPECTOR_GROUP_ASSIGNED' }),
+      makeTemplate({ id: 'tpl-2', code: 'PASSWORD_RESET' }),
+    ];
+    render(<TemplateTable data={templates} />);
+    expect(screen.getByText('Inspector Group Assigned')).toBeInTheDocument();
+    expect(screen.getByText('Password Reset')).toBeInTheDocument();
+    expect(screen.queryByText('INSPECTOR_GROUP_ASSIGNED')).not.toBeInTheDocument();
   });
 
   it('shows active boolean icon for active templates', () => {

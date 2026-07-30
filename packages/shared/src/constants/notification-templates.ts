@@ -40,8 +40,15 @@ export type MandatoryTemplateCode = (typeof MANDATORY_TEMPLATE_CODES)[number];
 /**
  * Platform-only templates: seeded at platform level and never customizable per tenant,
  * so they are excluded from MANDATORY_TEMPLATE_CODES (which drives the tenant template UI).
+ * They are still visible to AM/OP on the templates list, so they need labels and targets.
  */
-export const PLATFORM_ONLY_TEMPLATE_CODES = ['PASSWORD_RESET'] as const;
+export const PLATFORM_ONLY_TEMPLATE_CODES = [
+  'PASSWORD_RESET',
+  'INSPECTION_STUCK_ALERT',
+  'INSPECTOR_GROUP_ASSIGNED',
+  'INSPECTOR_GROUP_UNASSIGNED',
+  'INSPECTOR_GROUP_RESCHEDULED',
+] as const;
 
 export type PlatformOnlyTemplateCode = (typeof PLATFORM_ONLY_TEMPLATE_CODES)[number];
 
@@ -72,6 +79,110 @@ export const TEMPLATE_CODE_LABELS: Record<MandatoryTemplateCode, string> = {
   REPORT_FAILED: 'Report Failed',
   TENANT_PORTAL_LINK: 'Tenant Portal Link',
 };
+
+/**
+ * Labels for the platform-only codes. Kept in a separate map so TEMPLATE_CODE_LABELS stays
+ * exhaustive over MANDATORY_TEMPLATE_CODES (its type is what stops a new tenant-facing
+ * template from shipping unlabelled).
+ */
+export const PLATFORM_TEMPLATE_CODE_LABELS: Record<PlatformOnlyTemplateCode, string> = {
+  PASSWORD_RESET: 'Password Reset',
+  INSPECTION_STUCK_ALERT: 'Inspection Stuck Alert',
+  INSPECTOR_GROUP_ASSIGNED: 'Inspector Group Assigned',
+  INSPECTOR_GROUP_UNASSIGNED: 'Inspector Group Unassigned',
+  INSPECTOR_GROUP_RESCHEDULED: 'Inspector Group Rescheduled',
+};
+
+/**
+ * Display label for any template code. Resolves the tenant-facing catalog first, then the
+ * platform-only one, and falls back to the raw code for custom templates.
+ */
+export function getTemplateCodeLabel(templateCode: string): string {
+  // hasOwnProperty, not bare indexing: a code like `constructor` would otherwise resolve to
+  // an inherited function and get returned as the label.
+  if (Object.prototype.hasOwnProperty.call(TEMPLATE_CODE_LABELS, templateCode)) {
+    return TEMPLATE_CODE_LABELS[templateCode as MandatoryTemplateCode];
+  }
+  if (Object.prototype.hasOwnProperty.call(PLATFORM_TEMPLATE_CODE_LABELS, templateCode)) {
+    return PLATFORM_TEMPLATE_CODE_LABELS[templateCode as PlatformOnlyTemplateCode];
+  }
+  return templateCode;
+}
+
+// ---------------------------------------------------------------------------
+// Targets — who receives each notification
+// ---------------------------------------------------------------------------
+
+export const NOTIFICATION_TARGETS = [
+  'RENTAL_TENANT',
+  'PROPERTY_MANAGER',
+  'INSPECTOR',
+  'USER_ACCOUNT',
+  'PLATFORM_OPS',
+] as const;
+
+export type NotificationTarget = (typeof NOTIFICATION_TARGETS)[number];
+
+/**
+ * Who actually receives each template.
+ *
+ * This is a declared mapping rather than a field on the template row because the recipient
+ * is resolved at each dispatch site, not stored with the template. **If you add or move a
+ * dispatch site, update this map.** Current sources, one per family:
+ *
+ * - RENTAL_TENANT — `notify-on-status-transition.handler.ts`,
+ *   `notify-on-rental-tenant-portal-action.handler.ts`, `notify-on-admin-reschedule.handler.ts`,
+ *   `dispatch-reminders.use-case.ts`, `dispatch-escalations.use-case.ts` (TENANT_SMS_ALERT),
+ *   `generate-portal-token.use-case.ts` (TENANT_PORTAL_LINK)
+ * - PROPERTY_MANAGER — `dispatch-escalations.use-case.ts`, via `branch.contactEmail`
+ * - INSPECTOR — `notify-on-group-inspector-change.subscriber.ts`, via `inspector.email`
+ * - USER_ACCOUNT — `process-report-job.use-case.ts` (the requesting user),
+ *   `request-password-reset.use-case.ts`
+ * - PLATFORM_OPS — `notify-stuck.worker.ts`, hardcoded internal ops inbox
+ *
+ * Typed over the full code union on purpose: a new template code cannot be added to either
+ * catalog without declaring its target here.
+ */
+export const TEMPLATE_TARGETS: Record<
+  MandatoryTemplateCode | PlatformOnlyTemplateCode,
+  NotificationTarget
+> = {
+  INSPECTION_NOTICE: 'RENTAL_TENANT',
+  INSPECTION_NOTICE_SMS: 'RENTAL_TENANT',
+  REMINDER_7_DAYS: 'RENTAL_TENANT',
+  REMINDER_5_DAYS: 'RENTAL_TENANT',
+  REMINDER_3_DAYS: 'RENTAL_TENANT',
+  REMINDER_7_DAYS_SMS: 'RENTAL_TENANT',
+  REMINDER_5_DAYS_SMS: 'RENTAL_TENANT',
+  REMINDER_3_DAYS_SMS: 'RENTAL_TENANT',
+  PROPERTY_MANAGER_ESCALATION: 'PROPERTY_MANAGER',
+  TENANT_SMS_ALERT: 'RENTAL_TENANT',
+  INSPECTION_CONFIRMED: 'RENTAL_TENANT',
+  INSPECTION_CONFIRMED_SMS: 'RENTAL_TENANT',
+  INSPECTION_RESCHEDULED: 'RENTAL_TENANT',
+  INSPECTION_RESCHEDULED_SMS: 'RENTAL_TENANT',
+  INSPECTION_CANCELLED: 'RENTAL_TENANT',
+  INSPECTION_CANCELLED_SMS: 'RENTAL_TENANT',
+  INSPECTION_UNAVAILABILITY_REPORTED: 'RENTAL_TENANT',
+  INSPECTION_UNAVAILABILITY_REPORTED_SMS: 'RENTAL_TENANT',
+  REPORT_READY: 'USER_ACCOUNT',
+  REPORT_FAILED: 'USER_ACCOUNT',
+  TENANT_PORTAL_LINK: 'RENTAL_TENANT',
+  PASSWORD_RESET: 'USER_ACCOUNT',
+  INSPECTION_STUCK_ALERT: 'PLATFORM_OPS',
+  INSPECTOR_GROUP_ASSIGNED: 'INSPECTOR',
+  INSPECTOR_GROUP_UNASSIGNED: 'INSPECTOR',
+  INSPECTOR_GROUP_RESCHEDULED: 'INSPECTOR',
+};
+
+/** Target for any template code; `undefined` for custom codes outside both catalogs. */
+export function getTemplateTarget(templateCode: string): NotificationTarget | undefined {
+  // See getTemplateCodeLabel: bare indexing would return an inherited member for a code
+  // like `constructor`, and the chip would then look up a style that does not exist.
+  return Object.prototype.hasOwnProperty.call(TEMPLATE_TARGETS, templateCode)
+    ? TEMPLATE_TARGETS[templateCode as keyof typeof TEMPLATE_TARGETS]
+    : undefined;
+}
 
 // ---------------------------------------------------------------------------
 // Classification
@@ -138,8 +249,27 @@ export interface TemplateVariableSpec {
   optional: readonly string[];
 }
 
+/**
+ * Deliberately keyed on `'PASSWORD_RESET'` rather than the whole `PlatformOnlyTemplateCode`
+ * union, so widening that catalog does not silently pull the other four codes in here.
+ *
+ * **Do not "complete" this registry for INSPECTION_STUCK_ALERT or the INSPECTOR_GROUP_*
+ * codes.** An entry is not merely descriptive — it changes what gets SENT.
+ * `build-notification-payload.service.ts` filters the outgoing payload down to
+ * `required + optional` and throws `MissingRequiredVariableError` when a required key is
+ * absent; with no entry it passes every computed variable through untouched. So a spec that
+ * is anything less than exactly right would drop variables from live notifications, or fail
+ * the send outright. Those codes render variables outside ALLOWED_VARIABLES
+ * (INSPECTION_STUCK_ALERT uses `{{appointmentId}}` and `{{hoursStuck}}`), which is precisely
+ * why writing a correct spec for them is not a mechanical exercise.
+ *
+ * Note this is NOT about making them editable: those templates cannot be saved from the UI
+ * at all today — `useTemplateSave.validate()` falls back to the global ALLOWED_VARIABLES
+ * when no spec exists, and `upsert-notification-template.use-case.ts` rejects any code
+ * outside MANDATORY_TEMPLATE_CODES server-side. Adding a spec here would not fix that.
+ */
 export const TEMPLATE_VARIABLES: Record<
-  MandatoryTemplateCode | PlatformOnlyTemplateCode,
+  MandatoryTemplateCode | 'PASSWORD_RESET',
   TemplateVariableSpec
 > = {
   INSPECTION_NOTICE: {

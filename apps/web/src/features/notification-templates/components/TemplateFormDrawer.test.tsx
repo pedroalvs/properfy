@@ -411,6 +411,17 @@ describe('TemplateFormDrawer', () => {
     expect(screen.getAllByText('EMAIL').length).toBeGreaterThanOrEqual(1);
   });
 
+  it('shows who the template is sent to in the info bar', () => {
+    renderDrawer();
+    expect(screen.getByText('Target')).toBeInTheDocument();
+    expect(screen.getByText('Tenant')).toBeInTheDocument();
+  });
+
+  it('shows the branch contact as the target for the escalation template', () => {
+    renderDrawer({ ...MOCK_TEMPLATE, code: 'PROPERTY_MANAGER_ESCALATION' });
+    expect(screen.getByText('Property Manager')).toBeInTheDocument();
+  });
+
   it('shows required variables in info bar', () => {
     renderDrawer();
     expect(screen.getByText('Required Variables')).toBeInTheDocument();
