@@ -141,14 +141,31 @@ describe('UpdateInspectorUseCase — login account email sync', () => {
     );
   });
 
-  it('does not touch the login account when the email is unchanged', async () => {
+  it('re-asserts an unchanged email onto the login account rather than skipping', async () => {
+    // Idempotent by design: driving the sync off the payload instead of a diff is
+    // what lets a retry repair a previously failed users write.
     await useCase.execute({
       inspectorId: 'inspector-1',
       data: { email: 'john@example.com', name: 'Renamed' },
       actor: makeActor(),
     });
 
+    expect(userManagementRepo.update).toHaveBeenCalledWith(
+      'user-insp-1',
+      null,
+      expect.objectContaining({ email: 'john@example.com' }),
+    );
+  });
+
+  it('does not touch the login account when neither email nor status is supplied', async () => {
+    await useCase.execute({
+      inspectorId: 'inspector-1',
+      data: { name: 'Renamed', phone: '+61400000002' },
+      actor: makeActor(),
+    });
+
     expect(userManagementRepo.update).not.toHaveBeenCalled();
+    expect(userManagementRepo.revokeAllSessions).not.toHaveBeenCalled();
   });
 
   it('no-ops safely when the inspector has no linked login account', async () => {
@@ -175,6 +192,95 @@ describe('UpdateInspectorUseCase — login account email sync', () => {
     ).rejects.toThrow(InspectorEmailConflictError);
 
     expect(inspectorRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('deactivates the linked login account and revokes sessions on status INACTIVE', async () => {
+    // The PATCH route accepts `status` and the web edit drawer sends it, so this
+    // path could otherwise deactivate the inspector while leaving a fully usable
+    // login — the exact hole the deactivate endpoint closes.
+    await useCase.execute({
+      inspectorId: 'inspector-1',
+      data: { status: 'INACTIVE' },
+      actor: makeActor(),
+    });
+
+    expect(userManagementRepo.update).toHaveBeenCalledWith(
+      'user-insp-1',
+      null,
+      expect.objectContaining({ status: 'INACTIVE' }),
+    );
+    expect(userManagementRepo.revokeAllSessions).toHaveBeenCalledWith('user-insp-1');
+  });
+
+  it('reactivates the linked login account on status ACTIVE', async () => {
+    // Without this a reactivated inspector can be assigned work but can never log
+    // in: login gates on users.status and no other path restores it.
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector({ status: 'INACTIVE' }));
+
+    await useCase.execute({
+      inspectorId: 'inspector-1',
+      data: { status: 'ACTIVE' },
+      actor: makeActor(),
+    });
+
+    expect(userManagementRepo.update).toHaveBeenCalledWith(
+      'user-insp-1',
+      null,
+      expect.objectContaining({ status: 'ACTIVE' }),
+    );
+    expect(userManagementRepo.revokeAllSessions).not.toHaveBeenCalled();
+  });
+
+  it('does not revoke sessions when the status is resubmitted unchanged', async () => {
+    // The drawer resubmits the prefilled status on every save, so a name-only
+    // edit must not log the inspector out of the PWA.
+    await useCase.execute({
+      inspectorId: 'inspector-1',
+      data: { status: 'ACTIVE', name: 'Renamed' },
+      actor: makeActor(),
+    });
+
+    expect(userManagementRepo.revokeAllSessions).not.toHaveBeenCalled();
+  });
+
+  it('re-syncs the email on retry after a failed login-account write', async () => {
+    // The inspector row already carries the new email, so recomputing "changed"
+    // from it would skip the sync forever while returning 200.
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(
+      makeInspector({ email: 'new@example.com' }),
+    );
+
+    await useCase.execute({
+      inspectorId: 'inspector-1',
+      data: { email: 'new@example.com' },
+      actor: makeActor(),
+    });
+
+    expect(userManagementRepo.update).toHaveBeenCalledWith(
+      'user-insp-1',
+      null,
+      expect.objectContaining({ email: 'new@example.com' }),
+    );
+  });
+
+  it('does not 409 a legacy inspector whose stored email differs only in case', async () => {
+    // The drawer resubmits the prefilled email on every edit, so a mixed-case
+    // legacy row would collide with its own login account on a phone-only change.
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(
+      makeInspector({ email: 'John@Example.com' }),
+    );
+    vi.mocked(inspectorRepo.findByEmail).mockResolvedValue(null);
+    vi.mocked(userManagementRepo.findByEmail).mockResolvedValue(
+      makeUser({ id: 'someone-else', email: 'john@example.com' }),
+    );
+
+    await expect(
+      useCase.execute({
+        inspectorId: 'inspector-1',
+        data: { email: 'john@example.com', phone: '+61400000001' },
+        actor: makeActor(),
+      }),
+    ).resolves.toBeDefined();
   });
 
   it('ignores a self-match when re-saving the inspector own login account', async () => {

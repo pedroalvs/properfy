@@ -19,6 +19,10 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import bcrypt from 'bcryptjs';
 import { setupDbHarness, teardownDbHarness, type DbHarness } from './harness';
 import { PrismaInspectorRepository } from '../../../src/modules/inspector/infrastructure/prisma-inspector.repository';
+import { PrismaUserManagementRepository } from '../../../src/modules/user/infrastructure/prisma-user-management.repository';
+import { CreateInspectorUseCase } from '../../../src/modules/inspector/application/use-cases/create-inspector.use-case';
+import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
+import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
 
 let harness: DbHarness;
@@ -83,6 +87,86 @@ function makeInspector(userId: string | null, email: string): InspectorEntity {
     deletedAt: null,
   });
 }
+
+describe('CreateInspectorUseCase against real Postgres', () => {
+  it('produces a login account whose stored hash verifies against the operator password', async () => {
+    // The whole PR exists because nobody could log in and nobody noticed. The
+    // unit tests mock both the repository and bcrypt, and the cases above seed
+    // the user row by hand — so this is the only place that exercises create end
+    // to end and proves the credential actually works.
+    const email = `e2e-${crypto.randomUUID()}@inspect.com`;
+    const password = 'Insp@2026x';
+    const auditService = { log: () => undefined } as unknown as AuditService;
+    const userRepo = new PrismaUserManagementRepository(harness.prisma);
+
+    const useCase = new CreateInspectorUseCase(
+      repo,
+      userRepo,
+      auditService,
+      undefined,
+      new AuthorizationService(auditService),
+    );
+
+    const created = await useCase.execute({
+      name: 'E2E Inspector',
+      email,
+      password,
+      actor: {
+        userId: crypto.randomUUID(),
+        tenantId: null,
+        role: 'AM',
+        branchId: null,
+        inspectorId: null,
+      },
+    });
+
+    const userRow = await harness.prisma.user.findFirst({
+      where: { email },
+      select: { id: true, role: true, tenant_id: true, status: true, password_hash: true },
+    });
+
+    expect(userRow?.role).toBe('INSP');
+    expect(userRow?.tenant_id).toBeNull();
+    expect(userRow?.status).toBe('ACTIVE');
+    expect(userRow?.password_hash).not.toBe(password);
+    await expect(bcrypt.compare(password, userRow!.password_hash)).resolves.toBe(true);
+
+    // And the link login depends on resolves back to the created inspector.
+    const linked = await repo.findByUserId(userRow!.id);
+    expect(linked?.id).toBe(created.id);
+  }, 60_000);
+
+  it('lowercases the stored email so the login identity matches', async () => {
+    const local = `case-${crypto.randomUUID()}`;
+    const auditService = { log: () => undefined } as unknown as AuditService;
+    const useCase = new CreateInspectorUseCase(
+      repo,
+      new PrismaUserManagementRepository(harness.prisma),
+      auditService,
+      undefined,
+      new AuthorizationService(auditService),
+    );
+
+    await useCase.execute({
+      name: 'Case Inspector',
+      email: `${local}@Inspect.COM`.toLowerCase(),
+      password: 'Insp@2026x',
+      actor: {
+        userId: crypto.randomUUID(),
+        tenantId: null,
+        role: 'AM',
+        branchId: null,
+        inspectorId: null,
+      },
+    });
+
+    const userRow = await harness.prisma.user.findFirst({
+      where: { email: `${local}@inspect.com` },
+      select: { email: true },
+    });
+    expect(userRow?.email).toBe(`${local}@inspect.com`);
+  }, 60_000);
+});
 
 describe('PrismaInspectorRepository.save — login account link', () => {
   it('persists user_id so the inspector resolves from their login account', async () => {

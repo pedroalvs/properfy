@@ -15,6 +15,7 @@ vi.mock('bcryptjs', () => ({
 import { CreateInspectorUseCase } from '../../../src/modules/inspector/application/use-cases/create-inspector.use-case';
 import type { IInspectorRepository } from '../../../src/modules/inspector/domain/inspector.repository';
 import type { IUserManagementRepository } from '../../../src/modules/user/domain/user-management.repository';
+import type { IServiceRegionRepository } from '../../../src/modules/service-region/domain/service-region.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { inspectorResponseSchema } from '@properfy/shared';
@@ -325,6 +326,37 @@ describe('CreateInspectorUseCase', () => {
       );
     });
 
+    it('does not destroy the login account when only the region link fails', async () => {
+      // The inspector row is already committed at that point. Soft-deleting its
+      // user would leave an inspector whose user_id points at a deleted account:
+      // link-user 409s (userId non-null), reset-password 404s, re-creating the
+      // same email 409s forever, and there is no DELETE inspector route.
+      const serviceRegionRepo = {
+        setInspectorRegions: vi.fn().mockRejectedValue(new Error('region FK violation')),
+      } as unknown as IServiceRegionRepository;
+      const withRegions = new CreateInspectorUseCase(
+        inspectorRepo,
+        userManagementRepo,
+        auditService,
+        serviceRegionRepo,
+        new AuthorizationService(auditService),
+      );
+      vi.mocked(inspectorRepo.findByEmail).mockResolvedValue(null);
+      vi.mocked(userManagementRepo.findByEmail).mockResolvedValue(null);
+
+      await expect(
+        withRegions.execute({
+          name: 'John Inspector',
+          email: 'john@example.com',
+          password: VALID_PASSWORD,
+          regionIds: ['11111111-1111-4111-8111-111111111111'],
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow('region FK violation');
+
+      expect(userManagementRepo.update).not.toHaveBeenCalled();
+    });
+
     it('surfaces the original failure even when the compensation itself fails', async () => {
       // Otherwise the operator sees "compensation failed" and loses the actual
       // reason the inspector could not be created.
@@ -341,6 +373,36 @@ describe('CreateInspectorUseCase', () => {
           actor: makeActor(),
         }),
       ).rejects.toThrow('db down');
+    });
+
+    it('audits a failed compensation so the surviving orphan is traceable', async () => {
+      // That orphan permanently blocks its email via the user-email check, and
+      // no logger is injected here — the audit trail is the only record.
+      vi.mocked(inspectorRepo.findByEmail).mockResolvedValue(null);
+      vi.mocked(userManagementRepo.findByEmail).mockResolvedValue(null);
+      vi.mocked(inspectorRepo.save).mockRejectedValue(new Error('db down'));
+      vi.mocked(userManagementRepo.update).mockRejectedValue(new Error('compensation exploded'));
+
+      await expect(
+        useCase.execute({
+          name: 'John Inspector',
+          email: 'john@example.com',
+          password: VALID_PASSWORD,
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow('db down');
+
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'inspector.create_compensation_failed',
+          entityType: 'User',
+          metadata: expect.objectContaining({
+            email: 'john@example.com',
+            originalError: 'db down',
+            compensationError: 'compensation exploded',
+          }),
+        }),
+      );
     });
   });
 });

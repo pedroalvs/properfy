@@ -146,21 +146,43 @@ export class CreateInspectorUseCase {
     // orphan INSP user would hold a real, working password while being invisible
     // to the users list and unreachable by every read API — and the email check
     // above would then reject the retry forever. Compensate instead.
+    //
+    // Scoped to this one call on purpose: once the inspector row exists the pair
+    // is consistent, and soft-deleting the user then would strand an inspector
+    // whose user_id points at a deleted account — unreachable by link-user,
+    // reset-password, or a re-create, with no DELETE route to clean it up.
     try {
       await this.inspectorRepo.save(inspector);
-
-      // Link inspector to service regions if regionIds provided
-      if (regionIds && regionIds.length > 0 && this.serviceRegionRepo) {
-        await this.serviceRegionRepo.setInspectorRegions(id, regionIds);
-      }
     } catch (error) {
       try {
         await this.userManagementRepo.update(userId, null, { deletedAt: new Date() });
-      } catch {
-        // Never let a failing compensation mask the original cause — that is the
-        // error the operator and the logs need to see.
+      } catch (compensationError) {
+        // The orphan survives and will block this email via the user-email check
+        // above, so it has to leave a trace. Recorded rather than thrown so the
+        // original cause still reaches the operator.
+        this.auditService.log({
+          action: 'inspector.create_compensation_failed',
+          actorType: 'USER',
+          actorId: actor.userId,
+          entityType: 'User',
+          entityId: userId,
+          metadata: {
+            email,
+            originalError: error instanceof Error ? error.message : String(error),
+            compensationError:
+              compensationError instanceof Error
+                ? compensationError.message
+                : String(compensationError),
+          },
+        });
       }
       throw error;
+    }
+
+    // Outside the compensation: a failure here leaves a usable inspector that an
+    // operator can finish setting up by editing its regions.
+    if (regionIds && regionIds.length > 0 && this.serviceRegionRepo) {
+      await this.serviceRegionRepo.setInspectorRegions(id, regionIds);
     }
 
     this.auditService.log({

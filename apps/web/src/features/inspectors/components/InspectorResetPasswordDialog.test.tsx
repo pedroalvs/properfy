@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
+import type * as SnackbarModule from '@/hooks/useSnackbar';
 import { InspectorResetPasswordDialog } from './InspectorResetPasswordDialog';
 
 vi.mock('@/config/env', () => ({
@@ -31,6 +32,22 @@ import { api } from '@/services/api';
 
 const mockPost = api.POST as ReturnType<typeof vi.fn>;
 
+// SnackbarProvider renders no toast DOM, so an error assertion based on the page
+// alone would also pass if the error were swallowed entirely.
+const mockShowError = vi.fn();
+const mockShowSuccess = vi.fn();
+vi.mock('@/hooks/useSnackbar', async () => {
+  const actual = await vi.importActual<typeof SnackbarModule>('@/hooks/useSnackbar');
+  return {
+    ...actual,
+    useSnackbar: () => ({
+      ...actual.useSnackbar(),
+      showError: mockShowError,
+      showSuccess: mockShowSuccess,
+    }),
+  };
+});
+
 function renderDialog(overrides: { onClose?: () => void; onReset?: () => void } = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
@@ -54,6 +71,8 @@ function renderDialog(overrides: { onClose?: () => void; onReset?: () => void } 
 describe('InspectorResetPasswordDialog', () => {
   beforeEach(() => {
     mockPost.mockReset();
+    mockShowError.mockReset();
+    mockShowSuccess.mockReset();
     mockPost.mockResolvedValue({ data: null, error: undefined });
   });
 
@@ -108,6 +127,7 @@ describe('InspectorResetPasswordDialog', () => {
       );
     });
     await waitFor(() => expect(onReset).toHaveBeenCalled());
+    expect(mockShowSuccess).toHaveBeenCalledWith(expect.stringContaining('Password reset'));
   });
 
   it('surfaces a server error without closing', async () => {
@@ -122,7 +142,12 @@ describe('InspectorResetPasswordDialog', () => {
     fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'NewStrong1!' } });
     fireEvent.click(screen.getByRole('button', { name: 'Reset Password' }));
 
-    await waitFor(() => expect(mockPost).toHaveBeenCalled());
+    // Asserting the snackbar call, not just "the dialog stayed open" — the latter
+    // would also hold if the error were swallowed and the operator told nothing.
+    await waitFor(() =>
+      expect(mockShowError).toHaveBeenCalledWith('This inspector has no linked login account'),
+    );
     expect(onClose).not.toHaveBeenCalled();
+    expect(mockShowSuccess).not.toHaveBeenCalled();
   });
 });

@@ -8,6 +8,7 @@ import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector
 import {
   InspectorNotFoundError,
   InspectorNoLoginAccountError,
+  InspectorInactiveError,
 } from '../../../src/modules/inspector/domain/inspector.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
@@ -190,6 +191,23 @@ describe('ResetInspectorPasswordUseCase', () => {
     expect(auditService.log).not.toHaveBeenCalledWith(
       expect.objectContaining({ action: 'inspector.password_reset' }),
     );
+  });
+
+  it('refuses to reset a deactivated inspector', async () => {
+    // resetPassword unconditionally sets users.status = ACTIVE (it doubles as
+    // the unlock path), so staging credentials for a terminated inspector would
+    // silently hand their PWA access back while inspectors.status reads INACTIVE.
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector({ status: 'INACTIVE' }));
+
+    await expect(
+      useCase.execute({
+        inspectorId: 'inspector-1',
+        newPassword: NEW_PASSWORD,
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(InspectorInactiveError);
+
+    expect(resetUserPasswordUseCase.execute).not.toHaveBeenCalled();
   });
 
   it('does not audit when the delegate rejects', async () => {

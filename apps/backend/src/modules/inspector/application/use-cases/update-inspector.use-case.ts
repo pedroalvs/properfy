@@ -59,6 +59,21 @@ export class UpdateInspectorUseCase {
     private readonly userManagementRepo?: IUserManagementRepository,
   ) {}
 
+  /**
+   * Optional only because it sits after two pre-existing optional params, which
+   * TypeScript will not let a required one follow. Keeping the login-account sync
+   * behind a silent `&& this.userManagementRepo` would let a future construction
+   * that omits it ship deactivation-without-lockout, so fail loudly instead.
+   */
+  private requireUserManagementRepo(): IUserManagementRepository {
+    if (!this.userManagementRepo) {
+      throw new Error(
+        'UpdateInspectorUseCase requires userManagementRepo to sync the inspector login account',
+      );
+    }
+    return this.userManagementRepo;
+  }
+
   async execute(input: UpdateInspectorInput): Promise<UpdateInspectorOutput> {
     const { inspectorId, data, actor } = input;
 
@@ -72,8 +87,13 @@ export class UpdateInspectorUseCase {
       throw new InspectorNotFoundError();
     }
 
-    // Check email uniqueness if changing
-    const emailChanged = Boolean(data.email && data.email !== inspector.email);
+    // Compared case-insensitively: the schema lowercases incoming emails while
+    // legacy rows may still hold mixed case, and the edit drawer resubmits the
+    // prefilled email on every save — so a raw compare would treat a phone-only
+    // edit as an email change and collide with the inspector's own account.
+    const emailChanged = Boolean(
+      data.email && data.email.toLowerCase() !== inspector.email.toLowerCase(),
+    );
     if (emailChanged) {
       const existing = await this.inspectorRepo.findByEmail(data.email!);
       if (existing) {
@@ -87,6 +107,8 @@ export class UpdateInspectorUseCase {
         throw new InspectorEmailConflictError();
       }
     }
+
+    const statusChanged = Boolean(data.status && data.status !== inspector.status);
 
     const before = {
       name: inspector.name,
@@ -120,11 +142,35 @@ export class UpdateInspectorUseCase {
 
     await this.inspectorRepo.update(inspectorId, updateData);
 
-    // Keep the login account in step: otherwise the UI shows the new address
-    // while authentication still expects the old one, and the PWA forgot-password
-    // flow silently no-ops because it cannot find the new email.
-    if (emailChanged && inspector.userId && this.userManagementRepo) {
-      await this.userManagementRepo.update(inspector.userId, null, { email: data.email! });
+    // Keep the login account in step. Both syncs are driven off the supplied
+    // payload rather than off "did the inspector row change", so a retry after a
+    // failed users write still repairs the divergence — the inspector row already
+    // carries the new value by then, which would make a diff-based check skip the
+    // sync forever while returning 200.
+    if (inspector.userId) {
+      const userUpdate: { email?: string; status?: string } = {};
+
+      // Otherwise the UI shows the new address while authentication still expects
+      // the old one, and PWA forgot-password silently no-ops on the unknown email.
+      if (data.email !== undefined) {
+        userUpdate.email = data.email;
+      }
+
+      // This route accepts `status` alongside the dedicated deactivate endpoint.
+      // Without syncing, INACTIVE here leaves a fully usable login, and ACTIVE
+      // never lifts the block that /deactivate applied — leaving a reactivated
+      // inspector assignable but permanently unable to log in.
+      if (data.status !== undefined) {
+        userUpdate.status = data.status;
+      }
+
+      if (Object.keys(userUpdate).length > 0) {
+        await this.requireUserManagementRepo().update(inspector.userId, null, userUpdate);
+      }
+
+      if (statusChanged && data.status === 'INACTIVE') {
+        await this.requireUserManagementRepo().revokeAllSessions(inspector.userId);
+      }
     }
 
     // Update service region links if regionIds provided

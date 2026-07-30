@@ -212,8 +212,15 @@ describe('POST /v1/inspectors/:inspectorId/reset-password — RBAC (inspector.re
       .set('Authorization', 'Bearer t')
       .send(resetPayload);
     expect(res.status).toBe(204);
+    // `actor` is asserted because dropping `actor: request.authContext!` from the
+    // handler would leave every other assertion green while the use case's own
+    // assertRoles blows up on undefined in production.
     expect(mockResetInspectorPassword).toHaveBeenCalledWith(
-      expect.objectContaining({ inspectorId: INSPECTOR_ID, newPassword: 'Insp@2026x' }),
+      expect.objectContaining({
+        inspectorId: INSPECTOR_ID,
+        newPassword: 'Insp@2026x',
+        actor: expect.objectContaining({ role: 'AM' }),
+      }),
     );
   });
 
@@ -254,6 +261,25 @@ describe('POST /v1/inspectors/:inspectorId/reset-password — RBAC (inspector.re
       .post(resetPath)
       .set('Authorization', 'Bearer t')
       .send({ newPassword: 'weak' });
+    expect(res.status).toBe(400);
+    expect(mockResetInspectorPassword).not.toHaveBeenCalled();
+  });
+
+  it('denies unauthenticated with a valid body', async () => {
+    // The body must be valid: Fastify validates before the auth preHandler, so an
+    // invalid one would 400 and mask a missing authentication check entirely.
+    mockJwtVerify.mockRejectedValue(new Error('invalid token'));
+    const res = await supertest(app.server).post(resetPath).send(resetPayload);
+    expect(res.status).toBe(401);
+    expect(mockResetInspectorPassword).not.toHaveBeenCalled();
+  });
+
+  it('rejects a malformed inspector id with 400', async () => {
+    mockJwtVerify.mockResolvedValue(makeAmContext());
+    const res = await supertest(app.server)
+      .post('/v1/inspectors/not-a-uuid/reset-password')
+      .set('Authorization', 'Bearer t')
+      .send(resetPayload);
     expect(res.status).toBe(400);
     expect(mockResetInspectorPassword).not.toHaveBeenCalled();
   });

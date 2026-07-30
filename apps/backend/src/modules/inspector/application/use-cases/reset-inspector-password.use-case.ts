@@ -6,6 +6,7 @@ import type { ResetUserPasswordUseCase } from '../../../user/application/use-cas
 import {
   InspectorNotFoundError,
   InspectorNoLoginAccountError,
+  InspectorInactiveError,
 } from '../../domain/inspector.errors';
 
 export interface ResetInspectorPasswordInput {
@@ -17,8 +18,8 @@ export interface ResetInspectorPasswordInput {
 /**
  * Operator-initiated password reset for an inspector.
  *
- * Inspectors are excluded from the users list and no read API exposes their
- * linked `userId`, so the generic user reset endpoint is unreachable for them.
+ * Inspectors are excluded from the users list and their linked `userId` is not
+ * discoverable from the UI, so the generic user reset endpoint is unreachable.
  * This resolves the inspector to its login account and delegates, reusing the
  * whole password pipeline (strength, blacklist, same-as-current, 5-entry
  * history, session revocation, account unlock) rather than duplicating it.
@@ -50,7 +51,17 @@ export class ResetInspectorPasswordUseCase {
       throw new InspectorNoLoginAccountError();
     }
 
-    // Inspector accounts are cross-tenant: their users row has tenant_id IS NULL.
+    // The delegate's resetPassword doubles as the unlock path and unconditionally
+    // sets users.status = ACTIVE, so resetting a deactivated inspector would hand
+    // their PWA access back without any reactivation step.
+    if (inspector.status !== 'ACTIVE') {
+      throw new InspectorInactiveError();
+    }
+
+    // Inspector accounts created here are cross-tenant (tenant_id IS NULL), which
+    // is what this lookup scopes to. Rows linked before that convention was
+    // enforced may be tenant-scoped and will not resolve — a 404 rather than a
+    // cross-tenant write, which is the safe direction to fail.
     await this.resetUserPasswordUseCase.execute({
       tenantId: null,
       userId: inspector.userId,

@@ -12,6 +12,21 @@ export class InspectorEmailConflictError extends ConflictError {
   }
 }
 
+/**
+ * Deliberately not the existing `INSPECTOR_INACTIVE` code: the PWA redirects to
+ * /deactivated on a 403 carrying that code, and it is already mapped to FORBIDDEN
+ * by the bulk-action layer. A distinct code keeps this operator-facing conflict
+ * from ever being mistaken for that inspector-facing signal.
+ */
+export class InspectorInactiveError extends ConflictError {
+  constructor() {
+    super(
+      'INSPECTOR_DEACTIVATED',
+      'This inspector is deactivated. Reactivate them before resetting their password, otherwise the reset would restore their login access.',
+    );
+  }
+}
+
 export class InspectorNoLoginAccountError extends ConflictError {
   constructor() {
     super(

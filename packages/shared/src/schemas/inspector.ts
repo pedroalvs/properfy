@@ -34,8 +34,9 @@ export const createInspectorSchema = z.object({
   // the user types while findByEmail matches exactly — so it must be normalised
   // here or the account becomes unreachable.
   email: z.string().email().max(254).transform((v) => v.toLowerCase().trim()),
-  // Set by the operator at creation time. Password changes afterwards go through
-  // POST /v1/inspectors/:inspectorId/reset-password, never through the update path.
+  // Set by the operator at creation time. Later changes go through
+  // POST /v1/inspectors/:inspectorId/reset-password (operator) or
+  // POST /v1/auth/change-password (the inspector themselves), never the update path.
   password: passwordFieldSchema,
   phone: auPhoneSchema.optional(),
   paymentSettings: paymentSettingsSchema.default({}),

@@ -15,10 +15,11 @@ const REQUIRED_FIELD_MESSAGE = 'Required field';
 const REQUIRED_FIELDS: (keyof InspectorFormData)[] = ['name', 'email'];
 
 /**
- * createInspectorSchema with `password` removed, used for the structural parse
- * below. That parse only receives a subset of the form fields, so leaving the
- * required password in would make it fail on every create — masking any real
- * issue a future path mapping tries to read.
+ * createInspectorSchema with `password` removed, for the structural parse below.
+ * That parse is fed a subset of the form fields and is only read for serviceTypes
+ * issues, so a required password would make it fail on every create — harmless
+ * today, but it would mask any issue a future path mapping tries to read. The
+ * password itself is validated separately in validatePassword.
  */
 const createInspectorStructuralSchema = createInspectorSchema.omit({ password: true });
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider, useSnackbar } from '@/hooks/useSnackbar';
@@ -28,6 +28,12 @@ vi.mock('@/lib/auth-storage', () => ({
 }));
 
 let mockUserRole = 'AM';
+
+// Restored centrally: a failed assertion used to skip the inline reset that
+// followed it and leak the role into every subsequent test.
+afterEach(() => {
+  mockUserRole = 'AM';
+});
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
@@ -200,22 +206,20 @@ describe('InspectorDetailDrawer', () => {
     mockUserRole = 'OP';
     renderDrawer({ inspectorId: 'insp-01', open: true });
     expect(screen.getByLabelText('Reset Password')).toBeInTheDocument();
-    mockUserRole = 'AM';
   });
 
   it('hides reset password button for non AM/OP roles', () => {
     mockUserRole = 'CL_ADMIN';
     renderDrawer({ inspectorId: 'insp-01', open: true });
     expect(screen.queryByLabelText('Reset Password')).not.toBeInTheDocument();
-    mockUserRole = 'AM';
   });
 
-  it('shows reset password button even when inspector is INACTIVE', () => {
-    // Unlike deactivate, a reset stays available: an inspector may need new
-    // credentials before being reactivated.
+  it('hides reset password button when inspector is INACTIVE', () => {
+    // The reset also reactivates the login account, so the API refuses it with
+    // INSPECTOR_INACTIVE — offering the button would only produce a dead end.
     mockUserRole = 'AM';
     renderDrawer({ inspectorId: 'inactive', open: true });
-    expect(screen.getByLabelText('Reset Password')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Reset Password')).not.toBeInTheDocument();
   });
 
   it('opens the reset password dialog on button click', () => {

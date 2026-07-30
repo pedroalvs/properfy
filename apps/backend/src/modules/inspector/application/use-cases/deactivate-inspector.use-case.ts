@@ -32,6 +32,19 @@ export class DeactivateInspectorUseCase {
     private readonly userManagementRepo?: IUserManagementRepository,
   ) {}
 
+  /**
+   * Optional only to sit after the pre-existing params; a silent skip here would
+   * mean a deactivated inspector keeps working PWA access, so fail loudly.
+   */
+  private requireUserManagementRepo(): IUserManagementRepository {
+    if (!this.userManagementRepo) {
+      throw new Error(
+        'DeactivateInspectorUseCase requires userManagementRepo to lock the inspector login account',
+      );
+    }
+    return this.userManagementRepo;
+  }
+
   async execute(input: DeactivateInspectorInput): Promise<DeactivateInspectorOutput> {
     const { inspectorId, reason, actor } = input;
 
@@ -61,9 +74,9 @@ export class DeactivateInspectorUseCase {
 
     // Deactivating only the inspector row left the linked login account fully
     // usable, so a deactivated inspector kept working PWA access.
-    if (inspector.userId && this.userManagementRepo) {
-      await this.userManagementRepo.update(inspector.userId, null, { status: 'INACTIVE' });
-      await this.userManagementRepo.revokeAllSessions(inspector.userId);
+    if (inspector.userId) {
+      await this.requireUserManagementRepo().update(inspector.userId, null, { status: 'INACTIVE' });
+      await this.requireUserManagementRepo().revokeAllSessions(inspector.userId);
     }
 
     this.auditService.log({
