@@ -34,6 +34,8 @@ import { AppointmentMapDetailPanel } from '../components/AppointmentMapDetailPan
 import { MapUnplottableWarning, type UnplottableEntry } from '../components/MapUnplottableWarning';
 import { GroupMapDetailPanel } from '../components/GroupMapDetailPanel';
 import { usePublishServiceGroup } from '@/features/service-groups/hooks/usePublishServiceGroup';
+import { useUnpublishServiceGroup } from '@/features/service-groups/hooks/useUnpublishServiceGroup';
+import { UnpublishGroupModal } from '@/features/service-groups/components/UnpublishGroupModal';
 import { MapGroupCreateModal } from '@/features/service-groups/components/MapGroupCreateModal';
 import { useQueryClient } from '@tanstack/react-query';
 import type { UserRole } from '@properfy/shared';
@@ -508,6 +510,18 @@ export function AppointmentMapPage() {
   const { publish: publishPreviewGroup, isPublishing: isPublishingPreviewGroup } =
     usePublishServiceGroup(previewGroup?.id ?? null, () => {
       queryClient.invalidateQueries({ queryKey: ['service-groups-map'] });
+      setPreviewGroup(null);
+    });
+
+  // UNPUBLISH from the same popup (PUBLISHED-only). The confirmation lives at
+  // page level rather than inside the panel: the panel is portalled into a
+  // native mapboxgl.Popup, so a Dialog rendered there is trapped in the
+  // popup's stacking context.
+  const [unpublishOpen, setUnpublishOpen] = useState(false);
+  const { unpublish: unpublishPreviewGroup, isUnpublishing: isUnpublishingPreviewGroup } =
+    useUnpublishServiceGroup(previewGroup?.id ?? null, () => {
+      queryClient.invalidateQueries({ queryKey: ['service-groups-map'] });
+      setUnpublishOpen(false);
       setPreviewGroup(null);
     });
 
@@ -1452,12 +1466,22 @@ export function AppointmentMapPage() {
           group={previewGroup}
           appointments={previewAppointments}
           isLoadingAppointments={previewApptFetching}
+          actorRole={actorRole}
           onClose={() => setPreviewGroup(null)}
           onPublish={publishPreviewGroup}
           isPublishing={isPublishingPreviewGroup}
+          onUnpublish={() => setUnpublishOpen(true)}
+          isUnpublishing={isUnpublishingPreviewGroup}
         />,
         groupPopupRoot,
       )}
+
+      <UnpublishGroupModal
+        open={unpublishOpen}
+        onClose={() => setUnpublishOpen(false)}
+        onUnpublish={unpublishPreviewGroup}
+        loading={isUnpublishingPreviewGroup}
+      />
 
       <MapGroupCreateModal
         open={groupModalOpen}

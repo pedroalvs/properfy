@@ -53,6 +53,12 @@ export type UpdateServiceGroupInput = z.infer<typeof updateServiceGroupSchema>;
 export const publishServiceGroupSchema = z.object({});
 export type PublishServiceGroupInput = z.infer<typeof publishServiceGroupSchema>;
 
+/** Pulls a published group off the marketplace: PUBLISHED → DRAFT. */
+export const unpublishServiceGroupSchema = z.object({
+  reason: z.string().min(1).max(1000),
+});
+export type UnpublishServiceGroupInput = z.infer<typeof unpublishServiceGroupSchema>;
+
 export const assignInspectorSchema = z.object({
   inspectorId: z.string().uuid(),
 });

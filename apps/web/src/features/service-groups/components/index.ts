@@ -12,4 +12,5 @@ export { ManualAssignModal } from './ManualAssignModal';
 export { CancelGroupModal } from './CancelGroupModal';
 export { RejectGroupModal } from './RejectGroupModal';
 export { RepublishGroupModal } from './RepublishGroupModal';
+export { UnpublishGroupModal } from './UnpublishGroupModal';
 export { EditGroupModal } from './EditGroupModal';

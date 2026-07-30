@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { SERVICE_GROUP_STATUS_MAP } from '@/lib/status-colors';
 import { formatCivilDate , formatWallTimeRange } from '@/lib/format-date';
-import { ServiceGroupStatus } from '@properfy/shared';
+import { ServiceGroupStatus, type UserRole } from '@properfy/shared';
 import { getPublishBlockReason } from '@/features/service-groups/lib/publish-block-reason';
 
 const PUBLISH_BLOCK_REASON_ID = 'group-map-publish-block-reason';
@@ -35,10 +35,19 @@ interface GroupMapDetailPanelProps {
    */
   appointments?: GroupPreviewAppointment[];
   isLoadingAppointments?: boolean;
+  /**
+   * Acting role. Both group actions are AM/OP-only server-side, but `/map`
+   * itself is open to CL_ADMIN/CL_USER — without this they would be offered a
+   * button that can only come back 403.
+   */
+  actorRole: UserRole;
   onClose: () => void;
-  /** Publishes the group (DRAFT only — the button is disabled otherwise). */
+  /** Publishes the group (DRAFT only — the button renders for no other status). */
   onPublish: () => void;
   isPublishing?: boolean;
+  /** Opens the unpublish confirmation (PUBLISHED only). The page owns the modal. */
+  onUnpublish: () => void;
+  isUnpublishing?: boolean;
 }
 
 /**
@@ -52,9 +61,12 @@ export function GroupMapDetailPanel({
   group,
   appointments,
   isLoadingAppointments = false,
+  actorRole,
   onClose,
   onPublish,
   isPublishing = false,
+  onUnpublish,
+  isUnpublishing = false,
 }: GroupMapDetailPanelProps) {
   const cardRef = useRef<HTMLDivElement | null>(null);
 
@@ -115,10 +127,17 @@ export function GroupMapDetailPanel({
 
   if (!group) return null;
 
-  const isDraft = group.status === ServiceGroupStatus.DRAFT;
+  // Both group actions are AM/OP-only server-side.
+  const canManageGroup = actorRole === 'AM' || actorRole === 'OP';
+  // Exactly one action is ever offered, chosen by status. A group that is
+  // neither DRAFT nor PUBLISHED gets none — a permanently disabled button is
+  // just a dead half of the footer.
+  const showPublish = canManageGroup && group.status === ServiceGroupStatus.DRAFT;
+  const showUnpublish = canManageGroup && group.status === ServiceGroupStatus.PUBLISHED;
+
   // Same guards the backend enforces on publish (empty group, past date/window)
   // so the popup explains itself instead of firing a request that 422s.
-  const publishBlockReason = isDraft
+  const publishBlockReason = showPublish
     ? getPublishBlockReason({
         status: group.status,
         appointmentCount: group.groupSize,
@@ -130,7 +149,7 @@ export function GroupMapDetailPanel({
           .filter((a) => a.status !== undefined && a.status !== 'AWAITING_INSPECTOR')
           .map((a) => ({ label: a.code ? `#${a.code}` : 'an appointment', status: a.status as string })),
       })
-    : 'Only draft groups can be published';
+    : null;
 
   return (
     <div
@@ -180,8 +199,9 @@ export function GroupMapDetailPanel({
         </p>
       </div>
 
-      {/* Footer — VIEW GROUP navigates to the full detail page;
-          PUBLISH is the DRAFT-only action (backend re-validates). */}
+      {/* Footer — VIEW GROUP navigates to the full detail page; the second
+          button is the status-appropriate action, if there is one (backend
+          re-validates either way). */}
       <div className="flex gap-2 px-4 py-2">
         <Link
           to={`/service-groups/${group.id}`}
@@ -190,25 +210,40 @@ export function GroupMapDetailPanel({
         >
           VIEW GROUP
         </Link>
-        <span className="flex-1" title={publishBlockReason ?? undefined}>
-          <button
-            type="button"
-            onClick={onPublish}
-            disabled={!!publishBlockReason || isPublishing}
-            className="w-full rounded bg-real-estate px-3 py-1.5 text-xs font-semibold text-white hover:bg-real-estate/90 disabled:cursor-not-allowed disabled:bg-real-estate/40"
-            data-testid="group-map-detail-publish"
-            // Condition must match the paragraph below, or the reference
-            // dangles for non-DRAFT groups.
-            aria-describedby={isDraft && publishBlockReason ? PUBLISH_BLOCK_REASON_ID : undefined}
-          >
-            {isPublishing ? 'PUBLISHING…' : 'PUBLISH'}
-          </button>
-        </span>
+        {showPublish && (
+          <span className="flex-1" title={publishBlockReason ?? undefined}>
+            <button
+              type="button"
+              onClick={onPublish}
+              disabled={!!publishBlockReason || isPublishing}
+              className="w-full rounded bg-real-estate px-3 py-1.5 text-xs font-semibold text-white hover:bg-real-estate/90 disabled:cursor-not-allowed disabled:bg-real-estate/40"
+              data-testid="group-map-detail-publish"
+              // Condition must match the paragraph below, or the reference
+              // dangles when nothing is blocking.
+              aria-describedby={publishBlockReason ? PUBLISH_BLOCK_REASON_ID : undefined}
+            >
+              {isPublishing ? 'PUBLISHING…' : 'PUBLISH'}
+            </button>
+          </span>
+        )}
+        {showUnpublish && (
+          <span className="flex-1">
+            <button
+              type="button"
+              onClick={onUnpublish}
+              disabled={isUnpublishing}
+              className="w-full rounded bg-real-estate px-3 py-1.5 text-xs font-semibold text-white hover:bg-real-estate/90 disabled:cursor-not-allowed disabled:bg-real-estate/40"
+              data-testid="group-map-detail-unpublish"
+            >
+              {isUnpublishing ? 'UNPUBLISHING…' : 'UNPUBLISH'}
+            </button>
+          </span>
+        )}
       </div>
 
       {/* The popup is compact, so the reason sits under the actions rather than
           in a banner — but it is still text, not a tooltip alone. */}
-      {isDraft && publishBlockReason && (
+      {publishBlockReason && (
         <p
           id={PUBLISH_BLOCK_REASON_ID}
           className="px-4 pb-3 text-[11px] text-warning"

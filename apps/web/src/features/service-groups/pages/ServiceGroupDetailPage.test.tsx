@@ -54,6 +54,7 @@ vi.mock('@/lib/status-colors', () => ({
 
 const mockRefetch = vi.fn();
 const mockPublish = vi.fn();
+const mockUnpublish = vi.fn();
 const mockAssign = vi.fn();
 const mockReassign = vi.fn();
 const mockCancel = vi.fn();
@@ -227,6 +228,13 @@ vi.mock('../hooks/usePublishServiceGroup', () => ({
   }),
 }));
 
+vi.mock('../hooks/useUnpublishServiceGroup', () => ({
+  useUnpublishServiceGroup: () => ({
+    unpublish: mockUnpublish,
+    isUnpublishing: false,
+  }),
+}));
+
 let mockIsAssigning = false;
 let mockIsReassigning = false;
 
@@ -377,6 +385,31 @@ describe('ServiceGroupDetailPage', () => {
   it('shows Cancel Group button for DRAFT status', () => {
     renderPage();
     expect(screen.getByRole('button', { name: /Cancel Group/ })).toBeInTheDocument();
+  });
+
+  it('shows Unpublish only for PUBLISHED status', () => {
+    const { unmount } = renderPage('/service-groups/published');
+    expect(screen.getByRole('button', { name: /Unpublish/ })).toBeInTheDocument();
+    unmount();
+
+    for (const entry of ['/service-groups/sg-01', '/service-groups/accepted', '/service-groups/cancelled']) {
+      const view = renderPage(entry);
+      expect(screen.queryByRole('button', { name: /Unpublish/ })).toBeNull();
+      view.unmount();
+    }
+  });
+
+  it('unpublishes with the reason typed in the confirmation modal', () => {
+    renderPage('/service-groups/published');
+    fireEvent.click(screen.getByRole('button', { name: /Unpublish/ }));
+
+    fireEvent.change(screen.getByLabelText('Unpublish reason'), {
+      target: { value: 'Wrong region' },
+    });
+    // The dialog's confirm button, not the page action that opened it.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Unpublish' }).at(-1)!);
+
+    expect(mockUnpublish).toHaveBeenCalledWith('Wrong region');
   });
 
   it('shows the Change menu for PUBLISHED status', () => {

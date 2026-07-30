@@ -423,6 +423,21 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     return result.count;
   }
 
+  async unpublishOptimistic(id: string): Promise<number> {
+    // Same optimistic-lock shape as acceptOptimistic, in the opposite
+    // direction: the PUBLISHED precondition lives in the WHERE so an inspector
+    // accepting between the caller's read and this write keeps their
+    // assignment instead of silently losing it.
+    const result = await this.prisma.serviceGroup.updateMany({
+      where: { id, status: 'PUBLISHED' },
+      data: {
+        status: 'DRAFT',
+        published_at: null,
+      },
+    });
+    return result.count;
+  }
+
   async cancelOptimistic(id: string, expectedStatus: string): Promise<number> {
     // Both preconditions must be evaluated in the same statement as the write:
     //

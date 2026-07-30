@@ -5,6 +5,7 @@ import {
   publishServiceGroupSchema,
   assignInspectorSchema,
   cancelServiceGroupSchema,
+  unpublishServiceGroupSchema,
   acceptOfferSchema,
   listServiceGroupsQuerySchema,
   listMarketplaceOffersQuerySchema,
@@ -149,6 +150,28 @@ describe('cancelServiceGroupSchema', () => {
 
   it('should reject reason exceeding 1000 characters', () => {
     const result = cancelServiceGroupSchema.safeParse({ reason: 'x'.repeat(1001) });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('unpublishServiceGroupSchema', () => {
+  it('should accept valid reason', () => {
+    const result = unpublishServiceGroupSchema.safeParse({ reason: 'Wrong time window' });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject empty reason', () => {
+    const result = unpublishServiceGroupSchema.safeParse({ reason: '' });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject missing reason', () => {
+    const result = unpublishServiceGroupSchema.safeParse({});
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject reason exceeding 1000 characters', () => {
+    const result = unpublishServiceGroupSchema.safeParse({ reason: 'x'.repeat(1001) });
     expect(result.success).toBe(false);
   });
 });
