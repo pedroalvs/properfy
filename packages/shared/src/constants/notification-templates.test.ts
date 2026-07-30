@@ -75,6 +75,12 @@ describe('getTemplateCodeLabel', () => {
   it('falls back to the raw code for an unknown template', () => {
     expect(getTemplateCodeLabel('SOME_CUSTOM_CODE')).toBe('SOME_CUSTOM_CODE');
   });
+
+  it('does not resolve inherited Object members as labels', () => {
+    // Bare indexing would hand back a function here, which React renders as a crash.
+    expect(getTemplateCodeLabel('constructor')).toBe('constructor');
+    expect(getTemplateCodeLabel('toString')).toBe('toString');
+  });
 });
 
 describe('TEMPLATE_TARGETS', () => {
@@ -91,12 +97,20 @@ describe('TEMPLATE_TARGETS', () => {
   });
 
   it('keeps an SMS variant on the same target as its email counterpart', () => {
+    let comparedPairs = 0;
     for (const code of MANDATORY_TEMPLATE_CODES) {
       if (!code.endsWith('_SMS')) continue;
       const emailCode = code.slice(0, -'_SMS'.length) as keyof typeof TEMPLATE_TARGETS;
-      if (!(emailCode in TEMPLATE_TARGETS)) continue;
+      // An SMS-only template with no email sibling has nothing to compare against, so it is
+      // skipped rather than failed — but count the real comparisons so this cannot quietly
+      // become a no-op assertion if the catalog is restructured.
+      if (!Object.prototype.hasOwnProperty.call(TEMPLATE_TARGETS, emailCode)) continue;
       expect(TEMPLATE_TARGETS[code]).toBe(TEMPLATE_TARGETS[emailCode]);
+      comparedPairs += 1;
     }
+    // 8 pairs today: inspection notice, the three reminders, confirmed, rescheduled,
+    // cancelled, unavailability-reported. (TENANT_SMS_ALERT is not an `_SMS` variant.)
+    expect(comparedPairs).toBeGreaterThanOrEqual(8);
   });
 
   it('routes each dispatch family to the recipient its call site actually uses', () => {

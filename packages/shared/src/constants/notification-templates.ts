@@ -98,11 +98,15 @@ export const PLATFORM_TEMPLATE_CODE_LABELS: Record<PlatformOnlyTemplateCode, str
  * platform-only one, and falls back to the raw code for custom templates.
  */
 export function getTemplateCodeLabel(templateCode: string): string {
-  return (
-    TEMPLATE_CODE_LABELS[templateCode as MandatoryTemplateCode] ??
-    PLATFORM_TEMPLATE_CODE_LABELS[templateCode as PlatformOnlyTemplateCode] ??
-    templateCode
-  );
+  // hasOwnProperty, not bare indexing: a code like `constructor` would otherwise resolve to
+  // an inherited function and get returned as the label.
+  if (Object.prototype.hasOwnProperty.call(TEMPLATE_CODE_LABELS, templateCode)) {
+    return TEMPLATE_CODE_LABELS[templateCode as MandatoryTemplateCode];
+  }
+  if (Object.prototype.hasOwnProperty.call(PLATFORM_TEMPLATE_CODE_LABELS, templateCode)) {
+    return PLATFORM_TEMPLATE_CODE_LABELS[templateCode as PlatformOnlyTemplateCode];
+  }
+  return templateCode;
 }
 
 // ---------------------------------------------------------------------------
@@ -173,7 +177,11 @@ export const TEMPLATE_TARGETS: Record<
 
 /** Target for any template code; `undefined` for custom codes outside both catalogs. */
 export function getTemplateTarget(templateCode: string): NotificationTarget | undefined {
-  return TEMPLATE_TARGETS[templateCode as keyof typeof TEMPLATE_TARGETS];
+  // See getTemplateCodeLabel: bare indexing would return an inherited member for a code
+  // like `constructor`, and the chip would then look up a style that does not exist.
+  return Object.prototype.hasOwnProperty.call(TEMPLATE_TARGETS, templateCode)
+    ? TEMPLATE_TARGETS[templateCode as keyof typeof TEMPLATE_TARGETS]
+    : undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -242,14 +250,23 @@ export interface TemplateVariableSpec {
 }
 
 /**
- * Deliberately keyed on `'PASSWORD_RESET'` rather than the whole
- * `PlatformOnlyTemplateCode` union: the other platform-only codes use variables that are
- * NOT in ALLOWED_VARIABLES (INSPECTION_STUCK_ALERT renders `{{appointmentId}}` and
- * `{{hoursStuck}}`; the INSPECTOR_GROUP_* codes carry group facts). The template editor
- * turns an entry here into `canonicalAllowed`, which `useTemplateSave.validate()` uses to
- * REJECT unknown variables — so declaring an incomplete spec would start failing saves on
- * templates that are valid today. Absent from this registry means "no allow-list check",
- * which is the correct behaviour for them.
+ * Deliberately keyed on `'PASSWORD_RESET'` rather than the whole `PlatformOnlyTemplateCode`
+ * union, so widening that catalog does not silently pull the other four codes in here.
+ *
+ * **Do not "complete" this registry for INSPECTION_STUCK_ALERT or the INSPECTOR_GROUP_*
+ * codes.** An entry is not merely descriptive — it changes what gets SENT.
+ * `build-notification-payload.service.ts` filters the outgoing payload down to
+ * `required + optional` and throws `MissingRequiredVariableError` when a required key is
+ * absent; with no entry it passes every computed variable through untouched. So a spec that
+ * is anything less than exactly right would drop variables from live notifications, or fail
+ * the send outright. Those codes render variables outside ALLOWED_VARIABLES
+ * (INSPECTION_STUCK_ALERT uses `{{appointmentId}}` and `{{hoursStuck}}`), which is precisely
+ * why writing a correct spec for them is not a mechanical exercise.
+ *
+ * Note this is NOT about making them editable: those templates cannot be saved from the UI
+ * at all today — `useTemplateSave.validate()` falls back to the global ALLOWED_VARIABLES
+ * when no spec exists, and `upsert-notification-template.use-case.ts` rejects any code
+ * outside MANDATORY_TEMPLATE_CODES server-side. Adding a spec here would not fix that.
  */
 export const TEMPLATE_VARIABLES: Record<
   MandatoryTemplateCode | 'PASSWORD_RESET',
