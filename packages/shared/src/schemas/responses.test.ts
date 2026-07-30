@@ -81,6 +81,12 @@ describe('appointmentResponseSchema — appointmentCode / code', () => {
     expect(result.success).toBe(true);
     if (result.success) expect(result.data.isOverdue).toBeUndefined();
   });
+
+  it('rejects a non-boolean isOverdue', () => {
+    expect(
+      appointmentResponseSchema.safeParse({ ...validBase, isOverdue: 'true' }).success,
+    ).toBe(false);
+  });
 });
 
 describe('agencyFinancialExportResponseSchema (031)', () => {

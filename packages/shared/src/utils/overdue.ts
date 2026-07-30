@@ -1,6 +1,6 @@
 import { AppointmentStatus } from '../enums';
 import { PLATFORM_TIMEZONE } from '../constants/timezone';
-import { addCivilDays, todayInTzDateString } from './local-date';
+import { addCivilDays, civilDateInTz } from './local-date';
 
 /**
  * How long an appointment may sit in an active status before it counts as overdue.
@@ -47,8 +47,8 @@ export const OVERDUE_AUTO_CANCEL_STATUSES: readonly AppointmentStatus[] = [
  * is not yet overdue — it becomes overdue at the next Sydney midnight. This mirrors
  * the convention the rest of the platform uses for civil-date boundaries.
  */
-export function overdueCreatedBeforeCivilDate(): string {
-  return addCivilDays(todayInTzDateString(PLATFORM_TIMEZONE), -OVERDUE_AGE_DAYS);
+export function overdueCreatedBeforeCivilDate(now: Date = new Date()): string {
+  return addCivilDays(civilDateInTz(now, PLATFORM_TIMEZONE), -OVERDUE_AGE_DAYS);
 }
 
 export interface AppointmentOverdueInput {
@@ -72,12 +72,7 @@ function createdAtCivilDate(createdAt: string | Date): string {
   if (typeof createdAt === 'string' && !createdAt.includes('T')) return createdAt;
 
   const instant = typeof createdAt === 'string' ? new Date(createdAt) : createdAt;
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: PLATFORM_TIMEZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(instant);
+  return civilDateInTz(instant, PLATFORM_TIMEZONE);
 }
 
 /**

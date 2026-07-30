@@ -2,5 +2,15 @@
 -- cross-tenant and filters on exactly (status, created_at). Every other index on
 -- `appointments` leads with tenant_id, so none of them can serve that query.
 --
+-- Note: CREATE INDEX CONCURRENTLY is NOT possible here — Prisma Migrate wraps each
+-- migration in a transaction (E25001 on prisma 5.22) and Postgres rejects
+-- CONCURRENTLY inside one ("cannot run inside a transaction block"). The plain
+-- CREATE INDEX briefly blocks writes to appointments, which is acceptable: the table
+-- is small and this runs in the Fly release_command phase, before the new version
+-- takes traffic. Same reasoning as
+-- 20260705000100_add_notifications_delivery_poll_index. If appointments ever grows to
+-- millions of rows, create future indexes manually with CONCURRENTLY and mark the
+-- migration applied via `prisma migrate resolve`.
+--
 -- CreateIndex
 CREATE INDEX "appointments_status_created_at_idx" ON "appointments"("status", "created_at");

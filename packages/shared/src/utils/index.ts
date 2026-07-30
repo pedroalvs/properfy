@@ -6,7 +6,13 @@ export {
   OVERDUE_ELIGIBLE_STATUSES,
   type AppointmentOverdueInput,
 } from './overdue';
-export { todayInTzDateString, addCivilDays, currentTimeInTzHHmm, isTimeStartInPastForDate } from './local-date';
+export {
+  todayInTzDateString,
+  civilDateInTz,
+  addCivilDays,
+  currentTimeInTzHHmm,
+  isTimeStartInPastForDate,
+} from './local-date';
 export { zonedWallTimeToUtc, endOfCivilDayInTz } from './timezone-date';
 export { validateNewSchedule, validateEditedSchedule, type DateValidationResult } from './edit-date-validation';
 export { formatInvoiceNumber, INVOICE_NUMBER_PREFIX } from './format-invoice-number';

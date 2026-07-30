@@ -68,6 +68,13 @@ describe('overdue age rule', () => {
       vi.setSystemTime(new Date('2026-03-29T14:00:00Z'));
       expect(overdueCreatedBeforeCivilDate()).toBe('2026-02-13');
     });
+
+    it('accepts an injected now, matching startOfOverdueAgeCutoff on the backend', () => {
+      // Same signature shape as the backend cutoff helper, so the parity between the
+      // two can be checked without reaching for global fake timers.
+      expect(overdueCreatedBeforeCivilDate(new Date('2026-03-29T14:00:00Z'))).toBe('2026-02-13');
+      expect(overdueCreatedBeforeCivilDate(new Date('2026-03-29T10:00:00Z'))).toBe(CUTOFF);
+    });
   });
 
   describe('isAppointmentOverdue', () => {
