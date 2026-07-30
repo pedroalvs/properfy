@@ -16,10 +16,10 @@ const navItems: NavItem[] = [
 export function BottomNavBar() {
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border-subtle/70 bg-white/92 backdrop-blur-xl"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border-subtle/70 bg-card-bg pb-safe-b"
       data-testid="bottom-nav"
     >
-      <div className="mx-auto grid h-18 w-full max-w-screen-sm grid-cols-4 gap-1 px-3 py-2">
+      <div className="mx-auto grid w-full max-w-screen-sm grid-cols-4 gap-1 px-3 py-2">
         {navItems.map((item) => (
           <NavLink
             key={item.to}

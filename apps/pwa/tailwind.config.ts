@@ -53,6 +53,12 @@ const config: Config = {
       spacing: {
         'page-x': '16px',
         'page-y': '16px',
+        // iOS home-indicator inset; see --safe-area-bottom in styles/tokens.css.
+        'safe-b': 'var(--safe-area-bottom)',
+        // Clearance for content sitting under the fixed bottom nav: the 68px bar plus
+        // the inset the bar pads itself with. Keep the 5rem base in sync with the nav's
+        // rendered height if its contents ever change.
+        'nav-clear': 'calc(5rem + var(--safe-area-bottom))',
       },
       animation: {
         shimmer: 'shimmer 1.5s ease-in-out infinite',

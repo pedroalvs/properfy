@@ -94,4 +94,14 @@ describe('TopBar', () => {
     expect(badge).toBeInTheDocument();
     expect(badge).toHaveTextContent('3 pending');
   });
+
+  it('paints an opaque background instead of a backdrop filter', () => {
+    // Same reasoning as BottomNavBar: this header is `sticky`, so `backdrop-filter`
+    // promotes it to its own composited layer, which WebKit can mispaint while scrolling.
+    const { container } = renderWithProviders(<TopBar title="Schedule" />);
+    const header = container.querySelector('header')!;
+    expect(header.className).not.toContain('backdrop-blur');
+    expect(header.className).not.toMatch(/bg-white\/\d+/);
+    expect(header.className).toContain('bg-card-bg');
+  });
 });

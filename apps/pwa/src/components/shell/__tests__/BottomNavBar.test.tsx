@@ -39,4 +39,27 @@ describe('BottomNavBar', () => {
     expect(screen.getByText('Earnings')).toBeInTheDocument();
     expect(screen.getByText('Profile')).toBeInTheDocument();
   });
+
+  it('reserves the iOS home-indicator inset below the tabs', () => {
+    // Measured on a 393x852 iPhone viewport: without this padding the tab labels sit
+    // 8-32px from the screen edge, entirely inside the ~34px home-indicator strip, and
+    // most of each tap target overlaps the system swipe-up gesture area.
+    renderWithProviders(<BottomNavBar />);
+    expect(screen.getByTestId('bottom-nav').className).toContain('pb-safe-b');
+  });
+
+  it('paints an opaque background instead of a backdrop filter', () => {
+    // `backdrop-filter` on a position:fixed element forces a separate composited layer,
+    // which WebKit is known to mispaint at a stale offset during momentum scrolling.
+    renderWithProviders(<BottomNavBar />);
+    const nav = screen.getByTestId('bottom-nav');
+    expect(nav.className).not.toContain('backdrop-blur');
+    expect(nav.className).not.toMatch(/bg-white\/\d+/);
+    expect(nav.className).toContain('bg-card-bg');
+  });
+
+  it('does not reference spacing classes that Tailwind never defined', () => {
+    renderWithProviders(<BottomNavBar />);
+    expect(screen.getByTestId('bottom-nav').innerHTML).not.toContain('h-18');
+  });
 });
