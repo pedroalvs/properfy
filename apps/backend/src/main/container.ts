@@ -235,6 +235,7 @@ import { PrismaNotificationRepository } from '../modules/notification/infrastruc
 import { PrismaNotificationTemplateRepository } from '../modules/notification/infrastructure/prisma-notification-template.repository';
 import { PrismaNotificationAttemptRepository } from '../modules/notification/infrastructure/prisma-notification-attempt.repository';
 import { PrismaNotificationConsentRepository } from '../modules/notification/infrastructure/prisma-notification-consent.repository';
+import { createTenantSettingsReader } from '../modules/notification/infrastructure/prisma-tenant-settings.reader';
 import { TemplateRendererService } from '../modules/notification/domain/template-renderer.service';
 import { SendNotificationUseCase } from '../modules/notification/application/use-cases/send-notification.use-case';
 import { RetryNotificationUseCase } from '../modules/notification/application/use-cases/retry-notification.use-case';
@@ -1055,15 +1056,7 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Notification use cases
   const consentRepo = new PrismaNotificationConsentRepository(prisma);
-  const getTenantSettings = async (tenantId: string | null): Promise<Record<string, unknown>> => {
-    // Platform-scoped notifications (tenant_id NULL) have no tenant row to read
-    // settings from. Return the same empty object this lookup already yields for
-    // an id that does not resolve, so every downstream branch falls back to its
-    // default. Prisma throws on a null `where.id`, so the guard is required.
-    if (tenantId === null) return {};
-    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { settings_json: true } });
-    return (tenant?.settings_json as Record<string, unknown>) ?? {};
-  };
+  const getTenantSettings = createTenantSettingsReader(prisma);
 
   const sendNotificationUseCase = new SendNotificationUseCase({
     notificationRepo,

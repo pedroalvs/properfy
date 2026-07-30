@@ -18,6 +18,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vites
 import { setupDbHarness, teardownDbHarness, type DbHarness } from './harness';
 import { PrismaNotificationRepository } from '../../../src/modules/notification/infrastructure/prisma-notification.repository';
 import { PrismaNotificationTemplateRepository } from '../../../src/modules/notification/infrastructure/prisma-notification-template.repository';
+import { createTenantSettingsReader } from '../../../src/modules/notification/infrastructure/prisma-tenant-settings.reader';
 import { CreateNotificationUseCase } from '../../../src/modules/notification/application/use-cases/create-notification.use-case';
 import { NotificationEntity } from '../../../src/modules/notification/domain/notification.entity';
 import {
@@ -226,6 +227,33 @@ describe('scrubPayload on a platform notification', () => {
     await repo.scrubPayload(id, tenantId, SENSITIVE_PAYLOAD_KEYS, REDACTED_PAYLOAD_VALUE);
 
     expect(await readPayload(id)).toEqual({ userName: 'Jane', resetLink: RESET_LINK });
+  });
+});
+
+describe('tenant settings reader with a null tenant', () => {
+  // The send worker reads settings for the email kill switch and the daily caps.
+  // Prisma throws on `where: { id: null }`, so without the guard this kills the
+  // send job and a platform password reset never leaves PENDING.
+  it('returns empty settings for a platform-scoped notification', async () => {
+    const read = createTenantSettingsReader(harness.prisma);
+
+    await expect(read(null)).resolves.toEqual({});
+  });
+
+  it('still reads a real tenant settings blob', async () => {
+    await harness.prisma.tenant.update({
+      where: { id: tenantId },
+      data: { settings_json: { emailSendingEnabled: false } },
+    });
+    const read = createTenantSettingsReader(harness.prisma);
+
+    await expect(read(tenantId)).resolves.toEqual({ emailSendingEnabled: false });
+  });
+
+  it('returns empty settings for a tenant id that does not resolve', async () => {
+    const read = createTenantSettingsReader(harness.prisma);
+
+    await expect(read('11111111-1111-1111-1111-111111111111')).resolves.toEqual({});
   });
 });
 
