@@ -437,7 +437,11 @@ export class ExecuteStatusTransitionUseCase {
           after: {
             previousStatus: appointment.status,
             targetStatus,
-            error: error instanceof Error ? error.message : String(error),
+            // The class, not the message: an error surfacing from the send path
+            // can carry a raw provider string that names the recipient, and an
+            // audit row is immutable and outlives any erasure request. The
+            // message is already on the notification row and in the logs.
+            error: error instanceof Error ? error.constructor.name : 'UnknownError',
           },
         });
       }

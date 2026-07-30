@@ -1035,7 +1035,8 @@ describe('ExecuteStatusTransitionUseCase – onTransitionHandler', () => {
           tenantId: 'tenant-1',
           after: expect.objectContaining({
             targetStatus: 'SCHEDULED',
-            error: 'sms provider exploded',
+            // Class only — a provider message can name the recipient.
+            error: 'Error',
           }),
         }),
       );

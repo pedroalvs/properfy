@@ -116,6 +116,29 @@ function getMetadataBadges(metadataJson: unknown): string[] {
   return badges;
 }
 
+
+/**
+ * Detail line for the notification-failure actions.
+ *
+ * These audits carry only an `afterJson` (there is no prior state to diff), and
+ * summarizeChanges() returns null without a `beforeJson` — so without this the
+ * row would render as a bare label and the operator would still have to go
+ * digging in the Notifications tab.
+ *
+ * Faking a `beforeJson` to reuse summarizeChanges is not an option: it would
+ * surface `notificationId`, and raw IDs must never reach the UI.
+ */
+function notificationFailureDetail(action: string, afterJson: unknown): string | null {
+  if (action !== 'notification.send_failed' && action !== 'notification.dispatch_failed') {
+    return null;
+  }
+  if (!afterJson || typeof afterJson !== 'object' || Array.isArray(afterJson)) return null;
+  const a = afterJson as Record<string, unknown>;
+  const parts = [a['channel'], a['templateCode'], a['failureReason'] ?? a['error']]
+    .filter((v): v is string => typeof v === 'string' && v.length > 0);
+  return parts.length > 0 ? parts.join(' \u00b7 ') : null;
+}
+
 export function AuditTimeline({ entries }: AuditTimelineProps) {
   if (entries.length === 0) return null;
 
@@ -127,6 +150,7 @@ export function AuditTimeline({ entries }: AuditTimelineProps) {
           const style = ACTION_STYLES[normalizeAction(entry.action)] ?? DEFAULT_STYLE;
           const changeSummary = summarizeChanges(entry.beforeJson, entry.afterJson);
           const badges = getMetadataBadges(entry.metadataJson);
+          const failureDetail = notificationFailureDetail(entry.action, entry.afterJson);
 
           return (
             <li key={entry.id} className="relative">
@@ -141,6 +165,11 @@ export function AuditTimeline({ entries }: AuditTimelineProps) {
                 {entry.reason && (
                   <p className="mt-1 text-xs text-text-secondary italic">
                     Reason: {entry.reason}
+                  </p>
+                )}
+                {failureDetail && (
+                  <p className="mt-1 text-xs font-medium text-error">
+                    {failureDetail}
                   </p>
                 )}
                 {changeSummary && (

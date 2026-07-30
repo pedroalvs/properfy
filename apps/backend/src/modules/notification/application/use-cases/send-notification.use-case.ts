@@ -27,9 +27,34 @@ import {
 } from '../../domain/notification.constants';
 import { renderEmailBody } from '../render-email-body';
 
+/**
+ * Reason codes this pipeline sets itself. Everything else on the failure path is
+ * a raw provider message — the providers interpolate response bodies verbatim
+ * (mobile-message-sms.provider.ts, resend-email.provider.ts), which routinely
+ * name the destination address or number.
+ *
+ * That must never reach audit_logs: those rows are immutable, classified
+ * OPERATIONAL_CRITICAL by default, and the per-subject erasure workflow redacts
+ * by registered PII field paths — it cannot find an address buried in free text,
+ * so a leak there silently breaks the erasure guarantee. The raw text stays on
+ * the notification row, which the audit points at via notificationId.
+ */
+const AUDITABLE_FAILURE_CODES: ReadonlySet<string> = new Set([
+  'TEMPLATE_NOT_FOUND',
+  'BUDGET_EXCEEDED',
+  'INVALID_RECIPIENT_PHONE',
+  'EMPTY_SMS_BODY',
+]);
+
 /** Phone numbers are PII: log at most the last 4 digits. */
 function maskRecipient(recipient: string): string {
   return `***${recipient.slice(-4)}`;
+}
+
+/** Collapse anything that is not one of our own codes to a PII-free constant. */
+function auditableFailureReason(reason: string | null): string {
+  if (reason && AUDITABLE_FAILURE_CODES.has(reason)) return reason;
+  return 'PROVIDER_ERROR';
 }
 
 export interface SendNotificationInput {
@@ -90,7 +115,6 @@ export class SendNotificationUseCase {
     this.auditService = deps.auditService;
   }
 
-
   /**
    * Record a terminal send failure against the appointment.
    *
@@ -102,7 +126,9 @@ export class SendNotificationUseCase {
    *
    * Deliberately excludes the recipient: audit rows are long-lived and this
    * would put an email address or phone number in them for no operational gain
-   * — the channel plus the appointment is enough to act on.
+   * — the channel plus the appointment is enough to act on. The same reasoning
+   * collapses a raw provider message to PROVIDER_ERROR; see
+   * AUDITABLE_FAILURE_CODES.
    *
    * Only terminal failures. A retryable attempt would write a row per attempt
    * and drown the timeline, and SKIPPED_OPT_OUT is a tenant's choice rather
@@ -120,7 +146,7 @@ export class SendNotificationUseCase {
         notificationId: notification.id,
         templateCode: notification.templateCode,
         channel: notification.channel,
-        failureReason: notification.failureReason,
+        failureReason: auditableFailureReason(notification.failureReason),
         retryCount: notification.retryCount,
       },
     });
