@@ -75,6 +75,10 @@ export class ServiceGroupEntity extends BaseEntity {
     return this.status === 'DRAFT';
   }
 
+  canUnpublish(): boolean {
+    return this.status === 'PUBLISHED';
+  }
+
   canAssign(): boolean {
     return this.status === 'DRAFT' || this.status === 'PUBLISHED';
   }

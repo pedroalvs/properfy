@@ -235,6 +235,12 @@ export interface IServiceGroupRepository {
   /** Optimistic lock: updates status from PUBLISHED to ACCEPTED atomically. Returns count of updated rows (0 means race lost). */
   acceptOptimistic(id: string, inspectorId: string, assignedAt: Date): Promise<number>;
   /**
+   * Optimistic lock: pulls the group off the marketplace by moving it from
+   * PUBLISHED back to DRAFT. Returns count of updated rows — 0 means an
+   * inspector accepted it in between, so the caller must not claim success.
+   */
+  unpublishOptimistic(id: string): Promise<number>;
+  /**
    * Optimistic lock: sets status to CANCELLED only if it is still `expectedStatus`.
    * Returns count of updated rows (0 means another writer got there first, so the
    * caller must skip its audit log and domain event rather than duplicating them).

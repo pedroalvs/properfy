@@ -14,6 +14,7 @@ import { useReassignInspector } from '../hooks/useReassignInspector';
 import { useCancelServiceGroup } from '../hooks/useCancelServiceGroup';
 import { useRejectServiceGroup } from '../hooks/useRejectServiceGroup';
 import { useRepublishServiceGroup } from '../hooks/useRepublishServiceGroup';
+import { useUnpublishServiceGroup } from '../hooks/useUnpublishServiceGroup';
 import { useSendGroupPortalLinks } from '../hooks/useSendGroupPortalLinks';
 import { ServiceGroupStatusChip } from '../components/ServiceGroupStatusChip';
 import { ServiceGroupDetailSections } from '../components/ServiceGroupDetailSections';
@@ -23,6 +24,7 @@ import { RescheduleGroupModal } from '../components/RescheduleGroupModal';
 import { CancelGroupModal } from '../components/CancelGroupModal';
 import { RejectGroupModal } from '../components/RejectGroupModal';
 import { RepublishGroupModal } from '../components/RepublishGroupModal';
+import { UnpublishGroupModal } from '../components/UnpublishGroupModal';
 import { EditGroupModal } from '../components/EditGroupModal';
 import { SendPortalLinkDialog } from '../components/SendPortalLinkDialog';
 import { useGoBack } from '@/hooks/useGoBack';
@@ -42,6 +44,7 @@ export function ServiceGroupDetailPage() {
   const { cancel } = useCancelServiceGroup(id ?? null, refetch);
   const { reject } = useRejectServiceGroup(id ?? null, refetch);
   const { republish } = useRepublishServiceGroup(id ?? null, refetch);
+  const { unpublish, isUnpublishing } = useUnpublishServiceGroup(id ?? null, refetch);
   const { send: sendPortalLinks, isSending: isSendingPortalLinks } = useSendGroupPortalLinks(
     id ?? null,
     refetch,
@@ -51,6 +54,7 @@ export function ServiceGroupDetailPage() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [republishOpen, setRepublishOpen] = useState(false);
+  const [unpublishOpen, setUnpublishOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [portalLinkOpen, setPortalLinkOpen] = useState(false);
 
@@ -92,6 +96,14 @@ export function ServiceGroupDetailPage() {
       setRepublishOpen(false);
     },
     [republish],
+  );
+
+  const handleUnpublish = useCallback(
+    (reason: string) => {
+      unpublish(reason);
+      setUnpublishOpen(false);
+    },
+    [unpublish],
   );
 
   if (isLoading) {
@@ -222,6 +234,16 @@ export function ServiceGroupDetailPage() {
             Publish
           </Button>
         )}
+        {isPublished && (
+          <Button
+            variant="secondary"
+            loading={isUnpublishing}
+            onClick={() => setUnpublishOpen(true)}
+          >
+            <i className="mdi mdi-publish-off text-base" aria-hidden="true" />
+            Unpublish
+          </Button>
+        )}
         {canChangePlan && (
           <ServiceGroupActionsMenu
             isReplacement={isAccepted}
@@ -308,6 +330,13 @@ export function ServiceGroupDetailPage() {
         onReject={handleReject}
         serviceGroupId={id ?? ''}
       />
+      <UnpublishGroupModal
+        open={unpublishOpen}
+        onClose={() => setUnpublishOpen(false)}
+        onUnpublish={handleUnpublish}
+        loading={isUnpublishing}
+      />
+
       <RepublishGroupModal
         open={republishOpen}
         onClose={() => setRepublishOpen(false)}

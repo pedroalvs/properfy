@@ -5,6 +5,7 @@ import {
   updateServiceGroupSchema,
   assignInspectorSchema,
   cancelServiceGroupSchema,
+  unpublishServiceGroupSchema,
   rejectServiceGroupSchema,
   republishServiceGroupSchema,
   listServiceGroupsQuerySchema,
@@ -33,6 +34,7 @@ import type { ListServiceGroupsUseCase } from '../application/use-cases/list-ser
 import type { PublishServiceGroupUseCase } from '../application/use-cases/publish-service-group.use-case';
 import type { AssignInspectorManuallyUseCase } from '../application/use-cases/assign-inspector-manually.use-case';
 import type { CancelServiceGroupUseCase } from '../application/use-cases/cancel-service-group.use-case';
+import type { UnpublishServiceGroupUseCase } from '../application/use-cases/unpublish-service-group.use-case';
 import type { RejectServiceGroupUseCase } from '../application/use-cases/reject-service-group.use-case';
 import type { UpdateServiceGroupUseCase } from '../application/use-cases/update-service-group.use-case';
 import type { RepublishServiceGroupUseCase } from '../application/use-cases/republish-service-group.use-case';
@@ -50,6 +52,7 @@ export interface ServiceGroupRouteContainer {
   getServiceGroupUseCase: GetServiceGroupUseCase;
   listServiceGroupsUseCase: ListServiceGroupsUseCase;
   publishServiceGroupUseCase: PublishServiceGroupUseCase;
+  unpublishServiceGroupUseCase: UnpublishServiceGroupUseCase;
   assignInspectorManuallyUseCase: AssignInspectorManuallyUseCase;
   cancelServiceGroupUseCase: CancelServiceGroupUseCase;
   rejectServiceGroupUseCase: RejectServiceGroupUseCase;
@@ -168,6 +171,35 @@ export async function registerServiceGroupRoutes(
       }
       const result = await container.publishServiceGroupUseCase.execute({
         groupId: params.data.groupId,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/service-groups/:groupId/unpublish — 200
+  app.post(
+    '/v1/service-groups/:groupId/unpublish',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ groupId: z.string().uuid() }),
+        body: unpublishServiceGroupSchema,
+        response: { 200: successResponseSchema(z.object({ id: z.string().uuid(), status: z.string() })) },
+      },
+    },
+    async (request, reply) => {
+      const params = groupIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid group ID', params.error.errors);
+      }
+      const parsed = unpublishServiceGroupSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.unpublishServiceGroupUseCase.execute({
+        groupId: params.data.groupId,
+        reason: parsed.data.reason,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));

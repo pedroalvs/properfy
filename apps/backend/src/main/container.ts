@@ -156,6 +156,7 @@ import { CancelServiceGroupUseCase } from '../modules/service-group/application/
 import { RejectServiceGroupUseCase } from '../modules/service-group/application/use-cases/reject-service-group.use-case';
 import { UpdateServiceGroupUseCase } from '../modules/service-group/application/use-cases/update-service-group.use-case';
 import { RepublishServiceGroupUseCase } from '../modules/service-group/application/use-cases/republish-service-group.use-case';
+import { UnpublishServiceGroupUseCase } from '../modules/service-group/application/use-cases/unpublish-service-group.use-case';
 import type { ServiceGroupRouteContainer } from '../modules/service-group/interfaces/service-group.routes';
 import type { MarketplaceRouteContainer } from '../modules/service-group/interfaces/marketplace.routes';
 
@@ -909,6 +910,7 @@ export function createContainer(logger: Logger): AppContainer {
   const rejectServiceGroupUseCase = new RejectServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, domainEventBus);
   const updateServiceGroupUseCase = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, appointmentRepo, logger);
   const republishServiceGroupUseCase = new RepublishServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService);
+  const unpublishServiceGroupUseCase = new UnpublishServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService);
 
   const getAvailableGroupsUseCase = new GetAvailableGroupsUseCase(appointmentRepo, serviceGroupRepo);
   // A released group whose last appointment dies has nothing left to execute. Declared
@@ -1418,6 +1420,7 @@ export function createContainer(logger: Logger): AppContainer {
       getServiceGroupUseCase,
       listServiceGroupsUseCase,
       publishServiceGroupUseCase,
+      unpublishServiceGroupUseCase,
       assignInspectorManuallyUseCase,
       cancelServiceGroupUseCase,
       rejectServiceGroupUseCase,
