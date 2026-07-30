@@ -126,6 +126,25 @@ const CANCELLED_HTML = tenantEmailHtml(
   CLOSING_PARAGRAPHS,
 );
 
+// Agency-facing cancellation notice. Deliberately NOT built with
+// tenantEmailHtml: that wrapper bakes in the "Dear {{rentalTenantName}}"
+// greeting, which would address the agency by its tenant's name. Mirrors
+// ESCALATION_HTML, the other agency-facing appointment email.
+const CANCELLED_AGENCY_HTML = renderAppointmentEmailHtml({
+  heading: 'Inspection cancelled{{#if branchName}} — {{branchName}}{{/if}}',
+  contentHtml:
+    `<p>The <strong>${SERVICE_LABEL}</strong> <strong>#{{appointmentCode}}</strong> of ` +
+    '<strong>{{propertyAddress}}</strong> scheduled for <strong>{{scheduledDate}}</strong> ' +
+    'has been <strong>cancelled</strong>' +
+    '{{#if rentalTenantName}} (tenant: <strong>{{rentalTenantName}}</strong>){{/if}}.</p>' +
+    '{{#if cancellationReason}}' +
+    `<p style="${EMAIL_CALLOUT_STYLE}"><strong>Reason:</strong> {{cancellationReason}}</p>` +
+    '{{/if}}' +
+    '<p>No inspection will take place on this date. If the service is still required, ' +
+    'a new appointment needs to be raised.</p>' +
+    CLOSING_PARAGRAPHS,
+});
+
 const UNAVAILABILITY_HTML = tenantEmailHtml(
   '<p>We have received your unavailability report for the ' +
   `<strong>${SERVICE_LABEL}</strong> <strong>#{{appointmentCode}}</strong> of ` +
@@ -271,6 +290,20 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     subject: 'Inspection Cancelled',
     body: 'Dear {{rentalTenantName}}, the inspection at {{propertyAddress}} on {{scheduledDate}} has been cancelled.',
     bodyHtml: CANCELLED_HTML,
+  },
+  {
+    code: 'INSPECTION_CANCELLED_AGENCY',
+    channel: 'EMAIL',
+    subject: 'Inspection Cancelled - {{propertyAddress}}',
+    body: 'The inspection {{appointmentCode}} at {{propertyAddress}} scheduled for {{scheduledDate}} has been cancelled.',
+    bodyHtml: CANCELLED_AGENCY_HTML,
+    // Must be stated explicitly: the seeder only writes this column when the entry
+    // provides it, so omitting it leaves the row on the DB default (OPERATIONAL).
+    // An OPERATIONAL row is consent-checked per recipient in
+    // send-notification.use-case, which would let a branch contact's operational
+    // opt-out silently suppress cancellation notices — the agency must always be
+    // told. Matches PROTECTED_TEMPLATE_CLASSIFICATIONS in @properfy/shared.
+    notificationClass: 'TRANSACTIONAL',
   },
   {
     code: 'INSPECTION_UNAVAILABILITY_REPORTED',

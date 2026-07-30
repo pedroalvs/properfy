@@ -60,7 +60,37 @@ describe('AppointmentTransitionActions', () => {
     fireEvent.click(screen.getAllByRole('option')[0]!);
     // Confirm
     fireEvent.click(screen.getByText('Confirm'));
-    expect(onTransition).toHaveBeenCalledWith(AppointmentStatus.CANCELLED, 'CLIENT REQUEST', 'CLIENT_REQUEST');
+    // 4th arg is the tenant opt-in: false here, since the dialog only offers the
+    // checkbox when `rentalTenantConfirmed` is passed.
+    expect(onTransition).toHaveBeenCalledWith(
+      AppointmentStatus.CANCELLED,
+      'CLIENT REQUEST',
+      'CLIENT_REQUEST',
+      false,
+    );
+  });
+
+  it('forwards the tenant opt-in when the appointment was confirmed', () => {
+    const onTransition = vi.fn();
+    render(
+      <AppointmentTransitionActions
+        transitions={mockTransitions}
+        onTransition={onTransition}
+        rentalTenantConfirmed
+      />,
+    );
+    fireEvent.click(screen.getAllByText('Cancel')[0]!);
+    fireEvent.click(screen.getByLabelText('Reason Code'));
+    fireEvent.click(screen.getAllByRole('option')[0]!);
+    fireEvent.click(screen.getByText('Notify the tenant by email/SMS'));
+    fireEvent.click(screen.getByText('Confirm'));
+
+    expect(onTransition).toHaveBeenCalledWith(
+      AppointmentStatus.CANCELLED,
+      'CLIENT REQUEST',
+      'CLIENT_REQUEST',
+      true,
+    );
   });
 
   it('no buttons when transitions is empty', () => {

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   TEMPLATE_VARIABLES,
   SAMPLE_DATA,
+  getProtectedClass,
   getTemplateCodeLabel,
   getTemplateTarget,
 } from '@properfy/shared';
@@ -87,6 +88,7 @@ const APPOINTMENT_EMAIL_CODES = [
   'INSPECTION_CONFIRMED',
   'INSPECTION_RESCHEDULED',
   'INSPECTION_CANCELLED',
+  'INSPECTION_CANCELLED_AGENCY',
   'INSPECTION_UNAVAILABILITY_REPORTED',
   'TENANT_PORTAL_LINK',
 ] as const;
@@ -152,6 +154,42 @@ describe('PLATFORM_TEMPLATES appointment email HTML bodies', () => {
       expect(sanitized).toContain(SAMPLE_DATA.rentalTenantName);
     });
   }
+
+  it('INSPECTION_CANCELLED_AGENCY addresses the agency, not the rental tenant', () => {
+    const entry = PLATFORM_TEMPLATES.find(
+      (t) => t.code === 'INSPECTION_CANCELLED_AGENCY' && t.channel === 'EMAIL',
+    )!;
+
+    // The tenant-facing wrapper opens with "Dear {{rentalTenantName}}" — reusing it
+    // here would greet the agency by the tenant's name.
+    expect(entry.bodyHtml).not.toContain('Dear {{rentalTenantName}}');
+    // The tenant copy closes with a reassurance that makes no sense to the agency.
+    expect(entry.bodyHtml).not.toContain('No further action is required from you');
+    // Agency-facing heading, mirroring PROPERTY_MANAGER_ESCALATION.
+    expect(entry.bodyHtml).toContain('{{#if branchName}}');
+    // The reason is the whole point of telling the agency.
+    expect(entry.bodyHtml).toContain('{{cancellationReason}}');
+  });
+
+  it('INSPECTION_CANCELLED_AGENCY seeds as TRANSACTIONAL so the agency is never consent-blocked', () => {
+    const entry = PLATFORM_TEMPLATES.find(
+      (t) => t.code === 'INSPECTION_CANCELLED_AGENCY' && t.channel === 'EMAIL',
+    )!;
+
+    // The seeder writes notification_class ONLY when the entry provides it, so an
+    // omitted value silently lands on the column default (OPERATIONAL) and the row
+    // becomes consent-checked per recipient. Must agree with the shared catalogue.
+    expect(entry.notificationClass).toBe('TRANSACTIONAL');
+    expect(getProtectedClass('INSPECTION_CANCELLED_AGENCY')).toBe('TRANSACTIONAL');
+  });
+
+  it('INSPECTION_CANCELLED_AGENCY has no SMS variant', () => {
+    expect(
+      PLATFORM_TEMPLATES.find(
+        (t) => t.code === 'INSPECTION_CANCELLED_AGENCY_SMS',
+      ),
+    ).toBeUndefined();
+  });
 
   it('INSPECTION_NOTICE mirrors the client example (sections, CTA, phone)', () => {
     const entry = PLATFORM_TEMPLATES.find(

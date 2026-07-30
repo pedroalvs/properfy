@@ -60,6 +60,44 @@ describe('useAppointmentTransition', () => {
     });
   });
 
+  it('sends notifyRentalTenant on a cancellation', async () => {
+    const { result } = renderHook(() => useAppointmentTransition('appt-1'), { wrapper });
+
+    act(() => {
+      result.current.transition('CANCELLED' as any, 'No longer needed', 'CLIENT_REQUEST', true);
+    });
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith(
+        '/v1/appointments/appt-1/status-transitions',
+        expect.objectContaining({
+          body: expect.objectContaining({
+            targetStatus: 'CANCELLED',
+            cancellationReasonCode: 'CLIENT_REQUEST',
+            notifyRentalTenant: true,
+          }),
+        }),
+      );
+    });
+  });
+
+  it('omits notifyRentalTenant for a non-cancellation transition', async () => {
+    const { result } = renderHook(() => useAppointmentTransition('appt-1'), { wrapper });
+
+    act(() => {
+      // A stray `true` on a REJECTED transition must not reach the wire: the
+      // backend only consults the flag for CANCELLED, so sending it would
+      // misrepresent the request.
+      result.current.transition('REJECTED' as any, 'Invalid address', 'INVALID_ADDRESS', true);
+    });
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalled();
+    });
+    const body = mockPost.mock.calls[0]![1].body;
+    expect(body).not.toHaveProperty('notifyRentalTenant');
+  });
+
   it('does nothing when appointmentId is null', () => {
     const { result } = renderHook(
       () => useAppointmentTransition(null),

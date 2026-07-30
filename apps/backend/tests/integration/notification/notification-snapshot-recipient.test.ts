@@ -90,6 +90,7 @@ describe('Notification recipient resolution from snapshot fields (T047)', () => 
   let appointmentRepo: any;
   let propertyRepo: any;
   let tenantRepo: any;
+  let branchRepo: any;
   let notificationRepo: any;
   let mintPortalTokenService: any;
   let createNotification: any;
@@ -100,6 +101,11 @@ describe('Notification recipient resolution from snapshot fields (T047)', () => 
     };
     tenantRepo = {
       findById: vi.fn().mockResolvedValue(makeTenant()),
+    };
+    // No contact email: keeps this suite focused on rental-tenant recipient
+    // resolution by suppressing the agency cancellation leg.
+    branchRepo = {
+      findById: vi.fn().mockResolvedValue(null),
     };
     notificationRepo = {
       existsByAppointmentAndTemplate: vi.fn().mockResolvedValue(false),
@@ -129,6 +135,7 @@ describe('Notification recipient resolution from snapshot fields (T047)', () => 
       appointmentRepo,
       propertyRepo,
       tenantRepo,
+      branchRepo,
       notificationRepo,
       mintPortalTokenService,
       buildNotificationPayload,
@@ -170,6 +177,7 @@ describe('Notification recipient resolution from snapshot fields (T047)', () => 
       appointmentRepo,
       propertyRepo,
       tenantRepo,
+      branchRepo,
       notificationRepo,
       mintPortalTokenService,
       buildNotificationPayload,
@@ -182,6 +190,8 @@ describe('Notification recipient resolution from snapshot fields (T047)', () => 
       appointmentId: 'appt-1',
       previousStatus: 'SCHEDULED',
       targetStatus: 'CANCELLED',
+      // The tenant leg is opt-in now; the fixture is CONFIRMED so it is allowed.
+      notifyRentalTenant: true,
     });
 
     expect(createNotification.execute).toHaveBeenCalledWith(
@@ -208,6 +218,7 @@ describe('Notification recipient resolution from snapshot fields (T047)', () => 
       appointmentRepo,
       propertyRepo,
       tenantRepo,
+      branchRepo,
       notificationRepo,
       mintPortalTokenService,
       buildNotificationPayload,

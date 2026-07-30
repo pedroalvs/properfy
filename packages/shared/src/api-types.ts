@@ -5120,6 +5120,7 @@ export interface paths {
                         crossCheckByUserId?: string;
                         /** Format: uuid */
                         inspectorId?: string;
+                        notifyRentalTenant?: boolean;
                     };
                 };
             };
@@ -5336,6 +5337,7 @@ export interface paths {
                     "application/json": {
                         appointmentIds: string[];
                         reason: string;
+                        notifyRentalTenant?: boolean;
                     };
                 };
             };
@@ -5451,6 +5453,7 @@ export interface paths {
                         /** @enum {string} */
                         targetStatus: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
                         reason?: string;
+                        notifyRentalTenant?: boolean;
                     };
                 };
             };

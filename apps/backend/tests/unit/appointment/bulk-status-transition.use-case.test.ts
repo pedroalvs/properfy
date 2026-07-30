@@ -67,6 +67,29 @@ describe('BulkStatusTransitionUseCase', () => {
     });
   });
 
+  it('forwards notifyRentalTenant to every delegated transition', async () => {
+    // The forward is a single line in the wrapper; without this, deleting it would
+    // silently disable the tenant opt-in in both bulk UIs with every test green.
+    const useCase = new BulkStatusTransitionUseCase(
+      mocks.executeStatusTransition,
+      mocks.idempotency,
+      () => new Date('2026-04-15T12:00:00Z'),
+    );
+
+    await useCase.execute({
+      appointmentIds: [APPT_A, APPT_B],
+      targetStatus: 'CANCELLED',
+      reason: 'Agency withdrew the request',
+      notifyRentalTenant: true,
+      actor,
+    });
+
+    expect(mocks.executeStatusTransition.execute).toHaveBeenCalledTimes(2);
+    for (const call of mocks.executeStatusTransition.execute.mock.calls) {
+      expect(call[0]).toMatchObject({ targetStatus: 'CANCELLED', notifyRentalTenant: true });
+    }
+  });
+
   it('idempotency key includes the targetStatus — flipping target re-executes', async () => {
     const useCase = new BulkStatusTransitionUseCase(
       mocks.executeStatusTransition,

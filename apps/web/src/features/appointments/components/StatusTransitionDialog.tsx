@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/forms/FormField';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { Textarea } from '@/components/forms/Textarea';
+import { Checkbox } from '@/components/forms/Checkbox';
 
 /**
  * Assigned only by the daily auto-cancel sweep, never chosen by a person — an
@@ -25,14 +26,28 @@ const REJECTION_OPTIONS = Object.values(RejectionReasonCode).map((code) => ({
   label: code.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
 }));
 
+export interface StatusTransitionConfirmPayload {
+  reason: string;
+  reasonCode?: string;
+  /** Cancellation only; always false unless the operator ticked the box. */
+  notifyRentalTenant: boolean;
+}
+
 interface StatusTransitionDialogProps {
   open: boolean;
   onClose: () => void;
-  onConfirm: (reason: string, reasonCode?: string) => void;
+  onConfirm: (payload: StatusTransitionConfirmPayload) => void;
   title: string;
   message: string;
   variant: 'danger' | 'warning';
   targetStatus?: string;
+  /**
+   * Whether the rental tenant confirmed this appointment. Gates the "notify the
+   * tenant" checkbox: there is no point offering to tell someone the inspection
+   * is off when they never acknowledged it was on. The backend enforces the same
+   * rule independently.
+   */
+  rentalTenantConfirmed?: boolean;
   loading?: boolean;
 }
 
@@ -44,15 +59,18 @@ export function StatusTransitionDialog({
   message,
   variant,
   targetStatus,
+  rentalTenantConfirmed = false,
   loading = false,
 }: StatusTransitionDialogProps) {
   const [reason, setReason] = useState('');
   const [reasonCode, setReasonCode] = useState('');
+  const [notifyRentalTenant, setNotifyRentalTenant] = useState(false);
 
   useEffect(() => {
     if (!open) {
       setReason('');
       setReasonCode('');
+      setNotifyRentalTenant(false);
     }
   }, [open]);
 
@@ -61,6 +79,8 @@ export function StatusTransitionDialog({
     if (targetStatus === 'REJECTED') return REJECTION_OPTIONS;
     return null;
   }, [targetStatus]);
+
+  const showNotifyRentalTenant = targetStatus === 'CANCELLED' && rentalTenantConfirmed;
 
   const showFreeText = !reasonCodeOptions || reasonCode === 'OTHER';
   const isValid = reasonCodeOptions
@@ -77,7 +97,12 @@ export function StatusTransitionDialog({
       ? reasonCode.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
       : '';
     const finalReason = reason.trim() || codeLabel;
-    onConfirm(finalReason, reasonCode || undefined);
+    onConfirm({
+      reason: finalReason,
+      reasonCode: reasonCode || undefined,
+      // Never leak an opt-in from a transition that does not offer the choice.
+      notifyRentalTenant: showNotifyRentalTenant && notifyRentalTenant,
+    });
   };
 
   return (
@@ -124,6 +149,19 @@ export function StatusTransitionDialog({
             rows={3}
           />
         </FormField>
+      )}
+      {showNotifyRentalTenant && (
+        <div className="mt-4">
+          <Checkbox
+            checked={notifyRentalTenant}
+            onChange={setNotifyRentalTenant}
+            label="Notify the tenant by email/SMS"
+          />
+          <p className="mt-1 text-xs text-text-muted">
+            The tenant confirmed this appointment. Leave unchecked to cancel without
+            contacting them. The agency is notified either way.
+          </p>
+        </div>
       )}
     </Dialog>
   );

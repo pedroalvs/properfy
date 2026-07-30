@@ -9,6 +9,8 @@ export interface BulkStatusTransitionInput {
   appointmentIds: string[];
   targetStatus: AppointmentStatus;
   reason?: string;
+  /** Only consulted when `targetStatus` is CANCELLED. */
+  notifyRentalTenant?: boolean;
   actor: AuthContext;
 }
 
@@ -54,6 +56,7 @@ export class BulkStatusTransitionUseCase {
           appointmentId,
           targetStatus: input.targetStatus,
           reason: input.reason,
+          notifyRentalTenant: input.notifyRentalTenant,
           actor: input.actor,
         });
         const result: BulkActionResultItem = { appointmentId, status: 'OK' };

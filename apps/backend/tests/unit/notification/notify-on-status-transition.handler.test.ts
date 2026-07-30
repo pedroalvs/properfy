@@ -4,6 +4,7 @@ import { AppointmentEntity } from '../../../src/modules/appointment/domain/appoi
 import { AppointmentContactEntity } from '../../../src/modules/appointment/domain/appointment-contact.entity';
 import { PropertyEntity } from '../../../src/modules/property/domain/property.entity';
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
+import { BranchEntity } from '../../../src/modules/tenant/domain/branch.entity';
 import { BuildNotificationPayloadService } from '../../../src/modules/notification/domain/build-notification-payload.service';
 import { AppointmentCodeFormatter } from '../../../src/modules/appointment/domain/appointment-code.formatter';
 import { NotificationEntity } from '../../../src/modules/notification/domain/notification.entity';
@@ -126,6 +127,30 @@ const tenantRepo = {
   findById: vi.fn(),
 };
 
+function makeBranch(contactEmail: string | null = 'bookings@agency.example'): BranchEntity {
+  return new BranchEntity({
+    id: 'branch-1',
+    tenantId: 'tenant-1',
+    name: 'Sydney CBD Branch',
+    addressJson: null,
+    contactEmail,
+    status: 'ACTIVE',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+  });
+}
+
+const branchRepo = {
+  findById: vi.fn(),
+  findByName: vi.fn(),
+  findAll: vi.fn(),
+  count: vi.fn(),
+  countByTenantIds: vi.fn(),
+  save: vi.fn(),
+  update: vi.fn(),
+};
+
 const notificationRepo = {
   existsByAppointmentAndTemplate: vi.fn().mockResolvedValue(false),
   findLatestByAppointmentAndTemplates: vi.fn().mockResolvedValue(null),
@@ -199,6 +224,7 @@ function makeHandler() {
     appointmentRepo as any,
     propertyRepo as any,
     tenantRepo as any,
+    branchRepo as any,
     notificationRepo as any,
     mintPortalTokenService as any,
     buildNotificationPayload,
@@ -219,6 +245,7 @@ beforeEach(() => {
   });
   propertyRepo.findById.mockResolvedValue(makeProperty());
   tenantRepo.findById.mockResolvedValue(makeTenant());
+  branchRepo.findById.mockResolvedValue(makeBranch());
   notificationRepo.existsByAppointmentAndTemplate.mockResolvedValue(false);
   notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(null);
   mintPortalTokenService.mint.mockResolvedValue({ rawToken: 'test-portal-token', expiresAt: new Date('2026-05-01') });
@@ -244,7 +271,7 @@ describe('NotifyOnStatusTransitionHandler', () => {
     );
   });
 
-  it('sends INSPECTION_CANCELLED email when target is CANCELLED', async () => {
+  it('tells only the agency on CANCELLED when notifyRentalTenant is not passed', async () => {
     const handler = makeHandler();
     await handler.execute({
       appointmentId: 'appt-1',
@@ -252,12 +279,263 @@ describe('NotifyOnStatusTransitionHandler', () => {
       targetStatus: 'CANCELLED',
     });
 
-    expect(createNotification.execute).toHaveBeenCalledTimes(2);
+    expect(createNotification.execute).toHaveBeenCalledOnce();
     expect(createNotification.execute).toHaveBeenCalledWith(
       expect.objectContaining({
-        templateCode: 'INSPECTION_CANCELLED',
+        templateCode: 'INSPECTION_CANCELLED_AGENCY',
         channel: 'EMAIL',
+        recipient: 'bookings@agency.example',
       }),
+    );
+  });
+
+  it('sends INSPECTION_CANCELLED to the tenant when opted in and the tenant confirmed', async () => {
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'CANCELLED',
+      notifyRentalTenant: true,
+    });
+
+    // Agency + tenant email + tenant SMS
+    expect(createNotification.execute).toHaveBeenCalledTimes(3);
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED_AGENCY' }),
+    );
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED', channel: 'EMAIL' }),
+    );
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED_SMS', channel: 'SMS' }),
+    );
+  });
+
+  it.each(['PENDING', 'UNAVAILABLE', 'NO_RESPONSE'] as const)(
+    'refuses to notify the tenant when confirmation status is %s, even with the opt-in',
+    async (status) => {
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ rentalTenantConfirmationStatus: status }),
+        contact: makeContact(),
+        restrictions: [],
+      });
+
+      const handler = makeHandler();
+      await handler.execute({
+        appointmentId: 'appt-1',
+        previousStatus: 'SCHEDULED',
+        targetStatus: 'CANCELLED',
+        notifyRentalTenant: true,
+      });
+
+      // The UI hides the checkbox in this case, but the rule is enforced here:
+      // the API can be called directly.
+      expect(createNotification.execute).toHaveBeenCalledOnce();
+      expect(createNotification.execute).toHaveBeenCalledWith(
+        expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED_AGENCY' }),
+      );
+    },
+  );
+
+  it('still tells the agency when the appointment has no contact at all', async () => {
+    // Import creates appointments with no contact on purpose (CONTACT_INCOMPLETE is
+    // a warning, not an error — see appointment-import-commit.worker.ts). Those are
+    // precisely the ones nobody accepts and the overdue sweep cancels, so skipping
+    // the agency here would lose the notice in this feature's own core scenario.
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment(),
+      contact: null,
+      restrictions: [],
+    });
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'CANCELLED',
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        templateCode: 'INSPECTION_CANCELLED_AGENCY',
+        recipient: 'bookings@agency.example',
+        // rentalTenantName is optional on this template, so an absent contact
+        // renders it empty rather than throwing MissingRequiredVariableError.
+        payloadJson: expect.objectContaining({ rentalTenantName: '' }),
+      }),
+    );
+  });
+
+  it('sends nothing to the tenant when there is no contact, even when opted in', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment(),
+      contact: null,
+      restrictions: [],
+    });
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'CANCELLED',
+      notifyRentalTenant: true,
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).not.toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED' }),
+    );
+  });
+
+  it('keeps the SCHEDULED path silent when there is no contact', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment(),
+      contact: null,
+      restrictions: [],
+    });
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'SCHEDULED',
+    });
+
+    expect(createNotification.execute).not.toHaveBeenCalled();
+    // The cheap replay path must stay cheap: nothing loaded before the bail-out.
+    expect(tenantRepo.findById).not.toHaveBeenCalled();
+  });
+
+  it('does not let a branch lookup failure kill the tenant announcement', async () => {
+    // Guards against hoisting the branch fetch out of the agency leg's try/catch.
+    branchRepo.findById.mockRejectedValue(new Error('branch lookup exploded'));
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'CANCELLED',
+      notifyRentalTenant: true,
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED', channel: 'EMAIL' }),
+    );
+  });
+
+  it('logs when an explicit opt-in is discarded because the tenant never confirmed', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment({ rentalTenantConfirmationStatus: 'PENDING' }),
+      contact: makeContact(),
+      restrictions: [],
+    });
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'CANCELLED',
+      notifyRentalTenant: true,
+    });
+
+    // A caller asking for something we refuse must leave a trace; every other
+    // skip in this handler logs, and a direct API integrator otherwise gets a
+    // 200 and debugs a missing email.
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ appointmentId: 'appt-1' }),
+      expect.stringContaining('opt-in'),
+    );
+  });
+
+  it('skips the agency notice when the branch has no contact email', async () => {
+    branchRepo.findById.mockResolvedValue(makeBranch(null));
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'CANCELLED',
+    });
+
+    expect(createNotification.execute).not.toHaveBeenCalled();
+  });
+
+  it('still notifies the tenant when the branch is missing entirely', async () => {
+    branchRepo.findById.mockResolvedValue(null);
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'CANCELLED',
+      notifyRentalTenant: true,
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledTimes(2);
+    expect(createNotification.execute).not.toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED_AGENCY' }),
+    );
+  });
+
+  it('carries branchName and the cancellation reason in the agency payload', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment({ reason: 'Client requested a different week' }),
+      contact: makeContact(),
+      restrictions: [],
+    });
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'CANCELLED',
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        templateCode: 'INSPECTION_CANCELLED_AGENCY',
+        payloadJson: expect.objectContaining({
+          branchName: 'Sydney CBD Branch',
+          cancellationReason: 'Client requested a different week',
+        }),
+      }),
+    );
+  });
+
+  it('does not let an agency-leg failure swallow the tenant announcement', async () => {
+    // Both legs share one handler.execute(), and the caller's catch is a bare
+    // swallow — an unguarded agency throw would silently lose the tenant email.
+    createNotification.execute.mockRejectedValueOnce(new Error('agency leg exploded'));
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'CANCELLED',
+      notifyRentalTenant: true,
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED', channel: 'EMAIL' }),
+    );
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED_SMS', channel: 'SMS' }),
+    );
+    // Contained, but not invisible.
+    expect(metricsCollector.incrementNotificationHandlerErrorCount).toHaveBeenCalled();
+  });
+
+  it('does not notify the agency on SCHEDULED', async () => {
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'SCHEDULED',
+    });
+
+    expect(createNotification.execute).not.toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED_AGENCY' }),
     );
   });
 
@@ -739,9 +1017,12 @@ describe('NotifyOnStatusTransitionHandler occurrence dedupe', () => {
       appointmentId: 'appt-1',
       previousStatus: 'SCHEDULED',
       targetStatus: 'CANCELLED',
+      notifyRentalTenant: true,
     });
 
-    expect(createNotification.execute).toHaveBeenCalledTimes(2);
+    // Agency notice + both tenant legs: a notice followed by a cancellation is a
+    // genuine state change, not a replay.
+    expect(createNotification.execute).toHaveBeenCalledTimes(3);
     expect(createNotification.execute).toHaveBeenCalledWith(
       expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED' }),
     );
@@ -759,9 +1040,68 @@ describe('NotifyOnStatusTransitionHandler occurrence dedupe', () => {
       appointmentId: 'appt-1',
       previousStatus: 'SCHEDULED',
       targetStatus: 'CANCELLED',
+      notifyRentalTenant: true,
+    });
+
+    expect(createNotification.execute).not.toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED' }),
+    );
+  });
+
+  it('sends the agency notice even when the tenant announcement is deduped', async () => {
+    // The tenant dedupe is a single decision about the TENANT's announcement. The
+    // agency has its own recipient and its own template, so folding it into that
+    // early return would make the two sends suppress each other.
+    notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(
+      makeSentNotification('INSPECTION_CANCELLED', { scheduledDate: '2026-04-01' }),
+    );
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'CANCELLED',
+      notifyRentalTenant: true,
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED_AGENCY' }),
+    );
+  });
+
+  it('never puts the agency code in the tenant dedupe template set', async () => {
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'CANCELLED',
+      notifyRentalTenant: true,
+    });
+
+    const [, , templateCodes] =
+      notificationRepo.findLatestByAppointmentAndTemplates.mock.calls[0];
+    expect(templateCodes).not.toContain('INSPECTION_CANCELLED_AGENCY');
+  });
+
+  it('adds no repository calls to a deduped SCHEDULED replay', async () => {
+    // notify-on-group-accepted re-invokes this handler for every member of a
+    // group, so work done before the dedupe multiplies across the whole group.
+    notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(
+      makeSentNotification('INSPECTION_NOTICE', NOTICE_PAYLOAD),
+    );
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'SCHEDULED',
     });
 
     expect(createNotification.execute).not.toHaveBeenCalled();
+    expect(tenantRepo.findById).not.toHaveBeenCalled();
+    expect(propertyRepo.findById).not.toHaveBeenCalled();
+    expect(branchRepo.findById).not.toHaveBeenCalled();
   });
 
   it('does not mint a portal token when the send is skipped', async () => {

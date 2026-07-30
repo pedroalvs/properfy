@@ -8,6 +8,8 @@ const IDEMPOTENCY_SCOPE = 'bulk_cancel';
 export interface BulkCancelAppointmentsInput {
   appointmentIds: string[];
   reason: string;
+  /** Applied per appointment; the handler still requires each tenant to have confirmed. */
+  notifyRentalTenant?: boolean;
   actor: AuthContext;
 }
 
@@ -55,6 +57,7 @@ export class BulkCancelAppointmentsUseCase {
           appointmentId,
           targetStatus: 'CANCELLED',
           reason: input.reason,
+          notifyRentalTenant: input.notifyRentalTenant,
           actor: input.actor,
         });
         const result: BulkActionResultItem = { appointmentId, status: 'OK' };

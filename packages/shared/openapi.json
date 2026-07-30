@@ -12725,6 +12725,9 @@
                   "inspectorId": {
                     "type": "string",
                     "format": "uuid"
+                  },
+                  "notifyRentalTenant": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -13099,6 +13102,9 @@
                     "type": "string",
                     "minLength": 3,
                     "maxLength": 500
+                  },
+                  "notifyRentalTenant": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -13340,6 +13346,9 @@
                     "type": "string",
                     "minLength": 3,
                     "maxLength": 500
+                  },
+                  "notifyRentalTenant": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
