@@ -28,6 +28,7 @@ export const MANDATORY_TEMPLATE_CODES = [
   'INSPECTION_RESCHEDULED_SMS',
   'INSPECTION_CANCELLED',
   'INSPECTION_CANCELLED_SMS',
+  'INSPECTION_CANCELLED_AGENCY',
   'INSPECTION_UNAVAILABILITY_REPORTED',
   'INSPECTION_UNAVAILABILITY_REPORTED_SMS',
   'REPORT_READY',
@@ -73,6 +74,7 @@ export const TEMPLATE_CODE_LABELS: Record<MandatoryTemplateCode, string> = {
   INSPECTION_RESCHEDULED_SMS: 'Inspection Rescheduled (SMS)',
   INSPECTION_CANCELLED: 'Inspection Cancelled',
   INSPECTION_CANCELLED_SMS: 'Inspection Cancelled (SMS)',
+  INSPECTION_CANCELLED_AGENCY: 'Inspection Cancelled (Agency)',
   INSPECTION_UNAVAILABILITY_REPORTED: 'Unavailability Reported',
   INSPECTION_UNAVAILABILITY_REPORTED_SMS: 'Unavailability Reported (SMS)',
   REPORT_READY: 'Report Ready',
@@ -134,7 +136,9 @@ export type NotificationTarget = (typeof NOTIFICATION_TARGETS)[number];
  *   `notify-on-rental-tenant-portal-action.handler.ts`, `notify-on-admin-reschedule.handler.ts`,
  *   `dispatch-reminders.use-case.ts`, `dispatch-escalations.use-case.ts` (TENANT_SMS_ALERT),
  *   `generate-portal-token.use-case.ts` (TENANT_PORTAL_LINK)
- * - PROPERTY_MANAGER — `dispatch-escalations.use-case.ts`, via `branch.contactEmail`
+ * - PROPERTY_MANAGER — `dispatch-escalations.use-case.ts` and
+ *   `notify-on-status-transition.handler.ts` (INSPECTION_CANCELLED_AGENCY, the agency's own
+ *   copy of a cancellation), both via `branch.contactEmail`
  * - INSPECTOR — `notify-on-group-inspector-change.subscriber.ts`, via `inspector.email`
  * - USER_ACCOUNT — `process-report-job.use-case.ts` (the requesting user),
  *   `request-password-reset.use-case.ts`
@@ -163,6 +167,7 @@ export const TEMPLATE_TARGETS: Record<
   INSPECTION_RESCHEDULED_SMS: 'RENTAL_TENANT',
   INSPECTION_CANCELLED: 'RENTAL_TENANT',
   INSPECTION_CANCELLED_SMS: 'RENTAL_TENANT',
+  INSPECTION_CANCELLED_AGENCY: 'PROPERTY_MANAGER',
   INSPECTION_UNAVAILABILITY_REPORTED: 'RENTAL_TENANT',
   INSPECTION_UNAVAILABILITY_REPORTED_SMS: 'RENTAL_TENANT',
   REPORT_READY: 'USER_ACCOUNT',
@@ -200,6 +205,7 @@ export const PROTECTED_TEMPLATE_CLASSIFICATIONS: Record<string, NotificationClas
   INSPECTION_RESCHEDULED_SMS: 'TRANSACTIONAL',
   INSPECTION_CANCELLED: 'TRANSACTIONAL',
   INSPECTION_CANCELLED_SMS: 'TRANSACTIONAL',
+  INSPECTION_CANCELLED_AGENCY: 'TRANSACTIONAL',
   INSPECTION_UNAVAILABILITY_REPORTED: 'TRANSACTIONAL',
   INSPECTION_UNAVAILABILITY_REPORTED_SMS: 'TRANSACTIONAL',
 };
@@ -343,6 +349,17 @@ export const TEMPLATE_VARIABLES: Record<
     required: ['rentalTenantName', 'scheduledDate'],
     optional: ['propertyAddress', 'appointmentCode'],
   },
+  // Agency-facing counterpart of INSPECTION_CANCELLED, addressed to the branch
+  // contact rather than the rental tenant. `cancellationReason` is deliberately
+  // OPTIONAL even though the state machine requires a reason for every
+  // cancellation: BuildNotificationPayloadService throws
+  // MissingRequiredVariableError on a missing required variable, and a template
+  // that can throw would lose the agency notice entirely on an edge-case
+  // cancellation. Absent reason simply renders no reason line.
+  INSPECTION_CANCELLED_AGENCY: {
+    required: ['propertyAddress', 'scheduledDate', 'appointmentCode'],
+    optional: ['rentalTenantName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'properfyLogoUrl', 'cancellationReason'],
+  },
   INSPECTION_UNAVAILABILITY_REPORTED: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'appointmentCode'],
     optional: ['agencyName', 'agencyPhone', 'properfyLogoUrl', 'serviceTypeName'],
@@ -387,6 +404,7 @@ export const ALLOWED_VARIABLES = [
   'branchName',
   'properfyLogoUrl',
   'serviceTypeName',
+  'cancellationReason',
   'userName',
   'reportType',
   'downloadLink',
@@ -420,6 +438,7 @@ export const SAMPLE_DATA: Record<AllowedVariable, string> = {
   branchName: 'Sydney CBD Branch',
   properfyLogoUrl: PROPERFY_LOGO_URL,
   serviceTypeName: 'Routine inspection',
+  cancellationReason: 'Tenant requested a different week',
   userName: 'Admin User',
   reportType: 'Monthly Report',
   downloadLink: 'https://app.properfy.com/reports/abc123',

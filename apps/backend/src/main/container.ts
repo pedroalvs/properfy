@@ -741,7 +741,7 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Notification handlers: depend on mintPortalTokenService + buildNotificationPayload
   const notifyOnStatusTransitionHandler = new NotifyOnStatusTransitionHandler(
-    appointmentRepo, propertyRepo, tenantRepo, notificationRepo,
+    appointmentRepo, propertyRepo, tenantRepo, branchRepo, notificationRepo,
     mintPortalTokenService, buildNotificationPayload, appointmentCodeFormatter,
     createNotificationUseCase, env.TENANT_PORTAL_BASE_URL, logger, metrics,
   );

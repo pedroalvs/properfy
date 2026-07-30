@@ -1045,7 +1045,9 @@ describe('ExecuteStatusTransitionUseCase – onTransitionHandler', () => {
     expect(onTransitionHandler.execute).not.toHaveBeenCalled();
   });
 
-  it('skips onTransitionHandler when suppressNotifications is set', async () => {
+  it('still invokes the handler for a system EXPIRED cancellation, so the agency is told', async () => {
+    // The sweep used to suppress notifications wholesale. It no longer does: the
+    // agency leg must fire, and the tenant leg is held back by the absent flag.
     appointmentRepo.findById.mockResolvedValue(
       makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
     );
@@ -1055,15 +1057,16 @@ describe('ExecuteStatusTransitionUseCase – onTransitionHandler', () => {
       targetStatus: 'CANCELLED',
       reason: 'Appointment date passed',
       cancellationReasonCode: 'EXPIRED',
-      suppressNotifications: true,
       actor: makeActor('SYS'),
     });
 
     expect(result.status).toBe('CANCELLED');
-    expect(onTransitionHandler.execute).not.toHaveBeenCalled();
+    expect(onTransitionHandler.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ notifyRentalTenant: undefined }),
+    );
   });
 
-  it('still notifies when suppressNotifications is absent or false', async () => {
+  it('forwards notifyRentalTenant to the handler', async () => {
     appointmentRepo.findById.mockResolvedValue(
       makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
     );
@@ -1072,11 +1075,13 @@ describe('ExecuteStatusTransitionUseCase – onTransitionHandler', () => {
       appointmentId: 'appt-1',
       targetStatus: 'CANCELLED',
       reason: 'Client request',
-      suppressNotifications: false,
+      notifyRentalTenant: true,
       actor: makeActor('AM'),
     });
 
-    expect(onTransitionHandler.execute).toHaveBeenCalledOnce();
+    expect(onTransitionHandler.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ targetStatus: 'CANCELLED', notifyRentalTenant: true }),
+    );
   });
 });
 

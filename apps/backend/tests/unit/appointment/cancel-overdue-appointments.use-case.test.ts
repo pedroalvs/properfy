@@ -107,10 +107,13 @@ describe('CancelOverdueAppointmentsUseCase', () => {
       appointmentId: 'a-1',
       targetStatus: 'CANCELLED',
       cancellationReasonCode: 'EXPIRED',
-      suppressNotifications: true,
     });
     expect(first.reason).toBeTruthy();
     expect(first.actor.role).toBe('SYS');
+    // The sweep must never opt the rental tenant in: a long-past date is noise,
+    // and the first run over a backlog would notify all of it at once. The agency
+    // leg is unconditional inside the notification handler, so it still fires.
+    expect(first.notifyRentalTenant).toBeUndefined();
   });
 
   it('scopes the system actor to each appointment\'s own tenant', async () => {

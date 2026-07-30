@@ -15,9 +15,12 @@ import { MemoryRouter } from 'react-router-dom';
 import { MapBulkActionModal } from './MapBulkActionModal';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 
+// Shared handle so a test can assert the cancel payload, not just the UI.
+const bulkCancelMock = vi.hoisted(() => vi.fn());
+
 // Mock the bulk hooks so the form steps never actually call the API.
 vi.mock('../hooks/useBulkCancelAppointments', () => ({
-  useBulkCancelAppointments: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useBulkCancelAppointments: () => ({ mutateAsync: bulkCancelMock, isPending: false }),
 }));
 vi.mock('../hooks/useBulkRescheduleAppointments', () => ({
   useBulkRescheduleAppointments: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -116,6 +119,60 @@ describe('MapBulkActionModal', () => {
 
     fireEvent.click(screen.getByTestId(`bulk-modal-row-${sampleAppointments[0]!.code}`));
     expect(footer.textContent).toContain('1 of 2 selected');
+  });
+
+  describe('bulk cancel — notify the tenants who confirmed', () => {
+    function openCancelForm(codes: string[]) {
+      renderModal();
+      codes.forEach((code) => fireEvent.click(screen.getByTestId(`bulk-modal-row-${code}`)));
+      fireEvent.click(screen.getByTestId('bulk-actions-toggle'));
+      fireEvent.click(screen.getByTestId('bulk-action-cancel'));
+    }
+
+    it('offers the opt-in and names only the confirmed appointment', () => {
+      // INS-0001 is PENDING, INS-0002 is CONFIRMED.
+      openCancelForm(['INS-0001', 'INS-0002']);
+
+      const block = screen.getByTestId('bulk-cancel-notify-block');
+      expect(within(block).getByText('INS-0002')).toBeInTheDocument();
+      expect(within(block).queryByText('INS-0001')).not.toBeInTheDocument();
+    });
+
+    it('hides the opt-in entirely when no selected tenant has confirmed', () => {
+      openCancelForm(['INS-0001']);
+
+      expect(screen.queryByTestId('bulk-cancel-notify-block')).not.toBeInTheDocument();
+    });
+
+    it('sends notifyRentalTenant:false unless the box is ticked', async () => {
+      bulkCancelMock.mockResolvedValue({ data: { results: [] } });
+      openCancelForm(['INS-0002']);
+
+      fireEvent.change(screen.getByTestId('bulk-cancel-reason'), {
+        target: { value: 'Agency withdrew the request' },
+      });
+      fireEvent.click(screen.getByTestId('bulk-cancel-apply'));
+
+      expect(bulkCancelMock).toHaveBeenCalledWith(
+        expect.objectContaining({ notifyRentalTenant: false }),
+      );
+    });
+
+    it('sends notifyRentalTenant:true once the box is ticked', async () => {
+      bulkCancelMock.mockResolvedValue({ data: { results: [] } });
+      openCancelForm(['INS-0002']);
+
+      fireEvent.change(screen.getByTestId('bulk-cancel-reason'), {
+        target: { value: 'Agency withdrew the request' },
+      });
+      // The Checkbox input is sr-only, so the label text is the click target.
+      fireEvent.click(screen.getByText('Notify the tenants who confirmed'));
+      fireEvent.click(screen.getByTestId('bulk-cancel-apply'));
+
+      expect(bulkCancelMock).toHaveBeenCalledWith(
+        expect.objectContaining({ notifyRentalTenant: true }),
+      );
+    });
   });
 
   it('does NOT render raw UUIDs anywhere in the modal DOM', () => {

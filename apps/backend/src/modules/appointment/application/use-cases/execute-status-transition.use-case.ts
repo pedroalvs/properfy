@@ -37,11 +37,17 @@ export interface ExecuteStatusTransitionInput {
   inspectorId?: string;
   idempotencyKey?: string;
   /**
-   * Skips the transition notification. Set by automated sweeps: telling a rental
-   * tenant their long-past inspection was "cancelled" is noise, and the first run
-   * of a sweep would otherwise notify the entire historical backlog at once.
+   * Cancellation only: also tell the rental tenant. The agency is always told.
+   *
+   * Absent means "tenant not notified", which is deliberately the safe default:
+   * telling a rental tenant their long-past inspection was "cancelled" is noise,
+   * and an automated sweep's first run would otherwise notify its entire
+   * historical backlog at once. Sweeps therefore pass nothing at all.
+   *
+   * Honoured only when the tenant had actually confirmed the appointment — the
+   * handler enforces that, so a direct API caller cannot bypass it.
    */
-  suppressNotifications?: boolean;
+  notifyRentalTenant?: boolean;
   actor: AuthContext;
 }
 
@@ -61,7 +67,7 @@ interface OnDoneHandler {
 }
 
 interface OnTransitionHandler {
-  execute(input: { appointmentId: string; tenantId?: string | null; previousStatus: string; targetStatus: string }): Promise<unknown>;
+  execute(input: { appointmentId: string; tenantId?: string | null; previousStatus: string; targetStatus: string; notifyRentalTenant?: boolean }): Promise<unknown>;
 }
 
 export class ExecuteStatusTransitionUseCase {
@@ -84,7 +90,7 @@ export class ExecuteStatusTransitionUseCase {
   ) {}
 
   async execute(input: ExecuteStatusTransitionInput): Promise<ExecuteStatusTransitionOutput> {
-    const { appointmentId, targetStatus, reason, cancellationReasonCode, rejectionReasonCode, doneCheckedByUserId, crossCheckByUserId, inspectorId, idempotencyKey, suppressNotifications, actor } = input;
+    const { appointmentId, targetStatus, reason, cancellationReasonCode, rejectionReasonCode, doneCheckedByUserId, crossCheckByUserId, inspectorId, idempotencyKey, notifyRentalTenant, actor } = input;
 
     // Automated flows act as SYS. Attribute their audit trail and events to the
     // system rather than filing them under a synthetic user id.
@@ -414,10 +420,11 @@ export class ExecuteStatusTransitionUseCase {
     }
 
     // 9f. Side effect: notifications on transition
-    if (this.onTransitionHandler && !suppressNotifications) {
+    if (this.onTransitionHandler) {
       try {
         await this.onTransitionHandler.execute({
           appointmentId,
+          notifyRentalTenant,
           tenantId: appointment.tenantId,
           previousStatus: appointment.status,
           targetStatus,

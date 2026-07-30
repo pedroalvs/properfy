@@ -28,6 +28,7 @@ import { PrismaInspectorRepository } from '../../../src/modules/inspector/infras
 import { PrismaAppointmentRepository } from '../../../src/modules/appointment/infrastructure/prisma-appointment.repository';
 import { PrismaPropertyRepository } from '../../../src/modules/property/infrastructure/prisma-property.repository';
 import { PrismaTenantRepository } from '../../../src/modules/tenant/infrastructure/prisma-tenant.repository';
+import { PrismaBranchRepository } from '../../../src/modules/tenant/infrastructure/prisma-branch.repository';
 import { PrismaNotificationRepository } from '../../../src/modules/notification/infrastructure/prisma-notification.repository';
 import { PrismaNotificationTemplateRepository } from '../../../src/modules/notification/infrastructure/prisma-notification-template.repository';
 import { PrismaRentalTenantPortalTokenRepository } from '../../../src/modules/rental-tenant-portal/infrastructure/prisma-rental-tenant-portal-token.repository';
@@ -177,7 +178,7 @@ function wire(prisma: PrismaClient): Wiring {
   );
   const mintPortalTokenService = new MintPortalTokenService(tokenRepo, new TokenService());
   const notifyHandler = new NotifyOnStatusTransitionHandler(
-    appointmentRepo, propertyRepo, tenantRepo, notificationRepo,
+    appointmentRepo, propertyRepo, tenantRepo, new PrismaBranchRepository(prisma), notificationRepo,
     mintPortalTokenService, new BuildNotificationPayloadService(), new AppointmentCodeFormatter(),
     createNotification, 'http://portal.test',
   );

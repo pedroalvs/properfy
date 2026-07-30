@@ -582,6 +582,40 @@ describe('statusTransitionSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it('should accept notifyRentalTenant', () => {
+    const result = statusTransitionSchema.safeParse({
+      targetStatus: AppointmentStatus.CANCELLED,
+      reason: 'Client requested cancellation',
+      notifyRentalTenant: true,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.notifyRentalTenant).toBe(true);
+    }
+  });
+
+  it('should leave notifyRentalTenant undefined when omitted, so the default is not to notify', () => {
+    const result = statusTransitionSchema.safeParse({
+      targetStatus: AppointmentStatus.CANCELLED,
+      reason: 'Client requested cancellation',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.notifyRentalTenant).toBeUndefined();
+    }
+  });
+
+  it('should reject a non-boolean notifyRentalTenant rather than coercing it', () => {
+    // z.coerce.boolean() would turn the string "false" into true — see
+    // booleanQueryParam() in this package for the query-string case.
+    const result = statusTransitionSchema.safeParse({
+      targetStatus: AppointmentStatus.CANCELLED,
+      reason: 'Client requested cancellation',
+      notifyRentalTenant: 'false',
+    });
+    expect(result.success).toBe(false);
+  });
+
   it('should accept a valid cancellation reason code', () => {
     const result = statusTransitionSchema.safeParse({
       targetStatus: AppointmentStatus.CANCELLED,
@@ -825,6 +859,23 @@ describe('bulkCancelRequestSchema', () => {
     expect(result.success && 'actorTimezone' in result.data).toBe(false);
   });
 
+  it('accepts notifyRentalTenant and defaults it to undefined', () => {
+    const withFlag = bulkCancelRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      reason: 'Operator cancelled per agency request',
+      notifyRentalTenant: true,
+    });
+    expect(withFlag.success).toBe(true);
+    expect(withFlag.success && withFlag.data.notifyRentalTenant).toBe(true);
+
+    const without = bulkCancelRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      reason: 'Operator cancelled per agency request',
+    });
+    expect(without.success).toBe(true);
+    expect(without.success && without.data.notifyRentalTenant).toBeUndefined();
+  });
+
   it('rejects empty appointmentIds', () => {
     const result = bulkCancelRequestSchema.safeParse({
       appointmentIds: [],
@@ -929,6 +980,17 @@ describe('bulkStatusTransitionRequestSchema', () => {
       targetStatus: AppointmentStatus.AWAITING_INSPECTOR,
     });
     expect(result.success).toBe(true);
+  });
+
+  it('accepts notifyRentalTenant for a bulk transition to CANCELLED', () => {
+    const result = bulkStatusTransitionRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      targetStatus: AppointmentStatus.CANCELLED,
+      reason: 'Agency withdrew the request',
+      notifyRentalTenant: true,
+    });
+    expect(result.success).toBe(true);
+    expect(result.success && result.data.notifyRentalTenant).toBe(true);
   });
 
   it('accepts targetStatus with reason', () => {

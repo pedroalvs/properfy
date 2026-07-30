@@ -5,7 +5,12 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 import type { AppointmentStatus } from '@properfy/shared';
 
 export interface UseAppointmentTransitionReturn {
-  transition: (targetStatus: AppointmentStatus, reason?: string, reasonCode?: string) => void;
+  transition: (
+    targetStatus: AppointmentStatus,
+    reason?: string,
+    reasonCode?: string,
+    notifyRentalTenant?: boolean,
+  ) => void;
   isTransitioning: boolean;
 }
 
@@ -17,7 +22,7 @@ export function useAppointmentTransition(
   const { showSuccess, showError } = useSnackbar();
 
   const mutation = useMutation({
-    mutationFn: async (body: { targetStatus: AppointmentStatus; reason?: string; cancellationReasonCode?: string; rejectionReasonCode?: string }) => {
+    mutationFn: async (body: { targetStatus: AppointmentStatus; reason?: string; cancellationReasonCode?: string; rejectionReasonCode?: string; notifyRentalTenant?: boolean }) => {
       const { data, error } = await api.POST(
         `/v1/appointments/${appointmentId}/status-transitions` as any,
         {
@@ -39,12 +44,21 @@ export function useAppointmentTransition(
     },
   });
 
-  const transition = (targetStatus: AppointmentStatus, reason?: string, reasonCode?: string) => {
+  const transition = (
+    targetStatus: AppointmentStatus,
+    reason?: string,
+    reasonCode?: string,
+    notifyRentalTenant?: boolean,
+  ) => {
     if (!appointmentId) return;
     const body: Parameters<typeof mutation.mutate>[0] = { targetStatus, reason };
     if (reasonCode) {
       if (targetStatus === 'CANCELLED') body.cancellationReasonCode = reasonCode;
       if (targetStatus === 'REJECTED') body.rejectionReasonCode = reasonCode;
+    }
+    // Only meaningful for a cancellation; omitted elsewhere to keep the payload honest.
+    if (targetStatus === 'CANCELLED' && notifyRentalTenant !== undefined) {
+      body.notifyRentalTenant = notifyRentalTenant;
     }
     mutation.mutate(
       body,

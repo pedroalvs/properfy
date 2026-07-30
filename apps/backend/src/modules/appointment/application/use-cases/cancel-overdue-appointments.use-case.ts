@@ -79,9 +79,11 @@ export class CancelOverdueAppointmentsUseCase {
           targetStatus: 'CANCELLED',
           reason: CANCELLATION_REASON,
           cancellationReasonCode: 'EXPIRED',
-          // Already-past dates: notifying the rental tenant now is pure noise, and
-          // the first run over a historical backlog would notify all of it at once.
-          suppressNotifications: true,
+          // `notifyRentalTenant` is deliberately not passed: notifying the rental
+          // tenant about an already-past date is pure noise, and the first run over
+          // a historical backlog would notify all of it at once. The agency IS
+          // told — it ordered the work and needs to know it never happened — which
+          // is why this no longer suppresses notifications wholesale.
           // Keyed on the appointment AND the date that expired. Re-runs on the same
           // day are no-ops (the cache lives 24h), but an appointment that was
           // reopened, re-dated and went stale again is a genuinely different
