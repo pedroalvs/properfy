@@ -53,9 +53,14 @@ export type UpdateServiceGroupInput = z.infer<typeof updateServiceGroupSchema>;
 export const publishServiceGroupSchema = z.object({});
 export type PublishServiceGroupInput = z.infer<typeof publishServiceGroupSchema>;
 
-/** Pulls a published group off the marketplace: PUBLISHED → DRAFT. */
+/**
+ * Pulls a published group off the marketplace: PUBLISHED → DRAFT.
+ *
+ * The reason is trimmed before the length check so a whitespace-only string
+ * cannot pass as a justification — it lands verbatim in the audit trail.
+ */
 export const unpublishServiceGroupSchema = z.object({
-  reason: z.string().min(1).max(1000),
+  reason: z.string().trim().min(1).max(1000),
 });
 export type UnpublishServiceGroupInput = z.infer<typeof unpublishServiceGroupSchema>;
 

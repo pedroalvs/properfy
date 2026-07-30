@@ -170,6 +170,22 @@ describe('unpublishServiceGroupSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it('should reject a whitespace-only reason', () => {
+    // Would otherwise reach the audit log as a blank justification.
+    const result = unpublishServiceGroupSchema.safeParse({ reason: '   ' });
+    expect(result.success).toBe(false);
+  });
+
+  it('should trim the stored reason', () => {
+    const result = unpublishServiceGroupSchema.safeParse({ reason: '  Wrong region  ' });
+    expect(result.success && result.data.reason).toBe('Wrong region');
+  });
+
+  it('should accept a reason of exactly 1000 characters', () => {
+    const result = unpublishServiceGroupSchema.safeParse({ reason: 'x'.repeat(1000) });
+    expect(result.success).toBe(true);
+  });
+
   it('should reject reason exceeding 1000 characters', () => {
     const result = unpublishServiceGroupSchema.safeParse({ reason: 'x'.repeat(1001) });
     expect(result.success).toBe(false);

@@ -122,6 +122,32 @@ describe('POST /v1/service-groups/:groupId/unpublish', () => {
     expect(mockUnpublishServiceGroupExecute).not.toHaveBeenCalled();
   });
 
+  it('should return 400 when the reason is only whitespace', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post(`/v1/service-groups/${GROUP_ID}/unpublish`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ reason: '   ' });
+
+    expect(res.status).toBe(400);
+    expect(mockUnpublishServiceGroupExecute).not.toHaveBeenCalled();
+  });
+
+  it('should hand the use case a trimmed reason', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockUnpublishServiceGroupExecute.mockResolvedValueOnce({ id: GROUP_ID, status: 'DRAFT' });
+
+    await supertest(app.server)
+      .post(`/v1/service-groups/${GROUP_ID}/unpublish`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ reason: '  Region was wrong  ' });
+
+    expect(mockUnpublishServiceGroupExecute).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: 'Region was wrong' }),
+    );
+  });
+
   it('should return 400 for a malformed group id', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
 
