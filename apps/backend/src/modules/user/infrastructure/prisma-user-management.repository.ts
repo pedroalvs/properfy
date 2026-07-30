@@ -143,6 +143,7 @@ export class PrismaUserManagementRepository
       branchId: string | null;
       role: string;
       status: string;
+      email: string;
       deletedAt: Date | null;
     }>,
   ): Promise<void> {
@@ -152,6 +153,7 @@ export class PrismaUserManagementRepository
     if (data.branchId !== undefined) updateData['branch_id'] = data.branchId;
     if (data.role !== undefined) updateData['role'] = data.role;
     if (data.status !== undefined) updateData['status'] = data.status;
+    if (data.email !== undefined) updateData['email'] = data.email;
     if (data.deletedAt !== undefined) updateData['deleted_at'] = data.deletedAt;
     await this.prisma.user.updateMany({ where: { id: userId, tenant_id: tenantId }, data: updateData });
   }

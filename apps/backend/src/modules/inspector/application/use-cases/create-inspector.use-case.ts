@@ -12,10 +12,18 @@ import type { IServiceRegionRepository } from '../../../service-region/domain/se
 import { InspectorEntity } from '../../domain/inspector.entity';
 import { UserEntity } from '../../../auth/domain/user.entity';
 import { InspectorEmailConflictError } from '../../domain/inspector.errors';
+import { validatePasswordStrength } from '../../../auth/domain/password-policy';
+import {
+  PasswordTooWeakError,
+  PasswordTooCommonError,
+} from '../../../auth/domain/auth.errors';
+import { COMMON_PASSWORDS } from '../../../auth/application/constants/common-passwords';
 
 export interface CreateInspectorInput {
   name: string;
   email: string;
+  /** Set by the operator; hashed onto the inspector's INSP login account. */
+  password: string;
   phone?: string | null;
   paymentSettings?: PaymentSettings;
   regions?: string[];
@@ -48,7 +56,7 @@ export class CreateInspectorUseCase {
   ) {}
 
   async execute(input: CreateInspectorInput): Promise<CreateInspectorOutput> {
-    const { name, email, phone, paymentSettings, regionIds, serviceTypes, actor } = input;
+    const { name, email, password, phone, paymentSettings, regionIds, serviceTypes, actor } = input;
 
     this.authorizationService!.assertRoles(actor, ['AM', 'OP'], {
       action: 'inspector.create',
@@ -60,13 +68,29 @@ export class CreateInspectorUseCase {
       throw new InspectorEmailConflictError();
     }
 
+    // The email is also the login identity. users.email has no unique constraint
+    // and findByEmail uses findFirst, so a collision would make login resolve
+    // non-deterministically between two accounts.
+    const existingUser = await this.userManagementRepo.findByEmail(email);
+    if (existingUser) {
+      throw new InspectorEmailConflictError();
+    }
+
+    const strengthResult = validatePasswordStrength(password);
+    if (!strengthResult.valid) {
+      throw new PasswordTooWeakError(strengthResult.violations);
+    }
+
+    if (COMMON_PASSWORDS.has(password.toLowerCase())) {
+      throw new PasswordTooCommonError();
+    }
+
     const now = new Date();
     const id = crypto.randomUUID();
 
     // Auto-create a User record for inspector authentication (role: INSP, no tenant)
     const userId = crypto.randomUUID();
-    const temporaryPassword = crypto.randomUUID();
-    const passwordHash = await bcrypt.hash(temporaryPassword, 12);
+    const passwordHash = await bcrypt.hash(password, 12);
 
     const user = new UserEntity({
       id: userId,
@@ -118,11 +142,25 @@ export class CreateInspectorUseCase {
       deletedAt: null,
     });
 
-    await this.inspectorRepo.save(inspector);
+    // The user and inspector rows are written outside a shared transaction. An
+    // orphan INSP user would hold a real, working password while being invisible
+    // to the users list and unreachable by every read API — and the email check
+    // above would then reject the retry forever. Compensate instead.
+    try {
+      await this.inspectorRepo.save(inspector);
 
-    // Link inspector to service regions if regionIds provided
-    if (regionIds && regionIds.length > 0 && this.serviceRegionRepo) {
-      await this.serviceRegionRepo.setInspectorRegions(id, regionIds);
+      // Link inspector to service regions if regionIds provided
+      if (regionIds && regionIds.length > 0 && this.serviceRegionRepo) {
+        await this.serviceRegionRepo.setInspectorRegions(id, regionIds);
+      }
+    } catch (error) {
+      try {
+        await this.userManagementRepo.update(userId, null, { deletedAt: new Date() });
+      } catch {
+        // Never let a failing compensation mask the original cause — that is the
+        // error the operator and the logs need to see.
+      }
+      throw error;
     }
 
     this.auditService.log({

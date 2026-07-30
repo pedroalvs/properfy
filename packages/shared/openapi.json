@@ -6959,6 +6959,25 @@
                     "format": "email",
                     "maxLength": 254
                   },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128,
+                    "allOf": [
+                      {
+                        "pattern": "[A-Z]"
+                      },
+                      {
+                        "pattern": "[a-z]"
+                      },
+                      {
+                        "pattern": "[0-9]"
+                      },
+                      {
+                        "pattern": "[^A-Za-z0-9]"
+                      }
+                    ]
+                  },
                   "phone": {
                     "type": "string",
                     "maxLength": 30
@@ -7073,7 +7092,8 @@
                 },
                 "required": [
                   "name",
-                  "email"
+                  "email",
+                  "password"
                 ],
                 "additionalProperties": false
               }
@@ -8984,6 +9004,71 @@
         "responses": {
           "200": {
             "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/inspectors/{inspectorId}/reset-password": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "newPassword": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128,
+                    "allOf": [
+                      {
+                        "pattern": "[A-Z]"
+                      },
+                      {
+                        "pattern": "[a-z]"
+                      },
+                      {
+                        "pattern": "[0-9]"
+                      },
+                      {
+                        "pattern": "[^A-Za-z0-9]"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "newPassword"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "inspectorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "enum": [
+                    "null"
+                  ],
+                  "nullable": true
+                }
+              }
+            }
           }
         }
       }

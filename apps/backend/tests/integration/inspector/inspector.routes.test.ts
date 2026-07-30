@@ -99,7 +99,7 @@ describe('POST /v1/inspectors', () => {
     const res = await supertest(app.server)
       .post('/v1/inspectors')
       .set('Authorization', 'Bearer valid-token')
-      .send({ name: 'John Inspector', email: 'john@inspect.com' });
+      .send({ name: 'John Inspector', email: 'john@inspect.com', password: 'Insp@2026x' });
 
     expect(res.status).toBe(201);
     expect(res.body.data).toHaveProperty('id');

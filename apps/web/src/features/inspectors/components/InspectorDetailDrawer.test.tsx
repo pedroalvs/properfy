@@ -190,6 +190,42 @@ describe('InspectorDetailDrawer', () => {
     expect(screen.queryByLabelText('Deactivate')).not.toBeInTheDocument();
   });
 
+  it('shows reset password button for AM role', () => {
+    mockUserRole = 'AM';
+    renderDrawer({ inspectorId: 'insp-01', open: true });
+    expect(screen.getByLabelText('Reset Password')).toBeInTheDocument();
+  });
+
+  it('shows reset password button for OP role', () => {
+    mockUserRole = 'OP';
+    renderDrawer({ inspectorId: 'insp-01', open: true });
+    expect(screen.getByLabelText('Reset Password')).toBeInTheDocument();
+    mockUserRole = 'AM';
+  });
+
+  it('hides reset password button for non AM/OP roles', () => {
+    mockUserRole = 'CL_ADMIN';
+    renderDrawer({ inspectorId: 'insp-01', open: true });
+    expect(screen.queryByLabelText('Reset Password')).not.toBeInTheDocument();
+    mockUserRole = 'AM';
+  });
+
+  it('shows reset password button even when inspector is INACTIVE', () => {
+    // Unlike deactivate, a reset stays available: an inspector may need new
+    // credentials before being reactivated.
+    mockUserRole = 'AM';
+    renderDrawer({ inspectorId: 'inactive', open: true });
+    expect(screen.getByLabelText('Reset Password')).toBeInTheDocument();
+  });
+
+  it('opens the reset password dialog on button click', () => {
+    mockUserRole = 'AM';
+    renderDrawer({ inspectorId: 'insp-01', open: true });
+    fireEvent.click(screen.getByLabelText('Reset Password'));
+    expect(screen.getByLabelText('New Password')).toBeInTheDocument();
+    expect(screen.getByLabelText('Confirm Password')).toBeInTheDocument();
+  });
+
   it('opens deactivate dialog on button click and requires reason', () => {
     mockUserRole = 'AM';
     renderDrawer({ inspectorId: 'insp-01', open: true });

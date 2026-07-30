@@ -12,6 +12,15 @@ export class InspectorEmailConflictError extends ConflictError {
   }
 }
 
+export class InspectorNoLoginAccountError extends ConflictError {
+  constructor() {
+    super(
+      'INSPECTOR_NO_LOGIN_ACCOUNT',
+      'This inspector has no linked login account, so their password cannot be reset. Link a login account first.',
+    );
+  }
+}
+
 export class InspectorAlreadyInactiveError extends ConflictError {
   constructor() {
     super('INSPECTOR_ALREADY_INACTIVE', 'Inspector is already inactive');

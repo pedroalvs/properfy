@@ -1,4 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import bcrypt from 'bcryptjs';
+
+// bcrypt at cost 12 takes a few hundred ms per call by design. Running it for
+// real here added enough CPU contention to time out unrelated bcrypt tests in
+// the full parallel suite, so it is stubbed: what matters is WHICH value gets
+// hashed and at what cost, not re-verifying bcrypt itself.
+vi.mock('bcryptjs', () => ({
+  default: {
+    hash: vi.fn(async (value: string) => `hashed:${value}`),
+    compare: vi.fn(async (value: string, hash: string) => hash === `hashed:${value}`),
+  },
+}));
+
 import { CreateInspectorUseCase } from '../../../src/modules/inspector/application/use-cases/create-inspector.use-case';
 import type { IInspectorRepository } from '../../../src/modules/inspector/domain/inspector.repository';
 import type { IUserManagementRepository } from '../../../src/modules/user/domain/user-management.repository';
@@ -6,9 +19,18 @@ import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { inspectorResponseSchema } from '@properfy/shared';
 import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
+import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
 import { InspectorEmailConflictError } from '../../../src/modules/inspector/domain/inspector.errors';
+import {
+  PasswordTooWeakError,
+  PasswordTooCommonError,
+} from '../../../src/modules/auth/domain/auth.errors';
+import { COMMON_PASSWORDS } from '../../../src/modules/auth/application/constants/common-passwords';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
+
+/** Satisfies the canonical password policy shared with createUserSchema. */
+const VALID_PASSWORD = 'Insp@2026x';
 
 function makeInspector(
   overrides: Partial<ConstructorParameters<typeof InspectorEntity>[0]> = {},
@@ -70,11 +92,13 @@ describe('CreateInspectorUseCase', () => {
       findById: vi.fn(),
       findByIdAndTenantId: vi.fn(),
       findByEmail: vi.fn(),
+      findByPhone: vi.fn(),
       findByTenantId: vi.fn(),
       countByTenantId: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
       resetPassword: vi.fn(),
+      unlock: vi.fn(),
       revokeAllSessions: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
@@ -88,6 +112,7 @@ describe('CreateInspectorUseCase', () => {
     const result = await useCase.execute({
       name: 'John Inspector',
       email: 'john@example.com',
+      password: VALID_PASSWORD,
       phone: '+61400000000',
       actor: makeActor(),
     });
@@ -123,6 +148,7 @@ describe('CreateInspectorUseCase', () => {
     const result = await useCase.execute({
       name: 'John Inspector',
       email: 'john@example.com',
+      password: VALID_PASSWORD,
       actor: makeActor(),
     });
 
@@ -136,6 +162,7 @@ describe('CreateInspectorUseCase', () => {
     const result = await useCase.execute({
       name: 'Jane Inspector',
       email: 'jane@example.com',
+      password: VALID_PASSWORD,
       actor: makeActor({ role: 'OP' }),
     });
 
@@ -149,6 +176,7 @@ describe('CreateInspectorUseCase', () => {
       useCase.execute({
         name: 'Inspector',
         email: 'test@example.com',
+        password: VALID_PASSWORD,
         actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
       }),
     ).rejects.toThrow(ForbiddenError);
@@ -161,8 +189,158 @@ describe('CreateInspectorUseCase', () => {
       useCase.execute({
         name: 'Another Inspector',
         email: 'john@example.com',
+        password: VALID_PASSWORD,
         actor: makeActor(),
       }),
     ).rejects.toThrow(InspectorEmailConflictError);
+  });
+
+  describe('operator-supplied password', () => {
+    beforeEach(() => {
+      vi.mocked(inspectorRepo.findByEmail).mockResolvedValue(null);
+      vi.mocked(userManagementRepo.findByEmail).mockResolvedValue(null);
+    });
+
+    it('hashes the operator-supplied password onto the login account', async () => {
+      await useCase.execute({
+        name: 'John Inspector',
+        email: 'john@example.com',
+        password: VALID_PASSWORD,
+        actor: makeActor(),
+      });
+
+      // The regression this guards: the use case used to hash a discarded
+      // crypto.randomUUID() instead of the operator's password, leaving an
+      // account nobody could ever log into.
+      expect(bcrypt.hash).toHaveBeenCalledWith(VALID_PASSWORD, 12);
+
+      const savedUser = vi.mocked(userManagementRepo.save).mock.calls[0][0];
+      expect(savedUser.passwordHash).not.toBe(VALID_PASSWORD);
+      expect(savedUser.passwordHash).toBe(`hashed:${VALID_PASSWORD}`);
+    });
+
+    it('rejects a password that fails the strength policy', async () => {
+      await expect(
+        useCase.execute({
+          name: 'John Inspector',
+          email: 'john@example.com',
+          password: 'weak',
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow(PasswordTooWeakError);
+
+      expect(userManagementRepo.save).not.toHaveBeenCalled();
+      expect(inspectorRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('rejects a blacklisted common password', async () => {
+      // The blacklist check runs after the strength check, so it is only
+      // reachable by a password strong enough to get past it. Real blacklist
+      // entries ('password123') fail strength first — hence the injection,
+      // mirroring create-user.use-case.test.ts. The set holds the lowercased
+      // form because the lookup is COMMON_PASSWORDS.has(password.toLowerCase()),
+      // while the password itself needs an uppercase char to pass strength.
+      COMMON_PASSWORDS.add('blacklisted1!strong');
+      try {
+        await expect(
+          useCase.execute({
+            name: 'John Inspector',
+            email: 'john@example.com',
+            password: 'Blacklisted1!Strong',
+            actor: makeActor(),
+          }),
+        ).rejects.toThrow(PasswordTooCommonError);
+
+        expect(userManagementRepo.save).not.toHaveBeenCalled();
+      } finally {
+        COMMON_PASSWORDS.delete('blacklisted1!strong');
+      }
+    });
+  });
+
+  describe('email collision with an existing login account', () => {
+    it('rejects when the email already belongs to a user, even with no inspector row', async () => {
+      // users.email has no unique constraint and findByEmail uses findFirst, so a
+      // collision would make login non-deterministic once real passwords exist.
+      vi.mocked(inspectorRepo.findByEmail).mockResolvedValue(null);
+      vi.mocked(userManagementRepo.findByEmail).mockResolvedValue(
+        new UserEntity({
+          id: 'user-existing',
+          tenantId: 'tenant-1',
+          branchId: null,
+          role: 'CL_USER',
+          name: 'Existing',
+          email: 'john@example.com',
+          phone: null,
+          status: 'ACTIVE',
+          passwordHash: 'hash',
+          totpSecret: null,
+          totpEnabled: false,
+          failedLoginCount: 0,
+          lockedUntil: null,
+          lastLoginAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          deletedAt: null,
+        }),
+      );
+
+      // Reuses INSPECTOR_EMAIL_CONFLICT rather than USER_EMAIL_CONFLICT because
+      // the web form only maps that code onto the inline email field error.
+      await expect(
+        useCase.execute({
+          name: 'Another Inspector',
+          email: 'john@example.com',
+          password: VALID_PASSWORD,
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow(InspectorEmailConflictError);
+
+      expect(userManagementRepo.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('compensation for the untransacted double write', () => {
+    it('soft-deletes the orphan login account when the inspector save fails', async () => {
+      // Without this, a failed inspector save leaves an INSP user holding a real,
+      // working password that no API can see, reach, or ever recreate.
+      vi.mocked(inspectorRepo.findByEmail).mockResolvedValue(null);
+      vi.mocked(userManagementRepo.findByEmail).mockResolvedValue(null);
+      vi.mocked(inspectorRepo.save).mockRejectedValue(new Error('db down'));
+
+      await expect(
+        useCase.execute({
+          name: 'John Inspector',
+          email: 'john@example.com',
+          password: VALID_PASSWORD,
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow('db down');
+
+      const savedUser = vi.mocked(userManagementRepo.save).mock.calls[0][0];
+      expect(userManagementRepo.update).toHaveBeenCalledWith(
+        savedUser.id,
+        null,
+        expect.objectContaining({ deletedAt: expect.any(Date) }),
+      );
+    });
+
+    it('surfaces the original failure even when the compensation itself fails', async () => {
+      // Otherwise the operator sees "compensation failed" and loses the actual
+      // reason the inspector could not be created.
+      vi.mocked(inspectorRepo.findByEmail).mockResolvedValue(null);
+      vi.mocked(userManagementRepo.findByEmail).mockResolvedValue(null);
+      vi.mocked(inspectorRepo.save).mockRejectedValue(new Error('db down'));
+      vi.mocked(userManagementRepo.update).mockRejectedValue(new Error('compensation exploded'));
+
+      await expect(
+        useCase.execute({
+          name: 'John Inspector',
+          email: 'john@example.com',
+          password: VALID_PASSWORD,
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow('db down');
+    });
   });
 });

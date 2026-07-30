@@ -154,6 +154,10 @@ export class PrismaInspectorRepository implements IInspectorRepository {
     await this.prisma.inspector.create({
       data: {
         id: inspector.id,
+        // Without this the inspector never resolves from their login account:
+        // the JWT carries inspectorId: null, every inspector-scoped PWA route
+        // 403s, and password resets report no linked account.
+        user_id: inspector.userId,
         name: inspector.name,
         email: inspector.email,
         phone: inspector.phone,

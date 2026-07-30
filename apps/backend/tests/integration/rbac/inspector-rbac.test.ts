@@ -16,6 +16,7 @@ const mockListInspectors = vi.fn();
 const mockGetInspector = vi.fn();
 const mockUpdateInspector = vi.fn();
 const mockDeactivateInspector = vi.fn();
+const mockResetInspectorPassword = vi.fn();
 const mockCreateSlot = vi.fn();
 const mockListSlots = vi.fn();
 
@@ -34,6 +35,7 @@ vi.mock('../../../src/main/container', () => ({
       getInspectorUseCase: { execute: mockGetInspector },
       updateInspectorUseCase: { execute: mockUpdateInspector },
       deactivateInspectorUseCase: { execute: mockDeactivateInspector },
+      resetInspectorPasswordUseCase: { execute: mockResetInspectorPassword },
       createAvailabilitySlotUseCase: { execute: mockCreateSlot },
       listAvailabilitySlotsUseCase: { execute: mockListSlots },
     },
@@ -71,6 +73,9 @@ const createPayload = {
   name: 'New Inspector',
   email: 'new@inspector.com',
   phone: '+61400000002',
+  // Body validation runs before the auth preHandler, so a payload missing the
+  // required password would 400 ahead of the 401/403 these cases assert.
+  password: 'Insp@2026x',
 };
 
 let app: FastifyInstance;
@@ -192,6 +197,65 @@ describe('GET /v1/inspectors — RBAC (inspector.list)', () => {
       .get('/v1/inspectors')
       .set('Authorization', 'Bearer t');
     expect(res.status).toBe(200);
+  });
+});
+
+describe('POST /v1/inspectors/:inspectorId/reset-password — RBAC (inspector.reset_password)', () => {
+  const resetPath = `/v1/inspectors/${INSPECTOR_ID}/reset-password`;
+  const resetPayload = { newPassword: 'Insp@2026x' };
+
+  it('allows AM', async () => {
+    mockJwtVerify.mockResolvedValue(makeAmContext());
+    mockResetInspectorPassword.mockResolvedValue(undefined);
+    const res = await supertest(app.server)
+      .post(resetPath)
+      .set('Authorization', 'Bearer t')
+      .send(resetPayload);
+    expect(res.status).toBe(204);
+    expect(mockResetInspectorPassword).toHaveBeenCalledWith(
+      expect.objectContaining({ inspectorId: INSPECTOR_ID, newPassword: 'Insp@2026x' }),
+    );
+  });
+
+  it('allows OP', async () => {
+    mockJwtVerify.mockResolvedValue(makeOpContext());
+    mockResetInspectorPassword.mockResolvedValue(undefined);
+    const res = await supertest(app.server)
+      .post(resetPath)
+      .set('Authorization', 'Bearer t')
+      .send(resetPayload);
+    expect(res.status).toBe(204);
+  });
+
+  it('denies CL_ADMIN', async () => {
+    mockJwtVerify.mockResolvedValue(makeClAdminContext(TENANT_ID));
+    mockResetInspectorPassword.mockRejectedValue(new ForbiddenError('AUTH_FORBIDDEN', 'Forbidden'));
+    const res = await supertest(app.server)
+      .post(resetPath)
+      .set('Authorization', 'Bearer t')
+      .send(resetPayload);
+    expect(res.status).toBe(403);
+  });
+
+  it('denies INSP (cannot reset a peer password)', async () => {
+    mockJwtVerify.mockResolvedValue(makeInspContext());
+    mockResetInspectorPassword.mockRejectedValue(new ForbiddenError('AUTH_FORBIDDEN', 'Forbidden'));
+    const res = await supertest(app.server)
+      .post(resetPath)
+      .set('Authorization', 'Bearer t')
+      .send(resetPayload);
+    expect(res.status).toBe(403);
+  });
+
+  it('rejects a weak password with 400 before reaching the use case', async () => {
+    mockJwtVerify.mockResolvedValue(makeAmContext());
+    mockResetInspectorPassword.mockResolvedValue(undefined);
+    const res = await supertest(app.server)
+      .post(resetPath)
+      .set('Authorization', 'Bearer t')
+      .send({ newPassword: 'weak' });
+    expect(res.status).toBe(400);
+    expect(mockResetInspectorPassword).not.toHaveBeenCalled();
   });
 });
 

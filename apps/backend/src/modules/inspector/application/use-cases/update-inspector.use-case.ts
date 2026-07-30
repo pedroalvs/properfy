@@ -7,6 +7,7 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IInspectorRepository } from '../../domain/inspector.repository';
 import type { IServiceRegionRepository } from '../../../service-region/domain/service-region.repository';
+import type { IUserManagementRepository } from '../../../user/domain/user-management.repository';
 import {
   InspectorNotFoundError,
   InspectorEmailConflictError,
@@ -55,6 +56,7 @@ export class UpdateInspectorUseCase {
     private readonly auditService: AuditService,
     private readonly serviceRegionRepo?: IServiceRegionRepository,
     private readonly authorizationService?: AuthorizationService,
+    private readonly userManagementRepo?: IUserManagementRepository,
   ) {}
 
   async execute(input: UpdateInspectorInput): Promise<UpdateInspectorOutput> {
@@ -71,9 +73,17 @@ export class UpdateInspectorUseCase {
     }
 
     // Check email uniqueness if changing
-    if (data.email && data.email !== inspector.email) {
-      const existing = await this.inspectorRepo.findByEmail(data.email);
+    const emailChanged = Boolean(data.email && data.email !== inspector.email);
+    if (emailChanged) {
+      const existing = await this.inspectorRepo.findByEmail(data.email!);
       if (existing) {
+        throw new InspectorEmailConflictError();
+      }
+
+      // The email doubles as the login identity, so it must also be free among
+      // users. A self-match is fine — that is this inspector's own account.
+      const existingUser = await this.userManagementRepo?.findByEmail(data.email!);
+      if (existingUser && existingUser.id !== inspector.userId) {
         throw new InspectorEmailConflictError();
       }
     }
@@ -109,6 +119,13 @@ export class UpdateInspectorUseCase {
       updateData.policeCheckExpiresAt = data.policeCheckExpiresAt ? new Date(data.policeCheckExpiresAt) : null;
 
     await this.inspectorRepo.update(inspectorId, updateData);
+
+    // Keep the login account in step: otherwise the UI shows the new address
+    // while authentication still expects the old one, and the PWA forgot-password
+    // flow silently no-ops because it cannot find the new email.
+    if (emailChanged && inspector.userId && this.userManagementRepo) {
+      await this.userManagementRepo.update(inspector.userId, null, { email: data.email! });
+    }
 
     // Update service region links if regionIds provided
     if (data.regionIds !== undefined && this.serviceRegionRepo) {

@@ -131,6 +131,10 @@ describe('InspectorFormDrawer', () => {
     expect(screen.getByText('Profile & Compliance')).toBeInTheDocument();
     expect(screen.getByText('Insurance')).toBeInTheDocument();
     expect(screen.getByText('Police Check')).toBeInTheDocument();
+    // The operator sets the inspector's login password here — without it the
+    // account is created with a password nobody knows.
+    expect(screen.getByLabelText('Password')).toBeInTheDocument();
+    expect(screen.getByLabelText('Confirm Password')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Cancel'));
     expect(onClose).toHaveBeenCalled();
   });
@@ -142,6 +146,9 @@ describe('InspectorFormDrawer', () => {
     expect(screen.getByLabelText('Name')).toHaveValue('Carlos Silva');
     expect(screen.getByLabelText('Email')).toHaveValue('carlos@test.com');
     expect(screen.queryByLabelText('Document')).not.toBeInTheDocument();
+    // Password changes go through the reset dialog, not the edit form.
+    expect(screen.queryByLabelText('Password')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Confirm Password')).not.toBeInTheDocument();
   });
 
   it('renders canonical service type options instead of free-text input', async () => {

@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useInspectorDetail } from '../hooks/useInspectorDetail';
 import { useInspectorDeactivate } from '../hooks/useInspectorDeactivate';
 import { InspectorStatusChip } from './InspectorStatusChip';
+import { InspectorResetPasswordDialog } from './InspectorResetPasswordDialog';
 import { InspectorDetailSections } from './InspectorDetailSections';
 import { InspectorAvailabilityTab } from './InspectorAvailabilityTab';
 
@@ -35,6 +36,7 @@ export function InspectorDetailDrawer({
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
   const [deactivateReason, setDeactivateReason] = useState('');
   const [reasonError, setReasonError] = useState('');
+  const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
 
   useEffect(() => {
     setActiveTab('details');
@@ -102,6 +104,15 @@ export function InspectorDetailDrawer({
                 actions={
                   <>
                     <InspectorStatusChip status={inspector.status} />
+                    {isAmOp ? (
+                      <Button
+                        variant="icon"
+                        onClick={() => setShowResetPasswordDialog(true)}
+                        aria-label="Reset Password"
+                      >
+                        <i className="mdi mdi-lock-reset text-xl" />
+                      </Button>
+                    ) : null}
                     {onEdit ? (
                       <Button variant="icon" onClick={handleEdit} aria-label="Edit">
                         <i className="mdi mdi-pencil-outline text-xl" />
@@ -172,6 +183,14 @@ export function InspectorDetailDrawer({
           )}
         </div>
       </Dialog>
+
+      <InspectorResetPasswordDialog
+        open={showResetPasswordDialog}
+        inspectorId={inspectorId}
+        inspectorName={inspector?.name ?? null}
+        onClose={() => setShowResetPasswordDialog(false)}
+        onReset={refetch}
+      />
     </>
   );
 }
