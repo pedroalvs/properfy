@@ -178,7 +178,13 @@ export function TemplateFormDrawer({
       return;
     }
 
-    const result = await save(template.code, template.channel, form, template.tenantId);
+    const result = await save(
+      template.code,
+      template.channel,
+      form,
+      template.tenantId,
+      template.notificationClass,
+    );
     if (result.success) {
       showSuccess('Template updated successfully');
       onSaved();

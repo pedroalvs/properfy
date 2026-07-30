@@ -444,6 +444,56 @@ describe('TemplateFormDrawer', () => {
     });
   });
 
+  it('saves a body that uses a handlebars else branch', async () => {
+    const user = userEvent.setup();
+    renderDrawer();
+
+    // The shape every shipped appointment email carries (SERVICE_LABEL). This
+    // used to be rejected client-side with "Invalid variables: else".
+    fireEvent.change(screen.getByLabelText('Body'), {
+      target: {
+        value: 'Hello {{rentalTenantName}}, your {{#if serviceTypeName}}{{serviceTypeName}}'
+          + '{{else}}inspection{{/if}} at {{propertyAddress}} is on {{scheduledDate}} at {{timeSlot}}.',
+      },
+    });
+
+    await user.click(screen.getByText('Save'));
+
+    await waitFor(() => expect(mockPut).toHaveBeenCalled());
+    expect(screen.queryByText(/Invalid variables/)).not.toBeInTheDocument();
+  });
+
+  it('shows a sanitizer rejection under the Body field, not only in a snackbar', async () => {
+    const user = userEvent.setup();
+    mockPut.mockResolvedValueOnce({
+      error: {
+        error: {
+          code: 'UNPROCESSABLE_ENTITY',
+          message: 'Body contains disallowed HTML constructs',
+          details: [{ field: 'bodyHtml', message: 'Disallowed attribute: role' }],
+        },
+      },
+    });
+    renderDrawer();
+
+    await user.click(screen.getByText('Save'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Disallowed attribute: role')).toBeInTheDocument();
+    });
+  });
+
+  it('sends the stored notificationClass so the backend keeps the classification', async () => {
+    const user = userEvent.setup();
+    renderDrawer({ ...MOCK_TEMPLATE, notificationClass: 'TRANSACTIONAL' });
+
+    await user.click(screen.getByText('Save'));
+
+    await waitFor(() => expect(mockPut).toHaveBeenCalled());
+    const body = mockPut.mock.calls[0]![1].body as Record<string, unknown>;
+    expect(body.notificationClass).toBe('TRANSACTIONAL');
+  });
+
   it('calls save on valid form submission', async () => {
     const user = userEvent.setup();
     const { onSaved } = renderDrawer();

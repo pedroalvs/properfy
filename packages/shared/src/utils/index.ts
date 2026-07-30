@@ -50,6 +50,11 @@ export {
   type LoggerLike,
 } from './retry-lazy-import';
 export {
+  extractTemplateVariables,
+  findTemplateVariableIssues,
+  type TemplateVariableIssues,
+} from './template-variables';
+export {
   AUTH_INVALID_RESET_TOKEN,
   mapResetPasswordError,
   type ResetPasswordErrorMessage,

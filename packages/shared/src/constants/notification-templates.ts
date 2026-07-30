@@ -315,9 +315,15 @@ export const TEMPLATE_VARIABLES: Record<
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
     optional: ['branchName', 'appointmentCode', 'agencyName', 'agencyPhone', 'properfyLogoUrl', 'serviceTypeName'],
   },
+  // `rentalTenantName` is optional here, not required: a spec is keyed by code while
+  // the SMS and EMAIL variants of a code carry different copy, and neither shipped SMS
+  // body greets the tenant by name (160-character budget). Requiring it made the editor
+  // refuse to save these two templates with "Missing required variables". The variable
+  // is still computed and sent — `required` in this map only governs whether
+  // BuildNotificationPayloadService throws when the value is absent from the payload.
   TENANT_SMS_ALERT: {
-    required: ['rentalTenantName', 'propertyAddress', 'scheduledDate'],
-    optional: ['confirmationLink', 'appointmentCode'],
+    required: ['propertyAddress', 'scheduledDate'],
+    optional: ['rentalTenantName', 'confirmationLink', 'appointmentCode'],
   },
   INSPECTION_CONFIRMED: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
@@ -359,9 +365,11 @@ export const TEMPLATE_VARIABLES: Record<
     required: ['userName', 'reportType', 'errorMessage', 'downloadLink'],
     optional: [],
   },
+  // Same reason as TENANT_SMS_ALERT: the SMS variant of this code does not greet by
+  // name, so `rentalTenantName` cannot be required of every channel's body.
   TENANT_PORTAL_LINK: {
-    required: ['rentalTenantName', 'scheduledDate', 'confirmationLink'],
-    optional: ['rescheduleLink', 'propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone', 'properfyLogoUrl', 'serviceTypeName'],
+    required: ['scheduledDate', 'confirmationLink'],
+    optional: ['rentalTenantName', 'rescheduleLink', 'propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone', 'properfyLogoUrl', 'serviceTypeName'],
   },
   PASSWORD_RESET: {
     required: ['userName', 'resetLink'],

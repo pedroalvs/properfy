@@ -76,6 +76,54 @@ describe('useTemplateSave', () => {
     expect(body.tenantId).toBeUndefined();
   });
 
+  it('sends notificationClass so the backend keeps the stored classification', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+    await act(async () => {
+      await result.current.save('INSPECTION_NOTICE', 'EMAIL', VALID_DATA, null, 'TRANSACTIONAL');
+    });
+
+    const body = mockPut.mock.calls[0]![1].body as Record<string, unknown>;
+    expect(body.notificationClass).toBe('TRANSACTIONAL');
+  });
+
+  it('accepts a body with a handlebars else branch (the shipped appointment emails)', () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+    // Verbatim shape of SERVICE_LABEL from the platform catalog — this is what
+    // every appointment email carries, and what used to fail with
+    // "Invalid variables: else" before the shared extractor landed.
+    const data: TemplateFormData = {
+      subject: '{{#if serviceTypeName}}{{serviceTypeName}}{{else}}Inspection{{/if}} at {{propertyAddress}}',
+      body: 'Hello {{rentalTenantName}}, your {{#if serviceTypeName}}{{serviceTypeName}}{{else}}inspection{{/if}} '
+        + 'at {{propertyAddress}} is on {{scheduledDate}}{{#if timeSlot}} at {{timeSlot}}{{/if}}.',
+      active: true,
+    };
+
+    const errors = result.current.validate(
+      data,
+      ['rentalTenantName', 'propertyAddress', 'scheduledDate'],
+      ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'serviceTypeName', 'timeSlot'],
+    );
+    expect(errors).toEqual({});
+  });
+
+  it('counts a variable referenced only as a block condition as used', () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+    const data: TemplateFormData = {
+      subject: 'Inspection',
+      body: '{{#if propertyAddress}}We will visit you{{/if}}',
+      active: true,
+    };
+
+    const errors = result.current.validate(data, ['propertyAddress'], ['propertyAddress']);
+    expect(errors).toEqual({});
+  });
+
   it('validates against disallowed variables', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useTemplateSave(), { wrapper });
