@@ -122,6 +122,18 @@ describe('POST /v1/service-groups/:groupId/unpublish', () => {
     expect(mockUnpublishServiceGroupExecute).not.toHaveBeenCalled();
   });
 
+  it('should return 400 for a malformed group id', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post('/v1/service-groups/not-a-uuid/unpublish')
+      .set('Authorization', 'Bearer valid-token')
+      .send(VALID_BODY);
+
+    expect(res.status).toBe(400);
+    expect(mockUnpublishServiceGroupExecute).not.toHaveBeenCalled();
+  });
+
   it('should return 422 when the group is not PUBLISHED', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
     mockUnpublishServiceGroupExecute.mockRejectedValueOnce(

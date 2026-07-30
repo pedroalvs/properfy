@@ -517,11 +517,17 @@ export function AppointmentMapPage() {
   // page level rather than inside the panel: the panel is portalled into a
   // native mapboxgl.Popup, so a Dialog rendered there is trapped in the
   // popup's stacking context.
-  const [unpublishOpen, setUnpublishOpen] = useState(false);
+  //
+  // The target id is captured when the modal opens and the mutation is bound
+  // to THAT, never to `previewGroup`. Opening the modal puts a click outside
+  // the popup card, which the panel treats as dismissal and clears
+  // `previewGroup` — binding the mutation to it would leave the modal on
+  // screen with a null id, so confirming would silently do nothing.
+  const [unpublishTargetId, setUnpublishTargetId] = useState<string | null>(null);
   const { unpublish: unpublishPreviewGroup, isUnpublishing: isUnpublishingPreviewGroup } =
-    useUnpublishServiceGroup(previewGroup?.id ?? null, () => {
+    useUnpublishServiceGroup(unpublishTargetId, () => {
       queryClient.invalidateQueries({ queryKey: ['service-groups-map'] });
-      setUnpublishOpen(false);
+      setUnpublishTargetId(null);
       setPreviewGroup(null);
     });
 
@@ -1470,15 +1476,15 @@ export function AppointmentMapPage() {
           onClose={() => setPreviewGroup(null)}
           onPublish={publishPreviewGroup}
           isPublishing={isPublishingPreviewGroup}
-          onUnpublish={() => setUnpublishOpen(true)}
+          onUnpublish={() => setUnpublishTargetId(previewGroup.id)}
           isUnpublishing={isUnpublishingPreviewGroup}
         />,
         groupPopupRoot,
       )}
 
       <UnpublishGroupModal
-        open={unpublishOpen}
-        onClose={() => setUnpublishOpen(false)}
+        open={unpublishTargetId !== null}
+        onClose={() => setUnpublishTargetId(null)}
         onUnpublish={unpublishPreviewGroup}
         loading={isUnpublishingPreviewGroup}
       />
