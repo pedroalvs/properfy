@@ -305,12 +305,69 @@ describe('PrismaAppointmentRepository overdueOnly + status composition', () => {
     expect(whereOf().status).toEqual({ in: [] });
   });
 
-  it('keeps both overdue statuses when no status filter is supplied', async () => {
+  it('keeps every overdue-eligible status when no status filter is supplied', async () => {
     const repo = new PrismaAppointmentRepository(prisma);
 
     await repo.findAll({ overdueOnly: true }, { page: 1, pageSize: 10, sortOrder: 'asc' });
 
-    expect(whereOf().status).toEqual({ in: ['SCHEDULED', 'AWAITING_INSPECTOR'] });
+    // DRAFT is badge/filter eligible under the age rule (it is only the auto-cancel
+    // sweep that must leave DRAFT alone).
+    expect(whereOf().status).toEqual({ in: ['DRAFT', 'AWAITING_INSPECTOR', 'SCHEDULED'] });
+  });
+
+  it('includes a stale DRAFT when the caller asks for that column', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll(
+      { overdueOnly: true, status: ['DRAFT'] },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    expect(whereOf().status).toEqual({ in: ['DRAFT'] });
+  });
+
+  it('filters on created_at age, not on scheduled_date', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll({ overdueOnly: true }, { page: 1, pageSize: 10, sortOrder: 'asc' });
+
+    const where = whereOf();
+    expect(where.created_at).toEqual({ lt: expect.any(Date) });
+    // The old rule constrained scheduled_date; the age rule must not touch it at all,
+    // otherwise a future-dated but long-stale appointment would be filtered out.
+    expect(where.scheduled_date).toBeUndefined();
+  });
+
+  it('uses a cutoff 45 civil days back, as a real Sydney-midnight instant', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll({ overdueOnly: true }, { page: 1, pageSize: 10, sortOrder: 'asc' });
+
+    const cutoff: Date = whereOf().created_at.lt;
+    const ageDays = (Date.now() - cutoff.getTime()) / 86_400_000;
+    // Between 45 and 46 days back: exactly 45 civil days, plus however far into the
+    // current Sydney day we are.
+    expect(ageDays).toBeGreaterThanOrEqual(45);
+    expect(ageDays).toBeLessThan(47);
+  });
+
+  it('honours a Period range alongside overdueOnly', async () => {
+    // Pre-existing bug: the overdue branch owned `scheduled_date`, so the Period
+    // filter was a silent server-side no-op whenever "Overdue only" was on. The age
+    // rule frees `scheduled_date`, so the two must now compose.
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll(
+      { overdueOnly: true, fromDate: '2026-01-01', toDate: '2026-01-31' },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    const where = whereOf();
+    expect(where.created_at).toEqual({ lt: expect.any(Date) });
+    expect(where.scheduled_date).toEqual({
+      gte: new Date('2026-01-01T00:00:00.000Z'),
+      lt: new Date('2026-02-01T00:00:00.000Z'),
+    });
   });
 
   it('drops a partially-overdue status selection down to the overdue subset', async () => {
@@ -334,6 +391,64 @@ describe('PrismaAppointmentRepository overdueOnly + status composition', () => {
         where: expect.objectContaining({ status: { in: ['AWAITING_INSPECTOR'] } }),
       }),
     );
+  });
+
+  it('applies the same age cutoff to count as to findAll', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.count({ overdueOnly: true });
+
+    expect(count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ created_at: { lt: expect.any(Date) } }),
+      }),
+    );
+  });
+});
+
+describe('PrismaAppointmentRepository findOverdueForAutoCancel', () => {
+  const findMany = vi.fn();
+  const prisma = { appointment: { findMany } } as any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    findMany.mockResolvedValue([]);
+  });
+
+  it('selects by created_at age and excludes DRAFT from cancellation', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+    const cutoff = new Date('2026-06-13T14:00:00.000Z');
+
+    await repo.findOverdueForAutoCancel(cutoff, 500);
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          created_at: { lt: cutoff },
+          status: { in: ['AWAITING_INSPECTOR', 'SCHEDULED'] },
+          deleted_at: null,
+        },
+        take: 500,
+      }),
+    );
+    // DRAFT is badge-eligible but must never be auto-cancelled — it is the repair state.
+    expect(findMany.mock.calls[0][0].where.status.in).not.toContain('DRAFT');
+  });
+
+  it('drains the oldest records first so a backlog clears from the top', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findOverdueForAutoCancel(new Date('2026-06-13T14:00:00.000Z'), 500);
+
+    expect(findMany.mock.calls[0][0].orderBy).toEqual({ created_at: 'asc' });
+  });
+
+  it('stays cross-tenant — it backs a background sweep, not a request', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findOverdueForAutoCancel(new Date('2026-06-13T14:00:00.000Z'), 500);
+
+    expect(findMany.mock.calls[0][0].where.tenant_id).toBeUndefined();
   });
 });
 

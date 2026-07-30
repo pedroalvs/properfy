@@ -9,6 +9,19 @@ export function todayInTzDateString(tz: string): string {
 }
 
 /**
+ * Shifts a YYYY-MM-DD civil date by `delta` calendar days (negative to go back).
+ *
+ * Pure UTC string math on a civil date — no timezone involved, because a civil
+ * date has no instant to shift. Calendar-correct across month, year and leap-day
+ * boundaries.
+ */
+export function addCivilDays(dateStr: string, delta: number): string {
+  const d = new Date(`${dateStr}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + delta);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
  * Returns the current time as HH:mm in the given IANA timezone.
  */
 export function currentTimeInTzHHmm(tz: string): string {

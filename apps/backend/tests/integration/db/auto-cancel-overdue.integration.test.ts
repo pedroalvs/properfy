@@ -130,6 +130,8 @@ describe('auto-cancel overdue appointments and dead groups (real DB)', () => {
     status: 'DRAFT' | 'AWAITING_INSPECTOR' | 'SCHEDULED' | 'DONE' | 'CANCELLED' | 'REJECTED';
     groupId?: string | null;
     deleted?: boolean;
+    /** Full instant for `created_at` — this is what the overdue age rule reads. */
+    createdAt?: string;
   }): Promise<string> {
     const appt = await prisma().appointment.create({
       data: {
@@ -148,77 +150,115 @@ describe('auto-cancel overdue appointments and dead groups (real DB)', () => {
         pricing_rule_snapshot_json: {},
         rental_tenant_confirmation_status: 'PENDING',
         created_by_user_id: fx.userId,
+        // Default to well before any cutoff these tests use, so a fixture is overdue
+        // unless a test says otherwise.
+        ...(opts.createdAt ? { created_at: new Date(opts.createdAt) } : { created_at: new Date('2026-01-01T00:00:00.000Z') }),
         ...(opts.deleted ? { deleted_at: new Date() } : {}),
       },
     });
     return appt.id;
   }
 
-  describe('findOverdueActive', () => {
-    it('returns only active appointments strictly before the cutoff', async () => {
-      const cutoff = new Date('2026-07-29T00:00:00.000Z');
+  describe('findOverdueForAutoCancel', () => {
+    // Today is 2026-07-29 in Sydney; 45 days back is the civil date 2026-06-14, whose
+    // Sydney midnight (AEST, +10) is this instant. Same value startOfOverdueAgeCutoff()
+    // produces — restated here so the SQL boundary is asserted independently.
+    const CUTOFF = new Date('2026-06-13T14:00:00.000Z');
 
-      const pastAwaiting = await createAppointment({ date: '2026-07-20', status: 'AWAITING_INSPECTOR' });
-      const pastScheduled = await createAppointment({ date: '2026-07-28', status: 'SCHEDULED' });
-      const pastDraft = await createAppointment({ date: '2026-07-20', status: 'DRAFT' });
-      const pastDone = await createAppointment({ date: '2026-07-20', status: 'DONE' });
-      const pastCancelled = await createAppointment({ date: '2026-07-20', status: 'CANCELLED' });
-      const today = await createAppointment({ date: '2026-07-29', status: 'SCHEDULED' });
-      const future = await createAppointment({ date: '2026-08-10', status: 'SCHEDULED' });
+    it('returns only cancellable appointments created strictly before the cutoff', async () => {
+      const oldAwaiting = await createAppointment({
+        date: '2026-07-20', status: 'AWAITING_INSPECTOR', createdAt: '2026-05-01T00:00:00.000Z',
+      });
+      const oldScheduled = await createAppointment({
+        date: '2026-07-28', status: 'SCHEDULED', createdAt: '2026-06-01T00:00:00.000Z',
+      });
+      const oldDraft = await createAppointment({
+        date: '2026-07-20', status: 'DRAFT', createdAt: '2026-05-01T00:00:00.000Z',
+      });
+      const oldDone = await createAppointment({
+        date: '2026-07-20', status: 'DONE', createdAt: '2026-05-01T00:00:00.000Z',
+      });
+      const oldCancelled = await createAppointment({
+        date: '2026-07-20', status: 'CANCELLED', createdAt: '2026-05-01T00:00:00.000Z',
+      });
+      const recent = await createAppointment({
+        date: '2026-07-20', status: 'SCHEDULED', createdAt: '2026-07-25T00:00:00.000Z',
+      });
 
-      const found = await appointmentRepo.findOverdueActive(cutoff, 500);
-      const ids = found.map((a) => a.id);
+      const ids = (await appointmentRepo.findOverdueForAutoCancel(CUTOFF, 500)).map((a) => a.id);
 
-      expect(ids).toContain(pastAwaiting);
-      expect(ids).toContain(pastScheduled);
+      expect(ids).toContain(oldAwaiting);
+      expect(ids).toContain(oldScheduled);
 
-      // DRAFT is not "late" — it was never released.
-      expect(ids).not.toContain(pastDraft);
-      expect(ids).not.toContain(pastDone);
-      expect(ids).not.toContain(pastCancelled);
-      // Strictly before the cutoff: today's appointment is never swept.
-      expect(ids).not.toContain(today);
-      expect(ids).not.toContain(future);
+      // DRAFT carries the overdue badge but is the operator's repair state — the
+      // sweep must never cancel it.
+      expect(ids).not.toContain(oldDraft);
+      expect(ids).not.toContain(oldDone);
+      expect(ids).not.toContain(oldCancelled);
+      // Younger than the threshold, however old its scheduled date is.
+      expect(ids).not.toContain(recent);
+    });
+
+    it('selects a FUTURE-dated appointment that has been stalled too long', async () => {
+      // The semantic change, provable only against real SQL: under the old
+      // scheduled_date rule this row could never be selected. Under the age rule a
+      // record parked with a far-future date is exactly what needs surfacing.
+      const futureDatedButStale = await createAppointment({
+        date: '2026-12-25', status: 'SCHEDULED', createdAt: '2026-05-01T00:00:00.000Z',
+      });
+
+      const ids = (await appointmentRepo.findOverdueForAutoCancel(CUTOFF, 500)).map((a) => a.id);
+
+      expect(ids).toContain(futureDatedButStale);
     });
 
     it('excludes soft-deleted appointments', async () => {
-      const cutoff = new Date('2026-07-29T00:00:00.000Z');
       const deleted = await createAppointment({
-        date: '2026-07-20',
-        status: 'SCHEDULED',
-        deleted: true,
+        date: '2026-07-20', status: 'SCHEDULED', createdAt: '2026-05-01T00:00:00.000Z', deleted: true,
       });
 
-      const found = await appointmentRepo.findOverdueActive(cutoff, 500);
+      const found = await appointmentRepo.findOverdueForAutoCancel(CUTOFF, 500);
 
       expect(found.map((a) => a.id)).not.toContain(deleted);
     });
 
-    it('treats an appointment dated today-in-Sydney as not overdue, even while UTC is on yesterday', async () => {
-      // 2026-07-29T23:00Z is already 09:00 on the 30th in Sydney, so the sweep's
-      // cutoff is the 30th. An appointment dated the 30th must still survive; one
-      // dated the 29th is now genuinely past.
-      const sydneyCutoff = new Date('2026-07-30T00:00:00.000Z');
-      const naiveUtcCutoff = new Date('2026-07-29T00:00:00.000Z');
+    it('compares against the Sydney-midnight INSTANT, not UTC midnight of that date', async () => {
+      // created_at is a real timestamp, so the cutoff must be too. This row was created
+      // at 06:00 on 2026-06-14 in Sydney — ON the cutoff civil day, so exactly 45 days
+      // old and NOT yet overdue.
+      const onCutoffDayInSydney = await createAppointment({
+        date: '2026-07-20', status: 'SCHEDULED', createdAt: '2026-06-13T20:00:00.000Z',
+      });
 
-      const the29th = await createAppointment({ date: '2026-07-29', status: 'SCHEDULED' });
-      const the30th = await createAppointment({ date: '2026-07-30', status: 'SCHEDULED' });
+      const correct = (await appointmentRepo.findOverdueForAutoCancel(CUTOFF, 500)).map((a) => a.id);
+      expect(correct).not.toContain(onCutoffDayInSydney);
 
-      const sydneyResult = (await appointmentRepo.findOverdueActive(sydneyCutoff, 500)).map((a) => a.id);
-      expect(sydneyResult).toContain(the29th);
-      expect(sydneyResult).not.toContain(the30th);
+      // Reusing startOfPlatformToday's @db.Date convention (UTC midnight of the civil
+      // date) would put the cutoff 10h later and wrongly cancel this appointment a
+      // day early — the regression this test exists to catch.
+      const naiveUtcCutoff = new Date('2026-06-14T00:00:00.000Z');
+      const naive = (await appointmentRepo.findOverdueForAutoCancel(naiveUtcCutoff, 500)).map((a) => a.id);
+      expect(naive).toContain(onCutoffDayInSydney);
+    });
 
-      // The old naive-UTC cutoff would have missed the 29th entirely — the bug.
-      const naiveResult = (await appointmentRepo.findOverdueActive(naiveUtcCutoff, 500)).map((a) => a.id);
-      expect(naiveResult).not.toContain(the29th);
+    it('drains the oldest records first', async () => {
+      const newer = await createAppointment({
+        date: '2026-07-20', status: 'SCHEDULED', createdAt: '2026-06-01T00:00:00.000Z',
+      });
+      const older = await createAppointment({
+        date: '2026-07-20', status: 'SCHEDULED', createdAt: '2026-02-01T00:00:00.000Z',
+      });
+
+      const ids = (await appointmentRepo.findOverdueForAutoCancel(CUTOFF, 500)).map((a) => a.id);
+
+      expect(ids.indexOf(older)).toBeLessThan(ids.indexOf(newer));
     });
 
     it('honours the batch limit', async () => {
-      const cutoff = new Date('2026-07-29T00:00:00.000Z');
-      await createAppointment({ date: '2026-07-01', status: 'SCHEDULED' });
-      await createAppointment({ date: '2026-07-02', status: 'SCHEDULED' });
+      await createAppointment({ date: '2026-07-01', status: 'SCHEDULED', createdAt: '2026-03-01T00:00:00.000Z' });
+      await createAppointment({ date: '2026-07-02', status: 'SCHEDULED', createdAt: '2026-03-02T00:00:00.000Z' });
 
-      const found = await appointmentRepo.findOverdueActive(cutoff, 1);
+      const found = await appointmentRepo.findOverdueForAutoCancel(CUTOFF, 1);
 
       expect(found).toHaveLength(1);
     });

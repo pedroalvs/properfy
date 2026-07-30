@@ -255,9 +255,9 @@ export async function registerWorkers(
     );
   }));
 
-  // Auto-cancel appointments whose date passed — daily just after Sydney midnight,
-  // since the cutoff is "scheduled_date < today": yesterday qualifies the moment the
-  // civil date rolls over.
+  // Auto-cancel appointments stalled past the overdue age — daily just after Sydney
+  // midnight, since the cutoff is a civil date (today minus OVERDUE_AGE_DAYS): a record
+  // becomes eligible the moment the civil date rolls over.
   await boss.schedule('appointment.cancel-overdue', '10 0 * * *', {}, SYDNEY_TZ);
   await boss.work('appointment.cancel-overdue', withJobMetrics('appointment.cancel-overdue', async (job) => {
     logger.info({ jobId: job.id }, 'Processing appointment.cancel-overdue job');

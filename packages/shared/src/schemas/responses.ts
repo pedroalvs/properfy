@@ -307,6 +307,12 @@ export const appointmentResponseSchema = z.object({
   doneCheckedAt: instantStrNullable().optional(),
   createdAt: instantStr(),
   updatedAt: instantStr(),
+  /**
+   * Server-computed overdue flag: active status and created more than
+   * OVERDUE_AGE_DAYS ago. Must stay declared here — this schema is the Fastify
+   * response schema, and an undeclared field is silently stripped on serialization.
+   */
+  isOverdue: z.boolean().optional(),
   appointmentNumber: z.number().optional(),
   // Flat enriched fields for list and detail views
   /** Formatted appointment code (tenant prefix + padded number, e.g. "INS-0042"). Populated by the detail endpoint. */
@@ -713,6 +719,14 @@ export const inspectorScheduleMonthItemSchema = inspectorScheduleItemSchema.exte
   suburb: z.string(),
   serviceTypeName: z.string(),
   flowType: z.nativeEnum(ServiceTypeFlowType),
+  /**
+   * NOTE: a different notion from `appointmentResponseSchema.isOverdue`. Here it means
+   * "the scheduled date has passed and the inspection is still not done" — what an
+   * inspector needs in the field — computed by get-inspector-schedule's own 30-day
+   * lookback, not by the shared `isAppointmentOverdue` age rule. The PWA labels it
+   * "Past date" to keep "Overdue" meaning the age rule everywhere else. Do not unify
+   * the two without changing what the inspector sees.
+   */
   isOverdue: z.boolean().optional(),
 });
 

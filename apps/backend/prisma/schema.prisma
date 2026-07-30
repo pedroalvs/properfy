@@ -572,6 +572,10 @@ model Appointment {
   @@index([tenant_id, scheduled_date])
   @@index([tenant_id, service_type_id])
   @@index([service_group_id])
+  // Backs the daily overdue auto-cancel sweep, which is cross-tenant and filters on
+  // exactly (status, created_at). Every other index here leads with tenant_id, so
+  // none of them can serve that query.
+  @@index([status, created_at])
   @@map("appointments")
 }
 

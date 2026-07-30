@@ -229,14 +229,20 @@ export interface IAppointmentRepository {
   findUnconfirmedForDate(date: Date): Promise<AppointmentEntity[]>;
 
   /**
-   * Find appointments still awaiting execution whose scheduled date has passed —
-   * the input to the daily auto-cancel sweep. Returns appointments where:
-   *  - scheduledDate < beforeDate (pass UTC midnight of today's Sydney civil date)
-   *  - status IN OVERDUE_ELIGIBLE_STATUSES (AWAITING_INSPECTOR, SCHEDULED)
+   * Find appointments still awaiting execution that have been stalled longer than
+   * OVERDUE_AGE_DAYS — the input to the daily auto-cancel sweep. Returns appointments
+   * where:
+   *  - createdAt < createdBefore (pass the Sydney-midnight INSTANT of the cutoff civil
+   *    date, i.e. `startOfOverdueAgeCutoff()` — `created_at` is a real timestamp, so
+   *    UTC midnight of a civil date would be off by the Sydney offset)
+   *  - status IN OVERDUE_AUTO_CANCEL_STATUSES (AWAITING_INSPECTOR, SCHEDULED)
    *  - deletedAt IS NULL
+   *
+   * Note the status list is narrower than OVERDUE_ELIGIBLE_STATUSES: a stale DRAFT is
+   * shown as overdue but must never be auto-cancelled.
    *
    * Capped by `limit` so a large historical backlog drains over several runs
    * instead of holding one job open.
    */
-  findOverdueActive(beforeDate: Date, limit: number): Promise<AppointmentEntity[]>;
+  findOverdueForAutoCancel(createdBefore: Date, limit: number): Promise<AppointmentEntity[]>;
 }
