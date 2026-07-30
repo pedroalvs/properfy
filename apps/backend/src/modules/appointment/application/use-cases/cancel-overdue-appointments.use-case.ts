@@ -11,7 +11,7 @@ const CANCELLATION_REASON = 'Appointment date passed without execution';
  * How many appointments one run will cancel. A backlog larger than this drains
  * over consecutive runs rather than holding a single job open for a long time.
  */
-const DEFAULT_BATCH_LIMIT = 500;
+export const DEFAULT_BATCH_LIMIT = 500;
 
 export interface CancelOverdueAppointmentsOutput {
   cancelledCount: number;
