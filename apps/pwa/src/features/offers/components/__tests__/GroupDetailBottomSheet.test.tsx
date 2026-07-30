@@ -296,6 +296,6 @@ describe('GroupDetailBottomSheet', () => {
     // absent the scrollable body is flush with the bottom edge. Padding the sheet
     // container covers both cases with one rule.
     render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
-    expect(screen.getByTestId('group-detail-sheet').className).toContain('pb-safe-b');
+    expect(screen.getByTestId('group-detail-sheet').classList.contains('pb-safe-b')).toBe(true);
   });
 });

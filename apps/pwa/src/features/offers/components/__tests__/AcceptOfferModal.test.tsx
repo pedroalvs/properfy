@@ -41,12 +41,18 @@ describe('AcceptOfferModal', () => {
     expect(onConfirm).toHaveBeenCalledOnce();
   });
 
+  it('locks both actions while the acceptance is in flight', () => {
+    render(<AcceptOfferModal offer={offer} state="ACCEPTING" onConfirm={onConfirm} onCancel={onCancel} />);
+    expect(screen.getByTestId('modal-cancel')).toBeDisabled();
+    expect(screen.getByTestId('modal-confirm')).toBeDisabled();
+  });
+
   it('keeps its actions clear of the iOS home indicator', () => {
     // The overlay is `items-end`, so the sheet is flush with the bottom edge. Unlike the
     // execution sheets the padding lives on an inner wrapper, so the inset goes on the
     // sheet container where nothing else sets padding-bottom.
     render(<AcceptOfferModal offer={offer} state="CONFIRMING" onConfirm={onConfirm} onCancel={onCancel} />);
     const sheet = screen.getByTestId('accept-modal').firstElementChild!;
-    expect(sheet.className).toContain('pb-safe-b');
+    expect(sheet.classList.contains('pb-safe-b')).toBe(true);
   });
 });

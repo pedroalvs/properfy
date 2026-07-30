@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import tailwindConfig from '../../../../tailwind.config';
 
 /**
@@ -5,10 +7,11 @@ import tailwindConfig from '../../../../tailwind.config';
  * `viewport-fit=cover`, that edge is *under* the iOS home indicator, so those elements
  * must reserve `env(safe-area-inset-bottom)`.
  *
- * These assertions exist as a pair with the component tests that assert the classes are
- * *used*. Neither half is sufficient alone: `h-18` shipped to production for months
- * because the component referenced a spacing token that was never defined, and Tailwind
- * drops unknown classes silently.
+ * These assertions exist as a set with the component tests that assert the classes are
+ * *used*. No single one is sufficient: `h-18` shipped to production for months because
+ * the component referenced a spacing token that was never defined, and Tailwind drops
+ * unknown classes silently. The chain has three links — class used, token defined,
+ * custom property declared — and breaking any of them fails silently to a 0px inset.
  */
 describe('safe-area spacing tokens', () => {
   const spacing = (tailwindConfig.theme?.extend?.spacing ?? {}) as Record<string, string>;
@@ -23,10 +26,11 @@ describe('safe-area spacing tokens', () => {
     }
   });
 
-  it('leaves the bottom nav height to its content instead of a fixed token', () => {
-    // The nav used to hard-code `h-18`, which Tailwind never defined. Re-introducing an
-    // `18` token would silently revive that class and make the bar 89px tall, taller than
-    // the clearance the layout reserves.
-    expect(spacing['18']).toBeUndefined();
+  it('declares the custom property the tokens depend on', () => {
+    // The tokens reference `var(--safe-area-bottom)` with no fallback, so if this
+    // declaration is renamed or dropped every inset computes to 0 and both of the
+    // assertions above still pass — the same silent failure `h-18` was.
+    const tokensCss = readFileSync(resolve(__dirname, '../../../styles/tokens.css'), 'utf8');
+    expect(tokensCss).toContain('--safe-area-bottom: env(safe-area-inset-bottom');
   });
 });

@@ -276,6 +276,15 @@ describe('ExecutionPage', () => {
     expect(clearState).not.toHaveBeenCalled();
   });
 
+  it('reserves the iOS home-indicator inset', () => {
+    // /execution is registered as a sibling of PwaLayout, so it gets neither the bottom
+    // nav nor the layout's `pb-nav-clear`. Every interactive phase ends with its primary
+    // CTA 16px above the bottom edge, which `viewport-fit=cover` puts under the ~34px
+    // home indicator — the Start and Submit taps would compete with the swipe-up gesture.
+    renderPage();
+    expect(screen.getByTestId('execution-page').classList.contains('pb-safe-b')).toBe(true);
+  });
+
   describe('finish confirmation modals', () => {
     const finishingState = {
       appointmentId: 'apt-1',

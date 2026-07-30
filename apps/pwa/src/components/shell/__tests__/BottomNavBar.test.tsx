@@ -45,12 +45,15 @@ describe('BottomNavBar', () => {
     // 8-32px from the screen edge, entirely inside the ~34px home-indicator strip, and
     // most of each tap target overlaps the system swipe-up gesture area.
     renderWithProviders(<BottomNavBar />);
-    expect(screen.getByTestId('bottom-nav').className).toContain('pb-safe-b');
+    // classList, not a substring check: `pb-safe-b-6` would satisfy `toContain`.
+    expect(screen.getByTestId('bottom-nav').classList.contains('pb-safe-b')).toBe(true);
   });
 
   it('paints an opaque background instead of a backdrop filter', () => {
     // `backdrop-filter` on a position:fixed element forces a separate composited layer,
-    // which WebKit is known to mispaint at a stale offset during momentum scrolling.
+    // which WebKit can mispaint at a stale offset during momentum scrolling. That is the
+    // leading suspect for a field report of this bar rendering mid-screen on iOS, not a
+    // confirmed diagnosis — it does not reproduce in Chrome.
     renderWithProviders(<BottomNavBar />);
     const nav = screen.getByTestId('bottom-nav');
     expect(nav.className).not.toContain('backdrop-blur');
