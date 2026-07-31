@@ -4,6 +4,7 @@ import {
   type JoinGroupInput,
 } from '../../../src/modules/rental-tenant-portal/application/use-cases/join-group.use-case';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
+import { ConfirmationCycleNotFoundError } from '../../../src/modules/appointment/domain/confirmation-cycle.errors';
 import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
 import {
   PortalAppointmentInactiveError,
@@ -124,6 +125,12 @@ describe('JoinGroupUseCase', () => {
     realignActiveCycleSchedule: ReturnType<typeof vi.fn>;
     confirm: ReturnType<typeof vi.fn>;
   };
+  let logger: {
+    error: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    info: ReturnType<typeof vi.fn>;
+    debug: ReturnType<typeof vi.fn>;
+  };
   let useCase: JoinGroupUseCase;
 
   beforeEach(() => {
@@ -169,6 +176,7 @@ describe('JoinGroupUseCase', () => {
       realignActiveCycleSchedule: vi.fn().mockResolvedValue(undefined),
       confirm: vi.fn().mockResolvedValue(undefined),
     };
+    logger = { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() };
 
     useCase = new JoinGroupUseCase(
       appointmentRepo as any,
@@ -180,6 +188,7 @@ describe('JoinGroupUseCase', () => {
       notificationHandler,
       cancelEmptyGroup,
       cycleService as any,
+      logger as any,
     );
   });
 
@@ -288,6 +297,35 @@ describe('JoinGroupUseCase', () => {
       expect(order[0]).toBe('reserve');
     });
 
+    it('decides the hops on a status read AFTER the claim, not before it', async () => {
+      // Race: this join reads SCHEDULED, then a decline rejects the appointment
+      // and hands the token back, then this join claims it. reservePortalWindow
+      // now admits REJECTED, so acting on the stale SCHEDULED would skip both
+      // hops and leave a REJECTED appointment sitting in a live group — wrong,
+      // and silent. Both gates that used to fail this closed were opened by the
+      // auto-reject work, so the fresh read is the only thing left guarding it.
+      appointmentRepo.findById
+        .mockResolvedValueOnce({
+          appointment: makeAppointment({ status: 'SCHEDULED' }),
+          contact: null,
+          restrictions: [],
+        })
+        .mockResolvedValue({
+          appointment: makeAppointment({ status: 'REJECTED' }),
+          contact: null,
+          restrictions: [],
+        });
+
+      const result = await useCase.execute(makeInput());
+
+      expect(statusTransition.execute).toHaveBeenCalledTimes(2);
+      expect(statusTransition.execute).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ targetStatus: 'AWAITING_INSPECTOR' }),
+      );
+      expect(result.appointmentStatus).toBe('SCHEDULED');
+    });
+
     it('still uses a single transition when the appointment was merely awaiting an inspector', async () => {
       appointmentRepo.findById.mockResolvedValue({
         appointment: makeAppointment({ status: 'AWAITING_INSPECTOR' }),
@@ -326,11 +364,38 @@ describe('JoinGroupUseCase', () => {
     });
 
     it('does not fail the join when the cycle is missing', async () => {
-      cycleService.confirm.mockRejectedValue(new Error('no active cycle'));
+      cycleService.confirm.mockRejectedValue(new ConfirmationCycleNotFoundError());
 
       const result = await useCase.execute(makeInput());
 
       expect(result.appointmentStatus).toBe('SCHEDULED');
+      // Expected for a pre-cycle appointment — not worth logging.
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    it('logs when the cycle fails for any other reason, since the two then diverge', async () => {
+      cycleService.confirm.mockRejectedValue(new Error('db down'));
+
+      const result = await useCase.execute(makeInput());
+
+      expect(result.appointmentStatus).toBe('SCHEDULED');
+      expect(logger.error).toHaveBeenCalled();
+    });
+  });
+
+  describe('reservation committed but the transition failed', () => {
+    it('logs the inconsistent state instead of letting it vanish into the 500', async () => {
+      // reservePortalWindow commits in its own transaction, so this leaves the
+      // appointment in the new group with a stale status and nothing can roll
+      // it back from here.
+      statusTransition.execute.mockRejectedValue(new Error('transition exploded'));
+
+      await expect(useCase.execute(makeInput())).rejects.toThrow('transition exploded');
+
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ appointmentId: 'appt-1', groupId: 'sg-new' }),
+        expect.stringContaining('needs manual repair'),
+      );
     });
   });
 

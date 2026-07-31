@@ -311,6 +311,20 @@ describe('NotifyOnStatusTransitionHandler', () => {
     );
   });
 
+  it('stays silent on DONE → REJECTED', async () => {
+    // The AM-only reopen-for-compensation path. The agency template says the
+    // inspection "will not go ahead as scheduled and needs to be rearranged",
+    // which is false for one that already happened.
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'DONE',
+      targetStatus: 'REJECTED',
+    });
+
+    expect(createNotification.execute).not.toHaveBeenCalled();
+  });
+
   it('never sends a rental-tenant notice on REJECTED, even with the opt-in flag', async () => {
     const handler = makeHandler();
     await handler.execute({

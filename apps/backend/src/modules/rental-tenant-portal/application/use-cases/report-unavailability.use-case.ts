@@ -78,8 +78,21 @@ export class ReportUnavailabilityUseCase {
 
     const { appointment } = result;
 
-    // 2. Idempotent: already UNAVAILABLE — return success without recording activity
+    // 2. Idempotent: already UNAVAILABLE — return success without re-recording
+    // the activity, audit and notification.
+    //
+    // The confirmation status is written before the rejection (they cannot share
+    // a transaction: the transition is its own use case). So "UNAVAILABLE but not
+    // yet rejected" is a real, reachable state — a decline whose transition threw.
+    // Returning success there would report the tenant's retry as done while the
+    // appointment stayed on the inspector's run forever, which is precisely the
+    // failure this use case exists to prevent. Re-drive the rejection instead, so
+    // the retry heals rather than masks. Guarded by the unanswerable check because
+    // an operator may legitimately have moved it on in the meantime.
     if (appointment.rentalTenantConfirmationStatus === 'UNAVAILABLE') {
+      if (!isPortalUnanswerableStatus(appointment.status)) {
+        await this.rejectDeclined(input, appointment);
+      }
       return {
         rentalTenantConfirmationStatus: 'UNAVAILABLE' as const,
         urgentMode: false,
@@ -138,10 +151,9 @@ export class ReportUnavailabilityUseCase {
     // short-circuit at the top, not the claim.
     //
     // Not allowed to fail the request: everything above is already committed, so
-    // throwing here would show the tenant an error for a decline that worked,
-    // and their retry would hit the idempotent short-circuit — leaving the token
-    // consumed and change-time silently broken with no way to explain it. Logged
-    // and counted instead, because that outcome still needs to be visible.
+    // throwing here would show the tenant an error for a decline that worked.
+    // Logged instead, because the outcome — token consumed, change-time broken
+    // for this link — still needs to be visible.
     if (this.tokenRepo) {
       try {
         await this.tokenRepo.releaseClaim(input.tokenId, input.appointmentId);
@@ -157,6 +169,33 @@ export class ReportUnavailabilityUseCase {
       rentalTenantConfirmationStatus: 'UNAVAILABLE' as const,
       urgentMode: input.isPastConfirmCutoff,
     };
+  }
+
+  /**
+   * Moves a declined appointment to REJECTED.
+   *
+   * Routed through the sovereign transition use case rather than a direct
+   * repository write, so the rejection gets the same audit entry, domain event,
+   * empty-group cleanup and notification as any operator-driven rejection.
+   * `SCHEDULED → REJECTED` and `AWAITING_INSPECTOR → REJECTED` both already list
+   * SYS in TRANSITION_RULES.
+   *
+   * The idempotency key is keyed on the token rather than the attempt, so the
+   * healing retry above reuses the original decision instead of minting a second
+   * rejection.
+   */
+  private async rejectDeclined(
+    input: ReportUnavailabilityInput,
+    appointment: AppointmentEntity,
+  ): Promise<void> {
+    await this.statusTransition.execute({
+      appointmentId: input.appointmentId,
+      targetStatus: 'REJECTED',
+      reason: REJECTION_REASON,
+      rejectionReasonCode: 'TENANT_DECLINED',
+      idempotencyKey: `portal_decline:${input.appointmentId}:${input.tokenId}`,
+      actor: { ...SYSTEM_ACTOR, tenantId: appointment.tenantId },
+    });
   }
 
   private async applyUnavailability(input: ReportUnavailabilityInput, appointment: AppointmentEntity): Promise<void> {
@@ -241,20 +280,7 @@ export class ReportUnavailabilityUseCase {
     // 8b. A decline ends the appointment: there is no one to let the inspector
     // in, so it leaves the run and waits to be rescheduled against the weekly
     // availability recorded above.
-    //
-    // Routed through the sovereign transition use case rather than a direct
-    // repository write, so the rejection gets the same audit entry, domain event,
-    // empty-group cleanup and notification as any operator-driven rejection.
-    // `SCHEDULED → REJECTED` and `AWAITING_INSPECTOR → REJECTED` both already
-    // list SYS in TRANSITION_RULES.
-    await this.statusTransition.execute({
-      appointmentId: input.appointmentId,
-      targetStatus: 'REJECTED',
-      reason: REJECTION_REASON,
-      rejectionReasonCode: 'TENANT_DECLINED',
-      idempotencyKey: `portal_decline:${input.appointmentId}:${input.tokenId}`,
-      actor: { ...SYSTEM_ACTOR, tenantId: appointment.tenantId },
-    });
+    await this.rejectDeclined(input, appointment);
 
     // 9. Side effect: notify operator of unavailability
     if (this.onNotificationHandler) {

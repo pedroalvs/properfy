@@ -161,7 +161,12 @@ export class NotifyOnStatusTransitionHandler {
     const isCancellation = input.targetStatus === 'CANCELLED';
     // A rejection is announced to the agency only, so it has no rental-tenant
     // template of its own and cannot be expressed as an `emailCode`.
-    const isRejection = input.targetStatus === 'REJECTED';
+    // `DONE → REJECTED` is excluded: that is the AM-only reopen-for-compensation
+    // path, and the agency template says the inspection "will not go ahead as
+    // scheduled and needs to be rearranged" — untrue of one that already
+    // happened. Its financial compensation is announced through its own
+    // DONE_REJECTED event, not here.
+    const isRejection = input.targetStatus === 'REJECTED' && input.previousStatus !== 'DONE';
     const emailCode =
       input.targetStatus === 'SCHEDULED'
         ? 'INSPECTION_NOTICE'

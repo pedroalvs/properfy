@@ -113,8 +113,41 @@ describe('ReportUnavailabilityUseCase — a decline rejects the appointment', ()
     expect(JSON.stringify(written)).not.toContain('NO_RESPONSE');
   });
 
-  it('is idempotent: a replayed decline does not transition again', async () => {
-    const { uc, statusTransition } = makeUseCase({ rentalTenantConfirmationStatus: 'UNAVAILABLE' });
+  it('is idempotent: a replayed decline on an already-rejected appointment does not transition again', async () => {
+    const { uc, statusTransition } = makeUseCase({
+      status: 'REJECTED',
+      rentalTenantConfirmationStatus: 'UNAVAILABLE',
+    });
+
+    await uc.execute(BASE_INPUT);
+
+    expect(statusTransition.execute).not.toHaveBeenCalled();
+  });
+
+  it('heals a decline whose rejection never landed', async () => {
+    // The confirmation-status write commits before the transition. If the
+    // transition then failed, the appointment is UNAVAILABLE but still
+    // SCHEDULED — and the plain idempotency short-circuit would report the
+    // tenant's retry as a success while leaving it on the inspector's run
+    // forever. The retry has to re-drive the rejection instead.
+    const { uc, statusTransition } = makeUseCase({
+      status: 'SCHEDULED',
+      rentalTenantConfirmationStatus: 'UNAVAILABLE',
+    });
+
+    const result = await uc.execute(BASE_INPUT);
+
+    expect(result.rentalTenantConfirmationStatus).toBe('UNAVAILABLE');
+    expect(statusTransition.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ targetStatus: 'REJECTED', rejectionReasonCode: 'TENANT_DECLINED' }),
+    );
+  });
+
+  it('does not re-reject an appointment that moved on to a dead status', async () => {
+    const { uc, statusTransition } = makeUseCase({
+      status: 'CANCELLED',
+      rentalTenantConfirmationStatus: 'UNAVAILABLE',
+    });
 
     await uc.execute(BASE_INPUT);
 

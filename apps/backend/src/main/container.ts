@@ -938,6 +938,7 @@ export function createContainer(logger: Logger): AppContainer {
     notifyOnRentalTenantPortalActionHandler,
     cancelEmptyGroupService,
     confirmationCycleService,
+    logger,
   );
 
   // 026 — Add appointments to existing group + read-only eligibility preview.
