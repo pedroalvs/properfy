@@ -1,4 +1,5 @@
 import type { AuthContext } from '@properfy/shared';
+import { DomainError } from '../../../../shared/domain/errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import type { Logger } from '../../../../shared/infrastructure/logger';
@@ -73,11 +74,12 @@ export class BulkCrossCheckDoneUseCase {
         await this.idempotency.set(idemKey, IDEMPOTENCY_SCOPE, { ok: true }, REPLAY_WINDOW_TTL_HOURS);
         updated += 1;
       } catch (err: unknown) {
-        const code = (err as { code?: string })?.code;
-        if (code) {
-          // Known domain error — its code/message are safe to surface.
-          const message = err instanceof Error ? err.message : 'Unable to cross-check appointment';
-          failed.push({ id: appointmentId, code, message });
+        // Discriminate on the class, NOT on the presence of a `code`: Prisma's
+        // errors carry one too (`P1001` is "Can't reach database server at
+        // <host>:<port>"), so a truthiness check waves through exactly the
+        // internals this branch exists to withhold.
+        if (err instanceof DomainError) {
+          failed.push({ id: appointmentId, code: err.code, message: err.message });
         } else {
           // Unexpected error — log the raw detail server-side, return a generic
           // message so internals don't leak into the API response.

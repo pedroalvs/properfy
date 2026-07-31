@@ -134,7 +134,7 @@ export class GeneratePortalTokenUseCase {
         action: 'rental_tenant_portal.dispatch_skipped',
         actorType: 'USER',
         actorId: input.actor.userId,
-        entityType: 'appointment',
+        entityType: 'Appointment',
         entityId: appointment.id,
         tenantId: appointment.tenantId,
         metadata: {
@@ -160,7 +160,7 @@ export class GeneratePortalTokenUseCase {
         action: 'rental_tenant_portal.dispatch_skipped',
         actorType: 'USER',
         actorId: input.actor.userId,
-        entityType: 'appointment',
+        entityType: 'Appointment',
         entityId: appointment.id,
         tenantId: appointment.tenantId,
         metadata: {

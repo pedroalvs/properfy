@@ -150,11 +150,17 @@ describe('AuditRetentionWorker (Feature 020 reshape)', () => {
   let logger: Logger;
   let worker: AuditRetentionWorker;
 
-  function build({ categories }: { categories: AuditRetentionCategoryConfigEntity[] }) {
+  function build({
+    categories,
+    holds = [],
+  }: {
+    categories: AuditRetentionCategoryConfigEntity[];
+    holds?: AuditLegalHoldEntity[];
+  }) {
     prisma = makePrisma();
     auditLogRepo = makeAuditLogRepo();
     categoryRepo = makeCategoryRepo(categories);
-    legalHoldRepo = makeLegalHoldRepo();
+    legalHoldRepo = makeLegalHoldRepo(holds);
     preservationRuleRepo = makePreservationRuleRepo();
     auditService = makeAuditService();
     logger = makeLogger();
@@ -301,6 +307,45 @@ describe('AuditRetentionWorker (Feature 020 reshape)', () => {
     expect(result.preservedByRule.legalHold).toBe(1);
     expect(result.movedCount).toBe(1);
     expect(auditLogRepo.moveToCold).toHaveBeenCalledWith(['free']);
+  });
+
+  // Four writers stamped `entityType: 'appointment'` while the rest of the
+  // codebase — and therefore any hold an operator places from the UI — used
+  // 'Appointment'. `matches()` compared exact strings, so those rows were
+  // purged despite an active hold. Case-insensitive matching also protects the
+  // rows already written in the wrong casing, which no code change can revisit.
+  it('preserves entries whose entityType casing differs from the hold', async () => {
+    const category = makeCategory('OPERATIONAL_GENERAL', 2);
+    const hold = new AuditLegalHoldEntity({
+      id: 'h1',
+      entityType: 'Appointment',
+      entityId: 'appt-1',
+      tenantId: null,
+      reason: 'dispute',
+      placedByUserId: 'u1',
+      placedAt: new Date(),
+      releasedByUserId: null,
+      releasedAt: null,
+      isActive: true,
+    });
+    build({ categories: [category], holds: [hold] });
+
+    const batch = [
+      makeEntry({
+        id: 'held-lowercase',
+        entityType: 'appointment',
+        entityId: 'appt-1',
+        retentionCategory: 'OPERATIONAL_GENERAL',
+      }),
+    ];
+    (auditLogRepo.findEligibleForRetention as any)
+      .mockResolvedValueOnce(batch)
+      .mockResolvedValueOnce([]);
+
+    const result = await worker.execute();
+
+    expect(result.preservedByRule.legalHold).toBe(1);
+    expect(auditLogRepo.moveToCold).not.toHaveBeenCalled();
   });
 
   it('skips rows flagged IN_PROGRESS (redaction concurrency guard)', async () => {

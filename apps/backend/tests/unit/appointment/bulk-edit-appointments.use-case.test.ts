@@ -571,7 +571,7 @@ describe('BulkEditAppointmentsUseCase', () => {
       expect.objectContaining({
         action: 'appointment.updated',
         actorId: 'user-op',
-        entityType: 'appointment',
+        entityType: 'Appointment',
         entityId: 'appt-1',
         after: expect.objectContaining({ inspectorId: 'insp-1' }),
         metadata: expect.objectContaining({ source: 'bulk-edit', batchId: 'req-batch-1' }),

@@ -300,7 +300,7 @@ export class BulkEditAppointmentsUseCase {
             action: 'appointment.updated',
             actorType: 'USER',
             actorId: actor.userId,
-            entityType: 'appointment',
+            entityType: 'Appointment',
             entityId: appointmentId,
             tenantId: appointment.tenantId,
             before,

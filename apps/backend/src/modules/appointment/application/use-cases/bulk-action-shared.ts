@@ -104,9 +104,9 @@ export function mapErrorToResult(appointmentId: string, err: unknown): BulkActio
     || err instanceof AppointmentInspectorRequiredError
     || err instanceof AppointmentUpdateNotAllowedError
     // The two classes `UpdateAppointmentUseCase` actually throws for a past
-    // date/time. `AppointmentPastDateError` used to be listed here but is
-    // thrown nowhere, so past-date rejections were reaching the operator as
-    // INTERNAL_ERROR — the same hole this file just closed for group errors.
+    // date/time. A third, thrown nowhere, used to sit here in their place, so
+    // real past-date rejections reached the operator as INTERNAL_ERROR; it has
+    // since been deleted.
     || err instanceof AppointmentDateInPastError
     || err instanceof AppointmentTimeInPastError
     || err instanceof AppointmentTenantConfirmationRequiredError
