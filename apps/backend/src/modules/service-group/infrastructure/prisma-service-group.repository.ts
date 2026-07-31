@@ -16,12 +16,12 @@ import type {
   PortalWindowReservation,
 } from '../domain/service-group.repository';
 import type { ServiceGroupStatus } from '@properfy/shared';
+import { computeCentroid } from '@properfy/shared';
 import { ADDABLE_GROUP_STATUSES, TERMINAL_GROUP_STATUSES } from '../domain/service-group.validator';
 import { computeWindowAvailability } from '../domain/portal-slot-capacity';
 
 /** Same idiom as prisma-confirmation-cycle.repository.ts — the tx client is a narrowed PrismaClient. */
 type DbClient = PrismaClient | Prisma.TransactionClient;
-import { resolveCentroid } from '../../../shared/infrastructure/suburb-centroid-resolver';
 
 /**
  * A service group is tenant-agnostic — its tenant set is derived from the
@@ -60,6 +60,37 @@ function deriveOfferTenant(
     return { tenantId: primaryTenantId, tenantName: name };
   }
   return { tenantId: null, tenantName: 'Multiple agencies' };
+}
+
+/**
+ * The map pin for a marketplace offer: the mean of its properties' own
+ * coordinates, or null when none of them is geocoded.
+ *
+ * This used to be looked up by suburb name in a bundled 110-entry table, which
+ * failed two ways at once. A suburb missing from the table produced a null
+ * centroid and the offer vanished from the inspector's map without a trace;
+ * worse, two groups naming different suburbs could both fall back to the one
+ * suburb they had in common and land on byte-identical coordinates, so one pin
+ * silently covered the other. Properties carry real lat/lng, and marketplace
+ * eligibility already requires `p.coordinates IS NOT NULL`, so the accurate
+ * answer was available the whole time.
+ *
+ * Soft-deleted properties are left out for the same reason the detail view
+ * refuses to expose their address: a removed property must not tug the pin
+ * toward a location the inspector is no longer meant to see.
+ */
+function deriveOfferCentroid(
+  appointments: Array<{ property?: { lat?: unknown; lng?: unknown; deleted_at?: Date | null } | null }>,
+): { lat: number; lng: number } | null {
+  const points = appointments
+    .filter((a) => a.property != null && a.property.deleted_at == null)
+    .map((a) => ({
+      latitude: a.property!.lat != null ? Number(a.property!.lat) : null,
+      longitude: a.property!.lng != null ? Number(a.property!.lng) : null,
+    }));
+
+  const centroid = computeCentroid(points);
+  return centroid ? { lat: centroid.latitude, lng: centroid.longitude } : null;
 }
 
 /**
@@ -510,7 +541,11 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
             payout_amount: true,
             tenant_id: true,
             tenant: { select: { name: true } },
-            property: { select: { suburb: true, state: true } },
+            // lat/lng feed the offer's map pin; without them the centroid had
+            // to be guessed from the suburb name. See deriveOfferCentroid.
+            property: {
+              select: { suburb: true, state: true, lat: true, lng: true, deleted_at: true },
+            },
           },
         },
       },
@@ -523,13 +558,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       const suburbs = [
         ...new Set(appts.map((a) => a.property?.suburb).filter(Boolean)),
       ] as string[];
-      const suburbStatePairs = [
-        ...new Map(
-          appts
-            .filter((a) => a.property?.suburb)
-            .map((a) => [`${a.property.suburb}|${a.property.state ?? ''}`, { name: a.property.suburb as string, state: (a.property.state ?? '') as string }]),
-        ).values(),
-      ];
       const payoutTotal = appts.reduce((sum: number, a) => {
         const val = a.payout_amount != null ? parseFloat(a.payout_amount.toString()) : 0;
         return sum + val;
@@ -551,7 +579,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         suburbs,
         payoutEstimate,
         appointmentCount: appts.length,
-        centroid: resolveCentroid(suburbStatePairs),
+        centroid: deriveOfferCentroid(appts),
       };
     });
   }
@@ -664,13 +692,6 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     const suburbs = [
       ...new Set(appts.map((a) => a.property?.suburb).filter(Boolean)),
     ] as string[];
-    const suburbStatePairsDetail = [
-      ...new Map(
-        appts
-          .filter((a) => a.property?.suburb)
-          .map((a) => [`${a.property.suburb}|${a.property.state ?? ''}`, { name: a.property.suburb as string, state: (a.property.state ?? '') as string }]),
-      ).values(),
-    ];
     const addresses = [
       ...new Set(
         appts
@@ -717,7 +738,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       addresses,
       keyRequired,
       notes: groupNotes,
-      centroid: resolveCentroid(suburbStatePairsDetail),
+      centroid: deriveOfferCentroid(appts),
       appointments: appts.map((a) => {
         const p = a.property;
         const suburb = p ? [p.suburb, p.state].filter(Boolean).join(' ') : '';
