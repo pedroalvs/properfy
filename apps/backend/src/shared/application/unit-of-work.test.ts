@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { PrismaClient, Prisma } from '@prisma/client';
-import { runInTransaction, transactionalResult, type TxContext } from './unit-of-work';
+import { runInTransaction, transactionalResult } from './unit-of-work';
 
 /** A `$transaction` that records when its callback resolved, so ordering is assertable. */
 function fakePrisma(log: string[], opts: { fail?: boolean } = {}) {
