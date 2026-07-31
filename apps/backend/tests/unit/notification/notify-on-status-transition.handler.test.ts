@@ -340,8 +340,55 @@ describe('NotifyOnStatusTransitionHandler', () => {
     },
   );
 
-  it('refuses to notify a tenant who was never told, even with the opt-in', async () => {
+  it('notifies a CONFIRMED tenant that has no notice row at all', async () => {
+    // A ROUTINE service type requiring confirmation can only reach SCHEDULED once
+    // already CONFIRMED (execute-status-transition step 6b), while INSPECTION_NOTICE
+    // is only written on the move INTO SCHEDULED. So a routine tenant confirms via
+    // the portal while still AWAITING_INSPECTOR and has zero notice rows. Gating on
+    // the notice alone would refuse the very people who said they would be home.
     notificationRepo.existsByAppointmentAndTemplates.mockResolvedValue(false);
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment({
+        status: 'AWAITING_INSPECTOR',
+        rentalTenantConfirmationStatus: 'CONFIRMED',
+      }),
+      contact: makeContact(),
+      restrictions: [],
+    });
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'CANCELLED',
+      notifyRentalTenant: true,
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED', channel: 'EMAIL' }),
+    );
+  });
+
+  it('does not query for a notice when the tenant already confirmed', async () => {
+    // Confirmation is free to check; the query is the expensive arm.
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'CANCELLED',
+      notifyRentalTenant: true,
+    });
+
+    expect(notificationRepo.existsByAppointmentAndTemplates).not.toHaveBeenCalled();
+  });
+
+  it('refuses to notify a tenant who neither confirmed nor was ever told', async () => {
+    notificationRepo.existsByAppointmentAndTemplates.mockResolvedValue(false);
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment({ rentalTenantConfirmationStatus: 'PENDING' }),
+      contact: makeContact(),
+      restrictions: [],
+    });
 
     const handler = makeHandler();
     await handler.execute({
@@ -360,6 +407,11 @@ describe('NotifyOnStatusTransitionHandler', () => {
   });
 
   it('asks only about the notice family, never the cancellation codes', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment({ rentalTenantConfirmationStatus: 'PENDING' }),
+      contact: makeContact(),
+      restrictions: [],
+    });
     const handler = makeHandler();
     await handler.execute({
       appointmentId: 'appt-1',
@@ -473,8 +525,13 @@ describe('NotifyOnStatusTransitionHandler', () => {
     );
   });
 
-  it('logs when an explicit opt-in is discarded because no notice was ever sent', async () => {
+  it('logs when an explicit opt-in is discarded because the tenant knows nothing', async () => {
     notificationRepo.existsByAppointmentAndTemplates.mockResolvedValue(false);
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment({ rentalTenantConfirmationStatus: 'PENDING' }),
+      contact: makeContact(),
+      restrictions: [],
+    });
 
     const handler = makeHandler();
     await handler.execute({

@@ -10,9 +10,15 @@
  *
  * - `SCHEDULED` — INSPECTION_NOTICE goes out on the move into this status, so a
  *   scheduled appointment has been announced.
- * - `CONFIRMED` — the tenant acted on the notice, which only happens if they got
- *   it. Kept as a separate arm so an appointment reopened out of SCHEDULED after
- *   the tenant confirmed still offers the choice.
+ * - `CONFIRMED` — the tenant said they would be home. This is a first-class arm on
+ *   the server too, not a shortcut: a ROUTINE service type requiring confirmation
+ *   can only reach SCHEDULED once already confirmed, so a confirmed tenant may have
+ *   no notice row at all.
+ *
+ * Known under-offer: `reopen-for-reschedule` resets confirmation to PENDING and the
+ * status to DRAFT while the notice rows persist, so the server would honour an
+ * opt-in there but the UI will not offer it. Closing that needs the notice fact on
+ * the appointment payload; tracked as a follow-up rather than guessed at here.
  *
  * Deliberately NOT `rentalTenantConfirmationStatus === 'CONFIRMED'` alone: the
  * notice is sent regardless of confirmation, so requiring confirmation meant a

@@ -46,11 +46,18 @@ const AGENCY_CANCELLED_TEMPLATE_CODE = 'INSPECTION_CANCELLED_AGENCY';
  * What "the rental tenant already knows this inspection exists" means.
  *
  * The cancellation opt-in used to require `rentalTenantConfirmationStatus ===
- * 'CONFIRMED'`, which was too strict: INSPECTION_NOTICE goes out on the move to
- * SCHEDULED regardless of confirmation, so a tenant who was told the date but
- * never clicked confirm could NEVER be told it was called off — not even by an
- * explicit operator opt-in. Having been told is the fact that matters here;
- * confirming is a separate, stronger signal.
+ * 'CONFIRMED'` and nothing else, which was too strict: INSPECTION_NOTICE goes out
+ * on the move to SCHEDULED regardless of confirmation, so a tenant who was told
+ * the date but never clicked confirm could NEVER be told it was called off — not
+ * even by an explicit operator opt-in.
+ *
+ * This family is the second arm of the gate, not a replacement for the first:
+ * confirming can happen BEFORE any notice exists (routine flow, see the gate
+ * itself), so neither signal subsumes the other.
+ *
+ * Deliberately excludes the cancellation codes — a previous cancellation is not
+ * evidence the tenant knows about the current inspection — and the portal-link
+ * and reminder codes, which are covered by the confirmation arm in practice.
  */
 const RENTAL_TENANT_NOTICE_CODES = ['INSPECTION_NOTICE', 'INSPECTION_NOTICE_SMS'] as const;
 
@@ -138,9 +145,10 @@ export class NotifyOnStatusTransitionHandler {
     targetStatus: string;
     /**
      * Consulted ONLY for a CANCELLED target. The agency is always told; the rental
-     * tenant is told only on an explicit opt-in AND only when they had confirmed.
-     * Absent means "do not notify the tenant", which is what makes the system
-     * sweeps (overdue cancellation) agency-only without passing anything.
+     * tenant is told only on an explicit opt-in AND only when they already know
+     * the inspection exists — they confirmed it, or a notice was sent. Absent means
+     * "do not notify the tenant", which is what makes the system sweeps (overdue
+     * cancellation) agency-only without passing anything.
      */
     notifyRentalTenant?: boolean;
   }): Promise<void> {
@@ -222,23 +230,34 @@ export class NotifyOnStatusTransitionHandler {
         serviceTypeName: result.serviceTypeName ?? null,
       });
 
-      // The UI only offers the checkbox where a notice plausibly went out, but the
+      // The UI only offers the checkbox where the tenant plausibly knows, but the
       // rule lives here: the endpoint can be called directly, and only this side
-      // knows whether a notice actually exists.
-      const tenantWasTold =
+      // can check for a notice.
+      //
+      // Two arms, and both are needed. Confirming is checked FIRST because it is
+      // free and because it is the one a notice cannot imply: a ROUTINE service
+      // type that requires confirmation can only move AWAITING_INSPECTOR ->
+      // SCHEDULED once the tenant has already confirmed (see step 6b of
+      // execute-status-transition), while INSPECTION_NOTICE is only written on the
+      // move INTO SCHEDULED. So a routine tenant confirms via the portal link while
+      // the appointment is still AWAITING_INSPECTOR and has no notice row at all.
+      // Gating on the notice alone would refuse to tell the very people who
+      // explicitly said they would be home.
+      const tenantKnowsAboutInspection =
         input.notifyRentalTenant === true &&
-        (await this.notificationRepo.existsByAppointmentAndTemplates(
-          appointment.id,
-          appointment.tenantId,
-          RENTAL_TENANT_NOTICE_CODES,
-        ));
-      if (!tenantWasTold) {
+        (appointment.rentalTenantConfirmationStatus === 'CONFIRMED' ||
+          (await this.notificationRepo.existsByAppointmentAndTemplates(
+            appointment.id,
+            appointment.tenantId,
+            RENTAL_TENANT_NOTICE_CODES,
+          )));
+      if (!tenantKnowsAboutInspection) {
         if (input.notifyRentalTenant === true) {
           // An explicit request we refuse must leave a trace; otherwise a direct
           // API caller gets a 200 and debugs a notification that never existed.
           this.logger?.info(
             { appointmentId: appointment.id },
-            'Rental-tenant opt-in discarded: no inspection notice was ever sent for this appointment',
+            'Rental-tenant opt-in discarded: the tenant neither confirmed nor was ever sent an inspection notice',
           );
         }
         return;
