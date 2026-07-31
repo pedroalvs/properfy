@@ -294,16 +294,19 @@ When you (Claude Code) implement or modify code in this project:
 
 ### Git worktrees (mandatory for every implementation task)
 
-For every task that involves writing or modifying code, you MUST use the `superpowers:using-git-worktrees` skill before starting any implementation. This is not optional.
+For every task that involves writing or modifying code, you MUST work in an isolated worktree before starting any implementation. This is not optional.
 
 The expected flow is:
-1. Invoke `superpowers:using-git-worktrees` to create an isolated worktree from `develop`
-2. Do all implementation work inside that worktree
-3. Run verification (lint, typecheck, tests) inside the worktree
-4. When work is complete, commit and push the feature branch
-5. Open a PR targeting `develop` — do this unless the user explicitly says not to
+1. Create the worktree yourself with the native `EnterWorktree` tool when available (single cheap call, no heavy output). Only fall back to the `superpowers:using-git-worktrees` skill's manual `git worktree add` path if no native tool exists.
+2. **Delegate dependency install + baseline sanity check to a subagent on a cheap model** — do not run `pnpm install` or any baseline check yourself in the main loop. Spawn a foreground `Agent` with `model: "haiku"` and an explicit prompt: cd into the absolute worktree path, run `pnpm install`, then `pnpm --filter backend exec prisma generate` (backend tests fail without this — `pnpm install` alone does not run it) and `pnpm --filter @properfy/shared build` (web/pwa typecheck imports the built dist, not source), then run `pnpm --filter <affected-workspace(s)> typecheck` and `pnpm --filter <affected-workspace(s)> lint`. **Do not run the full monorepo test suite as a baseline** — `develop` is already CI-gated green on every merge, so a fresh worktree rarely needs the full ~11+ minute test pass just to prove it's clean; typecheck+lint catches drift cheaply. Instruct the subagent to return only a short pass/fail summary (a few lines), never raw install/test logs.
+3. Do all implementation work inside that worktree.
+4. Run full verification (lint, typecheck, tests scoped to the touched workspace(s)) inside the worktree before opening a PR — this is the real correctness gate and must actually run. If the relevant suite is large (e.g. backend integration tests), prefer running it via a subagent that reports a condensed pass/fail summary back, rather than letting hundreds of lines of test output land directly in the main loop.
+5. When work is complete, commit and push the feature branch.
+6. Open a PR targeting `develop` — do this unless the user explicitly says not to.
 
 Skip worktrees only for: pure documentation edits, CLAUDE.md updates, or tasks the user explicitly scopes as "quick fix, no PR needed".
+
+**Why delegate setup:** worktree creation is cheap, but `pnpm install` output and especially a full-suite baseline test run are not — routing them through a cheap subagent keeps that stdout out of the primary (expensive) model's token budget entirely, instead of paying for it on every single task before any real work happens.
 
 ### Plan mode
 
