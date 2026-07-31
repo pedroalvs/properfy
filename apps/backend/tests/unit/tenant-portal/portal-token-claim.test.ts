@@ -340,6 +340,12 @@ describe('JoinGroupUseCase atomic token claim', () => {
         doneCheckedAt: null,
         updatedAt: new Date(),
       }),
+      // The join now composes the hops into its own transaction, so it drives
+      // the two-phase entry point rather than execute().
+      executeInTransaction: vi.fn().mockResolvedValue({
+        output: { id: 'appt-1', status: 'SCHEDULED' },
+        runAfterCommit: vi.fn().mockResolvedValue(undefined),
+      }),
     };
     const useCase = new JoinGroupUseCase(
       appointmentRepo as any,

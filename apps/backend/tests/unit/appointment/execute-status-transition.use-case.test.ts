@@ -217,7 +217,8 @@ describe('ExecuteStatusTransitionUseCase – valid transitions', () => {
     });
     expect(result.status).toBe('AWAITING_INSPECTOR');
     expect(result.previousStatus).toBe('DRAFT');
-    expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', expect.objectContaining({ status: 'AWAITING_INSPECTOR' }));
+    // Trailing `undefined`: no caller transaction, so the write is unwrapped.
+    expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', expect.objectContaining({ status: 'AWAITING_INSPECTOR' }), undefined);
   });
 
   it('DRAFT → REJECTED with reason (AM actor)', async () => {
@@ -602,6 +603,7 @@ describe('ExecuteStatusTransitionUseCase – side effects', () => {
       'appt-1',
       'tenant-1',
       expect.objectContaining({ reason: 'Agency request' }),
+      undefined,
     );
   });
 
@@ -678,6 +680,7 @@ describe('ExecuteStatusTransitionUseCase – side effects', () => {
       'appt-1',
       'tenant-1',
       expect.objectContaining({ inspectorId: 'insp-99' }),
+      undefined,
     );
   });
 
@@ -702,6 +705,7 @@ describe('ExecuteStatusTransitionUseCase – side effects', () => {
         doneCheckedByUserId: 'checker-1',
         doneCheckedAt: expect.any(Date),
       }),
+      undefined,
     );
   });
 
@@ -730,6 +734,7 @@ describe('ExecuteStatusTransitionUseCase – side effects', () => {
         doneCheckedByUserId: null,
         doneCheckedAt: null,
       }),
+      undefined,
     );
   });
 
@@ -897,6 +902,7 @@ describe('ExecuteStatusTransitionUseCase – doneMarkedByUserId', () => {
       expect.objectContaining({
         doneMarkedByUserId: 'insp-user-1',
       }),
+      undefined,
     );
   });
 
@@ -920,6 +926,7 @@ describe('ExecuteStatusTransitionUseCase – doneMarkedByUserId', () => {
         doneMarkedByUserId: 'op-user-1',
         doneCheckedByUserId: 'checker-1',
       }),
+      undefined,
     );
   });
 
@@ -948,6 +955,7 @@ describe('ExecuteStatusTransitionUseCase – doneMarkedByUserId', () => {
         doneCheckedByUserId: null,
         doneCheckedAt: null,
       }),
+      undefined,
     );
   });
 
@@ -969,6 +977,7 @@ describe('ExecuteStatusTransitionUseCase – doneMarkedByUserId', () => {
       expect.not.objectContaining({
         doneMarkedByUserId: expect.anything(),
       }),
+      undefined,
     );
   });
 });
@@ -1803,6 +1812,7 @@ describe('ExecuteStatusTransitionUseCase – compound DONE + crossCheckByUserId'
         doneCheckedByUserId: 'checker-1',
         doneCheckedAt: expect.any(Date),
       }),
+      undefined,
     );
     // Financial side effects should be triggered
     expect(onDoneHandler.execute).toHaveBeenCalledWith({ appointmentId: 'appt-1' });

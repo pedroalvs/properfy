@@ -15,6 +15,9 @@ import {
   PortalGroupSlotUnavailableError,
 } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
 
+/** Stand-in for a Prisma.TransactionClient — identity is all these tests need. */
+const TX = { __sentinel: 'tx' } as never;
+
 function makeAppointment(overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {}) {
   return new AppointmentEntity({
     id: 'appt-1',
@@ -118,7 +121,13 @@ describe('JoinGroupUseCase', () => {
   let activityRepo: { save: ReturnType<typeof vi.fn> };
   let tokenRepo: { tryClaim: ReturnType<typeof vi.fn>; releaseClaim: ReturnType<typeof vi.fn> };
   let auditService: { log: ReturnType<typeof vi.fn> };
-  let statusTransition: { execute: ReturnType<typeof vi.fn> };
+  let statusTransition: {
+    execute: ReturnType<typeof vi.fn>;
+    executeInTransaction: ReturnType<typeof vi.fn>;
+  };
+  let prisma: { $transaction: ReturnType<typeof vi.fn> };
+  let committed: boolean;
+  let order: string[];
   let notificationHandler: { execute: ReturnType<typeof vi.fn> };
   let cancelEmptyGroup: { cancelIfDead: ReturnType<typeof vi.fn> };
   let cycleService: {
@@ -149,7 +158,13 @@ describe('JoinGroupUseCase', () => {
         tenantIds: ['tenant-1'],
         appointments: [],
       }),
-      findPortalEligibleSlots: vi.fn().mockResolvedValue([makeEligibleMember()]),
+      // Honours excludeGroupId like the real SQL does (`AND sg.id <> $exclude`
+      // inside the eligible_groups CTE). A mock that always returns the target
+      // group hides the fact that an appointment already IN that group can never
+      // see it offered.
+      findPortalEligibleSlots: vi.fn(async (params: { excludeGroupId?: string | null }) =>
+        params.excludeGroupId === 'sg-new' ? [] : [makeEligibleMember()],
+      ),
       reservePortalWindow: vi.fn().mockResolvedValue({ ok: true }),
       hasPortalMemberSlot: vi.fn().mockResolvedValue(true),
       decrementConfirmedCount: vi.fn().mockResolvedValue(undefined),
@@ -158,16 +173,31 @@ describe('JoinGroupUseCase', () => {
     activityRepo = { save: vi.fn().mockResolvedValue(undefined) };
     tokenRepo = { tryClaim: vi.fn().mockResolvedValue(true), releaseClaim: vi.fn().mockResolvedValue(undefined) };
     auditService = { log: vi.fn().mockResolvedValue(undefined) };
+    const transitionOutput = {
+      id: 'appt-1',
+      status: 'SCHEDULED',
+      previousStatus: 'AWAITING_INSPECTOR',
+      reason: null,
+      inspectorId: 'insp-1',
+      doneCheckedByUserId: null,
+      doneCheckedAt: null,
+      updatedAt: new Date(),
+    };
     statusTransition = {
-      execute: vi.fn().mockResolvedValue({
-        id: 'appt-1',
-        status: 'SCHEDULED',
-        previousStatus: 'AWAITING_INSPECTOR',
-        reason: null,
-        inspectorId: 'insp-1',
-        doneCheckedByUserId: null,
-        doneCheckedAt: null,
-        updatedAt: new Date(),
+      execute: vi.fn().mockResolvedValue(transitionOutput),
+      executeInTransaction: vi.fn().mockResolvedValue({
+        output: transitionOutput,
+        runAfterCommit: vi.fn().mockResolvedValue(undefined),
+      }),
+    };
+    committed = false;
+    order = [];
+    prisma = {
+      $transaction: vi.fn(async (cb: (tx: unknown) => Promise<unknown>) => {
+        const out = await cb(TX);
+        committed = true;
+        order.push('commit');
+        return out;
       }),
     };
     notificationHandler = { execute: vi.fn().mockResolvedValue(undefined) };
@@ -191,6 +221,23 @@ describe('JoinGroupUseCase', () => {
       logger as any,
     );
   });
+
+  /** The wired-for-production shape: with a client, the join owns a transaction. */
+  function useCaseWithPrisma(): JoinGroupUseCase {
+    return new JoinGroupUseCase(
+      appointmentRepo as any,
+      serviceGroupRepo as any,
+      activityRepo as any,
+      tokenRepo as any,
+      auditService as any,
+      statusTransition as any,
+      notificationHandler,
+      cancelEmptyGroup,
+      cycleService as any,
+      logger as any,
+      prisma as any,
+    );
+  }
 
   // The tenant moving groups can leave the old one with nothing to execute. The
   // transition event carries the NEW group id, so the empty-group subscriber cannot
@@ -264,8 +311,8 @@ describe('JoinGroupUseCase', () => {
     it('climbs out via AWAITING_INSPECTOR, since REJECTED → SCHEDULED does not exist', async () => {
       const result = await useCase.execute(makeInput());
 
-      expect(statusTransition.execute).toHaveBeenCalledTimes(2);
-      expect(statusTransition.execute).toHaveBeenNthCalledWith(
+      expect(statusTransition.executeInTransaction).toHaveBeenCalledTimes(2);
+      expect(statusTransition.executeInTransaction).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({
           targetStatus: 'AWAITING_INSPECTOR',
@@ -273,10 +320,12 @@ describe('JoinGroupUseCase', () => {
           reason: expect.any(String),
           actor: expect.objectContaining({ role: 'SYS' }),
         }),
+        undefined,
       );
-      expect(statusTransition.execute).toHaveBeenNthCalledWith(
+      expect(statusTransition.executeInTransaction).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({ targetStatus: 'SCHEDULED' }),
+        undefined,
       );
       expect(result.appointmentStatus).toBe('SCHEDULED');
     });
@@ -287,9 +336,9 @@ describe('JoinGroupUseCase', () => {
         order.push('reserve');
         return { ok: true };
       });
-      statusTransition.execute.mockImplementation(async () => {
+      statusTransition.executeInTransaction.mockImplementation(async () => {
         order.push('transition');
-        return { status: 'SCHEDULED' };
+        return { output: { status: 'SCHEDULED' }, runAfterCommit: async () => {} };
       });
 
       await useCase.execute(makeInput());
@@ -318,10 +367,11 @@ describe('JoinGroupUseCase', () => {
 
       const result = await useCase.execute(makeInput());
 
-      expect(statusTransition.execute).toHaveBeenCalledTimes(2);
-      expect(statusTransition.execute).toHaveBeenNthCalledWith(
+      expect(statusTransition.executeInTransaction).toHaveBeenCalledTimes(2);
+      expect(statusTransition.executeInTransaction).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({ targetStatus: 'AWAITING_INSPECTOR' }),
+        undefined,
       );
       expect(result.appointmentStatus).toBe('SCHEDULED');
     });
@@ -368,9 +418,203 @@ describe('JoinGroupUseCase', () => {
 
       await useCase.execute(makeInput());
 
-      expect(statusTransition.execute).toHaveBeenCalledTimes(1);
-      expect(statusTransition.execute).toHaveBeenCalledWith(
+      expect(statusTransition.executeInTransaction).toHaveBeenCalledTimes(1);
+      expect(statusTransition.executeInTransaction).toHaveBeenCalledWith(
         expect.objectContaining({ targetStatus: 'SCHEDULED' }),
+        undefined,
+      );
+    });
+  });
+
+  describe('atomicity', () => {
+    it('runs the reservation, the counters and the hops in one transaction', async () => {
+      // `order` is the shared recorder from beforeEach — the fake $transaction
+      // appends 'commit' to it, so shadowing it here would hide the commit.
+      serviceGroupRepo.reservePortalWindow.mockImplementation(async (_p: unknown, tx: unknown) => {
+        order.push(tx === TX ? 'reserve:tx' : 'reserve:NO-TX');
+        return { ok: true };
+      });
+      serviceGroupRepo.incrementConfirmedCount.mockImplementation(async (_id: string, tx: unknown) => {
+        order.push(tx === TX ? 'increment:tx' : 'increment:NO-TX');
+      });
+      statusTransition.executeInTransaction.mockImplementation(async (_i: unknown, tx: unknown) => {
+        order.push(tx === TX ? 'transition:tx' : 'transition:NO-TX');
+        return { output: { status: 'SCHEDULED' }, runAfterCommit: async () => { order.push('effects'); } };
+      });
+
+      await useCaseWithPrisma().execute(makeInput());
+
+      // Everything that writes shares the transaction; the effects come after it.
+      expect(order).toEqual(['reserve:tx', 'increment:tx', 'transition:tx', 'commit', 'effects']);
+    });
+
+    it('leaves nothing behind when a hop fails — no commit, no effects', async () => {
+      statusTransition.executeInTransaction.mockRejectedValue(new Error('transition exploded'));
+
+      await expect(useCaseWithPrisma().execute(makeInput())).rejects.toThrow('transition exploded');
+
+      // The fake transaction only records a commit when its callback resolves.
+      expect(committed).toBe(false);
+      expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
+    });
+
+    it('increments the new group inside the transaction that already locked it', async () => {
+      // incrementConfirmedCount used to run after the transition, outside the
+      // reservation's transaction, so a failed hop left the counters skewed.
+      await useCaseWithPrisma().execute(makeInput());
+
+      expect(serviceGroupRepo.incrementConfirmedCount).toHaveBeenCalledWith('sg-new', TX);
+    });
+  });
+
+  // A torn join leaves the appointment already holding the slot. The retry then
+  // hit "this slot is unavailable" — false, and unrecoverable for the tenant.
+  describe('resuming an interrupted join', () => {
+    // Relative, not pinned: the resume path enforces `scheduledDate > today`, so a
+    // hard-coded date silently rots into "past" and takes these tests with it.
+    const FUTURE = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
+    const SAME_WINDOW = {
+      serviceGroupId: 'sg-new',
+      scheduledDate: new Date(FUTURE),
+      timeSlotStart: '13:00',
+      timeSlotEnd: '15:00',
+    };
+    const resumeInput = () => makeInput({ scheduledDate: FUTURE });
+
+    it('completes the missing hops instead of claiming the slot is unavailable', async () => {
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ ...SAME_WINDOW, status: 'REJECTED' }),
+        contact: null,
+        restrictions: [],
+      });
+
+      const result = await useCaseWithPrisma().execute(resumeInput());
+
+      expect(result.appointmentStatus).toBe('SCHEDULED');
+      // The slot is already held — re-reserving it would double-count.
+      expect(serviceGroupRepo.reservePortalWindow).not.toHaveBeenCalled();
+      expect(serviceGroupRepo.incrementConfirmedCount).not.toHaveBeenCalled();
+    });
+
+    it('records the resumed join so it is distinguishable in the activity log', async () => {
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ ...SAME_WINDOW, status: 'REJECTED' }),
+        contact: null,
+        restrictions: [],
+      });
+
+      await useCaseWithPrisma().execute(resumeInput());
+
+      expect(activityRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'GROUP_JOIN',
+          newValuesJson: expect.objectContaining({ resumed: true }),
+        }),
+      );
+    });
+
+    it('is idempotent when the join had actually completed', async () => {
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ ...SAME_WINDOW, status: 'SCHEDULED' }),
+        contact: null,
+        restrictions: [],
+      });
+
+      const result = await useCaseWithPrisma().execute(resumeInput());
+
+      expect(result.appointmentStatus).toBe('SCHEDULED');
+      expect(statusTransition.executeInTransaction).not.toHaveBeenCalled();
+      expect(serviceGroupRepo.reservePortalWindow).not.toHaveBeenCalled();
+    });
+
+    it('is not blocked by the offer list, which by construction excludes its own group', async () => {
+      // The regression this guards: findPortalEligibleSlots is called with
+      // excludeGroupId = the appointment's group, so for a resume that IS the
+      // target group and the offer list comes back empty. Branching after that
+      // gate made the whole resume path unreachable in production while the
+      // tests passed against a mock that ignored excludeGroupId.
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ ...SAME_WINDOW, status: 'REJECTED' }),
+        contact: null,
+        restrictions: [],
+      });
+
+      const result = await useCaseWithPrisma().execute(resumeInput());
+
+      expect(result.appointmentStatus).toBe('SCHEDULED');
+      expect(serviceGroupRepo.findPortalEligibleSlots).not.toHaveBeenCalled();
+    });
+
+    it('refuses to resume onto a window that has already passed', async () => {
+      // The resume path skips the offer-list and slot gates, and BOTH of those
+      // enforce `scheduled_date > today`. Without restoring that here, replaying
+      // an old request would move a past-dated appointment to SCHEDULED — the
+      // past-date block is universal in this project.
+      const past = {
+        serviceGroupId: 'sg-new',
+        scheduledDate: new Date('2020-01-15'),
+        timeSlotStart: '13:00',
+        timeSlotEnd: '15:00',
+      };
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ ...past, status: 'REJECTED' }),
+        contact: null,
+        restrictions: [],
+      });
+
+      await expect(
+        useCaseWithPrisma().execute(makeInput({ scheduledDate: '2020-01-15' })),
+      ).rejects.toThrow(PortalGroupSlotUnavailableError);
+
+      expect(statusTransition.executeInTransaction).not.toHaveBeenCalled();
+    });
+
+    it('still claims the link, so concurrent replays serialize', async () => {
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ ...SAME_WINDOW, status: 'REJECTED' }),
+        contact: null,
+        restrictions: [],
+      });
+      tokenRepo.tryClaim.mockResolvedValue(false);
+
+      await expect(useCaseWithPrisma().execute(resumeInput())).rejects.toThrow(
+        PortalTokenAlreadyUsedError,
+      );
+      // The claim is someone else's — releasing it would hand them a link we do
+      // not own.
+      expect(tokenRepo.releaseClaim).not.toHaveBeenCalled();
+    });
+
+    it('refuses when an operator moved it out of the group after the first read', async () => {
+      appointmentRepo.findById
+        .mockResolvedValueOnce({
+          appointment: makeAppointment({ ...SAME_WINDOW, status: 'REJECTED' }),
+          contact: null,
+          restrictions: [],
+        })
+        .mockResolvedValue({
+          appointment: makeAppointment({ ...SAME_WINDOW, serviceGroupId: 'sg-other', status: 'REJECTED' }),
+          contact: null,
+          restrictions: [],
+        });
+
+      await expect(useCaseWithPrisma().execute(resumeInput())).rejects.toThrow(
+        PortalGroupSlotUnavailableError,
+      );
+      expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
+    });
+
+    it('still refuses a different window within the tenant\'s own group', async () => {
+      // Changing time inside your own group is genuinely not offered — the picker
+      // excludes it — so the error is truthful here.
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ ...SAME_WINDOW, timeSlotStart: '09:00', timeSlotEnd: '11:00' }),
+        contact: null,
+        restrictions: [],
+      });
+
+      await expect(useCaseWithPrisma().execute(resumeInput())).rejects.toThrow(
+        PortalGroupSlotUnavailableError,
       );
     });
   });
@@ -416,21 +660,6 @@ describe('JoinGroupUseCase', () => {
     });
   });
 
-  describe('reservation committed but the transition failed', () => {
-    it('logs the inconsistent state instead of letting it vanish into the 500', async () => {
-      // reservePortalWindow commits in its own transaction, so this leaves the
-      // appointment in the new group with a stale status and nothing can roll
-      // it back from here.
-      statusTransition.execute.mockRejectedValue(new Error('transition exploded'));
-
-      await expect(useCase.execute(makeInput())).rejects.toThrow('transition exploded');
-
-      expect(logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ appointmentId: 'appt-1', groupId: 'sg-new' }),
-        expect.stringContaining('needs manual repair'),
-      );
-    });
-  });
 
   it('should throw PortalAppointmentInactiveError for finalized appointments', async () => {
     // REJECTED is deliberately absent: a tenant who declined can still pick
@@ -618,13 +847,13 @@ describe('JoinGroupUseCase', () => {
       scheduledDate: '2026-06-02',
       timeSlotStart: '13:00', timeSlotEnd: '15:00',
       inspectorId: 'insp-1',
-    }));
+    }), undefined);
     expect(appointmentRepo.update).not.toHaveBeenCalled();
   });
 
   it('should increment confirmed_count of new group', async () => {
     await useCase.execute(makeInput());
-    expect(serviceGroupRepo.incrementConfirmedCount).toHaveBeenCalledWith('sg-new');
+    expect(serviceGroupRepo.incrementConfirmedCount).toHaveBeenCalledWith('sg-new', undefined);
   });
 
   it('should validate the selected slot tuple against group member appointments', async () => {
@@ -649,7 +878,7 @@ describe('JoinGroupUseCase', () => {
       restrictions: [],
     });
     await useCase.execute(makeInput());
-    expect(serviceGroupRepo.decrementConfirmedCount).toHaveBeenCalledWith('sg-old');
+    expect(serviceGroupRepo.decrementConfirmedCount).toHaveBeenCalledWith('sg-old', undefined);
   });
 
   it('should NOT decrement when appointment had no previous group', async () => {
@@ -683,11 +912,11 @@ describe('JoinGroupUseCase', () => {
 
   it('should call state transition with SYS actor when appointment is AWAITING_INSPECTOR', async () => {
     await useCase.execute(makeInput());
-    expect(statusTransition.execute).toHaveBeenCalledWith(expect.objectContaining({
+    expect(statusTransition.executeInTransaction).toHaveBeenCalledWith(expect.objectContaining({
       appointmentId: 'appt-1',
       targetStatus: 'SCHEDULED',
       actor: expect.objectContaining({ role: 'SYS' }),
-    }));
+    }), undefined);
   });
 
   // BUG-3 regression: SCHEDULED appointment switching group must NOT re-trigger the
@@ -700,7 +929,7 @@ describe('JoinGroupUseCase', () => {
       restrictions: [],
     });
     await useCase.execute(makeInput());
-    expect(statusTransition.execute).not.toHaveBeenCalled();
+    expect(statusTransition.executeInTransaction).not.toHaveBeenCalled();
   });
 
   it('should swallow notification failures', async () => {
@@ -712,7 +941,7 @@ describe('JoinGroupUseCase', () => {
     await useCase.execute(makeInput({ rentalTenantNote: 'Please ring bell' }));
     expect(serviceGroupRepo.reservePortalWindow).toHaveBeenCalledWith(expect.objectContaining({
       rentalTenantNote: 'Please ring bell',
-    }));
+    }), undefined);
   });
 
   describe('losing the capacity race', () => {
@@ -738,7 +967,7 @@ describe('JoinGroupUseCase', () => {
       // Detaching before the slot is held would strand the tenant in neither group.
       expect(serviceGroupRepo.decrementConfirmedCount).not.toHaveBeenCalled();
       expect(serviceGroupRepo.incrementConfirmedCount).not.toHaveBeenCalled();
-      expect(statusTransition.execute).not.toHaveBeenCalled();
+      expect(statusTransition.executeInTransaction).not.toHaveBeenCalled();
       expect(activityRepo.save).not.toHaveBeenCalled();
     });
 
@@ -768,7 +997,7 @@ describe('JoinGroupUseCase', () => {
 
       expect(serviceGroupRepo.incrementConfirmedCount).not.toHaveBeenCalled();
       expect(serviceGroupRepo.decrementConfirmedCount).not.toHaveBeenCalled();
-      expect(statusTransition.execute).not.toHaveBeenCalled();
+      expect(statusTransition.executeInTransaction).not.toHaveBeenCalled();
       expect(activityRepo.save).not.toHaveBeenCalled();
       expect(auditService.log).not.toHaveBeenCalled();
       expect(notificationHandler.execute).not.toHaveBeenCalled();

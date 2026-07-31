@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 import type { ServiceTypeFlowType as PrismaServiceTypeFlowType, ServiceTypeStatus as PrismaServiceTypeStatus } from '@prisma/client';
 import { ServiceTypeEntity } from '../domain/service-type.entity';
 import type {
@@ -37,8 +37,10 @@ function mapToEntity(row: {
 export class PrismaServiceTypeRepository implements IServiceTypeRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async findById(id: string): Promise<ServiceTypeEntity | null> {
-    const row = await this.prisma.serviceType.findFirst({ where: { id, status: 'ACTIVE' } });
+  async findById(id: string, tx?: Prisma.TransactionClient): Promise<ServiceTypeEntity | null> {
+    // Reading on the global client while the caller pins a transaction connection
+    // borrows a second one from a pool that caps around 15 under PgBouncer.
+    const row = await (tx ?? this.prisma).serviceType.findFirst({ where: { id, status: 'ACTIVE' } });
     return row ? mapToEntity(row) : null;
   }
 

@@ -940,6 +940,7 @@ export function createContainer(logger: Logger): AppContainer {
     cancelEmptyGroupService,
     confirmationCycleService,
     logger,
+    prisma,
   );
 
   // 026 — Add appointments to existing group + read-only eligibility preview.

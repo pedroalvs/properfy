@@ -1,3 +1,4 @@
+import type { PrismaClient, Prisma } from '@prisma/client';
 import { SYSTEM_ACTOR } from '../../../../shared/domain/constants';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { IServiceGroupRepository } from '../../../service-group/domain/service-group.repository';
@@ -10,6 +11,7 @@ import type { AppointmentEntity } from '../../../appointment/domain/appointment.
 import type { ServiceGroupEntity } from '../../../service-group/domain/service-group.entity';
 import { computeWindowAvailability } from '../../../service-group/domain/portal-slot-capacity';
 import { isPortalDeadStatus } from '../../domain/portal-statuses';
+import { runInTransaction, type TransactionalResult } from '../../../../shared/application/unit-of-work';
 import { ConfirmationCycleNotFoundError } from '../../../appointment/domain/confirmation-cycle.errors';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import {
@@ -23,6 +25,10 @@ import {
 
 interface IStatusTransitionUseCase {
   execute(input: ExecuteStatusTransitionInput): Promise<ExecuteStatusTransitionOutput>;
+  executeInTransaction(
+    input: ExecuteStatusTransitionInput,
+    tx?: Prisma.TransactionClient,
+  ): Promise<TransactionalResult<ExecuteStatusTransitionOutput>>;
 }
 
 interface INotificationHandler {
@@ -89,6 +95,8 @@ export class JoinGroupUseCase {
     /** Optional: keeps the confirmation cycle in step with the slot just taken. */
     private readonly cycleService?: IConfirmationCycleService,
     private readonly logger?: Logger,
+    /** When wired, the join owns a transaction spanning the reservation and the hops. */
+    private readonly prisma?: PrismaClient,
   ) {}
 
   /**
@@ -133,9 +141,31 @@ export class JoinGroupUseCase {
     if (!appointment.propertyId || !appointment.serviceTypeId) {
       throw new PortalGroupSlotUnavailableError();
     }
-    // The appointment's own group is never a valid change-time target.
+    // Already in the target group — two opposite cases, and the branch has to
+    // happen HERE, before the offer-list gates below. Those gates call
+    // `findPortalEligibleSlots` with `excludeGroupId: appointment.serviceGroupId`,
+    // which for this case IS the target group, so it comes back empty and
+    // `isOfferedWindow` fails. Falling through would throw "slot unavailable" for
+    // an appointment that demonstrably holds that slot.
+    //
+    // Skipping those gates is sound precisely because the appointment already
+    // occupies the window: capacity was accounted for when it was reserved, and
+    // its own persisted schedule is a stricter check than an offer list that by
+    // construction can never contain this group.
     if (appointment.serviceGroupId === group.id) {
-      throw new PortalGroupSlotUnavailableError();
+      if (!this.matchesRequestedWindow(appointment, input)) {
+        // Changing time *within* your own group is genuinely not offered.
+        throw new PortalGroupSlotUnavailableError();
+      }
+      // Restores what the skipped gates were providing: both
+      // `findPortalEligibleSlots` and `hasPortalMemberSlot` require
+      // `scheduled_date > today`, so without this a replayed request could move a
+      // long-past appointment to SCHEDULED. Same comparison as those queries, so
+      // "resumable" and "offerable" cannot drift apart.
+      if (input.scheduledDate <= new Date().toISOString().slice(0, 10)) {
+        throw new PortalGroupSlotUnavailableError();
+      }
+      return this.claimAndResume(input, group, group.assignedInspectorId, assignedInspectorName);
     }
 
     const now = new Date();
@@ -225,6 +255,204 @@ export class JoinGroupUseCase {
     };
   }
 
+  /**
+   * Claims the link and finishes a join whose slot is already held.
+   *
+   * NOT reachable by a replay of a completed join: that left `used_at` set and
+   * `tryClaim` requires it null, so a replay stops at the claim with
+   * `PortalTokenAlreadyUsedError`. What actually gets here is a join whose slot
+   * was reserved but whose status never caught up, and whose error path released
+   * the claim: rows torn before this PR made the reservation and the hops
+   * atomic, and joins whose transaction committed but whose after-commit effect
+   * flush then threw. The tenant holds the slot in both.
+   *
+   * The claim still runs: it serialises concurrent replays exactly as the normal
+   * path does. The status is re-read under it, because the entity the caller
+   * validated was read before the claim and a decline can land in between.
+   */
+  private async claimAndResume(
+    input: JoinGroupInput,
+    group: ServiceGroupEntity,
+    inspectorId: string,
+    assignedInspectorName: string,
+  ): Promise<JoinGroupOutput> {
+    const claimed = await this.tokenRepo.tryClaim(input.tokenId, input.appointmentId);
+    if (!claimed) {
+      throw new PortalTokenAlreadyUsedError();
+    }
+
+    try {
+      const fresh = await this.appointmentRepo.findById(input.appointmentId, null);
+      if (!fresh || isPortalDeadStatus(fresh.appointment.status)) {
+        throw new PortalAppointmentInactiveError();
+      }
+      // Re-checked against the fresh row: an operator may have moved it out of
+      // the group, or off the window, since the read above.
+      if (
+        fresh.appointment.serviceGroupId !== group.id ||
+        !this.matchesRequestedWindow(fresh.appointment, input)
+      ) {
+        throw new PortalGroupSlotUnavailableError();
+      }
+      await this.resumeJoin(input, fresh.appointment, group, assignedInspectorName);
+    } catch (error) {
+      await this.releaseClaimQuietly(input);
+      throw error;
+    }
+
+    return {
+      scheduledDate: input.scheduledDate,
+      timeSlotStart: input.timeSlotStart,
+      timeSlotEnd: input.timeSlotEnd,
+      rentalTenantConfirmationStatus: 'CONFIRMED',
+      appointmentStatus: 'SCHEDULED',
+      inspector: { id: inspectorId, name: assignedInspectorName },
+    };
+  }
+
+  /**
+   * Brings the confirmation cycle onto the slot just taken.
+   *
+   * `reservePortalWindow` writes `rental_tenant_confirmation_status` as a raw
+   * column write, so without this the cycle row still reads PENDING — or
+   * UNAVAILABLE, after a decline — while the appointment column reads CONFIRMED.
+   *
+   * Deliberately outside the transaction and best-effort: an appointment
+   * predating the cycle feature simply has none.
+   */
+  private async realignCycle(
+    input: JoinGroupInput,
+    appointment: AppointmentEntity,
+    group: ServiceGroupEntity,
+  ): Promise<void> {
+    if (!this.cycleService) return;
+    try {
+      await this.cycleService.realignActiveCycleSchedule(
+        input.appointmentId,
+        appointment.tenantId,
+        new Date(input.scheduledDate),
+        `${input.timeSlotStart}-${input.timeSlotEnd}`,
+      );
+      await this.cycleService.confirm(
+        input.appointmentId,
+        appointment.tenantId,
+        'RENTAL_TENANT_PORTAL',
+        input.tokenId,
+      );
+    } catch (err) {
+      // Only "there is no cycle" is expected here. Everything else (a DB failure
+      // mid-confirm) leaves the cycle pinned to the old date and status while the
+      // appointment column reads CONFIRMED, which later portal-link decisions
+      // read — a divergence that must not be silent.
+      if (!(err instanceof ConfirmationCycleNotFoundError)) {
+        this.logger?.error(
+          { err, appointmentId: input.appointmentId, groupId: group.id },
+          'Confirmation cycle not realigned after a portal group join; cycle and appointment status may diverge',
+        );
+      }
+    }
+  }
+
+  /** Does the appointment already sit on exactly the window being requested? */
+  private matchesRequestedWindow(appointment: AppointmentEntity, input: JoinGroupInput): boolean {
+    return (
+      appointment.scheduledDate.toISOString().slice(0, 10) === input.scheduledDate &&
+      appointment.timeSlotStart === input.timeSlotStart &&
+      appointment.timeSlotEnd === input.timeSlotEnd
+    );
+  }
+
+  /**
+   * Finishes a join whose slot was already reserved.
+   *
+   * Reachable two ways: a genuine replay whose response was lost in flight, and a
+   * join torn by a failure between the reservation and the hops. The second is no
+   * longer producible now that both share a transaction, but rows torn before
+   * that still exist and would otherwise be told "this slot is unavailable" —
+   * false, and with no way out for the tenant.
+   *
+   * The reservation and both counters are skipped. For a replay that is exactly
+   * right — the slot is held and was counted on the original join.
+   *
+   * For a row torn BEFORE this PR the new group was never incremented (the old
+   * code incremented after the hops, which is what failed), so resuming leaves
+   * its `confirmed_count` one short. Deliberately not repaired: the column is
+   * display/reporting only — portal capacity comes from
+   * `computeWindowAvailability` over the member rows, and `cancelIfDead` judges
+   * member rows too — so an off-by-one misreports a number without affecting any
+   * booking decision. Incrementing here would instead double-count on every
+   * resume, which is the worse error. Several flows (accept-offer,
+   * change-group-inspector, the unconfirmed sweep) recompute the count wholesale,
+   * so legacy under-counts also self-heal there.
+   */
+  private async resumeJoin(
+    input: JoinGroupInput,
+    appointment: AppointmentEntity,
+    group: ServiceGroupEntity,
+    assignedInspectorName: string,
+  ): Promise<void> {
+    if (appointment.status !== 'SCHEDULED') {
+      await runInTransaction(this.prisma, async ({ tx, defer }) => {
+        if (appointment.status === 'REJECTED') {
+          const hop = await this.statusTransition.executeInTransaction({
+            appointmentId: input.appointmentId,
+            targetStatus: 'AWAITING_INSPECTOR',
+            reason: REJOIN_RECOVERY_REASON,
+            actor: { ...SYSTEM_ACTOR, tenantId: appointment.tenantId },
+          }, tx);
+          defer(hop.runAfterCommit);
+        }
+        const hop = await this.statusTransition.executeInTransaction({
+          appointmentId: input.appointmentId,
+          targetStatus: 'SCHEDULED',
+          reason: `Tenant joined service group ${group.id} via portal`,
+          actor: { ...SYSTEM_ACTOR, tenantId: appointment.tenantId },
+        }, tx);
+        defer(hop.runAfterCommit);
+      });
+    }
+
+    await this.realignCycle(input, appointment, group);
+
+    const activity = new RentalTenantPortalActivityEntity({
+      id: crypto.randomUUID(),
+      appointmentId: input.appointmentId,
+      rentalTenantPortalTokenId: input.tokenId,
+      action: 'GROUP_JOIN',
+      previousValuesJson: { serviceGroupId: group.id, status: appointment.status },
+      newValuesJson: {
+        serviceGroupId: group.id,
+        scheduledDate: input.scheduledDate,
+        timeSlot: `${input.timeSlotStart}-${input.timeSlotEnd}`,
+        rentalTenantConfirmationStatus: 'CONFIRMED',
+        // Distinguishes a completion from a fresh join in the activity log.
+        resumed: true,
+      },
+      ipAddress: input.ipAddress,
+      userAgent: input.userAgent,
+      createdAt: new Date(),
+    });
+    await this.activityRepo.save(activity);
+
+    this.auditService.log({
+      action: 'rental_tenant_portal.group_joined',
+      actorType: 'ANONYMOUS',
+      entityType: 'Appointment',
+      entityId: input.appointmentId,
+      tenantId: appointment.tenantId,
+      before: { serviceGroupId: group.id, status: appointment.status },
+      after: {
+        serviceGroupId: group.id,
+        scheduledDate: input.scheduledDate,
+        timeSlotStart: input.timeSlotStart,
+        timeSlotEnd: input.timeSlotEnd,
+        rentalTenantConfirmationStatus: 'CONFIRMED',
+      },
+      metadata: { groupId: group.id, resumed: true, inspectorName: assignedInspectorName },
+      ipAddress: input.ipAddress ?? undefined,
+    });
+  }
+
   /** Best-effort rollback of the claim; a release failure leaves it consumed (fail-closed). */
   private async releaseClaimQuietly(input: JoinGroupInput): Promise<void> {
     try {
@@ -256,83 +484,87 @@ export class JoinGroupUseCase {
       status: appointment.status,
     };
 
-    // 4-8. Take the slot. The capacity re-check and the appointment write share
-    // one transaction holding a lock on the group, so two tenants racing for the
-    // last opening cannot both pass — the loser gets `false` and nothing is
-    // written. The token claim above only guards replays of the *same* token.
-    const reservation = await this.serviceGroupRepo.reservePortalWindow({
-      groupId: group.id,
-      appointmentId: input.appointmentId,
-      tenantId: appointment.tenantId,
-      scheduledDate: input.scheduledDate,
-      timeSlotStart: input.timeSlotStart,
-      timeSlotEnd: input.timeSlotEnd,
-      inspectorId,
-      ...(input.rentalTenantNote !== undefined ? { rentalTenantNote: input.rentalTenantNote } : {}),
-    });
-    if (!reservation.ok) {
-      // A full window sends the tenant back to pick another time; an inactive
-      // appointment means there is nothing left to move, so saying "full" would
-      // just send them round the picker to fail again.
-      throw reservation.reason === 'WINDOW_FULL'
-        ? new PortalGroupFullError()
-        : new PortalAppointmentInactiveError();
-    }
-
-    // Detach from the previous group only once the new slot is actually held,
-    // so a lost race never leaves the tenant decremented out of both groups.
-    if (previousGroupId) {
-      await this.serviceGroupRepo.decrementConfirmedCount(previousGroupId);
-    }
-
-    // 6. Transition to SCHEDULED only when not already in that status
-    // (AWAITING_INSPECTOR → SCHEDULED is the normal path; SCHEDULED appointments
-    // switching groups must skip this transition to avoid APPOINTMENT_INVALID_TRANSITION)
+    // 4-8. Take the slot, move the counters and lift the status — all in one
+    // transaction, so a failure at any point leaves nothing behind.
     //
-    // From REJECTED it takes two hops. There is no REJECTED → SCHEDULED rule, and
-    // adding one would invent a shortcut the operator-facing recovery does not
-    // have; going through AWAITING_INSPECTOR reuses the existing recovery
-    // semantics and leaves an audit trail that says what actually happened. The
-    // slot above is already reserved, so `service_group_id` points at the new
-    // live group by the time the AWAITING_INSPECTOR guard checks for one.
+    // Before this was composed, `reservePortalWindow` committed on its own and a
+    // failing hop stranded the appointment holding a slot in a live group with a
+    // stale status, its old group already decremented and the new one never
+    // incremented — with no way to roll back from here.
     //
-    // The reservation above already committed in its own transaction, so a hop
-    // that throws here leaves the appointment holding the new slot inside a live
-    // group while its status still says otherwise. Nothing can roll that back
-    // from here, so the inconsistency is at least made greppable rather than
-    // vanishing into the caller's 500. Composing the reservation and the hops
-    // into one transaction is the real fix and is deliberately out of scope.
-    try {
+    // The transition's own side effects (notifications, portal-token mint and
+    // revoke, pg-boss enqueue, the STATUS_TRANSITION subscriber that writes to
+    // the very `service_groups` row we hold FOR UPDATE) are deliberately NOT in
+    // here: they would deadlock or leave unrecallable effects behind on rollback.
+    // They are collected and flushed after commit.
+    //
+    // Accepted risk: two tenants swapping A→B and B→A take the row locks in
+    // opposite order and can deadlock. Postgres detects that immediately (40P01)
+    // and aborts one side; the catch in `execute` releases the claim and the
+    // tenant retries. Loud and self-healing, unlike the silent counter drift the
+    // uncomposed version produced.
+    await runInTransaction(this.prisma, async ({ tx, defer }) => {
+      const reservation = await this.serviceGroupRepo.reservePortalWindow({
+        groupId: group.id,
+        appointmentId: input.appointmentId,
+        tenantId: appointment.tenantId,
+        scheduledDate: input.scheduledDate,
+        timeSlotStart: input.timeSlotStart,
+        timeSlotEnd: input.timeSlotEnd,
+        inspectorId,
+        ...(input.rentalTenantNote !== undefined ? { rentalTenantNote: input.rentalTenantNote } : {}),
+      }, tx);
+      if (!reservation.ok) {
+        // A full window sends the tenant back to pick another time; an inactive
+        // appointment means there is nothing left to move, so saying "full" would
+        // just send them round the picker to fail again.
+        throw reservation.reason === 'WINDOW_FULL'
+          ? new PortalGroupFullError()
+          : new PortalAppointmentInactiveError();
+      }
+
+      // Detach from the previous group only once the new slot is actually held,
+      // so a lost race never leaves the tenant decremented out of both groups.
+      if (previousGroupId) {
+        await this.serviceGroupRepo.decrementConfirmedCount(previousGroupId, tx);
+      }
+      // Moved inside the transaction from after the transition: it targets the
+      // row already held FOR UPDATE, so it costs no extra lock, and leaving it
+      // outside is what let a failed hop skew the counts.
+      await this.serviceGroupRepo.incrementConfirmedCount(group.id, tx);
+
+      // 6. Transition to SCHEDULED only when not already in that status
+      // (AWAITING_INSPECTOR → SCHEDULED is the normal path; SCHEDULED appointments
+      // switching groups must skip this transition to avoid APPOINTMENT_INVALID_TRANSITION)
+      //
+      // From REJECTED it takes two hops. There is no REJECTED → SCHEDULED rule, and
+      // adding one would invent a shortcut the operator-facing recovery does not
+      // have; going through AWAITING_INSPECTOR reuses the existing recovery
+      // semantics and leaves an audit trail that says what actually happened. The
+      // reservation above ran in this same transaction, so the guards inside the
+      // transition see the new `service_group_id`, `inspector_id` and
+      // `rental_tenant_confirmation_status` — which is exactly why every read in
+      // there has to take `tx`.
       if (appointment.status === 'REJECTED') {
-        await this.statusTransition.execute({
+        const hop = await this.statusTransition.executeInTransaction({
           appointmentId: input.appointmentId,
           targetStatus: 'AWAITING_INSPECTOR',
           reason: REJOIN_RECOVERY_REASON,
           actor: { ...SYSTEM_ACTOR, tenantId: appointment.tenantId },
-        });
+        }, tx);
+        defer(hop.runAfterCommit);
       }
 
       if (appointment.status !== 'SCHEDULED') {
-        await this.statusTransition.execute({
+        const hop = await this.statusTransition.executeInTransaction({
           appointmentId: input.appointmentId,
           targetStatus: 'SCHEDULED',
           reason: `Tenant joined service group ${group.id} via portal`,
           actor: { ...SYSTEM_ACTOR, tenantId: appointment.tenantId },
-        });
+        }, tx);
+        defer(hop.runAfterCommit);
       }
-    } catch (err) {
-      this.logger?.error(
-        {
-          err,
-          appointmentId: input.appointmentId,
-          groupId: group.id,
-          previousGroupId,
-          statusBeforeJoin: appointment.status,
-        },
-        'Portal group join reserved the slot but the status transition failed; appointment is in the new group with a stale status and needs manual repair',
-      );
-      throw err;
-    }
+    });
 
     // 6b. Keep the confirmation cycle in step. `reservePortalWindow` sets
     // `rental_tenant_confirmation_status` with a raw column write, so without
@@ -340,37 +572,7 @@ export class JoinGroupUseCase {
     // decline — while the appointment column reads CONFIRMED. Best-effort: an
     // appointment predating the cycle feature has none, and the join is already
     // committed by this point, so a missing cycle must not undo it.
-    if (this.cycleService) {
-      try {
-        await this.cycleService.realignActiveCycleSchedule(
-          input.appointmentId,
-          appointment.tenantId,
-          new Date(input.scheduledDate),
-          `${input.timeSlotStart}-${input.timeSlotEnd}`,
-        );
-        await this.cycleService.confirm(
-          input.appointmentId,
-          appointment.tenantId,
-          'RENTAL_TENANT_PORTAL',
-          input.tokenId,
-        );
-      } catch (err) {
-        // Only "there is no cycle" is expected here — an appointment predating
-        // the cycle feature. Everything else (a DB failure mid-confirm) leaves the
-        // cycle row pinned to the old date and status while the appointment column
-        // reads CONFIRMED, which later portal-link decisions read. Swallowing that
-        // silently would make the divergence undiscoverable, so it gets logged.
-        if (!(err instanceof ConfirmationCycleNotFoundError)) {
-          this.logger?.error(
-            { err, appointmentId: input.appointmentId, groupId: group.id },
-            'Confirmation cycle not realigned after a portal group join; cycle and appointment status may diverge',
-          );
-        }
-      }
-    }
-
-    // 7. Increment confirmed_count of new group
-    await this.serviceGroupRepo.incrementConfirmedCount(group.id);
+    await this.realignCycle(input, appointment, group);
 
     // 10. Record GROUP_JOIN activity
     const activity = new RentalTenantPortalActivityEntity({
