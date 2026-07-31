@@ -7,20 +7,33 @@
  * to their JWT `tenantId` and **any filter they pass is ignored** as
  * defence-in-depth.
  *
- * The sibling `op-tenant-scoping.integration.test.ts` proves the AM/OP half and
- * says in its own header that CL_* isolation is left to "unit tests + browser
- * QA". This file closes that half against real PostgreSQL.
+ * The sibling `op-tenant-scoping.integration.test.ts` proves the OP half — its
+ * own header lists AM as not covered, on the grounds that AM and OP are
+ * identical at the repository layer — and leaves CL_* isolation to "unit tests
+ * + browser QA". This file closes the CL_* half against real PostgreSQL.
  *
  * Why a real database and not mocks: a mocked repository returns whatever it
  * was told to regardless of the `tenant_id` argument, so it cannot distinguish
  * "the WHERE clause isolates rows" from "the WHERE clause was silently
  * dropped". That is precisely the failure this guards.
  *
- * Note the shape of the contract: unlike the branches list, a CL_* actor
- * reaching for another tenant is **not rejected** — the filter is discarded and
- * their own rows come back. Asserting `rejects.toThrow()` here would produce a
- * test that fails for the wrong reason today, and would pass for the wrong
- * reason if the behaviour ever changed to honour the filter.
+ * Note the shape of the contract: unlike the branches list — which throws a
+ * ForbiddenError on a tenant mismatch — a CL_* actor reaching for another
+ * tenant here is **not rejected**. The filter is discarded and their own rows
+ * come back, so the assertions are on the returned ids. Copying the sibling's
+ * `rejects.toThrow()` shape would give a test that fails today for the wrong
+ * reason, and that would keep failing even if the pin were removed entirely:
+ * honouring the filter resolves too, so a throw-based assertion can never
+ * observe the regression this file exists to catch.
+ *
+ * Known gap, deliberately not covered here: a CL_* actor whose context carries
+ * a null/empty `tenantId` gets an unscoped cross-tenant list, because
+ * `buildWhere` applies `tenant_id` behind a falsy check
+ * (`prisma-appointment.repository.ts:510`) and the use case passes
+ * `actor.tenantId ?? undefined`. It is not reachable through the API today —
+ * `create-user.use-case.ts:90` rejects an agency user without a tenant — so it
+ * is a fail-open default rather than a live hole, and closing it means
+ * changing production code. Tracked separately.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -32,7 +45,10 @@ import {
   type DbHarness,
   type SeededAppointmentFixture,
 } from './harness';
-import { ListAppointmentsUseCase } from '../../../src/modules/appointment/application/use-cases/list-appointments.use-case';
+import {
+  ListAppointmentsUseCase,
+  type ListAppointmentsInput,
+} from '../../../src/modules/appointment/application/use-cases/list-appointments.use-case';
 import { PrismaAppointmentRepository } from '../../../src/modules/appointment/infrastructure/prisma-appointment.repository';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
@@ -75,74 +91,96 @@ describe('CL_* tenant pinning on the appointments list (real DB)', () => {
     );
   }
 
-  async function listAs(actor: AuthContext, filters: Record<string, unknown> = {}) {
+  /**
+   * Typed rather than `as never`: an excess-property check is the only thing
+   * standing between a typo'd key and a test that silently stops filtering —
+   * exactly how `{ rentalTenantName }` slipped into the sibling file. The
+   * `tests/` tree is not in any typecheck target today (`tsconfig.json`
+   * includes `src/**` only), so this buys editor feedback now and real
+   * enforcement the day tests are added to one.
+   */
+  async function listAs(
+    actor: AuthContext,
+    filters: ListAppointmentsInput['filters'] = {},
+  ): Promise<{ ids: string[]; total: number }> {
     const result = await useCase().execute({
-      filters: filters as never,
+      filters,
       pagination: { page: 1, pageSize: 50, sortOrder: 'desc' },
       actor,
     });
-    return result.data.map((appointment) => appointment.id);
+    return { ids: result.data.map((appointment) => appointment.id), total: result.total };
   }
 
   /**
-   * Counter-proof, and it runs first on purpose: every assertion below is of
-   * the form "B is absent". If tenant B's row were unreachable for some
-   * unrelated reason — wrong status, a filter default, a broken fixture — those
-   * would all pass while proving nothing. This shows B is genuinely there and
-   * findable by an actor allowed to see it.
+   * Counter-proof. Every case below leans on "tenant B is absent", and absence
+   * is the easiest thing to prove by accident: if B's row were unreachable for
+   * an unrelated reason — a status default, a stray filter, a broken fixture —
+   * they would all pass while proving nothing. This reaches B through the same
+   * use case, repository and `buildWhere` the others go through, so it rules
+   * that out rather than merely running first.
    */
   it('a cross-tenant actor can reach tenant B, so its absence below is meaningful', async () => {
-    const ids = await listAs(crossTenantActor('OP', fixtureB!.userId), {
+    const { ids, total } = await listAs(crossTenantActor('OP', fixtureB!.userId), {
       tenantId: fixtureB!.tenantId,
     });
 
     expect(ids).toContain(fixtureB!.appointmentId);
     expect(ids).not.toContain(fixtureA!.appointmentId);
+    expect(total).toBe(1);
   });
 
   it('scopes CL_ADMIN to its own tenant when no filter is passed', async () => {
-    const ids = await listAs(clActor('CL_ADMIN', fixtureA!.tenantId, fixtureA!.userId));
+    const { ids, total } = await listAs(clActor('CL_ADMIN', fixtureA!.tenantId, fixtureA!.userId));
 
     expect(ids).toContain(fixtureA!.appointmentId);
     expect(ids).not.toContain(fixtureB!.appointmentId);
+    // `count` runs its own query off the same filters; without this, half the
+    // SQL the use case emits is unproven.
+    expect(total).toBe(1);
   });
 
   // The security case: the filter is neither honoured nor rejected — it is
   // discarded, and the actor still sees only their own tenant.
   it('ignores a CL_ADMIN request for another tenant instead of honouring it', async () => {
-    const ids = await listAs(clActor('CL_ADMIN', fixtureA!.tenantId, fixtureA!.userId), {
+    const { ids, total } = await listAs(clActor('CL_ADMIN', fixtureA!.tenantId, fixtureA!.userId), {
       tenantId: fixtureB!.tenantId,
     });
 
     expect(ids).not.toContain(fixtureB!.appointmentId);
     expect(ids).toContain(fixtureA!.appointmentId);
+    expect(total).toBe(1);
   });
 
   it('scopes CL_USER to its own tenant when no filter is passed', async () => {
-    const ids = await listAs(clActor('CL_USER', fixtureA!.tenantId, fixtureA!.userId));
+    const { ids, total } = await listAs(clActor('CL_USER', fixtureA!.tenantId, fixtureA!.userId));
 
     expect(ids).toContain(fixtureA!.appointmentId);
     expect(ids).not.toContain(fixtureB!.appointmentId);
+    // `count` runs its own query off the same filters; without this, half the
+    // SQL the use case emits is unproven.
+    expect(total).toBe(1);
   });
 
   it('ignores a CL_USER request for another tenant instead of honouring it', async () => {
-    const ids = await listAs(clActor('CL_USER', fixtureA!.tenantId, fixtureA!.userId), {
+    const { ids, total } = await listAs(clActor('CL_USER', fixtureA!.tenantId, fixtureA!.userId), {
       tenantId: fixtureB!.tenantId,
     });
 
     expect(ids).not.toContain(fixtureB!.appointmentId);
     expect(ids).toContain(fixtureA!.appointmentId);
+    expect(total).toBe(1);
   });
 
   // The pin must survive every other filter too: narrowing by something else
   // must not become a way to widen the tenant scope.
   it('keeps the pin when the request also carries an unrelated filter', async () => {
-    const ids = await listAs(clActor('CL_ADMIN', fixtureA!.tenantId, fixtureA!.userId), {
+    const { ids, total } = await listAs(clActor('CL_ADMIN', fixtureA!.tenantId, fixtureA!.userId), {
       tenantId: fixtureB!.tenantId,
       status: ['DONE'],
     });
 
     expect(ids).not.toContain(fixtureB!.appointmentId);
     expect(ids).toContain(fixtureA!.appointmentId);
+    expect(total).toBe(1);
   });
 });

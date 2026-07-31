@@ -24,7 +24,8 @@
  *      T_B appointments by id.
  *
  * What this test does NOT cover (covered elsewhere):
- *   - CL_ADMIN / CL_USER tenant isolation (unit tests + browser QA).
+ *   - CL_ADMIN / CL_USER tenant pinning — now proven against the same real
+ *     database in `appointment-list-cl-tenant-pin.integration.test.ts`.
  *   - AM behaviour (identical to OP at the repo layer).
  *
  * This test was previously written to assert the old "OP is tenant-scoped"
