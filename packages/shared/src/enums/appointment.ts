@@ -9,6 +9,20 @@ export const AppointmentStatus = {
 export type AppointmentStatus = (typeof AppointmentStatus)[keyof typeof AppointmentStatus];
 
 /**
+ * Human-readable labels for AppointmentStatus — single source for the web and
+ * PWA status chips AND for API error messages. Rejection messages are read by
+ * operators, so they must say "Scheduled", never the raw `SCHEDULED` enum.
+ */
+export const APPOINTMENT_STATUS_LABELS: Record<AppointmentStatus, string> = {
+  DRAFT: 'Draft',
+  AWAITING_INSPECTOR: 'Awaiting Inspector',
+  SCHEDULED: 'Scheduled',
+  DONE: 'Done',
+  CANCELLED: 'Cancelled',
+  REJECTED: 'Rejected',
+};
+
+/**
  * Appointments whose schedule is settled: a DONE inspection happened at a real
  * time, and a CANCELLED or REJECTED one will never happen at all. Editing a
  * service group's date or time window must leave them where they are.

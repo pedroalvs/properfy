@@ -706,10 +706,8 @@ export function createContainer(logger: Logger): AppContainer {
   // updateAppointmentUseCase is constructed AFTER the notification handlers below —
   // schedule edits need confirmationCycleService + portal token repo + reschedule notifier.
   const deleteAppointmentUseCase = new DeleteAppointmentUseCase(appointmentRepo, auditService, authorizationService);
-  const bulkEditAppointmentsUseCase = new BulkEditAppointmentsUseCase(
-    appointmentRepo, contactRepo, inspectorRepo, pricingRuleRepo,
-    auditService, authorizationService,
-  );
+  // bulkEditAppointmentsUseCase is constructed AFTER updateAppointmentUseCase below —
+  // it delegates schedule edits to it.
   // Tenant portal repositories — created BEFORE reopenForRescheduleUseCase
   // so 026 §FR-543 can inject the token repo (revoke active portal tokens
   // when the appointment is rescheduled).
@@ -770,6 +768,11 @@ export function createContainer(logger: Logger): AppContainer {
     undefined, appCredentialRepo,
     confirmationCycleService, rentalTenantPortalTokenRepo, notifyOnAdminRescheduleHandler,
     new PrismaServiceGroupRepository(prisma),
+  );
+
+  const bulkEditAppointmentsUseCase = new BulkEditAppointmentsUseCase(
+    appointmentRepo, contactRepo, inspectorRepo, pricingRuleRepo,
+    auditService, authorizationService, updateAppointmentUseCase, logger,
   );
 
   const serviceGroupRepo = new PrismaServiceGroupRepository(prisma);

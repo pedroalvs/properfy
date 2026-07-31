@@ -223,6 +223,23 @@ describe('UpdateAppointmentUseCase', () => {
     ).rejects.toThrow(AppointmentUpdateNotAllowedError);
   });
 
+  // Pins the message at the REAL throw site: bulk-edit renders it verbatim to
+  // operators, and asserting only the class let the status argument be dropped
+  // without a single test failing.
+  it('names the offending status in prose, never the raw enum', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({ status: 'DONE' }),
+    );
+
+    await expect(
+      useCase.execute({
+        appointmentId: 'appt-1',
+        data: { notes: 'Cannot update' },
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow('Cannot change the schedule of a Done appointment');
+  });
+
   it('should fail to update a CANCELLED appointment', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(
       makeAppointmentWithRelations({ status: 'CANCELLED' }),
@@ -1109,13 +1126,14 @@ describe('UpdateAppointmentUseCase', () => {
 
     function makeGroupResult(
       timeWindow: string,
-      groupOverrides: { status?: string; scheduledDate?: Date } = {},
+      groupOverrides: { status?: string; scheduledDate?: Date; groupNumber?: number } = {},
     ) {
       return {
         group: {
           timeWindow,
           status: 'PUBLISHED',
           scheduledDate: new Date('2099-04-01'),
+          groupNumber: 36,
           ...groupOverrides,
         },
         assignedInspectorName: null,
@@ -1260,6 +1278,27 @@ describe('UpdateAppointmentUseCase', () => {
           expect(appointmentRepo.update).not.toHaveBeenCalled();
         },
       );
+
+      // The window text is the actionable half of this message — without it the
+      // operator is told the slot is wrong but not what it must fit inside.
+      it('quotes the group number and its window in the rejection', async () => {
+        vi.mocked(appointmentRepo.findById).mockResolvedValue(makeGroupedAppointment());
+        const serviceGroupRepo = {
+          findById: vi
+            .fn()
+            .mockResolvedValue(makeGroupResult('08:00-12:00', { status: 'CANCELLED', groupNumber: 36 })),
+          update: vi.fn().mockResolvedValue(undefined),
+        };
+
+        await expect(
+          makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+            appointmentId: 'appt-1',
+            data: { timeSlotStart: '13:00', timeSlotEnd: '14:00' },
+            expandGroupTimeWindow: true,
+            actor: makeActor(),
+          }),
+        ).rejects.toThrow(/service group 36's time window \(08:00-12:00\)/);
+      });
 
       // Ordering guard: the widening must outlive nothing. It is persisted only
       // after the appointment write succeeds, so a rejection anywhere later
@@ -1452,6 +1491,44 @@ describe('UpdateAppointmentUseCase', () => {
           actor: makeActor(),
         }),
       ).rejects.toThrow(AppointmentInServiceGroupError);
+    });
+
+    it('names the group and the way out in the rejection message', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ status: 'AWAITING_INSPECTOR', serviceGroupId: 'group-1' }),
+      );
+      const serviceGroupRepo = {
+        findById: vi
+          .fn()
+          .mockResolvedValue(makeGroupResult('08:00-12:00', { status: 'PUBLISHED', groupNumber: 36 })),
+      };
+
+      await expect(
+        makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+          appointmentId: 'appt-1',
+          data: { scheduledDate: '2099-04-10' },
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow('Date is managed by service group 36 — reschedule the group to move this appointment');
+    });
+
+    it('stays generic when the group number is unknown, never printing "group 0"', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ status: 'AWAITING_INSPECTOR', serviceGroupId: 'group-1' }),
+      );
+      const serviceGroupRepo = {
+        findById: vi
+          .fn()
+          .mockResolvedValue(makeGroupResult('08:00-12:00', { status: 'PUBLISHED', groupNumber: 0 })),
+      };
+
+      await expect(
+        makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+          appointmentId: 'appt-1',
+          data: { scheduledDate: '2099-04-10' },
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow('Date is managed by a service group — reschedule the group to move this appointment');
     });
 
     it('rejects a date change matching the group date when the group is not DRAFT', async () => {
