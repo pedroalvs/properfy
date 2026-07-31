@@ -56,6 +56,11 @@ export interface GetAppointmentOutput {
   serviceTypeName: string;
   /** Tenant (agency) display name — labelled "CLIENT" in the map detail panel (025 §FR-451). */
   clientName: string;
+  /**
+   * Owning agency's occupant-contact switch, so the UI can disable "Send Portal Link"
+   * with a reason rather than letting the operator find out via a 409.
+   */
+  rentalTenantNotificationsEnabled: boolean;
   serviceGroupId: string | null;
   /** Service group code = String(group_number); null when ungrouped. */
   serviceGroupCode: string | null;
@@ -149,6 +154,8 @@ function mapToOutput(found: AppointmentWithRelations, apps: AppointmentApp[]): G
     branchName: found.branchName ?? '',
     serviceTypeName: found.serviceTypeName ?? '',
     clientName: found.tenantName ?? '',
+    // Undefined (older fixtures) means enabled, matching the schema default.
+    rentalTenantNotificationsEnabled: found.tenantRentalTenantNotificationsEnabled !== false,
     serviceGroupId: appointment.serviceGroupId ?? null,
     serviceGroupCode: found.serviceGroupNumber != null ? String(found.serviceGroupNumber) : null,
     isOverdue: isAppointmentOverdue({

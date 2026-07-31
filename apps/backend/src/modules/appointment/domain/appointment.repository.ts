@@ -77,6 +77,12 @@ export interface AppointmentWithRelations {
   /** Tenant's appointment code prefix (e.g. "INS"), used to format appointment codes. */
   tenantAppointmentCodePrefix?: string | null;
   /**
+   * Owning agency's occupant-contact switch, populated by findById. Optional so the
+   * existing fixtures need not enumerate it; a missing value is normalised to `true`,
+   * matching "absent key means enabled" everywhere else.
+   */
+  tenantRentalTenantNotificationsEnabled?: boolean;
+  /**
    * True when at least one tenant_portal_token row satisfies:
    * status = 'ACTIVE' AND expires_at > NOW (Node-clock).
    * Populated by PrismaAppointmentRepository via a filtered include.

@@ -149,7 +149,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         contacts: true,
         restrictions: true,
         property: { select: { property_code: true, type: true, street: true, address_line_2: true, suburb: true, state: true, postcode: true, lat: true, lng: true, private_area_m2: true, total_area_m2: true, furnished: true, linen_provided: true, rent_amount: true } },
-        tenant: { select: { name: true, appointment_code_prefix: true } },
+        // settings_json rides along on the detail read only: it feeds the "Send Portal
+        // Link" disabled state, and the list has no such action.
+        tenant: { select: { name: true, appointment_code_prefix: true, settings_json: true } },
         branch: { select: { name: true } },
         service_type: { select: { name: true, flow_type: true } },
         inspector: { select: { name: true } },
@@ -208,6 +210,11 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       inspectorName: row.inspector?.name ?? null,
       tenantName: (row as any).tenant?.name ?? '',
       tenantAppointmentCodePrefix,
+      // Absent key means enabled, matching tenantSettingsSchema's default.
+      tenantRentalTenantNotificationsEnabled:
+        ((row as any).tenant?.settings_json as Record<string, unknown> | null)?.[
+          'rentalTenantNotificationsEnabled'
+        ] !== false,
       hasActivePortalToken: ((row as any).portal_tokens as Array<{ id: string }>).length > 0,
       serviceGroupNumber: (row as any).service_group?.group_number ?? null,
     };
