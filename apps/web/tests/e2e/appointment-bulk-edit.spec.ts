@@ -304,7 +304,7 @@ test.describe('Bulk Change Status', () => {
     await expect(notifyBlock).toContainText('APT-1001');
 
     // The native input is sr-only; the label text is the click target.
-    await notifyBlock.getByText('Notify the tenants who confirmed').click();
+    await notifyBlock.getByText('Notify the tenants already told').click();
     await dialog.getByRole('button', { name: 'Apply Changes' }).click();
 
     // Every row succeeded, so the modal reports success and closes itself — unlike
