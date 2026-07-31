@@ -101,7 +101,6 @@ function makeSut() {
     executionRepo,
     idempotencyService,
     auditService as any,
-    undefined,
     authorizationService,
   );
 }
@@ -375,11 +374,10 @@ describe('StartInspectionUseCase', () => {
     expect(idempotencyService.set).toHaveBeenCalledWith('key-10', 'start', result, 24);
   });
 
-  it('should throw ExecutionTimeWindowError when starting too early', async () => {
+  it('should throw ExecutionTimeWindowError the day before the scheduled date', async () => {
     const sut = makeSut();
-    // Appointment at 09:00-11:00 Sydney on 2026-03-21, window opens at 08:30 Sydney
-    // Set time to 08:00 Sydney (before window)
-    vi.setSystemTime(zonedWallTimeToUtc('2026-03-21', '08:00', PLATFORM_TIMEZONE));
+    // Appointment scheduled for 2026-03-21; 23:59 Sydney on the 20th is still too early.
+    vi.setSystemTime(zonedWallTimeToUtc('2026-03-20', '23:59', PLATFORM_TIMEZONE));
 
     appointmentRepo.findById.mockResolvedValue(makeAppointmentWithRelations());
 
@@ -394,29 +392,28 @@ describe('StartInspectionUseCase', () => {
     ).rejects.toThrow(ExecutionTimeWindowError);
   });
 
-  it('should throw ExecutionTimeWindowError when starting too late', async () => {
+  it('should allow starting before the time slot opens on the scheduled day', async () => {
     const sut = makeSut();
-    // Appointment at 09:00-11:00 Sydney on 2026-03-21, window closes at 11:30 Sydney
-    // Set time to 14:00 Sydney (after window)
-    vi.setSystemTime(zonedWallTimeToUtc('2026-03-21', '14:00', PLATFORM_TIMEZONE));
+    // Slot is 09:00-11:00; 06:00 Sydney used to be rejected as "too early".
+    vi.setSystemTime(zonedWallTimeToUtc('2026-03-21', '06:00', PLATFORM_TIMEZONE));
 
     appointmentRepo.findById.mockResolvedValue(makeAppointmentWithRelations());
 
-    await expect(
-      sut.execute({
-        appointmentId: 'appt-1',
-        latitude: -33.891,
-        longitude: 151.277,
-        idempotencyKey: 'key-tw-2',
-        actor: inspActor,
-      }),
-    ).rejects.toThrow(ExecutionTimeWindowError);
+    const result = await sut.execute({
+      appointmentId: 'appt-1',
+      latitude: -33.891,
+      longitude: 151.277,
+      idempotencyKey: 'key-tw-2',
+      actor: inspActor,
+    });
+
+    expect(result.status).toBe('IN_PROGRESS');
   });
 
-  it('should allow starting within the time window', async () => {
+  it('should allow starting after the time slot closed on the scheduled day', async () => {
     const sut = makeSut();
-    // Appointment at 09:00-11:00 Sydney on 2026-03-21, set time to 09:30 Sydney (within window)
-    vi.setSystemTime(zonedWallTimeToUtc('2026-03-21', '09:30', PLATFORM_TIMEZONE));
+    // Slot is 09:00-11:00; 14:00 Sydney used to be rejected as "too late".
+    vi.setSystemTime(zonedWallTimeToUtc('2026-03-21', '14:00', PLATFORM_TIMEZONE));
 
     appointmentRepo.findById.mockResolvedValue(makeAppointmentWithRelations());
 
@@ -425,6 +422,43 @@ describe('StartInspectionUseCase', () => {
       latitude: -33.891,
       longitude: 151.277,
       idempotencyKey: 'key-tw-3',
+      actor: inspActor,
+    });
+
+    expect(result.status).toBe('IN_PROGRESS');
+  });
+
+  it('should allow starting a SCHEDULED appointment whose date has already passed', async () => {
+    const sut = makeSut();
+    // Two weeks after the scheduled date — the case that was permanently blocked
+    // before: visible in the schedule, flagged overdue, but impossible to execute.
+    vi.setSystemTime(zonedWallTimeToUtc('2026-04-04', '09:30', PLATFORM_TIMEZONE));
+
+    appointmentRepo.findById.mockResolvedValue(makeAppointmentWithRelations());
+
+    const result = await sut.execute({
+      appointmentId: 'appt-1',
+      latitude: -33.891,
+      longitude: 151.277,
+      idempotencyKey: 'key-tw-4',
+      actor: inspActor,
+    });
+
+    expect(result.status).toBe('IN_PROGRESS');
+    expect(result.appointmentId).toBe('appt-1');
+  });
+
+  it('should allow starting within the time slot', async () => {
+    const sut = makeSut();
+    vi.setSystemTime(zonedWallTimeToUtc('2026-03-21', '09:30', PLATFORM_TIMEZONE));
+
+    appointmentRepo.findById.mockResolvedValue(makeAppointmentWithRelations());
+
+    const result = await sut.execute({
+      appointmentId: 'appt-1',
+      latitude: -33.891,
+      longitude: 151.277,
+      idempotencyKey: 'key-tw-5',
       actor: inspActor,
     });
 

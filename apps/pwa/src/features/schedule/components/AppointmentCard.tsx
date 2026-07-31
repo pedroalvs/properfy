@@ -57,10 +57,11 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment, toda
             {formatTimeWindow(appointment.timeSlotStart, appointment.timeSlotEnd)}
           </span>
           {/*
-            "Past date", not "Overdue": for the inspector this flag means the
-            inspection day has passed and the job is still not done. The platform's
-            "Overdue" now names a different rule (created more than OVERDUE_AGE_DAYS
-            ago, regardless of date) used by the web badge and the auto-cancel sweep.
+            "Overdue" matches what the flag actually means: created more than
+            OVERDUE_AGE_DAYS ago and still not done, regardless of the scheduled
+            date (see packages/shared/src/utils/overdue.ts). It is the same rule
+            the web badge and the auto-cancel sweep use. It is a warning, not a
+            block — the job stays startable.
           */}
           {appointment.isOverdue && (
             <span
@@ -68,7 +69,7 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment, toda
               data-testid="overdue-badge"
             >
               <i className="mdi mdi-clock-alert-outline text-xs" aria-hidden="true" />
-              Past date
+              Overdue
             </span>
           )}
           {showT1Warning && !appointment.isOverdue && (
