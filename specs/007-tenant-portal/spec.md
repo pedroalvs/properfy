@@ -30,7 +30,7 @@
 - **Status**: IMPLEMENTED
 - **Source**: code
 
-An AM or OP user generates a unique one-time portal token for a specific appointment. The system revokes any existing tokens for that appointment, generates a 32-byte raw token, stores only the SHA-256 hash, computes expiry as 7 PM of the day before the scheduled date in the tenant's timezone, and enqueues EMAIL and SMS notifications (template `TENANT_PORTAL_LINK`) to the renter contact on file. The raw token is returned to the caller exactly once and never stored in plaintext.
+An AM, OP or CL_ADMIN user generates a unique one-time portal token for a specific appointment. AM and OP act platform-wide; CL_ADMIN only within its own tenant. The system revokes any existing tokens for that appointment, generates a 32-byte raw token, stores only the SHA-256 hash, computes expiry as 7 PM of the day before the scheduled date in the tenant's timezone, and enqueues EMAIL and SMS notifications (template `TENANT_PORTAL_LINK`) to the renter contact on file. The raw token is returned to the caller exactly once and never stored in plaintext.
 
 **Why this priority**: Every other flow in this feature depends on a valid portal token existing. Without it, renters cannot confirm or reschedule.
 

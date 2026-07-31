@@ -264,6 +264,15 @@ describe('CL_ADMIN portal actions — real Postgres tenant isolation (PR #1061)'
   });
 
   describe('POST portal-token', () => {
+    it('mints for an appointment in its OWN agency', async () => {
+      mintSpy.mockClear();
+      mintSpy.mockResolvedValueOnce({ rawToken: 'raw-a', expiresAt: new Date('2027-06-01T12:00:00Z'), tokenId: 'tok-a' });
+
+      await generateToken.execute({ appointmentId: seed.apptInA, actor: clAdminOfA() });
+
+      expect(mintSpy).toHaveBeenCalled();
+    });
+
     it('refuses to mint for an appointment owned by another agency', async () => {
       mintSpy.mockClear();
 

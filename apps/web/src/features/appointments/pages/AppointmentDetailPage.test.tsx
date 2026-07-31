@@ -585,6 +585,7 @@ describe('AppointmentDetailPage — Copy Portal Link generate-only modal', () =>
   beforeEach(() => {
     vi.clearAllMocks();
     mockUserRole = 'AM';
+    mockClUserPermissions = [];
     Object.assign(navigator, {
       clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
     });
@@ -659,6 +660,7 @@ describe('AppointmentDetailPage — Copy Portal Link (T39)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUserRole = 'AM';
+    mockClUserPermissions = [];
     Object.assign(navigator, {
       clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
     });
