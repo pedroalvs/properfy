@@ -309,6 +309,12 @@ describe('AppointmentListPage', () => {
         (call) => call[0] === '/v1/branches' && call[1]?.params?.query?.tenantId === tenantId,
       );
 
+    /** Any tenant-scoped branch request, whichever agency it names. */
+    const allScopedBranchCalls = () =>
+      mockGet.mock.calls.filter(
+        (call) => call[0] === '/v1/branches' && !!call[1]?.params?.query?.tenantId,
+      );
+
     it('shows the Agency column and select for AM', async () => {
       mockByPath();
       signInAs('AM');
@@ -357,7 +363,10 @@ describe('AppointmentListPage', () => {
         expect(calledPaths()).toContain('/v1/appointments');
       });
       // Cross-tenant branch listing is not something the API can answer, so the
-      // options fall back to the branches present on the loaded rows.
+      // options fall back to the branches present on the loaded rows. Assert on
+      // *any* scoped call, not just the JWT tenant: the drawer's own unscoped
+      // request is the only /v1/branches traffic allowed here.
+      expect(allScopedBranchCalls()).toHaveLength(0);
       expect(branchCallsScopedTo('t-1')).toHaveLength(0);
     });
   });

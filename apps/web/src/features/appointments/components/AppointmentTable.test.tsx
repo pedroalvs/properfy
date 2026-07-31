@@ -41,6 +41,20 @@ function makeAppointment(overrides: Partial<Appointment> = {}): Appointment {
   };
 }
 
+/**
+ * Reads one body cell by its column header. The Group and Reviewed columns
+ * already render em dashes for most fixtures, so a bare `getAllByText('—')`
+ * would pass without the column under test ever falling back.
+ */
+function cellUnder(header: string): HTMLElement {
+  const headers = [...document.querySelectorAll('table thead th')];
+  const index = headers.findIndex((th) => th.textContent?.trim() === header);
+  if (index === -1) throw new Error(`No "${header}" column is rendered`);
+  const cell = document.querySelector('table tbody tr')?.children[index];
+  if (!cell) throw new Error(`No body cell under "${header}"`);
+  return cell as HTMLElement;
+}
+
 describe('AppointmentTable', () => {
   it('renders column headers', () => {
     render(<AppointmentTable data={[]} />);
@@ -68,7 +82,7 @@ describe('AppointmentTable', () => {
     it('renders the agency name when showAgency is set', () => {
       render(<AppointmentTable data={[makeAppointment()]} showAgency />);
       expect(screen.getByText('Agency')).toBeInTheDocument();
-      expect(screen.getByText('Test Agency')).toBeInTheDocument();
+      expect(cellUnder('Agency')).toHaveTextContent('Test Agency');
     });
 
     // The backend maps an absent relation to '' (`row.tenant?.name ?? ''`) and the
@@ -79,20 +93,19 @@ describe('AppointmentTable', () => {
       ['empty', ''],
     ])('renders an em dash when the agency name is %s', (_label, clientName) => {
       render(<AppointmentTable data={[makeAppointment({ clientName })]} showAgency />);
-      expect(screen.getByText('Agency')).toBeInTheDocument();
-      expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+      expect(cellUnder('Agency')).toHaveTextContent('—');
     });
   });
 
   describe('Branch column', () => {
     it('renders the branch name for every role', () => {
       render(<AppointmentTable data={[makeAppointment()]} />);
-      expect(screen.getByText('Downtown Branch')).toBeInTheDocument();
+      expect(cellUnder('Branch')).toHaveTextContent('Downtown Branch');
     });
 
     it('renders an em dash when the branch name is empty', () => {
       render(<AppointmentTable data={[makeAppointment({ branchName: '' })]} />);
-      expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+      expect(cellUnder('Branch')).toHaveTextContent('—');
     });
   });
 
