@@ -21,6 +21,13 @@ export const RejectionReasonCode = {
   INSUFFICIENT_INFO: 'INSUFFICIENT_INFO',
   SERVICE_NOT_AVAILABLE: 'SERVICE_NOT_AVAILABLE',
   TENANT_NO_RESPONSE: 'TENANT_NO_RESPONSE',
+  /**
+   * The rental tenant answered "No" in the portal. Kept distinct from
+   * `TENANT_NO_RESPONSE` (assigned by the T-1 sweep) because the two lead to
+   * different follow-ups: a decline carries the weekly availability the tenant
+   * submitted, so the appointment can be rescheduled against it.
+   */
+  TENANT_DECLINED: 'TENANT_DECLINED',
   OTHER: 'OTHER',
 } as const;
 export type RejectionReasonCode = (typeof RejectionReasonCode)[keyof typeof RejectionReasonCode];

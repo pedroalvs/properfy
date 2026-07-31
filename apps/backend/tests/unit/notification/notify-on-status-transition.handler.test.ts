@@ -289,6 +289,78 @@ describe('NotifyOnStatusTransitionHandler', () => {
     );
   });
 
+  // A rejection is the agency's cue to reschedule. The rental tenant is not told
+  // here: when the rejection came from their own portal decline they already got
+  // INSPECTION_UNAVAILABILITY_REPORTED, and when it came from an operator there
+  // is nothing for them to act on.
+  it('tells only the agency on REJECTED', async () => {
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'REJECTED',
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        templateCode: 'INSPECTION_REJECTED_AGENCY',
+        channel: 'EMAIL',
+        recipient: 'bookings@agency.example',
+      }),
+    );
+  });
+
+  it('never sends a rental-tenant notice on REJECTED, even with the opt-in flag', async () => {
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'REJECTED',
+      notifyRentalTenant: true,
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledOnce();
+    expect(createNotification.execute).not.toHaveBeenCalledWith(
+      expect.objectContaining({ recipient: 'john@example.com' }),
+    );
+  });
+
+  it('still notifies the agency on REJECTED when the appointment has no contact', async () => {
+    // Imported appointments can have no contact at all, and those are exactly
+    // the ones that end up rejected.
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment(),
+      contact: null,
+      serviceTypeName: 'Routine Inspection',
+      inspectorName: null,
+    });
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'REJECTED',
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_REJECTED_AGENCY' }),
+    );
+  });
+
+  it('does not mint a portal token for a rejection', async () => {
+    // Minting revokes the link the tenant currently holds — and after a portal
+    // decline they still need it to change time.
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'REJECTED',
+    });
+
+    expect(mintPortalTokenService.mint).not.toHaveBeenCalled();
+  });
+
   it('sends INSPECTION_CANCELLED to the tenant when opted in and the tenant confirmed', async () => {
     const handler = makeHandler();
     await handler.execute({

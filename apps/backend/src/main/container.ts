@@ -836,11 +836,13 @@ export function createContainer(logger: Logger): AppContainer {
     rentalTenantPortalActivityRepo,
     appointmentRepo,
     auditService,
+    executeStatusTransitionUseCase,
     notifyOnRentalTenantPortalActionHandler,
     inspectionExecutionRepo,
     domainEventBus,
     rentalTenantPortalTokenRepo,
     confirmationCycleService,
+    logger,
   );
 
   // Inspector execution use cases
@@ -935,6 +937,7 @@ export function createContainer(logger: Logger): AppContainer {
     executeStatusTransitionUseCase,
     notifyOnRentalTenantPortalActionHandler,
     cancelEmptyGroupService,
+    confirmationCycleService,
   );
 
   // 026 — Add appointments to existing group + read-only eligibility preview.

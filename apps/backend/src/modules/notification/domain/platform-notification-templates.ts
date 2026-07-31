@@ -145,6 +145,26 @@ const CANCELLED_AGENCY_HTML = renderAppointmentEmailHtml({
     CLOSING_PARAGRAPHS,
 });
 
+// Agency-facing rejection notice. Same reasoning as CANCELLED_AGENCY_HTML: no
+// tenantEmailHtml wrapper, because its greeting would address the agency by its
+// own tenant's name. Unlike a cancellation, this one asks for an action — a
+// rejected appointment is expected to be rescheduled.
+const REJECTED_AGENCY_HTML = renderAppointmentEmailHtml({
+  heading: 'Inspection rejected{{#if branchName}} — {{branchName}}{{/if}}',
+  contentHtml:
+    `<p>The <strong>${SERVICE_LABEL}</strong> <strong>#{{appointmentCode}}</strong> of ` +
+    '<strong>{{propertyAddress}}</strong> scheduled for <strong>{{scheduledDate}}</strong> ' +
+    'has been <strong>rejected</strong>' +
+    '{{#if rentalTenantName}} (tenant: <strong>{{rentalTenantName}}</strong>){{/if}}.</p>' +
+    '{{#if rejectionReason}}' +
+    `<p style="${EMAIL_CALLOUT_STYLE}"><strong>Reason:</strong> {{rejectionReason}}</p>` +
+    '{{/if}}' +
+    '<p>This inspection will not go ahead as scheduled and needs to be rearranged. ' +
+    'Where the tenant told us when they are available, those times are recorded ' +
+    'against the appointment.</p>' +
+    CLOSING_PARAGRAPHS,
+});
+
 const UNAVAILABILITY_HTML = tenantEmailHtml(
   '<p>We have received your unavailability report for the ' +
   `<strong>${SERVICE_LABEL}</strong> <strong>#{{appointmentCode}}</strong> of ` +
@@ -303,6 +323,19 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     // send-notification.use-case, which would let a branch contact's operational
     // opt-out silently suppress cancellation notices — the agency must always be
     // told. Matches PROTECTED_TEMPLATE_CLASSIFICATIONS in @properfy/shared.
+    notificationClass: 'TRANSACTIONAL',
+  },
+  {
+    code: 'INSPECTION_REJECTED_AGENCY',
+    channel: 'EMAIL',
+    subject: 'Inspection Rejected - {{propertyAddress}}',
+    body: 'The inspection {{appointmentCode}} at {{propertyAddress}} scheduled for {{scheduledDate}} has been rejected and needs to be rearranged.',
+    bodyHtml: REJECTED_AGENCY_HTML,
+    // Explicit for the same reason as INSPECTION_CANCELLED_AGENCY above: the
+    // seeder leaves the column on the OPERATIONAL default when the entry omits
+    // it, and an OPERATIONAL row is consent-checked per recipient, which would
+    // let a branch contact's opt-out suppress the notice telling them to
+    // reschedule. Matches PROTECTED_TEMPLATE_CLASSIFICATIONS in @properfy/shared.
     notificationClass: 'TRANSACTIONAL',
   },
   {

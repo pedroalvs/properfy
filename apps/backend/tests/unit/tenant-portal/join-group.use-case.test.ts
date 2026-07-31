@@ -120,6 +120,10 @@ describe('JoinGroupUseCase', () => {
   let statusTransition: { execute: ReturnType<typeof vi.fn> };
   let notificationHandler: { execute: ReturnType<typeof vi.fn> };
   let cancelEmptyGroup: { cancelIfDead: ReturnType<typeof vi.fn> };
+  let cycleService: {
+    realignActiveCycleSchedule: ReturnType<typeof vi.fn>;
+    confirm: ReturnType<typeof vi.fn>;
+  };
   let useCase: JoinGroupUseCase;
 
   beforeEach(() => {
@@ -161,6 +165,10 @@ describe('JoinGroupUseCase', () => {
     };
     notificationHandler = { execute: vi.fn().mockResolvedValue(undefined) };
     cancelEmptyGroup = { cancelIfDead: vi.fn().mockResolvedValue(false) };
+    cycleService = {
+      realignActiveCycleSchedule: vi.fn().mockResolvedValue(undefined),
+      confirm: vi.fn().mockResolvedValue(undefined),
+    };
 
     useCase = new JoinGroupUseCase(
       appointmentRepo as any,
@@ -171,6 +179,7 @@ describe('JoinGroupUseCase', () => {
       statusTransition as any,
       notificationHandler,
       cancelEmptyGroup,
+      cycleService as any,
     );
   });
 
@@ -232,8 +241,103 @@ describe('JoinGroupUseCase', () => {
     expect(result.appointmentStatus).toBe('SCHEDULED');
   });
 
+  // A portal decline auto-rejects the appointment, so "change time" has to be
+  // able to climb back out of REJECTED — otherwise declining is a dead end.
+  describe('rejoining from REJECTED', () => {
+    beforeEach(() => {
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ status: 'REJECTED' }),
+        contact: null,
+        restrictions: [],
+      });
+    });
+
+    it('climbs out via AWAITING_INSPECTOR, since REJECTED → SCHEDULED does not exist', async () => {
+      const result = await useCase.execute(makeInput());
+
+      expect(statusTransition.execute).toHaveBeenCalledTimes(2);
+      expect(statusTransition.execute).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          targetStatus: 'AWAITING_INSPECTOR',
+          // The recovery rule requires a reason for every actor, SYS included.
+          reason: expect.any(String),
+          actor: expect.objectContaining({ role: 'SYS' }),
+        }),
+      );
+      expect(statusTransition.execute).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ targetStatus: 'SCHEDULED' }),
+      );
+      expect(result.appointmentStatus).toBe('SCHEDULED');
+    });
+
+    it('takes the new slot before transitioning, so the group guard sees a live group', async () => {
+      const order: string[] = [];
+      serviceGroupRepo.reservePortalWindow.mockImplementation(async () => {
+        order.push('reserve');
+        return { ok: true };
+      });
+      statusTransition.execute.mockImplementation(async () => {
+        order.push('transition');
+        return { status: 'SCHEDULED' };
+      });
+
+      await useCase.execute(makeInput());
+
+      expect(order[0]).toBe('reserve');
+    });
+
+    it('still uses a single transition when the appointment was merely awaiting an inspector', async () => {
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ status: 'AWAITING_INSPECTOR' }),
+        contact: null,
+        restrictions: [],
+      });
+
+      await useCase.execute(makeInput());
+
+      expect(statusTransition.execute).toHaveBeenCalledTimes(1);
+      expect(statusTransition.execute).toHaveBeenCalledWith(
+        expect.objectContaining({ targetStatus: 'SCHEDULED' }),
+      );
+    });
+  });
+
+  describe('confirmation cycle', () => {
+    it('realigns and confirms the cycle, so it cannot disagree with the denormalized status', async () => {
+      // reservePortalWindow writes rental_tenant_confirmation_status directly.
+      // Without this the cycle row would still read UNAVAILABLE after a decline
+      // while the appointment column reads CONFIRMED.
+      await useCase.execute(makeInput());
+
+      expect(cycleService.realignActiveCycleSchedule).toHaveBeenCalledWith(
+        'appt-1',
+        'tenant-1',
+        expect.any(Date),
+        '13:00-15:00',
+      );
+      expect(cycleService.confirm).toHaveBeenCalledWith(
+        'appt-1',
+        'tenant-1',
+        'RENTAL_TENANT_PORTAL',
+        'token-1',
+      );
+    });
+
+    it('does not fail the join when the cycle is missing', async () => {
+      cycleService.confirm.mockRejectedValue(new Error('no active cycle'));
+
+      const result = await useCase.execute(makeInput());
+
+      expect(result.appointmentStatus).toBe('SCHEDULED');
+    });
+  });
+
   it('should throw PortalAppointmentInactiveError for finalized appointments', async () => {
-    for (const status of ['DONE', 'CANCELLED', 'REJECTED'] as const) {
+    // REJECTED is deliberately absent: a tenant who declined can still pick
+    // another time, and that rejoin is what revives the appointment.
+    for (const status of ['DONE', 'CANCELLED', 'DRAFT'] as const) {
       appointmentRepo.findById.mockResolvedValue({
         appointment: makeAppointment({ status }),
         contact: null,
@@ -243,8 +347,16 @@ describe('JoinGroupUseCase', () => {
     }
   });
 
-  it('should throw PortalTokenAlreadyUsedError when isUsed', async () => {
-    await expect(useCase.execute(makeInput({ isUsed: true }))).rejects.toThrow(PortalTokenAlreadyUsedError);
+  it('should throw PortalTokenAlreadyUsedError when the claim cannot be taken', async () => {
+    // `isUsed` is a stale read; the conditional write is the authoritative guard.
+    tokenRepo.tryClaim.mockResolvedValue(false);
+    await expect(useCase.execute(makeInput())).rejects.toThrow(PortalTokenAlreadyUsedError);
+  });
+
+  it('lets a tenant who already answered once still change time', async () => {
+    // Reporting unavailability hands the link back precisely so this works.
+    const result = await useCase.execute(makeInput({ isUsed: true }));
+    expect(result.appointmentStatus).toBe('SCHEDULED');
   });
 
   it('should throw PortalGroupNotFoundError when group not found', async () => {

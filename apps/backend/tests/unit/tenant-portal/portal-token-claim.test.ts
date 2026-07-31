@@ -193,6 +193,7 @@ describe('ReportUnavailabilityUseCase atomic token claim', () => {
       activityRepo as unknown as IRentalTenantPortalActivityRepository,
       appointmentRepo as unknown as IAppointmentRepository,
       auditService(),
+      { execute: vi.fn().mockResolvedValue({}) },
       undefined,
       undefined,
       undefined,
@@ -210,12 +211,16 @@ describe('ReportUnavailabilityUseCase atomic token claim', () => {
     return { useCase, activityRepo, appointmentRepo, tokenRepo, input };
   }
 
-  it('claims the token atomically before any side effect', async () => {
+  it('claims the token atomically before any side effect, then hands it back', async () => {
     const { useCase, tokenRepo, input } = build();
     await useCase.execute(input);
     expect(tokenRepo.tryClaim).toHaveBeenCalledTimes(1);
     expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1', 'appt-1');
-    expect(tokenRepo.releaseClaim).not.toHaveBeenCalled();
+    // Unlike confirm and join, the claim is released on success: a decline
+    // auto-rejects the appointment, and the tenant still needs this link to pick
+    // another time. The claim only serialises concurrent declines; the
+    // "already UNAVAILABLE" short-circuit is the replay guard.
+    expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
   });
 
   it('throws PortalTokenAlreadyUsedError and performs no side effect when the claim loses the race', async () => {
@@ -236,6 +241,7 @@ describe('ReportUnavailabilityUseCase atomic token claim', () => {
       activityRepo as unknown as IRentalTenantPortalActivityRepository,
       appointmentRepo as unknown as IAppointmentRepository,
       auditService(),
+      { execute: vi.fn().mockResolvedValue({}) },
       undefined,
       undefined,
       undefined,

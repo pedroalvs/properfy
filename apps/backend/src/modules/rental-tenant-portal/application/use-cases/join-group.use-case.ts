@@ -9,6 +9,7 @@ import { RentalTenantPortalActivityEntity } from '../../domain/rental-tenant-por
 import type { AppointmentEntity } from '../../../appointment/domain/appointment.entity';
 import type { ServiceGroupEntity } from '../../../service-group/domain/service-group.entity';
 import { computeWindowAvailability } from '../../../service-group/domain/portal-slot-capacity';
+import { isPortalDeadStatus } from '../../domain/portal-statuses';
 import {
   PortalAppointmentInactiveError,
   PortalTokenAlreadyUsedError,
@@ -52,8 +53,25 @@ export interface JoinGroupOutput {
   inspector: { id: string; name: string };
 }
 
+interface IConfirmationCycleService {
+  realignActiveCycleSchedule(
+    appointmentId: string,
+    tenantId: string,
+    newDate: Date,
+    newTimeSlot: string | null,
+  ): Promise<void>;
+  confirm(
+    appointmentId: string,
+    tenantId: string,
+    source: 'RENTAL_TENANT_PORTAL' | 'OPERATOR_FORCED',
+    tokenId: string | null,
+  ): Promise<unknown>;
+}
+
 const ACTIVE_GROUP_STATUSES = new Set(['ACCEPTED']);
-const INACTIVE_STATUSES = new Set(['CANCELLED', 'DONE', 'REJECTED']);
+
+/** Reason for the recovery hop out of REJECTED; the rule requires one for every actor. */
+const REJOIN_RECOVERY_REASON = 'Rental tenant chose another available time via the portal';
 
 export class JoinGroupUseCase {
   constructor(
@@ -66,6 +84,8 @@ export class JoinGroupUseCase {
     private readonly onNotificationHandler?: INotificationHandler,
     /** Optional: cancels the group the tenant left when it ends up with nothing to execute. */
     private readonly cancelEmptyGroup?: ICancelEmptyGroupService,
+    /** Optional: keeps the confirmation cycle in step with the slot just taken. */
+    private readonly cycleService?: IConfirmationCycleService,
   ) {}
 
   /**
@@ -73,17 +93,20 @@ export class JoinGroupUseCase {
    * Implements the 13-step side-effect sequence from spec §5.2.
    */
   async execute(input: JoinGroupInput): Promise<JoinGroupOutput> {
-    // 1-2. Validate token state. Token expiry does not block a group change:
-    // the tenant may still pick another slot after the scheduled day, as long
-    // as the appointment is active.
-    if (input.isUsed) throw new PortalTokenAlreadyUsedError();
+    // 1-2. Token expiry does not block a group change: the tenant may still pick
+    // another slot after the scheduled day, as long as the appointment is live.
+    //
+    // A prior `used_at` does not block it either. Reporting unavailability hands
+    // the claim back precisely so the tenant can still change time afterwards,
+    // and the conditional `tryClaim` below is the authoritative replay guard —
+    // the `isUsed` flag read by the middleware is already stale by this point.
 
     // Load appointment
     const apptResult = await this.appointmentRepo.findById(input.appointmentId, null);
     if (!apptResult) throw new PortalGroupNotFoundError();
     const { appointment } = apptResult;
 
-    if (INACTIVE_STATUSES.has(appointment.status)) {
+    if (isPortalDeadStatus(appointment.status)) {
       throw new PortalAppointmentInactiveError();
     }
 
@@ -234,6 +257,22 @@ export class JoinGroupUseCase {
     // 6. Transition to SCHEDULED only when not already in that status
     // (AWAITING_INSPECTOR → SCHEDULED is the normal path; SCHEDULED appointments
     // switching groups must skip this transition to avoid APPOINTMENT_INVALID_TRANSITION)
+    //
+    // From REJECTED it takes two hops. There is no REJECTED → SCHEDULED rule, and
+    // adding one would invent a shortcut the operator-facing recovery does not
+    // have; going through AWAITING_INSPECTOR reuses the existing recovery
+    // semantics and leaves an audit trail that says what actually happened. The
+    // slot above is already reserved, so `service_group_id` points at the new
+    // live group by the time the AWAITING_INSPECTOR guard checks for one.
+    if (appointment.status === 'REJECTED') {
+      await this.statusTransition.execute({
+        appointmentId: input.appointmentId,
+        targetStatus: 'AWAITING_INSPECTOR',
+        reason: REJOIN_RECOVERY_REASON,
+        actor: { ...SYSTEM_ACTOR, tenantId: appointment.tenantId },
+      });
+    }
+
     if (appointment.status !== 'SCHEDULED') {
       await this.statusTransition.execute({
         appointmentId: input.appointmentId,
@@ -241,6 +280,31 @@ export class JoinGroupUseCase {
         reason: `Tenant joined service group ${group.id} via portal`,
         actor: { ...SYSTEM_ACTOR, tenantId: appointment.tenantId },
       });
+    }
+
+    // 6b. Keep the confirmation cycle in step. `reservePortalWindow` sets
+    // `rental_tenant_confirmation_status` with a raw column write, so without
+    // this the cycle row would still read PENDING — or UNAVAILABLE, after a
+    // decline — while the appointment column reads CONFIRMED. Best-effort: an
+    // appointment predating the cycle feature has none, and the join is already
+    // committed by this point, so a missing cycle must not undo it.
+    if (this.cycleService) {
+      try {
+        await this.cycleService.realignActiveCycleSchedule(
+          input.appointmentId,
+          appointment.tenantId,
+          new Date(input.scheduledDate),
+          `${input.timeSlotStart}-${input.timeSlotEnd}`,
+        );
+        await this.cycleService.confirm(
+          input.appointmentId,
+          appointment.tenantId,
+          'RENTAL_TENANT_PORTAL',
+          input.tokenId,
+        );
+      } catch {
+        // no active cycle — the denormalized status written above still stands
+      }
     }
 
     // 7. Increment confirmed_count of new group

@@ -10,12 +10,26 @@ import { AppointmentRestrictionEntity } from '../../../appointment/domain/appoin
 import type { AppointmentEntity } from '../../../appointment/domain/appointment.entity';
 import type { IRentalTenantPortalTokenRepository } from '../../domain/rental-tenant-portal-token.repository';
 import type { AvailableSlot } from '@properfy/shared';
+import type {
+  ExecuteStatusTransitionInput,
+  ExecuteStatusTransitionOutput,
+} from '../../../appointment/application/use-cases/execute-status-transition.use-case';
+import { SYSTEM_ACTOR } from '../../../../shared/domain/constants';
+import type { Logger } from '../../../../shared/infrastructure/logger';
+import { isPortalUnanswerableStatus } from '../../domain/portal-statuses';
 import {
   PortalAppointmentInactiveError,
   PortalInspectionAlreadyStartedError,
   PortalTokenAlreadyUsedError,
 } from '../../domain/rental-tenant-portal.errors';
 import { NotFoundError } from '../../../../shared/domain/errors';
+
+interface IStatusTransitionUseCase {
+  execute(input: ExecuteStatusTransitionInput): Promise<ExecuteStatusTransitionOutput>;
+}
+
+/** Reason recorded on the audit trail and offered to the agency notice. */
+const REJECTION_REASON = 'Rental tenant reported they cannot attend, via the portal';
 
 export interface ReportUnavailabilityInput {
   tokenId: string;
@@ -35,18 +49,24 @@ export interface ReportUnavailabilityInput {
   userAgent: string | null;
 }
 
-const INACTIVE_STATUSES = ['CANCELLED', 'DONE', 'REJECTED'] as const;
-
 export class ReportUnavailabilityUseCase {
   constructor(
     private readonly activityRepo: IRentalTenantPortalActivityRepository,
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
+    /**
+     * Required, not optional like the dependencies below it: a decline that does
+     * not reject the appointment is the bug this use case exists to prevent, so
+     * an unwired transition must fail loudly at construction rather than
+     * silently degrade to the old confirmation-status-only behaviour.
+     */
+    private readonly statusTransition: IStatusTransitionUseCase,
     private readonly onNotificationHandler?: { execute(input: { appointmentId: string; tenantId?: string | null; action: string }): Promise<unknown> },
     private readonly executionRepo?: IInspectionExecutionRepository,
     private readonly domainEventBus?: DomainEventBus,
     private readonly tokenRepo?: IRentalTenantPortalTokenRepository,
     private readonly cycleService?: ConfirmationCycleService,
+    private readonly logger?: Logger,
   ) {}
 
   async execute(input: ReportUnavailabilityInput) {
@@ -71,8 +91,10 @@ export class ReportUnavailabilityUseCase {
       throw new PortalTokenAlreadyUsedError();
     }
 
-    // 3. Block for inactive appointment statuses
-    if (INACTIVE_STATUSES.includes(appointment.status as (typeof INACTIVE_STATUSES)[number])) {
+    // 3. Block where the "will you be home?" question no longer applies. This
+    // includes REJECTED: declining an already-rejected appointment would try to
+    // reject it a second time. Changing time still works from REJECTED.
+    if (isPortalUnanswerableStatus(appointment.status)) {
       throw new PortalAppointmentInactiveError();
     }
 
@@ -107,6 +129,28 @@ export class ReportUnavailabilityUseCase {
         }
       }
       throw error;
+    }
+
+    // 4c. Hand the link back. A decline is no longer the tenant's last possible
+    // action: the appointment is now REJECTED and the change-time picker is the
+    // way to revive it, so consuming the token here would strand them. The
+    // replay guard for the decline itself is the "already UNAVAILABLE"
+    // short-circuit at the top, not the claim.
+    //
+    // Not allowed to fail the request: everything above is already committed, so
+    // throwing here would show the tenant an error for a decline that worked,
+    // and their retry would hit the idempotent short-circuit — leaving the token
+    // consumed and change-time silently broken with no way to explain it. Logged
+    // and counted instead, because that outcome still needs to be visible.
+    if (this.tokenRepo) {
+      try {
+        await this.tokenRepo.releaseClaim(input.tokenId, input.appointmentId);
+      } catch (err) {
+        this.logger?.error(
+          { err, appointmentId: input.appointmentId, tokenId: input.tokenId },
+          'Failed to release the portal token after a decline; the tenant cannot change time with this link',
+        );
+      }
     }
 
     return {
@@ -192,6 +236,24 @@ export class ReportUnavailabilityUseCase {
         urgentMode: input.isPastConfirmCutoff,
       },
       ipAddress: input.ipAddress ?? undefined,
+    });
+
+    // 8b. A decline ends the appointment: there is no one to let the inspector
+    // in, so it leaves the run and waits to be rescheduled against the weekly
+    // availability recorded above.
+    //
+    // Routed through the sovereign transition use case rather than a direct
+    // repository write, so the rejection gets the same audit entry, domain event,
+    // empty-group cleanup and notification as any operator-driven rejection.
+    // `SCHEDULED → REJECTED` and `AWAITING_INSPECTOR → REJECTED` both already
+    // list SYS in TRANSITION_RULES.
+    await this.statusTransition.execute({
+      appointmentId: input.appointmentId,
+      targetStatus: 'REJECTED',
+      reason: REJECTION_REASON,
+      rejectionReasonCode: 'TENANT_DECLINED',
+      idempotencyKey: `portal_decline:${input.appointmentId}:${input.tokenId}`,
+      actor: { ...SYSTEM_ACTOR, tenantId: appointment.tenantId },
     });
 
     // 9. Side effect: notify operator of unavailability
