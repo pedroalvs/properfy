@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { env } from '@/config/env';
 import { computeBounds, isPlottablePoint, isSinglePointBounds } from '@/lib/map-bounds';
+import { resolveMarkerCollisions } from '@/lib/marker-collision';
 import type { MarketplaceOffer } from '../types';
 import { formatWallTimeRange } from '@/lib/format-date';
 
@@ -52,9 +53,17 @@ function computeCenter(offers: MarketplaceOffer[]): [number, number] {
   return [lng, lat];
 }
 
+/**
+ * Outer size of a pin. `box-sizing: border-box` (Tailwind preflight) means the
+ * 2.5px ring is inside this, so it is also the exact centre-to-centre distance
+ * at which two pins stop overlapping — which is why the collision pass reads
+ * the same constant the style does.
+ */
+const PIN_DIAMETER_PX = 36;
+
 const PIN_BASE_STYLE = [
-  'width:36px',
-  'height:36px',
+  `width:${PIN_DIAMETER_PX}px`,
+  `height:${PIN_DIAMETER_PX}px`,
   'padding:0',
   'border-radius:50%',
   'box-shadow:0 2px 10px rgba(0,0,0,0.35)',
@@ -116,10 +125,38 @@ function isValidCoordinate(coordinates: { lat: number; lng: number } | null): co
   return isPlottablePoint({ latitude: coordinates.lat, longitude: coordinates.lng });
 }
 
+/** A marker plus the coordinate it stands for, so offsets can be recomputed. */
+interface PlacedMarker {
+  marker: any;
+  lng: number;
+  lat: number;
+}
+
+/**
+ * Nudge any pins that would be drawn on top of each other into a touching row.
+ *
+ * The true coordinate of every marker is left alone — only `setOffset` moves,
+ * which mapbox folds into its own positioning transform. (Writing to the
+ * element's `style.transform` instead would fight that transform; see the note
+ * on makeMarkerEl.)
+ *
+ * Must re-run whenever the camera settles: the offsets are in pixels and
+ * whether two pins collide at all depends on the current zoom.
+ */
+function applyCollisionOffsets(map: any, placed: PlacedMarker[]): void {
+  if (placed.length === 0) return;
+  const screen = placed.map((p) => {
+    const point = map.project([p.lng, p.lat]);
+    return { x: point.x, y: point.y };
+  });
+  const offsets = resolveMarkerCollisions(screen, PIN_DIAMETER_PX);
+  placed.forEach((p, index) => p.marker.setOffset(offsets[index]));
+}
+
 export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: OffersMapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
+  const markersRef = useRef<PlacedMarker[]>([]);
   const mapLoadedRef = useRef(false);
   const prevExpandedIdRef = useRef<string | null>(null);
   /** Points the camera was last framed to — see syncCamera. */
@@ -173,6 +210,14 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
       map.on('dragstart', markUserMoved);
       map.on('zoomstart', markUserMoved);
 
+      // Collision offsets are in pixels, and which pins collide depends on the
+      // zoom — so they have to be recomputed every time the camera settles,
+      // whether the inspector moved it or one of our own fits did.
+      map.on('moveend', () => {
+        if (cancelled) return;
+        applyCollisionOffsets(map, markersRef.current);
+      });
+
       mapRef.current = map;
 
       // Flip state rather than rendering straight from here: this callback
@@ -195,7 +240,7 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
 
     return () => {
       cancelled = true;
-      markersRef.current.forEach((m) => m.remove());
+      markersRef.current.forEach((m) => m.marker.remove());
       markersRef.current = [];
       mapLoadedRef.current = false;
       setMapReady(false);
@@ -226,7 +271,7 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
   }, [expandedGroup?.groupId]);
 
   function renderMode(map: any, mapboxgl: any) {
-    markersRef.current.forEach((m) => m.remove());
+    markersRef.current.forEach((m) => m.marker.remove());
     markersRef.current = [];
 
     if (expandedGroup) {
@@ -234,6 +279,7 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
     } else {
       placeOfferMarkers(map, mapboxgl, offers, onSelectOffer);
     }
+    applyCollisionOffsets(map, markersRef.current);
     syncCamera(map);
   }
 
@@ -255,7 +301,7 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
       const marker = new mapboxgl.Marker({ element: el })
         .setLngLat([offer.centroid.lng, offer.centroid.lat])
         .addTo(map);
-      markersRef.current.push(marker);
+      markersRef.current.push({ marker, lng: offer.centroid.lng, lat: offer.centroid.lat });
     }
   }
 
@@ -271,7 +317,11 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
       const marker = new mapboxgl.Marker({ element: el })
         .setLngLat([appointment.coordinates.lng, appointment.coordinates.lat])
         .addTo(map);
-      markersRef.current.push(marker);
+      markersRef.current.push({
+        marker,
+        lng: appointment.coordinates.lng,
+        lat: appointment.coordinates.lat,
+      });
     });
   }
 

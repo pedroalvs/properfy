@@ -13,7 +13,16 @@ const spies = vi.hoisted(() => ({
   handlers: {} as Record<string, Array<(event?: unknown) => void>>,
   /** When true, 'load' is only registered — the test decides when it fires. */
   deferLoad: false,
+  setOffset: vi.fn(),
+  markers: [] as Array<{
+    coords: [number, number] | null;
+    offset: [number, number];
+    alive: boolean;
+  }>,
 }));
+
+/** Deterministic stand-in for mapbox's projection: 1 unit of lng/lat = 1000px. */
+const PROJECT_SCALE = 1000;
 
 vi.mock('mapbox-gl', () => {
   class FakeMap {
@@ -24,25 +33,39 @@ vi.mock('mapbox-gl', () => {
     }
     addControl() {}
     remove() {}
+    project([lng, lat]: [number, number]) {
+      return { x: lng * PROJECT_SCALE, y: -lat * PROJECT_SCALE };
+    }
     fitBounds = spies.fitBounds;
     flyTo = spies.flyTo;
   }
   class FakeMarker {
     private el: HTMLElement;
+    private record: (typeof spies.markers)[number];
     constructor(opts: { element: HTMLElement }) {
       this.el = opts.element;
+      this.record = { coords: null, offset: [0, 0], alive: false };
+      spies.markers.push(this.record);
     }
     setLngLat(coords: [number, number]) {
       spies.markerCoords.push(coords);
+      this.record.coords = coords;
+      return this;
+    }
+    setOffset(offset: [number, number]) {
+      spies.setOffset(offset);
+      this.record.offset = offset;
       return this;
     }
     addTo() {
       document.body.appendChild(this.el);
       spies.markerElements.push(this.el);
+      this.record.alive = true;
       return this;
     }
     remove() {
       this.el.remove();
+      this.record.alive = false;
     }
   }
   class FakeNavigationControl {}
@@ -119,8 +142,32 @@ beforeEach(() => {
   spies.markerCoords.length = 0;
   for (const key of Object.keys(spies.handlers)) delete spies.handlers[key];
   spies.deferLoad = false;
+  spies.setOffset.mockClear();
+  spies.markers.length = 0;
   document.body.replaceChildren();
 });
+
+/** Markers currently on the map, with the screen position they end up drawn at. */
+function drawnMarkers() {
+  return spies.markers
+    .filter((m) => m.alive && m.coords)
+    .map((m) => ({
+      x: m.coords![0] * PROJECT_SCALE + m.offset[0],
+      y: -m.coords![1] * PROJECT_SCALE + m.offset[1],
+      offset: m.offset,
+    }));
+}
+
+/** The invariant the feature exists for: no drawn pin overlaps another. */
+function expectNoOverlappingPins(diameter = 36) {
+  const drawn = drawnMarkers();
+  for (let i = 0; i < drawn.length; i += 1) {
+    for (let j = i + 1; j < drawn.length; j += 1) {
+      const gap = Math.hypot(drawn[i].x - drawn[j].x, drawn[i].y - drawn[j].y);
+      expect(gap).toBeGreaterThanOrEqual(diameter - 1e-6);
+    }
+  }
+}
 
 describe('OffersMapView — offers mode', () => {
   it('renders one pin per offer with a centroid and skips null centroids', async () => {
@@ -178,6 +225,122 @@ describe('OffersMapView — offers mode', () => {
     await waitForPins('map-pin', 1);
     // A marker at NaN is a silently broken pin — worse than an absent one.
     expect(spies.markerCoords).toEqual([[151.21, -33.87]]);
+  });
+});
+
+describe('OffersMapView — overlapping pins', () => {
+  const SAME = { lat: -33.8148, lng: 151.0017 };
+
+  it('draws two groups at the same location side by side instead of stacked', async () => {
+    render(
+      <OffersMapView
+        offers={[
+          makeOffer({ groupId: 'group-1', centroid: SAME }),
+          makeOffer({ groupId: 'group-2', centroid: { ...SAME } }),
+        ]}
+        onSelectOffer={vi.fn()}
+      />,
+    );
+    await waitForPins('map-pin', 2);
+
+    // Both keep their true coordinate; only the drawing is nudged apart.
+    expect(spies.markerCoords).toEqual([
+      [SAME.lng, SAME.lat],
+      [SAME.lng, SAME.lat],
+    ]);
+    const drawn = drawnMarkers();
+    expect(drawn[0].offset).not.toEqual(drawn[1].offset);
+    expectNoOverlappingPins();
+  });
+
+  it('keeps every pin of a large pile separated', async () => {
+    render(
+      <OffersMapView
+        offers={Array.from({ length: 5 }, (_, i) =>
+          makeOffer({ groupId: `group-${i}`, centroid: { ...SAME } }),
+        )}
+        onSelectOffer={vi.fn()}
+      />,
+    );
+    await waitForPins('map-pin', 5);
+    expectNoOverlappingPins();
+  });
+
+  it('separates pins that merely overlap without coinciding', async () => {
+    // 20px apart under the test projection — the 36px pins overlap.
+    render(
+      <OffersMapView
+        offers={[
+          makeOffer({ groupId: 'group-1', centroid: SAME }),
+          makeOffer({ groupId: 'group-2', centroid: { lat: SAME.lat, lng: SAME.lng + 0.02 } }),
+        ]}
+        onSelectOffer={vi.fn()}
+      />,
+    );
+    await waitForPins('map-pin', 2);
+    expectNoOverlappingPins();
+  });
+
+  it('leaves well-separated pins at a zero offset', async () => {
+    render(
+      <OffersMapView
+        offers={[
+          makeOffer({ groupId: 'group-1', centroid: SAME }),
+          makeOffer({ groupId: 'group-2', centroid: { lat: SAME.lat, lng: SAME.lng + 1 } }),
+        ]}
+        onSelectOffer={vi.fn()}
+      />,
+    );
+    await waitForPins('map-pin', 2);
+    expect(drawnMarkers().map((m) => m.offset)).toEqual([
+      [0, 0],
+      [0, 0],
+    ]);
+  });
+
+  // Offsets are pixels, collisions are pixels, and zoom changes the pixels — so
+  // an offset computed once is wrong the moment the camera moves.
+  it('recomputes offsets when the camera settles', async () => {
+    render(
+      <OffersMapView
+        offers={[
+          makeOffer({ groupId: 'group-1', centroid: SAME }),
+          makeOffer({ groupId: 'group-2', centroid: { ...SAME } }),
+        ]}
+        onSelectOffer={vi.fn()}
+      />,
+    );
+    await waitForPins('map-pin', 2);
+    spies.setOffset.mockClear();
+
+    emitMapEvent('moveend');
+
+    await waitFor(() => {
+      expect(spies.setOffset).toHaveBeenCalled();
+    });
+    expectNoOverlappingPins();
+  });
+
+  it('separates drill-down inspection pins at the same address', async () => {
+    const at = { lat: -33.8688, lng: 151.2093 };
+    render(
+      <OffersMapView
+        offers={[makeOffer()]}
+        onSelectOffer={vi.fn()}
+        expandedGroup={{
+          groupId: 'group-1',
+          appointments: [
+            { ...EXPANDED.appointments[0], coordinates: at },
+            { ...EXPANDED.appointments[1], coordinates: { ...at } },
+          ],
+        }}
+      />,
+    );
+    await waitForPins('map-appointment-pin', 2);
+
+    const drawn = drawnMarkers();
+    expect(drawn[0].offset).not.toEqual(drawn[1].offset);
+    expectNoOverlappingPins();
   });
 });
 
