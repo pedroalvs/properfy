@@ -3,6 +3,7 @@ import { paginationSchema } from './pagination';
 import { contactSchema, appointmentContactsArraySchema } from './contact';
 import { PROPERTY_TYPE_VALUES } from './property';
 import { restrictionSchema } from './restriction';
+import { availableSlotSchema } from './available-slot';
 import { AppointmentStatus, RentalTenantConfirmationStatus } from '../enums/appointment';
 import { CancellationReasonCode, RejectionReasonCode } from '../enums/reason-codes';
 
@@ -343,6 +344,29 @@ export const forceManualConfirmationSchema = z.object({
   reason: z.string().min(1).max(1000),
 });
 export type ForceManualConfirmationInput = z.infer<typeof forceManualConfirmationSchema>;
+
+// ─── Operator-recorded rental tenant availability ────────────────────────
+
+/**
+ * Lets an operator record the weekly availability a rental tenant gave outside
+ * the portal (a phone call, an email). Until this existed, `available_slots_json`
+ * had exactly one writer — the portal decline — so anything told to a human was lost.
+ *
+ * A dedicated command rather than a field on `updateAppointmentSchema`: setting
+ * `markUnavailable` runs a status transition and dispatches notifications, which
+ * the appointment PATCH deliberately does not do.
+ */
+export const setRentalTenantAvailabilitySchema = z.object({
+  /** At least one slot — clearing availability is not an operator action. */
+  availableSlots: z.array(availableSlotSchema).min(1).max(7),
+  /**
+   * Mirrors a portal "No" in full: marks the tenant UNAVAILABLE, rejects the
+   * appointment (`TENANT_DECLINED`) and emails the agency. AM/OP only — the
+   * state machine gives no role but AM/OP/SYS a path to REJECTED.
+   */
+  markUnavailable: z.boolean().default(false),
+});
+export type SetRentalTenantAvailabilityInput = z.infer<typeof setRentalTenantAvailabilitySchema>;
 
 // ─── Bulk re-send tenant-portal reminder (023 §FR-241..245) ──────────────
 

@@ -1,18 +1,5 @@
-import type { AvailableSlot, DayOfWeek } from '@properfy/shared';
-
-// Mirrors the labels and ordering of the portal picker the rental tenant fills in
-// (features/rental-tenant-portal/components/WeeklyAvailabilityPicker.tsx).
-const DAY_LABELS: Record<DayOfWeek, string> = {
-  MON: 'Mon',
-  TUE: 'Tue',
-  WED: 'Wed',
-  THU: 'Thu',
-  FRI: 'Fri',
-  SAT: 'Sat',
-  SUN: 'Sun',
-};
-
-const DAY_ORDER: DayOfWeek[] = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+import type { AvailableSlot } from '@properfy/shared';
+import { orderSlots, formatSlot } from '../lib/availability-slots';
 
 interface TenantAvailabilitySlotsProps {
   slots?: AvailableSlot[] | null;
@@ -21,14 +8,15 @@ interface TenantAvailabilitySlotsProps {
 /**
  * The weekly availability a rental tenant offers when declining an inspection in the
  * portal. Renders nothing when there is none, so call sites can drop it in directly.
+ *
+ * Labels and ordering come from `lib/availability-slots`, shared with the map's
+ * Confirm column, which renders the same slots as a single tooltip line.
  */
 export function TenantAvailabilitySlots({ slots }: TenantAvailabilitySlotsProps) {
   if (!slots || slots.length === 0) return null;
 
   // The picker already emits Mon→Sun order; sort anyway so legacy rows read the same.
-  const ordered = [...slots].sort(
-    (a, b) => DAY_ORDER.indexOf(a.dayOfWeek) - DAY_ORDER.indexOf(b.dayOfWeek),
-  );
+  const ordered = orderSlots(slots);
 
   return (
     <ul className="flex flex-wrap gap-1.5">
@@ -37,7 +25,7 @@ export function TenantAvailabilitySlots({ slots }: TenantAvailabilitySlotsProps)
           key={`${slot.dayOfWeek}-${slot.start}-${idx}`}
           className="inline-flex items-center rounded border border-black/10 bg-app-bg px-2 py-0.5 text-sm text-text-primary"
         >
-          {`${DAY_LABELS[slot.dayOfWeek] ?? slot.dayOfWeek} ${slot.start} - ${slot.end}`}
+          {formatSlot(slot)}
         </li>
       ))}
     </ul>

@@ -6,11 +6,13 @@ import {
   statusTransitionSchema,
   listAppointmentsQuerySchema,
   forceManualConfirmationSchema,
+  setRentalTenantAvailabilitySchema,
   bulkEditAppointmentSchema,
   bulkCrossCheckDoneRequestSchema,
   bulkCrossCheckDoneResponseSchema,
   appointmentResponseSchema,
   forceManualConfirmationResponseSchema,
+  setRentalTenantAvailabilityResponseSchema,
   bulkResendReminderRequestSchema,
   bulkResendReminderResponseSchema,
   bulkCancelRequestSchema,
@@ -33,6 +35,7 @@ import type { UpdateAppointmentUseCase } from '../application/use-cases/update-a
 import type { ExecuteStatusTransitionUseCase } from '../application/use-cases/execute-status-transition.use-case';
 import type { PerformCrossCheckUseCase } from '../application/use-cases/perform-cross-check.use-case';
 import type { ForceManualTenantConfirmationUseCase } from '../application/use-cases/force-manual-confirmation.use-case';
+import type { SetRentalTenantAvailabilityUseCase } from '../application/use-cases/set-rental-tenant-availability.use-case';
 import type { PreviewAppointmentImportUseCase } from '../application/use-cases/preview-appointment-import.use-case';
 import type { CommitAppointmentImportUseCase } from '../application/use-cases/commit-appointment-import.use-case';
 import type { ExportAppointmentImportErrorsUseCase } from '../application/use-cases/export-appointment-import-errors.use-case';
@@ -68,6 +71,7 @@ export interface AppointmentRouteContainer {
   executeStatusTransitionUseCase: ExecuteStatusTransitionUseCase;
   performCrossCheckUseCase: PerformCrossCheckUseCase;
   forceManualConfirmationUseCase: ForceManualTenantConfirmationUseCase;
+  setRentalTenantAvailabilityUseCase: SetRentalTenantAvailabilityUseCase;
   reopenForRescheduleUseCase: ReopenForRescheduleUseCase;
   previewAppointmentImportUseCase: PreviewAppointmentImportUseCase;
   commitAppointmentImportUseCase: CommitAppointmentImportUseCase;
@@ -349,6 +353,38 @@ export async function registerAppointmentRoutes(
         throw new ValidationError('Request payload is invalid', parsed.error.errors);
       }
       const result = await container.forceManualConfirmationUseCase.execute({
+        appointmentId: params.data.appointmentId,
+        ...parsed.data,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/appointments/:appointmentId/rental-tenant-availability — 200
+  // Records the weekly availability a rental tenant gave outside the portal.
+  // A dedicated command, not a field on PATCH: `markUnavailable` runs a status
+  // transition and dispatches notifications, which the PATCH deliberately does not.
+  app.post(
+    '/v1/appointments/:appointmentId/rental-tenant-availability',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ appointmentId: z.string().uuid() }),
+        body: setRentalTenantAvailabilitySchema,
+        response: { 200: successResponseSchema(setRentalTenantAvailabilityResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const params = appointmentIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid appointment ID', params.error.errors);
+      }
+      const parsed = setRentalTenantAvailabilitySchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.setRentalTenantAvailabilityUseCase.execute({
         appointmentId: params.data.appointmentId,
         ...parsed.data,
         actor: request.authContext!,

@@ -238,6 +238,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         service_type: { select: { name: true, flow_type: true } },
         inspector: { select: { name: true } },
         service_group: { select: { group_number: true } },
+        // Only the availability column: the list needs the rental tenant's
+        // weekly slots for the map's Confirm column, not the whole restriction.
+        restrictions: { select: { available_slots_json: true } },
       },
     });
     return rows.map((row) => {
@@ -261,6 +264,13 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         serviceTypeFlowType: (row.service_type?.flow_type ?? 'ROUTINE') as ServiceTypeFlowType,
         inspectorName: row.inspector?.name ?? null,
         serviceGroupNumber: row.service_group?.group_number ?? null,
+        // Found by content, not position: the single restriction row is shared
+        // between the operator and the portal, so whichever wrote last decides
+        // which row carries the slots.
+        rentalTenantAvailableSlots:
+          row.restrictions
+            .map((r) => r.available_slots_json as AvailableSlot[] | null)
+            .find((slots) => slots?.length) ?? null,
       };
     });
   }

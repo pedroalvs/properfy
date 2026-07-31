@@ -4,6 +4,7 @@ import type {
   CancellationReasonCode,
   RejectionReasonCode,
   ServiceTypeFlowType,
+  AvailableSlotSchema,
 } from '@properfy/shared';
 import type { AppointmentEntity } from './appointment.entity';
 import type { AppointmentContactEntity } from './appointment-contact.entity';
@@ -114,6 +115,15 @@ export interface AppointmentListItem {
   inspectorName: string | null;
   /** Service group's sequential number (group_number); null when ungrouped. */
   serviceGroupNumber: number | null;
+  /**
+   * Weekly availability the rental tenant offered when declining in the portal
+   * (`appointment_restrictions.available_slots_json`), flattened onto the list row.
+   *
+   * Optional only so existing test fixtures need not enumerate it —
+   * `ListAppointmentsUseCase` normalises a missing or empty value to null. Do not
+   * read an omission here as "this tenant offered no availability".
+   */
+  rentalTenantAvailableSlots?: AvailableSlotSchema[] | null;
 }
 
 // `ContactFilters`, `ContactListItem`, and `ContactDetail` were retired

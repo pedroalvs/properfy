@@ -4512,6 +4512,12 @@ export interface paths {
                                 rentalTenantNote?: string | null;
                                 observation?: string | null;
                                 hasRentalTenantNote?: boolean;
+                                rentalTenantAvailableSlots?: {
+                                    /** @enum {string} */
+                                    dayOfWeek: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+                                    start: string;
+                                    end: string;
+                                }[] | null;
                                 /** @default false */
                                 hasActivePortalToken: boolean;
                                 customFieldsJson?: unknown;
@@ -4709,6 +4715,12 @@ export interface paths {
                                 rentalTenantNote?: string | null;
                                 observation?: string | null;
                                 hasRentalTenantNote?: boolean;
+                                rentalTenantAvailableSlots?: {
+                                    /** @enum {string} */
+                                    dayOfWeek: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+                                    start: string;
+                                    end: string;
+                                }[] | null;
                                 /** @default false */
                                 hasActivePortalToken: boolean;
                                 customFieldsJson?: unknown;
@@ -4831,6 +4843,12 @@ export interface paths {
                                 rentalTenantNote?: string | null;
                                 observation?: string | null;
                                 hasRentalTenantNote?: boolean;
+                                rentalTenantAvailableSlots?: {
+                                    /** @enum {string} */
+                                    dayOfWeek: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+                                    start: string;
+                                    end: string;
+                                }[] | null;
                                 /** @default false */
                                 hasActivePortalToken: boolean;
                                 customFieldsJson?: unknown;
@@ -5028,6 +5046,12 @@ export interface paths {
                                 rentalTenantNote?: string | null;
                                 observation?: string | null;
                                 hasRentalTenantNote?: boolean;
+                                rentalTenantAvailableSlots?: {
+                                    /** @enum {string} */
+                                    dayOfWeek: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+                                    start: string;
+                                    end: string;
+                                }[] | null;
                                 /** @default false */
                                 hasActivePortalToken: boolean;
                                 customFieldsJson?: unknown;
@@ -5161,7 +5185,7 @@ export interface paths {
                         /** @enum {string} */
                         cancellationReasonCode?: "CLIENT_REQUEST" | "TENANT_UNAVAILABLE" | "SCHEDULING_CONFLICT" | "INSPECTOR_UNAVAILABLE" | "DUPLICATE" | "EXPIRED" | "OTHER";
                         /** @enum {string} */
-                        rejectionReasonCode?: "INVALID_ADDRESS" | "PROPERTY_INACCESSIBLE" | "SAFETY_CONCERN" | "INSUFFICIENT_INFO" | "SERVICE_NOT_AVAILABLE" | "TENANT_NO_RESPONSE" | "OTHER";
+                        rejectionReasonCode?: "INVALID_ADDRESS" | "PROPERTY_INACCESSIBLE" | "SAFETY_CONCERN" | "INSUFFICIENT_INFO" | "SERVICE_NOT_AVAILABLE" | "TENANT_NO_RESPONSE" | "TENANT_DECLINED" | "OTHER";
                         /** Format: uuid */
                         doneCheckedByUserId?: string;
                         /** Format: uuid */
@@ -5297,6 +5321,68 @@ export interface paths {
                             data: {
                                 /** Format: uuid */
                                 id: string;
+                                rentalTenantConfirmationStatus: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/appointments/{appointmentId}/rental-tenant-availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    appointmentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        availableSlots: {
+                            /** @enum {string} */
+                            dayOfWeek: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+                            start: string;
+                            end: string;
+                        }[];
+                        /** @default false */
+                        markUnavailable?: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                availableSlots: {
+                                    /** @enum {string} */
+                                    dayOfWeek: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+                                    start: string;
+                                    end: string;
+                                }[];
                                 rentalTenantConfirmationStatus: string;
                             };
                         };

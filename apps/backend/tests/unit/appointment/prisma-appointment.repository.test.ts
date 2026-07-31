@@ -209,6 +209,10 @@ describe('PrismaAppointmentRepository property total area', () => {
       updated_at: new Date(),
       deleted_at: null,
       contacts: [],
+      // `findAll` includes the restriction rows to flatten the rental tenant's
+      // weekly availability onto the list; the double has to mirror that or the
+      // mapper reads undefined.
+      restrictions: [],
       property: {
         property_code: 'PROP-001',
         street: '21 King St',
@@ -261,6 +265,46 @@ describe('PrismaAppointmentRepository property total area', () => {
     const rows = await repo.findAll({}, { page: 1, pageSize: 10, sortOrder: 'asc' });
 
     expect(rows[0]!.propertyTotalAreaM2).toBeNull();
+  });
+
+  it('flattens the rental tenant availability onto the list row', async () => {
+    const slots = [{ dayOfWeek: 'MON', start: '09:00', end: '12:00' }];
+    const row = makeRow(null);
+    row.restrictions = [{ available_slots_json: slots }] as never;
+    findMany.mockResolvedValue([row]);
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    const rows = await repo.findAll({}, { page: 1, pageSize: 10, sortOrder: 'asc' });
+
+    expect(rows[0]!.rentalTenantAvailableSlots).toEqual(slots);
+  });
+
+  it('skips restriction rows without slots rather than returning the first row blindly', async () => {
+    // The single restriction row is shared with the operator, so an operator-only
+    // row (no slots) can sit ahead of the one that carries them.
+    const slots = [{ dayOfWeek: 'FRI', start: '08:00', end: '10:00' }];
+    const row = makeRow(null);
+    row.restrictions = [
+      { available_slots_json: null },
+      { available_slots_json: slots },
+    ] as never;
+    findMany.mockResolvedValue([row]);
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    const rows = await repo.findAll({}, { page: 1, pageSize: 10, sortOrder: 'asc' });
+
+    expect(rows[0]!.rentalTenantAvailableSlots).toEqual(slots);
+  });
+
+  it('reports no availability as null when every restriction row lacks slots', async () => {
+    const row = makeRow(null);
+    row.restrictions = [{ available_slots_json: null }] as never;
+    findMany.mockResolvedValue([row]);
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    const rows = await repo.findAll({}, { page: 1, pageSize: 10, sortOrder: 'asc' });
+
+    expect(rows[0]!.rentalTenantAvailableSlots).toBeNull();
   });
 });
 

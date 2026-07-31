@@ -9,6 +9,7 @@ import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { AppointmentCodePill } from './AppointmentCodePill';
 import { SecretValue } from '@/components/ui/SecretValue';
 import { ConfirmationChannelIcons } from './ConfirmationChannelIcons';
+import { TenantAvailabilitySlots } from './TenantAvailabilitySlots';
 import { formatAuPhone } from '@/lib/phone-mask';
 
 interface AppointmentMapDetailPanelProps {
@@ -44,7 +45,7 @@ const SECTIONS: SectionConfig[] = [
   { key: 'contacts', icon: 'mdi-account-multiple', label: 'Contacts' },
   { key: 'apps', icon: 'mdi-apps', label: 'Apps' },
   { key: 'service', icon: 'mdi-clipboard-text', label: 'Service type' },
-  { key: 'restrictions', icon: 'mdi-alert-octagon-outline', label: 'Restrictions' },
+  { key: 'restrictions', icon: 'mdi-alert-octagon-outline', label: 'Restrictions & availability' },
   { key: 'notes', icon: 'mdi-note-text-outline', label: 'Notes' },
   { key: 'observation', icon: 'mdi-text-box-outline', label: 'Observation' },
   { key: 'customFields', icon: 'mdi-format-list-bulleted', label: 'Custom fields' },
@@ -350,10 +351,29 @@ function renderSectionContent(key: SectionKey, ctx: SectionCtx): ReactNode {
       );
     case 'service':
       return <p>{marker.serviceTypeName ?? detail?.serviceTypeName ?? '—'}</p>;
-    case 'restrictions':
+    case 'restrictions': {
       if (!detail || (detail.restrictions ?? []).length === 0) {
         return <p className="text-text-muted">No restrictions on file.</p>;
       }
+      // The row carrying availability is found by content, never by position:
+      // a decline and an operator edit share the single restriction row, and
+      // which one holds the slots depends on who wrote last.
+      const availableSlots = detail.restrictions!.find(
+        (r) => r.availableSlotsJson?.length,
+      )?.availableSlotsJson;
+
+      // Availability outranks the access restriction — it is what an operator
+      // acts on. It also avoids announcing "Property vacant" for a decline,
+      // where the portal hardcodes `isHome: false`.
+      if (availableSlots?.length) {
+        return (
+          <div className="space-y-1">
+            <p className="text-text-muted">Tenant availability</p>
+            <TenantAvailabilitySlots slots={availableSlots} />
+          </div>
+        );
+      }
+
       return (
         <ul className="space-y-0.5">
           {detail.restrictions!.map((r) => (
@@ -364,6 +384,7 @@ function renderSectionContent(key: SectionKey, ctx: SectionCtx): ReactNode {
           ))}
         </ul>
       );
+    }
     case 'notes':
       return detail?.notes
         ? <p className="whitespace-pre-wrap">{detail.notes}</p>

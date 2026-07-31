@@ -87,6 +87,51 @@ describe('appointmentResponseSchema — appointmentCode / code', () => {
       appointmentResponseSchema.safeParse({ ...validBase, isOverdue: 'true' }).success,
     ).toBe(false);
   });
+
+  // Same failure mode as isOverdue above, one field later: the map's Confirm
+  // column reads the rental tenant's weekly availability off the LIST payload.
+  // Undeclared here, the list use case would compute it and the serializer
+  // would drop it with no error anywhere.
+  it('carries rentalTenantAvailableSlots across the wire instead of stripping it', () => {
+    const slots = [{ dayOfWeek: 'MON', start: '09:00', end: '12:00' }];
+    const result = appointmentResponseSchema.safeParse({
+      ...validBase,
+      rentalTenantAvailableSlots: slots,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.rentalTenantAvailableSlots).toEqual(slots);
+  });
+
+  it('accepts a null rentalTenantAvailableSlots for appointments with no availability', () => {
+    const result = appointmentResponseSchema.safeParse({
+      ...validBase,
+      rentalTenantAvailableSlots: null,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.rentalTenantAvailableSlots).toBeNull();
+  });
+
+  it('leaves rentalTenantAvailableSlots optional so the detail producer still validates', () => {
+    const result = appointmentResponseSchema.safeParse(validBase);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.rentalTenantAvailableSlots).toBeUndefined();
+  });
+
+  it('rejects a malformed slot rather than passing junk to the UI', () => {
+    expect(
+      appointmentResponseSchema.safeParse({
+        ...validBase,
+        rentalTenantAvailableSlots: [{ dayOfWeek: 'FUNDAY', start: '09:00', end: '12:00' }],
+      }).success,
+    ).toBe(false);
+    // start must precede end — the shared refine, not a new rule.
+    expect(
+      appointmentResponseSchema.safeParse({
+        ...validBase,
+        rentalTenantAvailableSlots: [{ dayOfWeek: 'MON', start: '17:00', end: '09:00' }],
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe('agencyFinancialExportResponseSchema (031)', () => {

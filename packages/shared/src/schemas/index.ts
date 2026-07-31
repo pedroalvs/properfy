@@ -16,6 +16,7 @@ export * from './service-type';
 export * from './pricing-rule';
 export * from './inspector';
 export * from './audit-log';
+export * from './available-slot';
 export * from './rental-tenant-portal';
 export * from './inspection-execution';
 export * from './billing';

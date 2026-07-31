@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { AvailableSlot } from '@properfy/shared';
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
 
 export interface AppointmentMapItem {
@@ -34,6 +35,12 @@ export interface AppointmentMapItem {
   hasRentalTenantNote?: boolean;
   /** Tenant note text — shown as tooltip on the note icon in the bulk modal. */
   rentalTenantNote?: string | null;
+  /**
+   * Weekly availability the tenant offered when declining in the portal, flattened
+   * onto the list row so the Confirm column needs no per-row detail fetch.
+   * Null/absent when they offered none.
+   */
+  rentalTenantAvailableSlots?: AvailableSlot[] | null;
   /** Optional service group id used to gate the "Add to group" action. */
   serviceGroupId?: string | null;
   /** Human-friendly service group code (String(group_number)); null/absent when ungrouped. */
