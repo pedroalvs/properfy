@@ -105,9 +105,9 @@ export class UpdateInspectorUseCase {
     // there is a login account to protect. Both halves matter:
     //   - payload rather than diff, because for a legacy mixed-case row the
     //     normalised email reads as unchanged, so a diff gate would skip the check
-    //     while the write still stamped the address onto the users row, leaving
-    //     two accounts on one login identity for findByEmail (a findFirst) to
-    //     resolve at random;
+    //     while the write still drove straight into the partial unique index on
+    //     users.email — a P2002 500 instead of a 409 (that index is real but not
+    //     declared in schema.prisma, which shows only @@index([email]));
     //   - only when linked, because the self-match exclusion keys on
     //     inspector.userId, so for an unlinked row it can never match and any
     //     unrelated user holding that address would 409 every future edit — with
