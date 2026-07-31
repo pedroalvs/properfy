@@ -53,6 +53,17 @@ describe('extractTemplateVariables', () => {
     expect(extractTemplateVariables('{{!--\n multi {{a}}\n line {{b}}\n--}}{{c}}')).toEqual(['c']);
   });
 
+  it('ignores partial names', () => {
+    // `{{> name}}` names a partial, not a variable. No partial is registered, so
+    // such a template fails at render — but reporting "Invalid variables: name"
+    // is a misleading way to say so, and variable validation is not syntax
+    // validation.
+    expect(extractTemplateVariables('{{> myPartial}}')).toEqual([]);
+    expect(extractTemplateVariables('{{> myPartial rentalTenantName}}')).toEqual([
+      'rentalTenantName',
+    ]);
+  });
+
   it('ignores block-parameter declarations', () => {
     // `as |item|` is a local alias, and `as` is a keyword — reporting it gave
     // "Invalid variables: as", the same class of false rejection as {{else}}.

@@ -77,6 +77,8 @@ export function extractTemplateVariables(text: string): string[] {
 
     // `{{! comment }}` and `{{/if}}` carry no references.
     if (inner.startsWith('!') || inner.startsWith('/')) continue;
+    // `{{> name}}` names a partial; only its context arguments are references.
+    if (inner.startsWith('>')) inner = inner.slice(1).trim().split(/\s+/).slice(1).join(' ');
     // `{{else}}` and `{{^}}` only split a block into its two programs.
     if (inner === 'else' || inner === '^') continue;
     // `{{else if x}}` — the chained condition is what matters.
