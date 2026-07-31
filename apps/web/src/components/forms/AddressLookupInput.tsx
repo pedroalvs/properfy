@@ -203,6 +203,12 @@ export function AddressLookupInput({
             setSearch('');
             setDebouncedSearch('');
           }}
+          onBlur={() => {
+            // Without this the floating label stays in its focused style after
+            // Escape-then-Tab: the keydown early-returns while closed, so
+            // nothing else resets `focused`. PropertySearch has the same guard.
+            if (!open) setFocused(false);
+          }}
           onKeyDown={handleKeyDown}
           aria-label={ariaLabel ?? label}
           aria-expanded={open}

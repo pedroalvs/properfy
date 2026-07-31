@@ -175,6 +175,54 @@ describe('FilterSelect keyboard navigation', () => {
     expect(trigger()).toHaveAttribute('aria-controls', listboxId!);
   });
 
+  // openMenu and Home both used to seed index 0 unconditionally, naming an
+  // option id over an empty <ul>. End was already correct, so the keys
+  // disagreed with each other.
+  it.each(['{ArrowDown}', '{ArrowUp}', '{Home}', '{End}'])(
+    'never advertises an option when there are none (%s)',
+    async (key) => {
+      const user = userEvent.setup();
+      render(<FilterSelect label="Status" value="" onChange={() => {}} options={[]} />);
+      trigger().focus();
+
+      await user.keyboard('{ArrowDown}');
+      await user.keyboard(key);
+
+      expect(trigger()).not.toHaveAttribute('aria-activedescendant');
+    },
+  );
+
+  // Checked at the moment of opening: the first navigation key overwrites
+  // whatever openMenu seeded, so a test that presses one can never observe it.
+  it('advertises nothing at the moment an empty menu opens', async () => {
+    const user = userEvent.setup();
+    render(<FilterSelect label="Status" value="" onChange={() => {}} options={[]} />);
+    trigger().focus();
+
+    await user.keyboard('{ArrowDown}');
+
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    expect(trigger()).not.toHaveAttribute('aria-activedescendant');
+  });
+
+  it('drops a stale active index when the option list shrinks', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <FilterSelect label="Status" value="" onChange={() => {}} options={threeOptions} />,
+    );
+    trigger().focus();
+    await user.keyboard('{ArrowDown}{End}');
+    expect(trigger()).toHaveAttribute('aria-activedescendant');
+
+    // A background refetch shrinks the list under the open menu; without the
+    // guard, activedescendant names a missing id and Enter silently no-ops.
+    rerender(
+      <FilterSelect label="Status" value="" onChange={() => {}} options={[threeOptions[0]!]} />,
+    );
+
+    expect(trigger()).not.toHaveAttribute('aria-activedescendant');
+  });
+
   // The keyboard position must be tellable apart from the selection, otherwise
   // arrowing past the selected row leaves the user with no idea where they are.
   it('marks the keyboard-active option distinctly from the selected one', async () => {

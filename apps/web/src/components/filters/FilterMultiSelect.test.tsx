@@ -198,6 +198,12 @@ describe('FilterMultiSelect keyboard navigation', () => {
       await user.keyboard('{ArrowDown}{Escape}');
       expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
       expect(onDocumentEscape).not.toHaveBeenCalled();
+
+      // The release direction. Without it, hoisting stopPropagation above the
+      // `!open` early-return would trap users inside drawers with every test
+      // still green.
+      await user.keyboard('{Escape}');
+      expect(onDocumentEscape).toHaveBeenCalledTimes(1);
     } finally {
       document.removeEventListener('keydown', listener);
     }
@@ -225,14 +231,49 @@ describe('FilterMultiSelect keyboard navigation', () => {
     }
   });
 
-  it('never lands the active index on the "No options" row', async () => {
-    const user = userEvent.setup();
-    render(<FilterMultiSelect label="Type" value={[]} onChange={() => {}} options={[]} />);
-    trigger().focus();
+  // Every navigation key, not just ArrowDown: `Math.max(-2, 0)` made ArrowUp
+  // land on index 0 over a list whose only row is the id-less "No options".
+  it.each(['{ArrowDown}', '{ArrowUp}', '{Home}', '{End}'])(
+    'never lands the active index on the "No options" row (%s)',
+    async (key) => {
+      const user = userEvent.setup();
+      render(<FilterMultiSelect label="Type" value={[]} onChange={() => {}} options={[]} />);
+      trigger().focus();
 
+      await user.keyboard('{ArrowDown}');
+      await user.keyboard(key);
+
+      expect(screen.getByText('No options')).toBeInTheDocument();
+      expect(trigger()).not.toHaveAttribute('aria-activedescendant');
+    },
+  );
+
+  // IDL, not the attribute: rewriting rows as inherently-focusable elements
+  // would resurrect the N-tab-stops bug while an attribute check stayed green.
+  it('keeps options out of the tab order by computed tabIndex', async () => {
+    const user = userEvent.setup();
+    renderAndFocus();
     await user.keyboard('{ArrowDown}');
 
-    expect(screen.getByText('No options')).toBeInTheDocument();
+    for (const option of screen.getAllByRole('option')) {
+      expect((option as HTMLElement).tabIndex).toBe(-1);
+    }
+  });
+
+  it('drops a stale active index when the option list shrinks', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <FilterMultiSelect label="Type" value={[]} onChange={() => {}} options={options} />,
+    );
+    trigger().focus();
+    await user.keyboard('{ArrowDown}{End}');
+    expect(trigger()).toHaveAttribute('aria-activedescendant');
+
+    // A background refetch shrinks the list under the open menu.
+    rerender(
+      <FilterMultiSelect label="Type" value={[]} onChange={() => {}} options={[options[0]!]} />,
+    );
+
     expect(trigger()).not.toHaveAttribute('aria-activedescendant');
   });
 });

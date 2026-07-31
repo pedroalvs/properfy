@@ -228,9 +228,12 @@ describe('PropertySearch keyboard navigation', () => {
 
     fireEvent.keyDown(input, { key: 'ArrowDown' });
     fireEvent.keyDown(input, { key: 'ArrowDown' });
-    fireEvent.keyDown(input, { key: 'Enter' });
+    // fireEvent returns !defaultPrevented — false proves preventDefault ran.
+    // Without it, selecting also submits the surrounding form.
+    const notPrevented = fireEvent.keyDown(input, { key: 'Enter' });
 
     expect(onChange).toHaveBeenCalledWith('prop-2');
+    expect(notPrevented).toBe(false);
   });
 
   // A bare Enter must stay free for the surrounding form to handle — the
@@ -243,10 +246,11 @@ describe('PropertySearch keyboard navigation', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  it('closes on Escape and consumes it so the enclosing drawer stays open', async () => {
-    // PropertySearch lives inside the appointment create drawer, which closes
-    // on Escape from a document listener. Dismissing a suggestion list must not
-    // discard the half-filled form behind it.
+  it('closes on Escape and consumes it so an enclosing dialog stays open', async () => {
+    // Dialog and DrawerPanel both close on Escape from a document listener, so
+    // a bubbling Escape would dismiss the surrounding modal. This component has
+    // no consumer today — the appointment drawer uses SelectInput for
+    // properties — so the guard encodes the contract, not a live placement.
     const onDocumentEscape = vi.fn();
     const listener = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onDocumentEscape();
@@ -260,6 +264,10 @@ describe('PropertySearch keyboard navigation', () => {
 
       expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
       expect(onDocumentEscape).not.toHaveBeenCalled();
+
+      // The release direction: with the list closed, Escape is no longer ours.
+      fireEvent.keyDown(input, { key: 'Escape' });
+      expect(onDocumentEscape).toHaveBeenCalledTimes(1);
     } finally {
       document.removeEventListener('keydown', listener);
     }

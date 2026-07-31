@@ -69,7 +69,7 @@ apps/web/
 │   │   ├── shell/              # AppShell, Sidebar, SidebarItem, SidebarSubmenu, SidebarUser
 │   │   ├── ui/                 # Design system primitives (buttons, inputs, chips, dialogs, tabs, drawers)
 │   │   ├── data/               # DataTable, RowActions, EntityListCard, TableSwitch, BooleanIcon
-│   │   ├── filters/            # FilterBar, FilterInput, FilterSelect, FilterAutocomplete, FilterDateRange, FilterBoolean
+│   │   ├── filters/            # FilterBar, FilterInput, FilterSelect, FilterMultiSelect, FilterSegmented, FilterDateRange, FilterBoolean
 │   │   ├── feedback/           # Snackbar, EmptyState, ErrorState, LoadingState, InfoBanner
 │   │   ├── layout/             # PageHeader, PageSectionHeader, templates
 │   │   └── map/                # MapScreenLayout, MapContainer, MapMarker, MapFloatingAction
@@ -339,7 +339,7 @@ Follow this order strictly – do not start with final pages:
 1. **Phase 0:** Design tokens, Nunito font, typography scale, color utilities, status map
 2. **Phase 1:** AppShell, Sidebar, SidebarItem, SidebarSubmenu, SidebarUser
 3. **Phase 2:** Buttons (Primary, Secondary, Outlined, Icon), StatusChip, BooleanIcon, InfoBanner, Snackbar, Dialog, DrawerPanel
-4. **Phase 3:** FilterBar, FilterInput, FilterSelect, FilterAutocomplete, FilterDateRange, FilterBoolean
+4. **Phase 3:** FilterBar, FilterInput, FilterSelect, FilterMultiSelect, FilterSegmented, FilterDateRange, FilterBoolean
 5. **Phase 4:** DataTable, RowActions, EntityListCard, TableSwitch, EmptyState, ErrorState, LoadingState
 6. **Phase 5:** PageHeader, TabsNav, page templates (list+filters, tabs+content, grouped list)
 7. **Phase 6:** MapScreenLayout, MapFloatingAction, FloatingTotalBar

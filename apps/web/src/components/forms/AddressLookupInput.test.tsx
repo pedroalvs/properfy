@@ -130,9 +130,11 @@ describe('AddressLookupInput keyboard navigation', () => {
 
     fireEvent.keyDown(input, { key: 'ArrowDown' });
     fireEvent.keyDown(input, { key: 'ArrowDown' });
-    fireEvent.keyDown(input, { key: 'Enter' });
+    // fireEvent returns !defaultPrevented — false proves preventDefault ran.
+    const notPrevented = fireEvent.keyDown(input, { key: 'Enter' });
 
     expect(onSelect).toHaveBeenCalledWith(suggestions[1]);
+    expect(notPrevented).toBe(false);
   });
 
   it('does not guess on Enter without an active suggestion', () => {
@@ -159,9 +161,23 @@ describe('AddressLookupInput keyboard navigation', () => {
 
       expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
       expect(onDocumentEscape).not.toHaveBeenCalled();
+
+      // The release direction: with the list closed, Escape is no longer ours.
+      fireEvent.keyDown(input, { key: 'Escape' });
+      expect(onDocumentEscape).toHaveBeenCalledTimes(1);
     } finally {
       document.removeEventListener('keydown', listener);
     }
+  });
+
+  it('releases the focused label style when focus leaves after Escape', () => {
+    const { input } = renderAndOpen();
+    fireEvent.keyDown(input, { key: 'Escape' });
+
+    fireEvent.blur(input);
+
+    // The label must not stay in its focused style on an empty, unfocused field.
+    expect(screen.getByText('Address').className).not.toContain('text-primary');
   });
 
   it('closes the list on Tab', () => {

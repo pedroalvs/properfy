@@ -74,6 +74,24 @@ describe('FilterSegmented keyboard navigation', () => {
     expect(onChange).toHaveBeenCalledWith('regions');
   });
 
+  // Roving tabindex means the tab the user just left drops to -1. If selection
+  // moved without focus following it, focus would sit on an unreachable button
+  // and further arrow presses would go nowhere.
+  it('carries focus to the newly selected tab', () => {
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <FilterSegmented label="Mode" value="appointments" options={three} onChange={onChange} />,
+    );
+    const first = screen.getByRole('tab', { name: 'Appointments' });
+    first.focus();
+
+    fireEvent.keyDown(first, { key: 'ArrowRight' });
+    // The parent owns `value`, so reflect the change back as it would.
+    rerender(<FilterSegmented label="Mode" value="groups" options={three} onChange={onChange} />);
+
+    expect(screen.getByRole('tab', { name: 'Groups' })).toHaveFocus();
+  });
+
   it('ignores keys it does not own', () => {
     const onChange = renderThree('appointments');
 

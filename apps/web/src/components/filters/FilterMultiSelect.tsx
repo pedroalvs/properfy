@@ -99,6 +99,12 @@ export function FilterMultiSelect({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // A background refetch can shrink the list under an open menu, leaving the
+  // index past the end. Both combobox ports guard this; the listboxes did not.
+  useEffect(() => {
+    setActiveIndex((i) => (i >= options.length ? -1 : i));
+  }, [options.length]);
+
   // Keep the active option inside the scrolling menu while arrowing past its
   // edges. Queried by role because the "No options" row is not an option.
   useEffect(() => {
@@ -134,7 +140,10 @@ export function FilterMultiSelect({
         break;
       case 'ArrowUp':
         e.preventDefault();
-        setActiveIndex((i) => Math.max(i - 1, 0));
+        // Guarded: with no options `Math.max(-2, 0)` is 0, which would point
+        // aria-activedescendant at an id that does not exist over the
+        // "No options" row.
+        setActiveIndex((i) => (options.length === 0 ? -1 : Math.max(i - 1, 0)));
         break;
       case 'Home':
         e.preventDefault();
@@ -216,7 +225,7 @@ export function FilterMultiSelect({
               onClick={(e) => {
                 e.stopPropagation();
                 onChange([]);
-                setOpen(false);
+                closeMenu();
                 setFocused(false);
               }}
               className={filterClearButton}

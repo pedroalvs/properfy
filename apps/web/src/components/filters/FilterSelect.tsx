@@ -48,7 +48,9 @@ export function FilterSelect({ label, value, onChange, options, placeholder }: F
   const openMenu = () => {
     // Navigation starts from the current selection, so arrowing into an
     // already-answered filter does not silently jump back to the top.
-    setActiveIndex(selectedIndex >= 0 ? selectedIndex : 0);
+    // `: 0` only when there is something at 0 — otherwise the trigger would
+    // advertise an option id that does not exist.
+    setActiveIndex(options.length === 0 ? -1 : selectedIndex >= 0 ? selectedIndex : 0);
     setOpen(true);
     setFocused(true);
   };
@@ -84,11 +86,11 @@ export function FilterSelect({ label, value, onChange, options, placeholder }: F
         break;
       case 'ArrowUp':
         e.preventDefault();
-        setActiveIndex((i) => Math.max(i - 1, 0));
+        setActiveIndex((i) => (options.length === 0 ? -1 : Math.max(i - 1, 0)));
         break;
       case 'Home':
         e.preventDefault();
-        setActiveIndex(0);
+        setActiveIndex(options.length === 0 ? -1 : 0);
         break;
       case 'End':
         e.preventDefault();
@@ -130,6 +132,13 @@ export function FilterSelect({ label, value, onChange, options, placeholder }: F
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // A background refetch can shrink the list under an open menu, leaving the
+  // index past the end — activedescendant would name a missing id and
+  // Enter would preventDefault then no-op. Both combobox ports do this.
+  useEffect(() => {
+    setActiveIndex((i) => (i >= options.length ? -1 : i));
+  }, [options.length]);
 
   // Keep the active option inside the scrolling menu as the user arrows past
   // its edges.

@@ -217,9 +217,14 @@ export function PropertySearch({
       }
       case 'Escape':
         e.preventDefault();
-        // Consume it: this lives inside the appointment drawer, which closes on
-        // Escape from a document listener. Dismissing suggestions must not
-        // discard the half-filled form behind them.
+        // Consume it so an enclosing Dialog/DrawerPanel — both close on Escape
+        // from a document listener — is not dismissed along with the
+        // suggestions.
+        //
+        // NOTE: this component has no consumer today; only the barrel export
+        // references it, and the appointment drawer picks properties with
+        // SelectInput. The guard states the contract for the day it is used,
+        // rather than reasoning from a placement it does not have.
         e.stopPropagation();
         setOpen(false);
         setActiveIndex(-1);
