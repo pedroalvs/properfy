@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveMarkerCollisions, type ScreenPoint } from '../marker-collision';
+import { resolveMarkerCollisions, type ScreenPoint } from './marker-collision';
 
 const D = 36;
 

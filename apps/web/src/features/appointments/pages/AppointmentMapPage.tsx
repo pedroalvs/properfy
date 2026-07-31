@@ -6,14 +6,15 @@ import { createPortal } from 'react-dom';
 import mapboxgl from 'mapbox-gl';
 import { MapScreenLayout } from '@/components/map/MapScreenLayout';
 import { MapContainer } from '@/components/map/MapContainer';
-import { MapMarker } from '@/components/map/MapMarker';
+import { MapMarker, PIN_COLLISION_DIAMETER_PX } from '@/components/map/MapMarker';
 import { MapFloatingAction } from '@/components/map/MapFloatingAction';
 import { computeBounds, isSinglePointBounds, isPlottablePoint, type PointLike } from '@/lib/map-bounds';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
-import type { ServiceGroupStatus } from '@properfy/shared';
+import type { ServiceGroupStatus, MarkerOffset } from '@properfy/shared';
+import { resolveMarkerCollisions } from '@properfy/shared';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 import { useAllPagesQuery, type ListParams } from '@/hooks/useApiQuery';
 import {
@@ -274,6 +275,29 @@ export function resolveActiveLassoPoints(args: {
 }): LassoPoint[] {
   if (args.mode === 'groups' && args.groupDrilledIn) return args.groupAppointmentPoints;
   return args.appointmentPoints;
+}
+
+/**
+ * Pixel offsets that stop two markers being drawn on top of each other, keyed
+ * by pin id.
+ *
+ * Overlap is a fact about pixels, not degrees — two appointments 300m apart
+ * collide when zoomed out and separate when zoomed in — so this projects the
+ * coordinates first and callers must recompute it whenever the camera settles.
+ * The projection is a parameter rather than a Mapbox import so the wiring stays
+ * unit-testable without a live map, same reasoning as `selectFitPoints`.
+ */
+export function computeMarkerOffsets(
+  pins: Array<{ id: string; latitude: number; longitude: number }>,
+  project: (lngLat: [number, number]) => { x: number; y: number },
+  diameter: number,
+): Map<string, MarkerOffset> {
+  const screen = pins.map((p) => {
+    const { x, y } = project([p.longitude, p.latitude]);
+    return { x, y };
+  });
+  const offsets = resolveMarkerCollisions(screen, diameter);
+  return new Map(pins.map((p, index) => [p.id, offsets[index]!]));
 }
 
 export function AppointmentMapPage() {
@@ -1139,6 +1163,39 @@ export function AppointmentMapPage() {
     [selectedGroupItem?.id, validGroupPins, validGroupApptPins],
   );
 
+  // Which pins are actually on the map. The three marker loops below are
+  // mutually exclusive — selectGroupModePins returns a discriminated union — so
+  // only one set ever needs de-colliding.
+  const activePins = useMemo(
+    () => (mode === 'appointments' ? validAppointmentPins : groupModePins.items),
+    [mode, validAppointmentPins, groupModePins],
+  );
+
+  // Collision offsets are pixels, and which pins collide depends on the zoom,
+  // so they have to be recomputed whenever the camera settles. MapContainer
+  // exposes no events, but the page already holds the instance.
+  const [cameraVersion, setCameraVersion] = useState(0);
+  useEffect(() => {
+    if (!mapInstance) return;
+    const bump = () => setCameraVersion((v) => v + 1);
+    mapInstance.on('moveend', bump);
+    return () => {
+      mapInstance.off('moveend', bump);
+    };
+  }, [mapInstance]);
+
+  const markerOffsets = useMemo(() => {
+    if (!mapInstance) return new Map<string, MarkerOffset>();
+    return computeMarkerOffsets(
+      activePins,
+      (lngLat) => mapInstance.project(lngLat),
+      PIN_COLLISION_DIAMETER_PX,
+    );
+    // `cameraVersion` is the dependency that matters here — the projection
+    // changes with the camera even when the pins do not.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePins, mapInstance, cameraVersion]);
+
   // Fit the camera to the drilled group's appointment pins once they load.
   // Kept separate from the mode-level auto-fit (and from handleGroupMarkerClick,
   // whose flyTo is pinned by a regression guard) and given its OWN
@@ -1219,6 +1276,7 @@ export function AppointmentMapPage() {
               key={item.id}
               longitude={item.longitude}
               latitude={item.latitude}
+              offset={markerOffsets.get(item.id)}
               icon={STATUS_ICONS[item.status] ?? 'mdi-map-marker'}
               label={item.code}
               active={selectedItem?.id === item.id}
@@ -1237,6 +1295,7 @@ export function AppointmentMapPage() {
               key={item.id}
               longitude={item.longitude}
               latitude={item.latitude}
+              offset={markerOffsets.get(item.id)}
               icon={GROUP_STATUS_ICONS[item.status] ?? 'mdi-map-marker'}
               label={item.name ?? ''}
               active={selectedGroupItem?.id === item.id || previewGroup?.id === item.id}
@@ -1253,6 +1312,7 @@ export function AppointmentMapPage() {
               key={item.id}
               longitude={item.longitude}
               latitude={item.latitude}
+              offset={markerOffsets.get(item.id)}
               icon={STATUS_ICONS[item.status] ?? 'mdi-map-marker'}
               label={item.code}
               active={selectedItem?.id === item.id}

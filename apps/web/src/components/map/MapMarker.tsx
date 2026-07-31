@@ -33,7 +33,27 @@ interface MapMarkerProps {
    * swallowed by `stopPropagation`, leaving the lasso unclosed.
    */
   disabled?: boolean;
+  /**
+   * Pixel offset applied to the drawn marker, leaving its coordinate alone.
+   * Used to pull markers apart when two of them would be drawn on top of each
+   * other — see `computeMarkerOffsets` on the appointments map.
+   *
+   * Goes through Mapbox's own `setOffset`, which it folds into the positioning
+   * transform it already writes on the element. Setting `style.transform`
+   * directly would fight that transform and snap the pin to the map origin.
+   */
+  offset?: [number, number];
 }
+
+const NO_OFFSET: [number, number] = [0, 0];
+
+/**
+ * Centre-to-centre distance at which two markers stop overlapping: the 28px pin
+ * head (`h-7 w-7`) plus the 4px-a-side allowance for the `active` state's
+ * `ring-2 ring-offset-2`. Labels sit below the pin and can be wider than this —
+ * de-colliding those is a separate problem and deliberately out of scope.
+ */
+export const PIN_COLLISION_DIAMETER_PX = 36;
 
 /**
  * Renders a marker at the given geographic coordinates on the enclosing
@@ -69,6 +89,7 @@ export function MapMarker({
   clusterCount,
   disabled = false,
   icon,
+  offset,
 }: MapMarkerProps) {
   const { getMap } = useMapInstance();
   // Portal target is the detached DOM node owned by mapboxgl.Marker.
@@ -114,6 +135,16 @@ export function MapMarker({
   useEffect(() => {
     markerRef.current?.setLngLat([longitude, latitude]);
   }, [longitude, latitude]);
+
+  // Keyed on the two numbers rather than the tuple: the parent rebuilds its
+  // offsets map on every camera settle, so a fresh array carrying identical
+  // values arrives constantly, and depending on array identity would re-run
+  // this on every render.
+  const offsetX = offset?.[0] ?? 0;
+  const offsetY = offset?.[1] ?? 0;
+  useEffect(() => {
+    markerRef.current?.setOffset(offsetX === 0 && offsetY === 0 ? NO_OFFSET : [offsetX, offsetY]);
+  }, [offsetX, offsetY]);
 
   const size = clustered ? 'h-10 w-10 text-sm' : 'h-7 w-7 text-xs';
   const ringClass = active ? 'ring-2 ring-secondary ring-offset-2' : '';

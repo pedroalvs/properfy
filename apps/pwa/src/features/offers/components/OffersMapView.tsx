@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { env } from '@/config/env';
 import { computeBounds, isPlottablePoint, isSinglePointBounds } from '@/lib/map-bounds';
-import { resolveMarkerCollisions } from '@/lib/marker-collision';
+import { resolveMarkerCollisions } from '@properfy/shared';
 import type { MarketplaceOffer } from '../types';
 import { formatWallTimeRange } from '@/lib/format-date';
 

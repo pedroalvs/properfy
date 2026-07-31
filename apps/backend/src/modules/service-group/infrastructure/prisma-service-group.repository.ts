@@ -91,6 +91,31 @@ function deriveOfferCentroid(
 }
 
 /**
+ * Appointments whose property is still live.
+ *
+ * The rule for a marketplace offer is that its **group-level aggregates** —
+ * suburbs, addresses, the map pin — describe properties that still exist. The
+ * per-appointment fields keep their own, older contract: `suburb` stays
+ * visible, `street` and `coordinates` are withheld (see the detail mapper).
+ * Mixing the two is what let a removed property put a suburb on the offer card
+ * that nothing on the map or in the address list backed up.
+ */
+function liveProperties<T extends { property?: { deleted_at?: Date | null } | null }>(
+  appointments: T[],
+): T[] {
+  return appointments.filter((a) => a.property != null && a.property.deleted_at == null);
+}
+
+/** Distinct suburbs of a group's live properties, in first-seen order. */
+function deriveOfferSuburbs(
+  appointments: Array<{ property?: { suburb?: string | null; deleted_at?: Date | null } | null }>,
+): string[] {
+  return [
+    ...new Set(liveProperties(appointments).map((a) => a.property!.suburb).filter(Boolean)),
+  ] as string[];
+}
+
+/**
  * `groupSize` is passed in rather than read off `row`: there is no stored
  * column for it any more, and each caller derives it differently — `findById`
  * already has the appointment rows in hand, `findAll` asks for a count. Making
@@ -547,9 +572,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     return rows.map((row: any) => {
       const appts = row.appointments as any[];
       const { tenantId, tenantName } = deriveOfferTenant(appts);
-      const suburbs = [
-        ...new Set(appts.map((a) => a.property?.suburb).filter(Boolean)),
-      ] as string[];
+      const suburbs = deriveOfferSuburbs(appts);
       const payoutTotal = appts.reduce((sum: number, a) => {
         const val = a.payout_amount != null ? parseFloat(a.payout_amount.toString()) : 0;
         return sum + val;
@@ -681,15 +704,16 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     if (!row) return null;
 
     const appts = row.appointments as any[];
-    const suburbs = [
-      ...new Set(appts.map((a) => a.property?.suburb).filter(Boolean)),
-    ] as string[];
+    const suburbs = deriveOfferSuburbs(appts);
+    // Live properties only: this array re-emitted the street of a soft-deleted
+    // property, which the per-appointment `street` field a few lines below
+    // deliberately blanks — "Never expose location data from a soft-deleted
+    // property" was true of one path and not the other.
     const addresses = [
       ...new Set(
-        appts
+        liveProperties(appts)
           .map((a) => {
-            const p = a.property;
-            if (!p) return null;
+            const p = a.property!;
             return [p.street, p.suburb].filter(Boolean).join(', ');
           })
           .filter(Boolean),

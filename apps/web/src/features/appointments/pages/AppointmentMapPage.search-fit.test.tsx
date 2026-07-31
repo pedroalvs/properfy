@@ -27,6 +27,9 @@ const { mapApi, MockMap, mockEnv } = vi.hoisted(() => {
     flyTo: vi.fn(),
     fitBounds: vi.fn(),
     getZoom: vi.fn(() => 4),
+    // The page projects pin coordinates to screen space to de-collide markers.
+    // Any deterministic transform will do here — this suite is about framing.
+    project: vi.fn(([lng, lat]: [number, number]) => ({ x: lng * 1000, y: -lat * 1000 })),
     dragPan: { enable: vi.fn(), disable: vi.fn() },
   };
   const MockMap = vi.fn().mockImplementation(() => mapApi);
@@ -35,6 +38,7 @@ const { mapApi, MockMap, mockEnv } = vi.hoisted(() => {
 
 const markerApi = vi.hoisted(() => ({
   setLngLat: vi.fn().mockReturnThis(),
+  setOffset: vi.fn().mockReturnThis(),
   addTo: vi.fn().mockReturnThis(),
   remove: vi.fn(),
   getElement: vi.fn(() => document.createElement('div')),

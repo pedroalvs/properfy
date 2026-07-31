@@ -436,6 +436,83 @@ describe('PrismaServiceGroupRepository offer centroid', () => {
     expect(result[0]!.suburbs).toEqual(['Parramatta', 'Harris Park']);
   });
 
+  // Group-level aggregates describe live properties. The per-appointment
+  // `suburb` field deliberately still shows one (see the detail mapper), but a
+  // removed property must not put a suburb on the offer card that nothing on
+  // the map or in the address list backs up.
+  it('excludes soft-deleted properties from the suburb list', async () => {
+    const { repo } = repoReturning([
+      makeAppointment({ suburb: 'Parramatta', state: 'NSW', lat: -33.8, lng: 151.0 }),
+      makeAppointment({
+        suburb: 'Sydney',
+        state: 'NSW',
+        lat: -33.0,
+        lng: 152.0,
+        deleted_at: new Date('2026-07-01'),
+      }),
+    ]);
+
+    const result = await listOffers(repo);
+
+    expect(result[0]!.suburbs).toEqual(['Parramatta']);
+  });
+
+  // The group-level `addresses` array re-emitted the street of a soft-deleted
+  // property, contradicting the per-appointment `street` guard a few lines
+  // below it — "Never expose location data from a soft-deleted property".
+  it('keeps soft-deleted properties out of the detail suburbs and addresses', async () => {
+    const appointment = (id: string, property: Record<string, unknown>) => ({
+      id,
+      appointment_number: Number(id.slice(-1)),
+      key_required: false,
+      payout_amount: 50,
+      notes: null,
+      time_slot_start: '15:00',
+      time_slot_end: '17:00',
+      tenant_id: 'tenant-1',
+      tenant: { name: 'Agency A', appointment_code_prefix: 'INS' },
+      property,
+    });
+    const findUnique = vi.fn().mockResolvedValue({
+      id: 'sg-1',
+      group_number: 37,
+      scheduled_date: new Date('2026-08-04'),
+      time_window: '15:00-17:00',
+      service_type: { name: 'Routine' },
+      appointments: [
+        appointment('appt-1', {
+          deleted_at: null,
+          suburb: 'Harris Park',
+          state: 'NSW',
+          street: '1 Main St',
+          lat: -33.8,
+          lng: 151.0,
+        }),
+        appointment('appt-2', {
+          deleted_at: new Date('2026-07-01'),
+          suburb: 'Sydney',
+          state: 'NSW',
+          street: '99 Secret Lane',
+          lat: -33.0,
+          lng: 152.0,
+        }),
+      ],
+    });
+    const repo = new PrismaServiceGroupRepository({
+      $queryRaw: vi.fn().mockResolvedValue([{ id: 'sg-1' }]),
+      serviceGroup: { findUnique },
+    } as any);
+
+    const detail = await repo.findPublishedOfferDetail('sg-1', 'inspector-1', ['st-1'], []);
+
+    expect(detail?.suburbs).toEqual(['Harris Park']);
+    expect(detail?.addresses).toEqual(['1 Main St, Harris Park']);
+    expect(JSON.stringify(detail)).not.toContain('99 Secret Lane');
+    // The per-appointment suburb stays visible — that is the documented rule,
+    // and this test must not be read as changing it.
+    expect(detail?.appointments[1]!.suburb).toBe('Sydney NSW');
+  });
+
   it('derives the offer detail centroid from real coordinates too', async () => {
     const findUnique = vi.fn().mockResolvedValue({
       id: 'sg-1',
