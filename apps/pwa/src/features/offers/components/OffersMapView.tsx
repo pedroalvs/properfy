@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { env } from '@/config/env';
-import { computeBounds, isSinglePointBounds } from '@/lib/map-bounds';
+import { computeBounds, isPlottablePoint, isSinglePointBounds } from '@/lib/map-bounds';
 import type { MarketplaceOffer } from '../types';
 import { formatWallTimeRange } from '@/lib/format-date';
 
@@ -125,6 +125,8 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
   const userMovedRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
+  /** Drives the render effect once mapbox is ready — see the 'load' handler. */
+  const [mapReady, setMapReady] = useState(false);
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
 
   // Initialize the map once (or on retry).
@@ -170,10 +172,15 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
 
       mapRef.current = map;
 
+      // Flip state rather than rendering straight from here: this callback
+      // closes over the offers of the render that created the map, and offers
+      // routinely resolve while mapbox is still loading behind its dynamic
+      // import. Letting the render effect do the work — by depending on
+      // `mapReady` — is what guarantees it draws the *current* offers.
       map.on('load', () => {
         if (cancelled) return;
         mapLoadedRef.current = true;
-        renderMode(map, mapboxgl);
+        setMapReady(true);
       });
 
       map.on('error', () => {
@@ -188,6 +195,7 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
       mapLoadedRef.current = false;
+      setMapReady(false);
       mapRef.current?.remove();
       mapRef.current = null;
       prevExpandedIdRef.current = null;
@@ -207,7 +215,7 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
       renderMode(mapRef.current, mapboxgl);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [offers, onSelectOffer, expandedGroup]);
+  }, [mapReady, offers, onSelectOffer, expandedGroup]);
 
   // Close the info chip whenever the drill-down target changes or is cleared.
   useEffect(() => {
@@ -300,9 +308,14 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
       : offers.map((o) => ({ latitude: o.centroid?.lat ?? null, longitude: o.centroid?.lng ?? null }));
     const singlePointZoom = expandedGroup ? SINGLE_APPOINTMENT_ZOOM : SINGLE_OFFER_ZOOM;
 
+    // Built from exactly the points computeBounds will frame — same predicate,
+    // order-independent — so the signature changes when and only when the
+    // framing would. A looser null-check here would re-fly the camera over a
+    // malformed coordinate that never affects the bounds.
     const signature = points
-      .filter((p) => p.latitude != null && p.longitude != null)
+      .filter(isPlottablePoint)
       .map((p) => `${p.latitude},${p.longitude}`)
+      .sort()
       .join('|');
     if (!modeChanged && (userMovedRef.current || fittedSignatureRef.current === signature)) return;
 

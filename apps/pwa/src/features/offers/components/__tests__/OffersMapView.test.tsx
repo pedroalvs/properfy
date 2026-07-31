@@ -11,6 +11,8 @@ const spies = vi.hoisted(() => ({
   markerElements: [] as HTMLElement[],
   markerCoords: [] as Array<[number, number]>,
   handlers: {} as Record<string, Array<(event?: unknown) => void>>,
+  /** When true, 'load' is only registered — the test decides when it fires. */
+  deferLoad: false,
 }));
 
 vi.mock('mapbox-gl', () => {
@@ -18,7 +20,7 @@ vi.mock('mapbox-gl', () => {
     constructor(_opts: unknown) {}
     on(event: string, cb: (event?: unknown) => void) {
       (spies.handlers[event] ??= []).push(cb);
-      if (event === 'load') cb();
+      if (event === 'load' && !spies.deferLoad) cb();
     }
     addControl() {}
     remove() {}
@@ -116,6 +118,7 @@ beforeEach(() => {
   spies.markerElements.length = 0;
   spies.markerCoords.length = 0;
   for (const key of Object.keys(spies.handlers)) delete spies.handlers[key];
+  spies.deferLoad = false;
   document.body.replaceChildren();
 });
 
@@ -298,6 +301,24 @@ describe('OffersMapView — offers-mode camera', () => {
     await waitFor(() => {
       expect(spies.fitBounds).toHaveBeenCalled();
     });
+  });
+
+  // The map is created behind a dynamic import, so offers routinely resolve
+  // before mapbox finishes loading. The render effect bails out while the map
+  // is not ready, and the load callback closes over the *first* render's
+  // offers — so without a re-render on ready, a single-page result set could
+  // leave the map permanently empty while the list showed every card.
+  it('renders offers that arrived while the map was still loading', async () => {
+    spies.deferLoad = true;
+    const { rerender } = render(<OffersMapView offers={[]} onSelectOffer={vi.fn()} />);
+    await waitFor(() => {
+      expect(spies.handlers.load?.length).toBeGreaterThan(0);
+    });
+
+    rerender(<OffersMapView offers={[makeOffer()]} onSelectOffer={vi.fn()} />);
+    emitMapEvent('load');
+
+    await waitForPins('map-pin', 1);
   });
 
   it('flies to a single offer instead of fitting a degenerate bounds', async () => {
