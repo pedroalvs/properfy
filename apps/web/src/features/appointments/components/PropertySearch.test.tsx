@@ -165,3 +165,126 @@ describe('PropertySearch', () => {
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });
 });
+
+/**
+ * Keyboard access (WAI-ARIA combobox). The suggestions are <li>, which cannot
+ * hold focus, so focus stays in the input and the active suggestion travels via
+ * aria-activedescendant. Mirrors ContactAutocomplete, the reference pattern.
+ */
+describe('PropertySearch keyboard navigation', () => {
+  // Own setup: this block sits outside the suite above, so it does not inherit
+  // its fake timers — and the debounce cannot be advanced without them.
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockApiGet.mockResolvedValue({
+      data: {
+        data: mockProperties,
+        pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
+      },
+      error: undefined,
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function activeLabel(input: HTMLElement) {
+    const id = input.getAttribute('aria-activedescendant');
+    return id ? document.getElementById(id)?.textContent : null;
+  }
+
+  /** Opens the list with both properties loaded. */
+  async function renderWithResults(onChange = vi.fn()) {
+    render(<PropertySearch value="" onChange={onChange} />, { wrapper: createWrapper() });
+    const input = screen.getByRole('combobox');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'Main' } });
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    await waitFor(() => {
+      expect(screen.getByText('123 Main St, Sydney 2000')).toBeInTheDocument();
+    });
+    return { input, onChange };
+  }
+
+  it('moves through suggestions with the arrow keys', async () => {
+    const { input } = await renderWithResults();
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(activeLabel(input)).toContain('123 Main St');
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(activeLabel(input)).toContain('456 Oak Ave');
+
+    fireEvent.keyDown(input, { key: 'ArrowUp' });
+    expect(activeLabel(input)).toContain('123 Main St');
+  });
+
+  it('selects the active suggestion with Enter', async () => {
+    const { input, onChange } = await renderWithResults();
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(onChange).toHaveBeenCalledWith('prop-2');
+  });
+
+  // A bare Enter must stay free for the surrounding form to handle — the
+  // combobox only acts when the user explicitly arrowed onto a suggestion.
+  it('does not guess on Enter without an active suggestion', async () => {
+    const { input, onChange } = await renderWithResults();
+
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('closes on Escape and consumes it so the enclosing drawer stays open', async () => {
+    // PropertySearch lives inside the appointment create drawer, which closes
+    // on Escape from a document listener. Dismissing a suggestion list must not
+    // discard the half-filled form behind it.
+    const onDocumentEscape = vi.fn();
+    const listener = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onDocumentEscape();
+    };
+    document.addEventListener('keydown', listener);
+    try {
+      const { input } = await renderWithResults();
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+
+      fireEvent.keyDown(input, { key: 'Escape' });
+
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+      expect(onDocumentEscape).not.toHaveBeenCalled();
+    } finally {
+      document.removeEventListener('keydown', listener);
+    }
+  });
+
+  it('closes the list on Tab', async () => {
+    const { input } = await renderWithResults();
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+
+    fireEvent.keyDown(input, { key: 'Tab' });
+
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  // Status rows ("Searching...", "No properties found") are not options; the
+  // active index must never be able to land on one.
+  it('never activates a status row', async () => {
+    render(<PropertySearch value="" onChange={vi.fn()} />, { wrapper: createWrapper() });
+    const input = screen.getByRole('combobox');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'ab' } });
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+
+    expect(screen.getByText('Type at least 3 characters to search')).toBeInTheDocument();
+    expect(input).not.toHaveAttribute('aria-activedescendant');
+  });
+});

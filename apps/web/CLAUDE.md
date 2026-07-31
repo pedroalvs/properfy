@@ -302,6 +302,33 @@ apps/web/
 4. Action icons must have `aria-label`
 5. Dialog must manage focus
 6. Disabled states cannot depend only on color
+7. **Every custom widget must be fully operable by keyboard.** An ARIA role is a
+   promise about behaviour, not a label: declaring `role="listbox"`/`"option"`/
+   `"combobox"`/`"tab"` obliges the widget to implement that pattern's keys. This
+   was missed for a long time because a `<li onClick>` looks finished on screen
+   and there is no lint rule here to catch it (no `eslint-plugin-jsx-a11y`, no
+   `axe`) — only tests will.
+   - **Listbox / combobox** (`FilterSelect`, `FilterMultiSelect`, `PropertySearch`,
+     `AddressLookupInput`, `SelectInput`, `ContactAutocomplete`): options are `<li>`
+     and cannot hold focus, so focus stays on the trigger/input and the active
+     option travels via `aria-activedescendant` — never `tabIndex={0}` per option,
+     which turns one control into N tab stops. ArrowUp/Down move and stop at the
+     ends, Home/End jump, Enter selects (multi-select toggles without closing),
+     Escape closes, Tab closes rather than stranding the menu open.
+   - **Tabs** (`FilterSegmented`): roving tabindex — only the selected tab is in
+     the tab order — and arrow keys move between tabs, wrapping around.
+   - `Escape` **must** `stopPropagation()`. `Dialog` and `DrawerPanel` close on
+     Escape from a document listener, so a bubbling Escape dismisses the whole
+     modal and discards whatever the operator had filled in.
+   - The keyboard-active option must be visually distinct from the selected one
+     (`filterOptionHighlighted` vs `filterOptionActive`). If they render alike, a
+     user arrowing past the selected row cannot tell where they are (WCAG 2.4.7).
+   - Rows that are not choices ("No options", "Searching…") take
+     `role="presentation"` + `aria-live`, never `role="option"`, and must never be
+     reachable by the active index.
+
+   `SelectInput.tsx` and `ContactAutocomplete.tsx` are the reference
+   implementations — port them rather than inventing a new one.
 
 ---
 

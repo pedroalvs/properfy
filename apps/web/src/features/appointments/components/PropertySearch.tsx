@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useId } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { ApiError } from '@/lib/api-error';
@@ -10,6 +10,8 @@ import {
   filterDropdown,
   filterOption,
   filterOptionActive,
+  filterOptionHighlighted,
+  filterOptionHighlightedActive,
 } from '@/components/filters/filter-styles';
 import type { Property } from '@/features/properties/types';
 import type { PaginatedResponse } from '@/hooks/useApiQuery';
@@ -99,9 +101,20 @@ export function PropertySearch({
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [focused, setFocused] = useState(false);
+  /**
+   * Index of the keyboard-active suggestion, published through
+   * `aria-activedescendant`. -1 means "none" — the status rows
+   * ("Searching...", "No properties found") are not options and must never be
+   * landed on, so they are simply never indexed.
+   */
+  const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const reactId = useId();
+  const listboxId = `${reactId}-listbox`;
+  const optionId = (index: number) => `${listboxId}-option-${index}`;
 
   const { data: results = [], isLoading: isSearching } = usePropertySearch(debouncedSearch);
   const { data: selectedProperty } = usePropertyDetail(value);
@@ -131,6 +144,7 @@ export function PropertySearch({
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false);
+        setActiveIndex(-1);
         setFocused(false);
         if (!value) setSearch('');
       }
@@ -138,6 +152,95 @@ export function PropertySearch({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [value]);
+
+  // A stale index would point at a property the user can no longer see.
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [debouncedSearch, results.length]);
+
+  // Queried by role: the status rows share the list but are not options, so
+  // children[activeIndex] would address the wrong node.
+  useEffect(() => {
+    if (!open || activeIndex < 0) return;
+    listRef.current?.querySelectorAll('[role="option"]')[activeIndex]?.scrollIntoView?.({
+      block: 'nearest',
+    });
+  }, [open, activeIndex]);
+
+  const selectProperty = (property: PropertySearchResult) => {
+    onChange(property.id);
+    setSearch('');
+    setDebouncedSearch('');
+    setOpen(false);
+    setActiveIndex(-1);
+    setFocused(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!open) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setOpen(true);
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        if (results.length === 0) return;
+        e.preventDefault();
+        setActiveIndex((i) => Math.min(i + 1, results.length - 1));
+        break;
+      case 'ArrowUp':
+        if (results.length === 0) return;
+        e.preventDefault();
+        setActiveIndex((i) => Math.max(i - 1, 0));
+        break;
+      case 'Home':
+        if (results.length === 0) return;
+        e.preventDefault();
+        setActiveIndex(0);
+        break;
+      case 'End':
+        if (results.length === 0) return;
+        e.preventDefault();
+        setActiveIndex(results.length - 1);
+        break;
+      case 'Enter': {
+        // Only acts on an explicitly active suggestion; a bare Enter must not
+        // guess, and must stay free for the surrounding form to handle.
+        const property = results[activeIndex];
+        if (!property) return;
+        e.preventDefault();
+        selectProperty(property);
+        break;
+      }
+      case 'Escape':
+        e.preventDefault();
+        // Consume it: this lives inside the appointment drawer, which closes on
+        // Escape from a document listener. Dismissing suggestions must not
+        // discard the half-filled form behind them.
+        e.stopPropagation();
+        setOpen(false);
+        setActiveIndex(-1);
+        if (!value) setSearch('');
+        break;
+      case 'Tab':
+        setOpen(false);
+        setActiveIndex(-1);
+        setFocused(false);
+        break;
+      default:
+        break;
+    }
+  };
+
+  const optionClass = (index: number, isSelected: boolean) => {
+    if (index === activeIndex) {
+      return isSelected ? filterOptionHighlightedActive : filterOptionHighlighted;
+    }
+    return isSelected ? filterOptionActive : filterOption;
+  };
 
   return (
     <div ref={containerRef} className={filterContainer}>
@@ -165,11 +268,14 @@ export function PropertySearch({
           onBlur={() => {
             if (!open) setFocused(false);
           }}
+          onKeyDown={handleKeyDown}
           aria-label={label}
           aria-expanded={open}
           aria-haspopup="listbox"
           role="combobox"
           aria-autocomplete="list"
+          aria-controls={open ? listboxId : undefined}
+          aria-activedescendant={open && activeIndex >= 0 ? optionId(activeIndex) : undefined}
         />
         {value && (
           <button
@@ -190,29 +296,37 @@ export function PropertySearch({
       </div>
 
       {open && (
-        <ul className={filterDropdown} role="listbox" aria-label={label}>
+        <ul ref={listRef} id={listboxId} className={filterDropdown} role="listbox" aria-label={label}>
+          {/*
+            Status rows carry role="presentation" and aria-live so they are
+            announced but can never be an active descendant of the combobox.
+          */}
           {search.length > 0 && search.length < 3 ? (
-            <li className="px-3 py-2 text-sm text-text-muted">Type at least 3 characters to search</li>
+            <li className="px-3 py-2 text-sm text-text-muted" role="presentation" aria-live="polite">
+              Type at least 3 characters to search
+            </li>
           ) : isSearching ? (
-            <li className="px-3 py-2 text-sm text-text-muted">Searching...</li>
+            <li className="px-3 py-2 text-sm text-text-muted" role="presentation" aria-live="polite">
+              Searching...
+            </li>
           ) : debouncedSearch.length >= 3 && results.length === 0 ? (
-            <li className="px-3 py-2 text-sm text-text-muted">No properties found</li>
+            <li className="px-3 py-2 text-sm text-text-muted" role="presentation" aria-live="polite">
+              No properties found
+            </li>
           ) : results.length === 0 ? (
-            <li className="px-3 py-2 text-sm text-text-muted">Start typing to search properties</li>
+            <li className="px-3 py-2 text-sm text-text-muted" role="presentation" aria-live="polite">
+              Start typing to search properties
+            </li>
           ) : (
-            results.map((property) => (
+            results.map((property, index) => (
               <li
                 key={property.id}
+                id={optionId(index)}
                 role="option"
                 aria-selected={property.id === value}
-                className={property.id === value ? filterOptionActive : filterOption}
-                onClick={() => {
-                  onChange(property.id);
-                  setSearch('');
-                  setDebouncedSearch('');
-                  setOpen(false);
-                  setFocused(false);
-                }}
+                className={optionClass(index, property.id === value)}
+                onClick={() => selectProperty(property)}
+                onMouseEnter={() => setActiveIndex(index)}
               >
                 <div className="flex flex-col gap-0.5">
                   <span className="font-medium">{formatPropertyLabel(property)}</span>

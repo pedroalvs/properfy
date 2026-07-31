@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useId } from 'react';
 import {
   filterContainer,
   filterLabel,
@@ -8,6 +8,8 @@ import {
   filterDropdown,
   filterOption,
   filterOptionActive,
+  filterOptionHighlighted,
+  filterOptionHighlightedActive,
 } from './filter-styles';
 
 export interface FilterMultiSelectOption {
@@ -52,7 +54,17 @@ export function FilterMultiSelect({
 }: FilterMultiSelectProps) {
   const [open, setOpen] = useState(false);
   const [focused, setFocused] = useState(false);
+  /**
+   * Index of the keyboard-active option, published via `aria-activedescendant`.
+   * Stays -1 when there are no options, so the non-option "No options" row can
+   * never become the active descendant.
+   */
+  const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const reactId = useId();
+  const listboxId = `${reactId}-listbox`;
+  const optionId = (index: number) => `${listboxId}-option-${index}`;
 
   const selectedSet = useMemo(() => new Set(value), [value]);
   const triggerSummary = useMemo(() => {
@@ -64,16 +76,37 @@ export function FilterMultiSelect({
   }, [value, options]);
   const showFloatingLabel = focused || open || value.length > 0;
 
+  const openMenu = () => {
+    if (disabled) return;
+    setActiveIndex(options.length > 0 ? 0 : -1);
+    setOpen(true);
+    setFocused(true);
+  };
+
+  const closeMenu = () => {
+    setOpen(false);
+    setActiveIndex(-1);
+  };
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
+        closeMenu();
         setFocused(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Keep the active option inside the scrolling menu while arrowing past its
+  // edges. Queried by role because the "No options" row is not an option.
+  useEffect(() => {
+    if (!open || activeIndex < 0) return;
+    listRef.current?.querySelectorAll('[role="option"]')[activeIndex]?.scrollIntoView?.({
+      block: 'nearest',
+    });
+  }, [open, activeIndex]);
 
   function toggleOption(optionValue: string) {
     if (selectedSet.has(optionValue)) {
@@ -82,6 +115,65 @@ export function FilterMultiSelect({
       onChange([...value, optionValue]);
     }
   }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (disabled) return;
+
+    if (!open) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        openMenu();
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setActiveIndex((i) => Math.min(i + 1, options.length - 1));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setActiveIndex((i) => Math.max(i - 1, 0));
+        break;
+      case 'Home':
+        e.preventDefault();
+        setActiveIndex(options.length > 0 ? 0 : -1);
+        break;
+      case 'End':
+        e.preventDefault();
+        setActiveIndex(options.length - 1);
+        break;
+      case 'Enter':
+      case ' ': {
+        // Toggle in place. Unlike a single-select, the menu stays open so the
+        // user can pick several before leaving — that is the whole affordance.
+        e.preventDefault();
+        const option = options[activeIndex];
+        if (option) toggleOption(option.value);
+        break;
+      }
+      case 'Escape':
+        e.preventDefault();
+        // Consume it, or an enclosing Dialog closes along with the menu.
+        e.stopPropagation();
+        closeMenu();
+        break;
+      case 'Tab':
+        closeMenu();
+        setFocused(false);
+        break;
+      default:
+        break;
+    }
+  };
+
+  const optionClass = (index: number, isSelected: boolean) => {
+    if (index === activeIndex) {
+      return isSelected ? filterOptionHighlightedActive : filterOptionHighlighted;
+    }
+    return isSelected ? filterOptionActive : filterOption;
+  };
 
   return (
     <div
@@ -97,9 +189,10 @@ export function FilterMultiSelect({
         className="flex w-full items-center justify-between px-3 py-[7px] text-sm"
         onClick={() => {
           if (disabled) return;
-          setOpen(!open);
-          setFocused(true);
+          if (open) closeMenu();
+          else openMenu();
         }}
+        onKeyDown={handleKeyDown}
         onFocus={() => setFocused(true)}
         onBlur={() => {
           if (!open) setFocused(false);
@@ -107,6 +200,8 @@ export function FilterMultiSelect({
         aria-label={label}
         aria-expanded={open}
         aria-haspopup="listbox"
+        aria-controls={open ? listboxId : undefined}
+        aria-activedescendant={open && activeIndex >= 0 ? optionId(activeIndex) : undefined}
         aria-disabled={disabled}
         disabled={disabled}
       >
@@ -136,6 +231,8 @@ export function FilterMultiSelect({
 
       {open && !disabled && (
         <ul
+          ref={listRef}
+          id={listboxId}
           className={filterDropdown}
           role="listbox"
           aria-label={label}
@@ -146,22 +243,17 @@ export function FilterMultiSelect({
               No options
             </li>
           ) : (
-            options.map((opt) => {
+            options.map((opt, index) => {
               const selected = selectedSet.has(opt.value);
               return (
                 <li
                   key={opt.value}
+                  id={optionId(index)}
                   role="option"
                   aria-selected={selected}
-                  className={`${selected ? filterOptionActive : filterOption} flex items-center gap-2`}
+                  className={`${optionClass(index, selected)} flex items-center gap-2`}
                   onClick={() => toggleOption(opt.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === ' ' || e.key === 'Enter') {
-                      e.preventDefault();
-                      toggleOption(opt.value);
-                    }
-                  }}
-                  tabIndex={0}
+                  onMouseEnter={() => setActiveIndex(index)}
                 >
                   <i
                     aria-hidden="true"
