@@ -1,4 +1,5 @@
 import type { AuthContext, AppointmentContactRole } from '@properfy/shared';
+import { DomainError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import type { UpdateAppointmentUseCase } from './update-appointment.use-case';
@@ -75,18 +76,21 @@ export class BulkEditAppointmentsUseCase {
    * A row rejection travels inside an HTTP 200, so it never reaches the global
    * error handler: without this, an infrastructure fault mid-batch is invisible
    * server-side AND its raw message (Prisma's include host and SQL fragments)
-   * is rendered verbatim in the operator's modal. Domain errors carry a known
-   * `code` and are safe to pass through — anything else is logged and
-   * generalised. Mirrors `bulk-cross-check-done.use-case.ts`.
+   * is rendered verbatim in the operator's modal.
+   *
+   * The discriminator is `instanceof DomainError`, NOT the presence of a
+   * `code`: Prisma's errors carry one too (`P1001` is literally "Can't reach
+   * database server at <host>:<port>"), so a truthiness check on `code` would
+   * wave through the exact class of error this exists to contain.
+   * Mirrors `bulk-cross-check-done.use-case.ts`.
    */
   private toFailedEntry(
     appointmentId: string,
     err: unknown,
     batchId?: string,
   ): { id: string; code: string; message: string } {
-    const code = (err as { code?: string })?.code;
-    if (code) {
-      return { id: appointmentId, code, message: err instanceof Error ? err.message : 'Unknown error' };
+    if (err instanceof DomainError) {
+      return { id: appointmentId, code: err.code, message: err.message };
     }
     this.logger.error({ err, appointmentId, batchId }, 'Unexpected error during bulk edit');
     return {

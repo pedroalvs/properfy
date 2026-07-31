@@ -802,6 +802,34 @@ describe('BulkEditAppointmentsUseCase', () => {
     );
   });
 
+  // Prisma errors carry a `code` too — P1001 is literally "Can't reach database
+  // server at <host>:<port>". Discriminating on the presence of a code instead
+  // of on DomainError would wave through exactly what this contains.
+  it('contains a Prisma error even though it carries a code', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({ status: 'DRAFT' }),
+    );
+    const prismaError = Object.assign(
+      new Error("Can't reach database server at db.internal:5432"),
+      { code: 'P1001' },
+    );
+    vi.mocked(updateAppointment.execute).mockRejectedValue(prismaError);
+
+    const result = await useCase.execute({
+      ids: ['appt-1'],
+      changes: { scheduledDate: '2027-09-01' },
+      actor: makeActor(),
+    });
+
+    expect(result.failed[0]).toMatchObject({
+      code: 'INTERNAL_ERROR',
+      message: 'Something went wrong on our side. Please try again.',
+    });
+    expect(result.failed[0]!.code).not.toBe('P1001');
+    expect(result.failed[0]!.message).not.toContain('db.internal');
+    expect(logger.error).toHaveBeenCalled();
+  });
+
   it('passes a domain error through untouched without logging it as unexpected', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(
       makeAppointmentWithRelations({ status: 'SCHEDULED', serviceGroupId: 'group-1' }),
