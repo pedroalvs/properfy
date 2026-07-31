@@ -50,6 +50,18 @@ export interface INotificationRepository {
   ): Promise<void>;
   existsByAppointmentAndTemplate(appointmentId: string, templateCode: string): Promise<boolean>;
   /**
+   * True when the agency mirror for THIS suppressed notification already exists.
+   *
+   * Keyed on the source notification, not the appointment: a blocked appointment
+   * accumulates one mirror per withheld message over its lifecycle (notice, three
+   * reminders, T-2 alert, portal link), so "any mirror on this appointment" would
+   * report the second and later messages as already handled.
+   */
+  existsAgencyForwardForNotification(
+    appointmentId: string,
+    suppressedNotificationId: string,
+  ): Promise<boolean>;
+  /**
    * Most recently created notification for the appointment among `templateCodes`,
    * or null when none exists. Backs occurrence-scoped dedupe — "what was the
    * rental tenant last told?" — as opposed to the lifetime guard of

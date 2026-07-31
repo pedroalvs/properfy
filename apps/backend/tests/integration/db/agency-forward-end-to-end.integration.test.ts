@@ -271,12 +271,48 @@ describe('agency mirror, end to end', () => {
     });
 
     await sut.sendNotification.execute({ notificationId });
-    // A second redelivery must not create another mirror.
-    await expect(sut.sendNotification.execute({ notificationId })).rejects.toThrow();
+    // A further redelivery is a recognised no-op, not a DLQ entry and not a duplicate.
+    await expect(sut.sendNotification.execute({ notificationId })).resolves.toBeUndefined();
 
     expect(
       await harness.prisma.notification.count({ where: { template_code: 'TENANT_NOTICE_FORWARDED_AGENCY' } }),
     ).toBe(1);
+  });
+
+  it('recovers a later message even though earlier ones are already mirrored', async () => {
+    // The real shape of a blocked appointment: one mirror per withheld message. Keying
+    // recovery on the appointment reported messages 2..N as already handled and silently
+    // dropped their mirrors, which is the pre-fix behaviour this pins against.
+    const first = await createOccupantNotification('EMAIL', 'INSPECTION_NOTICE');
+    await sut.sendNotification.execute({ notificationId: first });
+
+    const second = await createOccupantNotification('SMS', 'INSPECTION_NOTICE_SMS');
+    // Crash window on the SECOND message: suppressed, mirror never inserted.
+    await harness.prisma.notification.update({
+      where: { id: second },
+      data: { status: 'SKIPPED_OPT_OUT', failure_reason: 'AGENCY_TENANT_NOTIFICATIONS_DISABLED' },
+    });
+
+    await expect(sut.sendNotification.execute({ notificationId: second })).resolves.toBeUndefined();
+
+    const mirrors = await harness.prisma.notification.findMany({
+      where: { template_code: 'TENANT_NOTICE_FORWARDED_AGENCY' },
+      orderBy: { created_at: 'asc' },
+    });
+    expect(mirrors).toHaveLength(2);
+    expect(mirrors.map((m) => (m.payload_json as Record<string, string>).suppressedNotificationId))
+      .toEqual([first, second]);
+  });
+
+  it('ties each mirror to the message it stands in for', async () => {
+    const notificationId = await createOccupantNotification('EMAIL', 'INSPECTION_NOTICE');
+
+    await sut.sendNotification.execute({ notificationId });
+
+    const mirror = await harness.prisma.notification.findFirstOrThrow({
+      where: { template_code: 'TENANT_NOTICE_FORWARDED_AGENCY' },
+    });
+    expect((mirror.payload_json as Record<string, string>).suppressedNotificationId).toBe(notificationId);
   });
 
   it('leaves an unblocked agency untouched', async () => {

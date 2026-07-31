@@ -233,22 +233,28 @@ export class SendNotificationUseCase {
    * after the mirror was already created, and a second mirror would be a duplicate email
    * to the agency rather than a recovery.
    */
-  private async needsMirrorRecovery(notification: NotificationEntity): Promise<boolean> {
-    if (notification.status !== 'SKIPPED_OPT_OUT') return false;
-    if (!notification.appointmentId) return false;
+  private async classifySuppressedRerun(
+    notification: NotificationEntity,
+  ): Promise<'RECOVER_MIRROR' | 'ALREADY_MIRRORED' | 'NOT_RECOVERABLE'> {
+    if (notification.status !== 'SKIPPED_OPT_OUT') return 'NOT_RECOVERABLE';
+    if (!notification.appointmentId) return 'NOT_RECOVERABLE';
     // Covers both the initial reason and a previously-recorded mirror failure, so a
-    // transient lookup failure gets another chance on redelivery.
+    // transient lookup failure gets another chance if a redelivery does occur.
     if (
       notification.failureReason !== SUPPRESSED_REASON &&
       !notification.failureReason?.startsWith('AGENCY_FORWARD_')
     ) {
-      return false;
+      return 'NOT_RECOVERABLE';
     }
-    const mirrored = await this.notificationRepo.existsByAppointmentAndTemplate(
+    // Keyed on THIS notification, not the appointment. A blocked appointment collects a
+    // mirror per withheld message, so an appointment-wide check would report messages
+    // 2..N as already handled and drop their mirrors — the very gap this path exists to
+    // close.
+    const mirrored = await this.notificationRepo.existsAgencyForwardForNotification(
       notification.appointmentId,
-      AGENCY_FORWARD_TEMPLATE_CODE,
+      notification.id,
     );
-    return !mirrored;
+    return mirrored ? 'ALREADY_MIRRORED' : 'RECOVER_MIRROR';
   }
 
   /**
@@ -336,6 +342,10 @@ export class SendNotificationUseCase {
           branchName: recipient.branchName,
           suppressedTemplateLabel: getTemplateCodeLabel(notification.templateCode),
           suppressedChannel: notification.channel,
+          // Ties the mirror to the message it stands in for. A blocked appointment
+          // accumulates one mirror per withheld message, so this is what lets the
+          // crash-recovery path tell "this one was mirrored" from "some other one was".
+          suppressedNotificationId: notification.id,
         },
       });
 
@@ -363,11 +373,22 @@ export class SendNotificationUseCase {
       // and the DLQ would only ever say "invalid status", never hinting an agency was
       // left uninformed. Re-attempting is safe: forwardSuppressedToAgency is a no-op
       // once a mirror exists for this appointment.
-      if (await this.needsMirrorRecovery(notification)) {
+      const rerun = await this.classifySuppressedRerun(notification);
+      if (rerun === 'RECOVER_MIRROR') {
         const forwardFailure = await this.forwardSuppressedToAgency(notification);
         notification.failureReason = forwardFailure ?? SUPPRESSED_REASON;
         notification.updatedAt = new Date();
         await this.notificationRepo.update(notification);
+        return;
+      }
+      if (rerun === 'ALREADY_MIRRORED') {
+        // Recognised benign redelivery: this message was withheld and its mirror exists,
+        // so there is nothing to do. Returning cleanly keeps it out of the DLQ, where it
+        // would otherwise sit as an unactionable "invalid status".
+        this.logger.debug(
+          { notificationId: notification.id, appointmentId: notification.appointmentId },
+          'notification.suppressed_redelivery_ignored',
+        );
         return;
       }
       throw new NotificationInvalidStatusError();

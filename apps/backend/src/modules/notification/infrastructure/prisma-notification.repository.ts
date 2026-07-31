@@ -188,6 +188,24 @@ export class PrismaNotificationRepository implements INotificationRepository {
     return count > 0;
   }
 
+  async existsAgencyForwardForNotification(
+    appointmentId: string,
+    suppressedNotificationId: string,
+  ): Promise<boolean> {
+    // Matches on the `suppressedNotificationId` the mirror carries in its payload, so
+    // each withheld message is tracked independently. No NOT_SUPPRESSED here: a mirror
+    // that exists in any state means one was already created for this message, and
+    // creating a second would be a duplicate email to the agency.
+    const count = await this.prisma.notification.count({
+      where: {
+        appointment_id: appointmentId,
+        template_code: AGENCY_FORWARD_TEMPLATE_CODE,
+        payload_json: { path: ['suppressedNotificationId'], equals: suppressedNotificationId },
+      },
+    });
+    return count > 0;
+  }
+
   async existsByAppointmentAndTemplates(
     appointmentId: string,
     tenantId: string,
