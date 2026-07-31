@@ -478,6 +478,62 @@ describe('OffersMapView — offers-mode camera', () => {
     expect(spies.flyTo).not.toHaveBeenCalled();
   });
 
+  // Panning says "I want to look here" — but if every pin the inspector framed
+  // is gone (offers taken by someone else, a refetch returning a different
+  // region), that intent no longer refers to anything on the map, and leaving
+  // the camera put would show an empty view with pins just off screen.
+  it('re-frames when a pan is followed by a completely different offer set', async () => {
+    const { rerender } = render(
+      <OffersMapView offers={[makeOffer()]} onSelectOffer={vi.fn()} />,
+    );
+    await waitForPins('map-pin', 1);
+
+    emitMapEvent('dragstart', { originalEvent: {} });
+    spies.fitBounds.mockClear();
+    spies.flyTo.mockClear();
+
+    rerender(
+      <OffersMapView
+        offers={[
+          makeOffer({ groupId: 'group-9', centroid: { lat: -37.81, lng: 144.96 } }),
+          makeOffer({ groupId: 'group-10', centroid: { lat: -37.86, lng: 144.99 } }),
+        ]}
+        onSelectOffer={vi.fn()}
+      />,
+    );
+    await waitForPins('map-pin', 2);
+
+    await waitFor(() => {
+      expect(spies.fitBounds).toHaveBeenCalled();
+    });
+  });
+
+  it('still respects a pan when the new offer set overlaps the framed one', async () => {
+    const { rerender } = render(
+      <OffersMapView offers={[makeOffer()]} onSelectOffer={vi.fn()} />,
+    );
+    await waitForPins('map-pin', 1);
+
+    emitMapEvent('dragstart', { originalEvent: {} });
+    spies.fitBounds.mockClear();
+    spies.flyTo.mockClear();
+
+    // group-1 is still there, so the inspector is still looking at something real.
+    rerender(
+      <OffersMapView
+        offers={[
+          makeOffer(),
+          makeOffer({ groupId: 'group-2', centroid: { lat: -33.9, lng: 151.25 } }),
+        ]}
+        onSelectOffer={vi.fn()}
+      />,
+    );
+    await waitForPins('map-pin', 2);
+
+    expect(spies.fitBounds).not.toHaveBeenCalled();
+    expect(spies.flyTo).not.toHaveBeenCalled();
+  });
+
   it('ignores programmatic camera moves when deciding the inspector took over', async () => {
     const { rerender } = render(
       <OffersMapView offers={[makeOffer()]} onSelectOffer={vi.fn()} />,

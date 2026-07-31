@@ -23,8 +23,26 @@ export type MarkerOffset = [number, number];
 /** Tolerance so "exactly touching" never reads as "overlapping" after rounding. */
 const EPSILON = 1e-6;
 
-function isFinitePoint(point: ScreenPoint): boolean {
-  return Number.isFinite(point.x) && Number.isFinite(point.y);
+/**
+ * Largest coordinate that can be a real on-screen position.
+ *
+ * `Map.project()` reports `Number.MAX_VALUE` for a point behind the camera on a
+ * pitched map — and `Number.isFinite(Number.MAX_VALUE)` is `true`, so a plain
+ * finiteness check lets those sentinels through. One of them alone is harmless
+ * (every distance to it overflows to Infinity), but *two* occluded points sit a
+ * few pixels apart from each other and would happily cluster and get offsets.
+ * No viewport is millions of pixels wide, so past this a value is a sentinel
+ * rather than a position.
+ */
+const MAX_SCREEN_COORDINATE = 1e7;
+
+function isUsablePoint(point: ScreenPoint): boolean {
+  return (
+    Number.isFinite(point.x) &&
+    Number.isFinite(point.y) &&
+    Math.abs(point.x) <= MAX_SCREEN_COORDINATE &&
+    Math.abs(point.y) <= MAX_SCREEN_COORDINATE
+  );
 }
 
 /**
@@ -78,7 +96,7 @@ export function resolveMarkerCollisions(
   // these, and a single aliased instance would let one marker's offset being
   // adjusted silently move every other unmoved marker too.
   const offsets: MarkerOffset[] = points.map((): MarkerOffset => [0, 0]);
-  const live = points.map((_, i) => i).filter((i) => isFinitePoint(points[i]!));
+  const live = points.map((_, i) => i).filter((i) => isUsablePoint(points[i]!));
   if (live.length < 2) return offsets;
 
   // Cluster id per point; starts as "everyone alone".

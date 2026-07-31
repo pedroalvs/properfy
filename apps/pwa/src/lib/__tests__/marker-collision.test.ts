@@ -132,6 +132,21 @@ describe('resolveMarkerCollisions', () => {
     expect(offsets[0]).toEqual([0, 0]);
   });
 
+  // Number.isFinite(Number.MAX_VALUE) is true, so a plain finiteness check lets
+  // the occlusion sentinel through. A lone sentinel hides that — every distance
+  // to it overflows to Infinity — but two of them sit a few pixels apart and
+  // would cluster with each other.
+  it('does not cluster two occluded points with each other', () => {
+    const points = [
+      { x: Number.MAX_VALUE, y: 0 },
+      { x: Number.MAX_VALUE, y: 5 },
+    ];
+    expect(resolveMarkerCollisions(points, D)).toEqual([
+      [0, 0],
+      [0, 0],
+    ]);
+  });
+
   it('does not let a non-finite point drag a real one out of place', () => {
     const points = [
       { x: 10, y: 10 },

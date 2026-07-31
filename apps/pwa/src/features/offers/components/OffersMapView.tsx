@@ -161,6 +161,8 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
   const prevExpandedIdRef = useRef<string | null>(null);
   /** Points the camera was last framed to — see syncCamera. */
   const fittedSignatureRef = useRef<string | null>(null);
+  /** The same points as a set, to tell "the view changed" from "it moved away". */
+  const fittedKeysRef = useRef<Set<string> | null>(null);
   /** Set once the inspector pans/zooms by hand; stops the auto-fit fighting them. */
   const userMovedRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -248,6 +250,7 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
       mapRef.current = null;
       prevExpandedIdRef.current = null;
       fittedSignatureRef.current = null;
+      fittedKeysRef.current = null;
       userMovedRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -365,16 +368,27 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
     // order-independent — so the signature changes when and only when the
     // framing would. A looser null-check here would re-fly the camera over a
     // malformed coordinate that never affects the bounds.
-    const signature = points
+    const keys = points
       .filter(isPlottablePoint)
       .map((p) => `${p.latitude},${p.longitude}`)
-      .sort()
-      .join('|');
+      .sort();
+    const signature = keys.join('|');
+
+    // A pan means "I want to look here", and is normally respected for good.
+    // But if not one of the pins the camera was framing is still on the map,
+    // that intent has nothing left to refer to — keeping the old view would
+    // just show empty space with every new pin off screen.
+    const framed = fittedKeysRef.current;
+    if (framed && keys.length > 0 && !keys.some((key) => framed.has(key))) {
+      userMovedRef.current = false;
+    }
+
     if (!modeChanged && (userMovedRef.current || fittedSignatureRef.current === signature)) return;
 
     const bounds = computeBounds(points);
     if (!bounds) return;
     fittedSignatureRef.current = signature;
+    fittedKeysRef.current = new Set(keys);
 
     if (isSinglePointBounds(bounds)) {
       const [[lng, lat]] = bounds as [[number, number], [number, number]];
