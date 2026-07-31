@@ -489,10 +489,12 @@ describe('GeneratePortalTokenUseCase', () => {
   // transaction on a token_hash collision, so mint() cannot recover from inside —
   // the retry has to replay the whole transaction from out here.
   describe('token_hash collision inside the confirmation-cycle transaction', () => {
-    function uniqueViolation(target: string) {
+    // Postgres reports meta.target as an array even for a single-column index;
+    // that is the shape the retry helper sees in production.
+    function uniqueViolation(column: string) {
       return Object.assign(new Error('Unique constraint failed'), {
         code: 'P2002',
-        meta: { target },
+        meta: { target: [column] },
       });
     }
 

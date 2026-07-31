@@ -166,14 +166,17 @@ describe('MintPortalTokenService', () => {
     expect(dateArg).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
-  // Tokens are 10 base62 chars (~59.5 bits), so a token_hash clash is a
-  // 1-in-1.6M event rather than an impossible one. When it happens the write is
-  // the thing that detects it, and the answer is simply to mint another token.
+  // Tokens are 10 base62 chars (~59.5 bits), so a token_hash clash is rare but
+  // not impossible — and it grows with the stored row count, since the unique
+  // index spans revoked and expired rows too. The write is what detects it, and
+  // the answer is simply to mint another token.
   describe('token_hash collision', () => {
-    function uniqueViolation(target: string) {
+    // Postgres reports meta.target as an array even for a single-column index;
+    // that is the shape the retry helper sees in production.
+    function uniqueViolation(column: string) {
       return Object.assign(new Error('Unique constraint failed'), {
         code: 'P2002',
-        meta: { target },
+        meta: { target: [column] },
       });
     }
 

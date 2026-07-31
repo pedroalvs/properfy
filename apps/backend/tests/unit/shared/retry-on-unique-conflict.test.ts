@@ -16,7 +16,20 @@ describe('retryOnUniqueConflict', () => {
     expect(work).toHaveBeenCalledTimes(1);
   });
 
-  it('re-runs the work after a conflict on the watched column', async () => {
+  // Postgres is what production runs, and Prisma reports its `meta.target` as an
+  // array even for a single-column index — so this is the shape that actually
+  // reaches the helper. The bare-string case below is the defensive branch.
+  it('re-runs the work after a conflict reported as a single-column array', async () => {
+    const work = vi
+      .fn()
+      .mockRejectedValueOnce(uniqueViolation(['token_hash']))
+      .mockResolvedValue('ok');
+
+    await expect(retryOnUniqueConflict('token_hash', work)).resolves.toBe('ok');
+    expect(work).toHaveBeenCalledTimes(2);
+  });
+
+  it('re-runs the work after a conflict reported as a bare string', async () => {
     const work = vi
       .fn()
       .mockRejectedValueOnce(uniqueViolation('token_hash'))

@@ -12,8 +12,9 @@
  * the `$transaction` call itself, never a statement within it.
  *
  * Detection is duck-typed (`code === 'P2002'`, `meta.target`) rather than using
- * `Prisma.PrismaClientKnownRequestError`, matching `ConfirmationCycleService`
- * and keeping this file free of framework imports.
+ * `Prisma.PrismaClientKnownRequestError`, so this file stays free of framework
+ * imports. `ConfirmationCycleService` duck-types the same error but only checks
+ * the code — the column narrowing here is stricter, not established precedent.
  */
 export async function retryOnUniqueConflict<T>(
   column: string,
@@ -39,8 +40,9 @@ function isUniqueConflictOn(error: unknown, column: string): boolean {
     return false;
   }
 
-  // Prisma reports `meta.target` as the conflicting column, or as the column
-  // list when the index is composite.
+  // On Postgres, Prisma reports `meta.target` as an array of column names even
+  // for a single-column index — that is the shape this code actually sees. The
+  // string branch covers connectors that report a bare constraint name.
   const target = (error as { meta?: { target?: unknown } }).meta?.target;
   if (typeof target === 'string') {
     return target === column;

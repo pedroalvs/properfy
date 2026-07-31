@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
+import { createBrowserRouter, Navigate, useParams, type RouteObject } from 'react-router-dom';
 import { lazy, Suspense, type ComponentType } from 'react';
 import { retryLazyImportOnce } from '@properfy/shared';
 
@@ -84,7 +84,7 @@ export function PortalRedirect() {
  * inside `ProtectedRoute` is enough for every protected screen; the
  * public routes (login, portal) each take their own attachment.
  */
-export const router = createBrowserRouter([
+export const routes: RouteObject[] = [
   {
     path: '/login',
     element: <LoginPage />,
@@ -460,7 +460,9 @@ export const router = createBrowserRouter([
     element: <NotFoundPage />,
     errorElement: <AppErrorBoundary />,
   },
-], {
+];
+
+export const router = createBrowserRouter(routes, {
   future: {
     v7_relativeSplatPath: true,
   },

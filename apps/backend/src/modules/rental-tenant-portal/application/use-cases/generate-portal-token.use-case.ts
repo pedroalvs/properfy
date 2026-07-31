@@ -89,7 +89,9 @@ export class GeneratePortalTokenUseCase {
     if (this.cycleService && this.prisma) {
       // mint() cannot retry a token_hash collision here — the violation aborts
       // this transaction, so the recovery is to replay the whole thing with a
-      // freshly minted token. The rollback takes the half-built cycle with it.
+      // freshly minted token. The collision fires inside mint(), before
+      // createInitial runs, so what the rollback undoes is mint's revocation of
+      // the previously active tokens; the replay revokes them again.
       await retryOnUniqueConflict(TOKEN_HASH_COLUMN, () =>
         this.prisma!.$transaction(async (tx) => {
           const minted = await this.mintPortalTokenService.mint(appointment, tenant, tx);

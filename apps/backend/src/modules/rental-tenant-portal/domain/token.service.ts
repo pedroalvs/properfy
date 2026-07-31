@@ -10,8 +10,16 @@ const REJECTION_CEILING = 256 - (256 % TOKEN_ALPHABET.length);
 export class TokenService {
   /**
    * Base62, 10 characters: 62^10 ≈ 8.4e17 (~59.5 bits). Short enough to send by
-   * SMS, and paired with the portal's 30 req/min per-IP rate limit it leaves
-   * brute force out of reach.
+   * SMS while leaving online guessing hopeless — the portal routes cap at 30
+   * req/min, so even a large botnet against a large pool of live tokens expects
+   * years per hit. (The cap is currently global rather than per-IP: `trustProxy`
+   * is unset, so behind the proxy every request shares one bucket. That makes it
+   * stricter, not weaker, for this purpose.)
+   *
+   * What this length does NOT defend against is offline attack: `hashToken` is
+   * an unsalted SHA-256, so anyone who obtains the `token_hash` column alone can
+   * brute-force 59.5 bits and recover live tokens. At 256 bits that dump was
+   * inert. Peppering the hash would close it — see the PR discussion.
    *
    * Legacy 64-char hex tokens stay valid: lookup hashes whatever raw string
    * arrives, so nothing here constrains what an existing link may look like.
