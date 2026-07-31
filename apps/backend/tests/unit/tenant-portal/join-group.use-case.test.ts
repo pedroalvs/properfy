@@ -580,6 +580,9 @@ describe('JoinGroupUseCase', () => {
       await expect(useCaseWithPrisma().execute(resumeInput())).rejects.toThrow(
         PortalTokenAlreadyUsedError,
       );
+      // The claim is someone else's — releasing it would hand them a link we do
+      // not own.
+      expect(tokenRepo.releaseClaim).not.toHaveBeenCalled();
     });
 
     it('refuses when an operator moved it out of the group after the first read', async () => {

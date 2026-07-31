@@ -258,9 +258,13 @@ export class JoinGroupUseCase {
   /**
    * Claims the link and finishes a join whose slot is already held.
    *
-   * Reachable two ways: a replay whose response was lost in flight, and a join
-   * torn before this PR made the reservation and the hops atomic. Both deserve a
-   * success — the tenant holds the slot either way.
+   * NOT reachable by a replay of a completed join: that left `used_at` set and
+   * `tryClaim` requires it null, so a replay stops at the claim with
+   * `PortalTokenAlreadyUsedError`. What actually gets here is a join whose slot
+   * was reserved but whose status never caught up, and whose error path released
+   * the claim: rows torn before this PR made the reservation and the hops
+   * atomic, and joins whose transaction committed but whose after-commit effect
+   * flush then threw. The tenant holds the slot in both.
    *
    * The claim still runs: it serialises concurrent replays exactly as the normal
    * path does. The status is re-read under it, because the entity the caller
@@ -372,12 +376,14 @@ export class JoinGroupUseCase {
    *
    * For a row torn BEFORE this PR the new group was never incremented (the old
    * code incremented after the hops, which is what failed), so resuming leaves
-   * its `confirmed_count` one short. Deliberately not repaired here: the counter
-   * is a denormalized display value — capacity is computed from the member rows
-   * by `computeWindowAvailability`, never from it — and incrementing on resume
-   * would double-count every replay, which over-reports a group as full and
-   * turns real tenants away. Under-reporting a finite set of legacy rows is the
-   * safer direction; repair them by hand if they surface.
+   * its `confirmed_count` one short. Deliberately not repaired: the column is
+   * display/reporting only — portal capacity comes from
+   * `computeWindowAvailability` over the member rows, and `cancelIfDead` judges
+   * member rows too — so an off-by-one misreports a number without affecting any
+   * booking decision. Incrementing here would instead double-count on every
+   * resume, which is the worse error. Several flows (accept-offer,
+   * change-group-inspector, the unconfirmed sweep) recompute the count wholesale,
+   * so legacy under-counts also self-heal there.
    */
   private async resumeJoin(
     input: JoinGroupInput,

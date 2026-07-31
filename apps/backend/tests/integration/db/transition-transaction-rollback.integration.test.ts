@@ -218,8 +218,13 @@ describe('executeInTransaction — composed into a caller transaction', () => {
     // The join's second hop in miniature: a ROUTINE service type requiring rental
     // tenant confirmation refuses AWAITING_INSPECTOR -> SCHEDULED unless the
     // appointment reads CONFIRMED. The portal join gets that value from
-    // reservePortalWindow's uncommitted write, so this is the guard that would
-    // silently break if serviceTypeRepo or findById skipped the transaction.
+    // reservePortalWindow's uncommitted write, so this pins `findById` reading
+    // through the transaction on the exact guard the join depends on.
+    //
+    // It does NOT pin serviceTypeRepo's own tx threading: the service type is
+    // committed before the transaction opens, so a repo ignoring `tx` still reads
+    // it. That parameter is there for connection hygiene (not borrowing a second
+    // pooled connection while one is pinned), which needs no correctness proof.
     const routine = await harness.prisma.serviceType.create({
       data: {
         code: `TX-ROUTINE-${Math.random().toString(36).slice(2, 8)}`,
