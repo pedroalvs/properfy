@@ -27,13 +27,15 @@
  * observe the regression this file exists to catch.
  *
  * Known gap, deliberately not covered here: a CL_* actor whose context carries
- * a null/empty `tenantId` gets an unscoped cross-tenant list, because
- * `buildWhere` applies `tenant_id` behind a falsy check
- * (`prisma-appointment.repository.ts:510`) and the use case passes
- * `actor.tenantId ?? undefined`. It is not reachable through the API today —
- * `create-user.use-case.ts:90` rejects an agency user without a tenant — so it
- * is a fail-open default rather than a live hole, and closing it means
- * changing production code. Tracked separately.
+ * a null `tenantId` gets an unscoped cross-tenant list, because `buildWhere`
+ * applies `tenant_id` behind a falsy check while the use case passes
+ * `actor.tenantId ?? undefined`. No API path can produce such a context —
+ * `create-user`'s agency-tenant guard rejects an agency user without a tenant,
+ * `update-user` never writes `tenant_id`, and API keys are restricted to
+ * AM/OP — so this is a fail-open default rather than a live hole. Closing it
+ * belongs in the use case, not the repository: `buildWhere` cannot tell a
+ * legitimately unscoped AM/OP list from a pinned actor with a missing tenant,
+ * because the role lives in the caller. Tracked separately.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -108,6 +110,9 @@ describe('CL_* tenant pinning on the appointments list (real DB)', () => {
       pagination: { page: 1, pageSize: 50, sortOrder: 'desc' },
       actor,
     });
+    // `total` comes from a second query (`count`) built off the same filters,
+    // so asserting it is what covers the other half of the SQL the use case
+    // emits — `findAll` alone would leave it unproven.
     return { ids: result.data.map((appointment) => appointment.id), total: result.total };
   }
 
@@ -134,8 +139,6 @@ describe('CL_* tenant pinning on the appointments list (real DB)', () => {
 
     expect(ids).toContain(fixtureA!.appointmentId);
     expect(ids).not.toContain(fixtureB!.appointmentId);
-    // `count` runs its own query off the same filters; without this, half the
-    // SQL the use case emits is unproven.
     expect(total).toBe(1);
   });
 
@@ -156,8 +159,6 @@ describe('CL_* tenant pinning on the appointments list (real DB)', () => {
 
     expect(ids).toContain(fixtureA!.appointmentId);
     expect(ids).not.toContain(fixtureB!.appointmentId);
-    // `count` runs its own query off the same filters; without this, half the
-    // SQL the use case emits is unproven.
     expect(total).toBe(1);
   });
 
