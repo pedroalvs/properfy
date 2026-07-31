@@ -378,8 +378,11 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
     // But if not one of the pins the camera was framing is still on the map,
     // that intent has nothing left to refer to — keeping the old view would
     // just show empty space with every new pin off screen.
+    // A null `framed` means the camera has never successfully fitted anything —
+    // panning a map that had no pins on it cannot count as choosing a view, and
+    // treating it as one left the very first batch of pins off screen for good.
     const framed = fittedKeysRef.current;
-    if (framed && keys.length > 0 && !keys.some((key) => framed.has(key))) {
+    if (keys.length > 0 && (!framed || !keys.some((key) => framed.has(key)))) {
       userMovedRef.current = false;
     }
 

@@ -35,7 +35,11 @@ function projectScale() {
 
 vi.mock('mapbox-gl', () => {
   class FakeMap {
-    constructor(_opts: unknown) {}
+    // Take the zoom the component actually asked for, so the fake projection
+    // is the one under test rather than one that merely happens to match.
+    constructor(opts: { zoom?: number }) {
+      if (typeof opts?.zoom === 'number') spies.zoom = opts.zoom;
+    }
     on(event: string, cb: (event?: unknown) => void) {
       (spies.handlers[event] ??= []).push(cb);
       if (event === 'load' && !spies.deferLoad) cb();
@@ -497,6 +501,38 @@ describe('OffersMapView — offers-mode camera', () => {
         offers={[
           makeOffer({ groupId: 'group-9', centroid: { lat: -37.81, lng: 144.96 } }),
           makeOffer({ groupId: 'group-10', centroid: { lat: -37.86, lng: 144.99 } }),
+        ]}
+        onSelectOffer={vi.fn()}
+      />,
+    );
+    await waitForPins('map-pin', 2);
+
+    await waitFor(() => {
+      expect(spies.fitBounds).toHaveBeenCalled();
+    });
+  });
+
+  // Panning a map that had nothing to frame cannot count as "I chose this
+  // view": there was no view to choose. Offers arrive after mount via the
+  // pagination drain, so this ordering is routine, and treating it as a real
+  // pan left the very first pins off screen for good.
+  it('still frames the first pins when the inspector panned an empty map', async () => {
+    const { rerender } = render(
+      <OffersMapView offers={[makeOffer({ centroid: null })]} onSelectOffer={vi.fn()} />,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('map-no-pins')).toBeInTheDocument();
+    });
+
+    emitMapEvent('dragstart', { originalEvent: {} });
+    spies.fitBounds.mockClear();
+    spies.flyTo.mockClear();
+
+    rerender(
+      <OffersMapView
+        offers={[
+          makeOffer(),
+          makeOffer({ groupId: 'group-2', centroid: { lat: -33.9, lng: 151.25 } }),
         ]}
         onSelectOffer={vi.fn()}
       />,
