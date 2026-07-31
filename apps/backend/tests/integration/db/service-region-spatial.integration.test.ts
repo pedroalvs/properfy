@@ -352,4 +352,26 @@ describe('T155 — GIST index correctness', () => {
     const outsideResult = await repo.findContainingPoint(tenantId, POINT_OUTSIDE_SYDNEY.lat, POINT_OUTSIDE_SYDNEY.lng);
     expect(outsideResult).toHaveLength(0);
   });
+
+  // The correctness assertions above pass just as happily against a sequential
+  // scan, which is exactly how migration 20260601120000 dropped both GIST
+  // indexes without a single test going red. Assert the indexes themselves.
+  it('the GIST indexes backing every ST_Intersects actually exist', async () => {
+    const rows = await harness.prisma.$queryRaw<Array<{ tablename: string; indexname: string; amname: string }>>`
+      SELECT t.relname AS tablename, i.relname AS indexname, a.amname
+        FROM pg_index x
+        JOIN pg_class i ON i.oid = x.indexrelid
+        JOIN pg_class t ON t.oid = x.indrelid
+        JOIN pg_am a ON a.oid = i.relam
+       WHERE t.relname IN ('service_regions', 'properties')
+         AND a.amname = 'gist'
+    `;
+
+    const byTable = Object.fromEntries(rows.map((r) => [r.tablename, r.indexname]));
+
+    // Both sides of the ST_Intersects join in resolveRegionsForAppointments /
+    // findPropertyIdsInInspectorRegions / findContainingPoint must be indexed.
+    expect(byTable).toHaveProperty('service_regions', 'service_regions_geom_idx');
+    expect(byTable).toHaveProperty('properties', 'properties_coordinates_idx');
+  });
 });

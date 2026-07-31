@@ -389,6 +389,9 @@ model Property {
   @@index([branch_id])
   // Partial unique index managed in migration SQL (WHERE deleted_at IS NULL):
   // - properties_normalized_address_active_unique ON (tenant_id, normalized_address_key)
+  // GIST index managed in migration SQL (Prisma cannot express an index over an
+  // Unsupported() column, so it reads as drift — do NOT let `migrate dev` drop it):
+  // - properties_coordinates_idx ON properties USING GIST (coordinates)
   @@map("properties")
 }
 
@@ -1421,6 +1424,9 @@ model ServiceRegion {
   @@unique([tenant_id, name])
   @@index([tenant_id])
   @@index([status])
+  // GIST index managed in migration SQL (Prisma cannot express an index over an
+  // Unsupported() column, so it reads as drift — do NOT let `migrate dev` drop it):
+  // - service_regions_geom_idx ON service_regions USING GIST (geom)
   @@map("service_regions")
 }
 
