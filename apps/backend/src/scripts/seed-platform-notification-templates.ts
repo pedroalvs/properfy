@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { PLATFORM_TEMPLATES } from '../modules/notification/domain/platform-notification-templates';
+import { PLATFORM_TEMPLATES, resolvePlatformTemplateClass } from '../modules/notification/domain/platform-notification-templates';
 import { TemplateRendererService } from '../modules/notification/domain/template-renderer.service';
 
 const prisma = new PrismaClient();
@@ -33,7 +33,9 @@ async function main() {
           body_html: bodyHtml,
           variables_json: variables,
           is_active: true,
-          ...(t.notificationClass ? { notification_class: t.notificationClass } : {}),
+          // Always written, never conditional: omitting it left the row on the
+          // schema default and silently contradicted the shared catalogue.
+          notification_class: resolvePlatformTemplateClass(t),
         },
       });
     } else {
@@ -47,7 +49,7 @@ async function main() {
           body_html: bodyHtml,
           variables_json: variables,
           is_active: true,
-          ...(t.notificationClass ? { notification_class: t.notificationClass } : {}),
+          notification_class: resolvePlatformTemplateClass(t),
         },
       });
     }

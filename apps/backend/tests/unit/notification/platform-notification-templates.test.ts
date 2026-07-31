@@ -6,7 +6,10 @@ import {
   getTemplateCodeLabel,
   getTemplateTarget,
 } from '@properfy/shared';
-import { PLATFORM_TEMPLATES } from '../../../src/modules/notification/domain/platform-notification-templates';
+import {
+  PLATFORM_TEMPLATES,
+  resolvePlatformTemplateClass,
+} from '../../../src/modules/notification/domain/platform-notification-templates';
 import { STUCK_ALERT_PAYLOAD_KEYS } from '../../../src/modules/inspector-execution/infrastructure/workers/notify-stuck.worker';
 import { SanitizeHtmlService } from '../../../src/modules/notification/infrastructure/sanitize-html.service';
 import { TemplateRendererService } from '../../../src/modules/notification/domain/template-renderer.service';
@@ -74,6 +77,49 @@ describe('PLATFORM_TEMPLATES seed data', () => {
     )!;
 
     expect(entry.notificationClass).toBe('TRANSACTIONAL');
+  });
+});
+
+describe('seeded notification class follows the shared catalogue', () => {
+  // The bug this guards: the seeder used to write notification_class only when an
+  // entry declared it, so every other row landed on the OPERATIONAL schema default
+  // — including codes the catalogue marks protected/TRANSACTIONAL. Because
+  // upsert-notification-template always applied getProtectedClass, a row's class
+  // depended on which write path touched it last.
+  it('never resolves a protected code to a class the catalogue contradicts', () => {
+    for (const t of PLATFORM_TEMPLATES) {
+      const protectedClass = getProtectedClass(t.code);
+      if (!protectedClass) continue;
+      expect(resolvePlatformTemplateClass(t), `${t.code} (${t.channel})`).toBe(protectedClass);
+    }
+  });
+
+  it('resolves a class for every seeded template — none may fall through to the column default', () => {
+    for (const t of PLATFORM_TEMPLATES) {
+      expect(resolvePlatformTemplateClass(t), `${t.code} (${t.channel})`).toBeTruthy();
+    }
+  });
+
+  // Named explicitly because these four are what actually flips in an existing
+  // database: their email twins were already TRANSACTIONAL via the UI write path,
+  // so only the SMS legs were left consent-suppressible.
+  it.each([
+    'INSPECTION_CONFIRMED_SMS',
+    'INSPECTION_RESCHEDULED_SMS',
+    'INSPECTION_CANCELLED_SMS',
+    'INSPECTION_UNAVAILABILITY_REPORTED_SMS',
+  ])('%s is TRANSACTIONAL, matching its email twin', (code) => {
+    const entry = PLATFORM_TEMPLATES.find((t) => t.code === code)!;
+    expect(entry).toBeDefined();
+    expect(resolvePlatformTemplateClass(entry)).toBe('TRANSACTIONAL');
+  });
+
+  it('leaves a non-protected template on its catalogue default rather than forcing TRANSACTIONAL', () => {
+    const notice = PLATFORM_TEMPLATES.find(
+      (t) => t.code === 'INSPECTION_NOTICE' && t.channel === 'EMAIL',
+    )!;
+    expect(getProtectedClass('INSPECTION_NOTICE')).toBeUndefined();
+    expect(resolvePlatformTemplateClass(notice)).toBe('OPERATIONAL');
   });
 });
 
@@ -176,10 +222,8 @@ describe('PLATFORM_TEMPLATES appointment email HTML bodies', () => {
       (t) => t.code === 'INSPECTION_CANCELLED_AGENCY' && t.channel === 'EMAIL',
     )!;
 
-    // The seeder writes notification_class ONLY when the entry provides it, so an
-    // omitted value silently lands on the column default (OPERATIONAL) and the row
-    // becomes consent-checked per recipient. Must agree with the shared catalogue.
-    expect(entry.notificationClass).toBe('TRANSACTIONAL');
+    // Derived from the catalogue now, not restated on the entry.
+    expect(resolvePlatformTemplateClass(entry)).toBe('TRANSACTIONAL');
     expect(getProtectedClass('INSPECTION_CANCELLED_AGENCY')).toBe('TRANSACTIONAL');
   });
 

@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { getDefaultClass } from '@properfy/shared';
 import bcrypt from 'bcryptjs';
 import { createHash } from 'crypto';
 
@@ -1507,6 +1508,9 @@ async function main() {
             body_html: t.channel === 'EMAIL' ? `<p>${t.body}</p>` : null,
             variables_json: variables,
             is_active: true,
+            // Same rule as the platform seeder: the catalogue owns the class, so
+            // a protected code cannot land on the OPERATIONAL schema default.
+            notification_class: getDefaultClass(t.code),
           },
         });
         continue;
@@ -1522,6 +1526,7 @@ async function main() {
           body_html: t.channel === 'EMAIL' ? `<p>${t.body}</p>` : null,
           variables_json: variables,
           is_active: true,
+          notification_class: getDefaultClass(t.code),
         },
       });
     }
