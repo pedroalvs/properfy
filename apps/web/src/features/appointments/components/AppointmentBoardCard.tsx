@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { formatCivilDate, formatWallTimeRange } from '@/lib/format-date';
+import { Tooltip } from '@/components/ui/Tooltip';
 import { RentalTenantConfirmationChip } from './RentalTenantConfirmationChip';
+import { formatTenantNoteTooltip } from '../lib/tenant-note';
 import type { Appointment } from '../types';
 
 export interface BoardCardAction {
@@ -61,9 +63,11 @@ export function AppointmentBoardCard({
             </span>
           )}
           {appointment.hasRentalTenantNote && (
-            <span role="img" aria-label="Tenant left a note" title="Tenant left a note">
-              <i className="mdi mdi-note-text-outline text-base text-text-secondary" aria-hidden="true" />
-            </span>
+            <Tooltip label={formatTenantNoteTooltip(appointment.rentalTenantNote)}>
+              <span role="img" aria-label={formatTenantNoteTooltip(appointment.rentalTenantNote)}>
+                <i className="mdi mdi-note-text-outline text-base text-text-secondary" aria-hidden="true" />
+              </span>
+            </Tooltip>
           )}
           <RentalTenantConfirmationChip status={appointment.rentalTenantConfirmationStatus} />
         </div>
