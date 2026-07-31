@@ -184,7 +184,7 @@ describe('ForceManualTenantConfirmationUseCase – RBAC', () => {
         reason: 'Cross-tenant attempt',
         actor: makeActor('CL_ADMIN', { tenantId: 'tenant-1' }),
       }),
-    ).rejects.toThrow();
+    ).rejects.toThrow(AppointmentNotFoundError);
     expect(appointmentRepo.update).not.toHaveBeenCalled();
   });
 
@@ -340,7 +340,7 @@ describe('ForceManualTenantConfirmationUseCase – audit log', () => {
             clUserPermissions: ['force_confirmation'],
           }),
         }),
-      ).rejects.toThrow();
+      ).rejects.toThrow(AppointmentNotFoundError);
       expect(appointmentRepo.update).not.toHaveBeenCalled();
     });
   });

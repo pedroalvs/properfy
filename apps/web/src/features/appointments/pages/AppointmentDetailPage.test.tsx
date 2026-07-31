@@ -291,6 +291,7 @@ describe('AppointmentDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUserRole = 'AM';
+    mockClUserPermissions = [];
   });
 
   it('renders appointment code in header', () => {
@@ -434,6 +435,7 @@ describe('AppointmentDetailPage — Send Portal Link dispatch feedback', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUserRole = 'AM';
+    mockClUserPermissions = [];
   });
 
   function mockPortalTokenResponse(payload: Record<string, unknown>) {
@@ -474,6 +476,7 @@ describe('AppointmentDetailPage — Send Portal Link status gating', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUserRole = 'AM';
+    mockClUserPermissions = [];
   });
 
   it('hides Send Portal Link for DRAFT appointments', () => {
@@ -526,6 +529,25 @@ describe('AppointmentDetailPage — role gating for portal actions', () => {
     expect(screen.queryByRole('tab', { name: /notifications/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: /timeline/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: /financial/i })).not.toBeInTheDocument();
+  });
+
+  // The operations-only surface must NOT ride along with the portal widening.
+  // A DONE appointment with no cross-check yet is what makes the button eligible
+  // for AM/OP, so it is the only fixture that can prove CL_ADMIN is excluded.
+  // The cross-check action renders as "Confirm Done" (not to be confused with
+  // "Force Confirm", which CL_ADMIN does get).
+  it('does not give CL_ADMIN the cross-check action on a DONE appointment', () => {
+    mockUserRole = 'CL_ADMIN';
+    renderPage('/appointments/done');
+
+    expect(screen.queryByRole('button', { name: /confirm done/i })).not.toBeInTheDocument();
+  });
+
+  it('still gives OP the cross-check action on the same DONE appointment', () => {
+    mockUserRole = 'OP';
+    renderPage('/appointments/done');
+
+    expect(screen.getByRole('button', { name: /confirm done/i })).toBeInTheDocument();
   });
 
   it('hides every portal action from a CL_USER without the force_confirmation flag', () => {

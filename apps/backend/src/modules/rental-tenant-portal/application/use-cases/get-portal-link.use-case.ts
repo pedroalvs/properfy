@@ -41,6 +41,17 @@ export class GetPortalLinkUseCase {
 
     const { appointment } = result;
 
+    // Defense in depth: the repo's tenant filter is skipped when the scope is
+    // null, so an agency actor that somehow reached here without a tenantId
+    // would otherwise read any agency's link. Mirrors the guard in
+    // ForceManualTenantConfirmationUseCase.
+    if (
+      (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') &&
+      appointment.tenantId !== actor.tenantId
+    ) {
+      throw new AppointmentNotFoundError();
+    }
+
     // AC-2.6: findActiveByAppointmentId is the sole authority.
     // The previous cycle-proxy early-reject was removed — a null activeConfirmationCycleId
     // does not mean there is no active token (legacy / bypassed paths may mint tokens directly).

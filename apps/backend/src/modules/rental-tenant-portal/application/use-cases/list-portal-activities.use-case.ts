@@ -28,8 +28,17 @@ export class ListPortalActivitiesUseCase {
     // AM/OP carry a null tenantId (platform-wide); CL_ADMIN is pinned to its own
     // agency here, which is the only tenant gate on this read — the activity
     // query in step 3 is keyed by appointment alone.
-    const result = await this.appointmentRepo.findById(input.appointmentId, input.actor.tenantId);
+    const tenantScope = input.actor.role === 'AM' ? null : input.actor.tenantId;
+    const result = await this.appointmentRepo.findById(input.appointmentId, tenantScope);
     if (!result) {
+      throw new NotFoundError('APPOINTMENT_NOT_FOUND', 'Appointment not found');
+    }
+
+    // Defense in depth: the repo's tenant filter is skipped when the scope is
+    // null, so an agency actor that somehow reached here without a tenantId
+    // would otherwise read any agency's portal history. Mirrors the guard in
+    // ForceManualTenantConfirmationUseCase.
+    if (input.actor.role === 'CL_ADMIN' && result.appointment.tenantId !== input.actor.tenantId) {
       throw new NotFoundError('APPOINTMENT_NOT_FOUND', 'Appointment not found');
     }
 

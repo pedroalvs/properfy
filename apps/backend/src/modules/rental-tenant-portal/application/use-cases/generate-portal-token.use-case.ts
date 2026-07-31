@@ -71,6 +71,14 @@ export class GeneratePortalTokenUseCase {
 
     const { appointment } = result;
 
+    // Defense in depth: the repo's tenant filter is skipped when the scope is
+    // null, so an agency actor that somehow reached here without a tenantId
+    // would otherwise mint (and dispatch) a portal credential for any agency.
+    // Mirrors the guard in ForceManualTenantConfirmationUseCase.
+    if (input.actor.role === 'CL_ADMIN' && appointment.tenantId !== input.actor.tenantId) {
+      throw new NotFoundError('APPOINTMENT_NOT_FOUND', 'Appointment not found');
+    }
+
     if (!input.allowAnyStatus && !ALLOWED_STATUSES.includes(appointment.status as (typeof ALLOWED_STATUSES)[number])) {
       throw new ConflictError(
         'INVALID_APPOINTMENT_STATUS',

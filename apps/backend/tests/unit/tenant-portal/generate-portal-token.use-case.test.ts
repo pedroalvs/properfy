@@ -234,7 +234,31 @@ describe('GeneratePortalTokenUseCase', () => {
   });
 
   it('should not mint a token for a CL_ADMIN outside its tenant', async () => {
-    (appointmentRepo.findById as any).mockResolvedValue(null);
+    // Faithful to the real repo, which SKIPS the tenant filter on a null scope
+    // (`if (tenantId) where.tenant_id = tenantId`). Handing back the row for a
+    // null scope is what makes this test fail if the scoping ever regresses —
+    // a mock hardcoded to null would pass with or without the guard.
+    (appointmentRepo.findById as any).mockImplementation(
+      async (_id: string, tenantId: string | null) =>
+        tenantId == null || tenantId === 'tenant-1' ? { appointment: makeAppointment() } : null,
+    );
+
+    await expect(
+      useCase.execute(
+        makeInput({
+          actor: { userId: 'client-1', tenantId: 'other-tenant', role: 'CL_ADMIN', branchId: null, inspectorId: null },
+        }),
+      ),
+    ).rejects.toThrow(NotFoundError);
+
+    expect(mintPortalTokenService.mint).not.toHaveBeenCalled();
+  });
+
+  // Defense in depth: simulates the repo handing back a foreign row despite the
+  // scope (loosened filter / null scope). The ownership re-check must still
+  // refuse — this endpoint both mints the occupant credential and dispatches it.
+  it('should not mint a token when the repo ignores the tenant scope', async () => {
+    (appointmentRepo.findById as any).mockResolvedValue({ appointment: makeAppointment() });
 
     await expect(
       useCase.execute(

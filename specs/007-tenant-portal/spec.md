@@ -38,8 +38,9 @@ An AM or OP user generates a unique one-time portal token for a specific appoint
 
 **Acceptance Scenarios**:
 
-1. **Given** an AM or OP actor and an appointment, **When** they call `POST /v1/appointments/:appointmentId/portal-token`, **Then** a new token is created in `ACTIVE` with the computed `expires_at`, previous tokens for that appointment are marked `REVOKED`, and the raw token is returned only in this response.
-2. **Given** any non-AM/OP actor, **When** they call the endpoint, **Then** the request is rejected with `FORBIDDEN`.
+1. **Given** an AM, OP or CL_ADMIN actor and an appointment, **When** they call `POST /v1/appointments/:appointmentId/portal-token`, **Then** a new token is created in `ACTIVE` with the computed `expires_at`, previous tokens for that appointment are marked `REVOKED`, and the raw token is returned only in this response.
+2. **Given** any actor outside AM/OP/CL_ADMIN, **When** they call the endpoint, **Then** the request is rejected with `FORBIDDEN`.
+2b. **Given** a CL_ADMIN actor and an appointment outside their own tenant, **When** they call the endpoint, **Then** the lookup is pinned to their tenant and returns `APPOINTMENT_NOT_FOUND`.
 3. **Given** an OP actor and an appointment outside their own tenant, **When** they call the endpoint, **Then** the lookup uses their tenant scope and returns `APPOINTMENT_NOT_FOUND` for cross-tenant appointments.
 4. **Given** an appointment with a renter email, **When** the token is created, **Then** a notification is enqueued via `CreateNotificationUseCase` with channel `EMAIL` and `templateCode = TENANT_PORTAL_LINK`.
 5. **Given** an appointment with a renter phone, **When** the token is created, **Then** a notification is enqueued with channel `SMS`.
@@ -193,7 +194,7 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 
 #### Token Generation
 
-- **FR-001**: System MUST restrict `POST /v1/appointments/:appointmentId/portal-token` to AM and OP.
+- **FR-001**: System MUST restrict `POST /v1/appointments/:appointmentId/portal-token` to AM, OP and CL_ADMIN. AM and OP are platform-wide; CL_ADMIN is scoped to its own tenant.
 - **FR-002**: System MUST revoke all existing tokens for an appointment when a new one is generated.
 - **FR-003**: System MUST generate 32 raw bytes of cryptographic randomness encoded as hex and store only its SHA-256 hash. The raw token is returned exactly once and never logged.
 - **FR-004**: System MUST compute `expires_at` as 7 PM local-time on the day before `scheduledDate` in the tenant's configured timezone, converted to UTC.
@@ -300,7 +301,7 @@ Full schema in [`data-model.md`](./data-model.md). HTTP contracts in [`contracts
 | GAP-002 | Domain events for portal actions | **IMPLEMENTED** (Wave 2), partially obsolete. | Now 3 typed events: confirmed, contact_updated, unavailable. Via DomainEventBus. The `rescheduled` event was deleted with US4 — it had no subscriber. |
 | GAP-003 | Token replay detection | ~~Unlimited reuse.~~ **IMPLEMENTED** (Wave 2). | Single-use tokens for mutations. `used_at` column + `markUsed()`. `PortalTokenAlreadyUsedError` (409). GET still works. Migration. 4 tests. |
 | GAP-004 | Auto-generate token on reschedule | **OBSOLETE** — removed with US4. | There is no portal reschedule to re-issue a token after. `GeneratePortalTokenUseCase` is untouched and still used elsewhere. |
-| GAP-005 | Portal activity export | ~~No operator endpoint.~~ **IMPLEMENTED** (Wave 1). | `ListPortalActivitiesUseCase` + `GET /v1/appointments/:id/portal-activities`. AM/OP only. Paginated. 7 tests. |
+| GAP-005 | Portal activity export | ~~No operator endpoint.~~ **IMPLEMENTED** (Wave 1). | `ListPortalActivitiesUseCase` + `GET /v1/appointments/:id/portal-activities`. AM/OP platform-wide, CL_ADMIN within its own tenant. Paginated. 7 tests. |
 | GAP-006 | Expired token UX | ~~Confusing error pages.~~ **IMPLEMENTED** (Wave 4). | `isExpired` + `canRequestNewLink` flags in portal GET response. Frontend CTA deferred. 5 tests. |
 | GAP-007 | Configurable cutoff per tenant | ~~Hardcoded 7 PM.~~ **IMPLEMENTED** (Wave 3). | `portalCutoffHour` + `portalCutoffDaysBefore` in tenant settings. `computeExpiresAt` parameterized. 12 tests. |
 | GAP-008 | Configurable reschedule window | **REMOVED** with US4. | `portalRescheduleWindowDays` dropped from tenant settings — nothing reads it now that portal reschedule is gone. |
