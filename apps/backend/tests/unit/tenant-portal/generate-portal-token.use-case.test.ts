@@ -360,6 +360,18 @@ describe('GeneratePortalTokenUseCase', () => {
       await expect(useCase.execute(makeInput())).resolves.toBeDefined();
       expect(mintPortalTokenService.mint).toHaveBeenCalled();
     });
+
+    it('should not crash when the tenant has no settings blob at all', async () => {
+      // Regression: an unguarded `settingsJson[...]` read threw TypeError here, which
+      // would have surfaced as a 500 on every Send Portal Link for any tenant row
+      // persisted before the column had a default.
+      tenantRepo.findById.mockResolvedValue(
+        makeTenant({ settingsJson: undefined as unknown as Record<string, unknown> }),
+      );
+
+      await expect(useCase.execute(makeInput())).resolves.toBeDefined();
+      expect(mintPortalTokenService.mint).toHaveBeenCalled();
+    });
   });
 
   it('should call audit service with USER actor type and actor details', async () => {

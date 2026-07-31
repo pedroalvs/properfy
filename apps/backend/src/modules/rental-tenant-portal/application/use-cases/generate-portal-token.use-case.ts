@@ -91,7 +91,10 @@ export class GeneratePortalTokenUseCase {
     //
     // `notify: false` is exempt: that path dispatches nothing and exists so the operator
     // can still copy a link for an agency that contacts its own tenants.
-    if (input.notify !== false && tenant.settingsJson['rentalTenantNotificationsEnabled'] === false) {
+    // Optional chaining is load-bearing: settingsJson is absent on tenants persisted
+    // before the column had a default and on lighter entity fixtures, and an unguarded
+    // read here would 500 the whole send for them.
+    if (input.notify !== false && tenant.settingsJson?.['rentalTenantNotificationsEnabled'] === false) {
       throw new ConflictError(
         'TENANT_NOTIFICATIONS_BLOCKED',
         'Notifications to the tenant are blocked for this agency.',
