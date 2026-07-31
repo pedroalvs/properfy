@@ -19,15 +19,15 @@ describe('BottomNavBar', () => {
     expect(scheduleTab.className).toContain('text-primary');
   });
 
-  it('tints the active tab with a colour Tailwind can actually emit', () => {
-    // `bg-primary/10` never worked: the design tokens are `var(--color-X)` holding a hex
-    // rather than channel values with <alpha-value>, so Tailwind cannot apply an opacity
-    // modifier and drops the class entirely. The active tab therefore had no background
-    // in production at all. color-mix is the project's documented workaround.
+  it('tints the active tab', () => {
+    // Link one of two: the class is used. On its own this proves nothing — it passed
+    // throughout the months `bg-primary/10` compiled to an empty stylesheet, because the
+    // tokens are `var(--color-X)` holding a hex and Tailwind drops the whole utility
+    // (#1041). Link two is `src/__tests__/tailwind-emission.test.ts`, which asserts this
+    // exact class compiles to a real `background-color`.
     renderWithProviders(<BottomNavBar />, { initialEntries: ['/schedule'] });
     const scheduleTab = screen.getByTestId('nav-schedule');
-    expect(scheduleTab.className).not.toContain('bg-primary/10');
-    expect(scheduleTab.className).toContain('color-mix');
+    expect(scheduleTab.className).toContain('bg-primary/10');
   });
 
   it('shows inactive color for non-active tabs', () => {
