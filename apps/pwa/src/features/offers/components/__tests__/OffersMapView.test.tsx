@@ -570,6 +570,58 @@ describe('OffersMapView — offers-mode camera', () => {
     expect(spies.flyTo).not.toHaveBeenCalled();
   });
 
+  // Identity is the group, not its coordinate. A group's centroid is the mean of
+  // its appointments, so adding one shifts it — with coordinate-based identity a
+  // single-offer map read that micro-shift as "everything I framed is gone" and
+  // flew a panning inspector back on the next refetch.
+  it('respects a pan when the same group merely shifts its centroid', async () => {
+    const { rerender } = render(
+      <OffersMapView
+        offers={[makeOffer({ groupId: 'group-1', centroid: { lat: -33.87, lng: 151.21 } })]}
+        onSelectOffer={vi.fn()}
+      />,
+    );
+    await waitForPins('map-pin', 1);
+
+    emitMapEvent('dragstart', { originalEvent: {} });
+    spies.fitBounds.mockClear();
+    spies.flyTo.mockClear();
+
+    rerender(
+      <OffersMapView
+        offers={[makeOffer({ groupId: 'group-1', centroid: { lat: -33.8702, lng: 151.2103 } })]}
+        onSelectOffer={vi.fn()}
+      />,
+    );
+    await waitForPins('map-pin', 1);
+
+    expect(spies.flyTo).not.toHaveBeenCalled();
+    expect(spies.fitBounds).not.toHaveBeenCalled();
+  });
+
+  it('re-frames when the panned inspector leaves the drill-down', async () => {
+    const { rerender } = render(
+      <OffersMapView
+        offers={[makeOffer()]}
+        onSelectOffer={vi.fn()}
+        expandedGroup={EXPANDED}
+      />,
+    );
+    await waitForPins('map-appointment-pin', 2);
+
+    emitMapEvent('dragstart', { originalEvent: {} });
+    spies.fitBounds.mockClear();
+    spies.flyTo.mockClear();
+
+    rerender(<OffersMapView offers={[makeOffer()]} onSelectOffer={vi.fn()} />);
+    await waitForPins('map-pin', 1);
+
+    // Leaving the drill-down is an explicit navigation — it must re-frame.
+    await waitFor(() => {
+      expect(spies.flyTo).toHaveBeenCalled();
+    });
+  });
+
   it('ignores programmatic camera moves when deciding the inspector took over', async () => {
     const { rerender } = render(
       <OffersMapView offers={[makeOffer()]} onSelectOffer={vi.fn()} />,
@@ -624,6 +676,28 @@ describe('OffersMapView — offers-mode camera', () => {
         expect.objectContaining({ center: [151.21, -33.87], zoom: 12 }),
       );
     });
+  });
+});
+
+describe('OffersMapView — map failure', () => {
+  it('clears the error and rebuilds the map when Retry is pressed', async () => {
+    render(<OffersMapView offers={[makeOffer()]} onSelectOffer={vi.fn()} />);
+    await waitForPins('map-pin', 1);
+
+    emitMapEvent('error');
+    await waitFor(() => {
+      expect(screen.getByTestId('map-error')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+    // The container has to survive the error state: the init effect bails out
+    // on a missing container before it ever clears the error, so unmounting it
+    // made Retry a dead button — the map could never come back.
+    await waitFor(() => {
+      expect(screen.queryByTestId('map-error')).not.toBeInTheDocument();
+    });
+    await waitForPins('map-pin', 1);
   });
 });
 

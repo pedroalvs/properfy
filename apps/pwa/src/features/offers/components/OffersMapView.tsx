@@ -161,8 +161,8 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
   const prevExpandedIdRef = useRef<string | null>(null);
   /** Points the camera was last framed to — see syncCamera. */
   const fittedSignatureRef = useRef<string | null>(null);
-  /** The same points as a set, to tell "the view changed" from "it moved away". */
-  const fittedKeysRef = useRef<Set<string> | null>(null);
+  /** Ids of the pins the camera last framed — see syncCamera. */
+  const fittedIdsRef = useRef<Set<string> | null>(null);
   /** Set once the inspector pans/zooms by hand; stops the auto-fit fighting them. */
   const userMovedRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -250,7 +250,7 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
       mapRef.current = null;
       prevExpandedIdRef.current = null;
       fittedSignatureRef.current = null;
-      fittedKeysRef.current = null;
+      fittedIdsRef.current = null;
       userMovedRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -358,21 +358,31 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
 
     const points = expandedGroup
       ? expandedGroup.appointments.map((a) => ({
+          id: a.id,
           latitude: a.coordinates?.lat ?? null,
           longitude: a.coordinates?.lng ?? null,
         }))
-      : offers.map((o) => ({ latitude: o.centroid?.lat ?? null, longitude: o.centroid?.lng ?? null }));
+      : offers.map((o) => ({
+          id: o.groupId,
+          latitude: o.centroid?.lat ?? null,
+          longitude: o.centroid?.lng ?? null,
+        }));
     const singlePointZoom = expandedGroup ? SINGLE_APPOINTMENT_ZOOM : SINGLE_OFFER_ZOOM;
 
-    // Built from exactly the points computeBounds will frame — same predicate,
-    // order-independent — so the signature changes when and only when the
-    // framing would. A looser null-check here would re-fly the camera over a
-    // malformed coordinate that never affects the bounds.
-    const keys = points
-      .filter(isPlottablePoint)
+    // Two questions, two keys, both taken from exactly the points computeBounds
+    // will frame. Coordinates answer "would the camera frame anything
+    // differently?" — order-independent, so it changes when and only when the
+    // framing would. Ids answer "are the pins the inspector framed still here?",
+    // and that one has to be about the entities rather than their positions: a
+    // group's centroid is the mean of its appointments, so adding one shifts it,
+    // and judging by coordinates made that micro-shift look like the whole offer
+    // set had turned over — yanking the camera back on a single-offer map.
+    const plottable = points.filter(isPlottablePoint);
+    const signature = plottable
       .map((p) => `${p.latitude},${p.longitude}`)
-      .sort();
-    const signature = keys.join('|');
+      .sort()
+      .join('|');
+    const ids = plottable.map((p) => p.id);
 
     // A pan means "I want to look here", and is normally respected for good.
     // But if not one of the pins the camera was framing is still on the map,
@@ -381,8 +391,8 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
     // A null `framed` means the camera has never successfully fitted anything —
     // panning a map that had no pins on it cannot count as choosing a view, and
     // treating it as one left the very first batch of pins off screen for good.
-    const framed = fittedKeysRef.current;
-    if (keys.length > 0 && (!framed || !keys.some((key) => framed.has(key)))) {
+    const framed = fittedIdsRef.current;
+    if (ids.length > 0 && (!framed || !ids.some((id) => framed.has(id)))) {
       userMovedRef.current = false;
     }
 
@@ -391,7 +401,7 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
     const bounds = computeBounds(points);
     if (!bounds) return;
     fittedSignatureRef.current = signature;
-    fittedKeysRef.current = new Set(keys);
+    fittedIdsRef.current = new Set(ids);
 
     if (isSinglePointBounds(bounds)) {
       const [[lng, lat]] = bounds as [[number, number], [number, number]];
@@ -399,23 +409,6 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
     } else {
       map.fitBounds(bounds, { padding: 48, maxZoom: MAX_FIT_ZOOM, duration: 700 });
     }
-  }
-
-  if (error) {
-    return (
-      <div
-        data-testid="map-error"
-        className="flex h-64 flex-col items-center justify-center gap-3 rounded-2xl bg-gray-100 px-6 text-center"
-      >
-        <p className="text-sm text-gray-500">{error}</p>
-        <button
-          onClick={() => setRetryKey((k) => k + 1)}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white"
-        >
-          Retry
-        </button>
-      </div>
-    );
   }
 
   // Mirrors what placeOfferMarkers actually plots, so an offer with a malformed
@@ -437,7 +430,27 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
         data-testid="map-container"
         className="h-[60vh] w-full overflow-hidden rounded-2xl"
       />
-      {showNoPinsOverlay && (
+      {/*
+        The error is an overlay, never a replacement: the init effect bails out
+        on a missing container before it reaches setError(null), so unmounting
+        the container to show this made Retry a dead button — the map could
+        never come back.
+      */}
+      {error && (
+        <div
+          data-testid="map-error"
+          className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-2xl bg-gray-100 px-6 text-center"
+        >
+          <p className="text-sm text-gray-500">{error}</p>
+          <button
+            onClick={() => setRetryKey((k) => k + 1)}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+      {!error && showNoPinsOverlay && (
         <div
           data-testid="map-no-pins"
           className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/20"
