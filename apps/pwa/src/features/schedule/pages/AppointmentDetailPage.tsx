@@ -60,8 +60,9 @@ export function AppointmentDetailPage() {
       <TopBar title={apt.serviceTypeName} showBack />
 
       <div className="flex flex-col gap-3 px-page-x py-4">
-        {/* Overdue banner — critical, shown first. `isOverdue` is an age-of-record
-            flag, not "the scheduled date passed", and it never blocks the start. */}
+        {/* Past-date banner — critical, shown first. Same flag as the schedule card:
+            the inspection day has passed, NOT the platform's 45-day age rule. It is a
+            warning, never a block — the job stays startable. */}
         {apt.isOverdue && (
           <section
             className="flex items-center gap-3 rounded-[20px] border border-error/20 bg-error/10 px-4 py-3.5"
@@ -69,8 +70,7 @@ export function AppointmentDetailPage() {
           >
             <i className="mdi mdi-clock-alert-outline text-xl text-error shrink-0" aria-hidden="true" />
             <p className="text-sm font-semibold text-error">
-              Overdue — this job has been open a long time and is still not done. You can
-              still start it.
+              Past date — the scheduled date has passed. You can still start it.
             </p>
           </section>
         )}

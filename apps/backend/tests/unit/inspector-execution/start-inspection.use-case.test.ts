@@ -45,6 +45,9 @@ const idempotencyService = {
 
 const auditService = { log: vi.fn() };
 
+// Flow type drives whether tenant confirmation is required; default ROUTINE.
+const serviceTypeReader = { findById: vi.fn() };
+
 function makeAppointmentWithRelations(overrides: Record<string, unknown> = {}, relationOverrides: Record<string, unknown> = {}) {
   const appointment = {
     id: 'appt-1',
@@ -101,6 +104,7 @@ function makeSut() {
     executionRepo,
     idempotencyService,
     auditService as any,
+    serviceTypeReader,
     authorizationService,
   );
 }
@@ -116,6 +120,7 @@ describe('StartInspectionUseCase', () => {
     executionRepo.save.mockResolvedValue(undefined);
     idempotencyService.set.mockResolvedValue(undefined);
     appointmentRepo.isAppointmentVisibleForInspector.mockResolvedValue(true);
+    serviceTypeReader.findById.mockResolvedValue({ flowType: 'ROUTINE' });
   });
 
   afterEach(() => {
@@ -381,6 +386,9 @@ describe('StartInspectionUseCase', () => {
 
     appointmentRepo.findById.mockResolvedValue(makeAppointmentWithRelations());
 
+    // The gate's own reason must reach the client: it travels in the 422 envelope
+    // and the PWA renders it verbatim in a snackbar. Dropping `gateCheck.reason`
+    // for the fallback string would still satisfy a bare `toThrow(Error)`.
     await expect(
       sut.execute({
         appointmentId: 'appt-1',
@@ -389,7 +397,7 @@ describe('StartInspectionUseCase', () => {
         idempotencyKey: 'key-tw-1',
         actor: inspActor,
       }),
-    ).rejects.toThrow(ExecutionTimeWindowError);
+    ).rejects.toThrow(/can be started from 21\/03\/2026/);
   });
 
   it('should allow starting before the time slot opens on the scheduled day', async () => {
@@ -446,6 +454,98 @@ describe('StartInspectionUseCase', () => {
 
     expect(result.status).toBe('IN_PROGRESS');
     expect(result.appointmentId).toBe('appt-1');
+  });
+
+  it('should refuse an unconfirmed routine inspection whose date has passed', async () => {
+    const sut = makeSut();
+    // T1VisibilityService only blocks an unconfirmed routine when the scheduled
+    // date is today or tomorrow (diffDays 0 or 1); a past date yields a negative
+    // diff and is reported visible. The old "too late" bound was what kept that
+    // branch unreachable, so opening the gate must not make an unconfirmed job
+    // executable — that would bypass the AM/OP-only force-confirmation rule.
+    vi.setSystemTime(zonedWallTimeToUtc('2026-03-22', '09:00', PLATFORM_TIMEZONE));
+
+    appointmentRepo.findById.mockResolvedValue(
+      makeAppointmentWithRelations(
+        { rentalTenantConfirmationStatus: 'PENDING', keyRequired: false },
+        ),
+    );
+
+    await expect(
+      sut.execute({
+        appointmentId: 'appt-1',
+        latitude: -33.891,
+        longitude: 151.277,
+        idempotencyKey: 'key-unconfirmed-past',
+        actor: inspActor,
+      }),
+    ).rejects.toThrow(ExecutionT1BlockedError);
+
+    expect(executionRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('should allow a past-date routine inspection once the tenant has confirmed', async () => {
+    const sut = makeSut();
+    vi.setSystemTime(zonedWallTimeToUtc('2026-03-22', '09:00', PLATFORM_TIMEZONE));
+
+    appointmentRepo.findById.mockResolvedValue(
+      makeAppointmentWithRelations(
+        { rentalTenantConfirmationStatus: 'CONFIRMED' },
+        ),
+    );
+
+    const result = await sut.execute({
+      appointmentId: 'appt-1',
+      latitude: -33.891,
+      longitude: 151.277,
+      idempotencyKey: 'key-confirmed-past',
+      actor: inspActor,
+    });
+
+    expect(result.status).toBe('IN_PROGRESS');
+  });
+
+  it('should allow a past-date ingoing inspection, which never needs confirmation', async () => {
+    const sut = makeSut();
+    vi.setSystemTime(zonedWallTimeToUtc('2026-03-22', '09:00', PLATFORM_TIMEZONE));
+    serviceTypeReader.findById.mockResolvedValue({ flowType: 'INGOING' });
+
+    appointmentRepo.findById.mockResolvedValue(
+      makeAppointmentWithRelations(
+        { rentalTenantConfirmationStatus: 'PENDING' },
+        ),
+    );
+
+    const result = await sut.execute({
+      appointmentId: 'appt-1',
+      latitude: -33.891,
+      longitude: 151.277,
+      idempotencyKey: 'key-ingoing-past',
+      actor: inspActor,
+    });
+
+    expect(result.status).toBe('IN_PROGRESS');
+  });
+
+  it('should allow a past-date unconfirmed routine when a key is available', async () => {
+    const sut = makeSut();
+    vi.setSystemTime(zonedWallTimeToUtc('2026-03-22', '09:00', PLATFORM_TIMEZONE));
+
+    appointmentRepo.findById.mockResolvedValue(
+      makeAppointmentWithRelations(
+        { rentalTenantConfirmationStatus: 'PENDING', keyRequired: true },
+        ),
+    );
+
+    const result = await sut.execute({
+      appointmentId: 'appt-1',
+      latitude: -33.891,
+      longitude: 151.277,
+      idempotencyKey: 'key-keyreq-past',
+      actor: inspActor,
+    });
+
+    expect(result.status).toBe('IN_PROGRESS');
   });
 
   it('should allow starting within the time slot', async () => {

@@ -855,7 +855,7 @@ export function createContainer(logger: Logger): AppContainer {
     contactReaderForExec, logger,
   );
   const startInspectionUseCase = new StartInspectionUseCase(
-    appointmentRepo, inspectionExecutionRepo, idempotencyService, auditService, authorizationService,
+    appointmentRepo, inspectionExecutionRepo, idempotencyService, auditService, serviceTypeReaderForExec, authorizationService,
   );
   const finishInspectionUseCase = new FinishInspectionUseCase(
     inspectionExecutionRepo, idempotencyService,

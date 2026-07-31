@@ -512,12 +512,19 @@ describe('tenantSettingsSchema', () => {
 
   it('should carry unknown legacy keys through untouched', () => {
     // The schema is `.passthrough()`, so tenants that still have the retired
-    // inspectionWindow* keys stored in settings_json keep validating.
+    // inspectionWindow* keys stored in settings_json keep validating. Asserting
+    // the values survive is the point: `.strip()` would also report success while
+    // silently wiping the keys on the next settings round-trip.
     const result = tenantSettingsSchema.safeParse({
       inspectionWindowBeforeMinutes: 60,
       inspectionWindowAfterMinutes: 15,
     });
     expect(result.success).toBe(true);
+    if (result.success) {
+      const data = result.data as Record<string, unknown>;
+      expect(data['inspectionWindowBeforeMinutes']).toBe(60);
+      expect(data['inspectionWindowAfterMinutes']).toBe(15);
+    }
   });
 });
 
