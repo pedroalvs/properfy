@@ -375,3 +375,42 @@ describe('T155 — GIST index correctness', () => {
     expect(byTable).toHaveProperty('properties', 'properties_coordinates_idx');
   });
 });
+
+// ---------------------------------------------------------------------------
+// region_number — the overlap tie-break key
+// ---------------------------------------------------------------------------
+
+describe('region_number sequence', () => {
+  it('assigns an increasing number to each new region without being told to', async () => {
+    const { tenantId } = await seedTenant(harness.prisma, 'Region Number Tenant');
+
+    const first = await seedServiceRegion(harness.prisma, { tenantId, name: 'First' });
+    const second = await seedServiceRegion(harness.prisma, { tenantId, name: 'Second' });
+
+    const rows = await harness.prisma.$queryRaw<Array<{ id: string; region_number: number }>>`
+      SELECT id, region_number FROM service_regions WHERE id IN (${first.regionId}, ${second.regionId})
+    `;
+    const byId = Object.fromEntries(rows.map((r) => [r.id, r.region_number]));
+
+    expect(byId[first.regionId]).toBeGreaterThan(0);
+    expect(byId[second.regionId]).toBeGreaterThan(byId[first.regionId]);
+  });
+
+  it('refuses a duplicate region_number', async () => {
+    const { tenantId } = await seedTenant(harness.prisma, 'Region Number Dup Tenant');
+    const first = await seedServiceRegion(harness.prisma, { tenantId, name: 'Taken' });
+    const second = await seedServiceRegion(harness.prisma, { tenantId, name: 'Collider' });
+
+    const [{ region_number: taken }] = await harness.prisma.$queryRaw<Array<{ region_number: number }>>`
+      SELECT region_number FROM service_regions WHERE id = ${first.regionId}
+    `;
+
+    // Targets a real, distinct row, so the unique index is what rejects this —
+    // an UPDATE matching zero rows would pass without proving anything.
+    await expect(
+      harness.prisma.$executeRaw`
+        UPDATE service_regions SET region_number = ${taken} WHERE id = ${second.regionId}
+      `,
+    ).rejects.toThrow();
+  });
+});

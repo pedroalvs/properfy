@@ -160,20 +160,20 @@ enum AuditActorType {
 }
 
 model Tenant {
-  id            String       @id @default(uuid())
-  name          String       @db.VarChar(200)
-  legal_name    String       @unique @db.VarChar(200)
-  status        TenantStatus @default(PENDING)
-  timezone      String       @default("Australia/Sydney") @db.VarChar(60)
-  currency      String       @default("AUD") @db.Char(3)
-  settings_json Json         @default("{}")
+  id                      String       @id @default(uuid())
+  name                    String       @db.VarChar(200)
+  legal_name              String       @unique @db.VarChar(200)
+  status                  TenantStatus @default(PENDING)
+  timezone                String       @default("Australia/Sydney") @db.VarChar(60)
+  currency                String       @default("AUD") @db.Char(3)
+  settings_json           Json         @default("{}")
   // Human-friendly appointment-code prefix (e.g. "INS" -> "INS-0042"). Promoted out of
   // settings_json so uniqueness is DB-enforced. Nullable for legacy rows (unique index
   // ignores NULLs); always uppercased on write so the plain unique index is case-insensitive.
-  appointment_code_prefix String? @unique @db.VarChar(4)
-  created_at    DateTime     @default(now())
-  updated_at    DateTime     @updatedAt
-  deleted_at    DateTime?
+  appointment_code_prefix String?      @unique @db.VarChar(4)
+  created_at              DateTime     @default(now())
+  updated_at              DateTime     @updatedAt
+  deleted_at              DateTime?
 
   branches               Branch[]
   users                  User[]
@@ -204,13 +204,13 @@ model Branch {
   updated_at    DateTime     @updatedAt
   deleted_at    DateTime?
 
-  tenant                 Tenant                @relation(fields: [tenant_id], references: [id])
-  users                  User[]
-  properties             Property[]
-  price_rules            ServicePriceRule[]
-  appointments           Appointment[]
-  appointment_imports    AppointmentImport[]
-  app_credentials        AppCredential[]
+  tenant              Tenant              @relation(fields: [tenant_id], references: [id])
+  users               User[]
+  properties          Property[]
+  price_rules         ServicePriceRule[]
+  appointments        Appointment[]
+  appointment_imports AppointmentImport[]
+  app_credentials     AppCredential[]
 
   // Case-insensitive unique index on (tenant_id, lower(name)) managed via raw SQL migration
   @@index([tenant_id, name])
@@ -327,23 +327,23 @@ model PasswordHistory {
 }
 
 model Property {
-  id               String          @id @default(uuid())
-  tenant_id        String
-  branch_id        String?
-  property_code    String          @db.VarChar(50)
+  id                     String          @id @default(uuid())
+  tenant_id              String
+  branch_id              String?
+  property_code          String          @db.VarChar(50)
   // Per-tenant sequential number backing the generated property_code
   // (PREFIX-PROP-0001). Nullable: rows created by the import worker (which
   // still carries client-supplied codes) don't receive one.
-  property_number  Int?
-  type             PropertyType
+  property_number        Int?
+  type                   PropertyType
   // Free-text unit identifier, only meaningful for APARTMENT properties.
-  apartment_number String?         @db.VarChar(50)
-  street           String          @db.VarChar(300)
-  address_line_2   String?         @db.VarChar(200)
-  suburb           String          @db.VarChar(100)
-  postcode         String          @db.VarChar(20)
-  state            String          @db.VarChar(100)
-  country          String          @default("AU") @db.VarChar(100)
+  apartment_number       String?         @db.VarChar(50)
+  street                 String          @db.VarChar(300)
+  address_line_2         String?         @db.VarChar(200)
+  suburb                 String          @db.VarChar(100)
+  postcode               String          @db.VarChar(20)
+  state                  String          @db.VarChar(100)
+  country                String          @default("AU") @db.VarChar(100)
   // Deterministic normalized-address key — trim + collapse-whitespace +
   // lowercase join of street|address_line_2(''-coalesced)|suburb|state|postcode.
   // ALWAYS recomputed by a BEFORE INSERT/UPDATE trigger (see migration
@@ -359,23 +359,23 @@ model Property {
   // `properties_normalized_address_active_unique` partial unique index
   // (WHERE deleted_at IS NULL), the DB-level guarantee behind the "perfect
   // address match" property-reuse rule.
-  normalized_address_key String    @default("") @db.VarChar(750)
+  normalized_address_key String          @default("") @db.VarChar(750)
   // lat/lng are the display/transport coordinate; `coordinates` (PostGIS, below)
   // is the spatial source used for ST_Intersects/ST_DWithin. Both are kept in
   // sync app-side by prisma-property.repository.ts (syncCoordinates).
-  lat              Decimal?        @db.Decimal(10, 7)
-  lng              Decimal?        @db.Decimal(10, 7)
-  geocoding_status GeocodingStatus @default(PENDING)
-  private_area_m2  Decimal?        @db.Decimal(10, 2)
-  total_area_m2    Decimal?        @db.Decimal(10, 2)
-  furnished        Boolean?
-  linen_provided   Boolean?
-  rent_amount      Decimal?        @db.Decimal(12, 2)
-  notes            String?         @db.Text
-  rules_json       Json            @default("{}")
-  created_at       DateTime        @default(now())
-  updated_at       DateTime        @updatedAt
-  deleted_at       DateTime?
+  lat                    Decimal?        @db.Decimal(10, 7)
+  lng                    Decimal?        @db.Decimal(10, 7)
+  geocoding_status       GeocodingStatus @default(PENDING)
+  private_area_m2        Decimal?        @db.Decimal(10, 2)
+  total_area_m2          Decimal?        @db.Decimal(10, 2)
+  furnished              Boolean?
+  linen_provided         Boolean?
+  rent_amount            Decimal?        @db.Decimal(12, 2)
+  notes                  String?         @db.Text
+  rules_json             Json            @default("{}")
+  created_at             DateTime        @default(now())
+  updated_at             DateTime        @updatedAt
+  deleted_at             DateTime?
 
   coordinates  Unsupported("GEOMETRY(Point, 4326)")?
   tenant       Tenant                                @relation(fields: [tenant_id], references: [id])
@@ -396,14 +396,14 @@ model Property {
 }
 
 model ServiceType {
-  id                           String              @id @default(uuid())
-  code                         String              @unique @db.VarChar(50)
-  name                         String              @db.VarChar(200)
-  flow_type                    ServiceTypeFlowType
+  id                                  String              @id @default(uuid())
+  code                                String              @unique @db.VarChar(50)
+  name                                String              @db.VarChar(200)
+  flow_type                           ServiceTypeFlowType
   requires_rental_tenant_confirmation Boolean             @default(true)
-  status                       ServiceTypeStatus   @default(ACTIVE)
-  created_at                   DateTime            @default(now())
-  updated_at                   DateTime            @updatedAt
+  status                              ServiceTypeStatus   @default(ACTIVE)
+  created_at                          DateTime            @default(now())
+  updated_at                          DateTime            @updatedAt
 
   price_rules    ServicePriceRule[]
   appointments   Appointment[]
@@ -442,34 +442,34 @@ model ServicePriceRule {
 }
 
 model Inspector {
-  id                         String          @id @default(uuid())
-  user_id                    String?         @unique
-  name                       String          @db.VarChar(200)
-  email                      String          @unique @db.VarChar(254)
-  phone                      String?         @db.VarChar(20)
-  status                     InspectorStatus @default(ACTIVE)
-  payment_settings_json      Json            @default("{}")
+  id                         String             @id @default(uuid())
+  user_id                    String?            @unique
+  name                       String             @db.VarChar(200)
+  email                      String             @unique @db.VarChar(254)
+  phone                      String?            @db.VarChar(20)
+  status                     InspectorStatus    @default(ACTIVE)
+  payment_settings_json      Json               @default("{}")
   // Inspector Property Invoice: billing cycle used to compute closed periods.
   // Nullable; the application defaults to FORTNIGHTLY when unset (spec 032).
   billing_cycle              BillingPeriodType?
-  service_types_json         Json            @default("[]")
+  service_types_json         Json               @default("[]")
   // Feedback Round item 1: blocked-clients deny-list (replaced the legacy allow-list)
-  blocked_clients_json       Json            @default("[]")
+  blocked_clients_json       Json               @default("[]")
   // Feedback Round item 6: profile extension fields
-  full_name                  String?         @db.VarChar(300)
+  full_name                  String?            @db.VarChar(300)
   address                    Json?
-  abn                        String?         @db.VarChar(20)
-  date_of_birth              DateTime?       @db.Date
+  abn                        String?            @db.VarChar(20)
+  date_of_birth              DateTime?          @db.Date
   insurance_file_key         String?
-  insurance_expires_at       DateTime?       @db.Date
+  insurance_expires_at       DateTime?          @db.Date
   insurance_meta_json        Json?
   police_check_file_key      String?
-  police_check_expires_at    DateTime?       @db.Date
+  police_check_expires_at    DateTime?          @db.Date
   police_check_meta_json     Json?
   photo_storage_key          String?
-  availability_template_json Json            @default("{}")
-  created_at                 DateTime        @default(now())
-  updated_at                 DateTime        @updatedAt
+  availability_template_json Json               @default("{}")
+  created_at                 DateTime           @default(now())
+  updated_at                 DateTime           @updatedAt
   deleted_at                 DateTime?
 
   user                    User?                       @relation(fields: [user_id], references: [id])
@@ -510,50 +510,50 @@ model InspectorAvailabilitySlot {
 }
 
 model Appointment {
-  id                           String                   @id @default(uuid())
-  appointment_number           Int                      @unique @default(autoincrement())
-  tenant_id                    String
-  branch_id                    String
-  property_id                  String
-  service_type_id              String
-  inspector_id                 String?
-  service_group_id             String?
-  status                       AppointmentStatus        @default(DRAFT)
-  scheduled_date               DateTime                 @db.Date
-  time_slot_start              String                   @db.VarChar(5)
-  time_slot_end                String                   @db.VarChar(5)
-  key_required                 Boolean                  @default(false)
-  meeting_location             String?                  @db.VarChar(500)
-  key_location                 String?                  @db.VarChar(500)
+  id                                String                         @id @default(uuid())
+  appointment_number                Int                            @unique @default(autoincrement())
+  tenant_id                         String
+  branch_id                         String
+  property_id                       String
+  service_type_id                   String
+  inspector_id                      String?
+  service_group_id                  String?
+  status                            AppointmentStatus              @default(DRAFT)
+  scheduled_date                    DateTime                       @db.Date
+  time_slot_start                   String                         @db.VarChar(5)
+  time_slot_end                     String                         @db.VarChar(5)
+  key_required                      Boolean                        @default(false)
+  meeting_location                  String?                        @db.VarChar(500)
+  key_location                      String?                        @db.VarChar(500)
   // Intentional denormalization: a flat copy of the active
   // AppointmentConfirmationCycle status, kept on the appointment so dashboards,
   // reports and the portal can read/index it without joining the cycle. Derived
   // — keep in sync via confirmation-cycle.service when the cycle changes.
-  rental_tenant_confirmation_status   RentalTenantConfirmationStatus @default(PENDING)
-  active_confirmation_cycle_id String?
-  price_amount                 Decimal                  @db.Decimal(12, 2)
-  payout_amount                Decimal                  @db.Decimal(12, 2)
-  pricing_rule_snapshot_json   Json
+  rental_tenant_confirmation_status RentalTenantConfirmationStatus @default(PENDING)
+  active_confirmation_cycle_id      String?
+  price_amount                      Decimal                        @db.Decimal(12, 2)
+  payout_amount                     Decimal                        @db.Decimal(12, 2)
+  pricing_rule_snapshot_json        Json
   // Three distinct free-text fields — do not conflate:
   //   notes       = internal operational note (OP/AM)
   //   tenant_note = note from the inquilino via the tenant portal
   //   observation = operator observation, carries its own audit trail
-  notes                        String?                  @db.Text
-  rental_tenant_note                  String?                  @db.Text
-  observation                  String?                  @db.Text
-  custom_fields_json           Json?
+  notes                             String?                        @db.Text
+  rental_tenant_note                String?                        @db.Text
+  observation                       String?                        @db.Text
+  custom_fields_json                Json?
   // `reason` is the free-text reason for a sensitive transition; the
   // *_reason_code columns are the structured code for cancel/reject.
-  reason                       String?                  @db.Text
-  cancellation_reason_code     String?                  @db.VarChar(50)
-  rejection_reason_code        String?                  @db.VarChar(50)
-  created_by_user_id           String
-  done_marked_by_user_id       String?
-  done_checked_by_user_id      String?
-  done_checked_at              DateTime?
-  created_at                   DateTime                 @default(now())
-  updated_at                   DateTime                 @updatedAt
-  deleted_at                   DateTime?
+  reason                            String?                        @db.Text
+  cancellation_reason_code          String?                        @db.VarChar(50)
+  rejection_reason_code             String?                        @db.VarChar(50)
+  created_by_user_id                String
+  done_marked_by_user_id            String?
+  done_checked_by_user_id           String?
+  done_checked_at                   DateTime?
+  created_at                        DateTime                       @default(now())
+  updated_at                        DateTime                       @updatedAt
+  deleted_at                        DateTime?
 
   tenant               Tenant        @relation(fields: [tenant_id], references: [id])
   branch               Branch        @relation(fields: [branch_id], references: [id])
@@ -604,9 +604,9 @@ model AppointmentConfirmationCycle {
   portal_token_id     String?                  @unique
   created_at          DateTime                 @default(now())
 
-  appointment      Appointment         @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
+  appointment      Appointment               @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
   portal_token     RentalTenantPortalToken?  @relation("CycleMintedToken", fields: [portal_token_id], references: [id], onDelete: SetNull)
-  active_for       Appointment[]       @relation("ActiveCycle")
+  active_for       Appointment[]             @relation("ActiveCycle")
   tokens_for_cycle RentalTenantPortalToken[] @relation("TokenCycle")
 
   @@unique([appointment_id, cycle_number])
@@ -615,27 +615,27 @@ model AppointmentConfirmationCycle {
 }
 
 model ServiceGroup {
-  id                    String                     @id @default(uuid())
+  id                    String             @id @default(uuid())
   // Human-friendly sequential code (cross-tenant global sequence). Pure numeric.
-  group_number          Int                        @unique @default(autoincrement())
+  group_number          Int                @unique @default(autoincrement())
   service_type_id       String
-  status                ServiceGroupStatus         @default(DRAFT)
+  status                ServiceGroupStatus @default(DRAFT)
   // No `group_size` column: the size is counted from `appointments` on every
   // read. It was a denormalized counter with no invalidation and no
   // business-logic consumer, and it drifted on most production rows.
-  offered_count         Int                        @default(0)
-  confirmed_count       Int                        @default(0)
-  scheduled_date        DateTime                   @db.Date
-  time_window           String                     @db.VarChar(11)
-  region_name           String?                    @db.VarChar(255)
-  description           String?                    @db.Text
+  offered_count         Int                @default(0)
+  confirmed_count       Int                @default(0)
+  scheduled_date        DateTime           @db.Date
+  time_window           String             @db.VarChar(11)
+  region_name           String?            @db.VarChar(255)
+  description           String?            @db.Text
   assigned_inspector_id String?
   service_region_id     String?
   published_at          DateTime?
   assigned_at           DateTime?
   created_by_user_id    String
-  created_at            DateTime                   @default(now())
-  updated_at            DateTime                   @updatedAt
+  created_at            DateTime           @default(now())
+  updated_at            DateTime           @updatedAt
 
   service_type       ServiceType    @relation(fields: [service_type_id], references: [id])
   assigned_inspector Inspector?     @relation(fields: [assigned_inspector_id], references: [id])
@@ -685,18 +685,18 @@ model Contact {
 }
 
 model AppointmentContact {
-  id              String                 @id @default(uuid())
-  appointment_id  String
-  contact_id      String?
-  role            AppointmentContactRole @default(RENTAL_TENANT)
-  is_primary      Boolean                @default(true)
+  id             String                 @id @default(uuid())
+  appointment_id String
+  contact_id     String?
+  role           AppointmentContactRole @default(RENTAL_TENANT)
+  is_primary     Boolean                @default(true)
   // Snapshot of the contact at link time — the authoritative contact data
   // (024 contract: replaced the legacy tenant_name/primary_*/secondary_* inline columns).
-  snapshot_name   String                 @db.VarChar(200)
-  snapshot_email  String?                @db.VarChar(254)
-  snapshot_phone  String?                @db.VarChar(30)
-  created_at      DateTime               @default(now())
-  updated_at      DateTime               @updatedAt
+  snapshot_name  String                 @db.VarChar(200)
+  snapshot_email String?                @db.VarChar(254)
+  snapshot_phone String?                @db.VarChar(30)
+  created_at     DateTime               @default(now())
+  updated_at     DateTime               @updatedAt
 
   appointment Appointment @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
   contact     Contact?    @relation(fields: [contact_id], references: [id])
@@ -1038,9 +1038,9 @@ enum ConsentChangeSource {
 }
 
 model RentalTenantPortalToken {
-  id                    String                  @id @default(uuid())
+  id                    String                        @id @default(uuid())
   appointment_id        String
-  token_hash            String                  @unique
+  token_hash            String                        @unique
   expires_at            DateTime
   confirm_cutoff_at     DateTime?
   status                RentalTenantPortalTokenStatus @default(ACTIVE)
@@ -1048,8 +1048,8 @@ model RentalTenantPortalToken {
   last_accessed_at      DateTime?
   raw_token_encrypted   String?
   confirmation_cycle_id String?
-  created_at            DateTime                @default(now())
-  updated_at            DateTime                @updatedAt
+  created_at            DateTime                      @default(now())
+  updated_at            DateTime                      @updatedAt
 
   appointment        Appointment                   @relation(fields: [appointment_id], references: [id])
   confirmation_cycle AppointmentConfirmationCycle? @relation("TokenCycle", fields: [confirmation_cycle_id], references: [id], onDelete: SetNull)
@@ -1063,21 +1063,21 @@ model RentalTenantPortalToken {
 }
 
 model RentalTenantPortalActivity {
-  id                     String                  @id @default(uuid())
-  appointment_id         String
+  id                            String                   @id @default(uuid())
+  appointment_id                String
   rental_tenant_portal_token_id String
-  action                 RentalTenantPortalAction
-  previous_values_json   Json?
-  new_values_json        Json?
-  ip_address             String?
-  user_agent             String?
-  created_at             DateTime                @default(now())
+  action                        RentalTenantPortalAction
+  previous_values_json          Json?
+  new_values_json               Json?
+  ip_address                    String?
+  user_agent                    String?
+  created_at                    DateTime                 @default(now())
   // Feature 020: parallel retention + redaction + cold-storage lifecycle (no preservation FK — cross-check rule does not apply here)
-  retention_category     AuditRetentionCategory?
-  redaction_status       AuditRedactionStatus    @default(NONE)
-  cold_storage           Boolean                 @default(false)
+  retention_category            AuditRetentionCategory?
+  redaction_status              AuditRedactionStatus     @default(NONE)
+  cold_storage                  Boolean                  @default(false)
 
-  appointment Appointment       @relation(fields: [appointment_id], references: [id])
+  appointment Appointment             @relation(fields: [appointment_id], references: [id])
   token       RentalTenantPortalToken @relation(fields: [rental_tenant_portal_token_id], references: [id])
 
   @@index([appointment_id])
@@ -1090,19 +1090,19 @@ model RentalTenantPortalActivity {
 
 // Feature 020: parallel cold-storage table for rental_tenant_portal_activities
 model RentalTenantPortalActivityArchive {
-  id                     String                  @id
-  appointment_id         String
+  id                            String                   @id
+  appointment_id                String
   rental_tenant_portal_token_id String
-  action                 RentalTenantPortalAction
-  previous_values_json   Json?
-  new_values_json        Json?
-  ip_address             String?
-  user_agent             String?
-  created_at             DateTime
-  retention_category     AuditRetentionCategory?
-  redaction_status       AuditRedactionStatus    @default(NONE)
-  cold_storage           Boolean                 @default(true)
-  archived_at            DateTime                @default(now())
+  action                        RentalTenantPortalAction
+  previous_values_json          Json?
+  new_values_json               Json?
+  ip_address                    String?
+  user_agent                    String?
+  created_at                    DateTime
+  retention_category            AuditRetentionCategory?
+  redaction_status              AuditRedactionStatus     @default(NONE)
+  cold_storage                  Boolean                  @default(true)
+  archived_at                   DateTime                 @default(now())
 
   @@index([appointment_id])
   @@index([rental_tenant_portal_token_id])
@@ -1284,7 +1284,7 @@ model NotificationTemplate {
   created_at         DateTime            @default(now())
   updated_at         DateTime            @updatedAt
 
-  tenant         Tenant?                @relation(fields: [tenant_id], references: [id])
+  tenant Tenant? @relation(fields: [tenant_id], references: [id])
 
   @@unique([tenant_id, template_code, channel])
   @@index([template_code, channel])
@@ -1404,6 +1404,10 @@ enum RegionStatus {
 model ServiceRegion {
   id                 String                                  @id @default(uuid())
   tenant_id          String?
+  /// Sequential human-readable code, like service_groups.group_number. Also the
+  /// canonical ordering for the overlapping-region tie-break (lowest wins), which
+  /// a rename cannot disturb. Backfilled by (created_at, id) in its migration.
+  region_number      Int                                     @unique @default(autoincrement())
   name               String                                  @db.VarChar(255)
   // `geom` is the PostGIS source for spatial ops (ST_Intersects/ST_DWithin);
   // `geojson` is the same polygon for transport back to the client/map. Both
@@ -1443,7 +1447,6 @@ model InspectorRegion {
   @@index([region_id])
   @@map("inspector_regions")
 }
-
 
 model NotificationConsent {
   id                 String               @id @default(uuid())
