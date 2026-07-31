@@ -49,6 +49,14 @@ export function SendPortalLinkDialog({
           {summary.notSendable > 0 && (
             <li><strong>{summary.notSendable}</strong> not sendable (draft/done/cancelled/rejected) — skipped</li>
           )}
+          {summary.tenantNotificationsBlocked > 0 && (
+            // Groups are cross-agency, so this is routinely a subset of the group
+            // rather than all-or-nothing.
+            <li>
+              <strong>{summary.tenantNotificationsBlocked}</strong> blocked — agency does not
+              notify tenants
+            </li>
+          )}
         </ul>
         {willAct === 0 && (
           <p className="text-text-secondary">No appointments need a portal link right now.</p>

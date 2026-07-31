@@ -46,7 +46,7 @@ export function TenantFormDrawer({
   const { save, isSaving, validate } = useTenantAdminSave();
   const { showSuccess, showError } = useSnackbar();
   // Only AM can change agency settings (update-tenant.use-case restricts settings
-  // to AM; OP cannot PATCH tenants), so hide the email toggle for non-AM users.
+  // to AM; OP cannot PATCH tenants), so hide the notifications toggle for non-AM users.
   const { hasRole } = usePermissions();
   const isAdminMaster = hasRole('AM');
 
@@ -64,7 +64,8 @@ export function TenantFormDrawer({
         appointmentCodePrefix: tenant.appointmentCodePrefix ?? '',
         notes: tenant.notes ?? '',
         // Read uses settingsJson (the GET response key). Missing/absent = enabled.
-        emailSendingEnabled: (tenant.settingsJson?.['emailSendingEnabled'] as boolean | undefined) ?? true,
+        rentalTenantNotificationsEnabled:
+          (tenant.settingsJson?.['rentalTenantNotificationsEnabled'] as boolean | undefined) ?? true,
       };
       setForm(data);
       setInitialData(data);
@@ -213,12 +214,17 @@ export function TenantFormDrawer({
                   </FormSection>
 
                   {isAdminMaster && (
-                    <FormSection title="Email">
+                    <FormSection title="Notifications">
                       <Checkbox
-                        checked={form.emailSendingEnabled}
-                        onChange={(v) => updateField('emailSendingEnabled', v)}
-                        label="Send automated emails"
+                        checked={form.rentalTenantNotificationsEnabled}
+                        onChange={(v) => updateField('rentalTenantNotificationsEnabled', v)}
+                        label="Send notifications to tenants (email and SMS)"
                       />
+                      <p className="mt-1 text-sm text-text-secondary">
+                        When off, Properfy never contacts this agency&apos;s tenants on either
+                        channel. Each withheld message is emailed to the branch contact instead,
+                        and &quot;Send Portal Link&quot; is disabled.
+                      </p>
                     </FormSection>
                   )}
                 </div>

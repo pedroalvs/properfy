@@ -60,17 +60,17 @@ async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('TenantFormDrawer', () => {
-  it('shows the email toggle for AM', () => {
+  it('shows the tenant notifications toggle for AM', () => {
     const Wrapper = createWrapper();
     render(
       <Wrapper>
         <TenantFormDrawer open onClose={vi.fn()} onSaved={vi.fn()} />
       </Wrapper>,
     );
-    expect(screen.getByText('Send automated emails')).toBeInTheDocument();
+    expect(screen.getByText('Send notifications to tenants (email and SMS)')).toBeInTheDocument();
   });
 
-  it('hides the email toggle for non-AM roles (OP)', () => {
+  it('hides the tenant notifications toggle for non-AM roles (OP)', () => {
     mockUsePermissions.mockReturnValue({
       role: 'OP',
       hasRole: (...roles: string[]) => roles.includes('OP'),
@@ -82,7 +82,7 @@ describe('TenantFormDrawer', () => {
         <TenantFormDrawer open onClose={vi.fn()} onSaved={vi.fn()} />
       </Wrapper>,
     );
-    expect(screen.queryByText('Send automated emails')).not.toBeInTheDocument();
+    expect(screen.queryByText('Send notifications to tenants (email and SMS)')).not.toBeInTheDocument();
   });
 
   it('renders create mode title when no tenantId', () => {

@@ -30,7 +30,7 @@ const VALID_DATA: TenantAdminFormData = {
   currency: 'AUD',
   appointmentCodePrefix: 'INS',
   notes: '',
-  emailSendingEnabled: true,
+  rentalTenantNotificationsEnabled: true,
 };
 
 beforeEach(() => {
@@ -153,7 +153,7 @@ describe('useTenantAdminSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    // emailSendingEnabled is nested under settings; scalar fields stay top-level.
+    // rentalTenantNotificationsEnabled is nested under settings; scalar fields stay top-level.
     // notes is excluded — it is not part of the API contract.
     expect(mockPost).toHaveBeenCalledWith('/v1/tenants', {
       body: {
@@ -161,7 +161,7 @@ describe('useTenantAdminSave', () => {
         legalName: 'Alpha LTDA',
         currency: 'AUD',
         appointmentCodePrefix: 'INS',
-        settings: { emailSendingEnabled: true },
+        settings: { rentalTenantNotificationsEnabled: true },
       },
     });
   });
@@ -179,19 +179,19 @@ describe('useTenantAdminSave', () => {
     });
   });
 
-  it('nests emailSendingEnabled under settings when disabled', async () => {
+  it('nests rentalTenantNotificationsEnabled under settings when disabled', async () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
 
     await act(async () => {
-      await result.current.save({ ...VALID_DATA, emailSendingEnabled: false }, 'ten-01');
+      await result.current.save({ ...VALID_DATA, rentalTenantNotificationsEnabled: false }, 'ten-01');
     });
 
     expect(mockPatch).toHaveBeenCalledWith(
       '/v1/tenants/{tenantId}',
       expect.objectContaining({
         params: { path: { tenantId: 'ten-01' } },
-        body: expect.objectContaining({ settings: { emailSendingEnabled: false } }),
+        body: expect.objectContaining({ settings: { rentalTenantNotificationsEnabled: false } }),
       }),
     );
   });
@@ -210,7 +210,7 @@ describe('useTenantAdminSave', () => {
       '/v1/tenants/{tenantId}',
       expect.objectContaining({
         params: { path: { tenantId: 'ten-01' } },
-        body: expect.objectContaining({ settings: { emailSendingEnabled: true } }),
+        body: expect.objectContaining({ settings: { rentalTenantNotificationsEnabled: true } }),
       }),
     );
   });
@@ -277,14 +277,14 @@ describe('useTenantAdminSave', () => {
     expect(saveResult?.error).toBeUndefined();
   });
 
-  it('save maps the nested settings.emailSendingEnabled detail to the form toggle', async () => {
+  it('save maps the nested settings.rentalTenantNotificationsEnabled detail to the form toggle', async () => {
     mockPost.mockResolvedValueOnce({
       data: undefined,
       error: {
         error: {
           code: 'VALIDATION_ERROR',
           message: 'Validation failed',
-          details: [{ field: 'settings.emailSendingEnabled', message: 'Must be boolean' }],
+          details: [{ field: 'settings.rentalTenantNotificationsEnabled', message: 'Must be boolean' }],
         },
       },
     });
@@ -297,7 +297,7 @@ describe('useTenantAdminSave', () => {
     });
 
     expect(saveResult?.success).toBe(false);
-    expect(saveResult?.fieldErrors?.emailSendingEnabled).toBe('Must be boolean');
+    expect(saveResult?.fieldErrors?.rentalTenantNotificationsEnabled).toBe('Must be boolean');
     expect(saveResult?.error).toBeUndefined();
   });
 

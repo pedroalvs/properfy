@@ -42,6 +42,10 @@ const FINANCIAL_TAB = { id: 'financial', label: 'Financial' };
 const PORTAL_ACTIVITY_TAB = { id: 'portal-activity', label: 'Portal Activity' };
 const CAN_EDIT_ROLES: string[] = [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN];
 
+/** Shown on the disabled "Send Portal Link" button and on the 409 that backs it. */
+const TENANT_NOTIFICATIONS_BLOCKED_HINT =
+  'Notifications to the tenant are blocked for this agency. Use Copy Portal Link to send it yourself.';
+
 function isPrivilegedRole(role: string): boolean {
   return role === 'AM' || role === 'OP';
 }
@@ -95,6 +99,11 @@ export function AppointmentDetailPage() {
     appointment.status === 'AWAITING_INSPECTOR' &&
     !appointment.inspectorId &&
     (user?.role === 'OP' || user?.role === 'AM');
+  // The owning agency contacts its own tenants, so the platform must not. The button
+  // stays VISIBLE but disabled: an action that silently vanishes reads as a missing
+  // feature, whereas a disabled one with a reason explains itself. Copy Portal Link
+  // is deliberately left enabled — it dispatches nothing.
+  const tenantNotificationsBlocked = appointment?.rentalTenantNotificationsEnabled === false;
   // Portal link is only meaningful once the appointment leaves DRAFT and is
   // not terminal — mirrors the backend INVALID_APPOINTMENT_STATUS gate.
   const canSendPortalLink = !!appointment &&
@@ -131,7 +140,14 @@ export function AppointmentDetailPage() {
         {} as never,
       );
       if (error) {
-        const err = error as { error?: { message?: string } };
+        const err = error as { error?: { message?: string; code?: string } };
+        // Defence in depth: the button is disabled for a blocked agency, but a page
+        // left open while an AM flips the setting would still get here.
+        if (err?.error?.code === 'TENANT_NOTIFICATIONS_BLOCKED') {
+          showError(TENANT_NOTIFICATIONS_BLOCKED_HINT);
+          refetch();
+          return;
+        }
         showError(err?.error?.message ?? 'Failed to send portal link');
         return;
       }
@@ -279,15 +295,29 @@ export function AppointmentDetailPage() {
             </Button>
           )}
           {canSendPortalLink && (
-            <Button
-              variant="secondary"
-              onClick={handleGeneratePortalToken}
-              loading={isGeneratingPortalToken}
-              data-testid="send-portal-link-button"
-            >
-              <i className="mdi mdi-link-variant text-base" aria-hidden="true" />
-              Send Portal Link
-            </Button>
+            <span title={tenantNotificationsBlocked ? TENANT_NOTIFICATIONS_BLOCKED_HINT : undefined}>
+              <Button
+                variant="secondary"
+                onClick={handleGeneratePortalToken}
+                loading={isGeneratingPortalToken}
+                disabled={tenantNotificationsBlocked}
+                aria-describedby={
+                  tenantNotificationsBlocked ? 'send-portal-link-blocked-hint' : undefined
+                }
+                data-testid="send-portal-link-button"
+              >
+                <i className="mdi mdi-link-variant text-base" aria-hidden="true" />
+                Send Portal Link
+              </Button>
+              {tenantNotificationsBlocked && (
+                // Kept in the DOM rather than title-only: a disabled control is not
+                // reliably reachable for a tooltip, and the a11y baseline forbids
+                // conveying a disabled state by colour alone.
+                <span id="send-portal-link-blocked-hint" className="sr-only">
+                  {TENANT_NOTIFICATIONS_BLOCKED_HINT}
+                </span>
+              )}
+            </span>
           )}
           {canCopyPortalLink && (
             <span

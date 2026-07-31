@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
@@ -29,6 +29,9 @@ vi.mock('@/lib/auth-storage', () => ({
 }));
 
 let mockUserRole = 'AM';
+// Owning agency's occupant-contact switch, applied to the `awaiting` fixture so a
+// test can flip it without duplicating the whole appointment.
+let mockRentalTenantNotificationsEnabled = true;
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
@@ -117,6 +120,7 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
           notes: '',
           doneCheckedByUserId: null,
           doneCheckedAt: null,
+          rentalTenantNotificationsEnabled: mockRentalTenantNotificationsEnabled,
           createdAt: '2026-03-01T10:00:00Z',
           updatedAt: '2026-03-01T10:00:00Z',
         },
@@ -457,6 +461,49 @@ describe('AppointmentDetailPage — Send Portal Link dispatch feedback', () => {
     fireEvent.click(screen.getByTestId('send-portal-link-button'));
     await screen.findByText('Portal link generated, but the email could not be sent — check the Notifications tab');
     expect(screen.queryByText('Email sent to tenant')).not.toBeInTheDocument();
+  });
+});
+
+// The owning agency contacts its own tenants, so Properfy must not. The action stays
+// visible but disabled with a reason — hiding it would read as a missing feature.
+describe('AppointmentDetailPage — agency blocks tenant notifications', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUserRole = 'AM';
+    mockRentalTenantNotificationsEnabled = false;
+  });
+
+  afterEach(() => {
+    mockRentalTenantNotificationsEnabled = true;
+  });
+
+  it('keeps Send Portal Link visible but disabled', () => {
+    renderPage('/appointments/awaiting');
+    expect(screen.getByTestId('send-portal-link-button')).toBeDisabled();
+  });
+
+  it('explains why, rather than leaving a dead button', () => {
+    renderPage('/appointments/awaiting');
+    expect(
+      screen.getByText(/Notifications to the tenant are blocked for this agency/i),
+    ).toBeInTheDocument();
+  });
+
+  it('does not dispatch when the disabled button is clicked', () => {
+    renderPage('/appointments/awaiting');
+    fireEvent.click(screen.getByTestId('send-portal-link-button'));
+    expect(api.POST).not.toHaveBeenCalled();
+  });
+
+  it('leaves Copy Portal Link enabled, since it dispatches nothing', () => {
+    renderPage('/appointments/awaiting');
+    expect(screen.getByTestId('copy-portal-link-button')).not.toBeDisabled();
+  });
+
+  it('enables Send Portal Link when the agency has not blocked notifications', () => {
+    mockRentalTenantNotificationsEnabled = true;
+    renderPage('/appointments/awaiting');
+    expect(screen.getByTestId('send-portal-link-button')).not.toBeDisabled();
   });
 });
 
