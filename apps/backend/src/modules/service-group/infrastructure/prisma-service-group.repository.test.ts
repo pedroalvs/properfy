@@ -332,7 +332,15 @@ describe('PrismaServiceGroupRepository offer centroid', () => {
           appointments: expect.objectContaining({
             select: expect.objectContaining({
               property: {
-                select: expect.objectContaining({ lat: true, lng: true }),
+                // deleted_at is asserted because the centroid filter reads it:
+                // if the projection dropped it the field would be `undefined`,
+                // `undefined == null` would pass the filter, and a soft-deleted
+                // property's location would silently move the pin.
+                select: expect.objectContaining({
+                  lat: true,
+                  lng: true,
+                  deleted_at: true,
+                }),
               },
             }),
           }),
@@ -483,6 +491,25 @@ describe('PrismaServiceGroupRepository offer centroid', () => {
 
     const detail = await repo.findPublishedOfferDetail('sg-1', 'inspector-1', ['st-1'], []);
 
+    // Same projection contract as the list query above — the detail centroid
+    // runs through the same soft-delete filter.
+    expect(findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          appointments: expect.objectContaining({
+            select: expect.objectContaining({
+              property: {
+                select: expect.objectContaining({
+                  lat: true,
+                  lng: true,
+                  deleted_at: true,
+                }),
+              },
+            }),
+          }),
+        }),
+      }),
+    );
     expect(detail?.centroid).toEqual({ lat: -33.7, lng: 151.1 });
   });
 });

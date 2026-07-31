@@ -102,15 +102,18 @@ function makeAppointmentMarkerEl(index: number): HTMLButtonElement {
   return el;
 }
 
-/** Same validity rule as computeBounds — finite values within geographic ranges. */
+/**
+ * The shared plottability rule, in the `{ lat, lng }` shape the marketplace API
+ * speaks. Delegating rather than restating it is what keeps pin visibility and
+ * camera framing from drifting apart — a producer and a consumer disagreeing on
+ * which coordinates count is the bug `isPlottablePoint` exists to prevent.
+ */
 function isValidCoordinate(coordinates: { lat: number; lng: number } | null): coordinates is {
   lat: number;
   lng: number;
 } {
   if (!coordinates) return false;
-  const { lat, lng } = coordinates;
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
-  return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+  return isPlottablePoint({ latitude: coordinates.lat, longitude: coordinates.lng });
 }
 
 export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: OffersMapViewProps) {
