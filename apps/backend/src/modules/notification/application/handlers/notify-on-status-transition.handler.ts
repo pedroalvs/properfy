@@ -42,6 +42,18 @@ const STATUS_TRANSITION_TEMPLATE_CODES = [
 /** Agency-facing cancellation notice, sent to the branch contact. */
 const AGENCY_CANCELLED_TEMPLATE_CODE = 'INSPECTION_CANCELLED_AGENCY';
 
+/**
+ * What "the rental tenant already knows this inspection exists" means.
+ *
+ * The cancellation opt-in used to require `rentalTenantConfirmationStatus ===
+ * 'CONFIRMED'`, which was too strict: INSPECTION_NOTICE goes out on the move to
+ * SCHEDULED regardless of confirmation, so a tenant who was told the date but
+ * never clicked confirm could NEVER be told it was called off — not even by an
+ * explicit operator opt-in. Having been told is the fact that matters here;
+ * confirming is a separate, stronger signal.
+ */
+const RENTAL_TENANT_NOTICE_CODES = ['INSPECTION_NOTICE', 'INSPECTION_NOTICE_SMS'] as const;
+
 /** Email and SMS variants of one announcement are the same event to the tenant. */
 function templateFamily(templateCode: string): string {
   return templateCode.replace(/_SMS$/, '');
@@ -210,21 +222,23 @@ export class NotifyOnStatusTransitionHandler {
         serviceTypeName: result.serviceTypeName ?? null,
       });
 
-      // The checkbox is only offered for a confirmed tenant, but the rule lives
-      // here: the endpoint can be called directly.
-      const tenantOptedIn =
+      // The UI only offers the checkbox where a notice plausibly went out, but the
+      // rule lives here: the endpoint can be called directly, and only this side
+      // knows whether a notice actually exists.
+      const tenantWasTold =
         input.notifyRentalTenant === true &&
-        appointment.rentalTenantConfirmationStatus === 'CONFIRMED';
-      if (!tenantOptedIn) {
+        (await this.notificationRepo.existsByAppointmentAndTemplates(
+          appointment.id,
+          appointment.tenantId,
+          RENTAL_TENANT_NOTICE_CODES,
+        ));
+      if (!tenantWasTold) {
         if (input.notifyRentalTenant === true) {
           // An explicit request we refuse must leave a trace; otherwise a direct
           // API caller gets a 200 and debugs a notification that never existed.
           this.logger?.info(
-            {
-              appointmentId: appointment.id,
-              rentalTenantConfirmationStatus: appointment.rentalTenantConfirmationStatus,
-            },
-            'Rental-tenant opt-in discarded: the tenant has not confirmed this appointment',
+            { appointmentId: appointment.id },
+            'Rental-tenant opt-in discarded: no inspection notice was ever sent for this appointment',
           );
         }
         return;
