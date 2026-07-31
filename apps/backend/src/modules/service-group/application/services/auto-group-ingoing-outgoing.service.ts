@@ -48,6 +48,14 @@ export interface AutoGroupInput {
   actor: AuthContext;
 }
 
+/**
+ * The only flow types that auto-group. Deliberately an allowlist: publishing
+ * puts work in front of inspectors, so an unrecognised flow type must fall
+ * through to the manual path rather than be treated as "not ROUTINE, therefore
+ * auto-publish".
+ */
+const AUTO_GROUPED_FLOW_TYPES: ReadonlySet<string> = new Set(['INGOING', 'OUTGOING']);
+
 /** Errors that mean "the region we picked is no longer usable". */
 const REGION_UNUSABLE_CODES = new Set(['SERVICE_REGION_INACTIVE', 'SERVICE_REGION_NOT_FOUND']);
 
@@ -100,7 +108,7 @@ export class AutoGroupIngoingOutgoingService {
   ) {}
 
   async tryAutoGroupAndPublish(input: AutoGroupInput): Promise<AutoGroupOutcome> {
-    if (input.flowType === 'ROUTINE') return { kind: 'SKIPPED' };
+    if (!AUTO_GROUPED_FLOW_TYPES.has(input.flowType)) return { kind: 'SKIPPED' };
 
     // Derived from the real actor rather than a synthetic SYSTEM principal:
     // service_groups.created_by_user_id is an FK to users and there is no

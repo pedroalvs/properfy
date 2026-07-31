@@ -27,6 +27,7 @@ import {
   calculatePayoutAmount,
 } from '../../domain/appointment-pricing.service';
 import { resolvePricingRule } from '../../../pricing-rule/domain/resolve-pricing-rule';
+import type { AutoGroupIngoingOutgoingService } from '../../../service-group/application/services/auto-group-ingoing-outgoing.service';
 import {
   AppointmentBranchNotFoundError,
   AppointmentBranchInactiveError,
@@ -120,6 +121,8 @@ export interface CreateAppointmentOutput {
   serviceTypeId: string;
   inspectorId: string | null;
   status: string;
+  /** Set when the INGOING/OUTGOING auto-group ran; null for ROUTINE. */
+  serviceGroupId: string | null;
   scheduledDate: Date;
   timeSlotStart: string;
   timeSlotEnd: string;
@@ -171,6 +174,13 @@ export class CreateAppointmentUseCase {
     private readonly clock: Clock = new SystemClock(),
     private readonly idempotencyService?: IIdempotencyService,
     private readonly appCredentialRepo?: IAppCredentialRepository,
+    /**
+     * Optional so existing wiring and tests keep working. When present,
+     * INGOING/OUTGOING appointments are grouped and published on creation —
+     * which covers the import commit worker too, since it calls this use case
+     * directly rather than going through the HTTP route.
+     */
+    private readonly autoGroupService?: AutoGroupIngoingOutgoingService,
   ) {}
 
   async execute(input: CreateAppointmentInput): Promise<CreateAppointmentOutput> {
@@ -518,6 +528,59 @@ export class CreateAppointmentUseCase {
       },
     });
 
+    // 12b. INGOING/OUTGOING have no rental tenant to consult, so they skip the
+    //      manual grouping step entirely: build a one-appointment group and put
+    //      it on the marketplace now. The service never throws — a refused
+    //      publish leaves a DRAFT group for the operator, and the appointment is
+    //      created either way.
+    //
+    //      Placed after the `appointment.created` audit and *before*
+    //      `idempotencyService.set` below: the cached result must describe the
+    //      post-grouping state, otherwise a crash between the two would cache
+    //      "DRAFT, ungrouped" for 24h and no retry could ever repair it.
+    if (this.autoGroupService) {
+      try {
+        const autoGroup = await this.autoGroupService.tryAutoGroupAndPublish({
+          appointmentId: appointment.id,
+          tenantId,
+          serviceTypeId: input.serviceTypeId,
+          flowType: serviceType.flowType,
+          scheduledDate: input.scheduledDate,
+          timeSlotStart: input.timeSlotStart,
+          timeSlotEnd: input.timeSlotEnd,
+          actor,
+        });
+
+        if (autoGroup.kind === 'PUBLISHED' || autoGroup.kind === 'DRAFT') {
+          // The group transitioned the appointment on its way in; reflect that
+          // rather than reporting the stale DRAFT this method started with.
+          appointment.status = 'AWAITING_INSPECTOR';
+          appointment.serviceGroupId = autoGroup.groupId;
+        }
+      } catch (err) {
+        // The service is documented never to throw, so this is belt and braces
+        // for a bug inside it. It matters because the appointment row is already
+        // persisted: letting the error escape would report failure for an
+        // appointment that exists, and the caller's retry would duplicate it.
+        // The appointment simply stays DRAFT and ungrouped for an operator —
+        // audited rather than swallowed, so it is queryable like every other
+        // incomplete auto-group.
+        this.auditService.log({
+          action: 'appointment.auto_group_incomplete',
+          actorType: 'SYSTEM',
+          actorId: actor.userId,
+          entityType: 'Appointment',
+          entityId: appointment.id,
+          tenantId,
+          metadata: {
+            flowType: serviceType.flowType,
+            reason: 'GROUP_CREATE_FAILED',
+            errorCode: err instanceof Error ? err.message : String(err),
+          },
+        });
+      }
+    }
+
     // 13. Return output
     const result: CreateAppointmentOutput = {
       id: appointment.id,
@@ -527,6 +590,7 @@ export class CreateAppointmentUseCase {
       serviceTypeId: appointment.serviceTypeId,
       inspectorId: appointment.inspectorId,
       status: appointment.status,
+      serviceGroupId: appointment.serviceGroupId,
       scheduledDate: appointment.scheduledDate,
       timeSlotStart: appointment.timeSlotStart,
       timeSlotEnd: appointment.timeSlotEnd,

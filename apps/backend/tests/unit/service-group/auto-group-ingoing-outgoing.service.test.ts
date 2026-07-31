@@ -137,6 +137,22 @@ describe('AutoGroupIngoingOutgoingService', () => {
 
       expect(result).toEqual({ kind: 'PUBLISHED', groupId: GROUP_ID });
     });
+
+    // Allowlist, not denylist. Publishing pushes work at inspectors, so an
+    // unrecognised flow type must fall through to the manual path rather than
+    // be treated as "not ROUTINE, therefore auto-publish".
+    it.each([undefined, null, '', 'STANDARD', 'ingoing'])(
+      'skips the unrecognised flow type %p instead of publishing it',
+      async (flowType) => {
+        const result = await service.tryAutoGroupAndPublish(
+          makeInput({ flowType: flowType as unknown as ServiceTypeFlowType }),
+        );
+
+        expect(result).toEqual({ kind: 'SKIPPED' });
+        expect(createServiceGroupUseCase.execute).not.toHaveBeenCalled();
+        expect(publishServiceGroupUseCase.execute).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe('happy path', () => {
