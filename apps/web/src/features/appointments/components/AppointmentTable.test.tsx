@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render as rtlRender, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { AppointmentStatus, RentalTenantConfirmationStatus } from '@properfy/shared';
@@ -196,6 +197,21 @@ describe('AppointmentTable', () => {
     });
     render(<AppointmentTable data={[apt]} />);
     expect(screen.getByLabelText('Tenant left a note')).toBeInTheDocument();
+  });
+
+  it('shows the tenant note text on hover instead of a generic notice', async () => {
+    const user = userEvent.setup();
+    const apt = makeAppointment({
+      hasRentalTenantNote: true,
+      rentalTenantNote: 'I work night shifts, please come after 2pm',
+    });
+    render(<AppointmentTable data={[apt]} />);
+
+    await user.hover(screen.getByLabelText('Note: I work night shifts, please come after 2pm'));
+
+    expect(screen.getByRole('tooltip')).toHaveTextContent(
+      'Note: I work night shifts, please come after 2pm',
+    );
   });
 
   it('does not show tenant note icon for REJECTED appointment without hasRentalTenantNote', () => {

@@ -1,7 +1,9 @@
 import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import { BooleanIcon } from '@/components/ui/BooleanIcon';
+import { Tooltip } from '@/components/ui/Tooltip';
 import { formatCivilDate } from '@/lib/format-date';
+import { formatTenantNoteTooltip } from '../lib/tenant-note';
 import { AppointmentStatusChip } from './AppointmentStatusChip';
 import { RentalTenantConfirmationChip } from './RentalTenantConfirmationChip';
 import type { Appointment } from '../types';
@@ -145,12 +147,12 @@ export function AppointmentTable({
         <div className="flex items-center gap-1.5">
           <AppointmentStatusChip status={row.status} doneCheckedByUserId={row.doneCheckedByUserId} isOverdue={row.isOverdue} />
           {row.hasRentalTenantNote && (
-            <span title="Tenant left a note">
+            <Tooltip label={formatTenantNoteTooltip(row.rentalTenantNote)}>
               <i
                 className="mdi mdi-note-text-outline text-base text-text-secondary"
-                aria-label="Tenant left a note"
+                aria-label={formatTenantNoteTooltip(row.rentalTenantNote)}
               />
-            </span>
+            </Tooltip>
           )}
         </div>
       ),
