@@ -30,7 +30,7 @@ const mockJwtVerify = vi.fn();
 
 const APPOINTMENT_ID = 'a0000000-0000-4000-8000-000000000001';
 const TOKEN_ID = 'b0000000-0000-4000-8000-000000000002';
-const PORTAL_URL = 'https://portal.properfy.com/portal/kR7mQ2xLp9';
+const PORTAL_URL = 'https://portal.properfy.com/portal/kR7mQ2xLp9nT4vB8';
 const EXPIRES_AT = '2026-08-01T00:00:00.000Z';
 
 vi.mock('../../../src/main/container', () => ({

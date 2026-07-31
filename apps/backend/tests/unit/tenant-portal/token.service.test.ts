@@ -5,9 +5,9 @@ describe('TokenService', () => {
   const service = new TokenService();
 
   describe('generateRawToken', () => {
-    // 20k tokens = 200k characters. Large enough that a uniform generator lands
-    // every symbol within 10% of the 3226 expected occurrences (~5.7 sigma), while
-    // a modulo-biased one overshoots to ~3906 on the first 8 symbols and fails.
+    // 20k tokens = 320k characters. Large enough that a uniform generator lands
+    // every symbol within 10% of the 5161 expected occurrences (~7.2 sigma), while
+    // a modulo-biased one overshoots to ~6250 on the first 8 symbols and fails.
     const SAMPLE_SIZE = 20_000;
     const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let sample: string[];
@@ -16,11 +16,11 @@ describe('TokenService', () => {
       sample = Array.from({ length: SAMPLE_SIZE }, () => service.generateRawToken());
     });
 
-    it('should return a 10-character base62 string', () => {
+    it('should return a 16-character base62 string', () => {
       const token = service.generateRawToken();
 
-      expect(token).toHaveLength(10);
-      expect(token).toMatch(/^[A-Za-z0-9]{10}$/);
+      expect(token).toHaveLength(16);
+      expect(token).toMatch(/^[A-Za-z0-9]{16}$/);
     });
 
     it('should return different values on each call', () => {
@@ -45,7 +45,7 @@ describe('TokenService', () => {
 
       expect(counts.size).toBe(ALPHABET.length);
 
-      const expected = (SAMPLE_SIZE * 10) / ALPHABET.length;
+      const expected = (SAMPLE_SIZE * 16) / ALPHABET.length;
       for (const symbol of ALPHABET) {
         expect(counts.get(symbol)).toBeGreaterThan(expected * 0.9);
         expect(counts.get(symbol)).toBeLessThan(expected * 1.1);

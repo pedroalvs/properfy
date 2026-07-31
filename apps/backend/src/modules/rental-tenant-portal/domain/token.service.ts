@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 
 const TOKEN_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-const TOKEN_LENGTH = 10;
+const TOKEN_LENGTH = 16;
 // 256 is not a multiple of 62, so bytes >= 248 are discarded. Without this the
 // first 8 symbols would get 5 draws out of 256 instead of 4 — a 25% bias that
 // keeps the token the right shape while quietly costing entropy.
@@ -9,17 +9,21 @@ const REJECTION_CEILING = 256 - (256 % TOKEN_ALPHABET.length);
 
 export class TokenService {
   /**
-   * Base62, 10 characters: 62^10 ≈ 8.4e17 (~59.5 bits). Short enough to send by
-   * SMS while leaving online guessing hopeless — the portal routes cap at 30
-   * req/min, so even a large botnet against a large pool of live tokens expects
-   * years per hit. (The cap is currently global rather than per-IP: `trustProxy`
-   * is unset, so behind the proxy every request shares one bucket. That makes it
-   * stricter, not weaker, for this purpose.)
+   * Base62, 16 characters: 62^16 ≈ 4.8e28 (~95 bits). Short enough to send by
+   * SMS, and long enough that both attacks stay out of reach.
    *
-   * What this length does NOT defend against is offline attack: `hashToken` is
-   * an unsalted SHA-256, so anyone who obtains the `token_hash` column alone can
-   * brute-force 59.5 bits and recover live tokens. At 256 bits that dump was
-   * inert. Peppering the hash would close it — see the PR discussion.
+   * The length is set by the *offline* threat, not the online one. `hashToken`
+   * is an unsalted SHA-256, so the stored `token_hash` column is a brute-forcible
+   * lookup on its own — anyone holding a dump of that column alone can search the
+   * keyspace without touching the API. At 10 characters (~59.5 bits) a multi-target
+   * search over live tokens costs keyspace/N and finishes on one GPU in about an
+   * hour; at 95 bits it is infeasible on any horizon, which is what keeps a
+   * partial leak inert the way the original 256-bit token did.
+   *
+   * Online guessing was never the binding constraint: the portal routes cap at
+   * 30 req/min, which already puts even 59.5 bits years out of reach. (That cap
+   * is currently global rather than per-IP — `trustProxy` is unset, so behind the
+   * proxy every request shares one bucket. Stricter, not weaker, for this purpose.)
    *
    * Legacy 64-char hex tokens stay valid: lookup hashes whatever raw string
    * arrives, so nothing here constrains what an existing link may look like.

@@ -9,7 +9,7 @@ import { PortalRedirect, routes } from './router';
  * redirect into it — links already in the wild must keep working without
  * dragging the browser back to a long URL.
  */
-const TOKEN = 'kR7mQ2xLp9';
+const TOKEN = 'kR7mQ2xLp9nT4vB8';
 
 function routeElementFor(pathname: string) {
   const matches = matchRoutes(routes, pathname);

@@ -23,11 +23,11 @@ export class MintPortalTokenService {
   ) {}
 
   /**
-   * A 10-char base62 token can collide, and the unique index on `token_hash` is
-   * what detects it. Recovery is simply minting another token, so the write is
-   * retried with a fresh one. Per mint the odds are roughly N/8.4e17 where N is
-   * the number of rows already stored — note the index spans every row, revoked
-   * and expired included, so N only ever grows.
+   * A random token can collide, and the unique index on `token_hash` is what
+   * detects it. Recovery is simply minting another token, so the write is
+   * retried with a fresh one. Per mint the odds are roughly N/4.8e28 where N is
+   * the number of rows already stored — vanishing, but the index spans every row
+   * (revoked and expired included), so N only ever grows.
    *
    * The retry only applies when `revokeAndSave` opens its own transaction.
    * A caller-owned `tx` is already aborted by the time Postgres reports the
