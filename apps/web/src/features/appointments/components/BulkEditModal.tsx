@@ -7,8 +7,10 @@ import {
   type AppointmentStatus,
   type BulkActionResponse,
 } from '@properfy/shared';
+import { Link } from 'react-router-dom';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
+import { InfoBanner } from '@/components/feedback/InfoBanner';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { Textarea } from '@/components/forms/Textarea';
 import { Checkbox } from '@/components/forms/Checkbox';
@@ -147,6 +149,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
   const [statusReason, setStatusReason] = useState('');
   const [notifyRentalTenant, setNotifyRentalTenant] = useState(false);
   const [values, setValues] = useState<BulkEditValues>({});
+  const [expandGroupTimeWindow, setExpandGroupTimeWindow] = useState(false);
   const [pmContactLabel, setPmContactLabel] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<BulkEditResult | null>(null);
@@ -234,11 +237,32 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
   const changeStatusReady =
     !!targetStatus && (!statusReasonRequired || statusReason.trim().length >= REASON_MIN_LENGTH);
 
+  // A grouped appointment's date is the group's to move (the server only
+  // allows re-aligning a member back onto a DRAFT group's date). Say so while
+  // the operator can still act on it, rather than letting them submit into a
+  // wall of per-row rejections.
+  const groupedSelection = useMemo(
+    () => selectedAppointments.filter((a) => a.serviceGroupId),
+    [selectedAppointments],
+  );
+
   // Failure rows identify the appointment by its human-readable code — an id
   // fragment tells the operator nothing about which row to go fix. Falls back
   // to the raw id if the row is somehow not in the current selection.
   const codeOf = useCallback(
     (id: string) => selectedAppointments.find((a) => a.id === id)?.code ?? id,
+    [selectedAppointments],
+  );
+
+  // When the group is what blocked the row, link straight to it — the fix
+  // ("reschedule the group") lives on that page, and until now nothing in the
+  // appointment surfaces linked there.
+  const groupOf = useCallback(
+    (id: string) => {
+      const appointment = selectedAppointments.find((a) => a.id === id);
+      if (!appointment?.serviceGroupId) return null;
+      return { id: appointment.serviceGroupId, code: appointment.serviceGroupCode };
+    },
     [selectedAppointments],
   );
 
@@ -255,6 +279,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
     setPickedTarget('');
     setStatusReason('');
     setValues({});
+    setExpandGroupTimeWindow(false);
     setPmContactLabel('');
     setResult(null);
     setErrorMessage(null);
@@ -405,8 +430,17 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
       // PM contact in the bulk modal is "add only when missing" — never overwrite
       // an existing one. The backend reports skipped appointments with code
       // APPOINTMENT_HAS_EXISTING_CONTACT in the failures list.
+      const options: Record<string, unknown> = {};
       if (enabledFields.propertyManagerContactId) {
-        body.options = { propertyManagerContactPolicy: 'addIfMissing' };
+        options.propertyManagerContactPolicy = 'addIfMissing';
+      }
+      // Only meaningful alongside a time-slot change on grouped rows; sending
+      // it otherwise would be a no-op the server has to reason about.
+      if (enabledFields.timeSlot && expandGroupTimeWindow && groupedSelection.length > 0) {
+        options.expandGroupTimeWindow = true;
+      }
+      if (Object.keys(options).length > 0) {
+        body.options = options;
       }
 
       const { data, error } = await (api as any).POST('/v1/appointments/bulk-edit', { body });
@@ -480,12 +514,26 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
               </button>
               {errorsExpanded && (
                 <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto text-sm text-text-secondary">
-                  {result.failed.map((err) => (
-                    <li key={err.id} className="rounded border border-border-subtle px-3 py-2">
-                      <span className="font-semibold text-text-primary">{codeOf(err.id)}</span>{' '}
-                      {err.message}
-                    </li>
-                  ))}
+                  {result.failed.map((err) => {
+                    const group = groupOf(err.id);
+                    return (
+                      <li key={err.id} className="rounded border border-border-subtle px-3 py-2">
+                        <span className="font-semibold text-text-primary">{codeOf(err.id)}</span>{' '}
+                        {err.message}
+                        {/* The message names the group; this is the way to it.
+                            Shown for any failure on a grouped row — that the
+                            row is grouped is context the operator needs. */}
+                        {group && (
+                          <Link
+                            to={`/service-groups/${group.id}`}
+                            className="mt-1 block font-semibold text-primary hover:underline"
+                          >
+                            View group {group.code ?? group.id} →
+                          </Link>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>
@@ -502,6 +550,16 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
           <p className="text-sm text-text-secondary">
             Select the fields you want to change. Only checked fields will be updated.
           </p>
+
+          {/* Rendered outside FieldRow on purpose: FieldRow hides its `helper`
+              until the row is ticked, which would warn only after the operator
+              had already committed to the change. */}
+          {groupedSelection.length > 0 && (
+            <InfoBanner variant="warning">
+              {groupedSelection.length} of {selectedIds.length} selected appointments belong to a
+              service group. Their date is managed by the group — reschedule the group instead.
+            </InfoBanner>
+          )}
 
           {/* Inspector */}
           <FieldRow
@@ -548,13 +606,31 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
             onToggle={() => toggleField('timeSlot')}
             disabled={reviewed || changeStatus}
           >
-            <TimeRangeInput
-              startTime={values.timeSlotStart ?? ''}
-              endTime={values.timeSlotEnd ?? ''}
-              onStartChange={(v) => setFieldValue('timeSlotStart', v)}
-              onEndChange={(v) => setFieldValue('timeSlotEnd', v)}
-              idPrefix="bulk-time-slot"
-            />
+            <div className="space-y-2">
+              <TimeRangeInput
+                startTime={values.timeSlotStart ?? ''}
+                endTime={values.timeSlotEnd ?? ''}
+                onStartChange={(v) => setFieldValue('timeSlotStart', v)}
+                onEndChange={(v) => setFieldValue('timeSlotEnd', v)}
+                idPrefix="bulk-time-slot"
+              />
+              {/* A grouped row's slot must fit the group's shared window. The
+                  map's reschedule flow always widens; here it is an explicit
+                  opt-in, so a shared window never moves as a side effect. */}
+              {groupedSelection.length > 0 && (
+                <div>
+                  <Checkbox
+                    checked={expandGroupTimeWindow}
+                    onChange={setExpandGroupTimeWindow}
+                    label="Widen the group's time window to fit"
+                  />
+                  <p className="mt-1 text-xs text-text-muted">
+                    Without this, rows whose new time falls outside their group's window are
+                    rejected. Closed groups can never be widened.
+                  </p>
+                </div>
+              )}
+            </div>
           </FieldRow>
 
           {/* Service Type */}

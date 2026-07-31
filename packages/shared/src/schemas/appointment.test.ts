@@ -12,6 +12,7 @@ import {
   bulkActionResultItemSchema,
   bulkActionResponseSchema,
   bulkReopenForRescheduleRequestSchema,
+  bulkEditAppointmentSchema,
   normalizeCustomFields,
 } from './appointment';
 import { AppointmentStatus, RentalTenantConfirmationStatus } from '../enums/appointment';
@@ -914,6 +915,33 @@ describe('bulkCancelRequestSchema', () => {
     const result = bulkCancelRequestSchema.safeParse({
       appointmentIds: ['not-a-uuid'],
       reason: 'valid reason',
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('bulkEditAppointmentSchema', () => {
+  it('accepts expandGroupTimeWindow as an option', () => {
+    const result = bulkEditAppointmentSchema.safeParse({
+      ids: [apptIdA],
+      changes: { timeSlotStart: '09:00', timeSlotEnd: '10:00' },
+      options: { expandGroupTimeWindow: true },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('keeps options optional', () => {
+    const result = bulkEditAppointmentSchema.safeParse({
+      ids: [apptIdA],
+      changes: { scheduledDate: '2027-06-01' },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects expandGroupTimeWindow smuggled into changes, which is strict', () => {
+    const result = bulkEditAppointmentSchema.safeParse({
+      ids: [apptIdA],
+      changes: { scheduledDate: '2027-06-01', expandGroupTimeWindow: true },
     });
     expect(result.success).toBe(false);
   });

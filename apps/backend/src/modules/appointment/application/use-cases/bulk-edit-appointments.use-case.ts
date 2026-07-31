@@ -1,6 +1,6 @@
 import type { AuthContext, AppointmentContactRole } from '@properfy/shared';
-import { validateEditedSchedule, PLATFORM_TIMEZONE } from '@properfy/shared';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { UpdateAppointmentUseCase } from './update-appointment.use-case';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IContactRepository } from '../../../contact/domain/contact.repository';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
@@ -30,6 +30,12 @@ export interface BulkEditOptions {
    *   they're surfaced in `failed[]` with code `APPOINTMENT_HAS_EXISTING_CONTACT`.
    */
   propertyManagerContactPolicy?: 'replace' | 'addIfMissing';
+  /**
+   * Opt-in: widen a service group's shared time window when a grouped row's
+   * new slot falls outside it, instead of rejecting the row. Forwarded to
+   * `UpdateAppointmentUseCase`, which owns the rule.
+   */
+  expandGroupTimeWindow?: boolean;
 }
 
 export interface BulkEditInput {
@@ -53,6 +59,12 @@ export class BulkEditAppointmentsUseCase {
     private readonly pricingRuleRepo: IPricingRuleRepository,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
+    /**
+     * Owns every schedule rule and every reschedule side effect. Required, not
+     * optional: a missing dependency would silently fall back to a bare repo
+     * write, which is exactly the bug this delegation removes.
+     */
+    private readonly updateAppointment: UpdateAppointmentUseCase,
   ) {}
 
   async execute(input: BulkEditInput): Promise<BulkEditResult> {
@@ -89,6 +101,39 @@ export class BulkEditAppointmentsUseCase {
         const after: Record<string, unknown> = {};
         const updateData: Record<string, unknown> = {};
 
+        // Schedule edits delegate to UpdateAppointmentUseCase rather than
+        // being re-implemented here. It owns the status guard, the service
+        // group rules (a member's date is the group's to move), the TZ
+        // past-date check, and — critically — the reschedule side effects a
+        // bare `repo.update` skips: resetting the rental tenant's
+        // confirmation, revoking their live portal token and notifying them.
+        //
+        // Runs FIRST so a rejected schedule leaves the row completely
+        // untouched; the remaining field guards below are pure validation
+        // until the single write at the end.
+        const scheduleData = {
+          ...(changes.scheduledDate !== undefined ? { scheduledDate: changes.scheduledDate as string } : {}),
+          ...(changes.timeSlotStart !== undefined ? { timeSlotStart: changes.timeSlotStart as string } : {}),
+          ...(changes.timeSlotEnd !== undefined ? { timeSlotEnd: changes.timeSlotEnd as string } : {}),
+        };
+        if (Object.keys(scheduleData).length > 0) {
+          try {
+            await this.updateAppointment.execute({
+              appointmentId,
+              data: scheduleData,
+              actor,
+              ...(input.options?.expandGroupTimeWindow ? { expandGroupTimeWindow: true } : {}),
+            });
+          } catch (err: unknown) {
+            failed.push({
+              id: appointmentId,
+              code: (err as { code?: string })?.code ?? 'INTERNAL_ERROR',
+              message: err instanceof Error ? err.message : 'Unknown error',
+            });
+            continue;
+          }
+        }
+
         // Per-field guardrails
         if (changes.assignedInspectorId !== undefined) {
           if (TERMINAL_STATUSES.has(appointment.status)) {
@@ -110,47 +155,6 @@ export class BulkEditAppointmentsUseCase {
           before['inspectorId'] = appointment.inspectorId;
           after['inspectorId'] = inspectorId;
           updateData['inspectorId'] = inspectorId;
-        }
-
-        if (changes.scheduledDate !== undefined) {
-          if (!['DRAFT', 'AWAITING_INSPECTOR'].includes(appointment.status)) {
-            failed.push({ id: appointmentId, code: 'APPOINTMENT_UPDATE_NOT_ALLOWED', message: `Cannot change date on ${appointment.status} appointment` });
-            continue;
-          }
-          before['scheduledDate'] = appointment.scheduledDate;
-          after['scheduledDate'] = changes.scheduledDate;
-          updateData['scheduledDate'] = new Date(changes.scheduledDate as string);
-        }
-
-        const timeChanged = changes.timeSlotStart !== undefined;
-        if (timeChanged) {
-          if (!['DRAFT', 'AWAITING_INSPECTOR'].includes(appointment.status)) {
-            failed.push({ id: appointmentId, code: 'APPOINTMENT_UPDATE_NOT_ALLOWED', message: `Cannot change time slot on ${appointment.status} appointment` });
-            continue;
-          }
-          before['timeSlotStart'] = appointment.timeSlotStart;
-          before['timeSlotEnd'] = appointment.timeSlotEnd;
-          after['timeSlotStart'] = changes.timeSlotStart;
-          after['timeSlotEnd'] = changes.timeSlotEnd;
-          updateData['timeSlotStart'] = changes.timeSlotStart;
-          updateData['timeSlotEnd'] = changes.timeSlotEnd;
-        }
-
-        // Per-row TZ-aware past-date/time validation (R7: falls back to UTC).
-        if (changes.scheduledDate !== undefined || timeChanged) {
-          const tz = PLATFORM_TIMEZONE;
-          const existingDateStr = appointment.scheduledDate.toISOString().slice(0, 10);
-          const scheduleCheck = validateEditedSchedule({
-            existingDate: existingDateStr,
-            existingTimeSlot: appointment.timeSlotStart,
-            newDate: changes.scheduledDate as string | undefined,
-            newTimeSlot: changes.timeSlotStart as string | undefined,
-            tz,
-          });
-          if (!scheduleCheck.ok) {
-            failed.push({ id: appointmentId, code: scheduleCheck.code, message: scheduleCheck.code === 'TIME_IN_PAST' ? 'Selected time slot has already passed for today' : 'Scheduled date cannot be in the past' });
-            continue;
-          }
         }
 
         if (changes.branchId !== undefined) {
@@ -243,18 +247,22 @@ export class BulkEditAppointmentsUseCase {
           await this.appointmentRepo.update(appointmentId, appointment.tenantId, updateData as any);
         }
 
-        // Audit per row
-        this.auditService.log({
-          action: 'appointment.updated',
-          actorType: 'USER',
-          actorId: actor.userId,
-          entityType: 'appointment',
-          entityId: appointmentId,
-          tenantId: appointment.tenantId,
-          before,
-          after,
-          metadata: { source: 'bulk-edit', batchId: input.requestId },
-        });
+        // Audit per row — only for the fields this use case still owns.
+        // A schedule-only edit is audited by UpdateAppointmentUseCase, so
+        // logging here too would emit a second, empty before/after row.
+        if (Object.keys(before).length > 0 || Object.keys(after).length > 0) {
+          this.auditService.log({
+            action: 'appointment.updated',
+            actorType: 'USER',
+            actorId: actor.userId,
+            entityType: 'appointment',
+            entityId: appointmentId,
+            tenantId: appointment.tenantId,
+            before,
+            after,
+            metadata: { source: 'bulk-edit', batchId: input.requestId },
+          });
+        }
 
         updated.push(appointmentId);
       } catch (err: unknown) {

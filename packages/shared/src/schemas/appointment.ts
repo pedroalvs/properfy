@@ -286,12 +286,17 @@ const bulkEditChangesSchema = z.object({
     { message: TIME_RANGE_MESSAGE, path: ['timeSlotEnd'] },
   );
 
-/** Per-field policies the use case applies. Currently only governs the
- *  Property-Manager contact change: `replace` (default — overwrite the existing
- *  PM junction row) or `addIfMissing` (skip appointments that already have a
- *  PM contact and surface them in `failed[]`). */
+/** Per-field policies the use case applies.
+ *  - `propertyManagerContactPolicy`: `replace` (default — overwrite the
+ *    existing PM junction row) or `addIfMissing` (skip appointments that
+ *    already have a PM contact and surface them in `failed[]`).
+ *  - `expandGroupTimeWindow`: opt-in to widen a service group's shared time
+ *    window when a grouped row's new slot falls outside it, instead of
+ *    rejecting the row. Lives here rather than in `changes`, which is
+ *    `.strict()` and enumerates editable fields only. */
 const bulkEditOptionsSchema = z.object({
   propertyManagerContactPolicy: z.enum(['replace', 'addIfMissing']).optional(),
+  expandGroupTimeWindow: z.boolean().optional(),
 }).optional();
 
 export const bulkEditAppointmentSchema = z.object({

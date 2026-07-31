@@ -12,7 +12,12 @@ import { ContactEntity } from '../../../src/modules/contact/domain/contact.entit
 import { PricingRuleEntity } from '../../../src/modules/pricing-rule/domain/pricing-rule.entity';
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
-import { AppointmentBulkFieldNotAllowedError } from '../../../src/modules/appointment/domain/appointment.errors';
+import type { UpdateAppointmentUseCase } from '../../../src/modules/appointment/application/use-cases/update-appointment.use-case';
+import {
+  AppointmentBulkFieldNotAllowedError,
+  AppointmentInServiceGroupError,
+  AppointmentUpdateNotAllowedError,
+} from '../../../src/modules/appointment/domain/appointment.errors';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -105,6 +110,7 @@ describe('BulkEditAppointmentsUseCase', () => {
   let pricingRuleRepo: IPricingRuleRepository;
   let auditService: AuditService;
   let authorizationService: AuthorizationService;
+  let updateAppointment: UpdateAppointmentUseCase;
   let useCase: BulkEditAppointmentsUseCase;
 
   beforeEach(() => {
@@ -159,6 +165,12 @@ describe('BulkEditAppointmentsUseCase', () => {
     auditService = { log: vi.fn() } as unknown as AuditService;
     authorizationService = new AuthorizationService(auditService);
 
+    // Schedule edits are delegated, so the real schedule rules (status guard,
+    // service-group rules, past-date check) live in UpdateAppointmentUseCase's
+    // own suite. Here we assert the delegation contract: what gets forwarded,
+    // and how a rejection is folded into `failed[]`.
+    updateAppointment = { execute: vi.fn().mockResolvedValue(undefined) } as unknown as UpdateAppointmentUseCase;
+
     useCase = new BulkEditAppointmentsUseCase(
       appointmentRepo,
       contactRepo,
@@ -166,6 +178,7 @@ describe('BulkEditAppointmentsUseCase', () => {
       pricingRuleRepo,
       auditService,
       authorizationService,
+      updateAppointment,
     );
   });
 
@@ -390,9 +403,12 @@ describe('BulkEditAppointmentsUseCase', () => {
     });
   });
 
-  it('(f) REJECTED appointment with scheduledDate change → per-row error', async () => {
+  it('(f) surfaces a delegated status rejection as a per-row error', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(
-      makeAppointmentWithRelations({ status: 'REJECTED' }),
+      makeAppointmentWithRelations({ status: 'DONE' }),
+    );
+    vi.mocked(updateAppointment.execute).mockRejectedValue(
+      new AppointmentUpdateNotAllowedError('DONE'),
     );
 
     const result = await useCase.execute({
@@ -406,6 +422,8 @@ describe('BulkEditAppointmentsUseCase', () => {
     expect(result.failed[0]).toMatchObject({
       id: 'appt-1',
       code: 'APPOINTMENT_UPDATE_NOT_ALLOWED',
+      // Prose, not the raw enum — this string is rendered verbatim to operators.
+      message: 'Cannot change the schedule of a Done appointment',
     });
   });
 
@@ -529,10 +547,15 @@ describe('BulkEditAppointmentsUseCase', () => {
     vi.mocked(appointmentRepo.findById)
       .mockResolvedValueOnce(makeAppointmentWithRelations({ id: 'appt-1', status: 'DRAFT' }))
       .mockResolvedValueOnce(makeAppointmentWithRelations({ id: 'appt-2', status: 'DRAFT' }));
+    vi.mocked(inspectorRepo.findById).mockResolvedValue({
+      id: 'insp-1',
+      status: 'ACTIVE',
+      isEligibleForTenant: () => true,
+    } as never);
 
     await useCase.execute({
       ids: ['appt-1', 'appt-2'],
-      changes: { timeSlotStart: '11:00', timeSlotEnd: '12:00' },
+      changes: { assignedInspectorId: 'insp-1' },
       actor: makeActor(),
       requestId: 'req-batch-1',
     });
@@ -545,8 +568,7 @@ describe('BulkEditAppointmentsUseCase', () => {
         actorId: 'user-op',
         entityType: 'appointment',
         entityId: 'appt-1',
-        before: expect.objectContaining({ timeSlotStart: '09:00', timeSlotEnd: '10:00' }),
-        after: expect.objectContaining({ timeSlotStart: '11:00', timeSlotEnd: '12:00' }),
+        after: expect.objectContaining({ inspectorId: 'insp-1' }),
         metadata: expect.objectContaining({ source: 'bulk-edit', batchId: 'req-batch-1' }),
       }),
     );
@@ -557,6 +579,23 @@ describe('BulkEditAppointmentsUseCase', () => {
         entityId: 'appt-2',
       }),
     );
+  });
+
+  it('(h) does not double-audit a schedule-only edit', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({ status: 'DRAFT' }),
+    );
+
+    const result = await useCase.execute({
+      ids: ['appt-1'],
+      changes: { timeSlotStart: '11:00', timeSlotEnd: '12:00' },
+      actor: makeActor(),
+    });
+
+    expect(result.updated).toBe(1);
+    // UpdateAppointmentUseCase writes its own `appointment.updated` entry; a
+    // second one here would carry an empty before/after.
+    expect(auditService.log).not.toHaveBeenCalled();
   });
 
   it('(h) does not emit audit for failed rows', async () => {
@@ -582,6 +621,11 @@ describe('BulkEditAppointmentsUseCase', () => {
       .mockResolvedValueOnce(makeAppointmentWithRelations({ id: 'appt-1', status: 'DRAFT' }))
       .mockResolvedValueOnce(null) // appt-2 not found
       .mockResolvedValueOnce(makeAppointmentWithRelations({ id: 'appt-3', status: 'DONE' })); // terminal
+    // appt-2 short-circuits on the missing row, so the delegate only sees
+    // appt-1 (accepted) then appt-3 (rejected by the terminal-status guard).
+    vi.mocked(updateAppointment.execute)
+      .mockResolvedValueOnce(undefined as never)
+      .mockRejectedValueOnce(new AppointmentUpdateNotAllowedError('DONE'));
 
     const result = await useCase.execute({
       ids: ['appt-1', 'appt-2', 'appt-3'],
@@ -630,30 +674,52 @@ describe('BulkEditAppointmentsUseCase', () => {
   });
 
   // -------------------------------------------------------------------------
-  // scheduledDate field guardrail: DRAFT and AWAITING_INSPECTOR only
+  // Schedule edits: delegated to UpdateAppointmentUseCase, which owns the
+  // status guard, the service-group rules and the reschedule side effects
+  // (confirmation reset, portal-token revocation, tenant notification).
   // -------------------------------------------------------------------------
 
-  it('scheduledDate change allowed on AWAITING_INSPECTOR appointment', async () => {
+  it('delegates a scheduledDate change instead of writing the date itself', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(
       makeAppointmentWithRelations({ status: 'AWAITING_INSPECTOR' }),
     );
 
+    const actor = makeActor();
     const result = await useCase.execute({
       ids: ['appt-1'],
       changes: { scheduledDate: '2027-09-01' },
-      actor: makeActor(),
+      actor,
     });
 
     expect(result.updated).toBe(1);
     expect(result.failed).toHaveLength(0);
-    expect(appointmentRepo.update).toHaveBeenCalledWith(
-      'appt-1',
-      'tenant-1',
-      expect.objectContaining({ scheduledDate: expect.any(Date) }),
-    );
+    expect(updateAppointment.execute).toHaveBeenCalledWith({
+      appointmentId: 'appt-1',
+      data: { scheduledDate: '2027-09-01' },
+      actor,
+    });
+    // A bare repo write here would skip the reschedule side effects.
+    expect(appointmentRepo.update).not.toHaveBeenCalled();
   });
 
-  it('scheduledDate change on SCHEDULED appointment → per-row error', async () => {
+  it('forwards both ends of a time-slot change in one delegated call', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({ status: 'SCHEDULED' }),
+    );
+
+    await useCase.execute({
+      ids: ['appt-1'],
+      changes: { scheduledDate: '2027-09-01', timeSlotStart: '13:00', timeSlotEnd: '15:00' },
+      actor: makeActor(),
+    });
+
+    expect(updateAppointment.execute).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(updateAppointment.execute).mock.calls[0]![0]).toMatchObject({
+      data: { scheduledDate: '2027-09-01', timeSlotStart: '13:00', timeSlotEnd: '15:00' },
+    });
+  });
+
+  it('SCHEDULED is no longer blocked, matching the single-appointment edit', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(
       makeAppointmentWithRelations({ status: 'SCHEDULED' }),
     );
@@ -664,8 +730,99 @@ describe('BulkEditAppointmentsUseCase', () => {
       actor: makeActor(),
     });
 
-    expect(result.failed).toHaveLength(1);
-    expect(result.failed[0]).toMatchObject({ code: 'APPOINTMENT_UPDATE_NOT_ALLOWED' });
+    expect(result.updated).toBe(1);
+    expect(result.failed).toHaveLength(0);
+  });
+
+  it('tells the operator which group blocks the date and what to do instead', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({ status: 'SCHEDULED', serviceGroupId: 'group-1' }),
+    );
+    vi.mocked(updateAppointment.execute).mockRejectedValue(new AppointmentInServiceGroupError(36));
+
+    const result = await useCase.execute({
+      ids: ['appt-1'],
+      changes: { scheduledDate: '2027-09-01' },
+      actor: makeActor(),
+    });
+
+    expect(result.updated).toBe(0);
+    expect(result.failed[0]).toMatchObject({
+      id: 'appt-1',
+      code: 'APPOINTMENT_IN_SERVICE_GROUP',
+      message: 'Date is managed by service group 36 — reschedule the group to move this appointment',
+    });
+  });
+
+  it('forwards expandGroupTimeWindow so the list flow can widen a group window', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({ status: 'SCHEDULED', serviceGroupId: 'group-1' }),
+    );
+
+    await useCase.execute({
+      ids: ['appt-1'],
+      changes: { timeSlotStart: '13:00', timeSlotEnd: '15:00' },
+      options: { expandGroupTimeWindow: true },
+      actor: makeActor(),
+    });
+
+    expect(vi.mocked(updateAppointment.execute).mock.calls[0]![0]).toMatchObject({
+      expandGroupTimeWindow: true,
+    });
+  });
+
+  it('omits expandGroupTimeWindow when the operator did not opt in', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({ status: 'SCHEDULED', serviceGroupId: 'group-1' }),
+    );
+
+    await useCase.execute({
+      ids: ['appt-1'],
+      changes: { timeSlotStart: '13:00', timeSlotEnd: '15:00' },
+      actor: makeActor(),
+    });
+
+    expect(vi.mocked(updateAppointment.execute).mock.calls[0]![0]).not.toHaveProperty(
+      'expandGroupTimeWindow',
+    );
+  });
+
+  it('leaves the row untouched when the delegated schedule edit is rejected', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({ status: 'SCHEDULED', serviceGroupId: 'group-1' }),
+    );
+    vi.mocked(updateAppointment.execute).mockRejectedValue(new AppointmentInServiceGroupError(36));
+
+    await useCase.execute({
+      ids: ['appt-1'],
+      changes: { scheduledDate: '2027-09-01', serviceTypeId: 'svc-2' },
+      actor: makeActor(),
+    });
+
+    expect(appointmentRepo.update).not.toHaveBeenCalled();
+    expect(auditService.log).not.toHaveBeenCalled();
+  });
+
+  // BulkAssignInspectorUseCase delegates to this use case with an
+  // inspector-only payload. If the schedule branch ever fired for it, every
+  // bulk inspector assignment would rotate confirmations and notify tenants.
+  it('never delegates when no schedule field is present', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({ status: 'SCHEDULED' }),
+    );
+    vi.mocked(inspectorRepo.findById).mockResolvedValue({
+      id: 'insp-1',
+      status: 'ACTIVE',
+      isEligibleForTenant: () => true,
+    } as never);
+
+    await useCase.execute({
+      ids: ['appt-1'],
+      changes: { assignedInspectorId: 'insp-1' },
+      actor: makeActor(),
+    });
+
+    expect(updateAppointment.execute).not.toHaveBeenCalled();
   });
 
   // -------------------------------------------------------------------------
@@ -675,6 +832,9 @@ describe('BulkEditAppointmentsUseCase', () => {
   it('timeSlot change on DONE appointment → per-row error', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(
       makeAppointmentWithRelations({ status: 'DONE' }),
+    );
+    vi.mocked(updateAppointment.execute).mockRejectedValue(
+      new AppointmentUpdateNotAllowedError('DONE'),
     );
 
     const result = await useCase.execute({

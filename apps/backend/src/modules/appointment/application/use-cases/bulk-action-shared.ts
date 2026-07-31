@@ -11,6 +11,8 @@ import {
   AppointmentUpdateNotAllowedError,
   AppointmentPastDateError,
   AppointmentTenantConfirmationRequiredError,
+  AppointmentInServiceGroupError,
+  AppointmentTimeSlotOutsideGroupWindowError,
 } from '../../domain/appointment.errors';
 
 /**
@@ -102,6 +104,11 @@ export function mapErrorToResult(appointmentId: string, err: unknown): BulkActio
     || err instanceof AppointmentUpdateNotAllowedError
     || err instanceof AppointmentPastDateError
     || err instanceof AppointmentTenantConfirmationRequiredError
+    // Service-group schedule rules. These reach here via bulk-reschedule and
+    // bulk-edit, both of which delegate to `UpdateAppointmentUseCase`; without
+    // them the operator is shown INTERNAL_ERROR for an ordinary business rule.
+    || err instanceof AppointmentInServiceGroupError
+    || err instanceof AppointmentTimeSlotOutsideGroupWindowError
   ) {
     const e = err as { code: string; message: string };
     return {
@@ -127,6 +134,8 @@ export function mapErrorToResult(appointmentId: string, err: unknown): BulkActio
 const BULK_EDIT_CODE_TO_STATUS: Record<string, BulkActionResultStatus> = {
   APPOINTMENT_NOT_FOUND: 'NOT_FOUND',
   APPOINTMENT_UPDATE_NOT_ALLOWED: 'INVALID_TRANSITION',
+  APPOINTMENT_IN_SERVICE_GROUP: 'INVALID_TRANSITION',
+  APPOINTMENT_TIME_SLOT_OUTSIDE_GROUP_WINDOW: 'INVALID_TRANSITION',
   INSPECTOR_INACTIVE: 'FORBIDDEN',
   INSPECTOR_NOT_ELIGIBLE: 'FORBIDDEN',
 };

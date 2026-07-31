@@ -1,4 +1,5 @@
 import {
+  APPOINTMENT_STATUS_LABELS,
   AppointmentStatus,
   RentalTenantConfirmationStatus,
   ServiceGroupStatus,
@@ -11,36 +12,37 @@ export interface StatusStyle {
   label: string;
 }
 
+/** Labels come from `@properfy/shared` so chips and API error messages agree. */
 export const APPOINTMENT_STATUS_MAP: Record<AppointmentStatus, StatusStyle> = {
   [AppointmentStatus.DRAFT]: {
     bg: 'var(--color-status-draft)',
     text: 'var(--color-text-primary)',
-    label: 'Draft',
+    label: APPOINTMENT_STATUS_LABELS.DRAFT,
   },
   [AppointmentStatus.AWAITING_INSPECTOR]: {
     bg: 'var(--color-status-awaiting-inspector)',
     text: 'var(--color-text-primary)',
-    label: 'Awaiting Inspector',
+    label: APPOINTMENT_STATUS_LABELS.AWAITING_INSPECTOR,
   },
   [AppointmentStatus.SCHEDULED]: {
     bg: 'var(--color-status-scheduled)',
     text: 'var(--color-text-primary)',
-    label: 'Scheduled',
+    label: APPOINTMENT_STATUS_LABELS.SCHEDULED,
   },
   [AppointmentStatus.DONE]: {
     bg: 'var(--color-status-done)',
     text: 'var(--color-text-primary)',
-    label: 'Done',
+    label: APPOINTMENT_STATUS_LABELS.DONE,
   },
   [AppointmentStatus.CANCELLED]: {
     bg: 'var(--color-status-cancelled)',
     text: 'var(--color-text-primary)',
-    label: 'Cancelled',
+    label: APPOINTMENT_STATUS_LABELS.CANCELLED,
   },
   [AppointmentStatus.REJECTED]: {
     bg: 'var(--color-status-rejected)',
     text: 'var(--color-text-primary)',
-    label: 'Rejected',
+    label: APPOINTMENT_STATUS_LABELS.REJECTED,
   },
 };
 

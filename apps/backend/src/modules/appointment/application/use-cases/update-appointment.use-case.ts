@@ -1,4 +1,4 @@
-import { type AuthContext, type AppointmentContactRole, type AppointmentCustomField } from '@properfy/shared';
+import { type AuthContext, type AppointmentContactRole, type AppointmentCustomField, type AppointmentStatus } from '@properfy/shared';
 import { PLATFORM_TIMEZONE, ServiceGroupStatus } from '@properfy/shared';
 import { NotFoundError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
@@ -187,7 +187,7 @@ export class UpdateAppointmentUseCase {
 
     // Guard: editable in any non-terminal status (only CANCELLED/DONE blocked)
     if (!appointment.isScheduleEditable()) {
-      throw new AppointmentUpdateNotAllowedError();
+      throw new AppointmentUpdateNotAllowedError(appointment.status as AppointmentStatus);
     }
 
     // Detect a REAL schedule change (submitting the current values is a no-op)
@@ -214,7 +214,9 @@ export class UpdateAppointmentUseCase {
         ? await this.serviceGroupRepo.findById(appointment.serviceGroupId, null)
         : null;
       if (!groupResult) {
-        throw new AppointmentInServiceGroupError();
+        // Group unloadable: the repo's denormalised number is the only handle
+        // we still have on which group is blocking the edit.
+        throw new AppointmentInServiceGroupError(found.serviceGroupNumber);
       }
 
       // Appointments in a service group must share the group's calendar day
@@ -228,7 +230,7 @@ export class UpdateAppointmentUseCase {
           groupResult.group.status === ServiceGroupStatus.DRAFT &&
           data.scheduledDate === groupDateStr;
         if (!realignsToDraftGroupDate) {
-          throw new AppointmentInServiceGroupError();
+          throw new AppointmentInServiceGroupError(groupResult.group.groupNumber);
         }
       }
 
@@ -257,7 +259,10 @@ export class UpdateAppointmentUseCase {
               )
             : null;
           if (!expansion) {
-            throw new AppointmentTimeSlotOutsideGroupWindowError();
+            throw new AppointmentTimeSlotOutsideGroupWindowError(
+              groupResult.group.groupNumber,
+              groupResult.group.timeWindow,
+            );
           }
 
           // Deferred until AFTER the appointment write succeeds. Widening here

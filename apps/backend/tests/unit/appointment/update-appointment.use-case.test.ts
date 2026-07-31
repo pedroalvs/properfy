@@ -1109,13 +1109,14 @@ describe('UpdateAppointmentUseCase', () => {
 
     function makeGroupResult(
       timeWindow: string,
-      groupOverrides: { status?: string; scheduledDate?: Date } = {},
+      groupOverrides: { status?: string; scheduledDate?: Date; groupNumber?: number } = {},
     ) {
       return {
         group: {
           timeWindow,
           status: 'PUBLISHED',
           scheduledDate: new Date('2099-04-01'),
+          groupNumber: 36,
           ...groupOverrides,
         },
         assignedInspectorName: null,
@@ -1452,6 +1453,44 @@ describe('UpdateAppointmentUseCase', () => {
           actor: makeActor(),
         }),
       ).rejects.toThrow(AppointmentInServiceGroupError);
+    });
+
+    it('names the group and the way out in the rejection message', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ status: 'AWAITING_INSPECTOR', serviceGroupId: 'group-1' }),
+      );
+      const serviceGroupRepo = {
+        findById: vi
+          .fn()
+          .mockResolvedValue(makeGroupResult('08:00-12:00', { status: 'PUBLISHED', groupNumber: 36 })),
+      };
+
+      await expect(
+        makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+          appointmentId: 'appt-1',
+          data: { scheduledDate: '2099-04-10' },
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow('Date is managed by service group 36 — reschedule the group to move this appointment');
+    });
+
+    it('stays generic when the group number is unknown, never printing "group 0"', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ status: 'AWAITING_INSPECTOR', serviceGroupId: 'group-1' }),
+      );
+      const serviceGroupRepo = {
+        findById: vi
+          .fn()
+          .mockResolvedValue(makeGroupResult('08:00-12:00', { status: 'PUBLISHED', groupNumber: 0 })),
+      };
+
+      await expect(
+        makeUseCaseWithGroupRepo(serviceGroupRepo).execute({
+          appointmentId: 'appt-1',
+          data: { scheduledDate: '2099-04-10' },
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow('Date is managed by a service group — reschedule the group to move this appointment');
     });
 
     it('rejects a date change matching the group date when the group is not DRAFT', async () => {
