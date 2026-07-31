@@ -12,6 +12,31 @@ export class InspectorEmailConflictError extends ConflictError {
   }
 }
 
+/**
+ * Deliberately neither the name nor the code of the service-group module's
+ * `InspectorInactiveError` (`INSPECTOR_INACTIVE`, 422): the PWA redirects to
+ * /deactivated on a 403 carrying that code and the bulk-action layer maps it to
+ * FORBIDDEN, so this operator-facing conflict must not be mistaken for that
+ * inspector-facing signal — nor for the other class when grepping.
+ */
+export class InspectorDeactivatedError extends ConflictError {
+  constructor() {
+    super(
+      'INSPECTOR_DEACTIVATED',
+      'This inspector is deactivated. Reactivate them before resetting their password, otherwise the reset would restore their login access.',
+    );
+  }
+}
+
+export class InspectorNoLoginAccountError extends ConflictError {
+  constructor() {
+    super(
+      'INSPECTOR_NO_LOGIN_ACCOUNT',
+      'This inspector has no linked login account, so their password cannot be reset. Link a login account first.',
+    );
+  }
+}
+
 export class InspectorAlreadyInactiveError extends ConflictError {
   constructor() {
     super('INSPECTOR_ALREADY_INACTIVE', 'Inspector is already inactive');
