@@ -20,8 +20,11 @@ const SRC = resolve(__dirname, '..');
 const COLOR_UTILITIES = [
   'bg',
   'text',
-  'border',
-  'ring',
+  // Side- and axis-specific border colours are their own utilities: `border-l-black/20`
+  // is live in components/shell/SidebarSubmenu.tsx and a bare `border` alternative
+  // does not match it.
+  'border(?:-[tblrxyse])?',
+  'ring(?:-offset)?',
   'from',
   'via',
   'to',
@@ -40,8 +43,9 @@ function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true, recursive: true })
     .filter((entry) => entry.isFile() && /\.tsx?$/.test(entry.name))
     .map((entry) => resolve(entry.parentPath ?? entry.path, entry.name))
-    // Tests quote class names as fixtures — including deliberately off-scale ones — and
-    // those strings never reach a stylesheet. Only shipped source counts.
+    // Test files are excluded because their class names are deliberate negatives, not
+    // because they are inert: `content` globs `./src/**/*.{ts,tsx}`, so a fixture string
+    // (or even one inside a comment) really does get compiled into the stylesheet.
     .filter((path) => !/(^|\/)__tests__\/|\.(test|spec)\.tsx?$/.test(path));
 }
 
@@ -64,10 +68,17 @@ describe('opacity modifiers stay on the configured scale', () => {
     .sort((a, b) => b.length - a.length)
     .map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
     .join('|');
-  const modifier = new RegExp(`\\b(?:${COLOR_UTILITIES})-(?:${names})\\/(\\d+)\\b`, 'g');
+  // `(\d+(?:\.\d+)?)` and not `(\d+)`: on `bg-white/6.5` the shorter capture takes '6',
+  // finds it on the scale and passes, while Tailwind looks up '6.5', finds nothing and
+  // drops the class — a false pass in the one test meant to catch exactly that.
+  const modifier = new RegExp(
+    `\\b(?:${COLOR_UTILITIES})-(?:${names})\\/(\\d+(?:\\.\\d+)?)\\b`,
+    'g',
+  );
 
   it('every opacity modifier in src/ resolves to a defined scale step', () => {
     const offScale: string[] = [];
+    let matched = 0;
     const files = sourceFiles(SRC);
 
     // `readdirSync({ recursive: true, withFileTypes: true })` is young enough that an old
@@ -79,11 +90,18 @@ describe('opacity modifiers stay on the configured scale', () => {
     for (const file of files) {
       const contents = readFileSync(file, 'utf8');
       for (const [match, alpha] of contents.matchAll(modifier)) {
+        matched++;
         if (alpha !== undefined && scale[alpha] === undefined) {
           offScale.push(`${file.replace(`${SRC}/`, '')}: ${match}`);
         }
       }
     }
+
+    // The colour names come from the resolved theme, so restructuring the map (say, to
+    // the nested `primary: { DEFAULT: … }` form) would stop the alternation matching
+    // anything at all. `offScale` would then be empty forever and this test would report
+    // green while scanning for a pattern that no longer occurs.
+    expect(matched).toBeGreaterThan(150);
 
     // A failure here means the class emits nothing at all. Either round the number to a
     // step on the scale, or add the step to `theme.extend.opacity` in tailwind.config.ts.

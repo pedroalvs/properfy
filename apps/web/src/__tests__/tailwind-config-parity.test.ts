@@ -48,14 +48,19 @@ describe('tailwind config parity between web and pwa', () => {
   it('uses the same token() helper body in both apps', () => {
     // Comments above the helper differ (each points at the other app); the code must not.
     const helper = (source: string) => {
-      const start = source.indexOf('const token = ');
+      // Starts at the regexes, not at `const token = `: NUMERIC_ALPHA and PERCENT_ALPHA
+      // are what decide which branch the helper takes, so leaving them outside the
+      // compared span would let the two apps disagree while parity still reported green.
+      const start = source.indexOf('const NUMERIC_ALPHA');
       const end = source.indexOf('as unknown) as string;');
       // Without these, a rename makes both indexOf calls return -1, both slices return
       // '', and `expect('').toBe('')` passes — a parity test that stops comparing
       // anything while still reporting green.
       expect(start, 'token() helper not found').toBeGreaterThan(-1);
       expect(end, 'token() helper terminator not found').toBeGreaterThan(start);
-      return source.slice(start, end);
+      // The JSDoc between the regexes and the helper names the *other* app, so it is
+      // legitimately different; strip it rather than forcing the two to lie.
+      return source.slice(start, end).replace(/\/\*\*[\s\S]*?\*\//, '');
     };
     expect(helper(sources.web)).toBe(helper(sources.pwa));
   });
@@ -67,7 +72,10 @@ describe('tailwind config parity between web and pwa', () => {
       resolve(CONFIGS[app], '../src/styles/tokens.css'),
       'utf8',
     );
-    const referenced = [...sources[app].matchAll(/token\('([a-z-]+)'\)/g)].map((m) => m[1]);
+    // Accept either quote style and digit-bearing names — `token("chart-1")` must not
+    // slip past this check just because the pattern was written for the names that
+    // happened to exist on the day it was added.
+    const referenced = [...sources[app].matchAll(/token\(['"]([a-z0-9-]+)['"]\)/g)].map((m) => m[1]);
     expect(referenced.length).toBeGreaterThan(0);
     for (const name of referenced) {
       expect(tokensCss, `--color-${name} is not declared`).toContain(`--color-${name}:`);

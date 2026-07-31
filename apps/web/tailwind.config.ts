@@ -1,6 +1,7 @@
 import type { Config } from 'tailwindcss';
 
 const NUMERIC_ALPHA = /^\d+(\.\d+)?$/;
+const PERCENT_ALPHA = /^\d+(\.\d+)?%$/;
 
 /**
  * Design tokens are `var(--color-X)` holding a hex or rgba literal. Tailwind cannot
@@ -36,7 +37,9 @@ const token = (cssVar: string): string =>
 
     const alpha = String(opacityValue);
     if (NUMERIC_ALPHA.test(alpha)) {
-      // 0.55 * 100 === 55.00000000000001 in IEEE-754, and both 0.55 and 0.14 are in use.
+      // Defensive: 0.55 * 100 === 55.00000000000001 in IEEE-754. No token currently uses
+      // an alpha that reproduces it (the /55 and /14 in the tree sit on literal white and
+      // never reach this function), but a raw multiply would emit that as a percentage.
       const pct = Math.round(Number(alpha) * 1e6) / 1e4;
       // A gradient's transparent end. The keyword keeps that (currently working)
       // declaration valid without color-mix support; a color-mix inside
@@ -49,6 +52,14 @@ const token = (cssVar: string): string =>
       // intuitive reading of an opacity modifier — and no such usage exists today.
       return `color-mix(in srgb, ${color} ${pct}%, transparent)`;
     }
+
+    // `/[37%]` — the arbitrary form Tailwind's own docs use. It is already a percentage,
+    // so it drops straight in. Sending it through the calc() branch below would emit
+    // `calc(37% * 100%)`, which is invalid (calc cannot multiply two percentages), and the
+    // browser discards the declaration — silently recreating the exact bug this helper
+    // exists to fix. `bg-white/[37%]` works natively, so without this the token path would
+    // be strictly worse than the literal one.
+    if (PERCENT_ALPHA.test(alpha)) return `color-mix(in srgb, ${color} ${alpha}, transparent)`;
 
     // `/[var(--x)]`, `/[calc(…)]` — defer the multiply to the browser; Number() would
     // give NaN% here.
@@ -106,8 +117,10 @@ const config: Config = {
        * alpha is off it — *before* it even looks at the colour. On literal colours
        * (`bg-white/6` and `text-white/88` in the login hero) that scale is the only thing
        * between the class and a working rule, so the token helper above cannot save them.
-       * These are the steps this app actually uses; `src/__tests__/opacity-scale.test.ts`
-       * fails if a new one appears.
+       * This is the UNION of the steps both apps use — the parity test requires the two
+       * configs to match, and each needs only a subset (web never uses 4/14/92, pwa never
+       * uses 6/12/78/88). `src/__tests__/opacity-scale.test.ts` fails if a new one appears
+       * in this app's source.
        */
       opacity: {
         4: '0.04',
