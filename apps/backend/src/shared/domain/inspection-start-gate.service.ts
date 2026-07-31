@@ -17,7 +17,7 @@
  * gate opens at Sydney midnight — which is a different UTC instant depending on
  * whether the date falls in AEDT (UTC+11) or AEST (UTC+10).
  */
-import { PLATFORM_TIMEZONE, zonedWallTimeToUtc } from '@properfy/shared';
+import { formatCivilDate, PLATFORM_TIMEZONE, zonedWallTimeToUtc } from '@properfy/shared';
 
 export class InspectionStartGateService {
   isStartAllowed(scheduledDate: Date, now: Date): { allowed: boolean; reason?: string } {
@@ -26,9 +26,14 @@ export class InspectionStartGateService {
     const dayOpens = zonedWallTimeToUtc(civilDate, '00:00', PLATFORM_TIMEZONE);
 
     if (now.getTime() < dayOpens.getTime()) {
+      // This reason reaches the inspector verbatim: it travels in the error
+      // envelope's `message` and the PWA shows it in a snackbar
+      // (ExecutionPage `catch` -> `err.message`). Name the calendar day, not a
+      // UTC instant — the gate is a date gate, and `civilDate` is already the
+      // Sydney civil date, so no timezone conversion is involved.
       return {
         allowed: false,
-        reason: `Too early: the inspection day starts at ${dayOpens.toISOString()}`,
+        reason: `Too early: this inspection can be started from ${formatCivilDate(civilDate)}`,
       };
     }
 

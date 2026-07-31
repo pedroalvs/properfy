@@ -33,6 +33,15 @@ describe('InspectionStartGateService', () => {
       const now = sydney('2026-03-11', '09:00');
       expect(service.isStartAllowed(scheduledDate, now).allowed).toBe(false);
     });
+
+    it('names the calendar day, never a raw UTC instant', () => {
+      // The reason travels in the error envelope's `message` and the PWA shows
+      // it verbatim in a snackbar, so it has to read like a date to a human.
+      const { reason } = service.isStartAllowed(scheduledDate, sydney('2026-03-20', '23:59'));
+      expect(reason).toContain('21/03/2026');
+      expect(reason).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
+      expect(reason).not.toContain('Z');
+    });
   });
 
   describe('on the scheduled day — the whole day is open', () => {
