@@ -505,6 +505,26 @@ describe('AppointmentDetailPage — agency blocks tenant notifications', () => {
     renderPage('/appointments/awaiting');
     expect(screen.getByTestId('send-portal-link-button')).not.toBeDisabled();
   });
+
+  it('explains the 409 when the flag was flipped while the page was open', async () => {
+    // Defence in depth: the button is disabled for a blocked agency, but a page left
+    // open while an AM flips the setting still reaches the backend refusal.
+    mockRentalTenantNotificationsEnabled = true;
+    vi.mocked(api.POST).mockResolvedValueOnce({
+      data: undefined,
+      error: { error: { code: 'TENANT_NOTIFICATIONS_BLOCKED', message: 'blocked' } },
+      response: { status: 409 } as Response,
+    } as never);
+
+    renderPage('/appointments/awaiting');
+    fireEvent.click(screen.getByTestId('send-portal-link-button'));
+
+    // The friendly hint, not the backend's raw sentence.
+    expect(
+      await screen.findByText(/Notifications to the tenant are blocked for this agency/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Email sent to tenant')).not.toBeInTheDocument();
+  });
 });
 
 // Portal link can only be sent for released, non-terminal appointments:

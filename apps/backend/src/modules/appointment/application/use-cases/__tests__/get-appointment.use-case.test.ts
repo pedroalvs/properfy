@@ -57,9 +57,11 @@ function makeAppointment(activeConfirmationCycleId: string | null = null): Appoi
 }
 
 function makeFoundResult(opts: {
-  hasActivePortalToken: boolean;
+  hasActivePortalToken?: boolean;
   activeConfirmationCycleId?: string | null;
   restrictions?: AppointmentRestrictionEntity[];
+  /** Omit to exercise the "absent means enabled" default. */
+  tenantRentalTenantNotificationsEnabled?: boolean;
 }): AppointmentWithRelations {
   return {
     appointment: makeAppointment(opts.activeConfirmationCycleId ?? null),
@@ -76,7 +78,10 @@ function makeFoundResult(opts: {
     inspectorName: null,
     tenantName: 'Test Agency',
     tenantAppointmentCodePrefix: 'INS',
-    hasActivePortalToken: opts.hasActivePortalToken,
+    hasActivePortalToken: opts.hasActivePortalToken ?? false,
+    ...(opts.tenantRentalTenantNotificationsEnabled === undefined
+      ? {}
+      : { tenantRentalTenantNotificationsEnabled: opts.tenantRentalTenantNotificationsEnabled }),
   };
 }
 
@@ -218,5 +223,51 @@ describe('GetAppointmentUseCase — appointment code', () => {
     // The detail response must not alias the property code as `code`
     // (that made import-created appointments show "IMP-…" in the UI).
     expect('code' in result).toBe(false);
+  });
+});
+
+describe('GetAppointmentUseCase — rentalTenantNotificationsEnabled mapping', () => {
+  // An inverted comparison here would disable "Send Portal Link" for every agency (or
+  // enable it for a blocked one) and nothing else in the suite would notice.
+  it('should map an explicitly disabled agency to false', async () => {
+    const { auth } = makeUseCase();
+    const appointmentRepo = {
+      findById: vi.fn().mockResolvedValue(
+        makeFoundResult({ tenantRentalTenantNotificationsEnabled: false }),
+      ),
+    };
+    const uc = new GetAppointmentUseCase(appointmentRepo as any, auth);
+
+    const result = await uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR });
+
+    expect(result.rentalTenantNotificationsEnabled).toBe(false);
+  });
+
+  it('should map an explicitly enabled agency to true', async () => {
+    const { auth } = makeUseCase();
+    const appointmentRepo = {
+      findById: vi.fn().mockResolvedValue(
+        makeFoundResult({ tenantRentalTenantNotificationsEnabled: true }),
+      ),
+    };
+    const uc = new GetAppointmentUseCase(appointmentRepo as any, auth);
+
+    const result = await uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR });
+
+    expect(result.rentalTenantNotificationsEnabled).toBe(true);
+  });
+
+  it('should default to enabled when the repository omits the flag', async () => {
+    // Absent means enabled everywhere else; defaulting to disabled here would silently
+    // switch every agency off.
+    const { auth } = makeUseCase();
+    const appointmentRepo = {
+      findById: vi.fn().mockResolvedValue(makeFoundResult({})),
+    };
+    const uc = new GetAppointmentUseCase(appointmentRepo as any, auth);
+
+    const result = await uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR });
+
+    expect(result.rentalTenantNotificationsEnabled).toBe(true);
   });
 });
