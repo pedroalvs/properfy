@@ -37,4 +37,10 @@ describe('LeaveWarningModal', () => {
     expect(screen.getByTestId('stay-button')).toBeInTheDocument();
     expect(screen.getByTestId('leave-button')).toBeInTheDocument();
   });
+
+  it('keeps its actions clear of the iOS home indicator', () => {
+    const { container } = render(<LeaveWarningModal onStay={onStay} onLeave={onLeave} />);
+    const sheet = container.querySelector('[data-testid="leave-warning-modal"] > div')!;
+    expect(sheet.className).toContain('pb-safe-b-6');
+  });
 });

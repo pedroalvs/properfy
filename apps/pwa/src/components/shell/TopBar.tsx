@@ -28,7 +28,7 @@ export function TopBar({ title, subtitle, showBack = false, backTo = '/schedule'
   };
 
   return (
-    <header className="sticky top-0 z-20 border-b border-border-subtle/70 bg-white/88 px-page-x py-3 backdrop-blur-md">
+    <header className="sticky top-0 z-20 border-b border-border-subtle/70 bg-card-bg px-page-x py-3">
       <div className="flex min-h-[52px] items-center gap-3">
       {showBack && (
         <button
