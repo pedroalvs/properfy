@@ -300,6 +300,9 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
           if (key === 'timeSlot') {
             delete copy.timeSlotStart;
             delete copy.timeSlotEnd;
+            // Widening a group's shared window must be a fresh, deliberate
+            // opt-in each time — never a leftover tick from an abandoned edit.
+            setExpandGroupTimeWindow(false);
           } else {
             delete copy[key];
           }

@@ -30,10 +30,17 @@ describe('APPOINTMENT_STATUS_LABELS', () => {
     );
   });
 
+  // Pinned exhaustively: these strings reach operators verbatim in API error
+  // messages and status chips, so a typo in any one of them is user-visible.
   it('reads as prose rather than as the raw enum', () => {
-    expect(APPOINTMENT_STATUS_LABELS.AWAITING_INSPECTOR).toBe('Awaiting Inspector');
-    expect(APPOINTMENT_STATUS_LABELS.SCHEDULED).toBe('Scheduled');
-    expect(APPOINTMENT_STATUS_LABELS.DONE).toBe('Done');
+    expect(APPOINTMENT_STATUS_LABELS).toEqual({
+      DRAFT: 'Draft',
+      AWAITING_INSPECTOR: 'Awaiting Inspector',
+      SCHEDULED: 'Scheduled',
+      DONE: 'Done',
+      CANCELLED: 'Cancelled',
+      REJECTED: 'Rejected',
+    });
   });
 });
 

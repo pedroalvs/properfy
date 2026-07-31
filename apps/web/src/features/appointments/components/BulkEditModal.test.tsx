@@ -800,6 +800,24 @@ describe('BulkEditModal', () => {
       });
     });
 
+    it('drops a stale widen opt-in when Time Slot is unchecked and re-checked', async () => {
+      renderModal([grouped({ id: 'a' })]);
+      fireEvent.click(screen.getByLabelText('Time Slot'));
+      fireEvent.click(screen.getByLabelText(/widen the group/i));
+      // Abandon the edit, then come back to it.
+      fireEvent.click(screen.getByLabelText('Time Slot'));
+      fireEvent.click(screen.getByLabelText('Time Slot'));
+
+      expect(screen.getByLabelText(/widen the group/i)).not.toBeChecked();
+
+      fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '13:00' } });
+      fireEvent.change(screen.getByLabelText('End time'), { target: { value: '15:00' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
+
+      await waitFor(() => expect(mockPost).toHaveBeenCalled());
+      expect(mockPost.mock.calls[0]![1].body.options?.expandGroupTimeWindow).toBeUndefined();
+    });
+
     it('links the blocking group from the failure row', async () => {
       mockPost.mockResolvedValue({
         data: {

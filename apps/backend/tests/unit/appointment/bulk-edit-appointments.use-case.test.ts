@@ -838,6 +838,34 @@ describe('BulkEditAppointmentsUseCase', () => {
     expect(appointmentRepo.saveContact).not.toHaveBeenCalled();
   });
 
+  // Documents a KNOWN limitation rather than asserting a guarantee: the writes
+  // are not one transaction, because the delegate is a full use case with its
+  // own notifications and cannot join a caller's transaction. Once the schedule
+  // lands, an infrastructure failure in a later write leaves it applied and the
+  // row reported failed. Pinned so nobody later assumes atomicity — making this
+  // all-or-nothing needs the delegate to accept a transaction client.
+  it('keeps an applied schedule change when a later write fails (not atomic)', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({ status: 'DRAFT' }),
+    );
+    vi.mocked(inspectorRepo.findById).mockResolvedValue({
+      id: 'insp-1',
+      status: 'ACTIVE',
+      isEligibleForTenant: () => true,
+    } as never);
+    vi.mocked(appointmentRepo.update).mockRejectedValue(new Error('db connection lost'));
+
+    const result = await useCase.execute({
+      ids: ['appt-1'],
+      changes: { scheduledDate: '2027-09-01', assignedInspectorId: 'insp-1' },
+      actor: makeActor(),
+    });
+
+    expect(updateAppointment.execute).toHaveBeenCalled(); // schedule already applied
+    expect(result.updated).toBe(0);
+    expect(result.failed[0]).toMatchObject({ id: 'appt-1', code: 'INTERNAL_ERROR' });
+  });
+
   it('leaves the row untouched when the delegated schedule edit is rejected', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(
       makeAppointmentWithRelations({ status: 'SCHEDULED', serviceGroupId: 'group-1' }),
