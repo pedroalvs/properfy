@@ -30,6 +30,15 @@ describe('BottomNavBar', () => {
     expect(scheduleTab.className).toContain('bg-primary/10');
   });
 
+  it('outlines the active tab in the brand colour, not stock Tailwind blue', () => {
+    // The inset ring was hard-coded `rgba(59,130,246,0.18)` — blue-500 — around a tint and
+    // text that are both `--color-primary` (#009DD9). Two hues on the same four elements.
+    renderWithProviders(<BottomNavBar />, { initialEntries: ['/schedule'] });
+    const scheduleTab = screen.getByTestId('nav-schedule');
+    expect(scheduleTab.className).toContain('ring-primary/20');
+    expect(scheduleTab.className).not.toContain('rgba(59,130,246');
+  });
+
   it('shows inactive color for non-active tabs', () => {
     renderWithProviders(<BottomNavBar />, { initialEntries: ['/schedule'] });
     const offersTab = screen.getByTestId('nav-offers');

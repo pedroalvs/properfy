@@ -33,7 +33,11 @@ export function BottomNavBar() {
                     // `token()` in tailwind.config.ts now compiles the modifier to color-mix,
                     // so the plain class is honest again; this is the canary if that ever
                     // regresses. See src/__tests__/tailwind-emission.test.ts.
-                    'bg-primary/10 text-primary shadow-[inset_0_0_0_1px_rgba(59,130,246,0.18)]'
+                    // The ring was `rgba(59,130,246,0.18)` — Tailwind's stock blue-500 on a
+                    // cyan-branded tab, from the same polish pass that gave us `h-18` and
+                    // `bg-white/92`. `ring-primary/N` only became expressible once
+                    // `token()` taught Tailwind to emit color-mix for a modifier.
+                    'bg-primary/10 text-primary ring-1 ring-inset ring-primary/20'
                   : 'text-text-muted'
               }`
             }

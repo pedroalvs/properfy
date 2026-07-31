@@ -55,6 +55,17 @@ describe('tailwind token emission', () => {
     expect(css).toContain('--tw-ring-color: color-mix(in srgb, var(--color-primary) 20%, transparent)');
   });
 
+  it('emits an unvariant ring token, which the shell now depends on', async () => {
+    // `ring-1 ring-inset ring-primary/20` replaced a hard-coded blue-500 inset shadow on
+    // the active bottom-nav tab, and `ring-real-estate/10` an emerald one on the profile
+    // avatar. Both are plain (non-variant) ring colours, a shape the focus case above
+    // does not cover — a regression here would leave those two elements with no outline.
+    const css = await compile('ring-1 ring-inset ring-primary/20 ring-real-estate/10');
+    expect(css).toContain('--tw-ring-color: color-mix(in srgb, var(--color-primary) 20%, transparent)');
+    expect(css).toContain('--tw-ring-color: color-mix(in srgb, var(--color-real-estate) 10%, transparent)');
+    expect(css).toContain('--tw-ring-inset: inset');
+  });
+
   it('keeps literal colours on the native path', async () => {
     // `bg-white/92` was dropped by the *other* half of #1041 — 92 is off Tailwind's
     // default opacity scale — and the extended scale is what revives it. `white` is a

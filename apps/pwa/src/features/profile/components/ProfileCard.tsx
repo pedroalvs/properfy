@@ -48,7 +48,10 @@ export function ProfileCard({ name, email, role, status, phone, totpEnabled, las
               className="h-16 w-16 rounded-2xl object-cover"
             />
           ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-real-estate/10 text-2xl font-bold text-real-estate shadow-[inset_0_0_0_1px_rgba(5,150,105,0.10)]">
+            // The ring was `rgba(5,150,105,0.10)` — emerald-600 around a coral tint, the
+            // same mismatch the bottom nav had in blue. Same alpha, now derived from the
+            // token it outlines.
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-real-estate/10 text-2xl font-bold text-real-estate ring-1 ring-inset ring-real-estate/10">
               {name.charAt(0).toUpperCase()}
             </div>
           )}
