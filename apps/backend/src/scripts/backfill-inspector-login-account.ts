@@ -249,14 +249,32 @@ async function main() {
       }
     }
 
-    if (alreadyLinkedTenantScoped.length > 0) {
+    // Surfaced before the write, not just after: linking a tenant-scoped account
+    // produces the same unreachable state this section warns about, and a dry run
+    // that stayed silent about it would be the only chance to notice.
+    if (summary.tenantScopedLinks.length > 0) {
       console.log(
-        `\n  Reported only — ${alreadyLinkedTenantScoped.length} linked account(s) are tenant-scoped.`,
+        `\n  WARNING — ${summary.tenantScopedLinks.length} account(s) about to be linked are tenant-scoped.`,
+      );
+      console.log('  Linking them still leaves the sync and reset paths unable to reach them');
+      console.log('  (both scope to tenant_id IS NULL). Consider resolving these by hand first.');
+      for (const row of summary.tenantScopedLinks) {
+        console.log(`    inspector ${row.inspectorId} -> user ${row.userId} (tenant ${row.tenantId})`);
+      }
+    }
+
+    const alreadyScopedElsewhere = alreadyLinkedTenantScoped.filter(
+      (row) => !summary.tenantScopedLinks.some((linked) => linked.userId === row.userId),
+    );
+
+    if (alreadyScopedElsewhere.length > 0) {
+      console.log(
+        `\n  Reported only — ${alreadyScopedElsewhere.length} already-linked account(s) are tenant-scoped.`,
       );
       console.log('  Every sync and the reset endpoint scope to tenant_id IS NULL, so these');
       console.log('  silently no-op on update and 404 on reset. Moving an account between');
       console.log('  tenants is not a decision this sweep makes.');
-      for (const row of alreadyLinkedTenantScoped) {
+      for (const row of alreadyScopedElsewhere) {
         console.log(`    inspector ${row.inspectorId} -> user ${row.userId} (tenant ${row.tenantId})`);
       }
     }
