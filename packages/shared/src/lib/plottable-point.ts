@@ -52,6 +52,13 @@ export function isPlottablePoint<T extends PointLike>(
  * Returning `null` for "nothing to average" keeps that case explicit at the
  * call site instead of handing back a meaningless (0, 0) — a coordinate that
  * happens to be a real place in the Gulf of Guinea.
+ *
+ * Longitude is averaged arithmetically, so a set straddling the antimeridian
+ * (e.g. 179 and -179) would land on 0 rather than 180. That is unreachable
+ * here: Australia spans roughly 113°E to 154°E, all positive, and the points
+ * fed to this function belong to a single service group whose properties are
+ * neighbours by construction. Anyone reusing this for a global dataset needs a
+ * circular mean (atan2 over the summed sine/cosine) instead.
  */
 export function computeCentroid(
   points: PointLike[],
