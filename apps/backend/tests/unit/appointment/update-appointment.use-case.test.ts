@@ -10,7 +10,6 @@ import { AppointmentRestrictionEntity } from '../../../src/modules/appointment/d
 import {
   AppointmentNotFoundError,
   AppointmentUpdateNotAllowedError,
-  AppointmentPastDateError,
   AppointmentDateInPastError,
   AppointmentInServiceGroupError,
   AppointmentTimeSlotOutsideGroupWindowError,

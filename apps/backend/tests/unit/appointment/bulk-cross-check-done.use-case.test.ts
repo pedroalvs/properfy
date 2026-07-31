@@ -115,6 +115,24 @@ describe('BulkCrossCheckDoneUseCase', () => {
     );
   });
 
+  // The test above uses a bare Error, which has no `code` — so it passed even
+  // while the guard discriminated on the presence of a code. Prisma's errors DO
+  // carry one (`P1001` is literally "Can't reach database server at <host>"),
+  // which is precisely the class of message that must never reach an operator.
+  it('sanitizes an infrastructure error even though it carries a code', async () => {
+    performCrossCheck.execute.mockRejectedValueOnce(
+      Object.assign(new Error("Can't reach database server at db.internal:5432"), { code: 'P1001' }),
+    );
+
+    const result = await useCase.execute({ ids: ['a'], actor: makeActor() });
+
+    expect(result.failed).toEqual([
+      { id: 'a', code: 'INTERNAL_ERROR', message: 'Unexpected error while processing this appointment' },
+    ]);
+    expect(result.failed[0]!.message).not.toContain('db.internal');
+    expect(logger.error).toHaveBeenCalledTimes(1);
+  });
+
   it('denies non-AM/OP actors up front without calling the inner use case', async () => {
     await expect(
       useCase.execute({ ids: ['a'], actor: makeActor({ role: 'CL_ADMIN' }) }),
