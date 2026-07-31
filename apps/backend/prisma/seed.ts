@@ -1,4 +1,14 @@
 import { PrismaClient } from '@prisma/client';
+// First @properfy/shared import under prisma/: `prisma db seed` on a clone whose
+// shared package has not been built yet now fails with ERR_MODULE_NOT_FOUND. Run
+// `pnpm --filter @properfy/shared build` first — the backend already requires it.
+//
+// The catalogue is the source of truth for a template's class, so this seeder must
+// not restate one. Note it resolves by code alone: the five platform-only codes
+// that are TRANSACTIONAL purely by an explicit PLATFORM_TEMPLATES field (e.g.
+// PASSWORD_RESET) would land OPERATIONAL here. None of them is in this file's
+// inline list, and none should be added without going through
+// resolvePlatformTemplateClass instead.
 import { getDefaultClass } from '@properfy/shared';
 import bcrypt from 'bcryptjs';
 import { createHash } from 'crypto';

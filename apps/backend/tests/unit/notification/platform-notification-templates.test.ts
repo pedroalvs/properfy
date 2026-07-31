@@ -3,6 +3,7 @@ import {
   TEMPLATE_VARIABLES,
   SAMPLE_DATA,
   getProtectedClass,
+  getDefaultClass,
   getTemplateCodeLabel,
   getTemplateTarget,
 } from '@properfy/shared';
@@ -94,10 +95,38 @@ describe('seeded notification class follows the shared catalogue', () => {
     }
   });
 
-  it('resolves a class for every seeded template — none may fall through to the column default', () => {
+  it('resolves a real class for every seeded template', () => {
+    // toBeTruthy() would be vacuous here: the resolver ends in ?? 'OPERATIONAL',
+    // so it can never return a falsy value. Assert membership instead.
     for (const t of PLATFORM_TEMPLATES) {
-      expect(resolvePlatformTemplateClass(t), `${t.code} (${t.channel})`).toBeTruthy();
+      expect(
+        ['TRANSACTIONAL', 'OPERATIONAL', 'MARKETING'],
+        `${t.code} (${t.channel})`,
+      ).toContain(resolvePlatformTemplateClass(t));
     }
+  });
+
+  // These five are TRANSACTIONAL ONLY because their entry declares it — they are
+  // in NEITHER shared classification map, so getDefaultClass alone returns
+  // OPERATIONAL for all of them. Nothing else pins that: deleting the field would
+  // slip past the protected-contradiction test (they are not protected) and past
+  // the membership test above, and PASSWORD_RESET would quietly become
+  // consent-suppressible, locking an opted-out user out of account recovery.
+  //
+  // This PR removes the explicit class from INSPECTION_CANCELLED_AGENCY calling it
+  // a workaround, which is precisely the cleanup that must NOT be applied here.
+  it.each([
+    'INSPECTION_STUCK_ALERT',
+    'PASSWORD_RESET',
+    'INSPECTOR_GROUP_ASSIGNED',
+    'INSPECTOR_GROUP_UNASSIGNED',
+    'INSPECTOR_GROUP_RESCHEDULED',
+  ])('%s stays TRANSACTIONAL, which only its explicit entry provides', (code) => {
+    const entry = PLATFORM_TEMPLATES.find((t) => t.code === code);
+    expect(entry, `${code} missing from PLATFORM_TEMPLATES`).toBeDefined();
+    expect(getProtectedClass(code)).toBeUndefined();
+    expect(getDefaultClass(code)).toBe('OPERATIONAL');
+    expect(resolvePlatformTemplateClass(entry!)).toBe('TRANSACTIONAL');
   });
 
   // Named explicitly because these four are what actually flips in an existing
