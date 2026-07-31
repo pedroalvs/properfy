@@ -20,7 +20,6 @@ export interface ScreenPoint {
 /** Pixel offset to apply to a marker: `[dx, dy]`. */
 export type MarkerOffset = [number, number];
 
-const NO_OFFSET: MarkerOffset = [0, 0];
 /** Tolerance so "exactly touching" never reads as "overlapping" after rounding. */
 const EPSILON = 1e-6;
 
@@ -75,7 +74,10 @@ export function resolveMarkerCollisions(
   points: ScreenPoint[],
   diameter: number,
 ): MarkerOffset[] {
-  const offsets: MarkerOffset[] = points.map(() => NO_OFFSET);
+  // A fresh tuple per marker rather than one shared constant: the caller owns
+  // these, and a single aliased instance would let one marker's offset being
+  // adjusted silently move every other unmoved marker too.
+  const offsets: MarkerOffset[] = points.map((): MarkerOffset => [0, 0]);
   const live = points.map((_, i) => i).filter((i) => isFinitePoint(points[i]!));
   if (live.length < 2) return offsets;
 

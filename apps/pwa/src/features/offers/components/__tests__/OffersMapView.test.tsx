@@ -19,10 +19,19 @@ const spies = vi.hoisted(() => ({
     offset: [number, number];
     alive: boolean;
   }>,
+  // Current zoom of the fake map; tests move it to exercise re-projection.
+  // Literal rather than BASE_ZOOM: vi.hoisted runs before the const exists.
+  zoom: 11,
 }));
 
-/** Deterministic stand-in for mapbox's projection: 1 unit of lng/lat = 1000px. */
+const BASE_ZOOM = 11;
+/** Deterministic stand-in for mapbox's projection: 1 unit of lng/lat = 1000px at BASE_ZOOM. */
 const PROJECT_SCALE = 1000;
+
+/** Mirrors mapbox: one zoom level doubles the pixels per degree. */
+function projectScale() {
+  return PROJECT_SCALE * 2 ** (spies.zoom - BASE_ZOOM);
+}
 
 vi.mock('mapbox-gl', () => {
   class FakeMap {
@@ -34,7 +43,8 @@ vi.mock('mapbox-gl', () => {
     addControl() {}
     remove() {}
     project([lng, lat]: [number, number]) {
-      return { x: lng * PROJECT_SCALE, y: -lat * PROJECT_SCALE };
+      const scale = projectScale();
+      return { x: lng * scale, y: -lat * scale };
     }
     fitBounds = spies.fitBounds;
     flyTo = spies.flyTo;
@@ -144,6 +154,7 @@ beforeEach(() => {
   spies.deferLoad = false;
   spies.setOffset.mockClear();
   spies.markers.length = 0;
+  spies.zoom = BASE_ZOOM;
   document.body.replaceChildren();
 });
 
@@ -152,8 +163,8 @@ function drawnMarkers() {
   return spies.markers
     .filter((m) => m.alive && m.coords)
     .map((m) => ({
-      x: m.coords![0] * PROJECT_SCALE + m.offset[0],
-      y: -m.coords![1] * PROJECT_SCALE + m.offset[1],
+      x: m.coords![0] * projectScale() + m.offset[0],
+      y: -m.coords![1] * projectScale() + m.offset[1],
       offset: m.offset,
     }));
 }
@@ -319,6 +330,34 @@ describe('OffersMapView — overlapping pins', () => {
       expect(spies.setOffset).toHaveBeenCalled();
     });
     expectNoOverlappingPins();
+  });
+
+  // The reason the moveend recompute exists: the same two pins collide at one
+  // zoom and not at another, so a once-computed offset would be wrong as soon
+  // as the inspector zooms in — and would keep the pins artificially apart.
+  it('drops the offset once zooming has pulled the pins apart', async () => {
+    render(
+      <OffersMapView
+        offers={[
+          makeOffer({ groupId: 'group-1', centroid: SAME }),
+          makeOffer({ groupId: 'group-2', centroid: { lat: SAME.lat, lng: SAME.lng + 0.02 } }),
+        ]}
+        onSelectOffer={vi.fn()}
+      />,
+    );
+    await waitForPins('map-pin', 2);
+    // 20px apart at the base zoom — overlapping, so they were nudged.
+    expect(drawnMarkers().some((m) => m.offset[0] !== 0)).toBe(true);
+
+    spies.zoom = BASE_ZOOM + 5; // same pair now 640px apart
+    emitMapEvent('moveend');
+
+    await waitFor(() => {
+      expect(drawnMarkers().map((m) => m.offset)).toEqual([
+        [0, 0],
+        [0, 0],
+      ]);
+    });
   });
 
   it('separates drill-down inspection pins at the same address', async () => {
