@@ -37,7 +37,8 @@ import {
   AppointmentServiceGroupRequiredError,
   AppointmentInspectorRequiredError,
   AppointmentUpdateNotAllowedError,
-  AppointmentPastDateError,
+  AppointmentDateInPastError,
+  AppointmentTimeInPastError,
   AppointmentInServiceGroupError,
   AppointmentTimeSlotOutsideGroupWindowError,
 } from '../../../src/modules/appointment/domain/appointment.errors';
@@ -131,8 +132,20 @@ describe('mapErrorToResult', () => {
     expect(mapErrorToResult(APPT_ID, new AppointmentUpdateNotAllowedError()).status).toBe('INVALID_TRANSITION');
   });
 
-  it('maps AppointmentPastDateError → INVALID_TRANSITION', () => {
-    expect(mapErrorToResult(APPT_ID, new AppointmentPastDateError()).status).toBe('INVALID_TRANSITION');
+  // These are the classes `UpdateAppointmentUseCase` actually throws. The
+  // former test here used `AppointmentPastDateError`, which is thrown nowhere
+  // — so it passed while real past-date rejections fell through to
+  // INTERNAL_ERROR in the map's bulk-reschedule modal.
+  it('maps AppointmentDateInPastError → INVALID_TRANSITION', () => {
+    const r = mapErrorToResult(APPT_ID, new AppointmentDateInPastError());
+    expect(r.status).toBe('INVALID_TRANSITION');
+    expect(r.error?.code).toBe('APPOINTMENT_DATE_IN_PAST');
+  });
+
+  it('maps AppointmentTimeInPastError → INVALID_TRANSITION', () => {
+    const r = mapErrorToResult(APPT_ID, new AppointmentTimeInPastError());
+    expect(r.status).toBe('INVALID_TRANSITION');
+    expect(r.error?.code).toBe('APPOINTMENT_TIME_IN_PAST');
   });
 
   it('falls through unknown Error → ERROR with INTERNAL_ERROR code', () => {

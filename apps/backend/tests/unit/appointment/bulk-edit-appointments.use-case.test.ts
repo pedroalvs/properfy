@@ -5,6 +5,7 @@ import type { IContactRepository } from '../../../src/modules/contact/domain/con
 import type { IInspectorRepository } from '../../../src/modules/inspector/domain/inspector.repository';
 import type { IPricingRuleRepository } from '../../../src/modules/pricing-rule/domain/pricing-rule.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
+import type { Logger } from '../../../src/shared/infrastructure/logger';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { AppointmentContactEntity } from '../../../src/modules/appointment/domain/appointment-contact.entity';
@@ -111,6 +112,7 @@ describe('BulkEditAppointmentsUseCase', () => {
   let auditService: AuditService;
   let authorizationService: AuthorizationService;
   let updateAppointment: UpdateAppointmentUseCase;
+  let logger: Logger;
   let useCase: BulkEditAppointmentsUseCase;
 
   beforeEach(() => {
@@ -171,6 +173,8 @@ describe('BulkEditAppointmentsUseCase', () => {
     // and how a rejection is folded into `failed[]`.
     updateAppointment = { execute: vi.fn().mockResolvedValue(undefined) } as unknown as UpdateAppointmentUseCase;
 
+    logger = { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() } as unknown as Logger;
+
     useCase = new BulkEditAppointmentsUseCase(
       appointmentRepo,
       contactRepo,
@@ -179,6 +183,7 @@ describe('BulkEditAppointmentsUseCase', () => {
       auditService,
       authorizationService,
       updateAppointment,
+      logger,
     );
   });
 
@@ -701,11 +706,13 @@ describe('BulkEditAppointmentsUseCase', () => {
 
     expect(result.updated).toBe(1);
     expect(result.failed).toHaveLength(0);
-    expect(updateAppointment.execute).toHaveBeenCalledWith({
-      appointmentId: 'appt-1',
-      data: { scheduledDate: '2027-09-01' },
-      actor,
-    });
+    expect(updateAppointment.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        appointmentId: 'appt-1',
+        data: { scheduledDate: '2027-09-01' },
+        actor,
+      }),
+    );
     // A bare repo write here would skip the reschedule side effects.
     expect(appointmentRepo.update).not.toHaveBeenCalled();
   });
@@ -725,6 +732,93 @@ describe('BulkEditAppointmentsUseCase', () => {
     expect(vi.mocked(updateAppointment.execute).mock.calls[0]![0]).toMatchObject({
       data: { scheduledDate: '2027-09-01', timeSlotStart: '13:00', timeSlotEnd: '15:00' },
     });
+  });
+
+  // A regression to `data: changes` would still satisfy every other assertion
+  // in this file, and would hand the delegate fields it must not touch.
+  it('forwards ONLY schedule fields, never the rest of the changes payload', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({ status: 'DRAFT' }),
+    );
+    vi.mocked(inspectorRepo.findById).mockResolvedValue({
+      id: 'insp-1',
+      status: 'ACTIVE',
+      isEligibleForTenant: () => true,
+    } as never);
+
+    await useCase.execute({
+      ids: ['appt-1'],
+      changes: { scheduledDate: '2027-09-01', assignedInspectorId: 'insp-1' },
+      actor: makeActor(),
+    });
+
+    expect(vi.mocked(updateAppointment.execute).mock.calls[0]![0].data).toEqual({
+      scheduledDate: '2027-09-01',
+    });
+  });
+
+  it('stamps batch attribution on the delegated audit entry', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({ status: 'DRAFT' }),
+    );
+
+    await useCase.execute({
+      ids: ['appt-1'],
+      changes: { scheduledDate: '2027-09-01' },
+      actor: makeActor(),
+      requestId: 'req-batch-9',
+    });
+
+    // The delegate owns this row's audit entry, so without this the edit is
+    // indistinguishable from a manual drawer edit.
+    expect(vi.mocked(updateAppointment.execute).mock.calls[0]![0]).toMatchObject({
+      auditMetadata: { source: 'bulk-edit', batchId: 'req-batch-9' },
+    });
+  });
+
+  it('logs an unexpected error and does not leak its message to the operator', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({ status: 'DRAFT' }),
+    );
+    vi.mocked(updateAppointment.execute).mockRejectedValue(
+      new Error("Can't reach database server at db.internal:5432"),
+    );
+
+    const result = await useCase.execute({
+      ids: ['appt-1'],
+      changes: { scheduledDate: '2027-09-01' },
+      actor: makeActor(),
+      requestId: 'req-batch-9',
+    });
+
+    expect(result.failed[0]).toMatchObject({
+      code: 'INTERNAL_ERROR',
+      message: 'Something went wrong on our side. Please try again.',
+    });
+    expect(result.failed[0]!.message).not.toContain('db.internal');
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ appointmentId: 'appt-1', batchId: 'req-batch-9' }),
+      expect.stringContaining('bulk edit'),
+    );
+  });
+
+  it('passes a domain error through untouched without logging it as unexpected', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({ status: 'SCHEDULED', serviceGroupId: 'group-1' }),
+    );
+    vi.mocked(updateAppointment.execute).mockRejectedValue(new AppointmentInServiceGroupError(36));
+
+    const result = await useCase.execute({
+      ids: ['appt-1'],
+      changes: { scheduledDate: '2027-09-01' },
+      actor: makeActor(),
+    });
+
+    expect(result.failed[0]).toMatchObject({
+      code: 'APPOINTMENT_IN_SERVICE_GROUP',
+      message: 'Date is managed by service group 36 — reschedule the group to move this appointment',
+    });
+    expect(logger.error).not.toHaveBeenCalled();
   });
 
   it('SCHEDULED is no longer blocked, matching the single-appointment edit', async () => {

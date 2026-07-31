@@ -9,7 +9,8 @@ import {
   AppointmentServiceGroupRequiredError,
   AppointmentInspectorRequiredError,
   AppointmentUpdateNotAllowedError,
-  AppointmentPastDateError,
+  AppointmentDateInPastError,
+  AppointmentTimeInPastError,
   AppointmentTenantConfirmationRequiredError,
   AppointmentInServiceGroupError,
   AppointmentTimeSlotOutsideGroupWindowError,
@@ -102,7 +103,12 @@ export function mapErrorToResult(appointmentId: string, err: unknown): BulkActio
     || err instanceof AppointmentServiceGroupRequiredError
     || err instanceof AppointmentInspectorRequiredError
     || err instanceof AppointmentUpdateNotAllowedError
-    || err instanceof AppointmentPastDateError
+    // The two classes `UpdateAppointmentUseCase` actually throws for a past
+    // date/time. `AppointmentPastDateError` used to be listed here but is
+    // thrown nowhere, so past-date rejections were reaching the operator as
+    // INTERNAL_ERROR — the same hole this file just closed for group errors.
+    || err instanceof AppointmentDateInPastError
+    || err instanceof AppointmentTimeInPastError
     || err instanceof AppointmentTenantConfirmationRequiredError
     // Service-group schedule rules. These reach here via bulk-reschedule and
     // bulk-edit, both of which delegate to `UpdateAppointmentUseCase`; without

@@ -772,7 +772,7 @@ export function createContainer(logger: Logger): AppContainer {
 
   const bulkEditAppointmentsUseCase = new BulkEditAppointmentsUseCase(
     appointmentRepo, contactRepo, inspectorRepo, pricingRuleRepo,
-    auditService, authorizationService, updateAppointmentUseCase,
+    auditService, authorizationService, updateAppointmentUseCase, logger,
   );
 
   const serviceGroupRepo = new PrismaServiceGroupRepository(prisma);

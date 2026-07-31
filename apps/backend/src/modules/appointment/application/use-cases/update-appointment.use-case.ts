@@ -96,6 +96,12 @@ export interface UpdateAppointmentInput {
    * a side effect of an edit the operator did not frame as a reschedule.
    */
   expandGroupTimeWindow?: boolean;
+  /**
+   * Stamped onto the `appointment.updated` audit entry. Bulk callers pass
+   * `{ source, batchId }` so a batch-driven edit stays distinguishable from a
+   * manual one and its rows can be correlated after the fact.
+   */
+  auditMetadata?: Record<string, unknown>;
   actor: AuthContext;
 }
 
@@ -644,6 +650,7 @@ export class UpdateAppointmentUseCase {
       tenantId: appointment.tenantId,
       before,
       after,
+      ...(input.auditMetadata ? { metadata: input.auditMetadata } : {}),
     });
 
     // Dedicated audit entry for observation edits — only when the value actually changed,

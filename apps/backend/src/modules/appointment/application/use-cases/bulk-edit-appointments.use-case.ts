@@ -1,5 +1,6 @@
 import type { AuthContext, AppointmentContactRole } from '@properfy/shared';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { Logger } from '../../../../shared/infrastructure/logger';
 import type { UpdateAppointmentUseCase } from './update-appointment.use-case';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IContactRepository } from '../../../contact/domain/contact.repository';
@@ -65,7 +66,35 @@ export class BulkEditAppointmentsUseCase {
      * write, which is exactly the bug this delegation removes.
      */
     private readonly updateAppointment: UpdateAppointmentUseCase,
+    private readonly logger: Logger,
   ) {}
+
+  /**
+   * Fold a per-row failure into `failed[]`.
+   *
+   * A row rejection travels inside an HTTP 200, so it never reaches the global
+   * error handler: without this, an infrastructure fault mid-batch is invisible
+   * server-side AND its raw message (Prisma's include host and SQL fragments)
+   * is rendered verbatim in the operator's modal. Domain errors carry a known
+   * `code` and are safe to pass through — anything else is logged and
+   * generalised. Mirrors `bulk-cross-check-done.use-case.ts`.
+   */
+  private toFailedEntry(
+    appointmentId: string,
+    err: unknown,
+    batchId?: string,
+  ): { id: string; code: string; message: string } {
+    const code = (err as { code?: string })?.code;
+    if (code) {
+      return { id: appointmentId, code, message: err instanceof Error ? err.message : 'Unknown error' };
+    }
+    this.logger.error({ err, appointmentId, batchId }, 'Unexpected error during bulk edit');
+    return {
+      id: appointmentId,
+      code: 'INTERNAL_ERROR',
+      message: 'Something went wrong on our side. Please try again.',
+    };
+  }
 
   async execute(input: BulkEditInput): Promise<BulkEditResult> {
     const { ids, changes, actor } = input;
@@ -238,14 +267,14 @@ export class BulkEditAppointmentsUseCase {
               appointmentId,
               data: scheduleData,
               actor,
+              // The delegate writes the audit entry for this row, so the batch
+              // attribution has to travel with the call — otherwise 40 bulk-moved
+              // appointments look identical to 40 manual drawer edits.
+              auditMetadata: { source: 'bulk-edit', batchId: input.requestId },
               ...(input.options?.expandGroupTimeWindow ? { expandGroupTimeWindow: true } : {}),
             });
           } catch (err: unknown) {
-            failed.push({
-              id: appointmentId,
-              code: (err as { code?: string })?.code ?? 'INTERNAL_ERROR',
-              message: err instanceof Error ? err.message : 'Unknown error',
-            });
+            failed.push(this.toFailedEntry(appointmentId, err, input.requestId));
             continue;
           }
         }
@@ -278,9 +307,7 @@ export class BulkEditAppointmentsUseCase {
 
         updated.push(appointmentId);
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        const code = (err as any)?.code ?? 'INTERNAL_ERROR';
-        failed.push({ id: appointmentId, code, message });
+        failed.push(this.toFailedEntry(appointmentId, err, input.requestId));
       }
     }
 

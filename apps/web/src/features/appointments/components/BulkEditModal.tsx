@@ -246,6 +246,14 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
     [selectedAppointments],
   );
 
+  // The widen opt-in is batch-level but applied per row, so a selection
+  // spanning several groups permanently widens every one of their shared
+  // windows. Count them so the label can say so instead of implying one.
+  const groupCount = useMemo(
+    () => new Set(groupedSelection.map((a) => a.serviceGroupId)).size,
+    [groupedSelection],
+  );
+
   // Failure rows identify the appointment by its human-readable code — an id
   // fragment tells the operator nothing about which row to go fix. Falls back
   // to the raw id if the row is somehow not in the current selection.
@@ -554,10 +562,12 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
             Select the fields you want to change. Only checked fields will be updated.
           </p>
 
-          {/* Rendered outside FieldRow on purpose: FieldRow hides its `helper`
-              until the row is ticked, which would warn only after the operator
-              had already committed to the change. */}
-          {groupedSelection.length > 0 && (
+          {/* Outside FieldRow on purpose: FieldRow hides its `helper` until the
+              row is ticked, and this needs to be visible while the operator is
+              still choosing a date — but only when they are actually editing
+              the schedule. Assigning an inspector to grouped rows is perfectly
+              legal, and warning there would train operators to ignore this. */}
+          {groupedSelection.length > 0 && (enabledFields.scheduledDate || enabledFields.timeSlot) && (
             <InfoBanner variant="warning">
               {groupedSelection.length} of {selectedIds.length} selected appointments belong to a
               service group. Their date is managed by the group — reschedule the group instead.
@@ -625,11 +635,16 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
                   <Checkbox
                     checked={expandGroupTimeWindow}
                     onChange={setExpandGroupTimeWindow}
-                    label="Widen the group's time window to fit"
+                    label={
+                      groupCount > 1
+                        ? `Widen the time window of all ${groupCount} groups to fit`
+                        : "Widen the group's time window to fit"
+                    }
                   />
                   <p className="mt-1 text-xs text-text-muted">
                     Without this, rows whose new time falls outside their group's window are
-                    rejected. Closed groups can never be widened.
+                    rejected. Widening is permanent and affects every appointment in the group.
+                    Closed groups can never be widened.
                   </p>
                 </div>
               )}

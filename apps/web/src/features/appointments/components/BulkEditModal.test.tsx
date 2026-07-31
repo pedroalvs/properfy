@@ -754,6 +754,7 @@ describe('BulkEditModal', () => {
 
     it('warns that grouped rows have a group-managed date before submitting', () => {
       renderModal([grouped({ id: 'a', code: 'AGE-0288' }), grouped({ id: 'b', code: 'AGE-0287' })]);
+      fireEvent.click(screen.getByLabelText('Scheduled Date'));
 
       expect(
         screen.getByText(/2 of 2 selected appointments belong to a service group/i),
@@ -763,6 +764,7 @@ describe('BulkEditModal', () => {
 
     it('counts only the grouped rows in a mixed selection', () => {
       renderModal([grouped({ id: 'a' }), makeAppointment({ id: 'b', code: 'TST-0273' })]);
+      fireEvent.click(screen.getByLabelText('Scheduled Date'));
 
       expect(
         screen.getByText(/1 of 2 selected appointments belong to a service group/i),
@@ -771,8 +773,36 @@ describe('BulkEditModal', () => {
 
     it('stays quiet when nothing in the selection is grouped', () => {
       renderModal([makeAppointment({ id: 'a' })]);
+      fireEvent.click(screen.getByLabelText('Scheduled Date'));
 
       expect(screen.queryByText(/belong to a service group/i)).not.toBeInTheDocument();
+    });
+
+    // Assigning an inspector to grouped rows is a legal, common bulk action.
+    // Warning about the group date there would train operators to dismiss the
+    // banner, which is precisely when it matters.
+    it('does not cry wolf on bulk actions that leave the schedule alone', () => {
+      renderModal([grouped({ id: 'a' }), grouped({ id: 'b' })]);
+
+      // Nothing selected yet.
+      expect(screen.queryByText(/belong to a service group/i)).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByLabelText('Inspector'));
+      expect(screen.queryByText(/belong to a service group/i)).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByLabelText('Inspector'));
+      fireEvent.click(screen.getByLabelText('Time Slot'));
+      expect(screen.getByText(/belong to a service group/i)).toBeInTheDocument();
+    });
+
+    it('names how many groups a widen would permanently affect', () => {
+      renderModal([
+        grouped({ id: 'a', serviceGroupId: 'sg-1' }),
+        grouped({ id: 'b', serviceGroupId: 'sg-2' }),
+      ]);
+      fireEvent.click(screen.getByLabelText('Time Slot'));
+
+      expect(screen.getByLabelText(/widen the time window of all 2 groups/i)).toBeInTheDocument();
     });
 
     it('offers widening the group window only when grouped rows are selected', () => {
@@ -856,7 +886,9 @@ describe('BulkEditModal', () => {
         data: {
           data: {
             updated: 0,
-            failed: [{ id: 'a', code: 'DATE_IN_PAST', message: 'Scheduled date cannot be in the past' }],
+            // Matches what the API now emits: the delegated past-date check
+            // throws AppointmentDateInPastError, not the old inline DATE_IN_PAST.
+            failed: [{ id: 'a', code: 'APPOINTMENT_DATE_IN_PAST', message: 'Scheduled date cannot be in the past' }],
           },
         },
         error: null,
