@@ -74,7 +74,7 @@ export class RejectUnconfirmedAppointmentsUseCase {
             rejectionReasonCode: 'TENANT_NO_RESPONSE',
             rentalTenantConfirmationStatus: 'NO_RESPONSE',
             serviceGroupId: null,
-          });
+          }, tx);
           if (this.cycleService) {
             await this.cycleService.invalidateOnReject(appointment.id, appointment.tenantId, tx);
           }

@@ -162,6 +162,7 @@ describe('RejectUnconfirmedAppointmentsUseCase', () => {
         rentalTenantConfirmationStatus: 'NO_RESPONSE',
         serviceGroupId: null,
       },
+      undefined,
     );
   });
 
@@ -176,6 +177,7 @@ describe('RejectUnconfirmedAppointmentsUseCase', () => {
       'appt-1',
       'tenant-1',
       expect.objectContaining({ status: 'REJECTED' }),
+      undefined,
     );
   });
 
@@ -190,6 +192,7 @@ describe('RejectUnconfirmedAppointmentsUseCase', () => {
       'appt-1',
       'tenant-1',
       expect.objectContaining({ status: 'REJECTED' }),
+      undefined,
     );
   });
 
@@ -239,6 +242,7 @@ describe('RejectUnconfirmedAppointmentsUseCase', () => {
       'appt-1',
       'tenant-1',
       expect.objectContaining({ serviceGroupId: null }),
+      undefined,
     );
   });
 
@@ -437,6 +441,7 @@ describe('RejectUnconfirmedAppointmentsUseCase', () => {
         status: 'REJECTED',
         rentalTenantConfirmationStatus: 'NO_RESPONSE',
       }),
+      undefined,
     );
   });
 });

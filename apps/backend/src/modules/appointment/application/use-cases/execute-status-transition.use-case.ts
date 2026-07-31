@@ -336,7 +336,10 @@ export class ExecuteStatusTransitionUseCase {
     // 8. Update appointment (+ invalidate confirmation cycle if reopening)
     if (targetStatus === 'DRAFT' && this.cycleService && this.prisma) {
       await this.prisma.$transaction(async (tx) => {
-        await this.appointmentRepo.update(appointmentId, appointment.tenantId, updateData);
+        // `tx` is not decoration: without it the status write lands on the global
+        // client and survives this transaction rolling back, so a failed cycle
+        // invalidation would leave a DRAFT appointment with a live cycle.
+        await this.appointmentRepo.update(appointmentId, appointment.tenantId, updateData, tx);
         await this.cycleService!.invalidateOnReopen(appointmentId, appointment.tenantId, tx);
       });
     } else {
