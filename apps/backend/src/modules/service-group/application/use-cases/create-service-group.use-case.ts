@@ -21,6 +21,16 @@ export interface CreateServiceGroupInput {
   timeWindow: string; // HH:mm-HH:mm
   serviceRegionId?: string | null;
   description?: string;
+  /**
+   * Suppresses ONLY the `TIME_IN_PAST` outcome; `DATE_IN_PAST` always throws.
+   *
+   * Deliberately absent from `createServiceGroupSchema`, so it is unreachable
+   * over HTTP. Set exclusively by the INGOING/OUTGOING auto-group path, which
+   * must still produce a group for an imported row whose slot has already
+   * started — publishing re-checks the schedule with no bypass, so such a
+   * group simply stays DRAFT for the operator instead of never existing.
+   */
+  skipTimeInPastCheck?: boolean;
   actor: AuthContext;
 }
 
@@ -61,14 +71,21 @@ export class CreateServiceGroupUseCase {
   async execute(input: CreateServiceGroupInput): Promise<CreateServiceGroupOutput> {
     const { actor } = input;
 
-    // 1. RBAC
-    this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'service_group.create', entityType: 'ServiceGroup' });
+    // 1. RBAC. `SYS` covers internal callers (the INGOING/OUTGOING auto-group
+    //    path), which run on behalf of an appointment creator who may be a
+    //    CL_ADMIN. `SYS` is not in the Prisma UserRole enum, so no user row and
+    //    no JWT can ever carry it — this widens the reachable surface by zero.
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'SYS'], { action: 'service_group.create', entityType: 'ServiceGroup' });
 
     // 1b. TZ-aware past-date/time validation (R7: falls back to UTC when tz absent).
     const tz = PLATFORM_TIMEZONE;
     const scheduleCheck = validateNewSchedule({ date: input.scheduledDate, timeSlot: input.timeWindow, tz });
     if (!scheduleCheck.ok) {
-      throw scheduleCheck.code === 'TIME_IN_PAST' ? new ServiceGroupTimeInPastError() : new ServiceGroupDateInPastError();
+      if (scheduleCheck.code === 'TIME_IN_PAST') {
+        if (!input.skipTimeInPastCheck) throw new ServiceGroupTimeInPastError();
+      } else {
+        throw new ServiceGroupDateInPastError();
+      }
     }
 
     // 2. Load appointments. Groups are tenant-agnostic — a group may span
@@ -197,7 +214,7 @@ export class CreateServiceGroupUseCase {
     // 8. Audit log
     this.auditService.log({
       action: 'service_group.created',
-      actorType: 'USER',
+      actorType: actor.role === 'SYS' ? 'SYSTEM' : 'USER',
       actorId: actor.userId,
       entityType: 'ServiceGroup',
       entityId: groupId,
