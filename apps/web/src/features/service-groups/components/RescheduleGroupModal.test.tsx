@@ -72,6 +72,16 @@ describe('RescheduleGroupModal', () => {
     expect(endInput().value).toBe('5:00 pm');
   });
 
+  it('rejects a past date at submit instead of calling reschedule', () => {
+    // DateInput's `min` flags but still emits, so the guard has to live here.
+    renderModal();
+    fireEvent.change(dateInput(), { target: { value: '2020-01-15' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply changes' }));
+
+    expect(screen.getByText('Scheduled date cannot be in the past')).toBeInTheDocument();
+    expect(mockReschedule).not.toHaveBeenCalled();
+  });
+
   it('titles itself by the entry point but keeps both fields editable', () => {
     renderModal(makeGroup(), 'time-window');
     expect(screen.getByText('Change time window')).toBeInTheDocument();
