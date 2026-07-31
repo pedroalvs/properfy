@@ -891,18 +891,6 @@
                         "maximum": 7,
                         "default": 1
                       },
-                      "inspectionWindowBeforeMinutes": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 120,
-                        "default": 30
-                      },
-                      "inspectionWindowAfterMinutes": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 120,
-                        "default": 30
-                      },
                       "notificationDailyCapEmail": {
                         "type": "integer",
                         "minimum": 0,
@@ -1555,18 +1543,6 @@
                         "minimum": 0,
                         "maximum": 7,
                         "default": 1
-                      },
-                      "inspectionWindowBeforeMinutes": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 120,
-                        "default": 30
-                      },
-                      "inspectionWindowAfterMinutes": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 120,
-                        "default": 30
                       },
                       "notificationDailyCapEmail": {
                         "type": "integer",
@@ -12808,6 +12784,7 @@
                       "INSUFFICIENT_INFO",
                       "SERVICE_NOT_AVAILABLE",
                       "TENANT_NO_RESPONSE",
+                      "TENANT_DECLINED",
                       "OTHER"
                     ]
                   },
