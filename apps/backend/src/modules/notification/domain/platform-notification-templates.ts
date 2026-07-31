@@ -2,6 +2,7 @@
 // seed-platform-notification-templates.ts. Kept as a plain data module so unit
 // tests can assert the seed catalog without touching the database.
 
+import { getDefaultClass, type NotificationClass } from '@properfy/shared';
 import {
   renderAppointmentEmailHtml,
   renderSystemEmailHtml,
@@ -22,8 +23,32 @@ export interface PlatformTemplateSeed {
    * wrapping the plain-text body in a single <p>.
    */
   bodyHtml?: string;
-  /** Defaults to OPERATIONAL (schema default) when omitted. */
+  /**
+   * Explicit override. Normally omitted — `resolvePlatformTemplateClass` derives
+   * the class from the shared catalogue, so a code registered in
+   * PROTECTED_TEMPLATE_CLASSIFICATIONS gets that class without restating it here.
+   */
   notificationClass?: 'TRANSACTIONAL' | 'OPERATIONAL' | 'MARKETING';
+}
+
+/**
+ * The `notification_class` a seeded platform row must carry.
+ *
+ * Exists because the seeder used to write the column only when an entry declared
+ * it, which silently dropped every other row onto the schema default
+ * (OPERATIONAL) — including codes the shared catalogue marks protected and
+ * TRANSACTIONAL. `upsert-notification-template.use-case.ts` has always applied
+ * `getProtectedClass`, so a row's class ended up depending on which write path
+ * touched it last: templates edited through the UI were correct, templates only
+ * ever seeded were not. That is how the four appointment-action SMS codes came to
+ * be consent-suppressible while their email twins were not.
+ *
+ * `getDefaultClass` already resolves PROTECTED → DEFAULT → OPERATIONAL, so the
+ * catalogue stays the single source of truth and the seeder stops having an
+ * opinion of its own.
+ */
+export function resolvePlatformTemplateClass(entry: PlatformTemplateSeed): NotificationClass {
+  return entry.notificationClass ?? getDefaultClass(entry.code);
 }
 
 // ── Shared paragraph fragments for the appointment email layout ─────────────
@@ -297,13 +322,9 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     subject: 'Inspection Cancelled - {{propertyAddress}}',
     body: 'The inspection {{appointmentCode}} at {{propertyAddress}} scheduled for {{scheduledDate}} has been cancelled.',
     bodyHtml: CANCELLED_AGENCY_HTML,
-    // Must be stated explicitly: the seeder only writes this column when the entry
-    // provides it, so omitting it leaves the row on the DB default (OPERATIONAL).
-    // An OPERATIONAL row is consent-checked per recipient in
-    // send-notification.use-case, which would let a branch contact's operational
-    // opt-out silently suppress cancellation notices — the agency must always be
-    // told. Matches PROTECTED_TEMPLATE_CLASSIFICATIONS in @properfy/shared.
-    notificationClass: 'TRANSACTIONAL',
+    // No explicit notificationClass: resolvePlatformTemplateClass derives
+    // TRANSACTIONAL from PROTECTED_TEMPLATE_CLASSIFICATIONS. Restating it here
+    // was the workaround for the seeder bug this file now fixes.
   },
   {
     code: 'INSPECTION_UNAVAILABILITY_REPORTED',
