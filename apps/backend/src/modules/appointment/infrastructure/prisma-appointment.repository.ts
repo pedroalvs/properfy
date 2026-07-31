@@ -735,8 +735,13 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       where: {
         scheduled_date: { gte: startOfDay, lt: endOfDay },
         rental_tenant_confirmation_status: { not: 'CONFIRMED' },
+        key_required: false,
         status: { notIn: ['DONE', 'CANCELLED', 'REJECTED'] },
         deleted_at: null,
+        service_type: {
+          flow_type: 'ROUTINE',
+          requires_rental_tenant_confirmation: true,
+        },
       },
     });
 

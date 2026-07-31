@@ -506,6 +506,36 @@ describe('StartInspectionUseCase', () => {
     ).rejects.toThrow(/tenant has not confirmed/i);
   });
 
+  it('should allow routine inspection without tenant confirmation if requiresRentalTenantConfirmation is false on serviceType', async () => {
+    const sut = makeSut();
+    vi.setSystemTime(zonedWallTimeToUtc('2026-03-22', '09:00', PLATFORM_TIMEZONE));
+
+    serviceTypeReader.findById.mockResolvedValueOnce({
+      id: 'st-1',
+      code: 'ROUTINE_NO_CONF',
+      name: 'Routine No Confirmation Required',
+      flowType: 'ROUTINE',
+      requiresRentalTenantConfirmation: false,
+    });
+
+    appointmentRepo.findById.mockResolvedValue(
+      makeAppointmentWithRelations(
+        { rentalTenantConfirmationStatus: 'PENDING', keyRequired: false },
+      ),
+    );
+
+    const result = await sut.execute({
+      appointmentId: 'appt-1',
+      latitude: -33.891,
+      longitude: 151.277,
+      idempotencyKey: 'key-no-conf-flag',
+      actor: inspActor,
+    });
+
+    expect(result.status).toBe('IN_PROGRESS');
+    expect(executionRepo.save).toHaveBeenCalled();
+  });
+
   it('should allow a past-date routine inspection once the tenant has confirmed', async () => {
     const sut = makeSut();
     vi.setSystemTime(zonedWallTimeToUtc('2026-03-22', '09:00', PLATFORM_TIMEZONE));
