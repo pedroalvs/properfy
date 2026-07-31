@@ -241,7 +241,7 @@ export function PortalPage() {
         {hasResponse && !isReadOnly && !isTerminal && (
           <InfoBanner>
             Your response has been recorded. If you need to make further changes, please
-            contact the agency directly.
+            contact our team.
           </InfoBanner>
         )}
 
