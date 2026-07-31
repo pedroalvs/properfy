@@ -56,13 +56,19 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment, toda
           <span className="shrink-0 text-sm font-bold text-text-primary">
             {formatTimeWindow(appointment.timeSlotStart, appointment.timeSlotEnd)}
           </span>
+          {/*
+            "Past date", not "Overdue": for the inspector this flag means the
+            inspection day has passed and the job is still not done. The platform's
+            "Overdue" now names a different rule (created more than OVERDUE_AGE_DAYS
+            ago, regardless of date) used by the web badge and the auto-cancel sweep.
+          */}
           {appointment.isOverdue && (
             <span
               className="inline-flex shrink-0 items-center gap-1 rounded-full bg-error/10 px-2 py-0.5 text-[11px] font-semibold text-error"
               data-testid="overdue-badge"
             >
               <i className="mdi mdi-clock-alert-outline text-xs" aria-hidden="true" />
-              Overdue
+              Past date
             </span>
           )}
           {showT1Warning && !appointment.isOverdue && (

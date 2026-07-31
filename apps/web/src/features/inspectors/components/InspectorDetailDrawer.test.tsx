@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider, useSnackbar } from '@/hooks/useSnackbar';
@@ -28,6 +28,12 @@ vi.mock('@/lib/auth-storage', () => ({
 }));
 
 let mockUserRole = 'AM';
+
+// Restored centrally: a failed assertion used to skip the inline reset that
+// followed it and leak the role into every subsequent test.
+afterEach(() => {
+  mockUserRole = 'AM';
+});
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
@@ -188,6 +194,40 @@ describe('InspectorDetailDrawer', () => {
     mockUserRole = 'AM';
     renderDrawer({ inspectorId: 'inactive', open: true });
     expect(screen.queryByLabelText('Deactivate')).not.toBeInTheDocument();
+  });
+
+  it('shows reset password button for AM role', () => {
+    mockUserRole = 'AM';
+    renderDrawer({ inspectorId: 'insp-01', open: true });
+    expect(screen.getByLabelText('Reset Password')).toBeInTheDocument();
+  });
+
+  it('shows reset password button for OP role', () => {
+    mockUserRole = 'OP';
+    renderDrawer({ inspectorId: 'insp-01', open: true });
+    expect(screen.getByLabelText('Reset Password')).toBeInTheDocument();
+  });
+
+  it('hides reset password button for non AM/OP roles', () => {
+    mockUserRole = 'CL_ADMIN';
+    renderDrawer({ inspectorId: 'insp-01', open: true });
+    expect(screen.queryByLabelText('Reset Password')).not.toBeInTheDocument();
+  });
+
+  it('hides reset password button when inspector is INACTIVE', () => {
+    // The reset also reactivates the login account, so the API refuses it with
+    // INSPECTOR_DEACTIVATED — offering the button would only produce a dead end.
+    mockUserRole = 'AM';
+    renderDrawer({ inspectorId: 'inactive', open: true });
+    expect(screen.queryByLabelText('Reset Password')).not.toBeInTheDocument();
+  });
+
+  it('opens the reset password dialog on button click', () => {
+    mockUserRole = 'AM';
+    renderDrawer({ inspectorId: 'insp-01', open: true });
+    fireEvent.click(screen.getByLabelText('Reset Password'));
+    expect(screen.getByLabelText('New Password')).toBeInTheDocument();
+    expect(screen.getByLabelText('Confirm Password')).toBeInTheDocument();
   });
 
   it('opens deactivate dialog on button click and requires reason', () => {

@@ -67,4 +67,13 @@ describe('ConfirmationSheet', () => {
     expect(screen.getByTestId('sheet-confirm')).toHaveFocus();
     outside.remove();
   });
+
+  it('keeps its actions clear of the iOS home indicator', () => {
+    // The overlay is `items-end`, so the sheet is flush with the bottom edge, which
+    // `viewport-fit=cover` puts under the ~34px home indicator. `p-6` alone leaves the
+    // buttons 24px from that edge. The token adds the inset on top of the 24px, so the
+    // *visible* spacing is unchanged on devices without an indicator.
+    render(<ConfirmationSheet {...baseProps} />);
+    expect(screen.getByRole('dialog').className).toContain('pb-safe-b-6');
+  });
 });

@@ -1,4 +1,5 @@
 import type { NotificationClass } from '../enums';
+import { formatCivilDate, formatWallTimeRange } from '../utils/format-display-date';
 
 /**
  * Canonical https URL of the Properfy logo used in email templates via the
@@ -27,6 +28,7 @@ export const MANDATORY_TEMPLATE_CODES = [
   'INSPECTION_RESCHEDULED_SMS',
   'INSPECTION_CANCELLED',
   'INSPECTION_CANCELLED_SMS',
+  'INSPECTION_CANCELLED_AGENCY',
   'INSPECTION_UNAVAILABILITY_REPORTED',
   'INSPECTION_UNAVAILABILITY_REPORTED_SMS',
   'REPORT_READY',
@@ -39,8 +41,15 @@ export type MandatoryTemplateCode = (typeof MANDATORY_TEMPLATE_CODES)[number];
 /**
  * Platform-only templates: seeded at platform level and never customizable per tenant,
  * so they are excluded from MANDATORY_TEMPLATE_CODES (which drives the tenant template UI).
+ * They are still visible to AM/OP on the templates list, so they need labels and targets.
  */
-export const PLATFORM_ONLY_TEMPLATE_CODES = ['PASSWORD_RESET'] as const;
+export const PLATFORM_ONLY_TEMPLATE_CODES = [
+  'PASSWORD_RESET',
+  'INSPECTION_STUCK_ALERT',
+  'INSPECTOR_GROUP_ASSIGNED',
+  'INSPECTOR_GROUP_UNASSIGNED',
+  'INSPECTOR_GROUP_RESCHEDULED',
+] as const;
 
 export type PlatformOnlyTemplateCode = (typeof PLATFORM_ONLY_TEMPLATE_CODES)[number];
 
@@ -65,12 +74,120 @@ export const TEMPLATE_CODE_LABELS: Record<MandatoryTemplateCode, string> = {
   INSPECTION_RESCHEDULED_SMS: 'Inspection Rescheduled (SMS)',
   INSPECTION_CANCELLED: 'Inspection Cancelled',
   INSPECTION_CANCELLED_SMS: 'Inspection Cancelled (SMS)',
+  INSPECTION_CANCELLED_AGENCY: 'Inspection Cancelled (Agency)',
   INSPECTION_UNAVAILABILITY_REPORTED: 'Unavailability Reported',
   INSPECTION_UNAVAILABILITY_REPORTED_SMS: 'Unavailability Reported (SMS)',
   REPORT_READY: 'Report Ready',
   REPORT_FAILED: 'Report Failed',
   TENANT_PORTAL_LINK: 'Tenant Portal Link',
 };
+
+/**
+ * Labels for the platform-only codes. Kept in a separate map so TEMPLATE_CODE_LABELS stays
+ * exhaustive over MANDATORY_TEMPLATE_CODES (its type is what stops a new tenant-facing
+ * template from shipping unlabelled).
+ */
+export const PLATFORM_TEMPLATE_CODE_LABELS: Record<PlatformOnlyTemplateCode, string> = {
+  PASSWORD_RESET: 'Password Reset',
+  INSPECTION_STUCK_ALERT: 'Inspection Stuck Alert',
+  INSPECTOR_GROUP_ASSIGNED: 'Inspector Group Assigned',
+  INSPECTOR_GROUP_UNASSIGNED: 'Inspector Group Unassigned',
+  INSPECTOR_GROUP_RESCHEDULED: 'Inspector Group Rescheduled',
+};
+
+/**
+ * Display label for any template code. Resolves the tenant-facing catalog first, then the
+ * platform-only one, and falls back to the raw code for custom templates.
+ */
+export function getTemplateCodeLabel(templateCode: string): string {
+  // hasOwnProperty, not bare indexing: a code like `constructor` would otherwise resolve to
+  // an inherited function and get returned as the label.
+  if (Object.prototype.hasOwnProperty.call(TEMPLATE_CODE_LABELS, templateCode)) {
+    return TEMPLATE_CODE_LABELS[templateCode as MandatoryTemplateCode];
+  }
+  if (Object.prototype.hasOwnProperty.call(PLATFORM_TEMPLATE_CODE_LABELS, templateCode)) {
+    return PLATFORM_TEMPLATE_CODE_LABELS[templateCode as PlatformOnlyTemplateCode];
+  }
+  return templateCode;
+}
+
+// ---------------------------------------------------------------------------
+// Targets — who receives each notification
+// ---------------------------------------------------------------------------
+
+export const NOTIFICATION_TARGETS = [
+  'RENTAL_TENANT',
+  'PROPERTY_MANAGER',
+  'INSPECTOR',
+  'USER_ACCOUNT',
+  'PLATFORM_OPS',
+] as const;
+
+export type NotificationTarget = (typeof NOTIFICATION_TARGETS)[number];
+
+/**
+ * Who actually receives each template.
+ *
+ * This is a declared mapping rather than a field on the template row because the recipient
+ * is resolved at each dispatch site, not stored with the template. **If you add or move a
+ * dispatch site, update this map.** Current sources, one per family:
+ *
+ * - RENTAL_TENANT — `notify-on-status-transition.handler.ts`,
+ *   `notify-on-rental-tenant-portal-action.handler.ts`, `notify-on-admin-reschedule.handler.ts`,
+ *   `dispatch-reminders.use-case.ts`, `dispatch-escalations.use-case.ts` (TENANT_SMS_ALERT),
+ *   `generate-portal-token.use-case.ts` (TENANT_PORTAL_LINK)
+ * - PROPERTY_MANAGER — `dispatch-escalations.use-case.ts` and
+ *   `notify-on-status-transition.handler.ts` (INSPECTION_CANCELLED_AGENCY, the agency's own
+ *   copy of a cancellation), both via `branch.contactEmail`
+ * - INSPECTOR — `notify-on-group-inspector-change.subscriber.ts`, via `inspector.email`
+ * - USER_ACCOUNT — `process-report-job.use-case.ts` (the requesting user),
+ *   `request-password-reset.use-case.ts`
+ * - PLATFORM_OPS — `notify-stuck.worker.ts`, hardcoded internal ops inbox
+ *
+ * Typed over the full code union on purpose: a new template code cannot be added to either
+ * catalog without declaring its target here.
+ */
+export const TEMPLATE_TARGETS: Record<
+  MandatoryTemplateCode | PlatformOnlyTemplateCode,
+  NotificationTarget
+> = {
+  INSPECTION_NOTICE: 'RENTAL_TENANT',
+  INSPECTION_NOTICE_SMS: 'RENTAL_TENANT',
+  REMINDER_7_DAYS: 'RENTAL_TENANT',
+  REMINDER_5_DAYS: 'RENTAL_TENANT',
+  REMINDER_3_DAYS: 'RENTAL_TENANT',
+  REMINDER_7_DAYS_SMS: 'RENTAL_TENANT',
+  REMINDER_5_DAYS_SMS: 'RENTAL_TENANT',
+  REMINDER_3_DAYS_SMS: 'RENTAL_TENANT',
+  PROPERTY_MANAGER_ESCALATION: 'PROPERTY_MANAGER',
+  TENANT_SMS_ALERT: 'RENTAL_TENANT',
+  INSPECTION_CONFIRMED: 'RENTAL_TENANT',
+  INSPECTION_CONFIRMED_SMS: 'RENTAL_TENANT',
+  INSPECTION_RESCHEDULED: 'RENTAL_TENANT',
+  INSPECTION_RESCHEDULED_SMS: 'RENTAL_TENANT',
+  INSPECTION_CANCELLED: 'RENTAL_TENANT',
+  INSPECTION_CANCELLED_SMS: 'RENTAL_TENANT',
+  INSPECTION_CANCELLED_AGENCY: 'PROPERTY_MANAGER',
+  INSPECTION_UNAVAILABILITY_REPORTED: 'RENTAL_TENANT',
+  INSPECTION_UNAVAILABILITY_REPORTED_SMS: 'RENTAL_TENANT',
+  REPORT_READY: 'USER_ACCOUNT',
+  REPORT_FAILED: 'USER_ACCOUNT',
+  TENANT_PORTAL_LINK: 'RENTAL_TENANT',
+  PASSWORD_RESET: 'USER_ACCOUNT',
+  INSPECTION_STUCK_ALERT: 'PLATFORM_OPS',
+  INSPECTOR_GROUP_ASSIGNED: 'INSPECTOR',
+  INSPECTOR_GROUP_UNASSIGNED: 'INSPECTOR',
+  INSPECTOR_GROUP_RESCHEDULED: 'INSPECTOR',
+};
+
+/** Target for any template code; `undefined` for custom codes outside both catalogs. */
+export function getTemplateTarget(templateCode: string): NotificationTarget | undefined {
+  // See getTemplateCodeLabel: bare indexing would return an inherited member for a code
+  // like `constructor`, and the chip would then look up a style that does not exist.
+  return Object.prototype.hasOwnProperty.call(TEMPLATE_TARGETS, templateCode)
+    ? TEMPLATE_TARGETS[templateCode as keyof typeof TEMPLATE_TARGETS]
+    : undefined;
+}
 
 // ---------------------------------------------------------------------------
 // Classification
@@ -88,6 +205,7 @@ export const PROTECTED_TEMPLATE_CLASSIFICATIONS: Record<string, NotificationClas
   INSPECTION_RESCHEDULED_SMS: 'TRANSACTIONAL',
   INSPECTION_CANCELLED: 'TRANSACTIONAL',
   INSPECTION_CANCELLED_SMS: 'TRANSACTIONAL',
+  INSPECTION_CANCELLED_AGENCY: 'TRANSACTIONAL',
   INSPECTION_UNAVAILABILITY_REPORTED: 'TRANSACTIONAL',
   INSPECTION_UNAVAILABILITY_REPORTED_SMS: 'TRANSACTIONAL',
 };
@@ -137,8 +255,27 @@ export interface TemplateVariableSpec {
   optional: readonly string[];
 }
 
+/**
+ * Deliberately keyed on `'PASSWORD_RESET'` rather than the whole `PlatformOnlyTemplateCode`
+ * union, so widening that catalog does not silently pull the other four codes in here.
+ *
+ * **Do not "complete" this registry for INSPECTION_STUCK_ALERT or the INSPECTOR_GROUP_*
+ * codes.** An entry is not merely descriptive — it changes what gets SENT.
+ * `build-notification-payload.service.ts` filters the outgoing payload down to
+ * `required + optional` and throws `MissingRequiredVariableError` when a required key is
+ * absent; with no entry it passes every computed variable through untouched. So a spec that
+ * is anything less than exactly right would drop variables from live notifications, or fail
+ * the send outright. Those codes render variables outside ALLOWED_VARIABLES
+ * (INSPECTION_STUCK_ALERT uses `{{appointmentId}}` and `{{hoursStuck}}`), which is precisely
+ * why writing a correct spec for them is not a mechanical exercise.
+ *
+ * Note this is NOT about making them editable: those templates cannot be saved from the UI
+ * at all today — `useTemplateSave.validate()` falls back to the global ALLOWED_VARIABLES
+ * when no spec exists, and `upsert-notification-template.use-case.ts` rejects any code
+ * outside MANDATORY_TEMPLATE_CODES server-side. Adding a spec here would not fix that.
+ */
 export const TEMPLATE_VARIABLES: Record<
-  MandatoryTemplateCode | PlatformOnlyTemplateCode,
+  MandatoryTemplateCode | 'PASSWORD_RESET',
   TemplateVariableSpec
 > = {
   INSPECTION_NOTICE: {
@@ -184,9 +321,15 @@ export const TEMPLATE_VARIABLES: Record<
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
     optional: ['branchName', 'appointmentCode', 'agencyName', 'agencyPhone', 'properfyLogoUrl', 'serviceTypeName'],
   },
+  // `rentalTenantName` is optional here, not required: a spec is keyed by code while
+  // the SMS and EMAIL variants of a code carry different copy, and neither shipped SMS
+  // body greets the tenant by name (160-character budget). Requiring it made the editor
+  // refuse to save these two templates with "Missing required variables". The variable
+  // is still computed and sent — `required` in this map only governs whether
+  // BuildNotificationPayloadService throws when the value is absent from the payload.
   TENANT_SMS_ALERT: {
-    required: ['rentalTenantName', 'propertyAddress', 'scheduledDate'],
-    optional: ['confirmationLink', 'appointmentCode'],
+    required: ['propertyAddress', 'scheduledDate'],
+    optional: ['rentalTenantName', 'confirmationLink', 'appointmentCode'],
   },
   INSPECTION_CONFIRMED: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
@@ -212,6 +355,17 @@ export const TEMPLATE_VARIABLES: Record<
     required: ['rentalTenantName', 'scheduledDate'],
     optional: ['propertyAddress', 'appointmentCode'],
   },
+  // Agency-facing counterpart of INSPECTION_CANCELLED, addressed to the branch
+  // contact rather than the rental tenant. `cancellationReason` is deliberately
+  // OPTIONAL even though the state machine requires a reason for every
+  // cancellation: BuildNotificationPayloadService throws
+  // MissingRequiredVariableError on a missing required variable, and a template
+  // that can throw would lose the agency notice entirely on an edge-case
+  // cancellation. Absent reason simply renders no reason line.
+  INSPECTION_CANCELLED_AGENCY: {
+    required: ['propertyAddress', 'scheduledDate', 'appointmentCode'],
+    optional: ['rentalTenantName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'properfyLogoUrl', 'cancellationReason'],
+  },
   INSPECTION_UNAVAILABILITY_REPORTED: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'appointmentCode'],
     optional: ['agencyName', 'agencyPhone', 'properfyLogoUrl', 'serviceTypeName'],
@@ -228,9 +382,11 @@ export const TEMPLATE_VARIABLES: Record<
     required: ['userName', 'reportType', 'errorMessage', 'downloadLink'],
     optional: [],
   },
+  // Same reason as TENANT_SMS_ALERT: the SMS variant of this code does not greet by
+  // name, so `rentalTenantName` cannot be required of every channel's body.
   TENANT_PORTAL_LINK: {
-    required: ['rentalTenantName', 'scheduledDate', 'confirmationLink'],
-    optional: ['rescheduleLink', 'propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone', 'properfyLogoUrl', 'serviceTypeName'],
+    required: ['scheduledDate', 'confirmationLink'],
+    optional: ['rentalTenantName', 'rescheduleLink', 'propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone', 'properfyLogoUrl', 'serviceTypeName'],
   },
   PASSWORD_RESET: {
     required: ['userName', 'resetLink'],
@@ -256,6 +412,7 @@ export const ALLOWED_VARIABLES = [
   'branchName',
   'properfyLogoUrl',
   'serviceTypeName',
+  'cancellationReason',
   'userName',
   'reportType',
   'downloadLink',
@@ -265,11 +422,21 @@ export const ALLOWED_VARIABLES = [
 
 export type AllowedVariable = (typeof ALLOWED_VARIABLES)[number];
 
+/**
+ * Placeholder values the template editor substitutes to render its live preview.
+ *
+ * The temporal entries are produced by the same formatters that build the real
+ * outgoing payload (`buildNotificationPayload` calls `formatCivilDate` and
+ * `formatWallTimeRange`) rather than written out by hand. An operator tunes the
+ * wording against this preview and ships it, so a preview showing a shape the
+ * send never produces is worse than no preview. Deriving them means the two can
+ * not drift apart the next time the display format moves.
+ */
 export const SAMPLE_DATA: Record<AllowedVariable, string> = {
   rentalTenantName: 'John Smith',
   propertyAddress: '123 Main St, Sydney NSW 2000',
-  scheduledDate: '2026-04-15',
-  timeSlot: '09:00 - 12:00',
+  scheduledDate: formatCivilDate('2026-04-15'),
+  timeSlot: formatWallTimeRange('09:00', '12:00'),
   inspectorName: 'Jane Doe',
   confirmationLink: 'https://app.properfy.com/portal/abc123',
   rescheduleLink: 'https://app.properfy.com/portal/abc123',
@@ -279,6 +446,7 @@ export const SAMPLE_DATA: Record<AllowedVariable, string> = {
   branchName: 'Sydney CBD Branch',
   properfyLogoUrl: PROPERFY_LOGO_URL,
   serviceTypeName: 'Routine inspection',
+  cancellationReason: 'Tenant requested a different week',
   userName: 'Admin User',
   reportType: 'Monthly Report',
   downloadLink: 'https://app.properfy.com/reports/abc123',

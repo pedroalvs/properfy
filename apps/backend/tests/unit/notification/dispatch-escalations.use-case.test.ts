@@ -118,6 +118,7 @@ describe('DispatchEscalationsUseCase', () => {
     updateContact: ReturnType<typeof vi.fn>;
     saveRestriction: ReturnType<typeof vi.fn>;
     deleteRestrictionsByAppointmentId: ReturnType<typeof vi.fn>;
+    replaceRestrictions: ReturnType<typeof vi.fn>;
     findScheduledOnDate: ReturnType<typeof vi.fn>;
   };
   let mockBranchRepo: {
@@ -157,6 +158,7 @@ describe('DispatchEscalationsUseCase', () => {
       updateContact: vi.fn(),
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
+      replaceRestrictions: vi.fn(),
       findScheduledOnDate: vi.fn().mockResolvedValue([]),
     };
     mockBranchRepo = {

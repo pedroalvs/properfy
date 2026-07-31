@@ -145,7 +145,12 @@ export const updateAppointmentSchema = z.object({
   contacts: appointmentContactsArraySchema.optional(),
   /** App credentials linked to this appointment. When present, replaces all links (empty array clears). */
   appCredentialIds: z.array(z.string().uuid()).max(50).optional(),
-  restriction: restrictionSchema.optional(),
+  /**
+   * Omitted leaves the restriction untouched; `null` clears it. Nullable because the
+   * edit drawer sends `null` when the operator switches "Add access restriction" off —
+   * while this was `.optional()` that request was rejected at the validator.
+   */
+  restriction: restrictionSchema.nullish(),
   customFields: appointmentCustomFieldsSchema.nullable().optional(),
   /**
    * Opt-in: widen the service group's shared time window when the new slot
@@ -179,6 +184,13 @@ export const statusTransitionSchema = z.object({
   doneCheckedByUserId: z.string().uuid().optional(),
   crossCheckByUserId: z.string().uuid().optional(),
   inspectorId: z.string().uuid().optional(),
+  /**
+   * Cancellation only: notify the rental tenant that the inspection is off.
+   * Omitted means "do not notify" — the agency is always told regardless, but
+   * the tenant is only contacted on an explicit operator opt-in AND only when
+   * they had confirmed the appointment (enforced server-side, not by the UI).
+   */
+  notifyRentalTenant: z.boolean().optional(),
 });
 export type StatusTransitionInput = z.infer<typeof statusTransitionSchema>;
 
@@ -405,7 +417,8 @@ export type BulkActionResponse = z.infer<typeof bulkActionResponseSchema>;
 export const bulkCancelRequestSchema = z.object({
   appointmentIds: z.array(z.string().uuid()).min(1).max(100),
   reason: z.string().min(3).max(500),
-  /** IANA timezone for per-day idempotency bucketing (see bulk_resend_reminder). */
+  /** See `statusTransitionSchema.notifyRentalTenant` — applied per appointment. */
+  notifyRentalTenant: z.boolean().optional(),
 });
 export type BulkCancelRequest = z.infer<typeof bulkCancelRequestSchema>;
 
@@ -439,6 +452,8 @@ export const bulkStatusTransitionRequestSchema = z.object({
   appointmentIds: z.array(z.string().uuid()).min(1).max(100),
   targetStatus: z.nativeEnum(AppointmentStatus),
   reason: z.string().min(3).max(500).optional(),
+  /** Only consulted when `targetStatus` is CANCELLED; see `statusTransitionSchema`. */
+  notifyRentalTenant: z.boolean().optional(),
 });
 export type BulkStatusTransitionRequest = z.infer<typeof bulkStatusTransitionRequestSchema>;
 

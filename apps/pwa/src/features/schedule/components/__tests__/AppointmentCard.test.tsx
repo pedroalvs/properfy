@@ -137,7 +137,7 @@ describe('AppointmentCard', () => {
     const apt: InspectorAppointment = { ...baseAppointment, isOverdue: true };
     renderWithProviders(<AppointmentCard appointment={apt} />);
     expect(screen.getByTestId('overdue-badge')).toBeInTheDocument();
-    expect(screen.getByText('Overdue')).toBeInTheDocument();
+    expect(screen.getByText('Past date')).toBeInTheDocument();
   });
 
   it('does not show overdue badge when isOverdue is false', () => {

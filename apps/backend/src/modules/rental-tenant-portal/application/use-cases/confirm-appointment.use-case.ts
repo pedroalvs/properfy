@@ -96,7 +96,7 @@ export class ConfirmAppointmentUseCase {
     }
 
     try {
-      await this.applyConfirmation(input, appointment);
+      await this.applyConfirmation(input, appointment, result.restrictions);
     } catch (error) {
       // Best-effort release so the tenant can retry with the same link;
       // never mask the original failure.
@@ -116,7 +116,11 @@ export class ConfirmAppointmentUseCase {
     };
   }
 
-  private async applyConfirmation(input: ConfirmAppointmentInput, appointment: AppointmentEntity): Promise<void> {
+  private async applyConfirmation(
+    input: ConfirmAppointmentInput,
+    appointment: AppointmentEntity,
+    restrictions: AppointmentRestrictionEntity[],
+  ): Promise<void> {
     // 5. Snapshot previous values
     const previousValues = {
       rentalTenantConfirmationStatus: appointment.rentalTenantConfirmationStatus,
@@ -143,23 +147,39 @@ export class ConfirmAppointmentUseCase {
       await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, payload);
     }
 
-    // 7. Confirm resets stale rental-tenant-portal restrictions from previous unavailability/reschedule cycles.
-    await this.appointmentRepo.deleteRestrictionsByAppointmentId(input.appointmentId);
-
+    // 7. Confirming makes the alternative availability offered in an earlier decline moot,
+    // so the portal's own restriction is reset. The operator's access restriction is NOT
+    // the portal's to delete, though — it is dropped only when the tenant submits one of
+    // their own, which replaces it as before.
     if (input.restrictions) {
-      const restriction = new AppointmentRestrictionEntity({
-        id: crypto.randomUUID(),
-        appointmentId: input.appointmentId,
-        isHome: input.restrictions.isHome,
-        unavailableDaysJson: input.restrictions.unavailableDaysJson,
-        unavailableHoursJson: input.restrictions.unavailableHoursJson,
-        availableSlotsJson: input.restrictions.availableSlotsJson ?? null,
-        notes: input.restrictions.notes,
-        source: 'RENTAL_TENANT_PORTAL',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-      await this.appointmentRepo.saveRestriction(restriction);
+      await this.appointmentRepo.replaceRestrictions(
+        input.appointmentId,
+        new AppointmentRestrictionEntity({
+          id: crypto.randomUUID(),
+          appointmentId: input.appointmentId,
+          isHome: input.restrictions.isHome,
+          unavailableDaysJson: input.restrictions.unavailableDaysJson,
+          unavailableHoursJson: input.restrictions.unavailableHoursJson,
+          availableSlotsJson: input.restrictions.availableSlotsJson ?? null,
+          notes: input.restrictions.notes,
+          source: 'RENTAL_TENANT_PORTAL',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      );
+    } else {
+      const operatorRestriction = restrictions.find((r) => r.source !== 'RENTAL_TENANT_PORTAL');
+      await this.appointmentRepo.replaceRestrictions(
+        input.appointmentId,
+        operatorRestriction
+          ? new AppointmentRestrictionEntity({
+              ...operatorRestriction,
+              // Their availability is moot now that they are attending.
+              availableSlotsJson: null,
+              updatedAt: new Date(),
+            })
+          : null,
+      );
     }
 
     // 8. Record CONFIRM activity

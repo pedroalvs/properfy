@@ -77,6 +77,7 @@ const appointmentRepo = {
   updateContact: vi.fn(),
   saveRestriction: vi.fn(),
   deleteRestrictionsByAppointmentId: vi.fn(),
+  replaceRestrictions: vi.fn(),
 };
 
 const auditService = {

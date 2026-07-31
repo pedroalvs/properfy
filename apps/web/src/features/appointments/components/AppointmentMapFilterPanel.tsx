@@ -60,10 +60,13 @@ export const DEFAULT_APPOINTMENT_FILTERS: AppointmentModeFilters = {
 
 export const DEFAULT_GROUP_FILTERS: GroupModeFilters = {
   search: '',
-  // Active groups only. A cancelled or rejected group has had its appointments
-  // unlinked, so it has no centroid to plot and every one of them showed up in the
-  // un-plottable warning as a row nobody can act on. Operators can still tick the
-  // other statuses; the count and the warning then honestly describe what they asked for.
+  // Active groups only. A non-active group is not something an operator can act on
+  // from the map, and it used to dominate the un-plottable warning: groups cancelled
+  // or rejected by an operator have their appointments unlinked, leaving no centroid
+  // to plot. (Groups cancelled by the automatic empty-group cleanup keep their
+  // terminal members, so those may still plot — the point is that neither is
+  // actionable here.) Operators can still tick the other statuses; the count and the
+  // warning then honestly describe what they asked for.
   statuses: ['PUBLISHED', 'ACCEPTED'],
   contactSearch: '',
   branchId: '',

@@ -9,7 +9,8 @@ import { ValidationError } from '../../../../shared/domain/errors';
 import { MarketingDispatchDisabledError } from '../../domain/notification.errors';
 
 export interface CreateNotificationInput {
-  tenantId: string;
+  /** null = platform-scoped notification (recipient belongs to no agency). */
+  tenantId: string | null;
   appointmentId?: string;
   recipient: string;
   channel: NotificationChannel;
@@ -30,7 +31,9 @@ export class CreateNotificationUseCase {
   ) {}
 
   async execute(input: CreateNotificationInput): Promise<CreateNotificationOutput> {
-    if (!input.tenantId.trim()) {
+    // null is a deliberate scope (the platform owns the notification); a blank
+    // string is still a caller bug.
+    if (input.tenantId !== null && !input.tenantId.trim()) {
       throw new ValidationError('tenantId is required');
     }
 

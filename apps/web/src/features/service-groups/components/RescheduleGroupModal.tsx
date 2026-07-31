@@ -117,8 +117,14 @@ export function RescheduleGroupModal({
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    // Native input `min` is only a hint; guard the past explicitly.
+    // DateInput's `min` flags an out-of-range value but still emits it, so the
+    // past has to be rejected here or the request goes out and the server
+    // rejects it instead of the field explaining itself.
     const targetDate = scheduledDate || currentDate;
+    if (targetDate < today) {
+      setError('Scheduled date cannot be in the past');
+      return;
+    }
     if (targetDate === today && isTimeStartInPastForDate(startTime, targetDate, PLATFORM_TIMEZONE)) {
       setError('Start time is in the past');
       return;

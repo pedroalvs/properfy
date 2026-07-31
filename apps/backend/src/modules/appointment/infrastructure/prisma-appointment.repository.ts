@@ -5,8 +5,8 @@ import type {
   RestrictionSource as PrismaRestrictionSource,
   Prisma,
 } from '@prisma/client';
-import { OVERDUE_ELIGIBLE_STATUSES } from '@properfy/shared';
-import { startOfPlatformToday } from '../../../shared/domain/timezone-date';
+import { OVERDUE_AUTO_CANCEL_STATUSES, OVERDUE_ELIGIBLE_STATUSES } from '@properfy/shared';
+import { startOfOverdueAgeCutoff } from '../../../shared/domain/timezone-date';
 import { AppointmentEntity } from '../domain/appointment.entity';
 import { AppointmentContactEntity } from '../domain/appointment-contact.entity';
 import { AppointmentRestrictionEntity } from '../domain/appointment-restriction.entity';
@@ -422,18 +422,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
 
   async saveRestriction(restriction: AppointmentRestrictionEntity): Promise<void> {
     await this.prisma.appointmentRestriction.create({
-      data: {
-        id: restriction.id,
-        appointment_id: restriction.appointmentId,
-        is_home: restriction.isHome,
-        unavailable_days_json: restriction.unavailableDaysJson ?? undefined,
-        unavailable_hours_json: restriction.unavailableHoursJson ?? undefined,
-        available_slots_json: restriction.availableSlotsJson != null
-          ? (restriction.availableSlotsJson as unknown as Prisma.InputJsonValue)
-          : undefined,
-        notes: restriction.notes,
-        source: restriction.source as PrismaRestrictionSource,
-      },
+      data: this.toRestrictionCreateData(restriction),
     });
   }
 
@@ -482,14 +471,48 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     });
   }
 
+  async replaceRestrictions(
+    appointmentId: string,
+    restriction: AppointmentRestrictionEntity | null,
+  ): Promise<void> {
+    const deletion = this.prisma.appointmentRestriction.deleteMany({
+      where: { appointment_id: appointmentId },
+    });
+    if (restriction === null) {
+      await this.prisma.$transaction([deletion]);
+      return;
+    }
+    await this.prisma.$transaction([
+      deletion,
+      this.prisma.appointmentRestriction.create({
+        data: this.toRestrictionCreateData(restriction),
+      }),
+    ]);
+  }
+
+  private toRestrictionCreateData(restriction: AppointmentRestrictionEntity) {
+    return {
+      id: restriction.id,
+      appointment_id: restriction.appointmentId,
+      is_home: restriction.isHome,
+      unavailable_days_json: restriction.unavailableDaysJson ?? undefined,
+      unavailable_hours_json: restriction.unavailableHoursJson ?? undefined,
+      available_slots_json: restriction.availableSlotsJson != null
+        ? (restriction.availableSlotsJson as unknown as Prisma.InputJsonValue)
+        : undefined,
+      notes: restriction.notes,
+      source: restriction.source as PrismaRestrictionSource,
+    };
+  }
+
   private buildWhere(filters: AppointmentFilters) {
     const where: Record<string, unknown> = { deleted_at: null };
     if (filters.tenantId) where['tenant_id'] = filters.tenantId;
     if (filters.overdueOnly) {
       // INTERSECT the overdue-eligible statuses with an explicit status filter
       // rather than replacing it: callers that slice by status (the board sends
-      // one status per column) would otherwise get both statuses back and render
-      // the same appointment in two columns. An empty intersection is
+      // one status per column) would otherwise get every eligible status back and
+      // render the same appointment in several columns. An empty intersection is
       // intentional — it matches no rows.
       where['status'] = {
         in:
@@ -497,23 +520,25 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
             ? filters.status.filter((status) => OVERDUE_STATUS_SET.has(status))
             : [...OVERDUE_ELIGIBLE_STATUSES],
       };
-      where['scheduled_date'] = { lt: startOfPlatformToday() };
-    } else {
-      if (filters.status && filters.status.length > 0) {
-        where['status'] = { in: filters.status };
-      } else if (!filters.showCancelled && !filters.serviceGroupId) {
-        // A group-membership query (serviceGroupId set) returns the group's
-        // FULL membership, so the default active-status exclusion must not
-        // apply — otherwise CANCELLED/REJECTED members would silently vanish
-        // and the modal count would disagree with the group pin.
-        where['status'] = { notIn: ['CANCELLED', 'REJECTED'] };
-      }
-      if (filters.fromDate || filters.toDate) {
-        const dateFilter: Record<string, unknown> = {};
-        if (filters.fromDate) dateFilter['gte'] = parseDateOnlyToUtcStart(filters.fromDate);
-        if (filters.toDate) dateFilter['lt'] = nextUtcDay(parseDateOnlyToUtcStart(filters.toDate));
-        where['scheduled_date'] = dateFilter;
-      }
+      // Overdue is an age-of-record rule: created more than OVERDUE_AGE_DAYS ago,
+      // whatever the appointment was scheduled for. Note this leaves `scheduled_date`
+      // free for the Period filter below — under the old scheduled-date rule the two
+      // collided and the Period filter was silently dropped here.
+      where['created_at'] = { lt: startOfOverdueAgeCutoff() };
+    } else if (filters.status && filters.status.length > 0) {
+      where['status'] = { in: filters.status };
+    } else if (!filters.showCancelled && !filters.serviceGroupId) {
+      // A group-membership query (serviceGroupId set) returns the group's
+      // FULL membership, so the default active-status exclusion must not
+      // apply — otherwise CANCELLED/REJECTED members would silently vanish
+      // and the modal count would disagree with the group pin.
+      where['status'] = { notIn: ['CANCELLED', 'REJECTED'] };
+    }
+    if (filters.fromDate || filters.toDate) {
+      const dateFilter: Record<string, unknown> = {};
+      if (filters.fromDate) dateFilter['gte'] = parseDateOnlyToUtcStart(filters.fromDate);
+      if (filters.toDate) dateFilter['lt'] = nextUtcDay(parseDateOnlyToUtcStart(filters.toDate));
+      where['scheduled_date'] = dateFilter;
     }
     if (filters.serviceTypeId) where['service_type_id'] = filters.serviceTypeId;
     if (filters.branchId) where['branch_id'] = filters.branchId;
@@ -708,19 +733,21 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     return rows.map(mapToEntity);
   }
 
-  async findOverdueActive(beforeDate: Date, limit: number): Promise<AppointmentEntity[]> {
+  async findOverdueForAutoCancel(createdBefore: Date, limit: number): Promise<AppointmentEntity[]> {
     // Cross-tenant: background job processes all tenants, so there is deliberately
     // no tenant_id filter here. The caller is the scheduled sweep, not a request.
-    // scheduled_date is a @db.Date pinned to UTC midnight; callers must pass UTC
-    // midnight of the *Sydney* civil date that counts as "today" (startOfPlatformToday).
+    // `created_at` is a real instant, so callers must pass the actual Sydney-midnight
+    // instant of the cutoff civil date (startOfOverdueAgeCutoff), NOT UTC midnight.
     const rows = await this.prisma.appointment.findMany({
       where: {
-        scheduled_date: { lt: beforeDate },
-        status: { in: [...OVERDUE_ELIGIBLE_STATUSES] },
+        created_at: { lt: createdBefore },
+        // Narrower than OVERDUE_ELIGIBLE_STATUSES on purpose: a stale DRAFT shows the
+        // overdue badge but must never be cancelled — it is the operator repair state.
+        status: { in: [...OVERDUE_AUTO_CANCEL_STATUSES] },
         deleted_at: null,
       },
-      // Oldest first: the longest-dead appointments drain out of a backlog first.
-      orderBy: { scheduled_date: 'asc' },
+      // Oldest first: the longest-stalled appointments drain out of a backlog first.
+      orderBy: { created_at: 'asc' },
       take: limit,
     });
 

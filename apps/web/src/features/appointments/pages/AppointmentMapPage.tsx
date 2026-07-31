@@ -34,6 +34,8 @@ import { AppointmentMapDetailPanel } from '../components/AppointmentMapDetailPan
 import { MapUnplottableWarning, type UnplottableEntry } from '../components/MapUnplottableWarning';
 import { GroupMapDetailPanel } from '../components/GroupMapDetailPanel';
 import { usePublishServiceGroup } from '@/features/service-groups/hooks/usePublishServiceGroup';
+import { useUnpublishServiceGroup } from '@/features/service-groups/hooks/useUnpublishServiceGroup';
+import { UnpublishGroupModal } from '@/features/service-groups/components/UnpublishGroupModal';
 import { MapGroupCreateModal } from '@/features/service-groups/components/MapGroupCreateModal';
 import { useQueryClient } from '@tanstack/react-query';
 import type { UserRole } from '@properfy/shared';
@@ -508,6 +510,24 @@ export function AppointmentMapPage() {
   const { publish: publishPreviewGroup, isPublishing: isPublishingPreviewGroup } =
     usePublishServiceGroup(previewGroup?.id ?? null, () => {
       queryClient.invalidateQueries({ queryKey: ['service-groups-map'] });
+      setPreviewGroup(null);
+    });
+
+  // UNPUBLISH from the same popup (PUBLISHED-only). The confirmation lives at
+  // page level rather than inside the panel: the panel is portalled into a
+  // native mapboxgl.Popup, so a Dialog rendered there is trapped in the
+  // popup's stacking context.
+  //
+  // The target id is captured when the modal opens and the mutation is bound
+  // to THAT, never to `previewGroup`. Opening the modal puts a click outside
+  // the popup card, which the panel treats as dismissal and clears
+  // `previewGroup` — binding the mutation to it would leave the modal on
+  // screen with a null id, so confirming would silently do nothing.
+  const [unpublishTargetId, setUnpublishTargetId] = useState<string | null>(null);
+  const { unpublish: unpublishPreviewGroup, isUnpublishing: isUnpublishingPreviewGroup } =
+    useUnpublishServiceGroup(unpublishTargetId, () => {
+      queryClient.invalidateQueries({ queryKey: ['service-groups-map'] });
+      setUnpublishTargetId(null);
       setPreviewGroup(null);
     });
 
@@ -1452,12 +1472,22 @@ export function AppointmentMapPage() {
           group={previewGroup}
           appointments={previewAppointments}
           isLoadingAppointments={previewApptFetching}
+          actorRole={actorRole}
           onClose={() => setPreviewGroup(null)}
           onPublish={publishPreviewGroup}
           isPublishing={isPublishingPreviewGroup}
+          onUnpublish={() => setUnpublishTargetId(previewGroup.id)}
+          isUnpublishing={isUnpublishingPreviewGroup}
         />,
         groupPopupRoot,
       )}
+
+      <UnpublishGroupModal
+        open={unpublishTargetId !== null}
+        onClose={() => setUnpublishTargetId(null)}
+        onUnpublish={unpublishPreviewGroup}
+        loading={isUnpublishingPreviewGroup}
+      />
 
       <MapGroupCreateModal
         open={groupModalOpen}

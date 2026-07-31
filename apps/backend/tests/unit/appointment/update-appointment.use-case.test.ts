@@ -123,6 +123,7 @@ describe('UpdateAppointmentUseCase', () => {
       deleteContactsByAppointmentId: vi.fn(),
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
+      replaceRestrictions: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
     useCase = new UpdateAppointmentUseCase(appointmentRepo, auditService, new AuthorizationService(auditService));
@@ -295,8 +296,10 @@ describe('UpdateAppointmentUseCase', () => {
       actor: makeActor(),
     });
 
-    expect(appointmentRepo.deleteRestrictionsByAppointmentId).toHaveBeenCalledWith('appt-1');
-    expect(appointmentRepo.saveRestriction).toHaveBeenCalled();
+    // Atomic swap: the delete and the create must not be separate round trips.
+    expect(appointmentRepo.replaceRestrictions).toHaveBeenCalledWith('appt-1', expect.anything());
+    expect(appointmentRepo.deleteRestrictionsByAppointmentId).not.toHaveBeenCalled();
+    expect(appointmentRepo.saveRestriction).not.toHaveBeenCalled();
   });
 
   it('should delete restriction when restriction is set to null', async () => {
@@ -310,8 +313,8 @@ describe('UpdateAppointmentUseCase', () => {
       actor: makeActor(),
     });
 
-    expect(appointmentRepo.deleteRestrictionsByAppointmentId).toHaveBeenCalledWith('appt-1');
-    expect(appointmentRepo.saveRestriction).not.toHaveBeenCalled();
+    expect(appointmentRepo.replaceRestrictions).toHaveBeenCalledWith('appt-1', null);
+    expect(appointmentRepo.deleteRestrictionsByAppointmentId).not.toHaveBeenCalled();
   });
 
   // The weekly availability a rental tenant offers when declining in the portal lives on
@@ -336,7 +339,7 @@ describe('UpdateAppointmentUseCase', () => {
         actor: makeActor(),
       });
 
-      const saved = vi.mocked(appointmentRepo.saveRestriction).mock.calls[0]?.[0];
+      const saved = vi.mocked(appointmentRepo.replaceRestrictions).mock.calls[0]?.[1];
       expect(saved?.availableSlotsJson).toEqual(SLOTS);
       // The operator's own edits must still land.
       expect(saved?.isHome).toBe(true);
@@ -354,12 +357,46 @@ describe('UpdateAppointmentUseCase', () => {
         actor: makeActor(),
       });
 
-      const saved = vi.mocked(appointmentRepo.saveRestriction).mock.calls[0]?.[0];
+      const saved = vi.mocked(appointmentRepo.replaceRestrictions).mock.calls[0]?.[1];
       expect(saved?.availableSlotsJson).toEqual(SLOTS);
       // Nothing operator-authored survives — only the tenant's own contribution.
       expect(saved?.isHome).toBe(false);
       expect(saved?.notes).toBeNull();
       expect(saved?.source).toBe('RENTAL_TENANT_PORTAL');
+    });
+
+    // After one operator edit the row is stamped OPERATOR while the tenant's slots ride
+    // along. Clearing it must re-stamp the survivor RENTAL_TENANT_PORTAL: nothing
+    // operator-authored remains, and the edit drawer reads `source` to decide whether an
+    // operator restriction exists — leaving OPERATOR makes the toggle switch itself back on.
+    it('should re-stamp the survivor as portal-owned when clearing an operator row that carried slots', async () => {
+      const operatorRowWithSlots = new AppointmentRestrictionEntity({
+        id: 'restriction-operator',
+        appointmentId: 'appt-1',
+        isHome: true,
+        unavailableDaysJson: null,
+        unavailableHoursJson: null,
+        availableSlotsJson: SLOTS,
+        notes: 'Ring the bell',
+        source: 'OPERATOR',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({}, false, [operatorRowWithSlots]),
+      );
+
+      await useCase.execute({
+        appointmentId: 'appt-1',
+        data: { restriction: null },
+        actor: makeActor(),
+      });
+
+      const saved = vi.mocked(appointmentRepo.replaceRestrictions).mock.calls[0]?.[1];
+      expect(saved?.availableSlotsJson).toEqual(SLOTS);
+      expect(saved?.source).toBe('RENTAL_TENANT_PORTAL');
+      expect(saved?.isHome).toBe(false);
+      expect(saved?.notes).toBeNull();
     });
 
     it('should leave availableSlotsJson null when the tenant never offered any', async () => {
@@ -371,7 +408,7 @@ describe('UpdateAppointmentUseCase', () => {
         actor: makeActor(),
       });
 
-      const saved = vi.mocked(appointmentRepo.saveRestriction).mock.calls[0]?.[0];
+      const saved = vi.mocked(appointmentRepo.replaceRestrictions).mock.calls[0]?.[1];
       expect(saved?.availableSlotsJson).toBeNull();
     });
   });
@@ -385,7 +422,7 @@ describe('UpdateAppointmentUseCase', () => {
       actor: makeActor(),
     });
 
-    expect(appointmentRepo.deleteRestrictionsByAppointmentId).not.toHaveBeenCalled();
+    expect(appointmentRepo.replaceRestrictions).not.toHaveBeenCalled();
     expect(appointmentRepo.saveRestriction).not.toHaveBeenCalled();
   });
 

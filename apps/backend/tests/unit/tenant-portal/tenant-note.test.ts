@@ -96,6 +96,7 @@ describe('ConfirmAppointmentUseCase – rentalTenantNote', () => {
       updateContact: vi.fn(),
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
+      replaceRestrictions: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as PersistentAuditService;
     useCase = new ConfirmAppointmentUseCase(activityRepo, appointmentRepo, auditService);
@@ -147,6 +148,7 @@ describe('ReportUnavailabilityUseCase – rentalTenantNote', () => {
     findById: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
     deleteRestrictionsByAppointmentId: ReturnType<typeof vi.fn>;
+    replaceRestrictions: ReturnType<typeof vi.fn>;
     saveRestriction: ReturnType<typeof vi.fn>;
     findAll: ReturnType<typeof vi.fn>;
     count: ReturnType<typeof vi.fn>;
@@ -168,6 +170,7 @@ describe('ReportUnavailabilityUseCase – rentalTenantNote', () => {
       findById: vi.fn().mockResolvedValue(makeAppointmentWithRelations()),
       update: vi.fn().mockResolvedValue(undefined),
       deleteRestrictionsByAppointmentId: vi.fn().mockResolvedValue(undefined),
+      replaceRestrictions: vi.fn().mockResolvedValue(undefined),
       saveRestriction: vi.fn().mockResolvedValue(undefined),
       findAll: vi.fn(),
       count: vi.fn(),

@@ -58,7 +58,22 @@ export type AppointmentForAddValidation = AppointmentForValidation;
  * Group statuses that still accept new members. ACCEPTED locks the
  * group (inspector committed); CANCELLED/REJECTED are terminal.
  */
-const ADDABLE_GROUP_STATUSES = new Set<ServiceGroupStatus>(['DRAFT', 'PUBLISHED']);
+/**
+ * Statuses a group can still accept members in. Exported so the repository's
+ * conditional link uses the same set rather than restating it in SQL.
+ */
+export const ADDABLE_GROUP_STATUSES = new Set<ServiceGroupStatus>(['DRAFT', 'PUBLISHED']);
+
+/**
+ * A group that will never run again. Membership of a terminal group is dead
+ * weight: the marketplace only offers PUBLISHED groups, so an appointment linked
+ * to one is invisible there and cannot be re-grouped (`canAddToGroup` rejects any
+ * non-null link). Callers reviving an appointment must drop such a link.
+ */
+export const TERMINAL_GROUP_STATUSES = new Set<string>(['CANCELLED', 'REJECTED']);
+
+export const isTerminalGroupStatus = (status: string): boolean =>
+  TERMINAL_GROUP_STATUSES.has(status);
 
 /**
  * Maximum number of appointments an existing group can hold. Enforced only when
@@ -101,6 +116,13 @@ export class ServiceGroupValidator {
   static canAddToGroup(
     appointment: AppointmentForAddValidation,
     group: GroupForValidation,
+    /**
+     * Status of the group the appointment is *currently* linked to, when it has
+     * one. Supplying it lets a dead link be replaced instead of blocking the
+     * appointment forever — see the `ALREADY_GROUPED` check below. Omitted means
+     * "unknown", which keeps the conservative behaviour of refusing any link.
+     */
+    currentGroupStatus?: string | null,
   ): AddToGroupValidation {
     if (!ADDABLE_GROUP_STATUSES.has(group.status)) {
       return { ok: false, reasonCode: 'GROUP_IN_TERMINAL_STATE' };
@@ -115,8 +137,17 @@ export class ServiceGroupValidator {
     if (appointment.status !== 'DRAFT' && appointment.status !== 'AWAITING_INSPECTOR' && appointment.status !== 'REJECTED') {
       return { ok: false, reasonCode: 'INVALID_STATUS' };
     }
+    // A link to a group that will never run again is dead weight, not ownership:
+    // the marketplace only offers PUBLISHED groups, so refusing to replace such a
+    // link is what strands the appointment — it cannot be released usefully and
+    // cannot be re-grouped. The empty-group cleanup cancels without unlinking, so
+    // these links exist. Replacing one is the repair, so allow it.
     if (appointment.serviceGroupId !== null) {
-      return { ok: false, reasonCode: 'ALREADY_GROUPED' };
+      const currentLinkIsDead =
+        currentGroupStatus === null || (currentGroupStatus !== undefined && isTerminalGroupStatus(currentGroupStatus));
+      if (!currentLinkIsDead) {
+        return { ok: false, reasonCode: 'ALREADY_GROUPED' };
+      }
     }
     // Date and time window are intentionally not checked — the appointment's
     // schedule is synced to the group's on join.

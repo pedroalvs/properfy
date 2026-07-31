@@ -53,7 +53,7 @@ export function ExecutionPage() {
 
   if (aptLoading || !isRestored) {
     return (
-      <div>
+      <div className="pb-safe-b">
         <TopBar title="Inspection" showBack />
         <div className="px-page-x py-4">
           <LoadingState rows={4} variant="card" />
@@ -65,7 +65,7 @@ export function ExecutionPage() {
   const appointment = aptData?.data;
   if (aptError || !appointment) {
     return (
-      <div>
+      <div className="pb-safe-b">
         <TopBar title="Inspection" showBack />
         <ErrorState
           message="Unable to load this appointment"
@@ -202,7 +202,9 @@ export function ExecutionPage() {
   };
 
   return (
-    <div data-testid="execution-page">
+    // /execution sits outside PwaLayout, so it gets neither the bottom nav nor the
+    // layout's clearance — it has to reserve the home-indicator inset itself.
+    <div className="pb-safe-b" data-testid="execution-page">
       <TopBar title="Inspection" subtitle={topBarSubtitle} showBack />
 
       <div className="px-page-x pt-2">

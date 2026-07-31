@@ -2,9 +2,14 @@ import { Link } from 'react-router-dom';
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
 import { BooleanIcon } from '@/components/ui/BooleanIcon';
-import { AppointmentStatus } from '@properfy/shared';
+import { AppointmentStatus, OVERDUE_AGE_DAYS } from '@properfy/shared';
 import { RENTAL_TENANT_CONFIRMATION_STATUS_MAP } from '@/lib/status-colors';
-import { formatCivilDate, formatInstantDateTime, formatWallTimeRange } from '@/lib/format-date';
+import {
+  formatCivilDate,
+  formatInstantDate,
+  formatInstantDateTime,
+  formatWallTimeRange,
+} from '@/lib/format-date';
 import { formatArea, formatPropertyType, formatRent } from '@/lib/format-property';
 import type { AppointmentDetail } from '../types';
 import { formatAuPhone } from '@/lib/phone-mask';
@@ -35,7 +40,8 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
           <i className="mdi mdi-alert-circle mt-0.5 text-lg" aria-hidden="true" />
           <div>
             <span className="font-semibold">This appointment is overdue.</span>
-            {' '}The scheduled date ({formatCivilDate(appointment.scheduledDate)}) has passed and no action was taken.
+            {' '}It was created on {formatInstantDate(appointment.createdAt)} and has been open for
+            more than {OVERDUE_AGE_DAYS} days without being completed.
             Consider rescheduling, cancelling, or marking as done.
           </div>
         </div>

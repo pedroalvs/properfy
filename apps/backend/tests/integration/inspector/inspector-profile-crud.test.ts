@@ -85,6 +85,7 @@ describe('POST /v1/inspectors — profile fields', () => {
       .send({
         name: 'Jane Inspector',
         email: 'jane@inspect.com',
+        password: 'Insp@2026x',
         phone: '+61400000000',
         fullName: 'Jane Margaret Inspector',
         abn: '12345678901',
@@ -117,7 +118,7 @@ describe('POST /v1/inspectors — profile fields', () => {
     const res = await supertest(app.server)
       .post('/v1/inspectors')
       .set('Authorization', 'Bearer valid-token')
-      .send({ name: 'Min Inspector', email: 'min@inspect.com' });
+      .send({ name: 'Min Inspector', email: 'min@inspect.com', password: 'Insp@2026x' });
 
     expect(res.status).toBe(201);
     expect(res.body.data.name).toBe('Min Inspector');
@@ -132,7 +133,7 @@ describe('POST /v1/inspectors — profile fields', () => {
     const res = await supertest(app.server)
       .post('/v1/inspectors')
       .set('Authorization', 'Bearer valid-token')
-      .send({ name: 'Test Inspector', email: 'test@inspect.com' });
+      .send({ name: 'Test Inspector', email: 'test@inspect.com', password: 'Insp@2026x' });
 
     expect(res.status).toBe(403);
   });

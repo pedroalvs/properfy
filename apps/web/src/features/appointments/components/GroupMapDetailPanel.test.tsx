@@ -7,8 +7,11 @@
  *     its own (the page supplies `appointments`).
  *   - Close button and ESC call onClose.
  *   - VIEW GROUP links to /service-groups/{id} (same tab).
+ *   - The second footer button follows the status: PUBLISH on DRAFT,
+ *     UNPUBLISH on PUBLISHED, nothing at all on ACCEPTED/CANCELLED/REJECTED.
  *   - PUBLISH calls onPublish and is enabled only for DRAFT groups that are
  *     non-empty and not past-dated (mirrors the backend publish guards).
+ *   - Both actions are AM/OP-only — the endpoints are, and /map is not.
  *   - Focus moves into the dialog on open.
  *   - Renders nothing when group is null.
  */
@@ -32,8 +35,10 @@ function renderPanel(props: Partial<Parameters<typeof GroupMapDetailPanel>[0]> =
     <MemoryRouter>
       <GroupMapDetailPanel
         group={sampleGroup}
+        actorRole="AM"
         onClose={vi.fn()}
         onPublish={vi.fn()}
+        onUnpublish={vi.fn()}
         {...props}
       />
     </MemoryRouter>,
@@ -128,13 +133,57 @@ describe('GroupMapDetailPanel', () => {
     expect(link).not.toHaveAttribute('target');
   });
 
-  it('PUBLISH is disabled for non-DRAFT groups and never fires onPublish', () => {
-    const onPublish = vi.fn();
-    renderPanel({ onPublish });
-    const btn = screen.getByTestId('group-map-detail-publish');
+  it('offers UNPUBLISH — not a dead PUBLISH — for a PUBLISHED group', () => {
+    renderPanel();
+    expect(screen.queryByTestId('group-map-detail-publish')).toBeNull();
+    expect(screen.getByTestId('group-map-detail-unpublish')).toBeEnabled();
+  });
+
+  it.each([ServiceGroupStatus.ACCEPTED, ServiceGroupStatus.CANCELLED, ServiceGroupStatus.REJECTED])(
+    'offers no action button at all for a %s group',
+    (status) => {
+      renderPanel({ group: { ...sampleGroup, status } });
+      expect(screen.queryByTestId('group-map-detail-publish')).toBeNull();
+      expect(screen.queryByTestId('group-map-detail-unpublish')).toBeNull();
+      // VIEW GROUP is still the way in.
+      expect(screen.getByTestId('group-map-detail-view')).toBeInTheDocument();
+    },
+  );
+
+  it('UNPUBLISH calls onUnpublish', () => {
+    const onUnpublish = vi.fn();
+    renderPanel({ onUnpublish });
+    fireEvent.click(screen.getByTestId('group-map-detail-unpublish'));
+    expect(onUnpublish).toHaveBeenCalledTimes(1);
+  });
+
+  it('UNPUBLISH shows the in-flight state while unpublishing', () => {
+    renderPanel({ isUnpublishing: true });
+    const btn = screen.getByTestId('group-map-detail-unpublish');
     expect(btn).toBeDisabled();
-    fireEvent.click(btn);
-    expect(onPublish).not.toHaveBeenCalled();
+    expect(btn).toHaveTextContent(/unpublishing/i);
+  });
+
+  it.each(['CL_ADMIN', 'CL_USER'] as const)(
+    'hides both actions from %s — /map is open to them, the endpoints are not',
+    (actorRole) => {
+      const { unmount } = renderPanel({ actorRole });
+      expect(screen.queryByTestId('group-map-detail-unpublish')).toBeNull();
+      expect(screen.getByTestId('group-map-detail-view')).toBeInTheDocument();
+      unmount();
+
+      renderPanel({ actorRole, group: { ...sampleGroup, status: ServiceGroupStatus.DRAFT } });
+      expect(screen.queryByTestId('group-map-detail-publish')).toBeNull();
+    },
+  );
+
+  it('shows both actions to OP', () => {
+    const { unmount } = renderPanel({ actorRole: 'OP' });
+    expect(screen.getByTestId('group-map-detail-unpublish')).toBeInTheDocument();
+    unmount();
+
+    renderPanel({ actorRole: 'OP', group: { ...sampleGroup, status: ServiceGroupStatus.DRAFT } });
+    expect(screen.getByTestId('group-map-detail-publish')).toBeInTheDocument();
   });
 
   it('PUBLISH calls onPublish for DRAFT groups', () => {
@@ -206,8 +255,8 @@ describe('GroupMapDetailPanel', () => {
     );
   });
 
-  it('does not point aria-describedby at an unrendered reason for non-DRAFT groups', () => {
-    renderPanel();
+  it('does not point aria-describedby at an unrendered reason when nothing blocks publishing', () => {
+    renderPanel({ group: { ...sampleGroup, status: ServiceGroupStatus.DRAFT } });
     expect(screen.getByTestId('group-map-detail-publish')).not.toHaveAttribute('aria-describedby');
     expect(screen.queryByTestId('group-map-detail-publish-reason')).toBeNull();
   });

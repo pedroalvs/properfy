@@ -5,6 +5,16 @@ import { SnackbarProvider } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
 import type { Appointment } from '../types';
 
+/**
+ * A date comfortably in the future. Hardcoding one rots — the previous literal
+ * was future when written and later tripped the past-date submit guard.
+ */
+const FUTURE_DATE = (() => {
+  const d = new Date();
+  d.setDate(d.getDate() + 30);
+  return d.toISOString().slice(0, 10);
+})();
+
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } }));
 
 vi.mock('@/services/api', () => ({
@@ -224,12 +234,38 @@ describe('BulkEditModal', () => {
     expect(mockPost).not.toHaveBeenCalled();
   });
 
+  it('rejects a past scheduled date at submit instead of sending it', async () => {
+    // DateInput flags an out-of-range value but still emits it, so the submit
+    // path is the only thing standing between the user and a server rejection.
+    renderModal([makeAppointment()]);
+    fireEvent.click(screen.getByLabelText('Scheduled Date'));
+    fireEvent.change(screen.getByLabelText('Set scheduled date'), { target: { value: '2020-01-15' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
+
+    expect(await screen.findByText('Scheduled date cannot be in the past.')).toBeInTheDocument();
+    expect(mockPost).not.toHaveBeenCalled();
+  });
+
+  it('rejects an incomplete scheduled date instead of silently dropping it', async () => {
+    // An incomplete date emits '', which the change-collection loop skips — so
+    // without this the field would be enabled and simply ignored.
+    renderModal([makeAppointment()]);
+    fireEvent.click(screen.getByLabelText('Scheduled Date'));
+    fireEvent.change(screen.getByLabelText('Set scheduled date'), { target: { value: '15/06' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
+
+    expect(await screen.findByText('Enter a complete scheduled date.')).toBeInTheDocument();
+    expect(mockPost).not.toHaveBeenCalled();
+  });
+
   it('submits propertyManagerContactPolicy=addIfMissing when PM contact field is enabled', async () => {
     renderModal([makeAppointment()]);
     fireEvent.click(screen.getByText(/Add Property Manager Contact/));
     // Use Scheduled Date as a no-op carrier so submit has a non-empty change.
     fireEvent.click(screen.getByLabelText('Scheduled Date'));
-    fireEvent.change(screen.getByLabelText('Set scheduled date'), { target: { value: '2026-06-15' } });
+    fireEvent.change(screen.getByLabelText('Set scheduled date'), { target: { value: FUTURE_DATE } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
 
@@ -248,7 +284,7 @@ describe('BulkEditModal', () => {
   it('does NOT include options.propertyManagerContactPolicy when PM field is unchecked', async () => {
     renderModal([makeAppointment()]);
     fireEvent.click(screen.getByLabelText('Scheduled Date'));
-    fireEvent.change(screen.getByLabelText('Set scheduled date'), { target: { value: '2026-06-15' } });
+    fireEvent.change(screen.getByLabelText('Set scheduled date'), { target: { value: FUTURE_DATE } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
 
@@ -610,6 +646,37 @@ describe('BulkEditModal', () => {
       expect(screen.getByText('1 failed')).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: /Show error details/ }));
       expect(screen.getByText(/Cannot go from DONE to CANCELLED/)).toBeInTheDocument();
+    });
+
+    it('never offers the tenant opt-in when no selected tenant has confirmed', () => {
+      // The shared fixture is PENDING, so cancelling it must offer nothing.
+      renderModal([makeAppointment({ id: 'a', status: 'DRAFT' })]);
+      fireEvent.click(screen.getByLabelText('Change status'));
+      chooseTarget('Cancelled');
+
+      expect(screen.queryByTestId('bulk-edit-notify-block')).not.toBeInTheDocument();
+    });
+
+    it('offers the tenant opt-in only for CANCELLED, and never pre-ticked', () => {
+      renderModal([
+        makeAppointment({ id: 'a', status: 'DRAFT', rentalTenantConfirmationStatus: 'CONFIRMED' }),
+      ]);
+      fireEvent.click(screen.getByLabelText('Change status'));
+
+      // Not offered until the target is CANCELLED.
+      expect(screen.queryByTestId('bulk-edit-notify-block')).not.toBeInTheDocument();
+
+      chooseTarget('Cancelled');
+      expect(screen.getByLabelText('Notify the tenants who confirmed')).not.toBeChecked();
+
+      // Off is the deliberate default: a tick must not survive a target change and
+      // come back pre-checked.
+      fireEvent.click(screen.getByText('Notify the tenants who confirmed'));
+      expect(screen.getByLabelText('Notify the tenants who confirmed')).toBeChecked();
+      chooseTarget('Rejected');
+      expect(screen.queryByTestId('bulk-edit-notify-block')).not.toBeInTheDocument();
+      chooseTarget('Cancelled');
+      expect(screen.getByLabelText('Notify the tenants who confirmed')).not.toBeChecked();
     });
 
     it('identifies failed rows by appointment code, not by a raw id fragment', async () => {

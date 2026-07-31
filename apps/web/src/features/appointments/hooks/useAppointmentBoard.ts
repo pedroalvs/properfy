@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { AppointmentStatus } from '@properfy/shared';
+import { OVERDUE_ELIGIBLE_STATUSES, type AppointmentStatus } from '@properfy/shared';
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
 import { useUrlFilters } from '@/hooks/useUrlFilters';
 import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
@@ -22,13 +22,20 @@ export const BOARD_COLUMN_STATUSES = [
 export type BoardColumnStatus = (typeof BOARD_COLUMN_STATUSES)[number];
 
 /**
- * `overdueOnly` is defined server-side as "status IN (SCHEDULED,
- * AWAITING_INSPECTOR) AND scheduled_date < today". `buildWhere` intersects it
- * with the per-column status, so a terminal column would correctly come back
- * empty — we skip those three requests outright rather than pay for three
- * round-trips that can only ever return nothing.
+ * `overdueOnly` is defined server-side as "status IN OVERDUE_ELIGIBLE_STATUSES AND
+ * created_at older than OVERDUE_AGE_DAYS". `buildWhere` intersects it with the
+ * per-column status, so a terminal column would correctly come back empty — we skip
+ * those requests outright rather than pay for round-trips that can only ever return
+ * nothing.
+ *
+ * Derived from the shared list rather than restated, so it cannot drift from the
+ * server's definition. `DRAFT` is overdue-eligible server-side but is not a board
+ * column, so intersecting with BOARD_COLUMN_STATUSES drops it here.
  */
-const OVERDUE_ELIGIBLE_STATUSES: ReadonlyArray<BoardColumnStatus> = ['AWAITING_INSPECTOR', 'SCHEDULED'];
+const OVERDUE_BOARD_COLUMNS: ReadonlyArray<BoardColumnStatus> = BOARD_COLUMN_STATUSES.filter(
+  (status): status is BoardColumnStatus =>
+    (OVERDUE_ELIGIBLE_STATUSES as readonly string[]).includes(status),
+);
 
 /** Cards fetched per column initially, and added by each "Load more". */
 export const BOARD_COLUMN_PAGE_SIZE = 20;
@@ -91,7 +98,7 @@ function buildSharedParams(filters: AppointmentFiltersState): ListParams {
 function useBoardColumn(status: BoardColumnStatus, filters: AppointmentFiltersState): BoardColumn {
   const [pageSize, setPageSize] = useState(BOARD_COLUMN_PAGE_SIZE);
 
-  const enabled = !filters.overdueOnly || OVERDUE_ELIGIBLE_STATUSES.includes(status);
+  const enabled = !filters.overdueOnly || OVERDUE_BOARD_COLUMNS.includes(status);
 
   const params: ListParams = {
     ...buildSharedParams(filters),

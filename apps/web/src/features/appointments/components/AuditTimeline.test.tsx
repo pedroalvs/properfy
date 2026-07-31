@@ -163,4 +163,91 @@ describe('AuditTimeline', () => {
     const { container } = render(<AuditTimeline entries={[]} />);
     expect(container.innerHTML).toBe('');
   });
+
+  it('shows channel, template and reason on a failure row', () => {
+    // summarizeChanges() bails without a beforeJson, and these audits only carry
+    // `after` — so without a dedicated renderer the row reads "Notification
+    // Failed to Send — by System · date" and nothing else, leaving the operator
+    // to go hunting in the Notifications tab. That is the exact friction this
+    // feature exists to remove.
+    const entries: AuditLogEntry[] = [
+      {
+        id: 'log-detail',
+        tenantId: 'ten-1',
+        actorType: 'SYSTEM',
+        actorId: null,
+        actorName: null,
+        entityType: 'Appointment',
+        entityId: 'apt-01',
+        action: 'notification.send_failed',
+        reason: null,
+        beforeJson: null,
+        afterJson: {
+          notificationId: 'e7c9a1f2-0000-4000-8000-000000000001',
+          templateCode: 'INSPECTION_NOTICE_SMS',
+          channel: 'SMS',
+          failureReason: 'EMPTY_SMS_BODY',
+          retryCount: 0,
+        },
+        requestId: null,
+        ipAddress: null,
+        metadataJson: null,
+        createdAt: '2026-03-12T09:00:00Z',
+      },
+    ];
+
+    render(<AuditTimeline entries={entries} />);
+
+    expect(screen.getByText(/SMS/)).toBeInTheDocument();
+    expect(screen.getByText(/INSPECTION_NOTICE_SMS/)).toBeInTheDocument();
+    expect(screen.getByText(/EMPTY_SMS_BODY/)).toBeInTheDocument();
+    // Raw IDs must not leak into the UI.
+    expect(screen.queryByText(/e7c9a1f2/)).not.toBeInTheDocument();
+  });
+
+  it('labels notification failures so they read as incidents on the timeline', () => {
+    const entries: AuditLogEntry[] = [
+      {
+        id: 'log-notif-1',
+        tenantId: 'ten-1',
+        actorType: 'SYSTEM',
+        actorId: null,
+        actorName: null,
+        entityType: 'Appointment',
+        entityId: 'apt-01',
+        action: 'notification.send_failed',
+        reason: null,
+        beforeJson: null,
+        afterJson: { templateCode: 'INSPECTION_NOTICE_SMS', channel: 'SMS', failureReason: 'EMPTY_SMS_BODY' },
+        requestId: null,
+        ipAddress: null,
+        metadataJson: null,
+        createdAt: '2026-03-12T09:00:00Z',
+      },
+      {
+        id: 'log-notif-2',
+        tenantId: 'ten-1',
+        actorType: 'SYSTEM',
+        actorId: null,
+        actorName: null,
+        entityType: 'Appointment',
+        entityId: 'apt-01',
+        action: 'notification.dispatch_failed',
+        reason: null,
+        beforeJson: null,
+        afterJson: { targetStatus: 'SCHEDULED', error: 'sms provider exploded' },
+        requestId: null,
+        ipAddress: null,
+        metadataJson: null,
+        createdAt: '2026-03-12T09:01:00Z',
+      },
+    ];
+
+    const { container } = render(<AuditTimeline entries={entries} />);
+
+    expect(screen.getByText('Notification Failed to Send')).toBeInTheDocument();
+    expect(screen.getByText('Notification Dispatch Failed')).toBeInTheDocument();
+    // Both must read as errors, not as neutral activity.
+    expect(container.querySelectorAll('.border-error').length).toBe(2);
+  });
 });

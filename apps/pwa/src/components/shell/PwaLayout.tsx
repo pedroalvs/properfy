@@ -9,7 +9,7 @@ export function PwaLayout() {
       data-testid="pwa-layout"
     >
       <OfflineBanner />
-      <main className="mx-auto flex w-full max-w-screen-sm flex-1 pb-20">
+      <main className="mx-auto flex w-full max-w-screen-sm flex-1 pb-nav-clear">
         <Outlet />
       </main>
       <BottomNavBar />

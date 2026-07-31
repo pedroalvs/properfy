@@ -109,6 +109,7 @@ const appointmentRepo = {
   updateContact: vi.fn(),
   saveRestriction: vi.fn(),
   deleteRestrictionsByAppointmentId: vi.fn(),
+  replaceRestrictions: vi.fn(),
 };
 
 const userRepo = {
@@ -133,6 +134,10 @@ const onDoneHandler = {
 
 const onTransitionHandler = {
   execute: vi.fn().mockResolvedValue(undefined),
+};
+
+const serviceGroupRepo = {
+  findStatusById: vi.fn().mockResolvedValue('PUBLISHED'),
 };
 
 const inspectorRepo = {
@@ -170,7 +175,7 @@ const serviceTypeRepo = {
   update: vi.fn(),
 };
 
-function makeUseCase(opts: { withOnDoneHandler?: boolean; withOnTransitionHandler?: boolean; withTenantRepo?: boolean; withAuthorizationService?: boolean; withServiceTypeRepo?: boolean; domainEventBus?: DomainEventBus } = {}) {
+function makeUseCase(opts: { withOnDoneHandler?: boolean; withOnTransitionHandler?: boolean; withTenantRepo?: boolean; withAuthorizationService?: boolean; withServiceTypeRepo?: boolean; domainEventBus?: DomainEventBus; withServiceGroupRepo?: boolean } = {}) {
   return new ExecuteStatusTransitionUseCase(
     appointmentRepo as any,
     userRepo as any,
@@ -182,6 +187,9 @@ function makeUseCase(opts: { withOnDoneHandler?: boolean; withOnTransitionHandle
     opts.withOnTransitionHandler ? onTransitionHandler : undefined,
     opts.withServiceTypeRepo ? (serviceTypeRepo as any) : undefined,
     opts.domainEventBus,
+    undefined,
+    undefined,
+    opts.withServiceGroupRepo ? (serviceGroupRepo as any) : undefined,
   );
 }
 
@@ -191,6 +199,7 @@ beforeEach(() => {
   appointmentRepo.update.mockResolvedValue(undefined);
   onDoneHandler.execute.mockResolvedValue(undefined);
   onTransitionHandler.execute.mockResolvedValue(undefined);
+  serviceGroupRepo.findStatusById.mockResolvedValue('PUBLISHED');
 });
 
 // =============================================================================
@@ -990,6 +999,76 @@ describe('ExecuteStatusTransitionUseCase – onTransitionHandler', () => {
     });
   });
 
+  // The catch around this handler used to be `catch {}` — it did not even bind
+  // the error, so a dispatch failure left nothing behind but the handler's own
+  // log line while the transition itself was audited as perfectly healthy.
+  describe('when the notification dispatch fails', () => {
+    it('still completes the transition', async () => {
+      appointmentRepo.findById.mockResolvedValue(
+        makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null }),
+      );
+      onTransitionHandler.execute.mockRejectedValueOnce(new Error('sms provider exploded'));
+      const uc = makeUseCase({ withOnTransitionHandler: true });
+
+      await expect(
+        uc.execute({
+          appointmentId: 'appt-1',
+          targetStatus: 'SCHEDULED',
+          inspectorId: 'insp-1',
+          actor: makeActor('OP'),
+        }),
+      ).resolves.toBeDefined();
+      expect(appointmentRepo.update).toHaveBeenCalled();
+    });
+
+    it('records the failure against the appointment so it lands on the timeline', async () => {
+      appointmentRepo.findById.mockResolvedValue(
+        makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null }),
+      );
+      onTransitionHandler.execute.mockRejectedValueOnce(new Error('sms provider exploded'));
+      const uc = makeUseCase({ withOnTransitionHandler: true });
+
+      await uc.execute({
+        appointmentId: 'appt-1',
+        targetStatus: 'SCHEDULED',
+        inspectorId: 'insp-1',
+        actor: makeActor('OP'),
+      });
+
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'notification.dispatch_failed',
+          entityType: 'Appointment',
+          entityId: 'appt-1',
+          tenantId: 'tenant-1',
+          after: expect.objectContaining({
+            targetStatus: 'SCHEDULED',
+            // Class only — a provider message can name the recipient.
+            error: 'Error',
+          }),
+        }),
+      );
+    });
+
+    it('writes no dispatch-failure audit when the handler succeeds', async () => {
+      appointmentRepo.findById.mockResolvedValue(
+        makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null }),
+      );
+      const uc = makeUseCase({ withOnTransitionHandler: true });
+
+      await uc.execute({
+        appointmentId: 'appt-1',
+        targetStatus: 'SCHEDULED',
+        inspectorId: 'insp-1',
+        actor: makeActor('OP'),
+      });
+
+      expect(auditService.log).not.toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'notification.dispatch_failed' }),
+      );
+    });
+  });
+
   it('calls onTransitionHandler with correct args when transitioning to CANCELLED', async () => {
     appointmentRepo.findById.mockResolvedValue(
       makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
@@ -1044,7 +1123,9 @@ describe('ExecuteStatusTransitionUseCase – onTransitionHandler', () => {
     expect(onTransitionHandler.execute).not.toHaveBeenCalled();
   });
 
-  it('skips onTransitionHandler when suppressNotifications is set', async () => {
+  it('still invokes the handler for a system EXPIRED cancellation, so the agency is told', async () => {
+    // The sweep used to suppress notifications wholesale. It no longer does: the
+    // agency leg must fire, and the tenant leg is held back by the absent flag.
     appointmentRepo.findById.mockResolvedValue(
       makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
     );
@@ -1054,15 +1135,16 @@ describe('ExecuteStatusTransitionUseCase – onTransitionHandler', () => {
       targetStatus: 'CANCELLED',
       reason: 'Appointment date passed',
       cancellationReasonCode: 'EXPIRED',
-      suppressNotifications: true,
       actor: makeActor('SYS'),
     });
 
     expect(result.status).toBe('CANCELLED');
-    expect(onTransitionHandler.execute).not.toHaveBeenCalled();
+    expect(onTransitionHandler.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ notifyRentalTenant: undefined }),
+    );
   });
 
-  it('still notifies when suppressNotifications is absent or false', async () => {
+  it('forwards notifyRentalTenant to the handler', async () => {
     appointmentRepo.findById.mockResolvedValue(
       makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
     );
@@ -1071,11 +1153,139 @@ describe('ExecuteStatusTransitionUseCase – onTransitionHandler', () => {
       appointmentId: 'appt-1',
       targetStatus: 'CANCELLED',
       reason: 'Client request',
-      suppressNotifications: false,
+      notifyRentalTenant: true,
       actor: makeActor('AM'),
     });
 
-    expect(onTransitionHandler.execute).toHaveBeenCalledOnce();
+    expect(onTransitionHandler.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ targetStatus: 'CANCELLED', notifyRentalTenant: true }),
+    );
+  });
+});
+
+// =============================================================================
+// Terminal service-group links
+// =============================================================================
+
+/**
+ * The empty-group cleanup cancels a group while leaving its terminal members
+ * linked (deliberately, to keep the history). That makes a CANCELLED group with
+ * members reachable for the first time — and reopening one of those members would
+ * otherwise revive a live appointment attached to a dead group: invisible to the
+ * marketplace (which only offers PUBLISHED groups) and un-regroupable, because
+ * `canAddToGroup` rejects any non-null link.
+ */
+describe('ExecuteStatusTransitionUseCase – terminal service-group links', () => {
+  it('drops the link when reopening an appointment whose group is CANCELLED', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'CANCELLED', serviceGroupId: 'sg-dead' }),
+    );
+    serviceGroupRepo.findStatusById.mockResolvedValue('CANCELLED');
+
+    await makeUseCase({ withServiceGroupRepo: true }).execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DRAFT',
+      reason: 'That cancellation was wrong',
+      actor: makeActor('OP'),
+    });
+
+    const [, , updateData] = appointmentRepo.update.mock.calls[0]!;
+    expect(updateData.serviceGroupId).toBeNull();
+  });
+
+  it('drops the link when the group is REJECTED', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'CANCELLED', serviceGroupId: 'sg-dead' }),
+    );
+    serviceGroupRepo.findStatusById.mockResolvedValue('REJECTED');
+
+    await makeUseCase({ withServiceGroupRepo: true }).execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DRAFT',
+      reason: 'Reopen',
+      actor: makeActor('OP'),
+    });
+
+    expect(appointmentRepo.update.mock.calls[0]![2].serviceGroupId).toBeNull();
+  });
+
+  it('drops the link when the linked group no longer exists', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'CANCELLED', serviceGroupId: 'sg-gone' }),
+    );
+    serviceGroupRepo.findStatusById.mockResolvedValue(null);
+
+    await makeUseCase({ withServiceGroupRepo: true }).execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DRAFT',
+      reason: 'Reopen',
+      actor: makeActor('OP'),
+    });
+
+    expect(appointmentRepo.update.mock.calls[0]![2].serviceGroupId).toBeNull();
+  });
+
+  it('keeps the link when the group is still live', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'CANCELLED', serviceGroupId: 'sg-live' }),
+    );
+    serviceGroupRepo.findStatusById.mockResolvedValue('PUBLISHED');
+
+    await makeUseCase({ withServiceGroupRepo: true }).execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DRAFT',
+      reason: 'Reopen',
+      actor: makeActor('OP'),
+    });
+
+    expect(appointmentRepo.update.mock.calls[0]![2]).not.toHaveProperty('serviceGroupId');
+  });
+
+  it('refuses to release into a CANCELLED group', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'DRAFT', serviceGroupId: 'sg-dead' }),
+    );
+    serviceGroupRepo.findStatusById.mockResolvedValue('CANCELLED');
+
+    await expect(
+      makeUseCase({ withServiceGroupRepo: true }).execute({
+        appointmentId: 'appt-1',
+        targetStatus: 'AWAITING_INSPECTOR',
+        actor: makeActor('OP'),
+      }),
+    ).rejects.toThrow(AppointmentServiceGroupRequiredError);
+
+    expect(appointmentRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('refuses to release when the linked group no longer exists', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'DRAFT', serviceGroupId: 'sg-gone' }),
+    );
+    serviceGroupRepo.findStatusById.mockResolvedValue(null);
+
+    await expect(
+      makeUseCase({ withServiceGroupRepo: true }).execute({
+        appointmentId: 'appt-1',
+        targetStatus: 'AWAITING_INSPECTOR',
+        actor: makeActor('OP'),
+      }),
+    ).rejects.toThrow(AppointmentServiceGroupRequiredError);
+  });
+
+  it('still allows release into a live group', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'DRAFT', serviceGroupId: 'sg-live' }),
+    );
+    serviceGroupRepo.findStatusById.mockResolvedValue('DRAFT');
+
+    const result = await makeUseCase({ withServiceGroupRepo: true }).execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'AWAITING_INSPECTOR',
+      actor: makeActor('OP'),
+    });
+
+    expect(result.status).toBe('AWAITING_INSPECTOR');
   });
 });
 

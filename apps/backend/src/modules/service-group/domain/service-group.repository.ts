@@ -235,6 +235,12 @@ export interface IServiceGroupRepository {
   /** Optimistic lock: updates status from PUBLISHED to ACCEPTED atomically. Returns count of updated rows (0 means race lost). */
   acceptOptimistic(id: string, inspectorId: string, assignedAt: Date): Promise<number>;
   /**
+   * Optimistic lock: pulls the group off the marketplace by moving it from
+   * PUBLISHED back to DRAFT. Returns count of updated rows — 0 means an
+   * inspector accepted it in between, so the caller must not claim success.
+   */
+  unpublishOptimistic(id: string): Promise<number>;
+  /**
    * Optimistic lock: sets status to CANCELLED only if it is still `expectedStatus`.
    * Returns count of updated rows (0 means another writer got there first, so the
    * caller must skip its audit log and domain event rather than duplicating them).
@@ -267,7 +273,24 @@ export interface IServiceGroupRepository {
   /** Atomic increment of confirmed_count (for join flows). */
   incrementConfirmedCount(groupId: string): Promise<void>;
   /** Set service_group_id on appointments */
-  linkAppointments(appointmentIds: string[], groupId: string): Promise<void>;
+  /**
+   * Links appointments to the group, but only while the group is still addable
+   * (`ADDABLE_GROUP_STATUSES`), evaluated in the same statement as the write.
+   *
+   * Returns the number of rows linked. **0 means the group changed status first**
+   * — e.g. the empty-group cleanup cancelled it after the caller read it — and the
+   * caller must not proceed, or it would strand a live appointment on a group the
+   * marketplace never offers and `canAddToGroup` refuses to replace.
+   */
+  linkAppointments(appointmentIds: string[], groupId: string): Promise<number>;
+  /** Just the group's status, or null if it does not exist. Cheap membership check. */
+  findStatusById(id: string): Promise<string | null>;
+  /**
+   * Statuses for several groups at once, keyed by id; missing ids are absent from
+   * the result. Lets the add-to-group flows judge each appointment's *existing*
+   * link in one query instead of one per appointment.
+   */
+  findStatusesByIds(ids: string[]): Promise<Record<string, string>>;
   /** Clear service_group_id on appointments */
   unlinkAppointments(groupId: string): Promise<void>;
   /** Revert all SCHEDULED appointments in a group back to AWAITING_INSPECTOR and clear inspector_id */

@@ -151,7 +151,10 @@ function mapToOutput(found: AppointmentWithRelations, apps: AppointmentApp[]): G
     clientName: found.tenantName ?? '',
     serviceGroupId: appointment.serviceGroupId ?? null,
     serviceGroupCode: found.serviceGroupNumber != null ? String(found.serviceGroupNumber) : null,
-    isOverdue: isAppointmentOverdue(appointment.status, appointment.scheduledDate),
+    isOverdue: isAppointmentOverdue({
+      status: appointment.status,
+      createdAt: appointment.createdAt,
+    }),
     cancellationReason: appointment.reason,
     latitude: found.propertyLatitude ?? null,
     longitude: found.propertyLongitude ?? null,

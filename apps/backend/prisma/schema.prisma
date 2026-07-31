@@ -572,6 +572,10 @@ model Appointment {
   @@index([tenant_id, scheduled_date])
   @@index([tenant_id, service_type_id])
   @@index([service_group_id])
+  // Backs the daily overdue auto-cancel sweep, which is cross-tenant and filters on
+  // exactly (status, created_at). Every other index here leads with tenant_id, so
+  // none of them can serve that query.
+  @@index([status, created_at])
   @@map("appointments")
 }
 
@@ -1220,7 +1224,9 @@ model InspectorInvoice {
 
 model Notification {
   id                  String              @id @default(uuid())
-  tenant_id           String
+  /// NULL = platform-scoped notification (no owning agency), e.g. the password
+  /// reset email for an AM/OP/INSP user. Mirrors notification_templates.tenant_id.
+  tenant_id           String?
   appointment_id      String?
   recipient           String              @db.VarChar(320)
   channel             NotificationChannel
@@ -1239,7 +1245,7 @@ model Notification {
   created_at          DateTime            @default(now())
   updated_at          DateTime            @updatedAt
 
-  tenant      Tenant                @relation(fields: [tenant_id], references: [id])
+  tenant      Tenant?               @relation(fields: [tenant_id], references: [id])
   appointment Appointment?          @relation(fields: [appointment_id], references: [id])
   attempts    NotificationAttempt[]
 

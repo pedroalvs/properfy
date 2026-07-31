@@ -15,7 +15,7 @@ export function AcceptOfferModal({ offer, state, onConfirm, onCancel }: AcceptOf
 
   return (
     <div className="fixed inset-0 z-[150] flex items-end justify-center bg-black/50" data-testid="accept-modal">
-      <div className="w-full max-w-lg rounded-t-3xl bg-white shadow-2xl">
+      <div className="w-full max-w-lg rounded-t-3xl bg-white pb-safe-b shadow-2xl">
         {/* Handle */}
         <div className="flex justify-center pt-3 pb-1">
           <div className="h-1 w-10 rounded-full bg-black/10" />

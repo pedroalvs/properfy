@@ -1,7 +1,11 @@
 import { useState, useCallback } from 'react';
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
-import type { NotificationChannel } from '@properfy/shared';
+import {
+  findTemplateVariableIssues,
+  type NotificationChannel,
+  type NotificationClass,
+} from '@properfy/shared';
 import { mapServerFieldErrors } from '@/lib/server-field-errors';
 import { ALLOWED_VARIABLES, type TemplateFormData, type TemplateFormErrors } from '../types';
 
@@ -20,7 +24,13 @@ function templateFieldMapper(path: string): keyof TemplateFormErrors | undefined
 }
 
 export interface UseTemplateSaveReturn {
-  save: (code: string, channel: NotificationChannel, data: TemplateFormData, tenantId?: string | null) => Promise<SaveResult>;
+  save: (
+    code: string,
+    channel: NotificationChannel,
+    data: TemplateFormData,
+    tenantId?: string | null,
+    notificationClass?: NotificationClass,
+  ) => Promise<SaveResult>;
   isSaving: boolean;
   validationErrors: TemplateFormErrors;
   /**
@@ -34,20 +44,6 @@ export interface UseTemplateSaveReturn {
     allowedVariables?: readonly string[],
     channel?: NotificationChannel,
   ) => TemplateFormErrors;
-}
-
-const VARIABLE_PATTERN = /\{\{(\w+)\}\}/g;
-
-function extractVariables(text: string): string[] {
-  const matches: string[] = [];
-  let match: RegExpExecArray | null;
-  const regex = new RegExp(VARIABLE_PATTERN.source, 'g');
-  while ((match = regex.exec(text)) !== null) {
-    if (match[1] && !matches.includes(match[1])) {
-      matches.push(match[1]);
-    }
-  }
-  return matches;
 }
 
 function validateTemplate(
@@ -78,20 +74,18 @@ function validateTemplate(
     errors.subject = 'HTML is not allowed in the subject line';
   }
 
-  const allText = `${data.subject} ${data.body}`;
-  const usedVariables = extractVariables(allText);
-  const allowedSet = new Set<string>(allowedVariables ?? ALLOWED_VARIABLES);
-  const disallowed = usedVariables.filter((v) => !allowedSet.has(v));
+  // Handlebars-aware extraction lives in @properfy/shared so the backend can pin
+  // the shipped catalog against this exact rule. A local `{{(\w+)}}` regex used to
+  // read `{{else}}` as a variable, which made every appointment email unsaveable.
+  const { invalid, missing } = findTemplateVariableIssues(`${data.subject} ${data.body}`, {
+    required: requiredVariables,
+    allowed: allowedVariables ?? ALLOWED_VARIABLES,
+  });
 
-  if (disallowed.length > 0) {
-    const errorMsg = `Invalid variables: ${disallowed.join(', ')}`;
+  if (invalid.length > 0) {
+    const errorMsg = `Invalid variables: ${invalid.join(', ')}`;
     errors.body = errors.body ? `${errors.body}. ${errorMsg}` : errorMsg;
   }
-
-  const bodyVariables = extractVariables(data.body);
-  const subjectVariables = extractVariables(data.subject);
-  const allUsed = new Set([...bodyVariables, ...subjectVariables]);
-  const missing = requiredVariables.filter((v) => !allUsed.has(v));
 
   if (missing.length > 0) {
     const missingMsg = `Missing required variables: ${missing.join(', ')}`;
@@ -120,6 +114,7 @@ export function useTemplateSave(): UseTemplateSaveReturn {
     channel: NotificationChannel,
     data: TemplateFormData,
     tenantId?: string | null,
+    notificationClass?: NotificationClass,
   ): Promise<SaveResult> => {
     setIsSaving(true);
     try {
@@ -135,6 +130,10 @@ export function useTemplateSave(): UseTemplateSaveReturn {
             // platform default (null → omitted). Without this, AM/OP editing an
             // override would silently overwrite the platform default.
             tenantId: tenantId ?? undefined,
+            // Echo the stored classification. Omitting it made the backend fall
+            // back to getDefaultClass on every edit, so a template classified as
+            // MARKETING silently reverted to OPERATIONAL on the next save.
+            notificationClass,
           },
         },
       );

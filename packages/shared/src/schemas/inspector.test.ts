@@ -111,10 +111,14 @@ describe('serviceTypesSchema', () => {
   });
 });
 
+/** Satisfies the canonical password policy shared with createUserSchema. */
+const VALID_PASSWORD = 'Insp@2026x';
+
 describe('createInspectorSchema', () => {
   const validInput = {
     name: 'John Smith',
     email: 'john@example.com',
+    password: VALID_PASSWORD,
     phone: '+61412345678',
     paymentSettings: { bankName: 'ANZ', paymentMethod: 'BANK_TRANSFER' as const },
     regions: ['Sydney', 'Melbourne'],
@@ -132,6 +136,7 @@ describe('createInspectorSchema', () => {
     const result = createInspectorSchema.safeParse({
       name: 'John Smith',
       email: 'john@example.com',
+      password: VALID_PASSWORD,
     });
     expect(result.success).toBe(true);
     if (result.success) {
@@ -145,6 +150,7 @@ describe('createInspectorSchema', () => {
     const result = createInspectorSchema.safeParse({
       name: 'John Smith',
       email: 'not-an-email',
+      password: VALID_PASSWORD,
     });
     expect(result.success).toBe(false);
   });
@@ -153,6 +159,7 @@ describe('createInspectorSchema', () => {
     const result = createInspectorSchema.safeParse({
       name: 'John Smith',
       email: 'john@example.com',
+      password: VALID_PASSWORD,
     });
     expect(result.success).toBe(true);
     if (result.success) {
@@ -165,6 +172,7 @@ describe('createInspectorSchema', () => {
     const result = createInspectorSchema.safeParse({
       name: 'John Smith',
       email: 'john@example.com',
+      password: VALID_PASSWORD,
       serviceTypes: ['550e8400-e29b-41d4-a716-446655440000'],
     });
     expect(result.success).toBe(false);
@@ -174,6 +182,7 @@ describe('createInspectorSchema', () => {
     const result = createInspectorSchema.safeParse({
       name: 'John Smith',
       email: 'john@example.com',
+      password: VALID_PASSWORD,
       paymentSettings: {
         bankName: 'Test Bank',
         swiftCode: 'TESTAU2S',
@@ -183,6 +192,59 @@ describe('createInspectorSchema', () => {
     if (result.success) {
       expect((result.data.paymentSettings as Record<string, unknown>)['swiftCode']).toBe('TESTAU2S');
     }
+  });
+
+  it('should require a password', () => {
+    const result = createInspectorSchema.safeParse({
+      name: 'John Smith',
+      email: 'john@example.com',
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((issue) => issue.path[0] === 'password')).toBe(true);
+    }
+  });
+
+  it.each([
+    ['too short', 'Ab1!'],
+    ['no uppercase', 'insp@2026x'],
+    ['no lowercase', 'INSP@2026X'],
+    ['no digit', 'Inspector@x'],
+    ['no special character', 'Inspector2026'],
+  ])('should reject a password with %s', (_label, password) => {
+    const result = createInspectorSchema.safeParse({
+      name: 'John Smith',
+      email: 'john@example.com',
+      password,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  // The inspector's email is their login identity: loginSchema lowercases the
+  // input and findByEmail is an exact match, so an un-normalised email here
+  // would leave the account permanently unreachable.
+  it('should lowercase the email, matching createUserSchema', () => {
+    const result = createInspectorSchema.safeParse({
+      name: 'John Smith',
+      email: 'John@Inspect.COM',
+      password: VALID_PASSWORD,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.email).toBe('john@inspect.com');
+    }
+  });
+
+  // Zod runs .transform() after the whole validation chain, so the trailing
+  // .trim() never sees a padded value — .email() rejects it first. Asserted so
+  // nobody "fixes" the ordering expecting whitespace to be tolerated.
+  it('should reject a whitespace-padded email rather than trimming it', () => {
+    const result = createInspectorSchema.safeParse({
+      name: 'John Smith',
+      email: '  john@inspect.com  ',
+      password: VALID_PASSWORD,
+    });
+    expect(result.success).toBe(false);
   });
 });
 
@@ -221,6 +283,22 @@ describe('updateInspectorSchema', () => {
       },
     });
     expect(result.success).toBe(true);
+  });
+
+  it('should lowercase the email so it stays in sync with the login identity', () => {
+    const result = updateInspectorSchema.safeParse({ email: 'Jane@Inspect.COM' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.email).toBe('jane@inspect.com');
+    }
+  });
+
+  it('should strip a password — resets go through the dedicated endpoint', () => {
+    const result = updateInspectorSchema.safeParse({ password: VALID_PASSWORD });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).not.toHaveProperty('password');
+    }
   });
 });
 
@@ -329,6 +407,7 @@ describe('AU phone validation on inspector schemas', () => {
     const result = createInspectorSchema.parse({
       name: 'Insp',
       email: 'insp@example.com',
+      password: VALID_PASSWORD,
       phone: '0412 345 678',
     });
     expect(result.phone).toBe('+61412345678');
@@ -336,7 +415,12 @@ describe('AU phone validation on inspector schemas', () => {
 
   it('createInspectorSchema rejects invalid phone', () => {
     expect(
-      createInspectorSchema.safeParse({ name: 'Insp', email: 'insp@example.com', phone: '123' }).success,
+      createInspectorSchema.safeParse({
+        name: 'Insp',
+        email: 'insp@example.com',
+        password: VALID_PASSWORD,
+        phone: '123',
+      }).success,
     ).toBe(false);
   });
 

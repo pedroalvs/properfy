@@ -236,6 +236,29 @@ describe('PublishServiceGroupUseCase', () => {
     ).rejects.toThrow(AppointmentInvalidStatusError);
   });
 
+  // The automatic empty-group cleanup cancels without unlinking, so a group
+  // republished from *that* arrives carrying its terminal members. Counting rows
+  // would let it through the empty guard and fail further down with a confusing
+  // "appointment #N has an invalid status" instead of "nothing to publish".
+  it('should reject a group whose only members are terminal, as empty', async () => {
+    const emitSpy = vi.spyOn(eventBus, 'emit');
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
+      makeGroupWithAppointments({}, [
+        { id: 'appt-1', status: 'CANCELLED', serviceTypeId: 'svc-type-1', tenantId: 'tenant-1', propertyId: 'property-1', serviceGroupId: 'group-1' },
+        { id: 'appt-2', status: 'REJECTED', serviceTypeId: 'svc-type-1', tenantId: 'tenant-1', propertyId: 'property-2', serviceGroupId: 'group-1' },
+        { id: 'appt-3', status: 'DONE', serviceTypeId: 'svc-type-1', tenantId: 'tenant-1', propertyId: 'property-3', serviceGroupId: 'group-1' },
+      ]),
+    );
+
+    await expect(
+      useCase.execute({ groupId: 'group-1', actor: makeActor() }),
+    ).rejects.toThrow(ServiceGroupEmptyError);
+
+    expect(serviceGroupRepo.update).not.toHaveBeenCalled();
+    expect(auditService.log).not.toHaveBeenCalled();
+    expect(emitSpy).not.toHaveBeenCalled();
+  });
+
   it('should reject a group with no appointments without any side effect', async () => {
     // Cancelling a group unlinks every appointment and republish does not
     // re-link them, so a republished group always arrives here empty.

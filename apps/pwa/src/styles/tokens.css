@@ -91,6 +91,15 @@
   --page-padding-x: 16px;
   --page-padding-y: 16px;
 
+  /*
+   * index.html opts into `viewport-fit=cover`, so the viewport extends underneath the iOS
+   * home indicator. Anything pinned to the bottom edge must reserve this inset.
+   * Indirecting through a custom property (rather than calling env() at each use site)
+   * keeps one source of truth and lets a browser session override it to emulate a notched
+   * device: document.documentElement.style.setProperty('--safe-area-bottom', '34px').
+   */
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+
   /* Border radius */
   --radius-default: 4px;
   --radius-modal: 8px;

@@ -80,7 +80,7 @@ export function ConfirmationSheet({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
-        className="w-full max-w-lg rounded-t-2xl bg-card-bg p-6 outline-none"
+        className="w-full max-w-lg rounded-t-2xl bg-card-bg p-6 pb-safe-b-6 outline-none"
       >
         <div className="flex flex-col items-center gap-2 text-center">
           <i className={`mdi ${icon} text-[40px] ${iconClassName}`} aria-hidden="true" />

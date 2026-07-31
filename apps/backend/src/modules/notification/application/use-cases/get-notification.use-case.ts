@@ -10,7 +10,7 @@ export interface GetNotificationInput {
 
 export interface NotificationDetailOutput {
   id: string;
-  tenantId: string;
+  tenantId: string | null;
   appointmentId: string | null;
   recipient: string;
   channel: string;

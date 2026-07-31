@@ -276,6 +276,32 @@ describe('ExecutionPage', () => {
     expect(clearState).not.toHaveBeenCalled();
   });
 
+  it('reserves the iOS home-indicator inset', () => {
+    // /execution is registered as a sibling of PwaLayout, so it gets neither the bottom
+    // nav nor the layout's `pb-nav-clear`. Every interactive phase ends with its primary
+    // CTA 16px above the bottom edge, which `viewport-fit=cover` puts under the ~34px
+    // home indicator — the Start and Submit taps would compete with the swipe-up gesture.
+    // The appointment mock is set here rather than inherited: beforeEach does not reset
+    // it, so relying on a previous test's value makes this pass only in file order.
+    mockUseInspectorAppointment.mockReturnValue({
+      data: {
+        data: {
+          id: 'apt-1',
+          propertyAddress: '123 Main St',
+          scheduledDate: '2099-12-31',
+          timeSlotStart: '09:00',
+          timeSlotEnd: '11:00',
+        },
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as ReturnType<typeof useInspectorAppointment>);
+
+    renderPage();
+    expect(screen.getByTestId('execution-page').classList.contains('pb-safe-b')).toBe(true);
+  });
+
   describe('finish confirmation modals', () => {
     const finishingState = {
       appointmentId: 'apt-1',

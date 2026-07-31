@@ -125,6 +125,7 @@ export function createMockContainer(
       updateAvailabilitySlotUseCase: { execute: vi.fn() },
       linkInspectorToUserUseCase: { execute: vi.fn() },
       deactivateInspectorUseCase: { execute: vi.fn() },
+      resetInspectorPasswordUseCase: { execute: vi.fn() },
       generateInspectorPhotoUploadUrlUseCase: { execute: vi.fn() },
       confirmInspectorPhotoUploadUseCase: { execute: vi.fn() },
       updateInspectorSelfProfileUseCase: { execute: vi.fn() },

@@ -12,10 +12,18 @@ import type { IServiceRegionRepository } from '../../../service-region/domain/se
 import { InspectorEntity } from '../../domain/inspector.entity';
 import { UserEntity } from '../../../auth/domain/user.entity';
 import { InspectorEmailConflictError } from '../../domain/inspector.errors';
+import { validatePasswordStrength } from '../../../auth/domain/password-policy';
+import {
+  PasswordTooWeakError,
+  PasswordTooCommonError,
+} from '../../../auth/domain/auth.errors';
+import { COMMON_PASSWORDS } from '../../../auth/application/constants/common-passwords';
 
 export interface CreateInspectorInput {
   name: string;
   email: string;
+  /** Set by the operator; hashed onto the inspector's INSP login account. */
+  password: string;
   phone?: string | null;
   paymentSettings?: PaymentSettings;
   regions?: string[];
@@ -48,7 +56,7 @@ export class CreateInspectorUseCase {
   ) {}
 
   async execute(input: CreateInspectorInput): Promise<CreateInspectorOutput> {
-    const { name, email, phone, paymentSettings, regionIds, serviceTypes, actor } = input;
+    const { name, email, password, phone, paymentSettings, regionIds, serviceTypes, actor } = input;
 
     this.authorizationService!.assertRoles(actor, ['AM', 'OP'], {
       action: 'inspector.create',
@@ -60,13 +68,29 @@ export class CreateInspectorUseCase {
       throw new InspectorEmailConflictError();
     }
 
+    // The email is also the login identity. users.email has no unique constraint
+    // and findByEmail uses findFirst, so a collision would make login resolve
+    // non-deterministically between two accounts.
+    const existingUser = await this.userManagementRepo.findByEmail(email);
+    if (existingUser) {
+      throw new InspectorEmailConflictError();
+    }
+
+    const strengthResult = validatePasswordStrength(password);
+    if (!strengthResult.valid) {
+      throw new PasswordTooWeakError(strengthResult.violations);
+    }
+
+    if (COMMON_PASSWORDS.has(password.toLowerCase())) {
+      throw new PasswordTooCommonError();
+    }
+
     const now = new Date();
     const id = crypto.randomUUID();
 
     // Auto-create a User record for inspector authentication (role: INSP, no tenant)
     const userId = crypto.randomUUID();
-    const temporaryPassword = crypto.randomUUID();
-    const passwordHash = await bcrypt.hash(temporaryPassword, 12);
+    const passwordHash = await bcrypt.hash(password, 12);
 
     const user = new UserEntity({
       id: userId,
@@ -118,9 +142,45 @@ export class CreateInspectorUseCase {
       deletedAt: null,
     });
 
-    await this.inspectorRepo.save(inspector);
+    // The user and inspector rows are written outside a shared transaction. An
+    // orphan INSP user would hold a real, working password while being invisible
+    // to the users list and unreachable by every read API — and the email check
+    // above would then reject the retry forever. Compensate instead.
+    //
+    // Scoped to this one call on purpose: once the inspector row exists the pair
+    // is consistent, and soft-deleting the user then would strand an inspector
+    // whose user_id points at a deleted account — unreachable by link-user,
+    // reset-password, or a re-create, with no DELETE route to clean it up.
+    try {
+      await this.inspectorRepo.save(inspector);
+    } catch (error) {
+      try {
+        await this.userManagementRepo.update(userId, null, { deletedAt: new Date() });
+      } catch (compensationError) {
+        // The orphan survives and will block this email via the user-email check
+        // above, so it has to leave a trace. Recorded rather than thrown so the
+        // original cause still reaches the operator.
+        this.auditService.log({
+          action: 'inspector.create_compensation_failed',
+          actorType: 'USER',
+          actorId: actor.userId,
+          entityType: 'User',
+          entityId: userId,
+          metadata: {
+            email,
+            originalError: error instanceof Error ? error.message : String(error),
+            compensationError:
+              compensationError instanceof Error
+                ? compensationError.message
+                : String(compensationError),
+          },
+        });
+      }
+      throw error;
+    }
 
-    // Link inspector to service regions if regionIds provided
+    // Outside the compensation: a failure here leaves a usable inspector that an
+    // operator can finish setting up by editing its regions.
     if (regionIds && regionIds.length > 0 && this.serviceRegionRepo) {
       await this.serviceRegionRepo.setInspectorRegions(id, regionIds);
     }

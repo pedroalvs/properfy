@@ -11,6 +11,7 @@ import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { Textarea } from '@/components/forms/Textarea';
+import { Checkbox } from '@/components/forms/Checkbox';
 import { TimeRangeInput } from '@/components/forms/TimeRangeInput';
 import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
 import { useFormOptions } from '@/hooks/useFormOptions';
@@ -144,6 +145,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
   const [changeStatus, setChangeStatus] = useState(false);
   const [pickedTarget, setPickedTarget] = useState<AppointmentStatus | ''>('');
   const [statusReason, setStatusReason] = useState('');
+  const [notifyRentalTenant, setNotifyRentalTenant] = useState(false);
   const [values, setValues] = useState<BulkEditValues>({});
   const [pmContactLabel, setPmContactLabel] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -197,6 +199,23 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
       selectedAppointments.some((a) => isReasonRequired(a.status as AppointmentStatus, targetStatus)),
     [selectedAppointments, targetStatus],
   );
+
+  // Cancelling in bulk can notify tenants, but only those who had confirmed. Offer
+  // the opt-in only when the selection contains at least one, and name them so the
+  // operator sees who would actually be contacted.
+  const confirmedForCancel = useMemo(
+    () =>
+      targetStatus === 'CANCELLED'
+        ? selectedAppointments.filter((a) => a.rentalTenantConfirmationStatus === 'CONFIRMED')
+        : [],
+    [targetStatus, selectedAppointments],
+  );
+
+  // Off is the deliberate default, so a tick must not survive a change of target and
+  // reappear pre-checked when the operator comes back to CANCELLED.
+  useEffect(() => {
+    setNotifyRentalTenant(false);
+  }, [targetStatus]);
 
   // The row sits last in a scrolling dialog, so the controls it reveals land
   // below the fold and its dropdown would open into the clipped region. Bring
@@ -299,6 +318,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
           appointmentIds: selectedIds,
           targetStatus,
           ...(statusReasonRequired ? { reason: statusReason.trim() } : {}),
+          ...(confirmedForCancel.length > 0 ? { notifyRentalTenant: notifyRentalTenant } : {}),
         });
         const payload = toBulkEditResult(response.data.results);
         setResult(payload);
@@ -342,6 +362,22 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
         changes[key] = v;
       }
     });
+    // DateInput deliberately emits an out-of-range value so a consumer can render
+    // its own message, and it emits '' while the date is incomplete — which the
+    // loop above silently drops. Both need catching here, or the user gets a
+    // server rejection (or a no-op) instead of a field-level explanation.
+    if (enabledFields.scheduledDate) {
+      const scheduledDate = values.scheduledDate?.trim();
+      if (!scheduledDate) {
+        setErrorMessage('Enter a complete scheduled date.');
+        return;
+      }
+      if (scheduledDate < todayInTzDateString(PLATFORM_TIMEZONE)) {
+        setErrorMessage('Scheduled date cannot be in the past.');
+        return;
+      }
+    }
+
     // The single "Time Slot" toggle emits BOTH ends together — the backend bulk
     // schema requires timeSlotStart and timeSlotEnd to be present (or absent) as a pair.
     if (enabledFields.timeSlot) {
@@ -646,6 +682,26 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
                       rows={3}
                     />
                   </label>
+                )}
+                {confirmedForCancel.length > 0 && (
+                  <div data-testid="bulk-edit-notify-block">
+                    <Checkbox
+                      checked={notifyRentalTenant}
+                      onChange={setNotifyRentalTenant}
+                      label="Notify the tenants who confirmed"
+                    />
+                    <p className="mt-1 text-xs text-text-muted">
+                      Only these confirmed tenants would be emailed/texted. The agency is
+                      notified for every cancellation either way.
+                    </p>
+                    <ul className="mt-1 flex flex-wrap gap-1">
+                      {confirmedForCancel.map((a) => (
+                        <li key={a.id} className="text-xs text-text-secondary">
+                          {a.code}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
               </div>
             </FieldRow>

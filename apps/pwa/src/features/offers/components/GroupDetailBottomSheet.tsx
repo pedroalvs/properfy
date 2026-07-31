@@ -63,7 +63,7 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept, accepting }
       <div
         ref={sheetRef}
         tabIndex={-1}
-        className="flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-3xl bg-white shadow-2xl outline-none"
+        className="flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-3xl bg-white pb-safe-b shadow-2xl outline-none"
         data-testid="group-detail-sheet"
         role="dialog"
         aria-modal="true"

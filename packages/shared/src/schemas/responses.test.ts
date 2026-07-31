@@ -62,6 +62,31 @@ describe('appointmentResponseSchema — appointmentCode / code', () => {
     expect(appointmentResponseSchema.safeParse({ ...validBase, appointmentCode: 58 }).success).toBe(false);
     expect(appointmentResponseSchema.safeParse({ ...validBase, code: 58 }).success).toBe(false);
   });
+
+  // Regression: this schema IS the Fastify response schema for GET /v1/appointments
+  // and /v1/appointments/:id, and fastify-type-provider-zod serialises
+  // `schema.safeParse(data).data`. A plain z.object strips unknown keys, so a field
+  // the use case computes but the schema does not declare is silently dropped on the
+  // way out — which is exactly what happened to `isOverdue`: the backend computed it,
+  // the browser never received it, and the web badge/banner/board icon were dead code.
+  // Every web test passed throughout, because the fixtures hardcode the flag.
+  it('carries isOverdue across the wire instead of stripping it', () => {
+    const result = appointmentResponseSchema.safeParse({ ...validBase, isOverdue: true });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.isOverdue).toBe(true);
+  });
+
+  it('leaves isOverdue optional so other producers of this shape still validate', () => {
+    const result = appointmentResponseSchema.safeParse(validBase);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.isOverdue).toBeUndefined();
+  });
+
+  it('rejects a non-boolean isOverdue', () => {
+    expect(
+      appointmentResponseSchema.safeParse({ ...validBase, isOverdue: 'true' }).success,
+    ).toBe(false);
+  });
 });
 
 describe('agencyFinancialExportResponseSchema (031)', () => {

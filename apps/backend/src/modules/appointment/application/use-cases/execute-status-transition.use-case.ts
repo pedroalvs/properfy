@@ -8,6 +8,7 @@ import type { IServiceTypeRepository } from '../../../service-type/domain/servic
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { ConfirmationCycleService } from '../services/confirmation-cycle.service';
 import { AppointmentStateMachine } from '../../domain/appointment-state-machine';
+import { isTerminalGroupStatus } from '../../../service-group/domain/service-group.validator';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import {
   AppointmentNotFoundError,
@@ -37,11 +38,17 @@ export interface ExecuteStatusTransitionInput {
   inspectorId?: string;
   idempotencyKey?: string;
   /**
-   * Skips the transition notification. Set by automated sweeps: telling a rental
-   * tenant their long-past inspection was "cancelled" is noise, and the first run
-   * of a sweep would otherwise notify the entire historical backlog at once.
+   * Cancellation only: also tell the rental tenant. The agency is always told.
+   *
+   * Absent means "tenant not notified", which is deliberately the safe default:
+   * telling a rental tenant their long-past inspection was "cancelled" is noise,
+   * and an automated sweep's first run would otherwise notify its entire
+   * historical backlog at once. Sweeps therefore pass nothing at all.
+   *
+   * Honoured only when the tenant had actually confirmed the appointment — the
+   * handler enforces that, so a direct API caller cannot bypass it.
    */
-  suppressNotifications?: boolean;
+  notifyRentalTenant?: boolean;
   actor: AuthContext;
 }
 
@@ -60,8 +67,18 @@ interface OnDoneHandler {
   execute(input: { appointmentId: string }): Promise<unknown>;
 }
 
+/**
+ * Narrow read port over service groups. Deliberately just the status: this use
+ * case only needs to know whether a linked group is still alive, and depending on
+ * the full `IServiceGroupRepository` would drag the whole group aggregate — plus
+ * its appointment rows — into every transition.
+ */
+interface IServiceGroupStatusReader {
+  findStatusById(id: string): Promise<string | null>;
+}
+
 interface OnTransitionHandler {
-  execute(input: { appointmentId: string; tenantId?: string | null; previousStatus: string; targetStatus: string }): Promise<unknown>;
+  execute(input: { appointmentId: string; tenantId?: string | null; previousStatus: string; targetStatus: string; notifyRentalTenant?: boolean }): Promise<unknown>;
 }
 
 export class ExecuteStatusTransitionUseCase {
@@ -81,10 +98,15 @@ export class ExecuteStatusTransitionUseCase {
     /** 028 — optional. When wired, supersedes the confirmation cycle on any → DRAFT transition. */
     private readonly cycleService?: ConfirmationCycleService,
     private readonly prisma?: PrismaClient,
+    /**
+     * Optional. When wired, a link to a terminal service group is dropped on
+     * reopen and refused on release — see checks 3c and the → DRAFT branch.
+     */
+    private readonly serviceGroupRepo?: IServiceGroupStatusReader,
   ) {}
 
   async execute(input: ExecuteStatusTransitionInput): Promise<ExecuteStatusTransitionOutput> {
-    const { appointmentId, targetStatus, reason, cancellationReasonCode, rejectionReasonCode, doneCheckedByUserId, crossCheckByUserId, inspectorId, idempotencyKey, suppressNotifications, actor } = input;
+    const { appointmentId, targetStatus, reason, cancellationReasonCode, rejectionReasonCode, doneCheckedByUserId, crossCheckByUserId, inspectorId, idempotencyKey, notifyRentalTenant, actor } = input;
 
     // Automated flows act as SYS. Attribute their audit trail and events to the
     // system rather than filing them under a synthetic user id.
@@ -156,9 +178,22 @@ export class ExecuteStatusTransitionUseCase {
       }
     }
 
-    // 3c. AWAITING_INSPECTOR requires a service group — direct release bypasses the marketplace flow
-    if (targetStatus === 'AWAITING_INSPECTOR' && !appointment.serviceGroupId) {
-      throw new AppointmentServiceGroupRequiredError();
+    // 3c. AWAITING_INSPECTOR requires a *live* service group — direct release
+    // bypasses the marketplace flow, and a link to a terminal group is worse than
+    // no link at all: the marketplace only offers PUBLISHED groups, so the
+    // appointment would be invisible there while `canAddToGroup` refuses to
+    // re-group it (ALREADY_GROUPED). Since the empty-group cleanup leaves its
+    // members linked, that state is reachable via reopen → release.
+    if (targetStatus === 'AWAITING_INSPECTOR') {
+      if (!appointment.serviceGroupId) {
+        throw new AppointmentServiceGroupRequiredError();
+      }
+      if (this.serviceGroupRepo) {
+        const groupStatus = await this.serviceGroupRepo.findStatusById(appointment.serviceGroupId);
+        if (groupStatus === null || isTerminalGroupStatus(groupStatus)) {
+          throw new AppointmentServiceGroupRequiredError();
+        }
+      }
     }
 
     // 4. Check reason requirement
@@ -233,6 +268,26 @@ export class ExecuteStatusTransitionUseCase {
     } else if (targetStatus === 'DRAFT') {
       // Reopening — clear reason
       updateData.reason = null;
+    }
+
+    // 7b. Reopening: drop a link to a group that will never run again.
+    //
+    // Deliberately NOT folded into the reason branch above — that is an if/else on
+    // `rule.requiresReason`, and every reopen the operator actually performs
+    // (CANCELLED→DRAFT, REJECTED→DRAFT, DONE→DRAFT) *does* require a reason, so the
+    // `else if (DRAFT)` arm never runs for them.
+    //
+    // The empty-group cleanup cancels a group while leaving its terminal members
+    // linked, to keep the history. Reopening one of those members would otherwise
+    // revive a live appointment attached to a CANCELLED group — invisible to the
+    // marketplace, which only offers PUBLISHED groups, and un-regroupable because
+    // `canAddToGroup` rejects any non-null link. Reopening is the operator's "that
+    // cancellation was wrong" action, and EXPIRED cancellations make it common.
+    if (targetStatus === 'DRAFT' && appointment.serviceGroupId && this.serviceGroupRepo) {
+      const groupStatus = await this.serviceGroupRepo.findStatusById(appointment.serviceGroupId);
+      if (groupStatus === null || isTerminalGroupStatus(groupStatus)) {
+        updateData.serviceGroupId = null;
+      }
     }
 
     // Set typed reason codes based on target status
@@ -414,16 +469,37 @@ export class ExecuteStatusTransitionUseCase {
     }
 
     // 9f. Side effect: notifications on transition
-    if (this.onTransitionHandler && !suppressNotifications) {
+    if (this.onTransitionHandler) {
       try {
         await this.onTransitionHandler.execute({
           appointmentId,
+          notifyRentalTenant,
           tenantId: appointment.tenantId,
           previousStatus: appointment.status,
           targetStatus,
         });
-      } catch {
-        // fire-and-forget — notification failure must not affect the transition
+      } catch (error) {
+        // Still fire-and-forget: a notification failure must never roll back a
+        // transition the operator already performed. But it must not vanish
+        // either — this used to be a bare `catch {}` that did not even bind the
+        // error, so the transition was audited as healthy while the tenant was
+        // never told and nothing pointed at the appointment.
+        this.auditService.log({
+          action: 'notification.dispatch_failed',
+          actorType: 'SYSTEM',
+          entityType: 'Appointment',
+          entityId: appointmentId,
+          tenantId: appointment.tenantId,
+          after: {
+            previousStatus: appointment.status,
+            targetStatus,
+            // The class, not the message: an error surfacing from the send path
+            // can carry a raw provider string that names the recipient, and an
+            // audit row is immutable and outlives any erasure request. The
+            // message is already on the notification row and in the logs.
+            error: error instanceof Error ? error.constructor.name : 'UnknownError',
+          },
+        });
       }
     }
 

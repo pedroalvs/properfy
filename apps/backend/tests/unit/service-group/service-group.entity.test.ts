@@ -81,6 +81,19 @@ describe('ServiceGroupEntity', () => {
     });
   });
 
+  describe('canUnpublish()', () => {
+    it('returns true for PUBLISHED status', () => {
+      expect(makeServiceGroup({ status: 'PUBLISHED' }).canUnpublish()).toBe(true);
+    });
+
+    it.each(['DRAFT', 'ACCEPTED', 'CANCELLED', 'REJECTED'] as const)(
+      'returns false for %s status',
+      (status) => {
+        expect(makeServiceGroup({ status }).canUnpublish()).toBe(false);
+      },
+    );
+  });
+
   describe('canAssign()', () => {
     it('returns true for DRAFT status', () => {
       expect(makeServiceGroup({ status: 'DRAFT' }).canAssign()).toBe(true);

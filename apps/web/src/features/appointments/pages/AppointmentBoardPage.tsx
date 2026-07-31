@@ -249,11 +249,14 @@ export function AppointmentBoardPage() {
       <StatusTransitionDialog
         open={!!cancelTarget}
         onClose={() => setCancelTarget(null)}
-        onConfirm={(reason, reasonCode) => cancelTransition.transition('CANCELLED', reason, reasonCode)}
+        onConfirm={({ reason, reasonCode, notifyRentalTenant }) =>
+          cancelTransition.transition('CANCELLED', reason, reasonCode, notifyRentalTenant)
+        }
         title="Cancel Appointment"
         message={`Cancel appointment ${cancelTarget?.code ?? ''}? This requires a reason.`}
         variant="danger"
         targetStatus="CANCELLED"
+        rentalTenantConfirmed={cancelTarget?.rentalTenantConfirmationStatus === 'CONFIRMED'}
         loading={cancelTransition.isTransitioning}
       />
 

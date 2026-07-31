@@ -24,6 +24,14 @@ export default defineConfig({
     //   fly ssh console -a properfy-prod -C \
     //     "cd /app/apps/backend && node dist/backfill-property-branch.js"
     'backfill-property-branch': 'src/scripts/backfill-property-branch.ts',
+    // Read-only report of what the two auto-cancel sweeps
+    // (appointment.cancel-overdue, service-group.cancel-empty) would act on.
+    // Both sweeps are unscoped by tenant, so this is how an operator sizes the
+    // backlog before the first run. Bundled so it can be inspected in-container
+    // without exporting database credentials to a workstation:
+    //   fly ssh console -a properfy-prod -C \
+    //     "cd /app/apps/backend && node dist/dry-run-auto-cancel.js"
+    'dry-run-auto-cancel': 'src/scripts/dry-run-auto-cancel.ts',
   },
   format: ['esm'],
   target: 'node20',

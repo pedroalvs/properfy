@@ -5,6 +5,7 @@ import { ViewportAwareDropdown } from '@/components/ui/ViewportAwareDropdown';
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { StatusChip } from '@/components/ui/StatusChip';
+import { Checkbox } from '@/components/forms/Checkbox';
 import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
 import { getErrorMessage } from '@/lib/api-error';
 import { formatCivilDate, formatWallTimeRange } from '@/lib/format-date';
@@ -502,11 +503,13 @@ export function MapBulkActionModal({
       {activeAction === 'cancel' && !results && (
         <CancelForm
           loading={cancelMutation.isPending}
+          checkedAppointments={checkedAppointments}
           onCancel={() => setActiveAction(null)}
-          onSubmit={async (reason) => {
+          onSubmit={async (reason, notifyRentalTenant) => {
             const res = await cancelMutation.mutateAsync({
               appointmentIds: Array.from(checkedIds),
               reason,
+              notifyRentalTenant,
             });
             handleActionComplete(res.data.results);
           }}
@@ -537,11 +540,12 @@ export function MapBulkActionModal({
           clUserFlags={clUserFlags}
           loading={statusMutation.isPending}
           onCancel={() => setActiveAction(null)}
-          onSubmit={async ({ targetStatus, reason }) => {
+          onSubmit={async ({ targetStatus, reason, notifyRentalTenant }) => {
             const res = await statusMutation.mutateAsync({
               appointmentIds: Array.from(checkedIds),
               targetStatus,
               ...(reason ? { reason } : {}),
+              ...(notifyRentalTenant !== undefined ? { notifyRentalTenant } : {}),
             });
             handleActionComplete(res.data.results);
           }}
@@ -777,16 +781,35 @@ function BulkActionsDropdown({ actions, isDisabled, selectedCount, onSelect }: B
 
 interface CancelFormProps {
   loading: boolean;
+  checkedAppointments: AppointmentMapItem[];
   onCancel: () => void;
-  onSubmit: (reason: string) => Promise<void>;
+  onSubmit: (reason: string, notifyRentalTenant: boolean) => Promise<void>;
 }
 
-function CancelForm({ loading, onCancel: _onCancel, onSubmit }: CancelFormProps) {
+function CancelForm({
+  loading,
+  checkedAppointments,
+  onCancel: _onCancel,
+  onSubmit,
+}: CancelFormProps) {
   const [reason, setReason] = useState('');
+  const [notifyRentalTenant, setNotifyRentalTenant] = useState(false);
   const canSubmit = reason.trim().length >= 3;
+
+  // Only confirmed tenants can be notified, so the opt-in is offered only when the
+  // selection actually contains one. Naming the codes keeps the blast radius
+  // visible — the flag is applied per appointment by the backend.
+  const alreadyConfirmed = useMemo(
+    () => checkedAppointments.filter((a) => a.rentalTenantConfirmationStatus === 'CONFIRMED'),
+    [checkedAppointments],
+  );
+
   return (
     <form
-      onSubmit={(e) => { e.preventDefault(); if (canSubmit) void onSubmit(reason.trim()); }}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (canSubmit) void onSubmit(reason.trim(), alreadyConfirmed.length > 0 && notifyRentalTenant);
+      }}
       className="space-y-3"
     >
       <label className="block text-sm font-medium text-text-primary">
@@ -802,6 +825,26 @@ function CancelForm({ loading, onCancel: _onCancel, onSubmit }: CancelFormProps)
           data-testid="bulk-cancel-reason"
         />
       </label>
+      {alreadyConfirmed.length > 0 && (
+        <div data-testid="bulk-cancel-notify-block">
+          <Checkbox
+            checked={notifyRentalTenant}
+            onChange={setNotifyRentalTenant}
+            label="Notify the tenants who confirmed"
+          />
+          <p className="mt-1 text-xs text-text-muted">
+            Only these confirmed tenants would be emailed/texted. The agency is notified
+            for every cancellation either way.
+          </p>
+          <ul className="mt-1 flex flex-wrap gap-1">
+            {alreadyConfirmed.map((a) => (
+              <li key={a.id}>
+                <AppointmentCodePill code={a.code} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="flex justify-end">
         <button
           type="submit"
@@ -827,7 +870,11 @@ interface ChangeStatusFormProps {
   clUserFlags?: MapBulkActionModalProps['clUserFlags'];
   loading: boolean;
   onCancel: () => void;
-  onSubmit: (input: { targetStatus: AppointmentStatus; reason?: string }) => Promise<void>;
+  onSubmit: (input: {
+    targetStatus: AppointmentStatus;
+    reason?: string;
+    notifyRentalTenant?: boolean;
+  }) => Promise<void>;
 }
 
 function ChangeStatusForm({ checkedAppointments, actorRole, clUserFlags, loading, onCancel: _onCancel, onSubmit }: ChangeStatusFormProps) {
@@ -846,6 +893,23 @@ function ChangeStatusForm({ checkedAppointments, actorRole, clUserFlags, loading
 
   const [target, setTarget] = useState<AppointmentStatus | ''>('');
   const [reason, setReason] = useState('');
+  const [notifyRentalTenant, setNotifyRentalTenant] = useState(false);
+
+  // Same rule as the dedicated cancel form: the tenant opt-in only exists when the
+  // target is CANCELLED and at least one selected tenant had confirmed.
+  const confirmedForCancel = useMemo(
+    () =>
+      target === 'CANCELLED'
+        ? checkedAppointments.filter((a) => a.rentalTenantConfirmationStatus === 'CONFIRMED')
+        : [],
+    [target, checkedAppointments],
+  );
+
+  // Off is the deliberate default, so a tick must not survive a change of target and
+  // reappear pre-checked when the operator comes back to CANCELLED.
+  useEffect(() => {
+    setNotifyRentalTenant(false);
+  }, [target]);
 
   // Look up reason requirement from the shared matrix when we have a
   // reasonable "from" status (use the first checked row — same row pinned
@@ -859,7 +923,11 @@ function ChangeStatusForm({ checkedAppointments, actorRole, clUserFlags, loading
       onSubmit={(e) => {
         e.preventDefault();
         if (!canSubmit || !target) return;
-        void onSubmit({ targetStatus: target, ...(needsReason ? { reason: reason.trim() } : {}) });
+        void onSubmit({
+          targetStatus: target,
+          ...(needsReason ? { reason: reason.trim() } : {}),
+          ...(confirmedForCancel.length > 0 ? { notifyRentalTenant } : {}),
+        });
       }}
       className="space-y-3"
     >
@@ -895,6 +963,26 @@ function ChangeStatusForm({ checkedAppointments, actorRole, clUserFlags, loading
             data-testid="bulk-change-status-reason"
           />
         </label>
+      )}
+      {confirmedForCancel.length > 0 && (
+        <div data-testid="bulk-change-status-notify-block">
+          <Checkbox
+            checked={notifyRentalTenant}
+            onChange={setNotifyRentalTenant}
+            label="Notify the tenants who confirmed"
+          />
+          <p className="mt-1 text-xs text-text-muted">
+            Only these confirmed tenants would be emailed/texted. The agency is notified
+            for every cancellation either way.
+          </p>
+          <ul className="mt-1 flex flex-wrap gap-1">
+            {confirmedForCancel.map((a) => (
+              <li key={a.id}>
+                <AppointmentCodePill code={a.code} />
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       <div className="flex justify-end">
         <button
