@@ -1,15 +1,26 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { TokenService } from '../../../src/modules/rental-tenant-portal/domain/token.service';
 
 describe('TokenService', () => {
   const service = new TokenService();
 
   describe('generateRawToken', () => {
-    it('should return a 64-character hex string', () => {
+    // 20k tokens = 320k characters. Large enough that a uniform generator lands
+    // every symbol within 10% of the 5161 expected occurrences (~7.2 sigma), while
+    // a modulo-biased one overshoots to ~6250 on the first 8 symbols and fails.
+    const SAMPLE_SIZE = 20_000;
+    const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let sample: string[];
+
+    beforeAll(() => {
+      sample = Array.from({ length: SAMPLE_SIZE }, () => service.generateRawToken());
+    });
+
+    it('should return a 16-character base62 string', () => {
       const token = service.generateRawToken();
 
-      expect(token).toHaveLength(64);
-      expect(token).toMatch(/^[0-9a-f]{64}$/);
+      expect(token).toHaveLength(16);
+      expect(token).toMatch(/^[A-Za-z0-9]{16}$/);
     });
 
     it('should return different values on each call', () => {
@@ -17,6 +28,28 @@ describe('TokenService', () => {
       const token2 = service.generateRawToken();
 
       expect(token1).not.toBe(token2);
+    });
+
+    it('should not repeat a token across a large batch', () => {
+      expect(new Set(sample).size).toBe(SAMPLE_SIZE);
+    });
+
+    it('should draw uniformly from the alphabet', () => {
+      // Guards the rejection sampling: `byte % 62` without discarding bytes >= 248
+      // gives the first 8 symbols 5 chances out of 256 instead of 4, silently
+      // costing entropy.
+      const counts = new Map<string, number>();
+      for (const char of sample.join('')) {
+        counts.set(char, (counts.get(char) ?? 0) + 1);
+      }
+
+      expect(counts.size).toBe(ALPHABET.length);
+
+      const expected = (SAMPLE_SIZE * 16) / ALPHABET.length;
+      for (const symbol of ALPHABET) {
+        expect(counts.get(symbol)).toBeGreaterThan(expected * 0.9);
+        expect(counts.get(symbol)).toBeLessThan(expected * 1.1);
+      }
     });
   });
 

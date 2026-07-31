@@ -60,7 +60,9 @@ export class GetPortalLinkUseCase {
       throw new PortalTokenNotDecryptableError();
     }
 
-    const portalUrl = new URL('/rental-tenant-portal/' + encodeURIComponent(rawToken), this.rentalTenantPortalBaseUrl).toString();
+    // `/portal/` is the short canonical path every other link builder already
+    // emits — the operator copies this one by hand, so it must not be longer.
+    const portalUrl = new URL('/portal/' + encodeURIComponent(rawToken), this.rentalTenantPortalBaseUrl).toString();
 
     this.auditService.log({
       action: 'rental_tenant_portal.link_copied',
