@@ -207,7 +207,91 @@ describe('backfillInspectorLoginAccount — refuses to guess', () => {
     expect(ownerRow?.user_id).toBe(userId);
   });
 
-  it('cannot encounter several live accounts on one email — the database forbids it', async () => {
+  it('sees a legacy mixed-case account instead of minting a duplicate beside it', async () => {
+    // This exact shape happened in production: the lookup matched the address
+    // exactly, missed a `Cruzhluiz@gmail.com` row, and created a second account
+    // on the lowercase form — `users_email_key` indexes the raw column, so both
+    // coexist and the newcomer captures the login identity.
+    const local = `legacy-${crypto.randomUUID().slice(0, 8)}`;
+    const existingId = await makeUser(`${local}@Inspect.COM`);
+    const inspectorId = await makeInspector(`${local}@inspect.com`);
+
+    await backfillInspectorLoginAccount(harness.prisma, { apply: true });
+
+    const row = await harness.prisma.inspector.findUnique({
+      where: { id: inspectorId },
+      select: { user_id: true },
+    });
+    expect(row?.user_id).toBe(existingId);
+    // The point of the fix: no second account on the same address.
+    const onAddress = await harness.prisma.user.count({
+      where: { email: { equals: `${local}@inspect.com`, mode: 'insensitive' }, deleted_at: null },
+    });
+    expect(onAddress).toBe(1);
+  });
+
+  it('refuses a mixed-case non-inspector account rather than shadowing it', async () => {
+    const local = `legacy-role-${crypto.randomUUID().slice(0, 8)}`;
+    await makeUser(`${local}@Inspect.COM`, { role: 'CL_ADMIN', tenantId: await makeTenant() });
+    const inspectorId = await makeInspector(`${local}@inspect.com`);
+
+    const summary = await backfillInspectorLoginAccount(harness.prisma, { apply: true });
+
+    expect(
+      summary.skipped.some(
+        (s) => s.inspectorId === inspectorId && s.reason === 'email_taken_by_non_inspector',
+      ),
+    ).toBe(true);
+    const onAddress = await harness.prisma.user.count({
+      where: { email: { equals: `${local}@inspect.com`, mode: 'insensitive' }, deleted_at: null },
+    });
+    expect(onAddress).toBe(1);
+  });
+
+  it('reports several live accounts once case variants make that reachable', async () => {
+    // Unreachable under an exact-match lookup (the partial unique index allows
+    // at most one live row per exact address); the case-insensitive lookup is
+    // what turns this branch from dead defensive code into real behaviour.
+    const local = `variants-${crypto.randomUUID().slice(0, 8)}`;
+    await makeUser(`${local}@inspect.com`);
+    await makeUser(`${local}@Inspect.com`, { role: 'CL_ADMIN', tenantId: await makeTenant() });
+    const inspectorId = await makeInspector(`${local}@INSPECT.com`);
+
+    const summary = await backfillInspectorLoginAccount(harness.prisma, { apply: true });
+
+    expect(
+      summary.skipped.some(
+        (s) => s.inspectorId === inspectorId && s.reason === 'email_has_multiple_users',
+      ),
+    ).toBe(true);
+    const row = await harness.prisma.inspector.findUnique({
+      where: { id: inspectorId },
+      select: { user_id: true },
+    });
+    expect(row?.user_id).toBeNull();
+  });
+
+  it('warns before linking a tenant-scoped account, and still links it', async () => {
+    // Both halves are the contract: the warning is the operator's only signal
+    // that the reset and sync paths still cannot reach the account, and it is
+    // only actionable if they dry-run first — an --apply run warns and links in
+    // the same pass.
+    const email = uniqueEmail('scoped-link');
+    const tenantId = await makeTenant();
+    const userId = await makeUser(email, { tenantId });
+    const inspectorId = await makeInspector(email);
+
+    const summary = await backfillInspectorLoginAccount(harness.prisma, { apply: true });
+
+    expect(summary.tenantScopedLinks).toContainEqual({ inspectorId, userId, tenantId });
+    const row = await harness.prisma.inspector.findUnique({
+      where: { id: inspectorId },
+      select: { user_id: true },
+    });
+    expect(row?.user_id).toBe(userId);
+  });
+
+  it('cannot encounter several live accounts on one exact email — the database forbids it', async () => {
     // `users_email_key` is a PARTIAL unique index (WHERE deleted_at IS NULL),
     // added by 20260406000002_email_reuse_after_soft_delete. schema.prisma
     // declares only @@index([email]), so reading the model suggests otherwise —

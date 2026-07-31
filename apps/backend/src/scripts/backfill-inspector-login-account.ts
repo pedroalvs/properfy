@@ -96,13 +96,19 @@ export async function backfillInspectorLoginAccount(
   };
 
   for (const inspector of inspectors) {
-    // Login lowercases what the user types and findByEmail matches exactly, so
-    // the lookup has to use the same normalised form the login path will.
+    // Login lowercases what the user types, so this is the form a created
+    // account must store for the address to be reachable at all.
     const email = inspector.email.toLowerCase().trim();
 
+    // Matched case-INSENSITIVELY on purpose. Postgres compares text with case
+    // sensitivity and so does `users_email_key` (it indexes the raw column, not
+    // lower(email)), so an exact-match lookup cannot see a legacy `Agent@X.com`
+    // row for this same address — and would then mint a second account beside
+    // it, capturing the login identity for whoever the sweep is repairing. An
+    // exact match let that happen once in production before this was fixed.
     const users = await prisma.user.findMany({
-      where: { email, deleted_at: null },
-      select: { id: true, role: true, tenant_id: true },
+      where: { email: { equals: email, mode: 'insensitive' }, deleted_at: null },
+      select: { id: true, role: true, tenant_id: true, email: true },
     });
 
     if (users.length > 1) {
@@ -172,9 +178,11 @@ export async function backfillInspectorLoginAccount(
     const passwordHash = await bcrypt.hash(unusablePassword, 12);
     const now = new Date();
 
-    // Transactional so a failure cannot leave the orphan account this repair
-    // exists to prevent: an unlinked INSP user is invisible to the users list
-    // and would block its own email on the next run.
+    // Transactional so a half-finished repair cannot leave an unlinked INSP
+    // account behind. A later run would in fact adopt such an orphan through the
+    // link branch above, so this is not about recoverability — it is about not
+    // leaving an account nobody asked for sitting in the users table between
+    // runs, invisible to the users list.
     await prisma.$transaction([
       prisma.user.create({
         data: {
