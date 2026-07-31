@@ -11,15 +11,24 @@ import { z } from 'zod';
  * cycle fails at runtime with a TDZ `ReferenceError` that typechecking cannot
  * see, because types are erased and only the value imports remain.
  */
-const HH_MM = /^\d{2}:\d{2}$/;
+/**
+ * Strict 24h `HH:mm` — rejects impossible clock values like `24:00`, `31:75`.
+ *
+ * Defined here rather than in `appointment.ts` so this module stays a leaf.
+ * `appointment.ts` re-exports it, which is why every existing importer of
+ * `HHMM_REGEX` keeps working. A loose `\d{2}:\d{2}` used to guard these slots
+ * and the `start < end` refine could not catch the difference: it compares
+ * strings, so `"31:75" < "99:00"` passes happily.
+ */
+export const HHMM_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export const DAY_OF_WEEK = z.enum(['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']);
 
 export const availableSlotSchema = z
   .object({
     dayOfWeek: DAY_OF_WEEK,
-    start: z.string().regex(HH_MM, 'Must be HH:mm'),
-    end: z.string().regex(HH_MM, 'Must be HH:mm'),
+    start: z.string().regex(HHMM_REGEX, 'Must be HH:mm'),
+    end: z.string().regex(HHMM_REGEX, 'Must be HH:mm'),
   })
   .refine((s) => s.start < s.end, { message: 'start must be before end' });
 

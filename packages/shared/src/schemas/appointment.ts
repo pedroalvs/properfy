@@ -3,7 +3,7 @@ import { paginationSchema } from './pagination';
 import { contactSchema, appointmentContactsArraySchema } from './contact';
 import { PROPERTY_TYPE_VALUES } from './property';
 import { restrictionSchema } from './restriction';
-import { availableSlotSchema } from './available-slot';
+import { availableSlotSchema, HHMM_REGEX } from './available-slot';
 import { AppointmentStatus, RentalTenantConfirmationStatus } from '../enums/appointment';
 import { CancellationReasonCode, RejectionReasonCode } from '../enums/reason-codes';
 
@@ -20,8 +20,12 @@ const inlinePropertySchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
-/** Strict 24h HH:mm — rejects impossible clock values like 24:00 or 12:60. */
-export const HHMM_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
+/**
+ * Strict 24h HH:mm — rejects impossible clock values like 24:00 or 12:60.
+ * Re-exported from the leaf module so the slot schema can share it without
+ * making `appointment` ↔ `rental-tenant-portal` circular.
+ */
+export { HHMM_REGEX } from './available-slot';
 const timeRegex = HHMM_REGEX;
 const TIME_FORMAT_MESSAGE = 'Must be HH:mm format';
 const TIME_RANGE_MESSAGE = 'End time must be after start time';

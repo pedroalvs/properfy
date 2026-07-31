@@ -5,7 +5,7 @@ import { AppointmentEntity } from '../../../src/modules/appointment/domain/appoi
 import { AppointmentRestrictionEntity } from '../../../src/modules/appointment/domain/appointment-restriction.entity';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
-import { AppointmentNotFoundError } from '../../../src/modules/appointment/domain/appointment.errors';
+import { AppointmentNotFoundError, AppointmentInvalidTransitionError } from '../../../src/modules/appointment/domain/appointment.errors';
 import { ConfirmationCycleNotFoundError } from '../../../src/modules/appointment/domain/confirmation-cycle.errors';
 import type { AuthContext, AvailableSlot } from '@properfy/shared';
 
@@ -346,7 +346,7 @@ describe('SetRentalTenantAvailabilityUseCase', () => {
             markUnavailable: true,
             actor: makeActor({ role: 'AM' }),
           }),
-        ).rejects.toThrow();
+        ).rejects.toThrow(AppointmentInvalidTransitionError);
         expect(statusTransition.execute).not.toHaveBeenCalled();
       },
     );

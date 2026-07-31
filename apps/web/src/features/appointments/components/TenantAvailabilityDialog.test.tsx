@@ -46,6 +46,31 @@ describe('TenantAvailabilityDialog', () => {
     );
   });
 
+  it('survives a background refetch handing back a new array identity', () => {
+    // `slots` is React Query data: any refetch produces a fresh array. If the
+    // reset effect keyed on it, the operator's half-finished week would be
+    // silently replaced by the server value mid-edit.
+    const { rerender } = renderDialog({ slots: [] });
+    pickMonday();
+
+    rerender(
+      <TenantAvailabilityDialog
+        open
+        appointmentId="aaaaaaaa-0000-4000-8000-000000000010"
+        slots={[]} // same content, new identity
+        canMarkUnavailable
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(setAvailability).toHaveBeenCalledWith(
+      [{ dayOfWeek: 'MON', start: '09:00', end: '17:00' }],
+      false,
+    );
+  });
+
   it('pre-fills the availability already on the appointment', () => {
     renderDialog({ slots: [{ dayOfWeek: 'WED', start: '10:00', end: '14:00' }] });
 

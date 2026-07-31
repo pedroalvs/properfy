@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { AvailableSlot } from '@properfy/shared';
 import { Dialog, ConfirmDialog, Button } from '@/components/ui';
 import { Checkbox } from '@/components/forms/Checkbox';
@@ -42,14 +42,21 @@ export function TenantAvailabilityDialog({
 
   const { setAvailability, isSaving } = useSetRentalTenantAvailability(appointmentId, onSaved);
 
+  // `slots` comes from React Query data, so a background refetch hands us a new
+  // array identity. Keying the reset on it would wipe the operator's in-progress
+  // edits mid-form, so the effect depends on `open` alone and reads the current
+  // slots through a ref — the same reason `Dialog` keeps `onClose` in a ref.
+  const slotsRef = useRef(slots);
+  slotsRef.current = slots;
+
   // Reset per opening so a previous edit never leaks into the next appointment.
   useEffect(() => {
     if (!open) return;
-    setValue(slots ?? []);
+    setValue(slotsRef.current ?? []);
     setMarkUnavailable(false);
     setError(null);
     setConfirmOpen(false);
-  }, [open, slots]);
+  }, [open]);
 
   const submit = (decline: boolean) => {
     setConfirmOpen(false);

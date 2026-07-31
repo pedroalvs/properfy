@@ -121,7 +121,7 @@ export function AppointmentDetailPage() {
   // too. Declining on their behalf is not: every `→ REJECTED` edge in the state
   // machine admits only AM/OP/SYS, so the checkbox is gated separately below.
   const canSetTenantAvailability = !!appointment &&
-    (isPrivileged || user?.role === 'CL_ADMIN');
+    (isPrivileged || user?.role === UserRole.CL_ADMIN);
   const canMarkTenantUnavailable = isPrivileged;
   // The availability already on the appointment, found by content — the single
   // restriction row is shared with the operator's own access restriction.

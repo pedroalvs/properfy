@@ -617,40 +617,40 @@ describe('AppointmentDetailPage — Copy Portal Link (T39)', () => {
     fireEvent.click(screen.getByTestId('copy-portal-link-button'));
     await screen.findByText('Send Portal Link to generate a fresh link');
   });
+});
 
-  /**
-   * Two tiers on purpose: recording what the tenant said is data entry, but
-   * declining on their behalf rejects the inspection, and the state machine
-   * admits only AM/OP/SYS to a `→ REJECTED` edge.
-   */
-  describe('Tenant Availability action', () => {
-    it.each(['AM', 'OP', 'CL_ADMIN'])('is offered to %s', (role) => {
-      mockUserRole = role;
-      renderPage();
-      expect(screen.getByTestId('set-tenant-availability-button')).toBeInTheDocument();
-    });
+/**
+ * Two tiers on purpose: recording what the tenant said is data entry, but
+ * declining on their behalf rejects the inspection, and the state machine
+ * admits only AM/OP/SYS to a `→ REJECTED` edge.
+ */
+describe('Tenant Availability action', () => {
+  it.each(['AM', 'OP', 'CL_ADMIN'])('is offered to %s', (role) => {
+    mockUserRole = role;
+    renderPage();
+    expect(screen.getByTestId('set-tenant-availability-button')).toBeInTheDocument();
+  });
 
-    it.each(['CL_USER', 'INSP'])('is hidden from %s', (role) => {
-      mockUserRole = role;
-      renderPage();
-      expect(screen.queryByTestId('set-tenant-availability-button')).toBeNull();
-    });
+  it.each(['CL_USER', 'INSP'])('is hidden from %s', (role) => {
+    mockUserRole = role;
+    renderPage();
+    expect(screen.queryByTestId('set-tenant-availability-button')).toBeNull();
+  });
 
-    it('opens the dialog with the decline checkbox for an operator', () => {
-      mockUserRole = 'OP';
-      renderPage();
-      fireEvent.click(screen.getByTestId('set-tenant-availability-button'));
+  it('opens the dialog with the decline checkbox for an operator', () => {
+    mockUserRole = 'OP';
+    renderPage();
+    fireEvent.click(screen.getByTestId('set-tenant-availability-button'));
 
-      expect(screen.getByLabelText(/also mark tenant as unavailable/i)).toBeInTheDocument();
-    });
+    expect(screen.getByLabelText(/also mark tenant as unavailable/i)).toBeInTheDocument();
+  });
 
-    it('opens the dialog without the decline checkbox for CL_ADMIN', () => {
-      mockUserRole = 'CL_ADMIN';
-      renderPage();
-      fireEvent.click(screen.getByTestId('set-tenant-availability-button'));
+  it('opens the dialog without the decline checkbox for CL_ADMIN', () => {
+    mockUserRole = 'CL_ADMIN';
+    renderPage();
+    fireEvent.click(screen.getByTestId('set-tenant-availability-button'));
 
-      expect(screen.getByRole('heading', { name: /set tenant availability/i })).toBeInTheDocument();
-      expect(screen.queryByLabelText(/also mark tenant as unavailable/i)).toBeNull();
-    });
+    expect(screen.getByRole('heading', { name: /set tenant availability/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/also mark tenant as unavailable/i)).toBeNull();
   });
 });
