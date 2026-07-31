@@ -101,8 +101,9 @@ describe('seeded notification class follows the shared catalogue', () => {
   });
 
   // Named explicitly because these four are what actually flips in an existing
-  // database: their email twins were already TRANSACTIONAL via the UI write path,
-  // so only the SMS legs were left consent-suppressible.
+  // database. Their email twins were set TRANSACTIONAL directly by migration
+  // 20260411 (consent_notification_prefs); the SMS legs were created by later
+  // seeder runs that never wrote the column, so only they drifted.
   it.each([
     'INSPECTION_CONFIRMED_SMS',
     'INSPECTION_RESCHEDULED_SMS',
