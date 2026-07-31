@@ -59,6 +59,7 @@ vi.mock('../../../src/main/container', () => ({
 const AM_ACTOR = { userId: 'user-am', tenantId: null, role: 'AM', branchId: null, inspectorId: null };
 const OP_ACTOR = { userId: 'user-op', tenantId: 'tenant-1', role: 'OP', branchId: null, inspectorId: null };
 const CL_ADMIN_ACTOR = { userId: 'user-cl', tenantId: 'tenant-1', role: 'CL_ADMIN', branchId: null, inspectorId: null };
+const CL_USER_ACTOR = { userId: 'user-clu', tenantId: 'tenant-1', role: 'CL_USER', branchId: null, inspectorId: null };
 const INSP_ACTOR = { userId: 'user-insp', tenantId: null, role: 'INSP', branchId: null, inspectorId: 'insp-1' };
 
 /**
@@ -194,14 +195,27 @@ describe('GET /v1/appointments/:appointmentId/portal-activities', () => {
     });
   });
 
+  describe('200 — CL_ADMIN reads its own agency history', () => {
+    it('returns 200 for a CL_ADMIN actor', async () => {
+      mockJwtVerify.mockResolvedValueOnce(CL_ADMIN_ACTOR);
+      mockListPortalActivitiesExecute.mockResolvedValueOnce(await realUseCaseOutput([]));
+
+      const res = await supertest(app.server)
+        .get(`/v1/appointments/${APPOINTMENT_ID}/portal-activities`)
+        .set('Authorization', 'Bearer valid-token');
+
+      expect(res.status).toBe(200);
+    });
+  });
+
   describe('403 — role not allowed', () => {
     it.each([
-      ['CL_ADMIN', CL_ADMIN_ACTOR],
+      ['CL_USER', CL_USER_ACTOR],
       ['INSP', INSP_ACTOR],
     ])('returns 403 FORBIDDEN for %s actor', async (_label, actor) => {
       mockJwtVerify.mockResolvedValueOnce(actor);
       mockListPortalActivitiesExecute.mockRejectedValueOnce(
-        new ForbiddenError('FORBIDDEN', 'Only AM and OP roles can view portal activities'),
+        new ForbiddenError('FORBIDDEN', 'Only AM, OP and CL_ADMIN roles can view portal activities'),
       );
 
       const res = await supertest(app.server)

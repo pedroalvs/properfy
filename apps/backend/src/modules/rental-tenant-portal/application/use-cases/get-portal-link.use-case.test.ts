@@ -187,13 +187,46 @@ describe('GetPortalLinkUseCase', () => {
     });
   });
 
+  describe('CL_ADMIN — own agency', () => {
+    it('should return the portal link for a CL_ADMIN, scoped to its own tenant', async () => {
+      const appointmentRepo = {
+        findById: vi.fn().mockResolvedValue({ appointment: makeAppointment(), contact: null, contacts: [], restrictions: [] }),
+      };
+      const tokenRepo = { findActiveByAppointmentId: vi.fn().mockResolvedValue(makeToken()) };
+      const { uc } = makeUseCase({ appointmentRepo, tokenRepo });
+
+      const result = await uc.execute({ appointmentId: 'appt-1', actor: CL_ACTOR });
+
+      expect(result.portalUrl).toBe(`${PORTAL_BASE}/portal/raw`);
+      // Pinned to the actor's tenant — a null scope here would let a CL_ADMIN
+      // copy another agency's occupant link.
+      expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', 'tenant-1');
+    });
+
+    it('should not leak another tenant link to a CL_ADMIN', async () => {
+      const appointmentRepo = {
+        findById: vi.fn().mockImplementation(async (_id: string, tenantId: string | null) =>
+          tenantId === 'tenant-2' ? { appointment: makeAppointment(), contact: null, contacts: [], restrictions: [] } : null,
+        ),
+      };
+      const tokenRepo = { findActiveByAppointmentId: vi.fn() };
+      const { uc } = makeUseCase({ appointmentRepo, tokenRepo });
+
+      await expect(uc.execute({ appointmentId: 'appt-1', actor: CL_ACTOR })).rejects.toThrow(AppointmentNotFoundError);
+      expect(tokenRepo.findActiveByAppointmentId).not.toHaveBeenCalled();
+    });
+  });
+
   describe('403 — unauthorized roles', () => {
-    it('should throw ForbiddenError when actor is CL_ADMIN', async () => {
+    it.each([
+      ['CL_USER', { userId: 'user-clu', tenantId: 'tenant-1', branchId: null, role: 'CL_USER' as const, inspectorId: null }],
+      ['INSP', { userId: 'user-insp', tenantId: null, branchId: null, role: 'INSP' as const, inspectorId: null }],
+    ])('should throw ForbiddenError when actor is %s', async (_label, actor) => {
       const appointmentRepo = { findById: vi.fn() };
       const tokenRepo = { findActiveByAppointmentId: vi.fn() };
       const { uc } = makeUseCase({ appointmentRepo, tokenRepo });
 
-      await expect(uc.execute({ appointmentId: 'appt-1', actor: CL_ACTOR })).rejects.toThrow();
+      await expect(uc.execute({ appointmentId: 'appt-1', actor })).rejects.toThrow();
       expect(appointmentRepo.findById).not.toHaveBeenCalled();
     });
   });

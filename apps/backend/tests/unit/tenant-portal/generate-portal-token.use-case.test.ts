@@ -220,16 +220,31 @@ describe('GeneratePortalTokenUseCase', () => {
     expect(result.expiresAt).toEqual(EXPIRES_AT);
   });
 
-  it('should throw ForbiddenError for CL_ADMIN role', async () => {
+  it('should allow CL_ADMIN and scope the lookup to its own tenant', async () => {
+    const result = await useCase.execute(
+      makeInput({
+        actor: { userId: 'client-1', tenantId: 'tenant-1', role: 'CL_ADMIN', branchId: null, inspectorId: null },
+      }),
+    );
+
+    expect(result.token).toBe(RAW_TOKEN);
+    // Only AM is platform-wide here; a CL_ADMIN must never mint a token for an
+    // appointment outside its own agency.
+    expect(appointmentRepo.findById).toHaveBeenCalledWith(expect.any(String), 'tenant-1');
+  });
+
+  it('should not mint a token for a CL_ADMIN outside its tenant', async () => {
+    (appointmentRepo.findById as any).mockResolvedValue(null);
+
     await expect(
       useCase.execute(
         makeInput({
-          actor: { userId: 'client-1', tenantId: 'tenant-1', role: 'CL_ADMIN', branchId: null, inspectorId: null },
+          actor: { userId: 'client-1', tenantId: 'other-tenant', role: 'CL_ADMIN', branchId: null, inspectorId: null },
         }),
       ),
-    ).rejects.toThrow(ForbiddenError);
+    ).rejects.toThrow(NotFoundError);
 
-    expect(appointmentRepo.findById).not.toHaveBeenCalled();
+    expect(mintPortalTokenService.mint).not.toHaveBeenCalled();
   });
 
   it('should throw ForbiddenError for INSP role', async () => {

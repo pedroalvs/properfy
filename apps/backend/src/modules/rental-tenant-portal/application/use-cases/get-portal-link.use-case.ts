@@ -31,7 +31,7 @@ export class GetPortalLinkUseCase {
   async execute(input: GetPortalLinkInput): Promise<GetPortalLinkOutput> {
     const { appointmentId, actor } = input;
 
-    this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'appointment.portal_link', entityType: 'Appointment' });
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN'], { action: 'appointment.portal_link', entityType: 'Appointment' });
 
     const tenantScope = actor.role === 'AM' ? null : actor.tenantId;
     const result = await this.appointmentRepo.findById(appointmentId, tenantScope);

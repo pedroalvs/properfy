@@ -137,8 +137,8 @@ describe('ForceManualTenantConfirmationUseCase – happy path', () => {
 
 describe('ForceManualTenantConfirmationUseCase – RBAC', () => {
   it.each([
-    ['CL_ADMIN' as const],
     ['INSP' as const],
+    ['TNT' as const],
   ])('%s is forbidden', async (role) => {
     appointmentRepo.findById.mockResolvedValue(makeWithRelations());
     const uc = makeUseCase();
@@ -150,19 +150,42 @@ describe('ForceManualTenantConfirmationUseCase – RBAC', () => {
         actor: makeActor(role),
       }),
     ).rejects.toThrow(ForbiddenError);
+    expect(appointmentRepo.findById).not.toHaveBeenCalled();
   });
 
-  it('CL_ADMIN forbidden and does not call findById', async () => {
+  // CL_ADMIN administers its own agency and no longer needs the operations team
+  // to force a confirmation. Unlike CL_USER it carries no cl_user_flag gate —
+  // assertClUserPermission is a no-op for every role other than CL_USER.
+  it('CL_ADMIN can force confirm within its own tenant', async () => {
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations());
     const uc = makeUseCase();
+
+    const result = await uc.execute({
+      appointmentId: 'appt-1',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
+      reason: 'Occupant confirmed by phone',
+      actor: makeActor('CL_ADMIN'),
+    });
+
+    expect(result.rentalTenantConfirmationStatus).toBe('CONFIRMED');
+    expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', 'tenant-1');
+  });
+
+  it('CL_ADMIN cannot force confirm an appointment of another tenant', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ tenantId: 'tenant-other' }),
+    );
+    const uc = makeUseCase();
+
     await expect(
       uc.execute({
         appointmentId: 'appt-1',
         rentalTenantConfirmationStatus: 'CONFIRMED',
-        reason: 'Some reason',
-        actor: makeActor('CL_ADMIN'),
+        reason: 'Cross-tenant attempt',
+        actor: makeActor('CL_ADMIN', { tenantId: 'tenant-1' }),
       }),
-    ).rejects.toThrow(ForbiddenError);
-    expect(appointmentRepo.findById).not.toHaveBeenCalled();
+    ).rejects.toThrow();
+    expect(appointmentRepo.update).not.toHaveBeenCalled();
   });
 
   // H7: CL_USER with force_confirmation permission

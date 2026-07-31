@@ -10,7 +10,7 @@ export interface ListPortalActivitiesInput {
   pageSize: number;
 }
 
-const ALLOWED_ROLES = ['AM', 'OP'] as const;
+const ALLOWED_ROLES = ['AM', 'OP', 'CL_ADMIN'] as const;
 
 export class ListPortalActivitiesUseCase {
   constructor(
@@ -19,12 +19,15 @@ export class ListPortalActivitiesUseCase {
   ) {}
 
   async execute(input: ListPortalActivitiesInput) {
-    // 1. Validate actor role — AM/OP only
+    // 1. Validate actor role — AM/OP (platform) and CL_ADMIN (own agency)
     if (!ALLOWED_ROLES.includes(input.actor.role as (typeof ALLOWED_ROLES)[number])) {
-      throw new ForbiddenError('FORBIDDEN', 'Only AM and OP roles can view portal activities');
+      throw new ForbiddenError('FORBIDDEN', 'Only AM, OP and CL_ADMIN roles can view portal activities');
     }
 
-    // 2. Load appointment to verify it exists and enforce tenant scope
+    // 2. Load appointment to verify it exists and enforce tenant scope.
+    // AM/OP carry a null tenantId (platform-wide); CL_ADMIN is pinned to its own
+    // agency here, which is the only tenant gate on this read — the activity
+    // query in step 3 is keyed by appointment alone.
     const result = await this.appointmentRepo.findById(input.appointmentId, input.actor.tenantId);
     if (!result) {
       throw new NotFoundError('APPOINTMENT_NOT_FOUND', 'Appointment not found');

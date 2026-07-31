@@ -28,8 +28,10 @@ export class ForceManualTenantConfirmationUseCase {
   async execute(input: ForceManualConfirmationInput): Promise<ForceManualConfirmationOutput> {
     const { appointmentId, rentalTenantConfirmationStatus, reason, actor } = input;
 
-    // 1. RBAC: AM/OP allowed, CL_USER with force_confirmation permission
-    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_USER'], { action: 'appointment.force_confirmation', entityType: 'Appointment' });
+    // 1. RBAC: AM/OP/CL_ADMIN allowed, CL_USER with force_confirmation permission.
+    // assertClUserPermission is a no-op for every role other than CL_USER, so
+    // CL_ADMIN passes it unconditionally.
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN', 'CL_USER'], { action: 'appointment.force_confirmation', entityType: 'Appointment' });
     this.authorizationService.assertClUserPermission(actor, 'force_confirmation');
 
     // 2. Find appointment. AM/OP are platform-wide so we look up across
