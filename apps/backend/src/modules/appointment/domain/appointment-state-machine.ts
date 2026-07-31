@@ -85,7 +85,10 @@ export const TRANSITION_RULES: TransitionRule[] = [
   {
     from: 'REJECTED',
     to: 'AWAITING_INSPECTOR',
-    allowedActors: ['AM', 'OP'],
+    // SYS: a rental tenant who declined can still choose another time in the
+    // portal. That rejoin runs as SYS and must lift the appointment out of
+    // REJECTED before it can be scheduled again.
+    allowedActors: ['AM', 'OP', 'SYS'],
     requiresReason: true,
     requiresDoneCheckedBy: false,
   },

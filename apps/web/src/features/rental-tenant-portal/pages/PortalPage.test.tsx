@@ -138,6 +138,69 @@ describe('PortalPage', () => {
     expect(screen.getByText('This portal is read-only. Contact updates are no longer available.')).toBeInTheDocument();
   });
 
+  // Declining auto-rejects the appointment, so REJECTED is the state a tenant
+  // lands in immediately after answering "No" — the portal has to stay usable
+  // there or the decline becomes a dead end.
+  describe('REJECTED appointment', () => {
+    const REJECTED_DATA = {
+      ...MOCK_PORTAL_DATA,
+      appointment: {
+        ...MOCK_PORTAL_DATA.appointment,
+        status: 'REJECTED',
+        rentalTenantConfirmationStatus: 'UNAVAILABLE',
+      },
+    };
+
+    it('still offers "Change time"', async () => {
+      mockGet.mockResolvedValue({ data: REJECTED_DATA });
+      renderPortal();
+
+      expect(await screen.findByRole('button', { name: /change time/i })).toBeInTheDocument();
+    });
+
+    it('does not claim that no further actions are available', async () => {
+      mockGet.mockResolvedValue({ data: REJECTED_DATA });
+      renderPortal();
+
+      await screen.findByRole('button', { name: /change time/i });
+      expect(screen.queryByText(/no further actions are available/i)).not.toBeInTheDocument();
+    });
+
+    it('explains what happened and points at the remaining action', async () => {
+      mockGet.mockResolvedValue({ data: REJECTED_DATA });
+      renderPortal();
+
+      expect(
+        await screen.findByText(/you can still pick another available time/i),
+      ).toBeInTheDocument();
+    });
+
+    it('keeps showing that the unavailability was recorded', async () => {
+      mockGet.mockResolvedValue({ data: REJECTED_DATA });
+      renderPortal();
+
+      expect(await screen.findByText('Unavailability Reported')).toBeInTheDocument();
+    });
+
+    it('does not offer the Yes/No form again', async () => {
+      mockGet.mockResolvedValue({ data: REJECTED_DATA });
+      renderPortal();
+
+      await screen.findByRole('button', { name: /change time/i });
+      expect(screen.queryByText('Will you attend the appointment?')).not.toBeInTheDocument();
+    });
+
+    it('leaves the contact form editable', async () => {
+      mockGet.mockResolvedValue({ data: REJECTED_DATA });
+      renderPortal();
+
+      await screen.findByRole('button', { name: /change time/i });
+      expect(
+        screen.queryByText('This portal is read-only. Contact updates are no longer available.'),
+      ).not.toBeInTheDocument();
+    });
+  });
+
   it('shows invalid view when API returns PORTAL_TOKEN_NOT_FOUND', async () => {
     mockGet.mockResolvedValue({ data: undefined, error: new ApiError(404, 'Not found', 'PORTAL_TOKEN_NOT_FOUND') });
     renderPortal();

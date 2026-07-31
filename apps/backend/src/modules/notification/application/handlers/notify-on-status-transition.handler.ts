@@ -41,6 +41,7 @@ const STATUS_TRANSITION_TEMPLATE_CODES = [
 
 /** Agency-facing cancellation notice, sent to the branch contact. */
 const AGENCY_CANCELLED_TEMPLATE_CODE = 'INSPECTION_CANCELLED_AGENCY';
+const AGENCY_REJECTED_TEMPLATE_CODE = 'INSPECTION_REJECTED_AGENCY';
 
 /**
  * What "the rental tenant already knows this inspection exists" means.
@@ -192,13 +193,21 @@ export class NotifyOnStatusTransitionHandler {
     notifyRentalTenant?: boolean;
   }): Promise<void> {
     const isCancellation = input.targetStatus === 'CANCELLED';
+    // A rejection is announced to the agency only, so it has no rental-tenant
+    // template of its own and cannot be expressed as an `emailCode`.
+    // `DONE → REJECTED` is excluded: that is the AM-only reopen-for-compensation
+    // path, and the agency template says the inspection "will not go ahead as
+    // scheduled and needs to be rearranged" — untrue of one that already
+    // happened. Its financial compensation is announced through its own
+    // DONE_REJECTED event, not here.
+    const isRejection = input.targetStatus === 'REJECTED' && input.previousStatus !== 'DONE';
     const emailCode =
       input.targetStatus === 'SCHEDULED'
         ? 'INSPECTION_NOTICE'
         : isCancellation
           ? 'INSPECTION_CANCELLED'
           : null;
-    if (!emailCode) return;
+    if (!emailCode && !isRejection) return;
 
     // H6: Scope repository call by tenantId when available
     const result = await this.appointmentRepo.findById(
@@ -218,7 +227,7 @@ export class NotifyOnStatusTransitionHandler {
     // member of a group, so anything loaded before this point multiplies across
     // the group. A cancellation defers the check, because the agency leg below
     // must run whether or not the TENANT's announcement is a replay.
-    if (!isCancellation) {
+    if (emailCode && !isCancellation) {
       if (!contact) return;
       if (await this.isReplay(appointment, emailCode)) return;
     }
@@ -228,6 +237,28 @@ export class NotifyOnStatusTransitionHandler {
 
     const property = await this.propertyRepo.findById(appointment.propertyId, appointment.tenantId);
 
+    // A rejection stops here: the agency is told so it can reschedule, and there
+    // is no rental-tenant leg. Deliberately before the contact guard, for the
+    // same reason as the cancellation notice — imported appointments with no
+    // contact are exactly the ones that get rejected. No portal token is minted
+    // either: minting revokes the link the tenant is still holding, and after a
+    // portal decline they need it to change time.
+    if (isRejection) {
+      await this.announceToAgency({
+        templateCode: AGENCY_REJECTED_TEMPLATE_CODE,
+        appointment,
+        contact,
+        tenant,
+        propertyAddress: property?.fullAddress ?? '',
+        serviceTypeName: result.serviceTypeName ?? null,
+      });
+      return;
+    }
+
+    // Unreachable — the guard at the top returns when both are falsy — but it
+    // narrows `emailCode` for everything below.
+    if (!emailCode) return;
+
     if (isCancellation) {
       // Deliberately BEFORE the contact guard. Import creates appointments with
       // no contact at all (CONTACT_INCOMPLETE is a warning, not an error — see
@@ -236,7 +267,8 @@ export class NotifyOnStatusTransitionHandler {
       // would lose the notice in this feature's core scenario. The agency
       // template only needs the address, date and code; the contact contributes
       // the optional rentalTenantName.
-      await this.announceCancellationToAgency({
+      await this.announceToAgency({
+        templateCode: AGENCY_CANCELLED_TEMPLATE_CODE,
         appointment,
         contact,
         tenant,
@@ -374,7 +406,8 @@ export class NotifyOnStatusTransitionHandler {
    * and the transition use case swallows whatever this handler throws, so letting
    * an agency failure propagate would silently drop the rental tenant's email too.
    */
-  private async announceCancellationToAgency(ctx: {
+  private async announceToAgency(ctx: {
+    templateCode: string;
     appointment: AppointmentEntity;
     contact: AppointmentContactEntity | null;
     tenant: TenantEntity;
@@ -391,8 +424,12 @@ export class NotifyOnStatusTransitionHandler {
         // optional at creation, so this is a steady-state population rather than
         // an edge case, and it defeats "the agency is always told" silently.
         this.logger?.warn(
-          { appointmentId: ctx.appointment.id, branchId: ctx.appointment.branchId },
-          'Branch has no contact email; agency cancellation notice skipped',
+          {
+            appointmentId: ctx.appointment.id,
+            branchId: ctx.appointment.branchId,
+            templateCode: ctx.templateCode,
+          },
+          'Branch has no contact email; agency notice skipped',
         );
         this.metrics?.incrementNotificationHandlerErrorCount();
         return;
@@ -403,9 +440,9 @@ export class NotifyOnStatusTransitionHandler {
         appointmentId: ctx.appointment.id,
         recipient: branch.contactEmail,
         channel: 'EMAIL',
-        templateCode: AGENCY_CANCELLED_TEMPLATE_CODE,
+        templateCode: ctx.templateCode,
         payloadJson: this.buildNotificationPayload.build({
-          templateCode: AGENCY_CANCELLED_TEMPLATE_CODE,
+          templateCode: ctx.templateCode,
           tenant: ctx.tenant,
           appointment: ctx.appointment,
           contact: ctx.contact,
@@ -419,8 +456,8 @@ export class NotifyOnStatusTransitionHandler {
       });
     } catch (err) {
       this.logger?.error(
-        { err, appointmentId: ctx.appointment.id },
-        'Agency cancellation notice failed; rental-tenant legs continue',
+        { err, appointmentId: ctx.appointment.id, templateCode: ctx.templateCode },
+        'Agency notice failed; rental-tenant legs continue',
       );
       // Still counted: swallowing the throw keeps the tenant legs alive, but the
       // failure must not become invisible to the notification error metric.

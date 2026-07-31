@@ -128,6 +128,16 @@ describe('TEMPLATE_TARGETS', () => {
   it('sends TENANT_SMS_ALERT to the rental tenant, not to an internal inbox', () => {
     expect(TEMPLATE_TARGETS.TENANT_SMS_ALERT).toBe('RENTAL_TENANT');
   });
+
+  it('sends the rejection notice to the agency, not to the rental tenant', () => {
+    // A rejection is the agency's cue to reschedule, so it goes to the branch
+    // contact. The rental tenant who declined already gets their own
+    // acknowledgement via INSPECTION_UNAVAILABILITY_REPORTED.
+    expect(TEMPLATE_TARGETS.INSPECTION_REJECTED_AGENCY).toBe('PROPERTY_MANAGER');
+    expect(TEMPLATE_TARGETS.INSPECTION_REJECTED_AGENCY).toBe(
+      TEMPLATE_TARGETS.INSPECTION_CANCELLED_AGENCY,
+    );
+  });
 });
 
 describe('getTemplateTarget', () => {

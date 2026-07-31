@@ -539,9 +539,12 @@ describe('PrismaServiceGroupRepository portal member slots — real DB', () => {
     expect(untouched).toMatchObject({ service_group_id: null, time_slot_start: '14:00' });
   });
 
+  // `rejected` is deliberately absent: a portal decline auto-rejects the
+  // appointment, and taking another slot is how the tenant recovers from that.
+  // See portal-reserve-window-status-gate.integration.test.ts for the positive case.
   it.each([
     ['cancelled', { status: 'CANCELLED' as const }],
-    ['rejected', { status: 'REJECTED' as const }],
+    ['draft', { status: 'DRAFT' as const }],
     ['soft-deleted', { deleted: true }],
   ])('refuses to move a %s appointment even into a window with room', async (_label, state) => {
     const { tenantId, userId } = await seedTenant(harness.prisma, `Portal Inactive Target ${rand()}`);

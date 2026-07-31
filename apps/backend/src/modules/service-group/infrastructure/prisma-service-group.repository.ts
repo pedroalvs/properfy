@@ -1099,12 +1099,16 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       // earlier read: an operator can cancel or delete the appointment while the
       // tenant is choosing. Without these predicates the move would land on a
       // cancelled row and still report success.
+      //
+      // REJECTED is allowed through: a portal decline auto-rejects, and taking a
+      // new slot is exactly how the tenant recovers from that. DRAFT is not — a
+      // reopened appointment has no live token and no schedule to move.
       const { count } = await tx.appointment.updateMany({
         where: {
           id: params.appointmentId,
           tenant_id: params.tenantId,
           deleted_at: null,
-          status: { notIn: ['CANCELLED', 'DONE', 'REJECTED'] },
+          status: { notIn: ['CANCELLED', 'DONE', 'DRAFT'] },
         },
         data: {
           scheduled_date: new Date(params.scheduledDate),
