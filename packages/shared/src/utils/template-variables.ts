@@ -33,6 +33,9 @@ const EXPRESSION = /\{\{([^{}]+)\}\}/g;
  */
 const BLOCK_COMMENT = /\{\{!--[\s\S]*?--\}\}/g;
 
+/** Trailing block-parameter declaration, as in `{{#each rows as |row index|}}`. */
+const BLOCK_PARAMS = /\s+as\s+\|[^|]*\|\s*$/;
+
 export function extractTemplateVariables(text: string): string[] {
   if (!text) return [];
 
@@ -53,6 +56,9 @@ export function extractTemplateVariables(text: string): string[] {
     if (inner.startsWith('else ')) inner = inner.slice('else '.length).trim();
     // `{{#if x}}` and `{{^x}}` open a block; the path is still a real reference.
     if (inner.startsWith('#') || inner.startsWith('^')) inner = inner.slice(1).trim();
+    // `{{#each rows as |row index|}}` declares local aliases. Neither the `as`
+    // keyword nor the names between the pipes are payload variables.
+    inner = inner.replace(BLOCK_PARAMS, '');
 
     for (const token of inner.split(/\s+/)) {
       if (!token || HELPERS.has(token) || NON_VARIABLES.has(token)) continue;

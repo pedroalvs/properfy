@@ -53,6 +53,16 @@ describe('extractTemplateVariables', () => {
     expect(extractTemplateVariables('{{!--\n multi {{a}}\n line {{b}}\n--}}{{c}}')).toEqual(['c']);
   });
 
+  it('ignores block-parameter declarations', () => {
+    // `as |item|` is a local alias, and `as` is a keyword — reporting it gave
+    // "Invalid variables: as", the same class of false rejection as {{else}}.
+    expect(extractTemplateVariables('{{#each appointments as |appt|}}x{{/each}}')).toEqual([
+      'appointments',
+    ]);
+    expect(extractTemplateVariables('{{#with property as |p|}}x{{/with}}')).toEqual(['property']);
+    expect(extractTemplateVariables('{{#each rows as |row index|}}x{{/each}}')).toEqual(['rows']);
+  });
+
   it('reads through whitespace-control markers', () => {
     // `{{~x~}}` is `x` with whitespace trimming. Dropping it let a variable
     // outside the allow-list through unreported.
