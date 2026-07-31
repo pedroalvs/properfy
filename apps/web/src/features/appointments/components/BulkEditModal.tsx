@@ -362,6 +362,22 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
         changes[key] = v;
       }
     });
+    // DateInput deliberately emits an out-of-range value so a consumer can render
+    // its own message, and it emits '' while the date is incomplete — which the
+    // loop above silently drops. Both need catching here, or the user gets a
+    // server rejection (or a no-op) instead of a field-level explanation.
+    if (enabledFields.scheduledDate) {
+      const scheduledDate = values.scheduledDate?.trim();
+      if (!scheduledDate) {
+        setErrorMessage('Enter a complete scheduled date.');
+        return;
+      }
+      if (scheduledDate < todayInTzDateString(PLATFORM_TIMEZONE)) {
+        setErrorMessage('Scheduled date cannot be in the past.');
+        return;
+      }
+    }
+
     // The single "Time Slot" toggle emits BOTH ends together — the backend bulk
     // schema requires timeSlotStart and timeSlotEnd to be present (or absent) as a pair.
     if (enabledFields.timeSlot) {

@@ -1,6 +1,6 @@
 import { memo, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
-import { PLATFORM_TIMEZONE, todayInTzDateString } from '@properfy/shared';
+import { PLATFORM_TIMEZONE, addCivilDays, todayInTzDateString } from '@properfy/shared';
 import { formatCivilDate, formatWallTimeWindow } from '@/lib/format-date';
 import { formatCurrency } from '@/lib/format-currency';
 import type { MarketplaceOffer, OfferAcceptState } from '../types';
@@ -16,22 +16,18 @@ interface OfferCardProps {
  * Which of TODAY / TOMORROW (if either) an offer's date falls on.
  *
  * Both answers come from ONE reading of the platform-timezone day. Reading it
- * twice lets Sydney's midnight roll over between the two calls, which drops the
- * badge a render early — the date is no longer today, and is no longer the new
- * anchor plus one either.
+ * twice lets midnight roll over between the two calls, which drops the badge a
+ * render early — the date is no longer today, and is no longer the new anchor
+ * plus one either.
  *
- * Device-independent despite the toISOString(): the anchor is the platform-tz
- * calendar day and the arithmetic is UTC-on-UTC, so the device offset never
- * enters. Anchoring on `new Date()` instead WOULD make it device-dependent.
+ * `addCivilDays` keeps the arithmetic device-independent: it anchors on the
+ * timezone's own calendar day and advances in UTC, which has no DST.
  */
 function relativeDayLabel(dateStr: string): 'TODAY' | 'TOMORROW' | null {
   const day = dateStr.slice(0, 10);
   const today = todayInTzDateString(PLATFORM_TIMEZONE);
   if (day === today) return 'TODAY';
-
-  const tomorrow = new Date(`${today}T00:00:00Z`);
-  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-  return day === tomorrow.toISOString().slice(0, 10) ? 'TOMORROW' : null;
+  return day === addCivilDays(today, 1) ? 'TOMORROW' : null;
 }
 
 function usePriorityCountdown(expiresAt: string | null): { label: string; isUrgent: boolean } | null {
