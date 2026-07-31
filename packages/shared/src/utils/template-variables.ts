@@ -25,15 +25,25 @@ const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 /** A `{{ … }}` expression. Inner braces are excluded so `{{{raw}}}` still yields `raw`. */
 const EXPRESSION = /\{\{([^{}]+)\}\}/g;
 
+/**
+ * `{{!-- … --}}` block comment. Stripped wholesale before scanning: its body may
+ * contain `{{…}}` expressions, and those are commentary, not references. Left in
+ * place they were reported as used — enough to fail an allow-list check over text
+ * the renderer never evaluates.
+ */
+const BLOCK_COMMENT = /\{\{!--[\s\S]*?--\}\}/g;
+
 export function extractTemplateVariables(text: string): string[] {
   if (!text) return [];
 
+  const scannable = text.replace(new RegExp(BLOCK_COMMENT.source, 'g'), ' ');
   const found = new Set<string>();
   const regex = new RegExp(EXPRESSION.source, 'g');
   let match: RegExpExecArray | null;
 
-  while ((match = regex.exec(text)) !== null) {
-    let inner = match[1]?.trim() ?? '';
+  while ((match = regex.exec(scannable)) !== null) {
+    // `~` is whitespace control (`{{~x~}}`), not part of the path.
+    let inner = match[1]?.replace(/^~+/, '').replace(/~+$/, '').trim() ?? '';
 
     // `{{! comment }}` and `{{/if}}` carry no references.
     if (inner.startsWith('!') || inner.startsWith('/')) continue;

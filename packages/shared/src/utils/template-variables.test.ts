@@ -46,6 +46,21 @@ describe('extractTemplateVariables', () => {
     expect(extractTemplateVariables('{{! internal note }} {{y}}')).toEqual(['y']);
   });
 
+  it('ignores everything inside a block comment, including nested expressions', () => {
+    // Without this, `{{!-- … {{draft}} … --}}` reported `draft` as used and the
+    // editor refused the save — the very failure mode this module exists to end.
+    expect(extractTemplateVariables('{{!-- was {{draft}} --}} {{y}}')).toEqual(['y']);
+    expect(extractTemplateVariables('{{!--\n multi {{a}}\n line {{b}}\n--}}{{c}}')).toEqual(['c']);
+  });
+
+  it('reads through whitespace-control markers', () => {
+    // `{{~x~}}` is `x` with whitespace trimming. Dropping it let a variable
+    // outside the allow-list through unreported.
+    expect(extractTemplateVariables('{{~propertyAddress~}}')).toEqual(['propertyAddress']);
+    expect(extractTemplateVariables('{{~#if a~}}x{{~/if~}}')).toEqual(['a']);
+    expect(extractTemplateVariables('{{#if a}}x{{~else~}}y{{/if}}')).toEqual(['a']);
+  });
+
   it('ignores helper names and literal params, keeping the referenced variable', () => {
     expect(extractTemplateVariables('{{formatDate scheduledDate "DD/MM/YYYY"}}')).toEqual([
       'scheduledDate',
