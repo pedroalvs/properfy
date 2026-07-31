@@ -10,12 +10,13 @@ import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { MapMarker } from './MapMarker';
 
-const spies = vi.hoisted(() => ({ setOffset: vi.fn() }));
+const spies = vi.hoisted(() => ({ setOffset: vi.fn(), constructed: vi.fn() }));
 
 vi.mock('mapbox-gl', () => {
   class FakeMarker {
     private element: HTMLElement;
     constructor(opts: { element: HTMLElement }) {
+      spies.constructed();
       this.element = opts.element;
     }
     setLngLat(_: [number, number]) {
@@ -60,11 +61,16 @@ describe('MapMarker offset', () => {
 
   it('re-applies when the offset changes, without recreating the marker', () => {
     spies.setOffset.mockClear();
+    spies.constructed.mockClear();
     const { rerender } = render(
       <MapMarker longitude={151.21} latitude={-33.87} offset={[18, 0]} />,
     );
     rerender(<MapMarker longitude={151.21} latitude={-33.87} offset={[-18, 0]} />);
+
     expect(spies.setOffset).toHaveBeenLastCalledWith([-18, 0]);
+    // A recreated marker would lose its popup binding and flicker; the create
+    // effect depends only on `getMap` precisely to avoid that.
+    expect(spies.constructed).toHaveBeenCalledTimes(1);
   });
 
   it('does not re-apply when a new array carries the same numbers', () => {

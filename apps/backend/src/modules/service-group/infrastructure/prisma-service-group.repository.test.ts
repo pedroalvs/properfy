@@ -450,6 +450,8 @@ describe('PrismaServiceGroupRepository offer centroid', () => {
         lng: 152.0,
         deleted_at: new Date('2026-07-01'),
       }),
+      // An appointment with no property at all must not contribute either.
+      makeAppointment(null),
     ]);
 
     const result = await listOffers(repo);
@@ -508,6 +510,9 @@ describe('PrismaServiceGroupRepository offer centroid', () => {
     expect(detail?.suburbs).toEqual(['Harris Park']);
     expect(detail?.addresses).toEqual(['1 Main St, Harris Park']);
     expect(JSON.stringify(detail)).not.toContain('99 Secret Lane');
+    // The per-appointment guards this aligns with, asserted rather than assumed.
+    expect(detail?.appointments[1]!.street).toBe('');
+    expect(detail?.appointments[1]!.coordinates).toBeNull();
     // The per-appointment suburb stays visible — that is the documented rule,
     // and this test must not be read as changing it.
     expect(detail?.appointments[1]!.suburb).toBe('Sydney NSW');

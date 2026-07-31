@@ -159,6 +159,44 @@ beforeEach(() => {
   try { sessionStorage.clear(); } catch { /* noop */ }
 });
 
+describe('AppointmentMapPage — marker de-collision follows the camera', () => {
+  // Offsets are in pixels and which pins overlap depends on the zoom, so a
+  // set computed once is wrong as soon as the camera moves. Rather than depend
+  // on the fixture's real coordinates, this collapses the projection so every
+  // pin lands on one point — they must then be pulled apart.
+  it('recomputes offsets when the camera settles', async () => {
+    mockAppointments([
+      appointment('a1', -33.86, 151.2),
+      appointment('a2', -33.88, 151.24),
+    ]);
+    renderPage();
+    fireMapLoad();
+    // The initial auto-fit only runs once the appointments have loaded, so it
+    // is also the signal that the markers are on the map.
+    await waitFor(() => {
+      expect(mapApi.fitBounds.mock.calls.length + mapApi.flyTo.mock.calls.length).toBeGreaterThan(0);
+    });
+    await waitFor(() => {
+      expect(markerApi.setOffset).toHaveBeenCalled();
+    });
+
+    markerApi.setOffset.mockClear();
+    mapApi.project.mockReturnValue({ x: 500, y: 500 });
+    const moveend = mapApi.on.mock.calls.find(([event]) => event === 'moveend')?.[1] as
+      | (() => void)
+      | undefined;
+    if (!moveend) throw new Error('map "moveend" handler was never registered');
+    act(() => moveend());
+
+    await waitFor(() => {
+      const displaced = markerApi.setOffset.mock.calls.filter(
+        ([offset]) => offset[0] !== 0 || offset[1] !== 0,
+      );
+      expect(displaced.length).toBeGreaterThan(0);
+    });
+  });
+});
+
 describe('AppointmentMapPage — Enter frames the search results', () => {
   it('fits every result on screen when several match', async () => {
     mockAppointments([

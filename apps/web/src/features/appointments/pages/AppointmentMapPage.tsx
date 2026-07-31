@@ -292,12 +292,17 @@ export function computeMarkerOffsets(
   project: (lngLat: [number, number]) => { x: number; y: number },
   diameter: number,
 ): Map<string, MarkerOffset> {
-  const screen = pins.map((p) => {
+  // Sorted by id so the layout does not depend on list order. Coincident pins
+  // are laid out in input order, and the queries feeding this page sort by
+  // created_at with no unique tie-breaker — an unsorted input would let a
+  // refetch swap two markers' offsets and make the pins jump for no reason.
+  const ordered = [...pins].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const screen = ordered.map((p) => {
     const { x, y } = project([p.longitude, p.latitude]);
     return { x, y };
   });
   const offsets = resolveMarkerCollisions(screen, diameter);
-  return new Map(pins.map((p, index) => [p.id, offsets[index]!]));
+  return new Map(ordered.map((p, index) => [p.id, offsets[index]!]));
 }
 
 export function AppointmentMapPage() {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import mapboxgl from 'mapbox-gl';
+import type { MarkerOffset } from '@properfy/shared';
 import { useMapInstance } from './MapContainer';
 
 interface MapMarkerProps {
@@ -42,10 +43,10 @@ interface MapMarkerProps {
    * transform it already writes on the element. Setting `style.transform`
    * directly would fight that transform and snap the pin to the map origin.
    */
-  offset?: [number, number];
+  offset?: MarkerOffset;
 }
 
-const NO_OFFSET: [number, number] = [0, 0];
+const NO_OFFSET: MarkerOffset = [0, 0];
 
 /**
  * Centre-to-centre distance at which two markers stop overlapping: the 28px pin
