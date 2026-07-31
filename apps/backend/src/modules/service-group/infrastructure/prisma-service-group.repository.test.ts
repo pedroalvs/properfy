@@ -281,6 +281,212 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
   });
 });
 
+describe('PrismaServiceGroupRepository offer centroid', () => {
+  function makeAppointment(property: Record<string, unknown> | null) {
+    return {
+      key_required: false,
+      payout_amount: 50,
+      tenant_id: 'tenant-1',
+      tenant: { name: 'Agency A' },
+      property,
+    };
+  }
+
+  function repoReturning(appointments: unknown[]) {
+    const queryRaw = vi.fn().mockResolvedValue([{ id: 'sg-1' }]);
+    const findMany = vi.fn().mockResolvedValue([
+      {
+        id: 'sg-1',
+        scheduled_date: new Date('2026-08-04'),
+        time_window: '15:00-17:00',
+        service_type: { name: 'Routine' },
+        appointments,
+      },
+    ]);
+    return {
+      findMany,
+      repo: new PrismaServiceGroupRepository({
+        $queryRaw: queryRaw,
+        serviceGroup: { findMany },
+      } as any),
+    };
+  }
+
+  const listOffers = (repo: PrismaServiceGroupRepository) =>
+    repo.findPublishedForInspector('inspector-1', ['st-1'], [], {
+      page: 1,
+      pageSize: 20,
+      sortOrder: 'asc',
+    });
+
+  it('selects property coordinates in the offers list query', async () => {
+    const { findMany, repo } = repoReturning([]);
+
+    await listOffers(repo);
+
+    // The root cause of the missing-pin bug: the list query never fetched
+    // lat/lng at all, so the centroid had to be guessed from the suburb name.
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          appointments: expect.objectContaining({
+            select: expect.objectContaining({
+              property: {
+                select: expect.objectContaining({ lat: true, lng: true }),
+              },
+            }),
+          }),
+        }),
+      }),
+    );
+  });
+
+  it('derives the centroid from the real property coordinates', async () => {
+    const { repo } = repoReturning([
+      makeAppointment({ suburb: 'Parramatta', state: 'NSW', lat: -33.8, lng: 151.0 }),
+      makeAppointment({ suburb: 'Parramatta', state: 'NSW', lat: -33.6, lng: 151.2 }),
+    ]);
+
+    const result = await listOffers(repo);
+
+    expect(result[0]!.centroid).toEqual({ lat: -33.7, lng: 151.1 });
+  });
+
+  // The production bug, reproduced: group #37 (Parramatta + Harris Park) and
+  // group #34 (Parramatta) both resolved to the single Parramatta entry of a
+  // 110-suburb lookup table, so their markers landed on byte-identical
+  // coordinates and one hid the other. Distinct properties must yield distinct
+  // pins regardless of which suburbs they happen to name.
+  it('gives distinct centroids to groups that share a suburb', async () => {
+    const both = await listOffers(
+      repoReturning([
+        makeAppointment({ suburb: 'Parramatta', state: 'NSW', lat: -33.8148, lng: 151.0017 }),
+        makeAppointment({ suburb: 'Harris Park', state: 'NSW', lat: -33.8236, lng: 151.0053 }),
+        makeAppointment({ suburb: 'Harris Park', state: 'NSW', lat: -33.8244, lng: 151.0061 }),
+      ]).repo,
+    );
+    const parramattaOnly = await listOffers(
+      repoReturning([
+        makeAppointment({ suburb: 'Parramatta', state: 'NSW', lat: -33.8148, lng: 151.0017 }),
+        makeAppointment({ suburb: 'Parramatta', state: 'NSW', lat: -33.8155, lng: 151.0022 }),
+      ]).repo,
+    );
+
+    expect(both[0]!.centroid).not.toEqual(parramattaOnly[0]!.centroid);
+  });
+
+  it('resolves a centroid for suburbs absent from any lookup table', async () => {
+    // "Harris Park" was not in the old hardcoded table; a group made only of
+    // such suburbs got centroid: null and was dropped from the map in silence.
+    const { repo } = repoReturning([
+      makeAppointment({ suburb: 'Harris Park', state: 'NSW', lat: -33.8236, lng: 151.0053 }),
+    ]);
+
+    const result = await listOffers(repo);
+
+    expect(result[0]!.centroid).toEqual({ lat: -33.8236, lng: 151.0053 });
+  });
+
+  it('excludes soft-deleted properties from the centroid', async () => {
+    const { repo } = repoReturning([
+      makeAppointment({ suburb: 'Parramatta', state: 'NSW', lat: -33.8, lng: 151.0 }),
+      makeAppointment({
+        suburb: 'Sydney',
+        state: 'NSW',
+        lat: -33.0,
+        lng: 152.0,
+        deleted_at: new Date('2026-07-01'),
+      }),
+    ]);
+
+    const result = await listOffers(repo);
+
+    // Never let a soft-deleted property pull the pin toward its location.
+    expect(result[0]!.centroid).toEqual({ lat: -33.8, lng: 151.0 });
+  });
+
+  it('returns a null centroid when no property has coordinates', async () => {
+    const { repo } = repoReturning([
+      makeAppointment({ suburb: 'Parramatta', state: 'NSW', lat: null, lng: null }),
+      makeAppointment(null),
+    ]);
+
+    const result = await listOffers(repo);
+
+    expect(result[0]!.centroid).toBeNull();
+  });
+
+  it('still reports the suburb names alongside the coordinate-derived centroid', async () => {
+    const { repo } = repoReturning([
+      makeAppointment({ suburb: 'Parramatta', state: 'NSW', lat: -33.8148, lng: 151.0017 }),
+      makeAppointment({ suburb: 'Harris Park', state: 'NSW', lat: -33.8236, lng: 151.0053 }),
+    ]);
+
+    const result = await listOffers(repo);
+
+    // The card's "Parramatta · Harris Park" label is independent of the pin.
+    expect(result[0]!.suburbs).toEqual(['Parramatta', 'Harris Park']);
+  });
+
+  it('derives the offer detail centroid from real coordinates too', async () => {
+    const findUnique = vi.fn().mockResolvedValue({
+      id: 'sg-1',
+      group_number: 37,
+      scheduled_date: new Date('2026-08-04'),
+      time_window: '15:00-17:00',
+      service_type: { name: 'Routine' },
+      appointments: [
+        {
+          id: 'appt-1',
+          appointment_number: 1,
+          key_required: false,
+          payout_amount: 50,
+          notes: null,
+          time_slot_start: '15:00',
+          time_slot_end: '17:00',
+          tenant_id: 'tenant-1',
+          tenant: { name: 'Agency A', appointment_code_prefix: 'INS' },
+          property: {
+            deleted_at: null,
+            suburb: 'Harris Park',
+            state: 'NSW',
+            street: '1 Main St',
+            lat: -33.8,
+            lng: 151.0,
+          },
+        },
+        {
+          id: 'appt-2',
+          appointment_number: 2,
+          key_required: false,
+          payout_amount: 50,
+          notes: null,
+          time_slot_start: '15:00',
+          time_slot_end: '17:00',
+          tenant_id: 'tenant-1',
+          tenant: { name: 'Agency A', appointment_code_prefix: 'INS' },
+          property: {
+            deleted_at: null,
+            suburb: 'Harris Park',
+            state: 'NSW',
+            street: '2 Main St',
+            lat: -33.6,
+            lng: 151.2,
+          },
+        },
+      ],
+    });
+    const repo = new PrismaServiceGroupRepository({
+      $queryRaw: vi.fn().mockResolvedValue([{ id: 'sg-1' }]),
+      serviceGroup: { findUnique },
+    } as any);
+
+    const detail = await repo.findPublishedOfferDetail('sg-1', 'inspector-1', ['st-1'], []);
+
+    expect(detail?.centroid).toEqual({ lat: -33.7, lng: 151.1 });
+  });
+});
+
 describe('PrismaServiceGroupRepository list filters', () => {
   const findMany = vi.fn();
   const countFn = vi.fn();

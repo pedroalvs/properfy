@@ -39,3 +39,36 @@ export function isPlottablePoint<T extends PointLike>(
   if (longitude < -180 || longitude > 180) return false;
   return true;
 }
+
+/**
+ * The mean of every plottable point, or `null` when none of them is.
+ *
+ * Used to place a single marker standing in for a collection of locations — a
+ * service group's pin on the inspector's marketplace map, for one. Unplottable
+ * points are dropped rather than averaged in: a `null` or `NaN` reaching the
+ * sum would produce a `NaN` centroid, and a marker at `NaN` is a *silently*
+ * broken pin, which is harder to notice than an absent one.
+ *
+ * Returning `null` for "nothing to average" keeps that case explicit at the
+ * call site instead of handing back a meaningless (0, 0) — a coordinate that
+ * happens to be a real place in the Gulf of Guinea.
+ */
+export function computeCentroid(
+  points: PointLike[],
+): { latitude: number; longitude: number } | null {
+  const plottable = points.filter(isPlottablePoint);
+  if (plottable.length === 0) return null;
+
+  const sum = plottable.reduce(
+    (acc, point) => ({
+      latitude: acc.latitude + point.latitude,
+      longitude: acc.longitude + point.longitude,
+    }),
+    { latitude: 0, longitude: 0 },
+  );
+
+  return {
+    latitude: sum.latitude / plottable.length,
+    longitude: sum.longitude / plottable.length,
+  };
+}

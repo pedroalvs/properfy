@@ -30,8 +30,22 @@ interface OffersMapViewProps {
 const AU_CENTRE: [number, number] = [133.7751, -25.2744];
 const PRIMARY_COLOR = '#009DD9';
 
+/** One group on screen: zoom out enough to show the surrounding suburbs. */
+const SINGLE_OFFER_ZOOM = 12;
+/** One address on screen: street level, so the inspector can see the approach. */
+const SINGLE_APPOINTMENT_ZOOM = 15;
+/**
+ * Upper bound for fitBounds, and what keeps two nearby group pins apart.
+ * At Sydney's latitude zoom 12 is ~32 m/px, so two centroids 500 m apart land
+ * ~16px from each other — closer than the 36px markers are wide, and one pin
+ * hides the other. Zoom 15 (~4 m/px) puts that same pair ~125px apart.
+ * fitBounds only reaches this cap when the pins really are close together, so
+ * offers spread across a city are framed exactly as before.
+ */
+const MAX_FIT_ZOOM = 15;
+
 function computeCenter(offers: MarketplaceOffer[]): [number, number] {
-  const withCentroid = offers.filter((o) => o.centroid !== null);
+  const withCentroid = offers.filter((o) => isValidCoordinate(o.centroid));
   if (withCentroid.length === 0) return AU_CENTRE;
   const lat = withCentroid.reduce((s, o) => s + o.centroid!.lat, 0) / withCentroid.length;
   const lng = withCentroid.reduce((s, o) => s + o.centroid!.lng, 0) / withCentroid.length;
@@ -105,6 +119,10 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
   const markersRef = useRef<any[]>([]);
   const mapLoadedRef = useRef(false);
   const prevExpandedIdRef = useRef<string | null>(null);
+  /** Points the camera was last framed to — see syncCamera. */
+  const fittedSignatureRef = useRef<string | null>(null);
+  /** Set once the inspector pans/zooms by hand; stops the auto-fit fighting them. */
+  const userMovedRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
@@ -131,10 +149,24 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
         container: containerRef.current,
         style: 'mapbox://styles/mapbox/streets-v12',
         center,
-        zoom: offers.some((o) => o.centroid) ? 11 : 4,
+        zoom: offers.some((o) => isValidCoordinate(o.centroid)) ? 11 : 4,
       });
 
       map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+      // `originalEvent` is present only for real gestures — our own flyTo and
+      // fitBounds raise these same events without one, and treating those as
+      // user intent would disable the auto-fit on the very first frame.
+      // Typed as `unknown` and narrowed here because mapbox-gl's `zoomstart`
+      // listener type omits `originalEvent` even though a pinch/wheel zoom
+      // carries one at runtime.
+      const markUserMoved = (event: unknown) => {
+        if ((event as { originalEvent?: unknown } | undefined)?.originalEvent) {
+          userMovedRef.current = true;
+        }
+      };
+      map.on('dragstart', markUserMoved);
+      map.on('zoomstart', markUserMoved);
 
       mapRef.current = map;
 
@@ -159,6 +191,8 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
       mapRef.current?.remove();
       mapRef.current = null;
       prevExpandedIdRef.current = null;
+      fittedSignatureRef.current = null;
+      userMovedRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [retryKey]);
@@ -189,7 +223,7 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
     } else {
       placeOfferMarkers(map, mapboxgl, offers, onSelectOffer);
     }
-    moveCameraOnModeChange(map);
+    syncCamera(map);
   }
 
   function placeOfferMarkers(
@@ -199,7 +233,10 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
     onSelect: (id: string) => void,
   ) {
     for (const offer of currentOffers) {
-      if (!offer.centroid) continue;
+      // Same validity rule as the appointment pins below: a NaN or out-of-range
+      // centroid handed to setLngLat is a silently misplaced pin, which is
+      // harder to notice than a missing one.
+      if (!isValidCoordinate(offer.centroid)) continue;
       const el = makeMarkerEl(offer.appointmentCount);
       el.setAttribute('data-group-id', offer.groupId);
       el.addEventListener('click', () => onSelect(offer.groupId));
@@ -227,11 +264,33 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
     });
   }
 
-  /** fitBounds/flyTo only when entering or leaving the drill-down, not on every refetch. */
-  function moveCameraOnModeChange(map: any) {
+  /**
+   * Frame whatever pins are currently on the map.
+   *
+   * Two requirements pull in opposite directions here. The camera must follow
+   * pins that appear after mount — map mode has no scroll to drive pagination,
+   * so MarketplacePage drains the remaining offer pages and the pins arrive in
+   * waves; a fit-once camera leaves every later page off-screen. But it must
+   * also never yank itself out from under an inspector who has started panning,
+   * which is what the old "only on mode change" guard was protecting against.
+   *
+   * So: refit whenever the plotted points actually change, and stop for good
+   * once a real gesture is seen. Comparing the points rather than the array
+   * identity is what keeps the periodic refetch from re-framing the map when
+   * nothing moved.
+   *
+   * (The previous guard compared `prevExpandedIdRef` against the current id;
+   * both are null outside the drill-down, so it early-returned every time and
+   * the offers view was never framed at all.)
+   */
+  function syncCamera(map: any) {
     const currentId = expandedGroup?.groupId ?? null;
-    if (prevExpandedIdRef.current === currentId) return;
+    const modeChanged = prevExpandedIdRef.current !== currentId;
     prevExpandedIdRef.current = currentId;
+
+    // Entering or leaving the drill-down is an explicit navigation, so it always
+    // re-frames — and hands control back to the auto-fit.
+    if (modeChanged) userMovedRef.current = false;
 
     const points = expandedGroup
       ? expandedGroup.appointments.map((a) => ({
@@ -239,15 +298,23 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
           longitude: a.coordinates?.lng ?? null,
         }))
       : offers.map((o) => ({ latitude: o.centroid?.lat ?? null, longitude: o.centroid?.lng ?? null }));
-    const singlePointZoom = expandedGroup ? 15 : 12;
+    const singlePointZoom = expandedGroup ? SINGLE_APPOINTMENT_ZOOM : SINGLE_OFFER_ZOOM;
+
+    const signature = points
+      .filter((p) => p.latitude != null && p.longitude != null)
+      .map((p) => `${p.latitude},${p.longitude}`)
+      .join('|');
+    if (!modeChanged && (userMovedRef.current || fittedSignatureRef.current === signature)) return;
 
     const bounds = computeBounds(points);
     if (!bounds) return;
+    fittedSignatureRef.current = signature;
+
     if (isSinglePointBounds(bounds)) {
       const [[lng, lat]] = bounds as [[number, number], [number, number]];
       map.flyTo({ center: [lng, lat], zoom: singlePointZoom, duration: 700 });
     } else {
-      map.fitBounds(bounds, { padding: 48, maxZoom: singlePointZoom, duration: 700 });
+      map.fitBounds(bounds, { padding: 48, maxZoom: MAX_FIT_ZOOM, duration: 700 });
     }
   }
 
@@ -268,7 +335,9 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
     );
   }
 
-  const hasAnyOfferPin = offers.some((o) => o.centroid !== null);
+  // Mirrors what placeOfferMarkers actually plots, so an offer with a malformed
+  // centroid can't suppress the overlay while contributing no pin.
+  const hasAnyOfferPin = offers.some((o) => isValidCoordinate(o.centroid));
   const expandedHasPin = expandedGroup
     ? expandedGroup.appointments.some((a) => isValidCoordinate(a.coordinates))
     : false;

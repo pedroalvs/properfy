@@ -10,12 +10,14 @@ const spies = vi.hoisted(() => ({
   flyTo: vi.fn(),
   markerElements: [] as HTMLElement[],
   markerCoords: [] as Array<[number, number]>,
+  handlers: {} as Record<string, Array<(event?: unknown) => void>>,
 }));
 
 vi.mock('mapbox-gl', () => {
   class FakeMap {
     constructor(_opts: unknown) {}
-    on(event: string, cb: () => void) {
+    on(event: string, cb: (event?: unknown) => void) {
+      (spies.handlers[event] ??= []).push(cb);
       if (event === 'load') cb();
     }
     addControl() {}
@@ -103,11 +105,17 @@ async function waitForPins(testId: string, count: number) {
   });
 }
 
+/** Simulate a map event; `originalEvent` marks it as a real user gesture. */
+function emitMapEvent(event: string, payload?: unknown) {
+  for (const handler of spies.handlers[event] ?? []) handler(payload);
+}
+
 beforeEach(() => {
   spies.fitBounds.mockClear();
   spies.flyTo.mockClear();
   spies.markerElements.length = 0;
   spies.markerCoords.length = 0;
+  for (const key of Object.keys(spies.handlers)) delete spies.handlers[key];
   document.body.replaceChildren();
 });
 
@@ -150,6 +158,156 @@ describe('OffersMapView — offers mode', () => {
     render(<OffersMapView offers={[makeOffer({ centroid: null })]} onSelectOffer={vi.fn()} />);
     await waitFor(() => {
       expect(screen.getByTestId('map-no-pins')).toHaveTextContent('No offers with location data');
+    });
+  });
+
+  it('skips offers whose centroid is non-finite or out of range', async () => {
+    render(
+      <OffersMapView
+        offers={[
+          makeOffer(),
+          makeOffer({ groupId: 'group-2', centroid: { lat: Number.NaN, lng: 151.25 } }),
+          makeOffer({ groupId: 'group-3', centroid: { lat: -33.9, lng: 999 } }),
+        ]}
+        onSelectOffer={vi.fn()}
+      />,
+    );
+    await waitForPins('map-pin', 1);
+    // A marker at NaN is a silently broken pin — worse than an absent one.
+    expect(spies.markerCoords).toEqual([[151.21, -33.87]]);
+  });
+});
+
+describe('OffersMapView — offers-mode camera', () => {
+  // The offers view never called fitBounds: the guard compared
+  // prevExpandedIdRef (null) against the non-expanded id (also null), so it
+  // early-returned on every render. The camera stayed wherever map init put it.
+  it('fits the camera to every offer pin on first render', async () => {
+    render(
+      <OffersMapView
+        offers={[
+          makeOffer(),
+          makeOffer({ groupId: 'group-2', centroid: { lat: -33.9, lng: 151.25 } }),
+        ]}
+        onSelectOffer={vi.fn()}
+      />,
+    );
+    await waitForPins('map-pin', 2);
+
+    await waitFor(() => {
+      expect(spies.fitBounds).toHaveBeenCalledWith(
+        [
+          [151.21, -33.9],
+          [151.25, -33.87],
+        ],
+        expect.objectContaining({ maxZoom: 15 }),
+      );
+    });
+  });
+
+  // Map mode has no scroll to drive pagination, so MarketplacePage drains the
+  // remaining pages after mount. Offers therefore arrive in waves, and a
+  // fit-once camera leaves every later page off-screen.
+  it('refits when more offers arrive from the pagination drain', async () => {
+    const { rerender } = render(
+      <OffersMapView offers={[makeOffer()]} onSelectOffer={vi.fn()} />,
+    );
+    await waitForPins('map-pin', 1);
+    spies.fitBounds.mockClear();
+    spies.flyTo.mockClear();
+
+    rerender(
+      <OffersMapView
+        offers={[
+          makeOffer(),
+          makeOffer({ groupId: 'group-2', centroid: { lat: -33.9, lng: 151.25 } }),
+        ]}
+        onSelectOffer={vi.fn()}
+      />,
+    );
+    await waitForPins('map-pin', 2);
+
+    await waitFor(() => {
+      expect(spies.fitBounds).toHaveBeenCalled();
+    });
+  });
+
+  it('does not move the camera when a refetch returns the same pins', async () => {
+    const offers = [makeOffer(), makeOffer({ groupId: 'group-2', centroid: { lat: -33.9, lng: 151.25 } })];
+    const { rerender } = render(<OffersMapView offers={offers} onSelectOffer={vi.fn()} />);
+    await waitForPins('map-pin', 2);
+    spies.fitBounds.mockClear();
+    spies.flyTo.mockClear();
+
+    // A periodic refetch hands back an equal-but-new array.
+    rerender(<OffersMapView offers={[...offers]} onSelectOffer={vi.fn()} />);
+    await waitForPins('map-pin', 2);
+
+    expect(spies.fitBounds).not.toHaveBeenCalled();
+    expect(spies.flyTo).not.toHaveBeenCalled();
+  });
+
+  it('stops refitting once the inspector has panned the map', async () => {
+    const { rerender } = render(
+      <OffersMapView offers={[makeOffer()]} onSelectOffer={vi.fn()} />,
+    );
+    await waitForPins('map-pin', 1);
+
+    // originalEvent present => a real gesture, not our own flyTo/fitBounds.
+    emitMapEvent('dragstart', { originalEvent: {} });
+    spies.fitBounds.mockClear();
+    spies.flyTo.mockClear();
+
+    rerender(
+      <OffersMapView
+        offers={[
+          makeOffer(),
+          makeOffer({ groupId: 'group-2', centroid: { lat: -33.9, lng: 151.25 } }),
+        ]}
+        onSelectOffer={vi.fn()}
+      />,
+    );
+    await waitForPins('map-pin', 2);
+
+    expect(spies.fitBounds).not.toHaveBeenCalled();
+    expect(spies.flyTo).not.toHaveBeenCalled();
+  });
+
+  it('ignores programmatic camera moves when deciding the inspector took over', async () => {
+    const { rerender } = render(
+      <OffersMapView offers={[makeOffer()]} onSelectOffer={vi.fn()} />,
+    );
+    await waitForPins('map-pin', 1);
+
+    // Our own fitBounds fires zoomstart with no originalEvent; treating that as
+    // a user gesture would disable auto-fit on the very first frame.
+    emitMapEvent('zoomstart', {});
+    spies.fitBounds.mockClear();
+
+    rerender(
+      <OffersMapView
+        offers={[
+          makeOffer(),
+          makeOffer({ groupId: 'group-2', centroid: { lat: -33.9, lng: 151.25 } }),
+        ]}
+        onSelectOffer={vi.fn()}
+      />,
+    );
+    await waitForPins('map-pin', 2);
+
+    await waitFor(() => {
+      expect(spies.fitBounds).toHaveBeenCalled();
+    });
+  });
+
+  it('flies to a single offer instead of fitting a degenerate bounds', async () => {
+    render(<OffersMapView offers={[makeOffer()]} onSelectOffer={vi.fn()} />);
+    await waitForPins('map-pin', 1);
+
+    await waitFor(() => {
+      expect(spies.flyTo).toHaveBeenCalledWith(
+        expect.objectContaining({ center: [151.21, -33.87], zoom: 12 }),
+      );
     });
   });
 });
