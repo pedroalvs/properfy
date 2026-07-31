@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { AuthProvider } from '@/hooks/useAuth';
@@ -50,12 +51,14 @@ const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_APPOINTMENTS = [
   {
-    id: 'apt-01', code: 'VST-001', status: 'SCHEDULED', branchName: 'Filial Centro',
+    // `branchId` matters: the AM/OP branch fallback keys its option map on it,
+    // so fixtures missing it collapse every row onto one `undefined` entry.
+    id: 'apt-01', code: 'VST-001', status: 'SCHEDULED', branchId: 'br-1', branchName: 'Filial Centro',
     address: 'Rua das Flores, 123', contactName: 'João', scheduledDate: '2026-04-01',
     timeSlotStart: '09:00', timeSlotEnd: '12:00', rentalTenantConfirmationStatus: 'PENDING',
   },
   {
-    id: 'apt-02', code: 'VST-002', status: 'DONE', branchName: 'Filial Norte',
+    id: 'apt-02', code: 'VST-002', status: 'DONE', branchId: 'br-2', branchName: 'Filial Norte',
     address: 'Av. Paulista, 1000', contactName: 'Maria', scheduledDate: '2026-04-02',
     timeSlotStart: '14:00', timeSlotEnd: '17:00', rentalTenantConfirmationStatus: 'CONFIRMED',
   },
@@ -300,6 +303,13 @@ describe('AppointmentListPage', () => {
     const calledPaths = () => mockGet.mock.calls.map((call) => call[0]);
 
     /**
+     * The always-mounted create drawer has its own `aria-label="Agency"` and
+     * `"Branch"` controls, so page-wide queries are ambiguous. FilterBar
+     * publishes `role="search"`/`aria-label="Filters"` — scope to that.
+     */
+    const filterBar = () => within(screen.getByRole('search', { name: 'Filters' }));
+
+    /**
      * `/v1/branches` is also hit by the always-mounted create drawer, so the
      * path alone proves nothing. The filter's cascade is the only caller that
      * scopes the request to a chosen agency.
@@ -322,8 +332,8 @@ describe('AppointmentListPage', () => {
 
       // Each select appears when its own query resolves, so they are awaited
       // separately rather than assumed to land in the same tick.
-      expect(await screen.findByLabelText('Agency')).toBeInTheDocument();
-      expect(await screen.findByLabelText('Inspector')).toBeInTheDocument();
+      await waitFor(() => expect(filterBar().getByLabelText('Agency')).toBeInTheDocument());
+      expect(filterBar().getByLabelText('Inspector')).toBeInTheDocument();
       // An unselected FilterSelect renders its label as the button text too, so
       // the column assertion has to be role-scoped to stay unambiguous.
       expect(screen.getByRole('columnheader', { name: 'Agency' })).toBeInTheDocument();
@@ -335,8 +345,8 @@ describe('AppointmentListPage', () => {
       signInAs('CL_ADMIN');
       renderPage();
 
-      expect(await screen.findByLabelText('Inspector')).toBeInTheDocument();
-      expect(screen.queryByLabelText('Agency')).not.toBeInTheDocument();
+      await waitFor(() => expect(filterBar().getByLabelText('Inspector')).toBeInTheDocument());
+      expect(filterBar().queryByLabelText('Agency')).not.toBeInTheDocument();
       expect(screen.queryByRole('columnheader', { name: 'Agency' })).not.toBeInTheDocument();
       expect(screen.getByRole('columnheader', { name: 'Branch' })).toBeInTheDocument();
       // /v1/tenants is AM/OP-only on the backend — the query must be disabled,
@@ -352,6 +362,60 @@ describe('AppointmentListPage', () => {
       await waitFor(() => {
         expect(branchCallsScopedTo('tenant-1')).not.toHaveLength(0);
       });
+
+      // Firing the request proves nothing on its own — the hook could still be
+      // returning the row-derived list. The fixtures are deliberately
+      // discriminating: `Downtown Branch` only ever comes from /v1/branches,
+      // `Filial Centro` only from the loaded appointment rows.
+      await userEvent.click(filterBar().getByLabelText('Branch'));
+      const listbox = filterBar().getByRole('listbox', { name: 'Branch' });
+      expect(within(listbox).getByText('Downtown Branch')).toBeInTheDocument();
+      expect(within(listbox).queryByText('Filial Centro')).not.toBeInTheDocument();
+    });
+
+    it('offers the branches of the loaded rows when no agency is picked', async () => {
+      mockByPath();
+      signInAs('AM');
+      renderPage();
+
+      await waitFor(() => expect(filterBar().getByLabelText('Branch')).toBeInTheDocument());
+      await userEvent.click(filterBar().getByLabelText('Branch'));
+      const listbox = filterBar().getByRole('listbox', { name: 'Branch' });
+      // The fallback actually populates — not merely "no request was made".
+      expect(within(listbox).getByText('Filial Centro')).toBeInTheDocument();
+      expect(within(listbox).getByText('Filial Norte')).toBeInTheDocument();
+    });
+
+    it('shows the Agency column and select for OP too', async () => {
+      mockByPath();
+      signInAs('OP');
+      renderPage();
+
+      await waitFor(() => expect(filterBar().getByLabelText('Agency')).toBeInTheDocument());
+      expect(screen.getByRole('columnheader', { name: 'Agency' })).toBeInTheDocument();
+    });
+
+    // Regression guard for the CL leg of `effectiveTenantId`: swapping the
+    // ternary arms would silently drop client users to row-derived branches.
+    it('scopes branches to the JWT tenant for CL_ADMIN', async () => {
+      mockByPath();
+      signInAs('CL_ADMIN');
+      renderPage();
+
+      await waitFor(() => {
+        expect(branchCallsScopedTo('t-1')).not.toHaveLength(0);
+      });
+    });
+
+    it('ignores a deep-linked agency for CL_ADMIN and stays on the JWT tenant', async () => {
+      mockByPath();
+      signInAs('CL_ADMIN');
+      renderPage(['/appointments?tenantId=tenant-1']);
+
+      await waitFor(() => {
+        expect(branchCallsScopedTo('t-1')).not.toHaveLength(0);
+      });
+      expect(branchCallsScopedTo('tenant-1')).toHaveLength(0);
     });
 
     it('does not query branches for AM before an agency is picked', async () => {

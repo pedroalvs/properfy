@@ -1,11 +1,38 @@
 import { useMemo } from 'react';
 import type { FilterSelectOption } from '@/components/filters/FilterSelect';
 import { useAuth } from '@/hooks/useAuth';
+import { useAllPagesQuery, type ListParams } from '@/hooks/useApiQuery';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { usePermissions } from '@/hooks/usePermissions';
 import type { Appointment } from '../types';
 
 const ALL_OPTION: FilterSelectOption = { label: 'All', value: '' };
+
+/**
+ * Options for a whole catalogue, not just its first page.
+ *
+ * `useFormOptions` asks for a single `pageSize: 100` page, and the backend caps
+ * `pageSize` at 100 (`paginationSchema`), so a bigger page is a 400 rather than
+ * a fix. Past the 100th agency or inspector the entity would be unfilterable
+ * while its appointments still show its name in the table — a filter that
+ * silently cannot reach part of its own data. `useAllPagesQuery` pages through
+ * (with its own 50-page hard stop) and memoizes per fetch result.
+ */
+function useAllPagesOptions(
+  queryKey: unknown[],
+  path: string,
+  params: ListParams,
+  enabled = true,
+): FilterSelectOption[] {
+  const { data } = useAllPagesQuery<{ id: string; name: string }>(queryKey, path, params, {
+    enabled,
+  });
+
+  return useMemo(
+    () => (data?.data ?? []).map((item) => ({ value: item.id, label: item.name })),
+    [data],
+  );
+}
 
 /**
  * Service-type options for the appointments filter bar. Service types are
@@ -24,27 +51,32 @@ export function useServiceTypeFilterOptions(): FilterSelectOption[] {
 }
 
 /**
- * Agency options for the filter bar.
+ * Agency options for the filter bar. Empty for client roles, which is how the
+ * filter bar knows not to render the control.
  *
- * `GET /v1/tenants` is `assertRoles(['AM','OP'])`, so the query stays disabled
- * for client roles and this returns `[]`. The filter bar renders the control
- * only when the array is non-empty, which is what keeps a CL_* session from
- * firing a request that can only ever 403.
+ * `GET /v1/tenants` is `assertRoles(['AM','OP'])`. **`enabled: isGlobalRole` is
+ * what stops a CL_* session firing a guaranteed 403** — not the filter bar
+ * declining to render, since this hook runs on mount either way. Do not drop
+ * that flag on the theory that a hidden control makes no request.
+ *
+ * Visibility keys off the role alone, never off how many options came back: an
+ * AM opening a shared `?tenantId=…` link while this query is in flight (or
+ * failing, or naming an inactive agency) still needs the control in order to
+ * see and clear the filter that is narrowing their list.
  */
 export function useAgencyFilterOptions(): FilterSelectOption[] {
   const { hasRole } = usePermissions();
   const isGlobalRole = hasRole('AM', 'OP');
 
-  const { options } = useFormOptions<{ id: string; name: string }>(
+  const options = useAllPagesOptions(
     ['tenants', 'appointment-list-filter'],
     '/v1/tenants',
-    (item) => ({ value: item.id, label: item.name }),
     { status: 'ACTIVE' },
-    { enabled: isGlobalRole },
+    isGlobalRole,
   );
 
   return useMemo(
-    () => (isGlobalRole && options.length > 0 ? [ALL_OPTION, ...options] : []),
+    () => (isGlobalRole ? [ALL_OPTION, ...options] : []),
     [isGlobalRole, options],
   );
 }
@@ -53,17 +85,17 @@ export function useAgencyFilterOptions(): FilterSelectOption[] {
  * Inspector options for the filter bar — available to every role.
  *
  * `GET /v1/inspectors` scopes its own results (CL_* are pinned to their JWT
- * tenant, INSP to their own record), so no role gate is needed here.
+ * tenant, INSP to their own record), so no role gate is needed here. Always
+ * returns at least `All`, so an applied `inspectorId` is always clearable.
  */
 export function useInspectorFilterOptions(): FilterSelectOption[] {
-  const { options } = useFormOptions<{ id: string; name: string }>(
+  const options = useAllPagesOptions(
     ['inspectors', 'appointment-list-filter'],
     '/v1/inspectors',
-    (item) => ({ value: item.id, label: item.name }),
     { status: 'ACTIVE' },
   );
 
-  return useMemo(() => (options.length > 0 ? [ALL_OPTION, ...options] : []), [options]);
+  return useMemo(() => [ALL_OPTION, ...options], [options]);
 }
 
 /**
@@ -87,12 +119,11 @@ export function useBranchFilterOptions(
   // An AM/OP JWT tenant is not a scope — for them only an explicit selection is.
   const effectiveTenantId = isGlobalRole ? selectedTenantId : (user?.tenantId ?? '');
 
-  const { options: apiOptions } = useFormOptions<{ id: string; name: string }>(
+  const apiOptions = useAllPagesOptions(
     ['branches', 'appointment-list-filter', effectiveTenantId],
     '/v1/branches',
-    (item) => ({ value: item.id, label: item.name }),
     { tenantId: effectiveTenantId, status: 'ACTIVE' },
-    { enabled: !!effectiveTenantId },
+    !!effectiveTenantId,
   );
 
   const derivedOptions = useBranchOptionsFromAppointments(appointments);
@@ -112,7 +143,9 @@ function useBranchOptionsFromAppointments(appointments: Appointment[]): FilterSe
   return useMemo(() => {
     const seen = new Map<string, string>();
     for (const appointment of appointments) {
-      seen.set(appointment.branchId, appointment.branchName);
+      // The backend maps an unresolved branch relation to '', which would put a
+      // blank, unreadable entry in the dropdown.
+      seen.set(appointment.branchId, appointment.branchName || '—');
     }
     return [
       ALL_OPTION,

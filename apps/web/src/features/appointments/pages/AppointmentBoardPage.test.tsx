@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within, fireEvent } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
+import { api } from '@/services/api';
 import { AppointmentBoardPage } from './AppointmentBoardPage';
 import { DEFAULT_FILTERS } from '../types';
 import type { Appointment } from '../types';
@@ -123,17 +125,45 @@ function setBoard(columns: BoardColumn[] = DEFAULT_COLUMNS, filterOverrides: Rec
   });
 }
 
+/**
+ * The agency/inspector option hooks are real React Query hooks reading the API,
+ * so the board needs a client and path-dispatched responses. Answering every
+ * path alike would make the option lists look populated regardless of role.
+ */
+function mockOptionEndpoints() {
+  const page = (data: unknown[]) => Promise.resolve({ data: {
+    data, pagination: { page: 1, pageSize: 100, total: data.length, totalPages: 1 },
+  } });
+  (api.GET as ReturnType<typeof vi.fn>).mockImplementation((path: string) => {
+    if (path === '/v1/tenants') return page([{ id: 'tenant-1', name: 'Acme Realty' }]);
+    if (path === '/v1/inspectors') return page([{ id: 'insp-1', name: 'Carlos Inspector' }]);
+    return page([]);
+  });
+}
+
 function renderBoard() {
-  return render(
-    <MemoryRouter initialEntries={['/appointments/board']}>
-      <AppointmentBoardPage />
-    </MemoryRouter>,
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  });
+  // Re-renders must keep the exact same provider structure and client instance:
+  // a differently-shaped tree remounts the page and silently resets the
+  // selection these tests assert on. (A fresh element of the same shape is
+  // required — reusing one reference makes React bail out of reconciliation.)
+  const tree = () => (
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/appointments/board']}>
+        <AppointmentBoardPage />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
+  const result = render(tree());
+  return { ...result, rerenderBoard: () => result.rerender(tree()) };
 }
 
 describe('AppointmentBoardPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockOptionEndpoints();
     setBoard();
   });
 
@@ -347,7 +377,7 @@ describe('AppointmentBoardPage', () => {
         ...DEFAULT_COLUMNS.slice(1),
       ];
       setBoard(twoLoaded);
-      const { rerender } = renderBoard();
+      const { rerenderBoard } = renderBoard();
 
       fireEvent.click(screen.getByLabelText('Select appointment INS-0142'));
       fireEvent.click(screen.getByLabelText('Select appointment INS-0143'));
@@ -355,11 +385,7 @@ describe('AppointmentBoardPage', () => {
 
       // The second card leaves the loaded set — selection must follow.
       setBoard([makeColumn({ total: 1, items: [makeAppointment()] }), ...DEFAULT_COLUMNS.slice(1)]);
-      rerender(
-        <MemoryRouter initialEntries={['/appointments/board']}>
-          <AppointmentBoardPage />
-        </MemoryRouter>,
-      );
+      rerenderBoard();
 
       expect(screen.getByText('1 appointment selected')).toBeInTheDocument();
     });
@@ -461,6 +487,24 @@ describe('AppointmentBoardPage', () => {
         within(column).getByText('No appointments match the current filters.'),
       ).toBeInTheDocument();
     });
+  });
+
+  // Without these, deleting the board's agencyOptions/inspectorOptions wiring
+  // would break no test at all — the board stubs useAppointmentBoard, so the
+  // request-param side (useAppointmentBoard.test.tsx) cannot cover it either.
+  it('renders the agency and inspector selects', async () => {
+    renderBoard();
+
+    expect(await screen.findByLabelText('Agency')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Inspector')).toBeInTheDocument();
+  });
+
+  it('offers the loaded agencies as options', async () => {
+    renderBoard();
+
+    fireEvent.click(await screen.findByLabelText('Agency'));
+    const listbox = await screen.findByRole('listbox', { name: 'Agency' });
+    expect(within(listbox).getByText('Acme Realty')).toBeInTheDocument();
   });
 
   it('offers a way back to the list', () => {

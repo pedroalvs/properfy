@@ -32,8 +32,10 @@ interface AppointmentFiltersProps {
   serviceTypeOptions: FilterSelectOption[];
   /**
    * Agency and inspector controls are opt-in by options rather than by an
-   * internal role check: the pages own the RBAC (only AM/OP may list agencies)
-   * and pass an empty array when a control must not appear.
+   * internal role check. The option hooks own the RBAC (only AM/OP may list
+   * agencies) and hand back an empty array when a control must not appear —
+   * empty means "not permitted", never "still loading" or "none exist", so a
+   * permitted-but-empty list still renders and stays clearable.
    */
   agencyOptions?: FilterSelectOption[];
   inspectorOptions?: FilterSelectOption[];
