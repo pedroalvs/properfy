@@ -485,6 +485,27 @@ describe('tenantSettingsSchema', () => {
     expect(result).not.toHaveProperty('allowClientFinancialView');
   });
 
+  it('should default rentalTenantNotificationsEnabled to true', () => {
+    const result = tenantSettingsSchema.parse({});
+    expect(result.rentalTenantNotificationsEnabled).toBe(true);
+  });
+
+  it('should accept rentalTenantNotificationsEnabled false', () => {
+    const result = tenantSettingsSchema.safeParse({ rentalTenantNotificationsEnabled: false });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.rentalTenantNotificationsEnabled).toBe(false);
+    }
+  });
+
+  it('should no longer expose the replaced emailSendingEnabled flag', () => {
+    // Superseded by rentalTenantNotificationsEnabled: the old flag was EMAIL-only and
+    // agency-wide, so it both leaked SMS to the occupant and suppressed the agency's own
+    // mail (escalation, report-ready, password reset).
+    const result = tenantSettingsSchema.parse({});
+    expect(result).not.toHaveProperty('emailSendingEnabled');
+  });
+
   it('should reject billingDayOfWeek out of range', () => {
     const result = tenantSettingsSchema.safeParse({ billingDayOfWeek: 7 });
     expect(result.success).toBe(false);

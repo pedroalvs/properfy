@@ -346,6 +346,9 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         property: {
           select: { property_code: true, street: true, suburb: true },
         },
+        // Joined per row rather than looked up once for the group: groups are
+        // cross-agency, so the occupant-contact switch varies within one group.
+        tenant: { select: { settings_json: true } },
       },
     });
     return rows.map((a): GroupAppointmentConfirmationRow => ({
@@ -366,6 +369,11 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         : null,
       propertyCode: a.property?.property_code ?? null,
       propertyAddress: a.property ? `${a.property.street}, ${a.property.suburb}` : null,
+      // Absent key means enabled, matching tenantSettingsSchema's default.
+      rentalTenantNotificationsEnabled:
+        (a.tenant?.settings_json as Record<string, unknown> | null)?.[
+          'rentalTenantNotificationsEnabled'
+        ] !== false,
     }));
   }
 

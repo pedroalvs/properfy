@@ -175,6 +175,12 @@ export interface GroupAppointmentConfirmationRow {
   activeCycle: { scheduledDate: Date; timeSlot: string | null; status: string } | null;
   propertyCode: string | null;
   propertyAddress: string | null;
+  /**
+   * Owning agency's occupant-contact switch, resolved per row because a service
+   * group spans agencies. Carried on the row (rather than looked up by the use
+   * cases) so the preview and the send read the identical value.
+   */
+  rentalTenantNotificationsEnabled: boolean;
 }
 
 /**

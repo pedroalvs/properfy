@@ -312,6 +312,56 @@ describe('GeneratePortalTokenUseCase', () => {
     expect(mintPortalTokenService.mint).not.toHaveBeenCalled();
   });
 
+  describe('agency blocks rental-tenant notifications', () => {
+    const blockedTenant = () => makeTenant({ settingsJson: { rentalTenantNotificationsEnabled: false } });
+
+    it('should refuse to send and mint nothing', async () => {
+      // Refused rather than silently redirected: unlike an automatic reminder, this is
+      // an operator explicitly choosing to notify the occupant, so the answer is "no",
+      // with a reason the UI can show.
+      tenantRepo.findById.mockResolvedValue(blockedTenant());
+
+      await expect(useCase.execute(makeInput())).rejects.toMatchObject({
+        code: 'TENANT_NOTIFICATIONS_BLOCKED',
+      });
+      expect(mintPortalTokenService.mint).not.toHaveBeenCalled();
+    });
+
+    it('should throw ConflictError so the route answers 409', async () => {
+      tenantRepo.findById.mockResolvedValue(blockedTenant());
+
+      await expect(useCase.execute(makeInput())).rejects.toThrow(ConflictError);
+    });
+
+    it('should still mint when notify is false, so Copy portal link keeps working', async () => {
+      // The generate-and-copy path dispatches nothing, so the block does not apply —
+      // this is the operator's escape hatch for a blocked agency.
+      tenantRepo.findById.mockResolvedValue(blockedTenant());
+
+      const result = await useCase.execute(makeInput({ notify: false }));
+
+      expect(mintPortalTokenService.mint).toHaveBeenCalled();
+      expect(result.dispatched).toBe(false);
+      expect(result.reason).toBe('NOTIFY_DISABLED');
+    });
+
+    it('should send normally when the agency has not blocked notifications', async () => {
+      tenantRepo.findById.mockResolvedValue(
+        makeTenant({ settingsJson: { rentalTenantNotificationsEnabled: true } }),
+      );
+
+      await expect(useCase.execute(makeInput())).resolves.toBeDefined();
+      expect(mintPortalTokenService.mint).toHaveBeenCalled();
+    });
+
+    it('should treat an absent flag as allowed', async () => {
+      tenantRepo.findById.mockResolvedValue(makeTenant({ settingsJson: {} }));
+
+      await expect(useCase.execute(makeInput())).resolves.toBeDefined();
+      expect(mintPortalTokenService.mint).toHaveBeenCalled();
+    });
+  });
+
   it('should call audit service with USER actor type and actor details', async () => {
     await useCase.execute(makeInput({ actor: makeAMContext({ userId: 'admin-42' }) }));
 

@@ -17,7 +17,11 @@
  *      AWAITING_INSPECTOR appointment's date without resetting confirmation, so
  *      a CONFIRMED appointment whose active cycle no longer matches the current
  *      date/time is treated as `SEND_AFTER_RESET` (reset the cycle, then resend).
- *   3. Otherwise (not confirmed: PENDING / UNAVAILABLE / NO_RESPONSE, or never
+ *   3. An appointment whose owning agency has `rentalTenantNotificationsEnabled:
+ *      false` is `SKIP_TENANT_NOTIFICATIONS_BLOCKED` — the occupant is never
+ *      contacted. Evaluated per appointment because service groups are
+ *      cross-agency: one group routinely holds blocked and unblocked members.
+ *   4. Otherwise (not confirmed: PENDING / UNAVAILABLE / NO_RESPONSE, or never
  *      confirmed) the link is sent.
  */
 
@@ -25,7 +29,8 @@ export type PortalLinkPlannedAction =
   | 'SEND'
   | 'SEND_AFTER_RESET'
   | 'SKIP_ALREADY_CONFIRMED'
-  | 'SKIP_NOT_SENDABLE';
+  | 'SKIP_NOT_SENDABLE'
+  | 'SKIP_TENANT_NOTIFICATIONS_BLOCKED';
 
 export interface PortalLinkEligibilityInput {
   status: string;
@@ -33,6 +38,8 @@ export interface PortalLinkEligibilityInput {
   timeSlot: string | null;
   rentalTenantConfirmationStatus: string;
   activeCycle: { scheduledDate: Date; timeSlot: string | null; status: string } | null;
+  /** Owning agency's occupant-contact switch. Absent/true means the link may be sent. */
+  rentalTenantNotificationsEnabled: boolean;
 }
 
 // Mirrors GeneratePortalTokenUseCase ALLOWED_STATUSES — a portal link is only
@@ -48,6 +55,13 @@ function sameCalendarDay(a: Date, b: Date): boolean {
 export function classifyPortalLinkAction(input: PortalLinkEligibilityInput): PortalLinkPlannedAction {
   if (!SENDABLE_STATUSES.has(input.status)) {
     return 'SKIP_NOT_SENDABLE';
+  }
+
+  // Checked before the confirmation branch so a blocked appointment is never
+  // classified SEND_AFTER_RESET — that would reset a live confirmation cycle to
+  // chase a message the occupant is never going to receive.
+  if (input.rentalTenantNotificationsEnabled === false) {
+    return 'SKIP_TENANT_NOTIFICATIONS_BLOCKED';
   }
 
   if (input.rentalTenantConfirmationStatus === 'CONFIRMED') {

@@ -83,6 +83,21 @@ export class GeneratePortalTokenUseCase {
       throw new NotFoundError('TENANT_NOT_FOUND', 'Tenant not found');
     }
 
+    // Handled here rather than by the SendNotificationUseCase gate on purpose. That gate
+    // mirrors AUTOMATIC occupant messages to the agency; this is an operator explicitly
+    // asking to notify the rental tenant, so the honest answer is a refusal with a
+    // reason, not a silent redirect. Checked before minting so a blocked agency never
+    // accumulates unused tokens.
+    //
+    // `notify: false` is exempt: that path dispatches nothing and exists so the operator
+    // can still copy a link for an agency that contacts its own tenants.
+    if (input.notify !== false && tenant.settingsJson['rentalTenantNotificationsEnabled'] === false) {
+      throw new ConflictError(
+        'TENANT_NOTIFICATIONS_BLOCKED',
+        'Notifications to the tenant are blocked for this agency.',
+      );
+    }
+
     let rawToken = '';
     let expiresAt = new Date();
 

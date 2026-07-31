@@ -30,6 +30,7 @@ function row(overrides: Partial<GroupAppointmentConfirmationRow>): GroupAppointm
     activeCycle: null,
     propertyCode: 'P-001',
     propertyAddress: '1 Main St',
+    rentalTenantNotificationsEnabled: true,
     ...overrides,
   };
 }
@@ -232,5 +233,56 @@ describe('SendGroupPortalLinksUseCase', () => {
       expect.any(Object),
       36,
     );
+  });
+
+  describe('agency blocks rental-tenant notifications', () => {
+    it('skips only the blocked members of a cross-agency group', async () => {
+      // Service groups are tenant-agnostic, so one group routinely mixes agencies.
+      // A group-level lookup would wrongly block or wrongly send for half the rows.
+      m.groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([
+        row({ id: 'a1', tenantId: 'tenant-1', rentalTenantNotificationsEnabled: true }),
+        row({ id: 'a2', tenantId: 'tenant-2', rentalTenantNotificationsEnabled: false }),
+        row({ id: 'a3', tenantId: 'tenant-1', rentalTenantNotificationsEnabled: true }),
+      ]);
+
+      const res = await m.useCase.execute({ groupId: 'group-1', actor: makeActor() });
+
+      expect(res.results).toEqual([
+        { appointmentId: 'a1', status: 'SENT' },
+        { appointmentId: 'a2', status: 'TENANT_NOTIFICATIONS_BLOCKED' },
+        { appointmentId: 'a3', status: 'SENT' },
+      ]);
+      // The blocked row never reaches the dispatcher at all.
+      expect(m.generatePortalToken.execute).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not cache a blocked row, so flipping the setting allows a same-day retry', async () => {
+      m.groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([
+        row({ id: 'a1', rentalTenantNotificationsEnabled: false }),
+      ]);
+
+      await m.useCase.execute({ groupId: 'group-1', actor: makeActor() });
+
+      expect(m.idempotency.set).not.toHaveBeenCalled();
+    });
+
+    it('does not rotate the confirmation cycle for a blocked stale confirmation', async () => {
+      // Without the ordering in classifyPortalLinkAction this would be
+      // SEND_AFTER_RESET, destroying a live confirmation to chase a message the
+      // occupant is never going to receive.
+      m.groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([
+        row({
+          id: 'a1',
+          rentalTenantNotificationsEnabled: false,
+          rentalTenantConfirmationStatus: 'CONFIRMED',
+          activeCycle: { scheduledDate: DATE_B, timeSlot: SLOT, status: 'CONFIRMED' },
+        }),
+      ]);
+
+      const res = await m.useCase.execute({ groupId: 'group-1', actor: makeActor() });
+
+      expect(res.results[0].status).toBe('TENANT_NOTIFICATIONS_BLOCKED');
+      expect(m.cycleService.rotateOnDateChange).not.toHaveBeenCalled();
+    });
   });
 });

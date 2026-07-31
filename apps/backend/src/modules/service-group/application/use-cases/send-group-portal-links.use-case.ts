@@ -100,6 +100,14 @@ export class SendGroupPortalLinksUseCase {
         results.push({ appointmentId: row.id, status: 'ALREADY_CONFIRMED' });
         continue;
       }
+      if (action === 'SKIP_TENANT_NOTIFICATIONS_BLOCKED') {
+        // Skipped, not errored: for a cross-agency group this is an expected
+        // outcome for some members, and GeneratePortalTokenUseCase would throw
+        // TENANT_NOTIFICATIONS_BLOCKED here anyway. Not cached — the operator can
+        // flip the agency setting and re-run the same day.
+        results.push({ appointmentId: row.id, status: 'TENANT_NOTIFICATIONS_BLOCKED' });
+        continue;
+      }
 
       const idemKey = `bulk_resend:${row.id}:${dayKey}`;
 

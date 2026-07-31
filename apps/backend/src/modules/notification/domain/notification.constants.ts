@@ -13,7 +13,19 @@ export {
   isProtectedTemplateCode,
   getProtectedClass,
   getDefaultClass,
+  TEMPLATE_TARGETS,
+  type NotificationTarget,
+  getTemplateTarget,
+  getTemplateCodeLabel,
 } from '@properfy/shared';
+
+/**
+ * Template code carrying a rental-tenant message that was suppressed by the agency's
+ * `rentalTenantNotificationsEnabled` switch, mirrored to the branch contact instead.
+ * Its own target is PROPERTY_MANAGER, which is what keeps the mirror from being
+ * suppressed and re-mirrored forever.
+ */
+export const AGENCY_FORWARD_TEMPLATE_CODE = 'TENANT_NOTICE_FORWARDED_AGENCY';
 
 // Retry/backoff constants remain backend-only (not consumed by any frontend).
 

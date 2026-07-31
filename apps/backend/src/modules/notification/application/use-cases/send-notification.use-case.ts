@@ -24,6 +24,9 @@ import {
   JITTER_FACTOR,
   SENSITIVE_PAYLOAD_KEYS,
   REDACTED_PAYLOAD_VALUE,
+  AGENCY_FORWARD_TEMPLATE_CODE,
+  getTemplateTarget,
+  getTemplateCodeLabel,
 } from '../../domain/notification.constants';
 import { renderEmailBody } from '../render-email-body';
 
@@ -61,6 +64,29 @@ export interface SendNotificationInput {
   notificationId: string;
 }
 
+/** Where a suppressed occupant message is mirrored to. */
+export interface AgencyForwardRecipient {
+  branchName: string;
+  contactEmail: string;
+}
+
+/**
+ * Minimal shape of a forwarded notification; satisfied by CreateNotificationUseCase.
+ *
+ * `appointmentId` is non-nullable because the forward is only reachable for
+ * appointment-scoped occupant templates, and the recipient lookup needs one.
+ * `payloadJson` is string-valued to match the renderer's contract — a nested object
+ * would reach the template as "[object Object]".
+ */
+export interface ForwardNotificationInput {
+  tenantId: string | null;
+  appointmentId: string;
+  recipient: string;
+  channel: 'EMAIL';
+  templateCode: string;
+  payloadJson: Record<string, string>;
+}
+
 export interface SendNotificationDeps {
   notificationRepo: INotificationRepository;
   templateRepo: INotificationTemplateRepository;
@@ -72,6 +98,19 @@ export interface SendNotificationDeps {
   logger: Logger;
   metrics: MetricsCollector;
   getTenantSettings: (tenantId: string | null) => Promise<Record<string, unknown>>;
+  /**
+   * Resolves the branch contact a suppressed occupant message is mirrored to.
+   * Returns null when the appointment's branch has no contact email.
+   *
+   * Required rather than optional: an absent port would silently turn the mirror
+   * into a no-op, which is exactly the failure this feature exists to prevent.
+   */
+  getAgencyForwardRecipient: (
+    appointmentId: string,
+    tenantId: string | null,
+  ) => Promise<AgencyForwardRecipient | null>;
+  /** Enqueues the mirrored notification. Thin port over CreateNotificationUseCase. */
+  forwardNotification: (input: ForwardNotificationInput) => Promise<void>;
   /** Render-profile HTML sanitizer (defense-in-depth) */
   htmlSanitizer?: IHtmlSanitizerService;
   /** HTML → plain text derivation */
@@ -95,6 +134,11 @@ export class SendNotificationUseCase {
   private readonly logger: Logger;
   private readonly metrics: MetricsCollector;
   private readonly getTenantSettings: (tenantId: string | null) => Promise<Record<string, unknown>>;
+  private readonly getAgencyForwardRecipient: (
+    appointmentId: string,
+    tenantId: string | null,
+  ) => Promise<AgencyForwardRecipient | null>;
+  private readonly forwardNotification: (input: ForwardNotificationInput) => Promise<void>;
   private readonly htmlSanitizer?: IHtmlSanitizerService;
   private readonly htmlToText?: IHtmlToTextService;
   private readonly auditService?: AuditService;
@@ -110,6 +154,8 @@ export class SendNotificationUseCase {
     this.logger = deps.logger;
     this.metrics = deps.metrics;
     this.getTenantSettings = deps.getTenantSettings;
+    this.getAgencyForwardRecipient = deps.getAgencyForwardRecipient;
+    this.forwardNotification = deps.forwardNotification;
     this.htmlSanitizer = deps.htmlSanitizer;
     this.htmlToText = deps.htmlToText;
     this.auditService = deps.auditService;
@@ -150,6 +196,81 @@ export class SendNotificationUseCase {
         retryCount: notification.retryCount,
       },
     });
+  }
+
+  /**
+   * Mirror a suppressed occupant message to the agency, so blocking contact with the
+   * rental tenant never means the agency loses the information.
+   *
+   * Always EMAIL, even when the suppressed leg was SMS: the mirror goes to
+   * `branch.contactEmail` (the same address PROPERTY_MANAGER_ESCALATION and
+   * INSPECTION_CANCELLED_AGENCY use — the agency row carries no address of its own),
+   * and there is no agency SMS channel.
+   *
+   * The original payload rides along so the agency can reproduce the message, with
+   * `suppressedTemplateLabel` / `suppressedChannel` naming what was withheld. That is
+   * why AGENCY_FORWARD_TEMPLATE_CODE has no TEMPLATE_VARIABLES entry: a spec there would
+   * make BuildNotificationPayloadService narrow the payload and drop both context keys.
+   *
+   * Best-effort by design. The suppression is already persisted by the time this runs,
+   * so a throw here is logged and counted but never resurrects the occupant message.
+   */
+  private async forwardSuppressedToAgency(notification: NotificationEntity): Promise<void> {
+    try {
+      if (!notification.appointmentId) {
+        // Every RENTAL_TENANT template is appointment-scoped, so this is unreachable
+        // today; it stays as a guard because the recipient lookup needs an appointment.
+        this.logger.warn(
+          { notificationId: notification.id, templateCode: notification.templateCode },
+          'notification.agency_forward_skipped_no_appointment',
+        );
+        this.metrics.incrementNotificationHandlerErrorCount();
+        return;
+      }
+
+      const recipient = await this.getAgencyForwardRecipient(
+        notification.appointmentId,
+        notification.tenantId,
+      );
+      if (!recipient?.contactEmail) {
+        // Counted, not merely logged: `branches.contact_email` is nullable and optional
+        // at creation, so this is a steady-state population rather than an edge case,
+        // and it silently defeats "the agency is always told".
+        this.logger.warn(
+          { notificationId: notification.id, appointmentId: notification.appointmentId },
+          'notification.agency_forward_skipped_no_branch_email',
+        );
+        this.metrics.incrementNotificationHandlerErrorCount();
+        return;
+      }
+
+      // The renderer only ever interpolates strings; drop anything else rather than
+      // let it render as "[object Object]" in an email the agency has to act on.
+      const original: Record<string, string> = {};
+      for (const [key, value] of Object.entries(notification.payloadJson ?? {})) {
+        if (typeof value === 'string') original[key] = value;
+      }
+
+      await this.forwardNotification({
+        tenantId: notification.tenantId,
+        appointmentId: notification.appointmentId,
+        recipient: recipient.contactEmail,
+        channel: 'EMAIL',
+        templateCode: AGENCY_FORWARD_TEMPLATE_CODE,
+        payloadJson: {
+          ...original,
+          branchName: recipient.branchName,
+          suppressedTemplateLabel: getTemplateCodeLabel(notification.templateCode),
+          suppressedChannel: notification.channel,
+        },
+      });
+    } catch (err) {
+      this.logger.error(
+        { err, notificationId: notification.id },
+        'notification.agency_forward_failed: occupant message stays suppressed',
+      );
+      this.metrics.incrementNotificationHandlerErrorCount();
+    }
   }
 
   async execute(input: SendNotificationInput): Promise<void> {
@@ -262,17 +383,33 @@ export class SendNotificationUseCase {
 
     const settings = await this.getTenantSettings(notification.tenantId);
 
-    // Per-agency email kill switch: some agencies send their own emails. When
-    // disabled, skip EMAIL sends (SMS is unaffected). Missing key = enabled.
-    if (notification.channel === 'EMAIL' && settings.emailSendingEnabled === false) {
+    // Per-agency occupant kill switch: some agencies contact their own rental tenants
+    // and want the platform silent towards them. Scoped by TEMPLATE_TARGETS rather than
+    // by channel, so BOTH email and SMS stop, while the agency's own mail (escalation,
+    // cancellation copy), inspector notices and user-account mail (report-ready,
+    // password reset) are untouched. Missing key = enabled.
+    //
+    // Sits below the TRANSACTIONAL consent bypass on purpose: that bypass is about a
+    // recipient's opt-out, whereas this is the agency's own policy and must win even
+    // for a protected template.
+    const isOccupantDirected = getTemplateTarget(notification.templateCode) === 'RENTAL_TENANT';
+    if (isOccupantDirected && settings.rentalTenantNotificationsEnabled === false) {
       notification.status = 'SKIPPED_OPT_OUT';
-      notification.failureReason = 'AGENCY_EMAIL_DISABLED';
+      notification.failureReason = 'AGENCY_TENANT_NOTIFICATIONS_DISABLED';
       notification.updatedAt = new Date();
+      // Persisted BEFORE the mirror: a crash in between costs the agency a copy but can
+      // never let the occupant message through. Fail-closed on the block, open on the mirror.
       await this.notificationRepo.update(notification);
       this.logger.info(
-        { notificationId: notification.id, tenantId: notification.tenantId },
-        'notification.skipped_agency_email_disabled',
+        {
+          notificationId: notification.id,
+          tenantId: notification.tenantId,
+          channel: notification.channel,
+          templateCode: notification.templateCode,
+        },
+        'notification.skipped_agency_tenant_notifications_disabled',
       );
+      await this.forwardSuppressedToAgency(notification);
       return;
     }
 

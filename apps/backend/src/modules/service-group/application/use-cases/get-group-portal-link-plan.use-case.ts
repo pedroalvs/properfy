@@ -55,6 +55,9 @@ export class GetGroupPortalLinkPlanUseCase {
       willResendDateChanged: items.filter((i) => i.plannedAction === 'SEND_AFTER_RESET').length,
       alreadyConfirmed: items.filter((i) => i.plannedAction === 'SKIP_ALREADY_CONFIRMED').length,
       notSendable: items.filter((i) => i.plannedAction === 'SKIP_NOT_SENDABLE').length,
+      tenantNotificationsBlocked: items.filter(
+        (i) => i.plannedAction === 'SKIP_TENANT_NOTIFICATIONS_BLOCKED',
+      ).length,
     };
 
     return { items, summary };
