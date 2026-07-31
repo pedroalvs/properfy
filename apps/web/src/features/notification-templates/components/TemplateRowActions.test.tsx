@@ -69,6 +69,22 @@ describe('TemplateRowActions', () => {
     expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
   });
 
+  it('shows Edit for a template in the editable catalog', () => {
+    renderRow(makeTemplate({ code: 'INSPECTION_NOTICE', tenantId: null }), true);
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+  });
+
+  // UpsertNotificationTemplateUseCase rejects any code outside
+  // MANDATORY_TEMPLATE_CODES with 400 "Invalid template code", so an Edit button
+  // on these rows could only ever lead to a dead end.
+  it.each(['PASSWORD_RESET', 'INSPECTION_STUCK_ALERT', 'INSPECTOR_GROUP_ASSIGNED'])(
+    'hides Edit for the platform-only row %s',
+    (code) => {
+      renderRow(makeTemplate({ code, tenantId: null }), true);
+      expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+    },
+  );
+
   it('confirms and calls DELETE, then notifies the parent', async () => {
     const user = userEvent.setup();
     const { onDeleted } = renderRow(makeTemplate({ id: 'override-9', tenantId: 'agency-1' }), true);

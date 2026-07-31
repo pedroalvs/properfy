@@ -89,9 +89,9 @@ export class UpsertNotificationTemplateUseCase {
     // long after the operator has left the screen — refuse it at save instead.
     //
     // `field` (not `path`) is the key the web form maps to an inline error; see
-    // getFieldErrors in @properfy/shared. NOTE: the sanitizer 422 below still
-    // uses `path`, so it only ever surfaces as a snackbar — pre-existing, and
-    // pinned by tests/integration/notification/upsert-template-raw-html.test.ts.
+    // getFieldErrors in @properfy/shared, and note ApiErrorDetail has no `path`.
+    // The sanitizer 422 below uses the same key, so a rejected paste lands under
+    // the Body field instead of only in a snackbar.
     if (input.bodyHtml.trim().length === 0) {
       throw new ValidationError('Body is required', [
         { code: 'custom', message: 'Body is required', field: 'bodyHtml' },
@@ -122,7 +122,7 @@ export class UpsertNotificationTemplateUseCase {
       if (!sanitizeResult.safe) {
         throw new UnprocessableEntityError(
           sanitizeResult.rejectedReason ?? 'Body contains disallowed HTML constructs',
-          [{ code: 'custom', message: sanitizeResult.rejectedReason ?? 'Unsafe HTML', path: 'bodyHtml' }],
+          [{ code: 'custom', message: sanitizeResult.rejectedReason ?? 'Unsafe HTML', field: 'bodyHtml' }],
         );
       }
     }
