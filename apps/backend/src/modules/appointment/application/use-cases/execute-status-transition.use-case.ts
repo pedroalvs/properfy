@@ -478,8 +478,28 @@ export class ExecuteStatusTransitionUseCase {
           previousStatus: appointment.status,
           targetStatus,
         });
-      } catch {
-        // fire-and-forget — notification failure must not affect the transition
+      } catch (error) {
+        // Still fire-and-forget: a notification failure must never roll back a
+        // transition the operator already performed. But it must not vanish
+        // either — this used to be a bare `catch {}` that did not even bind the
+        // error, so the transition was audited as healthy while the tenant was
+        // never told and nothing pointed at the appointment.
+        this.auditService.log({
+          action: 'notification.dispatch_failed',
+          actorType: 'SYSTEM',
+          entityType: 'Appointment',
+          entityId: appointmentId,
+          tenantId: appointment.tenantId,
+          after: {
+            previousStatus: appointment.status,
+            targetStatus,
+            // The class, not the message: an error surfacing from the send path
+            // can carry a raw provider string that names the recipient, and an
+            // audit row is immutable and outlives any erasure request. The
+            // message is already on the notification row and in the logs.
+            error: error instanceof Error ? error.constructor.name : 'UnknownError',
+          },
+        });
       }
     }
 
