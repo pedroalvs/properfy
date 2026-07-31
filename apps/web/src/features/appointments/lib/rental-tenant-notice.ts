@@ -15,10 +15,18 @@
  *   can only reach SCHEDULED once already confirmed, so a confirmed tenant may have
  *   no notice row at all.
  *
- * Known under-offer: `reopen-for-reschedule` resets confirmation to PENDING and the
- * status to DRAFT while the notice rows persist, so the server would honour an
- * opt-in there but the UI will not offer it. Closing that needs the notice fact on
- * the appointment payload; tracked as a follow-up rather than guessed at here.
+ * Known under-offer, and it is a CLASS rather than one path: **any route that
+ * leaves SCHEDULED without the tenant confirming** keeps its notice rows, so the
+ * server would honour an opt-in the UI does not offer. Instances include
+ * `reopen-for-reschedule` (resets confirmation to PENDING, status to DRAFT),
+ * cancelling or rejecting an ACCEPTED service group (reverts members to
+ * AWAITING_INSPECTOR and leaves confirmation untouched), SCHEDULED -> REJECTED ->
+ * CANCELLED, and re-cancelling after CANCELLED -> DRAFT.
+ *
+ * Closing it needs the notice fact on the appointment payload; tracked as a
+ * follow-up rather than guessed at here. Do NOT "fix" it by always offering the
+ * checkbox: that trades a visible under-offer for a silent over-offer, and the
+ * server's refusal is log-only.
  *
  * Deliberately NOT `rentalTenantConfirmationStatus === 'CONFIRMED'` alone: the
  * notice is sent regardless of confirmation, so requiring confirmation meant a

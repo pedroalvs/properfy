@@ -406,6 +406,34 @@ describe('NotifyOnStatusTransitionHandler', () => {
     );
   });
 
+  it('counts the portal link as having been told', async () => {
+    // TENANT_PORTAL_LINK is itself a dated announcement and generate-portal-token
+    // sends it for AWAITING_INSPECTOR too, so a routine tenant who read the date
+    // and never clicked must still be reachable. Excluding it stranded exactly the
+    // class this gate exists to serve — including the tenant who clicked "No" and
+    // was promised the bookings team would be in touch.
+    const [, , codes] = await (async () => {
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ rentalTenantConfirmationStatus: 'UNAVAILABLE' }),
+        contact: makeContact(),
+        restrictions: [],
+      });
+      const handler = makeHandler();
+      await handler.execute({
+        appointmentId: 'appt-1',
+        previousStatus: 'AWAITING_INSPECTOR',
+        targetStatus: 'CANCELLED',
+        notifyRentalTenant: true,
+      });
+      return notificationRepo.existsByAppointmentAndTemplates.mock.calls[0]!;
+    })();
+
+    expect(codes).toContain('TENANT_PORTAL_LINK');
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED', channel: 'EMAIL' }),
+    );
+  });
+
   it('asks only about the notice family, never the cancellation codes', async () => {
     appointmentRepo.findById.mockResolvedValue({
       appointment: makeAppointment({ rentalTenantConfirmationStatus: 'PENDING' }),
@@ -423,7 +451,11 @@ describe('NotifyOnStatusTransitionHandler', () => {
     // Including a cancellation code would make a previous cancellation count as
     // "the tenant knows about this inspection", which is a different claim.
     const [, , codes] = notificationRepo.existsByAppointmentAndTemplates.mock.calls[0]!;
-    expect(codes).toEqual(['INSPECTION_NOTICE', 'INSPECTION_NOTICE_SMS']);
+    expect(codes).toEqual(['INSPECTION_NOTICE', 'INSPECTION_NOTICE_SMS', 'TENANT_PORTAL_LINK']);
+    // Reminders only reach appointments that already have a notice row, and a
+    // previous cancellation is not evidence the tenant knows about this inspection.
+    expect(codes).not.toContain('INSPECTION_CANCELLED');
+    expect(codes.some((c: string) => c.startsWith('REMINDER_'))).toBe(false);
   });
 
   it('does not ask whether a notice exists unless the caller opted in', async () => {

@@ -55,11 +55,25 @@ const AGENCY_CANCELLED_TEMPLATE_CODE = 'INSPECTION_CANCELLED_AGENCY';
  * confirming can happen BEFORE any notice exists (routine flow, see the gate
  * itself), so neither signal subsumes the other.
  *
- * Deliberately excludes the cancellation codes — a previous cancellation is not
- * evidence the tenant knows about the current inspection — and the portal-link
- * and reminder codes, which are covered by the confirmation arm in practice.
+ * TENANT_PORTAL_LINK is included because it is itself a dated announcement
+ * ("your inspection on {{scheduledDate}}") and `generate-portal-token` sends it
+ * for AWAITING_INSPECTOR as well as SCHEDULED. Leaving it out stranded the exact
+ * class this gate exists to serve: a routine tenant who was sent the link, read
+ * the date, and never clicked. Worse, a tenant who clicks "No" gets
+ * INSPECTION_UNAVAILABILITY_REPORTED promising the bookings team will be in
+ * touch — the follow-up the gate would then refuse to send. One entry covers both
+ * channels: email and SMS share the code.
+ *
+ * Reminders are excluded because `dispatch-reminders` only walks
+ * `findScheduledOnDate`, so a tenant who received one necessarily already has an
+ * INSPECTION_NOTICE row. The cancellation codes are excluded because a previous
+ * cancellation is not evidence the tenant knows about the current inspection.
  */
-const RENTAL_TENANT_NOTICE_CODES = ['INSPECTION_NOTICE', 'INSPECTION_NOTICE_SMS'] as const;
+const RENTAL_TENANT_NOTICE_CODES = [
+  'INSPECTION_NOTICE',
+  'INSPECTION_NOTICE_SMS',
+  'TENANT_PORTAL_LINK',
+] as const;
 
 /** Email and SMS variants of one announcement are the same event to the tenant. */
 function templateFamily(templateCode: string): string {
@@ -256,7 +270,12 @@ export class NotifyOnStatusTransitionHandler {
           // An explicit request we refuse must leave a trace; otherwise a direct
           // API caller gets a 200 and debugs a notification that never existed.
           this.logger?.info(
-            { appointmentId: appointment.id },
+            {
+              appointmentId: appointment.id,
+              // Which arm failed: without it you cannot tell "never confirmed"
+              // from "no notice row" when debugging a discarded opt-in.
+              rentalTenantConfirmationStatus: appointment.rentalTenantConfirmationStatus,
+            },
             'Rental-tenant opt-in discarded: the tenant neither confirmed nor was ever sent an inspection notice',
           );
         }
