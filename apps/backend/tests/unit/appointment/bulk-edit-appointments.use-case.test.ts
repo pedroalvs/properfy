@@ -593,6 +593,14 @@ describe('BulkEditAppointmentsUseCase', () => {
     });
 
     expect(result.updated).toBe(1);
+    // The edit really was delegated — without this, the assertion below would
+    // also pass if the schedule change had been silently dropped.
+    expect(updateAppointment.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        appointmentId: 'appt-1',
+        data: { timeSlotStart: '11:00', timeSlotEnd: '12:00' },
+      }),
+    );
     // UpdateAppointmentUseCase writes its own `appointment.updated` entry; a
     // second one here would carry an empty before/after.
     expect(auditService.log).not.toHaveBeenCalled();
@@ -785,6 +793,49 @@ describe('BulkEditAppointmentsUseCase', () => {
     expect(vi.mocked(updateAppointment.execute).mock.calls[0]![0]).not.toHaveProperty(
       'expandGroupTimeWindow',
     );
+  });
+
+  // The delegated edit notifies the rental tenant. A row that a later guard
+  // rejects must never have emailed them about a reschedule that did not stick,
+  // so every guard runs before the delegation.
+  it('does not delegate when a non-schedule guard rejects the same row', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({ status: 'DRAFT' }),
+    );
+    vi.mocked(contactRepo.findById).mockResolvedValue(null); // PM contact missing
+
+    const result = await useCase.execute({
+      ids: ['appt-1'],
+      changes: { scheduledDate: '2027-09-01', propertyManagerContactId: 'pm-1' },
+      actor: makeActor(),
+    });
+
+    expect(result.failed[0]).toMatchObject({ code: 'CONTACT_NOT_FOUND' });
+    expect(updateAppointment.execute).not.toHaveBeenCalled();
+    expect(appointmentRepo.saveContact).not.toHaveBeenCalled();
+  });
+
+  it('does not write the PM contact when the delegated schedule edit is rejected', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({ status: 'SCHEDULED', serviceGroupId: 'group-1' }),
+    );
+    vi.mocked(contactRepo.findById).mockResolvedValue({
+      id: 'pm-1',
+      isActive: true,
+      displayName: 'PM',
+      primaryEmail: null,
+      primaryPhone: null,
+    } as never);
+    vi.mocked(updateAppointment.execute).mockRejectedValue(new AppointmentInServiceGroupError(36));
+
+    const result = await useCase.execute({
+      ids: ['appt-1'],
+      changes: { scheduledDate: '2027-09-01', propertyManagerContactId: 'pm-1' },
+      actor: makeActor(),
+    });
+
+    expect(result.failed[0]).toMatchObject({ code: 'APPOINTMENT_IN_SERVICE_GROUP' });
+    expect(appointmentRepo.saveContact).not.toHaveBeenCalled();
   });
 
   it('leaves the row untouched when the delegated schedule edit is rejected', async () => {

@@ -108,33 +108,19 @@ export class BulkEditAppointmentsUseCase {
         // bare `repo.update` skips: resetting the rental tenant's
         // confirmation, revoking their live portal token and notifying them.
         //
-        // Runs FIRST so a rejected schedule leaves the row completely
-        // untouched; the remaining field guards below are pure validation
-        // until the single write at the end.
+        // Collected here but executed AFTER every guard below, because that
+        // notification is externally visible: a row rejected by a later guard
+        // must never have already emailed the tenant about a reschedule.
         const scheduleData = {
           ...(changes.scheduledDate !== undefined ? { scheduledDate: changes.scheduledDate as string } : {}),
           ...(changes.timeSlotStart !== undefined ? { timeSlotStart: changes.timeSlotStart as string } : {}),
           ...(changes.timeSlotEnd !== undefined ? { timeSlotEnd: changes.timeSlotEnd as string } : {}),
         };
-        if (Object.keys(scheduleData).length > 0) {
-          try {
-            await this.updateAppointment.execute({
-              appointmentId,
-              data: scheduleData,
-              actor,
-              ...(input.options?.expandGroupTimeWindow ? { expandGroupTimeWindow: true } : {}),
-            });
-          } catch (err: unknown) {
-            failed.push({
-              id: appointmentId,
-              code: (err as { code?: string })?.code ?? 'INTERNAL_ERROR',
-              message: err instanceof Error ? err.message : 'Unknown error',
-            });
-            continue;
-          }
-        }
 
-        // Per-field guardrails
+        /** Held until the writes section, so a later guard can still reject the row. */
+        let pendingPmJunction: AppointmentContactEntity | null = null;
+
+        // Per-field guardrails — validation only, no writes
         if (changes.assignedInspectorId !== undefined) {
           if (TERMINAL_STATUSES.has(appointment.status)) {
             failed.push({ id: appointmentId, code: 'APPOINTMENT_UPDATE_NOT_ALLOWED', message: `Cannot assign inspector on ${appointment.status} appointment` });
@@ -225,8 +211,9 @@ export class BulkEditAppointmentsUseCase {
             });
             continue;
           }
-          // Create new PM junction row with fresh snapshot
-          const pmJunction = new AppointmentContactEntity({
+          // Built now, saved below with the other writes — see the note on
+          // validate-then-write ordering above the schedule delegation.
+          pendingPmJunction = new AppointmentContactEntity({
             id: crypto.randomUUID(),
             appointmentId,
             contactId: pmContact.id,
@@ -238,8 +225,33 @@ export class BulkEditAppointmentsUseCase {
             createdAt: new Date(),
             updatedAt: new Date(),
           });
-          await this.appointmentRepo.saveContact(pmJunction);
           after['propertyManagerContactId'] = pmContactId;
+        }
+
+        // ── Writes start here. Every guard above has passed. ──────────────
+        // The schedule goes first because it is the only one with external
+        // side effects (it notifies the rental tenant), so it must not run
+        // until nothing else can still reject the row.
+        if (Object.keys(scheduleData).length > 0) {
+          try {
+            await this.updateAppointment.execute({
+              appointmentId,
+              data: scheduleData,
+              actor,
+              ...(input.options?.expandGroupTimeWindow ? { expandGroupTimeWindow: true } : {}),
+            });
+          } catch (err: unknown) {
+            failed.push({
+              id: appointmentId,
+              code: (err as { code?: string })?.code ?? 'INTERNAL_ERROR',
+              message: err instanceof Error ? err.message : 'Unknown error',
+            });
+            continue;
+          }
+        }
+
+        if (pendingPmJunction) {
+          await this.appointmentRepo.saveContact(pendingPmJunction);
         }
 
         // Apply non-PM field updates
