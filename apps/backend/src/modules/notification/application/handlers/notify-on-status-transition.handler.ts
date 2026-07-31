@@ -42,6 +42,39 @@ const STATUS_TRANSITION_TEMPLATE_CODES = [
 /** Agency-facing cancellation notice, sent to the branch contact. */
 const AGENCY_CANCELLED_TEMPLATE_CODE = 'INSPECTION_CANCELLED_AGENCY';
 
+/**
+ * What "the rental tenant already knows this inspection exists" means.
+ *
+ * The cancellation opt-in used to require `rentalTenantConfirmationStatus ===
+ * 'CONFIRMED'` and nothing else, which was too strict: INSPECTION_NOTICE goes out
+ * on the move to SCHEDULED regardless of confirmation, so a tenant who was told
+ * the date but never clicked confirm could NEVER be told it was called off — not
+ * even by an explicit operator opt-in.
+ *
+ * This family is the second arm of the gate, not a replacement for the first:
+ * confirming can happen BEFORE any notice exists (routine flow, see the gate
+ * itself), so neither signal subsumes the other.
+ *
+ * TENANT_PORTAL_LINK is included because it is itself a dated announcement
+ * ("your inspection on {{scheduledDate}}") and `generate-portal-token` sends it
+ * for AWAITING_INSPECTOR as well as SCHEDULED. Leaving it out stranded the exact
+ * class this gate exists to serve: a routine tenant who was sent the link, read
+ * the date, and never clicked. Worse, a tenant who clicks "No" gets
+ * INSPECTION_UNAVAILABILITY_REPORTED promising the bookings team will be in
+ * touch — the follow-up the gate would then refuse to send. One entry covers both
+ * channels: email and SMS share the code.
+ *
+ * Reminders are excluded because `dispatch-reminders` only walks
+ * `findScheduledOnDate`, so a tenant who received one necessarily already has an
+ * INSPECTION_NOTICE row. The cancellation codes are excluded because a previous
+ * cancellation is not evidence the tenant knows about the current inspection.
+ */
+const RENTAL_TENANT_NOTICE_CODES = [
+  'INSPECTION_NOTICE',
+  'INSPECTION_NOTICE_SMS',
+  'TENANT_PORTAL_LINK',
+] as const;
+
 /** Email and SMS variants of one announcement are the same event to the tenant. */
 function templateFamily(templateCode: string): string {
   return templateCode.replace(/_SMS$/, '');
@@ -126,9 +159,10 @@ export class NotifyOnStatusTransitionHandler {
     targetStatus: string;
     /**
      * Consulted ONLY for a CANCELLED target. The agency is always told; the rental
-     * tenant is told only on an explicit opt-in AND only when they had confirmed.
-     * Absent means "do not notify the tenant", which is what makes the system
-     * sweeps (overdue cancellation) agency-only without passing anything.
+     * tenant is told only on an explicit opt-in AND only when they already know
+     * the inspection exists — they confirmed it, or a notice was sent. Absent means
+     * "do not notify the tenant", which is what makes the system sweeps (overdue
+     * cancellation) agency-only without passing anything.
      */
     notifyRentalTenant?: boolean;
   }): Promise<void> {
@@ -210,21 +244,39 @@ export class NotifyOnStatusTransitionHandler {
         serviceTypeName: result.serviceTypeName ?? null,
       });
 
-      // The checkbox is only offered for a confirmed tenant, but the rule lives
-      // here: the endpoint can be called directly.
-      const tenantOptedIn =
+      // The UI only offers the checkbox where the tenant plausibly knows, but the
+      // rule lives here: the endpoint can be called directly, and only this side
+      // can check for a notice.
+      //
+      // Two arms, and both are needed. Confirming is checked FIRST because it is
+      // free and because it is the one a notice cannot imply: a ROUTINE service
+      // type that requires confirmation can only move AWAITING_INSPECTOR ->
+      // SCHEDULED once the tenant has already confirmed (see step 6b of
+      // execute-status-transition), while INSPECTION_NOTICE is only written on the
+      // move INTO SCHEDULED. So a routine tenant confirms via the portal link while
+      // the appointment is still AWAITING_INSPECTOR and has no notice row at all.
+      // Gating on the notice alone would refuse to tell the very people who
+      // explicitly said they would be home.
+      const tenantKnowsAboutInspection =
         input.notifyRentalTenant === true &&
-        appointment.rentalTenantConfirmationStatus === 'CONFIRMED';
-      if (!tenantOptedIn) {
+        (appointment.rentalTenantConfirmationStatus === 'CONFIRMED' ||
+          (await this.notificationRepo.existsByAppointmentAndTemplates(
+            appointment.id,
+            appointment.tenantId,
+            RENTAL_TENANT_NOTICE_CODES,
+          )));
+      if (!tenantKnowsAboutInspection) {
         if (input.notifyRentalTenant === true) {
           // An explicit request we refuse must leave a trace; otherwise a direct
           // API caller gets a 200 and debugs a notification that never existed.
           this.logger?.info(
             {
               appointmentId: appointment.id,
+              // Which arm failed: without it you cannot tell "never confirmed"
+              // from "no notice row" when debugging a discarded opt-in.
               rentalTenantConfirmationStatus: appointment.rentalTenantConfirmationStatus,
             },
-            'Rental-tenant opt-in discarded: the tenant has not confirmed this appointment',
+            'Rental-tenant opt-in discarded: the tenant neither confirmed nor was ever sent an inspection notice',
           );
         }
         return;

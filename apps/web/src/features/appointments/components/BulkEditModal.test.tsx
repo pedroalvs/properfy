@@ -648,7 +648,7 @@ describe('BulkEditModal', () => {
       expect(screen.getByText(/Cannot go from DONE to CANCELLED/)).toBeInTheDocument();
     });
 
-    it('never offers the tenant opt-in when no selected tenant has confirmed', () => {
+    it('never offers the tenant opt-in when no selected tenant was told', () => {
       // The shared fixture is PENDING, so cancelling it must offer nothing.
       renderModal([makeAppointment({ id: 'a', status: 'DRAFT' })]);
       fireEvent.click(screen.getByLabelText('Change status'));
@@ -667,16 +667,16 @@ describe('BulkEditModal', () => {
       expect(screen.queryByTestId('bulk-edit-notify-block')).not.toBeInTheDocument();
 
       chooseTarget('Cancelled');
-      expect(screen.getByLabelText('Notify the tenants who confirmed')).not.toBeChecked();
+      expect(screen.getByLabelText('Notify the tenants already told')).not.toBeChecked();
 
       // Off is the deliberate default: a tick must not survive a target change and
       // come back pre-checked.
-      fireEvent.click(screen.getByText('Notify the tenants who confirmed'));
-      expect(screen.getByLabelText('Notify the tenants who confirmed')).toBeChecked();
+      fireEvent.click(screen.getByText('Notify the tenants already told'));
+      expect(screen.getByLabelText('Notify the tenants already told')).toBeChecked();
       chooseTarget('Rejected');
       expect(screen.queryByTestId('bulk-edit-notify-block')).not.toBeInTheDocument();
       chooseTarget('Cancelled');
-      expect(screen.getByLabelText('Notify the tenants who confirmed')).not.toBeChecked();
+      expect(screen.getByLabelText('Notify the tenants already told')).not.toBeChecked();
     });
 
     it('identifies failed rows by appointment code, not by a raw id fragment', async () => {

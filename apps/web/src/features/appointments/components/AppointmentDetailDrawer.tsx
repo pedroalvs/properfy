@@ -6,6 +6,7 @@ import { AppointmentStatusChip } from '@/features/appointments/components/Appoin
 import { Button } from '@/components/ui/Button';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { useAuth } from '@/hooks/useAuth';
+import { wasRentalTenantNotified } from '../lib/rental-tenant-notice';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { useAppointmentTransition } from '../hooks/useAppointmentTransition';
 import { getAvailableTransitions } from '../lib/transitions';
@@ -94,7 +95,7 @@ export function AppointmentDetailDrawer({
                 <AppointmentTransitionActions
                   transitions={transitions}
                   onTransition={transition}
-                  rentalTenantConfirmed={appointment.rentalTenantConfirmationStatus === 'CONFIRMED'}
+                  rentalTenantNotified={wasRentalTenantNotified(appointment)}
                   loading={isTransitioning}
                 />
               </div>

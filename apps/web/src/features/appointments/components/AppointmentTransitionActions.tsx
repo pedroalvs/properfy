@@ -14,7 +14,7 @@ interface AppointmentTransitionActionsProps {
     notifyRentalTenant?: boolean,
   ) => void;
   /** Passed through to the dialog to gate the "notify the tenant" checkbox. */
-  rentalTenantConfirmed?: boolean;
+  rentalTenantNotified?: boolean;
   loading?: boolean;
 }
 
@@ -34,7 +34,7 @@ function getButtonVariant(variant: AppointmentTransition['variant']): 'primary' 
 export function AppointmentTransitionActions({
   transitions,
   onTransition,
-  rentalTenantConfirmed = false,
+  rentalTenantNotified = false,
   loading = false,
 }: AppointmentTransitionActionsProps) {
   const [dialogTransition, setDialogTransition] = useState<AppointmentTransition | null>(null);
@@ -91,7 +91,7 @@ export function AppointmentTransitionActions({
           message={`Are you sure you want to transition to "${dialogTransition.label}"?`}
           variant={dialogTransition.variant === 'danger' ? 'danger' : 'warning'}
           targetStatus={dialogTransition.targetStatus}
-          rentalTenantConfirmed={rentalTenantConfirmed}
+          rentalTenantNotified={rentalTenantNotified}
           loading={loading}
         />
       )}

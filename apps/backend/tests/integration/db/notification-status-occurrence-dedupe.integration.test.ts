@@ -306,12 +306,18 @@ describe('agency cancellation notice — real DB', () => {
 
   it('still writes the agency row when the tenant announcement is a suppressed replay', async () => {
     await seedAgencyCancelTemplate();
+    // Deliberately NOT confirmed: the opt-in is gated on having been told, and the
+    // INSPECTION_NOTICE below is what establishes that. Under the old CONFIRMED-only
+    // rule this tenant could never have been reached.
     const { appointmentId, tenantId } = await seedFixture(harness.prisma, null, {
-      confirmed: true,
       branchContactEmail: AGENCY_EMAIL,
     });
     const handler = makeHandler(harness.prisma);
 
+    // Announce it first, so a notice exists to have been "told" by.
+    await handler.execute({
+      appointmentId, tenantId, previousStatus: 'AWAITING_INSPECTOR', targetStatus: 'SCHEDULED',
+    });
     await handler.execute({
       appointmentId, tenantId, previousStatus: 'SCHEDULED', targetStatus: 'CANCELLED',
       notifyRentalTenant: true,

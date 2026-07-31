@@ -61,7 +61,7 @@ describe('AppointmentTransitionActions', () => {
     // Confirm
     fireEvent.click(screen.getByText('Confirm'));
     // 4th arg is the tenant opt-in: false here, since the dialog only offers the
-    // checkbox when `rentalTenantConfirmed` is passed.
+    // checkbox when `rentalTenantNotified` is passed.
     expect(onTransition).toHaveBeenCalledWith(
       AppointmentStatus.CANCELLED,
       'CLIENT REQUEST',
@@ -76,7 +76,7 @@ describe('AppointmentTransitionActions', () => {
       <AppointmentTransitionActions
         transitions={mockTransitions}
         onTransition={onTransition}
-        rentalTenantConfirmed
+        rentalTenantNotified
       />,
     );
     fireEvent.click(screen.getAllByText('Cancel')[0]!);

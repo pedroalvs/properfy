@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { Textarea } from '@/components/forms/Textarea';
 import { Checkbox } from '@/components/forms/Checkbox';
+import { wasRentalTenantNotified } from '../lib/rental-tenant-notice';
 import { TimeRangeInput } from '@/components/forms/TimeRangeInput';
 import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
 import { useFormOptions } from '@/hooks/useFormOptions';
@@ -200,13 +201,13 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
     [selectedAppointments, targetStatus],
   );
 
-  // Cancelling in bulk can notify tenants, but only those who had confirmed. Offer
-  // the opt-in only when the selection contains at least one, and name them so the
-  // operator sees who would actually be contacted.
-  const confirmedForCancel = useMemo(
+  // Cancelling in bulk can notify tenants, but only those already told about their
+  // inspection. Offer the opt-in only when the selection contains at least one, and
+  // name them so the operator sees who would actually be contacted.
+  const notifiableForCancel = useMemo(
     () =>
       targetStatus === 'CANCELLED'
-        ? selectedAppointments.filter((a) => a.rentalTenantConfirmationStatus === 'CONFIRMED')
+        ? selectedAppointments.filter(wasRentalTenantNotified)
         : [],
     [targetStatus, selectedAppointments],
   );
@@ -318,7 +319,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
           appointmentIds: selectedIds,
           targetStatus,
           ...(statusReasonRequired ? { reason: statusReason.trim() } : {}),
-          ...(confirmedForCancel.length > 0 ? { notifyRentalTenant: notifyRentalTenant } : {}),
+          ...(notifiableForCancel.length > 0 ? { notifyRentalTenant } : {}),
         });
         const payload = toBulkEditResult(response.data.results);
         setResult(payload);
@@ -683,19 +684,19 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
                     />
                   </label>
                 )}
-                {confirmedForCancel.length > 0 && (
+                {notifiableForCancel.length > 0 && (
                   <div data-testid="bulk-edit-notify-block">
                     <Checkbox
                       checked={notifyRentalTenant}
                       onChange={setNotifyRentalTenant}
-                      label="Notify the tenants who confirmed"
+                      label="Notify the tenants already told"
                     />
                     <p className="mt-1 text-xs text-text-muted">
-                      Only these confirmed tenants would be emailed/texted. The agency is
-                      notified for every cancellation either way.
+                      Only these tenants — the ones already told about their inspection —
+                      would be emailed/texted. The agency is notified either way.
                     </p>
                     <ul className="mt-1 flex flex-wrap gap-1">
-                      {confirmedForCancel.map((a) => (
+                      {notifiableForCancel.map((a) => (
                         <li key={a.id} className="text-xs text-text-secondary">
                           {a.code}
                         </li>

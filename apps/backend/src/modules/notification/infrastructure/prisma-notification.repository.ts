@@ -168,6 +168,22 @@ export class PrismaNotificationRepository implements INotificationRepository {
     return count > 0;
   }
 
+  async existsByAppointmentAndTemplates(
+    appointmentId: string,
+    tenantId: string,
+    templateCodes: readonly string[],
+  ): Promise<boolean> {
+    if (templateCodes.length === 0) return false;
+    const count = await this.prisma.notification.count({
+      where: {
+        appointment_id: appointmentId,
+        tenant_id: tenantId,
+        template_code: { in: [...templateCodes] },
+      },
+    });
+    return count > 0;
+  }
+
   async findLatestByAppointmentAndTemplates(
     appointmentId: string,
     tenantId: string,

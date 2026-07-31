@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
 import { usePermissions } from '@/hooks/usePermissions';
+import { wasRentalTenantNotified } from '../lib/rental-tenant-notice';
 import { AppointmentFilters } from '../components/AppointmentFilters';
 import { AppointmentBoardColumn } from '../components/AppointmentBoardColumn';
 import { AppointmentBulkActionBar } from '../components/AppointmentBulkActionBar';
@@ -256,7 +257,7 @@ export function AppointmentBoardPage() {
         message={`Cancel appointment ${cancelTarget?.code ?? ''}? This requires a reason.`}
         variant="danger"
         targetStatus="CANCELLED"
-        rentalTenantConfirmed={cancelTarget?.rentalTenantConfirmationStatus === 'CONFIRMED'}
+        rentalTenantNotified={!!cancelTarget && wasRentalTenantNotified(cancelTarget)}
         loading={cancelTransition.isTransitioning}
       />
 
