@@ -15,7 +15,7 @@ function makeAppointment(overrides: Partial<Appointment> = {}): Appointment {
     appointmentNumber: 1001,
     code: 'VST-001',
     tenantId: 'tenant-1',
-    tenantName: 'Test Agency',
+    clientName: 'Test Agency',
     branchId: 'branch-1',
     branchName: 'Downtown Branch',
     propertyId: 'prop-1',
@@ -53,6 +53,47 @@ describe('AppointmentTable', () => {
     expect(screen.getByText('Scheduled Date')).toBeInTheDocument();
     expect(screen.getByText('Reviewed')).toBeInTheDocument();
     expect(screen.getByText('Group')).toBeInTheDocument();
+    expect(screen.getByText('Branch')).toBeInTheDocument();
+  });
+
+  describe('Agency column', () => {
+    // Agency is AM/OP-only: a client user is pinned to a single agency, so the
+    // column would repeat their own name on every row.
+    it('is hidden by default', () => {
+      render(<AppointmentTable data={[makeAppointment()]} />);
+      expect(screen.queryByText('Agency')).not.toBeInTheDocument();
+      expect(screen.queryByText('Test Agency')).not.toBeInTheDocument();
+    });
+
+    it('renders the agency name when showAgency is set', () => {
+      render(<AppointmentTable data={[makeAppointment()]} showAgency />);
+      expect(screen.getByText('Agency')).toBeInTheDocument();
+      expect(screen.getByText('Test Agency')).toBeInTheDocument();
+    });
+
+    // The backend maps an absent relation to '' (`row.tenant?.name ?? ''`) and the
+    // response schema marks the field optional, so both empty and undefined reach
+    // the client. Neither may render as blank or "undefined".
+    it.each([
+      ['undefined', undefined],
+      ['empty', ''],
+    ])('renders an em dash when the agency name is %s', (_label, clientName) => {
+      render(<AppointmentTable data={[makeAppointment({ clientName })]} showAgency />);
+      expect(screen.getByText('Agency')).toBeInTheDocument();
+      expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Branch column', () => {
+    it('renders the branch name for every role', () => {
+      render(<AppointmentTable data={[makeAppointment()]} />);
+      expect(screen.getByText('Downtown Branch')).toBeInTheDocument();
+    });
+
+    it('renders an em dash when the branch name is empty', () => {
+      render(<AppointmentTable data={[makeAppointment({ branchName: '' })]} />);
+      expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+    });
   });
 
   it('renders service group code when grouped and em-dash when ungrouped', () => {

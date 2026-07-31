@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AppointmentBoardPage } from './AppointmentBoardPage';
+import { DEFAULT_FILTERS } from '../types';
 import type { Appointment } from '../types';
 import type { BoardColumn } from '../hooks/useAppointmentBoard';
 
@@ -55,7 +56,7 @@ function makeAppointment(overrides: Partial<Appointment> = {}): Appointment {
     appointmentNumber: 142,
     code: 'INS-0142',
     tenantId: 'tenant-1',
-    tenantName: 'Agency',
+    clientName: 'Agency',
     branchId: 'branch-1',
     branchName: 'Sydney CBD',
     propertyId: 'prop-1',
@@ -113,12 +114,10 @@ function setBoard(columns: BoardColumn[] = DEFAULT_COLUMNS, filterOverrides: Rec
   useAppointmentBoardMock.mockReturnValue({
     columns,
     allItems,
-    filters: {
-      search: '', status: '', rentalTenantConfirmationStatus: '', tenantId: '',
-      branchId: '', serviceTypeId: '', startDate: '', endDate: '',
-      showCancelled: false, overdueOnly: false,
-      ...filterOverrides,
-    },
+    // Spread the real defaults: the board derives "are filters active?" by
+    // diffing every DEFAULT_FILTERS key, so a hand-written literal that misses
+    // one makes an unfiltered column claim it was filtered.
+    filters: { ...DEFAULT_FILTERS, ...filterOverrides },
     setFilters: vi.fn(),
     refetchAll: vi.fn(),
   });

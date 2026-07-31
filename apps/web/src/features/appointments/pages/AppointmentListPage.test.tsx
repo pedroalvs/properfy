@@ -261,4 +261,104 @@ describe('AppointmentListPage', () => {
       expect(isCreateDrawerOpen()).toBe(false);
     });
   });
+
+  describe('agency and inspector scoping', () => {
+    /**
+     * The default mock answers every path with the appointments payload, which
+     * would make the option lists look populated no matter what. These tests
+     * turn on which endpoint was asked, so a query that must stay disabled for a
+     * role is provably not fired.
+     */
+    function mockByPath() {
+      mockGet.mockReset();
+      mockGet.mockImplementation((path: string) => {
+        if (path === '/v1/tenants') {
+          return Promise.resolve({ data: {
+            data: [{ id: 'tenant-1', name: 'Acme Realty' }],
+            pagination: { page: 1, pageSize: 100, total: 1, totalPages: 1 },
+          } });
+        }
+        if (path === '/v1/inspectors') {
+          return Promise.resolve({ data: {
+            data: [{ id: 'insp-1', name: 'Carlos Inspector' }],
+            pagination: { page: 1, pageSize: 100, total: 1, totalPages: 1 },
+          } });
+        }
+        if (path === '/v1/branches') {
+          return Promise.resolve({ data: {
+            data: [{ id: 'branch-1', name: 'Downtown Branch' }],
+            pagination: { page: 1, pageSize: 100, total: 1, totalPages: 1 },
+          } });
+        }
+        return Promise.resolve({ data: {
+          data: MOCK_APPOINTMENTS,
+          pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
+        } });
+      });
+    }
+
+    const calledPaths = () => mockGet.mock.calls.map((call) => call[0]);
+
+    /**
+     * `/v1/branches` is also hit by the always-mounted create drawer, so the
+     * path alone proves nothing. The filter's cascade is the only caller that
+     * scopes the request to a chosen agency.
+     */
+    const branchCallsScopedTo = (tenantId: string) =>
+      mockGet.mock.calls.filter(
+        (call) => call[0] === '/v1/branches' && call[1]?.params?.query?.tenantId === tenantId,
+      );
+
+    it('shows the Agency column and select for AM', async () => {
+      mockByPath();
+      signInAs('AM');
+      renderPage();
+
+      // Each select appears when its own query resolves, so they are awaited
+      // separately rather than assumed to land in the same tick.
+      expect(await screen.findByLabelText('Agency')).toBeInTheDocument();
+      expect(await screen.findByLabelText('Inspector')).toBeInTheDocument();
+      // An unselected FilterSelect renders its label as the button text too, so
+      // the column assertion has to be role-scoped to stay unambiguous.
+      expect(screen.getByRole('columnheader', { name: 'Agency' })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: 'Branch' })).toBeInTheDocument();
+    });
+
+    it('hides the Agency column and select for CL_ADMIN, keeping Branch and Inspector', async () => {
+      mockByPath();
+      signInAs('CL_ADMIN');
+      renderPage();
+
+      expect(await screen.findByLabelText('Inspector')).toBeInTheDocument();
+      expect(screen.queryByLabelText('Agency')).not.toBeInTheDocument();
+      expect(screen.queryByRole('columnheader', { name: 'Agency' })).not.toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: 'Branch' })).toBeInTheDocument();
+      // /v1/tenants is AM/OP-only on the backend — the query must be disabled,
+      // not merely hidden, or every client user's list fires a 403.
+      expect(calledPaths()).not.toContain('/v1/tenants');
+    });
+
+    it('loads the selected agency branches instead of deriving them from the rows', async () => {
+      mockByPath();
+      signInAs('AM');
+      renderPage(['/appointments?tenantId=tenant-1']);
+
+      await waitFor(() => {
+        expect(branchCallsScopedTo('tenant-1')).not.toHaveLength(0);
+      });
+    });
+
+    it('does not query branches for AM before an agency is picked', async () => {
+      mockByPath();
+      signInAs('AM');
+      renderPage();
+
+      await waitFor(() => {
+        expect(calledPaths()).toContain('/v1/appointments');
+      });
+      // Cross-tenant branch listing is not something the API can answer, so the
+      // options fall back to the branches present on the loaded rows.
+      expect(branchCallsScopedTo('t-1')).toHaveLength(0);
+    });
+  });
 });

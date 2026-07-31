@@ -148,6 +148,86 @@ describe('AppointmentFilters', () => {
     });
   });
 
+  describe('Agency and Inspector selects', () => {
+    const agencyOptions: FilterSelectOption[] = [{ label: 'Acme Realty', value: 'tenant-1' }];
+    const inspectorOptions: FilterSelectOption[] = [{ label: 'Carlos Inspector', value: 'insp-1' }];
+
+    // Both controls are opt-in by options, not by an internal role check: the
+    // pages own the RBAC (only AM/OP may call /v1/tenants) and pass empty
+    // arrays when a control must not appear.
+    it('omits both when no options are supplied', () => {
+      render(
+        <AppointmentFilters
+          filters={DEFAULT_FILTERS}
+          onFiltersChange={() => {}}
+          branchOptions={branchOptions}
+          serviceTypeOptions={[]}
+        />,
+      );
+      expect(screen.queryByLabelText('Agency')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Inspector')).not.toBeInTheDocument();
+    });
+
+    it('renders each one independently of the other', () => {
+      render(
+        <AppointmentFilters
+          filters={DEFAULT_FILTERS}
+          onFiltersChange={() => {}}
+          branchOptions={branchOptions}
+          serviceTypeOptions={[]}
+          inspectorOptions={inspectorOptions}
+        />,
+      );
+      // A client user gets Inspector but never Agency.
+      expect(screen.queryByLabelText('Agency')).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Inspector')).toBeInTheDocument();
+    });
+
+    it('clears the selected branch when the agency changes', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      render(
+        <AppointmentFilters
+          filters={{ ...DEFAULT_FILTERS, branchId: 'branch-1' }}
+          onFiltersChange={onChange}
+          branchOptions={branchOptions}
+          serviceTypeOptions={[]}
+          agencyOptions={agencyOptions}
+        />,
+      );
+
+      await user.click(screen.getByLabelText('Agency'));
+      await user.click(screen.getByText('Acme Realty'));
+
+      // Branch options cascade from the agency, so a branch of the previous
+      // agency would silently filter everything out.
+      expect(onChange).toHaveBeenCalledWith({
+        ...DEFAULT_FILTERS,
+        tenantId: 'tenant-1',
+        branchId: '',
+      });
+    });
+
+    it('calls onFiltersChange when an inspector is selected', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      render(
+        <AppointmentFilters
+          filters={DEFAULT_FILTERS}
+          onFiltersChange={onChange}
+          branchOptions={branchOptions}
+          serviceTypeOptions={[]}
+          inspectorOptions={inspectorOptions}
+        />,
+      );
+
+      await user.click(screen.getByLabelText('Inspector'));
+      await user.click(screen.getByText('Carlos Inspector'));
+
+      expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, inspectorId: 'insp-1' });
+    });
+  });
+
   it('calls onFiltersChange when tenant response is selected', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
