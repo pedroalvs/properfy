@@ -141,15 +141,31 @@ export class JoinGroupUseCase {
     if (!appointment.propertyId || !appointment.serviceTypeId) {
       throw new PortalGroupSlotUnavailableError();
     }
-    // Already in the target group. Either the tenant is asking for something the
-    // picker never offered, or a previous attempt tore: it reserved the slot and
-    // then failed before the status caught up. Those are cheaply distinguishable
-    // and deserve opposite answers, so the decision is deferred to the fresh
-    // post-claim read below — the stale entity here cannot be trusted for it.
-    // Only the unambiguous case is rejected up front, to avoid consuming the
-    // token on a request that cannot succeed.
-    if (appointment.serviceGroupId === group.id && !this.matchesRequestedWindow(appointment, input)) {
-      throw new PortalGroupSlotUnavailableError();
+    // Already in the target group — two opposite cases, and the branch has to
+    // happen HERE, before the offer-list gates below. Those gates call
+    // `findPortalEligibleSlots` with `excludeGroupId: appointment.serviceGroupId`,
+    // which for this case IS the target group, so it comes back empty and
+    // `isOfferedWindow` fails. Falling through would throw "slot unavailable" for
+    // an appointment that demonstrably holds that slot.
+    //
+    // Skipping those gates is sound precisely because the appointment already
+    // occupies the window: capacity was accounted for when it was reserved, and
+    // its own persisted schedule is a stricter check than an offer list that by
+    // construction can never contain this group.
+    if (appointment.serviceGroupId === group.id) {
+      if (!this.matchesRequestedWindow(appointment, input)) {
+        // Changing time *within* your own group is genuinely not offered.
+        throw new PortalGroupSlotUnavailableError();
+      }
+      // Restores what the skipped gates were providing: both
+      // `findPortalEligibleSlots` and `hasPortalMemberSlot` require
+      // `scheduled_date > today`, so without this a replayed request could move a
+      // long-past appointment to SCHEDULED. Same comparison as those queries, so
+      // "resumable" and "offerable" cannot drift apart.
+      if (input.scheduledDate <= new Date().toISOString().slice(0, 10)) {
+        throw new PortalGroupSlotUnavailableError();
+      }
+      return this.claimAndResume(input, group, group.assignedInspectorId, assignedInspectorName);
     }
 
     const now = new Date();
@@ -220,28 +236,6 @@ export class JoinGroupUseCase {
     }
     const freshAppointment = freshResult.appointment;
 
-    // The slot is already held and the window matches: this is an interrupted
-    // join, not a new one. Re-reserving would double-count, so only the missing
-    // status hops run. Validating against the appointment's OWN persisted
-    // schedule is stricter than the offer list this path bypasses — that list is
-    // built with `excludeGroupId`, so it could never contain this group anyway.
-    if (freshAppointment.serviceGroupId === group.id) {
-      try {
-        await this.resumeJoin(input, freshAppointment, group, assignedInspectorName);
-      } catch (error) {
-        await this.releaseClaimQuietly(input);
-        throw error;
-      }
-      return {
-        scheduledDate: input.scheduledDate,
-        timeSlotStart: input.timeSlotStart,
-        timeSlotEnd: input.timeSlotEnd,
-        rentalTenantConfirmationStatus: 'CONFIRMED',
-        appointmentStatus: 'SCHEDULED',
-        inspector: { id: group.assignedInspectorId, name: assignedInspectorName },
-      };
-    }
-
     try {
       await this.applyJoin(input, freshAppointment, group, group.assignedInspectorId);
     } catch (error) {
@@ -258,6 +252,57 @@ export class JoinGroupUseCase {
       rentalTenantConfirmationStatus: 'CONFIRMED',
       appointmentStatus: 'SCHEDULED',
       inspector: { id: group.assignedInspectorId, name: assignedInspectorName },
+    };
+  }
+
+  /**
+   * Claims the link and finishes a join whose slot is already held.
+   *
+   * Reachable two ways: a replay whose response was lost in flight, and a join
+   * torn before this PR made the reservation and the hops atomic. Both deserve a
+   * success — the tenant holds the slot either way.
+   *
+   * The claim still runs: it serialises concurrent replays exactly as the normal
+   * path does. The status is re-read under it, because the entity the caller
+   * validated was read before the claim and a decline can land in between.
+   */
+  private async claimAndResume(
+    input: JoinGroupInput,
+    group: ServiceGroupEntity,
+    inspectorId: string,
+    assignedInspectorName: string,
+  ): Promise<JoinGroupOutput> {
+    const claimed = await this.tokenRepo.tryClaim(input.tokenId, input.appointmentId);
+    if (!claimed) {
+      throw new PortalTokenAlreadyUsedError();
+    }
+
+    try {
+      const fresh = await this.appointmentRepo.findById(input.appointmentId, null);
+      if (!fresh || isPortalDeadStatus(fresh.appointment.status)) {
+        throw new PortalAppointmentInactiveError();
+      }
+      // Re-checked against the fresh row: an operator may have moved it out of
+      // the group, or off the window, since the read above.
+      if (
+        fresh.appointment.serviceGroupId !== group.id ||
+        !this.matchesRequestedWindow(fresh.appointment, input)
+      ) {
+        throw new PortalGroupSlotUnavailableError();
+      }
+      await this.resumeJoin(input, fresh.appointment, group, assignedInspectorName);
+    } catch (error) {
+      await this.releaseClaimQuietly(input);
+      throw error;
+    }
+
+    return {
+      scheduledDate: input.scheduledDate,
+      timeSlotStart: input.timeSlotStart,
+      timeSlotEnd: input.timeSlotEnd,
+      rentalTenantConfirmationStatus: 'CONFIRMED',
+      appointmentStatus: 'SCHEDULED',
+      inspector: { id: inspectorId, name: assignedInspectorName },
     };
   }
 
@@ -322,8 +367,17 @@ export class JoinGroupUseCase {
    * that still exist and would otherwise be told "this slot is unavailable" —
    * false, and with no way out for the tenant.
    *
-   * The reservation and both counters are skipped: the slot is held and already
-   * counted. Only the status hops are missing.
+   * The reservation and both counters are skipped. For a replay that is exactly
+   * right — the slot is held and was counted on the original join.
+   *
+   * For a row torn BEFORE this PR the new group was never incremented (the old
+   * code incremented after the hops, which is what failed), so resuming leaves
+   * its `confirmed_count` one short. Deliberately not repaired here: the counter
+   * is a denormalized display value — capacity is computed from the member rows
+   * by `computeWindowAvailability`, never from it — and incrementing on resume
+   * would double-count every replay, which over-reports a group as full and
+   * turns real tenants away. Under-reporting a finite set of legacy rows is the
+   * safer direction; repair them by hand if they surface.
    */
   private async resumeJoin(
     input: JoinGroupInput,

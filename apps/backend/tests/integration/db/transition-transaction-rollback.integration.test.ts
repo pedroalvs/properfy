@@ -13,6 +13,7 @@ import { setupDbHarness, teardownDbHarness, seedLegacyDoneAppointment, type DbHa
 import { PrismaAppointmentRepository } from '../../../src/modules/appointment/infrastructure/prisma-appointment.repository';
 import { ExecuteStatusTransitionUseCase } from '../../../src/modules/appointment/application/use-cases/execute-status-transition.use-case';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
+import { PrismaServiceTypeRepository } from '../../../src/modules/service-type/infrastructure/prisma-service-type.repository';
 
 let harness: DbHarness;
 let repo: PrismaAppointmentRepository;
@@ -189,20 +190,88 @@ describe('executeInTransaction — composed into a caller transaction', () => {
     expect(row?.status).toBe('SCHEDULED');
   });
 
-  it('sees the caller transaction\'s uncommitted writes', async () => {
-    // The crux of the portal join: the guards read serviceGroupId, inspectorId
-    // and rentalTenantConfirmationStatus that the caller wrote moments earlier
-    // and has not committed. On the global client all three read stale.
+  it('sees the caller transaction\'s uncommitted inspector write', async () => {
+    // The crux of the portal join. Guard 6 rejects a SCHEDULED transition unless
+    // the appointment already has an inspector or the input supplies one. Here
+    // the ONLY inspector is the one the caller wrote uncommitted, and no
+    // inspectorId is passed — so this passes if and only if `findById` read
+    // through `tx`. On the global client it reads NULL and throws
+    // AppointmentInspectorRequiredError.
     const appointmentId = await seedAppointment('AWAITING_INSPECTOR');
 
     const result = await harness.prisma.$transaction(async (tx) => {
-      // Uncommitted: only visible through `tx`.
       await tx.appointment.update({
         where: { id: appointmentId },
-        data: { inspector_id: null },
+        data: { inspector_id: inspectorId },
       });
       return makeUseCase(undefined).executeInTransaction(
-        { appointmentId, targetStatus: 'SCHEDULED', inspectorId, actor: AM_ACTOR },
+        { appointmentId, targetStatus: 'SCHEDULED', actor: AM_ACTOR },
+        tx,
+      );
+    });
+    await result.runAfterCommit();
+
+    expect(result.output.status).toBe('SCHEDULED');
+  });
+
+  it('sees the caller transaction\'s uncommitted confirmation status (guard 6b)', async () => {
+    // The join's second hop in miniature: a ROUTINE service type requiring rental
+    // tenant confirmation refuses AWAITING_INSPECTOR -> SCHEDULED unless the
+    // appointment reads CONFIRMED. The portal join gets that value from
+    // reservePortalWindow's uncommitted write, so this is the guard that would
+    // silently break if serviceTypeRepo or findById skipped the transaction.
+    const routine = await harness.prisma.serviceType.create({
+      data: {
+        code: `TX-ROUTINE-${Math.random().toString(36).slice(2, 8)}`,
+        name: 'Tx Routine Inspection',
+        flow_type: 'ROUTINE',
+        requires_rental_tenant_confirmation: true,
+        status: 'ACTIVE',
+      },
+    });
+    const row = await harness.prisma.appointment.create({
+      data: {
+        tenant_id: fixture.tenantId,
+        branch_id: fixture.branchId,
+        property_id: fixture.propertyId,
+        service_type_id: routine.id,
+        status: 'AWAITING_INSPECTOR',
+        scheduled_date: new Date('2031-04-10'),
+        time_slot_start: '09:00',
+        time_slot_end: '12:00',
+        price_amount: '100.00',
+        payout_amount: '80.00',
+        pricing_rule_snapshot_json: {},
+        // Deliberately NOT confirmed on disk.
+        rental_tenant_confirmation_status: 'PENDING',
+        inspector_id: inspectorId,
+        created_by_user_id: fixture.userId,
+      },
+    });
+
+    const uc = new ExecuteStatusTransitionUseCase(
+      repo as never,
+      { findById: vi.fn() } as never,
+      { findById: vi.fn() } as never,
+      { get: vi.fn().mockResolvedValue(null), getWithHash: vi.fn(), set: vi.fn() } as never,
+      auditService as never,
+      new AuthorizationService(auditService as never),
+      undefined,
+      undefined,
+      new PrismaServiceTypeRepository(harness.prisma) as never,
+      undefined,
+      undefined,
+      harness.prisma,
+      undefined,
+    );
+
+    const result = await harness.prisma.$transaction(async (tx) => {
+      await tx.appointment.update({
+        where: { id: row.id },
+        data: { rental_tenant_confirmation_status: 'CONFIRMED' },
+      });
+      return uc.executeInTransaction(
+        { appointmentId: row.id, targetStatus: 'SCHEDULED', actor: AM_ACTOR },
         tx,
       );
     });

@@ -158,7 +158,13 @@ describe('JoinGroupUseCase', () => {
         tenantIds: ['tenant-1'],
         appointments: [],
       }),
-      findPortalEligibleSlots: vi.fn().mockResolvedValue([makeEligibleMember()]),
+      // Honours excludeGroupId like the real SQL does (`AND sg.id <> $exclude`
+      // inside the eligible_groups CTE). A mock that always returns the target
+      // group hides the fact that an appointment already IN that group can never
+      // see it offered.
+      findPortalEligibleSlots: vi.fn(async (params: { excludeGroupId?: string | null }) =>
+        params.excludeGroupId === 'sg-new' ? [] : [makeEligibleMember()],
+      ),
       reservePortalWindow: vi.fn().mockResolvedValue({ ok: true }),
       hasPortalMemberSlot: vi.fn().mockResolvedValue(true),
       decrementConfirmedCount: vi.fn().mockResolvedValue(undefined),
@@ -464,12 +470,16 @@ describe('JoinGroupUseCase', () => {
   // A torn join leaves the appointment already holding the slot. The retry then
   // hit "this slot is unavailable" — false, and unrecoverable for the tenant.
   describe('resuming an interrupted join', () => {
+    // Relative, not pinned: the resume path enforces `scheduledDate > today`, so a
+    // hard-coded date silently rots into "past" and takes these tests with it.
+    const FUTURE = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
     const SAME_WINDOW = {
       serviceGroupId: 'sg-new',
-      scheduledDate: new Date('2026-06-02'),
+      scheduledDate: new Date(FUTURE),
       timeSlotStart: '13:00',
       timeSlotEnd: '15:00',
     };
+    const resumeInput = () => makeInput({ scheduledDate: FUTURE });
 
     it('completes the missing hops instead of claiming the slot is unavailable', async () => {
       appointmentRepo.findById.mockResolvedValue({
@@ -478,7 +488,7 @@ describe('JoinGroupUseCase', () => {
         restrictions: [],
       });
 
-      const result = await useCaseWithPrisma().execute(makeInput());
+      const result = await useCaseWithPrisma().execute(resumeInput());
 
       expect(result.appointmentStatus).toBe('SCHEDULED');
       // The slot is already held — re-reserving it would double-count.
@@ -493,7 +503,7 @@ describe('JoinGroupUseCase', () => {
         restrictions: [],
       });
 
-      await useCaseWithPrisma().execute(makeInput());
+      await useCaseWithPrisma().execute(resumeInput());
 
       expect(activityRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -510,11 +520,85 @@ describe('JoinGroupUseCase', () => {
         restrictions: [],
       });
 
-      const result = await useCaseWithPrisma().execute(makeInput());
+      const result = await useCaseWithPrisma().execute(resumeInput());
 
       expect(result.appointmentStatus).toBe('SCHEDULED');
       expect(statusTransition.executeInTransaction).not.toHaveBeenCalled();
       expect(serviceGroupRepo.reservePortalWindow).not.toHaveBeenCalled();
+    });
+
+    it('is not blocked by the offer list, which by construction excludes its own group', async () => {
+      // The regression this guards: findPortalEligibleSlots is called with
+      // excludeGroupId = the appointment's group, so for a resume that IS the
+      // target group and the offer list comes back empty. Branching after that
+      // gate made the whole resume path unreachable in production while the
+      // tests passed against a mock that ignored excludeGroupId.
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ ...SAME_WINDOW, status: 'REJECTED' }),
+        contact: null,
+        restrictions: [],
+      });
+
+      const result = await useCaseWithPrisma().execute(resumeInput());
+
+      expect(result.appointmentStatus).toBe('SCHEDULED');
+      expect(serviceGroupRepo.findPortalEligibleSlots).not.toHaveBeenCalled();
+    });
+
+    it('refuses to resume onto a window that has already passed', async () => {
+      // The resume path skips the offer-list and slot gates, and BOTH of those
+      // enforce `scheduled_date > today`. Without restoring that here, replaying
+      // an old request would move a past-dated appointment to SCHEDULED — the
+      // past-date block is universal in this project.
+      const past = {
+        serviceGroupId: 'sg-new',
+        scheduledDate: new Date('2020-01-15'),
+        timeSlotStart: '13:00',
+        timeSlotEnd: '15:00',
+      };
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ ...past, status: 'REJECTED' }),
+        contact: null,
+        restrictions: [],
+      });
+
+      await expect(
+        useCaseWithPrisma().execute(makeInput({ scheduledDate: '2020-01-15' })),
+      ).rejects.toThrow(PortalGroupSlotUnavailableError);
+
+      expect(statusTransition.executeInTransaction).not.toHaveBeenCalled();
+    });
+
+    it('still claims the link, so concurrent replays serialize', async () => {
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ ...SAME_WINDOW, status: 'REJECTED' }),
+        contact: null,
+        restrictions: [],
+      });
+      tokenRepo.tryClaim.mockResolvedValue(false);
+
+      await expect(useCaseWithPrisma().execute(resumeInput())).rejects.toThrow(
+        PortalTokenAlreadyUsedError,
+      );
+    });
+
+    it('refuses when an operator moved it out of the group after the first read', async () => {
+      appointmentRepo.findById
+        .mockResolvedValueOnce({
+          appointment: makeAppointment({ ...SAME_WINDOW, status: 'REJECTED' }),
+          contact: null,
+          restrictions: [],
+        })
+        .mockResolvedValue({
+          appointment: makeAppointment({ ...SAME_WINDOW, serviceGroupId: 'sg-other', status: 'REJECTED' }),
+          contact: null,
+          restrictions: [],
+        });
+
+      await expect(useCaseWithPrisma().execute(resumeInput())).rejects.toThrow(
+        PortalGroupSlotUnavailableError,
+      );
+      expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
     });
 
     it('still refuses a different window within the tenant\'s own group', async () => {
@@ -526,7 +610,7 @@ describe('JoinGroupUseCase', () => {
         restrictions: [],
       });
 
-      await expect(useCaseWithPrisma().execute(makeInput())).rejects.toThrow(
+      await expect(useCaseWithPrisma().execute(resumeInput())).rejects.toThrow(
         PortalGroupSlotUnavailableError,
       );
     });
