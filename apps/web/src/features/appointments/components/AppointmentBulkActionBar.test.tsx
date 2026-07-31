@@ -61,7 +61,8 @@ describe('AppointmentBulkActionBar', () => {
     it('does not reserve sidebar space below the md breakpoint', () => {
       renderBar();
 
-      expect(bar().className).toContain('left-0');
+      // Unprefixed `left-0` — `md:left-0` would leave the mobile bug in place.
+      expect(bar().className).toMatch(/(^|\s)left-0(\s|$)/);
       expect(bar().className).not.toMatch(/(?<!md:)left-\[75px\]/);
     });
 
@@ -73,5 +74,10 @@ describe('AppointmentBulkActionBar', () => {
       expect(bar().className).toContain('md:left-sidebar');
       expect(bar().className).not.toContain('[75px]');
     });
+
+    // These assertions can only see the class NAME. That the utility actually
+    // emits a rule — and only above `md` — is guarded by the compiled-CSS test in
+    // src/__tests__/tailwind-emission.test.ts, which is what catches the token
+    // being removed from the Tailwind config underneath this component.
   });
 });
