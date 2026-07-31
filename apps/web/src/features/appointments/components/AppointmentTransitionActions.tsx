@@ -1,12 +1,20 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { StatusTransitionDialog } from './StatusTransitionDialog';
+import type { StatusTransitionConfirmPayload } from './StatusTransitionDialog';
 import type { AppointmentStatus } from '@properfy/shared';
 import type { AppointmentTransition } from '../types';
 
 interface AppointmentTransitionActionsProps {
   transitions: AppointmentTransition[];
-  onTransition: (targetStatus: AppointmentStatus, reason?: string, reasonCode?: string) => void;
+  onTransition: (
+    targetStatus: AppointmentStatus,
+    reason?: string,
+    reasonCode?: string,
+    notifyRentalTenant?: boolean,
+  ) => void;
+  /** Passed through to the dialog to gate the "notify the tenant" checkbox. */
+  rentalTenantConfirmed?: boolean;
   loading?: boolean;
 }
 
@@ -26,6 +34,7 @@ function getButtonVariant(variant: AppointmentTransition['variant']): 'primary' 
 export function AppointmentTransitionActions({
   transitions,
   onTransition,
+  rentalTenantConfirmed = false,
   loading = false,
 }: AppointmentTransitionActionsProps) {
   const [dialogTransition, setDialogTransition] = useState<AppointmentTransition | null>(null);
@@ -40,9 +49,13 @@ export function AppointmentTransitionActions({
     }
   };
 
-  const handleConfirm = (reason: string, reasonCode?: string) => {
+  const handleConfirm = ({
+    reason,
+    reasonCode,
+    notifyRentalTenant,
+  }: StatusTransitionConfirmPayload) => {
     if (dialogTransition) {
-      onTransition(dialogTransition.targetStatus, reason, reasonCode);
+      onTransition(dialogTransition.targetStatus, reason, reasonCode, notifyRentalTenant);
       setDialogTransition(null);
     }
   };
@@ -78,6 +91,7 @@ export function AppointmentTransitionActions({
           message={`Are you sure you want to transition to "${dialogTransition.label}"?`}
           variant={dialogTransition.variant === 'danger' ? 'danger' : 'warning'}
           targetStatus={dialogTransition.targetStatus}
+          rentalTenantConfirmed={rentalTenantConfirmed}
           loading={loading}
         />
       )}

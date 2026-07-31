@@ -19,6 +19,7 @@ const APPT_ID = 'aaaaaaaa-0000-4000-8000-aaaaaaaaaaaa';
 const TENANT_ID = 'bbbbbbbb-0000-4000-8000-bbbbbbbbbbbb';
 
 const mockGetAppointmentExecute = vi.fn();
+const mockUpdateAppointmentExecute = vi.fn();
 const mockBulkCrossCheckDoneExecute = vi.fn();
 const mockJwtVerify = vi.fn();
 
@@ -31,7 +32,7 @@ vi.mock('../../../../main/container', () => ({
       getAppointmentUseCase: { execute: mockGetAppointmentExecute },
       createAppointmentUseCase: { execute: vi.fn() },
       listAppointmentsUseCase: { execute: vi.fn() },
-      updateAppointmentUseCase: { execute: vi.fn() },
+      updateAppointmentUseCase: { execute: mockUpdateAppointmentExecute },
       executeStatusTransitionUseCase: { execute: vi.fn() },
       performCrossCheckUseCase: { execute: vi.fn() },
       forceManualConfirmationUseCase: { execute: vi.fn() },
@@ -214,6 +215,53 @@ describe('GET /v1/appointments/:appointmentId — hasActivePortalToken field con
     expect(res.body.data).toHaveProperty('hasActivePortalToken');
     expect(typeof res.body.data.hasActivePortalToken).toBe('boolean');
     expect(res.body.data.hasActivePortalToken).toBe(false);
+  });
+});
+
+describe('PATCH /v1/appointments/:appointmentId — clearing the restriction', () => {
+  // The edit drawer sends `restriction: null` when the operator switches "Add access
+  // restriction" off. While the body schema declared `.optional()` instead of nullable,
+  // Fastify's validator rejected that with 400 before the handler ran — and it went
+  // unnoticed for months precisely because the only coverage was at the use-case level,
+  // below the layer that was broken. This asserts the wiring, not the semantics.
+  it('accepts restriction:null and passes it through to the use case', async () => {
+    mockUpdateAppointmentExecute.mockResolvedValue(makeAppointmentOutput(false));
+
+    const res = await supertest(app.server)
+      .patch(`/v1/appointments/${APPT_ID}`)
+      .set('Authorization', 'Bearer token')
+      .send({ restriction: null });
+
+    expect(res.status).toBe(200);
+    expect(mockUpdateAppointmentExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        appointmentId: APPT_ID,
+        data: expect.objectContaining({ restriction: null }),
+      }),
+    );
+  });
+
+  it('still accepts an omitted restriction, leaving it untouched', async () => {
+    mockUpdateAppointmentExecute.mockResolvedValue(makeAppointmentOutput(false));
+
+    const res = await supertest(app.server)
+      .patch(`/v1/appointments/${APPT_ID}`)
+      .set('Authorization', 'Bearer token')
+      .send({ notes: 'only notes' });
+
+    expect(res.status).toBe(200);
+    const data = mockUpdateAppointmentExecute.mock.calls[0]?.[0]?.data;
+    expect('restriction' in data).toBe(false);
+  });
+
+  it('still rejects a malformed restriction', async () => {
+    const res = await supertest(app.server)
+      .patch(`/v1/appointments/${APPT_ID}`)
+      .set('Authorization', 'Bearer token')
+      .send({ restriction: { isHome: 'nope', source: 'OPERATOR' } });
+
+    expect(res.status).toBe(400);
+    expect(mockUpdateAppointmentExecute).not.toHaveBeenCalled();
   });
 });
 

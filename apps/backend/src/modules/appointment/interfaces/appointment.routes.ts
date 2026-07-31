@@ -415,6 +415,7 @@ export async function registerAppointmentRoutes(
       const result = await container.bulkCancelAppointmentsUseCase.execute({
         appointmentIds: parsed.data.appointmentIds,
         reason: parsed.data.reason,
+        notifyRentalTenant: parsed.data.notifyRentalTenant,
         actor: auth,
       });
       return reply.status(200).send(success(result));
@@ -480,6 +481,7 @@ export async function registerAppointmentRoutes(
         appointmentIds: parsed.data.appointmentIds,
         targetStatus: parsed.data.targetStatus,
         reason: parsed.data.reason,
+        notifyRentalTenant: parsed.data.notifyRentalTenant,
         actor: auth,
       });
       return reply.status(200).send(success(result));

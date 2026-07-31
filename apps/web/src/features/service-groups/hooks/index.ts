@@ -12,6 +12,8 @@ export { useCancelServiceGroup } from './useCancelServiceGroup';
 export type { UseCancelServiceGroupReturn } from './useCancelServiceGroup';
 export { useRejectServiceGroup } from './useRejectServiceGroup';
 export type { UseRejectServiceGroupReturn } from './useRejectServiceGroup';
+export { useUnpublishServiceGroup } from './useUnpublishServiceGroup';
+export type { UseUnpublishServiceGroupReturn } from './useUnpublishServiceGroup';
 export { useRepublishServiceGroup } from './useRepublishServiceGroup';
 export type { UseRepublishServiceGroupReturn } from './useRepublishServiceGroup';
 export { useUpdateServiceGroup } from './useUpdateServiceGroup';

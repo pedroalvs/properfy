@@ -381,6 +381,7 @@ export function AppointmentDetailPage() {
             <AppointmentTransitionActions
               transitions={transitions}
               onTransition={transition}
+              rentalTenantConfirmed={appointment.rentalTenantConfirmationStatus === 'CONFIRMED'}
               loading={isTransitioning}
             />
           </div>

@@ -192,13 +192,16 @@ describe('RequestPasswordResetUseCase', () => {
     expect(payloadJson.resetLink).toMatch(/^https:\/\/app\.example\.com\/reset-password\?token=/);
   });
 
-  it('should use "platform" as tenantId when user has no tenantId', async () => {
+  // AM, OP and INSP users have users.tenant_id NULL. This used to pass the
+  // literal 'platform', which is not a tenants.id, so the insert failed
+  // notifications_tenant_id_fkey and the endpoint 500'd for all three roles.
+  it('should pass a null tenantId when the user has no tenant (platform-scoped)', async () => {
     vi.mocked(userRepo.findByEmail).mockResolvedValue(makeUser({ tenantId: null }));
 
     await useCase.execute({ email: 'test@example.com' });
 
     expect(createNotificationUseCase.execute).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: 'platform' }),
+      expect.objectContaining({ tenantId: null }),
     );
   });
 

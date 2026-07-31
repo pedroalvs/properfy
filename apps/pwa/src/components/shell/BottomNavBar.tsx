@@ -16,10 +16,10 @@ const navItems: NavItem[] = [
 export function BottomNavBar() {
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border-subtle/70 bg-white/92 backdrop-blur-xl"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border-subtle/70 bg-card-bg pb-safe-b"
       data-testid="bottom-nav"
     >
-      <div className="mx-auto grid h-18 w-full max-w-screen-sm grid-cols-4 gap-1 px-3 py-2">
+      <div className="mx-auto grid w-full max-w-screen-sm grid-cols-4 gap-1 px-3 py-2">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
@@ -27,7 +27,12 @@ export function BottomNavBar() {
             className={({ isActive }) =>
               `flex min-h-touch min-w-touch flex-col items-center justify-center gap-0.5 rounded-2xl px-2 text-[11px] font-semibold transition-all ${
                 isActive
-                  ? 'bg-primary/10 text-primary shadow-[inset_0_0_0_1px_rgba(59,130,246,0.18)]'
+                  ? // Not `bg-primary/10`: the design tokens are `var(--color-X)` holding a
+                    // hex rather than channels with <alpha-value>, so Tailwind cannot apply
+                    // an opacity modifier and silently drops the class — the active tab has
+                    // had no background in production since it was written. color-mix is the
+                    // project's established way to get alpha out of a token.
+                    'bg-[color-mix(in_srgb,var(--color-primary)_10%,transparent)] text-primary shadow-[inset_0_0_0_1px_rgba(59,130,246,0.18)]'
                   : 'text-text-muted'
               }`
             }

@@ -3,7 +3,7 @@ import { RowActions, type RowAction } from '@/components/data/RowActions';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useTemplateDelete } from '../hooks/useTemplateDelete';
-import type { NotificationTemplate } from '../types';
+import { MANDATORY_TEMPLATE_CODES, type NotificationTemplate } from '../types';
 
 interface TemplateRowActionsProps {
   template: NotificationTemplate;
@@ -22,9 +22,16 @@ export function TemplateRowActions({ template, onEdit, onDeleted, canDelete }: T
   const isOverride = template.tenantId !== null;
   const showDelete = !!canDelete && isOverride;
 
-  const actions: RowAction[] = [
-    { icon: 'mdi-pencil-outline', label: 'Edit', onClick: () => onEdit?.(template) },
-  ];
+  // The list also shows platform rows for codes outside the mandatory catalog
+  // (PASSWORD_RESET, INSPECTION_STUCK_ALERT, INSPECTOR_GROUP_*). The upsert use
+  // case refuses those with 400 "Invalid template code", so offering Edit only
+  // led operators into a save that could never succeed.
+  const canEdit = (MANDATORY_TEMPLATE_CODES as readonly string[]).includes(template.code);
+
+  const actions: RowAction[] = [];
+  if (canEdit) {
+    actions.push({ icon: 'mdi-pencil-outline', label: 'Edit', onClick: () => onEdit?.(template) });
+  }
   if (showDelete) {
     actions.push({
       icon: 'mdi-delete-outline',

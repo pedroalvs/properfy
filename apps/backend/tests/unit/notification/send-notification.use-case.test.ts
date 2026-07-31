@@ -8,6 +8,7 @@ import type {
   IEmailProvider,
   ISmsProvider,
 } from '../../../src/modules/notification/domain/providers';
+import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import { TemplateRendererService } from '../../../src/modules/notification/domain/template-renderer.service';
 import {
   NotificationEntity,
@@ -128,8 +129,10 @@ function makeSut() {
     incrementMissingVariableCount: vi.fn(),
   } as unknown as MetricsCollector;
   const getTenantSettings = vi.fn().mockResolvedValue({});
+  const auditService = { log: vi.fn() } as unknown as AuditService;
 
   const useCase = new SendNotificationUseCase({
+    auditService,
     notificationRepo,
     templateRepo,
     consentRepo,
@@ -153,6 +156,7 @@ function makeSut() {
     logger,
     metrics: metricsObj,
     getTenantSettings,
+    auditService,
     useCase,
   };
 }
@@ -987,6 +991,204 @@ describe('SendNotificationUseCase', () => {
       await expect(sut.useCase.execute({ notificationId: 'notif-1' })).resolves.toBeUndefined();
 
       expect((sut.logger as unknown as { warn: ReturnType<typeof vi.fn> }).warn).toHaveBeenCalled();
+    });
+  });
+
+  // ─── Appointment audit trail ────────────────────────────────────────────
+  //
+  // A failed notification used to be invisible from the appointment: the
+  // lifecycle wrote no audit row at all, so the Timeline tab (which queries
+  // entityType 'Appointment') showed a perfectly healthy appointment while the
+  // tenant was never told. These audits put the failure where the operator
+  // already looks.
+  describe('audit on terminal failure', () => {
+    it('audits a permanent TEMPLATE_NOT_FOUND against the appointment', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(makeNotification());
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(null);
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'notification.send_failed',
+          actorType: 'SYSTEM',
+          entityType: 'Appointment',
+          entityId: 'appt-1',
+          tenantId: 'tenant-1',
+          after: expect.objectContaining({
+            templateCode: 'INSPECTION_NOTICE',
+            channel: 'EMAIL',
+            failureReason: 'TEMPLATE_NOT_FOUND',
+          }),
+        }),
+      );
+    });
+
+    it('never records the recipient — the audit row must not carry PII', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(makeNotification());
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(null);
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      const entry = vi.mocked(sut.auditService.log).mock.calls[0]![0];
+      expect(JSON.stringify(entry)).not.toContain('user@example.com');
+    });
+
+    it('audits an EMPTY_SMS_BODY failure', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+        makeNotification({ channel: 'SMS', recipient: '+61400000000' }),
+      );
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ channel: 'SMS', subject: null, bodyHtml: null, bodyText: '   ' }),
+      );
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'notification.send_failed',
+          after: expect.objectContaining({ failureReason: 'EMPTY_SMS_BODY' }),
+        }),
+      );
+    });
+
+    it('audits only once the provider retries are exhausted, not on each attempt', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+        makeNotification({ retryCount: 0 }),
+      );
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+      vi.mocked(sut.emailProvider.send).mockRejectedValue(new Error('provider down'));
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      // Still retryable — an audit row per attempt would spam the timeline.
+      expect(sut.auditService.log).not.toHaveBeenCalled();
+    });
+
+    it('audits when the provider failure becomes permanent', async () => {
+      const sut = makeSut();
+      // retryCount is incremented before the MAX_RETRY_COUNT (6) check, so 5 is
+      // the attempt that exhausts the budget.
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+        makeNotification({ retryCount: 5 }),
+      );
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+      vi.mocked(sut.emailProvider.send).mockRejectedValue(new Error('provider down'));
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'notification.send_failed',
+          // Collapsed on purpose — the raw provider text can name the recipient.
+          after: expect.objectContaining({ failureReason: 'PROVIDER_ERROR' }),
+        }),
+      );
+    });
+
+    it('never puts a raw provider message in the audit — it can embed the recipient', async () => {
+      // Providers interpolate raw response bodies (mobile-message-sms.provider.ts,
+      // resend-email.provider.ts), which routinely name the destination. An
+      // audit_logs row is immutable, classified OPERATIONAL_CRITICAL, and the
+      // per-subject erasure workflow redacts by registered PII field paths — it
+      // will never find an address buried in free text, so the erasure guarantee
+      // would be silently broken. The raw text stays on the notification row.
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+        makeNotification({ retryCount: 5 }),
+      );
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+      vi.mocked(sut.emailProvider.send).mockRejectedValue(
+        new Error('Resend 422: invalid recipient user@example.com'),
+      );
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      const entry = vi.mocked(sut.auditService.log).mock.calls[0]![0];
+      expect(JSON.stringify(entry)).not.toContain('user@example.com');
+      expect(entry.after).toMatchObject({ failureReason: 'PROVIDER_ERROR' });
+    });
+
+    it('keeps the deterministic reason codes, which carry no free text', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+        makeNotification({ channel: 'SMS', recipient: '+61400000000' }),
+      );
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ channel: 'SMS', subject: null, bodyHtml: null, bodyText: '   ' }),
+      );
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({ after: expect.objectContaining({ failureReason: 'EMPTY_SMS_BODY' }) }),
+      );
+    });
+
+    it('audits a BUDGET_EXCEEDED cap hit', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(makeNotification());
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+      vi.mocked(sut.getTenantSettings).mockResolvedValue({ notificationDailyCapEmail: 1 });
+      vi.mocked(sut.notificationRepo.countByTenantChannelSince).mockResolvedValue(5);
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({ after: expect.objectContaining({ failureReason: 'BUDGET_EXCEEDED' }) }),
+      );
+    });
+
+    it('audits an INVALID_RECIPIENT_PHONE rejection', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+        makeNotification({ channel: 'SMS', recipient: 'not-a-phone' }),
+      );
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ channel: 'SMS', subject: null, bodyHtml: null, bodyText: 'Properfy: hi' }),
+      );
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({ after: expect.objectContaining({ failureReason: 'INVALID_RECIPIENT_PHONE' }) }),
+      );
+    });
+
+    it('does not audit an opt-out skip — that is a tenant decision, not an incident', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+        makeNotification({ notificationClass: 'MARKETING' }),
+      );
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ notificationClass: 'MARKETING' }),
+      );
+      // findByScope is what the use case actually calls; the deprecated
+      // findByRecipientChannelTenant is never reached and stubbing it made this
+      // test pass for the wrong reason.
+      vi.mocked(sut.consentRepo.findByScope).mockResolvedValue({
+        isOptedOut: () => true,
+      } as never);
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.auditService.log).not.toHaveBeenCalled();
+    });
+
+    it('skips the audit when the notification has no appointment (e.g. REPORT_READY)', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+        makeNotification({ appointmentId: null, templateCode: 'REPORT_READY' }),
+      );
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(null);
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.auditService.log).not.toHaveBeenCalled();
     });
   });
 });

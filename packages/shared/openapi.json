@@ -6959,6 +6959,25 @@
                     "format": "email",
                     "maxLength": 254
                   },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128,
+                    "allOf": [
+                      {
+                        "pattern": "[A-Z]"
+                      },
+                      {
+                        "pattern": "[a-z]"
+                      },
+                      {
+                        "pattern": "[0-9]"
+                      },
+                      {
+                        "pattern": "[^A-Za-z0-9]"
+                      }
+                    ]
+                  },
                   "phone": {
                     "type": "string",
                     "maxLength": 30
@@ -7073,7 +7092,8 @@
                 },
                 "required": [
                   "name",
-                  "email"
+                  "email",
+                  "password"
                 ],
                 "additionalProperties": false
               }
@@ -8988,6 +9008,71 @@
         }
       }
     },
+    "/v1/inspectors/{inspectorId}/reset-password": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "newPassword": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128,
+                    "allOf": [
+                      {
+                        "pattern": "[A-Z]"
+                      },
+                      {
+                        "pattern": "[a-z]"
+                      },
+                      {
+                        "pattern": "[0-9]"
+                      },
+                      {
+                        "pattern": "[^A-Za-z0-9]"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "newPassword"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "inspectorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "enum": [
+                    "null"
+                  ],
+                  "nullable": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/inspectors/me": {
       "get": {
         "responses": {
@@ -10836,6 +10921,9 @@
                             }
                           ]
                         },
+                        "isOverdue": {
+                          "type": "boolean"
+                        },
                         "appointmentNumber": {
                           "type": "number"
                         },
@@ -11407,6 +11495,9 @@
                               }
                             ]
                           },
+                          "isOverdue": {
+                            "type": "boolean"
+                          },
                           "appointmentNumber": {
                             "type": "number"
                           },
@@ -11780,6 +11871,9 @@
                               "format": "date-time"
                             }
                           ]
+                        },
+                        "isOverdue": {
+                          "type": "boolean"
                         },
                         "appointmentNumber": {
                           "type": "number"
@@ -12215,7 +12309,8 @@
                       "isHome",
                       "source"
                     ],
-                    "additionalProperties": false
+                    "additionalProperties": false,
+                    "nullable": true
                   },
                   "customFields": {
                     "type": "array",
@@ -12416,6 +12511,9 @@
                               "format": "date-time"
                             }
                           ]
+                        },
+                        "isOverdue": {
+                          "type": "boolean"
                         },
                         "appointmentNumber": {
                           "type": "number"
@@ -12724,6 +12822,9 @@
                   "inspectorId": {
                     "type": "string",
                     "format": "uuid"
+                  },
+                  "notifyRentalTenant": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -13098,6 +13199,9 @@
                     "type": "string",
                     "minLength": 3,
                     "maxLength": 500
+                  },
+                  "notifyRentalTenant": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -13339,6 +13443,9 @@
                     "type": "string",
                     "minLength": 3,
                     "maxLength": 500
+                  },
+                  "notifyRentalTenant": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -15501,6 +15608,77 @@
                         "assignedInspectorId",
                         "publishedAt",
                         "createdAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/service-groups/{groupId}/unpublish": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  }
+                },
+                "required": [
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "groupId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "status": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "status"
                       ],
                       "additionalProperties": false
                     }
@@ -23262,7 +23440,8 @@
                           },
                           "tenantId": {
                             "type": "string",
-                            "format": "uuid"
+                            "format": "uuid",
+                            "nullable": true
                           },
                           "appointmentId": {
                             "type": "string",
@@ -23462,7 +23641,8 @@
                         },
                         "tenantId": {
                           "type": "string",
-                          "format": "uuid"
+                          "format": "uuid",
+                          "nullable": true
                         },
                         "appointmentId": {
                           "type": "string",
@@ -23636,7 +23816,8 @@
                         },
                         "tenantId": {
                           "type": "string",
-                          "format": "uuid"
+                          "format": "uuid",
+                          "nullable": true
                         },
                         "appointmentId": {
                           "type": "string",

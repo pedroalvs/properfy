@@ -168,6 +168,20 @@ describe('CreateNotificationUseCase', () => {
     expect(mockJobQueue.enqueue).not.toHaveBeenCalled();
   });
 
+  // null is a valid scope, unlike '': the notification belongs to the platform
+  // (password reset for an AM/OP/INSP), not to any agency.
+  it('accepts a null tenantId for a platform-scoped notification', async () => {
+    mockTemplateRepo.findByTenantCodeChannel.mockResolvedValueOnce(
+      makeTemplate({ tenantId: null, notificationClass: 'TRANSACTIONAL' }),
+    );
+
+    await useCase.execute({ ...baseInput, tenantId: null });
+
+    expect(mockRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: null, notificationClass: 'TRANSACTIONAL' }),
+    );
+  });
+
   // Feature 018 T032: stamp notificationClass from template at create time
   describe('feature 018: stamps notificationClass from template', () => {
     it('stamps OPERATIONAL from tenant template', async () => {

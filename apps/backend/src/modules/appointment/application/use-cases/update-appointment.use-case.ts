@@ -569,12 +569,12 @@ export class UpdateAppointmentUseCase {
     // The weekly availability a rental tenant offers when declining in the portal is
     // stored on this same row but is not part of the operator's restriction form, so the
     // delete-then-recreate below must carry it forward instead of dropping it.
-    if (data.restriction !== undefined) {
+    if (data.restriction !== undefined && data.restriction !== null) {
       const tenantAvailability = found.restrictions.find((r) => r.availableSlotsJson?.length);
-      await this.appointmentRepo.deleteRestrictionsByAppointmentId(appointmentId);
       const now = this.clock.now();
-      if (data.restriction !== null) {
-        const restriction = new AppointmentRestrictionEntity({
+      await this.appointmentRepo.replaceRestrictions(
+        appointmentId,
+        new AppointmentRestrictionEntity({
           id: crypto.randomUUID(),
           appointmentId,
           isHome: data.restriction.isHome,
@@ -585,25 +585,33 @@ export class UpdateAppointmentUseCase {
           source: data.restriction.source,
           createdAt: now,
           updatedAt: now,
-        });
-        await this.appointmentRepo.saveRestriction(restriction);
-      } else if (tenantAvailability) {
-        // Clearing the operator's own restriction is not licence to delete what the
-        // rental tenant submitted: keep a row carrying only their availability.
-        const restriction = new AppointmentRestrictionEntity({
-          id: crypto.randomUUID(),
-          appointmentId,
-          isHome: false,
-          unavailableDaysJson: null,
-          unavailableHoursJson: null,
-          availableSlotsJson: tenantAvailability.availableSlotsJson,
-          notes: null,
-          source: tenantAvailability.source,
-          createdAt: now,
-          updatedAt: now,
-        });
-        await this.appointmentRepo.saveRestriction(restriction);
-      }
+        }),
+      );
+    } else if (data.restriction === null) {
+      // Clearing the operator's own restriction is not licence to delete what the rental
+      // tenant submitted: keep a row carrying only their availability. It must be stamped
+      // RENTAL_TENANT_PORTAL regardless of who owned the row before — nothing
+      // operator-authored survives, and the edit drawer reads `source` to decide whether
+      // an operator restriction exists at all.
+      const tenantAvailability = found.restrictions.find((r) => r.availableSlotsJson?.length);
+      const now = this.clock.now();
+      await this.appointmentRepo.replaceRestrictions(
+        appointmentId,
+        tenantAvailability
+          ? new AppointmentRestrictionEntity({
+              id: crypto.randomUUID(),
+              appointmentId,
+              isHome: false,
+              unavailableDaysJson: null,
+              unavailableHoursJson: null,
+              availableSlotsJson: tenantAvailability.availableSlotsJson,
+              notes: null,
+              source: 'RENTAL_TENANT_PORTAL',
+              createdAt: now,
+              updatedAt: now,
+            })
+          : null,
+      );
     }
 
     // Capture after state. scheduledDate/timeSlot/keyRequired never become null,

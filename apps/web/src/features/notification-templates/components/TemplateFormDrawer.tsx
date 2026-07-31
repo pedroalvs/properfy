@@ -12,6 +12,7 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 import { useTemplateSave } from '../hooks/useTemplateSave';
 import { useTemplatePreview } from '../hooks/useTemplatePreview';
 import { useTemplateDefault } from '../hooks/useTemplateDefault';
+import { NotificationTargetChip } from './NotificationTargetChip';
 import { SendTestEmailDialog } from './SendTestEmailDialog';
 import { SendTestSmsDialog } from './SendTestSmsDialog';
 import { VariableInsertToolbar } from './VariableInsertToolbar';
@@ -177,7 +178,13 @@ export function TemplateFormDrawer({
       return;
     }
 
-    const result = await save(template.code, template.channel, form, template.tenantId);
+    const result = await save(
+      template.code,
+      template.channel,
+      form,
+      template.tenantId,
+      template.notificationClass,
+    );
     if (result.success) {
       showSuccess('Template updated successfully');
       onSaved();
@@ -252,6 +259,12 @@ export function TemplateFormDrawer({
                   <div>
                     <span className="text-xs font-semibold text-text-muted">Channel</span>
                     <p className="text-sm font-semibold text-text-primary">{template.channel}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-semibold text-text-muted">Target</span>
+                    <p className="text-sm">
+                      <NotificationTargetChip templateCode={template.code} />
+                    </p>
                   </div>
                   {canonicalRequired.length > 0 && (
                     <div>

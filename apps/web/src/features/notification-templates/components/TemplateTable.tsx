@@ -1,7 +1,8 @@
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import { NotificationClassChip } from './NotificationClassChip';
+import { NotificationTargetChip } from './NotificationTargetChip';
 import { TemplateRowActions } from './TemplateRowActions';
-import { TEMPLATE_CODE_LABELS, type MandatoryTemplateCode, type NotificationTemplate } from '../types';
+import { getTemplateCodeLabel, type NotificationTemplate } from '../types';
 
 const CHANNEL_COLORS: Record<string, string> = {
   EMAIL: 'bg-[#B3E5FC] text-[#01579B]',
@@ -34,9 +35,17 @@ export function TemplateTable({
       label: 'Type',
       render: (row) => (
         <span className="text-sm font-medium text-text-primary">
-          {TEMPLATE_CODE_LABELS[row.code as MandatoryTemplateCode] ?? row.code}
+          {getTemplateCodeLabel(row.code)}
         </span>
       ),
+    },
+    {
+      // Not sortable: DataTable sorts on `row[sortBy]`, and the target is derived from the
+      // code rather than stored on the row.
+      key: 'target',
+      label: 'Target',
+      width: '150px',
+      render: (row) => <NotificationTargetChip templateCode={row.code} />,
     },
     {
       key: 'scope',

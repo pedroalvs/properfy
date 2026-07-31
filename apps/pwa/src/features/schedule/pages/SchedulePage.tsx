@@ -115,7 +115,7 @@ export function SchedulePage() {
               {overdueCount > 0 ? (
                 <p className="mt-1 text-sm text-red-200">
                   <i className="mdi mdi-clock-alert-outline mr-1" />
-                  {overdueCount} overdue — attend to these first.
+                  {overdueCount} past date — attend to these first.
                 </p>
               ) : riskCount > 0 ? (
                 <p className="mt-1 text-sm text-yellow-200">

@@ -9,6 +9,7 @@ import {
   listAvailabilitySlotsQuerySchema,
   linkInspectorToUserSchema,
   deactivateSchema,
+  resetUserPasswordSchema,
   inspectorResponseSchema,
   availabilitySlotResponseSchema,
   successResponseSchema,
@@ -29,6 +30,7 @@ import type { ListAvailabilitySlotsUseCase } from '../application/use-cases/list
 import type { UpdateAvailabilitySlotUseCase } from '../application/use-cases/update-availability-slot.use-case';
 import type { LinkInspectorToUserUseCase } from '../application/use-cases/link-inspector-to-user.use-case';
 import type { DeactivateInspectorUseCase } from '../application/use-cases/deactivate-inspector.use-case';
+import type { ResetInspectorPasswordUseCase } from '../application/use-cases/reset-inspector-password.use-case';
 import type { GenerateInspectorPhotoUploadUrlUseCase } from '../application/use-cases/generate-inspector-photo-upload-url.use-case';
 import type { ConfirmInspectorPhotoUploadUseCase } from '../application/use-cases/confirm-inspector-photo-upload.use-case';
 import type { UpdateInspectorSelfProfileUseCase } from '../application/use-cases/update-inspector-self-profile.use-case';
@@ -50,6 +52,7 @@ export interface InspectorRouteContainer {
   updateAvailabilitySlotUseCase: UpdateAvailabilitySlotUseCase;
   linkInspectorToUserUseCase: LinkInspectorToUserUseCase;
   deactivateInspectorUseCase: DeactivateInspectorUseCase;
+  resetInspectorPasswordUseCase: ResetInspectorPasswordUseCase;
   generateInspectorPhotoUploadUrlUseCase: GenerateInspectorPhotoUploadUrlUseCase;
   confirmInspectorPhotoUploadUseCase: ConfirmInspectorPhotoUploadUseCase;
   updateInspectorSelfProfileUseCase: UpdateInspectorSelfProfileUseCase;
@@ -537,6 +540,42 @@ export async function registerInspectorRoutes(
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/inspectors/:inspectorId/reset-password — AM/OP set an inspector's password.
+  // Inspector-scoped rather than reusing /v1/users/:userId/reset-password because
+  // GET /v1/inspectors/:id is readable by CL_ADMIN/CL_USER, so exposing the linked
+  // userId there would leak internal auth ids to tenant users.
+  app.post(
+    '/v1/inspectors/:inspectorId/reset-password',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ inspectorId: z.string().uuid() }),
+        body: resetUserPasswordSchema,
+        response: { 204: z.null() },
+      },
+    },
+    async (request, reply) => {
+      const params = inspectorIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid inspector ID',
+          params.error.errors,
+        );
+      const parsed = resetUserPasswordSchema.safeParse(request.body);
+      if (!parsed.success)
+        throw new ValidationError(
+          'Request payload is invalid',
+          parsed.error.errors,
+        );
+      await container.resetInspectorPasswordUseCase.execute({
+        inspectorId: params.data.inspectorId,
+        newPassword: parsed.data.newPassword,
+        actor: request.authContext!,
+      });
+      return reply.status(204).send();
     },
   );
 

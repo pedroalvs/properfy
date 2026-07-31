@@ -33,6 +33,9 @@ export interface InspectorDetail extends Inspector {
 export interface InspectorFormData {
   name: string;
   email: string;
+  /** Create-only: the inspector's initial login password. Never sent on edit. */
+  password: string;
+  confirmPassword: string;
   phone: string;
   status: string;
   regionIds: string[];
@@ -52,6 +55,8 @@ export type InspectorFormErrors = Partial<Record<keyof InspectorFormData, string
 export const EMPTY_INSPECTOR_FORM: InspectorFormData = {
   name: '',
   email: '',
+  password: '',
+  confirmPassword: '',
   phone: '',
   status: '',
   regionIds: [],

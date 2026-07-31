@@ -152,6 +152,7 @@ describe('CreateServiceGroupUseCase', () => {
       updateContact: vi.fn(),
       saveRestriction: vi.fn(),
       deleteRestrictionsByAppointmentId: vi.fn(),
+      replaceRestrictions: vi.fn(),
     };
     serviceRegionRepo = createMockRegionRepo();
     auditService = { log: vi.fn() } as unknown as AuditService;

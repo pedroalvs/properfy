@@ -11,7 +11,7 @@ export function LeaveWarningModal({ onStay, onLeave }: LeaveWarningModalProps) {
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
       data-testid="leave-warning-modal"
     >
-      <div className="w-full max-w-lg rounded-t-2xl bg-card-bg p-6">
+      <div className="w-full max-w-lg rounded-t-2xl bg-card-bg p-6 pb-safe-b-6">
         <div className="flex flex-col items-center gap-2 text-center">
           <i className="mdi mdi-alert-circle text-[40px] text-warning" aria-hidden="true" />
           <h2 className="text-lg font-bold text-text-primary">Leave inspection?</h2>

@@ -23,7 +23,7 @@ export interface ListNotificationsInput {
 
 export interface NotificationOutputItem {
   id: string;
-  tenantId: string;
+  tenantId: string | null;
   appointmentId: string | null;
   recipient: string;
   channel: string;

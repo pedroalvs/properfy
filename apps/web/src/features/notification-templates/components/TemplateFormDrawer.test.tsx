@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -411,6 +411,17 @@ describe('TemplateFormDrawer', () => {
     expect(screen.getAllByText('EMAIL').length).toBeGreaterThanOrEqual(1);
   });
 
+  it('shows who the template is sent to in the info bar', () => {
+    renderDrawer();
+    expect(screen.getByText('Target')).toBeInTheDocument();
+    expect(screen.getByText('Tenant')).toBeInTheDocument();
+  });
+
+  it('shows the branch contact as the target for the escalation template', () => {
+    renderDrawer({ ...MOCK_TEMPLATE, code: 'PROPERTY_MANAGER_ESCALATION' });
+    expect(screen.getByText('Property Manager')).toBeInTheDocument();
+  });
+
   it('shows required variables in info bar', () => {
     renderDrawer();
     expect(screen.getByText('Required Variables')).toBeInTheDocument();
@@ -431,6 +442,59 @@ describe('TemplateFormDrawer', () => {
     await waitFor(() => {
       expect(screen.getByText(/Invalid variables/)).toBeInTheDocument();
     });
+  });
+
+  it('saves a body that uses a handlebars else branch', async () => {
+    const user = userEvent.setup();
+    renderDrawer();
+
+    // The shape every shipped appointment email carries (SERVICE_LABEL). This
+    // used to be rejected client-side with "Invalid variables: else".
+    fireEvent.change(screen.getByLabelText('Body'), {
+      target: {
+        value: 'Hello {{rentalTenantName}}, your {{#if serviceTypeName}}{{serviceTypeName}}'
+          + '{{else}}inspection{{/if}} at {{propertyAddress}} is on {{scheduledDate}} at {{timeSlot}}.',
+      },
+    });
+
+    await user.click(screen.getByText('Save'));
+
+    await waitFor(() => expect(mockPut).toHaveBeenCalled());
+    expect(screen.queryByText(/Invalid variables/)).not.toBeInTheDocument();
+  });
+
+  it('shows a sanitizer rejection under the Body field, not only in a snackbar', async () => {
+    const user = userEvent.setup();
+    mockPut.mockResolvedValueOnce({
+      error: {
+        error: {
+          code: 'UNPROCESSABLE_ENTITY',
+          message: 'Body contains disallowed HTML constructs',
+          details: [{ field: 'bodyHtml', message: 'Disallowed attribute: role' }],
+        },
+      },
+    });
+    renderDrawer();
+
+    await user.click(screen.getByText('Save'));
+
+    // Scoped to the Body FormField on purpose: a bare getByText would also be
+    // satisfied by a snackbar, which is exactly the regression being guarded.
+    await waitFor(() => {
+      const bodyField = screen.getByText('Body', { selector: 'label' }).parentElement!;
+      expect(within(bodyField).getByText('Disallowed attribute: role')).toBeInTheDocument();
+    });
+  });
+
+  it('sends the stored notificationClass so the backend keeps the classification', async () => {
+    const user = userEvent.setup();
+    renderDrawer({ ...MOCK_TEMPLATE, notificationClass: 'TRANSACTIONAL' });
+
+    await user.click(screen.getByText('Save'));
+
+    await waitFor(() => expect(mockPut).toHaveBeenCalled());
+    const body = mockPut.mock.calls[0]![1].body as Record<string, unknown>;
+    expect(body.notificationClass).toBe('TRANSACTIONAL');
   });
 
   it('calls save on valid form submission', async () => {

@@ -24,9 +24,13 @@ import { createQueryWrapper } from '@/test-utils/test-wrappers';
 const mockPost = api.POST as ReturnType<typeof vi.fn>;
 const mockPatch = api.PATCH as ReturnType<typeof vi.fn>;
 
+const VALID_PASSWORD = 'Insp@2026x';
+
 const VALID_CREATE_DATA: InspectorFormData = {
   name: 'Teste Inspetor',
   email: 'teste@inspecoes.com',
+  password: VALID_PASSWORD,
+  confirmPassword: VALID_PASSWORD,
   phone: '11999999999',
   status: '',
   regionIds: [],
@@ -102,7 +106,79 @@ describe('useInspectorSave', () => {
     expect(mockPost).toHaveBeenCalledWith('/v1/inspectors', {
       body: expect.objectContaining({
         serviceTypes: [{ serviceTypeId: '123e4567-e89b-12d3-a456-426614174000', certified: false }],
+        password: VALID_PASSWORD,
       }),
+    });
+  });
+
+  describe('password handling', () => {
+    it('validate requires a password on create', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useInspectorSave(), { wrapper });
+      const errors = result.current.validate({ ...VALID_CREATE_DATA, password: '', confirmPassword: '' }, 'create');
+      expect(errors.password).toBeDefined();
+    });
+
+    it('validate rejects a password below the shared policy', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useInspectorSave(), { wrapper });
+      const errors = result.current.validate(
+        { ...VALID_CREATE_DATA, password: 'weakpass', confirmPassword: 'weakpass' },
+        'create',
+      );
+      expect(errors.password).toBeDefined();
+    });
+
+    it('validate flags a confirmation mismatch', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useInspectorSave(), { wrapper });
+      const errors = result.current.validate(
+        { ...VALID_CREATE_DATA, confirmPassword: 'Different1!' },
+        'create',
+      );
+      expect(errors.confirmPassword).toBe('Passwords do not match');
+    });
+
+    it('validate ignores password fields on edit', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useInspectorSave(), { wrapper });
+      const errors = result.current.validate(
+        { ...VALID_CREATE_DATA, password: '', confirmPassword: '' },
+        'edit',
+      );
+      expect(errors.password).toBeUndefined();
+      expect(errors.confirmPassword).toBeUndefined();
+    });
+
+    it('never sends a password on edit', async () => {
+      // updateInspectorSchema would strip it silently, so a leaked password
+      // would travel in plaintext with nothing to signal the mistake.
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useInspectorSave(), { wrapper });
+
+      await act(async () => {
+        await result.current.save(VALID_CREATE_DATA, 'insp-01');
+      });
+
+      expect(mockPatch).toHaveBeenCalledTimes(1);
+      const body = mockPatch.mock.calls[0]?.[1]?.body;
+      expect(body).toBeDefined();
+      expect(body).not.toHaveProperty('password');
+      expect(body).not.toHaveProperty('confirmPassword');
+    });
+
+    it('never sends confirmPassword on create — it is a UI-only field', async () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useInspectorSave(), { wrapper });
+
+      await act(async () => {
+        await result.current.save(VALID_CREATE_DATA);
+      });
+
+      expect(mockPost).toHaveBeenCalledTimes(1);
+      const body = mockPost.mock.calls[0]?.[1]?.body;
+      expect(body).toBeDefined();
+      expect(body).not.toHaveProperty('confirmPassword');
     });
   });
 

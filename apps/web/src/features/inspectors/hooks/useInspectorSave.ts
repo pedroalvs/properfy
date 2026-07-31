@@ -1,12 +1,27 @@
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { contactSchema, createInspectorSchema, updateInspectorSchema } from '@properfy/shared';
+import {
+  contactSchema,
+  createInspectorSchema,
+  updateInspectorSchema,
+  passwordFieldSchema,
+  PASSWORD_REQUIREMENTS_MESSAGE,
+} from '@properfy/shared';
 import { api } from '@/services/api';
 import type { InspectorFormData, InspectorFormErrors } from '../types';
 
 const REQUIRED_FIELD_MESSAGE = 'Required field';
 
 const REQUIRED_FIELDS: (keyof InspectorFormData)[] = ['name', 'email'];
+
+/**
+ * createInspectorSchema with `password` removed, for the structural parse below.
+ * That parse is fed a subset of the form fields and is only read for serviceTypes
+ * issues, so a required password would make it fail on every create — harmless
+ * today, but it would mask any issue a future path mapping tries to read. The
+ * password itself is validated separately in validatePassword.
+ */
+const createInspectorStructuralSchema = createInspectorSchema.omit({ password: true });
 
 function validateRequired(data: InspectorFormData, fields: (keyof InspectorFormData)[]): InspectorFormErrors {
   const errors: InspectorFormErrors = {};
@@ -39,6 +54,22 @@ function parseServiceTypeEntries(value: string): Array<{ serviceTypeId: string; 
   return parsed.map((id) => ({ serviceTypeId: id, certified: false }));
 }
 
+/** Create-only: the operator sets the inspector's initial login password. */
+function validatePassword(data: InspectorFormData, mode: 'create' | 'edit'): InspectorFormErrors {
+  const errors: InspectorFormErrors = {};
+  if (mode !== 'create') return errors;
+
+  if (!data.password) {
+    errors.password = REQUIRED_FIELD_MESSAGE;
+  } else if (!passwordFieldSchema.safeParse(data.password).success) {
+    errors.password = PASSWORD_REQUIREMENTS_MESSAGE;
+  } else if (data.password !== data.confirmPassword) {
+    errors.confirmPassword = 'Passwords do not match';
+  }
+
+  return errors;
+}
+
 export interface SaveResult {
   success: boolean;
   error?: string;
@@ -63,8 +94,10 @@ export function useInspectorSave(): UseInspectorSaveReturn {
     const emailError = validateEmail(data.email);
     if (emailError) errors.email = emailError;
 
+    Object.assign(errors, validatePassword(data, _mode));
+
     const serviceTypes = parseServiceTypeEntries(data.serviceTypes);
-    const schema = _mode === 'create' ? createInspectorSchema : updateInspectorSchema;
+    const schema = _mode === 'create' ? createInspectorStructuralSchema : updateInspectorSchema;
     const result = schema.safeParse({
       name: data.name.trim() || undefined,
       email: data.email.trim() || undefined,
@@ -88,7 +121,7 @@ export function useInspectorSave(): UseInspectorSaveReturn {
   const save = useCallback(async (data: InspectorFormData, inspectorId?: string): Promise<SaveResult> => {
     setIsSaving(true);
     try {
-      const payload = {
+      const sharedFields = {
         name: data.name.trim(),
         email: data.email.trim(),
         phone: data.phone.trim() || undefined,
@@ -107,10 +140,15 @@ export function useInspectorSave(): UseInspectorSaveReturn {
 
       let apiError: { error?: { code?: string; message?: string } } | undefined;
       if (inspectorId) {
-        const { error } = await api.PATCH(`/v1/inspectors/${inspectorId}` as any, { body: payload as any });
+        // Deliberately excludes `password`: updateInspectorSchema is a plain
+        // z.object, so it would be silently stripped server-side — putting a
+        // plaintext password on the wire with no error to signal it.
+        const { error } = await api.PATCH(`/v1/inspectors/${inspectorId}` as any, { body: sharedFields as any });
         apiError = error as any;
       } else {
-        const { error } = await api.POST('/v1/inspectors' as any, { body: payload as any });
+        const { error } = await api.POST('/v1/inspectors' as any, {
+          body: { ...sharedFields, password: data.password } as any,
+        });
         apiError = error as any;
       }
 

@@ -67,7 +67,9 @@ export class RequestPasswordResetUseCase {
     resetLink.searchParams.set('token', rawToken);
 
     await this.createNotificationUseCase.execute({
-      tenantId: user.tenantId ?? 'platform',
+      // AM, OP and INSP users belong to no agency: the notification is
+      // platform-scoped (tenant_id NULL), not owned by some placeholder tenant.
+      tenantId: user.tenantId,
       recipient: user.email,
       channel: 'EMAIL',
       templateCode: 'PASSWORD_RESET',

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { auPhoneSchema } from './phone';
 import { paginationSchema } from './pagination';
+import { passwordFieldSchema } from './auth';
 
 // --- Typed JSON field schemas ---
 
@@ -29,7 +30,14 @@ export type ServiceTypeEntry = z.infer<typeof serviceTypeEntrySchema>;
 
 export const createInspectorSchema = z.object({
   name: z.string().min(1).max(200).trim(),
-  email: z.string().email().max(254),
+  // The email is the inspector's login identity, and loginSchema lowercases what
+  // the user types while findByEmail matches exactly — so it must be normalised
+  // here or the account becomes unreachable.
+  email: z.string().email().max(254).transform((v) => v.toLowerCase().trim()),
+  // Set by the operator at creation time. Later changes go through
+  // POST /v1/inspectors/:inspectorId/reset-password (operator) or
+  // POST /v1/auth/change-password (the inspector themselves), never the update path.
+  password: passwordFieldSchema,
   phone: auPhoneSchema.optional(),
   paymentSettings: paymentSettingsSchema.default({}),
   regions: z.array(z.string()).default([]),
@@ -51,7 +59,7 @@ export type CreateInspectorInput = z.infer<typeof createInspectorSchema>;
 
 export const updateInspectorSchema = z.object({
   name: z.string().min(1).max(200).trim().optional(),
-  email: z.string().email().max(254).optional(),
+  email: z.string().email().max(254).transform((v) => v.toLowerCase().trim()).optional(),
   phone: auPhoneSchema.nullable().optional(),
   status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
   paymentSettings: paymentSettingsSchema.optional(),

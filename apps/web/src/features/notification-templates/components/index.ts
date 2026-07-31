@@ -5,3 +5,4 @@ export { TemplateFormDrawer } from './TemplateFormDrawer';
 export { TemplateCreateDrawer } from './TemplateCreateDrawer';
 export { VariableInsertToolbar } from './VariableInsertToolbar';
 export { TemplatePreview } from './TemplatePreview';
+export { NotificationTargetChip } from './NotificationTargetChip';

@@ -383,6 +383,26 @@ describe('appointment customFields (repeatable label/value, max 4)', () => {
     });
     expect(result.success).toBe(false);
   });
+
+  // The edit drawer sends `restriction: null` when the operator switches "Add access
+  // restriction" off. While this was `.optional()` the request was rejected at the
+  // Fastify validator, so clearing a restriction was impossible from the web.
+  it('update: accepts null to clear the restriction', () => {
+    const result = updateAppointmentSchema.safeParse({ restriction: null });
+    expect(result.success).toBe(true);
+  });
+
+  it('update: still accepts an omitted restriction (leave untouched)', () => {
+    const result = updateAppointmentSchema.safeParse({ notes: 'only notes' });
+    expect(result.success).toBe(true);
+  });
+
+  it('update: still validates the restriction shape when one is provided', () => {
+    const result = updateAppointmentSchema.safeParse({
+      restriction: { isHome: 'nope', source: 'OPERATOR' },
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('normalizeCustomFields', () => {
@@ -558,6 +578,40 @@ describe('statusTransitionSchema', () => {
   it('should be invalid with an unknown target status', () => {
     const result = statusTransitionSchema.safeParse({
       targetStatus: 'UNKNOWN_STATUS',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should accept notifyRentalTenant', () => {
+    const result = statusTransitionSchema.safeParse({
+      targetStatus: AppointmentStatus.CANCELLED,
+      reason: 'Client requested cancellation',
+      notifyRentalTenant: true,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.notifyRentalTenant).toBe(true);
+    }
+  });
+
+  it('should leave notifyRentalTenant undefined when omitted, so the default is not to notify', () => {
+    const result = statusTransitionSchema.safeParse({
+      targetStatus: AppointmentStatus.CANCELLED,
+      reason: 'Client requested cancellation',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.notifyRentalTenant).toBeUndefined();
+    }
+  });
+
+  it('should reject a non-boolean notifyRentalTenant rather than coercing it', () => {
+    // z.coerce.boolean() would turn the string "false" into true — see
+    // booleanQueryParam() in this package for the query-string case.
+    const result = statusTransitionSchema.safeParse({
+      targetStatus: AppointmentStatus.CANCELLED,
+      reason: 'Client requested cancellation',
+      notifyRentalTenant: 'false',
     });
     expect(result.success).toBe(false);
   });
@@ -805,6 +859,23 @@ describe('bulkCancelRequestSchema', () => {
     expect(result.success && 'actorTimezone' in result.data).toBe(false);
   });
 
+  it('accepts notifyRentalTenant and defaults it to undefined', () => {
+    const withFlag = bulkCancelRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      reason: 'Operator cancelled per agency request',
+      notifyRentalTenant: true,
+    });
+    expect(withFlag.success).toBe(true);
+    expect(withFlag.success && withFlag.data.notifyRentalTenant).toBe(true);
+
+    const without = bulkCancelRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      reason: 'Operator cancelled per agency request',
+    });
+    expect(without.success).toBe(true);
+    expect(without.success && without.data.notifyRentalTenant).toBeUndefined();
+  });
+
   it('rejects empty appointmentIds', () => {
     const result = bulkCancelRequestSchema.safeParse({
       appointmentIds: [],
@@ -909,6 +980,17 @@ describe('bulkStatusTransitionRequestSchema', () => {
       targetStatus: AppointmentStatus.AWAITING_INSPECTOR,
     });
     expect(result.success).toBe(true);
+  });
+
+  it('accepts notifyRentalTenant for a bulk transition to CANCELLED', () => {
+    const result = bulkStatusTransitionRequestSchema.safeParse({
+      appointmentIds: [apptIdA],
+      targetStatus: AppointmentStatus.CANCELLED,
+      reason: 'Agency withdrew the request',
+      notifyRentalTenant: true,
+    });
+    expect(result.success).toBe(true);
+    expect(result.success && result.data.notifyRentalTenant).toBe(true);
   });
 
   it('accepts targetStatus with reason', () => {

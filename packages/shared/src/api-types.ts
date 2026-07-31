@@ -3077,6 +3077,7 @@ export interface paths {
                         name: string;
                         /** Format: email */
                         email: string;
+                        password: string & (unknown & unknown & unknown & unknown);
                         phone?: string;
                         /** @default {} */
                         paymentSettings?: {
@@ -3794,6 +3795,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/inspectors/{inspectorId}/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    inspectorId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        newPassword: string & (unknown & unknown & unknown & unknown);
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": "null" | null;
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/inspectors/me": {
         parameters: {
             query?: never;
@@ -4481,6 +4525,7 @@ export interface paths {
                                 doneCheckedAt?: (string) | null;
                                 createdAt: string;
                                 updatedAt: string;
+                                isOverdue?: boolean;
                                 appointmentNumber?: number;
                                 appointmentCode?: string;
                                 code?: string;
@@ -4677,6 +4722,7 @@ export interface paths {
                                 doneCheckedAt?: (string) | null;
                                 createdAt: string;
                                 updatedAt: string;
+                                isOverdue?: boolean;
                                 appointmentNumber?: number;
                                 appointmentCode?: string;
                                 code?: string;
@@ -4798,6 +4844,7 @@ export interface paths {
                                 doneCheckedAt?: (string) | null;
                                 createdAt: string;
                                 updatedAt: string;
+                                isOverdue?: boolean;
                                 appointmentNumber?: number;
                                 appointmentCode?: string;
                                 code?: string;
@@ -4933,7 +4980,7 @@ export interface paths {
                             notes?: string;
                             /** @enum {string} */
                             source: "RENTAL_TENANT_PORTAL" | "OPERATOR" | "IMPORT";
-                        };
+                        } | null;
                         customFields?: {
                             label: string;
                             value: string;
@@ -4994,6 +5041,7 @@ export interface paths {
                                 doneCheckedAt?: (string) | null;
                                 createdAt: string;
                                 updatedAt: string;
+                                isOverdue?: boolean;
                                 appointmentNumber?: number;
                                 appointmentCode?: string;
                                 code?: string;
@@ -5120,6 +5168,7 @@ export interface paths {
                         crossCheckByUserId?: string;
                         /** Format: uuid */
                         inspectorId?: string;
+                        notifyRentalTenant?: boolean;
                     };
                 };
             };
@@ -5336,6 +5385,7 @@ export interface paths {
                     "application/json": {
                         appointmentIds: string[];
                         reason: string;
+                        notifyRentalTenant?: boolean;
                     };
                 };
             };
@@ -5451,6 +5501,7 @@ export interface paths {
                         /** @enum {string} */
                         targetStatus: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
                         reason?: string;
+                        notifyRentalTenant?: boolean;
                     };
                 };
             };
@@ -6310,6 +6361,55 @@ export interface paths {
                                 appointmentsCount?: number;
                                 appointments?: unknown[];
                                 assignedInspector?: unknown;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/service-groups/{groupId}/unpublish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    groupId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        reason: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                status: string;
                             };
                         };
                     };
@@ -10235,7 +10335,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
                                 /** Format: uuid */
                                 appointmentId: string | null;
                                 recipient: string;
@@ -10303,7 +10403,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
                                 /** Format: uuid */
                                 appointmentId: string | null;
                                 recipient: string;
@@ -10367,7 +10467,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
                                 /** Format: uuid */
                                 appointmentId: string | null;
                                 recipient: string;

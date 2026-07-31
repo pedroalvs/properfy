@@ -9,6 +9,17 @@ import {
   AM_USER,
 } from './helpers';
 
+/**
+ * A date comfortably in the future. A fixed literal rots: the previous one was
+ * future when written and later tripped the past-date submit guard, so these
+ * specs failed for a reason unrelated to what they test.
+ */
+const FUTURE_DATE = (() => {
+  const d = new Date();
+  d.setDate(d.getDate() + 30);
+  return d.toISOString().slice(0, 10);
+})();
+
 test.describe('Bulk Edit Flow (T033)', () => {
   const appointments = [
     makeAppointment({ id: 'apt-1', code: 'APT-1001', appointmentNumber: 1001, status: 'DRAFT' }),
@@ -112,7 +123,7 @@ test.describe('Bulk Edit Flow (T033)', () => {
 
     // The bulk modal uses a native date input, labelled rather than
     // placeholdered — the old getByPlaceholder('YYYY-MM-DD') could never match.
-    await dialog.getByLabel('Set scheduled date').fill('2026-05-01');
+    await dialog.getByLabel('Set scheduled date').fill(FUTURE_DATE);
 
     // Submit
     await dialog.getByText('Apply Changes').click();
@@ -121,7 +132,7 @@ test.describe('Bulk Edit Flow (T033)', () => {
     expect(bulkEditPayload).not.toBeNull();
     const payload = bulkEditPayload as Record<string, unknown>;
     expect((payload.ids as string[]).length).toBe(2);
-    expect((payload.changes as Record<string, unknown>).scheduledDate).toBe('2026-05-01');
+    expect((payload.changes as Record<string, unknown>).scheduledDate).toBe(FUTURE_DATE);
   });
 
   test('shows results summary after bulk edit', async ({ page }) => {
@@ -147,7 +158,7 @@ test.describe('Bulk Edit Flow (T033)', () => {
 
     const scheduledDateCheckbox = dialog.locator('label:has-text("Scheduled Date") input[type="checkbox"]');
     await scheduledDateCheckbox.check();
-    await dialog.getByLabel('Set scheduled date').fill('2026-05-01');
+    await dialog.getByLabel('Set scheduled date').fill(FUTURE_DATE);
     await dialog.getByText('Apply Changes').click();
 
     // Results should display
@@ -270,7 +281,49 @@ test.describe('Bulk Change Status', () => {
       appointmentIds: ['apt-1', 'apt-2'],
       targetStatus: 'CANCELLED',
       reason: 'Tenant moved out',
+      // The fixtures are CONFIRMED, so the tenant opt-in is offered — and it is
+      // sent explicitly false, because the operator did not tick it.
+      notifyRentalTenant: false,
     });
+  });
+
+  test('opts confirmed tenants in only when the notify box is ticked', async ({ page }) => {
+    await setupAuth(page);
+    await mockMeEndpoint(page, OP_USER);
+    await mockFormOptions(page);
+    await mockAppointmentList(page, draftRows);
+
+    let payload: Record<string, unknown> | null = null;
+    await page.route('**/v1/appointments/bulk-status-transition', async (route) => {
+      payload = route.request().postDataJSON();
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: { results: [{ appointmentId: 'apt-1', status: 'OK' }] } }),
+      });
+    });
+
+    const dialog = await openBulkEdit(page, ['APT-1001']);
+    await dialog.getByLabel('Change status').check();
+    await dialog.getByLabel('Set target status').click();
+    await dialog.getByRole('option', { name: 'Cancelled' }).click();
+    await dialog.getByLabel('Status change reason').fill('Agency withdrew the request');
+
+    // The confirmed codes are named so the operator can see who gets contacted.
+    const notifyBlock = dialog.getByTestId('bulk-edit-notify-block');
+    await expect(notifyBlock).toBeVisible();
+    await expect(notifyBlock).toContainText('APT-1001');
+
+    // The native input is sr-only; the label text is the click target.
+    await notifyBlock.getByText('Notify the tenants who confirmed').click();
+    await dialog.getByRole('button', { name: 'Apply Changes' }).click();
+
+    // Every row succeeded, so the modal reports success and closes itself — unlike
+    // the test above, which keeps it open by returning one FORBIDDEN row. Named
+    // explicitly: the page keeps other drawers mounted, so a bare
+    // getByRole('dialog') is not strict-mode safe here.
+    await expect(page.getByRole('dialog', { name: /Bulk Edit/ })).toBeHidden();
+    expect(payload).toMatchObject({ targetStatus: 'CANCELLED', notifyRentalTenant: true });
   });
 
   test('omits the reason field for a transition that does not need one', async ({ page }) => {

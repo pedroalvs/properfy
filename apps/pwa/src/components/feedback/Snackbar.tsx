@@ -18,7 +18,7 @@ export function Snackbar() {
   if (messages.length === 0) return null;
 
   return (
-    <div className="fixed bottom-20 left-4 right-4 z-[100] flex flex-col gap-2" data-testid="snackbar-container">
+    <div className="fixed bottom-nav-clear left-4 right-4 z-[100] flex flex-col gap-2" data-testid="snackbar-container">
       {messages.map((msg) => (
         <div
           key={msg.id}

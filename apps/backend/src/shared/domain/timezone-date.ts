@@ -7,7 +7,7 @@
  * Intl.DateTimeFormat.
  */
 
-import { PLATFORM_TIMEZONE } from '@properfy/shared';
+import { addCivilDays, OVERDUE_AGE_DAYS, PLATFORM_TIMEZONE } from '@properfy/shared';
 
 /** The platform timezone every business rule is anchored to (re-exported from shared). */
 export { PLATFORM_TIMEZONE };
@@ -100,6 +100,32 @@ export function formatDate(value: Date): string {
  */
 export function startOfPlatformToday(now: Date = new Date()): Date {
   return new Date(`${civilDateInTimezone(now, PLATFORM_TIMEZONE)}T00:00:00.000Z`);
+}
+
+/**
+ * The instant a record must have been created *before* to count as overdue: Sydney
+ * midnight of today minus `OVERDUE_AGE_DAYS`.
+ *
+ * Note this is a genuine INSTANT, unlike `startOfPlatformToday()` above. That one
+ * returns UTC midnight of a civil date because it is compared against `scheduled_date`,
+ * a `@db.Date` pinned to UTC midnight. `created_at` is a real timestamp, so its cutoff
+ * must be the real instant of Sydney midnight — 10–11h earlier. Reusing
+ * `startOfPlatformToday`'s convention here would misclassify every record created
+ * inside that window, which is roughly half of each day's records.
+ *
+ * Built with `parseDateInTimezone` so the offset used is the one in effect *at the
+ * cutoff date*, not at `now` — 45 days can straddle a DST transition.
+ *
+ * `created_at < startOfOverdueAgeCutoff()` is exactly equivalent to the shared
+ * predicate's `sydneyCivilDate(createdAt) < overdueCreatedBeforeCivilDate()`, which is
+ * what keeps the SQL filter and `isAppointmentOverdue` agreeing row for row.
+ */
+export function startOfOverdueAgeCutoff(now: Date = new Date()): Date {
+  const cutoffCivilDate = addCivilDays(
+    civilDateInTimezone(now, PLATFORM_TIMEZONE),
+    -OVERDUE_AGE_DAYS,
+  );
+  return parseDateInTimezone(cutoffCivilDate, PLATFORM_TIMEZONE);
 }
 
 /** The current civil date (YYYY-MM-DD) in the given timezone. */

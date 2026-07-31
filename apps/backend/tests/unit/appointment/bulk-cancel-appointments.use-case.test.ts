@@ -72,6 +72,25 @@ describe('BulkCancelAppointmentsUseCase', () => {
     ]);
   });
 
+  it('forwards notifyRentalTenant to every delegated transition', async () => {
+    const useCase = new BulkCancelAppointmentsUseCase(
+      mocks.executeStatusTransition,
+      mocks.idempotency,
+      () => new Date('2026-04-15T12:00:00Z'),
+    );
+
+    await useCase.execute({
+      appointmentIds: [APPT_A, APPT_B],
+      reason: 'Tenant unavailable',
+      notifyRentalTenant: true,
+      actor,
+    });
+
+    for (const call of mocks.executeStatusTransition.execute.mock.calls) {
+      expect(call[0]).toMatchObject({ notifyRentalTenant: true });
+    }
+  });
+
   it('is not bucketed by day — the replay guard is the TTL alone', async () => {
     // A day bucket would make a re-cancel unrepeatable until midnight. The
     // guard only absorbs double-clicks; deliberate repeats must execute.

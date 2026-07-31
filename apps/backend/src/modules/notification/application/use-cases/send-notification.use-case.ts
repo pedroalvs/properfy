@@ -10,6 +10,8 @@ import type { TemplateRendererService } from '../../domain/template-renderer.ser
 import type { IHtmlSanitizerService } from '../../domain/html-sanitizer.service';
 import type { IHtmlToTextService } from '../../domain/html-to-text.service';
 import type { Logger } from '../../../../shared/infrastructure/logger';
+import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { NotificationEntity } from '../../domain/notification.entity';
 import type { MetricsCollector } from '../../../../shared/infrastructure/metrics';
 import { NotificationAttemptEntity } from '../../domain/notification-attempt.entity';
 import {
@@ -25,9 +27,34 @@ import {
 } from '../../domain/notification.constants';
 import { renderEmailBody } from '../render-email-body';
 
+/**
+ * Reason codes this pipeline sets itself. Everything else on the failure path is
+ * a raw provider message — the providers interpolate response bodies verbatim
+ * (mobile-message-sms.provider.ts, resend-email.provider.ts), which routinely
+ * name the destination address or number.
+ *
+ * That must never reach audit_logs: those rows are immutable, classified
+ * OPERATIONAL_CRITICAL by default, and the per-subject erasure workflow redacts
+ * by registered PII field paths — it cannot find an address buried in free text,
+ * so a leak there silently breaks the erasure guarantee. The raw text stays on
+ * the notification row, which the audit points at via notificationId.
+ */
+const AUDITABLE_FAILURE_CODES: ReadonlySet<string> = new Set([
+  'TEMPLATE_NOT_FOUND',
+  'BUDGET_EXCEEDED',
+  'INVALID_RECIPIENT_PHONE',
+  'EMPTY_SMS_BODY',
+]);
+
 /** Phone numbers are PII: log at most the last 4 digits. */
 function maskRecipient(recipient: string): string {
   return `***${recipient.slice(-4)}`;
+}
+
+/** Collapse anything that is not one of our own codes to a PII-free constant. */
+function auditableFailureReason(reason: string | null): string {
+  if (reason && AUDITABLE_FAILURE_CODES.has(reason)) return reason;
+  return 'PROVIDER_ERROR';
 }
 
 export interface SendNotificationInput {
@@ -44,11 +71,17 @@ export interface SendNotificationDeps {
   templateRenderer: TemplateRendererService;
   logger: Logger;
   metrics: MetricsCollector;
-  getTenantSettings: (tenantId: string) => Promise<Record<string, unknown>>;
+  getTenantSettings: (tenantId: string | null) => Promise<Record<string, unknown>>;
   /** Render-profile HTML sanitizer (defense-in-depth) */
   htmlSanitizer?: IHtmlSanitizerService;
   /** HTML → plain text derivation */
   htmlToText?: IHtmlToTextService;
+  /**
+   * Records terminal send failures against the appointment so they surface in
+   * the Timeline tab. Optional so existing wiring (and tests) that never look
+   * at the audit trail keep working.
+   */
+  auditService?: AuditService;
 }
 
 export class SendNotificationUseCase {
@@ -61,9 +94,10 @@ export class SendNotificationUseCase {
   private readonly templateRenderer: TemplateRendererService;
   private readonly logger: Logger;
   private readonly metrics: MetricsCollector;
-  private readonly getTenantSettings: (tenantId: string) => Promise<Record<string, unknown>>;
+  private readonly getTenantSettings: (tenantId: string | null) => Promise<Record<string, unknown>>;
   private readonly htmlSanitizer?: IHtmlSanitizerService;
   private readonly htmlToText?: IHtmlToTextService;
+  private readonly auditService?: AuditService;
 
   constructor(deps: SendNotificationDeps) {
     this.notificationRepo = deps.notificationRepo;
@@ -78,6 +112,44 @@ export class SendNotificationUseCase {
     this.getTenantSettings = deps.getTenantSettings;
     this.htmlSanitizer = deps.htmlSanitizer;
     this.htmlToText = deps.htmlToText;
+    this.auditService = deps.auditService;
+  }
+
+  /**
+   * Record a terminal send failure against the appointment.
+   *
+   * entityType is 'Appointment' on purpose: the appointment Timeline tab queries
+   * audit_logs by that entity, and until now nothing in the notification
+   * lifecycle wrote there — a transition would be audited as healthy while the
+   * tenant was never reached. Notifications with no appointment (REPORT_READY,
+   * PASSWORD_RESET) have no timeline to appear in, so they are skipped.
+   *
+   * Deliberately excludes the recipient: audit rows are long-lived and this
+   * would put an email address or phone number in them for no operational gain
+   * — the channel plus the appointment is enough to act on. The same reasoning
+   * collapses a raw provider message to PROVIDER_ERROR; see
+   * AUDITABLE_FAILURE_CODES.
+   *
+   * Only terminal failures. A retryable attempt would write a row per attempt
+   * and drown the timeline, and SKIPPED_OPT_OUT is a tenant's choice rather
+   * than an incident (the Notifications tab still shows it).
+   */
+  private auditTerminalFailure(notification: NotificationEntity): void {
+    if (!this.auditService || !notification.appointmentId) return;
+    this.auditService.log({
+      action: 'notification.send_failed',
+      actorType: 'SYSTEM',
+      entityType: 'Appointment',
+      entityId: notification.appointmentId,
+      tenantId: notification.tenantId,
+      after: {
+        notificationId: notification.id,
+        templateCode: notification.templateCode,
+        channel: notification.channel,
+        failureReason: auditableFailureReason(notification.failureReason),
+        retryCount: notification.retryCount,
+      },
+    });
   }
 
   async execute(input: SendNotificationInput): Promise<void> {
@@ -134,6 +206,7 @@ export class SendNotificationUseCase {
       notification.failureReason = 'TEMPLATE_NOT_FOUND';
       notification.updatedAt = new Date();
       await this.notificationRepo.update(notification);
+      this.auditTerminalFailure(notification);
       this.logger.error(
         {
           notificationId: notification.id,
@@ -222,6 +295,17 @@ export class SendNotificationUseCase {
         notification.failureReason = 'BUDGET_EXCEEDED';
         notification.updatedAt = new Date();
         await this.notificationRepo.update(notification);
+        this.auditTerminalFailure(notification);
+        this.logger.error(
+          {
+            notificationId: notification.id,
+            tenantId: notification.tenantId,
+            channel: notification.channel,
+            todayCount,
+            dailyCap,
+          },
+          'notification.budget_exceeded: marked FAILED, will not retry',
+        );
         return;
       }
     }
@@ -238,6 +322,7 @@ export class SendNotificationUseCase {
         notification.nextRetryAt = null;
         notification.updatedAt = new Date();
         await this.notificationRepo.update(notification);
+        this.auditTerminalFailure(notification);
         this.logger.error(
           { notificationId: notification.id, recipientMasked: maskRecipient(notification.recipient) },
           'notification.invalid_recipient_phone: marked FAILED, will not retry',
@@ -291,6 +376,7 @@ export class SendNotificationUseCase {
       notification.nextRetryAt = null;
       notification.updatedAt = new Date();
       await this.notificationRepo.update(notification);
+      this.auditTerminalFailure(notification);
       this.logger.error(
         { notificationId: notification.id, templateCode: notification.templateCode },
         'notification.empty_sms_body: marked FAILED, will not retry',
@@ -372,6 +458,12 @@ export class SendNotificationUseCase {
 
     notification.updatedAt = new Date();
     await this.notificationRepo.update(notification);
+
+    // Provider failures reach here on every attempt; only the one that exhausted
+    // the retries is terminal, and only that one belongs on the timeline.
+    if (notification.status === 'FAILED') {
+      this.auditTerminalFailure(notification);
+    }
 
     // Once SENT, the payload will never be re-rendered (delivery receipts and
     // webhooks only touch status), so secret-bearing values can be redacted at

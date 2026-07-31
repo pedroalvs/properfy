@@ -49,6 +49,30 @@ function makeAppointment(overrides: Partial<AppointmentDetail> = {}): Appointmen
   };
 }
 
+describe('AppointmentDetailSections — overdue banner', () => {
+  it('explains overdue in terms of record age, not the scheduled date', () => {
+    render(
+      <AppointmentDetailSections
+        appointment={makeAppointment({ isOverdue: true, createdAt: '2026-03-10T10:00:00Z' })}
+      />,
+    );
+
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('This appointment is overdue.');
+    expect(alert).toHaveTextContent('has been open for more than 45 days');
+    // createdAt is an instant: it must be rendered through the instant formatter, so
+    // the Sydney civil day is shown rather than the UTC one.
+    expect(alert).toHaveTextContent('10/03/2026');
+    // The old copy blamed the scheduled date; that is no longer what the rule reads.
+    expect(alert).not.toHaveTextContent(/scheduled date/i);
+  });
+
+  it('renders no banner when the appointment is not overdue', () => {
+    render(<AppointmentDetailSections appointment={makeAppointment({ isOverdue: false })} />);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+});
+
 describe('AppointmentDetailSections', () => {
   it('renders section titles', () => {
     render(<AppointmentDetailSections appointment={makeAppointment()} />);

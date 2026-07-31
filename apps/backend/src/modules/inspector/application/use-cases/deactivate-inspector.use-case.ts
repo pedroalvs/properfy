@@ -3,6 +3,7 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IInspectorRepository } from '../../domain/inspector.repository';
 import type { IInspectorAppointmentChecker } from '../../domain/inspector-appointment-checker';
+import type { IUserManagementRepository } from '../../../user/domain/user-management.repository';
 import {
   InspectorNotFoundError,
   InspectorAlreadyInactiveError,
@@ -28,7 +29,21 @@ export class DeactivateInspectorUseCase {
     private readonly appointmentChecker: IInspectorAppointmentChecker,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
+    private readonly userManagementRepo?: IUserManagementRepository,
   ) {}
+
+  /**
+   * Optional only to sit after the pre-existing params; a silent skip here would
+   * mean a deactivated inspector keeps working PWA access, so fail loudly.
+   */
+  private requireUserManagementRepo(): IUserManagementRepository {
+    if (!this.userManagementRepo) {
+      throw new Error(
+        'DeactivateInspectorUseCase requires userManagementRepo to lock the inspector login account',
+      );
+    }
+    return this.userManagementRepo;
+  }
 
   async execute(input: DeactivateInspectorInput): Promise<DeactivateInspectorOutput> {
     const { inspectorId, reason, actor } = input;
@@ -56,6 +71,13 @@ export class DeactivateInspectorUseCase {
     await this.inspectorRepo.update(inspectorId, {
       status: 'INACTIVE',
     });
+
+    // Deactivating only the inspector row left the linked login account fully
+    // usable, so a deactivated inspector kept working PWA access.
+    if (inspector.userId) {
+      await this.requireUserManagementRepo().update(inspector.userId, null, { status: 'INACTIVE' });
+      await this.requireUserManagementRepo().revokeAllSessions(inspector.userId);
+    }
 
     this.auditService.log({
       action: 'inspector.deactivated',

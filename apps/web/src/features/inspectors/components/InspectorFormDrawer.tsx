@@ -8,6 +8,7 @@ import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
 import { FormActions } from '@/components/forms/FormActions';
 import { TextInput } from '@/components/forms/TextInput';
+import { PasswordStrengthIndicator } from '@/components/forms/PasswordStrengthIndicator';
 import { EmailInput } from '@/components/forms/EmailInput';
 import { PhoneInput } from '@/components/forms/PhoneInput';
 import { DateInput } from '@/components/forms/DateInput';
@@ -76,6 +77,9 @@ export function InspectorFormDrawer({
       const data: InspectorFormData = {
         name: inspector.name,
         email: inspector.email,
+        // Edit mode never carries a password: changes go through the reset dialog.
+        password: '',
+        confirmPassword: '',
         phone: formatAuPhone(inspector.phone ?? ''),
         status: inspector.status,
         regionIds: inspector.regionIds ?? [],
@@ -223,6 +227,34 @@ export function InspectorFormDrawer({
                         aria-label="Phone"
                       />
                     </FormField>
+                    {!isEditMode && (
+                      <>
+                        <FormField label="Password" required error={errors.password}>
+                          <TextInput
+                            value={form.password}
+                            onChange={(v) => updateField('password', v)}
+                            type="password"
+                            placeholder="Min 8 chars, uppercase, number, symbol"
+                            error={!!errors.password}
+                            aria-label="Password"
+                          />
+                          <PasswordStrengthIndicator
+                            password={form.password}
+                            confirmPassword={form.confirmPassword}
+                          />
+                        </FormField>
+                        <FormField label="Confirm Password" required error={errors.confirmPassword}>
+                          <TextInput
+                            value={form.confirmPassword}
+                            onChange={(v) => updateField('confirmPassword', v)}
+                            type="password"
+                            placeholder="Repeat password"
+                            error={!!errors.confirmPassword}
+                            aria-label="Confirm Password"
+                          />
+                        </FormField>
+                      </>
+                    )}
                   </FormSection>
 
                   <FormSection title="Coverage" columns={2}>

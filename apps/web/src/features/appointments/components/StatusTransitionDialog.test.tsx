@@ -37,7 +37,11 @@ describe('StatusTransitionDialog', () => {
       target: { value: 'Cancellation reason' },
     });
     fireEvent.click(screen.getByText('Confirm'));
-    expect(onConfirm).toHaveBeenCalledWith('Cancellation reason', undefined);
+    expect(onConfirm).toHaveBeenCalledWith({
+      reason: 'Cancellation reason',
+      reasonCode: undefined,
+      notifyRentalTenant: false,
+    });
   });
 
   it('confirm disabled when reason empty', () => {
@@ -95,5 +99,103 @@ describe('StatusTransitionDialog', () => {
     // When a reason code dropdown is shown but no code is selected yet,
     // no free text should be visible (free text only appears for OTHER or non-reason transitions)
     expect(screen.queryByPlaceholderText('Enter the reason...')).not.toBeInTheDocument();
+  });
+
+  describe('notify-the-tenant checkbox', () => {
+    const NOTIFY_LABEL = 'Notify the tenant by email/SMS';
+
+    it('is offered, unchecked, when cancelling an appointment the tenant confirmed', () => {
+      render(
+        <StatusTransitionDialog
+          {...defaultProps}
+          targetStatus="CANCELLED"
+          rentalTenantConfirmed
+        />,
+      );
+
+      expect(screen.getByLabelText(NOTIFY_LABEL)).not.toBeChecked();
+    });
+
+    it('is absent when the tenant never confirmed', () => {
+      render(
+        <StatusTransitionDialog
+          {...defaultProps}
+          targetStatus="CANCELLED"
+          rentalTenantConfirmed={false}
+        />,
+      );
+
+      expect(screen.queryByLabelText(NOTIFY_LABEL)).not.toBeInTheDocument();
+    });
+
+    it('is absent for a non-cancellation transition even when confirmed', () => {
+      render(
+        <StatusTransitionDialog
+          {...defaultProps}
+          targetStatus="REJECTED"
+          rentalTenantConfirmed
+        />,
+      );
+
+      expect(screen.queryByLabelText(NOTIFY_LABEL)).not.toBeInTheDocument();
+    });
+
+    it('reports the opt-in through onConfirm once ticked', () => {
+      const onConfirm = vi.fn();
+      render(
+        <StatusTransitionDialog
+          {...defaultProps}
+          onConfirm={onConfirm}
+          targetStatus="CANCELLED"
+          rentalTenantConfirmed
+        />,
+      );
+
+      fireEvent.click(screen.getByLabelText('Reason Code'));
+      fireEvent.click(screen.getByRole('option', { name: 'CLIENT REQUEST' }));
+      // The native input is sr-only, so the label text is the clickable target.
+      fireEvent.click(screen.getByText(NOTIFY_LABEL));
+      fireEvent.click(screen.getByText('Confirm'));
+
+      expect(onConfirm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reasonCode: 'CLIENT_REQUEST',
+          notifyRentalTenant: true,
+        }),
+      );
+    });
+
+    it('stays off when left untouched', () => {
+      const onConfirm = vi.fn();
+      render(
+        <StatusTransitionDialog
+          {...defaultProps}
+          onConfirm={onConfirm}
+          targetStatus="CANCELLED"
+          rentalTenantConfirmed
+        />,
+      );
+
+      fireEvent.click(screen.getByLabelText('Reason Code'));
+      fireEvent.click(screen.getByRole('option', { name: 'CLIENT REQUEST' }));
+      fireEvent.click(screen.getByText('Confirm'));
+
+      expect(onConfirm).toHaveBeenCalledWith(
+        expect.objectContaining({ notifyRentalTenant: false }),
+      );
+    });
+
+    it('resets the opt-in on close/reopen so it never leaks into the next cancellation', () => {
+      const props = { ...defaultProps, targetStatus: 'CANCELLED', rentalTenantConfirmed: true };
+      const { rerender } = render(<StatusTransitionDialog {...props} />);
+
+      fireEvent.click(screen.getByText(NOTIFY_LABEL));
+      expect(screen.getByLabelText(NOTIFY_LABEL)).toBeChecked();
+
+      rerender(<StatusTransitionDialog {...props} open={false} />);
+      rerender(<StatusTransitionDialog {...props} open />);
+
+      expect(screen.getByLabelText(NOTIFY_LABEL)).not.toBeChecked();
+    });
   });
 });

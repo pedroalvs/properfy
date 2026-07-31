@@ -101,6 +101,7 @@ import { ListAvailabilitySlotsUseCase } from '../modules/inspector/application/u
 import { UpdateAvailabilitySlotUseCase } from '../modules/inspector/application/use-cases/update-availability-slot.use-case';
 import { LinkInspectorToUserUseCase } from '../modules/inspector/application/use-cases/link-inspector-to-user.use-case';
 import { DeactivateInspectorUseCase } from '../modules/inspector/application/use-cases/deactivate-inspector.use-case';
+import { ResetInspectorPasswordUseCase } from '../modules/inspector/application/use-cases/reset-inspector-password.use-case';
 import { GenerateInspectorPhotoUploadUrlUseCase } from '../modules/inspector/application/use-cases/generate-inspector-photo-upload-url.use-case';
 import { ConfirmInspectorPhotoUploadUseCase } from '../modules/inspector/application/use-cases/confirm-inspector-photo-upload.use-case';
 import { UpdateInspectorSelfProfileUseCase } from '../modules/inspector/application/use-cases/update-inspector-self-profile.use-case';
@@ -156,6 +157,7 @@ import { CancelServiceGroupUseCase } from '../modules/service-group/application/
 import { RejectServiceGroupUseCase } from '../modules/service-group/application/use-cases/reject-service-group.use-case';
 import { UpdateServiceGroupUseCase } from '../modules/service-group/application/use-cases/update-service-group.use-case';
 import { RepublishServiceGroupUseCase } from '../modules/service-group/application/use-cases/republish-service-group.use-case';
+import { UnpublishServiceGroupUseCase } from '../modules/service-group/application/use-cases/unpublish-service-group.use-case';
 import type { ServiceGroupRouteContainer } from '../modules/service-group/interfaces/service-group.routes';
 import type { MarketplaceRouteContainer } from '../modules/service-group/interfaces/marketplace.routes';
 
@@ -235,6 +237,7 @@ import { PrismaNotificationRepository } from '../modules/notification/infrastruc
 import { PrismaNotificationTemplateRepository } from '../modules/notification/infrastructure/prisma-notification-template.repository';
 import { PrismaNotificationAttemptRepository } from '../modules/notification/infrastructure/prisma-notification-attempt.repository';
 import { PrismaNotificationConsentRepository } from '../modules/notification/infrastructure/prisma-notification-consent.repository';
+import { createTenantSettingsReader } from '../modules/notification/infrastructure/prisma-tenant-settings.reader';
 import { TemplateRendererService } from '../modules/notification/domain/template-renderer.service';
 import { SendNotificationUseCase } from '../modules/notification/application/use-cases/send-notification.use-case';
 import { RetryNotificationUseCase } from '../modules/notification/application/use-cases/retry-notification.use-case';
@@ -639,13 +642,14 @@ export function createContainer(logger: Logger): AppContainer {
   const createInspectorUseCase = new CreateInspectorUseCase(inspectorRepo, userManagementRepo, auditService, serviceRegionRepo, authorizationService);
   const getInspectorUseCase = new GetInspectorUseCase(inspectorRepo, serviceRegionRepo);
   const listInspectorsUseCase = new ListInspectorsUseCase(inspectorRepo, serviceRegionRepo);
-  const updateInspectorUseCase = new UpdateInspectorUseCase(inspectorRepo, auditService, serviceRegionRepo, authorizationService);
+  const updateInspectorUseCase = new UpdateInspectorUseCase(inspectorRepo, auditService, serviceRegionRepo, authorizationService, userManagementRepo);
   const createAvailabilitySlotUseCase = new CreateAvailabilitySlotUseCase(inspectorRepo, availabilitySlotRepo, auditService);
   const listAvailabilitySlotsUseCase = new ListAvailabilitySlotsUseCase(availabilitySlotRepo);
   const updateAvailabilitySlotUseCase = new UpdateAvailabilitySlotUseCase(availabilitySlotRepo, auditService);
   const linkInspectorToUserUseCase = new LinkInspectorToUserUseCase(inspectorRepo, userManagementRepo, auditService, authorizationService);
   const inspectorAppointmentChecker = new PrismaInspectorAppointmentChecker(prisma);
-  const deactivateInspectorUseCase = new DeactivateInspectorUseCase(inspectorRepo, inspectorAppointmentChecker, auditService, authorizationService);
+  const deactivateInspectorUseCase = new DeactivateInspectorUseCase(inspectorRepo, inspectorAppointmentChecker, auditService, authorizationService, userManagementRepo);
+  const resetInspectorPasswordUseCase = new ResetInspectorPasswordUseCase(inspectorRepo, resetUserPasswordUseCase, auditService, authorizationService);
   const generateInspectorPhotoUploadUrlUseCase = new GenerateInspectorPhotoUploadUrlUseCase(inspectorRepo, storageService, auditService);
   const confirmInspectorPhotoUploadUseCase = new ConfirmInspectorPhotoUploadUseCase(inspectorRepo, storageService, auditService);
   const updateInspectorSelfProfileUseCase = new UpdateInspectorSelfProfileUseCase(inspectorRepo, auditService);
@@ -741,7 +745,7 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Notification handlers: depend on mintPortalTokenService + buildNotificationPayload
   const notifyOnStatusTransitionHandler = new NotifyOnStatusTransitionHandler(
-    appointmentRepo, propertyRepo, tenantRepo, notificationRepo,
+    appointmentRepo, propertyRepo, tenantRepo, branchRepo, notificationRepo,
     mintPortalTokenService, buildNotificationPayload, appointmentCodeFormatter,
     createNotificationUseCase, env.TENANT_PORTAL_BASE_URL, logger, metrics,
   );
@@ -768,6 +772,8 @@ export function createContainer(logger: Logger): AppContainer {
     new PrismaServiceGroupRepository(prisma),
   );
 
+  const serviceGroupRepo = new PrismaServiceGroupRepository(prisma);
+
   const executeStatusTransitionUseCase = new ExecuteStatusTransitionUseCase(
     appointmentRepo, userManagementRepo, inspectorRepo, idempotencyService, auditService,
     authorizationService,
@@ -777,6 +783,7 @@ export function createContainer(logger: Logger): AppContainer {
     domainEventBus,
     confirmationCycleService,
     prisma,
+    serviceGroupRepo,
   );
 
   const getPortalDataUseCase = new GetPortalDataUseCase(rentalTenantPortalTokenRepo, rentalTenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo, tenantRepo);
@@ -895,8 +902,8 @@ export function createContainer(logger: Logger): AppContainer {
     dataSubjectErasureRequestRepo,
   );
 
-  // Service group repositories and use cases
-  const serviceGroupRepo = new PrismaServiceGroupRepository(prisma);
+  // Service group use cases (the repository itself is constructed earlier, because
+  // the appointment-transition use case needs it to detect terminal group links)
   const createServiceGroupUseCase = new CreateServiceGroupUseCase(serviceGroupRepo, appointmentRepo, auditService, authorizationService, serviceRegionRepo, undefined, logger);
   const getServiceGroupUseCase = new GetServiceGroupUseCase(serviceGroupRepo, authorizationService);
   const listServiceGroupsUseCase = new ListServiceGroupsUseCase(serviceGroupRepo, authorizationService);
@@ -909,6 +916,7 @@ export function createContainer(logger: Logger): AppContainer {
   const rejectServiceGroupUseCase = new RejectServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, domainEventBus);
   const updateServiceGroupUseCase = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, appointmentRepo, logger);
   const republishServiceGroupUseCase = new RepublishServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService);
+  const unpublishServiceGroupUseCase = new UnpublishServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService);
 
   const getAvailableGroupsUseCase = new GetAvailableGroupsUseCase(appointmentRepo, serviceGroupRepo);
   // A released group whose last appointment dies has nothing left to execute. Declared
@@ -1055,10 +1063,7 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Notification use cases
   const consentRepo = new PrismaNotificationConsentRepository(prisma);
-  const getTenantSettings = async (tenantId: string): Promise<Record<string, unknown>> => {
-    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { settings_json: true } });
-    return (tenant?.settings_json as Record<string, unknown>) ?? {};
-  };
+  const getTenantSettings = createTenantSettingsReader(prisma);
 
   const sendNotificationUseCase = new SendNotificationUseCase({
     notificationRepo,
@@ -1073,6 +1078,7 @@ export function createContainer(logger: Logger): AppContainer {
     getTenantSettings,
     htmlSanitizer,
     htmlToText,
+    auditService,
   });
   const retryNotificationUseCase = new RetryNotificationUseCase(notificationRepo, auditService, authorizationService);
   const handleProviderWebhookUseCase = new HandleProviderWebhookUseCase(notificationRepo, logger);
@@ -1345,6 +1351,7 @@ export function createContainer(logger: Logger): AppContainer {
       updateAvailabilitySlotUseCase,
       linkInspectorToUserUseCase,
       deactivateInspectorUseCase,
+      resetInspectorPasswordUseCase,
       generateInspectorPhotoUploadUrlUseCase,
       confirmInspectorPhotoUploadUseCase,
       updateInspectorSelfProfileUseCase,
@@ -1418,6 +1425,7 @@ export function createContainer(logger: Logger): AppContainer {
       getServiceGroupUseCase,
       listServiceGroupsUseCase,
       publishServiceGroupUseCase,
+      unpublishServiceGroupUseCase,
       assignInspectorManuallyUseCase,
       cancelServiceGroupUseCase,
       rejectServiceGroupUseCase,

@@ -21,6 +21,7 @@ import { seedTenant } from '../service-region/helpers/service-region-fixtures';
 import { PrismaAppointmentRepository } from '../../../src/modules/appointment/infrastructure/prisma-appointment.repository';
 import { PrismaPropertyRepository } from '../../../src/modules/property/infrastructure/prisma-property.repository';
 import { PrismaTenantRepository } from '../../../src/modules/tenant/infrastructure/prisma-tenant.repository';
+import { PrismaBranchRepository } from '../../../src/modules/tenant/infrastructure/prisma-branch.repository';
 import { PrismaNotificationRepository } from '../../../src/modules/notification/infrastructure/prisma-notification.repository';
 import { PrismaNotificationTemplateRepository } from '../../../src/modules/notification/infrastructure/prisma-notification-template.repository';
 import { PrismaRentalTenantPortalTokenRepository } from '../../../src/modules/rental-tenant-portal/infrastructure/prisma-rental-tenant-portal-token.repository';
@@ -44,7 +45,10 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await harness.prisma.$executeRawUnsafe(
-    `TRUNCATE TABLE notifications, rental_tenant_portal_tokens, appointment_contacts, appointments, properties, service_types, users, branches, tenants CASCADE`,
+    // notification_templates is included so a test can seed a platform-level
+    // (tenant_id NULL) template without colliding with the previous test — those
+    // rows are not reached by the CASCADE from tenants.
+    `TRUNCATE TABLE notifications, notification_templates, rental_tenant_portal_tokens, appointment_contacts, appointments, properties, service_types, users, branches, tenants CASCADE`,
   );
 });
 
@@ -60,9 +64,21 @@ interface Fixture {
   tenantId: string;
 }
 
-async function seedFixture(prisma: PrismaClient, contactEmail: string | null = null): Promise<Fixture> {
+async function seedFixture(
+  prisma: PrismaClient,
+  contactEmail: string | null = null,
+  opts: { confirmed?: boolean; branchContactEmail?: string } = {},
+): Promise<Fixture> {
   const { tenantId, userId } = await seedTenant(prisma, `Agency ${rand()}`);
   const branch = await prisma.branch.findFirstOrThrow({ where: { tenant_id: tenantId } });
+  // seedTenant leaves the branch without a contact email, which is what keeps the
+  // agency cancellation leg out of the tenant-focused tests below. Opt in per test.
+  if (opts.branchContactEmail) {
+    await prisma.branch.update({
+      where: { id: branch.id },
+      data: { contact_email: opts.branchContactEmail },
+    });
+  }
   const serviceType = await prisma.serviceType.create({
     data: {
       code: `ST-${rand()}`,
@@ -85,7 +101,8 @@ async function seedFixture(prisma: PrismaClient, contactEmail: string | null = n
       service_type_id: serviceType.id, status: 'SCHEDULED',
       scheduled_date: SCHEDULED_DATE, time_slot_start: '09:00', time_slot_end: '12:00',
       price_amount: '100.00', payout_amount: '80.00', pricing_rule_snapshot_json: {},
-      rental_tenant_confirmation_status: 'PENDING', created_by_user_id: userId,
+      rental_tenant_confirmation_status: opts.confirmed ? 'CONFIRMED' : 'PENDING',
+      created_by_user_id: userId,
     },
   });
   await prisma.appointmentContact.create({
@@ -106,6 +123,7 @@ function makeHandler(prisma: PrismaClient): NotifyOnStatusTransitionHandler {
     new PrismaAppointmentRepository(prisma),
     new PrismaPropertyRepository(prisma),
     new PrismaTenantRepository(prisma),
+    new PrismaBranchRepository(prisma),
     notificationRepo,
     new MintPortalTokenService(new PrismaRentalTenantPortalTokenRepository(prisma), new TokenService()),
     new BuildNotificationPayloadService(),
@@ -129,7 +147,9 @@ async function templateCodesFor(appointmentId: string): Promise<string[]> {
 
 describe('status-change notification dedupe — real DB', () => {
   it('notifies again when a cancelled appointment is re-scheduled for the same date', async () => {
-    const { appointmentId, tenantId } = await seedFixture(harness.prisma);
+    // Confirmed + opted in, so the cancellation actually reaches the rental tenant —
+    // that middle announcement is the whole point of this test.
+    const { appointmentId, tenantId } = await seedFixture(harness.prisma, null, { confirmed: true });
     const handler = makeHandler(harness.prisma);
 
     await handler.execute({
@@ -137,6 +157,7 @@ describe('status-change notification dedupe — real DB', () => {
     });
     await handler.execute({
       appointmentId, tenantId, previousStatus: 'SCHEDULED', targetStatus: 'CANCELLED',
+      notifyRentalTenant: true,
     });
     await handler.execute({
       appointmentId, tenantId, previousStatus: 'CANCELLED', targetStatus: 'SCHEDULED',
@@ -226,6 +247,103 @@ describe('status-change notification dedupe — real DB', () => {
     });
 
     expect(await templateCodesFor(appointmentId)).toEqual(['INSPECTION_NOTICE_SMS']);
+  });
+});
+
+/**
+ * The agency cancellation notice, against real Prisma + a real template row.
+ *
+ * Worth a DB test rather than a mock: `CreateNotificationUseCase` resolves the
+ * template out of the database and stamps its notificationClass, so a code that
+ * is registered in the shared catalogue but never seeded fails at send time with
+ * TEMPLATE_NOT_FOUND. A mocked createNotification cannot show that.
+ */
+describe('agency cancellation notice — real DB', () => {
+  const AGENCY_EMAIL = 'bookings@agency.test';
+
+  async function seedAgencyCancelTemplate(): Promise<void> {
+    await harness.prisma.notificationTemplate.create({
+      data: {
+        tenant_id: null,
+        template_code: 'INSPECTION_CANCELLED_AGENCY',
+        channel: 'EMAIL',
+        subject: 'Inspection Cancelled - {{propertyAddress}}',
+        body_text:
+          'The inspection {{appointmentCode}} at {{propertyAddress}} scheduled for {{scheduledDate}} has been cancelled.',
+        variables_json: [],
+        notification_class: 'TRANSACTIONAL',
+        is_active: true,
+      },
+    });
+  }
+
+  it('writes one row addressed to the branch contact, scoped to the appointment tenant', async () => {
+    await seedAgencyCancelTemplate();
+    const { appointmentId, tenantId } = await seedFixture(harness.prisma, null, {
+      branchContactEmail: AGENCY_EMAIL,
+    });
+
+    await makeHandler(harness.prisma).execute({
+      appointmentId, tenantId, previousStatus: 'SCHEDULED', targetStatus: 'CANCELLED',
+    });
+
+    const rows = await harness.prisma.notification.findMany({
+      where: { appointment_id: appointmentId },
+    });
+
+    // Tenant is PENDING and no opt-in was passed, so the agency row is the only one.
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.template_code).toBe('INSPECTION_CANCELLED_AGENCY');
+    expect(rows[0]!.recipient).toBe(AGENCY_EMAIL);
+    expect(rows[0]!.channel).toBe('EMAIL');
+    expect(rows[0]!.tenant_id).toBe(tenantId);
+    // Resolved from the seeded template row, not hardcoded by the handler.
+    expect(rows[0]!.notification_class).toBe('TRANSACTIONAL');
+    const payload = rows[0]!.payload_json as Record<string, string>;
+    expect(payload.branchName).toBeTruthy();
+    expect(payload.propertyAddress).toContain('1 Test St');
+  });
+
+  it('still writes the agency row when the tenant announcement is a suppressed replay', async () => {
+    await seedAgencyCancelTemplate();
+    const { appointmentId, tenantId } = await seedFixture(harness.prisma, null, {
+      confirmed: true,
+      branchContactEmail: AGENCY_EMAIL,
+    });
+    const handler = makeHandler(harness.prisma);
+
+    await handler.execute({
+      appointmentId, tenantId, previousStatus: 'SCHEDULED', targetStatus: 'CANCELLED',
+      notifyRentalTenant: true,
+    });
+    // Same announcement again: the tenant legs dedupe, the agency leg must not.
+    await handler.execute({
+      appointmentId, tenantId, previousStatus: 'SCHEDULED', targetStatus: 'CANCELLED',
+      notifyRentalTenant: true,
+    });
+
+    const agencyRows = await harness.prisma.notification.count({
+      where: { appointment_id: appointmentId, template_code: 'INSPECTION_CANCELLED_AGENCY' },
+    });
+    const tenantEmailRows = await harness.prisma.notification.count({
+      where: { appointment_id: appointmentId, template_code: 'INSPECTION_CANCELLED' },
+    });
+
+    expect(agencyRows).toBe(2);
+    expect(tenantEmailRows).toBe(1);
+  });
+
+  it('writes nothing for the agency when the branch has no contact email', async () => {
+    await seedAgencyCancelTemplate();
+    const { appointmentId, tenantId } = await seedFixture(harness.prisma);
+
+    await makeHandler(harness.prisma).execute({
+      appointmentId, tenantId, previousStatus: 'SCHEDULED', targetStatus: 'CANCELLED',
+    });
+
+    expect(
+      await harness.prisma.notification.count({ where: { appointment_id: appointmentId } }),
+    ).toBe(0);
   });
 });
 

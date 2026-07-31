@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { TEMPLATE_VARIABLES, SAMPLE_DATA } from '@properfy/shared';
+import {
+  TEMPLATE_VARIABLES,
+  SAMPLE_DATA,
+  getProtectedClass,
+  getTemplateCodeLabel,
+  getTemplateTarget,
+} from '@properfy/shared';
 import { PLATFORM_TEMPLATES } from '../../../src/modules/notification/domain/platform-notification-templates';
 import { STUCK_ALERT_PAYLOAD_KEYS } from '../../../src/modules/inspector-execution/infrastructure/workers/notify-stuck.worker';
 import { SanitizeHtmlService } from '../../../src/modules/notification/infrastructure/sanitize-html.service';
@@ -82,6 +88,7 @@ const APPOINTMENT_EMAIL_CODES = [
   'INSPECTION_CONFIRMED',
   'INSPECTION_RESCHEDULED',
   'INSPECTION_CANCELLED',
+  'INSPECTION_CANCELLED_AGENCY',
   'INSPECTION_UNAVAILABILITY_REPORTED',
   'TENANT_PORTAL_LINK',
 ] as const;
@@ -147,6 +154,42 @@ describe('PLATFORM_TEMPLATES appointment email HTML bodies', () => {
       expect(sanitized).toContain(SAMPLE_DATA.rentalTenantName);
     });
   }
+
+  it('INSPECTION_CANCELLED_AGENCY addresses the agency, not the rental tenant', () => {
+    const entry = PLATFORM_TEMPLATES.find(
+      (t) => t.code === 'INSPECTION_CANCELLED_AGENCY' && t.channel === 'EMAIL',
+    )!;
+
+    // The tenant-facing wrapper opens with "Dear {{rentalTenantName}}" — reusing it
+    // here would greet the agency by the tenant's name.
+    expect(entry.bodyHtml).not.toContain('Dear {{rentalTenantName}}');
+    // The tenant copy closes with a reassurance that makes no sense to the agency.
+    expect(entry.bodyHtml).not.toContain('No further action is required from you');
+    // Agency-facing heading, mirroring PROPERTY_MANAGER_ESCALATION.
+    expect(entry.bodyHtml).toContain('{{#if branchName}}');
+    // The reason is the whole point of telling the agency.
+    expect(entry.bodyHtml).toContain('{{cancellationReason}}');
+  });
+
+  it('INSPECTION_CANCELLED_AGENCY seeds as TRANSACTIONAL so the agency is never consent-blocked', () => {
+    const entry = PLATFORM_TEMPLATES.find(
+      (t) => t.code === 'INSPECTION_CANCELLED_AGENCY' && t.channel === 'EMAIL',
+    )!;
+
+    // The seeder writes notification_class ONLY when the entry provides it, so an
+    // omitted value silently lands on the column default (OPERATIONAL) and the row
+    // becomes consent-checked per recipient. Must agree with the shared catalogue.
+    expect(entry.notificationClass).toBe('TRANSACTIONAL');
+    expect(getProtectedClass('INSPECTION_CANCELLED_AGENCY')).toBe('TRANSACTIONAL');
+  });
+
+  it('INSPECTION_CANCELLED_AGENCY has no SMS variant', () => {
+    expect(
+      PLATFORM_TEMPLATES.find(
+        (t) => t.code === 'INSPECTION_CANCELLED_AGENCY_SMS',
+      ),
+    ).toBeUndefined();
+  });
 
   it('INSPECTION_NOTICE mirrors the client example (sections, CTA, phone)', () => {
     const entry = PLATFORM_TEMPLATES.find(
@@ -224,6 +267,27 @@ describe('PLATFORM_TEMPLATES system email HTML bodies', () => {
     expect(stuck.bodyHtml).toContain('{{appointmentId}}');
     expect(stuck.bodyHtml).toContain('{{hoursStuck}}');
   });
+});
+
+describe('every seeded template is presentable on the templates list', () => {
+  // The seeded catalog is larger than MANDATORY_TEMPLATE_CODES, and AM/OP see all of it.
+  // These guards fail when a template is added to PLATFORM_TEMPLATES without also declaring
+  // who receives it and how it should read in the UI.
+  const seededCodes = [...new Set(PLATFORM_TEMPLATES.map((t) => t.code))];
+
+  it('covers the whole seeded catalog, not just a sample', () => {
+    expect(seededCodes.length).toBeGreaterThanOrEqual(26);
+  });
+
+  for (const code of seededCodes) {
+    it(`${code} declares a notification target`, () => {
+      expect(getTemplateTarget(code)).toBeDefined();
+    });
+
+    it(`${code} resolves to a human-readable label`, () => {
+      expect(getTemplateCodeLabel(code)).not.toBe(code);
+    });
+  }
 });
 
 describe('legacy INSPECTION_NOTICE assertions', () => {

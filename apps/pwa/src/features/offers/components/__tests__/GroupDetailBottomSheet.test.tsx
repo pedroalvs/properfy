@@ -290,4 +290,12 @@ describe('GroupDetailBottomSheet', () => {
     await user.click(screen.getByTestId('detail-retry'));
     expect(refetch).toHaveBeenCalledOnce();
   });
+
+  it('reserves the iOS home indicator on the sheet itself, not the accept footer', () => {
+    // The footer only renders when an accept handler and data are present; when it is
+    // absent the scrollable body is flush with the bottom edge. Padding the sheet
+    // container covers both cases with one rule.
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    expect(screen.getByTestId('group-detail-sheet').classList.contains('pb-safe-b')).toBe(true);
+  });
 });

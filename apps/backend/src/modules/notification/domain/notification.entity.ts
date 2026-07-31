@@ -3,7 +3,8 @@ import type { NotificationChannel, NotificationClass, NotificationStatus } from 
 
 export interface NotificationProps {
   id: string;
-  tenantId: string;
+  /** null = platform-scoped notification, sent to a user who belongs to no agency. */
+  tenantId: string | null;
   appointmentId: string | null;
   recipient: string;
   channel: NotificationChannel;
@@ -24,7 +25,7 @@ export interface NotificationProps {
 }
 
 export class NotificationEntity extends BaseEntity {
-  readonly tenantId: string;
+  readonly tenantId: string | null;
   readonly appointmentId: string | null;
   readonly recipient: string;
   readonly channel: NotificationChannel;
