@@ -6,6 +6,7 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { ConfirmationCycleService } from '../services/confirmation-cycle.service';
 import { isPortalUnanswerableStatus } from '../../../rental-tenant-portal/domain/portal-statuses';
+import { ConfirmationCycleNotFoundError } from '../../domain/confirmation-cycle.errors';
 import type {
   ExecuteStatusTransitionInput,
   ExecuteStatusTransitionOutput,
@@ -22,6 +23,12 @@ export interface SetRentalTenantAvailabilityInput {
   appointmentId: string;
   availableSlots: AvailableSlot[];
   markUnavailable: boolean;
+  /**
+   * Forwarded to the rejection transition when `markUnavailable` is set, so a
+   * client retry after a lost response replays the original decision instead of
+   * hitting `AppointmentInvalidTransitionError` on an already-REJECTED row.
+   */
+  idempotencyKey?: string;
   actor: AuthContext;
 }
 
@@ -52,7 +59,7 @@ export class SetRentalTenantAvailabilityUseCase {
   ) {}
 
   async execute(input: SetRentalTenantAvailabilityInput): Promise<SetRentalTenantAvailabilityOutput> {
-    const { appointmentId, availableSlots, markUnavailable, actor } = input;
+    const { appointmentId, availableSlots, markUnavailable, idempotencyKey, actor } = input;
 
     this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN'], {
       action: 'appointment.set_rental_tenant_availability',
@@ -125,6 +132,7 @@ export class SetRentalTenantAvailabilityUseCase {
         targetStatus: 'REJECTED',
         reason: REJECTION_REASON,
         rejectionReasonCode: 'TENANT_DECLINED',
+        ...(idempotencyKey ? { idempotencyKey } : {}),
         actor,
       });
     }
@@ -156,8 +164,12 @@ export class SetRentalTenantAvailabilityUseCase {
       try {
         await this.cycleService.markUnavailable(appointmentId, tenantId);
         return;
-      } catch {
-        // No active cycle — fall through to the direct write.
+      } catch (error) {
+        // ONLY the pre-feature case falls through. A broad catch here would let
+        // an infrastructure failure leave the appointment denormalised to
+        // UNAVAILABLE while the cycle it mirrors stayed untouched — the two
+        // would disagree with nothing logged.
+        if (!(error instanceof ConfirmationCycleNotFoundError)) throw error;
       }
     }
     await this.appointmentRepo.update(appointmentId, tenantId, {

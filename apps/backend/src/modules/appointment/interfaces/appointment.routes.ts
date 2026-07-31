@@ -384,9 +384,14 @@ export async function registerAppointmentRoutes(
       if (!parsed.success) {
         throw new ValidationError('Request payload is invalid', parsed.error.errors);
       }
+      // Same header the /status-transitions route honours: with `markUnavailable`
+      // this endpoint drives the very same REJECTED transition and rejection
+      // email, so a retry has to replay rather than hit "already REJECTED".
+      const idempotencyKey = request.headers['idempotency-key'] as string | undefined;
       const result = await container.setRentalTenantAvailabilityUseCase.execute({
         appointmentId: params.data.appointmentId,
         ...parsed.data,
+        ...(idempotencyKey ? { idempotencyKey } : {}),
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));

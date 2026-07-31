@@ -6,6 +6,7 @@ import { AppointmentRestrictionEntity } from '../../../src/modules/appointment/d
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AppointmentNotFoundError } from '../../../src/modules/appointment/domain/appointment.errors';
+import { ConfirmationCycleNotFoundError } from '../../../src/modules/appointment/domain/confirmation-cycle.errors';
 import type { AuthContext, AvailableSlot } from '@properfy/shared';
 
 const SLOTS: AvailableSlot[] = [{ dayOfWeek: 'MON', start: '09:00', end: '12:00' }];
@@ -254,9 +255,25 @@ describe('SetRentalTenantAvailabilityUseCase', () => {
       );
     });
 
+    it('forwards the idempotency key so a retry replays instead of double-rejecting', async () => {
+      build();
+
+      await useCase.execute({
+        appointmentId: 'appt-1',
+        availableSlots: SLOTS,
+        markUnavailable: true,
+        idempotencyKey: 'req-abc',
+        actor: makeActor({ role: 'OP' }),
+      });
+
+      expect(statusTransition.execute).toHaveBeenCalledWith(
+        expect.objectContaining({ idempotencyKey: 'req-abc' }),
+      );
+    });
+
     it('falls back to a direct write when there is no active confirmation cycle', async () => {
       build();
-      cycleService.markUnavailable.mockRejectedValueOnce(new Error('no active cycle'));
+      cycleService.markUnavailable.mockRejectedValueOnce(new ConfirmationCycleNotFoundError());
 
       await useCase.execute({
         appointmentId: 'appt-1',
@@ -270,6 +287,26 @@ describe('SetRentalTenantAvailabilityUseCase', () => {
         'tenant-1',
         expect.objectContaining({ rentalTenantConfirmationStatus: 'UNAVAILABLE' }),
       );
+    });
+
+    it('propagates an infrastructure failure instead of silently denormalising', async () => {
+      // A broad catch here would write UNAVAILABLE onto the appointment while the
+      // cycle it mirrors stayed untouched — two sources of truth disagreeing,
+      // with nothing logged. Only the pre-feature "no cycle" case may fall back.
+      build();
+      cycleService.markUnavailable.mockRejectedValueOnce(new Error('connection reset'));
+
+      await expect(
+        useCase.execute({
+          appointmentId: 'appt-1',
+          availableSlots: SLOTS,
+          markUnavailable: true,
+          actor: makeActor({ role: 'AM' }),
+        }),
+      ).rejects.toThrow('connection reset');
+
+      expect(appointmentRepo.update).not.toHaveBeenCalled();
+      expect(statusTransition.execute).not.toHaveBeenCalled();
     });
 
     it('denies CL_ADMIN the reject path even though they may record availability', async () => {
