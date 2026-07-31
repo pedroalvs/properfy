@@ -190,7 +190,33 @@ describe('ServiceGroupValidator.canAddToGroup (026 §FR-510)', () => {
     }
   });
 
-  it('rejects appointments already in a group', () => {
+  // A link to a group that will never run again is dead weight, not ownership: the
+  // empty-group cleanup cancels without unlinking, and refusing to replace such a
+  // link is what leaves the appointment un-regroupable and therefore stranded.
+  it('allows replacing a link to a terminal group', () => {
+    for (const deadStatus of ['CANCELLED', 'REJECTED']) {
+      expect(ServiceGroupValidator.canAddToGroup(
+        { ...baseAppointment, serviceGroupId: 'group-DEAD' }, baseGroup, deadStatus,
+      )).toEqual({ ok: true });
+    }
+  });
+
+  it('allows replacing a link whose group no longer exists', () => {
+    expect(ServiceGroupValidator.canAddToGroup(
+      { ...baseAppointment, serviceGroupId: 'group-GONE' }, baseGroup, null,
+    )).toEqual({ ok: true });
+  });
+
+  it('still rejects a link to a live group', () => {
+    for (const liveStatus of ['DRAFT', 'PUBLISHED', 'ACCEPTED']) {
+      expect(ServiceGroupValidator.canAddToGroup(
+        { ...baseAppointment, serviceGroupId: 'group-OTHER' }, baseGroup, liveStatus,
+      )).toEqual({ ok: false, reasonCode: 'ALREADY_GROUPED' });
+    }
+  });
+
+  it('rejects appointments already in a group when the link status is unknown', () => {
+    // No third argument = caller could not tell us; stay conservative.
     expect(ServiceGroupValidator.canAddToGroup(
       { ...baseAppointment, serviceGroupId: 'group-OTHER' }, baseGroup,
     )).toEqual({ ok: false, reasonCode: 'ALREADY_GROUPED' });

@@ -16,6 +16,7 @@ import type {
   PortalWindowReservation,
 } from '../domain/service-group.repository';
 import type { ServiceGroupStatus } from '@properfy/shared';
+import { ADDABLE_GROUP_STATUSES, TERMINAL_GROUP_STATUSES } from '../domain/service-group.validator';
 import { computeWindowAvailability } from '../domain/portal-slot-capacity';
 import { resolveCentroid } from '../../../shared/infrastructure/suburb-centroid-resolver';
 
@@ -786,14 +787,60 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     return rows.map((r) => r.id);
   }
 
+  async findStatusById(id: string): Promise<string | null> {
+    const row = await this.prisma.serviceGroup.findUnique({
+      where: { id },
+      select: { status: true },
+    });
+    return row?.status ?? null;
+  }
+
+  async findStatusesByIds(ids: string[]): Promise<Record<string, string>> {
+    if (ids.length === 0) return {};
+    const rows = await this.prisma.serviceGroup.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, status: true },
+    });
+    return Object.fromEntries(rows.map((r) => [r.id, r.status as string]));
+  }
+
   async linkAppointments(
     appointmentIds: string[],
     groupId: string,
-  ): Promise<void> {
-    await this.prisma.appointment.updateMany({
-      where: { id: { in: appointmentIds } },
-      data: { service_group_id: groupId },
-    });
+  ): Promise<number> {
+    if (appointmentIds.length === 0) return 0;
+
+    // The addable-status check has to be in the same statement as the write. The
+    // caller validates status against a snapshot read earlier, and the empty-group
+    // cleanup can cancel the group in between — linking then strands a live
+    // appointment on a group the marketplace never offers. This is the mirror of
+    // `cancelOptimistic`, which guards the cancel side of the same race.
+    return this.prisma.$executeRaw`
+      UPDATE appointments a
+         SET service_group_id = ${groupId}, updated_at = NOW()
+       WHERE a.id IN (${Prisma.join(appointmentIds)})
+         AND EXISTS (
+               SELECT 1
+                 FROM service_groups g
+                WHERE g.id = ${groupId}
+                  AND g.status::text IN (${Prisma.join([...ADDABLE_GROUP_STATUSES])})
+             )
+         -- Appointment-side precondition. Without it two concurrent adds both read
+         -- the appointment as ungrouped and the later write silently steals it out
+         -- of the first one's group. A link to a *terminal* group is not ownership
+         -- though — it is the dead weight the cleanup leaves behind — so replacing
+         -- one is allowed, and is how a stranded appointment gets rescued.
+         AND (
+               a.service_group_id IS NULL
+            OR a.service_group_id = ${groupId}
+            OR EXISTS (
+                 SELECT 1
+                   FROM service_groups og
+                  WHERE og.id = a.service_group_id
+                    AND og.status::text IN (${Prisma.join([...TERMINAL_GROUP_STATUSES])})
+               )
+             )
+    `;
   }
 
   async unlinkAppointments(groupId: string): Promise<void> {

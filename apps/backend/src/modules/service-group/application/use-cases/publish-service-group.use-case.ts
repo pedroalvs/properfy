@@ -1,4 +1,4 @@
-import { validateNewSchedule, PLATFORM_TIMEZONE, type AuthContext } from '@properfy/shared';
+import { validateNewSchedule, PLATFORM_TIMEZONE, isTerminalAppointmentStatus, type AuthContext } from '@properfy/shared';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
@@ -78,12 +78,20 @@ export class PublishServiceGroupUseCase {
     // on the way back to DRAFT — republish stays unrestricted precisely so the
     // operator can land in DRAFT and repair the group.
     //
-    // An empty group is reachable in one click: cancelling unlinks every
-    // appointment and republish does not re-link them, so every republished
-    // group starts empty. The status loop below is vacuous in that case, which
-    // is exactly why this needs its own guard. Soft-deleted appointments are
-    // already excluded by the repository, so the count is trustworthy.
-    if (appointments.length === 0) {
+    // A group with nothing to release is reachable in one click, by two different
+    // routes, so this needs its own guard rather than relying on the status loop
+    // below (which is vacuous over an empty array):
+    //   - operator cancel/reject unlinks every appointment, and republish does not
+    //     re-link them, so those groups come back with no members at all;
+    //   - the empty-group cleanup cancels without unlinking, so *those* groups come
+    //     back still carrying their terminal members.
+    // Counting live members rather than rows covers both. Without that, the second
+    // route reaches the per-appointment status check further down and fails with a
+    // confusing "appointment #N has an invalid status" instead of saying the group
+    // has nothing to publish. Soft-deleted appointments are already excluded by the
+    // repository, so the count is trustworthy.
+    const liveAppointments = appointments.filter((a) => !isTerminalAppointmentStatus(a.status));
+    if (liveAppointments.length === 0) {
       throw new ServiceGroupEmptyError();
     }
 

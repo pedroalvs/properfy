@@ -136,6 +136,10 @@ const onTransitionHandler = {
   execute: vi.fn().mockResolvedValue(undefined),
 };
 
+const serviceGroupRepo = {
+  findStatusById: vi.fn().mockResolvedValue('PUBLISHED'),
+};
+
 const inspectorRepo = {
   findById: vi.fn(),
   findByEmail: vi.fn(),
@@ -171,7 +175,7 @@ const serviceTypeRepo = {
   update: vi.fn(),
 };
 
-function makeUseCase(opts: { withOnDoneHandler?: boolean; withOnTransitionHandler?: boolean; withTenantRepo?: boolean; withAuthorizationService?: boolean; withServiceTypeRepo?: boolean; domainEventBus?: DomainEventBus } = {}) {
+function makeUseCase(opts: { withOnDoneHandler?: boolean; withOnTransitionHandler?: boolean; withTenantRepo?: boolean; withAuthorizationService?: boolean; withServiceTypeRepo?: boolean; domainEventBus?: DomainEventBus; withServiceGroupRepo?: boolean } = {}) {
   return new ExecuteStatusTransitionUseCase(
     appointmentRepo as any,
     userRepo as any,
@@ -183,6 +187,9 @@ function makeUseCase(opts: { withOnDoneHandler?: boolean; withOnTransitionHandle
     opts.withOnTransitionHandler ? onTransitionHandler : undefined,
     opts.withServiceTypeRepo ? (serviceTypeRepo as any) : undefined,
     opts.domainEventBus,
+    undefined,
+    undefined,
+    opts.withServiceGroupRepo ? (serviceGroupRepo as any) : undefined,
   );
 }
 
@@ -192,6 +199,7 @@ beforeEach(() => {
   appointmentRepo.update.mockResolvedValue(undefined);
   onDoneHandler.execute.mockResolvedValue(undefined);
   onTransitionHandler.execute.mockResolvedValue(undefined);
+  serviceGroupRepo.findStatusById.mockResolvedValue('PUBLISHED');
 });
 
 // =============================================================================
@@ -1082,6 +1090,132 @@ describe('ExecuteStatusTransitionUseCase – onTransitionHandler', () => {
     expect(onTransitionHandler.execute).toHaveBeenCalledWith(
       expect.objectContaining({ targetStatus: 'CANCELLED', notifyRentalTenant: true }),
     );
+  });
+});
+
+// =============================================================================
+// Terminal service-group links
+// =============================================================================
+
+/**
+ * The empty-group cleanup cancels a group while leaving its terminal members
+ * linked (deliberately, to keep the history). That makes a CANCELLED group with
+ * members reachable for the first time — and reopening one of those members would
+ * otherwise revive a live appointment attached to a dead group: invisible to the
+ * marketplace (which only offers PUBLISHED groups) and un-regroupable, because
+ * `canAddToGroup` rejects any non-null link.
+ */
+describe('ExecuteStatusTransitionUseCase – terminal service-group links', () => {
+  it('drops the link when reopening an appointment whose group is CANCELLED', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'CANCELLED', serviceGroupId: 'sg-dead' }),
+    );
+    serviceGroupRepo.findStatusById.mockResolvedValue('CANCELLED');
+
+    await makeUseCase({ withServiceGroupRepo: true }).execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DRAFT',
+      reason: 'That cancellation was wrong',
+      actor: makeActor('OP'),
+    });
+
+    const [, , updateData] = appointmentRepo.update.mock.calls[0]!;
+    expect(updateData.serviceGroupId).toBeNull();
+  });
+
+  it('drops the link when the group is REJECTED', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'CANCELLED', serviceGroupId: 'sg-dead' }),
+    );
+    serviceGroupRepo.findStatusById.mockResolvedValue('REJECTED');
+
+    await makeUseCase({ withServiceGroupRepo: true }).execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DRAFT',
+      reason: 'Reopen',
+      actor: makeActor('OP'),
+    });
+
+    expect(appointmentRepo.update.mock.calls[0]![2].serviceGroupId).toBeNull();
+  });
+
+  it('drops the link when the linked group no longer exists', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'CANCELLED', serviceGroupId: 'sg-gone' }),
+    );
+    serviceGroupRepo.findStatusById.mockResolvedValue(null);
+
+    await makeUseCase({ withServiceGroupRepo: true }).execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DRAFT',
+      reason: 'Reopen',
+      actor: makeActor('OP'),
+    });
+
+    expect(appointmentRepo.update.mock.calls[0]![2].serviceGroupId).toBeNull();
+  });
+
+  it('keeps the link when the group is still live', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'CANCELLED', serviceGroupId: 'sg-live' }),
+    );
+    serviceGroupRepo.findStatusById.mockResolvedValue('PUBLISHED');
+
+    await makeUseCase({ withServiceGroupRepo: true }).execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DRAFT',
+      reason: 'Reopen',
+      actor: makeActor('OP'),
+    });
+
+    expect(appointmentRepo.update.mock.calls[0]![2]).not.toHaveProperty('serviceGroupId');
+  });
+
+  it('refuses to release into a CANCELLED group', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'DRAFT', serviceGroupId: 'sg-dead' }),
+    );
+    serviceGroupRepo.findStatusById.mockResolvedValue('CANCELLED');
+
+    await expect(
+      makeUseCase({ withServiceGroupRepo: true }).execute({
+        appointmentId: 'appt-1',
+        targetStatus: 'AWAITING_INSPECTOR',
+        actor: makeActor('OP'),
+      }),
+    ).rejects.toThrow(AppointmentServiceGroupRequiredError);
+
+    expect(appointmentRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('refuses to release when the linked group no longer exists', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'DRAFT', serviceGroupId: 'sg-gone' }),
+    );
+    serviceGroupRepo.findStatusById.mockResolvedValue(null);
+
+    await expect(
+      makeUseCase({ withServiceGroupRepo: true }).execute({
+        appointmentId: 'appt-1',
+        targetStatus: 'AWAITING_INSPECTOR',
+        actor: makeActor('OP'),
+      }),
+    ).rejects.toThrow(AppointmentServiceGroupRequiredError);
+  });
+
+  it('still allows release into a live group', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'DRAFT', serviceGroupId: 'sg-live' }),
+    );
+    serviceGroupRepo.findStatusById.mockResolvedValue('DRAFT');
+
+    const result = await makeUseCase({ withServiceGroupRepo: true }).execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'AWAITING_INSPECTOR',
+      actor: makeActor('OP'),
+    });
+
+    expect(result.status).toBe('AWAITING_INSPECTOR');
   });
 });
 

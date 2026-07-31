@@ -772,6 +772,8 @@ export function createContainer(logger: Logger): AppContainer {
     new PrismaServiceGroupRepository(prisma),
   );
 
+  const serviceGroupRepo = new PrismaServiceGroupRepository(prisma);
+
   const executeStatusTransitionUseCase = new ExecuteStatusTransitionUseCase(
     appointmentRepo, userManagementRepo, inspectorRepo, idempotencyService, auditService,
     authorizationService,
@@ -781,6 +783,7 @@ export function createContainer(logger: Logger): AppContainer {
     domainEventBus,
     confirmationCycleService,
     prisma,
+    serviceGroupRepo,
   );
 
   const getPortalDataUseCase = new GetPortalDataUseCase(rentalTenantPortalTokenRepo, rentalTenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo, tenantRepo);
@@ -899,8 +902,8 @@ export function createContainer(logger: Logger): AppContainer {
     dataSubjectErasureRequestRepo,
   );
 
-  // Service group repositories and use cases
-  const serviceGroupRepo = new PrismaServiceGroupRepository(prisma);
+  // Service group use cases (the repository itself is constructed earlier, because
+  // the appointment-transition use case needs it to detect terminal group links)
   const createServiceGroupUseCase = new CreateServiceGroupUseCase(serviceGroupRepo, appointmentRepo, auditService, authorizationService, serviceRegionRepo, undefined, logger);
   const getServiceGroupUseCase = new GetServiceGroupUseCase(serviceGroupRepo, authorizationService);
   const listServiceGroupsUseCase = new ListServiceGroupsUseCase(serviceGroupRepo, authorizationService);

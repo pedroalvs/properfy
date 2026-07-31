@@ -4,7 +4,7 @@ import type { IAppointmentRepository } from '../../../appointment/domain/appoint
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { NotFoundError } from '../../../../shared/domain/errors';
-import { ServiceGroupValidator, type AddToGroupReason } from '../../domain/service-group.validator';
+import { ServiceGroupValidator, ADDABLE_GROUP_STATUSES, type AddToGroupReason } from '../../domain/service-group.validator';
 import { trySyncAppointmentScheduleToGroup, type ServiceGroupTimeSyncLogger } from '../sync-appointment-time-slot-to-group';
 
 export type AddToGroupResultStatus = 'OK' | AddToGroupReason | 'NOT_FOUND' | 'ERROR';
@@ -94,6 +94,13 @@ export class AddAppointmentsToGroupUseCase {
           serviceTypeId: group.serviceTypeId,
           currentSize,
         },
+        // The appointment's *existing* link, if any. A link to a terminal group is
+        // the dead weight the empty-group cleanup leaves behind rather than real
+        // ownership, so the validator lets it be replaced — otherwise the
+        // appointment can never be re-grouped and stays stranded.
+        appointment.serviceGroupId
+          ? await this.groupRepo.findStatusById(appointment.serviceGroupId)
+          : undefined,
       );
       if (!validation.ok) {
         results.push({
@@ -105,7 +112,28 @@ export class AddAppointmentsToGroupUseCase {
       }
 
       try {
-        await this.groupRepo.linkAppointments([apptId], input.groupId);
+        // `validation` above judged the group from a snapshot read before the loop.
+        // The link itself re-checks the group's status atomically, so a group
+        // cancelled in between (e.g. by the empty-group cleanup, once this
+        // appointment's predecessor was cancelled) reports 0 rows instead of
+        // stranding a live appointment on a group nobody will ever offer.
+        const linked = await this.groupRepo.linkAppointments([apptId], input.groupId);
+        if (linked === 0) {
+          // Two preconditions live in that statement, so distinguish which one
+          // rejected rather than blaming the group for a lost race over the
+          // appointment. Only runs on this rare failure path.
+          const freshGroupStatus = await this.groupRepo.findStatusById(input.groupId);
+          const reason =
+            freshGroupStatus === null || !ADDABLE_GROUP_STATUSES.has(freshGroupStatus as never)
+              ? 'GROUP_IN_TERMINAL_STATE'
+              : 'ALREADY_GROUPED';
+          results.push({
+            appointmentId: apptId,
+            status: reason,
+            error: { code: reason, message: reasonMessage(reason) },
+          });
+          continue;
+        }
         currentSize += 1;
 
         await trySyncAppointmentScheduleToGroup({

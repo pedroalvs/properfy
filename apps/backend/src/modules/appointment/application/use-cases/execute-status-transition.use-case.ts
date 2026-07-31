@@ -8,6 +8,7 @@ import type { IServiceTypeRepository } from '../../../service-type/domain/servic
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { ConfirmationCycleService } from '../services/confirmation-cycle.service';
 import { AppointmentStateMachine } from '../../domain/appointment-state-machine';
+import { isTerminalGroupStatus } from '../../../service-group/domain/service-group.validator';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import {
   AppointmentNotFoundError,
@@ -66,6 +67,16 @@ interface OnDoneHandler {
   execute(input: { appointmentId: string }): Promise<unknown>;
 }
 
+/**
+ * Narrow read port over service groups. Deliberately just the status: this use
+ * case only needs to know whether a linked group is still alive, and depending on
+ * the full `IServiceGroupRepository` would drag the whole group aggregate — plus
+ * its appointment rows — into every transition.
+ */
+interface IServiceGroupStatusReader {
+  findStatusById(id: string): Promise<string | null>;
+}
+
 interface OnTransitionHandler {
   execute(input: { appointmentId: string; tenantId?: string | null; previousStatus: string; targetStatus: string; notifyRentalTenant?: boolean }): Promise<unknown>;
 }
@@ -87,6 +98,11 @@ export class ExecuteStatusTransitionUseCase {
     /** 028 — optional. When wired, supersedes the confirmation cycle on any → DRAFT transition. */
     private readonly cycleService?: ConfirmationCycleService,
     private readonly prisma?: PrismaClient,
+    /**
+     * Optional. When wired, a link to a terminal service group is dropped on
+     * reopen and refused on release — see checks 3c and the → DRAFT branch.
+     */
+    private readonly serviceGroupRepo?: IServiceGroupStatusReader,
   ) {}
 
   async execute(input: ExecuteStatusTransitionInput): Promise<ExecuteStatusTransitionOutput> {
@@ -162,9 +178,22 @@ export class ExecuteStatusTransitionUseCase {
       }
     }
 
-    // 3c. AWAITING_INSPECTOR requires a service group — direct release bypasses the marketplace flow
-    if (targetStatus === 'AWAITING_INSPECTOR' && !appointment.serviceGroupId) {
-      throw new AppointmentServiceGroupRequiredError();
+    // 3c. AWAITING_INSPECTOR requires a *live* service group — direct release
+    // bypasses the marketplace flow, and a link to a terminal group is worse than
+    // no link at all: the marketplace only offers PUBLISHED groups, so the
+    // appointment would be invisible there while `canAddToGroup` refuses to
+    // re-group it (ALREADY_GROUPED). Since the empty-group cleanup leaves its
+    // members linked, that state is reachable via reopen → release.
+    if (targetStatus === 'AWAITING_INSPECTOR') {
+      if (!appointment.serviceGroupId) {
+        throw new AppointmentServiceGroupRequiredError();
+      }
+      if (this.serviceGroupRepo) {
+        const groupStatus = await this.serviceGroupRepo.findStatusById(appointment.serviceGroupId);
+        if (groupStatus === null || isTerminalGroupStatus(groupStatus)) {
+          throw new AppointmentServiceGroupRequiredError();
+        }
+      }
     }
 
     // 4. Check reason requirement
@@ -239,6 +268,26 @@ export class ExecuteStatusTransitionUseCase {
     } else if (targetStatus === 'DRAFT') {
       // Reopening — clear reason
       updateData.reason = null;
+    }
+
+    // 7b. Reopening: drop a link to a group that will never run again.
+    //
+    // Deliberately NOT folded into the reason branch above — that is an if/else on
+    // `rule.requiresReason`, and every reopen the operator actually performs
+    // (CANCELLED→DRAFT, REJECTED→DRAFT, DONE→DRAFT) *does* require a reason, so the
+    // `else if (DRAFT)` arm never runs for them.
+    //
+    // The empty-group cleanup cancels a group while leaving its terminal members
+    // linked, to keep the history. Reopening one of those members would otherwise
+    // revive a live appointment attached to a CANCELLED group — invisible to the
+    // marketplace, which only offers PUBLISHED groups, and un-regroupable because
+    // `canAddToGroup` rejects any non-null link. Reopening is the operator's "that
+    // cancellation was wrong" action, and EXPIRED cancellations make it common.
+    if (targetStatus === 'DRAFT' && appointment.serviceGroupId && this.serviceGroupRepo) {
+      const groupStatus = await this.serviceGroupRepo.findStatusById(appointment.serviceGroupId);
+      if (groupStatus === null || isTerminalGroupStatus(groupStatus)) {
+        updateData.serviceGroupId = null;
+      }
     }
 
     // Set typed reason codes based on target status
