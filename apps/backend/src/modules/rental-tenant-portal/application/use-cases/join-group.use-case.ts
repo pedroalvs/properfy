@@ -195,11 +195,16 @@ export class JoinGroupUseCase {
     // Both gates that used to make this race fail closed were opened on purpose
     // by the auto-reject work, so this read is what replaces them.
     const freshResult = await this.appointmentRepo.findById(input.appointmentId, null);
-    const freshAppointment = freshResult?.appointment ?? appointment;
-    if (isPortalDeadStatus(freshAppointment.status)) {
+    if (!freshResult || isPortalDeadStatus(freshResult.appointment.status)) {
+      // No silent fallback to the pre-claim entity: a vanished appointment means
+      // the read this whole flow validated against is gone, and proceeding on it
+      // would reserve a window for a row that may no longer exist. The DB gate in
+      // reservePortalWindow would catch it, but reporting "inactive" here is the
+      // honest answer rather than relying on a downstream predicate.
       await this.releaseClaimQuietly(input);
       throw new PortalAppointmentInactiveError();
     }
+    const freshAppointment = freshResult.appointment;
 
     try {
       await this.applyJoin(input, freshAppointment, group, group.assignedInspectorId);

@@ -89,6 +89,12 @@ export class ReportUnavailabilityUseCase {
     // failure this use case exists to prevent. Re-drive the rejection instead, so
     // the retry heals rather than masks. Guarded by the unanswerable check because
     // an operator may legitimately have moved it on in the meantime.
+    //
+    // Two healing retries landing at once both miss the idempotency cache (it is
+    // populated on completion, not on entry), so the loser gets an
+    // AppointmentInvalidTransitionError for REJECTED → REJECTED. Deliberately not
+    // swallowed: the end state is already correct, a further retry returns success,
+    // and catching transition errors here would hide real ones later.
     if (appointment.rentalTenantConfirmationStatus === 'UNAVAILABLE') {
       if (!isPortalUnanswerableStatus(appointment.status)) {
         await this.rejectDeclined(input, appointment);

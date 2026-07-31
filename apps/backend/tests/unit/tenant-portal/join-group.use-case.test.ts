@@ -326,6 +326,39 @@ describe('JoinGroupUseCase', () => {
       expect(result.appointmentStatus).toBe('SCHEDULED');
     });
 
+    it('refuses rather than falling back to stale data when the appointment vanishes after the claim', async () => {
+      appointmentRepo.findById
+        .mockResolvedValueOnce({
+          appointment: makeAppointment({ status: 'REJECTED' }),
+          contact: null,
+          restrictions: [],
+        })
+        .mockResolvedValue(null);
+
+      await expect(useCase.execute(makeInput())).rejects.toThrow(PortalAppointmentInactiveError);
+
+      expect(serviceGroupRepo.reservePortalWindow).not.toHaveBeenCalled();
+      expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
+    });
+
+    it('refuses when the appointment reached a dead status between validation and the claim', async () => {
+      appointmentRepo.findById
+        .mockResolvedValueOnce({
+          appointment: makeAppointment({ status: 'SCHEDULED' }),
+          contact: null,
+          restrictions: [],
+        })
+        .mockResolvedValue({
+          appointment: makeAppointment({ status: 'CANCELLED' }),
+          contact: null,
+          restrictions: [],
+        });
+
+      await expect(useCase.execute(makeInput())).rejects.toThrow(PortalAppointmentInactiveError);
+
+      expect(serviceGroupRepo.reservePortalWindow).not.toHaveBeenCalled();
+    });
+
     it('still uses a single transition when the appointment was merely awaiting an inspector', async () => {
       appointmentRepo.findById.mockResolvedValue({
         appointment: makeAppointment({ status: 'AWAITING_INSPECTOR' }),
