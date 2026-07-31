@@ -10836,6 +10836,9 @@
                             }
                           ]
                         },
+                        "isOverdue": {
+                          "type": "boolean"
+                        },
                         "appointmentNumber": {
                           "type": "number"
                         },
@@ -11407,6 +11410,9 @@
                               }
                             ]
                           },
+                          "isOverdue": {
+                            "type": "boolean"
+                          },
                           "appointmentNumber": {
                             "type": "number"
                           },
@@ -11780,6 +11786,9 @@
                               "format": "date-time"
                             }
                           ]
+                        },
+                        "isOverdue": {
+                          "type": "boolean"
                         },
                         "appointmentNumber": {
                           "type": "number"
@@ -12417,6 +12426,9 @@
                               "format": "date-time"
                             }
                           ]
+                        },
+                        "isOverdue": {
+                          "type": "boolean"
                         },
                         "appointmentNumber": {
                           "type": "number"

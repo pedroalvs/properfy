@@ -1,11 +1,19 @@
-import { isAppointmentOverdue } from '@properfy/shared';
+import {
+  isAppointmentOverdue,
+  OVERDUE_AGE_DAYS,
+  OVERDUE_AUTO_CANCEL_STATUSES,
+  PLATFORM_TIMEZONE,
+} from '@properfy/shared';
 import { SYSTEM_ACTOR } from '../../../../shared/domain/constants';
-import { formatDate, startOfPlatformToday } from '../../../../shared/domain/timezone-date';
+import {
+  civilDateInTimezone,
+  startOfOverdueAgeCutoff,
+} from '../../../../shared/domain/timezone-date';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { ExecuteStatusTransitionUseCase } from './execute-status-transition.use-case';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 
-const CANCELLATION_REASON = 'Appointment date passed without execution';
+const CANCELLATION_REASON = `Not executed within ${OVERDUE_AGE_DAYS} days of creation`;
 
 /**
  * How many appointments one run will cancel. A backlog larger than this drains
@@ -23,9 +31,12 @@ export interface CancelOverdueAppointmentsOutput {
 }
 
 /**
- * Cancels appointments still in an active status after their scheduled date has
- * passed. `DRAFT` is deliberately untouched: an unreleased appointment is not
- * late, and operators use `DRAFT` as the repair state.
+ * Cancels appointments still in an active status more than `OVERDUE_AGE_DAYS` after
+ * they were created. `DRAFT` is deliberately untouched: operators use `DRAFT` as the
+ * repair state, so a stale `DRAFT` carries the overdue badge but is never cancelled.
+ *
+ * The rule is age-of-record, not "the scheduled date passed" — so re-dating an
+ * appointment into the future does NOT rescue it from this sweep.
  *
  * Transitions go through the sovereign transition use case rather than writing to
  * the repository directly, so each cancellation is audited, idempotent and emits
@@ -40,8 +51,11 @@ export class CancelOverdueAppointmentsUseCase {
   ) {}
 
   async execute(): Promise<CancelOverdueAppointmentsOutput> {
-    const cutoff = startOfPlatformToday();
-    const appointments = await this.appointmentRepo.findOverdueActive(cutoff, this.batchLimit);
+    const cutoff = startOfOverdueAgeCutoff();
+    const appointments = await this.appointmentRepo.findOverdueForAutoCancel(
+      cutoff,
+      this.batchLimit,
+    );
 
     if (appointments.length === 0) {
       this.logger.info({ cutoff }, 'No overdue appointments to cancel');
@@ -54,18 +68,25 @@ export class CancelOverdueAppointmentsUseCase {
 
     for (const candidate of appointments) {
       try {
-        // Re-read before acting. An operator can reschedule or finish an appointment
-        // after the query selected it, and the transition use case re-validates status
-        // but not the date — so acting on the stale snapshot could cancel a
-        // now-future appointment as EXPIRED. `isAppointmentOverdue` is the same
-        // predicate the query and the UI badge use.
+        // Re-read before acting. An operator can finish, cancel or pull an appointment
+        // back to DRAFT after the query selected it. `created_at` is immutable, so it
+        // is the STATUS that can have moved out from under the batch.
         const fresh = await this.appointmentRepo.findById(candidate.id, candidate.tenantId);
         if (!fresh) {
           skippedCount++;
           continue;
         }
         const appointment = fresh.appointment;
-        if (!isAppointmentOverdue(appointment.status, appointment.scheduledDate)) {
+        // Both checks are needed. `isAppointmentOverdue` is the shared predicate the
+        // list filter and the UI badge use, and it reports a stale DRAFT as overdue —
+        // so the narrower auto-cancel status list is what keeps DRAFT safe here.
+        const cancellable =
+          (OVERDUE_AUTO_CANCEL_STATUSES as readonly string[]).includes(appointment.status) &&
+          isAppointmentOverdue({
+            status: appointment.status,
+            createdAt: appointment.createdAt,
+          });
+        if (!cancellable) {
           skippedCount++;
           this.logger.info(
             { appointmentId: appointment.id, status: appointment.status },
@@ -79,16 +100,15 @@ export class CancelOverdueAppointmentsUseCase {
           targetStatus: 'CANCELLED',
           reason: CANCELLATION_REASON,
           cancellationReasonCode: 'EXPIRED',
-          // `notifyRentalTenant` is deliberately not passed: notifying the rental
-          // tenant about an already-past date is pure noise, and the first run over
-          // a historical backlog would notify all of it at once. The agency IS
-          // told — it ordered the work and needs to know it never happened — which
-          // is why this no longer suppresses notifications wholesale.
-          // Keyed on the appointment AND the date that expired. Re-runs on the same
-          // day are no-ops (the cache lives 24h), but an appointment that was
-          // reopened, re-dated and went stale again is a genuinely different
-          // expiry — an id-only key would silently skip it.
-          idempotencyKey: `expire_overdue:${appointment.id}:${formatDate(appointment.scheduledDate)}`,
+          // `notifyRentalTenant` is deliberately not passed: telling the rental tenant
+          // about a job that never happened is noise, and the first run over a
+          // historical backlog would notify all of it at once. The agency IS told — it
+          // ordered the work and needs to know it never happened.
+          // Keyed on the appointment AND the run's civil date. Re-runs on the same day
+          // are no-ops (the cache lives 24h), while an appointment that was reopened
+          // and went stale again still expires on a later day. Keying on `createdAt`
+          // instead would be permanently constant, since it never changes.
+          idempotencyKey: `expire_overdue:${appointment.id}:${civilDateInTimezone(new Date(), PLATFORM_TIMEZONE)}`,
           actor: { ...SYSTEM_ACTOR, tenantId: appointment.tenantId },
         });
         cancelledCount++;

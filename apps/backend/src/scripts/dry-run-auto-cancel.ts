@@ -16,7 +16,8 @@
  */
 import { PrismaClient } from '@prisma/client';
 import { isTerminalAppointmentStatus } from '@properfy/shared';
-import { formatDate, startOfPlatformToday, PLATFORM_TIMEZONE } from '../shared/domain/timezone-date';
+import { OVERDUE_AGE_DAYS } from '@properfy/shared';
+import { formatDate, startOfOverdueAgeCutoff, PLATFORM_TIMEZONE } from '../shared/domain/timezone-date';
 import { PrismaAppointmentRepository } from '../modules/appointment/infrastructure/prisma-appointment.repository';
 import { DEFAULT_BATCH_LIMIT } from '../modules/appointment/application/use-cases/cancel-overdue-appointments.use-case';
 import { CANCELLABLE_GROUP_STATUSES, isServiceGroupDead } from '../modules/service-group/application/services/cancel-empty-group.service';
@@ -27,15 +28,16 @@ const LIST_LIMIT = 20;
 const prisma = new PrismaClient();
 
 async function main(): Promise<void> {
-  const cutoff = startOfPlatformToday();
+  const cutoff = startOfOverdueAgeCutoff();
   console.log(`Platform timezone: ${PLATFORM_TIMEZONE}`);
-  console.log(`Cutoff (UTC midnight of today's civil date): ${cutoff.toISOString()}\n`);
+  console.log(`Overdue age threshold: ${OVERDUE_AGE_DAYS} days since creation`);
+  console.log(`Cutoff (Sydney midnight ${OVERDUE_AGE_DAYS} days back): ${cutoff.toISOString()}\n`);
 
   // --- Sweep 1: overdue appointments -------------------------------------------
   // Reuse the production query rather than restating its filter, so this report
   // cannot drift from what the sweep actually does.
   const appointmentRepo = new PrismaAppointmentRepository(prisma);
-  const overdue = await appointmentRepo.findOverdueActive(cutoff, Number.MAX_SAFE_INTEGER);
+  const overdue = await appointmentRepo.findOverdueForAutoCancel(cutoff, Number.MAX_SAFE_INTEGER);
 
   const byStatus = overdue.reduce<Record<string, number>>((acc, a) => {
     acc[a.status] = (acc[a.status] ?? 0) + 1;
@@ -53,16 +55,25 @@ async function main(): Promise<void> {
     );
   }
   if (overdue.length > 0) {
+    // Ordered by created_at, so the ends of the array are the age extremes.
     const oldest = overdue[0]!;
     const newest = overdue[overdue.length - 1]!;
-    console.log(`  date range: ${formatDate(oldest.scheduledDate)} .. ${formatDate(newest.scheduledDate)}`);
+    console.log(`  created between: ${formatDate(oldest.createdAt)} .. ${formatDate(newest.createdAt)}`);
+    // Worth showing separately: under the age rule these can include FUTURE dates,
+    // which the old scheduled-date sweep could never have selected.
+    const scheduled = overdue.map((a) => a.scheduledDate).sort((a, b) => a.getTime() - b.getTime());
+    console.log(`  scheduled between: ${formatDate(scheduled[0]!)} .. ${formatDate(scheduled[scheduled.length - 1]!)}`);
+    console.log(`  scheduled in the future: ${overdue.filter((a) => a.scheduledDate > new Date()).length}`);
     console.log(`  distinct tenants: ${new Set(overdue.map((a) => a.tenantId)).size}`);
     console.log(`  in a service group: ${overdue.filter((a) => a.serviceGroupId).length}`);
   }
 
-  // Sanity check: nothing dated today or later may appear.
-  const wronglyIncluded = overdue.filter((a) => a.scheduledDate >= cutoff);
-  console.log(`  dated today or later (must be 0): ${wronglyIncluded.length}\n`);
+  // Sanity check: nothing younger than the threshold may appear.
+  const wronglyIncluded = overdue.filter((a) => a.createdAt >= cutoff);
+  console.log(`  created after the cutoff (must be 0): ${wronglyIncluded.length}`);
+  // DRAFT is badge-eligible but must never be auto-cancelled.
+  const drafts = overdue.filter((a) => a.status === 'DRAFT');
+  console.log(`  DRAFT included (must be 0): ${drafts.length}\n`);
 
   // --- Sweep 2: released groups with nothing left ------------------------------
   const groups = await prisma.serviceGroup.findMany({

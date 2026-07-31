@@ -1,5 +1,18 @@
-export { isAppointmentOverdue, OVERDUE_ELIGIBLE_STATUSES } from './overdue';
-export { todayInTzDateString, currentTimeInTzHHmm, isTimeStartInPastForDate } from './local-date';
+export {
+  isAppointmentOverdue,
+  overdueCreatedBeforeCivilDate,
+  OVERDUE_AGE_DAYS,
+  OVERDUE_AUTO_CANCEL_STATUSES,
+  OVERDUE_ELIGIBLE_STATUSES,
+  type AppointmentOverdueInput,
+} from './overdue';
+export {
+  todayInTzDateString,
+  civilDateInTz,
+  addCivilDays,
+  currentTimeInTzHHmm,
+  isTimeStartInPastForDate,
+} from './local-date';
 export { zonedWallTimeToUtc, endOfCivilDayInTz } from './timezone-date';
 export { validateNewSchedule, validateEditedSchedule, type DateValidationResult } from './edit-date-validation';
 export { formatInvoiceNumber, INVOICE_NUMBER_PREFIX } from './format-invoice-number';

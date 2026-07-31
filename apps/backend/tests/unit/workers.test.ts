@@ -158,8 +158,8 @@ describe('registerWorkers', () => {
     expect(mockSchedule).toHaveBeenCalledWith('inspection-execution.notify-not-started', '0 * * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('audit.retention', '30 3 * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('appointment.reject-unconfirmed', '0 19 * * *', {}, sydneyTz);
-    // Just after Sydney midnight: the cutoff is "scheduled_date < today", so
-    // yesterday becomes eligible the moment the civil date rolls over.
+    // Just after Sydney midnight: the cutoff is a civil date (today minus
+    // OVERDUE_AGE_DAYS), so a record becomes eligible the moment the date rolls over.
     expect(mockSchedule).toHaveBeenCalledWith('appointment.cancel-overdue', '10 0 * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('service-group.cancel-empty', '20 0 * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('appointment.import.sweep-abandoned', '0 * * * *', {}, sydneyTz);

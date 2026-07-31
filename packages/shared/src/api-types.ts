@@ -4481,6 +4481,7 @@ export interface paths {
                                 doneCheckedAt?: (string) | null;
                                 createdAt: string;
                                 updatedAt: string;
+                                isOverdue?: boolean;
                                 appointmentNumber?: number;
                                 appointmentCode?: string;
                                 code?: string;
@@ -4677,6 +4678,7 @@ export interface paths {
                                 doneCheckedAt?: (string) | null;
                                 createdAt: string;
                                 updatedAt: string;
+                                isOverdue?: boolean;
                                 appointmentNumber?: number;
                                 appointmentCode?: string;
                                 code?: string;
@@ -4798,6 +4800,7 @@ export interface paths {
                                 doneCheckedAt?: (string) | null;
                                 createdAt: string;
                                 updatedAt: string;
+                                isOverdue?: boolean;
                                 appointmentNumber?: number;
                                 appointmentCode?: string;
                                 code?: string;
@@ -4994,6 +4997,7 @@ export interface paths {
                                 doneCheckedAt?: (string) | null;
                                 createdAt: string;
                                 updatedAt: string;
+                                isOverdue?: boolean;
                                 appointmentNumber?: number;
                                 appointmentCode?: string;
                                 code?: string;

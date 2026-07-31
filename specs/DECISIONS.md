@@ -135,9 +135,26 @@ These unit tests cover every FR cited in T028 (FR-007, FR-008, FR-009, FR-019, F
 
 - A released group (`PUBLISHED`/`ACCEPTED`) with no live members **and** no `DONE` member is cancelled. `DRAFT` is excluded because `republish` returns groups to `DRAFT` empty — sweeping it would re-cancel every group an operator is repairing. The `DONE` exclusion prevents cancelling groups whose inspections all succeeded.
 - Reactive via a subscriber on `appointment.status_transition.v1`, plus a daily `service-group.cancel-empty` sweep as the backstop for paths that emit no event (chiefly appointment soft-delete).
-- Companion behaviour: appointments left in `AWAITING_INSPECTOR`/`SCHEDULED` after their date passes are auto-cancelled daily with cancellation reason code `EXPIRED` (`appointment.cancel-overdue`). This is where the "expiry" notion landed — on the appointment, not the group.
+- Companion behaviour: appointments left in `AWAITING_INSPECTOR`/`SCHEDULED` too long are auto-cancelled daily with cancellation reason code `EXPIRED` (`appointment.cancel-overdue`). This is where the "expiry" notion landed — on the appointment, not the group.
 
 **Affects**: `specs/005-service-groups-marketplace/tasks.md` T120, T121, T122, T123, T124 — the expiry decision is resolved; the sweep is daily (not hourly) because the cutoff is a civil date.
+
+**AMENDED 2026-07-30 — "too long" is age of record, not a passed scheduled date.** Overdue was
+originally "`scheduled_date` < today", a zero-day grace period. It is now
+`created_at` older than `OVERDUE_AGE_DAYS` (45), defined once in
+`packages/shared/src/utils/overdue.ts` and shared by the `isOverdue` response flag, the
+`overdueOnly` list filter and this sweep. Consequences worth knowing:
+
+- `scheduled_date` plays no part, so an appointment parked with a **future** date is still
+  swept once the record is old enough — the old rule could never select those.
+- `DRAFT` is overdue-eligible for the badge and the list filter, but `OVERDUE_AUTO_CANCEL_STATUSES`
+  keeps it out of this sweep: it is the operator's repair state.
+- The cutoff is a real **instant** (`startOfOverdueAgeCutoff`), not UTC midnight of a civil
+  date, because `created_at` is a timestamp rather than a `@db.Date`.
+- `created_at` is immutable, so re-dating an appointment no longer rescues it from the sweep,
+  and a reopened record older than 45 days is re-cancelled on the next run. If that becomes a
+  problem operationally, the fix is a separate `overdue_baseline_at` column reset on release —
+  deliberately not implemented here.
 
 ---
 

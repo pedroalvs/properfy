@@ -192,7 +192,10 @@ export class ListAppointmentsUseCase {
         clientName: item.tenantName,
         branchName: item.branchName,
         serviceTypeName: item.serviceTypeName,
-        isOverdue: isAppointmentOverdue(item.appointment.status, item.appointment.scheduledDate),
+        isOverdue: isAppointmentOverdue({
+          status: item.appointment.status,
+          createdAt: item.appointment.createdAt,
+        }),
         hasRentalTenantNote: !!item.appointment.rentalTenantNote,
         rentalTenantNote: item.appointment.rentalTenantNote ?? null,
         latitude: item.propertyLatitude,
