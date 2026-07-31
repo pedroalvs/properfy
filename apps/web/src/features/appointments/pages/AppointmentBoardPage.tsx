@@ -13,7 +13,12 @@ import { BulkEditModal } from '../components/BulkEditModal';
 import { StatusTransitionDialog } from '../components/StatusTransitionDialog';
 import type { BoardCardAction } from '../components/AppointmentBoardCard';
 import { useAppointmentBoard } from '../hooks/useAppointmentBoard';
-import { useServiceTypeFilterOptions, useBranchOptionsFromAppointments } from '../hooks/useAppointmentFilterOptions';
+import {
+  useServiceTypeFilterOptions,
+  useAgencyFilterOptions,
+  useInspectorFilterOptions,
+  useBranchFilterOptions,
+} from '../hooks/useAppointmentFilterOptions';
 import { useAppointmentTransition } from '../hooks/useAppointmentTransition';
 import { useBulkResendHandler } from '../hooks/useBulkResendHandler';
 import { getAvailableTransitions } from '../lib/transitions';
@@ -55,9 +60,11 @@ export function AppointmentBoardPage() {
   const canBulkResend = canPerform('appointment.bulk_resend_reminder');
 
   const serviceTypeOptions = useServiceTypeFilterOptions();
-  // AM/OP-only route, so unlike the list there is no CL branch of this logic:
-  // branches always come from the loaded rows.
-  const branchOptions = useBranchOptionsFromAppointments(allItems);
+  const agencyOptions = useAgencyFilterOptions();
+  const inspectorOptions = useInspectorFilterOptions();
+  // AM/OP-only route: branches come from the loaded cards until an agency is
+  // picked, then from that agency's real list.
+  const branchOptions = useBranchFilterOptions(filters.tenantId, allItems);
 
   const hasActiveFilters = useMemo(
     () =>
@@ -183,6 +190,8 @@ export function AppointmentBoardPage() {
         onFiltersChange={setFilters}
         branchOptions={branchOptions}
         serviceTypeOptions={serviceTypeOptions}
+        agencyOptions={agencyOptions}
+        inspectorOptions={inspectorOptions}
         hiddenFilters={BOARD_HIDDEN_FILTERS}
       />
 

@@ -1,16 +1,19 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useAuth } from '@/hooks/useAuth';
-import { useFormOptions } from '@/hooks/useFormOptions';
 import { AppointmentFilters } from '../components/AppointmentFilters';
 import { AppointmentTable } from '../components/AppointmentTable';
 import { AppointmentFormDrawer } from '../components/AppointmentFormDrawer';
 import { AppointmentBulkActionBar } from '../components/AppointmentBulkActionBar';
 import { BulkEditModal } from '../components/BulkEditModal';
 import { useAppointmentList } from '../hooks/useAppointmentList';
-import { useServiceTypeFilterOptions, useBranchOptionsFromAppointments } from '../hooks/useAppointmentFilterOptions';
+import {
+  useServiceTypeFilterOptions,
+  useAgencyFilterOptions,
+  useInspectorFilterOptions,
+  useBranchFilterOptions,
+} from '../hooks/useAppointmentFilterOptions';
 import { useBulkResendHandler } from '../hooks/useBulkResendHandler';
 
 export function AppointmentListPage() {
@@ -18,9 +21,7 @@ export function AppointmentListPage() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { canPerform, hasRole } = usePermissions();
-  const { user } = useAuth();
   const isGlobalRole = hasRole('AM', 'OP');
-  const tenantId = user?.tenantId ?? null;
   const {
     data,
     isLoading,
@@ -33,22 +34,9 @@ export function AppointmentListPage() {
   } = useAppointmentList();
 
   const serviceTypeOptions = useServiceTypeFilterOptions();
-
-  // Branches are tenant-scoped on the backend. CL roles get the real list from
-  // the API pinned to their JWT tenantId (stable query key → cached). AM/OP have
-  // no tenant selector here, so they fall back to deriving from loaded rows.
-  const { options: branchApiOptions } = useFormOptions<{ id: string; name: string }>(
-    ['branches', 'appointment-list-filter', tenantId ?? ''],
-    '/v1/branches',
-    (item) => ({ value: item.id, label: item.name }),
-    { ...(tenantId ? { tenantId } : {}), status: 'ACTIVE' },
-    { enabled: !isGlobalRole && !!tenantId },
-  );
-  const derivedBranchOptions = useBranchOptionsFromAppointments(data);
-  const branchOptions = useMemo(
-    () => (isGlobalRole ? derivedBranchOptions : [{ label: 'All', value: '' }, ...branchApiOptions]),
-    [isGlobalRole, derivedBranchOptions, branchApiOptions],
-  );
+  const agencyOptions = useAgencyFilterOptions();
+  const inspectorOptions = useInspectorFilterOptions();
+  const branchOptions = useBranchFilterOptions(filters.tenantId, data);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -97,6 +85,8 @@ export function AppointmentListPage() {
           onFiltersChange={setFilters}
           branchOptions={branchOptions}
           serviceTypeOptions={serviceTypeOptions}
+          agencyOptions={agencyOptions}
+          inspectorOptions={inspectorOptions}
         />
         <AppointmentTable
           data={data}
@@ -104,6 +94,7 @@ export function AppointmentListPage() {
           error={isError ? (errorMessage ?? 'Failed to load appointments') : undefined}
           onRetryError={refetch}
           pagination={pagination}
+          showAgency={isGlobalRole}
           selectedIds={canBulkEdit ? selectedIds : undefined}
           onSelectionChange={canBulkEdit ? setSelectedIds : undefined}
         />

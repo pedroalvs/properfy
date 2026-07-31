@@ -89,6 +89,30 @@ describe('useAppointmentBoard', () => {
     }
   });
 
+  // The board page stubs this hook, so nothing else can catch the list and the
+  // board drifting on which filters they actually send.
+  it('forwards the agency and inspector filters to every column', () => {
+    renderHook(() => useAppointmentBoard(), {
+      wrapper: wrapper(['/appointments/board?tenantId=tenant-1&inspectorId=insp-1']),
+    });
+
+    const byStatus = paramsByStatus();
+    expect(Object.keys(byStatus)).toHaveLength(BOARD_COLUMN_STATUSES.length);
+    for (const params of Object.values(byStatus)) {
+      expect(params.tenantId).toBe('tenant-1');
+      expect(params.inspectorId).toBe('insp-1');
+    }
+  });
+
+  it('omits the agency and inspector params when unset', () => {
+    renderHook(() => useAppointmentBoard(), { wrapper: wrapper(['/appointments/board']) });
+
+    for (const params of Object.values(paramsByStatus())) {
+      expect(params.tenantId).toBeUndefined();
+      expect(params.inspectorId).toBeUndefined();
+    }
+  });
+
   it('starts each column at the standard page size', () => {
     renderHook(() => useAppointmentBoard(), { wrapper: wrapper(['/appointments/board']) });
 

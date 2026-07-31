@@ -18,7 +18,12 @@ export interface Appointment {
   appointmentNumber: number;
   code: string;
   tenantId: string;
-  tenantName: string;
+  /**
+   * Tenant (agency) display name. The API sends it as `clientName` — there is no
+   * `tenantName` on the wire, and adding one here would silently read undefined:
+   * Fastify strips any field absent from `appointmentResponseSchema`.
+   */
+  clientName?: string;
   branchId: string;
   branchName: string;
   propertyId: string;
@@ -56,6 +61,7 @@ export interface AppointmentFiltersState {
   rentalTenantConfirmationStatus: string;
   tenantId: string;
   branchId: string;
+  inspectorId: string;
   serviceTypeId: string;
   startDate: string;
   endDate: string;
@@ -86,8 +92,6 @@ export interface AppointmentDetail extends Omit<Appointment, 'code'> {
   hasActivePortalToken: boolean;
   /** Set when the appointment belongs to a service group — date/time is managed by the group. */
   serviceGroupId?: string | null;
-  /** Tenant (agency) display name — surfaced as "CLIENT" in the map detail panel (025 §FR-451). */
-  clientName?: string;
   /** T-C5-5 — populated when status = REJECTED; surfaced in the map detail panel red banner. */
   rejectionReasonCode?: string | null;
   reason?: string | null;
@@ -264,6 +268,7 @@ export const DEFAULT_FILTERS: AppointmentFiltersState = {
   rentalTenantConfirmationStatus: '',
   tenantId: '',
   branchId: '',
+  inspectorId: '',
   serviceTypeId: '',
   startDate: '',
   endDate: '',
