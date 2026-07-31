@@ -81,11 +81,11 @@ describe('useTemplateSave', () => {
     const { result } = renderHook(() => useTemplateSave(), { wrapper });
 
     await act(async () => {
-      await result.current.save('INSPECTION_NOTICE', 'EMAIL', VALID_DATA, null, 'TRANSACTIONAL');
+      await result.current.save('INSPECTION_NOTICE', 'EMAIL', VALID_DATA, null, 'MARKETING');
     });
 
     const body = mockPut.mock.calls[0]![1].body as Record<string, unknown>;
-    expect(body.notificationClass).toBe('TRANSACTIONAL');
+    expect(body.notificationClass).toBe('MARKETING');
   });
 
   it('accepts a body with a handlebars else branch (the shipped appointment emails)', () => {

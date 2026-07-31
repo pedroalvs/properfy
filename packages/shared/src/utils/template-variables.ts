@@ -36,10 +36,37 @@ const BLOCK_COMMENT = /\{\{!--[\s\S]*?--\}\}/g;
 /** Trailing block-parameter declaration, as in `{{#each rows as |row index|}}`. */
 const BLOCK_PARAMS = /\s+as\s+\|[^|]*\|\s*$/;
 
+/** The same declaration, found anywhere, to collect the alias names it introduces. */
+const BLOCK_PARAMS_ANYWHERE = /\bas\s+\|([^|]*)\|/g;
+
+/**
+ * Names bound by `as |…|` anywhere in the template. Collected up front and
+ * excluded everywhere rather than tracked per block: an alias is loop-local, so
+ * reporting `{{row}}` inside `{{#each rows as |row|}}` produced
+ * "Invalid variables: row" and blocked a save the renderer would have accepted.
+ *
+ * The flat set can also mask a real variable that happens to share an alias
+ * name. That direction is deliberate — under-reporting only forgoes a warning,
+ * while over-reporting refuses valid content, which is the failure this module
+ * exists to prevent.
+ */
+function collectBlockAliases(text: string): Set<string> {
+  const aliases = new Set<string>();
+  const regex = new RegExp(BLOCK_PARAMS_ANYWHERE.source, 'g');
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(text)) !== null) {
+    for (const name of (match[1] ?? '').trim().split(/\s+/)) {
+      if (name) aliases.add(name);
+    }
+  }
+  return aliases;
+}
+
 export function extractTemplateVariables(text: string): string[] {
   if (!text) return [];
 
   const scannable = text.replace(new RegExp(BLOCK_COMMENT.source, 'g'), ' ');
+  const aliases = collectBlockAliases(scannable);
   const found = new Set<string>();
   const regex = new RegExp(EXPRESSION.source, 'g');
   let match: RegExpExecArray | null;
@@ -61,7 +88,7 @@ export function extractTemplateVariables(text: string): string[] {
     inner = inner.replace(BLOCK_PARAMS, '');
 
     for (const token of inner.split(/\s+/)) {
-      if (!token || HELPERS.has(token) || NON_VARIABLES.has(token)) continue;
+      if (!token || HELPERS.has(token) || NON_VARIABLES.has(token) || aliases.has(token)) continue;
       if (!IDENTIFIER.test(token)) continue; // string/number literals, hash args, dotted paths
       found.add(token);
     }

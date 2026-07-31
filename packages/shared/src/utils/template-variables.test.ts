@@ -63,6 +63,22 @@ describe('extractTemplateVariables', () => {
     expect(extractTemplateVariables('{{#each rows as |row index|}}x{{/each}}')).toEqual(['rows']);
   });
 
+  it('does not report references to a block alias', () => {
+    // The alias is a loop-local name, never a payload variable. Reporting it
+    // made the editor answer "Invalid variables: appointment" for a body the
+    // renderer handles — a false rejection, which is the failure this module
+    // exists to prevent.
+    expect(
+      extractTemplateVariables('{{#each appointments as |appointment|}}{{appointment}}{{/each}}'),
+    ).toEqual(['appointments']);
+    expect(
+      extractTemplateVariables('{{#each rows as |row index|}}{{row}}-{{index}}{{/each}}'),
+    ).toEqual(['rows']);
+    expect(
+      extractTemplateVariables('{{#with property as |p|}}{{p}} {{agencyName}}{{/with}}'),
+    ).toEqual(['property', 'agencyName']);
+  });
+
   it('reads through whitespace-control markers', () => {
     // `{{~x~}}` is `x` with whitespace trimming. Dropping it let a variable
     // outside the allow-list through unreported.
