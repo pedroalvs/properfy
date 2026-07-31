@@ -17,6 +17,12 @@ import tailwindConfig from '../../tailwind.config';
  *
  * A `toContain('bg-primary/10')` assertion on a className passed for the entire life of
  * that bug, which is why this file asserts on compiled CSS instead.
+ *
+ * This file is also the guard for a Tailwind upgrade. `token()` in tailwind.config.ts
+ * depends on how tailwindcss calls a function colour, which is internal behaviour, not
+ * public API — so `tailwindcss` is deliberately left on a caret range and these
+ * assertions are what catch a minor bump that changes it. If they fail after an upgrade,
+ * re-read `util/withAlphaVariable.js` and `util/pluginUtils.js` before touching them.
  */
 async function compile(classes: string): Promise<string> {
   const result = await postcss([

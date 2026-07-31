@@ -42,7 +42,7 @@ function sourceFiles(dir: string): string[] {
     .map((entry) => resolve(entry.parentPath ?? entry.path, entry.name))
     // Tests quote class names as fixtures — including deliberately off-scale ones — and
     // those strings never reach a stylesheet. Only shipped source counts.
-    .filter((path) => !/(^|\/)__tests__\/|\.test\.tsx?$/.test(path));
+    .filter((path) => !/(^|\/)__tests__\/|\.(test|spec)\.tsx?$/.test(path));
 }
 
 /** Flattened colour names Tailwind knows about — `primary`, `white`, `red-500`, … */
@@ -68,8 +68,15 @@ describe('opacity modifiers stay on the configured scale', () => {
 
   it('every opacity modifier in src/ resolves to a defined scale step', () => {
     const offScale: string[] = [];
+    const files = sourceFiles(SRC);
 
-    for (const file of sourceFiles(SRC)) {
+    // `readdirSync({ recursive: true, withFileTypes: true })` is young enough that an old
+    // Node 20 patch can walk it wrongly. If it ever returns nothing (or only the top
+    // level), every assertion below passes over an empty set and this guard silently
+    // stops guarding — the exact failure mode #1041 was.
+    expect(files.length).toBeGreaterThan(100);
+
+    for (const file of files) {
       const contents = readFileSync(file, 'utf8');
       for (const [match, alpha] of contents.matchAll(modifier)) {
         if (alpha !== undefined && scale[alpha] === undefined) {
@@ -85,8 +92,13 @@ describe('opacity modifiers stay on the configured scale', () => {
 
   it('extends the scale with exactly the off-default steps the source needs', () => {
     // Guards against the extension quietly growing into a full 0-100 scale, which would
-    // make the test above vacuous.
-    for (const step of ['4', '6', '8', '12', '14', '78', '88', '92']) {
+    // make the test above vacuous. Asserting the *extension* rather than diffing the
+    // resolved scale against a hand-copied list of Tailwind's defaults keeps this honest
+    // if upstream ever changes those defaults.
+    const steps = ['4', '6', '8', '12', '14', '78', '88', '92'];
+    const extension = (tailwindConfig.theme?.extend?.opacity ?? {}) as Record<string, string>;
+    expect(Object.keys(extension).sort()).toEqual([...steps].sort());
+    for (const step of steps) {
       expect(scale[step]).toBe(`0.${step.padStart(2, '0')}`);
     }
   });

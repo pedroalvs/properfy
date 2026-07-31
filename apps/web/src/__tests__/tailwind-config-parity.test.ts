@@ -47,8 +47,16 @@ describe('tailwind config parity between web and pwa', () => {
 
   it('uses the same token() helper body in both apps', () => {
     // Comments above the helper differ (each points at the other app); the code must not.
-    const helper = (source: string) =>
-      source.slice(source.indexOf('const token = '), source.indexOf('as unknown) as string;'));
+    const helper = (source: string) => {
+      const start = source.indexOf('const token = ');
+      const end = source.indexOf('as unknown) as string;');
+      // Without these, a rename makes both indexOf calls return -1, both slices return
+      // '', and `expect('').toBe('')` passes — a parity test that stops comparing
+      // anything while still reporting green.
+      expect(start, 'token() helper not found').toBeGreaterThan(-1);
+      expect(end, 'token() helper terminator not found').toBeGreaterThan(start);
+      return source.slice(start, end);
+    };
     expect(helper(sources.web)).toBe(helper(sources.pwa));
   });
 

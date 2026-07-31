@@ -15,6 +15,12 @@ import tailwindConfig from '../../tailwind.config';
  * that bug, which is why this file exists — it is the second link in the same chain that
  * `components/shell/__tests__/safe-area-tokens.test.ts` describes: the class is used
  * *and* the class compiles to a rule.
+ *
+ * This file is also the guard for a Tailwind upgrade. `token()` in tailwind.config.ts
+ * depends on how tailwindcss calls a function colour, which is internal behaviour, not
+ * public API — so `tailwindcss` is deliberately left on a caret range and these
+ * assertions are what catch a minor bump that changes it. If they fail after an upgrade,
+ * re-read `util/withAlphaVariable.js` and `util/pluginUtils.js` before touching them.
  */
 async function compile(classes: string): Promise<string> {
   const result = await postcss([
