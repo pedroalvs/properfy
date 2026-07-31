@@ -163,10 +163,14 @@ Official statuses:
 
 - Reopen `DONE` appointment
 - Manual financial status changes and refunds
-- Force manual confirmation without tenant response
 - Mark `SCHEDULED -> REJECTED`
 - Disable client/branch/inspector with open appointments
 - Change pricing or split on operational client
+
+**Agency-scoped actions** (AM/OP platform-wide, `CL_ADMIN` within its own tenant only):
+
+- Force manual confirmation without tenant response (also `CL_USER` holding the `force_confirmation` flag)
+- Send / copy the rental tenant portal link, and read the portal activity history
 
 ---
 

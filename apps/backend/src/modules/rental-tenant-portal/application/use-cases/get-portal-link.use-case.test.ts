@@ -13,11 +13,14 @@ const OP_ACTOR = { userId: 'user-op', tenantId: 'tenant-1', branchId: null, role
 const CL_ACTOR = { userId: 'user-cl', tenantId: 'tenant-1', branchId: null, role: 'CL_ADMIN' as const, inspectorId: null };
 const PORTAL_BASE = 'https://portal.properfy.test';
 
-function makeAppointment(activeConfirmationCycleId: string | null = 'cycle-1'): AppointmentEntity {
+function makeAppointment(
+  activeConfirmationCycleId: string | null = 'cycle-1',
+  tenantId = 'tenant-1',
+): AppointmentEntity {
   return new AppointmentEntity({
     id: 'appt-1',
     appointmentNumber: 1,
-    tenantId: 'tenant-1',
+    tenantId,
     branchId: 'branch-1',
     propertyId: 'prop-1',
     serviceTypeId: 'svc-1',
@@ -187,13 +190,68 @@ describe('GetPortalLinkUseCase', () => {
     });
   });
 
+  describe('CL_ADMIN — own agency', () => {
+    it('should return the portal link for a CL_ADMIN, scoped to its own tenant', async () => {
+      const appointmentRepo = {
+        findById: vi.fn().mockResolvedValue({ appointment: makeAppointment(), contact: null, contacts: [], restrictions: [] }),
+      };
+      const tokenRepo = { findActiveByAppointmentId: vi.fn().mockResolvedValue(makeToken()) };
+      const { uc } = makeUseCase({ appointmentRepo, tokenRepo });
+
+      const result = await uc.execute({ appointmentId: 'appt-1', actor: CL_ACTOR });
+
+      expect(result.portalUrl).toBe(`${PORTAL_BASE}/portal/raw`);
+      // Pinned to the actor's tenant — a null scope here would let a CL_ADMIN
+      // copy another agency's occupant link.
+      expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', 'tenant-1');
+    });
+
+    it('should not leak another tenant link to a CL_ADMIN', async () => {
+      const appointmentRepo = {
+        // Faithful to the real repo, which SKIPS the tenant filter on a null
+        // scope — so a regression to null returns the foreign row and this test
+        // fails, which is the whole point of it.
+        findById: vi.fn().mockImplementation(async (_id: string, tenantId: string | null) =>
+          tenantId == null || tenantId === 'tenant-2'
+            ? { appointment: makeAppointment('cycle-1', 'tenant-2'), contact: null, contacts: [], restrictions: [] }
+            : null,
+        ),
+      };
+      const tokenRepo = { findActiveByAppointmentId: vi.fn() };
+      const { uc } = makeUseCase({ appointmentRepo, tokenRepo });
+
+      await expect(uc.execute({ appointmentId: 'appt-1', actor: CL_ACTOR })).rejects.toThrow(AppointmentNotFoundError);
+      expect(tokenRepo.findActiveByAppointmentId).not.toHaveBeenCalled();
+    });
+
+    // Defense in depth: simulates the repo handing back a foreign row despite
+    // the scope (loosened filter / null scope). The ownership re-check must
+    // still refuse. Without that guard this test returns a portal link.
+    it('refuses a foreign appointment even if the repo ignores the tenant scope', async () => {
+      const appointmentRepo = {
+        findById: vi.fn().mockResolvedValue({
+          appointment: makeAppointment('cycle-1', 'tenant-2'),
+          contact: null, contacts: [], restrictions: [],
+        }),
+      };
+      const tokenRepo = { findActiveByAppointmentId: vi.fn() };
+      const { uc } = makeUseCase({ appointmentRepo, tokenRepo });
+
+      await expect(uc.execute({ appointmentId: 'appt-1', actor: CL_ACTOR })).rejects.toThrow(AppointmentNotFoundError);
+      expect(tokenRepo.findActiveByAppointmentId).not.toHaveBeenCalled();
+    });
+  });
+
   describe('403 — unauthorized roles', () => {
-    it('should throw ForbiddenError when actor is CL_ADMIN', async () => {
+    it.each([
+      ['CL_USER', { userId: 'user-clu', tenantId: 'tenant-1', branchId: null, role: 'CL_USER' as const, inspectorId: null }],
+      ['INSP', { userId: 'user-insp', tenantId: null, branchId: null, role: 'INSP' as const, inspectorId: null }],
+    ])('should throw ForbiddenError when actor is %s', async (_label, actor) => {
       const appointmentRepo = { findById: vi.fn() };
       const tokenRepo = { findActiveByAppointmentId: vi.fn() };
       const { uc } = makeUseCase({ appointmentRepo, tokenRepo });
 
-      await expect(uc.execute({ appointmentId: 'appt-1', actor: CL_ACTOR })).rejects.toThrow();
+      await expect(uc.execute({ appointmentId: 'appt-1', actor })).rejects.toThrow();
       expect(appointmentRepo.findById).not.toHaveBeenCalled();
     });
   });

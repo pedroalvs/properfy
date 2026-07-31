@@ -29,10 +29,18 @@ vi.mock('@/lib/auth-storage', () => ({
 }));
 
 let mockUserRole = 'AM';
+let mockClUserPermissions: string[] = [];
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
-    user: { id: 'usr-99', name: 'Test Admin', email: 'test@test.com', role: mockUserRole, tenantId: 'tenant-1' },
+    user: {
+      id: 'usr-99',
+      name: 'Test Admin',
+      email: 'test@test.com',
+      role: mockUserRole,
+      tenantId: 'tenant-1',
+      clUserPermissions: mockClUserPermissions,
+    },
     token: 'mock-token',
     isAuthenticated: true,
     isLoading: false,
@@ -283,6 +291,7 @@ describe('AppointmentDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUserRole = 'AM';
+    mockClUserPermissions = [];
   });
 
   it('renders appointment code in header', () => {
@@ -426,6 +435,7 @@ describe('AppointmentDetailPage — Send Portal Link dispatch feedback', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUserRole = 'AM';
+    mockClUserPermissions = [];
   });
 
   function mockPortalTokenResponse(payload: Record<string, unknown>) {
@@ -466,6 +476,7 @@ describe('AppointmentDetailPage — Send Portal Link status gating', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUserRole = 'AM';
+    mockClUserPermissions = [];
   });
 
   it('hides Send Portal Link for DRAFT appointments', () => {
@@ -489,10 +500,92 @@ describe('AppointmentDetailPage — Send Portal Link status gating', () => {
   });
 });
 
+// Role gating for the agency-facing portal surface. CL_ADMIN administers its own
+// agency and gets the portal link actions, Force Confirm and the Portal Activity
+// tab; it must NOT gain the operations-only surfaces (cross-check, Notifications,
+// Timeline, Financial). CL_USER only reaches Force Confirm, and only with the
+// `force_confirmation` flag.
+describe('AppointmentDetailPage — role gating for portal actions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUserRole = 'AM';
+    mockClUserPermissions = [];
+  });
+
+  it('shows the portal actions and Force Confirm for CL_ADMIN', () => {
+    mockUserRole = 'CL_ADMIN';
+    renderPage('/appointments/awaiting');
+
+    expect(screen.getByTestId('send-portal-link-button')).toBeInTheDocument();
+    expect(screen.getByTestId('copy-portal-link-button')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /force confirm/i })).toBeInTheDocument();
+  });
+
+  it('shows the Portal Activity tab for CL_ADMIN but not the operations-only tabs', () => {
+    mockUserRole = 'CL_ADMIN';
+    renderPage('/appointments/awaiting');
+
+    expect(screen.getByRole('tab', { name: /portal activity/i })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /notifications/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /timeline/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /financial/i })).not.toBeInTheDocument();
+  });
+
+  // The operations-only surface must NOT ride along with the portal widening.
+  // A DONE appointment with no cross-check yet is what makes the button eligible
+  // for AM/OP, so it is the only fixture that can prove CL_ADMIN is excluded.
+  // The cross-check action renders as "Confirm Done" (not to be confused with
+  // "Force Confirm", which CL_ADMIN does get).
+  it('does not give CL_ADMIN the cross-check action on a DONE appointment', () => {
+    mockUserRole = 'CL_ADMIN';
+    renderPage('/appointments/done');
+
+    expect(screen.queryByRole('button', { name: /confirm done/i })).not.toBeInTheDocument();
+  });
+
+  it('still gives OP the cross-check action on the same DONE appointment', () => {
+    mockUserRole = 'OP';
+    renderPage('/appointments/done');
+
+    expect(screen.getByRole('button', { name: /confirm done/i })).toBeInTheDocument();
+  });
+
+  it('hides every portal action from a CL_USER without the force_confirmation flag', () => {
+    mockUserRole = 'CL_USER';
+    renderPage('/appointments/awaiting');
+
+    expect(screen.queryByTestId('send-portal-link-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('copy-portal-link-button')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /force confirm/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /portal activity/i })).not.toBeInTheDocument();
+  });
+
+  it('shows only Force Confirm for a CL_USER holding the force_confirmation flag', () => {
+    mockUserRole = 'CL_USER';
+    mockClUserPermissions = ['force_confirmation'];
+    renderPage('/appointments/awaiting');
+
+    expect(screen.getByRole('button', { name: /force confirm/i })).toBeInTheDocument();
+    // The portal link is not flag-gated — it stays out of reach for CL_USER.
+    expect(screen.queryByTestId('send-portal-link-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('copy-portal-link-button')).not.toBeInTheDocument();
+  });
+
+  it('hides every portal action from INSP', () => {
+    mockUserRole = 'INSP';
+    renderPage('/appointments/awaiting');
+
+    expect(screen.queryByTestId('send-portal-link-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('copy-portal-link-button')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /force confirm/i })).not.toBeInTheDocument();
+  });
+});
+
 describe('AppointmentDetailPage — Copy Portal Link generate-only modal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUserRole = 'AM';
+    mockClUserPermissions = [];
     Object.assign(navigator, {
       clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
     });
@@ -567,6 +660,7 @@ describe('AppointmentDetailPage — Copy Portal Link (T39)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUserRole = 'AM';
+    mockClUserPermissions = [];
     Object.assign(navigator, {
       clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
     });
