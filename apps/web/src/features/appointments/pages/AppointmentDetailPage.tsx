@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { UserRole } from '@properfy/shared';
+import { UserRole, TENANT_NOTIFICATIONS_BLOCKED_CODE } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsNav } from '@/components/layout/TabsNav';
 import { Button } from '@/components/ui/Button';
@@ -103,6 +103,9 @@ export function AppointmentDetailPage() {
   // stays VISIBLE but disabled: an action that silently vanishes reads as a missing
   // feature, whereas a disabled one with a reason explains itself. Copy Portal Link
   // is deliberately left enabled — it dispatches nothing.
+  // `=== false` and not the shared isRentalTenantNotificationsEnabled predicate: that one
+  // takes a settings blob, whereas the API already resolved the tri-state into an optional
+  // boolean here. Absent still means enabled.
   const tenantNotificationsBlocked = appointment?.rentalTenantNotificationsEnabled === false;
   // Portal link is only meaningful once the appointment leaves DRAFT and is
   // not terminal — mirrors the backend INVALID_APPOINTMENT_STATUS gate.
@@ -143,7 +146,7 @@ export function AppointmentDetailPage() {
         const err = error as { error?: { message?: string; code?: string } };
         // Defence in depth: the button is disabled for a blocked agency, but a page
         // left open while an AM flips the setting would still get here.
-        if (err?.error?.code === 'TENANT_NOTIFICATIONS_BLOCKED') {
+        if (err?.error?.code === TENANT_NOTIFICATIONS_BLOCKED_CODE) {
           showError(TENANT_NOTIFICATIONS_BLOCKED_HINT);
           refetch();
           return;

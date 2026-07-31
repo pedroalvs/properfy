@@ -7,6 +7,7 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { NotFoundError } from '../../../../shared/domain/errors';
 import { classifyPortalLinkAction } from '../../../appointment/domain/portal-link-eligibility';
+import { isTenantNotificationsBlockedError } from '../../../appointment/domain/tenant-notifications-blocked';
 import { dayKeyInTz } from '../../../appointment/application/use-cases/bulk-action-shared';
 
 // EXACT reuse of the bulk-resend idempotency bucket: a same-day reminder already
@@ -108,6 +109,19 @@ export class SendGroupPortalLinksUseCase {
         results.push({ appointmentId: row.id, status: 'TENANT_NOTIFICATIONS_BLOCKED' });
         continue;
       }
+      if (action !== 'SEND' && action !== 'SEND_AFTER_RESET') {
+        // Exhaustiveness guard, not dead code. The branches above are an if-chain, so a
+        // future PortalLinkPlannedAction variant would fall straight through to the
+        // dispatch below and silently notify a tenant it was meant to skip. Failing the
+        // single item keeps the batch alive while making the omission impossible to miss.
+        const unhandled: never = action;
+        results.push({
+          appointmentId: row.id,
+          status: 'ERROR',
+          error: { code: ERROR_CODE, message: `Unhandled portal-link action: ${String(unhandled)}` },
+        });
+        continue;
+      }
 
       const idemKey = `bulk_resend:${row.id}:${dayKey}`;
 
@@ -162,6 +176,13 @@ export class SendGroupPortalLinksUseCase {
         await this.idempotency.set(idemKey, IDEMPOTENCY_SCOPE, result, IDEMPOTENCY_TTL_HOURS);
         results.push(result);
       } catch (e) {
+        // The flag can be flipped between the repository snapshot above and the mint
+        // below, so the same outcome can arrive as a throw. Report it identically to the
+        // planned skip rather than as a generic dispatch error.
+        if (isTenantNotificationsBlockedError(e)) {
+          results.push({ appointmentId: row.id, status: 'TENANT_NOTIFICATIONS_BLOCKED' });
+          continue;
+        }
         const message = e instanceof Error ? e.message : 'Dispatch failed';
         results.push({
           appointmentId: row.id,

@@ -171,10 +171,11 @@ describe('TENANT_NOTICE_FORWARDED_AGENCY template', () => {
     expect(getDefaultClass('TENANT_NOTICE_FORWARDED_AGENCY')).toBe('TRANSACTIONAL');
   });
 
-  it('has no TEMPLATE_VARIABLES entry, so the forwarded payload passes through unfiltered', () => {
-    // BuildNotificationPayloadService narrows a payload to `required + optional` when a
-    // spec exists. The forward carries the suppressed message's own variables plus
-    // context keys outside ALLOWED_VARIABLES, so a spec here would silently drop them.
+  it('has no TEMPLATE_VARIABLES entry, matching that registry\'s scope', () => {
+    // TEMPLATE_VARIABLES covers the codes whose payloads BuildNotificationPayloadService
+    // assembles, and its header says outright not to "complete" the map for others. The
+    // forward's payload is built in SendNotificationUseCase instead, and carries context
+    // keys (suppressedTemplateLabel/suppressedChannel) outside ALLOWED_VARIABLES.
     expect(TEMPLATE_VARIABLES).not.toHaveProperty('TENANT_NOTICE_FORWARDED_AGENCY');
   });
 });

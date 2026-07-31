@@ -72,3 +72,8 @@ export {
   mapResetPasswordError,
   type ResetPasswordErrorMessage,
 } from './reset-password-error';
+export {
+  isRentalTenantNotificationsEnabled,
+  RENTAL_TENANT_NOTIFICATIONS_SETTING_KEY,
+  TENANT_NOTIFICATIONS_BLOCKED_CODE,
+} from './rental-tenant-notifications';

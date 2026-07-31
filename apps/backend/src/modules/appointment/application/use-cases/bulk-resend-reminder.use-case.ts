@@ -2,23 +2,11 @@ import type { GeneratePortalTokenUseCase, AuthContext } from '../../../rental-te
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import type { BulkResendReminderResult } from '@properfy/shared';
 import { dayKeyInTz } from './bulk-action-shared';
+import { isTenantNotificationsBlockedError } from '../../domain/tenant-notifications-blocked';
 
 const IDEMPOTENCY_SCOPE = 'bulk_resend_reminder';
 const IDEMPOTENCY_TTL_HOURS = 36;
 const ERROR_CODE = 'DISPATCH_FAILED';
-
-/**
- * Duck-typed on `code` rather than `instanceof ConflictError`: the same class
- * carries INVALID_APPOINTMENT_STATUS and other conflicts, which must keep
- * surfacing as ERROR.
- */
-function isTenantNotificationsBlocked(e: unknown): boolean {
-  return (
-    typeof e === 'object' &&
-    e !== null &&
-    (e as { code?: unknown }).code === 'TENANT_NOTIFICATIONS_BLOCKED'
-  );
-}
 
 export interface BulkResendReminderInput {
   appointmentIds: string[];
@@ -81,7 +69,7 @@ export class BulkResendReminderUseCase {
         // A blocked agency is a setting, not a failure: report it as its own status
         // so a mixed selection does not look like a batch of errors. Not cached —
         // the operator can flip the setting and re-run the same day.
-        if (isTenantNotificationsBlocked(e)) {
+        if (isTenantNotificationsBlockedError(e)) {
           results.push({ appointmentId: apptId, status: 'TENANT_NOTIFICATIONS_BLOCKED' });
           continue;
         }

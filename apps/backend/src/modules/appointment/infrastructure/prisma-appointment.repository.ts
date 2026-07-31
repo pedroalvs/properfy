@@ -5,7 +5,11 @@ import type {
   RestrictionSource as PrismaRestrictionSource,
   Prisma,
 } from '@prisma/client';
-import { OVERDUE_AUTO_CANCEL_STATUSES, OVERDUE_ELIGIBLE_STATUSES } from '@properfy/shared';
+import {
+  OVERDUE_AUTO_CANCEL_STATUSES,
+  OVERDUE_ELIGIBLE_STATUSES,
+  isRentalTenantNotificationsEnabled,
+} from '@properfy/shared';
 import { startOfOverdueAgeCutoff } from '../../../shared/domain/timezone-date';
 import { AppointmentEntity } from '../domain/appointment.entity';
 import { AppointmentContactEntity } from '../domain/appointment-contact.entity';
@@ -210,11 +214,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       inspectorName: row.inspector?.name ?? null,
       tenantName: (row as any).tenant?.name ?? '',
       tenantAppointmentCodePrefix,
-      // Absent key means enabled, matching tenantSettingsSchema's default.
-      tenantRentalTenantNotificationsEnabled:
-        ((row as any).tenant?.settings_json as Record<string, unknown> | null)?.[
-          'rentalTenantNotificationsEnabled'
-        ] !== false,
+      tenantRentalTenantNotificationsEnabled: isRentalTenantNotificationsEnabled(
+        (row as any).tenant?.settings_json as Record<string, unknown> | null,
+      ),
       hasActivePortalToken: ((row as any).portal_tokens as Array<{ id: string }>).length > 0,
       serviceGroupNumber: (row as any).service_group?.group_number ?? null,
     };

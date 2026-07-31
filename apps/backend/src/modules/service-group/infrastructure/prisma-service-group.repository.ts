@@ -16,7 +16,7 @@ import type {
   PortalWindowReservation,
 } from '../domain/service-group.repository';
 import type { ServiceGroupStatus } from '@properfy/shared';
-import { computeCentroid } from '@properfy/shared';
+import { computeCentroid, isRentalTenantNotificationsEnabled } from '@properfy/shared';
 import { ADDABLE_GROUP_STATUSES, TERMINAL_GROUP_STATUSES } from '../domain/service-group.validator';
 import { computeWindowAvailability } from '../domain/portal-slot-capacity';
 
@@ -369,11 +369,9 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         : null,
       propertyCode: a.property?.property_code ?? null,
       propertyAddress: a.property ? `${a.property.street}, ${a.property.suburb}` : null,
-      // Absent key means enabled, matching tenantSettingsSchema's default.
-      rentalTenantNotificationsEnabled:
-        (a.tenant?.settings_json as Record<string, unknown> | null)?.[
-          'rentalTenantNotificationsEnabled'
-        ] !== false,
+      rentalTenantNotificationsEnabled: isRentalTenantNotificationsEnabled(
+        a.tenant?.settings_json as Record<string, unknown> | null,
+      ),
     }));
   }
 

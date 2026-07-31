@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { NotificationChannel, NotificationClass, NotificationStatus } from '@properfy/shared';
 import { NotificationEntity } from '../domain/notification.entity';
+import { AGENCY_FORWARD_TEMPLATE_CODE } from '../domain/notification.constants';
 import type {
   INotificationRepository,
   NotificationFilters,
@@ -55,6 +56,21 @@ function buildWhereClause(filters: NotificationFilters): Record<string, unknown>
 
   return where;
 }
+
+/**
+ * Rows that never reached the recipient must not satisfy "already sent".
+ *
+ * `SKIPPED_OPT_OUT` covers both suppression reasons — recipient consent
+ * (`CONSENT_OPT_OUT`) and the per-agency occupant switch
+ * (`AGENCY_TENANT_NOTIFICATIONS_DISABLED`). Counting them made the dedupe permanent:
+ * an agency that blocks tenant notifications and later re-enables them would never get
+ * the initial notice or the reminders re-dispatched, and `RetryNotificationUseCase`
+ * cannot replay them either (`canBeRetried()` accepts FAILED only).
+ *
+ * FAILED deliberately still counts: it was attempted, is retryable through the normal
+ * path, and re-announcing it would double-send.
+ */
+const NOT_SUPPRESSED = { status: { not: 'SKIPPED_OPT_OUT' } } as const;
 
 export class PrismaNotificationRepository implements INotificationRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -163,7 +179,11 @@ export class PrismaNotificationRepository implements INotificationRepository {
 
   async existsByAppointmentAndTemplate(appointmentId: string, templateCode: string): Promise<boolean> {
     const count = await this.prisma.notification.count({
-      where: { appointment_id: appointmentId, template_code: templateCode },
+      where: {
+        appointment_id: appointmentId,
+        template_code: templateCode,
+        ...NOT_SUPPRESSED,
+      },
     });
     return count > 0;
   }
@@ -179,6 +199,7 @@ export class PrismaNotificationRepository implements INotificationRepository {
         appointment_id: appointmentId,
         tenant_id: tenantId,
         template_code: { in: [...templateCodes] },
+        ...NOT_SUPPRESSED,
       },
     });
     return count > 0;
@@ -195,6 +216,7 @@ export class PrismaNotificationRepository implements INotificationRepository {
         appointment_id: appointmentId,
         tenant_id: tenantId,
         template_code: { in: [...templateCodes] },
+        ...NOT_SUPPRESSED,
       },
       orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
     });
@@ -211,7 +233,21 @@ export class PrismaNotificationRepository implements INotificationRepository {
         tenant_id: tenantId,
         channel: channel as any,
         created_at: { gte: since },
-        status: { not: 'SKIPPED' },
+        // The cap exists to bound spend and provider volume, so it must count only
+        // what was actually handed to a provider.
+        //
+        // `SKIPPED_OPT_OUT` is a DISTINCT enum value from `SKIPPED`, so the original
+        // `not: 'SKIPPED'` counted every suppressed row. With the per-agency occupant
+        // switch that population exploded — a blocked agency burned its daily quota on
+        // messages it never sent, and once exhausted the budget check FAILs everything
+        // that follows with no retry, including that agency's own escalation,
+        // report-ready and password-reset mail. That is precisely the collateral damage
+        // this feature set out to remove, arriving through a different door.
+        status: { notIn: ['SKIPPED', 'SKIPPED_OPT_OUT'] },
+        // Mirrors are a consequence of suppression, not tenant-driven volume: one is
+        // created per withheld message, so counting them would let the mirror traffic
+        // exhaust the very cap that then blocks the agency's own mail.
+        template_code: { not: AGENCY_FORWARD_TEMPLATE_CODE },
       },
     });
   }

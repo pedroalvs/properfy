@@ -11,7 +11,11 @@ import type { CreateNotificationUseCase } from '../../../notification/applicatio
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import { ConflictError, ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
 import { AppointmentCodeFormatter } from '../../../appointment/domain/appointment-code.formatter';
-import { PROPERFY_LOGO_URL } from '@properfy/shared';
+import {
+  PROPERFY_LOGO_URL,
+  isRentalTenantNotificationsEnabled,
+  TENANT_NOTIFICATIONS_BLOCKED_CODE,
+} from '@properfy/shared';
 
 export interface AuthContext {
   userId: string;
@@ -91,12 +95,13 @@ export class GeneratePortalTokenUseCase {
     //
     // `notify: false` is exempt: that path dispatches nothing and exists so the operator
     // can still copy a link for an agency that contacts its own tenants.
-    // Optional chaining is load-bearing: settingsJson is absent on tenants persisted
-    // before the column had a default and on lighter entity fixtures, and an unguarded
-    // read here would 500 the whole send for them.
-    if (input.notify !== false && tenant.settingsJson?.['rentalTenantNotificationsEnabled'] === false) {
+    //
+    // isRentalTenantNotificationsEnabled tolerates a missing settings blob: tenants
+    // persisted before the column had a default carry none, and an unguarded read there
+    // is a 500 on every Send Portal Link.
+    if (input.notify !== false && !isRentalTenantNotificationsEnabled(tenant.settingsJson)) {
       throw new ConflictError(
-        'TENANT_NOTIFICATIONS_BLOCKED',
+        TENANT_NOTIFICATIONS_BLOCKED_CODE,
         'Notifications to the tenant are blocked for this agency.',
       );
     }

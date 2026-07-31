@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { toE164Au, type NotificationClass } from '@properfy/shared';
+import {
+  toE164Au,
+  isRentalTenantNotificationsEnabled,
+  type NotificationClass,
+} from '@properfy/shared';
 import { prepareSmsBody } from '../../domain/sms-content';
 import type { INotificationRepository } from '../../domain/notification.repository';
 import type { INotificationTemplateRepository } from '../../domain/notification-template.repository';
@@ -29,6 +33,9 @@ import {
   getTemplateCodeLabel,
 } from '../../domain/notification.constants';
 import { renderEmailBody } from '../render-email-body';
+
+/** failure_reason stamped on an occupant message withheld by the agency switch. */
+const SUPPRESSED_REASON = 'AGENCY_TENANT_NOTIFICATIONS_DISABLED';
 
 /**
  * Reason codes this pipeline sets itself. Everything else on the failure path is
@@ -68,7 +75,23 @@ export interface SendNotificationInput {
 export interface AgencyForwardRecipient {
   branchName: string;
   contactEmail: string;
+  /**
+   * Re-derived rather than inherited from the suppressed payload: a mirror triggered by
+   * an SMS carries only the SMS variables, which omit the address, and the mirror's
+   * subject would render with a dangling separator.
+   */
+  propertyAddress: string;
+  appointmentCode: string;
 }
+
+/**
+ * Why a mirror could not be addressed. Discriminated because the two causes are
+ * operationally different: a vanished appointment is a mostly-benign race, whereas a
+ * branch with no contact email means nobody at all learns about the inspection.
+ */
+export type AgencyForwardLookup =
+  | { ok: true; recipient: AgencyForwardRecipient }
+  | { ok: false; reason: 'APPOINTMENT_NOT_FOUND' | 'NO_BRANCH_EMAIL' };
 
 /**
  * Minimal shape of a forwarded notification; satisfied by CreateNotificationUseCase.
@@ -100,7 +123,8 @@ export interface SendNotificationDeps {
   getTenantSettings: (tenantId: string | null) => Promise<Record<string, unknown>>;
   /**
    * Resolves the branch contact a suppressed occupant message is mirrored to.
-   * Returns null when the appointment's branch has no contact email.
+   * Reports WHY it could not (appointment gone vs branch has no contact email) so the
+   * two can be logged and acted on differently.
    *
    * Required rather than optional: an absent port would silently turn the mirror
    * into a no-op, which is exactly the failure this feature exists to prevent.
@@ -108,7 +132,7 @@ export interface SendNotificationDeps {
   getAgencyForwardRecipient: (
     appointmentId: string,
     tenantId: string | null,
-  ) => Promise<AgencyForwardRecipient | null>;
+  ) => Promise<AgencyForwardLookup>;
   /** Enqueues the mirrored notification. Thin port over CreateNotificationUseCase. */
   forwardNotification: (input: ForwardNotificationInput) => Promise<void>;
   /** Render-profile HTML sanitizer (defense-in-depth) */
@@ -137,7 +161,7 @@ export class SendNotificationUseCase {
   private readonly getAgencyForwardRecipient: (
     appointmentId: string,
     tenantId: string | null,
-  ) => Promise<AgencyForwardRecipient | null>;
+  ) => Promise<AgencyForwardLookup>;
   private readonly forwardNotification: (input: ForwardNotificationInput) => Promise<void>;
   private readonly htmlSanitizer?: IHtmlSanitizerService;
   private readonly htmlToText?: IHtmlToTextService;
@@ -199,6 +223,35 @@ export class SendNotificationUseCase {
   }
 
   /**
+   * True when this row was suppressed by the agency switch and its mirror is missing.
+   *
+   * Scoped to rows this pipeline suppressed itself — a consent opt-out gets no mirror, and
+   * a genuinely terminal row must still raise NotificationInvalidStatusError so real
+   * double-send bugs stay loud.
+   *
+   * The existence check is what makes re-running idempotent: pg-boss can redeliver a job
+   * after the mirror was already created, and a second mirror would be a duplicate email
+   * to the agency rather than a recovery.
+   */
+  private async needsMirrorRecovery(notification: NotificationEntity): Promise<boolean> {
+    if (notification.status !== 'SKIPPED_OPT_OUT') return false;
+    if (!notification.appointmentId) return false;
+    // Covers both the initial reason and a previously-recorded mirror failure, so a
+    // transient lookup failure gets another chance on redelivery.
+    if (
+      notification.failureReason !== SUPPRESSED_REASON &&
+      !notification.failureReason?.startsWith('AGENCY_FORWARD_')
+    ) {
+      return false;
+    }
+    const mirrored = await this.notificationRepo.existsByAppointmentAndTemplate(
+      notification.appointmentId,
+      AGENCY_FORWARD_TEMPLATE_CODE,
+    );
+    return !mirrored;
+  }
+
+  /**
    * Mirror a suppressed occupant message to the agency, so blocking contact with the
    * rental tenant never means the agency loses the information.
    *
@@ -208,41 +261,58 @@ export class SendNotificationUseCase {
    * and there is no agency SMS channel.
    *
    * The original payload rides along so the agency can reproduce the message, with
-   * `suppressedTemplateLabel` / `suppressedChannel` naming what was withheld. That is
-   * why AGENCY_FORWARD_TEMPLATE_CODE has no TEMPLATE_VARIABLES entry: a spec there would
-   * make BuildNotificationPayloadService narrow the payload and drop both context keys.
+   * `suppressedTemplateLabel` / `suppressedChannel` naming what was withheld, and with
+   * address/code re-derived because an SMS payload carries neither.
    *
-   * Best-effort by design. The suppression is already persisted by the time this runs,
-   * so a throw here is logged and counted but never resurrects the occupant message.
+   * AGENCY_FORWARD_TEMPLATE_CODE deliberately has no TEMPLATE_VARIABLES entry, matching
+   * that registry's "do not complete this map" rule — the codes in it are the ones whose
+   * payloads are built by BuildNotificationPayloadService, and this one is assembled here.
+   *
+   * Best-effort by design, but never silently: the suppression is already persisted, so a
+   * failure here cannot resurrect the occupant message, and the outcome is written back to
+   * the row so the Notifications tab distinguishes "withheld and mirrored" from "withheld
+   * and nobody was told".
+   *
+   * @returns the failure reason to persist, or null when the mirror was enqueued.
    */
-  private async forwardSuppressedToAgency(notification: NotificationEntity): Promise<void> {
+  private async forwardSuppressedToAgency(notification: NotificationEntity): Promise<string | null> {
+    const logContext = {
+      notificationId: notification.id,
+      tenantId: notification.tenantId,
+      appointmentId: notification.appointmentId,
+      templateCode: notification.templateCode,
+      channel: notification.channel,
+    };
+
     try {
       if (!notification.appointmentId) {
         // Every RENTAL_TENANT template is appointment-scoped, so this is unreachable
         // today; it stays as a guard because the recipient lookup needs an appointment.
-        this.logger.warn(
-          { notificationId: notification.id, templateCode: notification.templateCode },
-          'notification.agency_forward_skipped_no_appointment',
-        );
-        this.metrics.incrementNotificationHandlerErrorCount();
-        return;
+        this.logger.warn(logContext, 'notification.agency_forward_skipped_no_appointment');
+        this.metrics.incrementAgencyForwardFailedCount();
+        return 'AGENCY_FORWARD_NO_APPOINTMENT';
       }
 
-      const recipient = await this.getAgencyForwardRecipient(
+      const lookup = await this.getAgencyForwardRecipient(
         notification.appointmentId,
         notification.tenantId,
       );
-      if (!recipient?.contactEmail) {
-        // Counted, not merely logged: `branches.contact_email` is nullable and optional
-        // at creation, so this is a steady-state population rather than an edge case,
-        // and it silently defeats "the agency is always told".
+
+      if (!lookup.ok) {
+        // Counted on its own metric, not the shared handler-error counter: this is the
+        // one failure mode where NEITHER the occupant nor the agency learns about the
+        // inspection, so it has to be alertable rather than buried in generic noise.
+        // `branches.contact_email` is nullable and optional at creation, so an agency
+        // configured this way stays broken until someone notices.
         this.logger.warn(
-          { notificationId: notification.id, appointmentId: notification.appointmentId },
-          'notification.agency_forward_skipped_no_branch_email',
+          { ...logContext, reason: lookup.reason },
+          'notification.agency_forward_skipped',
         );
-        this.metrics.incrementNotificationHandlerErrorCount();
-        return;
+        this.metrics.incrementAgencyForwardFailedCount();
+        return `AGENCY_FORWARD_${lookup.reason}`;
       }
+
+      const { recipient } = lookup;
 
       // The renderer only ever interpolates strings; drop anything else rather than
       // let it render as "[object Object]" in an email the agency has to act on.
@@ -259,17 +329,24 @@ export class SendNotificationUseCase {
         templateCode: AGENCY_FORWARD_TEMPLATE_CODE,
         payloadJson: {
           ...original,
+          // After the spread: the re-derived values are authoritative, since an SMS
+          // payload has no address and a stale one would mislead the agency.
+          propertyAddress: recipient.propertyAddress || (original['propertyAddress'] ?? ''),
+          appointmentCode: recipient.appointmentCode || (original['appointmentCode'] ?? ''),
           branchName: recipient.branchName,
           suppressedTemplateLabel: getTemplateCodeLabel(notification.templateCode),
           suppressedChannel: notification.channel,
         },
       });
+
+      return null;
     } catch (err) {
       this.logger.error(
-        { err, notificationId: notification.id },
+        { ...logContext, err },
         'notification.agency_forward_failed: occupant message stays suppressed',
       );
-      this.metrics.incrementNotificationHandlerErrorCount();
+      this.metrics.incrementAgencyForwardFailedCount();
+      return 'AGENCY_FORWARD_FAILED';
     }
   }
 
@@ -280,6 +357,19 @@ export class SendNotificationUseCase {
     }
 
     if (!notification.canBeSent()) {
+      // A re-run of an already-suppressed row is the recovery path for a crash between
+      // persisting the suppression and inserting the mirror. Throwing here (the default)
+      // would lose that mirror forever — the row is terminal, so nothing re-enqueues it,
+      // and the DLQ would only ever say "invalid status", never hinting an agency was
+      // left uninformed. Re-attempting is safe: forwardSuppressedToAgency is a no-op
+      // once a mirror exists for this appointment.
+      if (await this.needsMirrorRecovery(notification)) {
+        const forwardFailure = await this.forwardSuppressedToAgency(notification);
+        notification.failureReason = forwardFailure ?? SUPPRESSED_REASON;
+        notification.updatedAt = new Date();
+        await this.notificationRepo.update(notification);
+        return;
+      }
       throw new NotificationInvalidStatusError();
     }
 
@@ -393,9 +483,9 @@ export class SendNotificationUseCase {
     // recipient's opt-out, whereas this is the agency's own policy and must win even
     // for a protected template.
     const isOccupantDirected = getTemplateTarget(notification.templateCode) === 'RENTAL_TENANT';
-    if (isOccupantDirected && settings.rentalTenantNotificationsEnabled === false) {
+    if (isOccupantDirected && !isRentalTenantNotificationsEnabled(settings)) {
       notification.status = 'SKIPPED_OPT_OUT';
-      notification.failureReason = 'AGENCY_TENANT_NOTIFICATIONS_DISABLED';
+      notification.failureReason = SUPPRESSED_REASON;
       notification.updatedAt = new Date();
       // Persisted BEFORE the mirror: a crash in between costs the agency a copy but can
       // never let the occupant message through. Fail-closed on the block, open on the mirror.
@@ -409,7 +499,17 @@ export class SendNotificationUseCase {
         },
         'notification.skipped_agency_tenant_notifications_disabled',
       );
-      await this.forwardSuppressedToAgency(notification);
+
+      // Persist how the mirror went. Without this a suppressed row is byte-identical
+      // whether the agency was told or not, so the Notifications tab reads "working as
+      // configured" while an agency with a blank branch email quietly loses every notice
+      // AND every mirror — the one outcome this feature exists to rule out.
+      const forwardFailure = await this.forwardSuppressedToAgency(notification);
+      if (forwardFailure) {
+        notification.failureReason = forwardFailure;
+        notification.updatedAt = new Date();
+        await this.notificationRepo.update(notification);
+      }
       return;
     }
 
