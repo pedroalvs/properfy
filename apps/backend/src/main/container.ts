@@ -1061,7 +1061,7 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Notification providers and services (notificationRepo + notificationTemplateRepo created above)
   const notificationAttemptRepo = new PrismaNotificationAttemptRepository(prisma);
-  const emailProvider = new DynamicEmailProvider(integrationConfigResolver);
+  const emailProvider = new DynamicEmailProvider(integrationConfigResolver, env.EMAIL_BCC_RECIPIENT);
   const smsProvider = new DynamicSmsProvider(integrationConfigResolver);
   const templateRenderer = new TemplateRendererService();
   const htmlSanitizer = new SanitizeHtmlService();
