@@ -8,7 +8,11 @@ export class ExecutionAppointmentNotFoundError extends NotFoundError {
 
 export class ExecutionT1BlockedError extends ForbiddenError {
   constructor() {
-    super('EXECUTION_T1_BLOCKED', 'Appointment not visible at T-1: tenant not confirmed');
+    // The message reaches the inspector verbatim (422/403 envelope -> ApiError.message
+    // -> snackbar), so it states the blocker rather than the rule's internal name.
+    // "T-1" was accurate only for the day-before case; the same error now also covers
+    // a job whose date has already passed and was never confirmed.
+    super('EXECUTION_T1_BLOCKED', 'The tenant has not confirmed this inspection yet');
   }
 }
 

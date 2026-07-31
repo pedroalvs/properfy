@@ -484,6 +484,28 @@ describe('StartInspectionUseCase', () => {
     expect(executionRepo.save).not.toHaveBeenCalled();
   });
 
+  it('should explain the confirmation blocker without internal rule jargon', async () => {
+    // The inspector reaches this after walking the whole geolocation flow, and the
+    // message is rendered verbatim in a snackbar. "T-1" named the rule, not the
+    // problem, and was plain wrong for a job whose date already passed.
+    const sut = makeSut();
+    vi.setSystemTime(zonedWallTimeToUtc('2026-03-22', '09:00', PLATFORM_TIMEZONE));
+
+    appointmentRepo.findById.mockResolvedValue(
+      makeAppointmentWithRelations({ rentalTenantConfirmationStatus: 'PENDING' }),
+    );
+
+    await expect(
+      sut.execute({
+        appointmentId: 'appt-1',
+        latitude: -33.891,
+        longitude: 151.277,
+        idempotencyKey: 'key-jargon',
+        actor: inspActor,
+      }),
+    ).rejects.toThrow(/tenant has not confirmed/i);
+  });
+
   it('should allow a past-date routine inspection once the tenant has confirmed', async () => {
     const sut = makeSut();
     vi.setSystemTime(zonedWallTimeToUtc('2026-03-22', '09:00', PLATFORM_TIMEZONE));
