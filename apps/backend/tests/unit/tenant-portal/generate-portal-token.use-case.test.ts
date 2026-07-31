@@ -483,4 +483,68 @@ describe('GeneratePortalTokenUseCase', () => {
 
     expect(result.dispatched).toBe(true);
   });
+
+  // This is the one mint() call site that opens its own transaction, because the
+  // token and its confirmation cycle have to land together. Postgres aborts that
+  // transaction on a token_hash collision, so mint() cannot recover from inside —
+  // the retry has to replay the whole transaction from out here.
+  describe('token_hash collision inside the confirmation-cycle transaction', () => {
+    function uniqueViolation(target: string) {
+      return Object.assign(new Error('Unique constraint failed'), {
+        code: 'P2002',
+        meta: { target },
+      });
+    }
+
+    function makeTransactionalUseCase() {
+      const cycleService = { createInitial: vi.fn().mockResolvedValue(undefined) };
+      const prisma = {
+        $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn({})),
+      };
+      const uc = new GeneratePortalTokenUseCase(
+        tokenRepo as unknown as IRentalTenantPortalTokenRepository,
+        appointmentRepo as unknown as IAppointmentRepository,
+        tenantRepo as unknown as ITenantRepository,
+        mintPortalTokenService as unknown as MintPortalTokenService,
+        auditService as unknown as PersistentAuditService,
+        PORTAL_BASE_URL,
+        undefined,
+        cycleService as never,
+        prisma as never,
+      );
+      return { uc, prisma, cycleService };
+    }
+
+    it('replays the whole transaction so the cycle is recreated with the new token', async () => {
+      const { uc, prisma, cycleService } = makeTransactionalUseCase();
+      mintPortalTokenService.mint
+        .mockRejectedValueOnce(uniqueViolation('token_hash'))
+        .mockResolvedValue({ rawToken: RAW_TOKEN, expiresAt: EXPIRES_AT, tokenId: 'token-2' });
+
+      const result = await uc.execute(makeInput({ actor: makeAMContext() }));
+
+      expect(result.token).toBe(RAW_TOKEN);
+      expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+      // The first attempt rolled back, so exactly one cycle exists at the end.
+      expect(cycleService.createInitial).toHaveBeenCalledTimes(1);
+    });
+
+    it('gives up after three attempts', async () => {
+      const { uc, prisma } = makeTransactionalUseCase();
+      const error = uniqueViolation('token_hash');
+      mintPortalTokenService.mint.mockRejectedValue(error);
+
+      await expect(uc.execute(makeInput({ actor: makeAMContext() }))).rejects.toBe(error);
+      expect(prisma.$transaction).toHaveBeenCalledTimes(3);
+    });
+
+    it('does not replay a conflict on another column', async () => {
+      const { uc, prisma } = makeTransactionalUseCase();
+      const error = uniqueViolation('portal_token_id');
+      mintPortalTokenService.mint.mockRejectedValue(error);
+
+      await expect(uc.execute(makeInput({ actor: makeAMContext() }))).rejects.toBe(error);
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    });
+  });
 });

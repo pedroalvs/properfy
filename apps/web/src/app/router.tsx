@@ -65,9 +65,15 @@ import { UserRole } from '@properfy/shared';
 import { NotFoundPage } from './NotFoundPage';
 import { AppErrorBoundary } from '@/components/feedback/AppErrorBoundary';
 
-function PortalRedirect() {
+/**
+ * Sends the two older, longer portal prefixes to the canonical `/portal/:token`.
+ * The rental tenant receives this link by SMS, so the short path is the one that
+ * must survive in the address bar — redirecting the other way would undo the
+ * shortening on every click. Exported for router.test.tsx.
+ */
+export function PortalRedirect() {
   const { token } = useParams();
-  return <Navigate to={`/rental-tenant-portal/${token}`} replace />;
+  return <Navigate to={`/portal/${token}`} replace />;
 }
 
 /**
@@ -95,18 +101,18 @@ export const router = createBrowserRouter([
     errorElement: <AppErrorBoundary />,
   },
   {
-    path: '/rental-tenant-portal/:token',
+    path: '/portal/:token',
     element: <PortalPage />,
     errorElement: <AppErrorBoundary />,
   },
   {
-    // Legacy alias: magic links already sent point here → redirect to canonical.
-    path: '/tenant-portal/:token',
+    // Legacy aliases: magic links already sent point here → redirect to canonical.
+    path: '/rental-tenant-portal/:token',
     element: <PortalRedirect />,
     errorElement: <AppErrorBoundary />,
   },
   {
-    path: '/portal/:token',
+    path: '/tenant-portal/:token',
     element: <PortalRedirect />,
     errorElement: <AppErrorBoundary />,
   },

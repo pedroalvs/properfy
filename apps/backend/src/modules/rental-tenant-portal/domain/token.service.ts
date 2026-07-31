@@ -1,8 +1,31 @@
 import crypto from 'node:crypto';
 
+const TOKEN_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+const TOKEN_LENGTH = 10;
+// 256 is not a multiple of 62, so bytes >= 248 are discarded. Without this the
+// first 8 symbols would get 5 draws out of 256 instead of 4 — a 25% bias that
+// keeps the token the right shape while quietly costing entropy.
+const REJECTION_CEILING = 256 - (256 % TOKEN_ALPHABET.length);
+
 export class TokenService {
+  /**
+   * Base62, 10 characters: 62^10 ≈ 8.4e17 (~59.5 bits). Short enough to send by
+   * SMS, and paired with the portal's 30 req/min per-IP rate limit it leaves
+   * brute force out of reach.
+   *
+   * Legacy 64-char hex tokens stay valid: lookup hashes whatever raw string
+   * arrives, so nothing here constrains what an existing link may look like.
+   */
   generateRawToken(): string {
-    return crypto.randomBytes(32).toString('hex');
+    let token = '';
+    while (token.length < TOKEN_LENGTH) {
+      for (const byte of crypto.randomBytes(TOKEN_LENGTH)) {
+        if (byte >= REJECTION_CEILING) continue;
+        token += TOKEN_ALPHABET[byte % TOKEN_ALPHABET.length];
+        if (token.length === TOKEN_LENGTH) break;
+      }
+    }
+    return token;
   }
 
   hashToken(rawToken: string): string {

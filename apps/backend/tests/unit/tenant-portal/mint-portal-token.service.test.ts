@@ -165,4 +165,57 @@ describe('MintPortalTokenService', () => {
     const [dateArg] = tokenService.computeExpiresAt.mock.calls[0] as [string, ...unknown[]];
     expect(dateArg).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
+
+  // Tokens are 10 base62 chars (~59.5 bits), so a token_hash clash is a
+  // 1-in-1.6M event rather than an impossible one. When it happens the write is
+  // the thing that detects it, and the answer is simply to mint another token.
+  describe('token_hash collision', () => {
+    function uniqueViolation(target: string) {
+      return Object.assign(new Error('Unique constraint failed'), {
+        code: 'P2002',
+        meta: { target },
+      });
+    }
+
+    it('mints a fresh token and writes again after a collision', async () => {
+      tokenService.generateRawToken.mockReturnValueOnce('collided01').mockReturnValueOnce('survivor02');
+      tokenService.hashToken.mockImplementation((raw: string) => `hash-${raw}`);
+      tokenRepo.revokeAndSave.mockRejectedValueOnce(uniqueViolation('token_hash')).mockResolvedValue(undefined);
+
+      const result = await svc.mint(makeAppointment(), makeTenant());
+
+      expect(result.rawToken).toBe('survivor02');
+      expect(tokenRepo.revokeAndSave).toHaveBeenCalledTimes(2);
+      const [, secondEntity] = tokenRepo.revokeAndSave.mock.calls[1] as [string, { tokenHash: string }];
+      expect(secondEntity.tokenHash).toBe('hash-survivor02');
+    });
+
+    it('gives up after three attempts rather than looping forever', async () => {
+      const error = uniqueViolation('token_hash');
+      tokenRepo.revokeAndSave.mockRejectedValue(error);
+
+      await expect(svc.mint(makeAppointment(), makeTenant())).rejects.toBe(error);
+      expect(tokenRepo.revokeAndSave).toHaveBeenCalledTimes(3);
+    });
+
+    it('does not retry a conflict on another column', async () => {
+      const error = uniqueViolation('portal_token_id');
+      tokenRepo.revokeAndSave.mockRejectedValue(error);
+
+      await expect(svc.mint(makeAppointment(), makeTenant())).rejects.toBe(error);
+      expect(tokenRepo.revokeAndSave).toHaveBeenCalledTimes(1);
+    });
+
+    // Postgres aborts the caller's transaction the moment the constraint trips,
+    // so a second write on that same `tx` could only fail with 25P02. The caller
+    // that opened the transaction retries the whole unit of work instead.
+    it('does not retry inside a caller-owned transaction', async () => {
+      const error = uniqueViolation('token_hash');
+      tokenRepo.revokeAndSave.mockRejectedValue(error);
+      const tx = {} as never;
+
+      await expect(svc.mint(makeAppointment(), makeTenant(), tx)).rejects.toBe(error);
+      expect(tokenRepo.revokeAndSave).toHaveBeenCalledTimes(1);
+    });
+  });
 });

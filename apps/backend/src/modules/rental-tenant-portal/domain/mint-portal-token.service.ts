@@ -5,6 +5,9 @@ import type { TokenService } from './token.service';
 import type { ITokenEncrypter } from './token-encrypter';
 import type { TenantEntity } from '../../tenant/domain/tenant.entity';
 import type { AppointmentEntity } from '../../appointment/domain/appointment.entity';
+import { retryOnUniqueConflict } from '../../../shared/domain/retry-on-unique-conflict';
+
+export const TOKEN_HASH_COLUMN = 'token_hash';
 
 export interface MintPortalTokenResult {
   rawToken: string;
@@ -19,6 +22,16 @@ export class MintPortalTokenService {
     private readonly tokenEncrypter?: ITokenEncrypter,
   ) {}
 
+  /**
+   * A 10-char base62 token can collide (~1 in 1.6M), and the unique index on
+   * `token_hash` is what detects it. Recovery is simply minting another token,
+   * so the write is retried with a fresh one.
+   *
+   * The retry only applies when `revokeAndSave` opens its own transaction.
+   * A caller-owned `tx` is already aborted by the time Postgres reports the
+   * violation, so that caller retries the whole unit of work itself — see
+   * `GeneratePortalTokenUseCase`.
+   */
   async mint(
     appointment: AppointmentEntity,
     tenant: TenantEntity,
@@ -31,6 +44,17 @@ export class MintPortalTokenService {
       );
     }
 
+    if (tx) {
+      return this.mintOnce(appointment, tenant, tx);
+    }
+    return retryOnUniqueConflict(TOKEN_HASH_COLUMN, () => this.mintOnce(appointment, tenant));
+  }
+
+  private async mintOnce(
+    appointment: AppointmentEntity,
+    tenant: TenantEntity,
+    tx?: Prisma.TransactionClient,
+  ): Promise<MintPortalTokenResult> {
     const rawToken = this.tokenService.generateRawToken();
     const tokenHash = this.tokenService.hashToken(rawToken);
     const rawTokenEncrypted = this.tokenEncrypter ? this.tokenEncrypter.encrypt(rawToken) : null;

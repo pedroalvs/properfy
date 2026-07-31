@@ -30,7 +30,7 @@ const mockJwtVerify = vi.fn();
 
 const APPOINTMENT_ID = 'a0000000-0000-4000-8000-000000000001';
 const TOKEN_ID = 'b0000000-0000-4000-8000-000000000002';
-const PORTAL_URL = 'https://portal.properfy.com/rental-tenant-portal/raw-token-abc';
+const PORTAL_URL = 'https://portal.properfy.com/portal/kR7mQ2xLp9';
 const EXPIRES_AT = '2026-08-01T00:00:00.000Z';
 
 vi.mock('../../../src/main/container', () => ({
@@ -102,7 +102,7 @@ describe('GET /v1/appointments/:appointmentId/portal-link', () => {
         .set('Authorization', 'Bearer valid-token');
 
       expect(res.status).toBe(200);
-      expect(res.body.data.portalUrl).toContain('/rental-tenant-portal/');
+      expect(res.body.data.portalUrl).toBe(PORTAL_URL);
     });
   });
 
