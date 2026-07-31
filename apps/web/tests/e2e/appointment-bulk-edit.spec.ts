@@ -9,6 +9,17 @@ import {
   AM_USER,
 } from './helpers';
 
+/**
+ * A date comfortably in the future. A fixed literal rots: the previous one was
+ * future when written and later tripped the past-date submit guard, so these
+ * specs failed for a reason unrelated to what they test.
+ */
+const FUTURE_DATE = (() => {
+  const d = new Date();
+  d.setDate(d.getDate() + 30);
+  return d.toISOString().slice(0, 10);
+})();
+
 test.describe('Bulk Edit Flow (T033)', () => {
   const appointments = [
     makeAppointment({ id: 'apt-1', code: 'APT-1001', appointmentNumber: 1001, status: 'DRAFT' }),
@@ -112,7 +123,7 @@ test.describe('Bulk Edit Flow (T033)', () => {
 
     // The bulk modal uses a native date input, labelled rather than
     // placeholdered — the old getByPlaceholder('YYYY-MM-DD') could never match.
-    await dialog.getByLabel('Set scheduled date').fill('2026-05-01');
+    await dialog.getByLabel('Set scheduled date').fill(FUTURE_DATE);
 
     // Submit
     await dialog.getByText('Apply Changes').click();
@@ -121,7 +132,7 @@ test.describe('Bulk Edit Flow (T033)', () => {
     expect(bulkEditPayload).not.toBeNull();
     const payload = bulkEditPayload as Record<string, unknown>;
     expect((payload.ids as string[]).length).toBe(2);
-    expect((payload.changes as Record<string, unknown>).scheduledDate).toBe('2026-05-01');
+    expect((payload.changes as Record<string, unknown>).scheduledDate).toBe(FUTURE_DATE);
   });
 
   test('shows results summary after bulk edit', async ({ page }) => {
@@ -147,7 +158,7 @@ test.describe('Bulk Edit Flow (T033)', () => {
 
     const scheduledDateCheckbox = dialog.locator('label:has-text("Scheduled Date") input[type="checkbox"]');
     await scheduledDateCheckbox.check();
-    await dialog.getByLabel('Set scheduled date').fill('2026-05-01');
+    await dialog.getByLabel('Set scheduled date').fill(FUTURE_DATE);
     await dialog.getByText('Apply Changes').click();
 
     // Results should display
@@ -304,7 +315,7 @@ test.describe('Bulk Change Status', () => {
     await expect(notifyBlock).toContainText('APT-1001');
 
     // The native input is sr-only; the label text is the click target.
-    await notifyBlock.getByText('Notify the tenants who confirmed').click();
+    await notifyBlock.getByText('Notify the tenants already told').click();
     await dialog.getByRole('button', { name: 'Apply Changes' }).click();
 
     // Every row succeeded, so the modal reports success and closes itself — unlike

@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useGoBack } from '@/hooks/useGoBack';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
+import { wasRentalTenantNotified } from '../lib/rental-tenant-notice';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { useAppointmentCrossCheck } from '../hooks/useAppointmentCrossCheck';
 import { useAppointmentTransition } from '../hooks/useAppointmentTransition';
@@ -381,7 +382,7 @@ export function AppointmentDetailPage() {
             <AppointmentTransitionActions
               transitions={transitions}
               onTransition={transition}
-              rentalTenantConfirmed={appointment.rentalTenantConfirmationStatus === 'CONFIRMED'}
+              rentalTenantNotified={wasRentalTenantNotified(appointment)}
               loading={isTransitioning}
             />
           </div>

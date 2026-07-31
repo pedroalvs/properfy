@@ -219,6 +219,14 @@ model Branch {
   @@map("branches")
 }
 
+/// `email` IS effectively unique among live rows, despite the plain @@index below:
+/// migration 20260406000002_email_reuse_after_soft_delete creates
+/// `users_email_key UNIQUE (email) WHERE deleted_at IS NULL`. Prisma cannot express
+/// a partial unique, so it exists only in migration history — two review passes
+/// read this model and concluded there was no constraint at all.
+/// It is also CASE-SENSITIVE (it indexes the raw column, not lower(email)), so
+/// `A@x.com` and `a@x.com` can both be live; look up emails case-insensitively.
+/// Note `prisma db push` would DROP it — use migrations.
 model User {
   id                 String     @id @default(uuid())
   tenant_id          String?

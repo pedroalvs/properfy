@@ -110,7 +110,7 @@ test.describe('Portal — Join Group (US2)', () => {
     await mockAvailableGroups(page);
     await mockJoinGroup(page, 200);
 
-    await page.goto(`/rental-tenant-portal/${TOKEN}`);
+    await page.goto(`/portal/${TOKEN}`);
     await expect(page.getByText('Will you attend the appointment?')).toBeVisible();
 
     await page.getByRole('button', { name: 'Change time' }).click();
@@ -128,7 +128,7 @@ test.describe('Portal — Join Group (US2)', () => {
     await mockPortalData(page);
     await mockAvailableGroups(page);
 
-    await page.goto(`/rental-tenant-portal/${TOKEN}`);
+    await page.goto(`/portal/${TOKEN}`);
     await page.getByRole('button', { name: 'Change time' }).click();
     await expect(page.getByRole('heading', { name: 'Pick a time for your booking' })).toBeVisible();
 
@@ -141,7 +141,7 @@ test.describe('Portal — Join Group (US2)', () => {
     await mockPortalData(page);
     await mockAvailableGroups(page, { groups: [] });
 
-    await page.goto(`/rental-tenant-portal/${TOKEN}`);
+    await page.goto(`/portal/${TOKEN}`);
     await page.getByRole('button', { name: 'Change time' }).click();
     await expect(page.getByText('No available times nearby.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Join this time slot' })).not.toBeVisible();
@@ -152,7 +152,7 @@ test.describe('Portal — Join Group (US2)', () => {
     await mockPortalData(page);
     await mockAvailableGroups(page);
 
-    await page.goto(`/rental-tenant-portal/${TOKEN}`);
+    await page.goto(`/portal/${TOKEN}`);
     await page.getByRole('button', { name: 'Change time' }).click();
     await expect(page.getByRole('heading', { name: 'Pick a time for your booking' })).toBeVisible();
 

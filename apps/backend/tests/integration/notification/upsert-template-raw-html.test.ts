@@ -116,7 +116,7 @@ describe('PUT /v1/notification-templates/:templateCode/:channel — raw-HTML aut
   it('should surface 422 when use case rejects due to sanitizer violation', async () => {
     mockUpsertExecute.mockRejectedValue(
       new UnprocessableEntityError('Body contains unsafe HTML', [
-        { code: 'custom', message: 'Disallowed tag: <script>', path: 'bodyHtml' },
+        { code: 'custom', message: 'Disallowed tag: <script>', field: 'bodyHtml' },
       ]),
     );
 
@@ -126,6 +126,11 @@ describe('PUT /v1/notification-templates/:templateCode/:channel — raw-HTML aut
       .send({ bodyHtml: '<p>Hello</p><script>evil()</script>', isActive: true });
 
     expect(res.status).toBe(422);
+    // `field` is what getFieldErrors reads, and therefore what puts the message
+    // under the Body box instead of only in a snackbar.
+    expect(res.body.error.details).toEqual([
+      expect.objectContaining({ field: 'bodyHtml', message: 'Disallowed tag: <script>' }),
+    ]);
   });
 
   it('should pass bodyHtml byte-identically to the use case', async () => {

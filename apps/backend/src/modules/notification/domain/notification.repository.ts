@@ -60,5 +60,19 @@ export interface INotificationRepository {
     tenantId: string,
     templateCodes: readonly string[],
   ): Promise<NotificationEntity | null>;
+  /**
+   * Whether the appointment has EVER produced a notification under any of
+   * `templateCodes`. Lifetime semantics like `existsByAppointmentAndTemplate`,
+   * but over a family — answers "was the rental tenant ever told about this
+   * inspection?", which is a different question from the occurrence-scoped
+   * "what were they last told?" that `findLatestByAppointmentAndTemplates`
+   * answers for the dedupe. Kept separate so the two cannot drift into each
+   * other. Scoped by tenant.
+   */
+  existsByAppointmentAndTemplates(
+    appointmentId: string,
+    tenantId: string,
+    templateCodes: readonly string[],
+  ): Promise<boolean>;
   countByTenantChannelSince(tenantId: string | null, channel: NotificationChannel, since: Date): Promise<number>;
 }

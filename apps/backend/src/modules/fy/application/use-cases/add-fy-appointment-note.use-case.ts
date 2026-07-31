@@ -34,7 +34,7 @@ export class AddFyAppointmentNoteUseCase {
       action: 'fy.note_added',
       actorType: 'SYSTEM',
       actorId: input.actor.userId,
-      entityType: 'appointment',
+      entityType: 'Appointment',
       entityId: input.appointmentId,
       tenantId: appended.tenantId,
       after: { content: input.content },

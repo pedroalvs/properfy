@@ -92,7 +92,10 @@ function makeUseCase(overrides: {
 
 describe('GetPortalLinkUseCase', () => {
   describe('happy path', () => {
-    it('should return URL containing /rental-tenant-portal/ and emit audit with metadata', async () => {
+    // The operator copies this link and sends it to the rental tenant by hand,
+    // so it uses the short `/portal/` path the notification builders emit rather
+    // than the longer legacy prefix.
+    it('should return URL containing /portal/ and emit audit with metadata', async () => {
       const audit = makeAudit();
       const appointmentRepo = {
         findById: vi.fn().mockResolvedValue({ appointment: makeAppointment('cycle-1'), contact: null, contacts: [], restrictions: [] }),
@@ -103,8 +106,7 @@ describe('GetPortalLinkUseCase', () => {
 
       const result = await uc.execute({ appointmentId: 'appt-1', actor: AM_ACTOR });
 
-      expect(result.portalUrl).toContain('/rental-tenant-portal/');
-      expect(result.portalUrl).toContain('raw-token-abc');
+      expect(result.portalUrl).toBe(`${PORTAL_BASE}/portal/raw-token-abc`);
       expect(result.expiresAt).toBeDefined();
       expect(vi.mocked(audit.log)).toHaveBeenCalledOnce();
       expect(vi.mocked(audit.log)).toHaveBeenCalledWith(expect.objectContaining({
@@ -225,7 +227,7 @@ describe('GetPortalLinkUseCase', () => {
       // After fix: returns 200 + portalUrl.
       const result = await uc.execute({ appointmentId: 'appt-1', actor: AM_ACTOR });
 
-      expect(result.portalUrl).toContain('/rental-tenant-portal/');
+      expect(result.portalUrl).toContain('/portal/');
       expect(result.portalUrl).toContain('raw-token-abc');
     });
 

@@ -1,6 +1,8 @@
 import type { AuthContext, AppointmentContactRole } from '@properfy/shared';
-import { validateEditedSchedule, PLATFORM_TIMEZONE } from '@properfy/shared';
+import { DomainError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { Logger } from '../../../../shared/infrastructure/logger';
+import type { UpdateAppointmentUseCase } from './update-appointment.use-case';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IContactRepository } from '../../../contact/domain/contact.repository';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
@@ -30,6 +32,12 @@ export interface BulkEditOptions {
    *   they're surfaced in `failed[]` with code `APPOINTMENT_HAS_EXISTING_CONTACT`.
    */
   propertyManagerContactPolicy?: 'replace' | 'addIfMissing';
+  /**
+   * Opt-in: widen a service group's shared time window when a grouped row's
+   * new slot falls outside it, instead of rejecting the row. Forwarded to
+   * `UpdateAppointmentUseCase`, which owns the rule.
+   */
+  expandGroupTimeWindow?: boolean;
 }
 
 export interface BulkEditInput {
@@ -53,7 +61,44 @@ export class BulkEditAppointmentsUseCase {
     private readonly pricingRuleRepo: IPricingRuleRepository,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
+    /**
+     * Owns every schedule rule and every reschedule side effect. Required, not
+     * optional: a missing dependency would silently fall back to a bare repo
+     * write, which is exactly the bug this delegation removes.
+     */
+    private readonly updateAppointment: UpdateAppointmentUseCase,
+    private readonly logger: Logger,
   ) {}
+
+  /**
+   * Fold a per-row failure into `failed[]`.
+   *
+   * A row rejection travels inside an HTTP 200, so it never reaches the global
+   * error handler: without this, an infrastructure fault mid-batch is invisible
+   * server-side AND its raw message (Prisma's include host and SQL fragments)
+   * is rendered verbatim in the operator's modal.
+   *
+   * The discriminator is `instanceof DomainError`, NOT the presence of a
+   * `code`: Prisma's errors carry one too (`P1001` is literally "Can't reach
+   * database server at <host>:<port>"), so a truthiness check on `code` would
+   * wave through the exact class of error this exists to contain.
+   * Mirrors `bulk-cross-check-done.use-case.ts`.
+   */
+  private toFailedEntry(
+    appointmentId: string,
+    err: unknown,
+    batchId?: string,
+  ): { id: string; code: string; message: string } {
+    if (err instanceof DomainError) {
+      return { id: appointmentId, code: err.code, message: err.message };
+    }
+    this.logger.error({ err, appointmentId, batchId }, 'Unexpected error during bulk edit');
+    return {
+      id: appointmentId,
+      code: 'INTERNAL_ERROR',
+      message: 'Something went wrong on our side. Please try again.',
+    };
+  }
 
   async execute(input: BulkEditInput): Promise<BulkEditResult> {
     const { ids, changes, actor } = input;
@@ -89,7 +134,26 @@ export class BulkEditAppointmentsUseCase {
         const after: Record<string, unknown> = {};
         const updateData: Record<string, unknown> = {};
 
-        // Per-field guardrails
+        // Schedule edits delegate to UpdateAppointmentUseCase rather than
+        // being re-implemented here. It owns the status guard, the service
+        // group rules (a member's date is the group's to move), the TZ
+        // past-date check, and — critically — the reschedule side effects a
+        // bare `repo.update` skips: resetting the rental tenant's
+        // confirmation, revoking their live portal token and notifying them.
+        //
+        // Collected here but executed AFTER every guard below, because that
+        // notification is externally visible: a row rejected by a later guard
+        // must never have already emailed the tenant about a reschedule.
+        const scheduleData = {
+          ...(changes.scheduledDate !== undefined ? { scheduledDate: changes.scheduledDate as string } : {}),
+          ...(changes.timeSlotStart !== undefined ? { timeSlotStart: changes.timeSlotStart as string } : {}),
+          ...(changes.timeSlotEnd !== undefined ? { timeSlotEnd: changes.timeSlotEnd as string } : {}),
+        };
+
+        /** Held until the writes section, so a later guard can still reject the row. */
+        let pendingPmJunction: AppointmentContactEntity | null = null;
+
+        // Per-field guardrails — validation only, no writes
         if (changes.assignedInspectorId !== undefined) {
           if (TERMINAL_STATUSES.has(appointment.status)) {
             failed.push({ id: appointmentId, code: 'APPOINTMENT_UPDATE_NOT_ALLOWED', message: `Cannot assign inspector on ${appointment.status} appointment` });
@@ -110,47 +174,6 @@ export class BulkEditAppointmentsUseCase {
           before['inspectorId'] = appointment.inspectorId;
           after['inspectorId'] = inspectorId;
           updateData['inspectorId'] = inspectorId;
-        }
-
-        if (changes.scheduledDate !== undefined) {
-          if (!['DRAFT', 'AWAITING_INSPECTOR'].includes(appointment.status)) {
-            failed.push({ id: appointmentId, code: 'APPOINTMENT_UPDATE_NOT_ALLOWED', message: `Cannot change date on ${appointment.status} appointment` });
-            continue;
-          }
-          before['scheduledDate'] = appointment.scheduledDate;
-          after['scheduledDate'] = changes.scheduledDate;
-          updateData['scheduledDate'] = new Date(changes.scheduledDate as string);
-        }
-
-        const timeChanged = changes.timeSlotStart !== undefined;
-        if (timeChanged) {
-          if (!['DRAFT', 'AWAITING_INSPECTOR'].includes(appointment.status)) {
-            failed.push({ id: appointmentId, code: 'APPOINTMENT_UPDATE_NOT_ALLOWED', message: `Cannot change time slot on ${appointment.status} appointment` });
-            continue;
-          }
-          before['timeSlotStart'] = appointment.timeSlotStart;
-          before['timeSlotEnd'] = appointment.timeSlotEnd;
-          after['timeSlotStart'] = changes.timeSlotStart;
-          after['timeSlotEnd'] = changes.timeSlotEnd;
-          updateData['timeSlotStart'] = changes.timeSlotStart;
-          updateData['timeSlotEnd'] = changes.timeSlotEnd;
-        }
-
-        // Per-row TZ-aware past-date/time validation (R7: falls back to UTC).
-        if (changes.scheduledDate !== undefined || timeChanged) {
-          const tz = PLATFORM_TIMEZONE;
-          const existingDateStr = appointment.scheduledDate.toISOString().slice(0, 10);
-          const scheduleCheck = validateEditedSchedule({
-            existingDate: existingDateStr,
-            existingTimeSlot: appointment.timeSlotStart,
-            newDate: changes.scheduledDate as string | undefined,
-            newTimeSlot: changes.timeSlotStart as string | undefined,
-            tz,
-          });
-          if (!scheduleCheck.ok) {
-            failed.push({ id: appointmentId, code: scheduleCheck.code, message: scheduleCheck.code === 'TIME_IN_PAST' ? 'Selected time slot has already passed for today' : 'Scheduled date cannot be in the past' });
-            continue;
-          }
         }
 
         if (changes.branchId !== undefined) {
@@ -221,8 +244,9 @@ export class BulkEditAppointmentsUseCase {
             });
             continue;
           }
-          // Create new PM junction row with fresh snapshot
-          const pmJunction = new AppointmentContactEntity({
+          // Built now, saved below with the other writes — see the note on
+          // validate-then-write ordering above the schedule delegation.
+          pendingPmJunction = new AppointmentContactEntity({
             id: crypto.randomUUID(),
             appointmentId,
             contactId: pmContact.id,
@@ -234,8 +258,33 @@ export class BulkEditAppointmentsUseCase {
             createdAt: new Date(),
             updatedAt: new Date(),
           });
-          await this.appointmentRepo.saveContact(pmJunction);
           after['propertyManagerContactId'] = pmContactId;
+        }
+
+        // ── Writes start here. Every guard above has passed. ──────────────
+        // The schedule goes first because it is the only one with external
+        // side effects (it notifies the rental tenant), so it must not run
+        // until nothing else can still reject the row.
+        if (Object.keys(scheduleData).length > 0) {
+          try {
+            await this.updateAppointment.execute({
+              appointmentId,
+              data: scheduleData,
+              actor,
+              // The delegate writes the audit entry for this row, so the batch
+              // attribution has to travel with the call — otherwise 40 bulk-moved
+              // appointments look identical to 40 manual drawer edits.
+              auditMetadata: { source: 'bulk-edit', batchId: input.requestId },
+              ...(input.options?.expandGroupTimeWindow ? { expandGroupTimeWindow: true } : {}),
+            });
+          } catch (err: unknown) {
+            failed.push(this.toFailedEntry(appointmentId, err, input.requestId));
+            continue;
+          }
+        }
+
+        if (pendingPmJunction) {
+          await this.appointmentRepo.saveContact(pendingPmJunction);
         }
 
         // Apply non-PM field updates
@@ -243,24 +292,26 @@ export class BulkEditAppointmentsUseCase {
           await this.appointmentRepo.update(appointmentId, appointment.tenantId, updateData as any);
         }
 
-        // Audit per row
-        this.auditService.log({
-          action: 'appointment.updated',
-          actorType: 'USER',
-          actorId: actor.userId,
-          entityType: 'appointment',
-          entityId: appointmentId,
-          tenantId: appointment.tenantId,
-          before,
-          after,
-          metadata: { source: 'bulk-edit', batchId: input.requestId },
-        });
+        // Audit per row — only for the fields this use case still owns.
+        // A schedule-only edit is audited by UpdateAppointmentUseCase, so
+        // logging here too would emit a second, empty before/after row.
+        if (Object.keys(before).length > 0 || Object.keys(after).length > 0) {
+          this.auditService.log({
+            action: 'appointment.updated',
+            actorType: 'USER',
+            actorId: actor.userId,
+            entityType: 'Appointment',
+            entityId: appointmentId,
+            tenantId: appointment.tenantId,
+            before,
+            after,
+            metadata: { source: 'bulk-edit', batchId: input.requestId },
+          });
+        }
 
         updated.push(appointmentId);
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        const code = (err as any)?.code ?? 'INTERNAL_ERROR';
-        failed.push({ id: appointmentId, code, message });
+        failed.push(this.toFailedEntry(appointmentId, err, input.requestId));
       }
     }
 

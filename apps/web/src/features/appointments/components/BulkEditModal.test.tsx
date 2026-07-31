@@ -1,9 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
 import type { Appointment } from '../types';
+
+/**
+ * A date comfortably in the future. Hardcoding one rots — the previous literal
+ * was future when written and later tripped the past-date submit guard.
+ */
+const FUTURE_DATE = (() => {
+  const d = new Date();
+  d.setDate(d.getDate() + 30);
+  return d.toISOString().slice(0, 10);
+})();
 
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } }));
 
@@ -68,7 +79,7 @@ function makeAppointment(overrides: Partial<Appointment> = {}): Appointment {
     appointmentNumber: 1,
     code: 'VST-001',
     tenantId: 'tenant-1',
-    tenantName: 'Acme',
+    clientName: 'Acme',
     branchId: 'branch-1',
     branchName: 'Main',
     propertyId: 'prop-1',
@@ -101,11 +112,15 @@ function createWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
   });
+  // MemoryRouter: failure rows link to the blocking service group, and a bare
+  // <Link> throws "useHref() may be used only in the context of a <Router>".
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return (
-      <QueryClientProvider client={queryClient}>
-        <SnackbarProvider>{children}</SnackbarProvider>
-      </QueryClientProvider>
+      <MemoryRouter>
+        <QueryClientProvider client={queryClient}>
+          <SnackbarProvider>{children}</SnackbarProvider>
+        </QueryClientProvider>
+      </MemoryRouter>
     );
   };
 }
@@ -224,12 +239,38 @@ describe('BulkEditModal', () => {
     expect(mockPost).not.toHaveBeenCalled();
   });
 
+  it('rejects a past scheduled date at submit instead of sending it', async () => {
+    // DateInput flags an out-of-range value but still emits it, so the submit
+    // path is the only thing standing between the user and a server rejection.
+    renderModal([makeAppointment()]);
+    fireEvent.click(screen.getByLabelText('Scheduled Date'));
+    fireEvent.change(screen.getByLabelText('Set scheduled date'), { target: { value: '2020-01-15' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
+
+    expect(await screen.findByText('Scheduled date cannot be in the past.')).toBeInTheDocument();
+    expect(mockPost).not.toHaveBeenCalled();
+  });
+
+  it('rejects an incomplete scheduled date instead of silently dropping it', async () => {
+    // An incomplete date emits '', which the change-collection loop skips — so
+    // without this the field would be enabled and simply ignored.
+    renderModal([makeAppointment()]);
+    fireEvent.click(screen.getByLabelText('Scheduled Date'));
+    fireEvent.change(screen.getByLabelText('Set scheduled date'), { target: { value: '15/06' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
+
+    expect(await screen.findByText('Enter a complete scheduled date.')).toBeInTheDocument();
+    expect(mockPost).not.toHaveBeenCalled();
+  });
+
   it('submits propertyManagerContactPolicy=addIfMissing when PM contact field is enabled', async () => {
     renderModal([makeAppointment()]);
     fireEvent.click(screen.getByText(/Add Property Manager Contact/));
     // Use Scheduled Date as a no-op carrier so submit has a non-empty change.
     fireEvent.click(screen.getByLabelText('Scheduled Date'));
-    fireEvent.change(screen.getByLabelText('Set scheduled date'), { target: { value: '2026-06-15' } });
+    fireEvent.change(screen.getByLabelText('Set scheduled date'), { target: { value: FUTURE_DATE } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
 
@@ -248,7 +289,7 @@ describe('BulkEditModal', () => {
   it('does NOT include options.propertyManagerContactPolicy when PM field is unchecked', async () => {
     renderModal([makeAppointment()]);
     fireEvent.click(screen.getByLabelText('Scheduled Date'));
-    fireEvent.change(screen.getByLabelText('Set scheduled date'), { target: { value: '2026-06-15' } });
+    fireEvent.change(screen.getByLabelText('Set scheduled date'), { target: { value: FUTURE_DATE } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
 
@@ -612,7 +653,7 @@ describe('BulkEditModal', () => {
       expect(screen.getByText(/Cannot go from DONE to CANCELLED/)).toBeInTheDocument();
     });
 
-    it('never offers the tenant opt-in when no selected tenant has confirmed', () => {
+    it('never offers the tenant opt-in when no selected tenant was told', () => {
       // The shared fixture is PENDING, so cancelling it must offer nothing.
       renderModal([makeAppointment({ id: 'a', status: 'DRAFT' })]);
       fireEvent.click(screen.getByLabelText('Change status'));
@@ -631,16 +672,16 @@ describe('BulkEditModal', () => {
       expect(screen.queryByTestId('bulk-edit-notify-block')).not.toBeInTheDocument();
 
       chooseTarget('Cancelled');
-      expect(screen.getByLabelText('Notify the tenants who confirmed')).not.toBeChecked();
+      expect(screen.getByLabelText('Notify the tenants already told')).not.toBeChecked();
 
       // Off is the deliberate default: a tick must not survive a target change and
       // come back pre-checked.
-      fireEvent.click(screen.getByText('Notify the tenants who confirmed'));
-      expect(screen.getByLabelText('Notify the tenants who confirmed')).toBeChecked();
+      fireEvent.click(screen.getByText('Notify the tenants already told'));
+      expect(screen.getByLabelText('Notify the tenants already told')).toBeChecked();
       chooseTarget('Rejected');
       expect(screen.queryByTestId('bulk-edit-notify-block')).not.toBeInTheDocument();
       chooseTarget('Cancelled');
-      expect(screen.getByLabelText('Notify the tenants who confirmed')).not.toBeChecked();
+      expect(screen.getByLabelText('Notify the tenants already told')).not.toBeChecked();
     });
 
     it('identifies failed rows by appointment code, not by a raw id fragment', async () => {
@@ -700,6 +741,167 @@ describe('BulkEditModal', () => {
       });
       expect(await screen.findByText('1 updated')).toBeInTheDocument();
       expect(screen.queryByText(/failed/)).not.toBeInTheDocument();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Service groups: a member's date belongs to the group, so say so BEFORE the
+  // operator submits, and name the group in the failure rows afterwards.
+  // ---------------------------------------------------------------------------
+  describe('service group awareness', () => {
+    const grouped = (overrides: Partial<Appointment> = {}) =>
+      makeAppointment({ serviceGroupId: 'sg-1', serviceGroupCode: '36', ...overrides });
+
+    it('warns that grouped rows have a group-managed date before submitting', () => {
+      renderModal([grouped({ id: 'a', code: 'AGE-0288' }), grouped({ id: 'b', code: 'AGE-0287' })]);
+      fireEvent.click(screen.getByLabelText('Scheduled Date'));
+
+      expect(
+        screen.getByText(/2 of 2 selected appointments belong to a service group/i),
+      ).toBeInTheDocument();
+      expect(screen.getByText(/reschedule the group instead/i)).toBeInTheDocument();
+    });
+
+    it('counts only the grouped rows in a mixed selection', () => {
+      renderModal([grouped({ id: 'a' }), makeAppointment({ id: 'b', code: 'TST-0273' })]);
+      fireEvent.click(screen.getByLabelText('Scheduled Date'));
+
+      expect(
+        screen.getByText(/1 of 2 selected appointments belong to a service group/i),
+      ).toBeInTheDocument();
+    });
+
+    it('stays quiet when nothing in the selection is grouped', () => {
+      renderModal([makeAppointment({ id: 'a' })]);
+      fireEvent.click(screen.getByLabelText('Scheduled Date'));
+
+      expect(screen.queryByText(/belong to a service group/i)).not.toBeInTheDocument();
+    });
+
+    // Assigning an inspector to grouped rows is a legal, common bulk action.
+    // Warning about the group date there would train operators to dismiss the
+    // banner, which is precisely when it matters.
+    it('does not cry wolf on bulk actions that leave the schedule alone', () => {
+      renderModal([grouped({ id: 'a' }), grouped({ id: 'b' })]);
+
+      // Nothing selected yet.
+      expect(screen.queryByText(/belong to a service group/i)).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByLabelText('Inspector'));
+      expect(screen.queryByText(/belong to a service group/i)).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByLabelText('Inspector'));
+      fireEvent.click(screen.getByLabelText('Time Slot'));
+      expect(screen.getByText(/belong to a service group/i)).toBeInTheDocument();
+    });
+
+    it('names how many groups a widen would permanently affect', () => {
+      renderModal([
+        grouped({ id: 'a', serviceGroupId: 'sg-1' }),
+        grouped({ id: 'b', serviceGroupId: 'sg-2' }),
+      ]);
+      fireEvent.click(screen.getByLabelText('Time Slot'));
+
+      expect(screen.getByLabelText(/widen the time window of all 2 groups/i)).toBeInTheDocument();
+    });
+
+    it('offers widening the group window only when grouped rows are selected', () => {
+      const { unmount } = renderModal([makeAppointment({ id: 'a' })]);
+      fireEvent.click(screen.getByLabelText('Time Slot'));
+      expect(screen.queryByLabelText(/widen the group/i)).not.toBeInTheDocument();
+      unmount();
+
+      renderModal([grouped({ id: 'b' })]);
+      fireEvent.click(screen.getByLabelText('Time Slot'));
+      expect(screen.getByLabelText(/widen the group/i)).toBeInTheDocument();
+    });
+
+    it('sends expandGroupTimeWindow when the operator opts in', async () => {
+      renderModal([grouped({ id: 'a' })]);
+      fireEvent.click(screen.getByLabelText('Time Slot'));
+      fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '13:00' } });
+      fireEvent.change(screen.getByLabelText('End time'), { target: { value: '15:00' } });
+      fireEvent.click(screen.getByLabelText(/widen the group/i));
+      fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
+
+      await waitFor(() => expect(mockPost).toHaveBeenCalled());
+      expect(mockPost.mock.calls[0]![1].body.options).toMatchObject({
+        expandGroupTimeWindow: true,
+      });
+    });
+
+    it('drops a stale widen opt-in when Time Slot is unchecked and re-checked', async () => {
+      renderModal([grouped({ id: 'a' })]);
+      fireEvent.click(screen.getByLabelText('Time Slot'));
+      fireEvent.click(screen.getByLabelText(/widen the group/i));
+      // Abandon the edit, then come back to it.
+      fireEvent.click(screen.getByLabelText('Time Slot'));
+      fireEvent.click(screen.getByLabelText('Time Slot'));
+
+      expect(screen.getByLabelText(/widen the group/i)).not.toBeChecked();
+
+      fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '13:00' } });
+      fireEvent.change(screen.getByLabelText('End time'), { target: { value: '15:00' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
+
+      await waitFor(() => expect(mockPost).toHaveBeenCalled());
+      expect(mockPost.mock.calls[0]![1].body.options?.expandGroupTimeWindow).toBeUndefined();
+    });
+
+    it('links the blocking group from the failure row', async () => {
+      mockPost.mockResolvedValue({
+        data: {
+          data: {
+            updated: 0,
+            failed: [
+              {
+                id: 'a',
+                code: 'APPOINTMENT_IN_SERVICE_GROUP',
+                message:
+                  'Date is managed by service group 36 — reschedule the group to move this appointment',
+              },
+            ],
+          },
+        },
+        error: null,
+      });
+      renderModal([grouped({ id: 'a', code: 'AGE-0288' })]);
+      fireEvent.click(screen.getByLabelText('Scheduled Date'));
+      fireEvent.change(screen.getByLabelText('Set scheduled date'), {
+        target: { value: FUTURE_DATE },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
+
+      fireEvent.click(await screen.findByRole('button', { name: /Show error details/ }));
+      expect(screen.getByText('AGE-0288')).toBeInTheDocument();
+      expect(screen.getByText(/Date is managed by service group 36/)).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /view group 36/i })).toHaveAttribute(
+        'href',
+        '/service-groups/sg-1',
+      );
+    });
+
+    it('omits the group link for a failure on an ungrouped row', async () => {
+      mockPost.mockResolvedValue({
+        data: {
+          data: {
+            updated: 0,
+            // Matches what the API now emits: the delegated past-date check
+            // throws AppointmentDateInPastError, not the old inline DATE_IN_PAST.
+            failed: [{ id: 'a', code: 'APPOINTMENT_DATE_IN_PAST', message: 'Scheduled date cannot be in the past' }],
+          },
+        },
+        error: null,
+      });
+      renderModal([makeAppointment({ id: 'a', code: 'TST-0273' })]);
+      fireEvent.click(screen.getByLabelText('Scheduled Date'));
+      fireEvent.change(screen.getByLabelText('Set scheduled date'), {
+        target: { value: FUTURE_DATE },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
+
+      fireEvent.click(await screen.findByRole('button', { name: /Show error details/ }));
+      expect(screen.queryByRole('link', { name: /view group/i })).not.toBeInTheDocument();
     });
   });
 });

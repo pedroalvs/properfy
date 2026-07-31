@@ -109,7 +109,7 @@ describe('StatusTransitionDialog', () => {
         <StatusTransitionDialog
           {...defaultProps}
           targetStatus="CANCELLED"
-          rentalTenantConfirmed
+          rentalTenantNotified
         />,
       );
 
@@ -121,7 +121,7 @@ describe('StatusTransitionDialog', () => {
         <StatusTransitionDialog
           {...defaultProps}
           targetStatus="CANCELLED"
-          rentalTenantConfirmed={false}
+          rentalTenantNotified={false}
         />,
       );
 
@@ -133,7 +133,7 @@ describe('StatusTransitionDialog', () => {
         <StatusTransitionDialog
           {...defaultProps}
           targetStatus="REJECTED"
-          rentalTenantConfirmed
+          rentalTenantNotified
         />,
       );
 
@@ -147,7 +147,7 @@ describe('StatusTransitionDialog', () => {
           {...defaultProps}
           onConfirm={onConfirm}
           targetStatus="CANCELLED"
-          rentalTenantConfirmed
+          rentalTenantNotified
         />,
       );
 
@@ -172,7 +172,7 @@ describe('StatusTransitionDialog', () => {
           {...defaultProps}
           onConfirm={onConfirm}
           targetStatus="CANCELLED"
-          rentalTenantConfirmed
+          rentalTenantNotified
         />,
       );
 
@@ -186,7 +186,7 @@ describe('StatusTransitionDialog', () => {
     });
 
     it('resets the opt-in on close/reopen so it never leaks into the next cancellation', () => {
-      const props = { ...defaultProps, targetStatus: 'CANCELLED', rentalTenantConfirmed: true };
+      const props = { ...defaultProps, targetStatus: 'CANCELLED', rentalTenantNotified: true };
       const { rerender } = render(<StatusTransitionDialog {...props} />);
 
       fireEvent.click(screen.getByText(NOTIFY_LABEL));

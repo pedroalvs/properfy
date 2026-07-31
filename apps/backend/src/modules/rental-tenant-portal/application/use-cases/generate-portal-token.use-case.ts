@@ -4,6 +4,8 @@ import type { IAppointmentRepository } from '../../../appointment/domain/appoint
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { MintPortalTokenService } from '../../domain/mint-portal-token.service';
+import { TOKEN_HASH_COLUMN } from '../../domain/mint-portal-token.service';
+import { retryOnUniqueConflict } from '../../../../shared/domain/retry-on-unique-conflict';
 import type { ConfirmationCycleService } from '../../../appointment/application/services/confirmation-cycle.service';
 import type { CreateNotificationUseCase } from '../../../notification/application/use-cases/create-notification.use-case';
 import type { Logger } from '../../../../shared/infrastructure/logger';
@@ -85,19 +87,26 @@ export class GeneratePortalTokenUseCase {
     let expiresAt = new Date();
 
     if (this.cycleService && this.prisma) {
-      await this.prisma.$transaction(async (tx) => {
-        const minted = await this.mintPortalTokenService.mint(appointment, tenant, tx);
-        rawToken = minted.rawToken;
-        expiresAt = minted.expiresAt;
-        await this.cycleService!.createInitial(
-          input.appointmentId,
-          appointment.tenantId,
-          appointment.scheduledDate,
-          `${appointment.timeSlotStart}-${appointment.timeSlotEnd}`,
-          minted.tokenId,
-          tx,
-        );
-      });
+      // mint() cannot retry a token_hash collision here — the violation aborts
+      // this transaction, so the recovery is to replay the whole thing with a
+      // freshly minted token. The collision fires inside mint(), before
+      // createInitial runs, so what the rollback undoes is mint's revocation of
+      // the previously active tokens; the replay revokes them again.
+      await retryOnUniqueConflict(TOKEN_HASH_COLUMN, () =>
+        this.prisma!.$transaction(async (tx) => {
+          const minted = await this.mintPortalTokenService.mint(appointment, tenant, tx);
+          rawToken = minted.rawToken;
+          expiresAt = minted.expiresAt;
+          await this.cycleService!.createInitial(
+            input.appointmentId,
+            appointment.tenantId,
+            appointment.scheduledDate,
+            `${appointment.timeSlotStart}-${appointment.timeSlotEnd}`,
+            minted.tokenId,
+            tx,
+          );
+        }),
+      );
     } else {
       const minted = await this.mintPortalTokenService.mint(appointment, tenant);
       rawToken = minted.rawToken;
@@ -125,7 +134,7 @@ export class GeneratePortalTokenUseCase {
         action: 'rental_tenant_portal.dispatch_skipped',
         actorType: 'USER',
         actorId: input.actor.userId,
-        entityType: 'appointment',
+        entityType: 'Appointment',
         entityId: appointment.id,
         tenantId: appointment.tenantId,
         metadata: {
@@ -151,7 +160,7 @@ export class GeneratePortalTokenUseCase {
         action: 'rental_tenant_portal.dispatch_skipped',
         actorType: 'USER',
         actorId: input.actor.userId,
-        entityType: 'appointment',
+        entityType: 'Appointment',
         entityId: appointment.id,
         tenantId: appointment.tenantId,
         metadata: {
