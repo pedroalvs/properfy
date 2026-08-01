@@ -536,6 +536,68 @@ describe('StartInspectionUseCase', () => {
     expect(executionRepo.save).toHaveBeenCalled();
   });
 
+  it('should make routine inspection visible on T-1 (March 20) when requiresRentalTenantConfirmation is false', async () => {
+    const sut = makeSut();
+    vi.setSystemTime(zonedWallTimeToUtc('2026-03-20', '09:00', PLATFORM_TIMEZONE));
+
+    serviceTypeReader.findById.mockResolvedValueOnce({
+      id: 'st-1',
+      code: 'ROUTINE_NO_CONF',
+      name: 'Routine No Confirmation Required',
+      flowType: 'ROUTINE',
+      requiresRentalTenantConfirmation: false,
+    });
+
+    appointmentRepo.isAppointmentVisibleForInspector.mockResolvedValueOnce(true);
+    appointmentRepo.findById.mockResolvedValue(
+      makeAppointmentWithRelations(
+        { rentalTenantConfirmationStatus: 'PENDING', keyRequired: false },
+      ),
+    );
+
+    // Visible on T-1 schedule, but execution start before inspection day throws time window error
+    await expect(
+      sut.execute({
+        appointmentId: 'appt-1',
+        latitude: -33.891,
+        longitude: 151.277,
+        idempotencyKey: 'key-no-conf-t1',
+        actor: inspActor,
+      }),
+    ).rejects.toThrow(/too early/i);
+  });
+
+  it('should allow routine inspection on inspection day (March 21) without tenant confirmation if requiresRentalTenantConfirmation is false', async () => {
+    const sut = makeSut();
+    vi.setSystemTime(zonedWallTimeToUtc('2026-03-21', '09:00', PLATFORM_TIMEZONE));
+
+    serviceTypeReader.findById.mockResolvedValueOnce({
+      id: 'st-1',
+      code: 'ROUTINE_NO_CONF',
+      name: 'Routine No Confirmation Required',
+      flowType: 'ROUTINE',
+      requiresRentalTenantConfirmation: false,
+    });
+
+    appointmentRepo.isAppointmentVisibleForInspector.mockResolvedValueOnce(true);
+    appointmentRepo.findById.mockResolvedValue(
+      makeAppointmentWithRelations(
+        { rentalTenantConfirmationStatus: 'PENDING', keyRequired: false },
+      ),
+    );
+
+    const result = await sut.execute({
+      appointmentId: 'appt-1',
+      latitude: -33.891,
+      longitude: 151.277,
+      idempotencyKey: 'key-no-conf-t0',
+      actor: inspActor,
+    });
+
+    expect(result.status).toBe('IN_PROGRESS');
+    expect(executionRepo.save).toHaveBeenCalled();
+  });
+
   it('should allow a past-date routine inspection once the tenant has confirmed', async () => {
     const sut = makeSut();
     vi.setSystemTime(zonedWallTimeToUtc('2026-03-22', '09:00', PLATFORM_TIMEZONE));
