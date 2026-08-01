@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { isRentalTenantNotificationsEnabled } from '@properfy/shared';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
@@ -63,9 +64,9 @@ export function TenantFormDrawer({
         currency: tenant.currency,
         appointmentCodePrefix: tenant.appointmentCodePrefix ?? '',
         notes: tenant.notes ?? '',
-        // Read uses settingsJson (the GET response key). Missing/absent = enabled.
-        rentalTenantNotificationsEnabled:
-          (tenant.settingsJson?.['rentalTenantNotificationsEnabled'] as boolean | undefined) ?? true,
+        // Read uses settingsJson (the GET response key). The shared predicate keeps
+        // mixed-version conflicts fail-closed while missing/absent stays enabled.
+        rentalTenantNotificationsEnabled: isRentalTenantNotificationsEnabled(tenant.settingsJson),
       };
       setForm(data);
       setInitialData(data);

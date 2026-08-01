@@ -90,7 +90,10 @@ export function useTenantAdminSave(): UseTenantAdminSaveReturn {
       // Only send the prefix when present (uppercased to match the backend). On
       // edit, an empty value (legacy tenant) is omitted so the field is untouched.
       const trimmedPrefix = appointmentCodePrefix.trim().toUpperCase();
-      const settings = { rentalTenantNotificationsEnabled };
+      const settings = {
+        rentalTenantNotificationsEnabled,
+        emailSendingEnabled: rentalTenantNotificationsEnabled,
+      };
 
       const { error } = tenantId
         ? await api.PATCH('/v1/tenants/{tenantId}', {

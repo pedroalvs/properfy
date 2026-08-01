@@ -28,6 +28,7 @@ import { api } from '@/services/api';
 import { TenantFormDrawer } from './TenantFormDrawer';
 
 const mockUsePermissions = usePermissions as unknown as ReturnType<typeof vi.fn>;
+const mockGet = api.GET as ReturnType<typeof vi.fn>;
 const mockPost = vi.mocked(api.POST);
 
 function createWrapper() {
@@ -83,6 +84,46 @@ describe('TenantFormDrawer', () => {
       </Wrapper>,
     );
     expect(screen.queryByText('Send notifications to tenants (email and SMS)')).not.toBeInTheDocument();
+  });
+
+  it('fails closed when persisted notification settings conflict', async () => {
+    mockGet.mockResolvedValueOnce({
+      data: {
+        data: {
+          id: 'ten-01',
+          name: 'Mixed Version Agency',
+          legalName: 'Mixed Version Agency Pty Ltd',
+          status: 'ACTIVE',
+          branchCount: 1,
+          timezone: 'Australia/Sydney',
+          currency: 'AUD',
+          createdAt: '2026-07-01T00:00:00.000Z',
+          updatedAt: '2026-07-31T00:00:00.000Z',
+          appointmentCodePrefix: 'MVA',
+          notes: null,
+          settingsJson: {
+            rentalTenantNotificationsEnabled: true,
+            emailSendingEnabled: false,
+          },
+        },
+      },
+    });
+    const Wrapper = createWrapper();
+
+    render(
+      <Wrapper>
+        <TenantFormDrawer
+          open
+          tenantId="ten-01"
+          onClose={vi.fn()}
+          onSaved={vi.fn()}
+        />
+      </Wrapper>,
+    );
+
+    expect(await screen.findByRole('checkbox', {
+      name: 'Send notifications to tenants (email and SMS)',
+    })).not.toBeChecked();
   });
 
   it('renders create mode title when no tenantId', () => {

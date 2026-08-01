@@ -153,7 +153,7 @@ describe('useTenantAdminSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    // rentalTenantNotificationsEnabled is nested under settings; scalar fields stay top-level.
+    // Notification compatibility keys are nested under settings; scalar fields stay top-level.
     // notes is excluded — it is not part of the API contract.
     expect(mockPost).toHaveBeenCalledWith('/v1/tenants', {
       body: {
@@ -161,7 +161,10 @@ describe('useTenantAdminSave', () => {
         legalName: 'Alpha LTDA',
         currency: 'AUD',
         appointmentCodePrefix: 'INS',
-        settings: { rentalTenantNotificationsEnabled: true },
+        settings: {
+          rentalTenantNotificationsEnabled: true,
+          emailSendingEnabled: true,
+        },
       },
     });
   });
@@ -179,7 +182,7 @@ describe('useTenantAdminSave', () => {
     });
   });
 
-  it('nests rentalTenantNotificationsEnabled under settings when disabled', async () => {
+  it('dual-writes disabled notification settings in the update payload', async () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
 
@@ -191,7 +194,12 @@ describe('useTenantAdminSave', () => {
       '/v1/tenants/{tenantId}',
       expect.objectContaining({
         params: { path: { tenantId: 'ten-01' } },
-        body: expect.objectContaining({ settings: { rentalTenantNotificationsEnabled: false } }),
+        body: expect.objectContaining({
+          settings: {
+            rentalTenantNotificationsEnabled: false,
+            emailSendingEnabled: false,
+          },
+        }),
       }),
     );
   });
@@ -210,7 +218,12 @@ describe('useTenantAdminSave', () => {
       '/v1/tenants/{tenantId}',
       expect.objectContaining({
         params: { path: { tenantId: 'ten-01' } },
-        body: expect.objectContaining({ settings: { rentalTenantNotificationsEnabled: true } }),
+        body: expect.objectContaining({
+          settings: {
+            rentalTenantNotificationsEnabled: true,
+            emailSendingEnabled: true,
+          },
+        }),
       }),
     );
   });

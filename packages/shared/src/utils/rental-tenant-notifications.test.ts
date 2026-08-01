@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   isRentalTenantNotificationsEnabled,
+  normalizeRentalTenantNotificationSettings,
   RENTAL_TENANT_NOTIFICATIONS_SETTING_KEY,
   TENANT_NOTIFICATIONS_BLOCKED_CODE,
 } from './rental-tenant-notifications';
@@ -63,5 +64,30 @@ describe('isRentalTenantNotificationsEnabled', () => {
 
   it('exposes the blocked error code shared by backend throw, batch guards and web', () => {
     expect(TENANT_NOTIFICATIONS_BLOCKED_CODE).toBe('TENANT_NOTIFICATIONS_BLOCKED');
+  });
+});
+
+describe('normalizeRentalTenantNotificationSettings', () => {
+  it('uses the replacement value when both keys are supplied and mirrors it to the legacy key', () => {
+    expect(normalizeRentalTenantNotificationSettings({
+      rentalTenantNotificationsEnabled: false,
+      emailSendingEnabled: true,
+      smsFromName: 'Properfy',
+    })).toEqual({
+      rentalTenantNotificationsEnabled: false,
+      emailSendingEnabled: false,
+      smsFromName: 'Properfy',
+    });
+  });
+
+  it('mirrors a legacy-only value to the replacement key', () => {
+    expect(normalizeRentalTenantNotificationSettings({
+      emailSendingEnabled: false,
+      primaryColor: '#21566E',
+    })).toEqual({
+      rentalTenantNotificationsEnabled: false,
+      emailSendingEnabled: false,
+      primaryColor: '#21566E',
+    });
   });
 });
