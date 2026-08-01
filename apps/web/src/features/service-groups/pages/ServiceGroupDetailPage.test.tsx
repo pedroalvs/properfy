@@ -456,7 +456,8 @@ describe('ServiceGroupDetailPage', () => {
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: /Send portal link/ }));
     // The dialog body shows the preview summary.
-    expect(screen.getByText(/will be sent/)).toBeInTheDocument();
+    expect(screen.getByText(/eligible for a send attempt/i)).toBeInTheDocument();
+    expect(screen.queryByText(/will be (?:re-)?sent/i)).not.toBeInTheDocument();
   });
 
   it('shows loading state', () => {
