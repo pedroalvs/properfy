@@ -1,5 +1,12 @@
 # Architecture Decisions
 
+## 2026-07-31 - Agency tenant-notification switch uses expand/contract compatibility
+
+1. During the rolling-deploy compatibility window, `rentalTenantNotificationsEnabled` and legacy `emailSendingEnabled` are both read; either explicit `false` blocks rental-tenant contact.
+2. Tenant create/update paths dual-write both keys so old workers, new workers and cached old web bundles observe the same policy.
+3. The PR 1064 migration is expand-only: it backfills the new key but retains the legacy key. Removing `emailSendingEnabled` requires a later contract migration after old application versions and cached clients are no longer active.
+4. Conflicting persisted values fail closed until the next normalized write, preventing an unintended tenant notification during rollout.
+
 ## 2026-07-06 - Service groups no longer have priority mode
 
 1. `priority mode` foi removido integralmente do produto e da API; service groups agora usam um único comportamento padrão, sem `priorityMode` nem `priorityExpiresAt`.
