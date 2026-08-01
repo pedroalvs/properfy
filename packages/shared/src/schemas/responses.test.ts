@@ -111,6 +111,17 @@ describe('appointmentResponseSchema — appointmentCode / code', () => {
     if (result.success) expect(result.data.rentalTenantAvailableSlots).toBeNull();
   });
 
+  it('keeps legacy slots readable even when their clock was accepted only by the old contract', () => {
+    const legacySlots = [{ dayOfWeek: 'MON', start: '24:00', end: '25:00' }];
+    const result = appointmentResponseSchema.safeParse({
+      ...validBase,
+      rentalTenantAvailableSlots: legacySlots,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.rentalTenantAvailableSlots).toEqual(legacySlots);
+  });
+
   it('leaves rentalTenantAvailableSlots optional so the detail producer still validates', () => {
     const result = appointmentResponseSchema.safeParse(validBase);
     expect(result.success).toBe(true);

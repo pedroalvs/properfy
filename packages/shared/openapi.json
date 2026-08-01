@@ -10878,11 +10878,11 @@
                               },
                               "start": {
                                 "type": "string",
-                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                                "pattern": "^\\d{2}:\\d{2}$"
                               },
                               "end": {
                                 "type": "string",
-                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                                "pattern": "^\\d{2}:\\d{2}$"
                               }
                             },
                             "required": [
@@ -11487,11 +11487,11 @@
                                 },
                                 "start": {
                                   "type": "string",
-                                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                                  "pattern": "^\\d{2}:\\d{2}$"
                                 },
                                 "end": {
                                   "type": "string",
-                                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                                  "pattern": "^\\d{2}:\\d{2}$"
                                 }
                               },
                               "required": [
@@ -11899,11 +11899,11 @@
                               },
                               "start": {
                                 "type": "string",
-                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                                "pattern": "^\\d{2}:\\d{2}$"
                               },
                               "end": {
                                 "type": "string",
-                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                                "pattern": "^\\d{2}:\\d{2}$"
                               }
                             },
                             "required": [
@@ -12574,11 +12574,11 @@
                               },
                               "start": {
                                 "type": "string",
-                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                                "pattern": "^\\d{2}:\\d{2}$"
                               },
                               "end": {
                                 "type": "string",
-                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                                "pattern": "^\\d{2}:\\d{2}$"
                               }
                             },
                             "required": [
@@ -13288,6 +13288,16 @@
             "in": "path",
             "name": "appointmentId",
             "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": false
           }
         ],
         "responses": {
@@ -18194,6 +18204,7 @@
                           ],
                           "additionalProperties": false
                         },
+                        "maxItems": 7,
                         "nullable": true
                       }
                     },
@@ -18380,6 +18391,7 @@
                           ],
                           "additionalProperties": false
                         },
+                        "maxItems": 7,
                         "nullable": true
                       }
                     },

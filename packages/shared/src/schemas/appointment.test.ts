@@ -5,6 +5,7 @@ import {
   statusTransitionSchema,
   listAppointmentsQuerySchema,
   forceManualConfirmationSchema,
+  setRentalTenantAvailabilitySchema,
   bulkCancelRequestSchema,
   bulkRescheduleRequestSchema,
   bulkStatusTransitionRequestSchema,
@@ -44,6 +45,20 @@ const validInlineProperty = {
   postcode: '2000',
   state: 'NSW',
 };
+
+describe('setRentalTenantAvailabilitySchema', () => {
+  it('rejects more than one weekly slot for the same day', () => {
+    const result = setRentalTenantAvailabilitySchema.safeParse({
+      availableSlots: [
+        { dayOfWeek: 'MON', start: '09:00', end: '12:00' },
+        { dayOfWeek: 'MON', start: '13:00', end: '17:00' },
+      ],
+      markUnavailable: false,
+    });
+
+    expect(result.success).toBe(false);
+  });
+});
 
 describe('createAppointmentSchema', () => {
   it('should be valid with propertyId', () => {

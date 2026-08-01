@@ -35,6 +35,17 @@ describe('TenantAvailabilityDialog', () => {
     expect(screen.getByText(/pick at least one day/i)).toBeInTheDocument();
   });
 
+  it('will not submit a slot whose end is not after its start', () => {
+    renderDialog();
+    pickMonday();
+    fireEvent.change(screen.getByTestId('start-MON'), { target: { value: '17:00' } });
+    fireEvent.change(screen.getByTestId('end-MON'), { target: { value: '09:00' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(setAvailability).not.toHaveBeenCalled();
+    expect(screen.getByText(/end time must be after start time/i)).toBeInTheDocument();
+  });
+
   it('saves the picked slots without touching any status', () => {
     renderDialog();
     pickMonday();
@@ -92,6 +103,7 @@ describe('TenantAvailabilityDialog', () => {
       expect(
         screen.getByRole('heading', { name: /reject this inspection/i }),
       ).toBeInTheDocument();
+      expect(screen.getAllByRole('dialog')).toHaveLength(1);
     });
 
     it('submits with markUnavailable once confirmed', () => {

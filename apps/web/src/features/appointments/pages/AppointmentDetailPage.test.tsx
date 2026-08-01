@@ -639,10 +639,18 @@ describe('Tenant Availability action', () => {
 
   it('opens the dialog with the decline checkbox for an operator', () => {
     mockUserRole = 'OP';
-    renderPage();
+    renderPage('/appointments/with-portal-token');
     fireEvent.click(screen.getByTestId('set-tenant-availability-button'));
 
     expect(screen.getByLabelText(/also mark tenant as unavailable/i)).toBeInTheDocument();
+  });
+
+  it('does not offer the decline checkbox when the appointment cannot be rejected', () => {
+    mockUserRole = 'OP';
+    renderPage('/appointments/done');
+    fireEvent.click(screen.getByTestId('set-tenant-availability-button'));
+
+    expect(screen.queryByLabelText(/also mark tenant as unavailable/i)).toBeNull();
   });
 
   it('opens the dialog without the decline checkbox for CL_ADMIN', () => {

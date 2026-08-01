@@ -1,6 +1,13 @@
+import { createHash } from 'node:crypto';
 import type { AuthContext, AvailableSlot } from '@properfy/shared';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
-import { AppointmentNotFoundError, AppointmentInvalidTransitionError } from '../../domain/appointment.errors';
+import {
+  AppointmentNotFoundError,
+  AppointmentInvalidTransitionError,
+  RentalTenantAvailabilityIdempotencyKeyRequiredError,
+  RentalTenantAvailabilityIdempotencyPayloadMismatchError,
+  RentalTenantAvailabilityIdempotencyInProgressError,
+} from '../../domain/appointment.errors';
 import { AppointmentRestrictionEntity } from '../../domain/appointment-restriction.entity';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
@@ -11,6 +18,7 @@ import type {
   ExecuteStatusTransitionInput,
   ExecuteStatusTransitionOutput,
 } from './execute-status-transition.use-case';
+import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 
 interface IStatusTransitionUseCase {
   execute(input: ExecuteStatusTransitionInput): Promise<ExecuteStatusTransitionOutput>;
@@ -18,6 +26,20 @@ interface IStatusTransitionUseCase {
 
 /** Mirrors the wording the portal decline records, so the audit trail reads alike. */
 const REJECTION_REASON = 'Rental tenant reported they cannot attend, recorded by the operator';
+const IDEMPOTENCY_SCOPE = 'rental-tenant-availability';
+const IDEMPOTENCY_TTL_HOURS = 24;
+const IDEMPOTENCY_ACQUIRE_TTL_HOURS = 5 / 60;
+
+function sha256(value: string): string {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+function orderSlots(slots: AvailableSlot[]): AvailableSlot[] {
+  return [...slots].sort((a, b) =>
+    a.dayOfWeek.localeCompare(b.dayOfWeek)
+    || a.start.localeCompare(b.start)
+    || a.end.localeCompare(b.end));
+}
 
 export interface SetRentalTenantAvailabilityInput {
   appointmentId: string;
@@ -55,6 +77,7 @@ export class SetRentalTenantAvailabilityUseCase {
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
     private readonly statusTransition: IStatusTransitionUseCase,
+    private readonly idempotencyService: IIdempotencyService,
     private readonly cycleService?: ConfirmationCycleService,
   ) {}
 
@@ -73,34 +96,84 @@ export class SetRentalTenantAvailabilityUseCase {
         action: 'appointment.rental_tenant_declined',
         entityType: 'Appointment',
       });
+      if (!idempotencyKey) {
+        throw new RentalTenantAvailabilityIdempotencyKeyRequiredError();
+      }
+    }
+
+    const idempotency = markUnavailable && idempotencyKey
+      ? this.buildIdempotencyContext(input, idempotencyKey)
+      : null;
+    let idempotencyOwnerToken: string | null = null;
+    if (idempotency) {
+      const claim = await this.idempotencyService.tryAcquire<SetRentalTenantAvailabilityOutput>(
+        idempotency.commandKey,
+        IDEMPOTENCY_SCOPE,
+        idempotency.payloadHash,
+        IDEMPOTENCY_ACQUIRE_TTL_HOURS,
+      );
+      if (claim.status !== 'acquired' && claim.payloadHash !== idempotency.payloadHash) {
+        throw new RentalTenantAvailabilityIdempotencyPayloadMismatchError();
+      }
+      if (claim.status === 'completed') return claim.response;
+      if (claim.status === 'in_progress') {
+        throw new RentalTenantAvailabilityIdempotencyInProgressError();
+      }
+      idempotencyOwnerToken = claim.ownerToken;
     }
 
     // AM/OP are platform-wide; CL_ADMIN is pinned to their JWT tenant.
     const tenantScope = actor.role === 'AM' || actor.role === 'OP' ? null : actor.tenantId;
-    const result = await this.appointmentRepo.findById(appointmentId, tenantScope);
-    if (!result) throw new AppointmentNotFoundError();
+    let result: Awaited<ReturnType<IAppointmentRepository['findById']>>;
+    try {
+      result = await this.appointmentRepo.findById(appointmentId, tenantScope);
+    } catch (error) {
+      if (idempotency && idempotencyOwnerToken) await this.releaseClaim(idempotency, idempotencyOwnerToken);
+      throw error;
+    }
+    if (!result) {
+      if (idempotency && idempotencyOwnerToken) await this.releaseClaim(idempotency, idempotencyOwnerToken);
+      throw new AppointmentNotFoundError();
+    }
 
     const { appointment } = result;
     // Defense in depth: the actor must own the row even if the repo ever
     // loosens its tenant filter.
     if (actor.role === 'CL_ADMIN' && appointment.tenantId !== actor.tenantId) {
+      if (idempotency && idempotencyOwnerToken) await this.releaseClaim(idempotency, idempotencyOwnerToken);
       throw new AppointmentNotFoundError();
     }
+
+    const previous = result.restrictions ?? [];
+    const existing = previous.find((r) => r.availableSlotsJson?.length) ?? previous[0] ?? null;
 
     // Declining an appointment the "will you be home?" question no longer
     // applies to would try to reject it twice. Recording availability alone is
     // still fine on a terminal appointment — it is just data.
     if (markUnavailable && isPortalUnanswerableStatus(appointment.status)) {
+      // An expired reservation can be reacquired after the business writes were
+      // already committed. Rebuild the command result without re-driving the
+      // transition or its notifications.
+      if (
+        appointment.status === 'REJECTED'
+        && appointment.rentalTenantConfirmationStatus === 'UNAVAILABLE'
+        && idempotency
+        && this.sameSlots(existing?.availableSlotsJson ?? [], availableSlots)
+      ) {
+        const recovered = this.output(appointmentId, availableSlots, 'UNAVAILABLE');
+        if (idempotencyOwnerToken) {
+          await this.cacheResult(idempotency, idempotencyOwnerToken, recovered);
+        }
+        return recovered;
+      }
+      if (idempotency && idempotencyOwnerToken) await this.releaseClaim(idempotency, idempotencyOwnerToken);
       throw new AppointmentInvalidTransitionError(appointment.status, 'REJECTED');
     }
 
-    const previous = result.restrictions ?? [];
     // At most one row exists and `replaceRestrictions` overwrites it wholesale,
     // so the operator's own fields have to ride along or they are destroyed.
     // Prefer the row that already carries slots; fall back to whatever single
     // row is there.
-    const existing = previous.find((r) => r.availableSlotsJson?.length) ?? previous[0] ?? null;
-
     const restriction = new AppointmentRestrictionEntity({
       // Reusing the id preserves createdAt across the delete+insert.
       id: existing?.id ?? crypto.randomUUID(),
@@ -118,44 +191,203 @@ export class SetRentalTenantAvailabilityUseCase {
       createdAt: existing?.createdAt ?? new Date(),
       updatedAt: new Date(),
     });
-    await this.appointmentRepo.replaceRestrictions(appointmentId, restriction);
+    let commandAuditLogged = false;
+    try {
+      if (idempotency && idempotencyOwnerToken) {
+        await this.renewClaim(idempotency, idempotencyOwnerToken);
+      }
+      await this.appointmentRepo.replaceRestrictions(appointmentId, restriction);
 
-    let confirmationStatus = appointment.rentalTenantConfirmationStatus;
-    if (markUnavailable) {
-      confirmationStatus = 'UNAVAILABLE';
-      await this.markTenantUnavailable(appointmentId, appointment.tenantId);
-      // The appointment ends here: nobody can let the inspector in, so it leaves
-      // the run and waits to be rescheduled against the availability just saved.
-      // Attributed to the operator who did it, unlike the portal's SYS actor.
-      await this.statusTransition.execute({
-        appointmentId,
-        targetStatus: 'REJECTED',
-        reason: REJECTION_REASON,
-        rejectionReasonCode: 'TENANT_DECLINED',
-        ...(idempotencyKey ? { idempotencyKey } : {}),
-        actor,
-      });
+      let confirmationStatus = appointment.rentalTenantConfirmationStatus;
+      if (markUnavailable) {
+        confirmationStatus = 'UNAVAILABLE';
+        if (idempotency && idempotencyOwnerToken) {
+          await this.renewClaim(idempotency, idempotencyOwnerToken);
+        }
+        await this.markTenantUnavailable(appointmentId, appointment.tenantId);
+        // The appointment ends here: nobody can let the inspector in, so it leaves
+        // the run and waits to be rescheduled against the availability just saved.
+        // Attributed to the operator who did it, unlike the portal's SYS actor.
+        if (idempotency && idempotencyOwnerToken) {
+          await this.renewClaim(idempotency, idempotencyOwnerToken);
+        }
+        await this.statusTransition.execute(
+          this.transitionInput(input, idempotency?.transitionKey),
+        );
+      }
+
+      this.logCommandAudit(input, appointment.tenantId, existing, appointment.rentalTenantConfirmationStatus, confirmationStatus);
+      commandAuditLogged = true;
+
+      const output = this.output(appointmentId, availableSlots, confirmationStatus);
+      if (idempotency && idempotencyOwnerToken) {
+        await this.cacheResult(idempotency, idempotencyOwnerToken, output);
+      }
+      return output;
+    } catch (error) {
+      if (idempotency && markUnavailable) {
+        let recovered: SetRentalTenantAvailabilityOutput | null = null;
+        try {
+          recovered = await this.recoverCompletedDecline(input, idempotency, idempotencyOwnerToken);
+        } catch {
+          // Recovery is best-effort; preserve the original command failure.
+        }
+        if (recovered) {
+          if (!commandAuditLogged) {
+            this.logCommandAudit(input, appointment.tenantId, existing, appointment.rentalTenantConfirmationStatus, 'UNAVAILABLE');
+          }
+          return recovered;
+        }
+      }
+      if (idempotency && idempotencyOwnerToken) {
+        await this.releaseClaim(idempotency, idempotencyOwnerToken);
+      }
+      throw error;
+    }
+  }
+
+  private buildIdempotencyContext(input: SetRentalTenantAvailabilityInput, key: string) {
+    const principal = `${input.actor.tenantId ?? 'platform'}:${input.actor.userId}`;
+    const keyHash = sha256(`${principal}:${key}`);
+    const payloadHash = sha256(JSON.stringify({
+      appointmentId: input.appointmentId,
+      availableSlots: orderSlots(input.availableSlots),
+      markUnavailable: input.markUnavailable,
+      actor: {
+        userId: input.actor.userId,
+        tenantId: input.actor.tenantId,
+        role: input.actor.role,
+      },
+    }));
+    return {
+      commandKey: `rental-tenant-availability:${keyHash}`,
+      transitionKey: `rental-tenant-availability-transition:${keyHash}`,
+      payloadHash,
+    };
+  }
+
+  private transitionInput(
+    input: SetRentalTenantAvailabilityInput,
+    idempotencyKey?: string,
+  ): ExecuteStatusTransitionInput {
+    return {
+      appointmentId: input.appointmentId,
+      targetStatus: 'REJECTED',
+      reason: REJECTION_REASON,
+      rejectionReasonCode: 'TENANT_DECLINED',
+      ...(idempotencyKey ? { idempotencyKey } : {}),
+      actor: input.actor,
+    };
+  }
+
+  private sameSlots(left: AvailableSlot[], right: AvailableSlot[]): boolean {
+    return JSON.stringify(orderSlots(left)) === JSON.stringify(orderSlots(right));
+  }
+
+  private output(
+    id: string,
+    availableSlots: AvailableSlot[],
+    rentalTenantConfirmationStatus: string,
+  ): SetRentalTenantAvailabilityOutput {
+    return { id, availableSlots, rentalTenantConfirmationStatus };
+  }
+
+  private async cacheResult(
+    context: { commandKey: string; payloadHash: string },
+    ownerToken: string,
+    output: SetRentalTenantAvailabilityOutput,
+  ): Promise<void> {
+    const completed = await this.idempotencyService.complete(
+      context.commandKey,
+      IDEMPOTENCY_SCOPE,
+      ownerToken,
+      output,
+      IDEMPOTENCY_TTL_HOURS,
+      context.payloadHash,
+    );
+    if (!completed) throw new RentalTenantAvailabilityIdempotencyInProgressError();
+  }
+
+  private async releaseClaim(
+    context: { commandKey: string; payloadHash: string },
+    ownerToken: string,
+  ): Promise<void> {
+    try {
+      await this.idempotencyService.release(
+        context.commandKey,
+        IDEMPOTENCY_SCOPE,
+        context.payloadHash,
+        ownerToken,
+      );
+    } catch {
+      // Keep the original business error; the short reservation expires in five minutes.
+    }
+  }
+
+  private async renewClaim(
+    context: { commandKey: string; payloadHash: string },
+    ownerToken: string,
+  ): Promise<void> {
+    const renewed = await this.idempotencyService.renew(
+      context.commandKey,
+      IDEMPOTENCY_SCOPE,
+      context.payloadHash,
+      ownerToken,
+      IDEMPOTENCY_ACQUIRE_TTL_HOURS,
+    );
+    if (!renewed) throw new RentalTenantAvailabilityIdempotencyInProgressError();
+  }
+
+  private async recoverCompletedDecline(
+    input: SetRentalTenantAvailabilityInput,
+    context: { commandKey: string; payloadHash: string },
+    ownerToken: string | null,
+  ): Promise<SetRentalTenantAvailabilityOutput | null> {
+    const latest = await this.appointmentRepo.findById(input.appointmentId, null);
+    const restriction = latest?.restrictions.find((item) => item.availableSlotsJson?.length);
+    if (
+      !latest
+      || latest.appointment.status !== 'REJECTED'
+      || latest.appointment.rentalTenantConfirmationStatus !== 'UNAVAILABLE'
+      || !this.sameSlots(restriction?.availableSlotsJson ?? [], input.availableSlots)
+    ) {
+      return null;
     }
 
+    const recovered = this.output(input.appointmentId, input.availableSlots, 'UNAVAILABLE');
+    try {
+      if (ownerToken) await this.cacheResult(context, ownerToken, recovered);
+    } catch {
+      // The business state is authoritative; a cache outage must not turn a
+      // completed destructive command into a client-visible failure.
+    }
+    return recovered;
+  }
+
+  private logCommandAudit(
+    input: SetRentalTenantAvailabilityInput,
+    tenantId: string,
+    existing: AppointmentRestrictionEntity | null,
+    previousConfirmationStatus: string,
+    confirmationStatus: string,
+  ): void {
     this.auditService.log({
       action: 'appointment.rental_tenant_availability_set',
       actorType: 'USER',
-      actorId: actor.userId,
+      actorId: input.actor.userId,
       entityType: 'Appointment',
-      entityId: appointmentId,
-      tenantId: appointment.tenantId,
+      entityId: input.appointmentId,
+      tenantId,
       before: {
         availableSlotsJson: existing?.availableSlotsJson ?? null,
-        rentalTenantConfirmationStatus: appointment.rentalTenantConfirmationStatus,
+        rentalTenantConfirmationStatus: previousConfirmationStatus,
       },
       after: {
-        availableSlotsJson: availableSlots,
+        availableSlotsJson: input.availableSlots,
         rentalTenantConfirmationStatus: confirmationStatus,
       },
-      metadata: { markUnavailable },
+      metadata: { markUnavailable: input.markUnavailable },
     });
-
-    return { id: appointmentId, availableSlots, rentalTenantConfirmationStatus: confirmationStatus };
   }
 
   /** Cycle service when wired, direct denorm write for pre-feature appointments. */

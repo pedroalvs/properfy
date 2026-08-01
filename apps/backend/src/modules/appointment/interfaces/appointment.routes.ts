@@ -371,6 +371,9 @@ export async function registerAppointmentRoutes(
       preHandler: authenticate,
       schema: {
         params: z.object({ appointmentId: z.string().uuid() }),
+        headers: z.object({
+          'idempotency-key': z.string().min(1).max(200).optional(),
+        }).passthrough(),
         body: setRentalTenantAvailabilitySchema,
         response: { 200: successResponseSchema(setRentalTenantAvailabilityResponseSchema) },
       },

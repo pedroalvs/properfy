@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { AvailableSlot } from '@properfy/shared';
+import { availableSlotSchema, type AvailableSlot } from '@properfy/shared';
 import { Dialog, ConfirmDialog, Button } from '@/components/ui';
 import { Checkbox } from '@/components/forms/Checkbox';
 import { WeeklyAvailabilityPicker } from '@/components/forms/WeeklyAvailabilityPicker';
@@ -68,6 +68,11 @@ export function TenantAvailabilityDialog({
       setError('Pick at least one day the tenant is available.');
       return;
     }
+    const invalidSlot = value.find((slot) => !availableSlotSchema.safeParse(slot).success);
+    if (invalidSlot) {
+      setError(`End time must be after start time for ${invalidSlot.dayOfWeek}.`);
+      return;
+    }
     setError(null);
     // Declining rejects the inspection and emails the agency, so it never
     // happens on a single click.
@@ -81,7 +86,7 @@ export function TenantAvailabilityDialog({
   return (
     <>
       <Dialog
-        open={open}
+        open={open && !confirmOpen}
         onClose={onClose}
         title="Set tenant availability"
         maxWidth="560px"

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { auPhoneSchema } from './phone';
 import { HHMM_REGEX } from './appointment';
-import { availableSlotSchema } from './available-slot';
+import { availableSlotSchema, hasUniqueAvailableSlotDays } from './available-slot';
 
 // Token URL param validation
 export const portalTokenParam = z.object({
@@ -32,7 +32,10 @@ const portalRestrictionsSchema = z
       .nullable()
       .optional(),
     notes: z.string().max(1000).nullable().optional(),
-    availableSlotsJson: z.array(availableSlotSchema).nullable().optional(),
+    availableSlotsJson: z.array(availableSlotSchema).max(7).refine(
+      hasUniqueAvailableSlotDays,
+      { message: 'Only one availability slot is allowed per day' },
+    ).nullable().optional(),
   })
   .optional();
 

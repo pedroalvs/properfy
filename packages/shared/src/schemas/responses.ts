@@ -3,7 +3,7 @@ import { HHMM_REGEX } from './appointment';
 import { propertyRulesSchema, PROPERTY_TYPE_VALUES } from './property';
 import { bonusRuleSchema } from './pricing-rule';
 import { appointmentAppSchema } from './app-credential';
-import { availableSlotSchema } from './available-slot';
+import { availableSlotSchema, storedAvailableSlotSchema } from './available-slot';
 import { AppointmentStatus, ServiceTypeFlowType } from '../enums';
 
 /**
@@ -304,7 +304,7 @@ export const appointmentResponseSchema = z.object({
    * without a per-row detail fetch. The detail endpoint exposes the same data
    * nested under `restrictions[].availableSlotsJson` and omits this field.
    */
-  rentalTenantAvailableSlots: z.array(availableSlotSchema).nullable().optional(),
+  rentalTenantAvailableSlots: z.array(storedAvailableSlotSchema).nullable().optional(),
   hasActivePortalToken: z.boolean().default(false),
   customFieldsJson: z.unknown().nullable().optional(),
   reason: z.string().nullable().optional(),

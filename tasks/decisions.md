@@ -1,5 +1,12 @@
 # Architecture Decisions
 
+## 2026-07-31 - Tenant availability decline uses recoverable command idempotency
+
+1. Operator-triggered tenant decline requires a command-level `Idempotency-Key`; keys are hashed with the principal and namespaced separately from status-transition keys.
+2. The web client retains a key across retries of the same decline intent and rotates it after success or a changed payload.
+3. The command atomically reserves its key before side effects. Reservation completion and release use a unique owner token as a fencing condition so an expired worker cannot mutate a successor's claim.
+4. This PR does not introduce a transaction-aware repository or outbox across availability, confirmation-cycle, transition, and audit writes. It uses replay recovery consistent with the existing transition service; broader atomicity belongs in a cross-flow refactor that also covers portal decline.
+
 ## 2026-07-06 - Service groups no longer have priority mode
 
 1. `priority mode` foi removido integralmente do produto e da API; service groups agora usam um único comportamento padrão, sem `priorityMode` nem `priorityExpiresAt`.

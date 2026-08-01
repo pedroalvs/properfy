@@ -21,6 +21,7 @@ import { z } from 'zod';
  * strings, so `"31:75" < "99:00"` passes happily.
  */
 export const HHMM_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
+const LEGACY_HHMM_REGEX = /^\d{2}:\d{2}$/;
 
 export const DAY_OF_WEEK = z.enum(['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']);
 
@@ -31,5 +32,22 @@ export const availableSlotSchema = z
     end: z.string().regex(HHMM_REGEX, 'Must be HH:mm'),
   })
   .refine((s) => s.start < s.end, { message: 'start must be before end' });
+
+/**
+ * Read boundary for rows written before strict clock validation existed.
+ * New writes must always use `availableSlotSchema`; tolerating the historical
+ * shape here prevents one old JSON value from failing an entire list response.
+ */
+export const storedAvailableSlotSchema = z
+  .object({
+    dayOfWeek: DAY_OF_WEEK,
+    start: z.string().regex(LEGACY_HHMM_REGEX, 'Must be HH:mm'),
+    end: z.string().regex(LEGACY_HHMM_REGEX, 'Must be HH:mm'),
+  })
+  .refine((s) => s.start < s.end, { message: 'start must be before end' });
+
+export function hasUniqueAvailableSlotDays(slots: AvailableSlotSchema[]): boolean {
+  return new Set(slots.map((slot) => slot.dayOfWeek)).size === slots.length;
+}
 
 export type AvailableSlotSchema = z.infer<typeof availableSlotSchema>;

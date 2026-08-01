@@ -8,6 +8,10 @@ import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AppointmentNotFoundError, AppointmentInvalidTransitionError } from '../../../src/modules/appointment/domain/appointment.errors';
 import { ConfirmationCycleNotFoundError } from '../../../src/modules/appointment/domain/confirmation-cycle.errors';
 import type { AuthContext, AvailableSlot } from '@properfy/shared';
+import type {
+  IIdempotencyService,
+  IdempotencyRecord,
+} from '../../../src/shared/domain/idempotency.service';
 
 const SLOTS: AvailableSlot[] = [{ dayOfWeek: 'MON', start: '09:00', end: '12:00' }];
 
@@ -61,6 +65,8 @@ describe('SetRentalTenantAvailabilityUseCase', () => {
   let auditService: { log: ReturnType<typeof vi.fn> };
   let statusTransition: { execute: ReturnType<typeof vi.fn> };
   let cycleService: { markUnavailable: ReturnType<typeof vi.fn> };
+  let idempotencyService: IIdempotencyService;
+  let idempotencyRecords: Map<string, IdempotencyRecord>;
   let useCase: SetRentalTenantAvailabilityUseCase;
 
   function build(restrictions: AppointmentRestrictionEntity[] = []) {
@@ -84,11 +90,54 @@ describe('SetRentalTenantAvailabilityUseCase', () => {
     auditService = { log: vi.fn() };
     statusTransition = { execute: vi.fn().mockResolvedValue({}) };
     cycleService = { markUnavailable: vi.fn().mockResolvedValue({}) };
+    idempotencyRecords = new Map();
+    idempotencyService = {
+      get: vi.fn(),
+      getWithHash: vi.fn(async (key: string) => idempotencyRecords.get(key) ?? null),
+      tryAcquire: vi.fn(async (key: string, _scope: string, payloadHash: string) => {
+        const existing = idempotencyRecords.get(key);
+        if (!existing) {
+          idempotencyRecords.set(key, {
+            response: { __idempotencyState: 'IN_PROGRESS', ownerToken: `owner:${key}` },
+            payloadHash,
+          });
+          return { status: 'acquired' as const, ownerToken: `owner:${key}` };
+        }
+        if ((existing.response as { __idempotencyState?: string }).__idempotencyState === 'IN_PROGRESS') {
+          return { status: 'in_progress' as const, payloadHash: existing.payloadHash };
+        }
+        return {
+          status: 'completed' as const,
+          response: existing.response,
+          payloadHash: existing.payloadHash,
+        };
+      }),
+      complete: vi.fn(async (key: string, _scope: string, ownerToken: string, response: unknown, _ttl: number, payloadHash: string) => {
+        const existing = idempotencyRecords.get(key);
+        if ((existing?.response as { ownerToken?: string })?.ownerToken !== ownerToken) return false;
+        idempotencyRecords.set(key, { response, payloadHash });
+        return true;
+      }),
+      renew: vi.fn(async (key: string, _scope: string, _payloadHash: string, ownerToken: string) => {
+        const existing = idempotencyRecords.get(key);
+        return (existing?.response as { ownerToken?: string })?.ownerToken === ownerToken;
+      }),
+      release: vi.fn(async (key: string, _scope: string, _payloadHash: string, ownerToken: string) => {
+        const existing = idempotencyRecords.get(key);
+        if ((existing?.response as { ownerToken?: string })?.ownerToken === ownerToken) {
+          idempotencyRecords.delete(key);
+        }
+      }),
+      set: vi.fn(async (key: string, _scope: string, response: unknown, _ttl: number, payloadHash?: string) => {
+        idempotencyRecords.set(key, { response, payloadHash: payloadHash ?? null });
+      }),
+    };
     useCase = new SetRentalTenantAvailabilityUseCase(
       appointmentRepo,
       auditService as never,
       new AuthorizationService({ log: vi.fn() } as never),
       statusTransition as never,
+      idempotencyService,
       cycleService as never,
     );
   });
@@ -227,6 +276,7 @@ describe('SetRentalTenantAvailabilityUseCase', () => {
         appointmentId: 'appt-1',
         availableSlots: SLOTS,
         markUnavailable: true,
+        idempotencyKey: 'decline-1',
         actor: makeActor({ role: 'OP' }),
       });
 
@@ -247,6 +297,7 @@ describe('SetRentalTenantAvailabilityUseCase', () => {
         appointmentId: 'appt-1',
         availableSlots: SLOTS,
         markUnavailable: true,
+        idempotencyKey: 'decline-2',
         actor: makeActor({ role: 'OP', userId: 'op-7' }),
       });
 
@@ -255,20 +306,268 @@ describe('SetRentalTenantAvailabilityUseCase', () => {
       );
     });
 
-    it('forwards the idempotency key so a retry replays instead of double-rejecting', async () => {
+    it('replays a completed decline when the same idempotency key is retried', async () => {
       build();
 
-      await useCase.execute({
+      const input = {
         appointmentId: 'appt-1',
         availableSlots: SLOTS,
         markUnavailable: true,
         idempotencyKey: 'req-abc',
         actor: makeActor({ role: 'OP' }),
+      } as const;
+
+      await useCase.execute(input);
+
+      vi.mocked(appointmentRepo.findById).mockResolvedValue({
+        appointment: makeAppointment({
+          status: 'REJECTED',
+          rentalTenantConfirmationStatus: 'UNAVAILABLE',
+        }),
+        contact: null,
+        contacts: [],
+        restrictions: [
+          new AppointmentRestrictionEntity({
+            id: 'r-1',
+            appointmentId: 'appt-1',
+            isHome: false,
+            unavailableDaysJson: null,
+            unavailableHoursJson: null,
+            availableSlotsJson: SLOTS,
+            notes: null,
+            source: 'RENTAL_TENANT_PORTAL',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }),
+        ],
+        propertyAddress: '1 Test St',
+        serviceTypeName: 'Routine',
+        hasActivePortalToken: false,
+      } as never);
+
+      await expect(useCase.execute(input)).resolves.toEqual({
+        id: 'appt-1',
+        availableSlots: SLOTS,
+        rentalTenantConfirmationStatus: 'UNAVAILABLE',
+      });
+      expect(statusTransition.execute).toHaveBeenCalledTimes(1);
+    });
+
+    it('allows only one concurrent request with the same key to perform side effects', async () => {
+      build();
+      let unblockWrite!: () => void;
+      const writeBlocked = new Promise<void>((resolve) => { unblockWrite = resolve; });
+      let writeStarted!: () => void;
+      const started = new Promise<void>((resolve) => { writeStarted = resolve; });
+      vi.mocked(appointmentRepo.replaceRestrictions).mockImplementationOnce(async () => {
+        writeStarted();
+        await writeBlocked;
+      });
+      const input = {
+        appointmentId: 'appt-1',
+        availableSlots: SLOTS,
+        markUnavailable: true,
+        idempotencyKey: 'req-concurrent',
+        actor: makeActor({ role: 'OP' }),
+      } as const;
+
+      const first = useCase.execute(input);
+      await started;
+      await expect(useCase.execute(input)).rejects.toMatchObject({
+        code: 'IDEMPOTENCY_REQUEST_IN_PROGRESS',
+      });
+      unblockWrite();
+      await first;
+
+      expect(appointmentRepo.replaceRestrictions).toHaveBeenCalledTimes(1);
+      expect(cycleService.markUnavailable).toHaveBeenCalledTimes(1);
+      expect(statusTransition.execute).toHaveBeenCalledTimes(1);
+      expect(auditService.log).toHaveBeenCalledTimes(1);
+    });
+
+    it('namespaces the persisted key by principal even when raw keys match', async () => {
+      build();
+      const base = {
+        appointmentId: 'appt-1',
+        availableSlots: SLOTS,
+        markUnavailable: true,
+        idempotencyKey: 'same-client-key',
+      } as const;
+
+      await useCase.execute({ ...base, actor: makeActor({ role: 'OP', userId: 'op-1' }) });
+      await useCase.execute({ ...base, actor: makeActor({ role: 'OP', userId: 'op-2' }) });
+
+      const acquiredKeys = vi.mocked(idempotencyService.tryAcquire).mock.calls.map(([key]) => key);
+      expect(acquiredKeys).toHaveLength(2);
+      expect(new Set(acquiredKeys).size).toBe(2);
+    });
+
+    it('stops before the status transition when the reservation lease is lost', async () => {
+      build();
+      vi.mocked(idempotencyService.renew)
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(false);
+
+      await expect(useCase.execute({
+        appointmentId: 'appt-1',
+        availableSlots: SLOTS,
+        markUnavailable: true,
+        idempotencyKey: 'req-lost-lease',
+        actor: makeActor({ role: 'OP' }),
+      })).rejects.toMatchObject({ code: 'IDEMPOTENCY_REQUEST_IN_PROGRESS' });
+
+      expect(appointmentRepo.replaceRestrictions).toHaveBeenCalledTimes(1);
+      expect(cycleService.markUnavailable).toHaveBeenCalledTimes(1);
+      expect(statusTransition.execute).not.toHaveBeenCalled();
+      expect(auditService.log).not.toHaveBeenCalled();
+    });
+
+    it('rejects reuse of an idempotency key with different slots', async () => {
+      build();
+      const base = {
+        appointmentId: 'appt-1',
+        markUnavailable: true,
+        idempotencyKey: 'req-abc',
+        actor: makeActor({ role: 'OP' }),
+      } as const;
+
+      await useCase.execute({ ...base, availableSlots: SLOTS });
+
+      await expect(useCase.execute({
+        ...base,
+        availableSlots: [{ dayOfWeek: 'TUE', start: '10:00', end: '12:00' }],
+      })).rejects.toMatchObject({ code: 'IDEMPOTENCY_PAYLOAD_MISMATCH' });
+      expect(statusTransition.execute).toHaveBeenCalledTimes(1);
+    });
+
+    it('recovers when the transition completed before the command cache write failed', async () => {
+      const initialResult = {
+        appointment: makeAppointment(),
+        contact: null,
+        contacts: [],
+        restrictions: [],
+        propertyAddress: '1 Test St',
+        serviceTypeName: 'Routine',
+        hasActivePortalToken: false,
+      } as never;
+      const completedResult = {
+        appointment: makeAppointment({
+          status: 'REJECTED',
+          rentalTenantConfirmationStatus: 'UNAVAILABLE',
+        }),
+        contact: null,
+        contacts: [],
+        restrictions: [
+          new AppointmentRestrictionEntity({
+            id: 'r-1',
+            appointmentId: 'appt-1',
+            isHome: false,
+            unavailableDaysJson: null,
+            unavailableHoursJson: null,
+            availableSlotsJson: SLOTS,
+            notes: null,
+            source: 'RENTAL_TENANT_PORTAL',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }),
+        ],
+        propertyAddress: '1 Test St',
+        serviceTypeName: 'Routine',
+        hasActivePortalToken: false,
+      } as never;
+      vi.mocked(appointmentRepo.findById)
+        .mockResolvedValueOnce(initialResult)
+        .mockResolvedValueOnce(completedResult);
+      vi.mocked(idempotencyService.complete)
+        .mockRejectedValueOnce(new Error('cache write failed'))
+        .mockImplementationOnce(async (key, _scope, _ownerToken, response, _ttl, payloadHash) => {
+          idempotencyRecords.set(key, { response, payloadHash: payloadHash ?? null });
+          return true;
+        });
+      const input = {
+        appointmentId: 'appt-1',
+        availableSlots: SLOTS,
+        markUnavailable: true,
+        idempotencyKey: 'req-recover',
+        actor: makeActor({ role: 'OP' }),
+      } as const;
+
+      await expect(useCase.execute(input)).resolves.toMatchObject({
+        id: 'appt-1',
+        rentalTenantConfirmationStatus: 'UNAVAILABLE',
+      });
+      expect(appointmentRepo.replaceRestrictions).toHaveBeenCalledTimes(1);
+      expect(auditService.log).toHaveBeenCalledTimes(1);
+      expect(statusTransition.execute).toHaveBeenCalledTimes(1);
+    });
+
+    it('recovers when the transition persisted before its own cache write failed', async () => {
+      const initialResult = {
+        appointment: makeAppointment(),
+        contact: null,
+        contacts: [],
+        restrictions: [],
+        propertyAddress: '1 Test St',
+        serviceTypeName: 'Routine',
+        hasActivePortalToken: false,
+      } as never;
+      const completedResult = {
+        appointment: makeAppointment({
+          status: 'REJECTED',
+          rentalTenantConfirmationStatus: 'UNAVAILABLE',
+        }),
+        contact: null,
+        contacts: [],
+        restrictions: [
+          new AppointmentRestrictionEntity({
+            id: 'r-1',
+            appointmentId: 'appt-1',
+            isHome: false,
+            unavailableDaysJson: null,
+            unavailableHoursJson: null,
+            availableSlotsJson: SLOTS,
+            notes: null,
+            source: 'RENTAL_TENANT_PORTAL',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }),
+        ],
+        propertyAddress: '1 Test St',
+        serviceTypeName: 'Routine',
+        hasActivePortalToken: false,
+      } as never;
+      vi.mocked(appointmentRepo.findById)
+        .mockResolvedValueOnce(initialResult)
+        .mockResolvedValueOnce(completedResult);
+      statusTransition.execute.mockRejectedValueOnce(new Error('transition cache unavailable'));
+
+      await expect(useCase.execute({
+        appointmentId: 'appt-1',
+        availableSlots: SLOTS,
+        markUnavailable: true,
+        idempotencyKey: 'req-inner-cache',
+        actor: makeActor({ role: 'OP' }),
+      })).resolves.toMatchObject({
+        id: 'appt-1',
+        rentalTenantConfirmationStatus: 'UNAVAILABLE',
       });
 
-      expect(statusTransition.execute).toHaveBeenCalledWith(
-        expect.objectContaining({ idempotencyKey: 'req-abc' }),
-      );
+      expect(appointmentRepo.replaceRestrictions).toHaveBeenCalledTimes(1);
+      expect(statusTransition.execute).toHaveBeenCalledTimes(1);
+      expect(auditService.log).toHaveBeenCalledTimes(1);
+    });
+
+    it('requires an idempotency key before writing a decline', async () => {
+      build();
+
+      await expect(useCase.execute({
+        appointmentId: 'appt-1',
+        availableSlots: SLOTS,
+        markUnavailable: true,
+        actor: makeActor({ role: 'OP' }),
+      })).rejects.toMatchObject({ code: 'IDEMPOTENCY_KEY_REQUIRED' });
+      expect(appointmentRepo.replaceRestrictions).not.toHaveBeenCalled();
     });
 
     it('falls back to a direct write when there is no active confirmation cycle', async () => {
@@ -279,6 +578,7 @@ describe('SetRentalTenantAvailabilityUseCase', () => {
         appointmentId: 'appt-1',
         availableSlots: SLOTS,
         markUnavailable: true,
+        idempotencyKey: 'decline-fallback',
         actor: makeActor({ role: 'AM' }),
       });
 
@@ -301,6 +601,7 @@ describe('SetRentalTenantAvailabilityUseCase', () => {
           appointmentId: 'appt-1',
           availableSlots: SLOTS,
           markUnavailable: true,
+          idempotencyKey: 'decline-infra-failure',
           actor: makeActor({ role: 'AM' }),
         }),
       ).rejects.toThrow('connection reset');
@@ -344,6 +645,7 @@ describe('SetRentalTenantAvailabilityUseCase', () => {
             appointmentId: 'appt-1',
             availableSlots: SLOTS,
             markUnavailable: true,
+            idempotencyKey: `decline-terminal-${status}`,
             actor: makeActor({ role: 'AM' }),
           }),
         ).rejects.toThrow(AppointmentInvalidTransitionError);

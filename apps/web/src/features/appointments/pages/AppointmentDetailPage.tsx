@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { UserRole } from '@properfy/shared';
+import { AppointmentStatus, UserRole } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsNav } from '@/components/layout/TabsNav';
 import { Button } from '@/components/ui/Button';
@@ -122,7 +122,10 @@ export function AppointmentDetailPage() {
   // machine admits only AM/OP/SYS, so the checkbox is gated separately below.
   const canSetTenantAvailability = !!appointment &&
     (isPrivileged || user?.role === UserRole.CL_ADMIN);
-  const canMarkTenantUnavailable = isPrivileged;
+  const canMarkTenantUnavailable = !!appointment && isPrivileged && (
+    appointment.status === AppointmentStatus.AWAITING_INSPECTOR
+    || appointment.status === AppointmentStatus.SCHEDULED
+  );
   // The availability already on the appointment, found by content — the single
   // restriction row is shared with the operator's own access restriction.
   const tenantAvailability = appointment?.restrictions?.find(

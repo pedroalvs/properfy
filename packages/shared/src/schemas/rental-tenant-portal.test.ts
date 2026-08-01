@@ -137,6 +137,19 @@ describe('reportUnavailabilityPortalSchema', () => {
     });
     expect(result.success).toBe(true);
   });
+
+  it('rejects duplicate weekly slots for the same day', () => {
+    const result = reportUnavailabilityPortalSchema.safeParse({
+      restrictions: {
+        availableSlotsJson: [
+          { dayOfWeek: 'MON', start: '09:00', end: '12:00' },
+          { dayOfWeek: 'MON', start: '13:00', end: '17:00' },
+        ],
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('confirmAppointmentPortalResponseSchema', () => {

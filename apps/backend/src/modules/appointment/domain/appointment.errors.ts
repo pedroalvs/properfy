@@ -269,6 +269,34 @@ export class AppointmentImportIdempotencyPayloadMismatchError extends ConflictEr
   }
 }
 
+export class RentalTenantAvailabilityIdempotencyKeyRequiredError extends DomainError {
+  constructor() {
+    super(
+      'IDEMPOTENCY_KEY_REQUIRED',
+      'Idempotency-Key header is required when marking the rental tenant unavailable',
+      400,
+    );
+  }
+}
+
+export class RentalTenantAvailabilityIdempotencyPayloadMismatchError extends ConflictError {
+  constructor() {
+    super(
+      'IDEMPOTENCY_PAYLOAD_MISMATCH',
+      'Idempotency key has already been used with a different payload',
+    );
+  }
+}
+
+export class RentalTenantAvailabilityIdempotencyInProgressError extends ConflictError {
+  constructor() {
+    super(
+      'IDEMPOTENCY_REQUEST_IN_PROGRESS',
+      'A request with this idempotency key is already in progress',
+    );
+  }
+}
+
 // Bulk edit errors (FR-066..FR-069)
 export class AppointmentBulkFieldNotAllowedError extends DomainError {
   constructor(field: string) {

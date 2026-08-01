@@ -3,7 +3,7 @@ import { paginationSchema } from './pagination';
 import { contactSchema, appointmentContactsArraySchema } from './contact';
 import { PROPERTY_TYPE_VALUES } from './property';
 import { restrictionSchema } from './restriction';
-import { availableSlotSchema, HHMM_REGEX } from './available-slot';
+import { availableSlotSchema, hasUniqueAvailableSlotDays, HHMM_REGEX } from './available-slot';
 import { AppointmentStatus, RentalTenantConfirmationStatus } from '../enums/appointment';
 import { CancellationReasonCode, RejectionReasonCode } from '../enums/reason-codes';
 
@@ -362,7 +362,10 @@ export type ForceManualConfirmationInput = z.infer<typeof forceManualConfirmatio
  */
 export const setRentalTenantAvailabilitySchema = z.object({
   /** At least one slot — clearing availability is not an operator action. */
-  availableSlots: z.array(availableSlotSchema).min(1).max(7),
+  availableSlots: z.array(availableSlotSchema).min(1).max(7).refine(
+    hasUniqueAvailableSlotDays,
+    { message: 'Only one availability slot is allowed per day' },
+  ),
   /**
    * Mirrors a portal "No" in full: marks the tenant UNAVAILABLE, rejects the
    * appointment (`TENANT_DECLINED`) and emails the agency. AM/OP only — the
@@ -527,4 +530,3 @@ export const bulkReopenForRescheduleRequestSchema = z.object({
   { message: TIME_RANGE_MESSAGE, path: ['newTimeSlotEnd'] },
 );
 export type BulkReopenForRescheduleRequest = z.infer<typeof bulkReopenForRescheduleRequestSchema>;
-

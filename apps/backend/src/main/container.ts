@@ -793,7 +793,8 @@ export function createContainer(logger: Logger): AppContainer {
   // Constructed after the transition use case because the operator-recorded
   // decline routes its rejection through it, exactly like the portal's does.
   const setRentalTenantAvailabilityUseCase = new SetRentalTenantAvailabilityUseCase(
-    appointmentRepo, auditService, authorizationService, executeStatusTransitionUseCase, confirmationCycleService,
+    appointmentRepo, auditService, authorizationService, executeStatusTransitionUseCase,
+    idempotencyService, confirmationCycleService,
   );
 
   const getPortalDataUseCase = new GetPortalDataUseCase(rentalTenantPortalTokenRepo, rentalTenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo, tenantRepo);
