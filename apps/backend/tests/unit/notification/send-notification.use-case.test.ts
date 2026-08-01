@@ -762,6 +762,45 @@ describe('SendNotificationUseCase', () => {
       expect(sut.notificationRepo.update).toHaveBeenCalled();
     });
 
+    it('gives a blocked agency policy precedence over an operational recipient opt-out', async () => {
+      const { NotificationConsentEntity: ConsentClass } = await import(
+        '../../../src/modules/notification/domain/notification-consent.entity'
+      );
+      const consent = new ConsentClass({
+        id: 'consent-1',
+        recipient: 'user@example.com',
+        channel: 'EMAIL' as const,
+        tenantId: 'tenant-1',
+        notificationClass: 'OPERATIONAL',
+        optedOut: true,
+        optedOutAt: now,
+        changeSource: 'operator_override',
+        changedAt: now,
+        changedByUserId: null,
+        reason: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+      const sut = makeSut();
+      const notification = makeNotification({
+        channel: 'EMAIL',
+        templateCode: 'INSPECTION_NOTICE',
+        notificationClass: 'OPERATIONAL',
+      });
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ templateCode: 'INSPECTION_NOTICE', notificationClass: 'OPERATIONAL' }),
+      );
+      vi.mocked(sut.consentRepo.findByScope).mockResolvedValue(consent);
+      vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(notification.status).toBe('SKIPPED_OPT_OUT');
+      expect(notification.failureReason).toBe('AGENCY_TENANT_NOTIFICATIONS_DISABLED');
+      expect(sut.forwardNotification).toHaveBeenCalledTimes(1);
+    });
+
     it('blocks an SMS addressed to the rental tenant', async () => {
       // The whole point of the change: the previous flag was gated on
       // `channel === 'EMAIL'`, so an agency that had "stopped notifications"

@@ -453,6 +453,50 @@ export class SendNotificationUseCase {
       effectiveClass = template.notificationClass;
     }
 
+    // Per-agency occupant kill switch: some agencies contact their own rental tenants
+    // and want the platform silent towards them. Scoped by TEMPLATE_TARGETS rather than
+    // by channel, so BOTH email and SMS stop, while the agency's own mail (escalation,
+    // cancellation copy), inspector notices and user-account mail (report-ready,
+    // password reset) are untouched. Missing key = enabled.
+    //
+    // The agency's delivery policy is authoritative for rental-tenant notifications, so
+    // evaluate it before recipient consent can return early. Only RENTAL_TENANT targets
+    // read settings here, preserving the consent path for every other recipient.
+    const isOccupantDirected = getTemplateTarget(notification.templateCode) === 'RENTAL_TENANT';
+    let tenantSettings: Record<string, unknown> | undefined;
+    if (isOccupantDirected) {
+      tenantSettings = await this.getTenantSettings(notification.tenantId);
+      if (!isRentalTenantNotificationsEnabled(tenantSettings)) {
+        notification.status = 'SKIPPED_OPT_OUT';
+        notification.failureReason = SUPPRESSED_REASON;
+        notification.updatedAt = new Date();
+        // Persisted BEFORE the mirror: a crash in between costs the agency a copy but can
+        // never let the occupant message through. Fail-closed on the block, open on the mirror.
+        await this.notificationRepo.update(notification);
+        this.logger.info(
+          {
+            notificationId: notification.id,
+            tenantId: notification.tenantId,
+            channel: notification.channel,
+            templateCode: notification.templateCode,
+          },
+          'notification.skipped_agency_tenant_notifications_disabled',
+        );
+
+        // Persist how the mirror went. Without this a suppressed row is byte-identical
+        // whether the agency was told or not, so the Notifications tab reads "working as
+        // configured" while an agency with a blank branch email quietly loses every notice
+        // AND every mirror — the one outcome this feature exists to rule out.
+        const forwardFailure = await this.forwardSuppressedToAgency(notification);
+        if (forwardFailure) {
+          notification.failureReason = forwardFailure;
+          notification.updatedAt = new Date();
+          await this.notificationRepo.update(notification);
+        }
+        return;
+      }
+    }
+
     if (effectiveClass === 'TRANSACTIONAL') {
       // Bypass consent entirely for transactional notifications (FR-013).
       // This is the most important invariant of feature 018.
@@ -492,47 +536,7 @@ export class SendNotificationUseCase {
       }
     }
 
-    const settings = await this.getTenantSettings(notification.tenantId);
-
-    // Per-agency occupant kill switch: some agencies contact their own rental tenants
-    // and want the platform silent towards them. Scoped by TEMPLATE_TARGETS rather than
-    // by channel, so BOTH email and SMS stop, while the agency's own mail (escalation,
-    // cancellation copy), inspector notices and user-account mail (report-ready,
-    // password reset) are untouched. Missing key = enabled.
-    //
-    // Sits below the TRANSACTIONAL consent bypass on purpose: that bypass is about a
-    // recipient's opt-out, whereas this is the agency's own policy and must win even
-    // for a protected template.
-    const isOccupantDirected = getTemplateTarget(notification.templateCode) === 'RENTAL_TENANT';
-    if (isOccupantDirected && !isRentalTenantNotificationsEnabled(settings)) {
-      notification.status = 'SKIPPED_OPT_OUT';
-      notification.failureReason = SUPPRESSED_REASON;
-      notification.updatedAt = new Date();
-      // Persisted BEFORE the mirror: a crash in between costs the agency a copy but can
-      // never let the occupant message through. Fail-closed on the block, open on the mirror.
-      await this.notificationRepo.update(notification);
-      this.logger.info(
-        {
-          notificationId: notification.id,
-          tenantId: notification.tenantId,
-          channel: notification.channel,
-          templateCode: notification.templateCode,
-        },
-        'notification.skipped_agency_tenant_notifications_disabled',
-      );
-
-      // Persist how the mirror went. Without this a suppressed row is byte-identical
-      // whether the agency was told or not, so the Notifications tab reads "working as
-      // configured" while an agency with a blank branch email quietly loses every notice
-      // AND every mirror — the one outcome this feature exists to rule out.
-      const forwardFailure = await this.forwardSuppressedToAgency(notification);
-      if (forwardFailure) {
-        notification.failureReason = forwardFailure;
-        notification.updatedAt = new Date();
-        await this.notificationRepo.update(notification);
-      }
-      return;
-    }
+    const settings = tenantSettings ?? (await this.getTenantSettings(notification.tenantId));
 
     // GAP-003: Check daily budget cap
     const dailyCap = notification.channel === 'EMAIL'
