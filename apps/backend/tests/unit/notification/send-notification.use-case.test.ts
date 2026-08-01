@@ -1017,7 +1017,52 @@ describe('SendNotificationUseCase', () => {
 
         await sut.useCase.execute({ notificationId: 'notif-1' });
 
-        expect(order).toEqual(['update', 'forward']);
+        expect(order).toEqual(['update', 'forward', 'update']);
+      });
+
+      it('persists a future recovery schedule before forwarding and clears it after success', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(now);
+        const random = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+
+        try {
+          const sut = makeSut();
+          const persisted: Array<{
+            failureReason: string | null;
+            retryCount: number;
+            nextRetryAt: Date | null;
+          }> = [];
+          const notification = makeNotification({ channel: 'EMAIL' });
+          vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+          vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+          vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
+          vi.mocked(sut.notificationRepo.update).mockImplementation(async (saved) => {
+            persisted.push({
+              failureReason: saved.failureReason,
+              retryCount: saved.retryCount,
+              nextRetryAt: saved.nextRetryAt,
+            });
+          });
+
+          await sut.useCase.execute({ notificationId: notification.id });
+
+          expect(persisted).toEqual([
+            {
+              failureReason: 'AGENCY_TENANT_NOTIFICATIONS_DISABLED',
+              retryCount: 0,
+              nextRetryAt: new Date('2026-03-16T10:00:15.000Z'),
+            },
+            {
+              failureReason: 'AGENCY_TENANT_NOTIFICATIONS_DISABLED',
+              retryCount: 0,
+              nextRetryAt: null,
+            },
+          ]);
+          expect(sut.forwardNotification).toHaveBeenCalledOnce();
+        } finally {
+          random.mockRestore();
+          vi.useRealTimers();
+        }
       });
 
       it('counts a branch with no contact email instead of failing silently', async () => {
@@ -1196,6 +1241,89 @@ describe('SendNotificationUseCase', () => {
 
           expect(sut.notificationRepo.findById).toHaveBeenCalledWith(mirrorId);
           expect(sut.forwardNotification).not.toHaveBeenCalled();
+          expect(sut.emailProvider.send).not.toHaveBeenCalled();
+          expect(source.failureReason).toBe('AGENCY_TENANT_NOTIFICATIONS_DISABLED');
+          expect(source.nextRetryAt).toBeNull();
+          expect(sut.notificationRepo.update).toHaveBeenCalledWith(source);
+        });
+
+        it('clears recovery state after creating a missing mirror', async () => {
+          const sut = makeSut();
+          const source = makeNotification({
+            channel: 'EMAIL',
+            status: 'SKIPPED_OPT_OUT',
+            failureReason: 'AGENCY_FORWARD_FAILED',
+            retryCount: 2,
+            nextRetryAt: new Date('2026-03-16T09:59:00.000Z'),
+          });
+          vi.mocked(sut.notificationRepo.findById)
+            .mockResolvedValueOnce(source)
+            .mockResolvedValueOnce(null);
+
+          await sut.useCase.execute({ notificationId: source.id });
+
+          expect(source.failureReason).toBe('AGENCY_TENANT_NOTIFICATIONS_DISABLED');
+          expect(source.retryCount).toBe(2);
+          expect(source.nextRetryAt).toBeNull();
+          expect(sut.notificationRepo.update).toHaveBeenCalledWith(source);
+          expect(sut.emailProvider.send).not.toHaveBeenCalled();
+        });
+
+        it('increments and schedules recovery when recipient lookup still fails', async () => {
+          vi.useFakeTimers();
+          vi.setSystemTime(now);
+          const random = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+
+          try {
+            const sut = makeSut();
+            const source = makeNotification({
+              channel: 'EMAIL',
+              status: 'SKIPPED_OPT_OUT',
+              failureReason: 'AGENCY_FORWARD_NO_BRANCH_EMAIL',
+              retryCount: 2,
+              nextRetryAt: new Date('2026-03-16T09:59:00.000Z'),
+            });
+            vi.mocked(sut.notificationRepo.findById)
+              .mockResolvedValueOnce(source)
+              .mockResolvedValueOnce(null);
+            vi.mocked(sut.getAgencyForwardRecipient).mockResolvedValue({
+              ok: false,
+              reason: 'NO_BRANCH_EMAIL',
+            });
+
+            await sut.useCase.execute({ notificationId: source.id });
+
+            expect(source.status).toBe('SKIPPED_OPT_OUT');
+            expect(source.failureReason).toBe('AGENCY_FORWARD_NO_BRANCH_EMAIL');
+            expect(source.retryCount).toBe(3);
+            expect(source.nextRetryAt).toEqual(new Date('2026-03-16T10:02:00.000Z'));
+            expect(sut.emailProvider.send).not.toHaveBeenCalled();
+          } finally {
+            random.mockRestore();
+            vi.useRealTimers();
+          }
+        });
+
+        it('makes exhausted recovery terminal without sending the occupant notification', async () => {
+          const sut = makeSut();
+          const source = makeNotification({
+            channel: 'EMAIL',
+            status: 'SKIPPED_OPT_OUT',
+            failureReason: 'AGENCY_FORWARD_FAILED',
+            retryCount: MAX_RETRY_COUNT - 1,
+            nextRetryAt: new Date('2026-03-16T09:59:00.000Z'),
+          });
+          vi.mocked(sut.notificationRepo.findById)
+            .mockResolvedValueOnce(source)
+            .mockResolvedValueOnce(null);
+          vi.mocked(sut.forwardNotification).mockRejectedValue(new Error('queue down'));
+
+          await sut.useCase.execute({ notificationId: source.id });
+
+          expect(source.status).toBe('SKIPPED_OPT_OUT');
+          expect(source.failureReason).toBe('AGENCY_FORWARD_FAILED');
+          expect(source.retryCount).toBe(MAX_RETRY_COUNT);
+          expect(source.nextRetryAt).toBeNull();
           expect(sut.emailProvider.send).not.toHaveBeenCalled();
         });
 

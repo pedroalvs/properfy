@@ -112,9 +112,21 @@ export class PrismaNotificationRepository implements INotificationRepository {
   async findRetryable(now: Date, limit = 100): Promise<NotificationEntity[]> {
     const rows = await this.prisma.notification.findMany({
       where: {
-        status: 'PENDING',
-        retry_count: { gt: 0 },
-        next_retry_at: { lte: now },
+        OR: [
+          {
+            status: 'PENDING',
+            retry_count: { gt: 0 },
+            next_retry_at: { lte: now },
+          },
+          {
+            status: 'SKIPPED_OPT_OUT',
+            next_retry_at: { lte: now },
+            OR: [
+              { failure_reason: 'AGENCY_TENANT_NOTIFICATIONS_DISABLED' },
+              { failure_reason: { startsWith: 'AGENCY_FORWARD_' } },
+            ],
+          },
+        ],
       },
       take: limit,
       orderBy: { next_retry_at: 'asc' },

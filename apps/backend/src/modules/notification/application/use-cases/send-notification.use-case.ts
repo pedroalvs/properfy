@@ -71,6 +71,13 @@ function auditableFailureReason(reason: string | null): string {
   return 'PROVIDER_ERROR';
 }
 
+function calculateNextRetryAt(retryCount: number): Date {
+  const delayIndex = Math.min(Math.max(retryCount - 1, 0), RETRY_DELAYS.length - 1);
+  const baseDelay = RETRY_DELAYS[delayIndex] ?? RETRY_DELAYS[0]!;
+  const jitter = baseDelay * JITTER_FACTOR * (2 * Math.random() - 1);
+  return new Date(Date.now() + baseDelay + jitter);
+}
+
 export interface SendNotificationInput {
   notificationId: string;
 }
@@ -200,7 +207,7 @@ export class SendNotificationUseCase {
   }
 
   /**
-   * True when this row was suppressed by the agency switch and its mirror is missing.
+   * Classify a row suppressed by the agency switch for durable mirror recovery.
    *
    * Scoped to rows this pipeline suppressed itself — a consent opt-out gets no mirror, and
    * a genuinely terminal row must still raise NotificationInvalidStatusError so real
@@ -214,7 +221,6 @@ export class SendNotificationUseCase {
     notification: NotificationEntity,
   ): Promise<'RECOVER_MIRROR' | 'ALREADY_MIRRORED' | 'NOT_RECOVERABLE'> {
     if (notification.status !== 'SKIPPED_OPT_OUT') return 'NOT_RECOVERABLE';
-    if (!notification.appointmentId) return 'NOT_RECOVERABLE';
     // Covers both the initial reason and a previously-recorded mirror failure, so a
     // transient lookup failure gets another chance if a redelivery does occur.
     if (
@@ -228,6 +234,25 @@ export class SendNotificationUseCase {
     const mirrorId = getAgencyForwardNotificationId(notification.id);
     const mirrored = await this.notificationRepo.findById(mirrorId);
     return mirrored ? 'ALREADY_MIRRORED' : 'RECOVER_MIRROR';
+  }
+
+  private completeAgencyForwardRecovery(notification: NotificationEntity): void {
+    notification.failureReason = SUPPRESSED_REASON;
+    notification.nextRetryAt = null;
+    notification.updatedAt = new Date();
+  }
+
+  private recordAgencyForwardFailure(
+    notification: NotificationEntity,
+    failureReason: string,
+  ): void {
+    notification.failureReason = failureReason;
+    notification.retryCount += 1;
+    notification.nextRetryAt =
+      notification.retryCount >= MAX_RETRY_COUNT
+        ? null
+        : calculateNextRetryAt(notification.retryCount);
+    notification.updatedAt = new Date();
   }
 
   /**
@@ -247,10 +272,10 @@ export class SendNotificationUseCase {
    * that registry's "do not complete this map" rule — the codes in it are the ones whose
    * payloads are built by BuildNotificationPayloadService, and this one is assembled here.
    *
-   * Best-effort by design, but never silently: the suppression is already persisted, so a
-   * failure here cannot resurrect the occupant message, and the outcome is written back to
-   * the row so the Notifications tab distinguishes "withheld and mirrored" from "withheld
-   * and nobody was told".
+   * The suppression is already persisted, so a failure here cannot resurrect the occupant
+   * message. The outcome is written back to the row and failures retain a recovery schedule,
+   * so the Notifications tab distinguishes "withheld and mirrored" from "withheld and nobody
+   * was told" while the poller keeps attempting the latter within the retry budget.
    *
    * @returns the failure reason to persist, or null when the mirror was enqueued.
    */
@@ -355,8 +380,11 @@ export class SendNotificationUseCase {
       const rerun = await this.classifySuppressedRerun(notification);
       if (rerun === 'RECOVER_MIRROR') {
         const forwardFailure = await this.forwardSuppressedToAgency(notification);
-        notification.failureReason = forwardFailure ?? SUPPRESSED_REASON;
-        notification.updatedAt = new Date();
+        if (forwardFailure) {
+          this.recordAgencyForwardFailure(notification, forwardFailure);
+        } else {
+          this.completeAgencyForwardRecovery(notification);
+        }
         await this.notificationRepo.update(notification);
         return;
       }
@@ -368,6 +396,8 @@ export class SendNotificationUseCase {
           { notificationId: notification.id, appointmentId: notification.appointmentId },
           'notification.suppressed_redelivery_ignored',
         );
+        this.completeAgencyForwardRecovery(notification);
+        await this.notificationRepo.update(notification);
         return;
       }
       throw new NotificationInvalidStatusError();
@@ -448,9 +478,10 @@ export class SendNotificationUseCase {
       if (!isRentalTenantNotificationsEnabled(tenantSettings)) {
         notification.status = 'SKIPPED_OPT_OUT';
         notification.failureReason = SUPPRESSED_REASON;
+        notification.nextRetryAt = calculateNextRetryAt(notification.retryCount);
         notification.updatedAt = new Date();
-        // Persisted BEFORE the mirror: a crash in between costs the agency a copy but can
-        // never let the occupant message through. Fail-closed on the block, open on the mirror.
+        // Persisted BEFORE the mirror with a recovery deadline: a crash in between can never
+        // let the occupant message through, and the poller will still discover the missing copy.
         await this.notificationRepo.update(notification);
         this.logger.info(
           {
@@ -468,10 +499,11 @@ export class SendNotificationUseCase {
         // AND every mirror — the one outcome this feature exists to rule out.
         const forwardFailure = await this.forwardSuppressedToAgency(notification);
         if (forwardFailure) {
-          notification.failureReason = forwardFailure;
-          notification.updatedAt = new Date();
-          await this.notificationRepo.update(notification);
+          this.recordAgencyForwardFailure(notification, forwardFailure);
+        } else {
+          this.completeAgencyForwardRecovery(notification);
         }
+        await this.notificationRepo.update(notification);
         return;
       }
     }
@@ -686,11 +718,7 @@ export class SendNotificationUseCase {
         notification.failedAt = new Date();
         notification.failureReason = errorMessage;
       } else {
-        const delayIndex = Math.min(notification.retryCount - 1, RETRY_DELAYS.length - 1);
-        const baseDelay = RETRY_DELAYS[delayIndex] ?? RETRY_DELAYS[0]!;
-        const jitter = baseDelay * JITTER_FACTOR * (2 * Math.random() - 1);
-        const delayMs = baseDelay + jitter;
-        notification.nextRetryAt = new Date(Date.now() + delayMs);
+        notification.nextRetryAt = calculateNextRetryAt(notification.retryCount);
       }
     }
 
