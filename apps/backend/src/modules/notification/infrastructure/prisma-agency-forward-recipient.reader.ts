@@ -23,19 +23,15 @@ import type {
  * suppressed SMS inherits only the SMS payload, which carries no address, so the mirror's
  * subject would otherwise render as "Tenant notice not sent - " with a dangling separator.
  *
- * Tenant-scoped like every other repository read. `tenantId` is nullable only because
- * platform-scoped notifications carry no tenant; those are never RENTAL_TENANT-targeted,
- * so in practice this is always called with a concrete agency.
+ * Tenant-scoped like every other repository read. Platform-scoped notifications are
+ * rejected by the send flow before this port is called, so the scope is always concrete.
  */
 export function createAgencyForwardRecipientReader(
   prisma: PrismaClient,
 ): AgencyForwardRecipientReader {
-  return async (appointmentId: string, tenantId: string | null): Promise<AgencyForwardLookup> => {
-    const where: Record<string, unknown> = { id: appointmentId, deleted_at: null };
-    if (tenantId) where['tenant_id'] = tenantId;
-
+  return async (appointmentId: string, tenantId: string): Promise<AgencyForwardLookup> => {
     const row = await prisma.appointment.findFirst({
-      where,
+      where: { id: appointmentId, tenant_id: tenantId, deleted_at: null },
       select: {
         appointment_number: true,
         branch: { select: { name: true, contact_email: true } },

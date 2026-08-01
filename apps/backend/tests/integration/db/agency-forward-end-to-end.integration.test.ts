@@ -42,7 +42,7 @@ const silentLogger = {
   fatal: vi.fn(), trace: vi.fn(), child: vi.fn(), level: 'silent', silent: vi.fn(),
 } as unknown as Logger;
 
-function buildPipeline() {
+function buildPipeline(platformSettings: Record<string, unknown> = {}) {
   const notificationRepo = new PrismaNotificationRepository(harness.prisma);
   const templateRepo = new PrismaNotificationTemplateRepository(harness.prisma);
   const emailProvider = { send: vi.fn().mockResolvedValue({ messageId: 'msg-1' }) };
@@ -62,6 +62,7 @@ function buildPipeline() {
     silentLogger,
   );
 
+  const getAgencyForwardRecipient = vi.fn(createAgencyForwardRecipientReader(harness.prisma));
   const sendNotification = new SendNotificationUseCase({
     notificationRepo,
     templateRepo,
@@ -73,18 +74,26 @@ function buildPipeline() {
     logger: silentLogger,
     metrics,
     getTenantSettings: async (id) => {
-      if (id === null) return {};
+      if (id === null) return platformSettings;
       const t = await harness.prisma.tenant.findUnique({ where: { id }, select: { settings_json: true } });
       return (t?.settings_json as Record<string, unknown>) ?? {};
     },
-    getAgencyForwardRecipient: createAgencyForwardRecipientReader(harness.prisma),
+    getAgencyForwardRecipient,
     // Exactly the container's wiring.
     forwardNotification: async (input) => {
       await createNotification.execute(input);
     },
   });
 
-  return { notificationRepo, createNotification, sendNotification, emailProvider, smsProvider, metrics };
+  return {
+    notificationRepo,
+    createNotification,
+    sendNotification,
+    emailProvider,
+    smsProvider,
+    metrics,
+    getAgencyForwardRecipient,
+  };
 }
 
 beforeAll(async () => {
@@ -259,6 +268,32 @@ describe('agency mirror, end to end', () => {
     expect(sut.metrics.incrementAgencyForwardFailedCount).toHaveBeenCalled();
     expect(
       await harness.prisma.notification.count({ where: { template_code: 'TENANT_NOTICE_FORWARDED_AGENCY' } }),
+    ).toBe(0);
+  });
+
+  it('fails closed without a recipient lookup or mirror when the suppressed row has no tenant scope', async () => {
+    sut = buildPipeline({ rentalTenantNotificationsEnabled: false });
+    const { notificationId } = await sut.createNotification.execute({
+      tenantId: null,
+      appointmentId,
+      recipient: 'tenant@example.com',
+      channel: 'EMAIL',
+      templateCode: 'INSPECTION_NOTICE',
+      payloadJson: { rentalTenantName: 'John Smith' },
+    });
+
+    await sut.sendNotification.execute({ notificationId });
+
+    const original = await harness.prisma.notification.findUniqueOrThrow({
+      where: { id: notificationId },
+    });
+    expect(original.status).toBe('SKIPPED_OPT_OUT');
+    expect(original.failure_reason).toBe('AGENCY_FORWARD_NO_TENANT');
+    expect(sut.getAgencyForwardRecipient).not.toHaveBeenCalled();
+    expect(
+      await harness.prisma.notification.count({
+        where: { template_code: 'TENANT_NOTICE_FORWARDED_AGENCY' },
+      }),
     ).toBe(0);
   });
 

@@ -838,6 +838,28 @@ describe('SendNotificationUseCase', () => {
       expect(sut.emailProvider.send).not.toHaveBeenCalled();
     });
 
+    it('fails closed without resolving or mirroring when a suppressed row has no tenant scope', async () => {
+      const sut = makeSut();
+      const notification = makeNotification({
+        tenantId: null,
+        channel: 'EMAIL',
+        templateCode: 'INSPECTION_NOTICE',
+      });
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ tenantId: null, templateCode: 'INSPECTION_NOTICE' }),
+      );
+      vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
+
+      await sut.useCase.execute({ notificationId: notification.id });
+
+      expect(notification.status).toBe('SKIPPED_OPT_OUT');
+      expect(notification.failureReason).toBe('AGENCY_FORWARD_NO_TENANT');
+      expect(sut.getAgencyForwardRecipient).not.toHaveBeenCalled();
+      expect(sut.forwardNotification).not.toHaveBeenCalled();
+      expect(sut.metrics.incrementAgencyForwardFailedCount).toHaveBeenCalledOnce();
+    });
+
     it('does NOT block a TRANSACTIONAL occupant notice from being suppressed', async () => {
       // TRANSACTIONAL bypasses *consent*, but the agency switch is a different
       // policy and sits below it: an agency that never contacts occupants must

@@ -164,13 +164,4 @@ describe('createAgencyForwardRecipientReader', () => {
     expect(result).toEqual({ ok: false, reason: 'APPOINTMENT_NOT_FOUND' });
   });
 
-  it('resolves cross-tenant when no tenant scope is supplied', async () => {
-    // Platform-scoped callers pass null; RENTAL_TENANT templates never do, but the
-    // reader must not silently return nothing if one ever did.
-    const { appointmentId } = await seedAppointment({ branchContactEmail: 'branch@agency.example' });
-
-    const result = await read(appointmentId, null);
-
-    expect(result.ok).toBe(true);
-  });
 });

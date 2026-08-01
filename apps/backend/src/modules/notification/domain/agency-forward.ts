@@ -15,7 +15,7 @@ export type AgencyForwardLookup =
 /** Tenant-scoped port used to resolve the agency recipient for a suppressed notification. */
 export type AgencyForwardRecipientReader = (
   appointmentId: string,
-  tenantId: string | null,
+  tenantId: string,
 ) => Promise<AgencyForwardLookup>;
 
 /**

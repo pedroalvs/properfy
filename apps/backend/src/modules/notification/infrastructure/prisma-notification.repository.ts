@@ -1,7 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import type { NotificationChannel, NotificationClass, NotificationStatus } from '@properfy/shared';
 import { NotificationEntity } from '../domain/notification.entity';
-import { AGENCY_FORWARD_TEMPLATE_CODE } from '../domain/notification.constants';
 import type {
   INotificationRepository,
   NotificationFilters,
@@ -273,7 +272,7 @@ export class PrismaNotificationRepository implements INotificationRepository {
         // Mirrors are a consequence of suppression, not tenant-driven volume: one is
         // created per withheld message, so counting them would let the mirror traffic
         // exhaust the very cap that then blocks the agency's own mail.
-        template_code: { not: AGENCY_FORWARD_TEMPLATE_CODE },
+        template_code: { not: 'TENANT_NOTICE_FORWARDED_AGENCY' },
       },
     });
   }

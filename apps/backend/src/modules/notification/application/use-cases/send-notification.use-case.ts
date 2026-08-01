@@ -264,6 +264,12 @@ export class SendNotificationUseCase {
     };
 
     try {
+      if (!notification.tenantId) {
+        this.logger.warn(logContext, 'notification.agency_forward_skipped_no_tenant');
+        this.metrics.incrementAgencyForwardFailedCount();
+        return 'AGENCY_FORWARD_NO_TENANT';
+      }
+
       if (!notification.appointmentId) {
         // Every RENTAL_TENANT template is appointment-scoped, so this is unreachable
         // today; it stays as a guard because the recipient lookup needs an appointment.
