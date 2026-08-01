@@ -45,6 +45,8 @@ const CAN_EDIT_ROLES: string[] = [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN];
 /** Shown on the disabled "Send Portal Link" button and on the 409 that backs it. */
 const TENANT_NOTIFICATIONS_BLOCKED_HINT =
   'Notifications to the tenant are blocked for this agency. Use Copy Portal Link to send it yourself.';
+const MISSING_PRIMARY_CONTACT_HINT =
+  'No primary contact email or phone is available for this appointment. Use Copy Portal Link to send it yourself.';
 
 function isPrivilegedRole(role: string): boolean {
   return role === 'AM' || role === 'OP';
@@ -107,12 +109,19 @@ export function AppointmentDetailPage() {
   // takes a settings blob, whereas the API already resolved the tri-state into an optional
   // boolean here. Absent still means enabled.
   const tenantNotificationsBlocked = appointment?.rentalTenantNotificationsEnabled === false;
+  const hasPrimaryContact = !!appointment?.contactEmail || !!appointment?.contactPhone;
+  // Policy is authoritative, so it explains the disabled action even when the
+  // appointment is also missing a contact.
+  const sendPortalLinkDisabledHint = tenantNotificationsBlocked
+    ? TENANT_NOTIFICATIONS_BLOCKED_HINT
+    : !hasPrimaryContact
+      ? MISSING_PRIMARY_CONTACT_HINT
+      : undefined;
   // Portal link is only meaningful once the appointment leaves DRAFT and is
   // not terminal — mirrors the backend INVALID_APPOINTMENT_STATUS gate.
   const canSendPortalLink = !!appointment &&
     isPrivileged &&
-    (appointment.status === 'AWAITING_INSPECTOR' || appointment.status === 'SCHEDULED') &&
-    (!!appointment.contactEmail || !!appointment.contactPhone);
+    (appointment.status === 'AWAITING_INSPECTOR' || appointment.status === 'SCHEDULED');
   const canCopyPortalLink = !!appointment && isPrivileged;
   // Generate-only (no notification) follows the same backend status gate as Send,
   // but needs no contact — nothing is dispatched.
@@ -298,26 +307,26 @@ export function AppointmentDetailPage() {
             </Button>
           )}
           {canSendPortalLink && (
-            <span title={tenantNotificationsBlocked ? TENANT_NOTIFICATIONS_BLOCKED_HINT : undefined}>
+            <span title={sendPortalLinkDisabledHint}>
               <Button
                 variant="secondary"
                 onClick={handleGeneratePortalToken}
                 loading={isGeneratingPortalToken}
-                disabled={tenantNotificationsBlocked}
+                disabled={!!sendPortalLinkDisabledHint}
                 aria-describedby={
-                  tenantNotificationsBlocked ? 'send-portal-link-blocked-hint' : undefined
+                  sendPortalLinkDisabledHint ? 'send-portal-link-disabled-hint' : undefined
                 }
                 data-testid="send-portal-link-button"
               >
                 <i className="mdi mdi-link-variant text-base" aria-hidden="true" />
                 Send Portal Link
               </Button>
-              {tenantNotificationsBlocked && (
+              {sendPortalLinkDisabledHint && (
                 // Kept in the DOM rather than title-only: a disabled control is not
                 // reliably reachable for a tooltip, and the a11y baseline forbids
                 // conveying a disabled state by colour alone.
-                <span id="send-portal-link-blocked-hint" className="sr-only">
-                  {TENANT_NOTIFICATIONS_BLOCKED_HINT}
+                <span id="send-portal-link-disabled-hint" className="sr-only">
+                  {sendPortalLinkDisabledHint}
                 </span>
               )}
             </span>

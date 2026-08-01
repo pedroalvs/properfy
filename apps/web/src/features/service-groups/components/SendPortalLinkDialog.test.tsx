@@ -31,8 +31,9 @@ describe('SendPortalLinkDialog', () => {
     );
 
     expect(screen.getByRole('button', { name: 'Send portal link' })).toBeInTheDocument();
-    expect(screen.getByText(/will be sent/)).toBeInTheDocument();
-    expect(screen.getByText(/will be re-sent \(date changed\)/)).toBeInTheDocument();
+    expect(screen.getByText(/eligible for a send attempt/i)).toBeInTheDocument();
+    expect(screen.getByText(/eligible for another send attempt \(date changed\)/i)).toBeInTheDocument();
+    expect(screen.queryByText(/will be (?:re-)?sent/i)).not.toBeInTheDocument();
     expect(screen.getByText(/already confirmed/)).toBeInTheDocument();
   });
 
@@ -57,7 +58,7 @@ describe('SendPortalLinkDialog', () => {
     expect(screen.getByRole('button', { name: 'Send portal link' })).toBeDisabled();
   });
 
-  it('disables confirm when nothing would be sent', () => {
+  it('disables confirm when nothing is eligible for an attempt', () => {
     mockUsePlan.mockReturnValue(summary({ willSend: 0, willResendDateChanged: 0, alreadyConfirmed: 5 }));
     render(
       <SendPortalLinkDialog open onClose={vi.fn()} serviceGroupId="sg-01" sending={false} onConfirm={vi.fn()} />,

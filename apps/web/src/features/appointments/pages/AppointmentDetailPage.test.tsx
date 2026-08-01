@@ -32,6 +32,7 @@ let mockUserRole = 'AM';
 // Owning agency's occupant-contact switch, applied to the `awaiting` fixture so a
 // test can flip it without duplicating the whole appointment.
 let mockRentalTenantNotificationsEnabled = true;
+let mockHasPrimaryContact = true;
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
@@ -109,8 +110,8 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
           contactName: 'John',
           scheduledDate: '2026-04-01',
           timeSlotStart: '09:00', timeSlotEnd: '12:00',
-          contactPhone: '11999',
-          contactEmail: 'john@test.com',
+          contactPhone: mockHasPrimaryContact ? '11999' : null,
+          contactEmail: mockHasPrimaryContact ? 'john@test.com' : null,
           inspectorId: null,
           inspectorName: null,
           keyRequired: false,
@@ -475,18 +476,18 @@ describe('AppointmentDetailPage — agency blocks tenant notifications', () => {
 
   afterEach(() => {
     mockRentalTenantNotificationsEnabled = true;
+    mockHasPrimaryContact = true;
   });
 
-  it('keeps Send Portal Link visible but disabled', () => {
+  it('keeps Send Portal Link visible and prioritizes the agency reason when contact is also missing', () => {
+    mockHasPrimaryContact = false;
     renderPage('/appointments/awaiting');
+
     expect(screen.getByTestId('send-portal-link-button')).toBeDisabled();
-  });
-
-  it('explains why, rather than leaving a dead button', () => {
-    renderPage('/appointments/awaiting');
     expect(
       screen.getByText(/Notifications to the tenant are blocked for this agency/i),
     ).toBeInTheDocument();
+    expect(screen.queryByText(/no primary contact email or phone/i)).not.toBeInTheDocument();
   });
 
   it('does not dispatch when the disabled button is clicked', () => {
@@ -524,6 +525,37 @@ describe('AppointmentDetailPage — agency blocks tenant notifications', () => {
       await screen.findByText(/Notifications to the tenant are blocked for this agency/i),
     ).toBeInTheDocument();
     expect(screen.queryByText('Email sent to tenant')).not.toBeInTheDocument();
+  });
+});
+
+describe('AppointmentDetailPage — missing primary contact', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUserRole = 'AM';
+    mockRentalTenantNotificationsEnabled = true;
+    mockHasPrimaryContact = false;
+  });
+
+  afterEach(() => {
+    mockHasPrimaryContact = true;
+  });
+
+  it('keeps Send Portal Link visible but disabled with the missing-contact reason', () => {
+    renderPage('/appointments/awaiting');
+
+    const button = screen.getByTestId('send-portal-link-button');
+    expect(button).toBeDisabled();
+    expect(button.closest('[title]')).toHaveAttribute(
+      'title',
+      'No primary contact email or phone is available for this appointment. Use Copy Portal Link to send it yourself.',
+    );
+    expect(screen.getByText(/no primary contact email or phone/i)).toBeInTheDocument();
+  });
+
+  it('leaves Copy Portal Link available because generate-only sends no notification', () => {
+    renderPage('/appointments/awaiting');
+
+    expect(screen.getByTestId('copy-portal-link-button')).not.toBeDisabled();
   });
 });
 

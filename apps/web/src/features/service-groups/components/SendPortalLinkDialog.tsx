@@ -12,9 +12,9 @@ interface SendPortalLinkDialogProps {
 
 /**
  * Confirm dialog for the group "Send portal link" action. Fetches a read-only
- * preview (only while open) and summarizes what will happen — how many links
- * will be sent, how many already-confirmed appointments are skipped — before
- * the operator confirms. Confirm is disabled when nothing would be sent.
+ * preview (only while open) and summarizes eligibility — how many links qualify
+ * for a send attempt and how many already-confirmed appointments are skipped —
+ * before the operator confirms. Confirm is disabled when nothing is eligible.
  */
 export function SendPortalLinkDialog({
   open,
@@ -26,7 +26,7 @@ export function SendPortalLinkDialog({
   const { plan, isLoading, isError } = useGroupPortalLinkPlan(serviceGroupId, open);
 
   const summary = plan?.summary;
-  const willAct = summary ? summary.willSend + summary.willResendDateChanged : 0;
+  const eligibleForAttemptCount = summary ? summary.willSend + summary.willResendDateChanged : 0;
 
   let message: ReactNode;
   if (isLoading) {
@@ -41,9 +41,9 @@ export function SendPortalLinkDialog({
           {' '}(<strong>{summary.total}</strong> total).
         </p>
         <ul className="list-disc space-y-1 pl-5">
-          <li><strong>{summary.willSend}</strong> will be sent</li>
+          <li><strong>{summary.willSend}</strong> eligible for a send attempt</li>
           {summary.willResendDateChanged > 0 && (
-            <li><strong>{summary.willResendDateChanged}</strong> will be re-sent (date changed)</li>
+            <li><strong>{summary.willResendDateChanged}</strong> eligible for another send attempt (date changed)</li>
           )}
           <li><strong>{summary.alreadyConfirmed}</strong> already confirmed — skipped</li>
           {summary.notSendable > 0 && (
@@ -58,7 +58,7 @@ export function SendPortalLinkDialog({
             </li>
           )}
         </ul>
-        {willAct === 0 && (
+        {eligibleForAttemptCount === 0 && (
           <p className="text-text-secondary">No appointments need a portal link right now.</p>
         )}
       </div>
@@ -75,7 +75,7 @@ export function SendPortalLinkDialog({
       confirmLabel="Send portal link"
       variant="warning"
       loading={sending}
-      confirmDisabled={isLoading || isError || willAct === 0}
+      confirmDisabled={isLoading || isError || eligibleForAttemptCount === 0}
     />
   );
 }
