@@ -177,30 +177,38 @@ export class PrismaNotificationRepository implements INotificationRepository {
     });
   }
 
+  async saveIfAbsent(notification: NotificationEntity): Promise<boolean> {
+    const result = await this.prisma.notification.createMany({
+      data: {
+        id: notification.id,
+        tenant_id: notification.tenantId,
+        appointment_id: notification.appointmentId,
+        recipient: notification.recipient,
+        channel: notification.channel,
+        template_code: notification.templateCode,
+        status: notification.status,
+        notification_class: notification.notificationClass,
+        provider_name: notification.providerName,
+        provider_message_id: notification.providerMessageId,
+        sent_at: notification.sentAt,
+        delivered_at: notification.deliveredAt,
+        failed_at: notification.failedAt,
+        failure_reason: notification.failureReason,
+        payload_json: notification.payloadJson,
+        retry_count: notification.retryCount,
+        next_retry_at: notification.nextRetryAt,
+      },
+      skipDuplicates: true,
+    });
+    return result.count === 1;
+  }
+
   async existsByAppointmentAndTemplate(appointmentId: string, templateCode: string): Promise<boolean> {
     const count = await this.prisma.notification.count({
       where: {
         appointment_id: appointmentId,
         template_code: templateCode,
         ...NOT_SUPPRESSED,
-      },
-    });
-    return count > 0;
-  }
-
-  async existsAgencyForwardForNotification(
-    appointmentId: string,
-    suppressedNotificationId: string,
-  ): Promise<boolean> {
-    // Matches on the `suppressedNotificationId` the mirror carries in its payload, so
-    // each withheld message is tracked independently. No NOT_SUPPRESSED here: a mirror
-    // that exists in any state means one was already created for this message, and
-    // creating a second would be a duplicate email to the agency.
-    const count = await this.prisma.notification.count({
-      where: {
-        appointment_id: appointmentId,
-        template_code: AGENCY_FORWARD_TEMPLATE_CODE,
-        payload_json: { path: ['suppressedNotificationId'], equals: suppressedNotificationId },
       },
     });
     return count > 0;

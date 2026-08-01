@@ -38,6 +38,7 @@ describe('CreateNotificationUseCase', () => {
     count: ReturnType<typeof vi.fn>;
     findRetryable: ReturnType<typeof vi.fn>;
     save: ReturnType<typeof vi.fn>;
+    saveIfAbsent: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
   };
   let mockTemplateRepo: {
@@ -64,6 +65,7 @@ describe('CreateNotificationUseCase', () => {
       count: vi.fn(),
       findRetryable: vi.fn(),
       save: vi.fn().mockResolvedValue(undefined),
+      saveIfAbsent: vi.fn().mockResolvedValue(true),
       update: vi.fn(),
       existsByAppointmentAndTemplate: vi.fn(),
     };
@@ -96,6 +98,34 @@ describe('CreateNotificationUseCase', () => {
     expect(result.notificationId).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
     );
+    expect(mockRepo.save).toHaveBeenCalledOnce();
+    expect(mockRepo.saveIfAbsent).not.toHaveBeenCalled();
+  });
+
+  it('atomically inserts and enqueues a caller-supplied notification ID', async () => {
+    const notificationId = '9a1d6ac5-ef86-517f-9e7a-dc2d96b3ddce';
+
+    const result = await useCase.execute({ ...baseInput, notificationId });
+
+    expect(result).toEqual({ notificationId });
+    expect(mockRepo.save).not.toHaveBeenCalled();
+    expect(mockRepo.saveIfAbsent).toHaveBeenCalledOnce();
+    expect(mockRepo.saveIfAbsent).toHaveBeenCalledWith(
+      expect.objectContaining({ id: notificationId }),
+    );
+    expect(mockJobQueue.enqueue).toHaveBeenCalledOnce();
+  });
+
+  it('returns an existing caller-supplied ID without enqueueing a duplicate job', async () => {
+    const notificationId = '9a1d6ac5-ef86-517f-9e7a-dc2d96b3ddce';
+    mockRepo.saveIfAbsent.mockResolvedValueOnce(false);
+
+    const result = await useCase.execute({ ...baseInput, notificationId });
+
+    expect(result).toEqual({ notificationId });
+    expect(mockRepo.save).not.toHaveBeenCalled();
+    expect(mockRepo.saveIfAbsent).toHaveBeenCalledOnce();
+    expect(mockJobQueue.enqueue).not.toHaveBeenCalled();
   });
 
   it('enqueues notification.send job with notificationId', async () => {

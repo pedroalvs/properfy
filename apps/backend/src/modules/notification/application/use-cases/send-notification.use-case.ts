@@ -33,6 +33,10 @@ import {
   getTemplateCodeLabel,
 } from '../../domain/notification.constants';
 import { renderEmailBody } from '../render-email-body';
+import {
+  getAgencyForwardNotificationId,
+  type AgencyForwardRecipientReader,
+} from '../../domain/agency-forward';
 
 /** failure_reason stamped on an occupant message withheld by the agency switch. */
 const SUPPRESSED_REASON = 'AGENCY_TENANT_NOTIFICATIONS_DISABLED';
@@ -71,28 +75,6 @@ export interface SendNotificationInput {
   notificationId: string;
 }
 
-/** Where a suppressed occupant message is mirrored to. */
-export interface AgencyForwardRecipient {
-  branchName: string;
-  contactEmail: string;
-  /**
-   * Re-derived rather than inherited from the suppressed payload: a mirror triggered by
-   * an SMS carries only the SMS variables, which omit the address, and the mirror's
-   * subject would render with a dangling separator.
-   */
-  propertyAddress: string;
-  appointmentCode: string;
-}
-
-/**
- * Why a mirror could not be addressed. Discriminated because the two causes are
- * operationally different: a vanished appointment is a mostly-benign race, whereas a
- * branch with no contact email means nobody at all learns about the inspection.
- */
-export type AgencyForwardLookup =
-  | { ok: true; recipient: AgencyForwardRecipient }
-  | { ok: false; reason: 'APPOINTMENT_NOT_FOUND' | 'NO_BRANCH_EMAIL' };
-
 /**
  * Minimal shape of a forwarded notification; satisfied by CreateNotificationUseCase.
  *
@@ -102,6 +84,7 @@ export type AgencyForwardLookup =
  * would reach the template as "[object Object]".
  */
 export interface ForwardNotificationInput {
+  notificationId: string;
   tenantId: string | null;
   appointmentId: string;
   recipient: string;
@@ -129,10 +112,7 @@ export interface SendNotificationDeps {
    * Required rather than optional: an absent port would silently turn the mirror
    * into a no-op, which is exactly the failure this feature exists to prevent.
    */
-  getAgencyForwardRecipient: (
-    appointmentId: string,
-    tenantId: string | null,
-  ) => Promise<AgencyForwardLookup>;
+  getAgencyForwardRecipient: AgencyForwardRecipientReader;
   /** Enqueues the mirrored notification. Thin port over CreateNotificationUseCase. */
   forwardNotification: (input: ForwardNotificationInput) => Promise<void>;
   /** Render-profile HTML sanitizer (defense-in-depth) */
@@ -158,10 +138,7 @@ export class SendNotificationUseCase {
   private readonly logger: Logger;
   private readonly metrics: MetricsCollector;
   private readonly getTenantSettings: (tenantId: string | null) => Promise<Record<string, unknown>>;
-  private readonly getAgencyForwardRecipient: (
-    appointmentId: string,
-    tenantId: string | null,
-  ) => Promise<AgencyForwardLookup>;
+  private readonly getAgencyForwardRecipient: AgencyForwardRecipientReader;
   private readonly forwardNotification: (input: ForwardNotificationInput) => Promise<void>;
   private readonly htmlSanitizer?: IHtmlSanitizerService;
   private readonly htmlToText?: IHtmlToTextService;
@@ -229,9 +206,9 @@ export class SendNotificationUseCase {
    * a genuinely terminal row must still raise NotificationInvalidStatusError so real
    * double-send bugs stay loud.
    *
-   * The existence check is what makes re-running idempotent: pg-boss can redeliver a job
-   * after the mirror was already created, and a second mirror would be a duplicate email
-   * to the agency rather than a recovery.
+   * The mirror's deterministic notification ID makes re-running idempotent: pg-boss can
+   * redeliver a job after the mirror was already created, and its primary key remains the
+   * authority instead of a JSON payload predicate.
    */
   private async classifySuppressedRerun(
     notification: NotificationEntity,
@@ -247,13 +224,9 @@ export class SendNotificationUseCase {
       return 'NOT_RECOVERABLE';
     }
     // Keyed on THIS notification, not the appointment. A blocked appointment collects a
-    // mirror per withheld message, so an appointment-wide check would report messages
-    // 2..N as already handled and drop their mirrors — the very gap this path exists to
-    // close.
-    const mirrored = await this.notificationRepo.existsAgencyForwardForNotification(
-      notification.appointmentId,
-      notification.id,
-    );
+    // mirror per withheld message, so each source derives its own immutable mirror ID.
+    const mirrorId = getAgencyForwardNotificationId(notification.id);
+    const mirrored = await this.notificationRepo.findById(mirrorId);
     return mirrored ? 'ALREADY_MIRRORED' : 'RECOVER_MIRROR';
   }
 
@@ -328,6 +301,7 @@ export class SendNotificationUseCase {
       }
 
       await this.forwardNotification({
+        notificationId: getAgencyForwardNotificationId(notification.id),
         tenantId: notification.tenantId,
         appointmentId: notification.appointmentId,
         recipient: recipient.contactEmail,
@@ -342,9 +316,8 @@ export class SendNotificationUseCase {
           branchName: recipient.branchName,
           suppressedTemplateLabel: getTemplateCodeLabel(notification.templateCode),
           suppressedChannel: notification.channel,
-          // Ties the mirror to the message it stands in for. A blocked appointment
-          // accumulates one mirror per withheld message, so this is what lets the
-          // crash-recovery path tell "this one was mirrored" from "some other one was".
+          // Operator traceability only. The deterministic notification ID, not this JSON
+          // field, is the uniqueness and crash-recovery authority.
           suppressedNotificationId: notification.id,
         },
       });

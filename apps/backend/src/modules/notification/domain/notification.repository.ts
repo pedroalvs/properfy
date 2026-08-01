@@ -36,6 +36,8 @@ export interface INotificationRepository {
    */
   findSmsAwaitingDeliveryReceipt(from: Date, to: Date, limit?: number): Promise<NotificationEntity[]>;
   save(notification: NotificationEntity): Promise<void>;
+  /** Atomically inserts by notification ID; false means that ID already exists. */
+  saveIfAbsent(notification: NotificationEntity): Promise<boolean>;
   update(notification: NotificationEntity): Promise<void>;
   /**
    * Replaces the given payload_json keys (when present) with `replacement`,
@@ -49,18 +51,6 @@ export interface INotificationRepository {
     replacement: string,
   ): Promise<void>;
   existsByAppointmentAndTemplate(appointmentId: string, templateCode: string): Promise<boolean>;
-  /**
-   * True when the agency mirror for THIS suppressed notification already exists.
-   *
-   * Keyed on the source notification, not the appointment: a blocked appointment
-   * accumulates one mirror per withheld message over its lifecycle (notice, three
-   * reminders, T-2 alert, portal link), so "any mirror on this appointment" would
-   * report the second and later messages as already handled.
-   */
-  existsAgencyForwardForNotification(
-    appointmentId: string,
-    suppressedNotificationId: string,
-  ): Promise<boolean>;
   /**
    * Most recently created notification for the appointment among `templateCodes`,
    * or null when none exists. Backs occurrence-scoped dedupe — "what was the

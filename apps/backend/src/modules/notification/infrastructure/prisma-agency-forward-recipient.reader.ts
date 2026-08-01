@@ -1,5 +1,8 @@
 import type { PrismaClient } from '@prisma/client';
-import type { AgencyForwardLookup } from '../application/use-cases/send-notification.use-case';
+import type {
+  AgencyForwardLookup,
+  AgencyForwardRecipientReader,
+} from '../domain/agency-forward';
 
 /**
  * Resolves the branch contact that receives the mirror of a rental-tenant message
@@ -24,7 +27,9 @@ import type { AgencyForwardLookup } from '../application/use-cases/send-notifica
  * platform-scoped notifications carry no tenant; those are never RENTAL_TENANT-targeted,
  * so in practice this is always called with a concrete agency.
  */
-export function createAgencyForwardRecipientReader(prisma: PrismaClient) {
+export function createAgencyForwardRecipientReader(
+  prisma: PrismaClient,
+): AgencyForwardRecipientReader {
   return async (appointmentId: string, tenantId: string | null): Promise<AgencyForwardLookup> => {
     const where: Record<string, unknown> = { id: appointmentId, deleted_at: null };
     if (tenantId) where['tenant_id'] = tenantId;

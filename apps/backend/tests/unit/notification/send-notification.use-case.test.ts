@@ -80,9 +80,9 @@ function makeSut() {
     findAll: vi.fn(),
     count: vi.fn(),
     save: vi.fn(),
+    saveIfAbsent: vi.fn(),
     update: vi.fn(),
     existsByAppointmentAndTemplate: vi.fn(),
-    existsAgencyForwardForNotification: vi.fn().mockResolvedValue(false),
     findRetryable: vi.fn(),
     countByTenantChannelSince: vi.fn().mockResolvedValue(0),
     scrubPayload: vi.fn().mockResolvedValue(undefined),
@@ -941,6 +941,7 @@ describe('SendNotificationUseCase', () => {
         expect(forwarded.channel).toBe('EMAIL');
         expect(forwarded.tenantId).toBe('tenant-1');
         expect(forwarded.appointmentId).toBe('appt-1');
+        expect(forwarded.notificationId).toBe('9a1d6ac5-ef86-517f-9e7a-dc2d96b3ddce');
       });
 
       it('names the suppressed message so the agency knows what to act on', async () => {
@@ -1127,8 +1128,9 @@ describe('SendNotificationUseCase', () => {
           // The row is terminal, so nothing else re-enqueues it: throwing here would lose
           // the mirror forever, with a DLQ trace that only says "invalid status".
           const sut = makeSut();
-          vi.mocked(sut.notificationRepo.findById).mockResolvedValue(suppressedRow());
-          vi.mocked(sut.notificationRepo.existsAgencyForwardForNotification).mockResolvedValue(false);
+          vi.mocked(sut.notificationRepo.findById)
+            .mockResolvedValueOnce(suppressedRow())
+            .mockResolvedValueOnce(null);
 
           await expect(sut.useCase.execute({ notificationId: 'notif-1' })).resolves.toBeUndefined();
 
@@ -1141,40 +1143,45 @@ describe('SendNotificationUseCase', () => {
           // reminders, T-2 alert, portal link). An appointment-wide existence check
           // reported messages 2..N as already handled and dropped their mirrors.
           const sut = makeSut();
-          vi.mocked(sut.notificationRepo.findById).mockResolvedValue(suppressedRow());
+          vi.mocked(sut.notificationRepo.findById)
+            .mockResolvedValueOnce(suppressedRow())
+            .mockResolvedValueOnce(null);
           // Some other message on this appointment was mirrored...
           vi.mocked(sut.notificationRepo.existsByAppointmentAndTemplate).mockResolvedValue(true);
-          // ...but not this one.
-          vi.mocked(sut.notificationRepo.existsAgencyForwardForNotification).mockResolvedValue(false);
 
           await sut.useCase.execute({ notificationId: 'notif-1' });
 
           expect(sut.forwardNotification).toHaveBeenCalledTimes(1);
-          expect(sut.notificationRepo.existsAgencyForwardForNotification).toHaveBeenCalledWith(
-            'appt-1',
-            'notif-1',
+          expect(sut.notificationRepo.findById).toHaveBeenCalledWith(
+            '9a1d6ac5-ef86-517f-9e7a-dc2d96b3ddce',
           );
         });
 
-        it('ignores a redelivery once THIS message has been mirrored', async () => {
-          // Recognised benign redelivery: nothing to do, and throwing would park an
-          // unactionable "invalid status" in the DLQ.
+        it('recognizes an existing mirror by its deterministic notification ID', async () => {
           const sut = makeSut();
-          vi.mocked(sut.notificationRepo.findById).mockResolvedValue(suppressedRow());
-          vi.mocked(sut.notificationRepo.existsAgencyForwardForNotification).mockResolvedValue(true);
+          const source = suppressedRow();
+          const mirrorId = '9a1d6ac5-ef86-517f-9e7a-dc2d96b3ddce';
+          const mirror = makeNotification({
+            id: mirrorId,
+            templateCode: 'TENANT_NOTICE_FORWARDED_AGENCY',
+            status: 'PENDING',
+          });
+          vi.mocked(sut.notificationRepo.findById)
+            .mockResolvedValueOnce(source)
+            .mockResolvedValueOnce(mirror);
 
-          await expect(sut.useCase.execute({ notificationId: 'notif-1' })).resolves.toBeUndefined();
+          await expect(sut.useCase.execute({ notificationId: source.id })).resolves.toBeUndefined();
 
+          expect(sut.notificationRepo.findById).toHaveBeenCalledWith(mirrorId);
           expect(sut.forwardNotification).not.toHaveBeenCalled();
           expect(sut.emailProvider.send).not.toHaveBeenCalled();
         });
 
         it('retries a previously failed mirror', async () => {
           const sut = makeSut();
-          vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
-            suppressedRow('AGENCY_FORWARD_FAILED'),
-          );
-          vi.mocked(sut.notificationRepo.existsAgencyForwardForNotification).mockResolvedValue(false);
+          vi.mocked(sut.notificationRepo.findById)
+            .mockResolvedValueOnce(suppressedRow('AGENCY_FORWARD_FAILED'))
+            .mockResolvedValueOnce(null);
 
           await sut.useCase.execute({ notificationId: 'notif-1' });
 
