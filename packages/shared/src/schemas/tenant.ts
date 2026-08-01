@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { paginationSchema } from './pagination';
 import { branchAddressSchema } from './address';
+import { normalizeRentalTenantNotificationSettings } from '../utils/rental-tenant-notifications';
 
 // Email template override sub-schema
 const emailTemplateOverrideSchema = z.object({
@@ -122,13 +123,22 @@ export const appointmentCodePrefixSchema = z
   .transform((s) => s.toUpperCase());
 
 // Create tenant
+const createTenantSettingsSchema = z.preprocess(
+  (settings) => (
+    settings !== null && typeof settings === 'object' && !Array.isArray(settings)
+      ? normalizeRentalTenantNotificationSettings(settings as Record<string, unknown>)
+      : settings
+  ),
+  tenantSettingsSchema,
+);
+
 export const createTenantSchema = z.object({
   name: z.string().min(1).max(200).trim(),
   legalName: z.string().min(1).max(200).trim(),
   currency: z.string().length(3).default('AUD'),
   // Required: every agency must have a unique appointment-code prefix.
   appointmentCodePrefix: appointmentCodePrefixSchema,
-  settings: tenantSettingsSchema.optional(),
+  settings: createTenantSettingsSchema.optional(),
 });
 export type CreateTenantInput = z.infer<typeof createTenantSchema>;
 

@@ -15,6 +15,9 @@
 /** The settings key, so the string literal has one definition. */
 export const RENTAL_TENANT_NOTIFICATIONS_SETTING_KEY = 'rentalTenantNotificationsEnabled';
 
+/** Kept during the rolling-deploy window so old pods read the same decision. */
+export const LEGACY_EMAIL_SENDING_SETTING_KEY = 'emailSendingEnabled';
+
 /**
  * Error code returned (409) when an operator explicitly asks to notify a rental tenant
  * whose agency has opted out. Shared because it is thrown in the backend, duck-typed by
@@ -32,5 +35,33 @@ export const TENANT_NOTIFICATIONS_BLOCKED_CODE = 'TENANT_NOTIFICATIONS_BLOCKED';
 export function isRentalTenantNotificationsEnabled(
   settings: Record<string, unknown> | null | undefined,
 ): boolean {
-  return settings?.[RENTAL_TENANT_NOTIFICATIONS_SETTING_KEY] !== false;
+  return settings?.[RENTAL_TENANT_NOTIFICATIONS_SETTING_KEY] !== false
+    && settings?.[LEGACY_EMAIL_SENDING_SETTING_KEY] !== false;
+}
+
+/**
+ * Normalizes an incoming settings patch for mixed-version clients and pods.
+ * The replacement key wins when both incoming values are booleans; either recognized
+ * key is then written to both names so the persisted blob cannot stay conflicted.
+ */
+export function normalizeRentalTenantNotificationSettings(
+  settings: Record<string, unknown>,
+): Record<string, unknown> {
+  const replacementValue = settings[RENTAL_TENANT_NOTIFICATIONS_SETTING_KEY];
+  const legacyValue = settings[LEGACY_EMAIL_SENDING_SETTING_KEY];
+  const hasReplacementValue = Object.prototype.hasOwnProperty.call(
+    settings,
+    RENTAL_TENANT_NOTIFICATIONS_SETTING_KEY,
+  );
+  const normalizedValue = hasReplacementValue
+    ? typeof replacementValue === 'boolean' ? replacementValue : undefined
+    : typeof legacyValue === 'boolean' ? legacyValue : undefined;
+
+  if (normalizedValue === undefined) return settings;
+
+  return {
+    ...settings,
+    [RENTAL_TENANT_NOTIFICATIONS_SETTING_KEY]: normalizedValue,
+    [LEGACY_EMAIL_SENDING_SETTING_KEY]: normalizedValue,
+  };
 }

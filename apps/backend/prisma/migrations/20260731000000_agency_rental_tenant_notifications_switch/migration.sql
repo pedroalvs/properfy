@@ -55,9 +55,8 @@ WHERE NOT EXISTS (
 
 -- ── 2. Carry the old flag over ─────────────────────────────────────────────────
 --
--- An agency that had emailSendingEnabled = false chose "do not contact my tenants",
--- so it carries over as rentalTenantNotificationsEnabled = false. The key is dropped
--- in the same statement, leaving exactly one switch behind.
+-- An agency with an explicit false on either key has chosen "do not contact my tenants".
+-- Fail closed and write false to both keys so old and new pods make the same decision.
 --
 -- Behaviour change this makes visible on promote, and it is the intended fix: these
 -- agencies start receiving their OWN mail again (property-manager escalation,
@@ -66,14 +65,26 @@ WHERE NOT EXISTS (
 
 UPDATE tenants
 SET settings_json =
-  (settings_json - 'emailSendingEnabled')
-  || jsonb_build_object('rentalTenantNotificationsEnabled', false)
-WHERE settings_json->>'emailSendingEnabled' = 'false';
+  settings_json
+  || jsonb_build_object(
+    'emailSendingEnabled', false,
+    'rentalTenantNotificationsEnabled', false
+  )
+WHERE settings_json->'emailSendingEnabled' = 'false'::jsonb
+   OR settings_json->'rentalTenantNotificationsEnabled' = 'false'::jsonb;
 
--- Remaining rows had the flag at its default (true), which is also the new flag's
--- default, so the key is simply removed rather than restated. Run second: the
--- statement above already dropped the key for the agencies it migrated.
+-- Backfill the replacement key for remaining legacy rows without deleting the legacy
+-- key. COALESCE preserves an already-present replacement value. The false cases above
+-- have already been normalized, so conflicts remain fail-closed.
 
 UPDATE tenants
-SET settings_json = settings_json - 'emailSendingEnabled'
+SET settings_json =
+  settings_json
+  || jsonb_build_object(
+    'rentalTenantNotificationsEnabled',
+    COALESCE(
+      settings_json->'rentalTenantNotificationsEnabled',
+      settings_json->'emailSendingEnabled'
+    )
+  )
 WHERE settings_json ? 'emailSendingEnabled';

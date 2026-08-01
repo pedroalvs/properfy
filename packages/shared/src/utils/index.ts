@@ -74,6 +74,8 @@ export {
 } from './reset-password-error';
 export {
   isRentalTenantNotificationsEnabled,
+  normalizeRentalTenantNotificationSettings,
   RENTAL_TENANT_NOTIFICATIONS_SETTING_KEY,
+  LEGACY_EMAIL_SENDING_SETTING_KEY,
   TENANT_NOTIFICATIONS_BLOCKED_CODE,
 } from './rental-tenant-notifications';

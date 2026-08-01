@@ -20,6 +20,21 @@ describe('isRentalTenantNotificationsEnabled', () => {
     expect(isRentalTenantNotificationsEnabled({ rentalTenantNotificationsEnabled: false })).toBe(false);
   });
 
+  it('is disabled when only the legacy key is explicitly false', () => {
+    expect(isRentalTenantNotificationsEnabled({ emailSendingEnabled: false })).toBe(false);
+  });
+
+  it('fails closed when the legacy and replacement keys conflict', () => {
+    expect(isRentalTenantNotificationsEnabled({
+      rentalTenantNotificationsEnabled: true,
+      emailSendingEnabled: false,
+    })).toBe(false);
+    expect(isRentalTenantNotificationsEnabled({
+      rentalTenantNotificationsEnabled: false,
+      emailSendingEnabled: true,
+    })).toBe(false);
+  });
+
   it('is enabled when the settings blob is missing entirely', () => {
     // Tenant rows persisted before settings_json had a default carry no blob; an
     // unguarded read here used to be a 500 on every Send Portal Link.
@@ -39,6 +54,7 @@ describe('isRentalTenantNotificationsEnabled', () => {
     // settings_json is jsonb, so a boolean stays a boolean; a string here means the
     // writer is wrong and should be visible rather than silently honoured.
     expect(isRentalTenantNotificationsEnabled({ rentalTenantNotificationsEnabled: 'false' })).toBe(true);
+    expect(isRentalTenantNotificationsEnabled({ emailSendingEnabled: 'false' })).toBe(true);
   });
 
   it('exposes the setting key so the literal has one definition', () => {

@@ -498,6 +498,36 @@ describe('tenantSettingsSchema', () => {
     }
   });
 
+  it('preserves a cached old client opt-out when parsing tenant creation', () => {
+    const result = createTenantSchema.parse({
+      name: 'Legacy Client Agency',
+      legalName: 'Legacy Client Agency Pty Ltd',
+      currency: 'AUD',
+      appointmentCodePrefix: 'LGC',
+      settings: { emailSendingEnabled: false },
+    });
+
+    expect(result.settings).toMatchObject({
+      emailSendingEnabled: false,
+      rentalTenantNotificationsEnabled: false,
+    });
+  });
+
+  it('rejects a malformed replacement key even when the legacy key is valid', () => {
+    const result = createTenantSchema.safeParse({
+      name: 'Malformed Replacement Agency',
+      legalName: 'Malformed Replacement Agency Pty Ltd',
+      currency: 'AUD',
+      appointmentCodePrefix: 'MRA',
+      settings: {
+        rentalTenantNotificationsEnabled: null,
+        emailSendingEnabled: false,
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it('should no longer expose the replaced emailSendingEnabled flag', () => {
     // Superseded by rentalTenantNotificationsEnabled: the old flag was EMAIL-only and
     // agency-wide, so it both leaked SMS to the occupant and suppressed the agency's own

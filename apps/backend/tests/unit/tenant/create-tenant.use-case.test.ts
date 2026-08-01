@@ -210,4 +210,65 @@ describe('CreateTenantUseCase', () => {
     const saved = vi.mocked(tenantRepo.save).mock.calls[0]![0];
     expect(saved.appointmentCodePrefix).toBe('ABC');
   });
+
+  it('dual-writes a cached old client notification setting on create', async () => {
+    vi.mocked(tenantRepo.findByLegalName).mockResolvedValue(null);
+
+    await useCase.execute({
+      name: 'Legacy Client Agency',
+      legalName: 'Legacy Client Agency Pty Ltd',
+      currency: 'AUD',
+      appointmentCodePrefix: 'LGC',
+      settings: { emailSendingEnabled: false, billingPeriod: 'MONTHLY' },
+      actor: makeActor(),
+    });
+
+    const saved = vi.mocked(tenantRepo.save).mock.calls[0]![0];
+    expect(saved.settingsJson).toEqual({
+      emailSendingEnabled: false,
+      rentalTenantNotificationsEnabled: false,
+      billingPeriod: 'MONTHLY',
+    });
+  });
+
+  it('dual-writes a cached old client enabled setting on create', async () => {
+    vi.mocked(tenantRepo.findByLegalName).mockResolvedValue(null);
+
+    await useCase.execute({
+      name: 'Legacy Enabled Agency',
+      legalName: 'Legacy Enabled Agency Pty Ltd',
+      currency: 'AUD',
+      appointmentCodePrefix: 'LGE',
+      settings: { emailSendingEnabled: true },
+      actor: makeActor(),
+    });
+
+    const saved = vi.mocked(tenantRepo.save).mock.calls[0]![0];
+    expect(saved.settingsJson).toEqual({
+      emailSendingEnabled: true,
+      rentalTenantNotificationsEnabled: true,
+    });
+  });
+
+  it('gives the replacement setting precedence and persists agreeing keys on create', async () => {
+    vi.mocked(tenantRepo.findByLegalName).mockResolvedValue(null);
+
+    await useCase.execute({
+      name: 'Replacement Client Agency',
+      legalName: 'Replacement Client Agency Pty Ltd',
+      currency: 'AUD',
+      appointmentCodePrefix: 'RPL',
+      settings: {
+        rentalTenantNotificationsEnabled: true,
+        emailSendingEnabled: false,
+      },
+      actor: makeActor(),
+    });
+
+    const saved = vi.mocked(tenantRepo.save).mock.calls[0]![0];
+    expect(saved.settingsJson).toEqual({
+      rentalTenantNotificationsEnabled: true,
+      emailSendingEnabled: true,
+    });
+  });
 });

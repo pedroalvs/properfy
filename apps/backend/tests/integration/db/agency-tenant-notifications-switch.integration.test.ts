@@ -97,25 +97,28 @@ describe('agency rental-tenant notification switch migration', () => {
     expect(statements[2]).toMatch(/^UPDATE tenants/);
   });
 
-  it('carries a disabled agency over to the new flag and drops the old key', async () => {
+  it('carries a disabled agency over while retaining the old-pod flag', async () => {
     const id = await seedTenant({ emailSendingEnabled: false, billingPeriod: 'MONTHLY' });
 
     await applyMigration();
 
     expect(await readSettings(id)).toEqual({
+      emailSendingEnabled: false,
       rentalTenantNotificationsEnabled: false,
       billingPeriod: 'MONTHLY',
     });
   });
 
-  it('drops the old key without adding the new one when it was enabled', async () => {
-    // true was the old default and is also the new default, so restating it would
-    // just be noise in the blob.
+  it('keeps old pods enabled and backfills the replacement key for legacy true', async () => {
     const id = await seedTenant({ emailSendingEnabled: true, billingPeriod: 'WEEKLY' });
 
     await applyMigration();
 
-    expect(await readSettings(id)).toEqual({ billingPeriod: 'WEEKLY' });
+    expect(await readSettings(id)).toEqual({
+      emailSendingEnabled: true,
+      rentalTenantNotificationsEnabled: true,
+      billingPeriod: 'WEEKLY',
+    });
   });
 
   it('leaves a settings blob that never carried the old key untouched', async () => {
@@ -144,6 +147,7 @@ describe('agency rental-tenant notification switch migration', () => {
     await applyMigration();
 
     expect(await readSettings(id)).toEqual({
+      emailSendingEnabled: false,
       rentalTenantNotificationsEnabled: false,
       billingPeriod: 'WEEKLY',
       billingDayOfWeek: 3,
@@ -154,11 +158,48 @@ describe('agency rental-tenant notification switch migration', () => {
   });
 
   it('does not overwrite a new flag that is already set', async () => {
-    const id = await seedTenant({ rentalTenantNotificationsEnabled: false });
+    const id = await seedTenant({ rentalTenantNotificationsEnabled: true });
 
     await applyMigration();
 
-    expect(await readSettings(id)).toEqual({ rentalTenantNotificationsEnabled: false });
+    expect(await readSettings(id)).toEqual({ rentalTenantNotificationsEnabled: true });
+  });
+
+  it('adds the legacy false flag when only the replacement flag is disabled', async () => {
+    const id = await seedTenant({
+      rentalTenantNotificationsEnabled: false,
+      billingPeriod: 'MONTHLY',
+    });
+
+    await applyMigration();
+
+    expect(await readSettings(id)).toEqual({
+      rentalTenantNotificationsEnabled: false,
+      emailSendingEnabled: false,
+      billingPeriod: 'MONTHLY',
+    });
+  });
+
+  it('fails closed and repairs conflicting persisted flags', async () => {
+    const legacyFalse = await seedTenant({
+      emailSendingEnabled: false,
+      rentalTenantNotificationsEnabled: true,
+    });
+    const replacementFalse = await seedTenant({
+      emailSendingEnabled: true,
+      rentalTenantNotificationsEnabled: false,
+    });
+
+    await applyMigration();
+
+    await expect(readSettings(legacyFalse)).resolves.toEqual({
+      emailSendingEnabled: false,
+      rentalTenantNotificationsEnabled: false,
+    });
+    await expect(readSettings(replacementFalse)).resolves.toEqual({
+      emailSendingEnabled: false,
+      rentalTenantNotificationsEnabled: false,
+    });
   });
 
   it('is idempotent — a second run changes nothing', async () => {
