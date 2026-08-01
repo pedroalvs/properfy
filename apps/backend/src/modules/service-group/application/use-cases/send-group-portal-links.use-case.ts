@@ -68,6 +68,10 @@ export class SendGroupPortalLinksUseCase {
   ) {}
 
   async execute(input: SendGroupPortalLinksInput): Promise<SendGroupPortalLinksOutput> {
+    // Deliberately narrower than the per-appointment portal-link surface, which
+    // also allows CL_ADMIN: a service group is tenant-agnostic and its members
+    // may span agencies, so a single agency admin must not fan out links across
+    // it. Do not "harmonise" this with `appointment.portal_link`.
     this.authorizationService.assertRoles(input.actor, ['AM', 'OP'], {
       action: 'service_group.send_portal_links',
       entityType: 'ServiceGroup',

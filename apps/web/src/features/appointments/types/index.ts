@@ -49,6 +49,12 @@ export interface Appointment {
   serviceGroupCode?: string | null;
   isOverdue: boolean;
   hasRentalTenantNote: boolean;
+  /**
+   * Note text the rental tenant left in the portal. The list endpoint returns it
+   * alongside `hasRentalTenantNote` (declared in the shared response schema), so
+   * the list and board can show the message without opening the detail.
+   */
+  rentalTenantNote?: string | null;
   /** Property total area in m²; null for legacy properties with no recorded area. */
   propertyTotalAreaM2?: number | null;
   createdAt: string;

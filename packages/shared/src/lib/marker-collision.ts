@@ -80,6 +80,52 @@ function layoutCluster(
 }
 
 /**
+ * Pairs from different clusters that are still drawn closer than `diameter`.
+ *
+ * Bucketed into a grid of `diameter`-wide cells rather than compared
+ * pairwise: two markers can only collide if they are within one diameter, so a
+ * colliding partner is always in the same cell or one of the eight around it.
+ * The appointments map aggregates every page of results, so a city-wide view
+ * really can carry thousands of pins, and an all-pairs scan there costs
+ * seconds *per camera move* — with the grid the same work is near-linear.
+ */
+function findCollidingPairs(
+  live: number[],
+  placed: ScreenPoint[],
+  diameter: number,
+  clusterOf: (index: number) => number,
+): Array<[number, number]> {
+  const cellOf = (value: number) => Math.floor(value / diameter);
+  const grid = new Map<string, number[]>();
+  for (const i of live) {
+    const key = `${cellOf(placed[i]!.x)},${cellOf(placed[i]!.y)}`;
+    const bucket = grid.get(key);
+    if (bucket) bucket.push(i);
+    else grid.set(key, [i]);
+  }
+
+  const pairs: Array<[number, number]> = [];
+  for (const i of live) {
+    const cx = cellOf(placed[i]!.x);
+    const cy = cellOf(placed[i]!.y);
+    for (let dx = -1; dx <= 1; dx += 1) {
+      for (let dy = -1; dy <= 1; dy += 1) {
+        const bucket = grid.get(`${cx + dx},${cy + dy}`);
+        if (!bucket) continue;
+        for (const j of bucket) {
+          // Each unordered pair once.
+          if (j <= i) continue;
+          if (clusterOf(i) === clusterOf(j)) continue;
+          const gap = Math.hypot(placed[i]!.x - placed[j]!.x, placed[i]!.y - placed[j]!.y);
+          if (gap < diameter - EPSILON) pairs.push([i, j]);
+        }
+      }
+    }
+  }
+  return pairs;
+}
+
+/**
  * Pixel offsets that keep every marker at least `diameter` from every other,
  * index-aligned with `points`.
  *
@@ -99,8 +145,23 @@ export function resolveMarkerCollisions(
   const live = points.map((_, i) => i).filter((i) => isUsablePoint(points[i]!));
   if (live.length < 2) return offsets;
 
-  // Cluster id per point; starts as "everyone alone".
-  const clusterOf = new Map<number, number>(live.map((i) => [i, i]));
+  // Clusters as a union-find forest: every point starts alone, and merging is
+  // a single parent write rather than a sweep relabelling every member. With a
+  // few thousand pins the sweep was the dominant cost once the grid above had
+  // taken care of the pair scan.
+  const parent = new Map<number, number>(live.map((i) => [i, i]));
+  const findRoot = (index: number): number => {
+    let root = index;
+    while (parent.get(root) !== root) root = parent.get(root)!;
+    // Path compression: everything walked now points straight at the root.
+    let step = index;
+    while (parent.get(step) !== root) {
+      const next = parent.get(step)!;
+      parent.set(step, root);
+      step = next;
+    }
+    return root;
+  };
   const placed: ScreenPoint[] = [...points];
 
   // Lay the current clusters out, then look for pairs that *still* collide and
@@ -110,32 +171,22 @@ export function resolveMarkerCollisions(
   for (let pass = 0; pass <= live.length; pass += 1) {
     const members = new Map<number, number[]>();
     for (const i of live) {
-      const id = clusterOf.get(i)!;
-      members.set(id, [...(members.get(id) ?? []), i]);
+      const id = findRoot(i);
+      const group = members.get(id);
+      if (group) group.push(i);
+      else members.set(id, [i]);
     }
     for (const group of members.values()) {
       layoutCluster(group, points, diameter, placed);
     }
 
-    const merges: Array<[number, number]> = [];
-    for (let a = 0; a < live.length; a += 1) {
-      for (let b = a + 1; b < live.length; b += 1) {
-        const i = live[a]!;
-        const j = live[b]!;
-        if (clusterOf.get(i) === clusterOf.get(j)) continue;
-        const gap = Math.hypot(placed[i]!.x - placed[j]!.x, placed[i]!.y - placed[j]!.y);
-        if (gap < diameter - EPSILON) merges.push([i, j]);
-      }
-    }
+    const merges = findCollidingPairs(live, placed, diameter, findRoot);
     if (merges.length === 0) break;
 
     for (const [i, j] of merges) {
-      const from = clusterOf.get(j)!;
-      const to = clusterOf.get(i)!;
-      if (from === to) continue;
-      for (const k of live) {
-        if (clusterOf.get(k) === from) clusterOf.set(k, to);
-      }
+      const a = findRoot(i);
+      const b = findRoot(j);
+      if (a !== b) parent.set(b, a);
     }
   }
 

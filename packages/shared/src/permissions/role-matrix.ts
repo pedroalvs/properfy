@@ -104,9 +104,22 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
     roles: ['AM'],
   },
   'appointment.force_confirmation': {
-    roles: ['AM', 'OP', 'CL_USER'],
+    roles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'],
     condition: 'cl_user_flag',
     conditionKey: 'force_confirmation',
+  },
+  // Rental-tenant portal link, agency-facing. Covers both endpoints behind the
+  // Send / Copy buttons: POST .../portal-token (send, plus the generate-and-copy
+  // fallback) and GET .../portal-link (copy). CL_ADMIN acts only on its own
+  // agency — the use cases scope the lookup with
+  // `appointmentRepo.findById(id, actor.tenantId)` for every non-platform role.
+  'appointment.portal_link': {
+    roles: ['AM', 'OP', 'CL_ADMIN'],
+  },
+  // Read-only portal history (GET .../portal-activities) behind the
+  // "Portal Activity" tab; same audience as the link actions above.
+  'appointment.portal_activity': {
+    roles: ['AM', 'OP', 'CL_ADMIN'],
   },
   'appointment.cross_check': {
     roles: ['AM', 'OP'],

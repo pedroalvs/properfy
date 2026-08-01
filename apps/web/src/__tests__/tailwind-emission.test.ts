@@ -108,6 +108,21 @@ describe('tailwind token emission', () => {
     expect(await compile('fill-primary')).toContain('fill: var(--color-primary)');
   });
 
+  it('emits the sidebar inset only above the md breakpoint', async () => {
+    // `AppointmentBulkActionBar` is `left-0 md:left-sidebar`, so the fixed bar spans the
+    // full width on phones (where the shell hides the sidebar) and clears it from md up.
+    //
+    // Its own unit test can only assert the class NAME. That is blind to the failure that
+    // matters here: `left-*` derives from `theme.extend.spacing`, and the config also
+    // carries a `width.sidebar` copy for `w-sidebar`. Delete or rename the spacing entry
+    // believing the width one is load-bearing and `md:left-sidebar` stays in the markup,
+    // the className test stays green, and the rule vanishes from the stylesheet — the bar
+    // drops back to `left: 0` on desktop and paints over the sidebar (bar z-40 > z-30).
+    const css = await compile('left-0 md:left-sidebar');
+    expect(css).toContain('left: 0');
+    expect(css).toMatch(/@media\s*\(min-width:\s*768px\)[\s\S]*left:\s*75px/);
+  });
+
   it('does not put color-mix in a gradient transparency fallback', async () => {
     // `gradientColorStops` builds the transparent end of a `from-*` via
     // `withAlphaValue(value, 0)` — passing the NUMBER 0, not a string. A colour helper

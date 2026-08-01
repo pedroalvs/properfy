@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import type { ServiceTypeEntity } from './service-type.entity';
 
 export interface ServiceTypeFilters {
@@ -13,7 +14,7 @@ export interface PaginationParams {
 }
 
 export interface IServiceTypeRepository {
-  findById(id: string): Promise<ServiceTypeEntity | null>;
+  findById(id: string, tx?: Prisma.TransactionClient): Promise<ServiceTypeEntity | null>;
   findByCode(code: string): Promise<ServiceTypeEntity | null>;
   findByName(name: string): Promise<ServiceTypeEntity | null>;
   findAll(

@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import type { ServiceGroupEntity } from './service-group.entity';
 
 export interface ServiceGroupFilters {
@@ -275,9 +276,9 @@ export interface IServiceGroupRepository {
     inspectorBlockedClients: string[],
   ): Promise<MarketplaceOfferDetail | null>;
   /** Atomic decrement of confirmed_count (for detach flows). */
-  decrementConfirmedCount(groupId: string): Promise<void>;
+  decrementConfirmedCount(groupId: string, tx?: Prisma.TransactionClient): Promise<void>;
   /** Atomic increment of confirmed_count (for join flows). */
-  incrementConfirmedCount(groupId: string): Promise<void>;
+  incrementConfirmedCount(groupId: string, tx?: Prisma.TransactionClient): Promise<void>;
   /** Set service_group_id on appointments */
   /**
    * Links appointments to the group, but only while the group is still addable
@@ -290,7 +291,7 @@ export interface IServiceGroupRepository {
    */
   linkAppointments(appointmentIds: string[], groupId: string): Promise<number>;
   /** Just the group's status, or null if it does not exist. Cheap membership check. */
-  findStatusById(id: string): Promise<string | null>;
+  findStatusById(id: string, tx?: Prisma.TransactionClient): Promise<string | null>;
   /**
    * Statuses for several groups at once, keyed by id; missing ids are absent from
    * the result. Lets the add-to-group flows judge each appointment's *existing*
@@ -359,7 +360,7 @@ export interface IServiceGroupRepository {
     timeSlotEnd: string;
     inspectorId: string;
     rentalTenantNote?: string;
-  }): Promise<PortalWindowReservation>;
+  }, tx?: Prisma.TransactionClient): Promise<PortalWindowReservation>;
   /** Re-check that the selected portal slot still exists on a future member appointment. */
   hasPortalMemberSlot(params: {
     groupId: string;

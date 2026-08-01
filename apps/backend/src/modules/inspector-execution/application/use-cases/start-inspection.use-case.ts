@@ -5,10 +5,7 @@ import type { IAppointmentRepository } from '../../../appointment/domain/appoint
 import type { IInspectionExecutionRepository } from '../../domain/inspection-execution.repository';
 import type { IIdempotencyService } from '../../domain/idempotency.service';
 import { InspectionExecutionEntity } from '../../domain/inspection-execution.entity';
-import {
-  InspectionTimeWindowService,
-  type InspectionTimeWindowBounds,
-} from '../../../../shared/domain/inspection-time-window.service';
+import { InspectionStartGateService } from '../../../../shared/domain/inspection-start-gate.service';
 import {
   haversineDistanceMeters,
   GEOLOCATION_MISMATCH_THRESHOLD_METERS,
@@ -22,10 +19,7 @@ import {
   ExecutionTimeWindowError,
 } from '../../domain/inspection-execution.errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
-
-export interface ITenantSettingsReader {
-  getTimeWindowBounds(tenantId: string): Promise<Partial<InspectionTimeWindowBounds> | null>;
-}
+import type { IServiceTypeReader } from '../../domain/service-type-reader';
 
 export interface StartInspectionInput {
   appointmentId: string;
@@ -46,14 +40,14 @@ export interface StartInspectionOutput {
 }
 
 export class StartInspectionUseCase {
-  private readonly timeWindowService = new InspectionTimeWindowService();
+  private readonly startGateService = new InspectionStartGateService();
 
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly executionRepo: IInspectionExecutionRepository,
     private readonly idempotencyService: IIdempotencyService,
     private readonly auditService: AuditService,
-    private readonly tenantSettingsReader?: ITenantSettingsReader,
+    private readonly serviceTypeReader: IServiceTypeReader,
     private readonly authorizationService?: AuthorizationService,
   ) {}
 
@@ -99,19 +93,30 @@ export class StartInspectionUseCase {
     );
     if (!isVisible) throw new ExecutionT1BlockedError();
 
-    // 4b. Apply time window rule (configurable per tenant)
-    const timeWindowBounds = this.tenantSettingsReader
-      ? await this.tenantSettingsReader.getTimeWindowBounds(appointment.tenantId)
-      : null;
-    const windowCheck = this.timeWindowService.isWithinWindow(
-      appointment.scheduledDate,
-      appointment.timeSlotStart,
-      appointment.timeSlotEnd,
-      new Date(),
-      timeWindowBounds ?? undefined,
-    );
-    if (!windowCheck.allowed) {
-      throw new ExecutionTimeWindowError(windowCheck.reason ?? 'Outside inspection time window');
+    // 4b. Tenant confirmation, re-checked for dates that already passed.
+    //
+    // `isAppointmentVisibleForInspector` only withholds an unconfirmed routine
+    // inspection on the day itself and the day before (T1VisibilityService's
+    // `diffDays === 0 || diffDays === 1`); a past date yields a negative diff and
+    // is reported visible. That branch used to be unreachable for a start because
+    // the time window rejected anything past `timeSlotEnd`. Now that the gate
+    // stays open indefinitely, guard it explicitly — otherwise a routine job the
+    // rental tenant never confirmed becomes executable the day after its date,
+    // bypassing the rule that forcing confirmation is an AM/OP-only action.
+    //
+    // The exemptions mirror the T-1 rule exactly: non-routine flows never need
+    // confirmation, and a key on hand replaces it.
+    const serviceType = await this.serviceTypeReader.findById(appointment.serviceTypeId);
+    const flowType = serviceType?.flowType ?? 'ROUTINE';
+    const needsConfirmation = flowType === 'ROUTINE' && !appointment.keyRequired;
+    if (needsConfirmation && appointment.rentalTenantConfirmationStatus !== 'CONFIRMED') {
+      throw new ExecutionT1BlockedError();
+    }
+
+    // 4c. Apply the start gate: open from the scheduled day onwards, no upper bound.
+    const gateCheck = this.startGateService.isStartAllowed(appointment.scheduledDate, new Date());
+    if (!gateCheck.allowed) {
+      throw new ExecutionTimeWindowError(gateCheck.reason ?? 'Inspection day has not started yet');
     }
 
     // 5. Compute geolocation distance to property

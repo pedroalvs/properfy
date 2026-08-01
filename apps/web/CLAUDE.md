@@ -69,7 +69,7 @@ apps/web/
 │   │   ├── shell/              # AppShell, Sidebar, SidebarItem, SidebarSubmenu, SidebarUser
 │   │   ├── ui/                 # Design system primitives (buttons, inputs, chips, dialogs, tabs, drawers)
 │   │   ├── data/               # DataTable, RowActions, EntityListCard, TableSwitch, BooleanIcon
-│   │   ├── filters/            # FilterBar, FilterInput, FilterSelect, FilterAutocomplete, FilterDateRange, FilterBoolean
+│   │   ├── filters/            # FilterBar, FilterInput, FilterSelect, FilterMultiSelect, FilterSegmented, FilterDateRange, FilterBoolean
 │   │   ├── feedback/           # Snackbar, EmptyState, ErrorState, LoadingState, InfoBanner
 │   │   ├── layout/             # PageHeader, PageSectionHeader, templates
 │   │   └── map/                # MapScreenLayout, MapContainer, MapMarker, MapFloatingAction
@@ -302,6 +302,33 @@ apps/web/
 4. Action icons must have `aria-label`
 5. Dialog must manage focus
 6. Disabled states cannot depend only on color
+7. **Every custom widget must be fully operable by keyboard.** An ARIA role is a
+   promise about behaviour, not a label: declaring `role="listbox"`/`"option"`/
+   `"combobox"`/`"tab"` obliges the widget to implement that pattern's keys. This
+   was missed for a long time because a `<li onClick>` looks finished on screen
+   and there is no lint rule here to catch it (no `eslint-plugin-jsx-a11y`, no
+   `axe`) — only tests will.
+   - **Listbox / combobox** (`FilterSelect`, `FilterMultiSelect`, `PropertySearch`,
+     `AddressLookupInput`, `SelectInput`, `ContactAutocomplete`): options are `<li>`
+     and cannot hold focus, so focus stays on the trigger/input and the active
+     option travels via `aria-activedescendant` — never `tabIndex={0}` per option,
+     which turns one control into N tab stops. ArrowUp/Down move and stop at the
+     ends, Home/End jump, Enter selects (multi-select toggles without closing),
+     Escape closes, Tab closes rather than stranding the menu open.
+   - **Tabs** (`FilterSegmented`): roving tabindex — only the selected tab is in
+     the tab order — and arrow keys move between tabs, wrapping around.
+   - `Escape` **must** `stopPropagation()`. `Dialog` and `DrawerPanel` close on
+     Escape from a document listener, so a bubbling Escape dismisses the whole
+     modal and discards whatever the operator had filled in.
+   - The keyboard-active option must be visually distinct from the selected one
+     (`filterOptionHighlighted` vs `filterOptionActive`). If they render alike, a
+     user arrowing past the selected row cannot tell where they are (WCAG 2.4.7).
+   - Rows that are not choices ("No options", "Searching…") take
+     `role="presentation"` + `aria-live`, never `role="option"`, and must never be
+     reachable by the active index.
+
+   `SelectInput.tsx` and `ContactAutocomplete.tsx` are the reference
+   implementations — port them rather than inventing a new one.
 
 ---
 
@@ -312,7 +339,7 @@ Follow this order strictly – do not start with final pages:
 1. **Phase 0:** Design tokens, Nunito font, typography scale, color utilities, status map
 2. **Phase 1:** AppShell, Sidebar, SidebarItem, SidebarSubmenu, SidebarUser
 3. **Phase 2:** Buttons (Primary, Secondary, Outlined, Icon), StatusChip, BooleanIcon, InfoBanner, Snackbar, Dialog, DrawerPanel
-4. **Phase 3:** FilterBar, FilterInput, FilterSelect, FilterAutocomplete, FilterDateRange, FilterBoolean
+4. **Phase 3:** FilterBar, FilterInput, FilterSelect, FilterMultiSelect, FilterSegmented, FilterDateRange, FilterBoolean
 5. **Phase 4:** DataTable, RowActions, EntityListCard, TableSwitch, EmptyState, ErrorState, LoadingState
 6. **Phase 5:** PageHeader, TabsNav, page templates (list+filters, tabs+content, grouped list)
 7. **Phase 6:** MapScreenLayout, MapFloatingAction, FloatingTotalBar

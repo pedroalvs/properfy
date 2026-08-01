@@ -6,3 +6,4 @@ export { DrawerPanel } from './DrawerPanel';
 export { ConfirmDialog } from './ConfirmDialog';
 export { DrawerHeader } from './DrawerHeader';
 export { MultiDatePicker } from './MultiDatePicker';
+export { Tooltip } from './Tooltip';

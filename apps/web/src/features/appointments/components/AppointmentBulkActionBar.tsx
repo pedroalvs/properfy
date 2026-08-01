@@ -11,7 +11,12 @@ interface AppointmentBulkActionBarProps {
 /**
  * Fixed bottom bar shown while appointments are selected. Shared by the list and
  * the board so the two screens cannot drift in offset, styling or wording.
- * `left-[75px]` clears the fixed sidebar.
+ *
+ * The offset is responsive on purpose: the shell only renders the fixed sidebar
+ * from `md` up (`hidden md:block`, content offset by `md:ml-sidebar`), so
+ * reserving its width unconditionally left a dead strip down the left of the bar
+ * on phones. Uses the `sidebar` spacing token rather than a literal width so it
+ * tracks the shell.
  */
 export function AppointmentBulkActionBar({
   selectedCount,
@@ -24,7 +29,7 @@ export function AppointmentBulkActionBar({
   if (selectedCount === 0) return null;
 
   return (
-    <div className="fixed bottom-0 left-[75px] right-0 z-40 flex items-center justify-between border-t border-border-subtle bg-card-bg px-6 py-3 shadow-lg">
+    <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-between gap-3 border-t border-border-subtle bg-card-bg px-4 py-3 shadow-lg md:left-sidebar md:px-6">
       <span className="text-sm font-medium text-text-primary">
         {selectedCount} appointment{selectedCount !== 1 ? 's' : ''} selected
       </span>

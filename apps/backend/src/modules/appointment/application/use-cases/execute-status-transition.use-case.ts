@@ -1,5 +1,5 @@
 import type { AuthContext, AppointmentStatus, CancellationReasonCode, RejectionReasonCode } from '@properfy/shared';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IUserManagementRepository } from '../../../user/domain/user-management.repository';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
@@ -8,6 +8,7 @@ import type { IServiceTypeRepository } from '../../../service-type/domain/servic
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { ConfirmationCycleService } from '../services/confirmation-cycle.service';
 import { AppointmentStateMachine } from '../../domain/appointment-state-machine';
+import { transactionalResult, type TransactionalResult } from '../../../../shared/application/unit-of-work';
 import { isTerminalGroupStatus } from '../../../service-group/domain/service-group.validator';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import {
@@ -74,7 +75,7 @@ interface OnDoneHandler {
  * its appointment rows — into every transition.
  */
 interface IServiceGroupStatusReader {
-  findStatusById(id: string): Promise<string | null>;
+  findStatusById(id: string, tx?: Prisma.TransactionClient): Promise<string | null>;
 }
 
 interface OnTransitionHandler {
@@ -105,7 +106,35 @@ export class ExecuteStatusTransitionUseCase {
     private readonly serviceGroupRepo?: IServiceGroupStatusReader,
   ) {}
 
+  /**
+   * Unchanged for every existing caller: performs the write and then runs the
+   * side effects, exactly as before.
+   */
   async execute(input: ExecuteStatusTransitionInput): Promise<ExecuteStatusTransitionOutput> {
+    const result = await this.executeInTransaction(input);
+    await result.runAfterCommit();
+    return result.output;
+  }
+
+  /**
+   * The write phase only. Returns the output immediately and hands back the side
+   * effects for the owner of the transaction to flush once it has committed.
+   *
+   * Pass `tx` when composing this into a larger transaction — every read below
+   * then sees that transaction's uncommitted writes, which the portal join
+   * depends on: its `serviceGroupId`, `inspectorId` and
+   * `rentalTenantConfirmationStatus` guards read values the slot reservation
+   * wrote moments earlier and has not committed.
+   *
+   * The side effects are deliberately NOT part of the transaction — they mint
+   * and revoke portal tokens, enqueue jobs on another connection, and wake a
+   * subscriber that writes to a row the caller may hold locked. See
+   * `AfterCommitEffect`.
+   */
+  async executeInTransaction(
+    input: ExecuteStatusTransitionInput,
+    tx?: Prisma.TransactionClient,
+  ): Promise<TransactionalResult<ExecuteStatusTransitionOutput>> {
     const { appointmentId, targetStatus, reason, cancellationReasonCode, rejectionReasonCode, doneCheckedByUserId, crossCheckByUserId, inspectorId, idempotencyKey, notifyRentalTenant, actor } = input;
 
     // Automated flows act as SYS. Attribute their audit trail and events to the
@@ -118,15 +147,16 @@ export class ExecuteStatusTransitionUseCase {
       const cached = await this.idempotencyService.get<ExecuteStatusTransitionOutput>(
         idempotencyKey,
         'status-transition',
+        tx,
       );
-      if (cached) return cached;
+      if (cached) return transactionalResult(cached, []);
     }
 
     // 1. Find appointment. AM: tenantId=null for global access. OP: tenant-
     //    scoped per Sprint 1 W-4-IMPL (CORRECTION-001 close-it). CL roles:
     //    own tenant. INSP: any tenant but validated after via inspector_id.
     const tenantId = actor.role === 'AM' ? null : actor.tenantId;
-    const result = await this.appointmentRepo.findById(appointmentId, tenantId);
+    const result = await this.appointmentRepo.findById(appointmentId, tenantId, tx);
     if (!result) throw new AppointmentNotFoundError();
 
     const { appointment } = result;
@@ -189,7 +219,7 @@ export class ExecuteStatusTransitionUseCase {
         throw new AppointmentServiceGroupRequiredError();
       }
       if (this.serviceGroupRepo) {
-        const groupStatus = await this.serviceGroupRepo.findStatusById(appointment.serviceGroupId);
+        const groupStatus = await this.serviceGroupRepo.findStatusById(appointment.serviceGroupId, tx);
         if (groupStatus === null || isTerminalGroupStatus(groupStatus)) {
           throw new AppointmentServiceGroupRequiredError();
         }
@@ -247,7 +277,7 @@ export class ExecuteStatusTransitionUseCase {
 
     // 6b. Service type confirmation rules for AWAITING_INSPECTOR → SCHEDULED
     if (appointment.status === 'AWAITING_INSPECTOR' && targetStatus === 'SCHEDULED' && this.serviceTypeRepo) {
-      const serviceType = await this.serviceTypeRepo.findById(appointment.serviceTypeId);
+      const serviceType = await this.serviceTypeRepo.findById(appointment.serviceTypeId, tx);
       if (serviceType && serviceType.flowType === 'ROUTINE' && serviceType.requiresRentalTenantConfirmation) {
         if (appointment.rentalTenantConfirmationStatus !== 'CONFIRMED') {
           throw new AppointmentTenantConfirmationRequiredError();
@@ -284,7 +314,7 @@ export class ExecuteStatusTransitionUseCase {
     // `canAddToGroup` rejects any non-null link. Reopening is the operator's "that
     // cancellation was wrong" action, and EXPIRED cancellations make it common.
     if (targetStatus === 'DRAFT' && appointment.serviceGroupId && this.serviceGroupRepo) {
-      const groupStatus = await this.serviceGroupRepo.findStatusById(appointment.serviceGroupId);
+      const groupStatus = await this.serviceGroupRepo.findStatusById(appointment.serviceGroupId, tx);
       if (groupStatus === null || isTerminalGroupStatus(groupStatus)) {
         updateData.serviceGroupId = null;
       }
@@ -333,196 +363,23 @@ export class ExecuteStatusTransitionUseCase {
       updateData.doneCheckedAt = null;
     }
 
-    // 8. Update appointment (+ invalidate confirmation cycle if reopening)
-    if (targetStatus === 'DRAFT' && this.cycleService && this.prisma) {
-      await this.prisma.$transaction(async (tx) => {
-        await this.appointmentRepo.update(appointmentId, appointment.tenantId, updateData);
-        await this.cycleService!.invalidateOnReopen(appointmentId, appointment.tenantId, tx);
-      });
-    } else {
-      await this.appointmentRepo.update(appointmentId, appointment.tenantId, updateData);
-    }
-
-    // 9. Audit log — capture all fields that changed, resolve names for readability
-    const beforeSnapshot: Record<string, unknown> = { status: appointment.status };
-    const afterSnapshot: Record<string, unknown> = { status: targetStatus };
-    const metadata: Record<string, unknown> = {};
-
-    if (targetStatus === 'SCHEDULED' && inspectorId) {
-      const inspector = await this.inspectorRepo.findById(inspectorId);
-      const inspectorName = inspector?.name ?? inspectorId;
-      afterSnapshot.inspector = inspectorName;
-      metadata.inspectorId = inspectorId;
-      metadata.inspectorName = inspectorName;
-    }
-    if (doneCheckedByUserId) {
-      const reviewer = await this.userRepo.findById(doneCheckedByUserId);
-      afterSnapshot.reviewedBy = reviewer?.name ?? doneCheckedByUserId;
-      metadata.doneCheckedByUserId = doneCheckedByUserId;
-    }
-    if (crossCheckByUserId && targetStatus === 'DONE') {
-      const reviewer = await this.userRepo.findById(crossCheckByUserId);
-      afterSnapshot.reviewedBy = reviewer?.name ?? crossCheckByUserId;
-      metadata.crossCheckByUserId = crossCheckByUserId;
-      metadata.compoundTransition = true;
-    }
-    if (appointment.status === 'DONE' && targetStatus === 'DRAFT') {
-      afterSnapshot.reviewedBy = null;
-    }
-
-    this.auditService.log({
-      action: 'appointment.status_transition',
-      actorType,
-      actorId: isSystemActor ? undefined : actor.userId,
-      entityType: 'Appointment',
-      entityId: appointmentId,
-      tenantId: appointment.tenantId,
-      before: beforeSnapshot,
-      after: afterSnapshot,
-      reason: reason ?? undefined,
-      metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
-    });
-
-    // 9b. Side effect: INSP marked DONE without operator cross-check — flag pending review
-    if (targetStatus === 'DONE' && actor.role === 'INSP' && !doneCheckedByUserId && !crossCheckByUserId) {
-      this.auditService.log({
-        action: 'appointment.done_pending_crosscheck',
-        actorType: 'USER',
-        actorId: actor.userId,
-        entityType: 'Appointment',
-        entityId: appointmentId,
-        tenantId: appointment.tenantId,
-        before: { status: appointment.status },
-        after: { status: 'DONE' },
-        metadata: { pendingOperatorCrossCheck: true },
-      });
-    }
-
-    // 9c. Side effect: compound cross-check audit log
-    if (targetStatus === 'DONE' && crossCheckByUserId) {
-      await this.userRepo.findById(crossCheckByUserId);
-      this.auditService.log({
-        action: 'appointment.done_checked',
-        actorType: 'USER',
-        actorId: crossCheckByUserId,
-        entityType: 'Appointment',
-        entityId: appointmentId,
-        tenantId: appointment.tenantId,
-        before: {
-          status: appointment.status,
-          doneCheckedByUserId: null,
-          doneCheckedAt: null,
-        },
-        after: {
-          status: targetStatus,
-          doneCheckedByUserId: crossCheckByUserId,
-          doneCheckedAt: now,
-        },
-        metadata: {
-          event: 'appointment.done_checked',
-          doneByUserId: actor.userId,
-          compoundTransition: true,
-        },
-      });
-    }
-
-    // 9d. Side effect: create financial entries only after operator cross-check
-    if (targetStatus === 'DONE' && (doneCheckedByUserId || crossCheckByUserId) && this.onDoneHandler) {
-      try {
-        await this.onDoneHandler.execute({ appointmentId });
-      } catch {
-        // Log but don't fail — transition is already persisted and audited
-        // Financial entries can be created manually via billing API
-      }
-    }
-
-    // 9e. Side effect: DONE → REJECTED — flag for financial review and emit domain event
-    if (appointment.status === 'DONE' && targetStatus === 'REJECTED') {
-      this.auditService.log({
-        action: 'appointment.done_rejected',
-        actorType: 'USER',
-        actorId: actor.userId,
-        entityType: 'Appointment',
-        entityId: appointmentId,
-        tenantId: appointment.tenantId,
-        before: { status: 'DONE' },
-        after: { status: 'REJECTED' },
-        reason: reason ?? undefined,
-        metadata: { requiresFinancialReview: true },
-      });
-
-      // Emit domain event for financial compensation
-      if (this.domainEventBus) {
-        this.domainEventBus.emit({
-          type: APPOINTMENT_EVENTS.DONE_REJECTED,
-          payload: {
-            appointmentId,
-            tenantId: appointment.tenantId,
-            rejectedByUserId: actor.userId,
-            reason: reason ?? null,
-          },
-          occurredAt: now,
-        }).catch(() => {
-          // fire-and-forget — event bus failure must not affect the transition
-        });
-      }
-    }
-
-    // 9f. Side effect: notifications on transition
-    if (this.onTransitionHandler) {
-      try {
-        await this.onTransitionHandler.execute({
-          appointmentId,
-          notifyRentalTenant,
-          tenantId: appointment.tenantId,
-          previousStatus: appointment.status,
-          targetStatus,
-        });
-      } catch (error) {
-        // Still fire-and-forget: a notification failure must never roll back a
-        // transition the operator already performed. But it must not vanish
-        // either — this used to be a bare `catch {}` that did not even bind the
-        // error, so the transition was audited as healthy while the tenant was
-        // never told and nothing pointed at the appointment.
-        this.auditService.log({
-          action: 'notification.dispatch_failed',
-          actorType: 'SYSTEM',
-          entityType: 'Appointment',
-          entityId: appointmentId,
-          tenantId: appointment.tenantId,
-          after: {
-            previousStatus: appointment.status,
-            targetStatus,
-            // The class, not the message: an error surfacing from the send path
-            // can carry a raw provider string that names the recipient, and an
-            // audit row is immutable and outlives any erasure request. The
-            // message is already on the notification row and in the logs.
-            error: error instanceof Error ? error.constructor.name : 'UnknownError',
-          },
-        });
-      }
-    }
-
-    // 9g. Emit typed domain event for transition
-    if (this.domainEventBus) {
-      const transitionPayload: AppointmentTransitionEvent = {
-        appointmentId,
-        tenantId: appointment.tenantId,
-        fromStatus: appointment.status,
-        toStatus: targetStatus,
-        actorId: actor.userId,
-        actorType,
-        reason: reason ?? undefined,
-        metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
-        serviceGroupId: appointment.serviceGroupId,
+    // 8. Update appointment (+ invalidate confirmation cycle if reopening).
+    //
+    // The write and the cycle invalidation must land together, so they share a
+    // transaction: the caller's when there is one, otherwise our own. Passing the
+    // client through is not decoration — without it the status write executes on
+    // the global connection and survives the transaction rolling back, leaving a
+    // DRAFT appointment with a live cycle.
+    if (targetStatus === 'DRAFT' && this.cycleService) {
+      const reopen = async (client?: Prisma.TransactionClient) => {
+        await this.appointmentRepo.update(appointmentId, appointment.tenantId, updateData, client);
+        await this.cycleService!.invalidateOnReopen(appointmentId, appointment.tenantId, client);
       };
-      this.domainEventBus.emit({
-        type: APPOINTMENT_EVENTS.STATUS_TRANSITION,
-        payload: transitionPayload as unknown as Record<string, unknown>,
-        occurredAt: now,
-      }).catch(() => {
-        // fire-and-forget — event bus failure must not affect the transition
-      });
+      if (tx) await reopen(tx);
+      else if (this.prisma) await this.prisma.$transaction((t) => reopen(t));
+      else await reopen();
+    } else {
+      await this.appointmentRepo.update(appointmentId, appointment.tenantId, updateData, tx);
     }
 
     // 10. Build result
@@ -545,11 +402,204 @@ export class ExecuteStatusTransitionUseCase {
       updatedAt: now,
     };
 
-    // 11. Cache idempotency result
+    // 11. Cache the idempotency result INSIDE the write phase, not after the side
+    // effects. A key written outside the caller's transaction survives it rolling
+    // back, and the retry then reads a cached success for a transition that never
+    // happened. Writing it here also means a crash mid-notification can no longer
+    // re-run a transition that already committed.
     if (idempotencyKey) {
-      await this.idempotencyService.set(idempotencyKey, 'status-transition', output, 24);
+      await this.idempotencyService.set(idempotencyKey, 'status-transition', output, 24, undefined, tx);
     }
 
-    return output;
+    // Everything above is the write phase. What follows must not be: it mints and
+    // revokes portal tokens, enqueues jobs on another connection, and wakes a
+    // subscriber that writes to `service_groups` — the row a portal join holds
+    // FOR UPDATE. Running any of it inside the caller's transaction would either
+    // deadlock or leave an unrecallable effect behind if that transaction rolled
+    // back. Order and individual error handling are preserved exactly.
+    return transactionalResult(output, [async () => {
+      // 9. Audit log — capture all fields that changed, resolve names for readability
+      const beforeSnapshot: Record<string, unknown> = { status: appointment.status };
+      const afterSnapshot: Record<string, unknown> = { status: targetStatus };
+      const metadata: Record<string, unknown> = {};
+
+      if (targetStatus === 'SCHEDULED' && inspectorId) {
+        const inspector = await this.inspectorRepo.findById(inspectorId);
+        const inspectorName = inspector?.name ?? inspectorId;
+        afterSnapshot.inspector = inspectorName;
+        metadata.inspectorId = inspectorId;
+        metadata.inspectorName = inspectorName;
+      }
+      if (doneCheckedByUserId) {
+        const reviewer = await this.userRepo.findById(doneCheckedByUserId);
+        afterSnapshot.reviewedBy = reviewer?.name ?? doneCheckedByUserId;
+        metadata.doneCheckedByUserId = doneCheckedByUserId;
+      }
+      if (crossCheckByUserId && targetStatus === 'DONE') {
+        const reviewer = await this.userRepo.findById(crossCheckByUserId);
+        afterSnapshot.reviewedBy = reviewer?.name ?? crossCheckByUserId;
+        metadata.crossCheckByUserId = crossCheckByUserId;
+        metadata.compoundTransition = true;
+      }
+      if (appointment.status === 'DONE' && targetStatus === 'DRAFT') {
+        afterSnapshot.reviewedBy = null;
+      }
+
+      this.auditService.log({
+        action: 'appointment.status_transition',
+        actorType,
+        actorId: isSystemActor ? undefined : actor.userId,
+        entityType: 'Appointment',
+        entityId: appointmentId,
+        tenantId: appointment.tenantId,
+        before: beforeSnapshot,
+        after: afterSnapshot,
+        reason: reason ?? undefined,
+        metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+      });
+
+      // 9b. Side effect: INSP marked DONE without operator cross-check — flag pending review
+      if (targetStatus === 'DONE' && actor.role === 'INSP' && !doneCheckedByUserId && !crossCheckByUserId) {
+        this.auditService.log({
+          action: 'appointment.done_pending_crosscheck',
+          actorType: 'USER',
+          actorId: actor.userId,
+          entityType: 'Appointment',
+          entityId: appointmentId,
+          tenantId: appointment.tenantId,
+          before: { status: appointment.status },
+          after: { status: 'DONE' },
+          metadata: { pendingOperatorCrossCheck: true },
+        });
+      }
+
+      // 9c. Side effect: compound cross-check audit log
+      if (targetStatus === 'DONE' && crossCheckByUserId) {
+        await this.userRepo.findById(crossCheckByUserId);
+        this.auditService.log({
+          action: 'appointment.done_checked',
+          actorType: 'USER',
+          actorId: crossCheckByUserId,
+          entityType: 'Appointment',
+          entityId: appointmentId,
+          tenantId: appointment.tenantId,
+          before: {
+            status: appointment.status,
+            doneCheckedByUserId: null,
+            doneCheckedAt: null,
+          },
+          after: {
+            status: targetStatus,
+            doneCheckedByUserId: crossCheckByUserId,
+            doneCheckedAt: now,
+          },
+          metadata: {
+            event: 'appointment.done_checked',
+            doneByUserId: actor.userId,
+            compoundTransition: true,
+          },
+        });
+      }
+
+      // 9d. Side effect: create financial entries only after operator cross-check
+      if (targetStatus === 'DONE' && (doneCheckedByUserId || crossCheckByUserId) && this.onDoneHandler) {
+        try {
+          await this.onDoneHandler.execute({ appointmentId });
+        } catch {
+          // Log but don't fail — transition is already persisted and audited
+          // Financial entries can be created manually via billing API
+        }
+      }
+
+      // 9e. Side effect: DONE → REJECTED — flag for financial review and emit domain event
+      if (appointment.status === 'DONE' && targetStatus === 'REJECTED') {
+        this.auditService.log({
+          action: 'appointment.done_rejected',
+          actorType: 'USER',
+          actorId: actor.userId,
+          entityType: 'Appointment',
+          entityId: appointmentId,
+          tenantId: appointment.tenantId,
+          before: { status: 'DONE' },
+          after: { status: 'REJECTED' },
+          reason: reason ?? undefined,
+          metadata: { requiresFinancialReview: true },
+        });
+
+        // Emit domain event for financial compensation
+        if (this.domainEventBus) {
+          this.domainEventBus.emit({
+            type: APPOINTMENT_EVENTS.DONE_REJECTED,
+            payload: {
+              appointmentId,
+              tenantId: appointment.tenantId,
+              rejectedByUserId: actor.userId,
+              reason: reason ?? null,
+            },
+            occurredAt: now,
+          }).catch(() => {
+            // fire-and-forget — event bus failure must not affect the transition
+          });
+        }
+      }
+
+      // 9f. Side effect: notifications on transition
+      if (this.onTransitionHandler) {
+        try {
+          await this.onTransitionHandler.execute({
+            appointmentId,
+            notifyRentalTenant,
+            tenantId: appointment.tenantId,
+            previousStatus: appointment.status,
+            targetStatus,
+          });
+        } catch (error) {
+          // Still fire-and-forget: a notification failure must never roll back a
+          // transition the operator already performed. But it must not vanish
+          // either — this used to be a bare `catch {}` that did not even bind the
+          // error, so the transition was audited as healthy while the tenant was
+          // never told and nothing pointed at the appointment.
+          this.auditService.log({
+            action: 'notification.dispatch_failed',
+            actorType: 'SYSTEM',
+            entityType: 'Appointment',
+            entityId: appointmentId,
+            tenantId: appointment.tenantId,
+            after: {
+              previousStatus: appointment.status,
+              targetStatus,
+              // The class, not the message: an error surfacing from the send path
+              // can carry a raw provider string that names the recipient, and an
+              // audit row is immutable and outlives any erasure request. The
+              // message is already on the notification row and in the logs.
+              error: error instanceof Error ? error.constructor.name : 'UnknownError',
+            },
+          });
+        }
+      }
+
+      // 9g. Emit typed domain event for transition
+      if (this.domainEventBus) {
+        const transitionPayload: AppointmentTransitionEvent = {
+          appointmentId,
+          tenantId: appointment.tenantId,
+          fromStatus: appointment.status,
+          toStatus: targetStatus,
+          actorId: actor.userId,
+          actorType,
+          reason: reason ?? undefined,
+          metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+          serviceGroupId: appointment.serviceGroupId,
+        };
+        this.domainEventBus.emit({
+          type: APPOINTMENT_EVENTS.STATUS_TRANSITION,
+          payload: transitionPayload as unknown as Record<string, unknown>,
+          occurredAt: now,
+        }).catch(() => {
+          // fire-and-forget — event bus failure must not affect the transition
+        });
+      }
+
+    }]);
   }
 }

@@ -725,10 +725,6 @@ export interface paths {
                             portalCutoffHour?: number;
                             /** @default 1 */
                             portalCutoffDaysBefore?: number;
-                            /** @default 30 */
-                            inspectionWindowBeforeMinutes?: number;
-                            /** @default 30 */
-                            inspectionWindowAfterMinutes?: number;
                             /** @default 500 */
                             notificationDailyCapEmail?: number;
                             /** @default 100 */
@@ -912,10 +908,6 @@ export interface paths {
                             portalCutoffHour?: number;
                             /** @default 1 */
                             portalCutoffDaysBefore?: number;
-                            /** @default 30 */
-                            inspectionWindowBeforeMinutes?: number;
-                            /** @default 30 */
-                            inspectionWindowAfterMinutes?: number;
                             /** @default 500 */
                             notificationDailyCapEmail?: number;
                             /** @default 100 */

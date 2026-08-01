@@ -34,6 +34,9 @@ import type {
   ServiceTypeFlowType,
 } from '@properfy/shared';
 
+/** Same idiom as prisma-confirmation-cycle.repository.ts — the tx client is a narrowed PrismaClient. */
+type DbClient = PrismaClient | Prisma.TransactionClient;
+
 /**
  * Membership view of the shared `OVERDUE_ELIGIBLE_STATUSES` — `AppointmentFilters.status`
  * is a loose `string[]`, so the intersection has to match on strings. Derived from the
@@ -140,14 +143,20 @@ function mapRestrictionToEntity(row: any): AppointmentRestrictionEntity {
 export class PrismaAppointmentRepository implements IAppointmentRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
+  /** Caller's transaction when supplied, the global client otherwise. */
+  private db(tx?: Prisma.TransactionClient): DbClient {
+    return tx ?? this.prisma;
+  }
+
   async findById(
     id: string,
     tenantId: string | null,
+    tx?: Prisma.TransactionClient,
   ): Promise<AppointmentWithRelations | null> {
     const where: Record<string, unknown> = { id, deleted_at: null };
     if (tenantId) where['tenant_id'] = tenantId;
 
-    const row = await this.prisma.appointment.findFirst({
+    const row = await this.db(tx).appointment.findFirst({
       where,
       include: {
         contacts: true,
@@ -344,6 +353,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       payoutAmount: number;
       pricingRuleSnapshotJson: Record<string, unknown> | null;
     }>,
+    tx?: Prisma.TransactionClient,
   ): Promise<void> {
     const updateData: Record<string, unknown> = {};
     if (data.status !== undefined) updateData['status'] = data.status;
@@ -382,7 +392,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     if (data.payoutAmount !== undefined) updateData['payout_amount'] = data.payoutAmount;
     if (data.pricingRuleSnapshotJson !== undefined) updateData['pricing_rule_snapshot_json'] = data.pricingRuleSnapshotJson;
 
-    await this.prisma.appointment.updateMany({
+    await this.db(tx).appointment.updateMany({
       where: { id, tenant_id: tenantId },
       data: updateData,
     });
