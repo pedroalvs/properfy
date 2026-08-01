@@ -1226,7 +1226,8 @@ describe('SendNotificationUseCase', () => {
 
         it('recognizes an existing mirror by its deterministic notification ID', async () => {
           const sut = makeSut();
-          const source = suppressedRow();
+          const source = suppressedRow('AGENCY_FORWARD_FAILED');
+          source.nextRetryAt = new Date('2026-03-16T09:59:00.000Z');
           const mirrorId = '9a1d6ac5-ef86-517f-9e7a-dc2d96b3ddce';
           const mirror = makeNotification({
             id: mirrorId,

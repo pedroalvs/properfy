@@ -93,6 +93,11 @@ describe('PrismaNotificationRepository.findRetryable', () => {
     });
     await seed({
       status: 'SKIPPED_OPT_OUT',
+      failureReason: 'AGENCYXFORWARDYFAILED',
+      nextRetryAt: DUE,
+    });
+    await seed({
+      status: 'SKIPPED_OPT_OUT',
       failureReason: 'AGENCY_FORWARD_FAILED',
       retryCount: 1,
       nextRetryAt: FUTURE,

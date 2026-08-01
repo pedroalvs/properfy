@@ -123,7 +123,8 @@ export class PrismaNotificationRepository implements INotificationRepository {
             next_retry_at: { lte: now },
             OR: [
               { failure_reason: 'AGENCY_TENANT_NOTIFICATIONS_DISABLED' },
-              { failure_reason: { startsWith: 'AGENCY_FORWARD_' } },
+              // Prisma translates startsWith to LIKE; escape `_` so it stays literal.
+              { failure_reason: { startsWith: 'AGENCY\\_FORWARD\\_' } },
             ],
           },
         ],
