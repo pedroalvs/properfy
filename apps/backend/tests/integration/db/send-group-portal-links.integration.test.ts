@@ -19,9 +19,12 @@ import { setupDbHarness, teardownDbHarness, type DbHarness } from './harness';
 import { seedTenant } from '../service-region/helpers/service-region-fixtures';
 import { PrismaServiceGroupRepository } from '../../../src/modules/service-group/infrastructure/prisma-service-group.repository';
 import { SendGroupPortalLinksUseCase } from '../../../src/modules/service-group/application/use-cases/send-group-portal-links.use-case';
+import { PrismaConfirmationCycleRepository } from '../../../src/modules/appointment/infrastructure/prisma-confirmation-cycle.repository';
+import { ConfirmationCycleService } from '../../../src/modules/appointment/application/services/confirmation-cycle.service';
+import { PrismaAppointmentRepository } from '../../../src/modules/appointment/infrastructure/prisma-appointment.repository';
+import { PrismaTenantRepository } from '../../../src/modules/tenant/infrastructure/prisma-tenant.repository';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
-import type { GeneratePortalTokenUseCase } from '../../../src/modules/rental-tenant-portal/application/use-cases/generate-portal-token.use-case';
-import type { ConfirmationCycleService } from '../../../src/modules/appointment/application/services/confirmation-cycle.service';
+import { GeneratePortalTokenUseCase } from '../../../src/modules/rental-tenant-portal/application/use-cases/generate-portal-token.use-case';
 import type { IIdempotencyService } from '../../../src/shared/domain/idempotency.service';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
@@ -200,5 +203,136 @@ describe('group Send portal link — real DB', () => {
     const amOut = await useCase.execute({ groupId, actor: makeActor({ role: 'AM', tenantId: null }) });
     expect(new Set(amOut.results.map((r) => r.appointmentId))).toEqual(new Set([apptA, apptB]));
     expect(generatePortalToken.execute).toHaveBeenCalledTimes(2);
+  });
+
+  it('rolls back a stale-confirmation reset when the agency blocks notifications after classification', async () => {
+    const { tenantId, userId } = await seedTenant(harness.prisma, 'Agency policy race');
+    const branchId = await getBranchId(harness.prisma, tenantId);
+    const serviceTypeId = await seedServiceType(harness.prisma);
+    const groupId = await seedGroup(harness.prisma, serviceTypeId, userId);
+    const appointmentId = await seedAppointment(harness.prisma, {
+      tenantId,
+      branchId,
+      propertyId: await seedProperty(harness.prisma, tenantId, branchId),
+      serviceTypeId,
+      createdByUserId: userId,
+      groupId,
+      rentalTenantConfirmationStatus: 'CONFIRMED',
+      scheduledDate: STALE_DATE,
+      activeCycle: { scheduledDate: SCHEDULED_DATE, timeSlot: SLOT, status: 'CONFIRMED' },
+    });
+    const before = await harness.prisma.appointment.findUniqueOrThrow({
+      where: { id: appointmentId },
+      select: { active_confirmation_cycle_id: true },
+    });
+
+    const auditService = { log: vi.fn() } as unknown as AuditService;
+    const cycleService = new ConfirmationCycleService(
+      new PrismaConfirmationCycleRepository(harness.prisma),
+      auditService,
+      harness.prisma,
+    );
+    const mint = { mint: vi.fn() };
+    const generatePortalToken = new GeneratePortalTokenUseCase(
+      {} as never,
+      new PrismaAppointmentRepository(harness.prisma),
+      new PrismaTenantRepository(harness.prisma),
+      mint as never,
+      auditService,
+      'https://portal.test',
+      undefined,
+      cycleService,
+      harness.prisma,
+    );
+    const groupRepoWithPolicyFlip = {
+      findById: repo.findById.bind(repo),
+      findGroupAppointmentsWithConfirmation: async (id: string) => {
+        // Preserve the enabled snapshot, then commit the real setting flip
+        // before classification hands SEND_AFTER_RESET to the transaction.
+        const rows = await repo.findGroupAppointmentsWithConfirmation(id);
+        await harness.prisma.tenant.update({
+          where: { id: tenantId },
+          data: {
+            settings_json: {
+              rentalTenantNotificationsEnabled: false,
+              emailSendingEnabled: false,
+            },
+          },
+        });
+        return rows;
+      },
+    } as unknown as PrismaServiceGroupRepository;
+    const idempotency = {
+      getWithHash: vi.fn().mockResolvedValue(null),
+      set: vi.fn(),
+    } as unknown as IIdempotencyService;
+    const useCase = new SendGroupPortalLinksUseCase(
+      groupRepoWithPolicyFlip,
+      generatePortalToken,
+      cycleService,
+      idempotency,
+      auditService,
+      new AuthorizationService(auditService),
+      undefined,
+      harness.prisma,
+    );
+
+    const result = await useCase.execute({ groupId, actor: makeActor({ role: 'AM' }) });
+
+    expect(result.results).toEqual([
+      { appointmentId, status: 'TENANT_NOTIFICATIONS_BLOCKED' },
+    ]);
+    const after = await harness.prisma.appointment.findUniqueOrThrow({
+      where: { id: appointmentId },
+      select: {
+        active_confirmation_cycle_id: true,
+        rental_tenant_confirmation_status: true,
+        confirmation_cycles: {
+          orderBy: { cycle_number: 'asc' },
+          select: { id: true, status: true },
+        },
+      },
+    });
+    expect(after.active_confirmation_cycle_id).toBe(before.active_confirmation_cycle_id);
+    expect(after.rental_tenant_confirmation_status).toBe('CONFIRMED');
+    expect(after.confirmation_cycles).toEqual([
+      { id: before.active_confirmation_cycle_id, status: 'CONFIRMED' },
+    ]);
+    expect(mint.mint).not.toHaveBeenCalled();
+    const cycleAuditActions = (auditService.log as ReturnType<typeof vi.fn>).mock.calls
+      .map(([entry]) => entry.action)
+      .filter((action: string) => action.startsWith('appointment_confirmation_cycle.'));
+    expect(cycleAuditActions).toEqual([]);
+  });
+
+  it('holds the tenant notification-policy row lock until the transaction commits', async () => {
+    const { tenantId } = await seedTenant(harness.prisma, 'Agency policy lock');
+    const tenantRepo = new PrismaTenantRepository(harness.prisma);
+    let updatePromise: ReturnType<PrismaClient['tenant']['update']> | undefined;
+    let boundaryOutcome = '';
+
+    await harness.prisma.$transaction(async (tx) => {
+      const tenant = await tenantRepo.findById(tenantId, tx, true);
+      expect(tenant).not.toBeNull();
+
+      updatePromise = harness.prisma.tenant.update({
+        where: { id: tenantId },
+        data: {
+          settings_json: {
+            rentalTenantNotificationsEnabled: false,
+            emailSendingEnabled: false,
+          },
+        },
+      });
+      boundaryOutcome = await Promise.race([
+        updatePromise.then(() => 'updated'),
+        new Promise<string>((resolve) => setTimeout(() => resolve('blocked'), 100)),
+      ]);
+    });
+
+    expect(boundaryOutcome).toBe('blocked');
+    await updatePromise;
+    const updated = await harness.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } });
+    expect(updated.settings_json).toMatchObject({ rentalTenantNotificationsEnabled: false });
   });
 });

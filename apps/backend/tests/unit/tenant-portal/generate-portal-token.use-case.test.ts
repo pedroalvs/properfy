@@ -372,6 +372,30 @@ describe('GeneratePortalTokenUseCase', () => {
       await expect(useCase.execute(makeInput())).rejects.toThrow(ConflictError);
     });
 
+    it('uses the caller transaction for the authoritative policy read', async () => {
+      const tx = { kind: 'caller-transaction' };
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment(),
+        contact: null,
+        restrictions: [],
+        tenantRentalTenantNotificationsEnabled: true,
+      });
+      // Deliberately stale joined data: the locked tenant row is authoritative
+      // when the setting flips during a group resend.
+      tenantRepo.findById.mockResolvedValue(makeTenant({
+        settingsJson: { rentalTenantNotificationsEnabled: false },
+      }));
+
+      await expect(useCase.executeInTransaction(makeInput(), {
+        tx: tx as never,
+        defer: vi.fn(),
+      })).rejects.toMatchObject({ code: 'TENANT_NOTIFICATIONS_BLOCKED' });
+
+      expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', null, tx);
+      expect(tenantRepo.findById).toHaveBeenCalledWith('tenant-1', tx, true);
+      expect(mintPortalTokenService.mint).not.toHaveBeenCalled();
+    });
+
     it('should still mint when notify is false, so Copy portal link keeps working', async () => {
       // The generate-and-copy path dispatches nothing, so the block does not apply —
       // this is the operator's escape hatch for a blocked agency.

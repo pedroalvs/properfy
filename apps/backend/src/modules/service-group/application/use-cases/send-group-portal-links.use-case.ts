@@ -1,3 +1,4 @@
+import type { PrismaClient } from '@prisma/client';
 import type { AuthContext, SendGroupPortalLinksResultItem } from '@properfy/shared';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
 import type { GeneratePortalTokenUseCase } from '../../../rental-tenant-portal/application/use-cases/generate-portal-token.use-case';
@@ -9,6 +10,9 @@ import { NotFoundError } from '../../../../shared/domain/errors';
 import { classifyPortalLinkAction } from '../../../appointment/domain/portal-link-eligibility';
 import { isTenantNotificationsBlockedError } from '../../../appointment/domain/tenant-notifications-blocked';
 import { dayKeyInTz } from '../../../appointment/application/use-cases/bulk-action-shared';
+import { runInTransaction } from '../../../../shared/application/unit-of-work';
+import { retryOnUniqueConflict } from '../../../../shared/domain/retry-on-unique-conflict';
+import { TOKEN_HASH_COLUMN } from '../../../rental-tenant-portal/domain/mint-portal-token.service';
 
 // EXACT reuse of the bulk-resend idempotency bucket: a same-day reminder already
 // sent (from the map bulk flow or a prior group click) is a no-op here too —
@@ -51,10 +55,9 @@ export interface SendGroupPortalLinksOutput {
  *     a reminder went out earlier today — but still WRITES the cache so a second
  *     same-day click is an IDEMPOTENT_REPLAY.
  *
- * `rotateOnDateChange` and `GeneratePortalTokenUseCase` each open their own
- * transaction; they are not atomic with each other. If the dispatch throws after
- * the rotate committed, the item is ERROR (not cached) and a retry re-classifies
- * the now-PENDING appointment as a plain SEND — self-healing.
+ * For SEND_AFTER_RESET, the current policy check, cycle rotation, token mint and
+ * cycle link share one transaction. Result-bearing notification creation runs
+ * after commit; a blocked policy or mint failure therefore cannot leak a reset.
  */
 export class SendGroupPortalLinksUseCase {
   constructor(
@@ -65,6 +68,7 @@ export class SendGroupPortalLinksUseCase {
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
     private readonly clock: () => Date = () => new Date(),
+    private readonly prisma?: PrismaClient,
   ) {}
 
   async execute(input: SendGroupPortalLinksInput): Promise<SendGroupPortalLinksOutput> {
@@ -143,17 +147,44 @@ export class SendGroupPortalLinksUseCase {
       }
 
       try {
-        if (action === 'SEND_AFTER_RESET') {
-          await this.cycleService.rotateOnDateChange(
-            row.id,
-            row.tenantId,
-            row.scheduledDate,
-            row.timeSlot,
-            'DATE_CHANGED',
+        let dispatch;
+        if (action === 'SEND_AFTER_RESET' && this.prisma) {
+          // The first policy read prevents a known-blocked agency from being
+          // reset at all. The full generator rechecks after the uncommitted
+          // rotation, so a concurrent flip at that boundary throws and rolls
+          // back the reset, token writes and cycle link together.
+          const prepared = await retryOnUniqueConflict(
+            TOKEN_HASH_COLUMN,
+            () => runInTransaction(this.prisma, async (ctx) => {
+              const generateInput = { appointmentId: row.id, actor: input.actor };
+              await this.generatePortalToken.assertNotificationPolicyInTransaction(generateInput, ctx);
+              await this.cycleService.rotateOnDateChange(
+                row.id,
+                row.tenantId,
+                row.scheduledDate,
+                row.timeSlot,
+                'DATE_CHANGED',
+                ctx.tx,
+                ctx.defer,
+              );
+              return this.generatePortalToken.executeInTransaction(generateInput, ctx);
+            }),
           );
+          dispatch = await prepared.runAfterCommit();
+        } else {
+          // Optional Prisma preserves the pre-existing lightweight construction
+          // used by isolated unit tests and non-container consumers.
+          if (action === 'SEND_AFTER_RESET') {
+            await this.cycleService.rotateOnDateChange(
+              row.id,
+              row.tenantId,
+              row.scheduledDate,
+              row.timeSlot,
+              'DATE_CHANGED',
+            );
+          }
+          dispatch = await this.generatePortalToken.execute({ appointmentId: row.id, actor: input.actor });
         }
-
-        const dispatch = await this.generatePortalToken.execute({ appointmentId: row.id, actor: input.actor });
 
         if (dispatch.dispatched === false) {
           if (dispatch.reason === 'NO_PRIMARY_CONTACT') {

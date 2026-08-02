@@ -25,6 +25,16 @@ export interface TransactionalResult<T> {
   runAfterCommit(): Promise<void>;
 }
 
+/**
+ * A result that can only be computed by the after-commit work itself (for
+ * example, whether notification enqueueing succeeded). Unlike
+ * `TransactionalResult`, there is no pre-commit output to expose.
+ */
+export interface AfterCommitResult<T> {
+  /** Runs once; repeated calls share the first completion and result. */
+  runAfterCommit(): Promise<T>;
+}
+
 export interface TxContext {
   /** Absent when running unwrapped — callees should treat that as "use the global client". */
   readonly tx?: Prisma.TransactionClient;
@@ -48,6 +58,16 @@ export function transactionalResult<T>(
       for (const effect of effects) {
         await effect();
       }
+    },
+  };
+}
+
+export function afterCommitResult<T>(effect: () => Promise<T>): AfterCommitResult<T> {
+  let completion: Promise<T> | undefined;
+  return {
+    runAfterCommit: () => {
+      completion ??= effect();
+      return completion;
     },
   };
 }

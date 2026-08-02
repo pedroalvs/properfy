@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import type { TenantEntity } from './tenant.entity';
 
 export interface TenantFilters {
@@ -13,7 +14,11 @@ export interface PaginationParams {
 }
 
 export interface ITenantRepository {
-  findById(id: string): Promise<TenantEntity | null>;
+  findById(
+    id: string,
+    tx?: Prisma.TransactionClient,
+    lockForUpdate?: boolean,
+  ): Promise<TenantEntity | null>;
   findByLegalName(legalName: string): Promise<TenantEntity | null>;
   findByAppointmentCodePrefix(prefix: string): Promise<TenantEntity | null>;
   findAll(

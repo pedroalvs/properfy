@@ -976,6 +976,8 @@ export function createContainer(logger: Logger): AppContainer {
     idempotencyService,
     auditService,
     authorizationService,
+    undefined,
+    prisma,
   );
 
   const changeGroupInspectorUseCase = new ChangeGroupInspectorUseCase(

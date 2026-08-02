@@ -176,6 +176,66 @@ describe('SendGroupPortalLinksUseCase', () => {
     );
   });
 
+  it('commits a transactional SEND_AFTER_RESET before running its result-bearing dispatch', async () => {
+    const events: string[] = [];
+    const tx = { kind: 'tx' };
+    const prisma = {
+      $transaction: vi.fn(async (fn: (client: unknown) => Promise<unknown>) => {
+        events.push('transaction:start');
+        const result = await fn(tx);
+        events.push('transaction:commit');
+        return result;
+      }),
+    };
+    const runAfterCommit = vi.fn(async () => {
+      events.push('dispatch');
+      return { dispatched: true as const, token: 't', expiresAt: new Date() };
+    });
+    const generatePortalToken = {
+      execute: vi.fn(),
+      assertNotificationPolicyInTransaction: vi.fn().mockResolvedValue(undefined),
+      executeInTransaction: vi.fn().mockResolvedValue({ runAfterCommit }),
+    } as unknown as GeneratePortalTokenUseCase;
+    const cycleService = {
+      rotateOnDateChange: vi.fn().mockResolvedValue(undefined),
+    } as unknown as ConfirmationCycleService;
+    const useCase = new SendGroupPortalLinksUseCase(
+      m.groupRepo as unknown as IServiceGroupRepository,
+      generatePortalToken,
+      cycleService,
+      m.idempotency,
+      m.auditService,
+      new AuthorizationService(m.auditService),
+      () => FIXED_NOW,
+      prisma as never,
+    );
+    m.groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([
+      row({
+        id: 'stale',
+        rentalTenantConfirmationStatus: 'CONFIRMED',
+        scheduledDate: DATE_B,
+        activeCycle: { scheduledDate: DATE_A, timeSlot: SLOT, status: 'CONFIRMED' },
+      }),
+    ]);
+
+    const out = await useCase.execute({ groupId: 'group-1', actor: makeActor() });
+
+    expect(out.results).toEqual([{ appointmentId: 'stale', status: 'DATE_CHANGED_RESENT' }]);
+    expect(generatePortalToken.execute).not.toHaveBeenCalled();
+    expect(generatePortalToken.assertNotificationPolicyInTransaction).toHaveBeenCalledTimes(1);
+    expect(generatePortalToken.executeInTransaction).toHaveBeenCalledTimes(1);
+    expect(cycleService.rotateOnDateChange).toHaveBeenCalledWith(
+      'stale',
+      'tenant-1',
+      DATE_B,
+      SLOT,
+      'DATE_CHANGED',
+      tx,
+      expect.any(Function),
+    );
+    expect(events).toEqual(['transaction:start', 'transaction:commit', 'dispatch']);
+  });
+
   it('isolates a per-item error and continues the batch', async () => {
     m.groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([
       row({ id: 'a1' }),
