@@ -869,7 +869,7 @@ describe('Tenant Availability action', () => {
 
   it('opens the dialog without the decline checkbox for CL_ADMIN', () => {
     mockUserRole = 'CL_ADMIN';
-    renderPage();
+    renderPage('/appointments/awaiting');
     fireEvent.click(screen.getByTestId('set-tenant-availability-button'));
 
     expect(screen.getByRole('heading', { name: /set tenant availability/i })).toBeInTheDocument();
