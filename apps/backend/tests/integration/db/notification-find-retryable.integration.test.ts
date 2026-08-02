@@ -82,6 +82,12 @@ describe('PrismaNotificationRepository.findRetryable', () => {
 
   it('excludes consent opt-outs, unrelated skipped rows, and agency rows not yet due', async () => {
     await seed({
+      status: 'PENDING',
+      failureReason: 'initial enqueue pending',
+      retryCount: 0,
+      nextRetryAt: DUE,
+    });
+    await seed({
       status: 'SKIPPED_OPT_OUT',
       failureReason: 'CONSENT_OPT_OUT',
       nextRetryAt: DUE,

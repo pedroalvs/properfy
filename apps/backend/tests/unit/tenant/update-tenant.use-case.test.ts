@@ -217,7 +217,7 @@ describe('UpdateTenantUseCase', () => {
     });
   });
 
-  it('gives the replacement setting precedence and repairs conflicts on update', async () => {
+  it('fails closed and repairs conflicting notification settings on update', async () => {
     vi.mocked(tenantRepo.findById).mockResolvedValue(
       makeTenant({ settingsJson: { emailSendingEnabled: false } }),
     );
@@ -235,8 +235,8 @@ describe('UpdateTenantUseCase', () => {
 
     const updateCall = vi.mocked(tenantRepo.update).mock.calls[0]![1]!;
     expect(updateCall.settingsJson).toEqual({
-      rentalTenantNotificationsEnabled: true,
-      emailSendingEnabled: true,
+      rentalTenantNotificationsEnabled: false,
+      emailSendingEnabled: false,
     });
   });
 

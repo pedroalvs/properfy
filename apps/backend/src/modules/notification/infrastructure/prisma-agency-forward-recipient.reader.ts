@@ -3,6 +3,7 @@ import type {
   AgencyForwardLookup,
   AgencyForwardRecipientReader,
 } from '../domain/agency-forward';
+import { AppointmentCodeFormatter } from '../../appointment/domain/appointment-code.formatter';
 
 /**
  * Resolves the branch contact that receives the mirror of a rental-tenant message
@@ -19,7 +20,7 @@ import type {
  * neither the occupant nor the agency will ever hear about the inspection — the exact
  * failure this feature exists to prevent, and something someone has to go fix.
  *
- * Also returns `propertyAddress` and `appointmentNumber`: a mirror triggered by a
+ * Also returns `propertyAddress` and `appointmentCode`: a mirror triggered by a
  * suppressed SMS inherits only the SMS payload, which carries no address, so the mirror's
  * subject would otherwise render as "Tenant notice not sent - " with a dangling separator.
  *
@@ -56,7 +57,7 @@ export function createAgencyForwardRecipientReader(
         propertyAddress: property
           ? `${property.street}, ${property.suburb} ${property.state} ${property.postcode}`
           : '',
-        appointmentCode: `${prefix}-${String(row.appointment_number).padStart(4, '0')}`,
+        appointmentCode: AppointmentCodeFormatter.formatParts(row.appointment_number, prefix),
       },
     };
   };

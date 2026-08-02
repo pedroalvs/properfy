@@ -24,6 +24,7 @@ const FAILURE_REASON_LABELS: Record<string, string> = {
   AGENCY_FORWARD_NO_BRANCH_EMAIL: 'Agency does not notify tenants — NOT forwarded: the branch has no contact email',
   AGENCY_FORWARD_APPOINTMENT_NOT_FOUND: 'Agency does not notify tenants — NOT forwarded: appointment unavailable',
   AGENCY_FORWARD_NO_APPOINTMENT: 'Agency does not notify tenants — NOT forwarded: no linked appointment',
+  AGENCY_FORWARD_NO_TENANT: 'Agency does not notify tenants — NOT forwarded: no linked agency',
   AGENCY_FORWARD_FAILED: 'Agency does not notify tenants — forwarding to the branch contact failed',
   CONSENT_OPT_OUT: 'Recipient opted out of this notification class',
   TEMPLATE_NOT_FOUND: 'No template exists for this code and channel',

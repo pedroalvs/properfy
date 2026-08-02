@@ -50,7 +50,12 @@ export interface INotificationRepository {
     keys: readonly string[],
     replacement: string,
   ): Promise<void>;
-  existsByAppointmentAndTemplate(appointmentId: string, templateCode: string): Promise<boolean>;
+  /** Lifetime dedupe scoped by both appointment and tenant. */
+  existsByAppointmentAndTemplate(
+    appointmentId: string,
+    templateCode: string,
+    tenantId: string,
+  ): Promise<boolean>;
   /**
    * Most recently created notification for the appointment among `templateCodes`,
    * or null when none exists. Backs occurrence-scoped dedupe — "what was the

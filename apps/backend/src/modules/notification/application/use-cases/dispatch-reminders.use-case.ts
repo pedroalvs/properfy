@@ -72,6 +72,7 @@ export class DispatchRemindersUseCase {
           const alreadySent = await this.notificationRepo.existsByAppointmentAndTemplate(
             appointment.id,
             leg.code,
+            appointment.tenantId,
           );
           if (alreadySent) {
             skipped++;

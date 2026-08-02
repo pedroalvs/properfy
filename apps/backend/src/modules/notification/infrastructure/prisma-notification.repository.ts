@@ -6,6 +6,11 @@ import type {
   NotificationFilters,
   NotificationPagination,
 } from '../domain/notification.repository';
+import {
+  AGENCY_FORWARD_FAILURE_REASON_PREFIX,
+  AGENCY_FORWARD_TEMPLATE_CODE,
+  AGENCY_TENANT_NOTIFICATIONS_DISABLED,
+} from '../domain/notification.constants';
 
 function mapToEntity(row: any): NotificationEntity {
   return new NotificationEntity({
@@ -71,6 +76,9 @@ function buildWhereClause(filters: NotificationFilters): Record<string, unknown>
  */
 const NOT_SUPPRESSED = { status: { not: 'SKIPPED_OPT_OUT' } } as const;
 
+// Prisma translates startsWith to SQL LIKE, where '_' and '%' are wildcards.
+const AGENCY_FORWARD_LIKE_PREFIX = AGENCY_FORWARD_FAILURE_REASON_PREFIX.replace(/[\\%_]/g, '\\$&');
+
 export class PrismaNotificationRepository implements INotificationRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -122,9 +130,8 @@ export class PrismaNotificationRepository implements INotificationRepository {
             status: 'SKIPPED_OPT_OUT',
             next_retry_at: { lte: now },
             OR: [
-              { failure_reason: 'AGENCY_TENANT_NOTIFICATIONS_DISABLED' },
-              // Prisma translates startsWith to LIKE; escape `_` so it stays literal.
-              { failure_reason: { startsWith: 'AGENCY\\_FORWARD\\_' } },
+              { failure_reason: AGENCY_TENANT_NOTIFICATIONS_DISABLED },
+              { failure_reason: { startsWith: AGENCY_FORWARD_LIKE_PREFIX } },
             ],
           },
         ],
@@ -215,10 +222,15 @@ export class PrismaNotificationRepository implements INotificationRepository {
     return result.count === 1;
   }
 
-  async existsByAppointmentAndTemplate(appointmentId: string, templateCode: string): Promise<boolean> {
+  async existsByAppointmentAndTemplate(
+    appointmentId: string,
+    templateCode: string,
+    tenantId: string,
+  ): Promise<boolean> {
     const count = await this.prisma.notification.count({
       where: {
         appointment_id: appointmentId,
+        tenant_id: tenantId,
         template_code: templateCode,
         ...NOT_SUPPRESSED,
       },
@@ -285,7 +297,7 @@ export class PrismaNotificationRepository implements INotificationRepository {
         // Mirrors are a consequence of suppression, not tenant-driven volume: one is
         // created per withheld message, so counting them would let the mirror traffic
         // exhaust the very cap that then blocks the agency's own mail.
-        template_code: { not: 'TENANT_NOTICE_FORWARDED_AGENCY' },
+        template_code: { not: AGENCY_FORWARD_TEMPLATE_CODE },
       },
     });
   }

@@ -41,8 +41,8 @@ export function isRentalTenantNotificationsEnabled(
 
 /**
  * Normalizes an incoming settings patch for mixed-version clients and pods.
- * The replacement key wins when both incoming values are booleans; either recognized
- * key is then written to both names so the persisted blob cannot stay conflicted.
+ * Conflicting boolean values fail closed; either recognized key is then written to both
+ * names so the persisted blob cannot stay conflicted.
  */
 export function normalizeRentalTenantNotificationSettings(
   settings: Record<string, unknown>,
@@ -53,9 +53,13 @@ export function normalizeRentalTenantNotificationSettings(
     settings,
     RENTAL_TENANT_NOTIFICATIONS_SETTING_KEY,
   );
-  const normalizedValue = hasReplacementValue
-    ? typeof replacementValue === 'boolean' ? replacementValue : undefined
-    : typeof legacyValue === 'boolean' ? legacyValue : undefined;
+  const hasBooleanReplacementValue = typeof replacementValue === 'boolean';
+  const hasBooleanLegacyValue = typeof legacyValue === 'boolean';
+  const normalizedValue = hasBooleanReplacementValue && hasBooleanLegacyValue
+    ? replacementValue === legacyValue ? replacementValue : false
+    : hasReplacementValue
+      ? hasBooleanReplacementValue ? replacementValue : undefined
+      : hasBooleanLegacyValue ? legacyValue : undefined;
 
   if (normalizedValue === undefined) return settings;
 

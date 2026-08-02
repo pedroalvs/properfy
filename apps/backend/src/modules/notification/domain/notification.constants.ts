@@ -27,6 +27,12 @@ export {
  */
 export const AGENCY_FORWARD_TEMPLATE_CODE = 'TENANT_NOTICE_FORWARDED_AGENCY';
 
+/** Reason recorded when an agency disables rental-tenant notifications. */
+export const AGENCY_TENANT_NOTIFICATIONS_DISABLED = 'AGENCY_TENANT_NOTIFICATIONS_DISABLED';
+
+/** Prefix shared by recoverable agency-forward failure reasons. */
+export const AGENCY_FORWARD_FAILURE_REASON_PREFIX = 'AGENCY_FORWARD_';
+
 // Retry/backoff constants remain backend-only (not consumed by any frontend).
 
 // Retry delays in milliseconds: 15s, 45s, 2min, 5min, 15min

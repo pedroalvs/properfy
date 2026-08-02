@@ -254,6 +254,10 @@ describe('SendGroupPortalLinksUseCase', () => {
       ]);
       // The blocked row never reaches the dispatcher at all.
       expect(m.generatePortalToken.execute).toHaveBeenCalledTimes(2);
+      expect(m.auditService.log).toHaveBeenCalledWith(expect.objectContaining({
+        action: 'service_group.portal_links_sent',
+        metadata: expect.objectContaining({ tenantNotificationsBlocked: 1 }),
+      }));
     });
 
     it('does not cache a blocked row, so flipping the setting allows a same-day retry', async () => {

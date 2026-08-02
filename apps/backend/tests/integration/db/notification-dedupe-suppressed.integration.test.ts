@@ -21,6 +21,7 @@ import { PrismaNotificationRepository } from '../../../src/modules/notification/
 let harness: DbHarness;
 let repo: PrismaNotificationRepository;
 let tenantId: string;
+let otherTenantId: string;
 // `notifications.appointment_id` is a real FK, so the rows need a real appointment.
 let appointmentId: string;
 
@@ -43,6 +44,13 @@ beforeEach(async () => {
   );
   const seeded = await seedTenant(harness.prisma, `Dedupe Agency ${rand()}`);
   tenantId = seeded.tenantId;
+  otherTenantId = (await harness.prisma.tenant.create({
+    data: {
+      name: `Other Dedupe Agency ${rand()}`,
+      legal_name: `Other Dedupe Agency ${rand()} Pty Ltd`,
+      status: 'ACTIVE',
+    },
+  })).id;
 
   const branch = await harness.prisma.branch.findFirstOrThrow({ where: { tenant_id: tenantId } });
   const serviceType = await harness.prisma.serviceType.create({
@@ -90,10 +98,11 @@ async function seed(
   status: 'PENDING' | 'SENT' | 'DELIVERED' | 'FAILED' | 'SKIPPED' | 'SKIPPED_OPT_OUT',
   templateCode = 'INSPECTION_NOTICE',
   failureReason: string | null = null,
+  notificationTenantId = tenantId,
 ): Promise<string> {
   const row = await harness.prisma.notification.create({
     data: {
-      tenant_id: tenantId,
+      tenant_id: notificationTenantId,
       appointment_id: appointmentId,
       recipient: 'tenant@example.com',
       channel: 'EMAIL',
@@ -107,11 +116,24 @@ async function seed(
 }
 
 describe('send-dedupe predicates ignore suppressed rows', () => {
+  it('does not let another tenant\'s malformed notification row satisfy any appointment dedupe lookup', async () => {
+    // A notification can be imported/repaired independently from its appointment, so every
+    // repository predicate must enforce its own tenant scope rather than trust the FK alone.
+    await seed('SENT', 'REMINDER_7_DAYS', null, otherTenantId);
+    const codes = ['REMINDER_7_DAYS'] as const;
+
+    expect(
+      await repo.existsByAppointmentAndTemplate(appointmentId, 'REMINDER_7_DAYS', tenantId),
+    ).toBe(false);
+    expect(await repo.existsByAppointmentAndTemplates(appointmentId, tenantId, codes)).toBe(false);
+    expect(await repo.findLatestByAppointmentAndTemplates(appointmentId, tenantId, codes)).toBeNull();
+  });
+
   describe('existsByAppointmentAndTemplate (reminders, escalations, portal-action)', () => {
     it('does not count a row suppressed by the agency switch', async () => {
       await seed('SKIPPED_OPT_OUT', 'REMINDER_7_DAYS', 'AGENCY_TENANT_NOTIFICATIONS_DISABLED');
 
-      expect(await repo.existsByAppointmentAndTemplate(appointmentId, 'REMINDER_7_DAYS')).toBe(false);
+      expect(await repo.existsByAppointmentAndTemplate(appointmentId, 'REMINDER_7_DAYS', tenantId)).toBe(false);
     });
 
     it('does not count a row suppressed by recipient consent either', async () => {
@@ -119,7 +141,7 @@ describe('send-dedupe predicates ignore suppressed rows', () => {
       // invisible because consent opt-outs are effectively never reversed.
       await seed('SKIPPED_OPT_OUT', 'REMINDER_7_DAYS', 'CONSENT_OPT_OUT');
 
-      expect(await repo.existsByAppointmentAndTemplate(appointmentId, 'REMINDER_7_DAYS')).toBe(false);
+      expect(await repo.existsByAppointmentAndTemplate(appointmentId, 'REMINDER_7_DAYS', tenantId)).toBe(false);
     });
 
     it.each(['PENDING', 'SENT', 'DELIVERED', 'FAILED'] as const)(
@@ -127,7 +149,7 @@ describe('send-dedupe predicates ignore suppressed rows', () => {
       async (status) => {
         await seed(status, 'REMINDER_7_DAYS');
 
-        expect(await repo.existsByAppointmentAndTemplate(appointmentId, 'REMINDER_7_DAYS')).toBe(true);
+        expect(await repo.existsByAppointmentAndTemplate(appointmentId, 'REMINDER_7_DAYS', tenantId)).toBe(true);
       },
     );
 
@@ -135,7 +157,7 @@ describe('send-dedupe predicates ignore suppressed rows', () => {
       await seed('SKIPPED_OPT_OUT', 'REMINDER_7_DAYS', 'AGENCY_TENANT_NOTIFICATIONS_DISABLED');
       await seed('SENT', 'REMINDER_7_DAYS');
 
-      expect(await repo.existsByAppointmentAndTemplate(appointmentId, 'REMINDER_7_DAYS')).toBe(true);
+      expect(await repo.existsByAppointmentAndTemplate(appointmentId, 'REMINDER_7_DAYS', tenantId)).toBe(true);
     });
   });
 

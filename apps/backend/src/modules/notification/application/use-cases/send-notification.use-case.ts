@@ -29,6 +29,8 @@ import {
   SENSITIVE_PAYLOAD_KEYS,
   REDACTED_PAYLOAD_VALUE,
   AGENCY_FORWARD_TEMPLATE_CODE,
+  AGENCY_TENANT_NOTIFICATIONS_DISABLED,
+  AGENCY_FORWARD_FAILURE_REASON_PREFIX,
   getTemplateTarget,
   getTemplateCodeLabel,
 } from '../../domain/notification.constants';
@@ -37,9 +39,6 @@ import {
   getAgencyForwardNotificationId,
   type AgencyForwardRecipientReader,
 } from '../../domain/agency-forward';
-
-/** failure_reason stamped on an occupant message withheld by the agency switch. */
-const SUPPRESSED_REASON = 'AGENCY_TENANT_NOTIFICATIONS_DISABLED';
 
 /**
  * Reason codes this pipeline sets itself. Everything else on the failure path is
@@ -224,8 +223,8 @@ export class SendNotificationUseCase {
     // Covers both the initial reason and a previously-recorded mirror failure, so a
     // transient lookup failure gets another chance if a redelivery does occur.
     if (
-      notification.failureReason !== SUPPRESSED_REASON &&
-      !notification.failureReason?.startsWith('AGENCY_FORWARD_')
+      notification.failureReason !== AGENCY_TENANT_NOTIFICATIONS_DISABLED &&
+      !notification.failureReason?.startsWith(AGENCY_FORWARD_FAILURE_REASON_PREFIX)
     ) {
       return 'NOT_RECOVERABLE';
     }
@@ -237,7 +236,7 @@ export class SendNotificationUseCase {
   }
 
   private completeAgencyForwardRecovery(notification: NotificationEntity): void {
-    notification.failureReason = SUPPRESSED_REASON;
+    notification.failureReason = AGENCY_TENANT_NOTIFICATIONS_DISABLED;
     notification.nextRetryAt = null;
     notification.updatedAt = new Date();
   }
@@ -319,7 +318,7 @@ export class SendNotificationUseCase {
           'notification.agency_forward_skipped',
         );
         this.metrics.incrementAgencyForwardFailedCount();
-        return `AGENCY_FORWARD_${lookup.reason}`;
+        return `${AGENCY_FORWARD_FAILURE_REASON_PREFIX}${lookup.reason}`;
       }
 
       const { recipient } = lookup;
@@ -477,7 +476,7 @@ export class SendNotificationUseCase {
       tenantSettings = await this.getTenantSettings(notification.tenantId);
       if (!isRentalTenantNotificationsEnabled(tenantSettings)) {
         notification.status = 'SKIPPED_OPT_OUT';
-        notification.failureReason = SUPPRESSED_REASON;
+        notification.failureReason = AGENCY_TENANT_NOTIFICATIONS_DISABLED;
         notification.nextRetryAt = calculateNextRetryAt(notification.retryCount);
         notification.updatedAt = new Date();
         // Persisted BEFORE the mirror with a recovery deadline: a crash in between can never

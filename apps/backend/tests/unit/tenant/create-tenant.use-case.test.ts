@@ -250,7 +250,7 @@ describe('CreateTenantUseCase', () => {
     });
   });
 
-  it('gives the replacement setting precedence and persists agreeing keys on create', async () => {
+  it('fails closed and persists disabled agreeing keys when notification settings conflict on create', async () => {
     vi.mocked(tenantRepo.findByLegalName).mockResolvedValue(null);
 
     await useCase.execute({
@@ -267,8 +267,8 @@ describe('CreateTenantUseCase', () => {
 
     const saved = vi.mocked(tenantRepo.save).mock.calls[0]![0];
     expect(saved.settingsJson).toEqual({
-      rentalTenantNotificationsEnabled: true,
-      emailSendingEnabled: true,
+      rentalTenantNotificationsEnabled: false,
+      emailSendingEnabled: false,
     });
   });
 });

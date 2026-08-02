@@ -212,6 +212,7 @@ export class SendGroupPortalLinksUseCase {
         alreadyConfirmed: results.filter((r) => r.status === 'ALREADY_CONFIRMED').length,
         notSendable: results.filter((r) => r.status === 'NOT_SENDABLE').length,
         noPrimaryContact: results.filter((r) => r.status === 'NO_PRIMARY_CONTACT').length,
+        tenantNotificationsBlocked: results.filter((r) => r.status === 'TENANT_NOTIFICATIONS_BLOCKED').length,
         idempotentReplay: results.filter((r) => r.status === 'IDEMPOTENT_REPLAY').length,
         errors: results.filter((r) => r.status === 'ERROR').length,
       },

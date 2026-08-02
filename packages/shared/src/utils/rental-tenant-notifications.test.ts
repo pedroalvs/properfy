@@ -68,7 +68,7 @@ describe('isRentalTenantNotificationsEnabled', () => {
 });
 
 describe('normalizeRentalTenantNotificationSettings', () => {
-  it('uses the replacement value when both keys are supplied and mirrors it to the legacy key', () => {
+  it('fails closed when conflicting settings are supplied and mirrors false to both keys', () => {
     expect(normalizeRentalTenantNotificationSettings({
       rentalTenantNotificationsEnabled: false,
       emailSendingEnabled: true,
@@ -77,6 +77,16 @@ describe('normalizeRentalTenantNotificationSettings', () => {
       rentalTenantNotificationsEnabled: false,
       emailSendingEnabled: false,
       smsFromName: 'Properfy',
+    });
+  });
+
+  it('fails closed when the replacement key is true and the legacy key is false', () => {
+    expect(normalizeRentalTenantNotificationSettings({
+      rentalTenantNotificationsEnabled: true,
+      emailSendingEnabled: false,
+    })).toEqual({
+      rentalTenantNotificationsEnabled: false,
+      emailSendingEnabled: false,
     });
   });
 
