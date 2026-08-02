@@ -176,6 +176,12 @@ export interface GroupAppointmentConfirmationRow {
   activeCycle: { scheduledDate: Date; timeSlot: string | null; status: string } | null;
   propertyCode: string | null;
   propertyAddress: string | null;
+  /**
+   * Owning agency's occupant-contact switch, resolved per row because a service
+   * group spans agencies. Carried on the row (rather than looked up by the use
+   * cases) so the preview and the send read the identical value.
+   */
+  rentalTenantNotificationsEnabled: boolean;
 }
 
 /**
@@ -214,7 +220,18 @@ export interface IServiceGroupRepository {
    */
   findGroupAppointmentsWithConfirmation(
     groupId: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<GroupAppointmentConfirmationRow[]>;
+  /**
+   * Authoritative member lookup for a group-side portal-link write. Every scope
+   * is part of the query so a transaction never reloads unrelated group members.
+   */
+  findGroupAppointmentWithConfirmation(
+    groupId: string,
+    appointmentId: string,
+    tenantId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<GroupAppointmentConfirmationRow | null>;
   count(filters: ServiceGroupFilters): Promise<number>;
   save(group: ServiceGroupEntity): Promise<void>;
   update(

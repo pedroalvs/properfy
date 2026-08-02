@@ -26,6 +26,7 @@ function row(overrides: Partial<GroupAppointmentConfirmationRow>): GroupAppointm
     activeCycle: null,
     propertyCode: 'P-001',
     propertyAddress: '1 Main St, Sydney',
+    rentalTenantNotificationsEnabled: true,
     ...overrides,
   };
 }
@@ -51,6 +52,30 @@ describe('GetGroupPortalLinkPlanUseCase', () => {
     );
   });
 
+  it('counts blocked members separately so the dialog cannot over-promise', async () => {
+    // The preview and the send share classifyPortalLinkAction, so an under-counted
+    // skip here would mean the dialog says "2 will be sent" and only 1 goes out.
+    groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([
+      row({ id: 'a-send', tenantId: 'tenant-1', rentalTenantNotificationsEnabled: true }),
+      row({ id: 'a-blocked', tenantId: 'tenant-2', rentalTenantNotificationsEnabled: false }),
+    ]);
+
+    const result = await useCase.execute({ groupId: 'group-1', actor: makeActor() });
+
+    expect(result.summary).toEqual({
+      total: 2,
+      willSend: 1,
+      willResendDateChanged: 0,
+      alreadyConfirmed: 0,
+      notSendable: 0,
+      tenantNotificationsBlocked: 1,
+    });
+    expect(result.items.map((i) => i.plannedAction)).toEqual([
+      'SEND',
+      'SKIP_TENANT_NOTIFICATIONS_BLOCKED',
+    ]);
+  });
+
   it('classifies a mixed list and produces summary counts', async () => {
     groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([
       row({ id: 'a-send', rentalTenantConfirmationStatus: 'PENDING' }),
@@ -67,6 +92,7 @@ describe('GetGroupPortalLinkPlanUseCase', () => {
       willResendDateChanged: 1,
       alreadyConfirmed: 1,
       notSendable: 1,
+      tenantNotificationsBlocked: 0,
     });
     expect(result.items.map((i) => i.plannedAction)).toEqual([
       'SEND',

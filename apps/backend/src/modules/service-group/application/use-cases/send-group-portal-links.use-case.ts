@@ -1,13 +1,45 @@
+import type { PrismaClient } from '@prisma/client';
 import type { AuthContext, SendGroupPortalLinksResultItem } from '@properfy/shared';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
-import type { GeneratePortalTokenUseCase } from '../../../rental-tenant-portal/application/use-cases/generate-portal-token.use-case';
+import type {
+  GeneratePortalTokenOutput,
+  GeneratePortalTokenUseCase,
+} from '../../../rental-tenant-portal/application/use-cases/generate-portal-token.use-case';
 import type { ConfirmationCycleService } from '../../../appointment/application/services/confirmation-cycle.service';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { NotFoundError } from '../../../../shared/domain/errors';
 import { classifyPortalLinkAction } from '../../../appointment/domain/portal-link-eligibility';
+import { isTenantNotificationsBlockedError } from '../../../appointment/domain/tenant-notifications-blocked';
 import { dayKeyInTz } from '../../../appointment/application/use-cases/bulk-action-shared';
+import { runInTransaction, type AfterCommitResult } from '../../../../shared/application/unit-of-work';
+import { retryOnUniqueConflict } from '../../../../shared/domain/retry-on-unique-conflict';
+import { TOKEN_HASH_COLUMN } from '../../../rental-tenant-portal/domain/mint-portal-token.service';
+
+type SerializedResendResult =
+  | { action: Exclude<ReturnType<typeof classifyPortalLinkAction>, 'SEND_AFTER_RESET'> }
+  | {
+      action: 'SEND_AFTER_RESET';
+      afterCommit: AfterCommitResult<GeneratePortalTokenOutput>;
+    };
+
+function reclassifiedResendStatus(
+  action: Exclude<ReturnType<typeof classifyPortalLinkAction>, 'SEND_AFTER_RESET'>,
+): SendGroupPortalLinksResultItem['status'] {
+  switch (action) {
+    case 'SEND':
+      // The stale snapshot was already reset by the transaction that held this
+      // tenant lock first. Avoid minting another token that would revoke its link.
+      return 'IDEMPOTENT_REPLAY';
+    case 'SKIP_NOT_SENDABLE':
+      return 'NOT_SENDABLE';
+    case 'SKIP_ALREADY_CONFIRMED':
+      return 'ALREADY_CONFIRMED';
+    case 'SKIP_TENANT_NOTIFICATIONS_BLOCKED':
+      return 'TENANT_NOTIFICATIONS_BLOCKED';
+  }
+}
 
 // EXACT reuse of the bulk-resend idempotency bucket: a same-day reminder already
 // sent (from the map bulk flow or a prior group click) is a no-op here too —
@@ -15,6 +47,7 @@ import { dayKeyInTz } from '../../../appointment/application/use-cases/bulk-acti
 const IDEMPOTENCY_SCOPE = 'bulk_resend_reminder';
 const IDEMPOTENCY_TTL_HOURS = 36;
 const ERROR_CODE = 'DISPATCH_FAILED';
+const TRANSACTION_REQUIRED_MESSAGE = 'SEND_AFTER_RESET requires a transactional unit of work';
 
 export interface SendGroupPortalLinksInput {
   groupId: string;
@@ -50,10 +83,9 @@ export interface SendGroupPortalLinksOutput {
  *     a reminder went out earlier today — but still WRITES the cache so a second
  *     same-day click is an IDEMPOTENT_REPLAY.
  *
- * `rotateOnDateChange` and `GeneratePortalTokenUseCase` each open their own
- * transaction; they are not atomic with each other. If the dispatch throws after
- * the rotate committed, the item is ERROR (not cached) and a retry re-classifies
- * the now-PENDING appointment as a plain SEND — self-healing.
+ * For SEND_AFTER_RESET, the current policy check, cycle rotation, token mint and
+ * cycle link share one transaction. Result-bearing notification creation runs
+ * after commit; a blocked policy or mint failure therefore cannot leak a reset.
  */
 export class SendGroupPortalLinksUseCase {
   constructor(
@@ -64,6 +96,7 @@ export class SendGroupPortalLinksUseCase {
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
     private readonly clock: () => Date = () => new Date(),
+    private readonly prisma?: PrismaClient,
   ) {}
 
   async execute(input: SendGroupPortalLinksInput): Promise<SendGroupPortalLinksOutput> {
@@ -104,6 +137,27 @@ export class SendGroupPortalLinksUseCase {
         results.push({ appointmentId: row.id, status: 'ALREADY_CONFIRMED' });
         continue;
       }
+      if (action === 'SKIP_TENANT_NOTIFICATIONS_BLOCKED') {
+        // Skipped, not errored: for a cross-agency group this is an expected
+        // outcome for some members, and GeneratePortalTokenUseCase would throw
+        // TENANT_NOTIFICATIONS_BLOCKED here anyway. Not cached — the operator can
+        // flip the agency setting and re-run the same day.
+        results.push({ appointmentId: row.id, status: 'TENANT_NOTIFICATIONS_BLOCKED' });
+        continue;
+      }
+      if (action !== 'SEND' && action !== 'SEND_AFTER_RESET') {
+        // Exhaustiveness guard, not dead code. The branches above are an if-chain, so a
+        // future PortalLinkPlannedAction variant would fall straight through to the
+        // dispatch below and silently notify a tenant it was meant to skip. Failing the
+        // single item keeps the batch alive while making the omission impossible to miss.
+        const unhandled: never = action;
+        results.push({
+          appointmentId: row.id,
+          status: 'ERROR',
+          error: { code: ERROR_CODE, message: `Unhandled portal-link action: ${String(unhandled)}` },
+        });
+        continue;
+      }
 
       const idemKey = `bulk_resend:${row.id}:${dayKey}`;
 
@@ -121,17 +175,60 @@ export class SendGroupPortalLinksUseCase {
       }
 
       try {
+        let dispatch;
         if (action === 'SEND_AFTER_RESET') {
-          await this.cycleService.rotateOnDateChange(
-            row.id,
-            row.tenantId,
-            row.scheduledDate,
-            row.timeSlot,
-            'DATE_CHANGED',
-          );
-        }
+          // A stale confirmation must never be reset without the same
+          // transaction also owning the authoritative policy read and token
+          // writes. Lightweight callers without a Unit of Work fail closed.
+          const prisma = this.prisma;
+          if (!prisma) throw new Error(TRANSACTION_REQUIRED_MESSAGE);
 
-        const dispatch = await this.generatePortalToken.execute({ appointmentId: row.id, actor: input.actor });
+          const serialized = await retryOnUniqueConflict<SerializedResendResult>(
+            TOKEN_HASH_COLUMN,
+            () => runInTransaction(prisma, async (ctx) => {
+              const generateInput = { appointmentId: row.id, actor: input.actor };
+              // Lock the tenant before loading the appointment, then classify the
+              // current group row through the same transaction. A concurrent
+              // resend therefore observes the first reset instead of rotating
+              // and invalidating its freshly minted link.
+              const generation = await this.generatePortalToken.prepareInTransaction(
+                generateInput,
+                ctx,
+                row.tenantId,
+              );
+              const current = await this.groupRepo.findGroupAppointmentWithConfirmation(
+                input.groupId,
+                row.id,
+                row.tenantId,
+                ctx.tx,
+              );
+              if (!current) {
+                return { action: 'SKIP_NOT_SENDABLE' };
+              }
+              const currentAction = classifyPortalLinkAction(current);
+              if (currentAction !== 'SEND_AFTER_RESET') {
+                return { action: currentAction };
+              }
+              await this.cycleService.rotateOnDateChange(
+                current.id,
+                current.tenantId,
+                current.scheduledDate,
+                current.timeSlot,
+                'DATE_CHANGED',
+                ctx.tx,
+                ctx.defer,
+              );
+              return { action: 'SEND_AFTER_RESET', afterCommit: await generation.runWritePhase() };
+            }),
+          );
+          if (serialized.action !== 'SEND_AFTER_RESET') {
+            results.push({ appointmentId: row.id, status: reclassifiedResendStatus(serialized.action) });
+            continue;
+          }
+          dispatch = await serialized.afterCommit.runAfterCommit();
+        } else {
+          dispatch = await this.generatePortalToken.execute({ appointmentId: row.id, actor: input.actor });
+        }
 
         if (dispatch.dispatched === false) {
           if (dispatch.reason === 'NO_PRIMARY_CONTACT') {
@@ -158,6 +255,13 @@ export class SendGroupPortalLinksUseCase {
         await this.idempotency.set(idemKey, IDEMPOTENCY_SCOPE, result, IDEMPOTENCY_TTL_HOURS);
         results.push(result);
       } catch (e) {
+        // The flag can be flipped between the repository snapshot above and the mint
+        // below, so the same outcome can arrive as a throw. Report it identically to the
+        // planned skip rather than as a generic dispatch error.
+        if (isTenantNotificationsBlockedError(e)) {
+          results.push({ appointmentId: row.id, status: 'TENANT_NOTIFICATIONS_BLOCKED' });
+          continue;
+        }
         const message = e instanceof Error ? e.message : 'Dispatch failed';
         results.push({
           appointmentId: row.id,
@@ -183,6 +287,7 @@ export class SendGroupPortalLinksUseCase {
         alreadyConfirmed: results.filter((r) => r.status === 'ALREADY_CONFIRMED').length,
         notSendable: results.filter((r) => r.status === 'NOT_SENDABLE').length,
         noPrimaryContact: results.filter((r) => r.status === 'NO_PRIMARY_CONTACT').length,
+        tenantNotificationsBlocked: results.filter((r) => r.status === 'TENANT_NOTIFICATIONS_BLOCKED').length,
         idempotentReplay: results.filter((r) => r.status === 'IDEMPOTENT_REPLAY').length,
         errors: results.filter((r) => r.status === 'ERROR').length,
       },

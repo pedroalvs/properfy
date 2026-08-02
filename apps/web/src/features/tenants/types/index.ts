@@ -31,8 +31,11 @@ export interface TenantAdminFormData {
   /** 3–4 letters/numbers, uppercased, unique per agency (e.g. "INS" -> "INS-0042"). */
   appointmentCodePrefix: string;
   notes: string;
-  /** When false, the platform skips EMAIL sends for this agency. */
-  emailSendingEnabled: boolean;
+  /**
+   * When false, Properfy never contacts this agency's rental tenants on either
+   * channel; withheld messages are emailed to the branch contact instead.
+   */
+  rentalTenantNotificationsEnabled: boolean;
 }
 
 export type TenantAdminFormErrors = Partial<Record<keyof TenantAdminFormData, string>>;
@@ -43,7 +46,7 @@ export const EMPTY_TENANT_ADMIN_FORM: TenantAdminFormData = {
   currency: '',
   appointmentCodePrefix: '',
   notes: '',
-  emailSendingEnabled: true,
+  rentalTenantNotificationsEnabled: true,
 };
 
 export interface TenantAdminFiltersState {

@@ -351,6 +351,142 @@ describe('GeneratePortalTokenUseCase', () => {
     expect(mintPortalTokenService.mint).not.toHaveBeenCalled();
   });
 
+  describe('agency blocks rental-tenant notifications', () => {
+    const blockedTenant = () => makeTenant({ settingsJson: { rentalTenantNotificationsEnabled: false } });
+
+    it('should refuse to send and mint nothing', async () => {
+      // Refused rather than silently redirected: unlike an automatic reminder, this is
+      // an operator explicitly choosing to notify the occupant, so the answer is "no",
+      // with a reason the UI can show.
+      tenantRepo.findById.mockResolvedValue(blockedTenant());
+
+      await expect(useCase.execute(makeInput())).rejects.toMatchObject({
+        code: 'TENANT_NOTIFICATIONS_BLOCKED',
+      });
+      expect(mintPortalTokenService.mint).not.toHaveBeenCalled();
+    });
+
+    it('should throw ConflictError so the route answers 409', async () => {
+      tenantRepo.findById.mockResolvedValue(blockedTenant());
+
+      await expect(useCase.execute(makeInput())).rejects.toThrow(ConflictError);
+    });
+
+    it('uses the caller transaction for the authoritative policy read', async () => {
+      const tx = { kind: 'caller-transaction' };
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment(),
+        contact: null,
+        restrictions: [],
+        tenantRentalTenantNotificationsEnabled: true,
+      });
+      // Deliberately stale joined data: the locked tenant row is authoritative
+      // when the setting flips during a group resend.
+      tenantRepo.findById.mockResolvedValue(makeTenant({
+        settingsJson: { rentalTenantNotificationsEnabled: false },
+      }));
+
+      await expect(useCase.executeInTransaction(makeInput(), {
+        tx: tx as never,
+        defer: vi.fn(),
+      })).rejects.toMatchObject({ code: 'TENANT_NOTIFICATIONS_BLOCKED' });
+
+      expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', null, tx);
+      expect(tenantRepo.findById).toHaveBeenCalledWith('tenant-1', tx, true);
+      expect(mintPortalTokenService.mint).not.toHaveBeenCalled();
+    });
+
+    it('reuses one locked generation context after the caller performs another transactional write', async () => {
+      const events: string[] = [];
+      const tx = { kind: 'caller-transaction' };
+      appointmentRepo.findById.mockImplementation(async () => {
+        events.push('appointment:loaded');
+        return { appointment: makeAppointment(), contact: null, restrictions: [] };
+      });
+      tenantRepo.findById.mockImplementation(async () => {
+        events.push('tenant:locked');
+        return makeTenant({ settingsJson: { rentalTenantNotificationsEnabled: true } });
+      });
+      mintPortalTokenService.mint.mockImplementation(async () => {
+        events.push('token:minted');
+        return { rawToken: RAW_TOKEN, expiresAt: EXPIRES_AT, tokenId: 'token-1' };
+      });
+      const cycleService = {
+        createInitial: vi.fn(async () => {
+          events.push('cycle:linked');
+        }),
+      } as unknown as ConfirmationCycleService;
+      const preparedUseCase = new GeneratePortalTokenUseCase(
+        tokenRepo as unknown as IRentalTenantPortalTokenRepository,
+        appointmentRepo as unknown as IAppointmentRepository,
+        tenantRepo as unknown as ITenantRepository,
+        mintPortalTokenService as unknown as MintPortalTokenService,
+        auditService as unknown as PersistentAuditService,
+        PORTAL_BASE_URL,
+        undefined,
+        cycleService,
+      );
+      const ctx = { tx: tx as never, defer: vi.fn() };
+
+      const generation = await preparedUseCase.prepareInTransaction(makeInput(), ctx);
+      events.push('cycle:rotated');
+      const firstWrite = await generation.runWritePhase();
+      const repeatedWrite = await generation.runWritePhase();
+
+      expect(repeatedWrite).toBe(firstWrite);
+      expect(events).toEqual([
+        'appointment:loaded',
+        'tenant:locked',
+        'cycle:rotated',
+        'token:minted',
+        'cycle:linked',
+      ]);
+      expect(appointmentRepo.findById).toHaveBeenCalledTimes(1);
+      expect(tenantRepo.findById).toHaveBeenCalledTimes(1);
+      expect(mintPortalTokenService.mint).toHaveBeenCalledTimes(1);
+    });
+
+    it('should still mint when notify is false, so Copy portal link keeps working', async () => {
+      // The generate-and-copy path dispatches nothing, so the block does not apply —
+      // this is the operator's escape hatch for a blocked agency.
+      tenantRepo.findById.mockResolvedValue(blockedTenant());
+
+      const result = await useCase.execute(makeInput({ notify: false }));
+
+      expect(mintPortalTokenService.mint).toHaveBeenCalled();
+      expect(result.dispatched).toBe(false);
+      expect(result.reason).toBe('NOTIFY_DISABLED');
+    });
+
+    it('should send normally when the agency has not blocked notifications', async () => {
+      tenantRepo.findById.mockResolvedValue(
+        makeTenant({ settingsJson: { rentalTenantNotificationsEnabled: true } }),
+      );
+
+      await expect(useCase.execute(makeInput())).resolves.toBeDefined();
+      expect(mintPortalTokenService.mint).toHaveBeenCalled();
+    });
+
+    it('should treat an absent flag as allowed', async () => {
+      tenantRepo.findById.mockResolvedValue(makeTenant({ settingsJson: {} }));
+
+      await expect(useCase.execute(makeInput())).resolves.toBeDefined();
+      expect(mintPortalTokenService.mint).toHaveBeenCalled();
+    });
+
+    it('should not crash when the tenant has no settings blob at all', async () => {
+      // Regression: an unguarded `settingsJson[...]` read threw TypeError here, which
+      // would have surfaced as a 500 on every Send Portal Link for any tenant row
+      // persisted before the column had a default.
+      tenantRepo.findById.mockResolvedValue(
+        makeTenant({ settingsJson: undefined as unknown as Record<string, unknown> }),
+      );
+
+      await expect(useCase.execute(makeInput())).resolves.toBeDefined();
+      expect(mintPortalTokenService.mint).toHaveBeenCalled();
+    });
+  });
+
   it('should call audit service with USER actor type and actor details', async () => {
     await useCase.execute(makeInput({ actor: makeAMContext({ userId: 'admin-42' }) }));
 

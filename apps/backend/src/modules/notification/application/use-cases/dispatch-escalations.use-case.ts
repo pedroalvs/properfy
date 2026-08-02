@@ -61,6 +61,7 @@ export class DispatchEscalationsUseCase {
         const pmAlreadySent = await this.notificationRepo.existsByAppointmentAndTemplate(
           appointment.id,
           'PROPERTY_MANAGER_ESCALATION',
+          appointment.tenantId,
         );
         if (!pmAlreadySent) {
           await this.createNotification.execute({
@@ -96,6 +97,7 @@ export class DispatchEscalationsUseCase {
         const smsAlreadySent = await this.notificationRepo.existsByAppointmentAndTemplate(
           appointment.id,
           'TENANT_SMS_ALERT',
+          appointment.tenantId,
         );
         if (!smsAlreadySent) {
           await this.createNotification.execute({

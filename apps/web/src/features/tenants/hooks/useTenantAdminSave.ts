@@ -27,7 +27,7 @@ const identityMapper = identityFieldMapper<keyof TenantAdminFormData>([
  * are nested under `settings` in the payload but flat in the form state.
  */
 function serverFieldMapper(path: string): keyof TenantAdminFormData | undefined {
-  if (path === 'settings.emailSendingEnabled') return 'emailSendingEnabled';
+  if (path === 'settings.rentalTenantNotificationsEnabled') return 'rentalTenantNotificationsEnabled';
   return identityMapper(path);
 }
 
@@ -86,11 +86,14 @@ export function useTenantAdminSave(): UseTenantAdminSaveReturn {
       // Settings flags are nested under `settings` (deep-merged server-side into
       // settings_json); scalar fields stay top-level. `notes` is not part of the
       // API contract and is excluded from the payload.
-      const { emailSendingEnabled, appointmentCodePrefix, notes: _notes, ...rest } = data;
+      const { rentalTenantNotificationsEnabled, appointmentCodePrefix, notes: _notes, ...rest } = data;
       // Only send the prefix when present (uppercased to match the backend). On
       // edit, an empty value (legacy tenant) is omitted so the field is untouched.
       const trimmedPrefix = appointmentCodePrefix.trim().toUpperCase();
-      const settings = { emailSendingEnabled };
+      const settings = {
+        rentalTenantNotificationsEnabled,
+        emailSendingEnabled: rentalTenantNotificationsEnabled,
+      };
 
       const { error } = tenantId
         ? await api.PATCH('/v1/tenants/{tenantId}', {

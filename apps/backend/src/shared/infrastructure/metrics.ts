@@ -55,6 +55,7 @@ export class MetricsCollector {
   private jwtGaugeProvider: (() => number | null) | null = null;
   private geocodingFailedCount = 0;
   private notificationHandlerErrorCount = 0;
+  private agencyForwardFailedCount = 0;
   private notificationMissingVariableCount = 0;
 
   /** Register a function that returns the current JWT previous key days remaining. Called on each snapshot. */
@@ -70,6 +71,18 @@ export class MetricsCollector {
   /** Increment the notification handler error counter. */
   incrementNotificationHandlerErrorCount(): void {
     this.notificationHandlerErrorCount += 1;
+  }
+
+  /**
+   * A rental-tenant message was withheld by the agency switch AND the mirror to the
+   * agency could not be delivered — so nobody was told about the inspection.
+   *
+   * Its own counter rather than the shared handler-error one because this is the single
+   * failure mode that breaks the feature's guarantee, and it needs to be alertable
+   * without being drowned in unrelated handler noise.
+   */
+  incrementAgencyForwardFailedCount(): void {
+    this.agencyForwardFailedCount += 1;
   }
 
   /** Increment the count of missing template variable occurrences. */
@@ -129,6 +142,7 @@ export class MetricsCollector {
     this.jobCounts.clear();
     this.jobDurations.clear();
     this.notificationHandlerErrorCount = 0;
+    this.agencyForwardFailedCount = 0;
     this.notificationMissingVariableCount = 0;
   }
 
@@ -208,6 +222,7 @@ export class MetricsCollector {
       },
       notification: {
         handlerErrorCount: this.notificationHandlerErrorCount,
+        agencyForwardFailedCount: this.agencyForwardFailedCount,
         missingVariableCount: this.notificationMissingVariableCount,
       },
     };
@@ -272,6 +287,8 @@ export interface MetricsSnapshot {
   };
   notification?: {
     handlerErrorCount: number;
+    /** Withheld from the tenant AND not mirrored to the agency — nobody was told. */
+    agencyForwardFailedCount: number;
     missingVariableCount: number;
   };
 }

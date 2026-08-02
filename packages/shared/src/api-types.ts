@@ -668,7 +668,7 @@ export interface paths {
                             notificationFromEmail?: string;
                             smsFromName?: string;
                             /** @default true */
-                            emailSendingEnabled?: boolean;
+                            rentalTenantNotificationsEnabled?: boolean;
                             /** Format: uri */
                             logoUrl?: string;
                             primaryColor?: string;
@@ -851,7 +851,7 @@ export interface paths {
                             notificationFromEmail?: string;
                             smsFromName?: string;
                             /** @default true */
-                            emailSendingEnabled?: boolean;
+                            rentalTenantNotificationsEnabled?: boolean;
                             /** Format: uri */
                             logoUrl?: string;
                             primaryColor?: string;
@@ -4535,6 +4535,7 @@ export interface paths {
                                 branchName?: string | null;
                                 serviceTypeName?: string | null;
                                 clientName?: string;
+                                rentalTenantNotificationsEnabled?: boolean;
                                 cancellationReason?: string | null;
                                 latitude?: number | null;
                                 longitude?: number | null;
@@ -4738,6 +4739,7 @@ export interface paths {
                                 branchName?: string | null;
                                 serviceTypeName?: string | null;
                                 clientName?: string;
+                                rentalTenantNotificationsEnabled?: boolean;
                                 cancellationReason?: string | null;
                                 latitude?: number | null;
                                 longitude?: number | null;
@@ -4866,6 +4868,7 @@ export interface paths {
                                 branchName?: string | null;
                                 serviceTypeName?: string | null;
                                 clientName?: string;
+                                rentalTenantNotificationsEnabled?: boolean;
                                 cancellationReason?: string | null;
                                 latitude?: number | null;
                                 longitude?: number | null;
@@ -5069,6 +5072,7 @@ export interface paths {
                                 branchName?: string | null;
                                 serviceTypeName?: string | null;
                                 clientName?: string;
+                                rentalTenantNotificationsEnabled?: boolean;
                                 cancellationReason?: string | null;
                                 latitude?: number | null;
                                 longitude?: number | null;
@@ -5426,7 +5430,7 @@ export interface paths {
                                     /** Format: uuid */
                                     appointmentId: string;
                                     /** @enum {string} */
-                                    status: "SENT" | "NO_PRIMARY_CONTACT" | "IDEMPOTENT_REPLAY" | "ERROR";
+                                    status: "SENT" | "NO_PRIMARY_CONTACT" | "IDEMPOTENT_REPLAY" | "TENANT_NOTIFICATIONS_BLOCKED" | "ERROR";
                                     error?: {
                                         code: string;
                                         message: string;
@@ -6901,7 +6905,7 @@ export interface paths {
                                     appointmentNumber: number;
                                     propertyCode: string | null;
                                     /** @enum {string} */
-                                    plannedAction: "SEND" | "SEND_AFTER_RESET" | "SKIP_ALREADY_CONFIRMED" | "SKIP_NOT_SENDABLE";
+                                    plannedAction: "SEND" | "SEND_AFTER_RESET" | "SKIP_ALREADY_CONFIRMED" | "SKIP_NOT_SENDABLE" | "SKIP_TENANT_NOTIFICATIONS_BLOCKED";
                                 }[];
                                 summary: {
                                     total: number;
@@ -6909,6 +6913,7 @@ export interface paths {
                                     willResendDateChanged: number;
                                     alreadyConfirmed: number;
                                     notSendable: number;
+                                    tenantNotificationsBlocked: number;
                                 };
                             };
                         };
@@ -6960,7 +6965,7 @@ export interface paths {
                                     /** Format: uuid */
                                     appointmentId: string;
                                     /** @enum {string} */
-                                    status: "SENT" | "DATE_CHANGED_RESENT" | "ALREADY_CONFIRMED" | "NOT_SENDABLE" | "NO_PRIMARY_CONTACT" | "IDEMPOTENT_REPLAY" | "ERROR";
+                                    status: "SENT" | "DATE_CHANGED_RESENT" | "ALREADY_CONFIRMED" | "NOT_SENDABLE" | "NO_PRIMARY_CONTACT" | "IDEMPOTENT_REPLAY" | "TENANT_NOTIFICATIONS_BLOCKED" | "ERROR";
                                     error?: {
                                         code: string;
                                         message: string;

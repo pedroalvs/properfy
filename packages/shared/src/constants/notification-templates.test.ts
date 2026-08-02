@@ -9,6 +9,7 @@ import {
   TEMPLATE_CODE_LABELS,
   TEMPLATE_TARGETS,
   TEMPLATE_VARIABLES,
+  getDefaultClass,
   getTemplateCodeLabel,
   getTemplateTarget,
 } from './notification-templates';
@@ -147,6 +148,35 @@ describe('getTemplateTarget', () => {
 
   it('returns undefined for a code outside both catalogs', () => {
     expect(getTemplateTarget('SOME_CUSTOM_CODE')).toBeUndefined();
+  });
+});
+
+describe('TENANT_NOTICE_FORWARDED_AGENCY template', () => {
+  it('is platform-only, not tenant-customizable', () => {
+    expect(PLATFORM_ONLY_TEMPLATE_CODES).toContain('TENANT_NOTICE_FORWARDED_AGENCY');
+    expect(MANDATORY_TEMPLATE_CODES).not.toContain('TENANT_NOTICE_FORWARDED_AGENCY');
+  });
+
+  it('targets the agency, which is what stops the forward from re-entering the gate', () => {
+    // This is load-bearing, not cosmetic. SendNotificationUseCase suppresses a
+    // notification when its target is RENTAL_TENANT and the agency has occupant
+    // notifications turned off, then forwards it using THIS code. If the forward
+    // were itself RENTAL_TENANT-targeted it would be suppressed and re-forwarded,
+    // looping until the queue gave up.
+    expect(TEMPLATE_TARGETS.TENANT_NOTICE_FORWARDED_AGENCY).toBe('PROPERTY_MANAGER');
+    expect(getTemplateTarget('TENANT_NOTICE_FORWARDED_AGENCY')).not.toBe('RENTAL_TENANT');
+  });
+
+  it('is TRANSACTIONAL, so a branch opt-out cannot silence both the occupant and the agency', () => {
+    expect(getDefaultClass('TENANT_NOTICE_FORWARDED_AGENCY')).toBe('TRANSACTIONAL');
+  });
+
+  it('has no TEMPLATE_VARIABLES entry, matching that registry\'s scope', () => {
+    // TEMPLATE_VARIABLES covers the codes whose payloads BuildNotificationPayloadService
+    // assembles, and its header says outright not to "complete" the map for others. The
+    // forward's payload is built in SendNotificationUseCase instead, and carries context
+    // keys (suppressedTemplateLabel/suppressedChannel) outside ALLOWED_VARIABLES.
+    expect(TEMPLATE_VARIABLES).not.toHaveProperty('TENANT_NOTICE_FORWARDED_AGENCY');
   });
 });
 

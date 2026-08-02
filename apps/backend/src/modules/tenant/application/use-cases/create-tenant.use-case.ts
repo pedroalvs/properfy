@@ -1,5 +1,9 @@
 import type { AuthContext } from '@properfy/shared';
-import { appointmentCodePrefixSchema, PLATFORM_TIMEZONE } from '@properfy/shared';
+import {
+  appointmentCodePrefixSchema,
+  normalizeRentalTenantNotificationSettings,
+  PLATFORM_TIMEZONE,
+} from '@properfy/shared';
 import { ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
@@ -83,7 +87,7 @@ export class CreateTenantUseCase {
       timezone,
       currency,
       appointmentCodePrefix,
-      settingsJson: settings ?? {},
+      settingsJson: normalizeRentalTenantNotificationSettings(settings ?? {}),
       createdAt: now,
       updatedAt: now,
       deletedAt: null,

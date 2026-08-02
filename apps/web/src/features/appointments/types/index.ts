@@ -96,6 +96,12 @@ export interface AppointmentDetail extends Omit<Appointment, 'code'> {
   observation: string | null;
   /** True when a tenant_portal_tokens row satisfies status='ACTIVE' AND expires_at > NOW. */
   hasActivePortalToken: boolean;
+  /**
+   * Owning agency's occupant-contact switch. False disables "Send Portal Link" (the
+   * backend refuses it with 409 TENANT_NOTIFICATIONS_BLOCKED). Optional: absent means
+   * enabled, matching the schema default and older cached payloads.
+   */
+  rentalTenantNotificationsEnabled?: boolean;
   /** Set when the appointment belongs to a service group — date/time is managed by the group. */
   serviceGroupId?: string | null;
   /** T-C5-5 — populated when status = REJECTED; surfaced in the map detail panel red banner. */

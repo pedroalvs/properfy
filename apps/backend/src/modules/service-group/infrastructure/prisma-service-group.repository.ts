@@ -16,7 +16,7 @@ import type {
   PortalWindowReservation,
 } from '../domain/service-group.repository';
 import type { ServiceGroupStatus } from '@properfy/shared';
-import { computeCentroid } from '@properfy/shared';
+import { computeCentroid, isRentalTenantNotificationsEnabled } from '@properfy/shared';
 import { ADDABLE_GROUP_STATUSES, TERMINAL_GROUP_STATUSES } from '../domain/service-group.validator';
 import { computeWindowAvailability } from '../domain/portal-slot-capacity';
 
@@ -360,8 +360,9 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
 
   async findGroupAppointmentsWithConfirmation(
     groupId: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<GroupAppointmentConfirmationRow[]> {
-    const rows = await this.prisma.appointment.findMany({
+    const rows = await this.db(tx).appointment.findMany({
       where: { service_group_id: groupId, deleted_at: null },
       orderBy: { appointment_number: 'asc' },
       select: {
@@ -379,6 +380,9 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         property: {
           select: { property_code: true, street: true, suburb: true },
         },
+        // Joined per row rather than looked up once for the group: groups are
+        // cross-agency, so the occupant-contact switch varies within one group.
+        tenant: { select: { settings_json: true } },
       },
     });
     return rows.map((a): GroupAppointmentConfirmationRow => ({
@@ -399,7 +403,66 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         : null,
       propertyCode: a.property?.property_code ?? null,
       propertyAddress: a.property ? `${a.property.street}, ${a.property.suburb}` : null,
+      rentalTenantNotificationsEnabled: isRentalTenantNotificationsEnabled(
+        a.tenant?.settings_json as Record<string, unknown> | null,
+      ),
     }));
+  }
+
+  async findGroupAppointmentWithConfirmation(
+    groupId: string,
+    appointmentId: string,
+    tenantId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<GroupAppointmentConfirmationRow | null> {
+    const appointment = await this.db(tx).appointment.findFirst({
+      where: {
+        id: appointmentId,
+        service_group_id: groupId,
+        tenant_id: tenantId,
+        deleted_at: null,
+      },
+      select: {
+        id: true,
+        appointment_number: true,
+        tenant_id: true,
+        status: true,
+        scheduled_date: true,
+        time_slot_start: true,
+        time_slot_end: true,
+        rental_tenant_confirmation_status: true,
+        active_confirmation_cycle: {
+          select: { scheduled_date: true, time_slot: true, status: true },
+        },
+        property: {
+          select: { property_code: true, street: true, suburb: true },
+        },
+        tenant: { select: { settings_json: true } },
+      },
+    });
+    if (!appointment) return null;
+
+    return {
+      id: appointment.id,
+      appointmentNumber: appointment.appointment_number,
+      tenantId: appointment.tenant_id,
+      status: appointment.status,
+      scheduledDate: appointment.scheduled_date,
+      timeSlot: `${appointment.time_slot_start}-${appointment.time_slot_end}`,
+      rentalTenantConfirmationStatus: appointment.rental_tenant_confirmation_status,
+      activeCycle: appointment.active_confirmation_cycle
+        ? {
+            scheduledDate: appointment.active_confirmation_cycle.scheduled_date,
+            timeSlot: appointment.active_confirmation_cycle.time_slot,
+            status: appointment.active_confirmation_cycle.status,
+          }
+        : null,
+      propertyCode: appointment.property?.property_code ?? null,
+      propertyAddress: appointment.property ? `${appointment.property.street}, ${appointment.property.suburb}` : null,
+      rentalTenantNotificationsEnabled: isRentalTenantNotificationsEnabled(
+        appointment.tenant?.settings_json as Record<string, unknown> | null,
+      ),
+    };
   }
 
   async count(filters: ServiceGroupFilters): Promise<number> {

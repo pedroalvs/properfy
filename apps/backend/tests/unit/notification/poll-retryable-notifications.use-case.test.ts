@@ -29,6 +29,15 @@ function makeNotification(id: string): NotificationEntity {
   });
 }
 
+function makeSuppressedNotification(id: string): NotificationEntity {
+  return new NotificationEntity({
+    ...makeNotification(id),
+    appointmentId: 'appointment-1',
+    status: 'SKIPPED_OPT_OUT',
+    failureReason: 'AGENCY_FORWARD_FAILED',
+  });
+}
+
 function makeNotifications(count: number): NotificationEntity[] {
   return Array.from({ length: count }, (_, i) => makeNotification(`notif-${i + 1}`));
 }
@@ -169,6 +178,21 @@ describe('PollRetryableNotificationsUseCase', () => {
 
     const options = mockJobQueue.enqueue.mock.calls[0][2];
     expect(options).toMatchObject({ retryLimit: 0, singletonKey: 'notif-1', expireInMinutes: 5 });
+  });
+
+  it('enqueues a due agency-suppressed row through notification.send with the singleton key', async () => {
+    const useCase = createUseCase();
+    mockRepo.findRetryable.mockResolvedValueOnce([
+      makeSuppressedNotification('suppressed-notif-1'),
+    ]);
+
+    await useCase.execute();
+
+    expect(mockJobQueue.enqueue).toHaveBeenCalledWith(
+      'notification.send',
+      { notificationId: 'suppressed-notif-1' },
+      { retryLimit: 0, expireInMinutes: 5, singletonKey: 'suppressed-notif-1' },
+    );
   });
 
   it('handles single retryable notification correctly', async () => {

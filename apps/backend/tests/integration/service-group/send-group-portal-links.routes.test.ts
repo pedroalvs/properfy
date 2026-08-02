@@ -60,7 +60,7 @@ describe('GET /v1/service-groups/:groupId/portal-link-plan', () => {
     mockJwtVerify.mockResolvedValue(amContext);
     mockPlanExecute.mockResolvedValue({
       items: [{ appointmentId: APPT_ID, appointmentNumber: 1, propertyCode: 'P-001', plannedAction: 'SEND' }],
-      summary: { total: 1, willSend: 1, willResendDateChanged: 0, alreadyConfirmed: 0, notSendable: 0 },
+      summary: { total: 1, willSend: 1, willResendDateChanged: 0, alreadyConfirmed: 0, notSendable: 0, tenantNotificationsBlocked: 0 },
     });
 
     const res = await supertest(app.server)

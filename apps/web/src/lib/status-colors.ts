@@ -183,5 +183,9 @@ export const NOTIFICATION_STATUS_MAP: Record<string, StatusStyle> = {
   DELIVERED:       { bg: 'var(--color-status-done)',      text: 'var(--color-text-primary)', label: 'Delivered' },
   FAILED:          { bg: 'var(--color-status-rejected)',  text: 'var(--color-text-primary)', label: 'Failed' },
   SKIPPED:         { bg: 'var(--color-status-cancelled)', text: 'var(--color-text-primary)', label: 'Skipped' },
-  SKIPPED_OPT_OUT: { bg: 'var(--color-status-cancelled)', text: 'var(--color-text-primary)', label: 'Skipped (opt-out)' },
+  // Deliberately neutral. This status covers both a recipient's consent opt-out and the
+  // per-agency "do not contact tenants" switch, and the old "(opt-out)" wording sent
+  // operators to the consent screen for rows that are really an agency setting. The
+  // Failure reason column names which one.
+  SKIPPED_OPT_OUT: { bg: 'var(--color-status-cancelled)', text: 'var(--color-text-primary)', label: 'Not sent' },
 };

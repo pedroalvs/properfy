@@ -9,6 +9,8 @@ import { ValidationError } from '../../../../shared/domain/errors';
 import { MarketingDispatchDisabledError } from '../../domain/notification.errors';
 
 export interface CreateNotificationInput {
+  /** Optional idempotency authority supplied by a caller with a deterministic identity. */
+  notificationId?: string;
   /** null = platform-scoped notification (recipient belongs to no agency). */
   tenantId: string | null;
   appointmentId?: string;
@@ -68,7 +70,7 @@ export class CreateNotificationUseCase {
     }
 
     const now = new Date();
-    const notificationId = randomUUID();
+    const notificationId = input.notificationId ?? randomUUID();
     const notification = new NotificationEntity({
       id: notificationId,
       tenantId: input.tenantId,
@@ -90,7 +92,12 @@ export class CreateNotificationUseCase {
       createdAt: now,
       updatedAt: now,
     });
-    await this.notificationRepo.save(notification);
+    if (input.notificationId !== undefined) {
+      const inserted = await this.notificationRepo.saveIfAbsent(notification);
+      if (!inserted) return { notificationId };
+    } else {
+      await this.notificationRepo.save(notification);
+    }
     const jobName = 'notification.send';
     this.logger?.info({ notificationId, jobName, channel: input.channel, templateCode: input.templateCode }, 'notification.enqueue_start');
     try {
