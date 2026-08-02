@@ -34,6 +34,11 @@ describe('T1VisibilityService', () => {
     it('should NOT be visible when PENDING confirmation and keyRequired is false', () => {
       expect(service.isVisibleForInspector('ROUTINE', 'PENDING', false, tomorrow, today)).toBe(false);
     });
+
+    it('should be visible when requiresRentalTenantConfirmation is false regardless of confirmation status', () => {
+      expect(service.isVisibleForInspector('ROUTINE', 'PENDING', false, tomorrow, today, false)).toBe(true);
+      expect(service.isVisibleForInspector('ROUTINE', 'PENDING', false, todayDate, today, false)).toBe(true);
+    });
   });
 
   describe('ROUTINE appointments beyond T-1', () => {

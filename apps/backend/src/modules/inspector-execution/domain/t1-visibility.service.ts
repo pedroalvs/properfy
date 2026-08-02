@@ -23,9 +23,14 @@ export class T1VisibilityService {
     keyRequired: boolean,
     scheduledDate: Date,
     todayCivil: string,
+    requiresRentalTenantConfirmation: boolean = true,
   ): boolean {
     // Non-routine appointments are always visible when SCHEDULED
     if (flowType === 'INGOING' || flowType === 'OUTGOING') {
+      return true;
+    }
+
+    if (!requiresRentalTenantConfirmation) {
       return true;
     }
 

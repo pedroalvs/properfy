@@ -763,6 +763,16 @@ export const inspectionExecutionResponseSchema = z.object({
   updatedAt: instantStr(),
 });
 
+export const startInspectionResponseSchema = z.object({
+  executionId: z.string().uuid(),
+  appointmentId: z.string().uuid(),
+  startedAt: instantStr(),
+  startLatitude: z.number(),
+  startLongitude: z.number(),
+  geolocationDistanceMeters: z.number().nullable(),
+  status: z.literal('IN_PROGRESS'),
+});
+
 // ─── Financial Entry ───────────────────────────────────────────────────────
 
 export const financialEntryResponseSchema = z.object({
@@ -1058,6 +1068,7 @@ export type NotificationResponse = z.infer<typeof notificationResponseSchema>;
 export type NotificationTemplateResponse = z.infer<typeof notificationTemplateResponseSchema>;
 export type ReportResponse = z.infer<typeof reportResponseSchema>;
 export type InspectionExecutionResponse = z.infer<typeof inspectionExecutionResponseSchema>;
+export type StartInspectionResponse = z.infer<typeof startInspectionResponseSchema>;
 export type DashboardStatsResponse = z.infer<typeof dashboardStatsResponseSchema>;
 export type InspectorDayCount = z.infer<typeof inspectorDayCountSchema>;
 export type InspectorBreakdowns = z.infer<typeof inspectorBreakdownsSchema>;

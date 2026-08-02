@@ -666,19 +666,22 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     const serviceTypeIds = [...new Set(items.map((i) => i.appointment.serviceTypeId))];
     const serviceTypeRows = await this.prisma.serviceType.findMany({
       where: { id: { in: serviceTypeIds } },
-      select: { id: true, flow_type: true },
+      select: { id: true, flow_type: true, requires_rental_tenant_confirmation: true },
     });
     const flowTypeMap = new Map(serviceTypeRows.map((st) => [st.id, st.flow_type]));
+    const requiresConfMap = new Map(serviceTypeRows.map((st) => [st.id, st.requires_rental_tenant_confirmation]));
 
     const t1Service = new T1VisibilityService();
     return items.filter((item) => {
       const flowType = flowTypeMap.get(item.appointment.serviceTypeId) ?? 'ROUTINE';
+      const requiresConf = requiresConfMap.get(item.appointment.serviceTypeId) ?? true;
       return t1Service.isVisibleForInspector(
         flowType,
         item.appointment.rentalTenantConfirmationStatus,
         item.appointment.keyRequired,
         item.appointment.scheduledDate,
         todayCivil,
+        requiresConf,
       );
     });
   }
@@ -687,13 +690,14 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     const row = await this.prisma.appointment.findFirst({
       where: { id: appointmentId, deleted_at: null },
       include: {
-        service_type: { select: { flow_type: true } },
+        service_type: { select: { flow_type: true, requires_rental_tenant_confirmation: true } },
       },
     });
     if (!row) return false;
 
     const entity = mapToEntity(row);
     const flowType = row.service_type?.flow_type ?? 'ROUTINE';
+    const requiresConf = row.service_type?.requires_rental_tenant_confirmation ?? true;
 
     const t1Service = new T1VisibilityService();
     return t1Service.isVisibleForInspector(
@@ -702,6 +706,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       entity.keyRequired,
       entity.scheduledDate,
       todayCivil,
+      requiresConf,
     );
   }
 
@@ -735,8 +740,13 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       where: {
         scheduled_date: { gte: startOfDay, lt: endOfDay },
         rental_tenant_confirmation_status: { not: 'CONFIRMED' },
+        key_required: false,
         status: { notIn: ['DONE', 'CANCELLED', 'REJECTED'] },
         deleted_at: null,
+        service_type: {
+          flow_type: 'ROUTINE',
+          requires_rental_tenant_confirmation: true,
+        },
       },
     });
 

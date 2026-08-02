@@ -108,7 +108,8 @@ export class StartInspectionUseCase {
     // confirmation, and a key on hand replaces it.
     const serviceType = await this.serviceTypeReader.findById(appointment.serviceTypeId);
     const flowType = serviceType?.flowType ?? 'ROUTINE';
-    const needsConfirmation = flowType === 'ROUTINE' && !appointment.keyRequired;
+    const requiresConfirmationFlag = serviceType?.requiresRentalTenantConfirmation ?? true;
+    const needsConfirmation = flowType === 'ROUTINE' && requiresConfirmationFlag && !appointment.keyRequired;
     if (needsConfirmation && appointment.rentalTenantConfirmationStatus !== 'CONFIRMED') {
       throw new ExecutionT1BlockedError();
     }
