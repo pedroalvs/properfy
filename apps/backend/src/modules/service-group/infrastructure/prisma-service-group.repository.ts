@@ -409,6 +409,62 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     }));
   }
 
+  async findGroupAppointmentWithConfirmation(
+    groupId: string,
+    appointmentId: string,
+    tenantId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<GroupAppointmentConfirmationRow | null> {
+    const appointment = await this.db(tx).appointment.findFirst({
+      where: {
+        id: appointmentId,
+        service_group_id: groupId,
+        tenant_id: tenantId,
+        deleted_at: null,
+      },
+      select: {
+        id: true,
+        appointment_number: true,
+        tenant_id: true,
+        status: true,
+        scheduled_date: true,
+        time_slot_start: true,
+        time_slot_end: true,
+        rental_tenant_confirmation_status: true,
+        active_confirmation_cycle: {
+          select: { scheduled_date: true, time_slot: true, status: true },
+        },
+        property: {
+          select: { property_code: true, street: true, suburb: true },
+        },
+        tenant: { select: { settings_json: true } },
+      },
+    });
+    if (!appointment) return null;
+
+    return {
+      id: appointment.id,
+      appointmentNumber: appointment.appointment_number,
+      tenantId: appointment.tenant_id,
+      status: appointment.status,
+      scheduledDate: appointment.scheduled_date,
+      timeSlot: `${appointment.time_slot_start}-${appointment.time_slot_end}`,
+      rentalTenantConfirmationStatus: appointment.rental_tenant_confirmation_status,
+      activeCycle: appointment.active_confirmation_cycle
+        ? {
+            scheduledDate: appointment.active_confirmation_cycle.scheduled_date,
+            timeSlot: appointment.active_confirmation_cycle.time_slot,
+            status: appointment.active_confirmation_cycle.status,
+          }
+        : null,
+      propertyCode: appointment.property?.property_code ?? null,
+      propertyAddress: appointment.property ? `${appointment.property.street}, ${appointment.property.suburb}` : null,
+      rentalTenantNotificationsEnabled: isRentalTenantNotificationsEnabled(
+        appointment.tenant?.settings_json as Record<string, unknown> | null,
+      ),
+    };
+  }
+
   async count(filters: ServiceGroupFilters): Promise<number> {
     const where = this.buildWhere(filters);
     return this.prisma.serviceGroup.count({ where });

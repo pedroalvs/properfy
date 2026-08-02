@@ -43,6 +43,7 @@ function makeMocks() {
   const groupRepo = {
     findById: vi.fn().mockResolvedValue({ primaryTenantId: 'tenant-1' } as unknown as ServiceGroupWithAppointments),
     findGroupAppointmentsWithConfirmation: vi.fn().mockResolvedValue([]),
+    findGroupAppointmentWithConfirmation: vi.fn(),
   };
   const generatePortalToken = {
     execute: vi.fn().mockResolvedValue({ dispatched: true, token: 't', expiresAt: new Date() }),
@@ -217,14 +218,14 @@ describe('SendGroupPortalLinksUseCase', () => {
       () => FIXED_NOW,
       prisma as never,
     );
-    m.groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([
-      row({
-        id: 'stale',
-        rentalTenantConfirmationStatus: 'CONFIRMED',
-        scheduledDate: DATE_B,
-        activeCycle: { scheduledDate: DATE_A, timeSlot: SLOT, status: 'CONFIRMED' },
-      }),
-    ]);
+    const stale = row({
+      id: 'stale',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
+      scheduledDate: DATE_B,
+      activeCycle: { scheduledDate: DATE_A, timeSlot: SLOT, status: 'CONFIRMED' },
+    });
+    m.groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([stale]);
+    m.groupRepo.findGroupAppointmentWithConfirmation.mockResolvedValue(stale);
 
     const out = await useCase.execute({ groupId: 'group-1', actor: makeActor() });
 

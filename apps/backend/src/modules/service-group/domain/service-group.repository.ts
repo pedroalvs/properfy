@@ -222,6 +222,16 @@ export interface IServiceGroupRepository {
     groupId: string,
     tx?: Prisma.TransactionClient,
   ): Promise<GroupAppointmentConfirmationRow[]>;
+  /**
+   * Authoritative member lookup for a group-side portal-link write. Every scope
+   * is part of the query so a transaction never reloads unrelated group members.
+   */
+  findGroupAppointmentWithConfirmation(
+    groupId: string,
+    appointmentId: string,
+    tenantId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<GroupAppointmentConfirmationRow | null>;
   count(filters: ServiceGroupFilters): Promise<number>;
   save(group: ServiceGroupEntity): Promise<void>;
   update(

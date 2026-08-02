@@ -31,6 +31,7 @@ import { TokenService } from '../../../src/modules/rental-tenant-portal/domain/t
 import type { IIdempotencyService } from '../../../src/shared/domain/idempotency.service';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
+import type { GroupAppointmentConfirmationRow } from '../../../src/modules/service-group/domain/service-group.repository';
 
 let harness: DbHarness;
 let repo: PrismaServiceGroupRepository;
@@ -165,6 +166,68 @@ function makeActor(overrides: Partial<AuthContext>): AuthContext {
 }
 
 describe('group Send portal link — real DB', () => {
+  it('loads a current portal-link member only within its group, tenant and live scope', async () => {
+    const { tenantId: tenantA, userId: userA } = await seedTenant(harness.prisma, 'Agency scoped lookup A');
+    const { tenantId: tenantB, userId: userB } = await seedTenant(harness.prisma, 'Agency scoped lookup B');
+    const branchA = await getBranchId(harness.prisma, tenantA);
+    const branchB = await getBranchId(harness.prisma, tenantB);
+    const serviceTypeId = await seedServiceType(harness.prisma);
+    const groupId = await seedGroup(harness.prisma, serviceTypeId, userA);
+    const otherGroupId = await seedGroup(harness.prisma, serviceTypeId, userA);
+    const propertyA = await seedProperty(harness.prisma, tenantA, branchA);
+    const propertyB = await seedProperty(harness.prisma, tenantB, branchB);
+    const appointmentId = await seedAppointment(harness.prisma, {
+      tenantId: tenantA,
+      branchId: branchA,
+      propertyId: propertyA,
+      serviceTypeId,
+      createdByUserId: userA,
+      groupId,
+    });
+    await seedAppointment(harness.prisma, {
+      tenantId: tenantB,
+      branchId: branchB,
+      propertyId: propertyB,
+      serviceTypeId,
+      createdByUserId: userB,
+      groupId,
+    });
+    await seedAppointment(harness.prisma, {
+      tenantId: tenantA,
+      branchId: branchA,
+      propertyId: propertyA,
+      serviceTypeId,
+      createdByUserId: userA,
+      groupId: otherGroupId,
+    });
+    const scopedRepo = repo as unknown as {
+      findGroupAppointmentWithConfirmation(
+        groupId: string,
+        appointmentId: string,
+        tenantId: string,
+        tx?: Prisma.TransactionClient,
+      ): Promise<GroupAppointmentConfirmationRow | null>;
+    };
+
+    await expect(harness.prisma.$transaction((tx) => (
+      scopedRepo.findGroupAppointmentWithConfirmation(groupId, appointmentId, tenantA, tx)
+    ))).resolves.toMatchObject({ id: appointmentId, tenantId: tenantA });
+    await expect(
+      scopedRepo.findGroupAppointmentWithConfirmation(otherGroupId, appointmentId, tenantA),
+    ).resolves.toBeNull();
+    await expect(
+      scopedRepo.findGroupAppointmentWithConfirmation(groupId, appointmentId, tenantB),
+    ).resolves.toBeNull();
+
+    await harness.prisma.appointment.update({
+      where: { id: appointmentId },
+      data: { deleted_at: new Date() },
+    });
+    await expect(
+      scopedRepo.findGroupAppointmentWithConfirmation(groupId, appointmentId, tenantA),
+    ).resolves.toBeNull();
+  });
+
   it('findGroupAppointmentsWithConfirmation returns all tenants and maps the active cycle', async () => {
     const { tenantId: tenantA, userId: userA } = await seedTenant(harness.prisma, 'Agency A');
     const { tenantId: tenantB, userId: userB } = await seedTenant(harness.prisma, 'Agency B');
@@ -314,24 +377,29 @@ describe('group Send portal link — real DB', () => {
       harness.prisma,
     );
     let enabledSnapshotObserved = false;
+    let policyFlipped = false;
     const groupRepoWithPolicyFlip = {
       findById: repo.findById.bind(repo),
-      findGroupAppointmentsWithConfirmation: async (id: string) => {
-        const rows = await repo.findGroupAppointmentsWithConfirmation(id);
+      findGroupAppointmentsWithConfirmation: async (id: string, tx?: Prisma.TransactionClient) => {
+        const rows = await repo.findGroupAppointmentsWithConfirmation(id, tx);
         enabledSnapshotObserved = rows.some(
           (row) => row.id === appointmentId && row.rentalTenantNotificationsEnabled,
         );
-        await harness.prisma.tenant.update({
-          where: { id: tenantId },
-          data: {
-            settings_json: {
-              rentalTenantNotificationsEnabled: false,
-              emailSendingEnabled: false,
+        if (!tx && !policyFlipped) {
+          policyFlipped = true;
+          await harness.prisma.tenant.update({
+            where: { id: tenantId },
+            data: {
+              settings_json: {
+                rentalTenantNotificationsEnabled: false,
+                emailSendingEnabled: false,
+              },
             },
-          },
-        });
+          });
+        }
         return rows;
       },
+      findGroupAppointmentWithConfirmation: repo.findGroupAppointmentWithConfirmation.bind(repo),
     } as unknown as PrismaServiceGroupRepository;
     const idempotency = {
       getWithHash: vi.fn().mockResolvedValue(null),
@@ -670,14 +738,15 @@ describe('group Send portal link — real DB', () => {
     const concurrentGroupRepo = {
       findById: repo.findById.bind(repo),
       findGroupAppointmentsWithConfirmation: async (id: string, tx?: Prisma.TransactionClient) => {
-        const rows = await findRowsInTransaction(id, tx);
-        if (tx) return rows;
+        if (tx) throw new Error('Current reclassification must not load the full group under the tenant lock');
+        const rows = await findRowsInTransaction(id);
 
         snapshotReads += 1;
         if (snapshotReads === 2) releaseSnapshots();
         await snapshotsReady;
         return rows;
       },
+      findGroupAppointmentWithConfirmation: repo.findGroupAppointmentWithConfirmation.bind(repo),
     } as unknown as PrismaServiceGroupRepository;
     const idempotency = {
       getWithHash: vi.fn().mockResolvedValue(null),

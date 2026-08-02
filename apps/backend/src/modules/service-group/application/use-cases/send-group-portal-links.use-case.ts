@@ -196,8 +196,12 @@ export class SendGroupPortalLinksUseCase {
                 ctx,
                 row.tenantId,
               );
-              const current = (await this.groupRepo.findGroupAppointmentsWithConfirmation(input.groupId, ctx.tx))
-                .find((candidate) => candidate.id === row.id && candidate.tenantId === row.tenantId);
+              const current = await this.groupRepo.findGroupAppointmentWithConfirmation(
+                input.groupId,
+                row.id,
+                row.tenantId,
+                ctx.tx,
+              );
               if (!current) {
                 return { action: 'SKIP_NOT_SENDABLE' };
               }
