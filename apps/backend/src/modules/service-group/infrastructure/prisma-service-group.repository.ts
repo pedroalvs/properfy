@@ -360,8 +360,9 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
 
   async findGroupAppointmentsWithConfirmation(
     groupId: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<GroupAppointmentConfirmationRow[]> {
-    const rows = await this.prisma.appointment.findMany({
+    const rows = await this.db(tx).appointment.findMany({
       where: { service_group_id: groupId, deleted_at: null },
       orderBy: { appointment_number: 'asc' },
       select: {

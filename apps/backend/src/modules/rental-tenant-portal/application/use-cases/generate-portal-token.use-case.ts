@@ -128,8 +128,9 @@ export class GeneratePortalTokenUseCase {
   async prepareInTransaction(
     input: GeneratePortalTokenInput,
     ctx: TxContext,
+    lockTenantId?: string,
   ): Promise<PreparedPortalTokenGeneration> {
-    const context = await this.loadGenerationContext(input, ctx);
+    const context = await this.loadGenerationContext(input, ctx, lockTenantId);
     let writePhase: Promise<AfterCommitResult<GeneratePortalTokenOutput>> | undefined;
     return {
       runWritePhase: () => {
@@ -192,12 +193,25 @@ export class GeneratePortalTokenUseCase {
   private async loadGenerationContext(
     input: GeneratePortalTokenInput,
     ctx: TxContext,
+    lockTenantId?: string,
   ): Promise<PortalTokenGenerationContext> {
     if (!ALLOWED_ROLES.includes(input.actor.role as (typeof ALLOWED_ROLES)[number])) {
       throw new ForbiddenError('FORBIDDEN', 'Only AM, OP or CL_ADMIN roles can generate portal tokens');
     }
 
-    const tenantIdForQuery = input.actor.role === 'AM' ? null : input.actor.tenantId;
+    // Service-group re-sends know the member's tenant from their scoped snapshot.
+    // Lock that tenant before reading the appointment, so a waiter sees the
+    // state committed by the prior resend rather than its pre-lock snapshot.
+    if (lockTenantId && input.actor.role !== 'AM' && lockTenantId !== input.actor.tenantId) {
+      throw new NotFoundError('APPOINTMENT_NOT_FOUND', 'Appointment not found');
+    }
+    const tenantIdForQuery = lockTenantId ?? (input.actor.role === 'AM' ? null : input.actor.tenantId);
+    const lockedTenant = lockTenantId && ctx.tx
+      ? await this.tenantRepo.findById(lockTenantId, ctx.tx, true)
+      : null;
+    if (lockTenantId && !lockedTenant) {
+      throw new NotFoundError('TENANT_NOT_FOUND', 'Tenant not found');
+    }
     const result = ctx.tx
       ? await this.appointmentRepo.findById(input.appointmentId, tenantIdForQuery, ctx.tx)
       : await this.appointmentRepo.findById(input.appointmentId, tenantIdForQuery);
@@ -222,9 +236,10 @@ export class GeneratePortalTokenUseCase {
       );
     }
 
-    const tenant = ctx.tx
+    const tenant = lockedTenant ?? (ctx.tx
       ? await this.tenantRepo.findById(appointment.tenantId, ctx.tx, true)
-      : await this.tenantRepo.findById(appointment.tenantId);
+      : await this.tenantRepo.findById(appointment.tenantId)
+    );
     if (!tenant) {
       throw new NotFoundError('TENANT_NOT_FOUND', 'Tenant not found');
     }

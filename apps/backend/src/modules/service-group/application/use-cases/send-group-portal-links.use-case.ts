@@ -1,7 +1,10 @@
 import type { PrismaClient } from '@prisma/client';
 import type { AuthContext, SendGroupPortalLinksResultItem } from '@properfy/shared';
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
-import type { GeneratePortalTokenUseCase } from '../../../rental-tenant-portal/application/use-cases/generate-portal-token.use-case';
+import type {
+  GeneratePortalTokenOutput,
+  GeneratePortalTokenUseCase,
+} from '../../../rental-tenant-portal/application/use-cases/generate-portal-token.use-case';
 import type { ConfirmationCycleService } from '../../../appointment/application/services/confirmation-cycle.service';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
@@ -10,9 +13,33 @@ import { NotFoundError } from '../../../../shared/domain/errors';
 import { classifyPortalLinkAction } from '../../../appointment/domain/portal-link-eligibility';
 import { isTenantNotificationsBlockedError } from '../../../appointment/domain/tenant-notifications-blocked';
 import { dayKeyInTz } from '../../../appointment/application/use-cases/bulk-action-shared';
-import { runInTransaction } from '../../../../shared/application/unit-of-work';
+import { runInTransaction, type AfterCommitResult } from '../../../../shared/application/unit-of-work';
 import { retryOnUniqueConflict } from '../../../../shared/domain/retry-on-unique-conflict';
 import { TOKEN_HASH_COLUMN } from '../../../rental-tenant-portal/domain/mint-portal-token.service';
+
+type SerializedResendResult =
+  | { action: Exclude<ReturnType<typeof classifyPortalLinkAction>, 'SEND_AFTER_RESET'> }
+  | {
+      action: 'SEND_AFTER_RESET';
+      afterCommit: AfterCommitResult<GeneratePortalTokenOutput>;
+    };
+
+function reclassifiedResendStatus(
+  action: Exclude<ReturnType<typeof classifyPortalLinkAction>, 'SEND_AFTER_RESET'>,
+): SendGroupPortalLinksResultItem['status'] {
+  switch (action) {
+    case 'SEND':
+      // The stale snapshot was already reset by the transaction that held this
+      // tenant lock first. Avoid minting another token that would revoke its link.
+      return 'IDEMPOTENT_REPLAY';
+    case 'SKIP_NOT_SENDABLE':
+      return 'NOT_SENDABLE';
+    case 'SKIP_ALREADY_CONFIRMED':
+      return 'ALREADY_CONFIRMED';
+    case 'SKIP_TENANT_NOTIFICATIONS_BLOCKED':
+      return 'TENANT_NOTIFICATIONS_BLOCKED';
+  }
+}
 
 // EXACT reuse of the bulk-resend idempotency bucket: a same-day reminder already
 // sent (from the map bulk flow or a prior group click) is a no-op here too —
@@ -156,24 +183,45 @@ export class SendGroupPortalLinksUseCase {
           const prisma = this.prisma;
           if (!prisma) throw new Error(TRANSACTION_REQUIRED_MESSAGE);
 
-          const prepared = await retryOnUniqueConflict(
+          const serialized = await retryOnUniqueConflict<SerializedResendResult>(
             TOKEN_HASH_COLUMN,
             () => runInTransaction(prisma, async (ctx) => {
               const generateInput = { appointmentId: row.id, actor: input.actor };
-              const generation = await this.generatePortalToken.prepareInTransaction(generateInput, ctx);
-              await this.cycleService.rotateOnDateChange(
-                row.id,
+              // Lock the tenant before loading the appointment, then classify the
+              // current group row through the same transaction. A concurrent
+              // resend therefore observes the first reset instead of rotating
+              // and invalidating its freshly minted link.
+              const generation = await this.generatePortalToken.prepareInTransaction(
+                generateInput,
+                ctx,
                 row.tenantId,
-                row.scheduledDate,
-                row.timeSlot,
+              );
+              const current = (await this.groupRepo.findGroupAppointmentsWithConfirmation(input.groupId, ctx.tx))
+                .find((candidate) => candidate.id === row.id && candidate.tenantId === row.tenantId);
+              if (!current) {
+                return { action: 'SKIP_NOT_SENDABLE' };
+              }
+              const currentAction = classifyPortalLinkAction(current);
+              if (currentAction !== 'SEND_AFTER_RESET') {
+                return { action: currentAction };
+              }
+              await this.cycleService.rotateOnDateChange(
+                current.id,
+                current.tenantId,
+                current.scheduledDate,
+                current.timeSlot,
                 'DATE_CHANGED',
                 ctx.tx,
                 ctx.defer,
               );
-              return generation.runWritePhase();
+              return { action: 'SEND_AFTER_RESET', afterCommit: await generation.runWritePhase() };
             }),
           );
-          dispatch = await prepared.runAfterCommit();
+          if (serialized.action !== 'SEND_AFTER_RESET') {
+            results.push({ appointmentId: row.id, status: reclassifiedResendStatus(serialized.action) });
+            continue;
+          }
+          dispatch = await serialized.afterCommit.runAfterCommit();
         } else {
           dispatch = await this.generatePortalToken.execute({ appointmentId: row.id, actor: input.actor });
         }

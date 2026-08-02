@@ -220,6 +220,7 @@ export interface IServiceGroupRepository {
    */
   findGroupAppointmentsWithConfirmation(
     groupId: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<GroupAppointmentConfirmationRow[]>;
   count(filters: ServiceGroupFilters): Promise<number>;
   save(group: ServiceGroupEntity): Promise<void>;

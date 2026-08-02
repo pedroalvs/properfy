@@ -14,7 +14,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 import { setupDbHarness, teardownDbHarness, type DbHarness } from './harness';
 import { seedTenant } from '../service-region/helpers/service-region-fixtures';
 import { PrismaServiceGroupRepository } from '../../../src/modules/service-group/infrastructure/prisma-service-group.repository';
@@ -615,6 +615,126 @@ describe('group Send portal link — real DB', () => {
       { appointmentId, status: 'DATE_CHANGED_RESENT' },
       36,
     );
+  });
+
+  it('serializes concurrent SEND_AFTER_RESET requests against the current cycle before minting', async () => {
+    const { tenantId, userId } = await seedTenant(harness.prisma, 'Agency concurrent resend');
+    const branchId = await getBranchId(harness.prisma, tenantId);
+    const serviceTypeId = await seedServiceType(harness.prisma);
+    const groupId = await seedGroup(harness.prisma, serviceTypeId, userId);
+    const appointmentId = await seedAppointment(harness.prisma, {
+      tenantId,
+      branchId,
+      propertyId: await seedProperty(harness.prisma, tenantId, branchId),
+      serviceTypeId,
+      createdByUserId: userId,
+      groupId,
+      rentalTenantConfirmationStatus: 'CONFIRMED',
+      scheduledDate: STALE_DATE,
+      activeCycle: { scheduledDate: SCHEDULED_DATE, timeSlot: SLOT, status: 'CONFIRMED' },
+    });
+    await seedPrimaryContact(harness.prisma, appointmentId);
+    const before = await harness.prisma.appointment.findUniqueOrThrow({
+      where: { id: appointmentId },
+      select: { active_confirmation_cycle_id: true },
+    });
+
+    const auditService = { log: vi.fn() } as unknown as AuditService;
+    const cycleService = new ConfirmationCycleService(
+      new PrismaConfirmationCycleRepository(harness.prisma),
+      auditService,
+      harness.prisma,
+    );
+    const tokenRepo = new PrismaRentalTenantPortalTokenRepository(harness.prisma);
+    const createNotification = { execute: vi.fn().mockResolvedValue({ notificationId: 'notification-1' }) };
+    const generatePortalToken = new GeneratePortalTokenUseCase(
+      tokenRepo,
+      new PrismaAppointmentRepository(harness.prisma),
+      new PrismaTenantRepository(harness.prisma),
+      new MintPortalTokenService(tokenRepo, new TokenService()),
+      auditService,
+      'https://portal.test',
+      createNotification as never,
+      cycleService,
+      harness.prisma,
+    );
+    let snapshotReads = 0;
+    let releaseSnapshots!: () => void;
+    const snapshotsReady = new Promise<void>((resolve) => {
+      releaseSnapshots = resolve;
+    });
+    const findRowsInTransaction = repo.findGroupAppointmentsWithConfirmation.bind(repo) as (
+      id: string,
+      tx?: Prisma.TransactionClient,
+    ) => Promise<Awaited<ReturnType<typeof repo.findGroupAppointmentsWithConfirmation>>>;
+    const concurrentGroupRepo = {
+      findById: repo.findById.bind(repo),
+      findGroupAppointmentsWithConfirmation: async (id: string, tx?: Prisma.TransactionClient) => {
+        const rows = await findRowsInTransaction(id, tx);
+        if (tx) return rows;
+
+        snapshotReads += 1;
+        if (snapshotReads === 2) releaseSnapshots();
+        await snapshotsReady;
+        return rows;
+      },
+    } as unknown as PrismaServiceGroupRepository;
+    const idempotency = {
+      getWithHash: vi.fn().mockResolvedValue(null),
+      set: vi.fn().mockResolvedValue(undefined),
+    } as unknown as IIdempotencyService;
+    const useCase = new SendGroupPortalLinksUseCase(
+      concurrentGroupRepo,
+      generatePortalToken,
+      cycleService,
+      idempotency,
+      auditService,
+      new AuthorizationService(auditService),
+      undefined,
+      harness.prisma,
+    );
+
+    const [first, second] = await Promise.all([
+      useCase.execute({ groupId, actor: makeActor({ role: 'AM' }) }),
+      useCase.execute({ groupId, actor: makeActor({ role: 'AM' }) }),
+    ]);
+
+    expect(snapshotReads).toBe(2);
+    expect([first.results[0]!.status, second.results[0]!.status].sort()).toEqual([
+      'DATE_CHANGED_RESENT',
+      'IDEMPOTENT_REPLAY',
+    ]);
+    const after = await harness.prisma.appointment.findUniqueOrThrow({
+      where: { id: appointmentId },
+      select: {
+        active_confirmation_cycle_id: true,
+        rental_tenant_confirmation_status: true,
+        confirmation_cycles: {
+          orderBy: { cycle_number: 'asc' },
+          select: { id: true, status: true, portal_token_id: true },
+        },
+        portal_tokens: {
+          select: { id: true, status: true, confirmation_cycle_id: true },
+        },
+      },
+    });
+    expect(after.rental_tenant_confirmation_status).toBe('PENDING');
+    expect(after.confirmation_cycles).toEqual([
+      { id: before.active_confirmation_cycle_id, status: 'SUPERSEDED', portal_token_id: null },
+      {
+        id: after.active_confirmation_cycle_id,
+        status: 'PENDING',
+        portal_token_id: after.portal_tokens[0]!.id,
+      },
+    ]);
+    expect(after.portal_tokens).toEqual([
+      {
+        id: after.confirmation_cycles[1]!.portal_token_id,
+        status: 'ACTIVE',
+        confirmation_cycle_id: after.active_confirmation_cycle_id,
+      },
+    ]);
+    expect(createNotification.execute).toHaveBeenCalledTimes(1);
   });
 
   it('holds the tenant notification-policy row lock until the transaction commits', async () => {
