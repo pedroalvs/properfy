@@ -194,7 +194,7 @@ export async function registerAppointmentRoutes(
     },
   );
 
-  // GET /v1/appointments/:appointmentId/portal-link — 200 (AM/OP: Copy Portal Link)
+  // GET /v1/appointments/:appointmentId/portal-link — 200 (AM/OP/CL_ADMIN: Copy Portal Link)
   app.get(
     '/v1/appointments/:appointmentId/portal-link',
     {

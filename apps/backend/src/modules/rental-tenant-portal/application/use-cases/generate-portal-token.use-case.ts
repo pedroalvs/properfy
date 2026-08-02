@@ -36,7 +36,7 @@ export interface GeneratePortalTokenInput {
   notify?: boolean;
 }
 
-const ALLOWED_ROLES = ['AM', 'OP'] as const;
+const ALLOWED_ROLES = ['AM', 'OP', 'CL_ADMIN'] as const;
 
 // Portal link is only meaningful once the appointment leaves DRAFT and is not
 // terminal: the tenant confirms/reschedules a released, non-finished visit.
@@ -60,7 +60,7 @@ export class GeneratePortalTokenUseCase {
 
   async execute(input: GeneratePortalTokenInput) {
     if (!ALLOWED_ROLES.includes(input.actor.role as (typeof ALLOWED_ROLES)[number])) {
-      throw new ForbiddenError('FORBIDDEN', 'Only AM or OP roles can generate portal tokens');
+      throw new ForbiddenError('FORBIDDEN', 'Only AM, OP or CL_ADMIN roles can generate portal tokens');
     }
 
     const tenantIdForQuery = input.actor.role === 'AM' ? null : input.actor.tenantId;
@@ -70,6 +70,14 @@ export class GeneratePortalTokenUseCase {
     }
 
     const { appointment } = result;
+
+    // Defense in depth: the repo's tenant filter is skipped when the scope is
+    // null, so an agency actor that somehow reached here without a tenantId
+    // would otherwise mint (and dispatch) a portal credential for any agency.
+    // Mirrors the guard in ForceManualTenantConfirmationUseCase.
+    if (input.actor.role === 'CL_ADMIN' && appointment.tenantId !== input.actor.tenantId) {
+      throw new NotFoundError('APPOINTMENT_NOT_FOUND', 'Appointment not found');
+    }
 
     if (!input.allowAnyStatus && !ALLOWED_STATUSES.includes(appointment.status as (typeof ALLOWED_STATUSES)[number])) {
       throw new ConflictError(

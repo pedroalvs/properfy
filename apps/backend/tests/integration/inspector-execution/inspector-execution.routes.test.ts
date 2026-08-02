@@ -212,22 +212,13 @@ describe('POST /v1/inspector/appointments/:appointmentId/start', () => {
   it('should return 201 with execution data', async () => {
     mockJwtVerify.mockResolvedValueOnce(inspContext);
     const startResult = {
-      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a99',
+      executionId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a99',
       appointmentId: APPOINTMENT_ID,
-      inspectorId: 'f5eebc99-9c0b-4ef8-bb6d-6bb9bd380a66',
       startedAt: '2026-03-16T10:00:00.000Z',
-      finishedAt: null,
-      resumedAt: null,
       startLatitude: -33.8688,
       startLongitude: 151.2093,
-      finishLatitude: null,
-      finishLongitude: null,
       geolocationDistanceMeters: 120,
-      checklistJson: null,
-      notes: null,
-      observation: null,
-      createdAt: '2026-03-16T10:00:00.000Z',
-      updatedAt: '2026-03-16T10:00:00.000Z',
+      status: 'IN_PROGRESS',
     };
     mockStartInspectionExecute.mockResolvedValueOnce(startResult);
 
@@ -238,7 +229,8 @@ describe('POST /v1/inspector/appointments/:appointmentId/start', () => {
       .send({ latitude: -33.8688, longitude: 151.2093 });
 
     expect(res.status).toBe(201);
-    expect(res.body.data.id).toBeDefined();
+    expect(res.body.data.executionId).toBeDefined();
+    expect(res.body.data.status).toBe('IN_PROGRESS');
     expect(res.body.data.startLatitude).toBe(-33.8688);
   });
 

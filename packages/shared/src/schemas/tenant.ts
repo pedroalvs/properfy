@@ -75,10 +75,6 @@ export const tenantSettingsSchema = z.object({
   portalCutoffHour: z.number().int().min(0).max(23).default(19),
   portalCutoffDaysBefore: z.number().int().min(0).max(7).default(1),
 
-  // Inspection time-window bounds (how early/late an inspector can start)
-  inspectionWindowBeforeMinutes: z.number().int().min(0).max(120).default(30),
-  inspectionWindowAfterMinutes: z.number().int().min(0).max(120).default(30),
-
   // Notification daily budget caps
   notificationDailyCapEmail: z.number().int().min(0).default(500),
   notificationDailyCapSms: z.number().int().min(0).default(100),

@@ -7,6 +7,11 @@
 3. The command atomically reserves its key before side effects. Reservation completion and release use a unique owner token as a fencing condition so an expired worker cannot mutate a successor's claim.
 4. This PR does not introduce a transaction-aware repository or outbox across availability, confirmation-cycle, transition, and audit writes. It uses replay recovery consistent with the existing transition service; broader atomicity belongs in a cross-flow refactor that also covers portal decline.
 
+## 2026-07-31 - E-mails usam Cco global configurada por ambiente
+
+1. `EMAIL_BCC_RECIPIENT` é uma configuração global e opcional do backend; não integra as credenciais configuráveis do Integrations Hub.
+2. Quando preenchida, o adaptador Resend adiciona o endereço como BCC a todos os envios, incluindo disparos de teste, sem expô-lo aos destinatários.
+
 ## 2026-07-06 - Service groups no longer have priority mode
 
 1. `priority mode` foi removido integralmente do produto e da API; service groups agora usam um único comportamento padrão, sem `priorityMode` nem `priorityExpiresAt`.

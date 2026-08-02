@@ -3,6 +3,7 @@ export interface ServiceTypeInfo {
   code: string;
   name: string;
   flowType: string;
+  requiresRentalTenantConfirmation: boolean;
 }
 
 export interface IServiceTypeReader {

@@ -60,7 +60,10 @@ export function AppointmentDetailPage() {
       <TopBar title={apt.serviceTypeName} showBack />
 
       <div className="flex flex-col gap-3 px-page-x py-4">
-        {/* Past-date banner — critical, shown first */}
+        {/* Past-date banner — critical, shown first. Same flag as the schedule card:
+            the inspection day has passed, NOT the platform's 45-day age rule. A past
+            date no longer blocks the start by itself, though the backend still refuses
+            a routine inspection the tenant never confirmed. */}
         {apt.isOverdue && (
           <section
             className="flex items-center gap-3 rounded-[20px] border border-error/20 bg-error/10 px-4 py-3.5"
@@ -68,7 +71,7 @@ export function AppointmentDetailPage() {
           >
             <i className="mdi mdi-clock-alert-outline text-xl text-error shrink-0" aria-hidden="true" />
             <p className="text-sm font-semibold text-error">
-              Past date — the scheduled date has passed. Contact your coordinator.
+              Past date — the scheduled date has passed. Attend to this first.
             </p>
           </section>
         )}
@@ -205,7 +208,6 @@ export function AppointmentDetailPage() {
             <StartInspectionButton
               appointmentId={apt.id}
               scheduledDate={apt.scheduledDate}
-              timeSlotStart={apt.timeSlotStart}
               resume={hasResumableExecution}
             />
           </div>

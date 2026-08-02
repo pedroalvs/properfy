@@ -31,7 +31,7 @@ export class GetPortalLinkUseCase {
   async execute(input: GetPortalLinkInput): Promise<GetPortalLinkOutput> {
     const { appointmentId, actor } = input;
 
-    this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'appointment.portal_link', entityType: 'Appointment' });
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN'], { action: 'appointment.portal_link', entityType: 'Appointment' });
 
     const tenantScope = actor.role === 'AM' ? null : actor.tenantId;
     const result = await this.appointmentRepo.findById(appointmentId, tenantScope);
@@ -40,6 +40,17 @@ export class GetPortalLinkUseCase {
     }
 
     const { appointment } = result;
+
+    // Defense in depth: the repo's tenant filter is skipped when the scope is
+    // null, so an agency actor that somehow reached here without a tenantId
+    // would otherwise read any agency's link. Mirrors the guard in
+    // ForceManualTenantConfirmationUseCase.
+    if (
+      (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') &&
+      appointment.tenantId !== actor.tenantId
+    ) {
+      throw new AppointmentNotFoundError();
+    }
 
     // AC-2.6: findActiveByAppointmentId is the sole authority.
     // The previous cycle-proxy early-reject was removed — a null activeConfirmationCycleId

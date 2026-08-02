@@ -14,6 +14,7 @@ import {
   marketplaceOfferDetailAppointmentSchema,
   invoiceResponseSchema,
   inspectorResponseSchema,
+  startInspectionResponseSchema,
 } from './responses';
 
 describe('appointmentResponseSchema — appointmentCode / code', () => {
@@ -1018,5 +1019,40 @@ describe('response contract — civil dates vs instants', () => {
     expect(parsed.scheduledDate).toBe('2026-07-28');
     expect(parsed.createdAt).toBe('2026-07-28T00:00:00.000Z');
     expect(parsed.scheduledDate).not.toBe(parsed.createdAt);
+  });
+});
+
+describe('startInspectionResponseSchema', () => {
+  const validPayload = {
+    executionId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee111',
+    appointmentId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee112',
+    startedAt: '2026-03-16T10:00:00.000Z',
+    startLatitude: -33.8688,
+    startLongitude: 151.2093,
+    geolocationDistanceMeters: 120,
+    status: 'IN_PROGRESS' as const,
+  };
+
+  it('accepts a valid start inspection response payload', () => {
+    const result = startInspectionResponseSchema.safeParse(validPayload);
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts geolocationDistanceMeters when null', () => {
+    const result = startInspectionResponseSchema.safeParse({
+      ...validPayload,
+      geolocationDistanceMeters: null,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.geolocationDistanceMeters).toBeNull();
+  });
+
+  it('rejects an invalid executionId or appointmentId UUID', () => {
+    expect(startInspectionResponseSchema.safeParse({ ...validPayload, executionId: 'invalid-id' }).success).toBe(false);
+    expect(startInspectionResponseSchema.safeParse({ ...validPayload, appointmentId: 'not-a-uuid' }).success).toBe(false);
+  });
+
+  it('rejects an invalid status', () => {
+    expect(startInspectionResponseSchema.safeParse({ ...validPayload, status: 'DONE' }).success).toBe(false);
   });
 });

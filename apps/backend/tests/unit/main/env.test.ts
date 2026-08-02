@@ -181,4 +181,16 @@ describe('validateEnv', () => {
     expect(result.MOBILE_MESSAGE_API_KEY).toBe('mm-key');
     expect(result.SUPABASE_S3_ENDPOINT).toBe('https://storage.example.com');
   });
+
+  it('should accept a valid global email BCC recipient', () => {
+    const result = validateEnv({ ...validEnv, EMAIL_BCC_RECIPIENT: 'supervision@example.com' });
+
+    expect(result.EMAIL_BCC_RECIPIENT).toBe('supervision@example.com');
+  });
+
+  it('should reject an invalid global email BCC recipient', () => {
+    expect(() => validateEnv({ ...validEnv, EMAIL_BCC_RECIPIENT: 'not-an-email' })).toThrow(
+      'EMAIL_BCC_RECIPIENT',
+    );
+  });
 });

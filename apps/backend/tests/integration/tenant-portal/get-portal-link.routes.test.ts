@@ -5,7 +5,7 @@
  *   - 200 with { portalUrl, expiresAt } on happy path
  *   - 404 NO_ACTIVE_PORTAL_TOKEN when appointment has no active confirmation cycle
  *   - 409 PORTAL_TOKEN_NOT_DECRYPTABLE when token exists but rawTokenEncrypted is null
- *   - 403 FORBIDDEN when actor is CL_ADMIN or INSP (use case rejects the role)
+ *   - 403 FORBIDDEN when actor is CL_USER or INSP (use case rejects the role)
  *   - 404 APPOINTMENT_NOT_FOUND when OP queries a cross-tenant appointment (tenant scope hides resource)
  *
  * Uses mock-container + supertest (consistent with all other route integration tests in this project).
@@ -61,6 +61,7 @@ vi.mock('../../../src/main/container', () => ({
 const AM_ACTOR = { userId: 'user-am', tenantId: null, role: 'AM', branchId: null, inspectorId: null };
 const OP_ACTOR = { userId: 'user-op', tenantId: 'tenant-1', role: 'OP', branchId: null, inspectorId: null };
 const CL_ADMIN_ACTOR = { userId: 'user-cl', tenantId: 'tenant-1', role: 'CL_ADMIN', branchId: null, inspectorId: null };
+const CL_USER_ACTOR = { userId: 'user-clu', tenantId: 'tenant-1', role: 'CL_USER', branchId: null, inspectorId: null };
 const INSP_ACTOR = { userId: 'user-insp', tenantId: null, role: 'INSP', branchId: null, inspectorId: 'insp-1' };
 
 let app: FastifyInstance;
@@ -95,6 +96,18 @@ describe('GET /v1/appointments/:appointmentId/portal-link', () => {
 
     it('returns portalUrl and expiresAt for OP actor', async () => {
       mockJwtVerify.mockResolvedValueOnce(OP_ACTOR);
+      mockGetPortalLinkExecute.mockResolvedValueOnce({ portalUrl: PORTAL_URL, expiresAt: EXPIRES_AT });
+
+      const res = await supertest(app.server)
+        .get(`/v1/appointments/${APPOINTMENT_ID}/portal-link`)
+        .set('Authorization', 'Bearer valid-token');
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.portalUrl).toBe(PORTAL_URL);
+    });
+
+    it('returns portalUrl and expiresAt for CL_ADMIN actor', async () => {
+      mockJwtVerify.mockResolvedValueOnce(CL_ADMIN_ACTOR);
       mockGetPortalLinkExecute.mockResolvedValueOnce({ portalUrl: PORTAL_URL, expiresAt: EXPIRES_AT });
 
       const res = await supertest(app.server)
@@ -164,8 +177,8 @@ describe('GET /v1/appointments/:appointmentId/portal-link', () => {
   });
 
   describe('403 — unauthorized roles', () => {
-    it('returns 403 for CL_ADMIN actor', async () => {
-      mockJwtVerify.mockResolvedValueOnce(CL_ADMIN_ACTOR);
+    it('returns 403 for CL_USER actor', async () => {
+      mockJwtVerify.mockResolvedValueOnce(CL_USER_ACTOR);
       mockGetPortalLinkExecute.mockRejectedValueOnce(
         new ForbiddenError('FORBIDDEN', 'Role not permitted for this action'),
       );

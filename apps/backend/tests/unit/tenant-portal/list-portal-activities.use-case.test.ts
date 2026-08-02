@@ -86,16 +86,62 @@ describe('ListPortalActivitiesUseCase', () => {
     expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', 't1');
   });
 
-  it('should reject CL_ADMIN actor with FORBIDDEN', async () => {
+  it('should return paginated activities for CL_ADMIN actor', async () => {
+    const activities = [buildActivity()];
+    (appointmentRepo.findById as any).mockResolvedValue({ appointment: { id: 'appt-1', tenantId: 't1' } });
+    (activityRepo.findByAppointmentId as any).mockResolvedValue({ activities, total: 1 });
+
+    const result = await useCase.execute({
+      appointmentId: 'appt-1',
+      actor: clAdminActor,
+      page: 1,
+      pageSize: 20,
+    });
+
+    expect(result.data).toHaveLength(1);
+    // The lookup MUST carry the actor's tenant: it is the only thing keeping a
+    // CL_ADMIN from reading another agency's portal history, since
+    // findByAppointmentId below is not tenant-filtered.
+    expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', 't1');
+  });
+
+  it('should not leak another tenant activities to CL_ADMIN', async () => {
+    // Faithful to the real repo, which SKIPS the tenant filter when the scope is
+    // null (`if (tenantId) where.tenant_id = tenantId`). Returning the row for a
+    // null scope is what makes this test fail if the scoping ever regresses to
+    // null — a mock that returned null there would pass either way.
+    (appointmentRepo.findById as any).mockImplementation(async (_id: string, tenantId: string | null) =>
+      tenantId == null || tenantId === 'other-tenant'
+        ? { appointment: { id: 'appt-1', tenantId: 'other-tenant' } }
+        : null,
+    );
+
     await expect(
       useCase.execute({ appointmentId: 'appt-1', actor: clAdminActor, page: 1, pageSize: 20 }),
-    ).rejects.toThrow('Only AM and OP roles can view portal activities');
+    ).rejects.toThrow('Appointment not found');
+
+    expect(activityRepo.findByAppointmentId).not.toHaveBeenCalled();
+  });
+
+  // Defense in depth: simulates the repo handing back a foreign row despite the
+  // scope (loosened filter / null scope). The ownership re-check must still
+  // refuse. Without that guard this test returns another agency's history.
+  it('should refuse a foreign appointment even if the repo ignores the tenant scope', async () => {
+    (appointmentRepo.findById as any).mockResolvedValue({
+      appointment: { id: 'appt-1', tenantId: 'other-tenant' },
+    });
+
+    await expect(
+      useCase.execute({ appointmentId: 'appt-1', actor: clAdminActor, page: 1, pageSize: 20 }),
+    ).rejects.toThrow('Appointment not found');
+
+    expect(activityRepo.findByAppointmentId).not.toHaveBeenCalled();
   });
 
   it('should reject INSP actor with FORBIDDEN', async () => {
     await expect(
       useCase.execute({ appointmentId: 'appt-1', actor: inspActor, page: 1, pageSize: 20 }),
-    ).rejects.toThrow('Only AM and OP roles can view portal activities');
+    ).rejects.toThrow('Only AM, OP and CL_ADMIN roles can view portal activities');
   });
 
   it('should throw NOT_FOUND when appointment does not exist', async () => {

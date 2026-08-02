@@ -9,6 +9,7 @@ import { AppointmentStatusChip } from '@/features/appointments/components/Appoin
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 import { useGoBack } from '@/hooks/useGoBack';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
@@ -67,13 +68,18 @@ export function AppointmentDetailPage() {
 
   const isPrivileged = user ? isPrivilegedRole(user.role) : false;
   const canEdit = user ? CAN_EDIT_ROLES.includes(user.role) : false;
+  // Agency-facing surfaces read the shared role matrix instead of `isPrivileged`,
+  // so CL_ADMIN reaches them without inheriting the operations-only actions.
+  const { canPerform, hasClUserFlag } = usePermissions();
+  const canUsePortalLink = canPerform('appointment.portal_link');
+  const canViewPortalActivity = canPerform('appointment.portal_activity');
   const { showSuccess, showError } = useSnackbar();
   const [isGeneratingPortalToken, setIsGeneratingPortalToken] = useState(false);
   const [isCopyingPortalLink, setIsCopyingPortalLink] = useState(false);
   const [generateAndCopyOpen, setGenerateAndCopyOpen] = useState(false);
   const tabs = [
     ...BASE_TABS,
-    ...(isPrivileged ? [PORTAL_ACTIVITY_TAB] : []),
+    ...(canViewPortalActivity ? [PORTAL_ACTIVITY_TAB] : []),
     ...(isPrivileged ? [NOTIFICATIONS_TAB] : []),
     ...(isPrivileged ? [TIMELINE_TAB] : []),
     ...(isPrivileged ? [FINANCIAL_TAB] : []),
@@ -100,18 +106,22 @@ export function AppointmentDetailPage() {
   // Portal link is only meaningful once the appointment leaves DRAFT and is
   // not terminal — mirrors the backend INVALID_APPOINTMENT_STATUS gate.
   const canSendPortalLink = !!appointment &&
-    isPrivileged &&
+    canUsePortalLink &&
     (appointment.status === 'AWAITING_INSPECTOR' || appointment.status === 'SCHEDULED') &&
     (!!appointment.contactEmail || !!appointment.contactPhone);
-  const canCopyPortalLink = !!appointment && isPrivileged;
+  const canCopyPortalLink = !!appointment && canUsePortalLink;
   // Generate-only (no notification) follows the same backend status gate as Send,
   // but needs no contact — nothing is dispatched.
   const canGeneratePortalToken = !!appointment &&
-    isPrivileged &&
+    canUsePortalLink &&
     (appointment.status === 'AWAITING_INSPECTOR' || appointment.status === 'SCHEDULED');
   const canDelete = !!appointment && user?.role === 'AM' && appointment.status === 'DRAFT';
+  // `hasClUserFlag` is unconditional for every role except CL_USER, mirroring the
+  // server-side `assertClUserPermission` — so this reads as AM/OP/CL_ADMIN plus
+  // CL_USER holding the flag.
   const canForceConfirm = !!appointment &&
-    isPrivileged &&
+    canPerform('appointment.force_confirmation') &&
+    hasClUserFlag('force_confirmation') &&
     appointment.rentalTenantConfirmationStatus !== 'CONFIRMED' &&
     appointment.status !== 'DONE' &&
     appointment.status !== 'CANCELLED' &&
@@ -399,7 +409,7 @@ export function AppointmentDetailPage() {
           {activeTab === 'financial' && isPrivileged && (
             <AppointmentFinancialTab appointmentId={appointment.id} />
           )}
-          {activeTab === 'portal-activity' && isPrivileged && (
+          {activeTab === 'portal-activity' && canViewPortalActivity && (
             <AppointmentPortalActivityTab appointmentId={appointment.id} />
           )}
         </div>

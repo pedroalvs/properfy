@@ -100,6 +100,27 @@ describe('ROLE_ACTION_MATRIX', () => {
     expect(entry!.conditionKey).toBe('cancel_appointments');
   });
 
+  it('rental-tenant portal actions are AM, OP and CL_ADMIN — never CL_USER', () => {
+    for (const action of ['appointment.portal_link', 'appointment.portal_activity']) {
+      const entry = ROLE_ACTION_MATRIX[action];
+      expect(entry, `action ${action} should be in matrix`).toBeDefined();
+      expect(entry!.roles).toContain('AM');
+      expect(entry!.roles).toContain('OP');
+      expect(entry!.roles).toContain('CL_ADMIN');
+      expect(entry!.roles).not.toContain('CL_USER');
+      expect(entry!.roles).not.toContain('INSP');
+    }
+  });
+
+  it('appointment.force_confirmation includes CL_ADMIN and keeps the CL_USER flag gate', () => {
+    const entry = ROLE_ACTION_MATRIX['appointment.force_confirmation'];
+    expect(entry).toBeDefined();
+    expect(entry!.roles).toContain('CL_ADMIN');
+    expect(entry!.roles).toContain('CL_USER');
+    expect(entry!.condition).toBe('cl_user_flag');
+    expect(entry!.conditionKey).toBe('force_confirmation');
+  });
+
   it('user.create_tenant has tenant_setting condition', () => {
     const entry = ROLE_ACTION_MATRIX['user.create_tenant'];
     expect(entry).toBeDefined();
