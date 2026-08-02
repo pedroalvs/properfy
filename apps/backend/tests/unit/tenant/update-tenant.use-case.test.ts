@@ -169,6 +169,77 @@ describe('UpdateTenantUseCase', () => {
     });
   });
 
+  it('dual-writes a cached old client notification setting on update', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(
+      makeTenant({
+        settingsJson: {
+          theme: 'light',
+          rentalTenantNotificationsEnabled: true,
+          emailSendingEnabled: true,
+        },
+      }),
+    );
+
+    await useCase.execute({
+      tenantId: 'tenant-1',
+      data: { settings: { emailSendingEnabled: false } },
+      actor: makeActor(),
+    });
+
+    const updateCall = vi.mocked(tenantRepo.update).mock.calls[0]![1]!;
+    expect(updateCall.settingsJson).toEqual({
+      theme: 'light',
+      rentalTenantNotificationsEnabled: false,
+      emailSendingEnabled: false,
+    });
+  });
+
+  it('reactivates both keys from a cached old client update', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(
+      makeTenant({
+        settingsJson: {
+          rentalTenantNotificationsEnabled: false,
+          emailSendingEnabled: false,
+        },
+      }),
+    );
+
+    await useCase.execute({
+      tenantId: 'tenant-1',
+      data: { settings: { emailSendingEnabled: true } },
+      actor: makeActor(),
+    });
+
+    const updateCall = vi.mocked(tenantRepo.update).mock.calls[0]![1]!;
+    expect(updateCall.settingsJson).toEqual({
+      rentalTenantNotificationsEnabled: true,
+      emailSendingEnabled: true,
+    });
+  });
+
+  it('fails closed and repairs conflicting notification settings on update', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(
+      makeTenant({ settingsJson: { emailSendingEnabled: false } }),
+    );
+
+    await useCase.execute({
+      tenantId: 'tenant-1',
+      data: {
+        settings: {
+          rentalTenantNotificationsEnabled: true,
+          emailSendingEnabled: false,
+        },
+      },
+      actor: makeActor(),
+    });
+
+    const updateCall = vi.mocked(tenantRepo.update).mock.calls[0]![1]!;
+    expect(updateCall.settingsJson).toEqual({
+      rentalTenantNotificationsEnabled: false,
+      emailSendingEnabled: false,
+    });
+  });
+
   it('should throw TENANT_NOT_FOUND when tenant does not exist', async () => {
     vi.mocked(tenantRepo.findById).mockResolvedValue(null);
 

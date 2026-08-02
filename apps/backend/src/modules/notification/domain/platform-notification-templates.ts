@@ -190,6 +190,34 @@ const REJECTED_AGENCY_HTML = renderAppointmentEmailHtml({
     CLOSING_PARAGRAPHS,
 });
 
+// Mirror of a message the platform withheld from the rental tenant because the
+// agency has `rentalTenantNotificationsEnabled: false` and handles that contact
+// itself. No tenantEmailHtml wrapper, for the same reason as CANCELLED_AGENCY_HTML
+// and ESCALATION_HTML: its greeting would address the agency by its own tenant's name.
+//
+// Deliberately generic over the suppressed event — {{suppressedTemplateLabel}} names
+// it — rather than one bespoke agency variant per occupant template. Fourteen
+// near-identical templates would each need registering across the shared catalogues
+// and hand-written copy, for the same email volume and the same information.
+const TENANT_NOTICE_FORWARDED_HTML = renderAppointmentEmailHtml({
+  heading: 'Tenant notice not sent{{#if branchName}} — {{branchName}}{{/if}}',
+  contentHtml:
+    `<p style="${EMAIL_CALLOUT_STYLE}"><strong>Action required:</strong> ` +
+    'your agency is set to contact tenants directly, so Properfy did not send this ' +
+    'message. Please pass it on to the tenant.</p>' +
+    '<p><strong>Notice withheld:</strong> {{suppressedTemplateLabel}}' +
+    '{{#if suppressedChannel}} ({{suppressedChannel}}){{/if}}</p>' +
+    `<p>It concerns the <strong>${SERVICE_LABEL}</strong>` +
+    '{{#if appointmentCode}} <strong>#{{appointmentCode}}</strong>{{/if}} of ' +
+    '<strong>{{propertyAddress}}</strong> scheduled for <strong>{{scheduledDate}}</strong>' +
+    '{{#if timeSlot}} at <strong>{{timeSlot}}</strong>{{/if}}' +
+    '{{#if rentalTenantName}} (tenant: <strong>{{rentalTenantName}}</strong>){{/if}}.</p>' +
+    '{{#if confirmationLink}}' +
+    '<p>The tenant can confirm or change the booking here: {{confirmationLink}}</p>' +
+    '{{/if}}' +
+    CLOSING_PARAGRAPHS,
+});
+
 const UNAVAILABILITY_HTML = tenantEmailHtml(
   '<p>We have received your unavailability report for the ' +
   `<strong>${SERVICE_LABEL}</strong> <strong>#{{appointmentCode}}</strong> of ` +
@@ -358,6 +386,15 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     // let a branch contact's opt-out suppress the notice telling them to
     // reschedule. Matches PROTECTED_TEMPLATE_CLASSIFICATIONS in @properfy/shared.
     notificationClass: 'TRANSACTIONAL',
+  },
+  {
+    code: 'TENANT_NOTICE_FORWARDED_AGENCY',
+    channel: 'EMAIL',
+    subject: 'Tenant notice not sent - {{propertyAddress}}',
+    body: 'Your agency contacts tenants directly, so Properfy did not send "{{suppressedTemplateLabel}}" for inspection {{appointmentCode}} at {{propertyAddress}} on {{scheduledDate}}. Please pass it on to the tenant.',
+    bodyHtml: TENANT_NOTICE_FORWARDED_HTML,
+    // No explicit notificationClass: resolvePlatformTemplateClass derives
+    // TRANSACTIONAL from PROTECTED_TEMPLATE_CLASSIFICATIONS.
   },
   {
     code: 'INSPECTION_UNAVAILABILITY_REPORTED',

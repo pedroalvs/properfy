@@ -62,19 +62,7 @@ export class NotifyOnRentalTenantPortalActionHandler {
     if (!emailCode) return;
     const smsCode = `${emailCode}_SMS`;
 
-    // H5: Check idempotency before expensive repo loads.
-    //
-    // Per leg, not per event. This used to be a single early return on the EMAIL
-    // code, which was correct while SMS was only a fallback — but now that both
-    // channels can fire, that return would permanently suppress the SMS for any
-    // appointment whose email had already gone out.
-    const [emailAlreadySent, smsAlreadySent] = await Promise.all([
-      this.notificationRepo.existsByAppointmentAndTemplate(input.appointmentId, emailCode),
-      this.notificationRepo.existsByAppointmentAndTemplate(input.appointmentId, smsCode),
-    ]);
-    if (emailAlreadySent && smsAlreadySent) return;
-
-    // H6: Scope repository call by tenantId when available
+    // Scope repository call by tenantId when available.
     const result = await this.appointmentRepo.findById(
       input.appointmentId,
       input.tenantId ?? null,
@@ -82,6 +70,25 @@ export class NotifyOnRentalTenantPortalActionHandler {
     if (!result?.contact) return;
 
     const { appointment, contact } = result;
+
+    // Per leg, not per event. This used to be a single early return on the EMAIL
+    // code, which was correct while SMS was only a fallback — but now that both
+    // channels can fire, that return would permanently suppress the SMS for any
+    // appointment whose email had already gone out. The appointment read above
+    // supplies the concrete tenant scope for both queries.
+    const [emailAlreadySent, smsAlreadySent] = await Promise.all([
+      this.notificationRepo.existsByAppointmentAndTemplate(
+        input.appointmentId,
+        emailCode,
+        appointment.tenantId,
+      ),
+      this.notificationRepo.existsByAppointmentAndTemplate(
+        input.appointmentId,
+        smsCode,
+        appointment.tenantId,
+      ),
+    ]);
+    if (emailAlreadySent && smsAlreadySent) return;
 
     const tenant = await this.tenantRepo.findById(appointment.tenantId);
     if (!tenant) return;

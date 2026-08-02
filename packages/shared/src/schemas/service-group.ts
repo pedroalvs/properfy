@@ -195,6 +195,7 @@ export const groupPortalLinkPlannedActionSchema = z.enum([
   'SEND_AFTER_RESET', // confirmed but stale (date/time changed) → reset then resend
   'SKIP_ALREADY_CONFIRMED', // confirmed for the current date/time → skip
   'SKIP_NOT_SENDABLE', // status not in AWAITING_INSPECTOR/SCHEDULED → skip
+  'SKIP_TENANT_NOTIFICATIONS_BLOCKED', // owning agency never contacts the occupant → skip
 ]);
 export type GroupPortalLinkPlannedAction = z.infer<typeof groupPortalLinkPlannedActionSchema>;
 
@@ -214,6 +215,7 @@ export const getGroupPortalLinkPlanResponseSchema = z.object({
     willResendDateChanged: z.number().int(), // SEND_AFTER_RESET
     alreadyConfirmed: z.number().int(), // SKIP_ALREADY_CONFIRMED
     notSendable: z.number().int(), // SKIP_NOT_SENDABLE
+    tenantNotificationsBlocked: z.number().int(), // SKIP_TENANT_NOTIFICATIONS_BLOCKED
   }),
 });
 export type GetGroupPortalLinkPlanResponse = z.infer<typeof getGroupPortalLinkPlanResponseSchema>;
@@ -236,6 +238,10 @@ export type SendGroupPortalLinksRequest = z.infer<typeof sendGroupPortalLinksReq
  * - ALREADY_CONFIRMED / NOT_SENDABLE: skipped by the eligibility rule.
  * - NO_PRIMARY_CONTACT: token minted but no primary contact to dispatch to.
  * - IDEMPOTENT_REPLAY: already sent today (per-day bucket), no re-dispatch.
+ * - TENANT_NOTIFICATIONS_BLOCKED: the owning agency has
+ *   `rentalTenantNotificationsEnabled: false`, so the occupant is never contacted.
+ *   Evaluated per item rather than per group because service groups are
+ *   cross-agency — one group can hold blocked and unblocked members at once.
  * - ERROR: per-item failure surfaced without aborting the batch.
  */
 export const sendGroupPortalLinksResultStatusSchema = z.enum([
@@ -245,6 +251,7 @@ export const sendGroupPortalLinksResultStatusSchema = z.enum([
   'NOT_SENDABLE',
   'NO_PRIMARY_CONTACT',
   'IDEMPOTENT_REPLAY',
+  'TENANT_NOTIFICATIONS_BLOCKED',
   'ERROR',
 ]);
 export type SendGroupPortalLinksResultStatus = z.infer<typeof sendGroupPortalLinksResultStatusSchema>;

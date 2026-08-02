@@ -358,6 +358,10 @@ export const bulkResendReminderResultStatusSchema = z.enum([
   'SENT',
   'NO_PRIMARY_CONTACT',
   'IDEMPOTENT_REPLAY',
+  // The owning agency contacts its own tenants, so nothing was sent. A distinct
+  // status rather than ERROR: it is an expected outcome of a deliberate setting,
+  // and a selection can legitimately mix blocked and unblocked agencies.
+  'TENANT_NOTIFICATIONS_BLOCKED',
   'ERROR',
 ]);
 export type BulkResendReminderResultStatus = z.infer<typeof bulkResendReminderResultStatusSchema>;

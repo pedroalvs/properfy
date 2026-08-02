@@ -78,6 +78,6 @@ describe('identityFieldMapper', () => {
   it('returns the path itself only when it names a known form field', () => {
     const mapper = identityFieldMapper(['name', 'legalName'] as const);
     expect(mapper('name')).toBe('name');
-    expect(mapper('settings.emailSendingEnabled')).toBeUndefined();
+    expect(mapper('settings.rentalTenantNotificationsEnabled')).toBeUndefined();
   });
 });

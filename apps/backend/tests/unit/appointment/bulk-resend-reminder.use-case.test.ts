@@ -89,4 +89,38 @@ describe('BulkResendReminderUseCase — per-day idempotency key', () => {
     expect(out.results).toEqual([{ appointmentId: APPT_ID_1, status: 'IDEMPOTENT_REPLAY' }]);
     expect(mocks.generatePortalToken.execute).not.toHaveBeenCalled();
   });
+
+  describe('agency blocks rental-tenant notifications', () => {
+    class ConflictLike extends Error {
+      constructor(readonly code: string, message: string) {
+        super(message);
+      }
+    }
+
+    it('reports TENANT_NOTIFICATIONS_BLOCKED instead of a generic ERROR', async () => {
+      (mocks.generatePortalToken.execute as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new ConflictLike('TENANT_NOTIFICATIONS_BLOCKED', 'Notifications to the tenant are blocked for this agency.'),
+      );
+      const useCase = new BulkResendReminderUseCase(mocks.generatePortalToken, mocks.idempotency);
+
+      const out = await useCase.execute({ appointmentIds: [APPT_ID_1], actor });
+
+      expect(out.results).toEqual([{ appointmentId: APPT_ID_1, status: 'TENANT_NOTIFICATIONS_BLOCKED' }]);
+      // Not cached: flipping the agency setting must allow a same-day re-run.
+      expect(mocks.idempotency.set).not.toHaveBeenCalled();
+    });
+
+    it('still reports other conflicts as ERROR', async () => {
+      // The narrow `code` check matters: ConflictError also carries
+      // INVALID_APPOINTMENT_STATUS, which is a genuine per-item failure.
+      (mocks.generatePortalToken.execute as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new ConflictLike('INVALID_APPOINTMENT_STATUS', 'Wrong status'),
+      );
+      const useCase = new BulkResendReminderUseCase(mocks.generatePortalToken, mocks.idempotency);
+
+      const out = await useCase.execute({ appointmentIds: [APPT_ID_1], actor });
+
+      expect(out.results[0].status).toBe('ERROR');
+    });
+  });
 });

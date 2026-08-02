@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import type { AuthContext } from '@properfy/shared';
-import { appointmentCodePrefixSchema } from '@properfy/shared';
+import {
+  appointmentCodePrefixSchema,
+  normalizeRentalTenantNotificationSettings,
+} from '@properfy/shared';
 import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { ITenantRepository } from '../../domain/tenant.repository';
@@ -184,7 +187,10 @@ export class UpdateTenantUseCase {
     if (normalizedAppointmentCodePrefix !== undefined)
       updateData.appointmentCodePrefix = normalizedAppointmentCodePrefix;
     if (data.settings !== undefined) {
-      updateData.settingsJson = deepMerge(tenant.settingsJson, data.settings);
+      updateData.settingsJson = deepMerge(
+        tenant.settingsJson,
+        normalizeRentalTenantNotificationSettings(data.settings),
+      );
     }
 
     await this.tenantRepo.update(tenantId, updateData);

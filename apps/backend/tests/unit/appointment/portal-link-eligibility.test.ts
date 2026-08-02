@@ -28,11 +28,48 @@ function input(overrides: Partial<PortalLinkEligibilityInput>): PortalLinkEligib
     timeSlot: SLOT_AM,
     rentalTenantConfirmationStatus: 'PENDING',
     activeCycle: null,
+    rentalTenantNotificationsEnabled: true,
     ...overrides,
   };
 }
 
 describe('classifyPortalLinkAction', () => {
+  describe('SKIP_TENANT_NOTIFICATIONS_BLOCKED — owning agency never contacts the occupant', () => {
+    it('skips a would-be SEND', () => {
+      expect(
+        classifyPortalLinkAction(input({ rentalTenantNotificationsEnabled: false })),
+      ).toBe('SKIP_TENANT_NOTIFICATIONS_BLOCKED');
+    });
+
+    it('skips a would-be SEND_AFTER_RESET rather than resetting a confirmation for nothing', () => {
+      expect(
+        classifyPortalLinkAction(
+          input({
+            rentalTenantNotificationsEnabled: false,
+            rentalTenantConfirmationStatus: 'CONFIRMED',
+            activeCycle: { scheduledDate: DATE_B, timeSlot: SLOT_PM, status: 'CONFIRMED' },
+          }),
+        ),
+      ).toBe('SKIP_TENANT_NOTIFICATIONS_BLOCKED');
+    });
+
+    it('still reports SKIP_NOT_SENDABLE when the status also disqualifies it', () => {
+      // Status is the more specific reason and the operator can act on it, so it wins.
+      expect(
+        classifyPortalLinkAction(
+          input({ status: 'CANCELLED', rentalTenantNotificationsEnabled: false }),
+        ),
+      ).toBe('SKIP_NOT_SENDABLE');
+    });
+
+    it('is per appointment, since a service group can span agencies', () => {
+      const blocked = classifyPortalLinkAction(input({ rentalTenantNotificationsEnabled: false }));
+      const allowed = classifyPortalLinkAction(input({ rentalTenantNotificationsEnabled: true }));
+      expect(blocked).toBe('SKIP_TENANT_NOTIFICATIONS_BLOCKED');
+      expect(allowed).toBe('SEND');
+    });
+  });
+
   describe('SKIP_NOT_SENDABLE — status outside AWAITING_INSPECTOR/SCHEDULED', () => {
     it.each(['DRAFT', 'DONE', 'CANCELLED', 'REJECTED'])(
       'returns SKIP_NOT_SENDABLE for status %s regardless of confirmation',

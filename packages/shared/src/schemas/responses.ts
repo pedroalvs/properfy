@@ -328,6 +328,14 @@ export const appointmentResponseSchema = z.object({
   serviceTypeName: z.string().nullable().optional(),
   /** Tenant (agency) display name surfaced as "CLIENT" in the map detail panel (025 §FR-451). */
   clientName: z.string().optional(),
+  /**
+   * Owning agency's `rentalTenantNotificationsEnabled` setting, denormalized onto the
+   * detail response so the UI can disable "Send Portal Link" with a reason instead of
+   * letting the operator discover the refusal through a 409. Detail endpoint only.
+   * Must stay declared here — this schema is the Fastify response schema, and an
+   * undeclared field is silently stripped on serialization.
+   */
+  rentalTenantNotificationsEnabled: z.boolean().optional(),
   cancellationReason: z.string().nullable().optional(),
   // Geographic coordinates propagated from the appointment's property (for map views)
   latitude: z.number().nullable().optional(),

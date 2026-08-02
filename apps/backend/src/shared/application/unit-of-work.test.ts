@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { PrismaClient, Prisma } from '@prisma/client';
-import { runInTransaction, transactionalResult } from './unit-of-work';
+import { afterCommitResult, runInTransaction, transactionalResult } from './unit-of-work';
 
 /** A `$transaction` that records when its callback resolved, so ordering is assertable. */
 function fakePrisma(log: string[], opts: { fail?: boolean } = {}) {
@@ -170,6 +170,35 @@ describe('transactionalResult', () => {
 
     await runAfterCommit();
 
+    expect(effect).toHaveBeenCalledOnce();
+  });
+});
+
+describe('afterCommitResult', () => {
+  it('computes a result on demand and shares one completion across repeated calls', async () => {
+    const effect = vi.fn().mockResolvedValue({ dispatched: true });
+    const result = afterCommitResult(effect);
+
+    expect(effect).not.toHaveBeenCalled();
+    await expect(result.runAfterCommit()).resolves.toEqual({ dispatched: true });
+    await expect(result.runAfterCommit()).resolves.toEqual({ dispatched: true });
+    expect(effect).toHaveBeenCalledOnce();
+  });
+
+  it('caches a rejection so the effect is invoked only once', async () => {
+    const failure = new Error('notification enqueue failed');
+    const effect = vi.fn().mockRejectedValue(failure);
+    const result = afterCommitResult(effect);
+
+    const firstAttempt = result.runAfterCommit();
+    const repeatedAttempt = result.runAfterCommit();
+    const attempts = await Promise.allSettled([firstAttempt, repeatedAttempt]);
+
+    expect(repeatedAttempt).toBe(firstAttempt);
+    expect(attempts).toEqual([
+      { status: 'rejected', reason: failure },
+      { status: 'rejected', reason: failure },
+    ]);
     expect(effect).toHaveBeenCalledOnce();
   });
 });

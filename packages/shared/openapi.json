@@ -698,7 +698,7 @@
                         "maxLength": 11,
                         "pattern": "^[a-zA-Z0-9]*$"
                       },
-                      "emailSendingEnabled": {
+                      "rentalTenantNotificationsEnabled": {
                         "type": "boolean",
                         "default": true
                       },
@@ -1351,7 +1351,7 @@
                         "maxLength": 11,
                         "pattern": "^[a-zA-Z0-9]*$"
                       },
-                      "emailSendingEnabled": {
+                      "rentalTenantNotificationsEnabled": {
                         "type": "boolean",
                         "default": true
                       },
@@ -10938,6 +10938,9 @@
                         "clientName": {
                           "type": "string"
                         },
+                        "rentalTenantNotificationsEnabled": {
+                          "type": "boolean"
+                        },
                         "cancellationReason": {
                           "type": "string",
                           "nullable": true
@@ -11512,6 +11515,9 @@
                           "clientName": {
                             "type": "string"
                           },
+                          "rentalTenantNotificationsEnabled": {
+                            "type": "boolean"
+                          },
                           "cancellationReason": {
                             "type": "string",
                             "nullable": true
@@ -11888,6 +11894,9 @@
                         },
                         "clientName": {
                           "type": "string"
+                        },
+                        "rentalTenantNotificationsEnabled": {
+                          "type": "boolean"
                         },
                         "cancellationReason": {
                           "type": "string",
@@ -12529,6 +12538,9 @@
                         "clientName": {
                           "type": "string"
                         },
+                        "rentalTenantNotificationsEnabled": {
+                          "type": "boolean"
+                        },
                         "cancellationReason": {
                           "type": "string",
                           "nullable": true
@@ -13110,6 +13122,7 @@
                                   "SENT",
                                   "NO_PRIMARY_CONTACT",
                                   "IDEMPOTENT_REPLAY",
+                                  "TENANT_NOTIFICATIONS_BLOCKED",
                                   "ERROR"
                                 ]
                               },
@@ -16333,7 +16346,8 @@
                                   "SEND",
                                   "SEND_AFTER_RESET",
                                   "SKIP_ALREADY_CONFIRMED",
-                                  "SKIP_NOT_SENDABLE"
+                                  "SKIP_NOT_SENDABLE",
+                                  "SKIP_TENANT_NOTIFICATIONS_BLOCKED"
                                 ]
                               }
                             },
@@ -16363,6 +16377,9 @@
                             },
                             "notSendable": {
                               "type": "integer"
+                            },
+                            "tenantNotificationsBlocked": {
+                              "type": "integer"
                             }
                           },
                           "required": [
@@ -16370,7 +16387,8 @@
                             "willSend",
                             "willResendDateChanged",
                             "alreadyConfirmed",
-                            "notSendable"
+                            "notSendable",
+                            "tenantNotificationsBlocked"
                           ],
                           "additionalProperties": false
                         }
@@ -16446,6 +16464,7 @@
                                   "NOT_SENDABLE",
                                   "NO_PRIMARY_CONTACT",
                                   "IDEMPOTENT_REPLAY",
+                                  "TENANT_NOTIFICATIONS_BLOCKED",
                                   "ERROR"
                                 ]
                               },

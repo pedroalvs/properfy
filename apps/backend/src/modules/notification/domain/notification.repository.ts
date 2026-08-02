@@ -36,6 +36,8 @@ export interface INotificationRepository {
    */
   findSmsAwaitingDeliveryReceipt(from: Date, to: Date, limit?: number): Promise<NotificationEntity[]>;
   save(notification: NotificationEntity): Promise<void>;
+  /** Atomically inserts by notification ID; false means that ID already exists. */
+  saveIfAbsent(notification: NotificationEntity): Promise<boolean>;
   update(notification: NotificationEntity): Promise<void>;
   /**
    * Replaces the given payload_json keys (when present) with `replacement`,
@@ -48,7 +50,12 @@ export interface INotificationRepository {
     keys: readonly string[],
     replacement: string,
   ): Promise<void>;
-  existsByAppointmentAndTemplate(appointmentId: string, templateCode: string): Promise<boolean>;
+  /** Lifetime dedupe scoped by both appointment and tenant. */
+  existsByAppointmentAndTemplate(
+    appointmentId: string,
+    templateCode: string,
+    tenantId: string,
+  ): Promise<boolean>;
   /**
    * Most recently created notification for the appointment among `templateCodes`,
    * or null when none exists. Backs occurrence-scoped dedupe — "what was the

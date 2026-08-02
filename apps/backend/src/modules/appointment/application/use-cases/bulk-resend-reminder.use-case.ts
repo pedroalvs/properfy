@@ -2,6 +2,7 @@ import type { GeneratePortalTokenUseCase, AuthContext } from '../../../rental-te
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import type { BulkResendReminderResult } from '@properfy/shared';
 import { dayKeyInTz } from './bulk-action-shared';
+import { isTenantNotificationsBlockedError } from '../../domain/tenant-notifications-blocked';
 
 const IDEMPOTENCY_SCOPE = 'bulk_resend_reminder';
 const IDEMPOTENCY_TTL_HOURS = 36;
@@ -65,6 +66,13 @@ export class BulkResendReminderUseCase {
         await this.idempotency.set(idemKey, IDEMPOTENCY_SCOPE, result, IDEMPOTENCY_TTL_HOURS);
         results.push(result);
       } catch (e) {
+        // A blocked agency is a setting, not a failure: report it as its own status
+        // so a mixed selection does not look like a batch of errors. Not cached —
+        // the operator can flip the setting and re-run the same day.
+        if (isTenantNotificationsBlockedError(e)) {
+          results.push({ appointmentId: apptId, status: 'TENANT_NOTIFICATIONS_BLOCKED' });
+          continue;
+        }
         const message = e instanceof Error ? e.message : 'Dispatch failed';
         results.push({
           appointmentId: apptId,

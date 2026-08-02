@@ -13,6 +13,31 @@ function formatDateTimeOrDash(iso: string | null): string {
   return formatInstantDateTime(iso);
 }
 
+/**
+ * Human wording for the reason codes the pipeline sets itself.
+ *
+ * Unknown values fall through unchanged: everything else on this column is a raw provider
+ * message, which is exactly what an operator needs to see verbatim when chasing a bounce.
+ */
+const FAILURE_REASON_LABELS: Record<string, string> = {
+  AGENCY_TENANT_NOTIFICATIONS_DISABLED: 'Agency does not notify tenants — forwarded to the branch contact',
+  AGENCY_FORWARD_NO_BRANCH_EMAIL: 'Agency does not notify tenants — NOT forwarded: the branch has no contact email',
+  AGENCY_FORWARD_APPOINTMENT_NOT_FOUND: 'Agency does not notify tenants — NOT forwarded: appointment unavailable',
+  AGENCY_FORWARD_NO_APPOINTMENT: 'Agency does not notify tenants — NOT forwarded: no linked appointment',
+  AGENCY_FORWARD_NO_TENANT: 'Agency does not notify tenants — NOT forwarded: no linked agency',
+  AGENCY_FORWARD_FAILED: 'Agency does not notify tenants — forwarding to the branch contact failed',
+  CONSENT_OPT_OUT: 'Recipient opted out of this notification class',
+  TEMPLATE_NOT_FOUND: 'No template exists for this code and channel',
+  BUDGET_EXCEEDED: 'Daily notification cap reached for this agency',
+  INVALID_RECIPIENT_PHONE: 'Recipient phone number is not a valid AU number',
+  EMPTY_SMS_BODY: 'Rendered SMS body was empty',
+};
+
+function formatFailureReason(reason: string | null | undefined): string {
+  if (!reason) return '\u2014';
+  return FAILURE_REASON_LABELS[reason] ?? reason;
+}
+
 const columns: DataTableColumn<AppointmentNotification>[] = [
   { key: 'templateCode', label: 'Template', width: '180px' },
   { key: 'channel', label: 'Channel', width: '100px' },
@@ -46,7 +71,7 @@ const columns: DataTableColumn<AppointmentNotification>[] = [
     key: 'failureReason',
     label: 'Failure Reason',
     width: '280px',
-    render: (row) => row.failureReason ?? '\u2014',
+    render: (row) => formatFailureReason(row.failureReason),
   },
   {
     key: 'retryCount',
