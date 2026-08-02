@@ -59,6 +59,16 @@ export type GeneratePortalTokenOutput =
       reason: 'NOTIFY_DISABLED' | 'NO_PRIMARY_CONTACT' | 'DISPATCH_FAILED';
     };
 
+/**
+ * A validated generation context bound to its caller transaction context. When
+ * a transaction client is present, the tenant row is locked. The write phase
+ * reuses that context exactly once, so callers can safely place another
+ * transactional write between the lock and the token/cycle writes.
+ */
+export interface PreparedPortalTokenGeneration {
+  runWritePhase(): Promise<AfterCommitResult<GeneratePortalTokenOutput>>;
+}
+
 interface PortalTokenGenerationContext {
   result: AppointmentWithRelations;
   tenant: TenantEntity;
@@ -106,7 +116,35 @@ export class GeneratePortalTokenUseCase {
     input: GeneratePortalTokenInput,
     ctx: TxContext,
   ): Promise<AfterCommitResult<GeneratePortalTokenOutput>> {
-    const { result, tenant } = await this.loadGenerationContext(input, ctx);
+    const generation = await this.prepareInTransaction(input, ctx);
+    return generation.runWritePhase();
+  }
+
+  /**
+   * Loads and validates the appointment, then (when inside a transaction) locks
+   * the authoritative tenant policy row before any token/cycle write. The
+   * returned handle retains this single context for the rest of the operation.
+   */
+  async prepareInTransaction(
+    input: GeneratePortalTokenInput,
+    ctx: TxContext,
+  ): Promise<PreparedPortalTokenGeneration> {
+    const context = await this.loadGenerationContext(input, ctx);
+    let writePhase: Promise<AfterCommitResult<GeneratePortalTokenOutput>> | undefined;
+    return {
+      runWritePhase: () => {
+        writePhase ??= this.executePreparedInTransaction(input, ctx, context);
+        return writePhase;
+      },
+    };
+  }
+
+  private async executePreparedInTransaction(
+    input: GeneratePortalTokenInput,
+    ctx: TxContext,
+    context: PortalTokenGenerationContext,
+  ): Promise<AfterCommitResult<GeneratePortalTokenOutput>> {
+    const { result, tenant } = context;
     const { appointment } = result;
 
     let rawToken = '';

@@ -191,15 +191,21 @@ describe('SendGroupPortalLinksUseCase', () => {
       events.push('dispatch');
       return { dispatched: true as const, token: 't', expiresAt: new Date() };
     });
+    const runWritePhase = vi.fn(async () => {
+      events.push('generate:write');
+      return { runAfterCommit };
+    });
     const generatePortalToken = {
       execute: vi.fn(),
-      executeInTransaction: vi.fn(async () => {
-        events.push('generate:prepare');
-        return { runAfterCommit };
+      prepareInTransaction: vi.fn(async () => {
+        events.push('tenant:locked');
+        return { runWritePhase };
       }),
     } as unknown as GeneratePortalTokenUseCase;
     const cycleService = {
-      rotateOnDateChange: vi.fn().mockResolvedValue(undefined),
+      rotateOnDateChange: vi.fn(async () => {
+        events.push('cycle:rotated');
+      }),
     } as unknown as ConfirmationCycleService;
     const useCase = new SendGroupPortalLinksUseCase(
       m.groupRepo as unknown as IServiceGroupRepository,
@@ -224,7 +230,8 @@ describe('SendGroupPortalLinksUseCase', () => {
 
     expect(out.results).toEqual([{ appointmentId: 'stale', status: 'DATE_CHANGED_RESENT' }]);
     expect(generatePortalToken.execute).not.toHaveBeenCalled();
-    expect(generatePortalToken.executeInTransaction).toHaveBeenCalledTimes(1);
+    expect(generatePortalToken.prepareInTransaction).toHaveBeenCalledTimes(1);
+    expect(runWritePhase).toHaveBeenCalledTimes(1);
     expect(cycleService.rotateOnDateChange).toHaveBeenCalledWith(
       'stale',
       'tenant-1',
@@ -234,7 +241,14 @@ describe('SendGroupPortalLinksUseCase', () => {
       tx,
       expect.any(Function),
     );
-    expect(events).toEqual(['transaction:start', 'generate:prepare', 'transaction:commit', 'dispatch']);
+    expect(events).toEqual([
+      'transaction:start',
+      'tenant:locked',
+      'cycle:rotated',
+      'generate:write',
+      'transaction:commit',
+      'dispatch',
+    ]);
     expect(m.idempotency.getWithHash).not.toHaveBeenCalled();
     expect(m.idempotency.set).toHaveBeenCalledWith(
       'bulk_resend:stale:2026-06-30',

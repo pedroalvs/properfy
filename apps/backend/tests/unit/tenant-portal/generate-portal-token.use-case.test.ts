@@ -396,6 +396,56 @@ describe('GeneratePortalTokenUseCase', () => {
       expect(mintPortalTokenService.mint).not.toHaveBeenCalled();
     });
 
+    it('reuses one locked generation context after the caller performs another transactional write', async () => {
+      const events: string[] = [];
+      const tx = { kind: 'caller-transaction' };
+      appointmentRepo.findById.mockImplementation(async () => {
+        events.push('appointment:loaded');
+        return { appointment: makeAppointment(), contact: null, restrictions: [] };
+      });
+      tenantRepo.findById.mockImplementation(async () => {
+        events.push('tenant:locked');
+        return makeTenant({ settingsJson: { rentalTenantNotificationsEnabled: true } });
+      });
+      mintPortalTokenService.mint.mockImplementation(async () => {
+        events.push('token:minted');
+        return { rawToken: RAW_TOKEN, expiresAt: EXPIRES_AT, tokenId: 'token-1' };
+      });
+      const cycleService = {
+        createInitial: vi.fn(async () => {
+          events.push('cycle:linked');
+        }),
+      } as unknown as ConfirmationCycleService;
+      const preparedUseCase = new GeneratePortalTokenUseCase(
+        tokenRepo as unknown as IRentalTenantPortalTokenRepository,
+        appointmentRepo as unknown as IAppointmentRepository,
+        tenantRepo as unknown as ITenantRepository,
+        mintPortalTokenService as unknown as MintPortalTokenService,
+        auditService as unknown as PersistentAuditService,
+        PORTAL_BASE_URL,
+        undefined,
+        cycleService,
+      );
+      const ctx = { tx: tx as never, defer: vi.fn() };
+
+      const generation = await preparedUseCase.prepareInTransaction(makeInput(), ctx);
+      events.push('cycle:rotated');
+      const firstWrite = await generation.runWritePhase();
+      const repeatedWrite = await generation.runWritePhase();
+
+      expect(repeatedWrite).toBe(firstWrite);
+      expect(events).toEqual([
+        'appointment:loaded',
+        'tenant:locked',
+        'cycle:rotated',
+        'token:minted',
+        'cycle:linked',
+      ]);
+      expect(appointmentRepo.findById).toHaveBeenCalledTimes(1);
+      expect(tenantRepo.findById).toHaveBeenCalledTimes(1);
+      expect(mintPortalTokenService.mint).toHaveBeenCalledTimes(1);
+    });
+
     it('should still mint when notify is false, so Copy portal link keeps working', async () => {
       // The generate-and-copy path dispatches nothing, so the block does not apply —
       // this is the operator's escape hatch for a blocked agency.

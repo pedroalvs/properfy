@@ -160,6 +160,7 @@ export class SendGroupPortalLinksUseCase {
             TOKEN_HASH_COLUMN,
             () => runInTransaction(prisma, async (ctx) => {
               const generateInput = { appointmentId: row.id, actor: input.actor };
+              const generation = await this.generatePortalToken.prepareInTransaction(generateInput, ctx);
               await this.cycleService.rotateOnDateChange(
                 row.id,
                 row.tenantId,
@@ -169,7 +170,7 @@ export class SendGroupPortalLinksUseCase {
                 ctx.tx,
                 ctx.defer,
               );
-              return this.generatePortalToken.executeInTransaction(generateInput, ctx);
+              return generation.runWritePhase();
             }),
           );
           dispatch = await prepared.runAfterCommit();

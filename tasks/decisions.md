@@ -3,7 +3,7 @@
 ## 2026-08-02 - Date-change portal resend requires one transactional boundary
 
 1. `SEND_AFTER_RESET` may execute only with a Prisma Unit of Work; callers without that boundary fail closed before rotating a confirmation cycle.
-2. Cycle rotation, the single authoritative tenant-policy read with `FOR UPDATE`, portal-token mint/revocation, and cycle linking commit or roll back together.
+2. The single authoritative tenant-policy read with `FOR UPDATE` happens before cycle rotation; portal-token mint/revocation and cycle linking follow the same tenant → cycle/token/appointment lock order as direct token generation.
 3. Notification creation and result-bearing dispatch remain after commit because they are irreversible and may use another database connection.
 
 ## 2026-07-31 - Agency tenant-notification switch uses expand/contract compatibility

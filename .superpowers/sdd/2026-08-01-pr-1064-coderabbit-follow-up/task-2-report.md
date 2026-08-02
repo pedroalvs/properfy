@@ -7,8 +7,8 @@ Implementada a correção do finding transacional do CodeRabbit para `SEND_AFTER
 O snapshot do grupo pode continuar classificando o item como habilitado, mas a execução agora:
 
 1. abre uma única transação por item `SEND_AFTER_RESET`;
-2. rotaciona o ciclo dentro dessa transação;
-3. carrega appointment/tenant uma única vez e bloqueia (`FOR UPDATE`) a configuração autoritativa da agência;
+2. carrega appointment/tenant uma única vez e bloqueia (`FOR UPDATE`) a configuração autoritativa da agência;
+3. rotaciona o ciclo dentro dessa transação;
 4. cria o token e vincula o ciclo na mesma transação;
 5. executa auditorias e o dispatch result-bearing somente após o commit.
 
@@ -47,8 +47,8 @@ Depois do GREEN inicial, o teste foi fortalecido: ele agora persiste a flag real
 
 `SendGroupPortalLinksUseCase` usa o `runInTransaction` existente para compor, sem transação aninhada:
 
-- `ConfirmationCycleService.rotateOnDateChange(..., tx, defer)`;
 - leitura autoritativa única da policy com lock;
+- `ConfirmationCycleService.rotateOnDateChange(..., tx, defer)`;
 - mint/revogação do portal token;
 - `ConfirmationCycleService.createInitial(..., tx, defer)`.
 
@@ -69,7 +69,7 @@ Os audits de `created`, `updated`, `rotated` e `token_generated` também usam `d
 
 ### Retry
 
-O retry de colisão de `token_hash` continua envolvendo a unidade inteira. Como uma violação unique aborta a transação PostgreSQL, cada tentativa abre uma nova transação e repete rotation, policy check, mint e cycle link.
+O retry de colisão de `token_hash` continua envolvendo a unidade inteira. Como uma violação unique aborta a transação PostgreSQL, cada tentativa abre uma nova transação e repete policy lock/check, rotation, mint e cycle link.
 
 ## Alternativas avaliadas
 
@@ -102,13 +102,13 @@ O retry de colisão de `token_hash` continua envolvendo a unidade inteira. Como 
 
 Resultados observados após a correção final:
 
-- Unit focado de SendGroup + GeneratePortalToken: **46/46**.
+- Unit focado de SendGroup + GeneratePortalToken: **47/47** no fix round 2/5.
 - Unit adjacente de UnitOfWork + ConfirmationCycle + GeneratePortalToken: **32/32**.
-- Postgres-real do arquivo de integração: **5/5** no fix round 1/5.
+- Postgres-real do arquivo de integração: **6/6** no fix round 2/5.
 - Backend typecheck: **PASS**.
 - Backend build: **PASS**.
 - Backend lint: **PASS, 0 errors**; warnings preexistentes do repositório.
-- Backend suite ampla: **459 files / 5.505 tests PASS** no gate final antes do commit.
+- Backend suite ampla: **459 files / 5.506 tests PASS** no gate final do fix round 2/5.
 - `git diff --check`: **PASS**.
 
 O teste de integração cobre após o fix round 1/5:
@@ -214,4 +214,69 @@ Verdict: Approve; merge-ready for fix round 1/5.
 
 ```text
 fix(notifications): close atomic resend review gaps
+```
+
+---
+
+## Fix round 2/5 — ordem global de locks e policy flip real
+
+### Findings corrigidos
+
+1. **Ordem de locks incompatível.** O group resend adquiria locks de ciclo/appointment/token antes do tenant, enquanto `GeneratePortalTokenUseCase` direto fazia tenant antes de token/ciclo. O fluxo agora chama `prepareInTransaction` primeiro: carrega appointment, bloqueia e valida a policy do tenant, rotaciona o ciclo e somente então executa mint/link.
+2. **Contexto carregado é reutilizado.** `prepareInTransaction` retorna um `PreparedPortalTokenGeneration` vinculado ao contexto e à tx. `runWritePhase()` reutiliza appointment/tenant sem nova consulta e compartilha a primeira Promise para impedir mint/link duplicado.
+3. **Policy flip real restaurado.** O teste captura um snapshot `enabled`, persiste a policy real como `blocked`, executa o use case com Prisma/repositórios/mint reais e confirma `TENANT_NOTIFICATIONS_BLOCKED` antes de qualquer tentativa de rotação. O ciclo confirmado e seu token `ACTIVE` bidirecionalmente vinculado permanecem idênticos; nenhum audit transacional ou idempotency write ocorre.
+4. **Coberturas anteriores preservadas.** Continuam presentes o rollback genérico depois de observar reset + mint + link reais dentro da tx e o SEND_AFTER_RESET real bem-sucedido.
+
+### RED observado
+
+Unit focado antes da produção:
+
+```text
+Test Files  2 failed (2)
+Tests       2 failed | 45 passed (47)
+
+preparedUseCase.prepareInTransaction is not a function
+this.generatePortalToken.executeInTransaction is not a function
+```
+
+O primeiro erro prova a ausência do contrato de preparo/reuso; o segundo prova que o orquestrador ainda chamava o contrato antigo depois da rotação.
+
+PostgreSQL real antes da produção:
+
+```text
+Test Files  1 failed (1)
+Tests       1 failed | 5 skipped (6)
+
+checks a newly blocked real policy before rotating an enabled SEND_AFTER_RESET snapshot
+expected rotationAttempts 0; received 1
+```
+
+O restante do cenário já devolvia o status bloqueado e fazia rollback, mas o RED demonstrou que a rotação era tentada antes de adquirir/validar o lock de tenant — a ordem que poderia deadlockar com geração concorrente.
+
+### GREEN do round
+
+- SendGroup + GeneratePortalToken focados: **47/47 PASS**.
+- PostgreSQL real, incluindo flip + rollback pós-mint + sucesso: **6/6 PASS**.
+- Backend typecheck: **PASS**.
+- Backend lint: **PASS, 0 errors / 413 warnings preexistentes**.
+- Backend build: **PASS**.
+- Backend suite completa com `--maxWorkers=2`: **459 files / 5.506 tests PASS**.
+
+Uma execução ampla com quatro workers teve uma divergência isolada em teste de rota não alterado (`403` esperado, `400` recebido). O arquivo passou focado (**6/6**) e a suite completa passou com dois workers; nenhuma rota foi alterada neste round.
+
+### Review independente do round
+
+Review read-only do diff retornou:
+
+```text
+Critical: None
+Important: None
+Minor: None
+Verdict: Approve; merge-ready for fix round 2/5.
+```
+
+### Commit separado
+
+```text
+fix(notifications): align atomic resend lock order
 ```
