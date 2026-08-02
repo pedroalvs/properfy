@@ -6,6 +6,13 @@
 2. The single authoritative tenant-policy read with `FOR UPDATE` happens before cycle rotation; portal-token mint/revocation and cycle linking follow the same tenant → cycle/token/appointment lock order as direct token generation.
 3. Notification creation and result-bearing dispatch remain after commit because they are irreversible and may use another database connection.
 
+## 2026-07-31 - Tenant availability decline uses recoverable command idempotency
+
+1. Operator-triggered tenant decline requires a command-level `Idempotency-Key`; keys are hashed with the principal and namespaced separately from status-transition keys.
+2. The web client retains a key across retries of the same decline intent and rotates it after success or a changed payload.
+3. The command atomically reserves its key before side effects. Reservation completion and release use a unique owner token as a fencing condition so an expired worker cannot mutate a successor's claim.
+4. This PR does not introduce a transaction-aware repository or outbox across availability, confirmation-cycle, transition, and audit writes. It uses replay recovery consistent with the existing transition service; broader atomicity belongs in a cross-flow refactor that also covers portal decline.
+
 ## 2026-07-31 - Agency tenant-notification switch uses expand/contract compatibility
 
 1. During the rolling-deploy compatibility window, `rentalTenantNotificationsEnabled` and legacy `emailSendingEnabled` are both read; either explicit `false` blocks rental-tenant contact.

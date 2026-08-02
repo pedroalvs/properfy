@@ -93,6 +93,9 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
           isOverdue: false,
           hasRentalTenantNote: false,
           rentalTenantNote: null,
+          rentalTenantAvailableSlots: [
+            { dayOfWeek: 'MON', start: '09:00', end: '12:00' },
+          ],
           createdAt: '2026-03-01T10:00:00Z',
           updatedAt: '2026-03-01T10:00:00Z',
         },
@@ -818,5 +821,58 @@ describe('AppointmentDetailPage — Copy Portal Link (T39)', () => {
     renderPage('/appointments/with-portal-token');
     fireEvent.click(screen.getByTestId('copy-portal-link-button'));
     await screen.findByText('Send Portal Link to generate a fresh link');
+  });
+});
+
+/**
+ * Two tiers on purpose: recording what the tenant said is data entry, but
+ * declining on their behalf rejects the inspection, and the state machine
+ * admits only AM/OP/SYS to a `→ REJECTED` edge.
+ */
+describe('Tenant Availability action', () => {
+  it.each(['AM', 'OP', 'CL_ADMIN'])('is offered to %s', (role) => {
+    mockUserRole = role;
+    renderPage();
+    expect(screen.getByTestId('set-tenant-availability-button')).toBeInTheDocument();
+  });
+
+  it.each(['CL_USER', 'INSP'])('is hidden from %s', (role) => {
+    mockUserRole = role;
+    renderPage();
+    expect(screen.queryByTestId('set-tenant-availability-button')).toBeNull();
+  });
+
+  it('opens the dialog with the decline checkbox for an operator', () => {
+    mockUserRole = 'OP';
+    renderPage('/appointments/with-portal-token');
+    fireEvent.click(screen.getByTestId('set-tenant-availability-button'));
+
+    expect(screen.getByLabelText(/also mark tenant as unavailable/i)).toBeInTheDocument();
+  });
+
+  it('prefills the dialog from the top-level rental tenant availability', () => {
+    mockUserRole = 'OP';
+    renderPage('/appointments/with-portal-token');
+    fireEvent.click(screen.getByTestId('set-tenant-availability-button'));
+
+    expect(screen.getByTestId('start-MON')).toHaveValue('09:00');
+    expect(screen.getByTestId('end-MON')).toHaveValue('12:00');
+  });
+
+  it('does not offer the decline checkbox when the appointment cannot be rejected', () => {
+    mockUserRole = 'OP';
+    renderPage('/appointments/done');
+    fireEvent.click(screen.getByTestId('set-tenant-availability-button'));
+
+    expect(screen.queryByLabelText(/also mark tenant as unavailable/i)).toBeNull();
+  });
+
+  it('opens the dialog without the decline checkbox for CL_ADMIN', () => {
+    mockUserRole = 'CL_ADMIN';
+    renderPage('/appointments/awaiting');
+    fireEvent.click(screen.getByTestId('set-tenant-availability-button'));
+
+    expect(screen.getByRole('heading', { name: /set tenant availability/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/also mark tenant as unavailable/i)).toBeNull();
   });
 });

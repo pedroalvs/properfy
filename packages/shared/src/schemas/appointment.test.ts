@@ -5,6 +5,7 @@ import {
   statusTransitionSchema,
   listAppointmentsQuerySchema,
   forceManualConfirmationSchema,
+  setRentalTenantAvailabilitySchema,
   bulkCancelRequestSchema,
   bulkRescheduleRequestSchema,
   bulkStatusTransitionRequestSchema,
@@ -44,6 +45,47 @@ const validInlineProperty = {
   postcode: '2000',
   state: 'NSW',
 };
+
+describe('setRentalTenantAvailabilitySchema', () => {
+  it('accepts a valid slot and defaults markUnavailable to false', () => {
+    const result = setRentalTenantAvailabilitySchema.safeParse({
+      availableSlots: [{ dayOfWeek: 'MON', start: '09:00', end: '12:00' }],
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.markUnavailable).toBe(false);
+  });
+
+  it('rejects an empty availability list', () => {
+    expect(setRentalTenantAvailabilitySchema.safeParse({ availableSlots: [] }).success).toBe(false);
+  });
+
+  it('rejects more than seven weekly slots', () => {
+    const weekdays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN', 'MON'] as const;
+    const result = setRentalTenantAvailabilitySchema.safeParse({
+      availableSlots: weekdays.map((dayOfWeek) => ({ dayOfWeek, start: '09:00', end: '12:00' })),
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues).toEqual(expect.arrayContaining([
+        expect.objectContaining({ code: 'too_big', path: ['availableSlots'] }),
+      ]));
+    }
+  });
+
+  it('rejects more than one weekly slot for the same day', () => {
+    const result = setRentalTenantAvailabilitySchema.safeParse({
+      availableSlots: [
+        { dayOfWeek: 'MON', start: '09:00', end: '12:00' },
+        { dayOfWeek: 'MON', start: '13:00', end: '17:00' },
+      ],
+      markUnavailable: false,
+    });
+
+    expect(result.success).toBe(false);
+  });
+});
 
 describe('createAppointmentSchema', () => {
   it('should be valid with propertyId', () => {

@@ -103,6 +103,8 @@ export interface GetAppointmentOutput {
     notes: string | null;
     source: string;
   }>;
+  /** Weekly availability the rental tenant offered, flattened for detail consumers. */
+  rentalTenantAvailableSlots: AvailableSlot[] | null;
   /** True when an active (non-superseded) confirmation cycle exists — enables "Copy Portal Link" button. */
   hasActivePortalToken: boolean;
   /** App credentials linked to this appointment (live reference). */
@@ -198,6 +200,10 @@ function mapToOutput(found: AppointmentWithRelations, apps: AppointmentApp[]): G
       notes: r.notes,
       source: r.source,
     })),
+    rentalTenantAvailableSlots:
+      restrictions
+        .map((restriction) => restriction.availableSlotsJson)
+        .find((slots) => slots?.length) ?? null,
     hasActivePortalToken: found.hasActivePortalToken,
     apps,
   };

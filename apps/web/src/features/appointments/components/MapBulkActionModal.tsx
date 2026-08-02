@@ -14,7 +14,8 @@ import type { AppointmentStatus, UserRole } from '@properfy/shared';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 import { AppointmentCodePill } from './AppointmentCodePill';
 import { wasRentalTenantNotified } from '../lib/rental-tenant-notice';
-import { ConfirmationChannelIcons, IconWithTooltip } from './ConfirmationChannelIcons';
+import { ConfirmationChannelIcons, ChannelIcon } from './ConfirmationChannelIcons';
+import { formatAvailabilitySlots } from '../lib/availability-slots';
 import { MapBulkRescheduleForm, type RescheduleGroupContext } from './MapBulkRescheduleForm';
 import { MapBulkReturnToPoolForm } from './MapBulkReturnToPoolForm';
 import { useBulkCancelAppointments } from '../hooks/useBulkCancelAppointments';
@@ -322,25 +323,36 @@ export function MapBulkActionModal({
     {
       key: 'confirmation',
       label: 'Confirm',
-      width: '80px',
+      width: '100px',
       align: 'center',
-      render: (row) => (
-        <div className="flex items-center justify-center gap-1">
-          <ConfirmationChannelIcons
-            rentalTenantConfirmationStatus={row.rentalTenantConfirmationStatus}
-            hasEmail={!!row.contactEmail}
-            hasSms={!!row.contactPhone}
-          />
-          {row.hasRentalTenantNote && (
-            <IconWithTooltip
-              icon="mdi-note-text-outline"
-              label={row.rentalTenantNote ? `Note: ${row.rentalTenantNote}` : 'Tenant left a note via portal'}
-              colour="text-text-secondary"
-              testId="bulk-modal-tenant-note-icon"
+      render: (row) => {
+        const availability = formatAvailabilitySlots(row.rentalTenantAvailableSlots);
+        return (
+          <div className="flex items-center justify-center gap-1">
+            <ConfirmationChannelIcons
+              rentalTenantConfirmationStatus={row.rentalTenantConfirmationStatus}
+              hasEmail={!!row.contactEmail}
+              hasSms={!!row.contactPhone}
             />
-          )}
-        </div>
-      ),
+            {row.hasRentalTenantNote && (
+              <ChannelIcon
+                icon="mdi-note-text-outline"
+                label={row.rentalTenantNote ? `Note: ${row.rentalTenantNote}` : 'Tenant left a note via portal'}
+                colour="text-text-secondary"
+                testId="bulk-modal-tenant-note-icon"
+              />
+            )}
+            {/* Always drawn, like the SMS/Email icons: state lives in the colour,
+                so the icon row keeps the same shape on every line. */}
+            <ChannelIcon
+              icon="mdi-calendar-clock"
+              label={availability ? `Tenant availability — ${availability}` : 'No availability provided'}
+              colour={availability ? 'text-text-secondary' : 'text-gray-300'}
+              testId="bulk-modal-tenant-availability-icon"
+            />
+          </div>
+        );
+      },
     },
   ], [allChecked, indeterminate, checkedIds, onOpenDetailPanel]);
 

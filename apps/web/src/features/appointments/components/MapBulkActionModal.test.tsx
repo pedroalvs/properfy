@@ -386,6 +386,54 @@ describe('MapBulkActionModal', () => {
     expect(screen.queryByTestId('bulk-modal-tenant-note-icon')).toBeNull();
   });
 
+  /**
+   * Unlike the note icon, the availability icon is always present: it sits
+   * alongside the SMS/Email icons, which are also always drawn and carry their
+   * state in colour. A row that appears and disappears would shift the column's
+   * icons around between rows.
+   */
+  describe('tenant availability icon in the Confirm column', () => {
+    it('spells out the weekly availability the tenant offered', () => {
+      const withAvailability: AppointmentMapItem = {
+        ...sampleAppointments[0]!,
+        rentalTenantAvailableSlots: [
+          { dayOfWeek: 'WED', start: '14:00', end: '17:00' },
+          { dayOfWeek: 'MON', start: '09:00', end: '12:00' },
+        ],
+      };
+      renderModal({ appointments: [withAvailability] });
+
+      const icon = screen.getByTestId('bulk-modal-tenant-availability-icon');
+      expect(icon).toHaveAttribute(
+        'aria-label',
+        'Tenant availability — Mon 09:00 - 12:00 · Wed 14:00 - 17:00',
+      );
+    });
+
+    it('still renders, greyed, on every row when the tenant offered nothing', () => {
+      renderModal(); // sample rows carry no availability
+
+      // One per row — the point of "always drawn" is that no row is missing it.
+      const icons = screen.getAllByTestId('bulk-modal-tenant-availability-icon');
+      expect(icons).toHaveLength(sampleAppointments.length);
+      for (const icon of icons) {
+        expect(icon).toHaveAttribute('aria-label', 'No availability provided');
+        expect(icon.className).toContain('text-gray-300');
+      }
+    });
+
+    it('treats an empty slot array as no availability', () => {
+      const empty: AppointmentMapItem = {
+        ...sampleAppointments[0]!,
+        rentalTenantAvailableSlots: [],
+      };
+      renderModal({ appointments: [empty] });
+
+      expect(screen.getByTestId('bulk-modal-tenant-availability-icon'))
+        .toHaveAttribute('aria-label', 'No availability provided');
+    });
+  });
+
   // Group column — surfaces the service group code so operators can see which
   // group each lassoed appointment belongs to.
   describe('Group column', () => {

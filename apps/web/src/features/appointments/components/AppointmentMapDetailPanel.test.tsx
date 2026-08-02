@@ -310,4 +310,88 @@ describe('AppointmentMapDetailPanel (content)', () => {
       }
     });
   });
+
+  /**
+   * The rental tenant's weekly availability is the most actionable thing on a
+   * declined appointment, so it outranks the operator's access restriction in
+   * the pin. It also fixes an active lie: the portal writes `isHome: false` on
+   * decline, so the old rendering announced "Property vacant" for exactly the
+   * appointments that carried availability.
+   */
+  describe('Restrictions & availability section', () => {
+    const openSection = () =>
+      fireEvent.click(screen.getByTestId('map-detail-section-restrictions'));
+
+    it('shows the tenant availability instead of the misleading vacancy line', () => {
+      mockDetail = {
+        restrictions: [{
+          id: 'r-1',
+          isHome: false,
+          notes: null,
+          source: 'RENTAL_TENANT_PORTAL',
+          availableSlotsJson: [
+            { dayOfWeek: 'WED', start: '14:00', end: '17:00' },
+            { dayOfWeek: 'MON', start: '09:00', end: '12:00' },
+          ],
+        }],
+      };
+      renderPanel();
+      openSection();
+
+      // Mon→Sun ordering, not the order the portal happened to emit.
+      expect(screen.getByText('Mon 09:00 - 12:00')).toBeInTheDocument();
+      expect(screen.getByText('Wed 14:00 - 17:00')).toBeInTheDocument();
+      expect(screen.queryByText(/Property vacant/)).not.toBeInTheDocument();
+    });
+
+    it('picks the availability by content, never by row position', () => {
+      // A decline leaves a single row; an operator edit can leave one whose
+      // first entry has no slots. `restrictions[0]` would miss it.
+      mockDetail = {
+        restrictions: [
+          { id: 'r-1', isHome: true, notes: 'Dog in backyard', source: 'OPERATOR', availableSlotsJson: null },
+          { id: 'r-2', isHome: false, notes: null, source: 'RENTAL_TENANT_PORTAL', availableSlotsJson: [{ dayOfWeek: 'FRI', start: '08:00', end: '10:00' }] },
+        ],
+      };
+      renderPanel();
+      openSection();
+
+      expect(screen.getByText('Fri 08:00 - 10:00')).toBeInTheDocument();
+    });
+
+    it('falls back to the operator restriction when there is no availability', () => {
+      mockDetail = {
+        restrictions: [{
+          id: 'r-1', isHome: true, notes: 'Dog in backyard',
+          source: 'OPERATOR', availableSlotsJson: null,
+        }],
+      };
+      renderPanel();
+      openSection();
+
+      expect(screen.getByText(/Home occupied/)).toBeInTheDocument();
+      expect(screen.getByText(/Dog in backyard/)).toBeInTheDocument();
+    });
+
+    it('treats an empty slot array as no availability', () => {
+      mockDetail = {
+        restrictions: [{
+          id: 'r-1', isHome: false, notes: null,
+          source: 'OPERATOR', availableSlotsJson: [],
+        }],
+      };
+      renderPanel();
+      openSection();
+
+      expect(screen.getByText(/Property vacant/)).toBeInTheDocument();
+    });
+
+    it('shows the empty state when there is no restriction row at all', () => {
+      mockDetail = { restrictions: [] };
+      renderPanel();
+      openSection();
+
+      expect(screen.getByText('No restrictions on file.')).toBeInTheDocument();
+    });
+  });
 });

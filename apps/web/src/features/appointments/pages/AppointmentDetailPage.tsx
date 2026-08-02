@@ -1,6 +1,10 @@
 import { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { UserRole, TENANT_NOTIFICATIONS_BLOCKED_CODE } from '@properfy/shared';
+import {
+  AppointmentStatus,
+  UserRole,
+  TENANT_NOTIFICATIONS_BLOCKED_CODE,
+} from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsNav } from '@/components/layout/TabsNav';
 import { Button } from '@/components/ui/Button';
@@ -28,6 +32,7 @@ import { AppointmentTransitionActions } from '../components/AppointmentTransitio
 import { AppointmentFormDrawer } from '../components/AppointmentFormDrawer';
 import { AssignInspectorModal } from '../components/AssignInspectorModal';
 import { ForceConfirmDialog } from '../components/ForceConfirmDialog';
+import { TenantAvailabilityDialog } from '../components/TenantAvailabilityDialog';
 import { AppointmentPortalActivityTab } from '../components/AppointmentPortalActivityTab';
 import { useDeleteAppointment } from '../hooks/useDeleteAppointment';
 import { useForceConfirmation } from '../hooks/useForceConfirmation';
@@ -67,6 +72,7 @@ export function AppointmentDetailPage() {
   const [assignInspectorOpen, setAssignInspectorOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [forceConfirmOpen, setForceConfirmOpen] = useState(false);
+  const [tenantAvailabilityOpen, setTenantAvailabilityOpen] = useState(false);
   const { remove, isDeleting } = useDeleteAppointment(id ?? null, () => navigate('/appointments'));
   const { forceConfirm } = useForceConfirmation(id ?? null, refetch);
 
@@ -145,6 +151,17 @@ export function AppointmentDetailPage() {
     appointment.status !== 'DONE' &&
     appointment.status !== 'CANCELLED' &&
     appointment.status !== 'REJECTED';
+
+  // Recording what the tenant said is data entry, so the agency admin may do it
+  // too. Declining on their behalf is not: every `→ REJECTED` edge in the state
+  // machine admits only AM/OP/SYS, so the checkbox is gated separately below.
+  const canSetTenantAvailability = !!appointment &&
+    (isPrivileged || user?.role === UserRole.CL_ADMIN);
+  const canMarkTenantUnavailable = !!appointment && isPrivileged && (
+    appointment.status === AppointmentStatus.AWAITING_INSPECTOR
+    || appointment.status === AppointmentStatus.SCHEDULED
+  );
+  const tenantAvailability = appointment?.rentalTenantAvailableSlots;
 
   const handleEdit = useCallback(() => {
     if (!canEditAppointment) {
@@ -383,6 +400,16 @@ export function AppointmentDetailPage() {
               Force Confirm
             </Button>
           )}
+          {canSetTenantAvailability && (
+            <Button
+              variant="outlined"
+              onClick={() => setTenantAvailabilityOpen(true)}
+              data-testid="set-tenant-availability-button"
+            >
+              <i className="mdi mdi-calendar-clock text-base" aria-hidden="true" />
+              Tenant Availability
+            </Button>
+          )}
           {canEditAppointment && (
             <button
               onClick={handleEdit}
@@ -506,6 +533,19 @@ export function AppointmentDetailPage() {
           setForceConfirmOpen(false);
         }}
       />
+      {appointment && (
+        <TenantAvailabilityDialog
+          open={tenantAvailabilityOpen}
+          appointmentId={appointment.id}
+          slots={tenantAvailability}
+          canMarkUnavailable={canMarkTenantUnavailable}
+          onClose={() => setTenantAvailabilityOpen(false)}
+          onSaved={() => {
+            setTenantAvailabilityOpen(false);
+            refetch();
+          }}
+        />
+      )}
     </div>
   );
 }

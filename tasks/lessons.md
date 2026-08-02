@@ -1,5 +1,10 @@
 # Lessons
 
+## 2026-08-02 — Global idempotency key expiry precedes scope isolation
+
+1. When an idempotency key is globally unique but logically partitioned by `scope`, remove an expired row before rejecting an active cross-scope collision; checking scope first can permanently strand a reusable key.
+2. Cross-scope tests must cover both active rows, which must not leak responses, and expired rows, which must be eligible for fenced cleanup and reacquisition.
+
 ## 2026-08-02 — Atomic resend review gate
 
 1. A path that promises atomicity must fail closed before its first mutation when the required Unit of Work is unavailable; never retain a legacy non-transactional fallback for that branch.

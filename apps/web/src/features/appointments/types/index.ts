@@ -120,6 +120,8 @@ export interface AppointmentDetail extends Omit<Appointment, 'code'> {
   customFields?: AppointmentCustomField[];
   /** App credentials linked to this appointment (live reference). */
   apps?: AppointmentApp[];
+  /** Weekly availability the rental tenant offered, flattened by the detail API. */
+  rentalTenantAvailableSlots?: AvailableSlot[] | null;
   restrictions?: Array<{
     id: string;
     isHome: boolean;

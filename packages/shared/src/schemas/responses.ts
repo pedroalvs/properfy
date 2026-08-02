@@ -3,6 +3,7 @@ import { HHMM_REGEX } from './appointment';
 import { propertyRulesSchema, PROPERTY_TYPE_VALUES } from './property';
 import { bonusRuleSchema } from './pricing-rule';
 import { appointmentAppSchema } from './app-credential';
+import { availableSlotSchema, storedAvailableSlotSchema } from './available-slot';
 import { AppointmentStatus, ServiceTypeFlowType } from '../enums';
 
 /**
@@ -297,6 +298,12 @@ export const appointmentResponseSchema = z.object({
   rentalTenantNote: z.string().nullable().optional(),
   observation: z.string().nullable().optional(),
   hasRentalTenantNote: z.boolean().optional(),
+  /**
+   * Weekly availability the rental tenant offered when declining in the portal,
+   * flattened onto list and detail payloads so consumers do not need to inspect
+   * `restrictions[].availableSlotsJson`.
+   */
+  rentalTenantAvailableSlots: z.array(storedAvailableSlotSchema).nullable().optional(),
   hasActivePortalToken: z.boolean().default(false),
   customFieldsJson: z.unknown().nullable().optional(),
   reason: z.string().nullable().optional(),
@@ -363,6 +370,13 @@ export const appointmentResponseSchema = z.object({
 
 export const forceManualConfirmationResponseSchema = z.object({
   id: z.string().uuid(),
+  rentalTenantConfirmationStatus: z.string(),
+});
+
+/** Echo of the availability an operator recorded on the tenant's behalf. */
+export const setRentalTenantAvailabilityResponseSchema = z.object({
+  id: z.string().uuid(),
+  availableSlots: z.array(availableSlotSchema),
   rentalTenantConfirmationStatus: z.string(),
 });
 

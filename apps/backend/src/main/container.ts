@@ -351,6 +351,7 @@ import { UpdateAppointmentUseCase } from '../modules/appointment/application/use
 import { ExecuteStatusTransitionUseCase } from '../modules/appointment/application/use-cases/execute-status-transition.use-case';
 import { PerformCrossCheckUseCase } from '../modules/appointment/application/use-cases/perform-cross-check.use-case';
 import { ForceManualTenantConfirmationUseCase } from '../modules/appointment/application/use-cases/force-manual-confirmation.use-case';
+import { SetRentalTenantAvailabilityUseCase } from '../modules/appointment/application/use-cases/set-rental-tenant-availability.use-case';
 import { PreviewAppointmentImportUseCase } from '../modules/appointment/application/use-cases/preview-appointment-import.use-case';
 import { CommitAppointmentImportUseCase } from '../modules/appointment/application/use-cases/commit-appointment-import.use-case';
 import { ExportAppointmentImportErrorsUseCase } from '../modules/appointment/application/use-cases/export-appointment-import-errors.use-case';
@@ -787,6 +788,13 @@ export function createContainer(logger: Logger): AppContainer {
     confirmationCycleService,
     prisma,
     serviceGroupRepo,
+  );
+
+  // Constructed after the transition use case because the operator-recorded
+  // decline routes its rejection through it, exactly like the portal's does.
+  const setRentalTenantAvailabilityUseCase = new SetRentalTenantAvailabilityUseCase(
+    appointmentRepo, auditService, authorizationService, executeStatusTransitionUseCase,
+    idempotencyService, confirmationCycleService,
   );
 
   const getPortalDataUseCase = new GetPortalDataUseCase(rentalTenantPortalTokenRepo, rentalTenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo, tenantRepo);
@@ -1389,6 +1397,7 @@ export function createContainer(logger: Logger): AppContainer {
       executeStatusTransitionUseCase,
       performCrossCheckUseCase,
       forceManualConfirmationUseCase,
+      setRentalTenantAvailabilityUseCase,
       reopenForRescheduleUseCase,
       previewAppointmentImportUseCase,
       commitAppointmentImportUseCase,
