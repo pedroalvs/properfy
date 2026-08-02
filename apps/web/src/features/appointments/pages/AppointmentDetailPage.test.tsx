@@ -499,6 +499,8 @@ describe('AppointmentDetailPage — agency blocks tenant notifications', () => {
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute('aria-describedby', 'send-portal-link-disabled-hint');
     expect(explanation).toHaveAttribute('id', 'send-portal-link-disabled-hint');
+    expect(explanation).toBeVisible();
+    expect(explanation.closest('.hidden, .invisible, .sr-only')).toBeNull();
     expect(explanation).not.toHaveClass('sr-only');
     expect(screen.queryByText(/no primary contact email or phone/i)).not.toBeInTheDocument();
   });
@@ -562,6 +564,8 @@ describe('AppointmentDetailPage — missing primary contact', () => {
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute('aria-describedby', 'send-portal-link-disabled-hint');
     expect(explanation).toHaveAttribute('id', 'send-portal-link-disabled-hint');
+    expect(explanation).toBeVisible();
+    expect(explanation.closest('.hidden, .invisible, .sr-only')).toBeNull();
     expect(explanation).not.toHaveClass('sr-only');
   });
 
