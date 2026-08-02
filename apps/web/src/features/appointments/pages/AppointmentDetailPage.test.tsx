@@ -502,6 +502,7 @@ describe('AppointmentDetailPage — agency blocks tenant notifications', () => {
     expect(explanation).toBeVisible();
     expect(explanation.closest('.hidden, .invisible, .sr-only')).toBeNull();
     expect(explanation).not.toHaveClass('sr-only');
+    expect(explanation).toHaveClass('max-w-xs');
     expect(screen.queryByText(/no primary contact email or phone/i)).not.toBeInTheDocument();
   });
 
@@ -567,6 +568,7 @@ describe('AppointmentDetailPage — missing primary contact', () => {
     expect(explanation).toBeVisible();
     expect(explanation.closest('.hidden, .invisible, .sr-only')).toBeNull();
     expect(explanation).not.toHaveClass('sr-only');
+    expect(explanation).toHaveClass('max-w-xs');
   });
 
   it('leaves Copy Portal Link available because generate-only sends no notification', () => {

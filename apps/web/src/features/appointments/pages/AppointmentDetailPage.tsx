@@ -334,7 +334,7 @@ export function AppointmentDetailPage() {
               {sendPortalLinkDisabledHint && (
                 // Native disabled controls cannot receive focus, so the explanation
                 // must remain visibly available rather than relying on a tooltip.
-                <span id="send-portal-link-disabled-hint" className="max-w-64 text-xs text-text-secondary">
+                <span id="send-portal-link-disabled-hint" className="max-w-xs text-xs text-text-secondary">
                   {sendPortalLinkDisabledHint}
                 </span>
               )}
