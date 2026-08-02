@@ -14,8 +14,7 @@ export interface UseSetRentalTenantAvailabilityReturn {
  * Records the weekly availability a rental tenant gave outside the portal.
  *
  * Invalidates both `['appointments']` and `['appointments', id]`: the list and
- * map read the flattened `rentalTenantAvailableSlots`, while the detail page
- * reads it nested under `restrictions[].availableSlotsJson`.
+ * map and detail responses both expose the flattened `rentalTenantAvailableSlots`.
  */
 export function useSetRentalTenantAvailability(
   appointmentId: string | null,

@@ -89,6 +89,9 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
           isOverdue: false,
           hasRentalTenantNote: false,
           rentalTenantNote: null,
+          rentalTenantAvailableSlots: [
+            { dayOfWeek: 'MON', start: '09:00', end: '12:00' },
+          ],
           createdAt: '2026-03-01T10:00:00Z',
           updatedAt: '2026-03-01T10:00:00Z',
         },
@@ -737,6 +740,15 @@ describe('Tenant Availability action', () => {
     fireEvent.click(screen.getByTestId('set-tenant-availability-button'));
 
     expect(screen.getByLabelText(/also mark tenant as unavailable/i)).toBeInTheDocument();
+  });
+
+  it('prefills the dialog from the top-level rental tenant availability', () => {
+    mockUserRole = 'OP';
+    renderPage('/appointments/with-portal-token');
+    fireEvent.click(screen.getByTestId('set-tenant-availability-button'));
+
+    expect(screen.getByTestId('start-MON')).toHaveValue('09:00');
+    expect(screen.getByTestId('end-MON')).toHaveValue('12:00');
   });
 
   it('does not offer the decline checkbox when the appointment cannot be rejected', () => {

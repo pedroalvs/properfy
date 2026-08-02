@@ -136,11 +136,7 @@ export function AppointmentDetailPage() {
     appointment.status === AppointmentStatus.AWAITING_INSPECTOR
     || appointment.status === AppointmentStatus.SCHEDULED
   );
-  // The availability already on the appointment, found by content — the single
-  // restriction row is shared with the operator's own access restriction.
-  const tenantAvailability = appointment?.restrictions?.find(
-    (r) => r.availableSlotsJson?.length,
-  )?.availableSlotsJson;
+  const tenantAvailability = appointment?.rentalTenantAvailableSlots;
 
   const handleEdit = useCallback(() => {
     if (!canEditAppointment) {

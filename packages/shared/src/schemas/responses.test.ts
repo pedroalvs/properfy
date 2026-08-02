@@ -123,7 +123,7 @@ describe('appointmentResponseSchema — appointmentCode / code', () => {
     if (result.success) expect(result.data.rentalTenantAvailableSlots).toEqual(legacySlots);
   });
 
-  it('leaves rentalTenantAvailableSlots optional so the detail producer still validates', () => {
+  it('leaves rentalTenantAvailableSlots optional for appointment responses that do not include it', () => {
     const result = appointmentResponseSchema.safeParse(validBase);
     expect(result.success).toBe(true);
     if (result.success) expect(result.data.rentalTenantAvailableSlots).toBeUndefined();

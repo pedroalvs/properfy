@@ -300,9 +300,8 @@ export const appointmentResponseSchema = z.object({
   hasRentalTenantNote: z.boolean().optional(),
   /**
    * Weekly availability the rental tenant offered when declining in the portal,
-   * flattened onto the LIST payload so the map's Confirm column can show it
-   * without a per-row detail fetch. The detail endpoint exposes the same data
-   * nested under `restrictions[].availableSlotsJson` and omits this field.
+   * flattened onto list and detail payloads so consumers do not need to inspect
+   * `restrictions[].availableSlotsJson`.
    */
   rentalTenantAvailableSlots: z.array(storedAvailableSlotSchema).nullable().optional(),
   hasActivePortalToken: z.boolean().default(false),
