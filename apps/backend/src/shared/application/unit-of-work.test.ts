@@ -184,4 +184,21 @@ describe('afterCommitResult', () => {
     await expect(result.runAfterCommit()).resolves.toEqual({ dispatched: true });
     expect(effect).toHaveBeenCalledOnce();
   });
+
+  it('caches a rejection so the effect is invoked only once', async () => {
+    const failure = new Error('notification enqueue failed');
+    const effect = vi.fn().mockRejectedValue(failure);
+    const result = afterCommitResult(effect);
+
+    const firstAttempt = result.runAfterCommit();
+    const repeatedAttempt = result.runAfterCommit();
+    const attempts = await Promise.allSettled([firstAttempt, repeatedAttempt]);
+
+    expect(repeatedAttempt).toBe(firstAttempt);
+    expect(attempts).toEqual([
+      { status: 'rejected', reason: failure },
+      { status: 'rejected', reason: failure },
+    ]);
+    expect(effect).toHaveBeenCalledOnce();
+  });
 });
