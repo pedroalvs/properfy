@@ -489,14 +489,17 @@ describe('AppointmentDetailPage — agency blocks tenant notifications', () => {
     mockHasPrimaryContact = true;
   });
 
-  it('keeps Send Portal Link visible and prioritizes the agency reason when contact is also missing', () => {
+  it('shows a visible, associated agency reason when Send Portal Link is disabled and contact is also missing', () => {
     mockHasPrimaryContact = false;
     renderPage('/appointments/awaiting');
 
-    expect(screen.getByTestId('send-portal-link-button')).toBeDisabled();
-    expect(
-      screen.getByText(/Notifications to the tenant are blocked for this agency/i),
-    ).toBeInTheDocument();
+    const button = screen.getByTestId('send-portal-link-button');
+    const explanation = screen.getByText(/Notifications to the tenant are blocked for this agency/i);
+
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('aria-describedby', 'send-portal-link-disabled-hint');
+    expect(explanation).toHaveAttribute('id', 'send-portal-link-disabled-hint');
+    expect(explanation).not.toHaveClass('sr-only');
     expect(screen.queryByText(/no primary contact email or phone/i)).not.toBeInTheDocument();
   });
 
@@ -550,16 +553,16 @@ describe('AppointmentDetailPage — missing primary contact', () => {
     mockHasPrimaryContact = true;
   });
 
-  it('keeps Send Portal Link visible but disabled with the missing-contact reason', () => {
+  it('shows a visible, associated missing-contact reason when Send Portal Link is disabled', () => {
     renderPage('/appointments/awaiting');
 
     const button = screen.getByTestId('send-portal-link-button');
+    const explanation = screen.getByText(/no primary contact email or phone/i);
+
     expect(button).toBeDisabled();
-    expect(button.closest('[title]')).toHaveAttribute(
-      'title',
-      'No primary contact email or phone is available for this appointment. Use Copy Portal Link to send it yourself.',
-    );
-    expect(screen.getByText(/no primary contact email or phone/i)).toBeInTheDocument();
+    expect(button).toHaveAttribute('aria-describedby', 'send-portal-link-disabled-hint');
+    expect(explanation).toHaveAttribute('id', 'send-portal-link-disabled-hint');
+    expect(explanation).not.toHaveClass('sr-only');
   });
 
   it('leaves Copy Portal Link available because generate-only sends no notification', () => {

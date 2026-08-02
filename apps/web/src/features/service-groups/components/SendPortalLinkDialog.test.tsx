@@ -33,7 +33,7 @@ describe('SendPortalLinkDialog', () => {
     expect(screen.getByRole('button', { name: 'Send portal link' })).toBeInTheDocument();
     expect(screen.getByText(/eligible for a send attempt/i)).toBeInTheDocument();
     expect(screen.getByText(/eligible for another send attempt \(date changed\)/i)).toBeInTheDocument();
-    expect(screen.queryByText(/will be (?:re-)?sent/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\b(?:sent|resent|re-sent)\b/i)).not.toBeInTheDocument();
     expect(screen.getByText(/already confirmed/)).toBeInTheDocument();
   });
 
@@ -83,7 +83,11 @@ describe('SendPortalLinkDialog - agencies that do not notify tenants', () => {
 
     render(<SendPortalLinkDialog open onClose={vi.fn()} serviceGroupId="g-1" sending={false} onConfirm={vi.fn()} />);
 
-    expect(screen.getByText(/blocked . agency does not notify tenants/i)).toBeInTheDocument();
+    const blockedMembers = screen
+      .getAllByRole('listitem')
+      .filter(({ textContent }) => textContent === '1 blocked — agency does not notify tenants');
+
+    expect(blockedMembers).toHaveLength(1);
   });
 
   it('omits the line when nothing is blocked', () => {
@@ -102,5 +106,6 @@ describe('SendPortalLinkDialog - agencies that do not notify tenants', () => {
     render(<SendPortalLinkDialog open onClose={vi.fn()} serviceGroupId="g-1" sending={false} onConfirm={vi.fn()} />);
 
     expect(screen.getByText('No appointments need a portal link right now.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send portal link' })).toBeDisabled();
   });
 });

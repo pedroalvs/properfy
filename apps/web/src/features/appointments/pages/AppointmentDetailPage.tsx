@@ -317,7 +317,7 @@ export function AppointmentDetailPage() {
             </Button>
           )}
           {canSendPortalLink && (
-            <span title={sendPortalLinkDisabledHint}>
+            <div className="flex flex-col items-start gap-1">
               <Button
                 variant="secondary"
                 onClick={handleGeneratePortalToken}
@@ -332,14 +332,13 @@ export function AppointmentDetailPage() {
                 Send Portal Link
               </Button>
               {sendPortalLinkDisabledHint && (
-                // Kept in the DOM rather than title-only: a disabled control is not
-                // reliably reachable for a tooltip, and the a11y baseline forbids
-                // conveying a disabled state by colour alone.
-                <span id="send-portal-link-disabled-hint" className="sr-only">
+                // Native disabled controls cannot receive focus, so the explanation
+                // must remain visibly available rather than relying on a tooltip.
+                <span id="send-portal-link-disabled-hint" className="max-w-64 text-xs text-text-secondary">
                   {sendPortalLinkDisabledHint}
                 </span>
               )}
-            </span>
+            </div>
           )}
           {canCopyPortalLink && (
             <span
