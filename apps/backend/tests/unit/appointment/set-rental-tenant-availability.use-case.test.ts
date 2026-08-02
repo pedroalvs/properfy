@@ -353,6 +353,52 @@ describe('SetRentalTenantAvailabilityUseCase', () => {
       expect(statusTransition.execute).toHaveBeenCalledTimes(1);
     });
 
+    it('recovers an expired reservation after the decline business state committed', async () => {
+      build();
+      const input = {
+        appointmentId: 'appt-1',
+        availableSlots: SLOTS,
+        markUnavailable: true,
+        idempotencyKey: 'req-expired-after-commit',
+        actor: makeActor({ role: 'OP' }),
+      } as const;
+
+      await useCase.execute(input);
+      idempotencyRecords.clear();
+      vi.mocked(appointmentRepo.findById).mockResolvedValue({
+        appointment: makeAppointment({
+          status: 'REJECTED',
+          rentalTenantConfirmationStatus: 'UNAVAILABLE',
+        }),
+        contact: null,
+        contacts: [],
+        restrictions: [new AppointmentRestrictionEntity({
+          id: 'r-1',
+          appointmentId: 'appt-1',
+          isHome: false,
+          unavailableDaysJson: null,
+          unavailableHoursJson: null,
+          availableSlotsJson: SLOTS,
+          notes: null,
+          source: 'RENTAL_TENANT_PORTAL',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })],
+        propertyAddress: '1 Test St',
+        serviceTypeName: 'Routine',
+        hasActivePortalToken: false,
+      } as never);
+
+      await expect(useCase.execute(input)).resolves.toEqual({
+        id: 'appt-1',
+        availableSlots: SLOTS,
+        rentalTenantConfirmationStatus: 'UNAVAILABLE',
+      });
+      expect(appointmentRepo.replaceRestrictions).toHaveBeenCalledTimes(1);
+      expect(cycleService.markUnavailable).toHaveBeenCalledTimes(1);
+      expect(statusTransition.execute).toHaveBeenCalledTimes(1);
+    });
+
     it('allows only one concurrent request with the same key to perform side effects', async () => {
       build();
       let unblockWrite!: () => void;

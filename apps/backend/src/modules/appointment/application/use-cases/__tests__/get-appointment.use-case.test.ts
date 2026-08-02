@@ -197,6 +197,22 @@ describe('GetAppointmentUseCase — restrictions must carry the availability the
     expect(result.rentalTenantAvailableSlots).toEqual(SLOTS);
   });
 
+  it('should skip empty older restrictions when selecting top-level tenant availability', async () => {
+    const result = await runWith([
+      makeRestriction(null),
+      makeRestriction([]),
+      makeRestriction(SLOTS),
+    ]);
+
+    expect(result.rentalTenantAvailableSlots).toEqual(SLOTS);
+  });
+
+  it('should return null at the top level when every restriction has empty availability', async () => {
+    const result = await runWith([makeRestriction(null), makeRestriction([])]);
+
+    expect(result.rentalTenantAvailableSlots).toBeNull();
+  });
+
   it('should return availableSlotsJson as null when the tenant offered no availability', async () => {
     const result = await runWith([makeRestriction(null)]);
 

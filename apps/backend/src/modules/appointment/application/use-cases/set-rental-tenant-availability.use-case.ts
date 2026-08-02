@@ -228,7 +228,12 @@ export class SetRentalTenantAvailabilityUseCase {
       if (idempotency && markUnavailable) {
         let recovered: SetRentalTenantAvailabilityOutput | null = null;
         try {
-          recovered = await this.recoverCompletedDecline(input, idempotency, idempotencyOwnerToken);
+          recovered = await this.recoverCompletedDecline(
+            input,
+            tenantScope,
+            idempotency,
+            idempotencyOwnerToken,
+          );
         } catch {
           // Recovery is best-effort; preserve the original command failure.
         }
@@ -340,10 +345,11 @@ export class SetRentalTenantAvailabilityUseCase {
 
   private async recoverCompletedDecline(
     input: SetRentalTenantAvailabilityInput,
+    tenantScope: string | null,
     context: { commandKey: string; payloadHash: string },
     ownerToken: string | null,
   ): Promise<SetRentalTenantAvailabilityOutput | null> {
-    const latest = await this.appointmentRepo.findById(input.appointmentId, null);
+    const latest = await this.appointmentRepo.findById(input.appointmentId, tenantScope);
     const restriction = latest?.restrictions.find((item) => item.availableSlotsJson?.length);
     if (
       !latest

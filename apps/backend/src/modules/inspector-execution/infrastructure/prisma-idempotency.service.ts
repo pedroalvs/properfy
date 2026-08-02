@@ -53,39 +53,47 @@ export class PrismaIdempotencyService implements IIdempotencyService {
     payloadHash: string,
     ttlHours: number,
   ): Promise<IdempotencyAcquireResult<T>> {
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + ttlHours * 60 * 60 * 1000);
-    const ownerToken = randomUUID();
-    const inserted = await this.prisma.idempotencyKey.createMany({
-      data: [{
-        key,
-        scope,
-        response: { __idempotencyState: 'IN_PROGRESS', ownerToken },
-        payload_hash: payloadHash,
-        expires_at: expiresAt,
-      }],
-      skipDuplicates: true,
-    });
-    if (inserted.count === 1) return { status: 'acquired', ownerToken };
-
-    const existing = await this.prisma.idempotencyKey.findUnique({
-      where: { key },
-    });
-    if (!existing) return this.tryAcquire(key, scope, payloadHash, ttlHours);
-    if (existing.expires_at < now) {
-      await this.prisma.idempotencyKey.deleteMany({
-        where: { id: existing.id, expires_at: { lt: now } },
+    const maxAttempts = 3;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + ttlHours * 60 * 60 * 1000);
+      const ownerToken = randomUUID();
+      const inserted = await this.prisma.idempotencyKey.createMany({
+        data: [{
+          key,
+          scope,
+          response: { __idempotencyState: 'IN_PROGRESS', ownerToken },
+          payload_hash: payloadHash,
+          expires_at: expiresAt,
+        }],
+        skipDuplicates: true,
       });
-      return this.tryAcquire(key, scope, payloadHash, ttlHours);
+      if (inserted.count === 1) return { status: 'acquired', ownerToken };
+
+      const existing = await this.prisma.idempotencyKey.findUnique({
+        where: { key },
+      });
+      if (!existing) continue;
+      if (existing.expires_at < now) {
+        await this.prisma.idempotencyKey.deleteMany({
+          where: { id: existing.id, expires_at: { lt: now } },
+        });
+        continue;
+      }
+      if (existing.scope !== scope) {
+        return { status: 'in_progress', payloadHash: existing.payload_hash };
+      }
+      if (isInProgress(existing.response)) {
+        return { status: 'in_progress', payloadHash: existing.payload_hash };
+      }
+      return {
+        status: 'completed',
+        response: existing.response as T,
+        payloadHash: existing.payload_hash,
+      };
     }
-    if (isInProgress(existing.response)) {
-      return { status: 'in_progress', payloadHash: existing.payload_hash };
-    }
-    return {
-      status: 'completed',
-      response: existing.response as T,
-      payloadHash: existing.payload_hash,
-    };
+
+    return { status: 'in_progress', payloadHash };
   }
 
   async complete<T = unknown>(
