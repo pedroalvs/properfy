@@ -25,6 +25,9 @@ import { PrismaAppointmentRepository } from '../../../src/modules/appointment/in
 import { PrismaTenantRepository } from '../../../src/modules/tenant/infrastructure/prisma-tenant.repository';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import { GeneratePortalTokenUseCase } from '../../../src/modules/rental-tenant-portal/application/use-cases/generate-portal-token.use-case';
+import { PrismaRentalTenantPortalTokenRepository } from '../../../src/modules/rental-tenant-portal/infrastructure/prisma-rental-tenant-portal-token.repository';
+import { MintPortalTokenService } from '../../../src/modules/rental-tenant-portal/domain/mint-portal-token.service';
+import { TokenService } from '../../../src/modules/rental-tenant-portal/domain/token.service';
 import type { IIdempotencyService } from '../../../src/shared/domain/idempotency.service';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
@@ -121,6 +124,42 @@ async function seedAppointment(
   return appt.id;
 }
 
+async function seedPrimaryContact(prisma: PrismaClient, appointmentId: string): Promise<void> {
+  await prisma.appointmentContact.create({
+    data: {
+      appointment_id: appointmentId,
+      role: 'RENTAL_TENANT',
+      is_primary: true,
+      snapshot_name: 'Tenant Test',
+      snapshot_email: `tenant-${rand()}@test.local`,
+      snapshot_phone: null,
+    },
+  });
+}
+
+async function waitForBlockedQuery(
+  prisma: PrismaClient,
+  marker: string,
+): Promise<{ state: string; wait_event_type: string | null; wait_event: string | null }> {
+  const deadline = Date.now() + 5_000;
+  while (Date.now() < deadline) {
+    const rows = await prisma.$queryRawUnsafe<
+      Array<{ state: string; wait_event_type: string | null; wait_event: string | null }>
+    >(
+      `SELECT state, wait_event_type, wait_event
+         FROM pg_stat_activity
+        WHERE datname = current_database()
+          AND pid <> pg_backend_pid()
+          AND query LIKE $1`,
+      `%${marker}%`,
+    );
+    const blocked = rows.find((row) => row.state === 'active' && row.wait_event_type === 'Lock');
+    if (blocked) return blocked;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(`Timed out waiting for PostgreSQL query ${marker} to block on the tenant row lock`);
+}
+
 function makeActor(overrides: Partial<AuthContext>): AuthContext {
   return { userId: 'u1', tenantId: null, role: 'AM', branchId: null, inspectorId: null, ...overrides };
 }
@@ -205,8 +244,8 @@ describe('group Send portal link — real DB', () => {
     expect(generatePortalToken.execute).toHaveBeenCalledTimes(2);
   });
 
-  it('rolls back a stale-confirmation reset when the agency blocks notifications after classification', async () => {
-    const { tenantId, userId } = await seedTenant(harness.prisma, 'Agency policy race');
+  it('rolls back reset, mint and cycle link when SEND_AFTER_RESET fails after all transactional mutations', async () => {
+    const { tenantId, userId } = await seedTenant(harness.prisma, 'Agency rollback after mint');
     const branchId = await getBranchId(harness.prisma, tenantId);
     const serviceTypeId = await seedServiceType(harness.prisma);
     const groupId = await seedGroup(harness.prisma, serviceTypeId, userId);
@@ -232,44 +271,58 @@ describe('group Send portal link — real DB', () => {
       auditService,
       harness.prisma,
     );
-    const mint = { mint: vi.fn() };
+    const tokenRepo = new PrismaRentalTenantPortalTokenRepository(harness.prisma);
+    const mint = new MintPortalTokenService(tokenRepo, new TokenService());
+    let stateBeforeForcedFailure:
+      | {
+          cycleCount: number;
+          tokenCount: number;
+          activeCycleId: string | null;
+          linkedTokenId: string | null;
+        }
+      | undefined;
+    const failingCycleService = {
+      rotateOnDateChange: cycleService.rotateOnDateChange.bind(cycleService),
+      createInitial: async (...args: Parameters<ConfirmationCycleService['createInitial']>) => {
+        const created = await cycleService.createInitial(...args);
+        const tx = args[5];
+        if (!tx) throw new Error('Expected SEND_AFTER_RESET to provide the caller transaction');
+        const [cycleCount, tokenCount, appointment] = await Promise.all([
+          tx.appointmentConfirmationCycle.count({ where: { appointment_id: appointmentId } }),
+          tx.rentalTenantPortalToken.count({ where: { appointment_id: appointmentId } }),
+          tx.appointment.findUniqueOrThrow({
+            where: { id: appointmentId },
+            select: { active_confirmation_cycle_id: true },
+          }),
+        ]);
+        stateBeforeForcedFailure = {
+          cycleCount,
+          tokenCount,
+          activeCycleId: appointment.active_confirmation_cycle_id,
+          linkedTokenId: created.portalTokenId,
+        };
+        throw new Error('forced post-mutation failure');
+      },
+    } as unknown as ConfirmationCycleService;
     const generatePortalToken = new GeneratePortalTokenUseCase(
-      {} as never,
+      tokenRepo,
       new PrismaAppointmentRepository(harness.prisma),
       new PrismaTenantRepository(harness.prisma),
-      mint as never,
+      mint,
       auditService,
       'https://portal.test',
       undefined,
-      cycleService,
+      failingCycleService,
       harness.prisma,
     );
-    const groupRepoWithPolicyFlip = {
-      findById: repo.findById.bind(repo),
-      findGroupAppointmentsWithConfirmation: async (id: string) => {
-        // Preserve the enabled snapshot, then commit the real setting flip
-        // before classification hands SEND_AFTER_RESET to the transaction.
-        const rows = await repo.findGroupAppointmentsWithConfirmation(id);
-        await harness.prisma.tenant.update({
-          where: { id: tenantId },
-          data: {
-            settings_json: {
-              rentalTenantNotificationsEnabled: false,
-              emailSendingEnabled: false,
-            },
-          },
-        });
-        return rows;
-      },
-    } as unknown as PrismaServiceGroupRepository;
     const idempotency = {
       getWithHash: vi.fn().mockResolvedValue(null),
       set: vi.fn(),
     } as unknown as IIdempotencyService;
     const useCase = new SendGroupPortalLinksUseCase(
-      groupRepoWithPolicyFlip,
+      repo,
       generatePortalToken,
-      cycleService,
+      failingCycleService,
       idempotency,
       auditService,
       new AuthorizationService(auditService),
@@ -280,8 +333,18 @@ describe('group Send portal link — real DB', () => {
     const result = await useCase.execute({ groupId, actor: makeActor({ role: 'AM' }) });
 
     expect(result.results).toEqual([
-      { appointmentId, status: 'TENANT_NOTIFICATIONS_BLOCKED' },
+      {
+        appointmentId,
+        status: 'ERROR',
+        error: { code: 'DISPATCH_FAILED', message: 'forced post-mutation failure' },
+      },
     ]);
+    expect(stateBeforeForcedFailure).toMatchObject({
+      cycleCount: 2,
+      tokenCount: 1,
+      linkedTokenId: expect.any(String),
+    });
+    expect(stateBeforeForcedFailure?.activeCycleId).not.toBe(before.active_confirmation_cycle_id);
     const after = await harness.prisma.appointment.findUniqueOrThrow({
       where: { id: appointmentId },
       select: {
@@ -298,39 +361,136 @@ describe('group Send portal link — real DB', () => {
     expect(after.confirmation_cycles).toEqual([
       { id: before.active_confirmation_cycle_id, status: 'CONFIRMED' },
     ]);
-    expect(mint.mint).not.toHaveBeenCalled();
+    expect(await harness.prisma.rentalTenantPortalToken.count({
+      where: { appointment_id: appointmentId },
+    })).toBe(0);
     const cycleAuditActions = (auditService.log as ReturnType<typeof vi.fn>).mock.calls
       .map(([entry]) => entry.action)
       .filter((action: string) => action.startsWith('appointment_confirmation_cycle.'));
     expect(cycleAuditActions).toEqual([]);
   });
 
+  it('commits a real SEND_AFTER_RESET reset, mint and cycle link before dispatch', async () => {
+    const { tenantId, userId } = await seedTenant(harness.prisma, 'Agency successful resend');
+    const branchId = await getBranchId(harness.prisma, tenantId);
+    const serviceTypeId = await seedServiceType(harness.prisma);
+    const groupId = await seedGroup(harness.prisma, serviceTypeId, userId);
+    const appointmentId = await seedAppointment(harness.prisma, {
+      tenantId,
+      branchId,
+      propertyId: await seedProperty(harness.prisma, tenantId, branchId),
+      serviceTypeId,
+      createdByUserId: userId,
+      groupId,
+      rentalTenantConfirmationStatus: 'CONFIRMED',
+      scheduledDate: STALE_DATE,
+      activeCycle: { scheduledDate: SCHEDULED_DATE, timeSlot: SLOT, status: 'CONFIRMED' },
+    });
+    await seedPrimaryContact(harness.prisma, appointmentId);
+    const before = await harness.prisma.appointment.findUniqueOrThrow({
+      where: { id: appointmentId },
+      select: { active_confirmation_cycle_id: true },
+    });
+
+    const auditService = { log: vi.fn() } as unknown as AuditService;
+    const cycleService = new ConfirmationCycleService(
+      new PrismaConfirmationCycleRepository(harness.prisma),
+      auditService,
+      harness.prisma,
+    );
+    const tokenRepo = new PrismaRentalTenantPortalTokenRepository(harness.prisma);
+    const createNotification = { execute: vi.fn().mockResolvedValue({ notificationId: 'notification-1' }) };
+    const generatePortalToken = new GeneratePortalTokenUseCase(
+      tokenRepo,
+      new PrismaAppointmentRepository(harness.prisma),
+      new PrismaTenantRepository(harness.prisma),
+      new MintPortalTokenService(tokenRepo, new TokenService()),
+      auditService,
+      'https://portal.test',
+      createNotification as never,
+      cycleService,
+      harness.prisma,
+    );
+    const idempotency = {
+      getWithHash: vi.fn().mockResolvedValue(null),
+      set: vi.fn().mockResolvedValue(undefined),
+    } as unknown as IIdempotencyService;
+    const useCase = new SendGroupPortalLinksUseCase(
+      repo,
+      generatePortalToken,
+      cycleService,
+      idempotency,
+      auditService,
+      new AuthorizationService(auditService),
+      undefined,
+      harness.prisma,
+    );
+
+    const result = await useCase.execute({ groupId, actor: makeActor({ role: 'AM' }) });
+
+    expect(result.results).toEqual([{ appointmentId, status: 'DATE_CHANGED_RESENT' }]);
+    const after = await harness.prisma.appointment.findUniqueOrThrow({
+      where: { id: appointmentId },
+      select: {
+        active_confirmation_cycle_id: true,
+        rental_tenant_confirmation_status: true,
+        confirmation_cycles: {
+          orderBy: { cycle_number: 'asc' },
+          select: { id: true, status: true, portal_token_id: true },
+        },
+        portal_tokens: {
+          select: { id: true, status: true, confirmation_cycle_id: true },
+        },
+      },
+    });
+    expect(after.active_confirmation_cycle_id).not.toBe(before.active_confirmation_cycle_id);
+    expect(after.rental_tenant_confirmation_status).toBe('PENDING');
+    expect(after.confirmation_cycles).toEqual([
+      { id: before.active_confirmation_cycle_id, status: 'SUPERSEDED', portal_token_id: null },
+      {
+        id: after.active_confirmation_cycle_id,
+        status: 'PENDING',
+        portal_token_id: after.portal_tokens[0]!.id,
+      },
+    ]);
+    expect(after.portal_tokens).toEqual([
+      {
+        id: after.confirmation_cycles[1]!.portal_token_id,
+        status: 'ACTIVE',
+        confirmation_cycle_id: after.active_confirmation_cycle_id,
+      },
+    ]);
+    expect(createNotification.execute).toHaveBeenCalledTimes(1);
+    expect(idempotency.set).toHaveBeenCalledWith(
+      expect.stringContaining(`bulk_resend:${appointmentId}:`),
+      'bulk_resend_reminder',
+      { appointmentId, status: 'DATE_CHANGED_RESENT' },
+      36,
+    );
+  });
+
   it('holds the tenant notification-policy row lock until the transaction commits', async () => {
     const { tenantId } = await seedTenant(harness.prisma, 'Agency policy lock');
     const tenantRepo = new PrismaTenantRepository(harness.prisma);
-    let updatePromise: ReturnType<PrismaClient['tenant']['update']> | undefined;
-    let boundaryOutcome = '';
+    let updatePromise: Promise<number> | undefined;
+    let blockedActivity:
+      | { state: string; wait_event_type: string | null; wait_event: string | null }
+      | undefined;
+    const marker = `tenant_policy_lock_${rand()}`;
 
     await harness.prisma.$transaction(async (tx) => {
       const tenant = await tenantRepo.findById(tenantId, tx, true);
       expect(tenant).not.toBeNull();
 
-      updatePromise = harness.prisma.tenant.update({
-        where: { id: tenantId },
-        data: {
-          settings_json: {
-            rentalTenantNotificationsEnabled: false,
-            emailSendingEnabled: false,
-          },
-        },
-      });
-      boundaryOutcome = await Promise.race([
-        updatePromise.then(() => 'updated'),
-        new Promise<string>((resolve) => setTimeout(() => resolve('blocked'), 100)),
-      ]);
+      updatePromise = harness.prisma.$executeRawUnsafe(
+        `/* ${marker} */ UPDATE tenants SET settings_json = $1::jsonb WHERE id = $2`,
+        JSON.stringify({ rentalTenantNotificationsEnabled: false, emailSendingEnabled: false }),
+        tenantId,
+      ).then((count) => count);
+      blockedActivity = await waitForBlockedQuery(harness.prisma, marker);
     });
 
-    expect(boundaryOutcome).toBe('blocked');
+    expect(blockedActivity).toMatchObject({ state: 'active', wait_event_type: 'Lock' });
     await updatePromise;
     const updated = await harness.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } });
     expect(updated.settings_json).toMatchObject({ rentalTenantNotificationsEnabled: false });

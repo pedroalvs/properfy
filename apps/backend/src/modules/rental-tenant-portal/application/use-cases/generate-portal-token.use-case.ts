@@ -99,19 +99,6 @@ export class GeneratePortalTokenUseCase {
   }
 
   /**
-   * Rechecks the current policy in the caller's transaction before a stale
-   * confirmation is reset. The full preparation below deliberately rechecks it
-   * again after the reset so a setting flip between the two reads rolls back the
-   * whole unit rather than leaking a PENDING cycle.
-   */
-  async assertNotificationPolicyInTransaction(
-    input: GeneratePortalTokenInput,
-    ctx: TxContext,
-  ): Promise<void> {
-    await this.loadGenerationContext(input, ctx);
-  }
-
-  /**
    * Policy check, token mint and confirmation-cycle link only. Notification
    * creation is represented by the returned handle and must run after commit.
    */

@@ -7,13 +7,12 @@ Implementada a correção do finding transacional do CodeRabbit para `SEND_AFTER
 O snapshot do grupo pode continuar classificando o item como habilitado, mas a execução agora:
 
 1. abre uma única transação por item `SEND_AFTER_RESET`;
-2. relê e bloqueia (`FOR UPDATE`) a configuração autoritativa da agência;
-3. somente então rotaciona o ciclo;
-4. relê a política ainda sob o mesmo lock;
-5. cria o token e vincula o ciclo na mesma transação;
-6. executa auditorias e o dispatch result-bearing somente após o commit.
+2. rotaciona o ciclo dentro dessa transação;
+3. carrega appointment/tenant uma única vez e bloqueia (`FOR UPDATE`) a configuração autoritativa da agência;
+4. cria o token e vincula o ciclo na mesma transação;
+5. executa auditorias e o dispatch result-bearing somente após o commit.
 
-`TENANT_NOTIFICATIONS_BLOCKED` antes do commit deixa o ciclo confirmado original, o token e os audits de ciclo intactos.
+`TENANT_NOTIFICATIONS_BLOCKED` ou qualquer falha antes do commit reverte a rotação, o mint/link e os audits diferidos.
 
 ## RED real
 
@@ -48,9 +47,8 @@ Depois do GREEN inicial, o teste foi fortalecido: ele agora persiste a flag real
 
 `SendGroupPortalLinksUseCase` usa o `runInTransaction` existente para compor, sem transação aninhada:
 
-- policy precheck;
 - `ConfirmationCycleService.rotateOnDateChange(..., tx, defer)`;
-- segundo policy check;
+- leitura autoritativa única da policy com lock;
 - mint/revogação do portal token;
 - `ConfirmationCycleService.createInitial(..., tx, defer)`.
 
@@ -71,7 +69,7 @@ Os audits de `created`, `updated`, `rotated` e `token_generated` também usam `d
 
 ### Retry
 
-O retry de colisão de `token_hash` continua envolvendo a unidade inteira. Como uma violação unique aborta a transação PostgreSQL, cada tentativa abre uma nova transação e repete policy check, rotation, mint e cycle link.
+O retry de colisão de `token_hash` continua envolvendo a unidade inteira. Como uma violação unique aborta a transação PostgreSQL, cada tentativa abre uma nova transação e repete rotation, policy check, mint e cycle link.
 
 ## Alternativas avaliadas
 
@@ -106,18 +104,19 @@ Resultados observados após a correção final:
 
 - Unit focado de SendGroup + GeneratePortalToken: **46/46**.
 - Unit adjacente de UnitOfWork + ConfirmationCycle + GeneratePortalToken: **32/32**.
-- Postgres-real do arquivo de integração: **4/4**.
+- Postgres-real do arquivo de integração: **5/5** no fix round 1/5.
 - Backend typecheck: **PASS**.
 - Backend build: **PASS**.
 - Backend lint: **PASS, 0 errors**; warnings preexistentes do repositório.
 - Backend suite ampla: **459 files / 5.505 tests PASS** no gate final antes do commit.
 - `git diff --check`: **PASS**.
 
-O teste de integração cobre:
+O teste de integração cobre após o fix round 1/5:
 
 - leitura multitenant existente;
 - SEND normal para OP/AM;
-- flip real depois do snapshot habilitado e rollback sem cycle/audit leak;
+- rollback forçado somente depois de observar no PostgreSQL real 2 ciclos, 1 token e o link do ciclo dentro da transação;
+- SEND_AFTER_RESET real bem-sucedido com repositórios Prisma e `MintPortalTokenService` reais;
 - lock real: update concorrente da policy aguarda o commit da transação.
 
 ## Self-review independente
@@ -150,3 +149,69 @@ Sem atribuição a IA.
 1. O lock garante a policy durante os writes e o commit. Ele não pode permanecer depois do commit sem manter a transação aberta durante um efeito irreversível. Se a flag for desligada imediatamente após o commit e antes do worker enviar, o gate autoritativo do `SendNotificationUseCase` ainda falha fechado e suprime a mensagem; o resultado síncrono pode ter sido calculado antes dessa supressão assíncrona.
 2. `FOR UPDATE` serializa updates da mesma agência durante a curta transação por item. O loop do grupo é sequencial, limitando contenção, mas grupos grandes com alteração simultânea da configuração podem observar espera momentânea.
 3. Os ports de repositório existentes já expõem `Prisma.TransactionClient`; esta mudança seguiu o padrão introduzido em `develop`. Remover Prisma da camada de ports requer refactor arquitetural separado e não foi ampliado nesta correção.
+
+---
+
+## Fix round 1/5 — gate formal
+
+### Findings corrigidos
+
+1. **Fallback sem Prisma mutava antes de falhar.** `SEND_AFTER_RESET` agora exige a fronteira transacional. Se o use case for construído sem Prisma/UnitOfWork, o item retorna `ERROR` antes de `rotateOnDateChange`, mint, dispatch ou idempotency write.
+2. **A integração anterior bloqueava antes de qualquer mutação.** O novo cenário usa `PrismaAppointmentRepository`, `PrismaTenantRepository`, `PrismaRentalTenantPortalTokenRepository` e `MintPortalTokenService` reais. Um wrapper exclusivamente de teste chama o `createInitial` real, observa dentro da tx dois ciclos, um token e o vínculo, e só então lança `forced post-mutation failure`. Após o rollback, permanece apenas o ciclo confirmado original, sem token e sem audit de ciclo.
+3. **Faltava sucesso real.** Um segundo cenário executa o `SEND_AFTER_RESET` completo, confirma `DATE_CHANGED_RESENT`, ciclo antigo `SUPERSEDED`, ciclo novo `PENDING`, token `ACTIVE` bidirecionalmente vinculado, dispatch pós-commit e idempotency write.
+4. **O teste de lock usava `100ms`.** O teste agora inicia um `UPDATE` SQL marcado e consulta `pg_stat_activity` até observar `state = active` e `wait_event_type = Lock`. O timeout de 5s é somente o limite diagnóstico do polling, não a evidência de bloqueio.
+5. **Policy/appointment eram carregados duas vezes.** O precheck público foi removido. `executeInTransaction` faz uma única carga autoritativa e um único `SELECT ... FOR UPDATE`; como rotação, read, mint e link pertencem à mesma tx, qualquer bloqueio/falha reverte as mutações anteriores.
+
+### RED observado
+
+Antes das mudanças de produção do round:
+
+```bash
+pnpm --filter backend exec vitest run \
+  tests/unit/service-group/send-group-portal-links.use-case.test.ts
+```
+
+Resultado:
+
+```text
+Test Files  1 failed (1)
+Tests       2 failed | 12 passed (14)
+
+fails closed without mutating when SEND_AFTER_RESET has no transaction boundary
+  expected ERROR; received DATE_CHANGED_RESENT
+
+commits a transactional SEND_AFTER_RESET before running its result-bearing dispatch
+  this.generatePortalToken.assertNotificationPolicyInTransaction is not a function
+```
+
+O primeiro RED prova a mutação insegura do fallback. O segundo prova que a composição ainda dependia da leitura duplicada removida do contrato desejado.
+
+Os novos cenários PostgreSQL são cobertura de uma lacuna do gate, não novos comportamentos: ambos passaram no caminho atômico existente antes da mudança mínima de produção. Isso foi registrado sem alegar um RED inexistente; a prova de efetividade vem dos estados observados dentro e depois da transação.
+
+### GREEN do round
+
+- SendGroup + GeneratePortalToken focados: **46/46 PASS**.
+- PostgreSQL real: **5/5 PASS**.
+- Backend typecheck: **PASS**.
+- Backend lint: **PASS, 0 errors / 413 warnings preexistentes**.
+- Backend build: **PASS**.
+- Backend suite completa com `--maxWorkers=4`: **459 files / 5.505 tests PASS**.
+
+Duas execuções completas com concorrência irrestrita tiveram `ECONNRESET/socket hang up` em testes de rotas não relacionados. Os dois arquivos atingidos passaram juntos (**14/14**) e a suite inteira passou ao limitar workers a quatro; nenhum código desses testes/rotas foi alterado neste round.
+
+### Review independente do round
+
+Review read-only do diff retornou:
+
+```text
+Critical: None
+Important: None
+Minor: None
+Verdict: Approve; merge-ready for fix round 1/5.
+```
+
+### Commit separado
+
+```text
+fix(notifications): close atomic resend review gaps
+```

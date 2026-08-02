@@ -152,28 +152,28 @@ describe('SendGroupPortalLinksUseCase', () => {
     expect(m.cycleService.rotateOnDateChange).not.toHaveBeenCalled();
   });
 
-  it('SEND_AFTER_RESET rotates the cycle BEFORE dispatching and bypasses the idempotency read', async () => {
+  it('fails closed without mutating when SEND_AFTER_RESET has no transaction boundary', async () => {
     m.groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([
       row({ id: 'stale', rentalTenantConfirmationStatus: 'CONFIRMED', scheduledDate: DATE_B, timeSlot: SLOT, activeCycle: { scheduledDate: DATE_A, timeSlot: SLOT, status: 'CONFIRMED' } }),
     ]);
 
     const out = await m.useCase.execute({ groupId: 'group-1', actor: makeActor() });
 
-    expect(out.results).toEqual([{ appointmentId: 'stale', status: 'DATE_CHANGED_RESENT' }]);
+    expect(out.results).toEqual([
+      {
+        appointmentId: 'stale',
+        status: 'ERROR',
+        error: {
+          code: 'DISPATCH_FAILED',
+          message: 'SEND_AFTER_RESET requires a transactional unit of work',
+        },
+      },
+    ]);
     // Cache READ must be bypassed for the date-changed branch.
     expect(m.idempotency.getWithHash).not.toHaveBeenCalled();
-    // Rotate with the CURRENT date/time, before the dispatch.
-    expect(m.cycleService.rotateOnDateChange).toHaveBeenCalledWith('stale', 'tenant-1', DATE_B, SLOT, 'DATE_CHANGED');
-    const rotateOrder = (m.cycleService.rotateOnDateChange as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0]!;
-    const dispatchOrder = (m.generatePortalToken.execute as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0]!;
-    expect(rotateOrder).toBeLessThan(dispatchOrder);
-    // Still writes the cache so a second same-day click is a no-op.
-    expect(m.idempotency.set).toHaveBeenCalledWith(
-      'bulk_resend:stale:2026-06-30',
-      'bulk_resend_reminder',
-      { appointmentId: 'stale', status: 'DATE_CHANGED_RESENT' },
-      36,
-    );
+    expect(m.cycleService.rotateOnDateChange).not.toHaveBeenCalled();
+    expect(m.generatePortalToken.execute).not.toHaveBeenCalled();
+    expect(m.idempotency.set).not.toHaveBeenCalled();
   });
 
   it('commits a transactional SEND_AFTER_RESET before running its result-bearing dispatch', async () => {
@@ -193,8 +193,10 @@ describe('SendGroupPortalLinksUseCase', () => {
     });
     const generatePortalToken = {
       execute: vi.fn(),
-      assertNotificationPolicyInTransaction: vi.fn().mockResolvedValue(undefined),
-      executeInTransaction: vi.fn().mockResolvedValue({ runAfterCommit }),
+      executeInTransaction: vi.fn(async () => {
+        events.push('generate:prepare');
+        return { runAfterCommit };
+      }),
     } as unknown as GeneratePortalTokenUseCase;
     const cycleService = {
       rotateOnDateChange: vi.fn().mockResolvedValue(undefined),
@@ -222,7 +224,6 @@ describe('SendGroupPortalLinksUseCase', () => {
 
     expect(out.results).toEqual([{ appointmentId: 'stale', status: 'DATE_CHANGED_RESENT' }]);
     expect(generatePortalToken.execute).not.toHaveBeenCalled();
-    expect(generatePortalToken.assertNotificationPolicyInTransaction).toHaveBeenCalledTimes(1);
     expect(generatePortalToken.executeInTransaction).toHaveBeenCalledTimes(1);
     expect(cycleService.rotateOnDateChange).toHaveBeenCalledWith(
       'stale',
@@ -233,7 +234,14 @@ describe('SendGroupPortalLinksUseCase', () => {
       tx,
       expect.any(Function),
     );
-    expect(events).toEqual(['transaction:start', 'transaction:commit', 'dispatch']);
+    expect(events).toEqual(['transaction:start', 'generate:prepare', 'transaction:commit', 'dispatch']);
+    expect(m.idempotency.getWithHash).not.toHaveBeenCalled();
+    expect(m.idempotency.set).toHaveBeenCalledWith(
+      'bulk_resend:stale:2026-06-30',
+      'bulk_resend_reminder',
+      { appointmentId: 'stale', status: 'DATE_CHANGED_RESENT' },
+      36,
+    );
   });
 
   it('isolates a per-item error and continues the batch', async () => {

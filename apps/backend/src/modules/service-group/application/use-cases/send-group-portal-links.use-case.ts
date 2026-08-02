@@ -20,6 +20,7 @@ import { TOKEN_HASH_COLUMN } from '../../../rental-tenant-portal/domain/mint-por
 const IDEMPOTENCY_SCOPE = 'bulk_resend_reminder';
 const IDEMPOTENCY_TTL_HOURS = 36;
 const ERROR_CODE = 'DISPATCH_FAILED';
+const TRANSACTION_REQUIRED_MESSAGE = 'SEND_AFTER_RESET requires a transactional unit of work';
 
 export interface SendGroupPortalLinksInput {
   groupId: string;
@@ -148,16 +149,17 @@ export class SendGroupPortalLinksUseCase {
 
       try {
         let dispatch;
-        if (action === 'SEND_AFTER_RESET' && this.prisma) {
-          // The first policy read prevents a known-blocked agency from being
-          // reset at all. The full generator rechecks after the uncommitted
-          // rotation, so a concurrent flip at that boundary throws and rolls
-          // back the reset, token writes and cycle link together.
+        if (action === 'SEND_AFTER_RESET') {
+          // A stale confirmation must never be reset without the same
+          // transaction also owning the authoritative policy read and token
+          // writes. Lightweight callers without a Unit of Work fail closed.
+          const prisma = this.prisma;
+          if (!prisma) throw new Error(TRANSACTION_REQUIRED_MESSAGE);
+
           const prepared = await retryOnUniqueConflict(
             TOKEN_HASH_COLUMN,
-            () => runInTransaction(this.prisma, async (ctx) => {
+            () => runInTransaction(prisma, async (ctx) => {
               const generateInput = { appointmentId: row.id, actor: input.actor };
-              await this.generatePortalToken.assertNotificationPolicyInTransaction(generateInput, ctx);
               await this.cycleService.rotateOnDateChange(
                 row.id,
                 row.tenantId,
@@ -172,17 +174,6 @@ export class SendGroupPortalLinksUseCase {
           );
           dispatch = await prepared.runAfterCommit();
         } else {
-          // Optional Prisma preserves the pre-existing lightweight construction
-          // used by isolated unit tests and non-container consumers.
-          if (action === 'SEND_AFTER_RESET') {
-            await this.cycleService.rotateOnDateChange(
-              row.id,
-              row.tenantId,
-              row.scheduledDate,
-              row.timeSlot,
-              'DATE_CHANGED',
-            );
-          }
           dispatch = await this.generatePortalToken.execute({ appointmentId: row.id, actor: input.actor });
         }
 
