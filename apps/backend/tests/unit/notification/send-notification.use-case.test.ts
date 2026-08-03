@@ -143,8 +143,11 @@ function makeSut() {
     },
   });
   const forwardNotification = vi.fn().mockResolvedValue(undefined);
+  // Default ROUTINE: existing tests must keep exercising the normal send path.
+  const getAppointmentFlowType = vi.fn().mockResolvedValue('ROUTINE');
 
   const useCase = new SendNotificationUseCase({
+    getAppointmentFlowType,
     auditService,
     notificationRepo,
     templateRepo,
@@ -173,6 +176,7 @@ function makeSut() {
     getTenantSettings,
     getAgencyForwardRecipient,
     forwardNotification,
+    getAppointmentFlowType,
     auditService,
     useCase,
   };
@@ -734,6 +738,111 @@ describe('SendNotificationUseCase', () => {
       vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
       vi.mocked(sut.getTenantSettings).mockResolvedValue({});
       vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.emailProvider.send).toHaveBeenCalled();
+    });
+  });
+
+  // INGOING/OUTGOING inspections have no rental tenant at all — SCHEDULED is
+  // already the operational confirmation (apps/backend/CLAUDE.md §8). Sits beside
+  // the agency kill switch and reuses TEMPLATE_TARGETS, but deliberately does NOT
+  // mirror to the agency: that mirror exists so an agency contacting its own
+  // tenants still gets the content. Here there is nobody to relay it to.
+  describe('non-notifying flow types (INGOING/OUTGOING)', () => {
+    it.each(['INGOING', 'OUTGOING'])(
+      'withholds the occupant notice for %s and does not mirror it to the agency',
+      async (flowType) => {
+        const sut = makeSut();
+        const notification = makeNotification({ templateCode: 'INSPECTION_NOTICE' });
+        vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+        vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+        vi.mocked(sut.getAppointmentFlowType).mockResolvedValue(flowType);
+
+        await sut.useCase.execute({ notificationId: 'notif-1' });
+
+        expect(sut.emailProvider.send).not.toHaveBeenCalled();
+        expect(notification.status).toBe('SKIPPED_OPT_OUT');
+        expect(notification.failureReason).toBe('FLOW_TYPE_NO_OCCUPANT');
+        expect(sut.forwardNotification).not.toHaveBeenCalled();
+        expect(sut.getAgencyForwardRecipient).not.toHaveBeenCalled();
+      },
+    );
+
+    it('withholds the SMS leg too, not just email', async () => {
+      const sut = makeSut();
+      const notification = makeNotification({
+        channel: 'SMS',
+        templateCode: 'INSPECTION_NOTICE_SMS',
+        recipient: '+61400000000',
+      });
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ templateCode: 'INSPECTION_NOTICE_SMS', channel: 'SMS' }),
+      );
+      vi.mocked(sut.getAppointmentFlowType).mockResolvedValue('INGOING');
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.smsProvider.send).not.toHaveBeenCalled();
+      expect(notification.failureReason).toBe('FLOW_TYPE_NO_OCCUPANT');
+    });
+
+    it('withholds the property-manager escalation, which only chases a tenant response', async () => {
+      const sut = makeSut();
+      const notification = makeNotification({ templateCode: 'PROPERTY_MANAGER_ESCALATION' });
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ templateCode: 'PROPERTY_MANAGER_ESCALATION' }),
+      );
+      vi.mocked(sut.getAppointmentFlowType).mockResolvedValue('OUTGOING');
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.emailProvider.send).not.toHaveBeenCalled();
+      expect(notification.failureReason).toBe('FLOW_TYPE_NO_OCCUPANT');
+    });
+
+    // The load-bearing half: these report real events and must survive.
+    it.each([
+      ['INSPECTION_CANCELLED_AGENCY', 'the agency cancellation copy'],
+      ['INSPECTION_STUCK_ALERT', 'the ops stuck alert'],
+    ])('still sends %s (%s)', async (templateCode) => {
+      const sut = makeSut();
+      const notification = makeNotification({ templateCode });
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ templateCode }),
+      );
+      vi.mocked(sut.getAppointmentFlowType).mockResolvedValue('INGOING');
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.emailProvider.send).toHaveBeenCalled();
+      expect(notification.status).not.toBe('SKIPPED_OPT_OUT');
+    });
+
+    it('leaves ROUTINE untouched', async () => {
+      const sut = makeSut();
+      const notification = makeNotification({ templateCode: 'INSPECTION_NOTICE' });
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+      vi.mocked(sut.getAppointmentFlowType).mockResolvedValue('ROUTINE');
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.emailProvider.send).toHaveBeenCalled();
+    });
+
+    // Fail open. A notification with no appointment (password reset, report
+    // ready) or whose appointment is gone must not be silenced by accident.
+    it('sends when the flow type cannot be resolved', async () => {
+      const sut = makeSut();
+      const notification = makeNotification({ templateCode: 'INSPECTION_NOTICE' });
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+      vi.mocked(sut.getAppointmentFlowType).mockResolvedValue(null);
 
       await sut.useCase.execute({ notificationId: 'notif-1' });
 

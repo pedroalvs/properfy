@@ -237,6 +237,7 @@ import { PrismaNotificationTemplateRepository } from '../modules/notification/in
 import { PrismaNotificationAttemptRepository } from '../modules/notification/infrastructure/prisma-notification-attempt.repository';
 import { PrismaNotificationConsentRepository } from '../modules/notification/infrastructure/prisma-notification-consent.repository';
 import { createTenantSettingsReader } from '../modules/notification/infrastructure/prisma-tenant-settings.reader';
+import { createAppointmentFlowTypeReader } from '../modules/notification/infrastructure/prisma-appointment-flow-type.reader';
 import { createAgencyForwardRecipientReader } from '../modules/notification/infrastructure/prisma-agency-forward-recipient.reader';
 import { TemplateRendererService } from '../modules/notification/domain/template-renderer.service';
 import { SendNotificationUseCase } from '../modules/notification/application/use-cases/send-notification.use-case';
@@ -1081,6 +1082,7 @@ export function createContainer(logger: Logger): AppContainer {
   // Notification use cases
   const consentRepo = new PrismaNotificationConsentRepository(prisma);
   const getTenantSettings = createTenantSettingsReader(prisma);
+  const getAppointmentFlowType = createAppointmentFlowTypeReader(prisma);
   const getAgencyForwardRecipient = createAgencyForwardRecipientReader(prisma);
 
   const sendNotificationUseCase = new SendNotificationUseCase({
@@ -1094,6 +1096,7 @@ export function createContainer(logger: Logger): AppContainer {
     logger,
     metrics,
     getTenantSettings,
+    getAppointmentFlowType,
     getAgencyForwardRecipient,
     // Thin port rather than the use case itself, so the send path does not take a
     // dependency on the create path (they are two ends of the same queue).
