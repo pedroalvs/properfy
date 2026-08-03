@@ -4,12 +4,14 @@ import {
   AppointmentStatus,
   UserRole,
   TENANT_NOTIFICATIONS_BLOCKED_CODE,
+  suppressesOccupantNotifications,
 } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsNav } from '@/components/layout/TabsNav';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { AppointmentStatusChip } from '@/features/appointments/components/AppointmentStatusChip';
+import { FlowTypeChip } from '@/features/service-types/components/FlowTypeChip';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { useAuth } from '@/hooks/useAuth';
@@ -53,6 +55,8 @@ const TENANT_NOTIFICATIONS_BLOCKED_HINT =
   'Notifications to the tenant are blocked for this agency. Use Copy Portal Link to send it yourself.';
 const MISSING_PRIMARY_CONTACT_HINT =
   'No primary contact email or phone is available for this appointment. Use Copy Portal Link to send it yourself.';
+const NO_OCCUPANT_HINT =
+  'Ingoing and outgoing inspections have no tenant to notify — being scheduled is already the confirmation.';
 
 function isPrivilegedRole(role: string): boolean {
   return role === 'AM' || role === 'OP';
@@ -122,13 +126,17 @@ export function AppointmentDetailPage() {
   // boolean here. Absent still means enabled.
   const tenantNotificationsBlocked = appointment?.rentalTenantNotificationsEnabled === false;
   const hasPrimaryContact = !!appointment?.contactEmail || !!appointment?.contactPhone;
-  // Policy is authoritative, so it explains the disabled action even when the
-  // appointment is also missing a contact.
-  const sendPortalLinkDisabledHint = tenantNotificationsBlocked
-    ? TENANT_NOTIFICATIONS_BLOCKED_HINT
-    : !hasPrimaryContact
-      ? MISSING_PRIMARY_CONTACT_HINT
-      : undefined;
+  // INGOING/OUTGOING have no occupant at all, so this outranks both the agency
+  // policy ("we contact them ourselves") and the missing-contact hint: those
+  // describe an occupant we cannot reach, this one says there is none.
+  const hasNoOccupant = suppressesOccupantNotifications(appointment?.flowType);
+  const sendPortalLinkDisabledHint = hasNoOccupant
+    ? NO_OCCUPANT_HINT
+    : tenantNotificationsBlocked
+      ? TENANT_NOTIFICATIONS_BLOCKED_HINT
+      : !hasPrimaryContact
+        ? MISSING_PRIMARY_CONTACT_HINT
+        : undefined;
   // Portal link is only meaningful once the appointment leaves DRAFT and is
   // not terminal — mirrors the backend INVALID_APPOINTMENT_STATUS gate.
   const canSendPortalLink = !!appointment &&
@@ -147,6 +155,10 @@ export function AppointmentDetailPage() {
   const canForceConfirm = !!appointment &&
     canPerform('appointment.force_confirmation') &&
     hasClUserFlag('force_confirmation') &&
+    // Forcing a confirmation stands in for an occupant who did not reply. With
+    // no occupant there is nothing to stand in for — SCHEDULED already is the
+    // confirmation for these flows.
+    !hasNoOccupant &&
     appointment.rentalTenantConfirmationStatus !== 'CONFIRMED' &&
     appointment.status !== 'DONE' &&
     appointment.status !== 'CANCELLED' &&
@@ -321,6 +333,9 @@ export function AppointmentDetailPage() {
             {appointment.appointmentCode}
           </h1>
           <AppointmentStatusChip status={appointment.status} doneCheckedByUserId={appointment.doneCheckedByUserId} isOverdue={appointment.isOverdue} />
+          {/* Rendered beside the status so the operator can see WHY the
+              occupant-facing actions below are unavailable. */}
+          {appointment.flowType && <FlowTypeChip flowType={appointment.flowType} />}
         </div>
         <div className="flex items-center gap-2">
           {canAssignInspector && (

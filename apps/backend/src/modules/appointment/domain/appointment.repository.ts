@@ -73,6 +73,8 @@ export interface AppointmentWithRelations {
   propertyRentAmount?: number | null;
   branchName?: string;
   serviceTypeName?: string;
+  /** Service type flow (ROUTINE | INGOING | OUTGOING). Drives occupant-notification suppression and the UI's occupant-facing actions. */
+  serviceTypeFlowType?: ServiceTypeFlowType;
   inspectorName?: string | null;
   /** Tenant (agency) name — the "client" surfaced in the map detail panel (025 §FR-451). */
   tenantName?: string;

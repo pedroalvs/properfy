@@ -10970,6 +10970,10 @@
                           "type": "string",
                           "nullable": true
                         },
+                        "flowType": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "clientName": {
                           "type": "string"
                         },
@@ -11582,6 +11586,10 @@
                             "type": "string",
                             "nullable": true
                           },
+                          "flowType": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "clientName": {
                             "type": "string"
                           },
@@ -11994,6 +12002,10 @@
                           "nullable": true
                         },
                         "serviceTypeName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "flowType": {
                           "type": "string",
                           "nullable": true
                         },
@@ -12672,6 +12684,10 @@
                           "nullable": true
                         },
                         "serviceTypeName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "flowType": {
                           "type": "string",
                           "nullable": true
                         },
@@ -20069,15 +20085,11 @@
                     "data": {
                       "type": "object",
                       "properties": {
-                        "id": {
+                        "executionId": {
                           "type": "string",
                           "format": "uuid"
                         },
                         "appointmentId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "inspectorId": {
                           "type": "string",
                           "format": "uuid"
                         },
@@ -20092,93 +20104,31 @@
                             }
                           ]
                         },
-                        "finishedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "resumedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
                         "startLatitude": {
                           "type": "number"
                         },
                         "startLongitude": {
                           "type": "number"
                         },
-                        "finishLatitude": {
-                          "type": "number",
-                          "nullable": true
-                        },
-                        "finishLongitude": {
-                          "type": "number",
-                          "nullable": true
-                        },
                         "geolocationDistanceMeters": {
                           "type": "number",
                           "nullable": true
                         },
-                        "checklistJson": {
-                          "nullable": true
-                        },
-                        "notes": {
+                        "status": {
                           "type": "string",
-                          "nullable": true
-                        },
-                        "createdAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
-                        },
-                        "updatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
+                          "enum": [
+                            "IN_PROGRESS"
                           ]
                         }
                       },
                       "required": [
-                        "id",
+                        "executionId",
                         "appointmentId",
-                        "inspectorId",
                         "startedAt",
-                        "finishedAt",
-                        "resumedAt",
                         "startLatitude",
                         "startLongitude",
-                        "finishLatitude",
-                        "finishLongitude",
                         "geolocationDistanceMeters",
-                        "notes",
-                        "createdAt",
-                        "updatedAt"
+                        "status"
                       ],
                       "additionalProperties": false
                     }
