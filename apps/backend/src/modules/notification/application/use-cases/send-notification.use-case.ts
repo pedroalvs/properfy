@@ -59,6 +59,7 @@ const AUDITABLE_FAILURE_CODES: ReadonlySet<string> = new Set([
   'EMPTY_SMS_BODY',
 ]);
 
+
 /** Phone numbers are PII: log at most the last 4 digits. */
 function maskRecipient(recipient: string): string {
   return `***${recipient.slice(-4)}`;
