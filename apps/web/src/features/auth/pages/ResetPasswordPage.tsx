@@ -1,5 +1,5 @@
 import { useState, useCallback, type FormEvent } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { passwordFieldSchema, PASSWORD_REQUIREMENTS_MESSAGE } from '@properfy/shared';
 import { PasswordStrengthIndicator } from '@/components/forms/PasswordStrengthIndicator';
 import { useResetPassword } from '../hooks/useResetPassword';
@@ -7,6 +7,8 @@ import { AuthLayout } from '../components/AuthLayout';
 import { AuthPasswordField } from '../components/AuthPasswordField';
 import { AuthAlert } from '../components/AuthAlert';
 import { AuthSubmitButton } from '../components/AuthSubmitButton';
+import { AuthLinkButton } from '../components/AuthLinkButton';
+import { AuthTextLink } from '../components/AuthTextLink';
 
 interface ValidationErrors {
   newPassword?: string;
@@ -39,15 +41,8 @@ function InvalidLinkState() {
         used once.
       </p>
       <div className="mt-8 flex items-center justify-between gap-4">
-        <Link to="/login" className="text-sm font-bold text-primary transition hover:underline">
-          Back to Sign In
-        </Link>
-        <Link
-          to="/forgot-password"
-          className="inline-flex h-11 items-center justify-center rounded bg-real-estate px-7 text-sm font-bold text-white transition hover:brightness-95 active:brightness-90"
-        >
-          Request a New Link
-        </Link>
+        <AuthTextLink to="/login">Back to Sign In</AuthTextLink>
+        <AuthLinkButton to="/forgot-password">Request a New Link</AuthLinkButton>
       </div>
     </>
   );
@@ -93,12 +88,7 @@ export function ResetPasswordPage() {
           in with your new password.
         </p>
         <div className="mt-8">
-          <Link
-            to="/login"
-            className="inline-flex h-11 items-center justify-center rounded bg-real-estate px-7 text-sm font-bold text-white transition hover:brightness-95 active:brightness-90"
-          >
-            Go to Sign In
-          </Link>
+          <AuthLinkButton to="/login">Go to Sign In</AuthLinkButton>
         </div>
       </AuthLayout>
     );
@@ -111,12 +101,7 @@ export function ResetPasswordPage() {
           {error}
           {isInvalidToken && (
             <div className="mt-2">
-              <Link
-                to="/forgot-password"
-                className="font-bold text-primary transition hover:underline"
-              >
-                Request a new link
-              </Link>
+              <AuthTextLink to="/forgot-password">Request a new link</AuthTextLink>
             </div>
           )}
         </AuthAlert>
@@ -149,9 +134,7 @@ export function ResetPasswordPage() {
         </div>
 
         <div className="flex items-center justify-between gap-4 pt-2">
-          <Link to="/login" className="text-sm font-bold text-primary transition hover:underline">
-            Back to Sign In
-          </Link>
+          <AuthTextLink to="/login">Back to Sign In</AuthTextLink>
           <AuthSubmitButton loading={isLoading}>Reset Password</AuthSubmitButton>
         </div>
       </form>

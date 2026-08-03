@@ -1,10 +1,11 @@
 import { useState, useCallback, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
 import { useForgotPassword } from '../hooks/useForgotPassword';
 import { AuthLayout } from '../components/AuthLayout';
 import { AuthField } from '../components/AuthField';
 import { AuthAlert } from '../components/AuthAlert';
 import { AuthSubmitButton } from '../components/AuthSubmitButton';
+import { AuthLinkButton } from '../components/AuthLinkButton';
+import { AuthTextLink } from '../components/AuthTextLink';
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -48,12 +49,7 @@ export function ForgotPasswordPage() {
           minutes.
         </p>
         <div className="mt-8">
-          <Link
-            to="/login"
-            className="inline-flex h-11 items-center justify-center rounded bg-real-estate px-7 text-sm font-bold text-white transition hover:brightness-95 active:brightness-90"
-          >
-            Back to Sign In
-          </Link>
+          <AuthLinkButton to="/login">Back to Sign In</AuthLinkButton>
         </div>
       </AuthLayout>
     );
@@ -77,9 +73,7 @@ export function ForgotPasswordPage() {
         />
 
         <div className="mt-7 flex items-center justify-between gap-4">
-          <Link to="/login" className="text-sm font-bold text-primary transition hover:underline">
-            Back to Sign In
-          </Link>
+          <AuthTextLink to="/login">Back to Sign In</AuthTextLink>
           <AuthSubmitButton loading={isLoading}>Send Reset Link</AuthSubmitButton>
         </div>
       </form>

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, type FormEvent } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError, getErrorMessage } from '@/lib/api-error';
 import { consumePostLoginRedirect } from '@/lib/post-login-redirect';
@@ -8,6 +8,7 @@ import { AuthField } from '../components/AuthField';
 import { AuthPasswordField } from '../components/AuthPasswordField';
 import { AuthAlert } from '../components/AuthAlert';
 import { AuthSubmitButton } from '../components/AuthSubmitButton';
+import { AuthTextLink } from '../components/AuthTextLink';
 
 function getLoginErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
@@ -134,12 +135,7 @@ export function LoginPage() {
         )}
 
         <div className="flex items-center justify-between gap-4 pt-2">
-          <Link
-            to="/forgot-password"
-            className="text-sm font-bold text-primary transition hover:underline"
-          >
-            Forgot your password?
-          </Link>
+          <AuthTextLink to="/forgot-password">Forgot your password?</AuthTextLink>
           <AuthSubmitButton loading={isSubmitting}>Sign In</AuthSubmitButton>
         </div>
       </form>
