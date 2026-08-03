@@ -475,6 +475,59 @@ describe('ListAppointmentsUseCase', () => {
     });
   });
 
+  // The map's Confirm column needs the rental tenant's weekly availability on
+  // every row. The detail endpoint already nests it under
+  // `restrictions[].availableSlotsJson`; the list flattens it so 100 rows do not
+  // become 100 detail fetches.
+  describe('rental tenant availability in list output', () => {
+    const slots = [{ dayOfWeek: 'MON' as const, start: '09:00', end: '12:00' }];
+
+    it('exposes the availability the repository resolved for the row', async () => {
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([
+        { ...makeAppointmentListItem(), rentalTenantAvailableSlots: slots },
+      ]);
+      vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+
+      const result = await useCase.execute({
+        filters: {},
+        pagination: defaultPagination,
+        actor: makeActor({ role: 'AM' }),
+      });
+
+      expect(result.data[0]!.rentalTenantAvailableSlots).toEqual(slots);
+    });
+
+    it('normalises a row with no availability to null, not undefined', async () => {
+      // The column renders a greyed icon for "none", so it must be able to tell
+      // "no availability" apart from "field missing".
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([makeAppointmentListItem()]);
+      vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+
+      const result = await useCase.execute({
+        filters: {},
+        pagination: defaultPagination,
+        actor: makeActor({ role: 'AM' }),
+      });
+
+      expect(result.data[0]!.rentalTenantAvailableSlots).toBeNull();
+    });
+
+    it('normalises an empty slot array to null', async () => {
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([
+        { ...makeAppointmentListItem(), rentalTenantAvailableSlots: [] },
+      ]);
+      vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+
+      const result = await useCase.execute({
+        filters: {},
+        pagination: defaultPagination,
+        actor: makeActor({ role: 'AM' }),
+      });
+
+      expect(result.data[0]!.rentalTenantAvailableSlots).toBeNull();
+    });
+  });
+
   describe('service group reference in list output', () => {
     it('exposes serviceGroupId and serviceGroupCode for a grouped appointment', async () => {
       const item = makeAppointmentListItem({ serviceGroupId: 'group-uuid-1' });

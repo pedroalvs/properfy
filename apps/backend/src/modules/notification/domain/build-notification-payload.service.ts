@@ -128,11 +128,14 @@ export class BuildNotificationPayloadService {
       properfyLogoUrl: PROPERFY_LOGO_URL,
       serviceTypeName: ctx.serviceTypeName ?? '',
       // `appointment.reason` is the free-text reason of the last sensitive
-      // transition. Only INSPECTION_CANCELLED_AGENCY declares this variable, and
-      // it is only ever built on a CANCELLED transition, so in practice it holds
-      // the cancellation reason. The handler re-reads the appointment after the
-      // transition persisted it, so the value is the fresh one.
+      // transition. Both variables below read it, but each is declared by exactly
+      // one template — INSPECTION_CANCELLED_AGENCY and INSPECTION_REJECTED_AGENCY
+      // respectively — and each of those is only ever built on its own
+      // transition, so neither can render the other's reason. The handler
+      // re-reads the appointment after the transition persisted it, so the value
+      // is the fresh one.
       cancellationReason: ctx.appointment.reason ?? '',
+      rejectionReason: ctx.appointment.reason ?? '',
     };
 
     const spec = TEMPLATE_VARIABLES[ctx.templateCode as keyof typeof TEMPLATE_VARIABLES];

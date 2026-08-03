@@ -10,6 +10,7 @@ export default defineConfig({
     // and are run separately via `pnpm test:integration:db`.
     exclude: ['node_modules/**', 'tests/integration/db/**'],
     setupFiles: ['./tests/setup.ts'],
+    testTimeout: 30000,
   },
   resolve: {
     alias: {

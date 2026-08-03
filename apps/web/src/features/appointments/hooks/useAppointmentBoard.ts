@@ -81,6 +81,7 @@ function buildSharedParams(filters: AppointmentFiltersState): ListParams {
     rentalTenantConfirmationStatus: filters.rentalTenantConfirmationStatus || undefined,
     tenantId: filters.tenantId || undefined,
     branchId: filters.branchId || undefined,
+    inspectorId: filters.inspectorId || undefined,
     serviceTypeId: filters.serviceTypeId || undefined,
     search: filters.search || undefined,
     fromDate: filters.startDate || undefined,

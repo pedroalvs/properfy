@@ -68,9 +68,10 @@ export class CreateInspectorUseCase {
       throw new InspectorEmailConflictError();
     }
 
-    // The email is also the login identity. users.email has no unique constraint
-    // and findByEmail uses findFirst, so a collision would make login resolve
-    // non-deterministically between two accounts.
+    // The email is also the login identity. `users_email_key` is a PARTIAL unique
+    // index (WHERE deleted_at IS NULL) that schema.prisma does not declare — it
+    // shows only @@index([email]) — so the database is the real backstop here and
+    // this check exists to turn what would be a P2002 into a clean 409.
     const existingUser = await this.userManagementRepo.findByEmail(email);
     if (existingUser) {
       throw new InspectorEmailConflictError();

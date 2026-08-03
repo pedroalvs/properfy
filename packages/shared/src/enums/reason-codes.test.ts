@@ -31,7 +31,15 @@ describe('RejectionReasonCode', () => {
     expect(RejectionReasonCode.OTHER).toBe('OTHER');
   });
 
-  it('has exactly 7 codes', () => {
-    expect(Object.keys(RejectionReasonCode)).toHaveLength(7);
+  it('has TENANT_DECLINED, distinct from TENANT_NO_RESPONSE', () => {
+    // A rental tenant who answered "No" in the portal and a rental tenant who
+    // never answered at all are different outcomes: the first one leaves weekly
+    // availability behind to reschedule against, the second leaves nothing.
+    expect(RejectionReasonCode.TENANT_DECLINED).toBe('TENANT_DECLINED');
+    expect(RejectionReasonCode.TENANT_DECLINED).not.toBe(RejectionReasonCode.TENANT_NO_RESPONSE);
+  });
+
+  it('has exactly 8 codes', () => {
+    expect(Object.keys(RejectionReasonCode)).toHaveLength(8);
   });
 });

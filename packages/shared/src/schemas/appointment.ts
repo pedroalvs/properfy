@@ -3,6 +3,7 @@ import { paginationSchema } from './pagination';
 import { contactSchema, appointmentContactsArraySchema } from './contact';
 import { PROPERTY_TYPE_VALUES } from './property';
 import { restrictionSchema } from './restriction';
+import { availableSlotSchema, hasUniqueAvailableSlotDays, HHMM_REGEX } from './available-slot';
 import { AppointmentStatus, RentalTenantConfirmationStatus } from '../enums/appointment';
 import { CancellationReasonCode, RejectionReasonCode } from '../enums/reason-codes';
 
@@ -19,8 +20,12 @@ const inlinePropertySchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
-/** Strict 24h HH:mm — rejects impossible clock values like 24:00 or 12:60. */
-export const HHMM_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
+/**
+ * Strict 24h HH:mm — rejects impossible clock values like 24:00 or 12:60.
+ * Re-exported from the leaf module so the slot schema can share it without
+ * making `appointment` ↔ `rental-tenant-portal` circular.
+ */
+export { HHMM_REGEX } from './available-slot';
 const timeRegex = HHMM_REGEX;
 const TIME_FORMAT_MESSAGE = 'Must be HH:mm format';
 const TIME_RANGE_MESSAGE = 'End time must be after start time';
@@ -286,12 +291,17 @@ const bulkEditChangesSchema = z.object({
     { message: TIME_RANGE_MESSAGE, path: ['timeSlotEnd'] },
   );
 
-/** Per-field policies the use case applies. Currently only governs the
- *  Property-Manager contact change: `replace` (default — overwrite the existing
- *  PM junction row) or `addIfMissing` (skip appointments that already have a
- *  PM contact and surface them in `failed[]`). */
+/** Per-field policies the use case applies.
+ *  - `propertyManagerContactPolicy`: `replace` (default — overwrite the
+ *    existing PM junction row) or `addIfMissing` (skip appointments that
+ *    already have a PM contact and surface them in `failed[]`).
+ *  - `expandGroupTimeWindow`: opt-in to widen a service group's shared time
+ *    window when a grouped row's new slot falls outside it, instead of
+ *    rejecting the row. Lives here rather than in `changes`, which is
+ *    `.strict()` and enumerates editable fields only. */
 const bulkEditOptionsSchema = z.object({
   propertyManagerContactPolicy: z.enum(['replace', 'addIfMissing']).optional(),
+  expandGroupTimeWindow: z.boolean().optional(),
 }).optional();
 
 export const bulkEditAppointmentSchema = z.object({
@@ -339,6 +349,32 @@ export const forceManualConfirmationSchema = z.object({
 });
 export type ForceManualConfirmationInput = z.infer<typeof forceManualConfirmationSchema>;
 
+// ─── Operator-recorded rental tenant availability ────────────────────────
+
+/**
+ * Lets an operator record the weekly availability a rental tenant gave outside
+ * the portal (a phone call, an email). Until this existed, `available_slots_json`
+ * had exactly one writer — the portal decline — so anything told to a human was lost.
+ *
+ * A dedicated command rather than a field on `updateAppointmentSchema`: setting
+ * `markUnavailable` runs a status transition and dispatches notifications, which
+ * the appointment PATCH deliberately does not do.
+ */
+export const setRentalTenantAvailabilitySchema = z.object({
+  /** At least one slot — clearing availability is not an operator action. */
+  availableSlots: z.array(availableSlotSchema).min(1).max(7).refine(
+    hasUniqueAvailableSlotDays,
+    { message: 'Only one availability slot is allowed per day' },
+  ),
+  /**
+   * Mirrors a portal "No" in full: marks the tenant UNAVAILABLE, rejects the
+   * appointment (`TENANT_DECLINED`) and emails the agency. AM/OP only — the
+   * state machine gives no role but AM/OP/SYS a path to REJECTED.
+   */
+  markUnavailable: z.boolean().default(false),
+});
+export type SetRentalTenantAvailabilityInput = z.infer<typeof setRentalTenantAvailabilitySchema>;
+
 // ─── Bulk re-send tenant-portal reminder (023 §FR-241..245) ──────────────
 
 /**
@@ -353,6 +389,10 @@ export const bulkResendReminderResultStatusSchema = z.enum([
   'SENT',
   'NO_PRIMARY_CONTACT',
   'IDEMPOTENT_REPLAY',
+  // The owning agency contacts its own tenants, so nothing was sent. A distinct
+  // status rather than ERROR: it is an expected outcome of a deliberate setting,
+  // and a selection can legitimately mix blocked and unblocked agencies.
+  'TENANT_NOTIFICATIONS_BLOCKED',
   'ERROR',
 ]);
 export type BulkResendReminderResultStatus = z.infer<typeof bulkResendReminderResultStatusSchema>;
@@ -494,4 +534,3 @@ export const bulkReopenForRescheduleRequestSchema = z.object({
   { message: TIME_RANGE_MESSAGE, path: ['newTimeSlotEnd'] },
 );
 export type BulkReopenForRescheduleRequest = z.infer<typeof bulkReopenForRescheduleRequestSchema>;
-

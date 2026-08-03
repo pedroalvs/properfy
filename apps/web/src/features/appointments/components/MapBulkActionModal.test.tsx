@@ -122,7 +122,7 @@ describe('MapBulkActionModal', () => {
     expect(footer.textContent).toContain('1 of 2 selected');
   });
 
-  describe('bulk cancel — notify the tenants who confirmed', () => {
+  describe('bulk cancel — notify the tenants already told', () => {
     function openCancelForm(codes: string[]) {
       renderModal();
       codes.forEach((code) => fireEvent.click(screen.getByTestId(`bulk-modal-row-${code}`)));
@@ -130,8 +130,8 @@ describe('MapBulkActionModal', () => {
       fireEvent.click(screen.getByTestId('bulk-action-cancel'));
     }
 
-    it('offers the opt-in and names only the confirmed appointment', () => {
-      // INS-0001 is PENDING, INS-0002 is CONFIRMED.
+    it('offers the opt-in and names only the appointment whose tenant was told', () => {
+      // INS-0001 is DRAFT/PENDING (never told), INS-0002 is CONFIRMED (told).
       openCancelForm(['INS-0001', 'INS-0002']);
 
       const block = screen.getByTestId('bulk-cancel-notify-block');
@@ -139,10 +139,30 @@ describe('MapBulkActionModal', () => {
       expect(within(block).queryByText('INS-0001')).not.toBeInTheDocument();
     });
 
-    it('hides the opt-in entirely when no selected tenant has confirmed', () => {
+    it('hides the opt-in entirely when no selected tenant was ever told', () => {
       openCancelForm(['INS-0001']);
 
       expect(screen.queryByTestId('bulk-cancel-notify-block')).not.toBeInTheDocument();
+    });
+
+    it('offers the opt-in for a SCHEDULED appointment whose tenant never confirmed', () => {
+      // The reason this PR exists: INSPECTION_NOTICE goes out on the move to
+      // SCHEDULED regardless of confirmation, so this tenant WAS told and must be
+      // reachable. Under the old CONFIRMED-only rule they never could be.
+      const scheduledUnconfirmed: AppointmentMapItem = {
+        ...sampleAppointments[0]!,
+        id: 'cccccccc-0000-4000-8000-000000000030',
+        code: 'INS-0003',
+        status: 'SCHEDULED',
+        rentalTenantConfirmationStatus: 'PENDING',
+      };
+      renderModal({ appointments: [scheduledUnconfirmed] });
+      fireEvent.click(screen.getByTestId('bulk-modal-row-INS-0003'));
+      fireEvent.click(screen.getByTestId('bulk-actions-toggle'));
+      fireEvent.click(screen.getByTestId('bulk-action-cancel'));
+
+      const block = screen.getByTestId('bulk-cancel-notify-block');
+      expect(within(block).getByText('INS-0003')).toBeInTheDocument();
     });
 
     it('sends notifyRentalTenant:false unless the box is ticked', async () => {
@@ -174,7 +194,7 @@ describe('MapBulkActionModal', () => {
       fireEvent.change(screen.getByTestId('bulk-change-status-reason'), {
         target: { value: 'Agency withdrew the request' },
       });
-      fireEvent.click(screen.getByText('Notify the tenants who confirmed'));
+      fireEvent.click(screen.getByText('Notify the tenants already told'));
       fireEvent.click(screen.getByTestId('bulk-change-status-apply'));
 
       expect(bulkStatusMock).toHaveBeenCalledWith(
@@ -190,14 +210,14 @@ describe('MapBulkActionModal', () => {
 
       const target = screen.getByTestId('bulk-change-status-target');
       fireEvent.change(target, { target: { value: 'CANCELLED' } });
-      fireEvent.click(screen.getByText('Notify the tenants who confirmed'));
-      expect(screen.getByLabelText('Notify the tenants who confirmed')).toBeChecked();
+      fireEvent.click(screen.getByText('Notify the tenants already told'));
+      expect(screen.getByLabelText('Notify the tenants already told')).toBeChecked();
 
       // Away from CANCELLED the control disappears; coming back it must be unticked.
       fireEvent.change(target, { target: { value: 'REJECTED' } });
       expect(screen.queryByTestId('bulk-change-status-notify-block')).not.toBeInTheDocument();
       fireEvent.change(target, { target: { value: 'CANCELLED' } });
-      expect(screen.getByLabelText('Notify the tenants who confirmed')).not.toBeChecked();
+      expect(screen.getByLabelText('Notify the tenants already told')).not.toBeChecked();
     });
 
     it('sends notifyRentalTenant:true once the box is ticked', async () => {
@@ -208,7 +228,7 @@ describe('MapBulkActionModal', () => {
         target: { value: 'Agency withdrew the request' },
       });
       // The Checkbox input is sr-only, so the label text is the click target.
-      fireEvent.click(screen.getByText('Notify the tenants who confirmed'));
+      fireEvent.click(screen.getByText('Notify the tenants already told'));
       fireEvent.click(screen.getByTestId('bulk-cancel-apply'));
 
       expect(bulkCancelMock).toHaveBeenCalledWith(
@@ -364,6 +384,54 @@ describe('MapBulkActionModal', () => {
   it('does not show note icon when hasRentalTenantNote is false or absent', () => {
     renderModal(); // sampleAppointments have no hasRentalTenantNote
     expect(screen.queryByTestId('bulk-modal-tenant-note-icon')).toBeNull();
+  });
+
+  /**
+   * Unlike the note icon, the availability icon is always present: it sits
+   * alongside the SMS/Email icons, which are also always drawn and carry their
+   * state in colour. A row that appears and disappears would shift the column's
+   * icons around between rows.
+   */
+  describe('tenant availability icon in the Confirm column', () => {
+    it('spells out the weekly availability the tenant offered', () => {
+      const withAvailability: AppointmentMapItem = {
+        ...sampleAppointments[0]!,
+        rentalTenantAvailableSlots: [
+          { dayOfWeek: 'WED', start: '14:00', end: '17:00' },
+          { dayOfWeek: 'MON', start: '09:00', end: '12:00' },
+        ],
+      };
+      renderModal({ appointments: [withAvailability] });
+
+      const icon = screen.getByTestId('bulk-modal-tenant-availability-icon');
+      expect(icon).toHaveAttribute(
+        'aria-label',
+        'Tenant availability — Mon 09:00 - 12:00 · Wed 14:00 - 17:00',
+      );
+    });
+
+    it('still renders, greyed, on every row when the tenant offered nothing', () => {
+      renderModal(); // sample rows carry no availability
+
+      // One per row — the point of "always drawn" is that no row is missing it.
+      const icons = screen.getAllByTestId('bulk-modal-tenant-availability-icon');
+      expect(icons).toHaveLength(sampleAppointments.length);
+      for (const icon of icons) {
+        expect(icon).toHaveAttribute('aria-label', 'No availability provided');
+        expect(icon.className).toContain('text-gray-300');
+      }
+    });
+
+    it('treats an empty slot array as no availability', () => {
+      const empty: AppointmentMapItem = {
+        ...sampleAppointments[0]!,
+        rentalTenantAvailableSlots: [],
+      };
+      renderModal({ appointments: [empty] });
+
+      expect(screen.getByTestId('bulk-modal-tenant-availability-icon'))
+        .toHaveAttribute('aria-label', 'No availability provided');
+    });
   });
 
   // Group column — surfaces the service group code so operators can see which

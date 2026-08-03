@@ -11,6 +11,7 @@ import {
   inspectorScheduleMonthItemSchema,
   inspectorScheduleMonthResponseSchema,
   inspectionExecutionResponseSchema,
+  startInspectionResponseSchema,
   inspectorAppointmentDetailResponseSchema,
   successResponseSchema,
   listMarketplaceOffersQuerySchema,
@@ -150,7 +151,7 @@ export async function registerInspectorExecutionRoutes(
   // POST /v1/inspector/appointments/:appointmentId/start
   app.post(
     '/v1/inspector/appointments/:appointmentId/start',
-    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }), body: startInspectionSchema, response: { 201: successResponseSchema(inspectionExecutionResponseSchema) } } },
+    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }), body: startInspectionSchema, response: { 201: successResponseSchema(startInspectionResponseSchema) } } },
     async (request, reply) => {
       const params = appointmentIdParam.safeParse(request.params);
       if (!params.success) {

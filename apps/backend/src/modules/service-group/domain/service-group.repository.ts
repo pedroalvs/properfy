@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import type { ServiceGroupEntity } from './service-group.entity';
 
 export interface ServiceGroupFilters {
@@ -175,6 +176,12 @@ export interface GroupAppointmentConfirmationRow {
   activeCycle: { scheduledDate: Date; timeSlot: string | null; status: string } | null;
   propertyCode: string | null;
   propertyAddress: string | null;
+  /**
+   * Owning agency's occupant-contact switch, resolved per row because a service
+   * group spans agencies. Carried on the row (rather than looked up by the use
+   * cases) so the preview and the send read the identical value.
+   */
+  rentalTenantNotificationsEnabled: boolean;
 }
 
 /**
@@ -213,7 +220,18 @@ export interface IServiceGroupRepository {
    */
   findGroupAppointmentsWithConfirmation(
     groupId: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<GroupAppointmentConfirmationRow[]>;
+  /**
+   * Authoritative member lookup for a group-side portal-link write. Every scope
+   * is part of the query so a transaction never reloads unrelated group members.
+   */
+  findGroupAppointmentWithConfirmation(
+    groupId: string,
+    appointmentId: string,
+    tenantId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<GroupAppointmentConfirmationRow | null>;
   count(filters: ServiceGroupFilters): Promise<number>;
   save(group: ServiceGroupEntity): Promise<void>;
   update(
@@ -269,9 +287,9 @@ export interface IServiceGroupRepository {
     inspectorBlockedClients: string[],
   ): Promise<MarketplaceOfferDetail | null>;
   /** Atomic decrement of confirmed_count (for detach flows). */
-  decrementConfirmedCount(groupId: string): Promise<void>;
+  decrementConfirmedCount(groupId: string, tx?: Prisma.TransactionClient): Promise<void>;
   /** Atomic increment of confirmed_count (for join flows). */
-  incrementConfirmedCount(groupId: string): Promise<void>;
+  incrementConfirmedCount(groupId: string, tx?: Prisma.TransactionClient): Promise<void>;
   /** Set service_group_id on appointments */
   /**
    * Links appointments to the group, but only while the group is still addable
@@ -284,7 +302,7 @@ export interface IServiceGroupRepository {
    */
   linkAppointments(appointmentIds: string[], groupId: string): Promise<number>;
   /** Just the group's status, or null if it does not exist. Cheap membership check. */
-  findStatusById(id: string): Promise<string | null>;
+  findStatusById(id: string, tx?: Prisma.TransactionClient): Promise<string | null>;
   /**
    * Statuses for several groups at once, keyed by id; missing ids are absent from
    * the result. Lets the add-to-group flows judge each appointment's *existing*
@@ -353,7 +371,7 @@ export interface IServiceGroupRepository {
     timeSlotEnd: string;
     inspectorId: string;
     rentalTenantNote?: string;
-  }): Promise<PortalWindowReservation>;
+  }, tx?: Prisma.TransactionClient): Promise<PortalWindowReservation>;
   /** Re-check that the selected portal slot still exists on a future member appointment. */
   hasPortalMemberSlot(params: {
     groupId: string;

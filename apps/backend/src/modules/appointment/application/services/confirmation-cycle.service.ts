@@ -8,8 +8,10 @@ import {
   ConfirmationCycleStateError,
 } from '../../domain/confirmation-cycle.errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { TxContext } from '../../../../shared/application/unit-of-work';
 
 type Tx = Prisma.TransactionClient;
+type Defer = TxContext['defer'];
 
 export class ConfirmationCycleService {
   constructor(
@@ -30,6 +32,7 @@ export class ConfirmationCycleService {
     timeSlot: string | null,
     tokenId: string | null,
     tx?: Tx,
+    defer?: Defer,
   ): Promise<ConfirmationCycleEntity> {
     const run = async (client: Tx): Promise<ConfirmationCycleEntity> => {
       const active = await this.cycleRepo.findActiveByAppointmentId(appointmentId, client);
@@ -78,7 +81,7 @@ export class ConfirmationCycleService {
       await this.setAppointmentActiveCycle(appointmentId, tenantId, cycle.id, 'PENDING', client);
       await this.linkTokenToCycle(tokenId, cycle.id, client);
 
-      this.auditService.log({
+      this.logAfterCommit(defer, {
         action: 'appointment_confirmation_cycle.created',
         actorType: 'SYSTEM',
         entityType: 'AppointmentConfirmationCycle',
@@ -120,9 +123,10 @@ export class ConfirmationCycleService {
     newTimeSlot: string | null,
     reason: 'DATE_CHANGED' | 'TIME_CHANGED',
     tx?: Tx,
+    defer?: Defer,
   ): Promise<ConfirmationCycleEntity> {
     const run = async (client: Tx): Promise<ConfirmationCycleEntity> => {
-      await this.supersedeCurrent(appointmentId, tenantId, reason, client);
+      await this.supersedeCurrent(appointmentId, tenantId, reason, client, defer);
 
       const maxCycleNumber = await this.cycleRepo.findMaxCycleNumber(appointmentId, client);
       const cycle = new ConfirmationCycleEntity({
@@ -142,7 +146,7 @@ export class ConfirmationCycleService {
       await this.cycleRepo.save(cycle, client);
       await this.setAppointmentActiveCycle(appointmentId, tenantId, cycle.id, 'PENDING', client);
 
-      this.auditService.log({
+      this.logAfterCommit(defer, {
         action: 'appointment_confirmation_cycle.rotated',
         actorType: 'SYSTEM',
         entityType: 'AppointmentConfirmationCycle',
@@ -277,11 +281,22 @@ export class ConfirmationCycleService {
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
+  private logAfterCommit(defer: Defer | undefined, entry: Parameters<AuditService['log']>[0]): void {
+    if (defer) {
+      defer(async () => {
+        this.auditService.log(entry);
+      });
+      return;
+    }
+    this.auditService.log(entry);
+  }
+
   private async supersedeCurrent(
     appointmentId: string,
     tenantId: string,
     reason: Parameters<ConfirmationCycleEntity['markSuperseded']>[0],
     client: Tx,
+    defer?: Defer,
   ): Promise<void> {
     const active = await this.cycleRepo.findActiveByAppointmentId(appointmentId, client);
     if (!active) return;
@@ -294,7 +309,7 @@ export class ConfirmationCycleService {
         data: { status: 'SUPERSEDED' as never },
       });
     }
-    this.emitCycleAudit(tenantId, active, superseded);
+    this.emitCycleAudit(tenantId, active, superseded, defer);
   }
 
   private async setAppointmentActiveCycle(
@@ -361,8 +376,9 @@ export class ConfirmationCycleService {
     tenantId: string,
     before: ConfirmationCycleEntity,
     after: ConfirmationCycleEntity,
+    defer?: Defer,
   ): void {
-    this.auditService.log({
+    this.logAfterCommit(defer, {
       action: 'appointment_confirmation_cycle.updated',
       actorType: 'SYSTEM',
       entityType: 'AppointmentConfirmationCycle',

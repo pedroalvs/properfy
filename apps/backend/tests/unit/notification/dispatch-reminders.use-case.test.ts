@@ -450,6 +450,7 @@ describe('DispatchRemindersUseCase', () => {
       expect(mockNotificationRepo.existsByAppointmentAndTemplate).toHaveBeenCalledWith(
         'appt-dup',
         'REMINDER_7_DAYS_SMS',
+        'tenant-1',
       );
     });
 

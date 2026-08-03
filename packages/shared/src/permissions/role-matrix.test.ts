@@ -152,6 +152,55 @@ describe('appointment.bulk_reopen_for_reschedule (026 §FR-540, matriz 2.2)', ()
   });
 });
 
+// The rental-tenant portal link is an agency-facing surface: CL_ADMIN manages
+// its own agency's appointments and must be able to (re)send and copy the
+// occupant's link without going through the operations team. CL_USER is not
+// included — dispatching a notification to the occupant is an admin act, and
+// there is no cl_user_flag governing it.
+describe('appointment.portal_link', () => {
+  it.each<UserRole>(['AM', 'OP', 'CL_ADMIN'])('allows %s', (role) => {
+    expect(can(role, 'appointment.portal_link')).toBe(true);
+  });
+
+  it.each<UserRole>(['CL_USER', 'INSP', 'TNT'])('denies %s', (role) => {
+    expect(can(role, 'appointment.portal_link')).toBe(false);
+  });
+
+  it('is unconditional — no cl_user_flag gate', () => {
+    const entry = getMatrixEntry('appointment.portal_link');
+    expect(entry).toBeDefined();
+    expect(entry?.condition).toBeUndefined();
+  });
+});
+
+describe('appointment.portal_activity', () => {
+  it.each<UserRole>(['AM', 'OP', 'CL_ADMIN'])('allows %s', (role) => {
+    expect(can(role, 'appointment.portal_activity')).toBe(true);
+  });
+
+  it.each<UserRole>(['CL_USER', 'INSP', 'TNT'])('denies %s', (role) => {
+    expect(can(role, 'appointment.portal_activity')).toBe(false);
+  });
+});
+
+// CL_ADMIN joins unconditionally (own agency); CL_USER stays in the base list
+// but is gated by the `force_confirmation` cl_user_flag at runtime.
+describe('appointment.force_confirmation', () => {
+  it.each<UserRole>(['AM', 'OP', 'CL_ADMIN', 'CL_USER'])('allows %s (base)', (role) => {
+    expect(can(role, 'appointment.force_confirmation')).toBe(true);
+  });
+
+  it.each<UserRole>(['INSP', 'TNT'])('denies %s', (role) => {
+    expect(can(role, 'appointment.force_confirmation')).toBe(false);
+  });
+
+  it('is gated by the force_confirmation cl_user_flag', () => {
+    const entry = getMatrixEntry('appointment.force_confirmation');
+    expect(entry?.condition).toBe('cl_user_flag');
+    expect(entry?.conditionKey).toBe('force_confirmation');
+  });
+});
+
 // 031 Financial scope alignment — Agency read surfaces.
 // AM/OP (platform) + CL_ADMIN (own agency) unconditionally; CL_USER is in the
 // base list but gated by the `view_financials` cl_user_flag at runtime.

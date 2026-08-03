@@ -9,9 +9,29 @@ export const AppointmentStatus = {
 export type AppointmentStatus = (typeof AppointmentStatus)[keyof typeof AppointmentStatus];
 
 /**
- * Appointments whose schedule is settled: a DONE inspection happened at a real
- * time, and a CANCELLED or REJECTED one will never happen at all. Editing a
- * service group's date or time window must leave them where they are.
+ * Human-readable labels for AppointmentStatus — single source for the web and
+ * PWA status chips AND for API error messages. Rejection messages are read by
+ * operators, so they must say "Scheduled", never the raw `SCHEDULED` enum.
+ */
+export const APPOINTMENT_STATUS_LABELS: Record<AppointmentStatus, string> = {
+  DRAFT: 'Draft',
+  AWAITING_INSPECTOR: 'Awaiting Inspector',
+  SCHEDULED: 'Scheduled',
+  DONE: 'Done',
+  CANCELLED: 'Cancelled',
+  REJECTED: 'Rejected',
+};
+
+/**
+ * Appointments settled **for group-cascade purposes**: editing a service
+ * group's date or time window must leave them where they are.
+ *
+ * Do NOT read this as "these can never be edited". `isScheduleEditable()`
+ * deliberately still permits a schedule edit on REJECTED, because REJECTED is
+ * internal triage the rental tenant is never notified about and the row is
+ * revivable — an operator fixing the date before reviving it is a supported
+ * one-step flow. Only CANCELLED and DONE are closed to the tenant, and only
+ * those are blocked there.
  *
  * NOT usable as a group-join filter. `CreateServiceGroupUseCase` and
  * `AddAppointmentsToGroupUseCase` deliberately sync an appointment's schedule

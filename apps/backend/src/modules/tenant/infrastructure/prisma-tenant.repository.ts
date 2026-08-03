@@ -9,6 +9,8 @@ import type {
 import type { TenantStatus } from '@properfy/shared';
 import { TenantAppointmentCodePrefixConflictError } from '../domain/tenant.errors';
 
+type DbClient = PrismaClient | Prisma.TransactionClient;
+
 function toSnakeCase(s: string): string {
   return s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 }
@@ -61,13 +63,34 @@ function mapToEntity(row: {
   });
 }
 
+type TenantRow = Parameters<typeof mapToEntity>[0];
+
 export class PrismaTenantRepository implements ITenantRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async findById(id: string): Promise<TenantEntity | null> {
-    const row = await this.prisma.tenant.findFirst({
-      where: { id, deleted_at: null },
-    });
+  private db(tx?: Prisma.TransactionClient): DbClient {
+    return tx ?? this.prisma;
+  }
+
+  async findById(
+    id: string,
+    tx?: Prisma.TransactionClient,
+    lockForUpdate = false,
+  ): Promise<TenantEntity | null> {
+    if (lockForUpdate && !tx) {
+      throw new Error('findById lockForUpdate requires a caller transaction');
+    }
+    const row = lockForUpdate
+      ? (await tx!.$queryRaw<TenantRow[]>`
+          SELECT id, name, legal_name, status, timezone, currency,
+                 appointment_code_prefix, settings_json, created_at, updated_at, deleted_at
+          FROM tenants
+          WHERE id = ${id} AND deleted_at IS NULL
+          FOR UPDATE
+        `)[0] ?? null
+      : await this.db(tx).tenant.findFirst({
+          where: { id, deleted_at: null },
+        });
     return row ? mapToEntity(row) : null;
   }
 

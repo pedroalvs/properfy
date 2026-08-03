@@ -10,7 +10,7 @@ import type { UpdateAppointmentUseCase } from '../../../src/modules/appointment/
 import type { IIdempotencyService } from '../../../src/shared/domain/idempotency.service';
 import {
   AppointmentUpdateNotAllowedError,
-  AppointmentPastDateError,
+  AppointmentDateInPastError,
 } from '../../../src/modules/appointment/domain/appointment.errors';
 
 const APPT_A = 'aaaaaaaa-0000-4000-8000-000000000010';
@@ -169,8 +169,11 @@ describe('BulkRescheduleAppointmentsUseCase', () => {
     expect(out.results[1]?.status).toBe('INVALID_TRANSITION');
   });
 
-  it('maps AppointmentPastDateError → INVALID_TRANSITION', async () => {
-    (mocks.updateAppointment.execute as ReturnType<typeof vi.fn>).mockRejectedValue(new AppointmentPastDateError());
+  // Uses the class the delegate really throws. This previously mocked
+  // `AppointmentPastDateError`, which `UpdateAppointmentUseCase` never throws,
+  // so it passed while genuine past-date rejections surfaced as INTERNAL_ERROR.
+  it('maps AppointmentDateInPastError → INVALID_TRANSITION', async () => {
+    (mocks.updateAppointment.execute as ReturnType<typeof vi.fn>).mockRejectedValue(new AppointmentDateInPastError());
 
     const useCase = new BulkRescheduleAppointmentsUseCase(
       mocks.updateAppointment,

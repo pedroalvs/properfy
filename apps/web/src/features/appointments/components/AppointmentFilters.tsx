@@ -31,6 +31,15 @@ interface AppointmentFiltersProps {
   branchOptions: FilterSelectOption[];
   serviceTypeOptions: FilterSelectOption[];
   /**
+   * Agency and inspector controls are opt-in by options rather than by an
+   * internal role check. The option hooks own the RBAC (only AM/OP may list
+   * agencies) and hand back an empty array when a control must not appear —
+   * empty means "not permitted", never "still loading" or "none exist", so a
+   * permitted-but-empty list still renders and stays clearable.
+   */
+  agencyOptions?: FilterSelectOption[];
+  inspectorOptions?: FilterSelectOption[];
+  /**
    * Controls this screen renders instead of the filter bar. The board owns status
    * (one column per status) and always includes cancelled rows in its Cancelled
    * column, so both controls would contradict what the user sees.
@@ -43,6 +52,8 @@ export function AppointmentFilters({
   onFiltersChange,
   branchOptions,
   serviceTypeOptions,
+  agencyOptions = [],
+  inspectorOptions = [],
   hiddenFilters = [],
 }: AppointmentFiltersProps) {
   const isHidden = (name: HideableAppointmentFilter) => hiddenFilters.includes(name);
@@ -69,12 +80,30 @@ export function AppointmentFilters({
         onChange={(serviceTypeId) => onFiltersChange({ ...filters, serviceTypeId })}
         options={serviceTypeOptions}
       />
+      {agencyOptions.length > 0 && (
+        <FilterSelect
+          label="Agency"
+          value={filters.tenantId}
+          // Branch options cascade from the agency, so a branch left over from
+          // the previous one would silently filter everything out.
+          onChange={(tenantId) => onFiltersChange({ ...filters, tenantId, branchId: '' })}
+          options={agencyOptions}
+        />
+      )}
       <FilterSelect
         label="Branch"
         value={filters.branchId}
         onChange={(branchId) => onFiltersChange({ ...filters, branchId })}
         options={branchOptions}
       />
+      {inspectorOptions.length > 0 && (
+        <FilterSelect
+          label="Inspector"
+          value={filters.inspectorId}
+          onChange={(inspectorId) => onFiltersChange({ ...filters, inspectorId })}
+          options={inspectorOptions}
+        />
+      )}
       <FilterSelect
         label="Confirmation"
         value={filters.rentalTenantConfirmationStatus}

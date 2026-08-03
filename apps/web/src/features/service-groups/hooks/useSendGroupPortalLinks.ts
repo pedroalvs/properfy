@@ -14,11 +14,16 @@ function summarize(results: SendGroupPortalLinksResultItem[]): string {
   const sent = count('SENT') + count('DATE_CHANGED_RESENT');
   const skipped = count('ALREADY_CONFIRMED') + count('NOT_SENDABLE') + count('IDEMPOTENT_REPLAY');
   const noContact = count('NO_PRIMARY_CONTACT');
+  // Reported separately from the generic "skipped": a cross-agency group can have
+  // most of its members blocked, and folding that into "skipped" would read as if
+  // the links were already sent.
+  const blocked = count('TENANT_NOTIFICATIONS_BLOCKED');
   const failed = count('ERROR');
 
   const parts = [`${sent} sent`];
   if (skipped > 0) parts.push(`${skipped} skipped`);
   if (noContact > 0) parts.push(`${noContact} no primary contact`);
+  if (blocked > 0) parts.push(`${blocked} blocked (agency does not notify tenants)`);
   if (failed > 0) parts.push(`${failed} failed`);
   return parts.join(' · ');
 }

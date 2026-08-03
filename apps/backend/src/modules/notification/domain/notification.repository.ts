@@ -36,6 +36,8 @@ export interface INotificationRepository {
    */
   findSmsAwaitingDeliveryReceipt(from: Date, to: Date, limit?: number): Promise<NotificationEntity[]>;
   save(notification: NotificationEntity): Promise<void>;
+  /** Atomically inserts by notification ID; false means that ID already exists. */
+  saveIfAbsent(notification: NotificationEntity): Promise<boolean>;
   update(notification: NotificationEntity): Promise<void>;
   /**
    * Replaces the given payload_json keys (when present) with `replacement`,
@@ -48,7 +50,12 @@ export interface INotificationRepository {
     keys: readonly string[],
     replacement: string,
   ): Promise<void>;
-  existsByAppointmentAndTemplate(appointmentId: string, templateCode: string): Promise<boolean>;
+  /** Lifetime dedupe scoped by both appointment and tenant. */
+  existsByAppointmentAndTemplate(
+    appointmentId: string,
+    templateCode: string,
+    tenantId: string,
+  ): Promise<boolean>;
   /**
    * Most recently created notification for the appointment among `templateCodes`,
    * or null when none exists. Backs occurrence-scoped dedupe — "what was the
@@ -60,5 +67,19 @@ export interface INotificationRepository {
     tenantId: string,
     templateCodes: readonly string[],
   ): Promise<NotificationEntity | null>;
+  /**
+   * Whether the appointment has EVER produced a notification under any of
+   * `templateCodes`. Lifetime semantics like `existsByAppointmentAndTemplate`,
+   * but over a family — answers "was the rental tenant ever told about this
+   * inspection?", which is a different question from the occurrence-scoped
+   * "what were they last told?" that `findLatestByAppointmentAndTemplates`
+   * answers for the dedupe. Kept separate so the two cannot drift into each
+   * other. Scoped by tenant.
+   */
+  existsByAppointmentAndTemplates(
+    appointmentId: string,
+    tenantId: string,
+    templateCodes: readonly string[],
+  ): Promise<boolean>;
   countByTenantChannelSince(tenantId: string | null, channel: NotificationChannel, since: Date): Promise<number>;
 }

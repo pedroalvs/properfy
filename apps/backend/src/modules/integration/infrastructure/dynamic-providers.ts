@@ -36,7 +36,10 @@ export class DynamicEmailProvider implements IEmailProvider {
   private readonly stub = new StubEmailProvider();
   private current: { key: string; provider: IEmailProvider } | null = null;
 
-  constructor(private readonly resolver: IntegrationConfigResolver) {}
+  constructor(
+    private readonly resolver: IntegrationConfigResolver,
+    private readonly bccRecipient?: string,
+  ) {}
 
   private async provider(): Promise<IEmailProvider> {
     const resolved = await this.resolver.getConfig('resend');
@@ -51,6 +54,7 @@ export class DynamicEmailProvider implements IEmailProvider {
         provider: new ResendEmailProvider(
           resolved.config['apiKey'] ?? '',
           resolved.config['fromEmail'] ?? '',
+          this.bccRecipient,
         ),
       };
     }

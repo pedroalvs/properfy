@@ -698,7 +698,7 @@
                         "maxLength": 11,
                         "pattern": "^[a-zA-Z0-9]*$"
                       },
-                      "emailSendingEnabled": {
+                      "rentalTenantNotificationsEnabled": {
                         "type": "boolean",
                         "default": true
                       },
@@ -890,18 +890,6 @@
                         "minimum": 0,
                         "maximum": 7,
                         "default": 1
-                      },
-                      "inspectionWindowBeforeMinutes": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 120,
-                        "default": 30
-                      },
-                      "inspectionWindowAfterMinutes": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 120,
-                        "default": 30
                       },
                       "notificationDailyCapEmail": {
                         "type": "integer",
@@ -1363,7 +1351,7 @@
                         "maxLength": 11,
                         "pattern": "^[a-zA-Z0-9]*$"
                       },
-                      "emailSendingEnabled": {
+                      "rentalTenantNotificationsEnabled": {
                         "type": "boolean",
                         "default": true
                       },
@@ -1555,18 +1543,6 @@
                         "minimum": 0,
                         "maximum": 7,
                         "default": 1
-                      },
-                      "inspectionWindowBeforeMinutes": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 120,
-                        "default": 30
-                      },
-                      "inspectionWindowAfterMinutes": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 120,
-                        "default": 30
                       },
                       "notificationDailyCapEmail": {
                         "type": "integer",
@@ -10859,6 +10835,41 @@
                         "hasRentalTenantNote": {
                           "type": "boolean"
                         },
+                        "rentalTenantAvailableSlots": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "dayOfWeek": {
+                                "type": "string",
+                                "enum": [
+                                  "MON",
+                                  "TUE",
+                                  "WED",
+                                  "THU",
+                                  "FRI",
+                                  "SAT",
+                                  "SUN"
+                                ]
+                              },
+                              "start": {
+                                "type": "string",
+                                "pattern": "^\\d{2}:\\d{2}$"
+                              },
+                              "end": {
+                                "type": "string",
+                                "pattern": "^\\d{2}:\\d{2}$"
+                              }
+                            },
+                            "required": [
+                              "dayOfWeek",
+                              "start",
+                              "end"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "nullable": true
+                        },
                         "hasActivePortalToken": {
                           "type": "boolean",
                           "default": false
@@ -10961,6 +10972,9 @@
                         },
                         "clientName": {
                           "type": "string"
+                        },
+                        "rentalTenantNotificationsEnabled": {
+                          "type": "boolean"
                         },
                         "cancellationReason": {
                           "type": "string",
@@ -11433,6 +11447,41 @@
                           "hasRentalTenantNote": {
                             "type": "boolean"
                           },
+                          "rentalTenantAvailableSlots": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "dayOfWeek": {
+                                  "type": "string",
+                                  "enum": [
+                                    "MON",
+                                    "TUE",
+                                    "WED",
+                                    "THU",
+                                    "FRI",
+                                    "SAT",
+                                    "SUN"
+                                  ]
+                                },
+                                "start": {
+                                  "type": "string",
+                                  "pattern": "^\\d{2}:\\d{2}$"
+                                },
+                                "end": {
+                                  "type": "string",
+                                  "pattern": "^\\d{2}:\\d{2}$"
+                                }
+                              },
+                              "required": [
+                                "dayOfWeek",
+                                "start",
+                                "end"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "nullable": true
+                          },
                           "hasActivePortalToken": {
                             "type": "boolean",
                             "default": false
@@ -11535,6 +11584,9 @@
                           },
                           "clientName": {
                             "type": "string"
+                          },
+                          "rentalTenantNotificationsEnabled": {
+                            "type": "boolean"
                           },
                           "cancellationReason": {
                             "type": "string",
@@ -11810,6 +11862,41 @@
                         "hasRentalTenantNote": {
                           "type": "boolean"
                         },
+                        "rentalTenantAvailableSlots": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "dayOfWeek": {
+                                "type": "string",
+                                "enum": [
+                                  "MON",
+                                  "TUE",
+                                  "WED",
+                                  "THU",
+                                  "FRI",
+                                  "SAT",
+                                  "SUN"
+                                ]
+                              },
+                              "start": {
+                                "type": "string",
+                                "pattern": "^\\d{2}:\\d{2}$"
+                              },
+                              "end": {
+                                "type": "string",
+                                "pattern": "^\\d{2}:\\d{2}$"
+                              }
+                            },
+                            "required": [
+                              "dayOfWeek",
+                              "start",
+                              "end"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "nullable": true
+                        },
                         "hasActivePortalToken": {
                           "type": "boolean",
                           "default": false
@@ -11912,6 +11999,9 @@
                         },
                         "clientName": {
                           "type": "string"
+                        },
+                        "rentalTenantNotificationsEnabled": {
+                          "type": "boolean"
                         },
                         "cancellationReason": {
                           "type": "string",
@@ -12450,6 +12540,41 @@
                         "hasRentalTenantNote": {
                           "type": "boolean"
                         },
+                        "rentalTenantAvailableSlots": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "dayOfWeek": {
+                                "type": "string",
+                                "enum": [
+                                  "MON",
+                                  "TUE",
+                                  "WED",
+                                  "THU",
+                                  "FRI",
+                                  "SAT",
+                                  "SUN"
+                                ]
+                              },
+                              "start": {
+                                "type": "string",
+                                "pattern": "^\\d{2}:\\d{2}$"
+                              },
+                              "end": {
+                                "type": "string",
+                                "pattern": "^\\d{2}:\\d{2}$"
+                              }
+                            },
+                            "required": [
+                              "dayOfWeek",
+                              "start",
+                              "end"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "nullable": true
+                        },
                         "hasActivePortalToken": {
                           "type": "boolean",
                           "default": false
@@ -12552,6 +12677,9 @@
                         },
                         "clientName": {
                           "type": "string"
+                        },
+                        "rentalTenantNotificationsEnabled": {
+                          "type": "boolean"
                         },
                         "cancellationReason": {
                           "type": "string",
@@ -12808,6 +12936,7 @@
                       "INSUFFICIENT_INFO",
                       "SERVICE_NOT_AVAILABLE",
                       "TENANT_NO_RESPONSE",
+                      "TENANT_DECLINED",
                       "OTHER"
                     ]
                   },
@@ -13080,6 +13209,157 @@
         }
       }
     },
+    "/v1/appointments/{appointmentId}/rental-tenant-availability": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "availableSlots": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "dayOfWeek": {
+                          "type": "string",
+                          "enum": [
+                            "MON",
+                            "TUE",
+                            "WED",
+                            "THU",
+                            "FRI",
+                            "SAT",
+                            "SUN"
+                          ]
+                        },
+                        "start": {
+                          "type": "string",
+                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                        },
+                        "end": {
+                          "type": "string",
+                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                        }
+                      },
+                      "required": [
+                        "dayOfWeek",
+                        "start",
+                        "end"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "minItems": 1,
+                    "maxItems": 7
+                  },
+                  "markUnavailable": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                },
+                "required": [
+                  "availableSlots"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "appointmentId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "availableSlots": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "dayOfWeek": {
+                                "type": "string",
+                                "enum": [
+                                  "MON",
+                                  "TUE",
+                                  "WED",
+                                  "THU",
+                                  "FRI",
+                                  "SAT",
+                                  "SUN"
+                                ]
+                              },
+                              "start": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "end": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              }
+                            },
+                            "required": [
+                              "dayOfWeek",
+                              "start",
+                              "end"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "rentalTenantConfirmationStatus": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "availableSlots",
+                        "rentalTenantConfirmationStatus"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/appointments/bulk-resend-reminder": {
       "post": {
         "requestBody": {
@@ -13133,6 +13413,7 @@
                                   "SENT",
                                   "NO_PRIMARY_CONTACT",
                                   "IDEMPOTENT_REPLAY",
+                                  "TENANT_NOTIFICATIONS_BLOCKED",
                                   "ERROR"
                                 ]
                               },
@@ -16356,7 +16637,8 @@
                                   "SEND",
                                   "SEND_AFTER_RESET",
                                   "SKIP_ALREADY_CONFIRMED",
-                                  "SKIP_NOT_SENDABLE"
+                                  "SKIP_NOT_SENDABLE",
+                                  "SKIP_TENANT_NOTIFICATIONS_BLOCKED"
                                 ]
                               }
                             },
@@ -16386,6 +16668,9 @@
                             },
                             "notSendable": {
                               "type": "integer"
+                            },
+                            "tenantNotificationsBlocked": {
+                              "type": "integer"
                             }
                           },
                           "required": [
@@ -16393,7 +16678,8 @@
                             "willSend",
                             "willResendDateChanged",
                             "alreadyConfirmed",
-                            "notSendable"
+                            "notSendable",
+                            "tenantNotificationsBlocked"
                           ],
                           "additionalProperties": false
                         }
@@ -16469,6 +16755,7 @@
                                   "NOT_SENDABLE",
                                   "NO_PRIMARY_CONTACT",
                                   "IDEMPOTENT_REPLAY",
+                                  "TENANT_NOTIFICATIONS_BLOCKED",
                                   "ERROR"
                                 ]
                               },
@@ -17898,11 +18185,11 @@
                             },
                             "start": {
                               "type": "string",
-                              "pattern": "^\\d{2}:\\d{2}$"
+                              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
                             },
                             "end": {
                               "type": "string",
-                              "pattern": "^\\d{2}:\\d{2}$"
+                              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
                             }
                           },
                           "required": [
@@ -17912,6 +18199,7 @@
                           ],
                           "additionalProperties": false
                         },
+                        "maxItems": 7,
                         "nullable": true
                       }
                     },
@@ -18084,11 +18372,11 @@
                             },
                             "start": {
                               "type": "string",
-                              "pattern": "^\\d{2}:\\d{2}$"
+                              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
                             },
                             "end": {
                               "type": "string",
-                              "pattern": "^\\d{2}:\\d{2}$"
+                              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
                             }
                           },
                           "required": [
@@ -18098,6 +18386,7 @@
                           ],
                           "additionalProperties": false
                         },
+                        "maxItems": 7,
                         "nullable": true
                       }
                     },

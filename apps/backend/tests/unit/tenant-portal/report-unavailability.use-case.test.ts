@@ -78,6 +78,7 @@ describe('ReportUnavailabilityUseCase', () => {
   let auditService: { log: ReturnType<typeof vi.fn> };
   let notificationHandler: { execute: ReturnType<typeof vi.fn> };
   let executionRepo: { findByAppointmentId: ReturnType<typeof vi.fn> };
+  let statusTransition: { execute: ReturnType<typeof vi.fn> };
   let useCase: ReportUnavailabilityUseCase;
 
   beforeEach(() => {
@@ -105,11 +106,13 @@ describe('ReportUnavailabilityUseCase', () => {
     auditService = { log: vi.fn() };
     notificationHandler = { execute: vi.fn().mockResolvedValue(undefined) };
     executionRepo = { findByAppointmentId: vi.fn().mockResolvedValue(null) };
+    statusTransition = { execute: vi.fn().mockResolvedValue({}) };
 
     useCase = new ReportUnavailabilityUseCase(
       activityRepo as unknown as IRentalTenantPortalActivityRepository,
       appointmentRepo as unknown as IAppointmentRepository,
       auditService as unknown as PersistentAuditService,
+      statusTransition as never,
       notificationHandler,
       executionRepo as never,
     );

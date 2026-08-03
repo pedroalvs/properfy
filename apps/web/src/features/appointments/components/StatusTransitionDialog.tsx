@@ -42,12 +42,12 @@ interface StatusTransitionDialogProps {
   variant: 'danger' | 'warning';
   targetStatus?: string;
   /**
-   * Whether the rental tenant confirmed this appointment. Gates the "notify the
-   * tenant" checkbox: there is no point offering to tell someone the inspection
-   * is off when they never acknowledged it was on. The backend enforces the same
-   * rule independently.
+   * Whether the rental tenant has already been told this inspection exists.
+   * Gates the "notify the tenant" checkbox: there is no point offering to tell
+   * someone the inspection is off when they were never told it was on. The
+   * backend enforces the authoritative version of this rule independently.
    */
-  rentalTenantConfirmed?: boolean;
+  rentalTenantNotified?: boolean;
   loading?: boolean;
 }
 
@@ -59,7 +59,7 @@ export function StatusTransitionDialog({
   message,
   variant,
   targetStatus,
-  rentalTenantConfirmed = false,
+  rentalTenantNotified = false,
   loading = false,
 }: StatusTransitionDialogProps) {
   const [reason, setReason] = useState('');
@@ -80,7 +80,7 @@ export function StatusTransitionDialog({
     return null;
   }, [targetStatus]);
 
-  const showNotifyRentalTenant = targetStatus === 'CANCELLED' && rentalTenantConfirmed;
+  const showNotifyRentalTenant = targetStatus === 'CANCELLED' && rentalTenantNotified;
 
   const showFreeText = !reasonCodeOptions || reasonCode === 'OTHER';
   const isValid = reasonCodeOptions
@@ -158,8 +158,8 @@ export function StatusTransitionDialog({
             label="Notify the tenant by email/SMS"
           />
           <p className="mt-1 text-xs text-text-muted">
-            The tenant confirmed this appointment. Leave unchecked to cancel without
-            contacting them. The agency is notified either way.
+            The tenant has already been told about this inspection. Leave unchecked to
+            cancel without contacting them. The agency is notified either way.
           </p>
         </div>
       )}

@@ -41,10 +41,20 @@ export class AuditLegalHoldEntity {
     this.isActive = props.isActive;
   }
 
-  /** Returns true when this hold preserves the given audit-log target. */
+  /**
+   * Returns true when this hold preserves the given audit-log target.
+   *
+   * `entityType` is compared case-insensitively on purpose. Writers have not
+   * been consistent — some stamped `'appointment'` where the rest of the
+   * codebase writes `'Appointment'` — and an exact comparison silently let the
+   * retention worker purge rows an operator had explicitly placed on hold.
+   * Normalising the writers only protects future rows; this also covers the
+   * ones already written, which no code change can revisit. When in doubt a
+   * hold must over-preserve, never under-preserve.
+   */
   matches(entityType: string, entityId: string | null, tenantId: string | null): boolean {
     if (!this.isActive) return false;
-    if (this.entityType !== entityType) return false;
+    if (this.entityType.toLowerCase() !== entityType.toLowerCase()) return false;
     if (this.entityId !== entityId) return false;
     if (this.tenantId !== null && this.tenantId !== tenantId) return false;
     return true;

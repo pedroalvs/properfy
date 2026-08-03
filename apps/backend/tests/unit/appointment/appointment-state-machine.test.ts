@@ -272,6 +272,20 @@ describe('AppointmentStateMachine', () => {
       expect(rule?.requiresReason).toBe(true);
     });
 
+    it('REJECTED → AWAITING_INSPECTOR is available to SYS, for a portal rejoin', () => {
+      // A rental tenant who declined can still pick another time in the portal;
+      // that rejoin runs as SYS and has to lift the appointment out of REJECTED.
+      expect(machine.validateTransition('REJECTED', 'AWAITING_INSPECTOR', 'SYS').valid).toBe(true);
+      expect(machine.validateTransition('REJECTED', 'AWAITING_INSPECTOR', 'AM').valid).toBe(true);
+      expect(machine.validateTransition('REJECTED', 'AWAITING_INSPECTOR', 'OP').valid).toBe(true);
+    });
+
+    it('REJECTED → AWAITING_INSPECTOR stays closed to client and inspector roles', () => {
+      for (const role of ['CL_ADMIN', 'CL_USER', 'INSP'] as const) {
+        expect(machine.validateTransition('REJECTED', 'AWAITING_INSPECTOR', role).valid).toBe(false);
+      }
+    });
+
     it('REJECTED → CANCELLED requires reason', () => {
       const rule = machine.getTransitionRule('REJECTED', 'CANCELLED');
       expect(rule?.requiresReason).toBe(true);

@@ -1,4 +1,16 @@
+import { APPOINTMENT_STATUS_LABELS, type AppointmentStatus } from '@properfy/shared';
 import { NotFoundError, ForbiddenError, DomainError, ConflictError } from '../../../shared/domain/errors';
+
+/**
+ * Names a service group for an operator-facing message.
+ *
+ * `ServiceGroupEntity` coerces a missing `groupNumber` to `0`, so anything
+ * falsy means "we could not identify the group" — printing "group 0" would be
+ * worse than staying generic.
+ */
+function describeGroup(groupNumber?: number | null): string {
+  return groupNumber ? `service group ${groupNumber}` : 'a service group';
+}
 
 export class AppointmentNotFoundError extends NotFoundError {
   constructor() {
@@ -121,30 +133,37 @@ export class AppointmentInspectorRequiredError extends DomainError {
 }
 
 export class AppointmentUpdateNotAllowedError extends DomainError {
-  constructor() {
+  /**
+   * `status` is optional so existing throw sites keep the generic wording.
+   * When supplied, the message names the offending status in prose — these
+   * strings are rendered verbatim to operators in the bulk-edit result list.
+   */
+  constructor(status?: AppointmentStatus) {
     super(
       'APPOINTMENT_UPDATE_NOT_ALLOWED',
-      'Appointment cannot be updated in CANCELLED or DONE status',
+      status
+        ? `Cannot change the schedule of a ${APPOINTMENT_STATUS_LABELS[status]} appointment`
+        : 'Appointment cannot be updated in CANCELLED or DONE status',
       422,
     );
   }
 }
 
 export class AppointmentInServiceGroupError extends DomainError {
-  constructor() {
+  constructor(groupNumber?: number | null) {
     super(
       'APPOINTMENT_IN_SERVICE_GROUP',
-      'Date of an appointment in a service group is managed by the group; reschedule the group instead',
+      `Date is managed by ${describeGroup(groupNumber)} — reschedule the group to move this appointment`,
       409,
     );
   }
 }
 
 export class AppointmentTimeSlotOutsideGroupWindowError extends DomainError {
-  constructor() {
+  constructor(groupNumber?: number | null, timeWindow?: string | null) {
     super(
       'APPOINTMENT_TIME_SLOT_OUTSIDE_GROUP_WINDOW',
-      "New time slot must fall within the service group's time window",
+      `New time slot must fall within ${describeGroup(groupNumber)}'s time window${timeWindow ? ` (${timeWindow})` : ''}`,
       422,
     );
   }
@@ -193,12 +212,6 @@ export class AppointmentPropertyNotFoundError extends NotFoundError {
 export class AppointmentPropertyTenantMismatchError extends ForbiddenError {
   constructor() {
     super('APPOINTMENT_PROPERTY_TENANT_MISMATCH', 'Property belongs to a different tenant');
-  }
-}
-
-export class AppointmentPastDateError extends DomainError {
-  constructor() {
-    super('APPOINTMENT_PAST_DATE', 'Scheduled date cannot be in the past', 422);
   }
 }
 
@@ -252,6 +265,34 @@ export class AppointmentImportIdempotencyPayloadMismatchError extends ConflictEr
     super(
       'IDEMPOTENCY_PAYLOAD_MISMATCH',
       'Idempotency key has already been used with a different payload',
+    );
+  }
+}
+
+export class RentalTenantAvailabilityIdempotencyKeyRequiredError extends DomainError {
+  constructor() {
+    super(
+      'IDEMPOTENCY_KEY_REQUIRED',
+      'Idempotency-Key header is required when marking the rental tenant unavailable',
+      400,
+    );
+  }
+}
+
+export class RentalTenantAvailabilityIdempotencyPayloadMismatchError extends ConflictError {
+  constructor() {
+    super(
+      'IDEMPOTENCY_PAYLOAD_MISMATCH',
+      'Idempotency key has already been used with a different payload',
+    );
+  }
+}
+
+export class RentalTenantAvailabilityIdempotencyInProgressError extends ConflictError {
+  constructor() {
+    super(
+      'IDEMPOTENCY_REQUEST_IN_PROGRESS',
+      'A request with this idempotency key is already in progress',
     );
   }
 }

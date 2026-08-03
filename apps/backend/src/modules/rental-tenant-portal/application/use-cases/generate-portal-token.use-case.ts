@@ -1,15 +1,31 @@
 import type { PrismaClient } from '@prisma/client';
 import type { IRentalTenantPortalTokenRepository } from '../../domain/rental-tenant-portal-token.repository';
-import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
+import type {
+  AppointmentWithRelations,
+  IAppointmentRepository,
+} from '../../../appointment/domain/appointment.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
+import type { TenantEntity } from '../../../tenant/domain/tenant.entity';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { MintPortalTokenService } from '../../domain/mint-portal-token.service';
+import { TOKEN_HASH_COLUMN } from '../../domain/mint-portal-token.service';
+import { retryOnUniqueConflict } from '../../../../shared/domain/retry-on-unique-conflict';
 import type { ConfirmationCycleService } from '../../../appointment/application/services/confirmation-cycle.service';
 import type { CreateNotificationUseCase } from '../../../notification/application/use-cases/create-notification.use-case';
 import type { Logger } from '../../../../shared/infrastructure/logger';
+import {
+  afterCommitResult,
+  runInTransaction,
+  type AfterCommitResult,
+  type TxContext,
+} from '../../../../shared/application/unit-of-work';
 import { ConflictError, ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
 import { AppointmentCodeFormatter } from '../../../appointment/domain/appointment-code.formatter';
-import { PROPERFY_LOGO_URL } from '@properfy/shared';
+import {
+  PROPERFY_LOGO_URL,
+  isRentalTenantNotificationsEnabled,
+  TENANT_NOTIFICATIONS_BLOCKED_CODE,
+} from '@properfy/shared';
 
 export interface AuthContext {
   userId: string;
@@ -34,7 +50,31 @@ export interface GeneratePortalTokenInput {
   notify?: boolean;
 }
 
-const ALLOWED_ROLES = ['AM', 'OP'] as const;
+export type GeneratePortalTokenOutput =
+  | { token: string; expiresAt: Date; dispatched: true; reason?: undefined }
+  | {
+      token: string;
+      expiresAt: Date;
+      dispatched: false;
+      reason: 'NOTIFY_DISABLED' | 'NO_PRIMARY_CONTACT' | 'DISPATCH_FAILED';
+    };
+
+/**
+ * A validated generation context bound to its caller transaction context. When
+ * a transaction client is present, the tenant row is locked. The write phase
+ * reuses that context exactly once, so callers can safely place another
+ * transactional write between the lock and the token/cycle writes.
+ */
+export interface PreparedPortalTokenGeneration {
+  runWritePhase(): Promise<AfterCommitResult<GeneratePortalTokenOutput>>;
+}
+
+interface PortalTokenGenerationContext {
+  result: AppointmentWithRelations;
+  tenant: TenantEntity;
+}
+
+const ALLOWED_ROLES = ['AM', 'OP', 'CL_ADMIN'] as const;
 
 // Portal link is only meaningful once the appointment leaves DRAFT and is not
 // terminal: the tenant confirms/reschedules a released, non-finished visit.
@@ -56,18 +96,138 @@ export class GeneratePortalTokenUseCase {
     private readonly logger?: Logger,
   ) {}
 
-  async execute(input: GeneratePortalTokenInput) {
-    if (!ALLOWED_ROLES.includes(input.actor.role as (typeof ALLOWED_ROLES)[number])) {
-      throw new ForbiddenError('FORBIDDEN', 'Only AM or OP roles can generate portal tokens');
+  async execute(input: GeneratePortalTokenInput): Promise<GeneratePortalTokenOutput> {
+    const prepare = () =>
+      runInTransaction(
+        this.cycleService ? this.prisma : undefined,
+        (ctx) => this.executeInTransaction(input, ctx),
+      );
+    const prepared = this.cycleService && this.prisma
+      ? await retryOnUniqueConflict(TOKEN_HASH_COLUMN, prepare)
+      : await prepare();
+    return prepared.runAfterCommit();
+  }
+
+  /**
+   * Policy check, token mint and confirmation-cycle link only. Notification
+   * creation is represented by the returned handle and must run after commit.
+   */
+  async executeInTransaction(
+    input: GeneratePortalTokenInput,
+    ctx: TxContext,
+  ): Promise<AfterCommitResult<GeneratePortalTokenOutput>> {
+    const generation = await this.prepareInTransaction(input, ctx);
+    return generation.runWritePhase();
+  }
+
+  /**
+   * Loads and validates the appointment, then (when inside a transaction) locks
+   * the authoritative tenant policy row before any token/cycle write. The
+   * returned handle retains this single context for the rest of the operation.
+   */
+  async prepareInTransaction(
+    input: GeneratePortalTokenInput,
+    ctx: TxContext,
+    lockTenantId?: string,
+  ): Promise<PreparedPortalTokenGeneration> {
+    const context = await this.loadGenerationContext(input, ctx, lockTenantId);
+    let writePhase: Promise<AfterCommitResult<GeneratePortalTokenOutput>> | undefined;
+    return {
+      runWritePhase: () => {
+        writePhase ??= this.executePreparedInTransaction(input, ctx, context);
+        return writePhase;
+      },
+    };
+  }
+
+  private async executePreparedInTransaction(
+    input: GeneratePortalTokenInput,
+    ctx: TxContext,
+    context: PortalTokenGenerationContext,
+  ): Promise<AfterCommitResult<GeneratePortalTokenOutput>> {
+    const { result, tenant } = context;
+    const { appointment } = result;
+
+    let rawToken = '';
+    let expiresAt = new Date();
+
+    if (this.cycleService && ctx.tx) {
+      const minted = await this.mintPortalTokenService.mint(appointment, tenant, ctx.tx);
+      rawToken = minted.rawToken;
+      expiresAt = minted.expiresAt;
+      await this.cycleService.createInitial(
+        input.appointmentId,
+        appointment.tenantId,
+        appointment.scheduledDate,
+        `${appointment.timeSlotStart}-${appointment.timeSlotEnd}`,
+        minted.tokenId,
+        ctx.tx,
+        ctx.defer,
+      );
+    } else {
+      const minted = await this.mintPortalTokenService.mint(appointment, tenant);
+      rawToken = minted.rawToken;
+      expiresAt = minted.expiresAt;
     }
 
-    const tenantIdForQuery = input.actor.role === 'AM' ? null : input.actor.tenantId;
-    const result = await this.appointmentRepo.findById(input.appointmentId, tenantIdForQuery);
+    ctx.defer(async () => {
+      this.auditService.log({
+        action: 'rental_tenant_portal.token_generated',
+        actorType: 'USER',
+        actorId: input.actor.userId,
+        entityType: 'tenant_portal_token',
+        entityId: appointment.id,
+        tenantId: appointment.tenantId,
+        metadata: {
+          appointmentId: input.appointmentId,
+          expiresAt: expiresAt.toISOString(),
+        },
+      });
+    });
+
+    return afterCommitResult(
+      () => this.completeAfterCommit(input, result, tenant, rawToken, expiresAt),
+    );
+  }
+
+  private async loadGenerationContext(
+    input: GeneratePortalTokenInput,
+    ctx: TxContext,
+    lockTenantId?: string,
+  ): Promise<PortalTokenGenerationContext> {
+    if (!ALLOWED_ROLES.includes(input.actor.role as (typeof ALLOWED_ROLES)[number])) {
+      throw new ForbiddenError('FORBIDDEN', 'Only AM, OP or CL_ADMIN roles can generate portal tokens');
+    }
+
+    // Service-group re-sends know the member's tenant from their scoped snapshot.
+    // Lock that tenant before reading the appointment, so a waiter sees the
+    // state committed by the prior resend rather than its pre-lock snapshot.
+    if (lockTenantId && input.actor.role !== 'AM' && lockTenantId !== input.actor.tenantId) {
+      throw new NotFoundError('APPOINTMENT_NOT_FOUND', 'Appointment not found');
+    }
+    const tenantIdForQuery = lockTenantId ?? (input.actor.role === 'AM' ? null : input.actor.tenantId);
+    const lockedTenant = lockTenantId && ctx.tx
+      ? await this.tenantRepo.findById(lockTenantId, ctx.tx, true)
+      : null;
+    if (lockTenantId && !lockedTenant) {
+      throw new NotFoundError('TENANT_NOT_FOUND', 'Tenant not found');
+    }
+    const result = ctx.tx
+      ? await this.appointmentRepo.findById(input.appointmentId, tenantIdForQuery, ctx.tx)
+      : await this.appointmentRepo.findById(input.appointmentId, tenantIdForQuery);
     if (!result) {
       throw new NotFoundError('APPOINTMENT_NOT_FOUND', 'Appointment not found');
     }
 
     const { appointment } = result;
+
+    // Defense in depth: the repo's tenant filter is skipped when the scope is
+    // null, so an agency actor that somehow reached here without a tenantId
+    // would otherwise mint (and dispatch) a portal credential for any agency.
+    // Mirrors the guard in ForceManualTenantConfirmationUseCase.
+    if (input.actor.role === 'CL_ADMIN' && appointment.tenantId !== input.actor.tenantId) {
+      throw new NotFoundError('APPOINTMENT_NOT_FOUND', 'Appointment not found');
+    }
 
     if (!input.allowAnyStatus && !ALLOWED_STATUSES.includes(appointment.status as (typeof ALLOWED_STATUSES)[number])) {
       throw new ConflictError(
@@ -76,46 +236,45 @@ export class GeneratePortalTokenUseCase {
       );
     }
 
-    const tenant = await this.tenantRepo.findById(appointment.tenantId);
+    const tenant = lockedTenant ?? (ctx.tx
+      ? await this.tenantRepo.findById(appointment.tenantId, ctx.tx, true)
+      : await this.tenantRepo.findById(appointment.tenantId)
+    );
     if (!tenant) {
       throw new NotFoundError('TENANT_NOT_FOUND', 'Tenant not found');
     }
 
-    let rawToken = '';
-    let expiresAt = new Date();
-
-    if (this.cycleService && this.prisma) {
-      await this.prisma.$transaction(async (tx) => {
-        const minted = await this.mintPortalTokenService.mint(appointment, tenant, tx);
-        rawToken = minted.rawToken;
-        expiresAt = minted.expiresAt;
-        await this.cycleService!.createInitial(
-          input.appointmentId,
-          appointment.tenantId,
-          appointment.scheduledDate,
-          `${appointment.timeSlotStart}-${appointment.timeSlotEnd}`,
-          minted.tokenId,
-          tx,
-        );
-      });
-    } else {
-      const minted = await this.mintPortalTokenService.mint(appointment, tenant);
-      rawToken = minted.rawToken;
-      expiresAt = minted.expiresAt;
+    // Handled here rather than by the SendNotificationUseCase gate on purpose. That gate
+    // mirrors AUTOMATIC occupant messages to the agency; this is an operator explicitly
+    // asking to notify the rental tenant, so the honest answer is a refusal with a
+    // reason, not a silent redirect. Checked before minting so a blocked agency never
+    // accumulates unused tokens.
+    //
+    // `notify: false` is exempt: that path dispatches nothing and exists so the operator
+    // can still copy a link for an agency that contacts its own tenants.
+    //
+    // isRentalTenantNotificationsEnabled tolerates a missing settings blob: tenants
+    // persisted before the column had a default carry none, and an unguarded read there
+    // is a 500 on every Send Portal Link.
+    const notificationsEnabled = isRentalTenantNotificationsEnabled(tenant.settingsJson);
+    if (input.notify !== false && !notificationsEnabled) {
+      throw new ConflictError(
+        TENANT_NOTIFICATIONS_BLOCKED_CODE,
+        'Notifications to the tenant are blocked for this agency.',
+      );
     }
 
-    this.auditService.log({
-      action: 'rental_tenant_portal.token_generated',
-      actorType: 'USER',
-      actorId: input.actor.userId,
-      entityType: 'tenant_portal_token',
-      entityId: appointment.id,
-      tenantId: appointment.tenantId,
-      metadata: {
-        appointmentId: input.appointmentId,
-        expiresAt: expiresAt.toISOString(),
-      },
-    });
+    return { result, tenant };
+  }
+
+  private async completeAfterCommit(
+    input: GeneratePortalTokenInput,
+    result: AppointmentWithRelations,
+    tenant: TenantEntity,
+    rawToken: string,
+    expiresAt: Date,
+  ): Promise<GeneratePortalTokenOutput> {
+    const { appointment } = result;
 
     // Generate-only: the operator asked for a copyable link with no tenant
     // notification. Skip dispatch before any contact checks — the recipient
@@ -125,7 +284,7 @@ export class GeneratePortalTokenUseCase {
         action: 'rental_tenant_portal.dispatch_skipped',
         actorType: 'USER',
         actorId: input.actor.userId,
-        entityType: 'appointment',
+        entityType: 'Appointment',
         entityId: appointment.id,
         tenantId: appointment.tenantId,
         metadata: {
@@ -151,7 +310,7 @@ export class GeneratePortalTokenUseCase {
         action: 'rental_tenant_portal.dispatch_skipped',
         actorType: 'USER',
         actorId: input.actor.userId,
-        entityType: 'appointment',
+        entityType: 'Appointment',
         entityId: appointment.id,
         tenantId: appointment.tenantId,
         metadata: {

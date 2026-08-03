@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { auPhoneSchema } from './phone';
 import { HHMM_REGEX } from './appointment';
+import { availableSlotSchema, hasUniqueAvailableSlotDays } from './available-slot';
 
 // Token URL param validation
 export const portalTokenParam = z.object({
@@ -8,20 +9,13 @@ export const portalTokenParam = z.object({
 });
 export type PortalTokenParam = z.infer<typeof portalTokenParam>;
 
-// Weekly availability slot (used in "No" flow and in join-group rentalTenantNote context)
-const HH_MM = /^\d{2}:\d{2}$/;
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-const DAY_OF_WEEK = z.enum(['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']);
 
-export const availableSlotSchema = z
-  .object({
-    dayOfWeek: DAY_OF_WEEK,
-    start: z.string().regex(HH_MM, 'Must be HH:mm'),
-    end: z.string().regex(HH_MM, 'Must be HH:mm'),
-  })
-  .refine((s) => s.start < s.end, { message: 'start must be before end' });
-
-export type AvailableSlotSchema = z.infer<typeof availableSlotSchema>;
+// Weekly availability slot (used in the "No" flow and in the join-group
+// rentalTenantNote context). Defined in its own leaf module and re-exported
+// here so existing importers keep working — see `./available-slot` for why it
+// cannot live in this file.
+export { availableSlotSchema, type AvailableSlotSchema } from './available-slot';
 
 // Shared restrictions sub-schema
 const portalRestrictionsSchema = z
@@ -38,7 +32,10 @@ const portalRestrictionsSchema = z
       .nullable()
       .optional(),
     notes: z.string().max(1000).nullable().optional(),
-    availableSlotsJson: z.array(availableSlotSchema).nullable().optional(),
+    availableSlotsJson: z.array(availableSlotSchema).max(7).refine(
+      hasUniqueAvailableSlotDays,
+      { message: 'Only one availability slot is allowed per day' },
+    ).nullable().optional(),
   })
   .optional();
 

@@ -137,7 +137,9 @@ describe('ReopenForRescheduleUseCase', () => {
       inspectorId: null,
       rentalTenantConfirmationStatus: 'PENDING',
       reason: null,
-    });
+    // No cycle service and no prisma client wired here, so this runs unwrapped
+    // and the write is deliberately not transactional.
+    }, undefined);
   });
 
   it('should reopen a SCHEDULED appointment for reschedule (SYS actor from tenant portal)', async () => {

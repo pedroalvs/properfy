@@ -61,6 +61,8 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment, toda
             inspection day has passed and the job is still not done. The platform's
             "Overdue" now names a different rule (created more than OVERDUE_AGE_DAYS
             ago, regardless of date) used by the web badge and the auto-cancel sweep.
+            The schedule endpoint computes this one itself — see the note on
+            `inspectorScheduleMonthItemSchema` in packages/shared/src/schemas/responses.ts.
           */}
           {appointment.isOverdue && (
             <span

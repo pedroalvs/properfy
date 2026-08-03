@@ -141,7 +141,7 @@ describe('AppointmentDetailPage', () => {
     renderPage();
 
     expect(screen.getByTestId('overdue-banner')).toBeInTheDocument();
-    expect(screen.getByText(/Past date.*scheduled date has passed/)).toBeInTheDocument();
+    expect(screen.getByText(/Past date.*scheduled date has passed.*Attend to this first/)).toBeInTheDocument();
   });
 
   it('does not show overdue banner when appointment is not overdue', () => {

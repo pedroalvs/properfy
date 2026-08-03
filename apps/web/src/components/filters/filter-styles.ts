@@ -27,5 +27,20 @@ export const filterDropdown =
 export const filterOption =
   'cursor-pointer px-3 py-2 text-sm text-text-primary hover:bg-primary/5 transition-colors';
 
+/** The option matching the current value. */
 export const filterOptionActive =
   'cursor-pointer px-3 py-2 text-sm text-primary bg-primary/10 font-medium';
+
+/**
+ * The option the keyboard is currently on. Deliberately distinct from
+ * `filterOptionActive`: selection and keyboard position are different things,
+ * and if they render alike a keyboard user arrowing past the selected row has
+ * no way to tell where they are (WCAG 2.4.7). The inset ring reads as "focus"
+ * without competing with the selected row's fill.
+ */
+export const filterOptionHighlighted =
+  'cursor-pointer px-3 py-2 text-sm text-text-primary bg-primary/5 shadow-[inset_0_0_0_2px_var(--color-primary)]';
+
+/** Highlighted and selected at once — keeps both signals legible. */
+export const filterOptionHighlightedActive =
+  'cursor-pointer px-3 py-2 text-sm text-primary bg-primary/10 font-medium shadow-[inset_0_0_0_2px_var(--color-primary)]';

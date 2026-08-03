@@ -2,6 +2,7 @@
 // seed-platform-notification-templates.ts. Kept as a plain data module so unit
 // tests can assert the seed catalog without touching the database.
 
+import { getDefaultClass, type NotificationClass } from '@properfy/shared';
 import {
   renderAppointmentEmailHtml,
   renderSystemEmailHtml,
@@ -22,8 +23,32 @@ export interface PlatformTemplateSeed {
    * wrapping the plain-text body in a single <p>.
    */
   bodyHtml?: string;
-  /** Defaults to OPERATIONAL (schema default) when omitted. */
+  /**
+   * Explicit override. Normally omitted — `resolvePlatformTemplateClass` derives
+   * the class from the shared catalogue, so a code registered in
+   * PROTECTED_TEMPLATE_CLASSIFICATIONS gets that class without restating it here.
+   */
   notificationClass?: 'TRANSACTIONAL' | 'OPERATIONAL' | 'MARKETING';
+}
+
+/**
+ * The `notification_class` a seeded platform row must carry.
+ *
+ * Exists because the seeder used to write the column only when an entry declared
+ * it, which silently dropped every other row onto the schema default
+ * (OPERATIONAL) — including codes the shared catalogue marks protected and
+ * TRANSACTIONAL. `upsert-notification-template.use-case.ts` has always applied
+ * `getProtectedClass`, so a row's class ended up depending on which write path
+ * touched it last: templates edited through the UI were correct, templates only
+ * ever seeded were not. That is how the four appointment-action SMS codes came to
+ * be consent-suppressible while their email twins were not.
+ *
+ * `getDefaultClass` already resolves PROTECTED → DEFAULT → OPERATIONAL, so the
+ * catalogue stays the single source of truth and the seeder stops having an
+ * opinion of its own.
+ */
+export function resolvePlatformTemplateClass(entry: PlatformTemplateSeed): NotificationClass {
+  return entry.notificationClass ?? getDefaultClass(entry.code);
 }
 
 // ── Shared paragraph fragments for the appointment email layout ─────────────
@@ -142,6 +167,54 @@ const CANCELLED_AGENCY_HTML = renderAppointmentEmailHtml({
     '{{/if}}' +
     '<p>No inspection will take place on this date. If the service is still required, ' +
     'a new appointment needs to be raised.</p>' +
+    CLOSING_PARAGRAPHS,
+});
+
+// Agency-facing rejection notice. Same reasoning as CANCELLED_AGENCY_HTML: no
+// tenantEmailHtml wrapper, because its greeting would address the agency by its
+// own tenant's name. Unlike a cancellation, this one asks for an action — a
+// rejected appointment is expected to be rescheduled.
+const REJECTED_AGENCY_HTML = renderAppointmentEmailHtml({
+  heading: 'Inspection rejected{{#if branchName}} — {{branchName}}{{/if}}',
+  contentHtml:
+    `<p>The <strong>${SERVICE_LABEL}</strong> <strong>#{{appointmentCode}}</strong> of ` +
+    '<strong>{{propertyAddress}}</strong> scheduled for <strong>{{scheduledDate}}</strong> ' +
+    'has been <strong>rejected</strong>' +
+    '{{#if rentalTenantName}} (tenant: <strong>{{rentalTenantName}}</strong>){{/if}}.</p>' +
+    '{{#if rejectionReason}}' +
+    `<p style="${EMAIL_CALLOUT_STYLE}"><strong>Reason:</strong> {{rejectionReason}}</p>` +
+    '{{/if}}' +
+    '<p>This inspection will not go ahead as scheduled and needs to be rearranged. ' +
+    'Where the tenant told us when they are available, those times are recorded ' +
+    'against the appointment.</p>' +
+    CLOSING_PARAGRAPHS,
+});
+
+// Mirror of a message the platform withheld from the rental tenant because the
+// agency has `rentalTenantNotificationsEnabled: false` and handles that contact
+// itself. No tenantEmailHtml wrapper, for the same reason as CANCELLED_AGENCY_HTML
+// and ESCALATION_HTML: its greeting would address the agency by its own tenant's name.
+//
+// Deliberately generic over the suppressed event — {{suppressedTemplateLabel}} names
+// it — rather than one bespoke agency variant per occupant template. Fourteen
+// near-identical templates would each need registering across the shared catalogues
+// and hand-written copy, for the same email volume and the same information.
+const TENANT_NOTICE_FORWARDED_HTML = renderAppointmentEmailHtml({
+  heading: 'Tenant notice not sent{{#if branchName}} — {{branchName}}{{/if}}',
+  contentHtml:
+    `<p style="${EMAIL_CALLOUT_STYLE}"><strong>Action required:</strong> ` +
+    'your agency is set to contact tenants directly, so Properfy did not send this ' +
+    'message. Please pass it on to the tenant.</p>' +
+    '<p><strong>Notice withheld:</strong> {{suppressedTemplateLabel}}' +
+    '{{#if suppressedChannel}} ({{suppressedChannel}}){{/if}}</p>' +
+    `<p>It concerns the <strong>${SERVICE_LABEL}</strong>` +
+    '{{#if appointmentCode}} <strong>#{{appointmentCode}}</strong>{{/if}} of ' +
+    '<strong>{{propertyAddress}}</strong> scheduled for <strong>{{scheduledDate}}</strong>' +
+    '{{#if timeSlot}} at <strong>{{timeSlot}}</strong>{{/if}}' +
+    '{{#if rentalTenantName}} (tenant: <strong>{{rentalTenantName}}</strong>){{/if}}.</p>' +
+    '{{#if confirmationLink}}' +
+    '<p>The tenant can confirm or change the booking here: {{confirmationLink}}</p>' +
+    '{{/if}}' +
     CLOSING_PARAGRAPHS,
 });
 
@@ -297,13 +370,31 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     subject: 'Inspection Cancelled - {{propertyAddress}}',
     body: 'The inspection {{appointmentCode}} at {{propertyAddress}} scheduled for {{scheduledDate}} has been cancelled.',
     bodyHtml: CANCELLED_AGENCY_HTML,
-    // Must be stated explicitly: the seeder only writes this column when the entry
-    // provides it, so omitting it leaves the row on the DB default (OPERATIONAL).
-    // An OPERATIONAL row is consent-checked per recipient in
-    // send-notification.use-case, which would let a branch contact's operational
-    // opt-out silently suppress cancellation notices — the agency must always be
-    // told. Matches PROTECTED_TEMPLATE_CLASSIFICATIONS in @properfy/shared.
+    // No explicit notificationClass: resolvePlatformTemplateClass derives
+    // TRANSACTIONAL from PROTECTED_TEMPLATE_CLASSIFICATIONS. Restating it here
+    // was the workaround for the seeder bug this file now fixes.
+  },
+  {
+    code: 'INSPECTION_REJECTED_AGENCY',
+    channel: 'EMAIL',
+    subject: 'Inspection Rejected - {{propertyAddress}}',
+    body: 'The inspection {{appointmentCode}} at {{propertyAddress}} scheduled for {{scheduledDate}} has been rejected and needs to be rearranged.',
+    bodyHtml: REJECTED_AGENCY_HTML,
+    // Explicit for the same reason as INSPECTION_CANCELLED_AGENCY above: the
+    // seeder leaves the column on the OPERATIONAL default when the entry omits
+    // it, and an OPERATIONAL row is consent-checked per recipient, which would
+    // let a branch contact's opt-out suppress the notice telling them to
+    // reschedule. Matches PROTECTED_TEMPLATE_CLASSIFICATIONS in @properfy/shared.
     notificationClass: 'TRANSACTIONAL',
+  },
+  {
+    code: 'TENANT_NOTICE_FORWARDED_AGENCY',
+    channel: 'EMAIL',
+    subject: 'Tenant notice not sent - {{propertyAddress}}',
+    body: 'Your agency contacts tenants directly, so Properfy did not send "{{suppressedTemplateLabel}}" for inspection {{appointmentCode}} at {{propertyAddress}} on {{scheduledDate}}. Please pass it on to the tenant.',
+    bodyHtml: TENANT_NOTICE_FORWARDED_HTML,
+    // No explicit notificationClass: resolvePlatformTemplateClass derives
+    // TRANSACTIONAL from PROTECTED_TEMPLATE_CLASSIFICATIONS.
   },
   {
     code: 'INSPECTION_UNAVAILABILITY_REPORTED',
