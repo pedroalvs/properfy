@@ -26,7 +26,7 @@ export interface NotificationPayloadContext {
   appointment: AppointmentEntity;
   /**
    * Null only for recipients that are not the rental tenant: an imported
-   * appointment can legitimately have no contact at all (CONTACT_INCOMPLETE is a
+   * appointment can legitimately have no contact at all (contacts are optional; a
    * warning, not an error), and the agency still has to be told when it is
    * cancelled. Templates that *require* `rentalTenantName` still throw
    * MissingRequiredVariableError in that case — see the conditional spread below.

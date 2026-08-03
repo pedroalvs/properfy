@@ -131,6 +131,50 @@ describe('createAppointmentSchema', () => {
     }
   });
 
+  // Contacts stopped being mandatory for every service type: the domain, the
+  // create use case, publish and the importer all already tolerated their
+  // absence, so requiring one at the HTTP boundary protected nothing and locked
+  // out agencies that simply do not hold occupant details.
+  it('should be valid with an empty contacts array', () => {
+    const result = createAppointmentSchema.safeParse({
+      branchId: validBranchId,
+      propertyId: validPropertyId,
+      serviceTypeId: validServiceTypeId,
+      scheduledDate: '2027-04-01',
+      timeSlotStart: '09:00',
+      timeSlotEnd: '10:00',
+      contacts: [],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should be valid with neither contact nor contacts', () => {
+    const result = createAppointmentSchema.safeParse({
+      branchId: validBranchId,
+      propertyId: validPropertyId,
+      serviceTypeId: validServiceTypeId,
+      scheduledDate: '2027-04-01',
+      timeSlotStart: '09:00',
+      timeSlotEnd: '10:00',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  // Still mutually exclusive — only the "not neither" half is relaxed.
+  it('should be invalid when both contact and contacts are provided', () => {
+    const result = createAppointmentSchema.safeParse({
+      branchId: validBranchId,
+      propertyId: validPropertyId,
+      serviceTypeId: validServiceTypeId,
+      scheduledDate: '2027-04-01',
+      timeSlotStart: '09:00',
+      timeSlotEnd: '10:00',
+      contact: validContact,
+      contacts: [{ contactId: validUserId, role: 'RENTAL_TENANT', isPrimary: true }],
+    });
+    expect(result.success).toBe(false);
+  });
+
   it('should be invalid when both propertyId and property are provided', () => {
     const result = createAppointmentSchema.safeParse({
       branchId: validBranchId,

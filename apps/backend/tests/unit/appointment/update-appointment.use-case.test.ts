@@ -1840,5 +1840,32 @@ describe('UpdateAppointmentUseCase', () => {
       expect(contactRepo.save).toHaveBeenCalledTimes(1);
       expect(appointmentRepo.saveContact).toHaveBeenCalled();
     });
+
+    // Contacts stopped being mandatory: `contacts: []` now means "clear them
+    // all", which the code after the removed guard already implemented — it
+    // deletes the junction rows and then loops over zero entries.
+    it('clears every contact when given an empty array', async () => {
+      const contactRepo = makeContactRepo([]);
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ tenantId }),
+      );
+      (appointmentRepo as any).deleteContactsByAppointmentId = vi.fn();
+
+      const uc = new UpdateAppointmentUseCase(
+        appointmentRepo,
+        auditService,
+        new AuthorizationService(auditService),
+        undefined,
+        contactRepo as any,
+      );
+
+      await expect(
+        uc.execute({ appointmentId, data: { contacts: [] }, actor: makeActor() }),
+      ).resolves.toBeDefined();
+
+      expect(appointmentRepo.deleteContactsByAppointmentId).toHaveBeenCalledWith(appointmentId);
+      expect(appointmentRepo.saveContact).not.toHaveBeenCalled();
+      expect(contactRepo.save).not.toHaveBeenCalled();
+    });
   });
 });

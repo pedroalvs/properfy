@@ -441,10 +441,10 @@ export class UpdateAppointmentUseCase {
 
     // Upsert contacts
     if (data.contacts !== undefined && this.contactRepo) {
-      // New path: contacts array replacement (feature 021)
-      if (data.contacts.length === 0) {
-        throw new ValidationError('APPOINTMENT_CONTACTS_REQUIRED', 'At least one contact is required');
-      }
+      // New path: contacts array replacement (feature 021).
+      // An empty array is a valid instruction — "clear them all" — since a
+      // contact is no longer required for any service type. The delete below
+      // followed by a loop over zero entries already implements exactly that.
       // Delete old junction rows, insert new with fresh snapshots
       await this.appointmentRepo.deleteContactsByAppointmentId(appointmentId);
       const now = this.clock.now();

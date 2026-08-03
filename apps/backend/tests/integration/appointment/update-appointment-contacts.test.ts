@@ -117,18 +117,23 @@ describe('PATCH /v1/appointments/:id — contacts[] replacement (T016)', () => {
     );
   });
 
-  it('400: contacts: [] (empty array) → APPOINTMENT_CONTACTS_REQUIRED', async () => {
+  // `contacts: []` now means "clear them all", not "invalid". Asserted against
+  // the real route rather than a forced rejection, so it fails if the schema or
+  // the use case starts refusing an empty array again.
+  it('200: contacts: [] clears every contact and reaches the use case', async () => {
     mockJwtVerify.mockResolvedValue(opContext);
-    mockUpdateAppointmentExecute.mockRejectedValue(
-      new ValidationError('APPOINTMENT_CONTACTS_REQUIRED', 'Contacts array must not be empty'),
-    );
+    mockUpdateAppointmentExecute.mockResolvedValue(makeAppointmentResult({ contacts: [] }));
 
     const res = await supertest(app.server)
       .patch(`/v1/appointments/${APPOINTMENT_ID}`)
       .set('Authorization', 'Bearer token')
       .send({ contacts: [] });
 
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
+    expect(mockUpdateAppointmentExecute).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ contacts: [] }) }),
+    );
+    expect(res.body.data.contacts).toEqual([]);
   });
 
   it('200: contacts key absent → existing contacts untouched (use case not given contacts field)', async () => {
