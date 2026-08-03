@@ -3,6 +3,11 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError, getErrorMessage } from '@/lib/api-error';
 import { consumePostLoginRedirect } from '@/lib/post-login-redirect';
+import { AuthLayout } from '../components/AuthLayout';
+import { AuthField } from '../components/AuthField';
+import { AuthPasswordField } from '../components/AuthPasswordField';
+import { AuthAlert } from '../components/AuthAlert';
+import { AuthSubmitButton } from '../components/AuthSubmitButton';
 
 function getLoginErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
@@ -89,190 +94,55 @@ export function LoginPage() {
   if (isAuthenticated) return null;
 
   return (
-    <div className="min-h-screen bg-app-bg">
-      <div className="grid min-h-screen lg:grid-cols-[minmax(0,1.15fr)_minmax(420px,0.85fr)]">
-        <section className="relative hidden overflow-hidden bg-secondary px-10 py-12 text-white lg:flex lg:flex-col lg:justify-between">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.14),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(65,166,157,0.28),transparent_28%)]" />
-          <div className="relative">
-            <div className="inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/8 px-4 py-2 backdrop-blur-sm">
-              <img src="/images/properfy-icon-square.png" alt="" className="h-8 w-8 rounded-lg bg-white/90 p-1" />
-              <div>
-                <p className="font-poppins text-base font-semibold leading-tight">Properfy</p>
-                <p className="text-xs uppercase tracking-[0.18em] text-white/70">
-                  Property Inspection Platform
-                </p>
-              </div>
-            </div>
+    <AuthLayout title="We are Properfy" subtitle="Welcome. Please log in.">
+      {error && <AuthAlert>{error}</AuthAlert>}
 
-            <div className="mt-16 max-w-xl">
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-white/70">
-                Operations Workspace
-              </p>
-              <h1 className="mt-5 font-poppins text-4xl font-semibold leading-tight">
-                Keep scheduling, inspections and financial follow-up in one operational flow.
-              </h1>
-              <p className="mt-6 max-w-lg text-base leading-7 text-white/78">
-                Sign in to manage appointments, coordinate agencies and inspectors, and track the
-                operational pipeline without jumping between disconnected tools.
-              </p>
-            </div>
-          </div>
+      <form onSubmit={handleSubmit} noValidate className="space-y-5">
+        <AuthField
+          id="login-email"
+          label="Work Email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="email"
+          autoFocus
+          disabled={isSubmitting}
+        />
 
-          <div className="relative grid gap-4">
-            {[
-              'Agency scheduling and appointment operations',
-              'Inspector allocation, confirmations and execution visibility',
-              'Financial, reporting and audit trail in the same workspace',
-            ].map((item) => (
-              <div
-                key={item}
-                className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/6 px-4 py-4 backdrop-blur-sm"
-              >
-                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-white/12 text-accent">
-                  <i className="mdi mdi-check-bold text-base" aria-hidden="true" />
-                </div>
-                <p className="text-sm leading-6 text-white/88">{item}</p>
-              </div>
-            ))}
-          </div>
-          <p className="relative text-xs tracking-[0.14em] text-white/50">
-            © Properfy. Internal use only.
-          </p>
-        </section>
+        <AuthPasswordField
+          id="login-password"
+          label="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+          disabled={isSubmitting}
+        />
 
-        <section className="flex min-h-screen items-center justify-center px-5 py-8 sm:px-8 lg:px-12">
-          <div className="w-full max-w-md">
-            <div className="mb-8 lg:hidden">
-              <div className="inline-flex items-center gap-3">
-                <img src="/images/properfy-icon-square.png" alt="" className="h-10 w-10 rounded-xl bg-white p-1 shadow-sm" />
-                <div>
-                  <p className="font-poppins text-lg font-semibold text-secondary">Properfy</p>
-                  <p className="text-xs uppercase tracking-[0.16em] text-text-muted">
-                    Property Inspection Platform
-                  </p>
-                </div>
-              </div>
-            </div>
+        {requiresTotp && (
+          <AuthField
+            id="login-totp"
+            label="Authentication Code"
+            type="text"
+            value={totpCode}
+            onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            autoComplete="one-time-code"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            disabled={isSubmitting}
+            hint="Open your authenticator app and enter the current 6-digit code."
+          />
+        )}
 
-            <div className="rounded-[28px] border border-black/8 bg-card-bg p-6 shadow-[0_20px_50px_rgba(33,86,110,0.08)] sm:p-8">
-              <div className="mb-8">
-                <p className="text-sm font-semibold uppercase tracking-[0.22em] text-secondary/65">
-                  Secure Sign In
-                </p>
-                <h2 className="mt-3 font-poppins text-3xl font-semibold tracking-tight text-secondary">
-                  Welcome back
-                </h2>
-                <p className="mt-3 text-sm leading-6 text-text-secondary">
-                  Use your company credentials to access the operational workspace.
-                </p>
-              </div>
-
-              {error && (
-                <div
-                  role="alert"
-                  className="mb-5 rounded-2xl border border-error/15 bg-error/5 px-4 py-3 text-sm leading-6 text-error"
-                >
-                  {error}
-                </div>
-              )}
-
-              <form onSubmit={handleSubmit} noValidate className="space-y-5">
-                <div>
-                  <label
-                    htmlFor="login-email"
-                    className="mb-2 block text-sm font-semibold text-text-secondary"
-                  >
-                    Work Email
-                  </label>
-                  <input
-                    id="login-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@company.com"
-                    autoComplete="email"
-                    autoFocus
-                    disabled={isSubmitting}
-                    className="h-12 w-full rounded-2xl border border-black/10 bg-white px-4 text-sm text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="login-password"
-                    className="mb-2 block text-sm font-semibold text-text-secondary"
-                  >
-                    Password
-                  </label>
-                  <input
-                    id="login-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    autoComplete="current-password"
-                    disabled={isSubmitting}
-                    className="h-12 w-full rounded-2xl border border-black/10 bg-white px-4 text-sm text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-                  />
-                </div>
-
-                {requiresTotp && (
-                  <div>
-                    <label
-                      htmlFor="login-totp"
-                      className="mb-2 block text-sm font-semibold text-text-secondary"
-                    >
-                      Authentication Code
-                    </label>
-                    <input
-                      id="login-totp"
-                      type="text"
-                      value={totpCode}
-                      onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      placeholder="123456"
-                      autoComplete="one-time-code"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      disabled={isSubmitting}
-                      className="h-12 w-full rounded-2xl border border-black/10 bg-white px-4 text-sm tracking-[0.28em] text-text-primary outline-none transition placeholder:tracking-normal focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-                    />
-                    <p className="mt-2 text-xs leading-5 text-text-muted">
-                      Open your authenticator app and enter the current 6-digit code.
-                    </p>
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-real-estate px-4 text-sm font-semibold text-white transition hover:brightness-95 active:brightness-90 disabled:pointer-events-none disabled:opacity-50"
-                >
-                  {isSubmitting && (
-                    <i className="mdi mdi-loading mdi-spin text-base" aria-hidden="true" />
-                  )}
-                  Sign In
-                </button>
-              </form>
-
-              <div className="mt-4 text-center">
-                <Link
-                  to="/forgot-password"
-                  className="text-sm font-semibold text-primary transition hover:underline"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-
-              <div className="mt-4 rounded-2xl border border-primary/10 bg-primary/5 px-4 py-3">
-                <p className="text-xs leading-5 text-text-secondary">
-                  Need help? Contact your administrator for access, password resets or two-factor
-                  support.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-      </div>
-    </div>
+        <div className="flex items-center justify-between gap-4 pt-2">
+          <Link
+            to="/forgot-password"
+            className="text-sm font-bold text-primary transition hover:underline"
+          >
+            Forgot your password?
+          </Link>
+          <AuthSubmitButton loading={isSubmitting}>Sign In</AuthSubmitButton>
+        </div>
+      </form>
+    </AuthLayout>
   );
 }
