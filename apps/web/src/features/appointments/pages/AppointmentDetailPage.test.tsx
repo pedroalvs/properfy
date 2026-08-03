@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
@@ -29,10 +29,22 @@ vi.mock('@/lib/auth-storage', () => ({
 }));
 
 let mockUserRole = 'AM';
+// Owning agency's occupant-contact switch, applied to the `awaiting` fixture so a
+// test can flip it without duplicating the whole appointment.
+let mockRentalTenantNotificationsEnabled = true;
+let mockHasPrimaryContact = true;
+let mockClUserPermissions: string[] = [];
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
-    user: { id: 'usr-99', name: 'Test Admin', email: 'test@test.com', role: mockUserRole, tenantId: 'tenant-1' },
+    user: {
+      id: 'usr-99',
+      name: 'Test Admin',
+      email: 'test@test.com',
+      role: mockUserRole,
+      tenantId: 'tenant-1',
+      clUserPermissions: mockClUserPermissions,
+    },
     token: 'mock-token',
     isAuthenticated: true,
     isLoading: false,
@@ -81,6 +93,9 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
           isOverdue: false,
           hasRentalTenantNote: false,
           rentalTenantNote: null,
+          rentalTenantAvailableSlots: [
+            { dayOfWeek: 'MON', start: '09:00', end: '12:00' },
+          ],
           createdAt: '2026-03-01T10:00:00Z',
           updatedAt: '2026-03-01T10:00:00Z',
         },
@@ -106,8 +121,8 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
           contactName: 'John',
           scheduledDate: '2026-04-01',
           timeSlotStart: '09:00', timeSlotEnd: '12:00',
-          contactPhone: '11999',
-          contactEmail: 'john@test.com',
+          contactPhone: mockHasPrimaryContact ? '11999' : null,
+          contactEmail: mockHasPrimaryContact ? 'john@test.com' : null,
           inspectorId: null,
           inspectorName: null,
           keyRequired: false,
@@ -117,6 +132,7 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
           notes: '',
           doneCheckedByUserId: null,
           doneCheckedAt: null,
+          rentalTenantNotificationsEnabled: mockRentalTenantNotificationsEnabled,
           createdAt: '2026-03-01T10:00:00Z',
           updatedAt: '2026-03-01T10:00:00Z',
         },
@@ -283,6 +299,7 @@ describe('AppointmentDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUserRole = 'AM';
+    mockClUserPermissions = [];
   });
 
   it('renders appointment code in header', () => {
@@ -426,6 +443,7 @@ describe('AppointmentDetailPage — Send Portal Link dispatch feedback', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUserRole = 'AM';
+    mockClUserPermissions = [];
   });
 
   function mockPortalTokenResponse(payload: Record<string, unknown>) {
@@ -460,12 +478,116 @@ describe('AppointmentDetailPage — Send Portal Link dispatch feedback', () => {
   });
 });
 
+// The owning agency contacts its own tenants, so Properfy must not. The action stays
+// visible but disabled with a reason — hiding it would read as a missing feature.
+describe('AppointmentDetailPage — agency blocks tenant notifications', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUserRole = 'AM';
+    mockRentalTenantNotificationsEnabled = false;
+  });
+
+  afterEach(() => {
+    mockRentalTenantNotificationsEnabled = true;
+    mockHasPrimaryContact = true;
+  });
+
+  it('shows a visible, associated agency reason when Send Portal Link is disabled and contact is also missing', () => {
+    mockHasPrimaryContact = false;
+    renderPage('/appointments/awaiting');
+
+    const button = screen.getByTestId('send-portal-link-button');
+    const explanation = screen.getByText(/Notifications to the tenant are blocked for this agency/i);
+
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('aria-describedby', 'send-portal-link-disabled-hint');
+    expect(explanation).toHaveAttribute('id', 'send-portal-link-disabled-hint');
+    expect(explanation).toBeVisible();
+    expect(explanation.closest('.hidden, .invisible, .sr-only')).toBeNull();
+    expect(explanation).not.toHaveClass('sr-only');
+    expect(explanation).toHaveClass('max-w-xs');
+    expect(screen.queryByText(/no primary contact email or phone/i)).not.toBeInTheDocument();
+  });
+
+  it('does not dispatch when the disabled button is clicked', () => {
+    renderPage('/appointments/awaiting');
+    fireEvent.click(screen.getByTestId('send-portal-link-button'));
+    expect(api.POST).not.toHaveBeenCalled();
+  });
+
+  it('leaves Copy Portal Link enabled, since it dispatches nothing', () => {
+    renderPage('/appointments/awaiting');
+    expect(screen.getByTestId('copy-portal-link-button')).not.toBeDisabled();
+  });
+
+  it('enables Send Portal Link when the agency has not blocked notifications', () => {
+    mockRentalTenantNotificationsEnabled = true;
+    renderPage('/appointments/awaiting');
+    expect(screen.getByTestId('send-portal-link-button')).not.toBeDisabled();
+  });
+
+  it('explains the 409 when the flag was flipped while the page was open', async () => {
+    // Defence in depth: the button is disabled for a blocked agency, but a page left
+    // open while an AM flips the setting still reaches the backend refusal.
+    mockRentalTenantNotificationsEnabled = true;
+    vi.mocked(api.POST).mockResolvedValueOnce({
+      data: undefined,
+      error: { error: { code: 'TENANT_NOTIFICATIONS_BLOCKED', message: 'blocked' } },
+      response: { status: 409 } as Response,
+    } as never);
+
+    renderPage('/appointments/awaiting');
+    fireEvent.click(screen.getByTestId('send-portal-link-button'));
+
+    // The friendly hint, not the backend's raw sentence.
+    expect(
+      await screen.findByText(/Notifications to the tenant are blocked for this agency/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Email sent to tenant')).not.toBeInTheDocument();
+  });
+});
+
+describe('AppointmentDetailPage — missing primary contact', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUserRole = 'AM';
+    mockRentalTenantNotificationsEnabled = true;
+    mockHasPrimaryContact = false;
+  });
+
+  afterEach(() => {
+    mockHasPrimaryContact = true;
+  });
+
+  it('shows a visible, associated missing-contact reason when Send Portal Link is disabled', () => {
+    renderPage('/appointments/awaiting');
+
+    const button = screen.getByTestId('send-portal-link-button');
+    const explanation = screen.getByText(/no primary contact email or phone/i);
+
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('aria-describedby', 'send-portal-link-disabled-hint');
+    expect(explanation).toHaveAttribute('id', 'send-portal-link-disabled-hint');
+    expect(explanation).toBeVisible();
+    expect(explanation.closest('.hidden, .invisible, .sr-only')).toBeNull();
+    expect(explanation).not.toHaveClass('sr-only');
+    expect(explanation).toHaveClass('max-w-xs');
+  });
+
+  it('leaves Copy Portal Link available because generate-only sends no notification', () => {
+    renderPage('/appointments/awaiting');
+
+    expect(screen.getByTestId('copy-portal-link-button')).not.toBeDisabled();
+  });
+});
+
 // Portal link can only be sent for released, non-terminal appointments:
 // AWAITING_INSPECTOR and SCHEDULED. DRAFT/DONE/CANCELLED/REJECTED hide it.
 describe('AppointmentDetailPage — Send Portal Link status gating', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUserRole = 'AM';
+    mockClUserPermissions = [];
   });
 
   it('hides Send Portal Link for DRAFT appointments', () => {
@@ -489,10 +611,92 @@ describe('AppointmentDetailPage — Send Portal Link status gating', () => {
   });
 });
 
+// Role gating for the agency-facing portal surface. CL_ADMIN administers its own
+// agency and gets the portal link actions, Force Confirm and the Portal Activity
+// tab; it must NOT gain the operations-only surfaces (cross-check, Notifications,
+// Timeline, Financial). CL_USER only reaches Force Confirm, and only with the
+// `force_confirmation` flag.
+describe('AppointmentDetailPage — role gating for portal actions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUserRole = 'AM';
+    mockClUserPermissions = [];
+  });
+
+  it('shows the portal actions and Force Confirm for CL_ADMIN', () => {
+    mockUserRole = 'CL_ADMIN';
+    renderPage('/appointments/awaiting');
+
+    expect(screen.getByTestId('send-portal-link-button')).toBeInTheDocument();
+    expect(screen.getByTestId('copy-portal-link-button')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /force confirm/i })).toBeInTheDocument();
+  });
+
+  it('shows the Portal Activity tab for CL_ADMIN but not the operations-only tabs', () => {
+    mockUserRole = 'CL_ADMIN';
+    renderPage('/appointments/awaiting');
+
+    expect(screen.getByRole('tab', { name: /portal activity/i })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /notifications/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /timeline/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /financial/i })).not.toBeInTheDocument();
+  });
+
+  // The operations-only surface must NOT ride along with the portal widening.
+  // A DONE appointment with no cross-check yet is what makes the button eligible
+  // for AM/OP, so it is the only fixture that can prove CL_ADMIN is excluded.
+  // The cross-check action renders as "Confirm Done" (not to be confused with
+  // "Force Confirm", which CL_ADMIN does get).
+  it('does not give CL_ADMIN the cross-check action on a DONE appointment', () => {
+    mockUserRole = 'CL_ADMIN';
+    renderPage('/appointments/done');
+
+    expect(screen.queryByRole('button', { name: /confirm done/i })).not.toBeInTheDocument();
+  });
+
+  it('still gives OP the cross-check action on the same DONE appointment', () => {
+    mockUserRole = 'OP';
+    renderPage('/appointments/done');
+
+    expect(screen.getByRole('button', { name: /confirm done/i })).toBeInTheDocument();
+  });
+
+  it('hides every portal action from a CL_USER without the force_confirmation flag', () => {
+    mockUserRole = 'CL_USER';
+    renderPage('/appointments/awaiting');
+
+    expect(screen.queryByTestId('send-portal-link-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('copy-portal-link-button')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /force confirm/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /portal activity/i })).not.toBeInTheDocument();
+  });
+
+  it('shows only Force Confirm for a CL_USER holding the force_confirmation flag', () => {
+    mockUserRole = 'CL_USER';
+    mockClUserPermissions = ['force_confirmation'];
+    renderPage('/appointments/awaiting');
+
+    expect(screen.getByRole('button', { name: /force confirm/i })).toBeInTheDocument();
+    // The portal link is not flag-gated — it stays out of reach for CL_USER.
+    expect(screen.queryByTestId('send-portal-link-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('copy-portal-link-button')).not.toBeInTheDocument();
+  });
+
+  it('hides every portal action from INSP', () => {
+    mockUserRole = 'INSP';
+    renderPage('/appointments/awaiting');
+
+    expect(screen.queryByTestId('send-portal-link-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('copy-portal-link-button')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /force confirm/i })).not.toBeInTheDocument();
+  });
+});
+
 describe('AppointmentDetailPage — Copy Portal Link generate-only modal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUserRole = 'AM';
+    mockClUserPermissions = [];
     Object.assign(navigator, {
       clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
     });
@@ -567,6 +771,7 @@ describe('AppointmentDetailPage — Copy Portal Link (T39)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUserRole = 'AM';
+    mockClUserPermissions = [];
     Object.assign(navigator, {
       clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
     });
@@ -616,5 +821,58 @@ describe('AppointmentDetailPage — Copy Portal Link (T39)', () => {
     renderPage('/appointments/with-portal-token');
     fireEvent.click(screen.getByTestId('copy-portal-link-button'));
     await screen.findByText('Send Portal Link to generate a fresh link');
+  });
+});
+
+/**
+ * Two tiers on purpose: recording what the tenant said is data entry, but
+ * declining on their behalf rejects the inspection, and the state machine
+ * admits only AM/OP/SYS to a `→ REJECTED` edge.
+ */
+describe('Tenant Availability action', () => {
+  it.each(['AM', 'OP', 'CL_ADMIN'])('is offered to %s', (role) => {
+    mockUserRole = role;
+    renderPage();
+    expect(screen.getByTestId('set-tenant-availability-button')).toBeInTheDocument();
+  });
+
+  it.each(['CL_USER', 'INSP'])('is hidden from %s', (role) => {
+    mockUserRole = role;
+    renderPage();
+    expect(screen.queryByTestId('set-tenant-availability-button')).toBeNull();
+  });
+
+  it('opens the dialog with the decline checkbox for an operator', () => {
+    mockUserRole = 'OP';
+    renderPage('/appointments/with-portal-token');
+    fireEvent.click(screen.getByTestId('set-tenant-availability-button'));
+
+    expect(screen.getByLabelText(/also mark tenant as unavailable/i)).toBeInTheDocument();
+  });
+
+  it('prefills the dialog from the top-level rental tenant availability', () => {
+    mockUserRole = 'OP';
+    renderPage('/appointments/with-portal-token');
+    fireEvent.click(screen.getByTestId('set-tenant-availability-button'));
+
+    expect(screen.getByTestId('start-MON')).toHaveValue('09:00');
+    expect(screen.getByTestId('end-MON')).toHaveValue('12:00');
+  });
+
+  it('does not offer the decline checkbox when the appointment cannot be rejected', () => {
+    mockUserRole = 'OP';
+    renderPage('/appointments/done');
+    fireEvent.click(screen.getByTestId('set-tenant-availability-button'));
+
+    expect(screen.queryByLabelText(/also mark tenant as unavailable/i)).toBeNull();
+  });
+
+  it('opens the dialog without the decline checkbox for CL_ADMIN', () => {
+    mockUserRole = 'CL_ADMIN';
+    renderPage('/appointments/awaiting');
+    fireEvent.click(screen.getByTestId('set-tenant-availability-button'));
+
+    expect(screen.getByRole('heading', { name: /set tenant availability/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/also mark tenant as unavailable/i)).toBeNull();
   });
 });

@@ -31,11 +31,28 @@ const mockNotifications = [
   },
 ];
 
+const noTenantForwardNotification = [
+  {
+    id: 'notif-no-tenant',
+    templateCode: 'INSPECTION_NOTICE',
+    channel: 'EMAIL',
+    recipient: 'tenant@example.com',
+    status: 'SKIPPED_OPT_OUT',
+    sentAt: null,
+    deliveredAt: null,
+    failedAt: null,
+    failureReason: 'AGENCY_FORWARD_NO_TENANT',
+    retryCount: 1,
+    createdAt: '2026-03-10T09:55:00Z',
+  },
+];
+
 vi.mock('../hooks/useAppointmentNotifications', () => ({
   useAppointmentNotifications: (id: string) => {
     if (id === 'loading') return { notifications: [], isLoading: true, isError: false, refetch: vi.fn() };
     if (id === 'error') return { notifications: [], isLoading: false, isError: true, refetch: vi.fn() };
     if (id === 'empty') return { notifications: [], isLoading: false, isError: false, refetch: vi.fn() };
+    if (id === 'no-tenant') return { notifications: noTenantForwardNotification, isLoading: false, isError: false, refetch: vi.fn() };
     return { notifications: mockNotifications, isLoading: false, isError: false, refetch: vi.fn() };
   },
 }));
@@ -70,6 +87,12 @@ describe('AppointmentNotificationsTab', () => {
     expect(screen.getByText('Failed')).toBeInTheDocument();
     expect(screen.getByText('Provider timeout')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
+  });
+
+  it('renders an operator-facing explanation when agency forwarding lacks a tenant', () => {
+    render(<AppointmentNotificationsTab appointmentId="no-tenant" />);
+
+    expect(screen.getByText('Agency does not notify tenants — NOT forwarded: no linked agency')).toBeInTheDocument();
   });
 
   it('shows loading state', () => {

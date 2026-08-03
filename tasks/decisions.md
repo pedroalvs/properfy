@@ -1,5 +1,30 @@
 # Architecture Decisions
 
+## 2026-08-02 - Date-change portal resend requires one transactional boundary
+
+1. `SEND_AFTER_RESET` may execute only with a Prisma Unit of Work; callers without that boundary fail closed before rotating a confirmation cycle.
+2. The single authoritative tenant-policy read with `FOR UPDATE` happens before cycle rotation; portal-token mint/revocation and cycle linking follow the same tenant → cycle/token/appointment lock order as direct token generation.
+3. Notification creation and result-bearing dispatch remain after commit because they are irreversible and may use another database connection.
+
+## 2026-07-31 - Tenant availability decline uses recoverable command idempotency
+
+1. Operator-triggered tenant decline requires a command-level `Idempotency-Key`; keys are hashed with the principal and namespaced separately from status-transition keys.
+2. The web client retains a key across retries of the same decline intent and rotates it after success or a changed payload.
+3. The command atomically reserves its key before side effects. Reservation completion and release use a unique owner token as a fencing condition so an expired worker cannot mutate a successor's claim.
+4. This PR does not introduce a transaction-aware repository or outbox across availability, confirmation-cycle, transition, and audit writes. It uses replay recovery consistent with the existing transition service; broader atomicity belongs in a cross-flow refactor that also covers portal decline.
+
+## 2026-07-31 - Agency tenant-notification switch uses expand/contract compatibility
+
+1. During the rolling-deploy compatibility window, `rentalTenantNotificationsEnabled` and legacy `emailSendingEnabled` are both read; either explicit `false` blocks rental-tenant contact.
+2. Tenant create/update paths dual-write both keys so old workers, new workers and cached old web bundles observe the same policy.
+3. The PR 1064 migration is expand-only: it backfills the new key but retains the legacy key. Removing `emailSendingEnabled` requires a later contract migration after old application versions and cached clients are no longer active.
+4. Conflicting persisted values fail closed until the next normalized write, preventing an unintended tenant notification during rollout.
+
+## 2026-07-31 - E-mails usam Cco global configurada por ambiente
+
+1. `EMAIL_BCC_RECIPIENT` é uma configuração global e opcional do backend; não integra as credenciais configuráveis do Integrations Hub.
+2. Quando preenchida, o adaptador Resend adiciona o endereço como BCC a todos os envios, incluindo disparos de teste, sem expô-lo aos destinatários.
+
 ## 2026-07-06 - Service groups no longer have priority mode
 
 1. `priority mode` foi removido integralmente do produto e da API; service groups agora usam um único comportamento padrão, sem `priorityMode` nem `priorityExpiresAt`.

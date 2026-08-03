@@ -5,7 +5,11 @@ import type {
   RestrictionSource as PrismaRestrictionSource,
   Prisma,
 } from '@prisma/client';
-import { OVERDUE_AUTO_CANCEL_STATUSES, OVERDUE_ELIGIBLE_STATUSES } from '@properfy/shared';
+import {
+  OVERDUE_AUTO_CANCEL_STATUSES,
+  OVERDUE_ELIGIBLE_STATUSES,
+  isRentalTenantNotificationsEnabled,
+} from '@properfy/shared';
 import { startOfOverdueAgeCutoff } from '../../../shared/domain/timezone-date';
 import { AppointmentEntity } from '../domain/appointment.entity';
 import { AppointmentContactEntity } from '../domain/appointment-contact.entity';
@@ -29,6 +33,9 @@ import type {
   AppointmentCustomField,
   ServiceTypeFlowType,
 } from '@properfy/shared';
+
+/** Same idiom as prisma-confirmation-cycle.repository.ts — the tx client is a narrowed PrismaClient. */
+type DbClient = PrismaClient | Prisma.TransactionClient;
 
 /**
  * Membership view of the shared `OVERDUE_ELIGIBLE_STATUSES` — `AppointmentFilters.status`
@@ -136,20 +143,28 @@ function mapRestrictionToEntity(row: any): AppointmentRestrictionEntity {
 export class PrismaAppointmentRepository implements IAppointmentRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
+  /** Caller's transaction when supplied, the global client otherwise. */
+  private db(tx?: Prisma.TransactionClient): DbClient {
+    return tx ?? this.prisma;
+  }
+
   async findById(
     id: string,
     tenantId: string | null,
+    tx?: Prisma.TransactionClient,
   ): Promise<AppointmentWithRelations | null> {
     const where: Record<string, unknown> = { id, deleted_at: null };
     if (tenantId) where['tenant_id'] = tenantId;
 
-    const row = await this.prisma.appointment.findFirst({
+    const row = await this.db(tx).appointment.findFirst({
       where,
       include: {
         contacts: true,
         restrictions: true,
         property: { select: { property_code: true, type: true, street: true, address_line_2: true, suburb: true, state: true, postcode: true, lat: true, lng: true, private_area_m2: true, total_area_m2: true, furnished: true, linen_provided: true, rent_amount: true } },
-        tenant: { select: { name: true, appointment_code_prefix: true } },
+        // settings_json rides along on the detail read only: it feeds the "Send Portal
+        // Link" disabled state, and the list has no such action.
+        tenant: { select: { name: true, appointment_code_prefix: true, settings_json: true } },
         branch: { select: { name: true } },
         service_type: { select: { name: true, flow_type: true } },
         inspector: { select: { name: true } },
@@ -208,6 +223,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       inspectorName: row.inspector?.name ?? null,
       tenantName: (row as any).tenant?.name ?? '',
       tenantAppointmentCodePrefix,
+      tenantRentalTenantNotificationsEnabled: isRentalTenantNotificationsEnabled(
+        (row as any).tenant?.settings_json as Record<string, unknown> | null,
+      ),
       hasActivePortalToken: ((row as any).portal_tokens as Array<{ id: string }>).length > 0,
       serviceGroupNumber: (row as any).service_group?.group_number ?? null,
     };
@@ -238,6 +256,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         service_type: { select: { name: true, flow_type: true } },
         inspector: { select: { name: true } },
         service_group: { select: { group_number: true } },
+        // Only the availability column: the list needs the rental tenant's
+        // weekly slots for the map's Confirm column, not the whole restriction.
+        restrictions: { select: { available_slots_json: true } },
       },
     });
     return rows.map((row) => {
@@ -261,6 +282,13 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         serviceTypeFlowType: (row.service_type?.flow_type ?? 'ROUTINE') as ServiceTypeFlowType,
         inspectorName: row.inspector?.name ?? null,
         serviceGroupNumber: row.service_group?.group_number ?? null,
+        // Found by content, not position: the single restriction row is shared
+        // between the operator and the portal, so whichever wrote last decides
+        // which row carries the slots.
+        rentalTenantAvailableSlots:
+          row.restrictions
+            .map((r) => r.available_slots_json as AvailableSlot[] | null)
+            .find((slots) => slots?.length) ?? null,
       };
     });
   }
@@ -335,6 +363,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       payoutAmount: number;
       pricingRuleSnapshotJson: Record<string, unknown> | null;
     }>,
+    tx?: Prisma.TransactionClient,
   ): Promise<void> {
     const updateData: Record<string, unknown> = {};
     if (data.status !== undefined) updateData['status'] = data.status;
@@ -373,7 +402,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     if (data.payoutAmount !== undefined) updateData['payout_amount'] = data.payoutAmount;
     if (data.pricingRuleSnapshotJson !== undefined) updateData['pricing_rule_snapshot_json'] = data.pricingRuleSnapshotJson;
 
-    await this.prisma.appointment.updateMany({
+    await this.db(tx).appointment.updateMany({
       where: { id, tenant_id: tenantId },
       data: updateData,
     });
@@ -656,19 +685,22 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     const serviceTypeIds = [...new Set(items.map((i) => i.appointment.serviceTypeId))];
     const serviceTypeRows = await this.prisma.serviceType.findMany({
       where: { id: { in: serviceTypeIds } },
-      select: { id: true, flow_type: true },
+      select: { id: true, flow_type: true, requires_rental_tenant_confirmation: true },
     });
     const flowTypeMap = new Map(serviceTypeRows.map((st) => [st.id, st.flow_type]));
+    const requiresConfMap = new Map(serviceTypeRows.map((st) => [st.id, st.requires_rental_tenant_confirmation]));
 
     const t1Service = new T1VisibilityService();
     return items.filter((item) => {
       const flowType = flowTypeMap.get(item.appointment.serviceTypeId) ?? 'ROUTINE';
+      const requiresConf = requiresConfMap.get(item.appointment.serviceTypeId) ?? true;
       return t1Service.isVisibleForInspector(
         flowType,
         item.appointment.rentalTenantConfirmationStatus,
         item.appointment.keyRequired,
         item.appointment.scheduledDate,
         todayCivil,
+        requiresConf,
       );
     });
   }
@@ -677,13 +709,14 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     const row = await this.prisma.appointment.findFirst({
       where: { id: appointmentId, deleted_at: null },
       include: {
-        service_type: { select: { flow_type: true } },
+        service_type: { select: { flow_type: true, requires_rental_tenant_confirmation: true } },
       },
     });
     if (!row) return false;
 
     const entity = mapToEntity(row);
     const flowType = row.service_type?.flow_type ?? 'ROUTINE';
+    const requiresConf = row.service_type?.requires_rental_tenant_confirmation ?? true;
 
     const t1Service = new T1VisibilityService();
     return t1Service.isVisibleForInspector(
@@ -692,6 +725,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       entity.keyRequired,
       entity.scheduledDate,
       todayCivil,
+      requiresConf,
     );
   }
 
@@ -725,8 +759,13 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       where: {
         scheduled_date: { gte: startOfDay, lt: endOfDay },
         rental_tenant_confirmation_status: { not: 'CONFIRMED' },
+        key_required: false,
         status: { notIn: ['DONE', 'CANCELLED', 'REJECTED'] },
         deleted_at: null,
+        service_type: {
+          flow_type: 'ROUTINE',
+          requires_rental_tenant_confirmation: true,
+        },
       },
     });
 

@@ -1,6 +1,10 @@
 import { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { UserRole } from '@properfy/shared';
+import {
+  AppointmentStatus,
+  UserRole,
+  TENANT_NOTIFICATIONS_BLOCKED_CODE,
+} from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsNav } from '@/components/layout/TabsNav';
 import { Button } from '@/components/ui/Button';
@@ -9,9 +13,11 @@ import { AppointmentStatusChip } from '@/features/appointments/components/Appoin
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 import { useGoBack } from '@/hooks/useGoBack';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
+import { wasRentalTenantNotified } from '../lib/rental-tenant-notice';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { useAppointmentCrossCheck } from '../hooks/useAppointmentCrossCheck';
 import { useAppointmentTransition } from '../hooks/useAppointmentTransition';
@@ -26,6 +32,7 @@ import { AppointmentTransitionActions } from '../components/AppointmentTransitio
 import { AppointmentFormDrawer } from '../components/AppointmentFormDrawer';
 import { AssignInspectorModal } from '../components/AssignInspectorModal';
 import { ForceConfirmDialog } from '../components/ForceConfirmDialog';
+import { TenantAvailabilityDialog } from '../components/TenantAvailabilityDialog';
 import { AppointmentPortalActivityTab } from '../components/AppointmentPortalActivityTab';
 import { useDeleteAppointment } from '../hooks/useDeleteAppointment';
 import { useForceConfirmation } from '../hooks/useForceConfirmation';
@@ -40,6 +47,12 @@ const TIMELINE_TAB = { id: 'timeline', label: 'Timeline' };
 const FINANCIAL_TAB = { id: 'financial', label: 'Financial' };
 const PORTAL_ACTIVITY_TAB = { id: 'portal-activity', label: 'Portal Activity' };
 const CAN_EDIT_ROLES: string[] = [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN];
+
+/** Shown on the disabled "Send Portal Link" button and on the 409 that backs it. */
+const TENANT_NOTIFICATIONS_BLOCKED_HINT =
+  'Notifications to the tenant are blocked for this agency. Use Copy Portal Link to send it yourself.';
+const MISSING_PRIMARY_CONTACT_HINT =
+  'No primary contact email or phone is available for this appointment. Use Copy Portal Link to send it yourself.';
 
 function isPrivilegedRole(role: string): boolean {
   return role === 'AM' || role === 'OP';
@@ -59,18 +72,24 @@ export function AppointmentDetailPage() {
   const [assignInspectorOpen, setAssignInspectorOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [forceConfirmOpen, setForceConfirmOpen] = useState(false);
+  const [tenantAvailabilityOpen, setTenantAvailabilityOpen] = useState(false);
   const { remove, isDeleting } = useDeleteAppointment(id ?? null, () => navigate('/appointments'));
   const { forceConfirm } = useForceConfirmation(id ?? null, refetch);
 
   const isPrivileged = user ? isPrivilegedRole(user.role) : false;
   const canEdit = user ? CAN_EDIT_ROLES.includes(user.role) : false;
+  // Agency-facing surfaces read the shared role matrix instead of `isPrivileged`,
+  // so CL_ADMIN reaches them without inheriting the operations-only actions.
+  const { canPerform, hasClUserFlag } = usePermissions();
+  const canUsePortalLink = canPerform('appointment.portal_link');
+  const canViewPortalActivity = canPerform('appointment.portal_activity');
   const { showSuccess, showError } = useSnackbar();
   const [isGeneratingPortalToken, setIsGeneratingPortalToken] = useState(false);
   const [isCopyingPortalLink, setIsCopyingPortalLink] = useState(false);
   const [generateAndCopyOpen, setGenerateAndCopyOpen] = useState(false);
   const tabs = [
     ...BASE_TABS,
-    ...(isPrivileged ? [PORTAL_ACTIVITY_TAB] : []),
+    ...(canViewPortalActivity ? [PORTAL_ACTIVITY_TAB] : []),
     ...(isPrivileged ? [NOTIFICATIONS_TAB] : []),
     ...(isPrivileged ? [TIMELINE_TAB] : []),
     ...(isPrivileged ? [FINANCIAL_TAB] : []),
@@ -94,25 +113,55 @@ export function AppointmentDetailPage() {
     appointment.status === 'AWAITING_INSPECTOR' &&
     !appointment.inspectorId &&
     (user?.role === 'OP' || user?.role === 'AM');
+  // The owning agency contacts its own tenants, so the platform must not. The button
+  // stays VISIBLE but disabled: an action that silently vanishes reads as a missing
+  // feature, whereas a disabled one with a reason explains itself. Copy Portal Link
+  // is deliberately left enabled — it dispatches nothing.
+  // `=== false` and not the shared isRentalTenantNotificationsEnabled predicate: that one
+  // takes a settings blob, whereas the API already resolved the tri-state into an optional
+  // boolean here. Absent still means enabled.
+  const tenantNotificationsBlocked = appointment?.rentalTenantNotificationsEnabled === false;
+  const hasPrimaryContact = !!appointment?.contactEmail || !!appointment?.contactPhone;
+  // Policy is authoritative, so it explains the disabled action even when the
+  // appointment is also missing a contact.
+  const sendPortalLinkDisabledHint = tenantNotificationsBlocked
+    ? TENANT_NOTIFICATIONS_BLOCKED_HINT
+    : !hasPrimaryContact
+      ? MISSING_PRIMARY_CONTACT_HINT
+      : undefined;
   // Portal link is only meaningful once the appointment leaves DRAFT and is
   // not terminal — mirrors the backend INVALID_APPOINTMENT_STATUS gate.
   const canSendPortalLink = !!appointment &&
-    isPrivileged &&
-    (appointment.status === 'AWAITING_INSPECTOR' || appointment.status === 'SCHEDULED') &&
-    (!!appointment.contactEmail || !!appointment.contactPhone);
-  const canCopyPortalLink = !!appointment && isPrivileged;
+    canUsePortalLink &&
+    (appointment.status === 'AWAITING_INSPECTOR' || appointment.status === 'SCHEDULED');
+  const canCopyPortalLink = !!appointment && canUsePortalLink;
   // Generate-only (no notification) follows the same backend status gate as Send,
   // but needs no contact — nothing is dispatched.
   const canGeneratePortalToken = !!appointment &&
-    isPrivileged &&
+    canUsePortalLink &&
     (appointment.status === 'AWAITING_INSPECTOR' || appointment.status === 'SCHEDULED');
   const canDelete = !!appointment && user?.role === 'AM' && appointment.status === 'DRAFT';
+  // `hasClUserFlag` is unconditional for every role except CL_USER, mirroring the
+  // server-side `assertClUserPermission` — so this reads as AM/OP/CL_ADMIN plus
+  // CL_USER holding the flag.
   const canForceConfirm = !!appointment &&
-    isPrivileged &&
+    canPerform('appointment.force_confirmation') &&
+    hasClUserFlag('force_confirmation') &&
     appointment.rentalTenantConfirmationStatus !== 'CONFIRMED' &&
     appointment.status !== 'DONE' &&
     appointment.status !== 'CANCELLED' &&
     appointment.status !== 'REJECTED';
+
+  // Recording what the tenant said is data entry, so the agency admin may do it
+  // too. Declining on their behalf is not: every `→ REJECTED` edge in the state
+  // machine admits only AM/OP/SYS, so the checkbox is gated separately below.
+  const canSetTenantAvailability = !!appointment &&
+    (isPrivileged || user?.role === UserRole.CL_ADMIN);
+  const canMarkTenantUnavailable = !!appointment && isPrivileged && (
+    appointment.status === AppointmentStatus.AWAITING_INSPECTOR
+    || appointment.status === AppointmentStatus.SCHEDULED
+  );
+  const tenantAvailability = appointment?.rentalTenantAvailableSlots;
 
   const handleEdit = useCallback(() => {
     if (!canEditAppointment) {
@@ -130,7 +179,14 @@ export function AppointmentDetailPage() {
         {} as never,
       );
       if (error) {
-        const err = error as { error?: { message?: string } };
+        const err = error as { error?: { message?: string; code?: string } };
+        // Defence in depth: the button is disabled for a blocked agency, but a page
+        // left open while an AM flips the setting would still get here.
+        if (err?.error?.code === TENANT_NOTIFICATIONS_BLOCKED_CODE) {
+          showError(TENANT_NOTIFICATIONS_BLOCKED_HINT);
+          refetch();
+          return;
+        }
         showError(err?.error?.message ?? 'Failed to send portal link');
         return;
       }
@@ -278,15 +334,28 @@ export function AppointmentDetailPage() {
             </Button>
           )}
           {canSendPortalLink && (
-            <Button
-              variant="secondary"
-              onClick={handleGeneratePortalToken}
-              loading={isGeneratingPortalToken}
-              data-testid="send-portal-link-button"
-            >
-              <i className="mdi mdi-link-variant text-base" aria-hidden="true" />
-              Send Portal Link
-            </Button>
+            <div className="flex flex-col items-start gap-1">
+              <Button
+                variant="secondary"
+                onClick={handleGeneratePortalToken}
+                loading={isGeneratingPortalToken}
+                disabled={!!sendPortalLinkDisabledHint}
+                aria-describedby={
+                  sendPortalLinkDisabledHint ? 'send-portal-link-disabled-hint' : undefined
+                }
+                data-testid="send-portal-link-button"
+              >
+                <i className="mdi mdi-link-variant text-base" aria-hidden="true" />
+                Send Portal Link
+              </Button>
+              {sendPortalLinkDisabledHint && (
+                // Native disabled controls cannot receive focus, so the explanation
+                // must remain visibly available rather than relying on a tooltip.
+                <span id="send-portal-link-disabled-hint" className="max-w-xs text-xs text-text-secondary">
+                  {sendPortalLinkDisabledHint}
+                </span>
+              )}
+            </div>
           )}
           {canCopyPortalLink && (
             <span
@@ -331,6 +400,16 @@ export function AppointmentDetailPage() {
               Force Confirm
             </Button>
           )}
+          {canSetTenantAvailability && (
+            <Button
+              variant="outlined"
+              onClick={() => setTenantAvailabilityOpen(true)}
+              data-testid="set-tenant-availability-button"
+            >
+              <i className="mdi mdi-calendar-clock text-base" aria-hidden="true" />
+              Tenant Availability
+            </Button>
+          )}
           {canEditAppointment && (
             <button
               onClick={handleEdit}
@@ -371,7 +450,7 @@ export function AppointmentDetailPage() {
           {activeTab === 'financial' && isPrivileged && (
             <AppointmentFinancialTab appointmentId={appointment.id} />
           )}
-          {activeTab === 'portal-activity' && isPrivileged && (
+          {activeTab === 'portal-activity' && canViewPortalActivity && (
             <AppointmentPortalActivityTab appointmentId={appointment.id} />
           )}
         </div>
@@ -381,7 +460,7 @@ export function AppointmentDetailPage() {
             <AppointmentTransitionActions
               transitions={transitions}
               onTransition={transition}
-              rentalTenantConfirmed={appointment.rentalTenantConfirmationStatus === 'CONFIRMED'}
+              rentalTenantNotified={wasRentalTenantNotified(appointment)}
               loading={isTransitioning}
             />
           </div>
@@ -454,6 +533,19 @@ export function AppointmentDetailPage() {
           setForceConfirmOpen(false);
         }}
       />
+      {appointment && (
+        <TenantAvailabilityDialog
+          open={tenantAvailabilityOpen}
+          appointmentId={appointment.id}
+          slots={tenantAvailability}
+          canMarkUnavailable={canMarkTenantUnavailable}
+          onClose={() => setTenantAvailabilityOpen(false)}
+          onSaved={() => {
+            setTenantAvailabilityOpen(false);
+            refetch();
+          }}
+        />
+      )}
     </div>
   );
 }

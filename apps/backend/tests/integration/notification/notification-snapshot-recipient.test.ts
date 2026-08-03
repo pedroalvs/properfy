@@ -109,6 +109,9 @@ describe('Notification recipient resolution from snapshot fields (T047)', () => 
     };
     notificationRepo = {
       existsByAppointmentAndTemplate: vi.fn().mockResolvedValue(false),
+      // The cancellation opt-in is gated on "was an inspection notice ever sent";
+      // true here so this suite stays about recipient resolution.
+      existsByAppointmentAndTemplates: vi.fn().mockResolvedValue(true),
       findLatestByAppointmentAndTemplates: vi.fn().mockResolvedValue(null),
     };
     mintPortalTokenService = {

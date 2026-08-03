@@ -80,6 +80,7 @@ function makeSut() {
     findAll: vi.fn(),
     count: vi.fn(),
     save: vi.fn(),
+    saveIfAbsent: vi.fn(),
     update: vi.fn(),
     existsByAppointmentAndTemplate: vi.fn(),
     findRetryable: vi.fn(),
@@ -127,9 +128,21 @@ function makeSut() {
   } as unknown as Logger;
   const metricsObj = {
     incrementMissingVariableCount: vi.fn(),
+    incrementNotificationHandlerErrorCount: vi.fn(),
+    incrementAgencyForwardFailedCount: vi.fn(),
   } as unknown as MetricsCollector;
   const getTenantSettings = vi.fn().mockResolvedValue({});
   const auditService = { log: vi.fn() } as unknown as AuditService;
+  const getAgencyForwardRecipient = vi.fn().mockResolvedValue({
+    ok: true,
+    recipient: {
+      branchName: 'Sydney CBD Branch',
+      contactEmail: 'branch@agency.example',
+      propertyAddress: '123 Flower St, Sydney NSW 2000',
+      appointmentCode: 'INS-1001',
+    },
+  });
+  const forwardNotification = vi.fn().mockResolvedValue(undefined);
 
   const useCase = new SendNotificationUseCase({
     auditService,
@@ -143,6 +156,8 @@ function makeSut() {
     logger,
     metrics: metricsObj,
     getTenantSettings,
+    getAgencyForwardRecipient,
+    forwardNotification,
   });
 
   return {
@@ -156,6 +171,8 @@ function makeSut() {
     logger,
     metrics: metricsObj,
     getTenantSettings,
+    getAgencyForwardRecipient,
+    forwardNotification,
     auditService,
     useCase,
   };
@@ -711,22 +728,7 @@ describe('SendNotificationUseCase', () => {
       expect(sut.emailProvider.send).toHaveBeenCalled();
     });
 
-    it('skips EMAIL sends when the agency has email sending disabled', async () => {
-      const sut = makeSut();
-      const notification = makeNotification({ channel: 'EMAIL' });
-      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
-      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
-      vi.mocked(sut.getTenantSettings).mockResolvedValue({ emailSendingEnabled: false });
-
-      await sut.useCase.execute({ notificationId: 'notif-1' });
-
-      expect(sut.emailProvider.send).not.toHaveBeenCalled();
-      expect(notification.status).toBe('SKIPPED_OPT_OUT');
-      expect(notification.failureReason).toBe('AGENCY_EMAIL_DISABLED');
-      expect(sut.notificationRepo.update).toHaveBeenCalled();
-    });
-
-    it('still sends EMAIL when emailSendingEnabled is absent (default on)', async () => {
+    it('still sends EMAIL when rentalTenantNotificationsEnabled is absent (default on)', async () => {
       const sut = makeSut();
       vi.mocked(sut.notificationRepo.findById).mockResolvedValue(makeNotification({ channel: 'EMAIL' }));
       vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
@@ -737,21 +739,651 @@ describe('SendNotificationUseCase', () => {
 
       expect(sut.emailProvider.send).toHaveBeenCalled();
     });
+  });
 
-    it('still sends SMS even when agency email sending is disabled', async () => {
+  // Per-agency occupant kill switch. Replaces the old EMAIL-only
+  // `emailSendingEnabled`, which leaked every SMS to the rental tenant and also
+  // suppressed the agency's own mail. Scoped by TEMPLATE_TARGETS, not by channel.
+  describe('agency rental-tenant notification kill switch', () => {
+    const BLOCKED = { rentalTenantNotificationsEnabled: false };
+
+    it('blocks an EMAIL addressed to the rental tenant', async () => {
       const sut = makeSut();
-      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
-        makeNotification({ channel: 'SMS', recipient: '+61412345678' }),
-      );
-      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
-        makeTemplate({ channel: 'SMS', bodyText: 'Hi {{rentalTenantName}}' }),
-      );
-      vi.mocked(sut.getTenantSettings).mockResolvedValue({ emailSendingEnabled: false });
-      vi.mocked(sut.smsProvider.send).mockResolvedValue({ messageId: 'sms-1' });
+      const notification = makeNotification({ channel: 'EMAIL', templateCode: 'INSPECTION_NOTICE' });
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+      vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
 
       await sut.useCase.execute({ notificationId: 'notif-1' });
 
-      expect(sut.smsProvider.send).toHaveBeenCalled();
+      expect(sut.emailProvider.send).not.toHaveBeenCalled();
+      expect(notification.status).toBe('SKIPPED_OPT_OUT');
+      expect(notification.failureReason).toBe('AGENCY_TENANT_NOTIFICATIONS_DISABLED');
+      expect(sut.notificationRepo.update).toHaveBeenCalled();
+    });
+
+    it('gives a blocked agency policy precedence over an operational recipient opt-out', async () => {
+      const { NotificationConsentEntity: ConsentClass } = await import(
+        '../../../src/modules/notification/domain/notification-consent.entity'
+      );
+      const consent = new ConsentClass({
+        id: 'consent-1',
+        recipient: 'user@example.com',
+        channel: 'EMAIL' as const,
+        tenantId: 'tenant-1',
+        notificationClass: 'OPERATIONAL',
+        optedOut: true,
+        optedOutAt: now,
+        changeSource: 'operator_override',
+        changedAt: now,
+        changedByUserId: null,
+        reason: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+      const sut = makeSut();
+      const notification = makeNotification({
+        channel: 'EMAIL',
+        templateCode: 'INSPECTION_NOTICE',
+        notificationClass: 'OPERATIONAL',
+      });
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ templateCode: 'INSPECTION_NOTICE', notificationClass: 'OPERATIONAL' }),
+      );
+      vi.mocked(sut.consentRepo.findByScope).mockResolvedValue(consent);
+      vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(notification.status).toBe('SKIPPED_OPT_OUT');
+      expect(notification.failureReason).toBe('AGENCY_TENANT_NOTIFICATIONS_DISABLED');
+      expect(sut.forwardNotification).toHaveBeenCalledTimes(1);
+    });
+
+    it('blocks an SMS addressed to the rental tenant', async () => {
+      // The whole point of the change: the previous flag was gated on
+      // `channel === 'EMAIL'`, so an agency that had "stopped notifications"
+      // still texted the occupant on every reminder and the portal link.
+      const sut = makeSut();
+      const notification = makeNotification({
+        channel: 'SMS',
+        recipient: '+61412345678',
+        templateCode: 'REMINDER_3_DAYS_SMS',
+      });
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ templateCode: 'REMINDER_3_DAYS_SMS', channel: 'SMS', bodyText: 'Hi {{rentalTenantName}}' }),
+      );
+      vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.smsProvider.send).not.toHaveBeenCalled();
+      expect(notification.status).toBe('SKIPPED_OPT_OUT');
+      expect(notification.failureReason).toBe('AGENCY_TENANT_NOTIFICATIONS_DISABLED');
+    });
+
+    it('blocks the portal link, which is TRANSACTIONAL-adjacent but still occupant-facing', async () => {
+      const sut = makeSut();
+      const notification = makeNotification({ channel: 'EMAIL', templateCode: 'TENANT_PORTAL_LINK' });
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ templateCode: 'TENANT_PORTAL_LINK' }),
+      );
+      vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.emailProvider.send).not.toHaveBeenCalled();
+    });
+
+    it('fails closed without resolving or mirroring when a suppressed row has no tenant scope', async () => {
+      const sut = makeSut();
+      const notification = makeNotification({
+        tenantId: null,
+        channel: 'EMAIL',
+        templateCode: 'INSPECTION_NOTICE',
+      });
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ tenantId: null, templateCode: 'INSPECTION_NOTICE' }),
+      );
+      vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
+
+      await sut.useCase.execute({ notificationId: notification.id });
+
+      expect(notification.status).toBe('SKIPPED_OPT_OUT');
+      expect(notification.failureReason).toBe('AGENCY_FORWARD_NO_TENANT');
+      expect(sut.getAgencyForwardRecipient).not.toHaveBeenCalled();
+      expect(sut.forwardNotification).not.toHaveBeenCalled();
+      expect(sut.metrics.incrementAgencyForwardFailedCount).toHaveBeenCalledOnce();
+    });
+
+    it('does NOT block a TRANSACTIONAL occupant notice from being suppressed', async () => {
+      // TRANSACTIONAL bypasses *consent*, but the agency switch is a different
+      // policy and sits below it: an agency that never contacts occupants must
+      // not have a confirmation email slip out.
+      const sut = makeSut();
+      const notification = makeNotification({
+        channel: 'EMAIL',
+        templateCode: 'INSPECTION_CONFIRMED',
+        notificationClass: 'TRANSACTIONAL',
+      });
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ templateCode: 'INSPECTION_CONFIRMED', notificationClass: 'TRANSACTIONAL' }),
+      );
+      vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.emailProvider.send).not.toHaveBeenCalled();
+      expect(notification.failureReason).toBe('AGENCY_TENANT_NOTIFICATIONS_DISABLED');
+    });
+
+    it('still sends an agency-targeted notification', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+        makeNotification({ channel: 'EMAIL', templateCode: 'INSPECTION_CANCELLED_AGENCY' }),
+      );
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ templateCode: 'INSPECTION_CANCELLED_AGENCY' }),
+      );
+      vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
+      vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.emailProvider.send).toHaveBeenCalled();
+    });
+
+    it('still sends a password reset to a user of the blocked agency', async () => {
+      // Regression for the bug the old flag caused: `emailSendingEnabled: false`
+      // suppressed EVERY email on the tenant, so a CL_ADMIN of that agency could
+      // never reset their password.
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+        makeNotification({ channel: 'EMAIL', templateCode: 'PASSWORD_RESET', appointmentId: null }),
+      );
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ templateCode: 'PASSWORD_RESET' }),
+      );
+      vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
+      vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.emailProvider.send).toHaveBeenCalled();
+    });
+
+    it('still sends an inspector-targeted notification', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+        makeNotification({ channel: 'EMAIL', templateCode: 'INSPECTOR_GROUP_ASSIGNED' }),
+      );
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ templateCode: 'INSPECTOR_GROUP_ASSIGNED' }),
+      );
+      vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
+      vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.emailProvider.send).toHaveBeenCalled();
+    });
+
+    it('sends the occupant notice normally when the agency has not blocked it', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(makeNotification({ channel: 'EMAIL' }));
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+      vi.mocked(sut.getTenantSettings).mockResolvedValue({ rentalTenantNotificationsEnabled: true });
+      vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.emailProvider.send).toHaveBeenCalled();
+    });
+
+    describe('forwarding the suppressed message to the agency', () => {
+      it('forwards to the branch contact using the agency-targeted template', async () => {
+        const sut = makeSut();
+        vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+          makeNotification({ channel: 'EMAIL', templateCode: 'INSPECTION_NOTICE' }),
+        );
+        vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+        vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
+
+        await sut.useCase.execute({ notificationId: 'notif-1' });
+
+        expect(sut.forwardNotification).toHaveBeenCalledTimes(1);
+        const forwarded = vi.mocked(sut.forwardNotification).mock.calls[0][0];
+        expect(forwarded.templateCode).toBe('TENANT_NOTICE_FORWARDED_AGENCY');
+        expect(forwarded.recipient).toBe('branch@agency.example');
+        expect(forwarded.channel).toBe('EMAIL');
+        expect(forwarded.tenantId).toBe('tenant-1');
+        expect(forwarded.appointmentId).toBe('appt-1');
+        expect(forwarded.notificationId).toBe('9a1d6ac5-ef86-517f-9e7a-dc2d96b3ddce');
+      });
+
+      it('names the suppressed message so the agency knows what to act on', async () => {
+        const sut = makeSut();
+        vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+          makeNotification({ channel: 'EMAIL', templateCode: 'REMINDER_7_DAYS' }),
+        );
+        vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+          makeTemplate({ templateCode: 'REMINDER_7_DAYS' }),
+        );
+        vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
+
+        await sut.useCase.execute({ notificationId: 'notif-1' });
+
+        const payload = vi.mocked(sut.forwardNotification).mock.calls[0][0].payloadJson;
+        expect(payload.suppressedTemplateLabel).toBe('Reminder – 7 Days');
+        expect(payload.suppressedChannel).toBe('EMAIL');
+        // The occupant's own variables ride along so the agency can reproduce the message.
+        expect(payload.rentalTenantName).toBe('John');
+      });
+
+      it('forwards a suppressed SMS as EMAIL, since the agency has no SMS channel', async () => {
+        const sut = makeSut();
+        vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+          makeNotification({ channel: 'SMS', recipient: '+61412345678', templateCode: 'TENANT_SMS_ALERT' }),
+        );
+        vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+          makeTemplate({ templateCode: 'TENANT_SMS_ALERT', channel: 'SMS', bodyText: 'Alert' }),
+        );
+        vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
+
+        await sut.useCase.execute({ notificationId: 'notif-1' });
+
+        const forwarded = vi.mocked(sut.forwardNotification).mock.calls[0][0];
+        expect(forwarded.channel).toBe('EMAIL');
+        expect(forwarded.payloadJson.suppressedChannel).toBe('SMS');
+      });
+
+      it('marks the original suppressed BEFORE forwarding, so a crash never leaks the message', async () => {
+        const sut = makeSut();
+        const order: string[] = [];
+        vi.mocked(sut.notificationRepo.findById).mockResolvedValue(makeNotification({ channel: 'EMAIL' }));
+        vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+        vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
+        vi.mocked(sut.notificationRepo.update).mockImplementation(async () => {
+          order.push('update');
+        });
+        vi.mocked(sut.forwardNotification).mockImplementation(async () => {
+          order.push('forward');
+        });
+
+        await sut.useCase.execute({ notificationId: 'notif-1' });
+
+        expect(order).toEqual(['update', 'forward', 'update']);
+      });
+
+      it('persists a future recovery schedule before forwarding and clears it after success', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(now);
+        const random = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+
+        try {
+          const sut = makeSut();
+          const persisted: Array<{
+            failureReason: string | null;
+            retryCount: number;
+            nextRetryAt: Date | null;
+          }> = [];
+          const notification = makeNotification({ channel: 'EMAIL' });
+          vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+          vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+          vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
+          vi.mocked(sut.notificationRepo.update).mockImplementation(async (saved) => {
+            persisted.push({
+              failureReason: saved.failureReason,
+              retryCount: saved.retryCount,
+              nextRetryAt: saved.nextRetryAt,
+            });
+          });
+
+          await sut.useCase.execute({ notificationId: notification.id });
+
+          expect(persisted).toEqual([
+            {
+              failureReason: 'AGENCY_TENANT_NOTIFICATIONS_DISABLED',
+              retryCount: 0,
+              nextRetryAt: new Date('2026-03-16T10:00:15.000Z'),
+            },
+            {
+              failureReason: 'AGENCY_TENANT_NOTIFICATIONS_DISABLED',
+              retryCount: 0,
+              nextRetryAt: null,
+            },
+          ]);
+          expect(sut.forwardNotification).toHaveBeenCalledOnce();
+        } finally {
+          random.mockRestore();
+          vi.useRealTimers();
+        }
+      });
+
+      it('counts a branch with no contact email instead of failing silently', async () => {
+        const sut = makeSut();
+        vi.mocked(sut.notificationRepo.findById).mockResolvedValue(makeNotification({ channel: 'EMAIL' }));
+        vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+        vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
+        vi.mocked(sut.getAgencyForwardRecipient).mockResolvedValue({
+          ok: false,
+          reason: 'NO_BRANCH_EMAIL',
+        });
+
+        await sut.useCase.execute({ notificationId: 'notif-1' });
+
+        expect(sut.forwardNotification).not.toHaveBeenCalled();
+        expect(sut.logger.warn).toHaveBeenCalled();
+        // Its own metric, not the shared handler-error counter: this is the one case
+        // where neither the occupant nor the agency is told, so it must be alertable.
+        expect(sut.metrics.incrementAgencyForwardFailedCount).toHaveBeenCalled();
+      });
+
+      it('keeps the block when forwarding throws', async () => {
+        // The mirror is best-effort; the suppression is not.
+        const sut = makeSut();
+        const notification = makeNotification({ channel: 'EMAIL' });
+        vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+        vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+        vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
+        vi.mocked(sut.forwardNotification).mockRejectedValue(new Error('queue down'));
+
+        await expect(sut.useCase.execute({ notificationId: 'notif-1' })).resolves.toBeUndefined();
+
+        expect(sut.emailProvider.send).not.toHaveBeenCalled();
+        expect(notification.status).toBe('SKIPPED_OPT_OUT');
+      });
+
+      it('records on the row when the mirror could not be addressed', async () => {
+        // Without this the suppressed row is byte-identical whether the agency was told
+        // or not, so the Notifications tab reads "working as configured" while nobody
+        // was actually informed.
+        const sut = makeSut();
+        const notification = makeNotification({ channel: 'EMAIL' });
+        vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+        vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+        vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
+        vi.mocked(sut.getAgencyForwardRecipient).mockResolvedValue({
+          ok: false,
+          reason: 'NO_BRANCH_EMAIL',
+        });
+
+        await sut.useCase.execute({ notificationId: 'notif-1' });
+
+        expect(notification.failureReason).toBe('AGENCY_FORWARD_NO_BRANCH_EMAIL');
+      });
+
+      it('records a distinct reason when the mirror throws', async () => {
+        const sut = makeSut();
+        const notification = makeNotification({ channel: 'EMAIL' });
+        vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+        vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+        vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
+        vi.mocked(sut.forwardNotification).mockRejectedValue(new Error('queue down'));
+
+        await sut.useCase.execute({ notificationId: 'notif-1' });
+
+        expect(notification.failureReason).toBe('AGENCY_FORWARD_FAILED');
+      });
+
+      it('leaves the plain suppression reason when the mirror succeeds', async () => {
+        const sut = makeSut();
+        const notification = makeNotification({ channel: 'EMAIL' });
+        vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+        vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+        vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
+
+        await sut.useCase.execute({ notificationId: 'notif-1' });
+
+        expect(notification.failureReason).toBe('AGENCY_TENANT_NOTIFICATIONS_DISABLED');
+      });
+
+      it('re-derives address and code, so an SMS-triggered mirror is not blank', async () => {
+        const sut = makeSut();
+        vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+          makeNotification({
+            channel: 'SMS',
+            recipient: '+61412345678',
+            templateCode: 'TENANT_SMS_ALERT',
+            // An SMS payload carries neither the address nor the code.
+            payloadJson: { rentalTenantName: 'John' },
+          }),
+        );
+        vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+          makeTemplate({ templateCode: 'TENANT_SMS_ALERT', channel: 'SMS', bodyText: 'Alert' }),
+        );
+        vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
+
+        await sut.useCase.execute({ notificationId: 'notif-1' });
+
+        const payload = vi.mocked(sut.forwardNotification).mock.calls[0][0].payloadJson;
+        expect(payload.propertyAddress).toBe('123 Flower St, Sydney NSW 2000');
+        expect(payload.appointmentCode).toBe('INS-1001');
+      });
+
+      it('does not forward a notification that was never occupant-facing', async () => {
+        const sut = makeSut();
+        vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+          makeNotification({ channel: 'EMAIL', templateCode: 'INSPECTION_CANCELLED_AGENCY' }),
+        );
+        vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+          makeTemplate({ templateCode: 'INSPECTION_CANCELLED_AGENCY' }),
+        );
+        vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
+        vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
+
+        await sut.useCase.execute({ notificationId: 'notif-1' });
+
+        expect(sut.forwardNotification).not.toHaveBeenCalled();
+      });
+
+      describe('recovery after a crash between suppression and mirror', () => {
+        function suppressedRow(failureReason = 'AGENCY_TENANT_NOTIFICATIONS_DISABLED') {
+          return makeNotification({
+            channel: 'EMAIL',
+            status: 'SKIPPED_OPT_OUT',
+            failureReason,
+          });
+        }
+
+        it('creates the missing mirror instead of throwing on the re-run', async () => {
+          // The row is terminal, so nothing else re-enqueues it: throwing here would lose
+          // the mirror forever, with a DLQ trace that only says "invalid status".
+          const sut = makeSut();
+          vi.mocked(sut.notificationRepo.findById)
+            .mockResolvedValueOnce(suppressedRow())
+            .mockResolvedValueOnce(null);
+
+          await expect(sut.useCase.execute({ notificationId: 'notif-1' })).resolves.toBeUndefined();
+
+          expect(sut.forwardNotification).toHaveBeenCalledTimes(1);
+          expect(sut.emailProvider.send).not.toHaveBeenCalled();
+        });
+
+        it('recovers the mirror even when the appointment already has mirrors for OTHER messages', async () => {
+          // A blocked appointment collects a mirror per withheld message (notice, three
+          // reminders, T-2 alert, portal link). An appointment-wide existence check
+          // reported messages 2..N as already handled and dropped their mirrors.
+          const sut = makeSut();
+          vi.mocked(sut.notificationRepo.findById)
+            .mockResolvedValueOnce(suppressedRow())
+            .mockResolvedValueOnce(null);
+          // Some other message on this appointment was mirrored...
+          vi.mocked(sut.notificationRepo.existsByAppointmentAndTemplate).mockResolvedValue(true);
+
+          await sut.useCase.execute({ notificationId: 'notif-1' });
+
+          expect(sut.forwardNotification).toHaveBeenCalledTimes(1);
+          expect(sut.notificationRepo.findById).toHaveBeenCalledWith(
+            '9a1d6ac5-ef86-517f-9e7a-dc2d96b3ddce',
+          );
+        });
+
+        it('recognizes an existing mirror by its deterministic notification ID', async () => {
+          const sut = makeSut();
+          const source = suppressedRow('AGENCY_FORWARD_FAILED');
+          source.nextRetryAt = new Date('2026-03-16T09:59:00.000Z');
+          const mirrorId = '9a1d6ac5-ef86-517f-9e7a-dc2d96b3ddce';
+          const mirror = makeNotification({
+            id: mirrorId,
+            templateCode: 'TENANT_NOTICE_FORWARDED_AGENCY',
+            status: 'PENDING',
+          });
+          vi.mocked(sut.notificationRepo.findById)
+            .mockResolvedValueOnce(source)
+            .mockResolvedValueOnce(mirror);
+
+          await expect(sut.useCase.execute({ notificationId: source.id })).resolves.toBeUndefined();
+
+          expect(sut.notificationRepo.findById).toHaveBeenCalledWith(mirrorId);
+          expect(sut.forwardNotification).not.toHaveBeenCalled();
+          expect(sut.emailProvider.send).not.toHaveBeenCalled();
+          expect(source.failureReason).toBe('AGENCY_TENANT_NOTIFICATIONS_DISABLED');
+          expect(source.nextRetryAt).toBeNull();
+          expect(sut.notificationRepo.update).toHaveBeenCalledWith(source);
+        });
+
+        it('clears recovery state after creating a missing mirror', async () => {
+          const sut = makeSut();
+          const source = makeNotification({
+            channel: 'EMAIL',
+            status: 'SKIPPED_OPT_OUT',
+            failureReason: 'AGENCY_FORWARD_FAILED',
+            retryCount: 2,
+            nextRetryAt: new Date('2026-03-16T09:59:00.000Z'),
+          });
+          vi.mocked(sut.notificationRepo.findById)
+            .mockResolvedValueOnce(source)
+            .mockResolvedValueOnce(null);
+
+          await sut.useCase.execute({ notificationId: source.id });
+
+          expect(source.failureReason).toBe('AGENCY_TENANT_NOTIFICATIONS_DISABLED');
+          expect(source.retryCount).toBe(2);
+          expect(source.nextRetryAt).toBeNull();
+          expect(sut.notificationRepo.update).toHaveBeenCalledWith(source);
+          expect(sut.emailProvider.send).not.toHaveBeenCalled();
+        });
+
+        it('increments and schedules recovery when recipient lookup still fails', async () => {
+          vi.useFakeTimers();
+          vi.setSystemTime(now);
+          const random = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+
+          try {
+            const sut = makeSut();
+            const source = makeNotification({
+              channel: 'EMAIL',
+              status: 'SKIPPED_OPT_OUT',
+              failureReason: 'AGENCY_FORWARD_NO_BRANCH_EMAIL',
+              retryCount: 2,
+              nextRetryAt: new Date('2026-03-16T09:59:00.000Z'),
+            });
+            vi.mocked(sut.notificationRepo.findById)
+              .mockResolvedValueOnce(source)
+              .mockResolvedValueOnce(null);
+            vi.mocked(sut.getAgencyForwardRecipient).mockResolvedValue({
+              ok: false,
+              reason: 'NO_BRANCH_EMAIL',
+            });
+
+            await sut.useCase.execute({ notificationId: source.id });
+
+            expect(source.status).toBe('SKIPPED_OPT_OUT');
+            expect(source.failureReason).toBe('AGENCY_FORWARD_NO_BRANCH_EMAIL');
+            expect(source.retryCount).toBe(3);
+            expect(source.nextRetryAt).toEqual(new Date('2026-03-16T10:02:00.000Z'));
+            expect(sut.emailProvider.send).not.toHaveBeenCalled();
+          } finally {
+            random.mockRestore();
+            vi.useRealTimers();
+          }
+        });
+
+        it('makes exhausted recovery terminal without sending the occupant notification', async () => {
+          const sut = makeSut();
+          const source = makeNotification({
+            channel: 'EMAIL',
+            status: 'SKIPPED_OPT_OUT',
+            failureReason: 'AGENCY_FORWARD_FAILED',
+            retryCount: MAX_RETRY_COUNT - 1,
+            nextRetryAt: new Date('2026-03-16T09:59:00.000Z'),
+          });
+          vi.mocked(sut.notificationRepo.findById)
+            .mockResolvedValueOnce(source)
+            .mockResolvedValueOnce(null);
+          vi.mocked(sut.forwardNotification).mockRejectedValue(new Error('queue down'));
+
+          await sut.useCase.execute({ notificationId: source.id });
+
+          expect(source.status).toBe('SKIPPED_OPT_OUT');
+          expect(source.failureReason).toBe('AGENCY_FORWARD_FAILED');
+          expect(source.retryCount).toBe(MAX_RETRY_COUNT);
+          expect(source.nextRetryAt).toBeNull();
+          expect(sut.emailProvider.send).not.toHaveBeenCalled();
+        });
+
+        it('retries a previously failed mirror', async () => {
+          const sut = makeSut();
+          vi.mocked(sut.notificationRepo.findById)
+            .mockResolvedValueOnce(suppressedRow('AGENCY_FORWARD_FAILED'))
+            .mockResolvedValueOnce(null);
+
+          await sut.useCase.execute({ notificationId: 'notif-1' });
+
+          expect(sut.forwardNotification).toHaveBeenCalledTimes(1);
+        });
+
+        it('still throws for a consent opt-out, which gets no mirror', async () => {
+          // Narrow on purpose: only rows this pipeline suppressed get the recovery, so a
+          // genuine double-send bug stays loud.
+          const sut = makeSut();
+          vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+            suppressedRow('CONSENT_OPT_OUT'),
+          );
+
+          await expect(sut.useCase.execute({ notificationId: 'notif-1' })).rejects.toBeInstanceOf(
+            NotificationInvalidStatusError,
+          );
+          expect(sut.forwardNotification).not.toHaveBeenCalled();
+        });
+
+        it('still throws for an already-SENT row', async () => {
+          const sut = makeSut();
+          vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+            makeNotification({ status: 'SENT' }),
+          );
+
+          await expect(sut.useCase.execute({ notificationId: 'notif-1' })).rejects.toBeInstanceOf(
+            NotificationInvalidStatusError,
+          );
+          expect(sut.forwardNotification).not.toHaveBeenCalled();
+        });
+      });
+
+      it('sends the forward itself rather than suppressing it again', async () => {
+        // Guards the loop: the forward carries TENANT_NOTICE_FORWARDED_AGENCY,
+        // whose target is PROPERTY_MANAGER, so re-entering the gate is a no-op.
+        const sut = makeSut();
+        vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+          makeNotification({ channel: 'EMAIL', templateCode: 'TENANT_NOTICE_FORWARDED_AGENCY' }),
+        );
+        vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+          makeTemplate({ templateCode: 'TENANT_NOTICE_FORWARDED_AGENCY' }),
+        );
+        vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
+        vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
+
+        await sut.useCase.execute({ notificationId: 'notif-1' });
+
+        expect(sut.emailProvider.send).toHaveBeenCalled();
+        expect(sut.forwardNotification).not.toHaveBeenCalled();
+      });
     });
   });
 

@@ -10,7 +10,7 @@ export interface ListPortalActivitiesInput {
   pageSize: number;
 }
 
-const ALLOWED_ROLES = ['AM', 'OP'] as const;
+const ALLOWED_ROLES = ['AM', 'OP', 'CL_ADMIN'] as const;
 
 export class ListPortalActivitiesUseCase {
   constructor(
@@ -19,14 +19,26 @@ export class ListPortalActivitiesUseCase {
   ) {}
 
   async execute(input: ListPortalActivitiesInput) {
-    // 1. Validate actor role — AM/OP only
+    // 1. Validate actor role — AM/OP (platform) and CL_ADMIN (own agency)
     if (!ALLOWED_ROLES.includes(input.actor.role as (typeof ALLOWED_ROLES)[number])) {
-      throw new ForbiddenError('FORBIDDEN', 'Only AM and OP roles can view portal activities');
+      throw new ForbiddenError('FORBIDDEN', 'Only AM, OP and CL_ADMIN roles can view portal activities');
     }
 
-    // 2. Load appointment to verify it exists and enforce tenant scope
-    const result = await this.appointmentRepo.findById(input.appointmentId, input.actor.tenantId);
+    // 2. Load appointment to verify it exists and enforce tenant scope.
+    // AM/OP carry a null tenantId (platform-wide); CL_ADMIN is pinned to its own
+    // agency here, which is the only tenant gate on this read — the activity
+    // query in step 3 is keyed by appointment alone.
+    const tenantScope = input.actor.role === 'AM' ? null : input.actor.tenantId;
+    const result = await this.appointmentRepo.findById(input.appointmentId, tenantScope);
     if (!result) {
+      throw new NotFoundError('APPOINTMENT_NOT_FOUND', 'Appointment not found');
+    }
+
+    // Defense in depth: the repo's tenant filter is skipped when the scope is
+    // null, so an agency actor that somehow reached here without a tenantId
+    // would otherwise read any agency's portal history. Mirrors the guard in
+    // ForceManualTenantConfirmationUseCase.
+    if (input.actor.role === 'CL_ADMIN' && result.appointment.tenantId !== input.actor.tenantId) {
       throw new NotFoundError('APPOINTMENT_NOT_FOUND', 'Appointment not found');
     }
 

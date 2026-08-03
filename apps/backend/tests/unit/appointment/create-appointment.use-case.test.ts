@@ -24,7 +24,6 @@ import {
   AppointmentServiceTypeNotFoundError,
   AppointmentServiceTypeInactiveError,
   AppointmentNoPriceRuleError,
-  AppointmentPastDateError,
   AppointmentDateInPastError,
 } from '../../../src/modules/appointment/domain/appointment.errors';
 import { futureDateStr } from '../../helpers/date-fixtures';

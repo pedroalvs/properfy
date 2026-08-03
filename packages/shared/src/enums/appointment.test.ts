@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  APPOINTMENT_STATUS_LABELS,
   AppointmentStatus,
   RentalTenantConfirmationStatus,
   RestrictionSource,
@@ -19,6 +20,27 @@ describe('AppointmentStatus', () => {
 
   it('should have exactly 6 values', () => {
     expect(Object.keys(AppointmentStatus)).toHaveLength(6);
+  });
+});
+
+describe('APPOINTMENT_STATUS_LABELS', () => {
+  it('labels every status', () => {
+    expect(Object.keys(APPOINTMENT_STATUS_LABELS).sort()).toEqual(
+      Object.keys(AppointmentStatus).sort(),
+    );
+  });
+
+  // Pinned exhaustively: these strings reach operators verbatim in API error
+  // messages and status chips, so a typo in any one of them is user-visible.
+  it('reads as prose rather than as the raw enum', () => {
+    expect(APPOINTMENT_STATUS_LABELS).toEqual({
+      DRAFT: 'Draft',
+      AWAITING_INSPECTOR: 'Awaiting Inspector',
+      SCHEDULED: 'Scheduled',
+      DONE: 'Done',
+      CANCELLED: 'Cancelled',
+      REJECTED: 'Rejected',
+    });
   });
 });
 

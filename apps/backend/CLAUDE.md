@@ -294,6 +294,38 @@ See `projeto-consolidado/state-machine-executavel.md` for the full transition ta
 3. Every transition MUST: validate tenant scope, check actor permissions, register audit log.
 4. Side effects (notifications, financial entries, marketplace updates) are triggered via domain events in the application layer.
 
+### Composing a transition into your own transaction
+
+`ExecuteStatusTransitionUseCase` has two entry points:
+
+- **`execute(input)`** — the default. Writes, then runs the side effects. Use it
+  unless you have a transaction of your own.
+- **`executeInTransaction(input, tx?)`** — the write phase only. Returns the
+  output plus a `runAfterCommit()` handle. Use it when the transition has to
+  commit or roll back together with your own writes; `runInTransaction`
+  (`shared/application/unit-of-work.ts`) collects the handles via `defer` and
+  flushes them once the outermost transaction commits.
+
+Two rules that are easy to get wrong and fail silently:
+
+1. **Pass `tx` to every read.** The transition's guards read `serviceGroupId`,
+   `inspectorId` and `rentalTenantConfirmationStatus`. If your transaction wrote
+   any of them and the read lands on the global client, it sees pre-write values
+   and the transition fails with a misleading error. This is why
+   `IAppointmentRepository.findById` takes a `tx`.
+2. **Never pull the side effects into the transaction.** They mint and *revoke*
+   portal tokens, enqueue pg-boss jobs over a different connection, and wake a
+   `STATUS_TRANSITION` subscriber that writes to `service_groups` — the row a
+   portal join holds `FOR UPDATE`. Awaiting them inside the transaction
+   deadlocks until Prisma's 5s timeout; rolling back after them leaves effects
+   that cannot be recalled.
+
+Repositories follow the `type DbClient = PrismaClient | Prisma.TransactionClient`
++ `private db(tx?)` idiom (see `prisma-confirmation-cycle.repository.ts`). `tx` is
+always the **last, optional** parameter so no existing call site shifts — which
+also means a missed call site shows up as a failing test, never a type error,
+because `tests/` is outside the backend `tsconfig` include.
+
 **Service type confirmation rules:**
 
 - `Routine Inspection`: requires tenant confirmation. T-1 rule applies.

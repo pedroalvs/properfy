@@ -167,9 +167,13 @@ export function PortalPage() {
   // Confirmation window closed but the token is still valid: only the Yes path locks.
   // Older API payloads without the field fall back to the legacy behavior (read-only = cutoff).
   const isPastConfirmCutoff = data.token.isPastConfirmCutoff ?? isReadOnly;
-  const isTerminal =
-    appointment.status === AppointmentStatus.DONE ||
-    appointment.status === AppointmentStatus.REJECTED;
+  // REJECTED is deliberately NOT terminal here. A portal decline auto-rejects the
+  // appointment, so this is the state the tenant lands in the moment they answer
+  // "No" — and picking another available time is what revives it. Treating it as
+  // terminal would shut the portal down on the tenant mid-flow.
+  // CANCELLED never reaches this line; it short-circuits above.
+  const isTerminal = appointment.status === AppointmentStatus.DONE;
+  const isRejected = appointment.status === AppointmentStatus.REJECTED;
   const hasResponse = !!data.existingResponse;
 
   const alreadyConfirmed =
@@ -180,8 +184,13 @@ export function PortalPage() {
   // Show unified form when appointment is actionable. For the urgent-mode case
   // (already CONFIRMED + past cutoff), the form renders with confirm locked so the
   // tenant can only use the No (urgent unavailability) path.
+  //
+  // Excluded once rejected: neither answer means anything then. "Yes" would claim
+  // attendance for a slot the appointment no longer holds, and "No" would try to
+  // reject it twice — the API refuses both. Change time is the way back.
   const showForm =
     !isTerminal &&
+    !isRejected &&
     !alreadyUnavailable &&
     (!alreadyConfirmed || isPastConfirmCutoff);
 
@@ -238,10 +247,18 @@ export function PortalPage() {
           </InfoBanner>
         )}
 
-        {hasResponse && !isReadOnly && !isTerminal && (
+        {isRejected && (
+          <InfoBanner>
+            This inspection <strong>will not go ahead</strong> as scheduled. You can
+            still pick another available time below, or the agency will contact you
+            to arrange a new one.
+          </InfoBanner>
+        )}
+
+        {hasResponse && !isReadOnly && !isTerminal && !isRejected && (
           <InfoBanner>
             Your response has been recorded. If you need to make further changes, please
-            contact the agency directly.
+            contact our team.
           </InfoBanner>
         )}
 

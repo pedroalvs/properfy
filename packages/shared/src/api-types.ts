@@ -668,7 +668,7 @@ export interface paths {
                             notificationFromEmail?: string;
                             smsFromName?: string;
                             /** @default true */
-                            emailSendingEnabled?: boolean;
+                            rentalTenantNotificationsEnabled?: boolean;
                             /** Format: uri */
                             logoUrl?: string;
                             primaryColor?: string;
@@ -725,10 +725,6 @@ export interface paths {
                             portalCutoffHour?: number;
                             /** @default 1 */
                             portalCutoffDaysBefore?: number;
-                            /** @default 30 */
-                            inspectionWindowBeforeMinutes?: number;
-                            /** @default 30 */
-                            inspectionWindowAfterMinutes?: number;
                             /** @default 500 */
                             notificationDailyCapEmail?: number;
                             /** @default 100 */
@@ -855,7 +851,7 @@ export interface paths {
                             notificationFromEmail?: string;
                             smsFromName?: string;
                             /** @default true */
-                            emailSendingEnabled?: boolean;
+                            rentalTenantNotificationsEnabled?: boolean;
                             /** Format: uri */
                             logoUrl?: string;
                             primaryColor?: string;
@@ -912,10 +908,6 @@ export interface paths {
                             portalCutoffHour?: number;
                             /** @default 1 */
                             portalCutoffDaysBefore?: number;
-                            /** @default 30 */
-                            inspectionWindowBeforeMinutes?: number;
-                            /** @default 30 */
-                            inspectionWindowAfterMinutes?: number;
                             /** @default 500 */
                             notificationDailyCapEmail?: number;
                             /** @default 100 */
@@ -4512,6 +4504,12 @@ export interface paths {
                                 rentalTenantNote?: string | null;
                                 observation?: string | null;
                                 hasRentalTenantNote?: boolean;
+                                rentalTenantAvailableSlots?: {
+                                    /** @enum {string} */
+                                    dayOfWeek: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+                                    start: string;
+                                    end: string;
+                                }[] | null;
                                 /** @default false */
                                 hasActivePortalToken: boolean;
                                 customFieldsJson?: unknown;
@@ -4537,6 +4535,7 @@ export interface paths {
                                 branchName?: string | null;
                                 serviceTypeName?: string | null;
                                 clientName?: string;
+                                rentalTenantNotificationsEnabled?: boolean;
                                 cancellationReason?: string | null;
                                 latitude?: number | null;
                                 longitude?: number | null;
@@ -4709,6 +4708,12 @@ export interface paths {
                                 rentalTenantNote?: string | null;
                                 observation?: string | null;
                                 hasRentalTenantNote?: boolean;
+                                rentalTenantAvailableSlots?: {
+                                    /** @enum {string} */
+                                    dayOfWeek: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+                                    start: string;
+                                    end: string;
+                                }[] | null;
                                 /** @default false */
                                 hasActivePortalToken: boolean;
                                 customFieldsJson?: unknown;
@@ -4734,6 +4739,7 @@ export interface paths {
                                 branchName?: string | null;
                                 serviceTypeName?: string | null;
                                 clientName?: string;
+                                rentalTenantNotificationsEnabled?: boolean;
                                 cancellationReason?: string | null;
                                 latitude?: number | null;
                                 longitude?: number | null;
@@ -4831,6 +4837,12 @@ export interface paths {
                                 rentalTenantNote?: string | null;
                                 observation?: string | null;
                                 hasRentalTenantNote?: boolean;
+                                rentalTenantAvailableSlots?: {
+                                    /** @enum {string} */
+                                    dayOfWeek: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+                                    start: string;
+                                    end: string;
+                                }[] | null;
                                 /** @default false */
                                 hasActivePortalToken: boolean;
                                 customFieldsJson?: unknown;
@@ -4856,6 +4868,7 @@ export interface paths {
                                 branchName?: string | null;
                                 serviceTypeName?: string | null;
                                 clientName?: string;
+                                rentalTenantNotificationsEnabled?: boolean;
                                 cancellationReason?: string | null;
                                 latitude?: number | null;
                                 longitude?: number | null;
@@ -5028,6 +5041,12 @@ export interface paths {
                                 rentalTenantNote?: string | null;
                                 observation?: string | null;
                                 hasRentalTenantNote?: boolean;
+                                rentalTenantAvailableSlots?: {
+                                    /** @enum {string} */
+                                    dayOfWeek: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+                                    start: string;
+                                    end: string;
+                                }[] | null;
                                 /** @default false */
                                 hasActivePortalToken: boolean;
                                 customFieldsJson?: unknown;
@@ -5053,6 +5072,7 @@ export interface paths {
                                 branchName?: string | null;
                                 serviceTypeName?: string | null;
                                 clientName?: string;
+                                rentalTenantNotificationsEnabled?: boolean;
                                 cancellationReason?: string | null;
                                 latitude?: number | null;
                                 longitude?: number | null;
@@ -5161,7 +5181,7 @@ export interface paths {
                         /** @enum {string} */
                         cancellationReasonCode?: "CLIENT_REQUEST" | "TENANT_UNAVAILABLE" | "SCHEDULING_CONFLICT" | "INSPECTOR_UNAVAILABLE" | "DUPLICATE" | "EXPIRED" | "OTHER";
                         /** @enum {string} */
-                        rejectionReasonCode?: "INVALID_ADDRESS" | "PROPERTY_INACCESSIBLE" | "SAFETY_CONCERN" | "INSUFFICIENT_INFO" | "SERVICE_NOT_AVAILABLE" | "TENANT_NO_RESPONSE" | "OTHER";
+                        rejectionReasonCode?: "INVALID_ADDRESS" | "PROPERTY_INACCESSIBLE" | "SAFETY_CONCERN" | "INSUFFICIENT_INFO" | "SERVICE_NOT_AVAILABLE" | "TENANT_NO_RESPONSE" | "TENANT_DECLINED" | "OTHER";
                         /** Format: uuid */
                         doneCheckedByUserId?: string;
                         /** Format: uuid */
@@ -5310,6 +5330,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/appointments/{appointmentId}/rental-tenant-availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: {
+                    "idempotency-key"?: string;
+                };
+                path: {
+                    appointmentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        availableSlots: {
+                            /** @enum {string} */
+                            dayOfWeek: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+                            start: string;
+                            end: string;
+                        }[];
+                        /** @default false */
+                        markUnavailable?: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                availableSlots: {
+                                    /** @enum {string} */
+                                    dayOfWeek: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+                                    start: string;
+                                    end: string;
+                                }[];
+                                rentalTenantConfirmationStatus: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/appointments/bulk-resend-reminder": {
         parameters: {
             query?: never;
@@ -5346,7 +5430,7 @@ export interface paths {
                                     /** Format: uuid */
                                     appointmentId: string;
                                     /** @enum {string} */
-                                    status: "SENT" | "NO_PRIMARY_CONTACT" | "IDEMPOTENT_REPLAY" | "ERROR";
+                                    status: "SENT" | "NO_PRIMARY_CONTACT" | "IDEMPOTENT_REPLAY" | "TENANT_NOTIFICATIONS_BLOCKED" | "ERROR";
                                     error?: {
                                         code: string;
                                         message: string;
@@ -6821,7 +6905,7 @@ export interface paths {
                                     appointmentNumber: number;
                                     propertyCode: string | null;
                                     /** @enum {string} */
-                                    plannedAction: "SEND" | "SEND_AFTER_RESET" | "SKIP_ALREADY_CONFIRMED" | "SKIP_NOT_SENDABLE";
+                                    plannedAction: "SEND" | "SEND_AFTER_RESET" | "SKIP_ALREADY_CONFIRMED" | "SKIP_NOT_SENDABLE" | "SKIP_TENANT_NOTIFICATIONS_BLOCKED";
                                 }[];
                                 summary: {
                                     total: number;
@@ -6829,6 +6913,7 @@ export interface paths {
                                     willResendDateChanged: number;
                                     alreadyConfirmed: number;
                                     notSendable: number;
+                                    tenantNotificationsBlocked: number;
                                 };
                             };
                         };
@@ -6880,7 +6965,7 @@ export interface paths {
                                     /** Format: uuid */
                                     appointmentId: string;
                                     /** @enum {string} */
-                                    status: "SENT" | "DATE_CHANGED_RESENT" | "ALREADY_CONFIRMED" | "NOT_SENDABLE" | "NO_PRIMARY_CONTACT" | "IDEMPOTENT_REPLAY" | "ERROR";
+                                    status: "SENT" | "DATE_CHANGED_RESENT" | "ALREADY_CONFIRMED" | "NOT_SENDABLE" | "NO_PRIMARY_CONTACT" | "IDEMPOTENT_REPLAY" | "TENANT_NOTIFICATIONS_BLOCKED" | "ERROR";
                                     error?: {
                                         code: string;
                                         message: string;

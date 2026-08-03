@@ -113,7 +113,17 @@ export class AppointmentEntity extends BaseEntity {
     return this.status === 'DRAFT' || this.status === 'AWAITING_INSPECTOR';
   }
 
-  /** Editable via PATCH (including date/time) in any non-terminal status. */
+  /**
+   * Editable via PATCH (including date/time) until the lifecycle is closed
+   * **to the rental tenant**.
+   *
+   * The blocked pair is not `TERMINAL_APPOINTMENT_STATUSES`: REJECTED is in
+   * that set yet stays editable here. The axis is what the tenant knows —
+   * CANCELLED and DONE are end states they were told about, whereas REJECTED
+   * is internal triage that fires no notification, so from the tenant's side a
+   * rejected appointment whose date moves has simply been rescheduled. That is
+   * also why the reschedule side effects remain correct on a REJECTED row.
+   */
   isScheduleEditable(): boolean {
     return this.status !== 'CANCELLED' && this.status !== 'DONE';
   }

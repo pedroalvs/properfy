@@ -1,3 +1,5 @@
+import { Tooltip } from '@/components/ui';
+
 interface ConfirmationChannelIconsProps {
   /** Tenant portal confirmation status — drives both icons until per-channel
    *  statuses are exposed by the list endpoint (see plan §step 5 GAP-405). */
@@ -44,18 +46,19 @@ function labelFor(status: string | undefined, channel: 'SMS' | 'Email', hasChann
   }
 }
 
-export function IconWithTooltip({ icon, label, colour, testId }: { icon: string; label: string; colour: string; testId?: string }) {
+/**
+ * A single status icon whose meaning is carried entirely by its tooltip.
+ *
+ * The bubble comes from `Tooltip` (portal + `position: fixed`) rather than an
+ * absolutely positioned sibling: these icons sit in the last column of the map
+ * bulk-action modal, inside `max-h-96 overflow-y-auto`, where an `absolute`
+ * bubble is clipped at the modal edge.
+ */
+export function ChannelIcon({ icon, label, colour, testId }: { icon: string; label: string; colour: string; testId?: string }) {
   return (
-    <span className="group relative inline-flex">
-      <i className={`mdi ${icon} cursor-help text-base ${colour}`} aria-label={label} data-testid={testId} />
-      <span
-        role="tooltip"
-        className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100"
-      >
-        {label}
-        <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
-      </span>
-    </span>
+    <Tooltip label={label}>
+      <i className={`mdi ${icon} text-base ${colour}`} aria-label={label} data-testid={testId} />
+    </Tooltip>
   );
 }
 
@@ -77,13 +80,13 @@ export function ConfirmationChannelIcons({
   const emailState = deriveState(rentalTenantConfirmationStatus, hasEmail);
   return (
     <span className="inline-flex items-center gap-1" data-testid="confirmation-channel-icons">
-      <IconWithTooltip
+      <ChannelIcon
         icon="mdi-cellphone-message"
         label={labelFor(rentalTenantConfirmationStatus, 'SMS', hasSms)}
         colour={colourFor(smsState)}
         testId="confirmation-sms-icon"
       />
-      <IconWithTooltip
+      <ChannelIcon
         icon="mdi-email-outline"
         label={labelFor(rentalTenantConfirmationStatus, 'Email', hasEmail)}
         colour={colourFor(emailState)}

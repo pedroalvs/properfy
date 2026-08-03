@@ -30,6 +30,7 @@ function row(overrides: Partial<GroupAppointmentConfirmationRow>): GroupAppointm
     activeCycle: null,
     propertyCode: 'P-001',
     propertyAddress: '1 Main St',
+    rentalTenantNotificationsEnabled: true,
     ...overrides,
   };
 }
@@ -42,6 +43,7 @@ function makeMocks() {
   const groupRepo = {
     findById: vi.fn().mockResolvedValue({ primaryTenantId: 'tenant-1' } as unknown as ServiceGroupWithAppointments),
     findGroupAppointmentsWithConfirmation: vi.fn().mockResolvedValue([]),
+    findGroupAppointmentWithConfirmation: vi.fn(),
   };
   const generatePortalToken = {
     execute: vi.fn().mockResolvedValue({ dispatched: true, token: 't', expiresAt: new Date() }),
@@ -151,22 +153,104 @@ describe('SendGroupPortalLinksUseCase', () => {
     expect(m.cycleService.rotateOnDateChange).not.toHaveBeenCalled();
   });
 
-  it('SEND_AFTER_RESET rotates the cycle BEFORE dispatching and bypasses the idempotency read', async () => {
+  it('fails closed without mutating when SEND_AFTER_RESET has no transaction boundary', async () => {
     m.groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([
       row({ id: 'stale', rentalTenantConfirmationStatus: 'CONFIRMED', scheduledDate: DATE_B, timeSlot: SLOT, activeCycle: { scheduledDate: DATE_A, timeSlot: SLOT, status: 'CONFIRMED' } }),
     ]);
 
     const out = await m.useCase.execute({ groupId: 'group-1', actor: makeActor() });
 
-    expect(out.results).toEqual([{ appointmentId: 'stale', status: 'DATE_CHANGED_RESENT' }]);
+    expect(out.results).toEqual([
+      {
+        appointmentId: 'stale',
+        status: 'ERROR',
+        error: {
+          code: 'DISPATCH_FAILED',
+          message: 'SEND_AFTER_RESET requires a transactional unit of work',
+        },
+      },
+    ]);
     // Cache READ must be bypassed for the date-changed branch.
     expect(m.idempotency.getWithHash).not.toHaveBeenCalled();
-    // Rotate with the CURRENT date/time, before the dispatch.
-    expect(m.cycleService.rotateOnDateChange).toHaveBeenCalledWith('stale', 'tenant-1', DATE_B, SLOT, 'DATE_CHANGED');
-    const rotateOrder = (m.cycleService.rotateOnDateChange as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0]!;
-    const dispatchOrder = (m.generatePortalToken.execute as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0]!;
-    expect(rotateOrder).toBeLessThan(dispatchOrder);
-    // Still writes the cache so a second same-day click is a no-op.
+    expect(m.cycleService.rotateOnDateChange).not.toHaveBeenCalled();
+    expect(m.generatePortalToken.execute).not.toHaveBeenCalled();
+    expect(m.idempotency.set).not.toHaveBeenCalled();
+  });
+
+  it('commits a transactional SEND_AFTER_RESET before running its result-bearing dispatch', async () => {
+    const events: string[] = [];
+    const tx = { kind: 'tx' };
+    const prisma = {
+      $transaction: vi.fn(async (fn: (client: unknown) => Promise<unknown>) => {
+        events.push('transaction:start');
+        const result = await fn(tx);
+        events.push('transaction:commit');
+        return result;
+      }),
+    };
+    const runAfterCommit = vi.fn(async () => {
+      events.push('dispatch');
+      return { dispatched: true as const, token: 't', expiresAt: new Date() };
+    });
+    const runWritePhase = vi.fn(async () => {
+      events.push('generate:write');
+      return { runAfterCommit };
+    });
+    const generatePortalToken = {
+      execute: vi.fn(),
+      prepareInTransaction: vi.fn(async () => {
+        events.push('tenant:locked');
+        return { runWritePhase };
+      }),
+    } as unknown as GeneratePortalTokenUseCase;
+    const cycleService = {
+      rotateOnDateChange: vi.fn(async () => {
+        events.push('cycle:rotated');
+      }),
+    } as unknown as ConfirmationCycleService;
+    const useCase = new SendGroupPortalLinksUseCase(
+      m.groupRepo as unknown as IServiceGroupRepository,
+      generatePortalToken,
+      cycleService,
+      m.idempotency,
+      m.auditService,
+      new AuthorizationService(m.auditService),
+      () => FIXED_NOW,
+      prisma as never,
+    );
+    const stale = row({
+      id: 'stale',
+      rentalTenantConfirmationStatus: 'CONFIRMED',
+      scheduledDate: DATE_B,
+      activeCycle: { scheduledDate: DATE_A, timeSlot: SLOT, status: 'CONFIRMED' },
+    });
+    m.groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([stale]);
+    m.groupRepo.findGroupAppointmentWithConfirmation.mockResolvedValue(stale);
+
+    const out = await useCase.execute({ groupId: 'group-1', actor: makeActor() });
+
+    expect(out.results).toEqual([{ appointmentId: 'stale', status: 'DATE_CHANGED_RESENT' }]);
+    expect(generatePortalToken.execute).not.toHaveBeenCalled();
+    expect(generatePortalToken.prepareInTransaction).toHaveBeenCalledTimes(1);
+    expect(runWritePhase).toHaveBeenCalledTimes(1);
+    expect(cycleService.rotateOnDateChange).toHaveBeenCalledWith(
+      'stale',
+      'tenant-1',
+      DATE_B,
+      SLOT,
+      'DATE_CHANGED',
+      tx,
+      expect.any(Function),
+    );
+    expect(events).toEqual([
+      'transaction:start',
+      'tenant:locked',
+      'cycle:rotated',
+      'generate:write',
+      'transaction:commit',
+      'dispatch',
+    ]);
+    expect(m.idempotency.getWithHash).not.toHaveBeenCalled();
     expect(m.idempotency.set).toHaveBeenCalledWith(
       'bulk_resend:stale:2026-06-30',
       'bulk_resend_reminder',
@@ -232,5 +316,60 @@ describe('SendGroupPortalLinksUseCase', () => {
       expect.any(Object),
       36,
     );
+  });
+
+  describe('agency blocks rental-tenant notifications', () => {
+    it('skips only the blocked members of a cross-agency group', async () => {
+      // Service groups are tenant-agnostic, so one group routinely mixes agencies.
+      // A group-level lookup would wrongly block or wrongly send for half the rows.
+      m.groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([
+        row({ id: 'a1', tenantId: 'tenant-1', rentalTenantNotificationsEnabled: true }),
+        row({ id: 'a2', tenantId: 'tenant-2', rentalTenantNotificationsEnabled: false }),
+        row({ id: 'a3', tenantId: 'tenant-1', rentalTenantNotificationsEnabled: true }),
+      ]);
+
+      const res = await m.useCase.execute({ groupId: 'group-1', actor: makeActor() });
+
+      expect(res.results).toEqual([
+        { appointmentId: 'a1', status: 'SENT' },
+        { appointmentId: 'a2', status: 'TENANT_NOTIFICATIONS_BLOCKED' },
+        { appointmentId: 'a3', status: 'SENT' },
+      ]);
+      // The blocked row never reaches the dispatcher at all.
+      expect(m.generatePortalToken.execute).toHaveBeenCalledTimes(2);
+      expect(m.auditService.log).toHaveBeenCalledWith(expect.objectContaining({
+        action: 'service_group.portal_links_sent',
+        metadata: expect.objectContaining({ tenantNotificationsBlocked: 1 }),
+      }));
+    });
+
+    it('does not cache a blocked row, so flipping the setting allows a same-day retry', async () => {
+      m.groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([
+        row({ id: 'a1', rentalTenantNotificationsEnabled: false }),
+      ]);
+
+      await m.useCase.execute({ groupId: 'group-1', actor: makeActor() });
+
+      expect(m.idempotency.set).not.toHaveBeenCalled();
+    });
+
+    it('does not rotate the confirmation cycle for a blocked stale confirmation', async () => {
+      // Without the ordering in classifyPortalLinkAction this would be
+      // SEND_AFTER_RESET, destroying a live confirmation to chase a message the
+      // occupant is never going to receive.
+      m.groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([
+        row({
+          id: 'a1',
+          rentalTenantNotificationsEnabled: false,
+          rentalTenantConfirmationStatus: 'CONFIRMED',
+          activeCycle: { scheduledDate: DATE_B, timeSlot: SLOT, status: 'CONFIRMED' },
+        }),
+      ]);
+
+      const res = await m.useCase.execute({ groupId: 'group-1', actor: makeActor() });
+
+      expect(res.results[0].status).toBe('TENANT_NOTIFICATIONS_BLOCKED');
+      expect(m.cycleService.rotateOnDateChange).not.toHaveBeenCalled();
+    });
   });
 });

@@ -1,7 +1,9 @@
 import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import { BooleanIcon } from '@/components/ui/BooleanIcon';
+import { Tooltip } from '@/components/ui/Tooltip';
 import { formatCivilDate } from '@/lib/format-date';
+import { formatTenantNoteTooltip } from '../lib/tenant-note';
 import { AppointmentStatusChip } from './AppointmentStatusChip';
 import { RentalTenantConfirmationChip } from './RentalTenantConfirmationChip';
 import type { Appointment } from '../types';
@@ -14,6 +16,11 @@ interface AppointmentTableProps {
   pagination?: DataTablePagination;
   selectedIds?: string[];
   onSelectionChange?: (ids: string[]) => void;
+  /**
+   * Adds the Agency column. AM/OP only: a client user is pinned to one agency,
+   * so the column would repeat their own name on every row.
+   */
+  showAgency?: boolean;
 }
 
 export function AppointmentTable({
@@ -24,6 +31,7 @@ export function AppointmentTable({
   pagination,
   selectedIds,
   onSelectionChange,
+  showAgency = false,
 }: AppointmentTableProps) {
   const selectable = selectedIds !== undefined && onSelectionChange !== undefined;
 
@@ -97,6 +105,25 @@ export function AppointmentTable({
       key: 'propertyAddress',
       label: 'Address',
     },
+    // Both names come off the appointment row itself (`clientName`/`branchName`),
+    // so there is nothing to fetch. `||` rather than `??`: the backend maps a
+    // missing relation to '', which `??` would render as an empty cell.
+    ...(showAgency
+      ? [{
+          key: 'clientName',
+          label: 'Agency',
+          width: '160px',
+          sortable: true,
+          render: (row) => <>{row.clientName || '—'}</>,
+        } satisfies DataTableColumn<Appointment>]
+      : []),
+    {
+      key: 'branchName',
+      label: 'Branch',
+      width: '140px',
+      sortable: true,
+      render: (row) => <>{row.branchName || '—'}</>,
+    },
     {
       key: 'contactName',
       label: 'Tenant',
@@ -120,12 +147,12 @@ export function AppointmentTable({
         <div className="flex items-center gap-1.5">
           <AppointmentStatusChip status={row.status} doneCheckedByUserId={row.doneCheckedByUserId} isOverdue={row.isOverdue} />
           {row.hasRentalTenantNote && (
-            <span title="Tenant left a note">
+            <Tooltip label={formatTenantNoteTooltip(row.rentalTenantNote)}>
               <i
                 className="mdi mdi-note-text-outline text-base text-text-secondary"
-                aria-label="Tenant left a note"
+                aria-label={formatTenantNoteTooltip(row.rentalTenantNote)}
               />
-            </span>
+            </Tooltip>
           )}
         </div>
       ),

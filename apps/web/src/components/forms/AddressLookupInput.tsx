@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useAddressSuggestions } from '@/features/properties/hooks/useAddressSuggestions';
 import type { AddressLookupSuggestion } from '@/lib/address';
 import {
@@ -8,6 +8,7 @@ import {
   filterLabel,
   filterLabelFocused,
   filterOption,
+  filterOptionHighlighted,
 } from '@/components/filters/filter-styles';
 
 interface AddressLookupInputProps {
@@ -35,8 +36,18 @@ export function AddressLookupInput({
   const [focused, setFocused] = useState(false);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  /**
+   * Index of the keyboard-active suggestion, published through
+   * `aria-activedescendant`. -1 means "none" — the status row is not an option
+   * and must never become the active descendant.
+   */
+  const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const reactId = useId();
+  const listboxId = `${reactId}-listbox`;
+  const optionId = (index: number) => `${listboxId}-option-${index}`;
 
   const { data: options = [], isLoading } = useAddressSuggestions(
     debouncedSearch,
@@ -84,6 +95,89 @@ export function AddressLookupInput({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // A stale index would point at an address the user can no longer see.
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [debouncedSearch, options.length]);
+
+  // Queried by role: the status row shares the list but is not an option.
+  useEffect(() => {
+    if (!open || activeIndex < 0) return;
+    listRef.current?.querySelectorAll('[role="option"]')[activeIndex]?.scrollIntoView?.({
+      block: 'nearest',
+    });
+  }, [open, activeIndex]);
+
+  const closeList = () => {
+    setOpen(false);
+    setActiveIndex(-1);
+  };
+
+  const selectSuggestion = (suggestion: AddressLookupSuggestion) => {
+    onSelect(suggestion);
+    setSearch('');
+    setDebouncedSearch('');
+    closeList();
+    setFocused(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (disabled) return;
+
+    if (!open) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setOpen(true);
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        if (options.length === 0) return;
+        e.preventDefault();
+        setActiveIndex((i) => Math.min(i + 1, options.length - 1));
+        break;
+      case 'ArrowUp':
+        if (options.length === 0) return;
+        e.preventDefault();
+        setActiveIndex((i) => Math.max(i - 1, 0));
+        break;
+      case 'Home':
+        if (options.length === 0) return;
+        e.preventDefault();
+        setActiveIndex(0);
+        break;
+      case 'End':
+        if (options.length === 0) return;
+        e.preventDefault();
+        setActiveIndex(options.length - 1);
+        break;
+      case 'Enter': {
+        // Only acts on an explicitly active suggestion; a bare Enter must stay
+        // free for the surrounding form to handle.
+        const option = options[activeIndex];
+        if (!option) return;
+        e.preventDefault();
+        selectSuggestion(option);
+        break;
+      }
+      case 'Escape':
+        e.preventDefault();
+        // Consume it: the enclosing property drawer closes on Escape from a
+        // document listener, and dismissing suggestions must not discard it.
+        e.stopPropagation();
+        closeList();
+        break;
+      case 'Tab':
+        closeList();
+        setFocused(false);
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
     <div ref={containerRef} className={filterContainer}>
       {showFloatingLabel && (
@@ -109,11 +203,22 @@ export function AddressLookupInput({
             setSearch('');
             setDebouncedSearch('');
           }}
+          onBlur={() => {
+            // Without this the floating label stays in its focused style after
+            // Escape-then-Tab: the keydown early-returns while closed, so
+            // nothing else resets `focused`. PropertySearch has the same guard.
+            if (!open) setFocused(false);
+          }}
+          onKeyDown={handleKeyDown}
           aria-label={ariaLabel ?? label}
           aria-expanded={open}
           aria-haspopup="listbox"
           role="combobox"
           aria-autocomplete="list"
+          aria-controls={open && !disabled ? listboxId : undefined}
+          aria-activedescendant={
+            open && !disabled && activeIndex >= 0 ? optionId(activeIndex) : undefined
+          }
         />
         {valueLabel && !disabled && (
           <button
@@ -135,22 +240,22 @@ export function AddressLookupInput({
       </div>
 
       {open && !disabled && (
-        <ul className={filterDropdown} role="listbox" aria-label={label}>
+        <ul ref={listRef} id={listboxId} className={filterDropdown} role="listbox" aria-label={label}>
           {options.length === 0 ? (
-            <li className="px-3 py-2 text-sm text-text-muted">{statusMessage}</li>
+            // Announced but never navigable — it is not an option.
+            <li className="px-3 py-2 text-sm text-text-muted" role="presentation" aria-live="polite">
+              {statusMessage}
+            </li>
           ) : (
-            options.map((option) => (
+            options.map((option, index) => (
               <li
                 key={`${option.formattedAddress}-${option.latitude}-${option.longitude}`}
+                id={optionId(index)}
                 role="option"
-                className={filterOption}
-                onClick={() => {
-                  onSelect(option);
-                  setSearch('');
-                  setDebouncedSearch('');
-                  setOpen(false);
-                  setFocused(false);
-                }}
+                aria-selected={false}
+                className={index === activeIndex ? filterOptionHighlighted : filterOption}
+                onClick={() => selectSuggestion(option)}
+                onMouseEnter={() => setActiveIndex(index)}
               >
                 <div className="flex flex-col gap-0.5">
                   <span className="font-medium">{option.formattedAddress}</span>

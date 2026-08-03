@@ -114,9 +114,9 @@ Each action in the platform has a defined set of roles that may perform it. The 
 | Release (DRAFT -> AWAITING) | Yes | Yes | No | No | No | |
 | Mark DONE (SCHEDULED -> DONE) | No | Yes | No | No | Yes | INSP marks from field; OP confirms via cross-check |
 | Reopen DONE (DONE -> DRAFT) | Yes | No | No | No | No | AM-only; reason required |
-| Force manual confirmation | Yes | Yes | No | Flag | No | CL_USER: via `force_confirmation` permission |
+| Force manual confirmation | Yes | Yes | Yes | Flag | No | CL_ADMIN: own tenant only. CL_USER: via `force_confirmation` permission |
 | Perform cross-check | Yes | Yes | No | No | No | Cannot self-approve (actor != inspector) |
-| Communicate tenant / dispatch portal flow | Yes | Yes | No | No | No | Operational owner is OP |
+| Communicate tenant / dispatch portal flow | Yes | Yes | Yes | No | No | Send/copy portal link + read portal activity. CL_ADMIN: own tenant only |
 | **Inspector Management** | | | | | | |
 | Create/update inspector | Yes | Yes | No | No | No | Inspectors are cross-tenant entities |
 | Deactivate inspector | Yes | Yes | No | No | No | Requires no open appointments |

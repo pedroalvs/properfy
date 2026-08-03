@@ -8,7 +8,7 @@ const MOCK_APPOINTMENT: AppointmentDetail = {
   appointmentNumber: 1001,
   appointmentCode: 'INS-0042',
   tenantId: 'tenant-1',
-  tenantName: 'Test Agency',
+  clientName: 'Test Agency',
   branchId: 'branch-1',
   branchName: 'Downtown Branch',
   propertyId: 'prop-1',

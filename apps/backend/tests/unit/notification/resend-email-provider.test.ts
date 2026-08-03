@@ -51,6 +51,24 @@ describe('ResendEmailProvider', () => {
     );
   });
 
+  it('includes the configured global recipient as a hidden copy', async () => {
+    const bccRecipient = 'supervision@properfy.com.au';
+    const providerWithBcc = new ResendEmailProvider(apiKey, fromEmail, bccRecipient);
+    mockSend.mockResolvedValue({ data: { id: 'msg-bcc' }, error: null });
+
+    await providerWithBcc.send('user@example.com', 'Subject', '<p>Body</p>', 'Body');
+
+    expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({ bcc: bccRecipient }));
+  });
+
+  it('omits the hidden-copy field when no global recipient is configured', async () => {
+    mockSend.mockResolvedValue({ data: { id: 'msg-no-bcc' }, error: null });
+
+    await provider.send('user@example.com', 'Subject', '<p>Body</p>', 'Body');
+
+    expect(mockSend).toHaveBeenCalledWith(expect.not.objectContaining({ bcc: expect.anything() }));
+  });
+
   it('propagates errors from Resend SDK', async () => {
     const sdkError = new Error('Resend rate limit exceeded');
     mockSend.mockRejectedValue(sdkError);

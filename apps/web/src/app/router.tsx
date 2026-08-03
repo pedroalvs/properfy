@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
+import { createBrowserRouter, Navigate, useParams, type RouteObject } from 'react-router-dom';
 import { lazy, Suspense, type ComponentType } from 'react';
 import { retryLazyImportOnce } from '@properfy/shared';
 
@@ -65,9 +65,15 @@ import { UserRole } from '@properfy/shared';
 import { NotFoundPage } from './NotFoundPage';
 import { AppErrorBoundary } from '@/components/feedback/AppErrorBoundary';
 
-function PortalRedirect() {
+/**
+ * Sends the two older, longer portal prefixes to the canonical `/portal/:token`.
+ * The rental tenant receives this link by SMS, so the short path is the one that
+ * must survive in the address bar — redirecting the other way would undo the
+ * shortening on every click. Exported for router.test.tsx.
+ */
+export function PortalRedirect() {
   const { token } = useParams();
-  return <Navigate to={`/rental-tenant-portal/${token}`} replace />;
+  return <Navigate to={`/portal/${token}`} replace />;
 }
 
 /**
@@ -78,7 +84,7 @@ function PortalRedirect() {
  * inside `ProtectedRoute` is enough for every protected screen; the
  * public routes (login, portal) each take their own attachment.
  */
-export const router = createBrowserRouter([
+export const routes: RouteObject[] = [
   {
     path: '/login',
     element: <LoginPage />,
@@ -95,18 +101,18 @@ export const router = createBrowserRouter([
     errorElement: <AppErrorBoundary />,
   },
   {
-    path: '/rental-tenant-portal/:token',
+    path: '/portal/:token',
     element: <PortalPage />,
     errorElement: <AppErrorBoundary />,
   },
   {
-    // Legacy alias: magic links already sent point here → redirect to canonical.
-    path: '/tenant-portal/:token',
+    // Legacy aliases: magic links already sent point here → redirect to canonical.
+    path: '/rental-tenant-portal/:token',
     element: <PortalRedirect />,
     errorElement: <AppErrorBoundary />,
   },
   {
-    path: '/portal/:token',
+    path: '/tenant-portal/:token',
     element: <PortalRedirect />,
     errorElement: <AppErrorBoundary />,
   },
@@ -454,7 +460,9 @@ export const router = createBrowserRouter([
     element: <NotFoundPage />,
     errorElement: <AppErrorBoundary />,
   },
-], {
+];
+
+export const router = createBrowserRouter(routes, {
   future: {
     v7_relativeSplatPath: true,
   },

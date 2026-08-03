@@ -183,7 +183,6 @@ import { StubStorageService } from '../modules/inspector-execution/infrastructur
 import { SupabaseStorageService } from '../modules/inspector-execution/infrastructure/supabase-storage.service';
 import { PrismaServiceTypeReader } from '../modules/inspector-execution/infrastructure/prisma-service-type-reader';
 import { PrismaContactReader } from '../modules/inspector-execution/infrastructure/prisma-contact-reader';
-import { PrismaTenantSettingsReader } from '../modules/inspector-execution/infrastructure/prisma-tenant-settings-reader';
 import { GetInspectorScheduleUseCase } from '../modules/inspector-execution/application/use-cases/get-inspector-schedule.use-case';
 import { GetAppointmentDetailUseCase } from '../modules/inspector-execution/application/use-cases/get-appointment-detail.use-case';
 import { StartInspectionUseCase } from '../modules/inspector-execution/application/use-cases/start-inspection.use-case';
@@ -238,6 +237,7 @@ import { PrismaNotificationTemplateRepository } from '../modules/notification/in
 import { PrismaNotificationAttemptRepository } from '../modules/notification/infrastructure/prisma-notification-attempt.repository';
 import { PrismaNotificationConsentRepository } from '../modules/notification/infrastructure/prisma-notification-consent.repository';
 import { createTenantSettingsReader } from '../modules/notification/infrastructure/prisma-tenant-settings.reader';
+import { createAgencyForwardRecipientReader } from '../modules/notification/infrastructure/prisma-agency-forward-recipient.reader';
 import { TemplateRendererService } from '../modules/notification/domain/template-renderer.service';
 import { SendNotificationUseCase } from '../modules/notification/application/use-cases/send-notification.use-case';
 import { RetryNotificationUseCase } from '../modules/notification/application/use-cases/retry-notification.use-case';
@@ -351,6 +351,7 @@ import { UpdateAppointmentUseCase } from '../modules/appointment/application/use
 import { ExecuteStatusTransitionUseCase } from '../modules/appointment/application/use-cases/execute-status-transition.use-case';
 import { PerformCrossCheckUseCase } from '../modules/appointment/application/use-cases/perform-cross-check.use-case';
 import { ForceManualTenantConfirmationUseCase } from '../modules/appointment/application/use-cases/force-manual-confirmation.use-case';
+import { SetRentalTenantAvailabilityUseCase } from '../modules/appointment/application/use-cases/set-rental-tenant-availability.use-case';
 import { PreviewAppointmentImportUseCase } from '../modules/appointment/application/use-cases/preview-appointment-import.use-case';
 import { CommitAppointmentImportUseCase } from '../modules/appointment/application/use-cases/commit-appointment-import.use-case';
 import { ExportAppointmentImportErrorsUseCase } from '../modules/appointment/application/use-cases/export-appointment-import-errors.use-case';
@@ -706,10 +707,8 @@ export function createContainer(logger: Logger): AppContainer {
   // updateAppointmentUseCase is constructed AFTER the notification handlers below —
   // schedule edits need confirmationCycleService + portal token repo + reschedule notifier.
   const deleteAppointmentUseCase = new DeleteAppointmentUseCase(appointmentRepo, auditService, authorizationService);
-  const bulkEditAppointmentsUseCase = new BulkEditAppointmentsUseCase(
-    appointmentRepo, contactRepo, inspectorRepo, pricingRuleRepo,
-    auditService, authorizationService,
-  );
+  // bulkEditAppointmentsUseCase is constructed AFTER updateAppointmentUseCase below —
+  // it delegates schedule edits to it.
   // Tenant portal repositories — created BEFORE reopenForRescheduleUseCase
   // so 026 §FR-543 can inject the token repo (revoke active portal tokens
   // when the appointment is rescheduled).
@@ -772,6 +771,11 @@ export function createContainer(logger: Logger): AppContainer {
     new PrismaServiceGroupRepository(prisma),
   );
 
+  const bulkEditAppointmentsUseCase = new BulkEditAppointmentsUseCase(
+    appointmentRepo, contactRepo, inspectorRepo, pricingRuleRepo,
+    auditService, authorizationService, updateAppointmentUseCase, logger,
+  );
+
   const serviceGroupRepo = new PrismaServiceGroupRepository(prisma);
 
   const executeStatusTransitionUseCase = new ExecuteStatusTransitionUseCase(
@@ -784,6 +788,13 @@ export function createContainer(logger: Logger): AppContainer {
     confirmationCycleService,
     prisma,
     serviceGroupRepo,
+  );
+
+  // Constructed after the transition use case because the operator-recorded
+  // decline routes its rejection through it, exactly like the portal's does.
+  const setRentalTenantAvailabilityUseCase = new SetRentalTenantAvailabilityUseCase(
+    appointmentRepo, auditService, authorizationService, executeStatusTransitionUseCase,
+    idempotencyService, confirmationCycleService,
   );
 
   const getPortalDataUseCase = new GetPortalDataUseCase(rentalTenantPortalTokenRepo, rentalTenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo, tenantRepo);
@@ -817,7 +828,6 @@ export function createContainer(logger: Logger): AppContainer {
   const inspectionExecutionRepo = new PrismaInspectionExecutionRepository(prisma);
   const serviceTypeReaderForExec = new PrismaServiceTypeReader(prisma);
   const contactReaderForExec = new PrismaContactReader(prisma);
-  const tenantSettingsReader = new PrismaTenantSettingsReader(prisma);
   const performCrossCheckUseCase = new PerformCrossCheckUseCase(
     appointmentRepo,
     auditLogRepo,
@@ -836,11 +846,13 @@ export function createContainer(logger: Logger): AppContainer {
     rentalTenantPortalActivityRepo,
     appointmentRepo,
     auditService,
+    executeStatusTransitionUseCase,
     notifyOnRentalTenantPortalActionHandler,
     inspectionExecutionRepo,
     domainEventBus,
     rentalTenantPortalTokenRepo,
     confirmationCycleService,
+    logger,
   );
 
   // Inspector execution use cases
@@ -852,7 +864,7 @@ export function createContainer(logger: Logger): AppContainer {
     contactReaderForExec, logger,
   );
   const startInspectionUseCase = new StartInspectionUseCase(
-    appointmentRepo, inspectionExecutionRepo, idempotencyService, auditService, tenantSettingsReader, authorizationService,
+    appointmentRepo, inspectionExecutionRepo, idempotencyService, auditService, serviceTypeReaderForExec, authorizationService,
   );
   const finishInspectionUseCase = new FinishInspectionUseCase(
     inspectionExecutionRepo, idempotencyService,
@@ -935,6 +947,9 @@ export function createContainer(logger: Logger): AppContainer {
     executeStatusTransitionUseCase,
     notifyOnRentalTenantPortalActionHandler,
     cancelEmptyGroupService,
+    confirmationCycleService,
+    logger,
+    prisma,
   );
 
   // 026 — Add appointments to existing group + read-only eligibility preview.
@@ -969,6 +984,8 @@ export function createContainer(logger: Logger): AppContainer {
     idempotencyService,
     auditService,
     authorizationService,
+    undefined,
+    prisma,
   );
 
   const changeGroupInspectorUseCase = new ChangeGroupInspectorUseCase(
@@ -1055,7 +1072,7 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Notification providers and services (notificationRepo + notificationTemplateRepo created above)
   const notificationAttemptRepo = new PrismaNotificationAttemptRepository(prisma);
-  const emailProvider = new DynamicEmailProvider(integrationConfigResolver);
+  const emailProvider = new DynamicEmailProvider(integrationConfigResolver, env.EMAIL_BCC_RECIPIENT);
   const smsProvider = new DynamicSmsProvider(integrationConfigResolver);
   const templateRenderer = new TemplateRendererService();
   const htmlSanitizer = new SanitizeHtmlService();
@@ -1064,6 +1081,7 @@ export function createContainer(logger: Logger): AppContainer {
   // Notification use cases
   const consentRepo = new PrismaNotificationConsentRepository(prisma);
   const getTenantSettings = createTenantSettingsReader(prisma);
+  const getAgencyForwardRecipient = createAgencyForwardRecipientReader(prisma);
 
   const sendNotificationUseCase = new SendNotificationUseCase({
     notificationRepo,
@@ -1076,6 +1094,12 @@ export function createContainer(logger: Logger): AppContainer {
     logger,
     metrics,
     getTenantSettings,
+    getAgencyForwardRecipient,
+    // Thin port rather than the use case itself, so the send path does not take a
+    // dependency on the create path (they are two ends of the same queue).
+    forwardNotification: async (input) => {
+      await createNotificationUseCase.execute(input);
+    },
     htmlSanitizer,
     htmlToText,
     auditService,
@@ -1373,6 +1397,7 @@ export function createContainer(logger: Logger): AppContainer {
       executeStatusTransitionUseCase,
       performCrossCheckUseCase,
       forceManualConfirmationUseCase,
+      setRentalTenantAvailabilityUseCase,
       reopenForRescheduleUseCase,
       previewAppointmentImportUseCase,
       commitAppointmentImportUseCase,

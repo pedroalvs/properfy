@@ -1,4 +1,4 @@
-import { type AuthContext, isAppointmentOverdue } from '@properfy/shared';
+import { type AuthContext, type AvailableSlotSchema, isAppointmentOverdue } from '@properfy/shared';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type {
   IAppointmentRepository,
@@ -78,6 +78,12 @@ export interface ListAppointmentsOutput {
     isOverdue: boolean;
     hasRentalTenantNote: boolean;
     rentalTenantNote: string | null;
+    /**
+     * Weekly availability the rental tenant offered when declining in the portal.
+     * Null when they offered none — the map's Confirm column renders a greyed
+     * icon for that case, so "none" and "missing" must not be conflated.
+     */
+    rentalTenantAvailableSlots: AvailableSlotSchema[] | null;
     latitude: number | null;
     longitude: number | null;
     /** Property total area in m²; null when the property has no recorded area. */
@@ -198,6 +204,11 @@ export class ListAppointmentsUseCase {
         }),
         hasRentalTenantNote: !!item.appointment.rentalTenantNote,
         rentalTenantNote: item.appointment.rentalTenantNote ?? null,
+        // Collapse both "field absent" and "empty array" to null so the client
+        // has a single emptiness check.
+        rentalTenantAvailableSlots: item.rentalTenantAvailableSlots?.length
+          ? item.rentalTenantAvailableSlots
+          : null,
         latitude: item.propertyLatitude,
         longitude: item.propertyLongitude,
         propertyTotalAreaM2: item.propertyTotalAreaM2 ?? null,

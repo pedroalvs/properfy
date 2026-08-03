@@ -131,7 +131,7 @@ export class ReopenForRescheduleUseCase {
           timeSlotEnd: newTimeSlotEnd,
           inspectorId: null,
           reason: null,
-        });
+        }, tx);
         await this.cycleService.invalidateOnReopen(appointmentId, appointment.tenantId, tx);
       } else {
         await this.appointmentRepo.update(appointmentId, appointment.tenantId, {
@@ -142,7 +142,7 @@ export class ReopenForRescheduleUseCase {
           inspectorId: null,
           reason: null,
           rentalTenantConfirmationStatus: 'PENDING',
-        });
+        }, tx);
       }
     };
 

@@ -5,6 +5,7 @@ import {
   statusTransitionSchema,
   listAppointmentsQuerySchema,
   forceManualConfirmationSchema,
+  setRentalTenantAvailabilitySchema,
   bulkCancelRequestSchema,
   bulkRescheduleRequestSchema,
   bulkStatusTransitionRequestSchema,
@@ -12,6 +13,7 @@ import {
   bulkActionResultItemSchema,
   bulkActionResponseSchema,
   bulkReopenForRescheduleRequestSchema,
+  bulkEditAppointmentSchema,
   normalizeCustomFields,
 } from './appointment';
 import { AppointmentStatus, RentalTenantConfirmationStatus } from '../enums/appointment';
@@ -43,6 +45,47 @@ const validInlineProperty = {
   postcode: '2000',
   state: 'NSW',
 };
+
+describe('setRentalTenantAvailabilitySchema', () => {
+  it('accepts a valid slot and defaults markUnavailable to false', () => {
+    const result = setRentalTenantAvailabilitySchema.safeParse({
+      availableSlots: [{ dayOfWeek: 'MON', start: '09:00', end: '12:00' }],
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.markUnavailable).toBe(false);
+  });
+
+  it('rejects an empty availability list', () => {
+    expect(setRentalTenantAvailabilitySchema.safeParse({ availableSlots: [] }).success).toBe(false);
+  });
+
+  it('rejects more than seven weekly slots', () => {
+    const weekdays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN', 'MON'] as const;
+    const result = setRentalTenantAvailabilitySchema.safeParse({
+      availableSlots: weekdays.map((dayOfWeek) => ({ dayOfWeek, start: '09:00', end: '12:00' })),
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues).toEqual(expect.arrayContaining([
+        expect.objectContaining({ code: 'too_big', path: ['availableSlots'] }),
+      ]));
+    }
+  });
+
+  it('rejects more than one weekly slot for the same day', () => {
+    const result = setRentalTenantAvailabilitySchema.safeParse({
+      availableSlots: [
+        { dayOfWeek: 'MON', start: '09:00', end: '12:00' },
+        { dayOfWeek: 'MON', start: '13:00', end: '17:00' },
+      ],
+      markUnavailable: false,
+    });
+
+    expect(result.success).toBe(false);
+  });
+});
 
 describe('createAppointmentSchema', () => {
   it('should be valid with propertyId', () => {
@@ -914,6 +957,33 @@ describe('bulkCancelRequestSchema', () => {
     const result = bulkCancelRequestSchema.safeParse({
       appointmentIds: ['not-a-uuid'],
       reason: 'valid reason',
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('bulkEditAppointmentSchema', () => {
+  it('accepts expandGroupTimeWindow as an option', () => {
+    const result = bulkEditAppointmentSchema.safeParse({
+      ids: [apptIdA],
+      changes: { timeSlotStart: '09:00', timeSlotEnd: '10:00' },
+      options: { expandGroupTimeWindow: true },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('keeps options optional', () => {
+    const result = bulkEditAppointmentSchema.safeParse({
+      ids: [apptIdA],
+      changes: { scheduledDate: '2027-06-01' },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects expandGroupTimeWindow smuggled into changes, which is strict', () => {
+    const result = bulkEditAppointmentSchema.safeParse({
+      ids: [apptIdA],
+      changes: { scheduledDate: '2027-06-01', expandGroupTimeWindow: true },
     });
     expect(result.success).toBe(false);
   });

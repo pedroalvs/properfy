@@ -139,4 +139,34 @@ describe('useAppointmentList', () => {
       },
     });
   });
+
+  it('forwards the agency and inspector filters to the API', async () => {
+    const wrapper = createRouterQueryWrapper('/appointments?tenantId=tenant-1&inspectorId=insp-1');
+    const { result } = renderHook(() => useAppointmentList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.filters.tenantId).toBe('tenant-1');
+    expect(result.current.filters.inspectorId).toBe('insp-1');
+    expect(mockGet).toHaveBeenCalledWith('/v1/appointments', {
+      params: {
+        query: expect.objectContaining({ tenantId: 'tenant-1', inspectorId: 'insp-1' }),
+      },
+    });
+  });
+
+  it('omits the agency and inspector params when unset', async () => {
+    const wrapper = createRouterQueryWrapper();
+    const { result } = renderHook(() => useAppointmentList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    const query = mockGet.mock.calls.at(-1)?.[1]?.params?.query as Record<string, unknown>;
+    expect(query.tenantId).toBeUndefined();
+    expect(query.inspectorId).toBeUndefined();
+  });
 });

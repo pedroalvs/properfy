@@ -24,7 +24,8 @@
  *      T_B appointments by id.
  *
  * What this test does NOT cover (covered elsewhere):
- *   - CL_ADMIN / CL_USER tenant isolation (unit tests + browser QA).
+ *   - CL_ADMIN / CL_USER tenant pinning — now proven against the same real
+ *     database in `appointment-list-cl-tenant-pin.integration.test.ts`.
  *   - AM behaviour (identical to OP at the repo layer).
  *
  * This test was previously written to assert the old "OP is tenant-scoped"
@@ -58,8 +59,8 @@ describe('DEC-003: OP cross-tenant access (real DB)', () => {
 
   beforeAll(async () => {
     harness = await setupDbHarness();
-    fixtureA = await seedLegacyDoneAppointment(harness.prisma, { rentalTenantName: 'OP-Scope Tenant A' });
-    fixtureB = await seedLegacyDoneAppointment(harness.prisma, { rentalTenantName: 'OP-Scope Tenant B' });
+    fixtureA = await seedLegacyDoneAppointment(harness.prisma, { tenantName: 'OP-Scope Tenant A' });
+    fixtureB = await seedLegacyDoneAppointment(harness.prisma, { tenantName: 'OP-Scope Tenant B' });
   }, 180_000);
 
   afterAll(async () => {

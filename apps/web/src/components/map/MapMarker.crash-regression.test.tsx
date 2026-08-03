@@ -46,6 +46,7 @@ vi.mock('mapbox-gl', () => {
       this.element = opts.element;
     }
     setLngLat(_: [number, number]) { return this; }
+    setOffset(_: [number, number]) { return this; }
     addTo(_: unknown) {
       fakeCanvas.appendChild(this.element);
       return this;

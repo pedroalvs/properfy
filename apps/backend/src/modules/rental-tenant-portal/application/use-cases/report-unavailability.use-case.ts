@@ -10,12 +10,26 @@ import { AppointmentRestrictionEntity } from '../../../appointment/domain/appoin
 import type { AppointmentEntity } from '../../../appointment/domain/appointment.entity';
 import type { IRentalTenantPortalTokenRepository } from '../../domain/rental-tenant-portal-token.repository';
 import type { AvailableSlot } from '@properfy/shared';
+import type {
+  ExecuteStatusTransitionInput,
+  ExecuteStatusTransitionOutput,
+} from '../../../appointment/application/use-cases/execute-status-transition.use-case';
+import { SYSTEM_ACTOR } from '../../../../shared/domain/constants';
+import type { Logger } from '../../../../shared/infrastructure/logger';
+import { isPortalUnanswerableStatus } from '../../domain/portal-statuses';
 import {
   PortalAppointmentInactiveError,
   PortalInspectionAlreadyStartedError,
   PortalTokenAlreadyUsedError,
 } from '../../domain/rental-tenant-portal.errors';
 import { NotFoundError } from '../../../../shared/domain/errors';
+
+interface IStatusTransitionUseCase {
+  execute(input: ExecuteStatusTransitionInput): Promise<ExecuteStatusTransitionOutput>;
+}
+
+/** Reason recorded on the audit trail and offered to the agency notice. */
+const REJECTION_REASON = 'Rental tenant reported they cannot attend, via the portal';
 
 export interface ReportUnavailabilityInput {
   tokenId: string;
@@ -35,18 +49,24 @@ export interface ReportUnavailabilityInput {
   userAgent: string | null;
 }
 
-const INACTIVE_STATUSES = ['CANCELLED', 'DONE', 'REJECTED'] as const;
-
 export class ReportUnavailabilityUseCase {
   constructor(
     private readonly activityRepo: IRentalTenantPortalActivityRepository,
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
+    /**
+     * Required, not optional like the dependencies below it: a decline that does
+     * not reject the appointment is the bug this use case exists to prevent, so
+     * an unwired transition must fail loudly at construction rather than
+     * silently degrade to the old confirmation-status-only behaviour.
+     */
+    private readonly statusTransition: IStatusTransitionUseCase,
     private readonly onNotificationHandler?: { execute(input: { appointmentId: string; tenantId?: string | null; action: string }): Promise<unknown> },
     private readonly executionRepo?: IInspectionExecutionRepository,
     private readonly domainEventBus?: DomainEventBus,
     private readonly tokenRepo?: IRentalTenantPortalTokenRepository,
     private readonly cycleService?: ConfirmationCycleService,
+    private readonly logger?: Logger,
   ) {}
 
   async execute(input: ReportUnavailabilityInput) {
@@ -58,8 +78,27 @@ export class ReportUnavailabilityUseCase {
 
     const { appointment } = result;
 
-    // 2. Idempotent: already UNAVAILABLE — return success without recording activity
+    // 2. Idempotent: already UNAVAILABLE — return success without re-recording
+    // the activity, audit and notification.
+    //
+    // The confirmation status is written before the rejection (they cannot share
+    // a transaction: the transition is its own use case). So "UNAVAILABLE but not
+    // yet rejected" is a real, reachable state — a decline whose transition threw.
+    // Returning success there would report the tenant's retry as done while the
+    // appointment stayed on the inspector's run forever, which is precisely the
+    // failure this use case exists to prevent. Re-drive the rejection instead, so
+    // the retry heals rather than masks. Guarded by the unanswerable check because
+    // an operator may legitimately have moved it on in the meantime.
+    //
+    // Two healing retries landing at once both miss the idempotency cache (it is
+    // populated on completion, not on entry), so the loser gets an
+    // AppointmentInvalidTransitionError for REJECTED → REJECTED. Deliberately not
+    // swallowed: the end state is already correct, a further retry returns success,
+    // and catching transition errors here would hide real ones later.
     if (appointment.rentalTenantConfirmationStatus === 'UNAVAILABLE') {
+      if (!isPortalUnanswerableStatus(appointment.status)) {
+        await this.rejectDeclined(input, appointment);
+      }
       return {
         rentalTenantConfirmationStatus: 'UNAVAILABLE' as const,
         urgentMode: false,
@@ -71,8 +110,10 @@ export class ReportUnavailabilityUseCase {
       throw new PortalTokenAlreadyUsedError();
     }
 
-    // 3. Block for inactive appointment statuses
-    if (INACTIVE_STATUSES.includes(appointment.status as (typeof INACTIVE_STATUSES)[number])) {
+    // 3. Block where the "will you be home?" question no longer applies. This
+    // includes REJECTED: declining an already-rejected appointment would try to
+    // reject it a second time. Changing time still works from REJECTED.
+    if (isPortalUnanswerableStatus(appointment.status)) {
       throw new PortalAppointmentInactiveError();
     }
 
@@ -109,10 +150,58 @@ export class ReportUnavailabilityUseCase {
       throw error;
     }
 
+    // 4c. Hand the link back. A decline is no longer the tenant's last possible
+    // action: the appointment is now REJECTED and the change-time picker is the
+    // way to revive it, so consuming the token here would strand them. The
+    // replay guard for the decline itself is the "already UNAVAILABLE"
+    // short-circuit at the top, not the claim.
+    //
+    // Not allowed to fail the request: everything above is already committed, so
+    // throwing here would show the tenant an error for a decline that worked.
+    // Logged instead, because the outcome — token consumed, change-time broken
+    // for this link — still needs to be visible.
+    if (this.tokenRepo) {
+      try {
+        await this.tokenRepo.releaseClaim(input.tokenId, input.appointmentId);
+      } catch (err) {
+        this.logger?.error(
+          { err, appointmentId: input.appointmentId, tokenId: input.tokenId },
+          'Failed to release the portal token after a decline; the tenant cannot change time with this link',
+        );
+      }
+    }
+
     return {
       rentalTenantConfirmationStatus: 'UNAVAILABLE' as const,
       urgentMode: input.isPastConfirmCutoff,
     };
+  }
+
+  /**
+   * Moves a declined appointment to REJECTED.
+   *
+   * Routed through the sovereign transition use case rather than a direct
+   * repository write, so the rejection gets the same audit entry, domain event,
+   * empty-group cleanup and notification as any operator-driven rejection.
+   * `SCHEDULED → REJECTED` and `AWAITING_INSPECTOR → REJECTED` both already list
+   * SYS in TRANSITION_RULES.
+   *
+   * The idempotency key is keyed on the token rather than the attempt, so the
+   * healing retry above reuses the original decision instead of minting a second
+   * rejection.
+   */
+  private async rejectDeclined(
+    input: ReportUnavailabilityInput,
+    appointment: AppointmentEntity,
+  ): Promise<void> {
+    await this.statusTransition.execute({
+      appointmentId: input.appointmentId,
+      targetStatus: 'REJECTED',
+      reason: REJECTION_REASON,
+      rejectionReasonCode: 'TENANT_DECLINED',
+      idempotencyKey: `portal_decline:${input.appointmentId}:${input.tokenId}`,
+      actor: { ...SYSTEM_ACTOR, tenantId: appointment.tenantId },
+    });
   }
 
   private async applyUnavailability(input: ReportUnavailabilityInput, appointment: AppointmentEntity): Promise<void> {
@@ -193,6 +282,11 @@ export class ReportUnavailabilityUseCase {
       },
       ipAddress: input.ipAddress ?? undefined,
     });
+
+    // 8b. A decline ends the appointment: there is no one to let the inspector
+    // in, so it leaves the run and waits to be rescheduled against the weekly
+    // availability recorded above.
+    await this.rejectDeclined(input, appointment);
 
     // 9. Side effect: notify operator of unavailability
     if (this.onNotificationHandler) {

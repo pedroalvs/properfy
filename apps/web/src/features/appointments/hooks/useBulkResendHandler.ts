@@ -32,9 +32,13 @@ export function useBulkResendHandler(
       const results = response.data.results;
       const count = (status: string) => results.filter((r) => r.status === status).length;
       const errors = count('ERROR');
+      const blocked = count('TENANT_NOTIFICATIONS_BLOCKED');
       showSuccess(
         `${count('SENT')} sent · ${count('NO_PRIMARY_CONTACT')} no primary · ` +
-          `${count('IDEMPOTENT_REPLAY')} already sent today · ${errors} errors`,
+          `${count('IDEMPOTENT_REPLAY')} already sent today · ` +
+          // Only shown when non-zero: most selections span a single unblocked agency.
+          (blocked > 0 ? `${blocked} blocked (agency does not notify tenants) · ` : '') +
+          `${errors} errors`,
       );
       if (errors === 0) onDone();
     } catch (e) {

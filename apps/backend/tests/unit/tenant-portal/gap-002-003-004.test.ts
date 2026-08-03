@@ -210,6 +210,7 @@ describe('GAP-002: Domain events for portal actions', () => {
         activityRepo as unknown as IRentalTenantPortalActivityRepository,
         appointmentRepo as unknown as IAppointmentRepository,
         auditService,
+        { execute: vi.fn().mockResolvedValue({}) },
         undefined,
         undefined,
         eventBus,
@@ -299,6 +300,7 @@ describe('GAP-003: Token replay detection', () => {
         activityRepo as unknown as IRentalTenantPortalActivityRepository,
         appointmentRepo as unknown as IAppointmentRepository,
         auditService,
+        { execute: vi.fn().mockResolvedValue({}) },
       );
 
       await expect(useCase.execute({
@@ -311,7 +313,7 @@ describe('GAP-003: Token replay detection', () => {
       })).rejects.toThrow(PortalTokenAlreadyUsedError);
     });
 
-    it('marks token as used on successful report', async () => {
+    it('claims the token on a successful report, then releases it for change-time', async () => {
       const activityRepo = makeActivityRepo();
       const appointmentRepo = makeAppointmentRepo();
       const auditService = { log: vi.fn() } as unknown as PersistentAuditService;
@@ -321,6 +323,7 @@ describe('GAP-003: Token replay detection', () => {
         activityRepo as unknown as IRentalTenantPortalActivityRepository,
         appointmentRepo as unknown as IAppointmentRepository,
         auditService,
+        { execute: vi.fn().mockResolvedValue({}) },
         undefined,
         undefined,
         undefined,
@@ -337,6 +340,9 @@ describe('GAP-003: Token replay detection', () => {
       });
 
       expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1', 'appt-1');
+      // Handed back on purpose: the decline auto-rejects the appointment, and
+      // the change-time picker is how the tenant recovers from that.
+      expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
     });
   });
 

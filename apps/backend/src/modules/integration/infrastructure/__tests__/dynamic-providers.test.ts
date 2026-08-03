@@ -48,7 +48,22 @@ describe('DynamicEmailProvider', () => {
 
     await provider.send('a@b.c', 's', '<p/>', 't');
     expect(ResendEmailProvider).toHaveBeenCalledTimes(2);
-    expect(ResendEmailProvider).toHaveBeenLastCalledWith('k2', 'a@x.com');
+    expect(ResendEmailProvider).toHaveBeenLastCalledWith('k2', 'a@x.com', undefined);
+  });
+
+  it('passes the environment-only BCC recipient through to Resend', async () => {
+    const provider = new DynamicEmailProvider(
+      fakeResolver([{ config: { apiKey: 'k1', fromEmail: 'a@x.com' }, source: 'database' }]),
+      'supervision@properfy.com.au',
+    );
+
+    await provider.send('a@b.c', 's', '<p/>', 't');
+
+    expect(ResendEmailProvider).toHaveBeenCalledWith(
+      'k1',
+      'a@x.com',
+      'supervision@properfy.com.au',
+    );
   });
 });
 

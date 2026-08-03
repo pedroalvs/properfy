@@ -5,11 +5,13 @@ import { CircuitBreaker } from '../../../shared/infrastructure/circuit-breaker';
 export class ResendEmailProvider implements IEmailProvider {
   private readonly resend: Resend;
   private readonly fromEmail: string;
+  private readonly bccRecipient: string | undefined;
   private readonly circuitBreaker: CircuitBreaker;
 
-  constructor(apiKey: string, fromEmail: string) {
+  constructor(apiKey: string, fromEmail: string, bccRecipient?: string) {
     this.resend = new Resend(apiKey);
     this.fromEmail = fromEmail;
+    this.bccRecipient = bccRecipient;
     this.circuitBreaker = new CircuitBreaker({ name: 'resend-email', failureThreshold: 5, resetTimeoutMs: 60000 });
   }
 
@@ -21,6 +23,7 @@ export class ResendEmailProvider implements IEmailProvider {
         subject,
         html: bodyHtml,
         text: bodyText,
+        ...(this.bccRecipient ? { bcc: this.bccRecipient } : {}),
       });
 
       if (!response.data) {

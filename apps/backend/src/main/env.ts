@@ -32,6 +32,8 @@ const envSchema = z.object({
   // Optional Resend
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().optional(),
+  /** Global hidden copy recipient for every outbound email. */
+  EMAIL_BCC_RECIPIENT: z.string().email('EMAIL_BCC_RECIPIENT must be a valid email address').optional(),
 
   // Optional webhook signature secrets (skip validation when absent — dev mode)
   RESEND_WEBHOOK_SECRET: z.string().optional(),

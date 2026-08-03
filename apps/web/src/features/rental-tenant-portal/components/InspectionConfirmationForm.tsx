@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { AvailableSlot } from '@properfy/shared';
-import { WeeklyAvailabilityPicker } from './WeeklyAvailabilityPicker';
+import { WeeklyAvailabilityPicker } from '@/components/forms/WeeklyAvailabilityPicker';
 
 interface InspectionConfirmationFormProps {
   onConfirm: (rentalTenantNote?: string) => Promise<void>;

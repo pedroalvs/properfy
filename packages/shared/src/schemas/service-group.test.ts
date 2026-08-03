@@ -340,17 +340,27 @@ describe('group portal-link schemas', () => {
         items: [
           { appointmentId: validUuid, appointmentNumber: 1, propertyCode: 'P-001', plannedAction: 'SEND' },
           { appointmentId: validUuid, appointmentNumber: 2, propertyCode: null, plannedAction: 'SKIP_ALREADY_CONFIRMED' },
+          { appointmentId: validUuid, appointmentNumber: 3, propertyCode: 'P-003', plannedAction: 'SKIP_TENANT_NOTIFICATIONS_BLOCKED' },
         ],
-        summary: { total: 2, willSend: 1, willResendDateChanged: 0, alreadyConfirmed: 1, notSendable: 0 },
+        summary: { total: 3, willSend: 1, willResendDateChanged: 0, alreadyConfirmed: 1, notSendable: 0, tenantNotificationsBlocked: 1 },
       }).success,
     ).toBe(true);
+  });
+
+  it('rejects a plan summary missing the blocked count, so the dialog can never under-report a skip', () => {
+    expect(
+      getGroupPortalLinkPlanResponseSchema.safeParse({
+        items: [],
+        summary: { total: 0, willSend: 0, willResendDateChanged: 0, alreadyConfirmed: 0, notSendable: 0 },
+      }).success,
+    ).toBe(false);
   });
 
   it('rejects a plan item with an unknown plannedAction', () => {
     expect(
       getGroupPortalLinkPlanResponseSchema.safeParse({
         items: [{ appointmentId: validUuid, appointmentNumber: 1, propertyCode: null, plannedAction: 'MAYBE' }],
-        summary: { total: 1, willSend: 0, willResendDateChanged: 0, alreadyConfirmed: 0, notSendable: 1 },
+        summary: { total: 1, willSend: 0, willResendDateChanged: 0, alreadyConfirmed: 0, notSendable: 1, tenantNotificationsBlocked: 0 },
       }).success,
     ).toBe(false);
   });

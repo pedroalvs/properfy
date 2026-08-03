@@ -56,6 +56,11 @@ export interface GetAppointmentOutput {
   serviceTypeName: string;
   /** Tenant (agency) display name — labelled "CLIENT" in the map detail panel (025 §FR-451). */
   clientName: string;
+  /**
+   * Owning agency's occupant-contact switch, so the UI can disable "Send Portal Link"
+   * with a reason rather than letting the operator find out via a 409.
+   */
+  rentalTenantNotificationsEnabled: boolean;
   serviceGroupId: string | null;
   /** Service group code = String(group_number); null when ungrouped. */
   serviceGroupCode: string | null;
@@ -98,6 +103,8 @@ export interface GetAppointmentOutput {
     notes: string | null;
     source: string;
   }>;
+  /** Weekly availability the rental tenant offered, flattened for detail consumers. */
+  rentalTenantAvailableSlots: AvailableSlot[] | null;
   /** True when an active (non-superseded) confirmation cycle exists — enables "Copy Portal Link" button. */
   hasActivePortalToken: boolean;
   /** App credentials linked to this appointment (live reference). */
@@ -149,6 +156,8 @@ function mapToOutput(found: AppointmentWithRelations, apps: AppointmentApp[]): G
     branchName: found.branchName ?? '',
     serviceTypeName: found.serviceTypeName ?? '',
     clientName: found.tenantName ?? '',
+    // Undefined (older fixtures) means enabled, matching the schema default.
+    rentalTenantNotificationsEnabled: found.tenantRentalTenantNotificationsEnabled !== false,
     serviceGroupId: appointment.serviceGroupId ?? null,
     serviceGroupCode: found.serviceGroupNumber != null ? String(found.serviceGroupNumber) : null,
     isOverdue: isAppointmentOverdue({
@@ -191,6 +200,10 @@ function mapToOutput(found: AppointmentWithRelations, apps: AppointmentApp[]): G
       notes: r.notes,
       source: r.source,
     })),
+    rentalTenantAvailableSlots:
+      restrictions
+        .map((restriction) => restriction.availableSlotsJson)
+        .find((slots) => slots?.length) ?? null,
     hasActivePortalToken: found.hasActivePortalToken,
     apps,
   };

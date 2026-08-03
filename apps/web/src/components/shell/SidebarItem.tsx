@@ -31,9 +31,12 @@ export function SidebarItem({ icon, label, to, mobile = false, onNavigate }: Sid
                 ? 'bg-real-estate/10 text-real-estate'
                 : 'text-text-primary hover:bg-black/5'
             }`
-          : `group relative block w-sidebar px-1 py-2 text-center ${
-              isActive ? 'sidebar-active' : ''
-            }`
+          : // No active class here: `sidebar-active` was a test marker from the first
+            // version of this component, never a style (the commit that added it touched
+            // no CSS), and the two tests that read it were deleted in 9566ac15. The
+            // desktop active affordance is the indicator <span> below plus the icon
+            // colour — both driven by `isActive` from the render prop.
+            'group relative block w-sidebar px-1 py-2 text-center'
       }
       aria-label={label}
     >

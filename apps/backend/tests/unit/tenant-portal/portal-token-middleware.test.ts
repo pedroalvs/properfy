@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { createPortalTokenMiddleware } from '../../../src/modules/rental-tenant-portal/interfaces/portal-token-middleware';
 import { RentalTenantPortalTokenEntity } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-token.entity';
+import { TokenService } from '../../../src/modules/rental-tenant-portal/domain/token.service';
 import type { RentalTenantPortalTokenProps } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-token.entity';
 import type { IRentalTenantPortalTokenRepository } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal-token.repository';
 import { PortalTokenInvalidError, PortalTokenRevokedError } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
@@ -151,5 +152,32 @@ describe('createPortalTokenMiddleware', () => {
     const request = makeRequest({});
 
     await expect(middleware(request, reply)).rejects.toThrow(PortalTokenInvalidError);
+  });
+
+  // Tokens shrank from 64 hex chars to 10 base62 chars. Links already emailed to
+  // rental tenants were left to expire on their own rather than being re-minted,
+  // so the middleware must keep resolving both shapes. These use the real
+  // TokenService instead of the `hashed-${raw}` stub so the whole hash pipeline
+  // is exercised, not just the lookup wiring.
+  describe('raw token shape', () => {
+    const tokenService = new TokenService();
+    const LEGACY_RAW_TOKEN = 'a'.repeat(64);
+
+    it.each([
+      ['legacy 64-char hex', LEGACY_RAW_TOKEN],
+      ['current 10-char base62', tokenService.generateRawToken()],
+    ])('resolves a %s token', async (_label, rawToken) => {
+      const entity = makeTokenEntity({ tokenHash: tokenService.hashToken(rawToken) });
+      const repo = makeTokenRepo({
+        findByTokenHash: vi.fn(async (hash: string) => (hash === entity.tokenHash ? entity : null)),
+      });
+      const middleware = createPortalTokenMiddleware(repo, (raw) => tokenService.hashToken(raw));
+      const request = makeRequest({ token: rawToken });
+
+      await middleware(request, reply);
+
+      expect(request.portalContext?.tokenId).toBe('token-1');
+      expect(request.portalContext?.isReadOnly).toBe(false);
+    });
   });
 });

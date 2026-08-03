@@ -14,6 +14,7 @@ import {
   marketplaceOfferDetailAppointmentSchema,
   invoiceResponseSchema,
   inspectorResponseSchema,
+  startInspectionResponseSchema,
 } from './responses';
 
 describe('appointmentResponseSchema — appointmentCode / code', () => {
@@ -85,6 +86,62 @@ describe('appointmentResponseSchema — appointmentCode / code', () => {
   it('rejects a non-boolean isOverdue', () => {
     expect(
       appointmentResponseSchema.safeParse({ ...validBase, isOverdue: 'true' }).success,
+    ).toBe(false);
+  });
+
+  // Same failure mode as isOverdue above, one field later: the map's Confirm
+  // column reads the rental tenant's weekly availability off the LIST payload.
+  // Undeclared here, the list use case would compute it and the serializer
+  // would drop it with no error anywhere.
+  it('carries rentalTenantAvailableSlots across the wire instead of stripping it', () => {
+    const slots = [{ dayOfWeek: 'MON', start: '09:00', end: '12:00' }];
+    const result = appointmentResponseSchema.safeParse({
+      ...validBase,
+      rentalTenantAvailableSlots: slots,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.rentalTenantAvailableSlots).toEqual(slots);
+  });
+
+  it('accepts a null rentalTenantAvailableSlots for appointments with no availability', () => {
+    const result = appointmentResponseSchema.safeParse({
+      ...validBase,
+      rentalTenantAvailableSlots: null,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.rentalTenantAvailableSlots).toBeNull();
+  });
+
+  it('keeps legacy slots readable even when their clock was accepted only by the old contract', () => {
+    const legacySlots = [{ dayOfWeek: 'MON', start: '24:00', end: '25:00' }];
+    const result = appointmentResponseSchema.safeParse({
+      ...validBase,
+      rentalTenantAvailableSlots: legacySlots,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.rentalTenantAvailableSlots).toEqual(legacySlots);
+  });
+
+  it('leaves rentalTenantAvailableSlots optional for appointment responses that do not include it', () => {
+    const result = appointmentResponseSchema.safeParse(validBase);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.rentalTenantAvailableSlots).toBeUndefined();
+  });
+
+  it('rejects a malformed slot rather than passing junk to the UI', () => {
+    expect(
+      appointmentResponseSchema.safeParse({
+        ...validBase,
+        rentalTenantAvailableSlots: [{ dayOfWeek: 'FUNDAY', start: '09:00', end: '12:00' }],
+      }).success,
+    ).toBe(false);
+    // start must precede end — the shared refine, not a new rule.
+    expect(
+      appointmentResponseSchema.safeParse({
+        ...validBase,
+        rentalTenantAvailableSlots: [{ dayOfWeek: 'MON', start: '17:00', end: '09:00' }],
+      }).success,
     ).toBe(false);
   });
 });
@@ -962,5 +1019,40 @@ describe('response contract — civil dates vs instants', () => {
     expect(parsed.scheduledDate).toBe('2026-07-28');
     expect(parsed.createdAt).toBe('2026-07-28T00:00:00.000Z');
     expect(parsed.scheduledDate).not.toBe(parsed.createdAt);
+  });
+});
+
+describe('startInspectionResponseSchema', () => {
+  const validPayload = {
+    executionId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee111',
+    appointmentId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee112',
+    startedAt: '2026-03-16T10:00:00.000Z',
+    startLatitude: -33.8688,
+    startLongitude: 151.2093,
+    geolocationDistanceMeters: 120,
+    status: 'IN_PROGRESS' as const,
+  };
+
+  it('accepts a valid start inspection response payload', () => {
+    const result = startInspectionResponseSchema.safeParse(validPayload);
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts geolocationDistanceMeters when null', () => {
+    const result = startInspectionResponseSchema.safeParse({
+      ...validPayload,
+      geolocationDistanceMeters: null,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.geolocationDistanceMeters).toBeNull();
+  });
+
+  it('rejects an invalid executionId or appointmentId UUID', () => {
+    expect(startInspectionResponseSchema.safeParse({ ...validPayload, executionId: 'invalid-id' }).success).toBe(false);
+    expect(startInspectionResponseSchema.safeParse({ ...validPayload, appointmentId: 'not-a-uuid' }).success).toBe(false);
+  });
+
+  it('rejects an invalid status', () => {
+    expect(startInspectionResponseSchema.safeParse({ ...validPayload, status: 'DONE' }).success).toBe(false);
   });
 });

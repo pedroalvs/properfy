@@ -1,9 +1,11 @@
+import type { Prisma } from '@prisma/client';
 import type {
   AppointmentCustomField,
   PropertyType,
   CancellationReasonCode,
   RejectionReasonCode,
   ServiceTypeFlowType,
+  AvailableSlotSchema,
 } from '@properfy/shared';
 import type { AppointmentEntity } from './appointment.entity';
 import type { AppointmentContactEntity } from './appointment-contact.entity';
@@ -77,6 +79,12 @@ export interface AppointmentWithRelations {
   /** Tenant's appointment code prefix (e.g. "INS"), used to format appointment codes. */
   tenantAppointmentCodePrefix?: string | null;
   /**
+   * Owning agency's occupant-contact switch, populated by findById. Optional so the
+   * existing fixtures need not enumerate it; a missing value is normalised to `true`,
+   * matching "absent key means enabled" everywhere else.
+   */
+  tenantRentalTenantNotificationsEnabled?: boolean;
+  /**
    * True when at least one tenant_portal_token row satisfies:
    * status = 'ACTIVE' AND expires_at > NOW (Node-clock).
    * Populated by PrismaAppointmentRepository via a filtered include.
@@ -114,6 +122,15 @@ export interface AppointmentListItem {
   inspectorName: string | null;
   /** Service group's sequential number (group_number); null when ungrouped. */
   serviceGroupNumber: number | null;
+  /**
+   * Weekly availability the rental tenant offered when declining in the portal
+   * (`appointment_restrictions.available_slots_json`), flattened onto the list row.
+   *
+   * Optional only so existing test fixtures need not enumerate it —
+   * `ListAppointmentsUseCase` normalises a missing or empty value to null. Do not
+   * read an omission here as "this tenant offered no availability".
+   */
+  rentalTenantAvailableSlots?: AvailableSlotSchema[] | null;
 }
 
 // `ContactFilters`, `ContactListItem`, and `ContactDetail` were retired
@@ -131,7 +148,18 @@ export interface VisibleForInspectorParams {
 }
 
 export interface IAppointmentRepository {
-  findById(id: string, tenantId: string | null): Promise<AppointmentWithRelations | null>;
+  /**
+   * `tx` is not optional decoration: a caller that has already written to this
+   * appointment inside its own transaction MUST pass it, or this read lands on
+   * the global client and returns pre-write values. The portal join depends on
+   * seeing its own uncommitted `serviceGroupId`, `inspectorId` and
+   * `rentalTenantConfirmationStatus`.
+   */
+  findById(
+    id: string,
+    tenantId: string | null,
+    tx?: Prisma.TransactionClient,
+  ): Promise<AppointmentWithRelations | null>;
   findAll(filters: AppointmentFilters, pagination: PaginationParams): Promise<AppointmentListItem[]>;
   /**
    * Returns SCHEDULED appointments for the inspector within the date range,
@@ -178,6 +206,7 @@ export interface IAppointmentRepository {
       payoutAmount: number;
       pricingRuleSnapshotJson: Record<string, unknown> | null;
     }>,
+    tx?: Prisma.TransactionClient,
   ): Promise<void>;
   saveContact(contact: AppointmentContactEntity): Promise<void>;
   /** Update snapshot fields on a specific junction row. Used by portal contact edits and legacy single-contact updates. */

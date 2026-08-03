@@ -29,6 +29,7 @@ export const MANDATORY_TEMPLATE_CODES = [
   'INSPECTION_CANCELLED',
   'INSPECTION_CANCELLED_SMS',
   'INSPECTION_CANCELLED_AGENCY',
+  'INSPECTION_REJECTED_AGENCY',
   'INSPECTION_UNAVAILABILITY_REPORTED',
   'INSPECTION_UNAVAILABILITY_REPORTED_SMS',
   'REPORT_READY',
@@ -49,6 +50,7 @@ export const PLATFORM_ONLY_TEMPLATE_CODES = [
   'INSPECTOR_GROUP_ASSIGNED',
   'INSPECTOR_GROUP_UNASSIGNED',
   'INSPECTOR_GROUP_RESCHEDULED',
+  'TENANT_NOTICE_FORWARDED_AGENCY',
 ] as const;
 
 export type PlatformOnlyTemplateCode = (typeof PLATFORM_ONLY_TEMPLATE_CODES)[number];
@@ -75,6 +77,7 @@ export const TEMPLATE_CODE_LABELS: Record<MandatoryTemplateCode, string> = {
   INSPECTION_CANCELLED: 'Inspection Cancelled',
   INSPECTION_CANCELLED_SMS: 'Inspection Cancelled (SMS)',
   INSPECTION_CANCELLED_AGENCY: 'Inspection Cancelled (Agency)',
+  INSPECTION_REJECTED_AGENCY: 'Inspection Rejected (Agency)',
   INSPECTION_UNAVAILABILITY_REPORTED: 'Unavailability Reported',
   INSPECTION_UNAVAILABILITY_REPORTED_SMS: 'Unavailability Reported (SMS)',
   REPORT_READY: 'Report Ready',
@@ -93,6 +96,7 @@ export const PLATFORM_TEMPLATE_CODE_LABELS: Record<PlatformOnlyTemplateCode, str
   INSPECTOR_GROUP_ASSIGNED: 'Inspector Group Assigned',
   INSPECTOR_GROUP_UNASSIGNED: 'Inspector Group Unassigned',
   INSPECTOR_GROUP_RESCHEDULED: 'Inspector Group Rescheduled',
+  TENANT_NOTICE_FORWARDED_AGENCY: 'Tenant Notice Forwarded to Agency',
 };
 
 /**
@@ -130,7 +134,15 @@ export type NotificationTarget = (typeof NOTIFICATION_TARGETS)[number];
  *
  * This is a declared mapping rather than a field on the template row because the recipient
  * is resolved at each dispatch site, not stored with the template. **If you add or move a
- * dispatch site, update this map.** Current sources, one per family:
+ * dispatch site, update this map.**
+ *
+ * **This map is load-bearing, not merely descriptive.** `SendNotificationUseCase` reads it to
+ * decide whether a notification is occupant-directed and must therefore be suppressed when its
+ * agency has `rentalTenantNotificationsEnabled: false`. A wrong target here either leaks a
+ * message to a rental tenant whose agency blocked contact, or silently withholds one from an
+ * agency, inspector or user account that should always receive it.
+ *
+ * Current sources, one per family:
  *
  * - RENTAL_TENANT — `notify-on-status-transition.handler.ts`,
  *   `notify-on-rental-tenant-portal-action.handler.ts`, `notify-on-admin-reschedule.handler.ts`,
@@ -138,7 +150,10 @@ export type NotificationTarget = (typeof NOTIFICATION_TARGETS)[number];
  *   `generate-portal-token.use-case.ts` (TENANT_PORTAL_LINK)
  * - PROPERTY_MANAGER — `dispatch-escalations.use-case.ts` and
  *   `notify-on-status-transition.handler.ts` (INSPECTION_CANCELLED_AGENCY, the agency's own
- *   copy of a cancellation), both via `branch.contactEmail`
+ *   copy of a cancellation, and INSPECTION_REJECTED_AGENCY, its cue to reschedule a
+ *   rejected appointment), plus `send-notification.use-case.ts`
+ *   (TENANT_NOTICE_FORWARDED_AGENCY, the mirror of a suppressed occupant message), all via
+ *   `branch.contactEmail`
  * - INSPECTOR — `notify-on-group-inspector-change.subscriber.ts`, via `inspector.email`
  * - USER_ACCOUNT — `process-report-job.use-case.ts` (the requesting user),
  *   `request-password-reset.use-case.ts`
@@ -168,6 +183,7 @@ export const TEMPLATE_TARGETS: Record<
   INSPECTION_CANCELLED: 'RENTAL_TENANT',
   INSPECTION_CANCELLED_SMS: 'RENTAL_TENANT',
   INSPECTION_CANCELLED_AGENCY: 'PROPERTY_MANAGER',
+  INSPECTION_REJECTED_AGENCY: 'PROPERTY_MANAGER',
   INSPECTION_UNAVAILABILITY_REPORTED: 'RENTAL_TENANT',
   INSPECTION_UNAVAILABILITY_REPORTED_SMS: 'RENTAL_TENANT',
   REPORT_READY: 'USER_ACCOUNT',
@@ -178,6 +194,10 @@ export const TEMPLATE_TARGETS: Record<
   INSPECTOR_GROUP_ASSIGNED: 'INSPECTOR',
   INSPECTOR_GROUP_UNASSIGNED: 'INSPECTOR',
   INSPECTOR_GROUP_RESCHEDULED: 'INSPECTOR',
+  // Must stay PROPERTY_MANAGER: this is the mirror sent when an occupant-directed
+  // message is suppressed, so a RENTAL_TENANT target here would suppress the mirror
+  // too and forward it again, forever.
+  TENANT_NOTICE_FORWARDED_AGENCY: 'PROPERTY_MANAGER',
 };
 
 /** Target for any template code; `undefined` for custom codes outside both catalogs. */
@@ -206,8 +226,14 @@ export const PROTECTED_TEMPLATE_CLASSIFICATIONS: Record<string, NotificationClas
   INSPECTION_CANCELLED: 'TRANSACTIONAL',
   INSPECTION_CANCELLED_SMS: 'TRANSACTIONAL',
   INSPECTION_CANCELLED_AGENCY: 'TRANSACTIONAL',
+  INSPECTION_REJECTED_AGENCY: 'TRANSACTIONAL',
   INSPECTION_UNAVAILABILITY_REPORTED: 'TRANSACTIONAL',
   INSPECTION_UNAVAILABILITY_REPORTED_SMS: 'TRANSACTIONAL',
+  // The mirror of a message withheld from the occupant. OPERATIONAL would make it
+  // consent-checked per recipient, so a branch contact's opt-out would suppress it —
+  // and then neither the occupant nor the agency ever learns of the inspection, which
+  // is precisely the hole this forward exists to close.
+  TENANT_NOTICE_FORWARDED_AGENCY: 'TRANSACTIONAL',
 };
 
 /** Protected code strings — used by UI to disable reclassification. */
@@ -365,6 +391,14 @@ export const TEMPLATE_VARIABLES: Record<
   INSPECTION_CANCELLED_AGENCY: {
     required: ['propertyAddress', 'scheduledDate', 'appointmentCode'],
     optional: ['rentalTenantName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'properfyLogoUrl', 'cancellationReason'],
+  },
+  // Agency-facing notice that an appointment was rejected and needs rescheduling.
+  // `rejectionReason` is OPTIONAL for the same reason `cancellationReason` is above:
+  // a required variable that resolves to nothing would throw
+  // MissingRequiredVariableError and lose the notice entirely.
+  INSPECTION_REJECTED_AGENCY: {
+    required: ['propertyAddress', 'scheduledDate', 'appointmentCode'],
+    optional: ['rentalTenantName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'properfyLogoUrl', 'rejectionReason'],
   },
   INSPECTION_UNAVAILABILITY_REPORTED: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'appointmentCode'],

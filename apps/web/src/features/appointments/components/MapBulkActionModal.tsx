@@ -13,7 +13,9 @@ import { getValidTransitions, isReasonRequired } from '@properfy/shared';
 import type { AppointmentStatus, UserRole } from '@properfy/shared';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 import { AppointmentCodePill } from './AppointmentCodePill';
-import { ConfirmationChannelIcons, IconWithTooltip } from './ConfirmationChannelIcons';
+import { wasRentalTenantNotified } from '../lib/rental-tenant-notice';
+import { ConfirmationChannelIcons, ChannelIcon } from './ConfirmationChannelIcons';
+import { formatAvailabilitySlots } from '../lib/availability-slots';
 import { MapBulkRescheduleForm, type RescheduleGroupContext } from './MapBulkRescheduleForm';
 import { MapBulkReturnToPoolForm } from './MapBulkReturnToPoolForm';
 import { useBulkCancelAppointments } from '../hooks/useBulkCancelAppointments';
@@ -321,25 +323,36 @@ export function MapBulkActionModal({
     {
       key: 'confirmation',
       label: 'Confirm',
-      width: '80px',
+      width: '100px',
       align: 'center',
-      render: (row) => (
-        <div className="flex items-center justify-center gap-1">
-          <ConfirmationChannelIcons
-            rentalTenantConfirmationStatus={row.rentalTenantConfirmationStatus}
-            hasEmail={!!row.contactEmail}
-            hasSms={!!row.contactPhone}
-          />
-          {row.hasRentalTenantNote && (
-            <IconWithTooltip
-              icon="mdi-note-text-outline"
-              label={row.rentalTenantNote ? `Note: ${row.rentalTenantNote}` : 'Tenant left a note via portal'}
-              colour="text-text-secondary"
-              testId="bulk-modal-tenant-note-icon"
+      render: (row) => {
+        const availability = formatAvailabilitySlots(row.rentalTenantAvailableSlots);
+        return (
+          <div className="flex items-center justify-center gap-1">
+            <ConfirmationChannelIcons
+              rentalTenantConfirmationStatus={row.rentalTenantConfirmationStatus}
+              hasEmail={!!row.contactEmail}
+              hasSms={!!row.contactPhone}
             />
-          )}
-        </div>
-      ),
+            {row.hasRentalTenantNote && (
+              <ChannelIcon
+                icon="mdi-note-text-outline"
+                label={row.rentalTenantNote ? `Note: ${row.rentalTenantNote}` : 'Tenant left a note via portal'}
+                colour="text-text-secondary"
+                testId="bulk-modal-tenant-note-icon"
+              />
+            )}
+            {/* Always drawn, like the SMS/Email icons: state lives in the colour,
+                so the icon row keeps the same shape on every line. */}
+            <ChannelIcon
+              icon="mdi-calendar-clock"
+              label={availability ? `Tenant availability — ${availability}` : 'No availability provided'}
+              colour={availability ? 'text-text-secondary' : 'text-gray-300'}
+              testId="bulk-modal-tenant-availability-icon"
+            />
+          </div>
+        );
+      },
     },
   ], [allChecked, indeterminate, checkedIds, onOpenDetailPanel]);
 
@@ -796,11 +809,12 @@ function CancelForm({
   const [notifyRentalTenant, setNotifyRentalTenant] = useState(false);
   const canSubmit = reason.trim().length >= 3;
 
-  // Only confirmed tenants can be notified, so the opt-in is offered only when the
-  // selection actually contains one. Naming the codes keeps the blast radius
-  // visible — the flag is applied per appointment by the backend.
-  const alreadyConfirmed = useMemo(
-    () => checkedAppointments.filter((a) => a.rentalTenantConfirmationStatus === 'CONFIRMED'),
+  // Only tenants who were already told can be notified, so the opt-in is offered
+  // only when the selection contains one. Naming the codes keeps the blast radius
+  // visible — the flag is applied per appointment by the backend, which owns the
+  // authoritative check.
+  const alreadyNotified = useMemo(
+    () => checkedAppointments.filter(wasRentalTenantNotified),
     [checkedAppointments],
   );
 
@@ -808,7 +822,7 @@ function CancelForm({
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        if (canSubmit) void onSubmit(reason.trim(), alreadyConfirmed.length > 0 && notifyRentalTenant);
+        if (canSubmit) void onSubmit(reason.trim(), alreadyNotified.length > 0 && notifyRentalTenant);
       }}
       className="space-y-3"
     >
@@ -825,19 +839,19 @@ function CancelForm({
           data-testid="bulk-cancel-reason"
         />
       </label>
-      {alreadyConfirmed.length > 0 && (
+      {alreadyNotified.length > 0 && (
         <div data-testid="bulk-cancel-notify-block">
           <Checkbox
             checked={notifyRentalTenant}
             onChange={setNotifyRentalTenant}
-            label="Notify the tenants who confirmed"
+            label="Notify the tenants already told"
           />
           <p className="mt-1 text-xs text-text-muted">
-            Only these confirmed tenants would be emailed/texted. The agency is notified
-            for every cancellation either way.
+            Only these tenants — the ones already told about their inspection — would be
+            emailed/texted. The agency is notified for every cancellation either way.
           </p>
           <ul className="mt-1 flex flex-wrap gap-1">
-            {alreadyConfirmed.map((a) => (
+            {alreadyNotified.map((a) => (
               <li key={a.id}>
                 <AppointmentCodePill code={a.code} />
               </li>
@@ -897,11 +911,8 @@ function ChangeStatusForm({ checkedAppointments, actorRole, clUserFlags, loading
 
   // Same rule as the dedicated cancel form: the tenant opt-in only exists when the
   // target is CANCELLED and at least one selected tenant had confirmed.
-  const confirmedForCancel = useMemo(
-    () =>
-      target === 'CANCELLED'
-        ? checkedAppointments.filter((a) => a.rentalTenantConfirmationStatus === 'CONFIRMED')
-        : [],
+  const notifiableForCancel = useMemo(
+    () => (target === 'CANCELLED' ? checkedAppointments.filter(wasRentalTenantNotified) : []),
     [target, checkedAppointments],
   );
 
@@ -926,7 +937,7 @@ function ChangeStatusForm({ checkedAppointments, actorRole, clUserFlags, loading
         void onSubmit({
           targetStatus: target,
           ...(needsReason ? { reason: reason.trim() } : {}),
-          ...(confirmedForCancel.length > 0 ? { notifyRentalTenant } : {}),
+          ...(notifiableForCancel.length > 0 ? { notifyRentalTenant } : {}),
         });
       }}
       className="space-y-3"
@@ -964,19 +975,19 @@ function ChangeStatusForm({ checkedAppointments, actorRole, clUserFlags, loading
           />
         </label>
       )}
-      {confirmedForCancel.length > 0 && (
+      {notifiableForCancel.length > 0 && (
         <div data-testid="bulk-change-status-notify-block">
           <Checkbox
             checked={notifyRentalTenant}
             onChange={setNotifyRentalTenant}
-            label="Notify the tenants who confirmed"
+            label="Notify the tenants already told"
           />
           <p className="mt-1 text-xs text-text-muted">
-            Only these confirmed tenants would be emailed/texted. The agency is notified
-            for every cancellation either way.
+            Only these tenants — the ones already told about their inspection — would be
+            emailed/texted. The agency is notified for every cancellation either way.
           </p>
           <ul className="mt-1 flex flex-wrap gap-1">
-            {confirmedForCancel.map((a) => (
+            {notifiableForCancel.map((a) => (
               <li key={a.id}>
                 <AppointmentCodePill code={a.code} />
               </li>

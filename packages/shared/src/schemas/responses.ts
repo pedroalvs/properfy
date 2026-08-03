@@ -3,6 +3,7 @@ import { HHMM_REGEX } from './appointment';
 import { propertyRulesSchema, PROPERTY_TYPE_VALUES } from './property';
 import { bonusRuleSchema } from './pricing-rule';
 import { appointmentAppSchema } from './app-credential';
+import { availableSlotSchema, storedAvailableSlotSchema } from './available-slot';
 import { AppointmentStatus, ServiceTypeFlowType } from '../enums';
 
 /**
@@ -297,6 +298,12 @@ export const appointmentResponseSchema = z.object({
   rentalTenantNote: z.string().nullable().optional(),
   observation: z.string().nullable().optional(),
   hasRentalTenantNote: z.boolean().optional(),
+  /**
+   * Weekly availability the rental tenant offered when declining in the portal,
+   * flattened onto list and detail payloads so consumers do not need to inspect
+   * `restrictions[].availableSlotsJson`.
+   */
+  rentalTenantAvailableSlots: z.array(storedAvailableSlotSchema).nullable().optional(),
   hasActivePortalToken: z.boolean().default(false),
   customFieldsJson: z.unknown().nullable().optional(),
   reason: z.string().nullable().optional(),
@@ -328,6 +335,14 @@ export const appointmentResponseSchema = z.object({
   serviceTypeName: z.string().nullable().optional(),
   /** Tenant (agency) display name surfaced as "CLIENT" in the map detail panel (025 §FR-451). */
   clientName: z.string().optional(),
+  /**
+   * Owning agency's `rentalTenantNotificationsEnabled` setting, denormalized onto the
+   * detail response so the UI can disable "Send Portal Link" with a reason instead of
+   * letting the operator discover the refusal through a 409. Detail endpoint only.
+   * Must stay declared here — this schema is the Fastify response schema, and an
+   * undeclared field is silently stripped on serialization.
+   */
+  rentalTenantNotificationsEnabled: z.boolean().optional(),
   cancellationReason: z.string().nullable().optional(),
   // Geographic coordinates propagated from the appointment's property (for map views)
   latitude: z.number().nullable().optional(),
@@ -355,6 +370,13 @@ export const appointmentResponseSchema = z.object({
 
 export const forceManualConfirmationResponseSchema = z.object({
   id: z.string().uuid(),
+  rentalTenantConfirmationStatus: z.string(),
+});
+
+/** Echo of the availability an operator recorded on the tenant's behalf. */
+export const setRentalTenantAvailabilityResponseSchema = z.object({
+  id: z.string().uuid(),
+  availableSlots: z.array(availableSlotSchema),
   rentalTenantConfirmationStatus: z.string(),
 });
 
@@ -763,6 +785,16 @@ export const inspectionExecutionResponseSchema = z.object({
   updatedAt: instantStr(),
 });
 
+export const startInspectionResponseSchema = z.object({
+  executionId: z.string().uuid(),
+  appointmentId: z.string().uuid(),
+  startedAt: instantStr(),
+  startLatitude: z.number(),
+  startLongitude: z.number(),
+  geolocationDistanceMeters: z.number().nullable(),
+  status: z.literal('IN_PROGRESS'),
+});
+
 // ─── Financial Entry ───────────────────────────────────────────────────────
 
 export const financialEntryResponseSchema = z.object({
@@ -1058,6 +1090,7 @@ export type NotificationResponse = z.infer<typeof notificationResponseSchema>;
 export type NotificationTemplateResponse = z.infer<typeof notificationTemplateResponseSchema>;
 export type ReportResponse = z.infer<typeof reportResponseSchema>;
 export type InspectionExecutionResponse = z.infer<typeof inspectionExecutionResponseSchema>;
+export type StartInspectionResponse = z.infer<typeof startInspectionResponseSchema>;
 export type DashboardStatsResponse = z.infer<typeof dashboardStatsResponseSchema>;
 export type InspectorDayCount = z.infer<typeof inspectorDayCountSchema>;
 export type InspectorBreakdowns = z.infer<typeof inspectorBreakdownsSchema>;

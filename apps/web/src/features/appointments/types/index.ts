@@ -18,7 +18,12 @@ export interface Appointment {
   appointmentNumber: number;
   code: string;
   tenantId: string;
-  tenantName: string;
+  /**
+   * Tenant (agency) display name. The API sends it as `clientName` — there is no
+   * `tenantName` on the wire, and adding one here would silently read undefined:
+   * Fastify strips any field absent from `appointmentResponseSchema`.
+   */
+  clientName?: string;
   branchId: string;
   branchName: string;
   propertyId: string;
@@ -44,6 +49,12 @@ export interface Appointment {
   serviceGroupCode?: string | null;
   isOverdue: boolean;
   hasRentalTenantNote: boolean;
+  /**
+   * Note text the rental tenant left in the portal. The list endpoint returns it
+   * alongside `hasRentalTenantNote` (declared in the shared response schema), so
+   * the list and board can show the message without opening the detail.
+   */
+  rentalTenantNote?: string | null;
   /** Property total area in m²; null for legacy properties with no recorded area. */
   propertyTotalAreaM2?: number | null;
   createdAt: string;
@@ -56,6 +67,7 @@ export interface AppointmentFiltersState {
   rentalTenantConfirmationStatus: string;
   tenantId: string;
   branchId: string;
+  inspectorId: string;
   serviceTypeId: string;
   startDate: string;
   endDate: string;
@@ -84,10 +96,14 @@ export interface AppointmentDetail extends Omit<Appointment, 'code'> {
   observation: string | null;
   /** True when a tenant_portal_tokens row satisfies status='ACTIVE' AND expires_at > NOW. */
   hasActivePortalToken: boolean;
+  /**
+   * Owning agency's occupant-contact switch. False disables "Send Portal Link" (the
+   * backend refuses it with 409 TENANT_NOTIFICATIONS_BLOCKED). Optional: absent means
+   * enabled, matching the schema default and older cached payloads.
+   */
+  rentalTenantNotificationsEnabled?: boolean;
   /** Set when the appointment belongs to a service group — date/time is managed by the group. */
   serviceGroupId?: string | null;
-  /** Tenant (agency) display name — surfaced as "CLIENT" in the map detail panel (025 §FR-451). */
-  clientName?: string;
   /** T-C5-5 — populated when status = REJECTED; surfaced in the map detail panel red banner. */
   rejectionReasonCode?: string | null;
   reason?: string | null;
@@ -104,6 +120,8 @@ export interface AppointmentDetail extends Omit<Appointment, 'code'> {
   customFields?: AppointmentCustomField[];
   /** App credentials linked to this appointment (live reference). */
   apps?: AppointmentApp[];
+  /** Weekly availability the rental tenant offered, flattened by the detail API. */
+  rentalTenantAvailableSlots?: AvailableSlot[] | null;
   restrictions?: Array<{
     id: string;
     isHome: boolean;
@@ -264,6 +282,7 @@ export const DEFAULT_FILTERS: AppointmentFiltersState = {
   rentalTenantConfirmationStatus: '',
   tenantId: '',
   branchId: '',
+  inspectorId: '',
   serviceTypeId: '',
   startDate: '',
   endDate: '',

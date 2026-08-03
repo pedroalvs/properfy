@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render as rtlRender, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { AppointmentStatus, RentalTenantConfirmationStatus } from '@properfy/shared';
@@ -15,7 +16,7 @@ function makeAppointment(overrides: Partial<Appointment> = {}): Appointment {
     appointmentNumber: 1001,
     code: 'VST-001',
     tenantId: 'tenant-1',
-    tenantName: 'Test Agency',
+    clientName: 'Test Agency',
     branchId: 'branch-1',
     branchName: 'Downtown Branch',
     propertyId: 'prop-1',
@@ -41,6 +42,20 @@ function makeAppointment(overrides: Partial<Appointment> = {}): Appointment {
   };
 }
 
+/**
+ * Reads one body cell by its column header. The Group and Reviewed columns
+ * already render em dashes for most fixtures, so a bare `getAllByText('—')`
+ * would pass without the column under test ever falling back.
+ */
+function cellUnder(header: string): HTMLElement {
+  const headers = [...document.querySelectorAll('table thead th')];
+  const index = headers.findIndex((th) => th.textContent?.trim() === header);
+  if (index === -1) throw new Error(`No "${header}" column is rendered`);
+  const cell = document.querySelector('table tbody tr')?.children[index];
+  if (!cell) throw new Error(`No body cell under "${header}"`);
+  return cell as HTMLElement;
+}
+
 describe('AppointmentTable', () => {
   it('renders column headers', () => {
     render(<AppointmentTable data={[]} />);
@@ -53,6 +68,46 @@ describe('AppointmentTable', () => {
     expect(screen.getByText('Scheduled Date')).toBeInTheDocument();
     expect(screen.getByText('Reviewed')).toBeInTheDocument();
     expect(screen.getByText('Group')).toBeInTheDocument();
+    expect(screen.getByText('Branch')).toBeInTheDocument();
+  });
+
+  describe('Agency column', () => {
+    // Agency is AM/OP-only: a client user is pinned to a single agency, so the
+    // column would repeat their own name on every row.
+    it('is hidden by default', () => {
+      render(<AppointmentTable data={[makeAppointment()]} />);
+      expect(screen.queryByText('Agency')).not.toBeInTheDocument();
+      expect(screen.queryByText('Test Agency')).not.toBeInTheDocument();
+    });
+
+    it('renders the agency name when showAgency is set', () => {
+      render(<AppointmentTable data={[makeAppointment()]} showAgency />);
+      expect(screen.getByText('Agency')).toBeInTheDocument();
+      expect(cellUnder('Agency')).toHaveTextContent('Test Agency');
+    });
+
+    // The backend maps an absent relation to '' (`row.tenant?.name ?? ''`) and the
+    // response schema marks the field optional, so both empty and undefined reach
+    // the client. Neither may render as blank or "undefined".
+    it.each([
+      ['undefined', undefined],
+      ['empty', ''],
+    ])('renders an em dash when the agency name is %s', (_label, clientName) => {
+      render(<AppointmentTable data={[makeAppointment({ clientName })]} showAgency />);
+      expect(cellUnder('Agency')).toHaveTextContent('—');
+    });
+  });
+
+  describe('Branch column', () => {
+    it('renders the branch name for every role', () => {
+      render(<AppointmentTable data={[makeAppointment()]} />);
+      expect(cellUnder('Branch')).toHaveTextContent('Downtown Branch');
+    });
+
+    it('renders an em dash when the branch name is empty', () => {
+      render(<AppointmentTable data={[makeAppointment({ branchName: '' })]} />);
+      expect(cellUnder('Branch')).toHaveTextContent('—');
+    });
   });
 
   it('renders service group code when grouped and em-dash when ungrouped', () => {
@@ -142,6 +197,21 @@ describe('AppointmentTable', () => {
     });
     render(<AppointmentTable data={[apt]} />);
     expect(screen.getByLabelText('Tenant left a note')).toBeInTheDocument();
+  });
+
+  it('shows the tenant note text on hover instead of a generic notice', async () => {
+    const user = userEvent.setup();
+    const apt = makeAppointment({
+      hasRentalTenantNote: true,
+      rentalTenantNote: 'I work night shifts, please come after 2pm',
+    });
+    render(<AppointmentTable data={[apt]} />);
+
+    await user.hover(screen.getByLabelText('Note: I work night shifts, please come after 2pm'));
+
+    expect(screen.getByRole('tooltip')).toHaveTextContent(
+      'Note: I work night shifts, please come after 2pm',
+    );
   });
 
   it('does not show tenant note icon for REJECTED appointment without hasRentalTenantNote', () => {

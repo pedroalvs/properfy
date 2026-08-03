@@ -51,6 +51,17 @@ describe('ProfileCard', () => {
     expect(screen.getByText('J')).toBeInTheDocument();
   });
 
+  it('outlines the initials avatar in its own tint, not a hard-coded green', () => {
+    // The inset ring was `rgba(5,150,105,0.10)` — emerald-600 — around a coral
+    // `bg-real-estate/10` tint. Same defect the bottom nav had in blue.
+    renderWithProviders(
+      <ProfileCard name="Jane Smith" email="j@test.com" role="INSP" photoUrl={null} />,
+    );
+    const avatar = screen.getByText('J');
+    expect(avatar.className).toContain('ring-real-estate/10');
+    expect(avatar.className).not.toContain('rgba(5,150,105');
+  });
+
   it('renders avatarUploader slot when provided', () => {
     renderWithProviders(
       <ProfileCard
