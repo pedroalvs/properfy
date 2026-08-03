@@ -300,6 +300,20 @@ describe('AppointmentFormDrawer', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  // Contacts are optional for every service type, so the operator must be able
+  // to get to zero. The remove button used to be hidden on the last row.
+  it('lets the operator remove the only contact and shows an empty state', async () => {
+    renderDrawer({ appointmentId: 'apt-01' });
+
+    const removeButton = await screen.findByLabelText('Remove contact 1');
+    fireEvent.click(removeButton);
+
+    expect(screen.queryByLabelText('Contact 1 Display name')).not.toBeInTheDocument();
+    expect(screen.getByText(/no contacts\./i)).toBeInTheDocument();
+    // Still recoverable — the section keeps its Add button.
+    expect(screen.getByText('Add Contact')).toBeInTheDocument();
+  });
+
   it('renders edit mode with populated fields and correct buttons', () => {
     renderDrawer({ appointmentId: 'apt-01' });
     expect(screen.getByText('Edit Appointment')).toBeInTheDocument();
