@@ -39,7 +39,7 @@ apps/web/src/
 │   ├── shell/                   # AppShell, Sidebar, MobileDrawer, SidebarItem, SidebarSubmenu
 │   ├── ui/                      # DrawerPanel, Dialog, ConfirmDialog, Button, StatusChip
 │   ├── data/                    # DataTable, RowActions, EntityListCard, TableSwitch
-│   ├── filters/                 # FilterBar, FilterInput, FilterSelect, FilterMultiSelect, FilterSegmented, FilterDateRange, FilterBoolean  (FilterAutocomplete removed, PR #1057)
+│   ├── filters/                 # FilterBar, FilterInput, FilterSelect, FilterMultiSelect, FilterSegmented, FilterDateRange, FilterTimeRange, FilterBoolean  (FilterAutocomplete removed, PR #1057)
 │   ├── feedback/                # Snackbar, EmptyState, ErrorState, LoadingState, InfoBanner
 │   ├── layout/                  # PageHeader, TabsNav, ListFilterTableTemplate, TabsContentTemplate, GroupedListTemplate
 │   └── map/                     # MapScreenLayout, MapContainer (PLACEHOLDER), MapMarker, MapPopup, MapFiltersPanel
@@ -55,7 +55,7 @@ apps/web/src/
 | App Shell | COMPLETE | AppShell, Sidebar, MobileDrawer, SidebarItem, SidebarSubmenu, SidebarUser |
 | Route Guards | COMPLETE | ProtectedRoute, AuthGuard, lazyRetry() |
 | DataTable | COMPLETE | Generic typed columns, sorting, pagination (10/20/50), skeleton/error/empty states, mobile cards |
-| Filters | COMPLETE | FilterBar (responsive grid), FilterInput (300ms debounce), FilterSelect, FilterMultiSelect, FilterSegmented, FilterDateRange, FilterBoolean — ~~FilterAutocomplete~~ removed as dead code (PR #1057) |
+| Filters | COMPLETE | FilterBar (responsive grid), FilterInput (300ms debounce), FilterSelect, FilterMultiSelect, FilterSegmented, FilterDateRange, FilterTimeRange, FilterBoolean — ~~FilterAutocomplete~~ removed as dead code (PR #1057) |
 | Drawers | COMPLETE | DrawerPanel (narrow 480px / wide 970px), DrawerHeader, backdrop + Escape close |
 | Feedback | COMPLETE | Snackbar (success/error/info, auto-dismiss 5s, stack), ConfirmDialog (centered, loading), EmptyState, ErrorState |
 | Page Templates | COMPLETE | ListFilterTableTemplate, TabsContentTemplate, GroupedListTemplate, MapScreenLayout |

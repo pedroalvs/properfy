@@ -15,7 +15,7 @@ The Appointments feature is the core entity of the Properfy platform. It covers 
 
 **Pages/screens:**
 1. Appointments List (`/appointments`)
-2. Create Appointment (`/appointments/new`)
+2. ~~Create Appointment (`/appointments/new`)~~ — the route redirects to the list, which opens the form in a drawer (see §4.2)
 3. Appointment Detail/Edit (`/appointments/:id`)
 4. Import Appointments (`/appointments/import`)
 
@@ -26,7 +26,7 @@ The Appointments feature is the core entity of the Properfy platform. It covers 
 | Path | Component | Portal | Description |
 |---|---|---|---|
 | `/appointments` | `AppointmentsListPage` | Both | Filterable table of all appointments |
-| `/appointments/new` | `AppointmentCreatePage` | Both | Multi-step creation form |
+| `/appointments/new` | ~~`AppointmentCreatePage`~~ — redirects | Both | Redirects to `/appointments?new=1`, which opens `AppointmentFormDrawer` on the list. The standalone page was retired; see §4.2 |
 | `/appointments/:id` | `AppointmentDetailPage` | Both | Detail view with tabs and transitions |
 | `/appointments/import` | `AppointmentImportPage` | Both (OP+) | XLSX bulk import |
 
@@ -35,7 +35,8 @@ Route definitions use React Router v6. All routes require authentication. Role-b
 ```tsx
 // Route definitions
 <Route path="/appointments" element={<AuthGuard roles={['AM','OP','CL_ADMIN','CL_USER']}><AppointmentsListPage /></AuthGuard>} />
-<Route path="/appointments/new" element={<AuthGuard roles={['AM','OP','CL_ADMIN']}><AppointmentCreatePage /></AuthGuard>} />
+{/* Retired: the standalone create page no longer exists — see §4.2 */}
+<Route path="/appointments/new" element={<Navigate to="/appointments?new=1" replace />} />
 <Route path="/appointments/:id" element={<AuthGuard roles={['AM','OP','CL_ADMIN','CL_USER']}><AppointmentDetailPage /></AuthGuard>} />
 <Route path="/appointments/import" element={<AuthGuard roles={['AM','OP']}><AppointmentImportPage /></AuthGuard>} />
 ```
