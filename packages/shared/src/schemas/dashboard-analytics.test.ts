@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  MAX_ANALYTICS_PERIOD_DAYS,
   dashboardAnalyticsQuerySchema,
   dashboardAnalyticsResponseSchema,
   analyticsHeatmapResponseSchema,
@@ -54,6 +55,36 @@ describe('dashboardAnalyticsQuerySchema', () => {
 
   it('rejects an impossible calendar date the regex alone would allow', () => {
     const result = dashboardAnalyticsQuerySchema.safeParse({ startDate: '2026-02-31', endDate: '2026-03-01' });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts a period of exactly the maximum length', () => {
+    const end = new Date(Date.UTC(2026, 0, 1));
+    end.setUTCDate(end.getUTCDate() + MAX_ANALYTICS_PERIOD_DAYS - 1);
+    const result = dashboardAnalyticsQuerySchema.safeParse({
+      startDate: '2026-01-01',
+      endDate: end.toISOString().slice(0, 10),
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a period one day past the maximum', () => {
+    // Unbounded periods are the real risk: for AM/OP the aggregation is
+    // unscoped and the heatmap pulls rows, not counts.
+    const end = new Date(Date.UTC(2026, 0, 1));
+    end.setUTCDate(end.getUTCDate() + MAX_ANALYTICS_PERIOD_DAYS);
+    const result = dashboardAnalyticsQuerySchema.safeParse({
+      startDate: '2026-01-01',
+      endDate: end.toISOString().slice(0, 10),
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a decade-wide request', () => {
+    const result = dashboardAnalyticsQuerySchema.safeParse({
+      startDate: '2016-01-01',
+      endDate: '2026-01-01',
+    });
     expect(result.success).toBe(false);
   });
 

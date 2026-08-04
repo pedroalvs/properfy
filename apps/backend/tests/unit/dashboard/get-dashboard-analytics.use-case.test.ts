@@ -57,6 +57,24 @@ describe('GetDashboardAnalyticsUseCase', () => {
       expect(repository.getAnalytics).toHaveBeenCalledWith(expect.objectContaining({ tenantId: TENANT_ID }));
     });
 
+    it.each(['CL_ADMIN', 'CL_USER'])(
+      'rejects %s whose context carries no tenant instead of widening the scope',
+      async (role) => {
+        // `actor.tenantId ?? undefined` reads identically to "AM/OP, no filter"
+        // downstream, so failing open here would hand an agency actor
+        // platform-wide totals, revenue and suburb density.
+        await expect(
+          useCase.execute({ actor: makeActor({ role: role as AuthContext['role'], tenantId: null }), query }),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(repository.getAnalytics).not.toHaveBeenCalled();
+      },
+    );
+
+    it('still leaves AM unscoped when its context has no tenant — that is the normal case', async () => {
+      await useCase.execute({ actor: makeActor({ role: 'AM', tenantId: null }), query });
+      expect(repository.getAnalytics).toHaveBeenCalledWith(expect.objectContaining({ tenantId: undefined }));
+    });
+
     it('never takes the tenant from the query — only from the auth context', async () => {
       await useCase.execute({
         actor: makeActor({ role: 'CL_ADMIN' }),

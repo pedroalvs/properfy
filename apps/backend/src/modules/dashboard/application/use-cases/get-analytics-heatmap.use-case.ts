@@ -1,9 +1,9 @@
 import type { AnalyticsHeatmapResponse, AuthContext, DashboardAnalyticsQuery } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { DashboardAnalyticsRepository } from '../../domain/dashboard-analytics.repository';
+import { resolveAgencyScope } from './get-dashboard-analytics.use-case';
 
 const ANALYTICS_ROLES = ['AM', 'OP', 'CL_ADMIN', 'CL_USER'];
-const AGENCY_SCOPED_ROLES = ['CL_ADMIN', 'CL_USER'];
 
 export interface GetAnalyticsHeatmapInput {
   actor: AuthContext;
@@ -25,7 +25,9 @@ export class GetAnalyticsHeatmapUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions to view analytics');
     }
 
-    const tenantId = AGENCY_SCOPED_ROLES.includes(actor.role) ? actor.tenantId ?? undefined : undefined;
+    // Same fail-closed rule as the summary endpoint: a suburb map is a
+    // property footprint, and leaking it cross-agency is the same disclosure.
+    const tenantId = resolveAgencyScope(actor);
 
     return this.repository.getHeatmap({
       startDate: query.startDate,

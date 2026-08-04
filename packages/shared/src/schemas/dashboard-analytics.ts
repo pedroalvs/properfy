@@ -15,6 +15,17 @@ import { civilDateSchema } from './civil-date';
 export const analyticsGranularitySchema = z.enum(['day', 'week']);
 export type AnalyticsGranularity = z.infer<typeof analyticsGranularitySchema>;
 
+/**
+ * Longest period the analytics endpoints will aggregate, inclusive.
+ *
+ * A bound is required, not cosmetic: for AM/OP the aggregation is unscoped, and
+ * the heatmap and execution-duration reads pull rows rather than counts. Without
+ * a ceiling, a decade-wide request would load every appointment on the platform
+ * into memory. A year covers every question the screen can ask — the widest
+ * preset is a quarter — and keeps the read bounded.
+ */
+export const MAX_ANALYTICS_PERIOD_DAYS = 366;
+
 export const dashboardAnalyticsQuerySchema = z
   .object({
     startDate: civilDateSchema,
@@ -23,7 +34,18 @@ export const dashboardAnalyticsQuerySchema = z
   .refine((q) => q.endDate >= q.startDate, {
     message: 'endDate must be >= startDate',
     path: ['endDate'],
-  });
+  })
+  .refine(
+    (q) =>
+      (Date.parse(`${q.endDate}T00:00:00.000Z`) - Date.parse(`${q.startDate}T00:00:00.000Z`)) /
+        86_400_000 +
+        1 <=
+      MAX_ANALYTICS_PERIOD_DAYS,
+    {
+      message: `Period must not exceed ${MAX_ANALYTICS_PERIOD_DAYS} days`,
+      path: ['endDate'],
+    },
+  );
 
 export type DashboardAnalyticsQuery = z.infer<typeof dashboardAnalyticsQuerySchema>;
 

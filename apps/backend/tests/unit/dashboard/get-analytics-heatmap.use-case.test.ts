@@ -46,6 +46,20 @@ describe('GetAnalyticsHeatmapUseCase', () => {
     expect(repository.getHeatmap).toHaveBeenCalledWith(expect.objectContaining({ tenantId: TENANT_ID }));
   });
 
+  it.each(['CL_ADMIN', 'CL_USER'])('rejects %s with no tenant rather than mapping every agency', async (role) => {
+    // A suburb map is a property footprint; leaking it cross-agency is the
+    // same disclosure as leaking the appointments themselves.
+    await expect(
+      useCase.execute({ actor: { ...makeActor(role), tenantId: null } as AuthContext, query }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(repository.getHeatmap).not.toHaveBeenCalled();
+  });
+
+  it('leaves OP unscoped when its context has no tenant', async () => {
+    await useCase.execute({ actor: { ...makeActor('OP'), tenantId: null } as AuthContext, query });
+    expect(repository.getHeatmap).toHaveBeenCalledWith(expect.objectContaining({ tenantId: undefined }));
+  });
+
   it('passes the period through untouched', async () => {
     await useCase.execute({ actor: makeActor('OP'), query });
     expect(repository.getHeatmap).toHaveBeenCalledWith(
