@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { env } from '@/config/env';
 import { computeBounds, isPlottablePoint, isSinglePointBounds } from '@/lib/map-bounds';
-import { resolveMarkerCollisions } from '@properfy/shared';
+import { resolveCoincidentMarkerOffsets } from '@properfy/shared';
 import type { MarketplaceOffer } from '../types';
 import { formatWallTimeRange } from '@/lib/format-date';
 
@@ -133,23 +133,27 @@ interface PlacedMarker {
 }
 
 /**
- * Nudge any pins that would be drawn on top of each other into a touching row.
+ * Nudge pins that share a coordinate into a touching row, so none of them is
+ * drawn invisibly under another.
+ *
+ * Only exactly-coincident pins move — pins that are merely close keep their
+ * true position, because zooming in separates those and a pin that wanders is
+ * a pin that lies about where the job is.
  *
  * The true coordinate of every marker is left alone — only `setOffset` moves,
  * which mapbox folds into its own positioning transform. (Writing to the
  * element's `style.transform` instead would fight that transform; see the note
  * on makeMarkerEl.)
  *
- * Must re-run whenever the camera settles: the offsets are in pixels and
- * whether two pins collide at all depends on the current zoom.
+ * Coincidence does not depend on the camera, so this runs once per pin render
+ * rather than on every `moveend`.
  */
-function applyCollisionOffsets(map: any, placed: PlacedMarker[]): void {
+function applyCollisionOffsets(placed: PlacedMarker[]): void {
   if (placed.length === 0) return;
-  const screen = placed.map((p) => {
-    const point = map.project([p.lng, p.lat]);
-    return { x: point.x, y: point.y };
-  });
-  const offsets = resolveMarkerCollisions(screen, PIN_DIAMETER_PX);
+  const offsets = resolveCoincidentMarkerOffsets(
+    placed.map((p) => ({ latitude: p.lat, longitude: p.lng })),
+    PIN_DIAMETER_PX,
+  );
   placed.forEach((p, index) => p.marker.setOffset(offsets[index]));
 }
 
@@ -211,14 +215,6 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
       };
       map.on('dragstart', markUserMoved);
       map.on('zoomstart', markUserMoved);
-
-      // Collision offsets are in pixels, and which pins collide depends on the
-      // zoom — so they have to be recomputed every time the camera settles,
-      // whether the inspector moved it or one of our own fits did.
-      map.on('moveend', () => {
-        if (cancelled) return;
-        applyCollisionOffsets(map, markersRef.current);
-      });
 
       mapRef.current = map;
 
@@ -282,7 +278,7 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
     } else {
       placeOfferMarkers(map, mapboxgl, offers, onSelectOffer);
     }
-    applyCollisionOffsets(map, markersRef.current);
+    applyCollisionOffsets(markersRef.current);
     syncCamera(map);
   }
 
