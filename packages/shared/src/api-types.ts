@@ -5434,7 +5434,7 @@ export interface paths {
                                     /** Format: uuid */
                                     appointmentId: string;
                                     /** @enum {string} */
-                                    status: "SENT" | "NO_PRIMARY_CONTACT" | "IDEMPOTENT_REPLAY" | "TENANT_NOTIFICATIONS_BLOCKED" | "ERROR";
+                                    status: "SENT" | "NO_PRIMARY_CONTACT" | "IDEMPOTENT_REPLAY" | "TENANT_NOTIFICATIONS_BLOCKED" | "NOT_APPLICABLE" | "ERROR";
                                     error?: {
                                         code: string;
                                         message: string;
@@ -11113,6 +11113,144 @@ export interface paths {
                                         alertLevel: "yellow" | "red" | null;
                                     }[];
                                 } | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/dashboard/analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    startDate: string;
+                    endDate: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                period: {
+                                    startDate: string;
+                                    endDate: string;
+                                    /** @enum {string} */
+                                    granularity: "day" | "week";
+                                };
+                                kpis: {
+                                    today: number;
+                                    thisWeek: number;
+                                    thisMonth: number;
+                                    inPeriod: number;
+                                    cancelledInPeriod: number;
+                                };
+                                statusInPeriod: {
+                                    DRAFT: number;
+                                    AWAITING_INSPECTOR: number;
+                                    SCHEDULED: number;
+                                    DONE: number;
+                                    CANCELLED: number;
+                                    REJECTED: number;
+                                };
+                                confirmationRate: {
+                                    confirmed: number;
+                                    eligible: number;
+                                };
+                                revenue: {
+                                    amount: number;
+                                    currency: string;
+                                } | null;
+                                evolution: {
+                                    bucketStart: string;
+                                    count: number;
+                                }[];
+                                serviceTypeDistribution: {
+                                    /** Format: uuid */
+                                    serviceTypeId: string;
+                                    code: string;
+                                    name: string;
+                                    count: number;
+                                }[];
+                                avgExecutionMinutes: {
+                                    /** Format: uuid */
+                                    serviceTypeId: string;
+                                    code: string;
+                                    name: string;
+                                    avgMinutes: number | null;
+                                    sampleSize: number;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/dashboard/analytics/heatmap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    startDate: string;
+                    endDate: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                points: {
+                                    suburb: string;
+                                    lat: number;
+                                    lng: number;
+                                    count: number;
+                                }[];
+                                totalPlotted: number;
+                                totalWithoutCoordinates: number;
                             };
                         };
                     };
