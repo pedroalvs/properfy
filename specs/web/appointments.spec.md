@@ -322,9 +322,14 @@ GET /v1/appointments?status=&serviceType=&branchId=&inspectorId=&dateFrom=&dateT
 
 ---
 
-### 4.2 Create Appointment (`/appointments/new`)
+### 4.2 Create Appointment (`/appointments/new`) — SUPERSEDED
 
-**Layout template:** `MainLayout` with centered form card (max-width 800px).
+> **Superseded 2026-08.** There is no standalone create page: `AppointmentCreatePage`
+> was retired and `/appointments/new` now redirects to `/appointments?new=1`, which
+> opens the create form in `AppointmentFormDrawer` on the list. The field rules and
+> validation below still describe the form; the route and layout do not.
+
+**Layout template:** ~~`MainLayout` with centered form card (max-width 800px)~~ — the form is a drawer on the list page.
 
 **Components used:**
 - `BranchSelect` – dropdown scoped to user's tenant (or all for OP/AM)
