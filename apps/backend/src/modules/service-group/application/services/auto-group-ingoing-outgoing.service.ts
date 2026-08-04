@@ -59,7 +59,16 @@ const AUTO_GROUPED_FLOW_TYPES: ReadonlySet<string> = new Set(['INGOING', 'OUTGOI
 /** Errors that mean "the region we picked is no longer usable". */
 const REGION_UNUSABLE_CODES = new Set(['SERVICE_REGION_INACTIVE', 'SERVICE_REGION_NOT_FOUND']);
 
-function errorCodeOf(err: unknown): string | undefined {
+/**
+ * Short domain code of an error, or `undefined` when it carries none.
+ *
+ * Exported because `CreateAppointmentUseCase` writes the same
+ * `appointment.auto_group_incomplete` audit action: two writers using different
+ * extraction would put incompatible value shapes under one `metadata.errorCode`.
+ * It also keeps `err.message` out of the retained audit log — a driver error is
+ * not a controlled string and can embed the row it choked on.
+ */
+export function errorCodeOf(err: unknown): string | undefined {
   return typeof err === 'object' && err !== null && 'code' in err
     ? String((err as { code: unknown }).code)
     : undefined;

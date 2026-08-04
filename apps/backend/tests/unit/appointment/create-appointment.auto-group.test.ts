@@ -255,6 +255,43 @@ describe('CreateAppointmentUseCase — auto-group wiring', () => {
     );
   });
 
+  // audit_logs is retained, and a driver error is not a controlled string: a
+  // Prisma failure can embed the row it choked on, contact emails and phone
+  // numbers included. Only the short domain code may be persisted.
+  it('never writes the raw error message into the audit metadata', async () => {
+    const leaky = Object.assign(
+      new Error('Unique constraint failed on contacts (jane.doe@example.com, +61400000000)'),
+      { code: 'P2002' },
+    );
+    vi.mocked(autoGroupService.tryAutoGroupAndPublish).mockRejectedValue(leaky);
+
+    await useCase.execute(baseInput);
+
+    const entry = vi.mocked(auditService.log).mock.calls
+      .map((c) => c[0] as { action: string; metadata?: Record<string, unknown> })
+      .find((e) => e.action === 'appointment.auto_group_incomplete');
+
+    expect(entry?.metadata?.['errorCode']).toBe('P2002');
+    expect(JSON.stringify(entry?.metadata)).not.toContain('jane.doe@example.com');
+    expect(JSON.stringify(entry?.metadata)).not.toContain('+61400000000');
+  });
+
+  // Same audit action, same metadata key — the service and this caller must not
+  // write two different value shapes, or grouping incomplete automations by
+  // errorCode returns nonsense.
+  it('omits errorCode rather than inventing one when the error carries no code', async () => {
+    vi.mocked(autoGroupService.tryAutoGroupAndPublish).mockRejectedValue(new Error('plain boom'));
+
+    await useCase.execute(baseInput);
+
+    const entry = vi.mocked(auditService.log).mock.calls
+      .map((c) => c[0] as { action: string; metadata?: Record<string, unknown> })
+      .find((e) => e.action === 'appointment.auto_group_incomplete');
+
+    expect(entry?.metadata?.['errorCode']).toBeUndefined();
+    expect(JSON.stringify(entry?.metadata)).not.toContain('plain boom');
+  });
+
   it('behaves exactly as before when no auto-group service is wired', async () => {
     const auditService = { log: vi.fn() } as unknown as AuditService;
     const withoutService = new CreateAppointmentUseCase(

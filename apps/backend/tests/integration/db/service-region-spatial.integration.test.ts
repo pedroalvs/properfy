@@ -374,6 +374,23 @@ describe('T155 — GIST index correctness', () => {
     expect(byTable).toHaveProperty('service_regions', 'service_regions_geom_idx');
     expect(byTable).toHaveProperty('properties', 'properties_coordinates_idx');
   });
+
+  // Dropped by the same drift migration as the two GIST indexes above.
+  // PrismaContactRepository.search() ranks with similarity() and filters with the
+  // `%` trigram operator on display_name, so without this GIN index every contact
+  // search seq-scans the table computing similarity per row.
+  it('the trigram index backing contact search actually exists', async () => {
+    const rows = await harness.prisma.$queryRaw<Array<{ indexname: string; amname: string }>>`
+      SELECT i.relname AS indexname, a.amname
+        FROM pg_index x
+        JOIN pg_class i ON i.oid = x.indexrelid
+        JOIN pg_class t ON t.oid = x.indrelid
+        JOIN pg_am a ON a.oid = i.relam
+       WHERE t.relname = 'contacts' AND a.amname = 'gin'
+    `;
+
+    expect(rows.map((r) => r.indexname)).toContain('contacts_display_name_trgm_idx');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -410,6 +427,26 @@ describe('region_number sequence', () => {
     await expect(
       harness.prisma.$executeRaw`
         UPDATE service_regions SET region_number = ${taken} WHERE id = ${second.regionId}
+      `,
+    ).rejects.toThrow();
+  });
+
+  // The constraint is table-wide, not per-tenant, which is what makes
+  // region_number usable as a global tie-break: two agencies cannot both own
+  // "region 7" and have the ordering mean different things to each.
+  it('refuses a duplicate region_number across different tenants', async () => {
+    const { tenantId: tenantA } = await seedTenant(harness.prisma, 'Region Number Tenant A');
+    const { tenantId: tenantB } = await seedTenant(harness.prisma, 'Region Number Tenant B');
+    const ownedByA = await seedServiceRegion(harness.prisma, { tenantId: tenantA, name: 'A Region' });
+    const ownedByB = await seedServiceRegion(harness.prisma, { tenantId: tenantB, name: 'B Region' });
+
+    const [{ region_number: takenByA }] = await harness.prisma.$queryRaw<Array<{ region_number: number }>>`
+      SELECT region_number FROM service_regions WHERE id = ${ownedByA.regionId}
+    `;
+
+    await expect(
+      harness.prisma.$executeRaw`
+        UPDATE service_regions SET region_number = ${takenByA} WHERE id = ${ownedByB.regionId}
       `,
     ).rejects.toThrow();
   });

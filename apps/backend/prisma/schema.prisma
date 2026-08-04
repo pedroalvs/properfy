@@ -674,6 +674,9 @@ model Contact {
   // Global partial unique indexes managed in 024 migration SQL (WHERE is_active = true):
   // - contacts_email_active_unique
   // - contacts_phone_active_unique
+  // Trigram index managed in migration SQL (Prisma cannot express an operator
+  // class, so it reads as drift — do NOT let `migrate dev` drop it again):
+  // - contacts_display_name_trgm_idx ON contacts USING gin (display_name gin_trgm_ops)
   // The composite (tenant_id, *) indexes below remain as hints for the AM/OP
   // explicit-tenant filter path; the new EXISTS-via-appointment_contacts
   // visibility predicate uses different indexes (covered by the FK indexes

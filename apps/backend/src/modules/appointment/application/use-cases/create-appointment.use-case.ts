@@ -27,7 +27,10 @@ import {
   calculatePayoutAmount,
 } from '../../domain/appointment-pricing.service';
 import { resolvePricingRule } from '../../../pricing-rule/domain/resolve-pricing-rule';
-import type { AutoGroupIngoingOutgoingService } from '../../../service-group/application/services/auto-group-ingoing-outgoing.service';
+import {
+  errorCodeOf,
+  type AutoGroupIngoingOutgoingService,
+} from '../../../service-group/application/services/auto-group-ingoing-outgoing.service';
 import {
   AppointmentBranchNotFoundError,
   AppointmentBranchInactiveError,
@@ -575,7 +578,10 @@ export class CreateAppointmentUseCase {
           metadata: {
             flowType: serviceType.flowType,
             reason: 'GROUP_CREATE_FAILED',
-            errorCode: err instanceof Error ? err.message : String(err),
+            // The short domain code only, extracted exactly as the service does.
+            // `err.message` must not land here: this metadata is retained, and a
+            // driver error can embed row values such as contact emails or phones.
+            errorCode: errorCodeOf(err),
           },
         });
       }
