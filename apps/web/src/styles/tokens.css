@@ -17,6 +17,16 @@
   --color-app-bg: #F5F5F5;
   --color-card-bg: #FFFFFF;
 
+  /*
+   * Auth brand pane. Cool tints of --color-secondary that only the signed-out
+   * screens use. Not mapped in tailwind.config.ts on purpose: that file must stay
+   * byte-identical to apps/pwa's (tailwind-config-parity.test.ts) and the PWA has
+   * no such surface. Consume them through an arbitrary value instead:
+   *   bg-[linear-gradient(155deg,var(--color-auth-pane-from),var(--color-auth-pane-to))]
+   */
+  --color-auth-pane-from: #E7EFF1;
+  --color-auth-pane-to: #F7FBFB;
+
   /* Text */
   --color-text-primary: rgba(0, 0, 0, 0.87);
   --color-text-secondary: rgba(0, 0, 0, 0.6);
