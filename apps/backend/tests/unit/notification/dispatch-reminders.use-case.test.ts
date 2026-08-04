@@ -26,7 +26,10 @@ function makeAppointment(
     keyRequired: false,
     meetingLocation: null,
     keyLocation: null,
-    rentalTenantConfirmationStatus: 'CONFIRMED',
+    // PENDING, not CONFIRMED: the 7- and 5-day reminders are chasers now, so a
+    // CONFIRMED default would silently turn most of this suite into an assertion
+    // that nothing is sent. Tests that care about the status pass it explicitly.
+    rentalTenantConfirmationStatus: 'PENDING',
     priceAmount: 200,
     payoutAmount: 140,
     pricingRuleSnapshotJson: {},
@@ -463,6 +466,99 @@ describe('DispatchRemindersUseCase', () => {
       const result = await useCase.execute(today);
 
       expect(result).toEqual({ dispatched: 0, skipped: 1 });
+    });
+  });
+
+  // The 7- and 5-day reminders are chasers: they exist to get an answer out of an
+  // occupant who has not given one. The 3-day is a heads-up and goes out regardless —
+  // someone who confirmed three weeks ago still needs reminding that a stranger is
+  // coming on Thursday.
+  describe('confirmation gate', () => {
+    const WINDOWS = { REMINDER_7_DAYS: 0, REMINDER_5_DAYS: 1, REMINDER_3_DAYS: 2 } as const;
+
+    /**
+     * Runs one window in isolation by leaving the other two empty. The contact is given
+     * a phone as well as an email so an ungated window dispatches two legs — the gate
+     * has to silence both, not just the SMS.
+     */
+    function seedWindow(code: keyof typeof WINDOWS, status: string) {
+      const relations: unknown[][] = [[], [], []];
+      relations[WINDOWS[code]] = [
+        makeRelation({ rentalTenantConfirmationStatus: status }, { snapshotPhone: '+61400000000' }),
+      ];
+      mockAppointmentRepo.findScheduledOnDate
+        .mockResolvedValueOnce(relations[0])
+        .mockResolvedValueOnce(relations[1])
+        .mockResolvedValueOnce(relations[2]);
+    }
+
+    it.each(['REMINDER_7_DAYS', 'REMINDER_5_DAYS'] as const)(
+      'does not chase a CONFIRMED occupant in the %s window',
+      async (code) => {
+      seedWindow(code, 'CONFIRMED');
+
+      const result = await useCase.execute(today);
+
+      expect(result).toEqual({ dispatched: 0, skipped: 1 });
+      expect(mockCreateNotification.execute).not.toHaveBeenCalled();
+      },
+    );
+
+    // An occupant who answered "I can't make it" has answered. Chasing them about a
+    // slot they already declined is the same noise as chasing one who confirmed.
+    it.each(['REMINDER_7_DAYS', 'REMINDER_5_DAYS'] as const)(
+      'does not chase an UNAVAILABLE occupant in the %s window',
+      async (code) => {
+        seedWindow(code, 'UNAVAILABLE');
+
+        const result = await useCase.execute(today);
+
+        expect(result).toEqual({ dispatched: 0, skipped: 1 });
+        expect(mockCreateNotification.execute).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      ['REMINDER_7_DAYS', 'PENDING'],
+      ['REMINDER_7_DAYS', 'NO_RESPONSE'],
+      ['REMINDER_5_DAYS', 'PENDING'],
+      ['REMINDER_5_DAYS', 'NO_RESPONSE'],
+    ] as const)('still sends %s on both channels to a %s occupant', async (code, status) => {
+      seedWindow(code, status);
+
+      const result = await useCase.execute(today);
+
+      expect(result.dispatched).toBe(2);
+      expect(mockCreateNotification.execute).toHaveBeenCalledWith(
+        expect.objectContaining({ templateCode: code, channel: 'EMAIL' }),
+      );
+      expect(mockCreateNotification.execute).toHaveBeenCalledWith(
+        expect.objectContaining({ templateCode: `${code}_SMS`, channel: 'SMS' }),
+      );
+    });
+
+    it.each(['PENDING', 'CONFIRMED', 'UNAVAILABLE', 'NO_RESPONSE'])(
+      'always sends the 3-day reminder, including to a %s occupant',
+      async (status) => {
+        seedWindow('REMINDER_3_DAYS', status);
+
+        const result = await useCase.execute(today);
+
+        expect(result.dispatched).toBe(2);
+        expect(mockCreateNotification.execute).toHaveBeenCalledWith(
+          expect.objectContaining({ templateCode: 'REMINDER_3_DAYS', channel: 'EMAIL' }),
+        );
+      },
+    );
+
+    // The gate must fire before the per-leg dedupe query: an appointment that is
+    // skipped outright should cost no notification lookup at all.
+    it('does not query the dedupe for a gated appointment', async () => {
+      seedWindow('REMINDER_7_DAYS', 'CONFIRMED');
+
+      await useCase.execute(today);
+
+      expect(mockNotificationRepo.existsByAppointmentAndTemplate).not.toHaveBeenCalled();
     });
   });
 });

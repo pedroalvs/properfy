@@ -7,7 +7,6 @@ import type { AppointmentCodeFormatter } from '../../../appointment/domain/appoi
 import type { CreateNotificationUseCase } from '../use-cases/create-notification.use-case';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import type { MetricsCollector } from '../../../../shared/infrastructure/metrics';
-import type { NotificationChannel } from '@properfy/shared';
 
 export class NotifyOnRentalTenantPortalActionHandler {
   constructor(
@@ -60,7 +59,6 @@ export class NotifyOnRentalTenantPortalActionHandler {
             ? 'INSPECTION_UNAVAILABILITY_REPORTED'
             : null;
     if (!emailCode) return;
-    const smsCode = `${emailCode}_SMS`;
 
     // Scope repository call by tenantId when available.
     const result = await this.appointmentRepo.findById(
@@ -71,24 +69,18 @@ export class NotifyOnRentalTenantPortalActionHandler {
 
     const { appointment, contact } = result;
 
-    // Per leg, not per event. This used to be a single early return on the EMAIL
-    // code, which was correct while SMS was only a fallback — but now that both
-    // channels can fire, that return would permanently suppress the SMS for any
-    // appointment whose email had already gone out. The appointment read above
-    // supplies the concrete tenant scope for both queries.
-    const [emailAlreadySent, smsAlreadySent] = await Promise.all([
-      this.notificationRepo.existsByAppointmentAndTemplate(
-        input.appointmentId,
-        emailCode,
-        appointment.tenantId,
-      ),
-      this.notificationRepo.existsByAppointmentAndTemplate(
-        input.appointmentId,
-        smsCode,
-        appointment.tenantId,
-      ),
-    ]);
-    if (emailAlreadySent && smsAlreadySent) return;
+    // One channel, one lookup. This briefly grew a per-leg dedupe while an SMS twin
+    // existed; the twin was retired because it only restated the email for an action
+    // the occupant had just taken themselves in the portal. Deliberately keyed on the
+    // email code alone — consulting a leftover row for the retired SMS code would
+    // suppress the email for every occupant who received the old one. The appointment
+    // read above supplies the concrete tenant scope.
+    const alreadySent = await this.notificationRepo.existsByAppointmentAndTemplate(
+      input.appointmentId,
+      emailCode,
+      appointment.tenantId,
+    );
+    if (alreadySent) return;
 
     const tenant = await this.tenantRepo.findById(appointment.tenantId);
     if (!tenant) return;
@@ -109,32 +101,18 @@ export class NotifyOnRentalTenantPortalActionHandler {
     };
 
     const recipientEmail = contact.effectiveEmail;
-    const recipientPhone = contact.effectivePhone;
+    // No email: skip silently. A phone alone is not a fallback here — the SMS twin
+    // for these actions was retired, and the portal already confirms the action
+    // on screen at the moment the occupant takes it.
+    if (!recipientEmail) return;
 
-    // Independent legs: a tenant with both an email and a phone gets both.
-    // Email first so that if the SMS leg throws, the email is already recorded
-    // and the per-leg guard above stops it being resent on retry.
-    if (recipientEmail && !emailAlreadySent) {
-      await this.createNotification.execute({
-        tenantId: appointment.tenantId,
-        appointmentId: appointment.id,
-        recipient: recipientEmail,
-        channel: 'EMAIL',
-        templateCode: emailCode,
-        payloadJson: this.buildNotificationPayload.build(payloadCtx),
-      });
-    }
-
-    if (recipientPhone && !smsAlreadySent) {
-      await this.createNotification.execute({
-        tenantId: appointment.tenantId,
-        appointmentId: appointment.id,
-        recipient: recipientPhone,
-        channel: 'SMS' as NotificationChannel,
-        templateCode: smsCode,
-        payloadJson: this.buildNotificationPayload.build({ ...payloadCtx, templateCode: smsCode }),
-      });
-    }
-    // No email and no phone: skip silently
+    await this.createNotification.execute({
+      tenantId: appointment.tenantId,
+      appointmentId: appointment.id,
+      recipient: recipientEmail,
+      channel: 'EMAIL',
+      templateCode: emailCode,
+      payloadJson: this.buildNotificationPayload.build(payloadCtx),
+    });
   }
 }

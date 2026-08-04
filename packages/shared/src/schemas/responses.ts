@@ -4,6 +4,9 @@ import { propertyRulesSchema, PROPERTY_TYPE_VALUES } from './property';
 import { bonusRuleSchema } from './pricing-rule';
 import { appointmentAppSchema } from './app-credential';
 import { availableSlotSchema, storedAvailableSlotSchema } from './available-slot';
+// One-way edge: rental-tenant-portal.ts does not import this file (verified — a
+// cycle here typechecks fine and only explodes at runtime).
+import { portalSurveySchema } from './rental-tenant-portal';
 import { AppointmentStatus, ServiceTypeFlowType } from '../enums';
 
 /**
@@ -249,6 +252,20 @@ export const inspectorResponseSchema = z.object({
   photoStorageKey: z.string().nullable().optional(),
   insuranceMetaJson: z.unknown().optional(),
   policeCheckMetaJson: z.unknown().optional(),
+  /**
+   * Aggregate reputation. Optional so payloads from a deployment predating the
+   * satisfaction survey still parse.
+   *
+   * `average` is null — never 0 — when there are no responses: a zero would read
+   * as a terrible score and would sort above real ratings.
+   */
+  rating: z
+    .object({
+      average: z.number().nullable(),
+      responseCount: z.number().int(),
+      doneServicesCount: z.number().int(),
+    })
+    .optional(),
   createdAt: instantStr(),
   updatedAt: instantStr(),
 });
@@ -327,6 +344,13 @@ export const appointmentResponseSchema = z.object({
   /** List endpoint alias for the formatted appointment code. */
   code: z.string().optional(),
   propertyAddress: z.string().optional(),
+  /**
+   * The property's own code (e.g. "ACME-PROP-0007") — distinct from `code`, which
+   * is the appointment code. Returned by both the list and detail endpoints.
+   * Must stay declared here — this schema is the Fastify response schema, and an
+   * undeclared field is silently stripped on serialization.
+   */
+  propertyCode: z.string().nullable().optional(),
   contactName: z.string().optional(),
   contactPhone: z.string().nullable().optional(),
   contactEmail: z.string().nullable().optional(),
@@ -381,6 +405,29 @@ export const appointmentResponseSchema = z.object({
   branch: z.unknown().optional(),
 });
 
+/**
+ * Distinct suburbs across the appointments the actor may see, feeding the
+ * appointments-list Suburb filter. Sourced from properties that actually have a
+ * live appointment, so every option the operator can pick returns rows.
+ */
+export const appointmentSuburbsResponseSchema = z.object({
+  suburbs: z.array(z.string()),
+});
+export type AppointmentSuburbsResponse = z.infer<typeof appointmentSuburbsResponseSchema>;
+
+/**
+ * Synchronous XLSX export of the current appointments-list filter set. Base64 in
+ * the standard JSON envelope for the same reason as the agency financial export:
+ * it keeps the typed OpenAPI client and skips a storage round-trip for a bounded,
+ * on-demand file. Unbounded history belongs in the async report module instead.
+ */
+export const appointmentExportResponseSchema = z.object({
+  filename: z.string(),
+  contentType: z.string(),
+  contentBase64: z.string(),
+});
+export type AppointmentExportResponse = z.infer<typeof appointmentExportResponseSchema>;
+
 export const forceManualConfirmationResponseSchema = z.object({
   id: z.string().uuid(),
   rentalTenantConfirmationStatus: z.string(),
@@ -429,6 +476,8 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
   serviceTypeName: z.string().nullable(),
   flowType: z.string(),
   propertyId: z.string().uuid(),
+  // Property (realty) code — PREFIX-PROP-0001. Optional: legacy rows may predate it.
+  propertyCode: z.string().optional(),
   propertyAddress: z.string(),
   suburb: z.string(),
   propertyLatitude: z.number().nullable(),
@@ -557,6 +606,18 @@ export const serviceGroupResponseSchema = z.object({
 
 const centroidSchema = z.object({ lat: z.number(), lng: z.number() }).nullable();
 
+/**
+ * One property behind an offer, carried on the LIST payload so the offer card can
+ * render a full street address and a property-type icon without a drill-down
+ * request. `street` is '' and `propertyType` null when the property is missing or
+ * soft-deleted — the same blanking rule the offer-detail mapper applies.
+ */
+const marketplaceOfferPropertySchema = z.object({
+  street: z.string(),
+  suburb: z.string(),
+  propertyType: z.enum(PROPERTY_TYPE_VALUES).nullable(),
+});
+
 export const marketplaceOfferResponseSchema = z.object({
   groupId: z.string().uuid(),
   // Sequential human-friendly group code (pure numeric). Always present — both
@@ -568,11 +629,17 @@ export const marketplaceOfferResponseSchema = z.object({
   groupSize: z.number(),
   scheduledDate: civilDateStr(),
   timeWindow: z.string(),
+  // Deduped "<suburb> <state>" labels. Kept alongside `properties` — the map view
+  // reads it, and it is the fallback when every street is blank.
   suburbs: z.array(z.string()),
   payoutEstimate: z.number().nullable(),
   appointmentCount: z.number(),
   centroid: centroidSchema,
+  properties: z.array(marketplaceOfferPropertySchema),
 });
+
+export type MarketplaceOfferProperty = z.infer<typeof marketplaceOfferPropertySchema>;
+export type MarketplaceOffer = z.infer<typeof marketplaceOfferResponseSchema>;
 
 export const marketplaceOfferDetailAppointmentSchema = z.object({
   id: z.string().uuid(),
@@ -592,6 +659,9 @@ export const marketplaceOfferDetailAppointmentSchema = z.object({
   // Property lat/lng for the PWA map group drill-down; null while geocoding is
   // pending/failed (the map skips those pins).
   coordinates: centroidSchema,
+  // Drives the per-job type icon in the group detail sheet; null when the property
+  // is missing or soft-deleted.
+  propertyType: z.enum(PROPERTY_TYPE_VALUES).nullable(),
 });
 
 export const marketplaceOfferDetailResponseSchema = marketplaceOfferResponseSchema.extend({
@@ -668,6 +738,10 @@ export const portalDataResponseSchema = z.object({
   // Display name of the PROPERTY_MANAGER contact, when one is linked.
   propertyManager: z.string().nullable().optional(),
   tenant: z.object({ name: z.string().nullable(), timezone: z.string() }).optional(),
+  // Post-execution satisfaction survey. Emitted only when the inspection is DONE,
+  // so a missing block means "nothing to rate" — the portal must keep its existing
+  // terminal view for that case and for payloads from older deployments.
+  survey: portalSurveySchema.optional(),
 });
 
 /**
@@ -729,6 +803,8 @@ export const portalActivitiesResponseSchema = z.object({
 export const inspectorScheduleItemSchema = z.object({
   id: z.string(),
   appointmentCode: z.string().optional(),
+  // Property (realty) code — PREFIX-PROP-0001. Optional: legacy rows may predate it.
+  propertyCode: z.string().optional(),
   status: z.string(),
   scheduledDate: civilDateStr(),
   timeSlotStart: z.string().regex(HHMM_REGEX),
@@ -1091,6 +1167,38 @@ export type UserResponse = z.infer<typeof userResponseSchema>;
 export type PropertyResponse = z.infer<typeof propertyResponseSchema>;
 export type ServiceTypeResponse = z.infer<typeof serviceTypeResponseSchema>;
 export type PricingRuleResponse = z.infer<typeof pricingRuleResponseSchema>;
+/**
+ * One satisfaction response, as shown to an operator or the owning agency.
+ *
+ * Deliberately carries no respondent name, IP, user agent or raw identifier —
+ * the type is what keeps the anonymity rule from eroding. The inspection is
+ * named by its human code.
+ */
+export const inspectorSurveyItemSchema = z.object({
+  rating: z.number().int(),
+  comment: z.string().nullable(),
+  submittedAt: instantStr(),
+  appointmentCode: z.string(),
+});
+
+export const inspectorSurveysResponseSchema = z.object({
+  data: z.array(inspectorSurveyItemSchema),
+  total: z.number(),
+  page: z.number(),
+  pageSize: z.number(),
+});
+
+export const appointmentSurveyResponseSchema = z
+  .object({
+    rating: z.number().int(),
+    comment: z.string().nullable(),
+    submittedAt: instantStr(),
+  })
+  .nullable();
+
+export type InspectorSurveyItem = z.infer<typeof inspectorSurveyItemSchema>;
+export type InspectorSurveysResponse = z.infer<typeof inspectorSurveysResponseSchema>;
+export type AppointmentSurveyResponse = z.infer<typeof appointmentSurveyResponseSchema>;
 export type InspectorResponse = z.infer<typeof inspectorResponseSchema>;
 export type AvailabilitySlotResponse = z.infer<typeof availabilitySlotResponseSchema>;
 export type AppointmentResponse = z.infer<typeof appointmentResponseSchema>;

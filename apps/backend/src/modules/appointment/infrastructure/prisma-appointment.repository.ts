@@ -299,6 +299,30 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     return this.prisma.appointment.count({ where });
   }
 
+  async findDistinctSuburbs(tenantId?: string): Promise<string[]> {
+    // `groupBy`, not `findMany({ distinct })`: on Prisma 5 without the
+    // `nativeDistinct` preview flag (this schema declares no previewFeatures),
+    // `distinct` is applied in the query engine — the database would return
+    // every matching property row and dedup in memory. A cross-tenant AM/OP
+    // call would drag back one row per appointment-bearing property on the
+    // platform. `groupBy` emits a real GROUP BY.
+    const rows = await this.prisma.property.groupBy({
+      by: ['suburb'],
+      where: {
+        ...(tenantId ? { tenant_id: tenantId } : {}),
+        deleted_at: null,
+        // Only suburbs that actually have a live appointment, so every option
+        // the operator picks comes back with rows.
+        appointments: { some: { deleted_at: null } },
+        // A blank suburb would render an unreadable option whose value collides
+        // with the dropdown's "All" sentinel ('').
+        suburb: { not: '' },
+      },
+      orderBy: { suburb: 'asc' },
+    });
+    return rows.map((row) => row.suburb);
+  }
+
   async save(appointment: AppointmentEntity): Promise<void> {
     await this.prisma.appointment.create({
       data: {
@@ -649,6 +673,13 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         ...existingAnd,
         { OR: [{ rental_tenant_note: null }, { rental_tenant_note: '' }] },
       ];
+    }
+    // Exact suburb match. Safe to set `property` at the top level: the only
+    // other producer of a property predicate is the `search` OR above, which
+    // nests it inside its own array entries — so the two AND together rather
+    // than one clobbering the other.
+    if (filters.suburb) {
+      where['property'] = { suburb: { equals: filters.suburb, mode: 'insensitive' } };
     }
     if (filters.confirmationStatus === 'sent') {
       where['notifications'] = {

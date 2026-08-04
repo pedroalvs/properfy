@@ -207,7 +207,10 @@ describe('AppointmentBoardPage', () => {
 
     expect(screen.getByLabelText('Search')).toBeInTheDocument();
     expect(screen.getByLabelText('Branch')).toBeInTheDocument();
-    expect(screen.getByLabelText('Confirmation')).toBeInTheDocument();
+    expect(screen.getByLabelText('Tenant Confirmation')).toBeInTheDocument();
+    // The board inherits the list's new filters rather than re-implementing them.
+    expect(screen.getByLabelText('Confirmation Email')).toBeInTheDocument();
+    expect(screen.getByLabelText('Suburb')).toBeInTheDocument();
     expect(screen.getByLabelText('Period - start')).toBeInTheDocument();
     expect(screen.getByLabelText('Overdue only')).toBeInTheDocument();
   });

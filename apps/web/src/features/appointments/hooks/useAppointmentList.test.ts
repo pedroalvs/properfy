@@ -169,4 +169,49 @@ describe('useAppointmentList', () => {
     expect(query.tenantId).toBeUndefined();
     expect(query.inspectorId).toBeUndefined();
   });
+
+  it('forwards the suburb and confirmation-email filters to the API', async () => {
+    const wrapper = createRouterQueryWrapper('/appointments?suburb=Bondi&confirmationStatus=not_sent');
+    const { result } = renderHook(() => useAppointmentList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.filters.suburb).toBe('Bondi');
+    expect(result.current.filters.confirmationStatus).toBe('not_sent');
+    expect(mockGet).toHaveBeenCalledWith('/v1/appointments', {
+      params: {
+        query: expect.objectContaining({ suburb: 'Bondi', confirmationStatus: 'not_sent' }),
+      },
+    });
+  });
+
+  it('omits the suburb and confirmation-email params when unset', async () => {
+    const wrapper = createRouterQueryWrapper();
+    const { result } = renderHook(() => useAppointmentList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    const query = mockGet.mock.calls.at(-1)?.[1]?.params?.query as Record<string, unknown>;
+    expect(query.suburb).toBeUndefined();
+    expect(query.confirmationStatus).toBeUndefined();
+  });
+
+  // DataTable sorts the current page client-side. Sending sortBy/sortOrder would
+  // reorder the server-side window and change WHICH rows come back.
+  it('never sends sortBy or sortOrder', async () => {
+    const wrapper = createRouterQueryWrapper('/appointments?suburb=Bondi');
+    const { result } = renderHook(() => useAppointmentList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    const query = mockGet.mock.calls.at(-1)?.[1]?.params?.query as Record<string, unknown>;
+    expect(query.sortBy).toBeUndefined();
+    expect(query.sortOrder).toBeUndefined();
+  });
 });

@@ -123,6 +123,7 @@ export function AppointmentDetailPage() {
           address={apt.propertyAddress}
           addressLine2={apt.propertyAddressLine2}
           suburb={apt.suburb}
+          propertyCode={apt.propertyCode}
           latitude={apt.propertyLatitude}
           longitude={apt.propertyLongitude}
           propertyType={apt.propertyType}

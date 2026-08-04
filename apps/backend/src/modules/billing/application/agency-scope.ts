@@ -1,5 +1,5 @@
 import type { AuthContext } from '@properfy/shared';
-import { ForbiddenError } from '../../../shared/domain/errors';
+import { assertTenantScope } from '../../../shared/domain/require-tenant-scope';
 
 /**
  * 031 — Fail-closed tenant scope for an Agency (CL_ADMIN / CL_USER) actor.
@@ -8,12 +8,11 @@ import { ForbiddenError } from '../../../shared/domain/errors';
  * missing — an agency financial read must never fall back to an unscoped
  * (cross-tenant) query. Call only inside a CL_ADMIN/CL_USER branch.
  *
- * Single source of truth so this security invariant can't drift between the
- * extrato, summary and export use cases.
+ * Delegates to the shared `assertTenantScope`, which enforces the same
+ * invariant for every other module. Two implementations of one security rule
+ * is how the rule drifts; this stays as the billing-facing name so the 031
+ * call sites keep reading in their own vocabulary.
  */
 export function requireAgencyTenantScope(actor: AuthContext): string {
-  if (!actor.tenantId) {
-    throw new ForbiddenError('TENANT_SCOPE_REQUIRED', 'Agency financial access requires a tenant scope');
-  }
-  return actor.tenantId;
+  return assertTenantScope(actor, 'agency financial access');
 }

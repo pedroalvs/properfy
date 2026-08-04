@@ -18,6 +18,7 @@ import {
   useAgencyFilterOptions,
   useInspectorFilterOptions,
   useBranchFilterOptions,
+  useSuburbFilterOptions,
 } from '../hooks/useAppointmentFilterOptions';
 import { useAppointmentTransition } from '../hooks/useAppointmentTransition';
 import { useBulkResendHandler } from '../hooks/useBulkResendHandler';
@@ -65,6 +66,7 @@ export function AppointmentBoardPage() {
   // AM/OP-only route: branches come from the loaded cards until an agency is
   // picked, then from that agency's real list.
   const branchOptions = useBranchFilterOptions(filters.tenantId, allItems);
+  const suburbOptions = useSuburbFilterOptions(filters.tenantId);
 
   const hasActiveFilters = useMemo(
     () =>
@@ -190,6 +192,7 @@ export function AppointmentBoardPage() {
         onFiltersChange={setFilters}
         branchOptions={branchOptions}
         serviceTypeOptions={serviceTypeOptions}
+        suburbOptions={suburbOptions}
         agencyOptions={agencyOptions}
         inspectorOptions={inspectorOptions}
         hiddenFilters={BOARD_HIDDEN_FILTERS}

@@ -23,6 +23,7 @@ function makeDetailAppointment(overrides: Partial<MarketplaceOfferDetail['appoin
     suburb: 'Sydney CBD',
     street: '1 George St',
     coordinates: null,
+    propertyType: null,
     keyRequired: false,
     notes: null,
     payoutAmount: 150,
@@ -47,6 +48,10 @@ const MOCK_DETAIL_MIXED: MarketplaceOfferDetail = {
   appointmentCount: 2,
   centroid: null,
   addresses: ['1 George St, Sydney CBD', '2 Crown St, Surry Hills'],
+  properties: [
+    { street: '1 George St', suburb: 'Sydney CBD', propertyType: null },
+    { street: '2 Crown St', suburb: 'Surry Hills', propertyType: null },
+  ],
   keyRequired: false,
   notes: null,
   appointments: [

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { FilterSelectOption } from '@/components/filters/FilterSelect';
 import { useAuth } from '@/hooks/useAuth';
-import { useAllPagesQuery, type ListParams } from '@/hooks/useApiQuery';
+import { useAllPagesQuery, useDetailQuery, type ListParams } from '@/hooks/useApiQuery';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { usePermissions } from '@/hooks/usePermissions';
 import type { Appointment } from '../types';
@@ -96,6 +96,36 @@ export function useInspectorFilterOptions(): FilterSelectOption[] {
   );
 
   return useMemo(() => [ALL_OPTION, ...options], [options]);
+}
+
+/**
+ * Suburb options for the filter bar — available to every role.
+ *
+ * `GET /v1/appointments/suburbs` scopes itself the same way the list does
+ * (CL_* pinned to their JWT tenant, AM/OP cross-tenant unless they pass one),
+ * and only returns suburbs that actually carry a live appointment, so every
+ * option yields rows. Narrowed by the selected agency for AM/OP so the list
+ * shrinks with the rest of the filter bar rather than staying platform-wide.
+ */
+export function useSuburbFilterOptions(selectedTenantId = ''): FilterSelectOption[] {
+  const { hasRole } = usePermissions();
+  // A CL_* JWT tenant is applied server-side; only an AM/OP selection narrows here.
+  const scopedTenantId = hasRole('AM', 'OP') ? selectedTenantId : '';
+
+  const { data } = useDetailQuery<{ suburbs: string[] }>(
+    ['appointments', 'suburbs', scopedTenantId],
+    scopedTenantId
+      ? `/v1/appointments/suburbs?tenantId=${encodeURIComponent(scopedTenantId)}`
+      : '/v1/appointments/suburbs',
+  );
+
+  return useMemo(
+    () => [
+      ALL_OPTION,
+      ...(data?.data?.suburbs ?? []).map((suburb) => ({ value: suburb, label: suburb })),
+    ],
+    [data],
+  );
 }
 
 /**

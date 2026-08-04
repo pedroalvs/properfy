@@ -13,15 +13,45 @@ export const APPOINTMENT_FILTER_SCHEMA = {
   search: { type: 'string' as const, default: '' },
   status: { type: 'string' as const, default: '' },
   rentalTenantConfirmationStatus: { type: 'string' as const, default: '' },
+  confirmationStatus: { type: 'string' as const, default: '' },
   tenantId: { type: 'string' as const, default: '' },
   branchId: { type: 'string' as const, default: '' },
   inspectorId: { type: 'string' as const, default: '' },
   serviceTypeId: { type: 'string' as const, default: '' },
+  suburb: { type: 'string' as const, default: '' },
   startDate: { type: 'string' as const, default: '' },
   endDate: { type: 'string' as const, default: '' },
   showCancelled: { type: 'boolean' as const, default: false },
   overdueOnly: { type: 'boolean' as const, default: false },
 } satisfies FilterSchema;
+
+/**
+ * Maps filter state onto API query params. Shared with `useAppointmentExport`
+ * so the generated spreadsheet is always the exact set on screen — a second
+ * hand-rolled mapping is how an export silently starts disagreeing with the
+ * table it was launched from.
+ *
+ * Note `sortBy`/`sortOrder` are deliberately absent: `DataTable` sorts the
+ * current page client-side, so sending them would reorder the server-side
+ * window and change WHICH rows come back.
+ */
+export function toAppointmentListParams(filters: AppointmentFiltersState): ListParams {
+  return {
+    status: filters.status || undefined,
+    rentalTenantConfirmationStatus: filters.rentalTenantConfirmationStatus || undefined,
+    confirmationStatus: filters.confirmationStatus || undefined,
+    tenantId: filters.tenantId || undefined,
+    branchId: filters.branchId || undefined,
+    inspectorId: filters.inspectorId || undefined,
+    serviceTypeId: filters.serviceTypeId || undefined,
+    suburb: filters.suburb || undefined,
+    search: filters.search || undefined,
+    fromDate: filters.startDate || undefined,
+    toDate: filters.endDate || undefined,
+    showCancelled: filters.showCancelled ? 'true' : undefined,
+    overdueOnly: filters.overdueOnly ? 'true' : undefined,
+  };
+}
 
 export interface UseAppointmentListReturn {
   data: Appointment[];
@@ -50,17 +80,7 @@ export function useAppointmentList(): UseAppointmentListReturn {
   const params: ListParams = {
     page,
     pageSize,
-    status: filters.status || undefined,
-    rentalTenantConfirmationStatus: filters.rentalTenantConfirmationStatus || undefined,
-    tenantId: filters.tenantId || undefined,
-    branchId: filters.branchId || undefined,
-    inspectorId: filters.inspectorId || undefined,
-    serviceTypeId: filters.serviceTypeId || undefined,
-    search: filters.search || undefined,
-    fromDate: filters.startDate || undefined,
-    toDate: filters.endDate || undefined,
-    showCancelled: filters.showCancelled ? 'true' : undefined,
-    overdueOnly: filters.overdueOnly ? 'true' : undefined,
+    ...toAppointmentListParams(filters),
   };
 
   const { data: response, isLoading, isError, refetch } = usePaginatedQuery<Appointment>(

@@ -88,9 +88,9 @@ describe('StatusTransitionDialog', () => {
     fireEvent.click(screen.getByLabelText('Reason Code'));
     const labels = screen.getAllByRole('option').map((o) => o.textContent);
 
-    expect(labels).not.toContain('EXPIRED');
-    expect(labels).toContain('CLIENT REQUEST');
-    expect(labels).toContain('OTHER');
+    expect(labels).not.toContain('Expired');
+    expect(labels).toContain('Client Request');
+    expect(labels).toContain('Other');
     expect(labels).toHaveLength(6);
   });
 
@@ -152,7 +152,7 @@ describe('StatusTransitionDialog', () => {
       );
 
       fireEvent.click(screen.getByLabelText('Reason Code'));
-      fireEvent.click(screen.getByRole('option', { name: 'CLIENT REQUEST' }));
+      fireEvent.click(screen.getByRole('option', { name: 'Client Request' }));
       // The native input is sr-only, so the label text is the clickable target.
       fireEvent.click(screen.getByText(NOTIFY_LABEL));
       fireEvent.click(screen.getByText('Confirm'));
@@ -177,7 +177,7 @@ describe('StatusTransitionDialog', () => {
       );
 
       fireEvent.click(screen.getByLabelText('Reason Code'));
-      fireEvent.click(screen.getByRole('option', { name: 'CLIENT REQUEST' }));
+      fireEvent.click(screen.getByRole('option', { name: 'Client Request' }));
       fireEvent.click(screen.getByText('Confirm'));
 
       expect(onConfirm).toHaveBeenCalledWith(

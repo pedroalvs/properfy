@@ -60,6 +60,11 @@ export function useInspectorList(): UseInspectorListReturn {
       ...item,
       regionsCount: Array.isArray(item.regionIds) ? item.regionIds.length : 0,
       serviceTypesCount: Array.isArray(item.serviceTypesJson) ? item.serviceTypesJson.length : 0,
+      // Defaults keep a pre-deploy API from rendering undefined cells. null, not
+      // 0, for an unrated inspector — see Inspector.ratingAvg.
+      ratingAvg: item.rating?.average ?? null,
+      ratingCount: item.rating?.responseCount ?? 0,
+      completedCount: item.rating?.doneServicesCount ?? 0,
     }));
   }, [query.data?.data]);
 

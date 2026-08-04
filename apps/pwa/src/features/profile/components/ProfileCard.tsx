@@ -1,5 +1,6 @@
 
 import { formatInstantDateTime } from '@/lib/format-date';
+import { StarRating } from '@/components/ui/StarRating';
 
 interface ProfileCardProps {
   name: string;
@@ -11,6 +12,14 @@ interface ProfileCardProps {
   lastLoginAt?: string | null;
   photoUrl?: string | null;
   avatarUploader?: React.ReactNode;
+  /** Average satisfaction rating; null when there are no responses. */
+  ratingAvg?: number | null;
+  ratingCount?: number;
+  /** Total inspections completed. */
+  completedCount?: number;
+  ratingLoading?: boolean;
+  /** Renders the stats strip. Meaningless for a non-inspector, so opt-in. */
+  showStats?: boolean;
 }
 
 const roleLabelMap: Record<string, string> = {
@@ -34,7 +43,7 @@ function formatStatus(value: string | null | undefined): string {
     .join(' ');
 }
 
-export function ProfileCard({ name, email, role, status, phone, totpEnabled, lastLoginAt, photoUrl, avatarUploader }: ProfileCardProps) {
+export function ProfileCard({ name, email, role, status, phone, totpEnabled, lastLoginAt, photoUrl, avatarUploader, ratingAvg, ratingCount = 0, completedCount = 0, ratingLoading = false, showStats = false }: ProfileCardProps) {
   const roleLabel = roleLabelMap[role] ?? role;
 
   return (
@@ -67,6 +76,41 @@ export function ProfileCard({ name, email, role, status, phone, totpEnabled, las
           </span>
         </div>
       </div>
+
+      {showStats && (
+        // Fixed min-height across all three states so the card never jumps when
+        // the request resolves.
+        <div className="mt-5 grid min-h-[56px] grid-cols-2 divide-x divide-black/5 border-t border-black/5 pt-4">
+          <div className="flex flex-col items-center justify-center gap-0.5">
+            {ratingLoading ? (
+              <>
+                <div className="h-6 w-16 animate-pulse rounded bg-gray-200" />
+                <div className="h-3 w-20 animate-pulse rounded bg-gray-200" />
+              </>
+            ) : (
+              <>
+                <StarRating value={ratingAvg} size="lg" showValue emptyLabel="No ratings yet" />
+                <span className="text-xs text-text-secondary">
+                  {ratingCount > 0 ? `Average of ${ratingCount}` : 'Average rating'}
+                </span>
+              </>
+            )}
+          </div>
+          <div className="flex flex-col items-center justify-center gap-0.5">
+            {ratingLoading ? (
+              <>
+                <div className="h-6 w-12 animate-pulse rounded bg-gray-200" />
+                <div className="h-3 w-16 animate-pulse rounded bg-gray-200" />
+              </>
+            ) : (
+              <>
+                <span className="text-2xl font-bold text-text-primary">{completedCount}</span>
+                <span className="text-xs text-text-secondary">Services</span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="mt-5 grid grid-cols-1 gap-3 border-t border-black/5 pt-4 text-sm">
         <div className="flex items-center justify-between gap-4">

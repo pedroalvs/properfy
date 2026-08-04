@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
+import { TableSwitch } from '@/components/data/TableSwitch';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useSnackbar } from '@/hooks/useSnackbar';
+import { getErrorMessage } from '@/lib/api-error';
 import { AppointmentFilters } from '../components/AppointmentFilters';
 import { AppointmentTable } from '../components/AppointmentTable';
 import { AppointmentFormDrawer } from '../components/AppointmentFormDrawer';
@@ -13,7 +16,9 @@ import {
   useAgencyFilterOptions,
   useInspectorFilterOptions,
   useBranchFilterOptions,
+  useSuburbFilterOptions,
 } from '../hooks/useAppointmentFilterOptions';
+import { useAppointmentExport } from '../hooks/useAppointmentExport';
 import { useBulkResendHandler } from '../hooks/useBulkResendHandler';
 
 export function AppointmentListPage() {
@@ -37,11 +42,28 @@ export function AppointmentListPage() {
   const agencyOptions = useAgencyFilterOptions();
   const inspectorOptions = useInspectorFilterOptions();
   const branchOptions = useBranchFilterOptions(filters.tenantId, data);
+  const suburbOptions = useSuburbFilterOptions(filters.tenantId);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  // View preference, not a filter — deliberately local rather than in the URL,
+  // so a shared link carries the data selection without the reader's layout.
+  const [showExtraColumns, setShowExtraColumns] = useState(false);
+
+  const { exportAppointments, isExporting } = useAppointmentExport();
+  const { showError } = useSnackbar();
+
+  const handleExport = useCallback(async () => {
+    try {
+      await exportAppointments(filters);
+    } catch (error) {
+      // Most likely the server-side row cap — surface its message so the
+      // operator knows to narrow the filters rather than retrying blindly.
+      showError(getErrorMessage(error, 'Failed to generate the spreadsheet'));
+    }
+  }, [exportAppointments, filters, showError]);
 
   const canCreate = canPerform('appointment.create');
   const canMapImport = canPerform('appointment.import');
@@ -78,6 +100,13 @@ export function AppointmentListPage() {
           // Carry the active filters across — both screens read the same URL params.
           ...(canViewBoard ? [{ label: 'Board', icon: 'mdi-view-column-outline', onClick: () => navigate({ pathname: '/appointments/board', search: location.search }) }] : []),
           ...(canViewMap ? [{ label: 'Map View', icon: 'mdi-map-outline', onClick: () => navigate('/map') }] : []),
+          // Exports the whole filtered set (server-capped), not the visible page.
+          {
+            label: isExporting ? 'Generating...' : 'Generate Excel',
+            icon: 'mdi-file-excel-outline',
+            disabled: isExporting,
+            onClick: handleExport,
+          },
         ]}
       >
         <AppointmentFilters
@@ -85,8 +114,14 @@ export function AppointmentListPage() {
           onFiltersChange={setFilters}
           branchOptions={branchOptions}
           serviceTypeOptions={serviceTypeOptions}
+          suburbOptions={suburbOptions}
           agencyOptions={agencyOptions}
           inspectorOptions={inspectorOptions}
+        />
+        <TableSwitch
+          enabled={showExtraColumns}
+          onChange={setShowExtraColumns}
+          label="Show additional columns"
         />
         <AppointmentTable
           data={data}
@@ -95,6 +130,7 @@ export function AppointmentListPage() {
           onRetryError={refetch}
           pagination={pagination}
           showAgency={isGlobalRole}
+          showExtraColumns={showExtraColumns}
           selectedIds={canBulkEdit ? selectedIds : undefined}
           onSelectionChange={canBulkEdit ? setSelectedIds : undefined}
         />

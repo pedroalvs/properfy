@@ -7154,6 +7154,27 @@
                         },
                         "insuranceMetaJson": {},
                         "policeCheckMetaJson": {},
+                        "rating": {
+                          "type": "object",
+                          "properties": {
+                            "average": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "responseCount": {
+                              "type": "integer"
+                            },
+                            "doneServicesCount": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "average",
+                            "responseCount",
+                            "doneServicesCount"
+                          ],
+                          "additionalProperties": false
+                        },
                         "createdAt": {
                           "anyOf": [
                             {
@@ -7370,6 +7391,27 @@
                           },
                           "insuranceMetaJson": {},
                           "policeCheckMetaJson": {},
+                          "rating": {
+                            "type": "object",
+                            "properties": {
+                              "average": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "responseCount": {
+                                "type": "integer"
+                              },
+                              "doneServicesCount": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "average",
+                              "responseCount",
+                              "doneServicesCount"
+                            ],
+                            "additionalProperties": false
+                          },
                           "createdAt": {
                             "anyOf": [
                               {
@@ -7532,6 +7574,27 @@
                         },
                         "insuranceMetaJson": {},
                         "policeCheckMetaJson": {},
+                        "rating": {
+                          "type": "object",
+                          "properties": {
+                            "average": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "responseCount": {
+                              "type": "integer"
+                            },
+                            "doneServicesCount": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "average",
+                            "responseCount",
+                            "doneServicesCount"
+                          ],
+                          "additionalProperties": false
+                        },
                         "createdAt": {
                           "anyOf": [
                             {
@@ -7809,6 +7872,27 @@
                         },
                         "insuranceMetaJson": {},
                         "policeCheckMetaJson": {},
+                        "rating": {
+                          "type": "object",
+                          "properties": {
+                            "average": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "responseCount": {
+                              "type": "integer"
+                            },
+                            "doneServicesCount": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "average",
+                            "responseCount",
+                            "doneServicesCount"
+                          ],
+                          "additionalProperties": false
+                        },
                         "createdAt": {
                           "anyOf": [
                             {
@@ -7846,6 +7930,142 @@
                   },
                   "required": [
                     "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/inspectors/{inspectorId}/surveys": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "sortBy",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "desc"
+            },
+            "in": "query",
+            "name": "sortOrder",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "inspectorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "rating": {
+                            "type": "integer"
+                          },
+                          "comment": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "submittedAt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            ]
+                          },
+                          "appointmentCode": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "rating",
+                          "comment",
+                          "submittedAt",
+                          "appointmentCode"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "number"
+                        },
+                        "pageSize": {
+                          "type": "number"
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "totalPages": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "page",
+                        "pageSize",
+                        "total",
+                        "totalPages"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "pagination"
                   ],
                   "additionalProperties": false
                 }
@@ -10634,8 +10854,7 @@
                           "additionalProperties": false
                         }
                       ]
-                    },
-                    "minItems": 1
+                    }
                   },
                   "appCredentialIds": {
                     "type": "array",
@@ -10946,6 +11165,10 @@
                         },
                         "propertyAddress": {
                           "type": "string"
+                        },
+                        "propertyCode": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "contactName": {
                           "type": "string"
@@ -11328,6 +11551,15 @@
           },
           {
             "schema": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "in": "query",
+            "name": "suburb",
+            "required": false
+          },
+          {
+            "schema": {
               "type": "boolean"
             },
             "in": "query",
@@ -11563,6 +11795,10 @@
                           "propertyAddress": {
                             "type": "string"
                           },
+                          "propertyCode": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "contactName": {
                             "type": "string"
                           },
@@ -11755,6 +11991,339 @@
                   "required": [
                     "data",
                     "pagination"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/appointments/suburbs": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "tenantId",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "suburbs": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "suburbs"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/appointments/export": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "sortBy",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "desc"
+            },
+            "in": "query",
+            "name": "sortOrder",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "DRAFT",
+                  "AWAITING_INSPECTOR",
+                  "SCHEDULED",
+                  "DONE",
+                  "CANCELLED",
+                  "REJECTED"
+                ]
+              },
+              "minItems": 1
+            },
+            "in": "query",
+            "name": "status",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "serviceTypeId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "branchId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "inspectorId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "propertyId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "tenantId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "search",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "in": "query",
+            "name": "fromDate",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "in": "query",
+            "name": "toDate",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "PENDING",
+                  "CONFIRMED",
+                  "UNAVAILABLE",
+                  "NO_RESPONSE"
+                ]
+              },
+              "minItems": 1
+            },
+            "in": "query",
+            "name": "rentalTenantConfirmationStatus",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "boolean"
+            },
+            "in": "query",
+            "name": "showCancelled",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "boolean"
+            },
+            "in": "query",
+            "name": "overdueOnly",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "boolean"
+            },
+            "in": "query",
+            "name": "ungroupedOnly",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+            },
+            "in": "query",
+            "name": "timeFrom",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+            },
+            "in": "query",
+            "name": "timeTo",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "contactSearch",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "in": "query",
+            "name": "suburb",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "boolean"
+            },
+            "in": "query",
+            "name": "hasRentalTenantNote",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "sent",
+                "not_sent"
+              ]
+            },
+            "in": "query",
+            "name": "confirmationStatus",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "serviceGroupId",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "filename": {
+                          "type": "string"
+                        },
+                        "contentType": {
+                          "type": "string"
+                        },
+                        "contentBase64": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "filename",
+                        "contentType",
+                        "contentBase64"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
                   ],
                   "additionalProperties": false
                 }
@@ -11981,6 +12550,10 @@
                         },
                         "propertyAddress": {
                           "type": "string"
+                        },
+                        "propertyCode": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "contactName": {
                           "type": "string"
@@ -12363,8 +12936,7 @@
                           "additionalProperties": false
                         }
                       ]
-                    },
-                    "minItems": 1
+                    }
                   },
                   "appCredentialIds": {
                     "type": "array",
@@ -12663,6 +13235,10 @@
                         },
                         "propertyAddress": {
                           "type": "string"
+                        },
+                        "propertyCode": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "contactName": {
                           "type": "string"
@@ -13430,6 +14006,7 @@
                                   "NO_PRIMARY_CONTACT",
                                   "IDEMPOTENT_REPLAY",
                                   "TENANT_NOTIFICATIONS_BLOCKED",
+                                  "NOT_APPLICABLE",
                                   "ERROR"
                                 ]
                               },
@@ -17151,6 +17728,34 @@
                             ],
                             "additionalProperties": false,
                             "nullable": true
+                          },
+                          "properties": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "street": {
+                                  "type": "string"
+                                },
+                                "suburb": {
+                                  "type": "string"
+                                },
+                                "propertyType": {
+                                  "type": "string",
+                                  "enum": [
+                                    "APARTMENT",
+                                    "HOUSE"
+                                  ],
+                                  "nullable": true
+                                }
+                              },
+                              "required": [
+                                "street",
+                                "suburb",
+                                "propertyType"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
@@ -17165,7 +17770,8 @@
                           "suburbs",
                           "payoutEstimate",
                           "appointmentCount",
-                          "centroid"
+                          "centroid",
+                          "properties"
                         ],
                         "additionalProperties": false
                       }
@@ -17286,6 +17892,34 @@
                           "additionalProperties": false,
                           "nullable": true
                         },
+                        "properties": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "street": {
+                                "type": "string"
+                              },
+                              "suburb": {
+                                "type": "string"
+                              },
+                              "propertyType": {
+                                "type": "string",
+                                "enum": [
+                                  "APARTMENT",
+                                  "HOUSE"
+                                ],
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "street",
+                              "suburb",
+                              "propertyType"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
                         "addresses": {
                           "type": "array",
                           "items": {
@@ -17358,6 +17992,14 @@
                                 ],
                                 "additionalProperties": false,
                                 "nullable": true
+                              },
+                              "propertyType": {
+                                "type": "string",
+                                "enum": [
+                                  "APARTMENT",
+                                  "HOUSE"
+                                ],
+                                "nullable": true
                               }
                             },
                             "required": [
@@ -17372,7 +18014,8 @@
                               "timeSlotStart",
                               "timeSlotEnd",
                               "street",
-                              "coordinates"
+                              "coordinates",
+                              "propertyType"
                             ],
                             "additionalProperties": false
                           }
@@ -17391,6 +18034,7 @@
                         "payoutEstimate",
                         "appointmentCount",
                         "centroid",
+                        "properties",
                         "addresses",
                         "keyRequired",
                         "notes",
@@ -18122,6 +18766,43 @@
                         "timezone"
                       ],
                       "additionalProperties": false
+                    },
+                    "survey": {
+                      "type": "object",
+                      "properties": {
+                        "eligible": {
+                          "type": "boolean"
+                        },
+                        "submitted": {
+                          "type": "boolean"
+                        },
+                        "rating": {
+                          "type": "integer",
+                          "nullable": true
+                        },
+                        "comment": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "submittedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        },
+                        "inspectorName": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "eligible",
+                        "submitted",
+                        "rating",
+                        "comment",
+                        "submittedAt",
+                        "inspectorName"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -18263,6 +18944,80 @@
                   "required": [
                     "rentalTenantConfirmationStatus",
                     "confirmedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/rental-tenant-portal/{token}/survey": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "rating": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5
+                  },
+                  "comment": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "rating"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "token",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "rating": {
+                      "type": "integer"
+                    },
+                    "comment": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "submittedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "alreadySubmitted": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "rating",
+                    "comment",
+                    "submittedAt",
+                    "alreadySubmitted"
                   ],
                   "additionalProperties": false
                 }
@@ -18748,6 +19503,69 @@
         }
       }
     },
+    "/v1/appointments/{appointmentId}/survey": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "appointmentId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "rating": {
+                          "type": "integer"
+                        },
+                        "comment": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "submittedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "rating",
+                        "comment",
+                        "submittedAt"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/appointments/{appointmentId}/portal-activities": {
       "get": {
         "parameters": [
@@ -18950,6 +19768,9 @@
                               "appointmentCode": {
                                 "type": "string"
                               },
+                              "propertyCode": {
+                                "type": "string"
+                              },
                               "status": {
                                 "type": "string",
                                 "enum": [
@@ -19053,6 +19874,9 @@
                                 "type": "string"
                               },
                               "appointmentCode": {
+                                "type": "string"
+                              },
+                              "propertyCode": {
                                 "type": "string"
                               },
                               "status": {
@@ -19262,6 +20086,9 @@
                                   "appointmentCode": {
                                     "type": "string"
                                   },
+                                  "propertyCode": {
+                                    "type": "string"
+                                  },
                                   "status": {
                                     "type": "string"
                                   },
@@ -19348,6 +20175,9 @@
                                 "type": "string"
                               },
                               "appointmentCode": {
+                                "type": "string"
+                              },
+                              "propertyCode": {
                                 "type": "string"
                               },
                               "status": {
@@ -19539,6 +20369,9 @@
                         "propertyId": {
                           "type": "string",
                           "format": "uuid"
+                        },
+                        "propertyCode": {
+                          "type": "string"
                         },
                         "propertyAddress": {
                           "type": "string"
@@ -20502,6 +21335,34 @@
                             ],
                             "additionalProperties": false,
                             "nullable": true
+                          },
+                          "properties": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "street": {
+                                  "type": "string"
+                                },
+                                "suburb": {
+                                  "type": "string"
+                                },
+                                "propertyType": {
+                                  "type": "string",
+                                  "enum": [
+                                    "APARTMENT",
+                                    "HOUSE"
+                                  ],
+                                  "nullable": true
+                                }
+                              },
+                              "required": [
+                                "street",
+                                "suburb",
+                                "propertyType"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
@@ -20516,7 +21377,8 @@
                           "suburbs",
                           "payoutEstimate",
                           "appointmentCount",
-                          "centroid"
+                          "centroid",
+                          "properties"
                         ],
                         "additionalProperties": false
                       }
@@ -25129,6 +25991,822 @@
                         "pendingActions",
                         "quickStats",
                         "inspectorBreakdowns"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dashboard/analytics": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "startDate",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "endDate",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "period": {
+                          "type": "object",
+                          "properties": {
+                            "startDate": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                            },
+                            "endDate": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                            },
+                            "granularity": {
+                              "type": "string",
+                              "enum": [
+                                "day",
+                                "week"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "startDate",
+                            "endDate",
+                            "granularity"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "kpis": {
+                          "type": "object",
+                          "properties": {
+                            "today": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "thisWeek": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "thisMonth": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "inPeriod": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "cancelledInPeriod": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "today",
+                            "thisWeek",
+                            "thisMonth",
+                            "inPeriod",
+                            "cancelledInPeriod"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "statusInPeriod": {
+                          "type": "object",
+                          "properties": {
+                            "DRAFT": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "AWAITING_INSPECTOR": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "SCHEDULED": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "DONE": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "CANCELLED": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "REJECTED": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "DRAFT",
+                            "AWAITING_INSPECTOR",
+                            "SCHEDULED",
+                            "DONE",
+                            "CANCELLED",
+                            "REJECTED"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "confirmationRate": {
+                          "type": "object",
+                          "properties": {
+                            "confirmed": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "eligible": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "confirmed",
+                            "eligible"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "revenue": {
+                          "type": "object",
+                          "properties": {
+                            "amount": {
+                              "type": "number"
+                            },
+                            "currency": {
+                              "type": "string",
+                              "minLength": 3,
+                              "maxLength": 3
+                            }
+                          },
+                          "required": [
+                            "amount",
+                            "currency"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        },
+                        "evolution": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "bucketStart": {
+                                "type": "string",
+                                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                              },
+                              "count": {
+                                "type": "integer",
+                                "minimum": 0
+                              }
+                            },
+                            "required": [
+                              "bucketStart",
+                              "count"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "serviceTypeDistribution": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "serviceTypeId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "code": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "count": {
+                                "type": "integer",
+                                "minimum": 0
+                              }
+                            },
+                            "required": [
+                              "serviceTypeId",
+                              "code",
+                              "name",
+                              "count"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "avgExecutionMinutes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "serviceTypeId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "code": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "avgMinutes": {
+                                "type": "number",
+                                "minimum": 0,
+                                "nullable": true
+                              },
+                              "sampleSize": {
+                                "type": "integer",
+                                "minimum": 0
+                              }
+                            },
+                            "required": [
+                              "serviceTypeId",
+                              "code",
+                              "name",
+                              "avgMinutes",
+                              "sampleSize"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "period",
+                        "kpis",
+                        "statusInPeriod",
+                        "confirmationRate",
+                        "revenue",
+                        "evolution",
+                        "serviceTypeDistribution",
+                        "avgExecutionMinutes"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dashboard/analytics/heatmap": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "startDate",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "endDate",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "points": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "suburb": {
+                                "type": "string"
+                              },
+                              "lat": {
+                                "type": "number",
+                                "minimum": -90,
+                                "maximum": 90
+                              },
+                              "lng": {
+                                "type": "number",
+                                "minimum": -180,
+                                "maximum": 180
+                              },
+                              "count": {
+                                "type": "integer",
+                                "minimum": 0
+                              }
+                            },
+                            "required": [
+                              "suburb",
+                              "lat",
+                              "lng",
+                              "count"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "totalPlotted": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "totalWithoutCoordinates": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "points",
+                        "totalPlotted",
+                        "totalWithoutCoordinates"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dashboard/inspector-workload": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "weekStart",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "week": {
+                          "type": "object",
+                          "properties": {
+                            "weekStart": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                            },
+                            "weekEnd": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                            },
+                            "days": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                              },
+                              "minItems": 7,
+                              "maxItems": 7
+                            }
+                          },
+                          "required": [
+                            "weekStart",
+                            "weekEnd",
+                            "days"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "thresholds": {
+                          "type": "object",
+                          "properties": {
+                            "weeklyBusy": {
+                              "type": "integer",
+                              "exclusiveMinimum": true,
+                              "minimum": 0
+                            },
+                            "weeklyOverloaded": {
+                              "type": "integer",
+                              "exclusiveMinimum": true,
+                              "minimum": 0
+                            },
+                            "dailyBusy": {
+                              "type": "integer",
+                              "exclusiveMinimum": true,
+                              "minimum": 0
+                            },
+                            "dailyOverloaded": {
+                              "type": "integer",
+                              "exclusiveMinimum": true,
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "weeklyBusy",
+                            "weeklyOverloaded",
+                            "dailyBusy",
+                            "dailyOverloaded"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "kpis": {
+                          "type": "object",
+                          "properties": {
+                            "totalInWeek": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "activeInspectorCount": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "avgPerInspector": {
+                              "type": "number",
+                              "minimum": 0,
+                              "nullable": true
+                            },
+                            "nearLimit": {
+                              "type": "object",
+                              "properties": {
+                                "count": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "inspectors": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "inspectorId": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                      },
+                                      "inspectorName": {
+                                        "type": "string"
+                                      },
+                                      "total": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "required": [
+                                      "inspectorId",
+                                      "inspectorName",
+                                      "total"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "count",
+                                "inspectors"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "overloaded": {
+                              "type": "object",
+                              "properties": {
+                                "count": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "inspectors": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "inspectorId": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                      },
+                                      "inspectorName": {
+                                        "type": "string"
+                                      },
+                                      "total": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "required": [
+                                      "inspectorId",
+                                      "inspectorName",
+                                      "total"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "count",
+                                "inspectors"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "totalInWeek",
+                            "activeInspectorCount",
+                            "avgPerInspector",
+                            "nearLimit",
+                            "overloaded"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "funnel": {
+                          "type": "object",
+                          "properties": {
+                            "previous": {
+                              "type": "object",
+                              "properties": {
+                                "weekStart": {
+                                  "type": "string",
+                                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                },
+                                "weekEnd": {
+                                  "type": "string",
+                                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                },
+                                "done": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "scheduled": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "confirmed": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "confirmationEligible": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": [
+                                "weekStart",
+                                "weekEnd",
+                                "done",
+                                "scheduled",
+                                "confirmed",
+                                "confirmationEligible"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "selected": {
+                              "type": "object",
+                              "properties": {
+                                "weekStart": {
+                                  "type": "string",
+                                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                },
+                                "weekEnd": {
+                                  "type": "string",
+                                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                },
+                                "done": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "scheduled": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "confirmed": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "confirmationEligible": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": [
+                                "weekStart",
+                                "weekEnd",
+                                "done",
+                                "scheduled",
+                                "confirmed",
+                                "confirmationEligible"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "next": {
+                              "type": "object",
+                              "properties": {
+                                "weekStart": {
+                                  "type": "string",
+                                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                },
+                                "weekEnd": {
+                                  "type": "string",
+                                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                },
+                                "done": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "scheduled": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "confirmed": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "confirmationEligible": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": [
+                                "weekStart",
+                                "weekEnd",
+                                "done",
+                                "scheduled",
+                                "confirmed",
+                                "confirmationEligible"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "previous",
+                            "selected",
+                            "next"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "completed": {
+                          "type": "object",
+                          "properties": {
+                            "doneSelectedWeek": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "donePreviousWeek": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "doneSelectedMonth": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "donePreviousMonth": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "selectedMonth": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}$"
+                            },
+                            "previousMonth": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}$"
+                            }
+                          },
+                          "required": [
+                            "doneSelectedWeek",
+                            "donePreviousWeek",
+                            "doneSelectedMonth",
+                            "donePreviousMonth",
+                            "selectedMonth",
+                            "previousMonth"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "matrix": {
+                          "type": "object",
+                          "properties": {
+                            "inspectors": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "inspectorId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "inspectorName": {
+                                    "type": "string"
+                                  },
+                                  "isActive": {
+                                    "type": "boolean"
+                                  },
+                                  "days": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    "minItems": 7,
+                                    "maxItems": 7
+                                  },
+                                  "total": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "level": {
+                                    "type": "string",
+                                    "enum": [
+                                      "normal",
+                                      "busy",
+                                      "overloaded"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "inspectorId",
+                                  "inspectorName",
+                                  "isActive",
+                                  "days",
+                                  "total",
+                                  "level"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "teamTotalsByDay": {
+                              "type": "array",
+                              "items": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "minItems": 7,
+                              "maxItems": 7
+                            },
+                            "teamTotal": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "inspectors",
+                            "teamTotalsByDay",
+                            "teamTotal"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "week",
+                        "thresholds",
+                        "kpis",
+                        "funnel",
+                        "completed",
+                        "matrix"
                       ],
                       "additionalProperties": false
                     }

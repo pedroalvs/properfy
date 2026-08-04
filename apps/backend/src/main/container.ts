@@ -168,6 +168,12 @@ import { PrismaRentalTenantPortalActivityRepository } from '../modules/rental-te
 import { TokenService } from '../modules/rental-tenant-portal/domain/token.service';
 import { MintPortalTokenService } from '../modules/rental-tenant-portal/domain/mint-portal-token.service';
 import { GetPortalDataUseCase } from '../modules/rental-tenant-portal/application/use-cases/get-portal-data.use-case';
+import { PrismaSatisfactionSurveyRepository } from '../modules/satisfaction-survey/infrastructure/prisma-satisfaction-survey.repository';
+import { SubmitSatisfactionSurveyUseCase } from '../modules/satisfaction-survey/application/use-cases/submit-satisfaction-survey.use-case';
+import { InviteSurveyOnDoneSubscriber } from '../modules/satisfaction-survey/application/subscribers/invite-survey-on-done.subscriber';
+import { ListInspectorSurveysUseCase } from '../modules/satisfaction-survey/application/use-cases/list-inspector-surveys.use-case';
+import { GetAppointmentSurveyUseCase } from '../modules/satisfaction-survey/application/use-cases/get-appointment-survey.use-case';
+import { PrismaInspectorRatingReader } from '../modules/inspector/infrastructure/prisma-inspector-rating.reader';
 import { ConfirmAppointmentUseCase } from '../modules/rental-tenant-portal/application/use-cases/confirm-appointment.use-case';
 import { UpdateContactUseCase } from '../modules/rental-tenant-portal/application/use-cases/update-contact.use-case';
 import { ReportUnavailabilityUseCase } from '../modules/rental-tenant-portal/application/use-cases/report-unavailability.use-case';
@@ -284,6 +290,11 @@ import { AuditRetentionWorker } from '../modules/audit/infrastructure/workers/au
 // Dashboard module
 import { PrismaDashboardRepository } from '../modules/dashboard/infrastructure/prisma-dashboard.repository';
 import { GetDashboardStatsUseCase } from '../modules/dashboard/application/use-cases/get-dashboard-stats.use-case';
+import { PrismaDashboardAnalyticsRepository } from '../modules/dashboard/infrastructure/prisma-dashboard-analytics.repository';
+import { GetDashboardAnalyticsUseCase } from '../modules/dashboard/application/use-cases/get-dashboard-analytics.use-case';
+import { GetAnalyticsHeatmapUseCase } from '../modules/dashboard/application/use-cases/get-analytics-heatmap.use-case';
+import { PrismaInspectorWorkloadRepository } from '../modules/dashboard/infrastructure/prisma-inspector-workload.repository';
+import { GetInspectorWorkloadUseCase } from '../modules/dashboard/application/use-cases/get-inspector-workload.use-case';
 import type { DashboardRouteContainer } from '../modules/dashboard/interfaces/dashboard.routes';
 
 // Service region module
@@ -349,6 +360,8 @@ import { PrismaAppointmentRepository } from '../modules/appointment/infrastructu
 import { CreateAppointmentUseCase } from '../modules/appointment/application/use-cases/create-appointment.use-case';
 import { GetAppointmentUseCase } from '../modules/appointment/application/use-cases/get-appointment.use-case';
 import { ListAppointmentsUseCase } from '../modules/appointment/application/use-cases/list-appointments.use-case';
+import { ListAppointmentSuburbsUseCase } from '../modules/appointment/application/use-cases/list-appointment-suburbs.use-case';
+import { ExportAppointmentsUseCase } from '../modules/appointment/application/use-cases/export-appointments.use-case';
 import { UpdateAppointmentUseCase } from '../modules/appointment/application/use-cases/update-appointment.use-case';
 import { ExecuteStatusTransitionUseCase } from '../modules/appointment/application/use-cases/execute-status-transition.use-case';
 import { PerformCrossCheckUseCase } from '../modules/appointment/application/use-cases/perform-cross-check.use-case';
@@ -643,8 +656,9 @@ export function createContainer(logger: Logger): AppContainer {
   // Inspector use cases
   const availabilitySlotRepo = new PrismaAvailabilitySlotRepository(prisma);
   const createInspectorUseCase = new CreateInspectorUseCase(inspectorRepo, userManagementRepo, auditService, serviceRegionRepo, authorizationService);
-  const getInspectorUseCase = new GetInspectorUseCase(inspectorRepo, serviceRegionRepo);
-  const listInspectorsUseCase = new ListInspectorsUseCase(inspectorRepo, serviceRegionRepo);
+  const inspectorRatingReader = new PrismaInspectorRatingReader(prisma);
+  const getInspectorUseCase = new GetInspectorUseCase(inspectorRepo, serviceRegionRepo, inspectorRatingReader);
+  const listInspectorsUseCase = new ListInspectorsUseCase(inspectorRepo, serviceRegionRepo, inspectorRatingReader);
   const updateInspectorUseCase = new UpdateInspectorUseCase(inspectorRepo, auditService, serviceRegionRepo, authorizationService, userManagementRepo);
   const createAvailabilitySlotUseCase = new CreateAvailabilitySlotUseCase(inspectorRepo, availabilitySlotRepo, auditService);
   const listAvailabilitySlotsUseCase = new ListAvailabilitySlotsUseCase(availabilitySlotRepo);
@@ -703,6 +717,9 @@ export function createContainer(logger: Logger): AppContainer {
   // the INGOING/OUTGOING auto-group step needs create/publish, which need serviceGroupRepo.
   const getAppointmentUseCase = new GetAppointmentUseCase(appointmentRepo, authorizationService, appCredentialRepo);
   const listAppointmentsUseCase = new ListAppointmentsUseCase(appointmentRepo, authorizationService);
+  const listAppointmentSuburbsUseCase = new ListAppointmentSuburbsUseCase(appointmentRepo, authorizationService);
+  // exportAppointmentsUseCase is constructed AFTER the report module below —
+  // it reuses that module's XLSX generator.
   // updateAppointmentUseCase is constructed AFTER the notification handlers below —
   // schedule edits need confirmationCycleService + portal token repo + reschedule notifier.
   const deleteAppointmentUseCase = new DeleteAppointmentUseCase(appointmentRepo, auditService, authorizationService);
@@ -796,7 +813,12 @@ export function createContainer(logger: Logger): AppContainer {
     idempotencyService, confirmationCycleService,
   );
 
-  const getPortalDataUseCase = new GetPortalDataUseCase(rentalTenantPortalTokenRepo, rentalTenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo, tenantRepo);
+  const satisfactionSurveyRepo = new PrismaSatisfactionSurveyRepository(prisma);
+  const listInspectorSurveysUseCase = new ListInspectorSurveysUseCase(satisfactionSurveyRepo);
+  const getAppointmentSurveyUseCase = new GetAppointmentSurveyUseCase(appointmentRepo, satisfactionSurveyRepo);
+  const submitSatisfactionSurveyUseCase = new SubmitSatisfactionSurveyUseCase(satisfactionSurveyRepo, appointmentRepo, rentalTenantPortalActivityRepo, auditService);
+
+  const getPortalDataUseCase = new GetPortalDataUseCase(rentalTenantPortalTokenRepo, rentalTenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo, tenantRepo, satisfactionSurveyRepo, inspectorRepo);
   const confirmAppointmentUseCase = new ConfirmAppointmentUseCase(rentalTenantPortalActivityRepo, appointmentRepo, auditService, notifyOnRentalTenantPortalActionHandler, domainEventBus, rentalTenantPortalTokenRepo, confirmationCycleService);
   const updateContactUseCase = new UpdateContactUseCase(rentalTenantPortalActivityRepo, appointmentRepo, auditService, domainEventBus, contactRepo);
   const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(rentalTenantPortalTokenRepo, appointmentRepo, tenantRepo, mintPortalTokenService, auditService, env.TENANT_PORTAL_BASE_URL, createNotificationUseCase, confirmationCycleService, prisma, logger);
@@ -1065,6 +1087,8 @@ export function createContainer(logger: Logger): AppContainer {
   const xlsxGenerator = new ExcelJsXlsxGenerator();
   // 031 — agency financial statement export reuses the report XLSX generator.
   const exportAgencyFinancialUseCase = new ExportAgencyFinancialUseCase(financialEntryRepo, tenantRepo, xlsxGenerator);
+  // Appointments-list "Generate Excel" — same generator, same filters as the list.
+  const exportAppointmentsUseCase = new ExportAppointmentsUseCase(appointmentRepo, xlsxGenerator, authorizationService);
   const reportDataReader = new PrismaReportDataReader(prisma);
   const reportJobQueue = env.ENABLE_JOB_QUEUE === 'true'
     ? new PgBossJobQueue()
@@ -1173,6 +1197,11 @@ export function createContainer(logger: Logger): AppContainer {
   // Dashboard repositories and use cases
   const dashboardRepo = new PrismaDashboardRepository(prisma);
   const getDashboardStatsUseCase = new GetDashboardStatsUseCase(dashboardRepo);
+  const dashboardAnalyticsRepo = new PrismaDashboardAnalyticsRepository(prisma);
+  const getDashboardAnalyticsUseCase = new GetDashboardAnalyticsUseCase(dashboardAnalyticsRepo);
+  const getAnalyticsHeatmapUseCase = new GetAnalyticsHeatmapUseCase(dashboardAnalyticsRepo);
+  const inspectorWorkloadRepo = new PrismaInspectorWorkloadRepository(prisma);
+  const getInspectorWorkloadUseCase = new GetInspectorWorkloadUseCase(inspectorWorkloadRepo);
 
   // Service region use cases (serviceRegionRepo instantiated earlier for inspector/marketplace use)
   const createServiceRegionUseCase = new CreateServiceRegionUseCase(serviceRegionRepo, auditService, authorizationService);
@@ -1219,6 +1248,18 @@ export function createContainer(logger: Logger): AppContainer {
   new NotifyOnGroupInspectorChangeSubscriber(serviceGroupRepo, inspectorRepo, createNotificationUseCase, logger).register(domainEventBus);
 
   new CancelEmptyGroupOnTransitionSubscriber(cancelEmptyGroupService, logger).register(domainEventBus);
+
+  // Satisfaction survey: extends the tenant's existing portal token and invites
+  // them to rate the inspection once it is marked DONE. Requires the portal token
+  // encrypter — without it the raw token cannot be recovered and no link can be
+  // sent, so the subscriber is simply not registered.
+  if (portalTokenEncrypter) {
+    new InviteSurveyOnDoneSubscriber(
+      appointmentRepo, rentalTenantPortalTokenRepo, satisfactionSurveyRepo, notificationRepo,
+      tenantRepo, portalTokenEncrypter, buildNotificationPayload, appointmentCodeFormatter,
+      createNotificationUseCase, env.TENANT_PORTAL_BASE_URL, logger,
+    ).register(domainEventBus);
+  }
 
   const appointmentImportRowResolver = new AppointmentImportRowResolver(
     propertyRepo, serviceTypeRepo, pricingRuleRepo, contactRepo,
@@ -1383,6 +1424,7 @@ export function createContainer(logger: Logger): AppContainer {
       createInspectorUseCase,
       getInspectorUseCase,
       listInspectorsUseCase,
+      listInspectorSurveysUseCase,
       updateInspectorUseCase,
       createAvailabilitySlotUseCase,
       listAvailabilitySlotsUseCase,
@@ -1407,6 +1449,8 @@ export function createContainer(logger: Logger): AppContainer {
       createAppointmentUseCase,
       getAppointmentUseCase,
       listAppointmentsUseCase,
+      listAppointmentSuburbsUseCase,
+      exportAppointmentsUseCase,
       updateAppointmentUseCase,
       executeStatusTransitionUseCase,
       performCrossCheckUseCase,
@@ -1496,6 +1540,8 @@ export function createContainer(logger: Logger): AppContainer {
       listPortalActivitiesUseCase,
       getAvailableGroupsUseCase,
       joinGroupUseCase,
+      submitSatisfactionSurveyUseCase,
+      getAppointmentSurveyUseCase,
       tokenRepo: rentalTenantPortalTokenRepo,
       tokenService,
       jwtService,
@@ -1578,6 +1624,9 @@ export function createContainer(logger: Logger): AppContainer {
     },
     dashboard: {
       getDashboardStatsUseCase,
+      getDashboardAnalyticsUseCase,
+      getAnalyticsHeatmapUseCase,
+      getInspectorWorkloadUseCase,
       jwtService,
       tenantRepo,
     },

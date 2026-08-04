@@ -59,6 +59,10 @@ const mockOfferDetail = {
   appointmentCount: 2,
   centroid: null,
   addresses: ['123 Ocean St, Bondi NSW', '45 Beach Rd, Manly NSW'],
+  properties: [
+    { street: '123 Ocean St', suburb: 'Bondi NSW', propertyType: 'APARTMENT' },
+    { street: '45 Beach Rd', suburb: 'Manly NSW', propertyType: 'HOUSE' },
+  ],
   keyRequired: false,
   notes: null,
   appointments: [
@@ -75,6 +79,7 @@ const mockOfferDetail = {
       tenantName: 'Properfy Realty',
       timeSlotStart: '08:00',
       timeSlotEnd: '09:00',
+      propertyType: 'APARTMENT',
     },
     {
       id: '00000000-0000-0000-0000-000000000012',
@@ -89,6 +94,7 @@ const mockOfferDetail = {
       tenantName: 'Properfy Realty',
       timeSlotStart: '10:00',
       timeSlotEnd: '11:00',
+      propertyType: 'HOUSE',
     },
   ],
 };
@@ -141,6 +147,52 @@ describe('GET /v1/marketplace/offers/:groupId (detail — suburb rename)', () =>
     expect(appointments[0]['street']).toBe('123 Ocean St');
     expect(appointments[0]['coordinates']).toEqual({ lat: -33.8908, lng: 151.2743 });
     expect(appointments[1]['coordinates']).toBeNull();
+  });
+
+  // Undeclared fields are stripped by the serializer, so the type icon in the
+  // group detail sheet only works if propertyType survives the wire.
+  // Soft-deleted properties are blanked rather than dropped; those empty/null
+  // values must survive the response serializer, which is exactly where a
+  // required-but-unmapped field turns into a post-commit 500.
+  it('should serialize a blanked soft-deleted appointment without dropping it', async () => {
+    mockJwtVerify.mockResolvedValueOnce(inspContext);
+    mockGetMarketplaceOfferDetailExecute.mockResolvedValueOnce({
+      ...mockOfferDetail,
+      appointments: [
+        mockOfferDetail.appointments[0],
+        {
+          ...mockOfferDetail.appointments[1],
+          street: '',
+          coordinates: null,
+          propertyType: null,
+        },
+      ],
+    });
+
+    const res = await supertest(app.server)
+      .get(`/v1/marketplace/offers/${GROUP_ID}`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    const appointments = res.body.data?.appointments as Array<Record<string, unknown>>;
+    expect(appointments).toHaveLength(2);
+    expect(appointments[1]['street']).toBe('');
+    expect(appointments[1]['propertyType']).toBeNull();
+    expect(appointments[1]['coordinates']).toBeNull();
+  });
+
+  it('should serialize per-appointment propertyType (group detail type icon)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(inspContext);
+    mockGetMarketplaceOfferDetailExecute.mockResolvedValueOnce(mockOfferDetail);
+
+    const res = await supertest(app.server)
+      .get(`/v1/marketplace/offers/${GROUP_ID}`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    const appointments = res.body.data?.appointments as Array<Record<string, unknown>>;
+    expect(appointments[0]['propertyType']).toBe('APARTMENT');
+    expect(appointments[1]['propertyType']).toBe('HOUSE');
   });
 
   it('should include centroid field (null when not resolved)', async () => {

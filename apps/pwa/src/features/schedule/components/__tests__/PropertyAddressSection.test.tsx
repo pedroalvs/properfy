@@ -2,6 +2,34 @@ import { render, screen } from '@testing-library/react';
 import { PropertyAddressSection } from '../PropertyAddressSection';
 
 describe('PropertyAddressSection', () => {
+  // Doc §7.4 "Realty codes" on the scheduled-service detail.
+  it('renders the property (realty) code when present', () => {
+    render(
+      <PropertyAddressSection
+        address="123 Main St"
+        suburb="Brisbane"
+        propertyCode="ACM-PROP-0007"
+        latitude={null}
+        longitude={null}
+      />,
+    );
+
+    expect(screen.getByTestId('property-code')).toHaveTextContent('ACM-PROP-0007');
+  });
+
+  it('omits the property code badge when absent', () => {
+    render(
+      <PropertyAddressSection
+        address="123 Main St"
+        suburb="Brisbane"
+        latitude={null}
+        longitude={null}
+      />,
+    );
+
+    expect(screen.queryByTestId('property-code')).toBeNull();
+  });
+
   it('uses coordinates when they are available, including zero values', () => {
     render(
       <PropertyAddressSection

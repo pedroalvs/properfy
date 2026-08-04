@@ -14,7 +14,7 @@ import { useFormOptions } from '@/hooks/useFormOptions';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 import type { ServiceGroupStatus, MarkerOffset } from '@properfy/shared';
-import { resolveMarkerCollisions } from '@properfy/shared';
+import { resolveCoincidentMarkerOffsets } from '@properfy/shared';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 import { useAllPagesQuery, type ListParams } from '@/hooks/useApiQuery';
 import {
@@ -278,18 +278,18 @@ export function resolveActiveLassoPoints(args: {
 }
 
 /**
- * Pixel offsets that stop two markers being drawn on top of each other, keyed
- * by pin id.
+ * Pixel offsets that stop two pins at the *same address* being drawn on top of
+ * each other, keyed by pin id.
  *
- * Overlap is a fact about pixels, not degrees — two appointments 300m apart
- * collide when zoomed out and separate when zoomed in — so this projects the
- * coordinates first and callers must recompute it whenever the camera settles.
- * The projection is a parameter rather than a Mapbox import so the wiring stays
- * unit-testable without a live map, same reasoning as `selectFitPoints`.
+ * Only exactly-coincident pins are moved: those are the ones no zoom level can
+ * separate, so one would stay invisible under the other forever. Pins that are
+ * merely close keep their true position — a pin's job on this screen is to say
+ * where the property is, and the operator separates crowded ones by zooming in.
+ * Since coincidence does not depend on the camera, this is computed once per pin
+ * set rather than on every camera move.
  */
 export function computeMarkerOffsets(
   pins: Array<{ id: string; latitude: number; longitude: number }>,
-  project: (lngLat: [number, number]) => { x: number; y: number },
   diameter: number,
 ): Map<string, MarkerOffset> {
   // Sorted by id so the layout does not depend on list order. Coincident pins
@@ -297,11 +297,7 @@ export function computeMarkerOffsets(
   // created_at with no unique tie-breaker — an unsorted input would let a
   // refetch swap two markers' offsets and make the pins jump for no reason.
   const ordered = [...pins].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  const screen = ordered.map((p) => {
-    const { x, y } = project([p.longitude, p.latitude]);
-    return { x, y };
-  });
-  const offsets = resolveMarkerCollisions(screen, diameter);
+  const offsets = resolveCoincidentMarkerOffsets(ordered, diameter);
   return new Map(ordered.map((p, index) => [p.id, offsets[index]!]));
 }
 
@@ -1176,30 +1172,13 @@ export function AppointmentMapPage() {
     [mode, validAppointmentPins, groupModePins],
   );
 
-  // Collision offsets are pixels, and which pins collide depends on the zoom,
-  // so they have to be recomputed whenever the camera settles. MapContainer
-  // exposes no events, but the page already holds the instance.
-  const [cameraVersion, setCameraVersion] = useState(0);
-  useEffect(() => {
-    if (!mapInstance) return;
-    const bump = () => setCameraVersion((v) => v + 1);
-    mapInstance.on('moveend', bump);
-    return () => {
-      mapInstance.off('moveend', bump);
-    };
-  }, [mapInstance]);
-
-  const markerOffsets = useMemo(() => {
-    if (!mapInstance) return new Map<string, MarkerOffset>();
-    return computeMarkerOffsets(
-      activePins,
-      (lngLat) => mapInstance.project(lngLat),
-      PIN_COLLISION_DIAMETER_PX,
-    );
-    // `cameraVersion` is the dependency that matters here — the projection
-    // changes with the camera even when the pins do not.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activePins, mapInstance, cameraVersion]);
+  // Only pins sharing a coordinate are offset, and that does not change with
+  // the camera — so this is computed once per pin set, with no `moveend`
+  // listener and no reprojection.
+  const markerOffsets = useMemo(
+    () => computeMarkerOffsets(activePins, PIN_COLLISION_DIAMETER_PX),
+    [activePins],
+  );
 
   // Fit the camera to the drilled group's appointment pins once they load.
   // Kept separate from the mode-level auto-fit (and from handleGroupMarkerClick,

@@ -109,9 +109,25 @@ describe('TEMPLATE_TARGETS', () => {
       expect(TEMPLATE_TARGETS[code]).toBe(TEMPLATE_TARGETS[emailCode]);
       comparedPairs += 1;
     }
-    // 8 pairs today: inspection notice, the three reminders, confirmed, rescheduled,
-    // cancelled, unavailability-reported. (TENANT_SMS_ALERT is not an `_SMS` variant.)
-    expect(comparedPairs).toBeGreaterThanOrEqual(8);
+    // 4 pairs today: inspection notice and the three reminders. (TENANT_SMS_ALERT is not
+    // an `_SMS` variant.) The confirmed / rescheduled / cancelled / unavailability-reported
+    // SMS twins were retired: they only ever restated an email the occupant was already
+    // getting for an action they had just taken themselves.
+    expect(comparedPairs).toBeGreaterThanOrEqual(4);
+  });
+
+  it('leaves no SMS twin on the occupant-action templates', () => {
+    // These four are email-only by decision, not by omission. Reinstating a code here
+    // without reinstating its dispatch leg would ship a template nothing ever sends.
+    for (const retired of [
+      'INSPECTION_CONFIRMED_SMS',
+      'INSPECTION_RESCHEDULED_SMS',
+      'INSPECTION_CANCELLED_SMS',
+      'INSPECTION_UNAVAILABILITY_REPORTED_SMS',
+    ]) {
+      expect(MANDATORY_TEMPLATE_CODES).not.toContain(retired);
+      expect(TEMPLATE_TARGETS).not.toHaveProperty(retired);
+    }
   });
 
   it('routes each dispatch family to the recipient its call site actually uses', () => {

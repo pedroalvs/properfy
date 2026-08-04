@@ -15,7 +15,7 @@ The Appointments feature is the core entity of the Properfy platform. It covers 
 
 **Pages/screens:**
 1. Appointments List (`/appointments`)
-2. Create Appointment (`/appointments/new`)
+2. ~~Create Appointment (`/appointments/new`)~~ — the route redirects to the list, which opens the form in a drawer (see §4.2)
 3. Appointment Detail/Edit (`/appointments/:id`)
 4. Import Appointments (`/appointments/import`)
 
@@ -26,7 +26,7 @@ The Appointments feature is the core entity of the Properfy platform. It covers 
 | Path | Component | Portal | Description |
 |---|---|---|---|
 | `/appointments` | `AppointmentsListPage` | Both | Filterable table of all appointments |
-| `/appointments/new` | `AppointmentCreatePage` | Both | Multi-step creation form |
+| `/appointments/new` | ~~`AppointmentCreatePage`~~ — redirects | Both | Redirects to `/appointments?new=1`, which opens `AppointmentFormDrawer` on the list. The standalone page was retired; see §4.2 |
 | `/appointments/:id` | `AppointmentDetailPage` | Both | Detail view with tabs and transitions |
 | `/appointments/import` | `AppointmentImportPage` | Both (OP+) | XLSX bulk import |
 
@@ -35,7 +35,8 @@ Route definitions use React Router v6. All routes require authentication. Role-b
 ```tsx
 // Route definitions
 <Route path="/appointments" element={<AuthGuard roles={['AM','OP','CL_ADMIN','CL_USER']}><AppointmentsListPage /></AuthGuard>} />
-<Route path="/appointments/new" element={<AuthGuard roles={['AM','OP','CL_ADMIN']}><AppointmentCreatePage /></AuthGuard>} />
+{/* Retired: the standalone create page no longer exists — see §4.2 */}
+<Route path="/appointments/new" element={<Navigate to="/appointments?new=1" replace />} />
 <Route path="/appointments/:id" element={<AuthGuard roles={['AM','OP','CL_ADMIN','CL_USER']}><AppointmentDetailPage /></AuthGuard>} />
 <Route path="/appointments/import" element={<AuthGuard roles={['AM','OP']}><AppointmentImportPage /></AuthGuard>} />
 ```
@@ -322,13 +323,18 @@ GET /v1/appointments?status=&serviceType=&branchId=&inspectorId=&dateFrom=&dateT
 
 ---
 
-### 4.2 Create Appointment (`/appointments/new`)
+### 4.2 Create Appointment (`/appointments/new`) — SUPERSEDED
 
-**Layout template:** `MainLayout` with centered form card (max-width 800px).
+> **Superseded 2026-08.** There is no standalone create page: `AppointmentCreatePage`
+> was retired and `/appointments/new` now redirects to `/appointments?new=1`, which
+> opens the create form in `AppointmentFormDrawer` on the list. The field rules and
+> validation below still describe the form; the route and layout do not.
+
+**Layout template:** ~~`MainLayout` with centered form card (max-width 800px)~~ — the form is a drawer on the list page.
 
 **Components used:**
 - `BranchSelect` – dropdown scoped to user's tenant (or all for OP/AM)
-- `PropertySearch` – combobox with async search + "Create new" option
+- ~~`PropertySearch` – combobox with async search + "Create new" option~~ — **not built**; the form uses `SelectInput` (see the removal note under `PropertySearch` below)
 - `ServiceTypeSelect` – dropdown
 - `DatePicker` – calendar picker (min: today)
 - `TimeSlotSelect` – dropdown of predefined slots
@@ -380,7 +386,8 @@ POST /v1/appointments → Appointment
 | Restrictions | No | Max 1000 chars |
 | Notes | No | Max 1000 chars |
 
-**Inline property creation:**
+**Inline property creation:** — **NOT BUILT** (depended on `PropertySearch`, which was removed; see its note below)
+
 When user clicks "Create new property" in PropertySearch:
 - Opens `PropertyCreateInlineModal`
 - On success, auto-selects new property in the combobox
@@ -672,7 +679,13 @@ interface AppointmentFiltersBarProps {
 
 ---
 
-### `PropertySearch`
+### `PropertySearch` — REMOVED
+
+> **Removed (2026-08).** This component was never wired into the appointment
+> form: the create drawer selects a property with `SelectInput`, and the async
+> combobox described here had no consumer other than a barrel export. The dead
+> code was deleted; the spec is kept as the record of what was designed. The
+> "Create new property" inline flow below was likewise never built.
 
 ```typescript
 interface PropertySearchProps {

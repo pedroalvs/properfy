@@ -129,18 +129,29 @@ describe('seeded notification class follows the shared catalogue', () => {
     expect(resolvePlatformTemplateClass(entry!)).toBe('TRANSACTIONAL');
   });
 
-  // Named explicitly because these four are what actually flips in an existing
-  // database. Their email twins were set TRANSACTIONAL directly by migration
-  // 20260411 (consent_notification_prefs); the SMS legs were created by later
-  // seeder runs that never wrote the column, so only they drifted.
+  // Retired: each restated an email the occupant was already getting for an action
+  // they had just taken themselves. The seeder is upsert-only, so re-adding an entry
+  // here would recreate the row that migration 20260804120000 deletes — and it would
+  // come back unlabelled and untargeted, since the shared catalogue no longer knows
+  // the code. The email twins stay and are covered by the protected-class test above.
   it.each([
     'INSPECTION_CONFIRMED_SMS',
     'INSPECTION_RESCHEDULED_SMS',
     'INSPECTION_CANCELLED_SMS',
     'INSPECTION_UNAVAILABILITY_REPORTED_SMS',
-  ])('%s is TRANSACTIONAL, matching its email twin', (code) => {
+  ])('%s is no longer seeded', (code) => {
+    expect(PLATFORM_TEMPLATES.find((t) => t.code === code)).toBeUndefined();
+  });
+
+  it.each([
+    'INSPECTION_CONFIRMED',
+    'INSPECTION_RESCHEDULED',
+    'INSPECTION_CANCELLED',
+    'INSPECTION_UNAVAILABILITY_REPORTED',
+  ])('%s survives as an EMAIL template', (code) => {
     const entry = PLATFORM_TEMPLATES.find((t) => t.code === code)!;
-    expect(entry).toBeDefined();
+    expect(entry, `${code} missing from PLATFORM_TEMPLATES`).toBeDefined();
+    expect(entry.channel).toBe('EMAIL');
     expect(resolvePlatformTemplateClass(entry)).toBe('TRANSACTIONAL');
   });
 
@@ -350,7 +361,8 @@ describe('every seeded template is presentable on the templates list', () => {
   const seededCodes = [...new Set(PLATFORM_TEMPLATES.map((t) => t.code))];
 
   it('covers the whole seeded catalog, not just a sample', () => {
-    expect(seededCodes.length).toBeGreaterThanOrEqual(26);
+    // Floor lowered by 4 when the occupant-action SMS twins were retired.
+    expect(seededCodes.length).toBeGreaterThanOrEqual(25);
   });
 
   for (const code of seededCodes) {

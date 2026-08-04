@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client';
+import type { PropertyType } from '@properfy/shared';
 import type { ServiceGroupEntity } from './service-group.entity';
 
 export interface ServiceGroupFilters {
@@ -100,6 +101,19 @@ export interface MarketplaceOffer {
   payoutEstimate: number | null;
   appointmentCount: number;
   centroid: { lat: number; lng: number } | null;
+  /**
+   * One entry per live appointment, so the PWA offer card can show a full street
+   * address and a property-type icon without a drill-down request. `street` is ''
+   * and `propertyType` null when the property is missing or soft-deleted.
+   */
+  properties: MarketplaceOfferProperty[];
+}
+
+export interface MarketplaceOfferProperty {
+  street: string;
+  /** "<suburb> <state>", same join the offer-detail mapper uses. */
+  suburb: string;
+  propertyType: PropertyType | null;
 }
 
 export interface MarketplaceOfferDetail extends MarketplaceOffer {
@@ -122,6 +136,8 @@ export interface MarketplaceOfferDetail extends MarketplaceOffer {
     /** Appointment's own slot (bare HH:mm) — preferred over the group timeWindow in the UI. */
     timeSlotStart: string;
     timeSlotEnd: string;
+    /** Drives the per-job type icon; null when the property is missing or soft-deleted. */
+    propertyType: PropertyType | null;
   }>;
 }
 

@@ -46,6 +46,7 @@ function makeMarketplaceOffer(overrides: Partial<MarketplaceOffer> = {}): Market
     suburbs: ['Sydney', 'Bondi'],
     payoutEstimate: null,
     appointmentCount: 5,
+    properties: [],
     ...overrides,
   };
 }
@@ -236,5 +237,56 @@ describe('GetMarketplaceOffersUseCase', () => {
       [],
       defaultPagination,
     );
+  });
+
+  // The offer card renders a full street address and a property-type icon from the
+  // LIST payload — no drill-down. If the use case drops `properties`, the card
+  // silently falls back to suburbs and the doc §7.2 requirement regresses.
+  it('passes the per-appointment properties through to the output', async () => {
+    const inspector = makeInspector();
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(inspector);
+    vi.mocked(serviceGroupRepo.findPublishedForInspector).mockResolvedValue([
+      makeMarketplaceOffer({
+        properties: [
+          { street: '12 Ocean St', suburb: 'Bondi NSW', propertyType: 'APARTMENT' },
+          { street: '3 Beach Rd', suburb: 'Coogee NSW', propertyType: 'HOUSE' },
+        ],
+      }),
+    ]);
+    vi.mocked(serviceGroupRepo.countPublishedForInspector).mockResolvedValue(1);
+
+    const result = await useCase.execute({
+      inspectorId: 'inspector-1',
+      pagination: defaultPagination,
+      actor: makeActor(),
+    });
+
+    expect(result.data[0].properties).toEqual([
+      { street: '12 Ocean St', suburb: 'Bondi NSW', propertyType: 'APARTMENT' },
+      { street: '3 Beach Rd', suburb: 'Coogee NSW', propertyType: 'HOUSE' },
+    ]);
+  });
+
+  it('passes through a blank street and null type for a soft-deleted property', async () => {
+    const inspector = makeInspector();
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(inspector);
+    vi.mocked(serviceGroupRepo.findPublishedForInspector).mockResolvedValue([
+      makeMarketplaceOffer({
+        // Matches what the repository actually emits for a soft-deleted
+        // property: street AND suburb blanked, type null.
+        properties: [{ street: '', suburb: '', propertyType: null }],
+      }),
+    ]);
+    vi.mocked(serviceGroupRepo.countPublishedForInspector).mockResolvedValue(1);
+
+    const result = await useCase.execute({
+      inspectorId: 'inspector-1',
+      pagination: defaultPagination,
+      actor: makeActor(),
+    });
+
+    expect(result.data[0].properties).toEqual([
+      { street: '', suburb: '', propertyType: null },
+    ]);
   });
 });

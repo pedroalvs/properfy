@@ -1,8 +1,18 @@
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/Button';
-import { PLATFORM_TIMEZONE, addCivilDays, todayInTzDateString } from '@properfy/shared';
+import {
+  PLATFORM_TIMEZONE,
+  PROPERTY_TYPE_LABELS,
+  addCivilDays,
+  todayInTzDateString,
+} from '@properfy/shared';
 import { formatCivilDate, formatWallTimeWindow } from '@/lib/format-date';
 import { formatCurrency } from '@/lib/format-currency';
+import {
+  PROPERTY_TYPE_ICONS,
+  distinctPropertyTypes,
+  pickOfferAddresses,
+} from '../lib/property-type-icon';
 import type { MarketplaceOffer, OfferAcceptState } from '../types';
 
 interface OfferCardProps {
@@ -60,7 +70,9 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
   const dayLabel = relativeDayLabel(offer.scheduledDate);
   const resolved = stateLabels[state];
   const [faded, setFaded] = useState(false);
-  const countdown = usePriorityCountdown(offer.priorityExpiresAt);
+  // `priorityExpiresAt` is optional: the backend does not send it today, so an
+  // absent field and an explicit null both mean "no countdown".
+  const countdown = usePriorityCountdown(offer.priorityExpiresAt ?? null);
 
   useEffect(() => {
     if (state === 'ACCEPTED') {
@@ -69,6 +81,17 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
     }
     setFaded(false);
   }, [state]);
+
+  // Derived arrays must be memoized on the raw payload — see apps/pwa/CLAUDE.md
+  // rule 11 (the PR #961 render-loop lesson).
+  const propertyTypes = useMemo(
+    () => distinctPropertyTypes(offer.properties ?? []),
+    [offer.properties],
+  );
+  const address = useMemo(
+    () => pickOfferAddresses(offer.properties ?? [], offer.suburbs),
+    [offer.properties, offer.suburbs],
+  );
 
   return (
     <div
@@ -119,20 +142,39 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
           </div>
         </div>
 
-        {/* Inspection count */}
+        {/* Inspection count, prefixed by one icon per distinct property type */}
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-            <i className="mdi mdi-home-outline text-[13px]" />
+            {propertyTypes.length > 0 ? (
+              propertyTypes.map((type) => (
+                <i
+                  key={type}
+                  className={`mdi ${PROPERTY_TYPE_ICONS[type]} text-[13px]`}
+                  data-testid="property-type-icon"
+                  role="img"
+                  aria-label={PROPERTY_TYPE_LABELS[type]}
+                />
+              ))
+            ) : (
+              <i className="mdi mdi-home-outline text-[13px]" aria-hidden="true" />
+            )}
             {offer.appointmentCount} {offer.appointmentCount === 1 ? 'inspection' : 'inspections'}
           </span>
         </div>
 
-        {/* Location summary */}
-        {offer.suburbs.length > 0 && (
-          <p className="mt-2.5 text-sm text-text-secondary">
-            <i className="mdi mdi-map-marker-outline mr-1 text-text-muted" />
-            {offer.suburbs.join(' · ')}
-          </p>
+        {/* Location: one full street address, plus how many more the group holds */}
+        {address.primary && (
+          <div className="mt-2.5 text-sm text-text-secondary">
+            <p data-testid="offer-address">
+              <i className="mdi mdi-map-marker-outline mr-1 text-text-muted" aria-hidden="true" />
+              {address.primary}
+            </p>
+            {address.remaining > 0 && (
+              <p className="mt-0.5 pl-5 text-xs text-text-muted" data-testid="offer-address-more">
+                +{address.remaining} more {address.remaining === 1 ? 'address' : 'addresses'}
+              </p>
+            )}
+          </div>
         )}
 
         {/* Details drill-down */}

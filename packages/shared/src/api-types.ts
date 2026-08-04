@@ -3041,6 +3041,11 @@ export interface paths {
                                 photoStorageKey?: string | null;
                                 insuranceMetaJson?: unknown;
                                 policeCheckMetaJson?: unknown;
+                                rating?: {
+                                    average: number | null;
+                                    responseCount: number;
+                                    doneServicesCount: number;
+                                };
                                 createdAt: string;
                                 updatedAt: string;
                             }[];
@@ -3141,6 +3146,11 @@ export interface paths {
                                 photoStorageKey?: string | null;
                                 insuranceMetaJson?: unknown;
                                 policeCheckMetaJson?: unknown;
+                                rating?: {
+                                    average: number | null;
+                                    responseCount: number;
+                                    doneServicesCount: number;
+                                };
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -3202,6 +3212,11 @@ export interface paths {
                                 photoStorageKey?: string | null;
                                 insuranceMetaJson?: unknown;
                                 policeCheckMetaJson?: unknown;
+                                rating?: {
+                                    average: number | null;
+                                    responseCount: number;
+                                    doneServicesCount: number;
+                                };
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -3298,6 +3313,11 @@ export interface paths {
                                 photoStorageKey?: string | null;
                                 insuranceMetaJson?: unknown;
                                 policeCheckMetaJson?: unknown;
+                                rating?: {
+                                    average: number | null;
+                                    responseCount: number;
+                                    doneServicesCount: number;
+                                };
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -3306,6 +3326,61 @@ export interface paths {
                 };
             };
         };
+        trace?: never;
+    };
+    "/v1/inspectors/{inspectorId}/surveys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    pageSize?: number;
+                    sortBy?: string;
+                    sortOrder?: "asc" | "desc";
+                };
+                header?: never;
+                path: {
+                    inspectorId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                rating: number;
+                                comment: string | null;
+                                submittedAt: string;
+                                appointmentCode: string;
+                            }[];
+                            pagination: {
+                                page: number;
+                                pageSize: number;
+                                total: number;
+                                totalPages: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/availability-slots": {
@@ -4456,6 +4531,7 @@ export interface paths {
                     timeFrom?: string;
                     timeTo?: string;
                     contactSearch?: string;
+                    suburb?: string;
                     hasRentalTenantNote?: boolean;
                     confirmationStatus?: "sent" | "not_sent";
                     serviceGroupId?: string;
@@ -4528,6 +4604,7 @@ export interface paths {
                                 appointmentCode?: string;
                                 code?: string;
                                 propertyAddress?: string;
+                                propertyCode?: string | null;
                                 contactName?: string;
                                 contactPhone?: string | null;
                                 contactEmail?: string | null;
@@ -4733,6 +4810,7 @@ export interface paths {
                                 appointmentCode?: string;
                                 code?: string;
                                 propertyAddress?: string;
+                                propertyCode?: string | null;
                                 contactName?: string;
                                 contactPhone?: string | null;
                                 contactEmail?: string | null;
@@ -4777,6 +4855,113 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/appointments/suburbs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    tenantId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                suburbs: string[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/appointments/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    pageSize?: number;
+                    sortBy?: string;
+                    sortOrder?: "asc" | "desc";
+                    status?: ("DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED")[];
+                    serviceTypeId?: string;
+                    branchId?: string;
+                    inspectorId?: string;
+                    propertyId?: string;
+                    tenantId?: string;
+                    search?: string;
+                    fromDate?: string;
+                    toDate?: string;
+                    rentalTenantConfirmationStatus?: ("PENDING" | "CONFIRMED" | "UNAVAILABLE" | "NO_RESPONSE")[];
+                    showCancelled?: boolean;
+                    overdueOnly?: boolean;
+                    ungroupedOnly?: boolean;
+                    timeFrom?: string;
+                    timeTo?: string;
+                    contactSearch?: string;
+                    suburb?: string;
+                    hasRentalTenantNote?: boolean;
+                    confirmationStatus?: "sent" | "not_sent";
+                    serviceGroupId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                filename: string;
+                                contentType: string;
+                                contentBase64: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4863,6 +5048,7 @@ export interface paths {
                                 appointmentCode?: string;
                                 code?: string;
                                 propertyAddress?: string;
+                                propertyCode?: string | null;
                                 contactName?: string;
                                 contactPhone?: string | null;
                                 contactEmail?: string | null;
@@ -5068,6 +5254,7 @@ export interface paths {
                                 appointmentCode?: string;
                                 code?: string;
                                 propertyAddress?: string;
+                                propertyCode?: string | null;
                                 contactName?: string;
                                 contactPhone?: string | null;
                                 contactEmail?: string | null;
@@ -5434,7 +5621,7 @@ export interface paths {
                                     /** Format: uuid */
                                     appointmentId: string;
                                     /** @enum {string} */
-                                    status: "SENT" | "NO_PRIMARY_CONTACT" | "IDEMPOTENT_REPLAY" | "TENANT_NOTIFICATIONS_BLOCKED" | "ERROR";
+                                    status: "SENT" | "NO_PRIMARY_CONTACT" | "IDEMPOTENT_REPLAY" | "TENANT_NOTIFICATIONS_BLOCKED" | "NOT_APPLICABLE" | "ERROR";
                                     error?: {
                                         code: string;
                                         message: string;
@@ -7152,6 +7339,12 @@ export interface paths {
                                     lat: number;
                                     lng: number;
                                 } | null;
+                                properties: {
+                                    street: string;
+                                    suburb: string;
+                                    /** @enum {string|null} */
+                                    propertyType: "APARTMENT" | "HOUSE" | null;
+                                }[];
                             }[];
                             pagination: {
                                 page: number;
@@ -7214,6 +7407,12 @@ export interface paths {
                                     lat: number;
                                     lng: number;
                                 } | null;
+                                properties: {
+                                    street: string;
+                                    suburb: string;
+                                    /** @enum {string|null} */
+                                    propertyType: "APARTMENT" | "HOUSE" | null;
+                                }[];
                                 addresses: string[];
                                 keyRequired: boolean;
                                 notes: string | null;
@@ -7234,6 +7433,8 @@ export interface paths {
                                         lat: number;
                                         lng: number;
                                     } | null;
+                                    /** @enum {string|null} */
+                                    propertyType: "APARTMENT" | "HOUSE" | null;
                                 }[];
                             };
                         };
@@ -7901,6 +8102,15 @@ export interface paths {
                                 name: string | null;
                                 timezone: string;
                             };
+                            survey?: {
+                                eligible: boolean;
+                                submitted: boolean;
+                                rating: number | null;
+                                comment: string | null;
+                                /** Format: date-time */
+                                submittedAt: string | null;
+                                inspectorName: string | null;
+                            };
                         };
                     };
                 };
@@ -7966,6 +8176,56 @@ export interface paths {
                             rentalTenantConfirmationStatus: "CONFIRMED";
                             /** Format: date-time */
                             confirmedAt: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rental-tenant-portal/{token}/survey": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    token: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        rating: number;
+                        comment?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            rating: number;
+                            comment: string | null;
+                            /** Format: date-time */
+                            submittedAt: string;
+                            alreadySubmitted: boolean;
                         };
                     };
                 };
@@ -8247,6 +8507,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/appointments/{appointmentId}/survey": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    appointmentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                rating: number;
+                                comment: string | null;
+                                submittedAt: string;
+                            } | null;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/appointments/{appointmentId}/portal-activities": {
         parameters: {
             query?: never;
@@ -8342,6 +8645,7 @@ export interface paths {
                                 appointments: {
                                     id: string;
                                     appointmentCode: string;
+                                    propertyCode?: string;
                                     /** @enum {string} */
                                     status: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
                                     scheduledDate: string;
@@ -8367,6 +8671,7 @@ export interface paths {
                                 overdueAppointments: {
                                     id: string;
                                     appointmentCode: string;
+                                    propertyCode?: string;
                                     /** @enum {string} */
                                     status: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
                                     scheduledDate: string;
@@ -8438,6 +8743,7 @@ export interface paths {
                                 appointments: {
                                     id: string;
                                     appointmentCode?: string;
+                                    propertyCode?: string;
                                     status: string;
                                     scheduledDate: string;
                                     timeSlotStart: string;
@@ -8458,6 +8764,7 @@ export interface paths {
                             data: {
                                 id: string;
                                 appointmentCode: string;
+                                propertyCode?: string;
                                 /** @enum {string} */
                                 status: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
                                 scheduledDate: string;
@@ -8537,6 +8844,7 @@ export interface paths {
                                 flowType: string;
                                 /** Format: uuid */
                                 propertyId: string;
+                                propertyCode?: string;
                                 propertyAddress: string;
                                 suburb: string;
                                 propertyLatitude: number | null;
@@ -8906,6 +9214,12 @@ export interface paths {
                                     lat: number;
                                     lng: number;
                                 } | null;
+                                properties: {
+                                    street: string;
+                                    suburb: string;
+                                    /** @enum {string|null} */
+                                    propertyType: "APARTMENT" | "HOUSE" | null;
+                                }[];
                             }[];
                             pagination: {
                                 page: number;
@@ -11113,6 +11427,266 @@ export interface paths {
                                         alertLevel: "yellow" | "red" | null;
                                     }[];
                                 } | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/dashboard/analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    startDate: string;
+                    endDate: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                period: {
+                                    startDate: string;
+                                    endDate: string;
+                                    /** @enum {string} */
+                                    granularity: "day" | "week";
+                                };
+                                kpis: {
+                                    today: number;
+                                    thisWeek: number;
+                                    thisMonth: number;
+                                    inPeriod: number;
+                                    cancelledInPeriod: number;
+                                };
+                                statusInPeriod: {
+                                    DRAFT: number;
+                                    AWAITING_INSPECTOR: number;
+                                    SCHEDULED: number;
+                                    DONE: number;
+                                    CANCELLED: number;
+                                    REJECTED: number;
+                                };
+                                confirmationRate: {
+                                    confirmed: number;
+                                    eligible: number;
+                                };
+                                revenue: {
+                                    amount: number;
+                                    currency: string;
+                                } | null;
+                                evolution: {
+                                    bucketStart: string;
+                                    count: number;
+                                }[];
+                                serviceTypeDistribution: {
+                                    /** Format: uuid */
+                                    serviceTypeId: string;
+                                    code: string;
+                                    name: string;
+                                    count: number;
+                                }[];
+                                avgExecutionMinutes: {
+                                    /** Format: uuid */
+                                    serviceTypeId: string;
+                                    code: string;
+                                    name: string;
+                                    avgMinutes: number | null;
+                                    sampleSize: number;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/dashboard/analytics/heatmap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    startDate: string;
+                    endDate: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                points: {
+                                    suburb: string;
+                                    lat: number;
+                                    lng: number;
+                                    count: number;
+                                }[];
+                                totalPlotted: number;
+                                totalWithoutCoordinates: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/dashboard/inspector-workload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    weekStart?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                week: {
+                                    weekStart: string;
+                                    weekEnd: string;
+                                    days: string[];
+                                };
+                                thresholds: {
+                                    weeklyBusy: number;
+                                    weeklyOverloaded: number;
+                                    dailyBusy: number;
+                                    dailyOverloaded: number;
+                                };
+                                kpis: {
+                                    totalInWeek: number;
+                                    activeInspectorCount: number;
+                                    avgPerInspector: number | null;
+                                    nearLimit: {
+                                        count: number;
+                                        inspectors: {
+                                            /** Format: uuid */
+                                            inspectorId: string;
+                                            inspectorName: string;
+                                            total: number;
+                                        }[];
+                                    };
+                                    overloaded: {
+                                        count: number;
+                                        inspectors: {
+                                            /** Format: uuid */
+                                            inspectorId: string;
+                                            inspectorName: string;
+                                            total: number;
+                                        }[];
+                                    };
+                                };
+                                funnel: {
+                                    previous: {
+                                        weekStart: string;
+                                        weekEnd: string;
+                                        done: number;
+                                        scheduled: number;
+                                        confirmed: number;
+                                        confirmationEligible: number;
+                                    };
+                                    selected: {
+                                        weekStart: string;
+                                        weekEnd: string;
+                                        done: number;
+                                        scheduled: number;
+                                        confirmed: number;
+                                        confirmationEligible: number;
+                                    };
+                                    next: {
+                                        weekStart: string;
+                                        weekEnd: string;
+                                        done: number;
+                                        scheduled: number;
+                                        confirmed: number;
+                                        confirmationEligible: number;
+                                    };
+                                };
+                                completed: {
+                                    doneSelectedWeek: number;
+                                    donePreviousWeek: number;
+                                    doneSelectedMonth: number;
+                                    donePreviousMonth: number;
+                                    selectedMonth: string;
+                                    previousMonth: string;
+                                };
+                                matrix: {
+                                    inspectors: {
+                                        /** Format: uuid */
+                                        inspectorId: string;
+                                        inspectorName: string;
+                                        isActive: boolean;
+                                        days: number[];
+                                        total: number;
+                                        /** @enum {string} */
+                                        level: "normal" | "busy" | "overloaded";
+                                    }[];
+                                    teamTotalsByDay: number[];
+                                    teamTotal: number;
+                                };
                             };
                         };
                     };

@@ -6,6 +6,7 @@ import type {
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { IInspectorRepository } from '../../domain/inspector.repository';
 import type { IServiceRegionRepository } from '../../../service-region/domain/service-region.repository';
+import type { IInspectorRatingReader } from '../../domain/inspector-rating.reader';
 import { InspectorNotFoundError } from '../../domain/inspector.errors';
 
 export interface GetInspectorInput {
@@ -31,6 +32,8 @@ export interface GetInspectorOutput {
   insuranceExpiresAt: Date | null;
   policeCheckFileKey: string | null;
   policeCheckExpiresAt: Date | null;
+  /** Aggregate reputation only — never individual ratings or comments. */
+  rating: { average: number | null; responseCount: number; doneServicesCount: number };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,6 +42,8 @@ export class GetInspectorUseCase {
   constructor(
     private readonly inspectorRepo: IInspectorRepository,
     private readonly serviceRegionRepo: IServiceRegionRepository,
+    // Optional so existing construction keeps working.
+    private readonly ratingReader?: IInspectorRatingReader,
   ) {}
 
   async execute(input: GetInspectorInput): Promise<GetInspectorOutput> {
@@ -66,6 +71,9 @@ export class GetInspectorUseCase {
     }
 
     const regionIds = await this.serviceRegionRepo.getInspectorRegionIds(inspector.id);
+    const aggregate = this.ratingReader
+      ? (await this.ratingReader.getAggregatesByInspectorIds([inspector.id])).get(inspector.id)
+      : undefined;
 
     return {
       id: inspector.id,
@@ -85,6 +93,12 @@ export class GetInspectorUseCase {
       insuranceExpiresAt: inspector.insuranceExpiresAt,
       policeCheckFileKey: inspector.policeCheckFileKey,
       policeCheckExpiresAt: inspector.policeCheckExpiresAt,
+      rating: {
+        // null, never 0 — see IInspectorRatingReader.
+        average: aggregate?.averageRating ?? null,
+        responseCount: aggregate?.responseCount ?? 0,
+        doneServicesCount: aggregate?.doneServicesCount ?? 0,
+      },
       createdAt: inspector.createdAt,
       updatedAt: inspector.updatedAt,
     };

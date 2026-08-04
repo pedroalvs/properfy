@@ -138,3 +138,60 @@ describe('Sidebar role-based visibility — Reports', () => {
     expect(screen.queryByText('Reports')).not.toBeInTheDocument();
   });
 });
+
+describe('Sidebar role-based visibility — Analytics', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it.each(['AM', 'OP', 'CL_ADMIN', 'CL_USER'])('shows Analytics to %s', (role) => {
+    renderSidebar(role);
+    expect(screen.getByText('Analytics')).toBeInTheDocument();
+  });
+
+  // The Dashboard entry carries no `roles`, so INSP sees it. Analytics is
+  // scoped explicitly to the four business roles instead — an inspector has no
+  // cross-operation view to read.
+  it('hides Analytics from INSP', () => {
+    renderSidebar('INSP');
+    expect(screen.queryByText('Analytics')).not.toBeInTheDocument();
+  });
+
+  it('does not gate Analytics behind view_financials the way Reports is', () => {
+    // Revenue is nulled server-side for a flagless CL_USER; the other eight
+    // panels are still theirs, so the whole screen must not disappear.
+    mockUseAuth.mockReturnValue({ user: { role: 'CL_USER', name: 'Test', clUserPermissions: [] } });
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <Sidebar />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('Analytics')).toBeInTheDocument();
+    expect(screen.queryByText('Reports')).not.toBeInTheDocument();
+  });
+});
+
+describe('Sidebar role-based visibility — Workload', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it.each(['AM', 'OP'])('shows Workload to %s', (role) => {
+    renderSidebar(role);
+    expect(screen.getByText('Workload')).toBeInTheDocument();
+  });
+
+  // Narrower than Analytics on purpose. Inspectors carry no `tenant_id`, so an
+  // agency would only ever see its own slice of an inspector's week and could
+  // not read the capacity thresholds against it.
+  it.each(['CL_ADMIN', 'CL_USER', 'INSP'])('hides Workload from %s', (role) => {
+    renderSidebar(role);
+    expect(screen.queryByText('Workload')).not.toBeInTheDocument();
+  });
+
+  it('shows Analytics but not Workload to an agency admin', () => {
+    renderSidebar('CL_ADMIN');
+    expect(screen.getByText('Analytics')).toBeInTheDocument();
+    expect(screen.queryByText('Workload')).not.toBeInTheDocument();
+  });
+});
