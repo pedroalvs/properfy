@@ -380,8 +380,11 @@ describe('T155 — GIST index correctness', () => {
   // `%` trigram operator on display_name, so without this GIN index every contact
   // search seq-scans the table computing similarity per row.
   it('the trigram index backing contact search actually exists', async () => {
-    const rows = await harness.prisma.$queryRaw<Array<{ indexname: string; amname: string }>>`
-      SELECT i.relname AS indexname, a.amname
+    const rows = await harness.prisma.$queryRaw<
+      Array<{ indexname: string; amname: string; indexdef: string; indisvalid: boolean }>
+    >`
+      SELECT i.relname AS indexname, a.amname,
+             pg_get_indexdef(x.indexrelid) AS indexdef, x.indisvalid
         FROM pg_index x
         JOIN pg_class i ON i.oid = x.indexrelid
         JOIN pg_class t ON t.oid = x.indrelid
@@ -389,7 +392,14 @@ describe('T155 — GIST index correctness', () => {
        WHERE t.relname = 'contacts' AND a.amname = 'gin'
     `;
 
-    expect(rows.map((r) => r.indexname)).toContain('contacts_display_name_trgm_idx');
+    const idx = rows.find((r) => r.indexname === 'contacts_display_name_trgm_idx');
+    expect(idx).toBeDefined();
+    // Name and access method alone would also pass for a GIN index on the wrong
+    // column, or one built without gin_trgm_ops — which would not accelerate
+    // similarity()/% at all. Assert the definition, and that it is usable: an
+    // INVALID index (failed concurrent build) is silently ignored by the planner.
+    expect(idx?.indexdef).toContain('display_name gin_trgm_ops');
+    expect(idx?.indisvalid).toBe(true);
   });
 });
 
@@ -424,11 +434,14 @@ describe('region_number sequence', () => {
 
     // Targets a real, distinct row, so the unique index is what rejects this —
     // an UPDATE matching zero rows would pass without proving anything.
+    // Matched on the constraint name rather than bare toThrow(): any database
+    // error satisfies the latter, so a typo'd column would read as "uniqueness
+    // works".
     await expect(
       harness.prisma.$executeRaw`
         UPDATE service_regions SET region_number = ${taken} WHERE id = ${second.regionId}
       `,
-    ).rejects.toThrow();
+    ).rejects.toThrow(/service_regions_region_number_key|23505/);
   });
 
   // The constraint is table-wide, not per-tenant, which is what makes
@@ -448,6 +461,6 @@ describe('region_number sequence', () => {
       harness.prisma.$executeRaw`
         UPDATE service_regions SET region_number = ${takenByA} WHERE id = ${ownedByB.regionId}
       `,
-    ).rejects.toThrow();
+    ).rejects.toThrow(/service_regions_region_number_key|23505/);
   });
 });
